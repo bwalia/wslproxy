@@ -7,12 +7,6 @@
         <link rel="stylesheet" href="/assets/css/bulma.min.css">
 
         <style>
-            pre code {
-  background-color: #eee;
-  border: 1px solid #999;
-  display: block;
-  padding: 20px;
-}
 
             ol.a {list-style-type: armenian;}
             ol.b {list-style-type: cjk-ideographic;}
@@ -33,15 +27,17 @@
             ol.q {list-style-type: upper-roman;}
             ol.r {list-style-type: none;}
             ol.s {list-style-type: inherit;}
-            </style>
-            
-pre code {
+
+            pre code {
   background-color: #eee;
   border: 1px solid #999;
   display: block;
   padding: 20px;
 }
 
+
+            </style>
+            
     </head>
     <body>
         <section class="hero is-medium is-info is-bold">
@@ -60,110 +56,97 @@ pre code {
             <div class="container">
                 <div class="columns">
                     <div class="column">
-                        <h3 class="title is-3 has-text-centered">Implementation Docs</h3>
+                        <h3 class="title is-3 has-text-centered">Sciensano Openresty</h3>
                         <div class="content">
                             <ul>
-                                <li><a href="/index.html">1. Openresty API Gateway</a></li>
-                                <li><a href="/">2. Secure API using nginx location blocks</a></li>
-                                <li><a href="/">3. URLs Redirect Service (POC)</a></li>
+                                <li><a href="/index.html">1. An Overview of Nginx Openresty</a></li>
+                                <li><a href="/">2. Setup Openresty API Gateway to Secure API using Nginx location blocks configuration</a></li>
+                                <li><a href="/">3. Setup Openresty as CDN URLs Redirect Service (POC)</a></li>
                             </ul>
                         </div>
-                                <li>1. Openresty API Gateway</li>
-
-                                <p>
-About Sciensano Openresty Gateway                                  
-                                    <i>In this example location = / match url format <quote>http://localhost/</quote> or simply <quote>http://localhost</quote></i></p>
-                                </p>
-
+                        <li>1. Overview of Nginx Openresty</li>
+                        <p>
+                        Nginx Openresty is pre compiled combo of Nginx with embedded Lua language which makes it possible to create dynamic custom solutions to manage Web services. Sciensano Openresty API Gateway                                  
+                        <i>Sciensano Openresty API utitlize Nginx Openresty Lua combo to quickly put together custom solutions such as, WAF, HTTP Traffic Router and Proxy, API Gateway and or a CDN Redirect Service. The Openresty has vast amount of integration options such as Mini.io, Keycloak, LDAP and O Auth 2.0 etc. pretty much out of the box</i>
+                        </p>
+                        <p>About Sciensano Openresty API Gateway
+                        <i>In this example location = / match url format <quote>http://localhost/</quote> or simply <quote>http://localhost</quote>
+                        </i>
+                        </p>
                         <hr>
+                        <ol class="q">
+                            <li>Secure API using nginx location blocks</li>
+                            <pre><strong>location = / exact match location</pre>
+                            <p>
+                            url format <quote>http://localhost/</quote> or simply <quote>http://localhost</quote></i>
+                            </p>
+                            <pre><code>
+                                location = / {
+    
+                                    set $jwt_cookie_is_set 'false';
+                            
+                                    access_by_lua_block {
+                                        local cjson = require "cjson"
+                                        local jwt = require "resty.jwt"
+                            
+                                        local jwt_cookie_val = ngx.var.cookie_APP_TOKEN
+                                            -- set jwt cookie if empty
+                                        if jwt_cookie_val ~= nil then
+                                            ngx.log(ngx.INFO, "jwt_cookie_val: " .. jwt_cookie_val)                    
+                                        else
+                                            
+                                            local jwt_token = jwt:sign(
+                                                ngx.var.tokenSecret,
+                                                {
+                                                    header={typ="JWT", alg="HS256"},
+                                                    payload={user="YOUR_USER_EMAIL_OR_NAME"},
+                                                    exp={ngx.time() + 3600}
+                                                }
+                                            )
+                            
+                                        ngx.header['Set-Cookie'] = 'APP_TOKEN=' .. jwt_token .. '; path=/'
+                                        end
+                                        ngx.header['X-Request-Id'] = ngx.var.request_id
+                                    }  
+                                <code></pre>
 
-                        <li>2. Secure API using nginx location blocks</li>
-
-
-                        <pre>
-                            <code>
-                                    location = / {
-
-                                        set $jwt_cookie_is_set 'false';
-                                
-                                        access_by_lua_block {
-                                            local cjson = require "cjson"
-                                            local jwt = require "resty.jwt"
-                                
-                                            local jwt_cookie_val = ngx.var.cookie_APP_TOKEN
-                                                -- set jwt cookie if empty
-                                            if jwt_cookie_val ~= nil then
-                                                ngx.log(ngx.INFO, "jwt_cookie_val: " .. jwt_cookie_val)                    
-                                            else
-                                                
-                                                local jwt_token = jwt:sign(
-                                                    ngx.var.tokenSecret,
-                                                    {
-                                                        header={typ="JWT", alg="HS256"},
-                                                        payload={user="YOUR_USER_EMAIL_OR_NAME"},
-                                                        exp={ngx.time() + 3600}
-                                                    }
-                                                )
-                                
-                                            ngx.header['Set-Cookie'] = 'APP_TOKEN=' .. jwt_token .. '; path=/'
-                                            end
-                                            ngx.header['X-Request-Id'] = ngx.var.request_id
-                                        }  
-                            </code>
-                          
-                            <i>In this example location = / match url format <quote>http://localhost/</quote> or simply <quote>http://localhost</quote></i></p>
-                        </pre>
-
+                                    <li>Secure API using nginx location blocks</li>
+                                    <pre><strong>location = / exact match location</pre>
+                                    <p>
+                                    url format <quote>http://localhost/</quote> or simply <quote>http://localhost</quote></i>
+                                    </p>
+                                    <pre><code>
+                                        location / {
+            
+                                            set $jwt_cookie_is_set 'false';
+                                    
+                                            access_by_lua_block {
+                                                local cjson = require "cjson"
+                                                local jwt = require "resty.jwt"
+                                    
+                                                local jwt_cookie_val = ngx.var.cookie_APP_TOKEN
+                                                    -- set jwt cookie if empty
+                                                if jwt_cookie_val ~= nil then
+                                                    ngx.log(ngx.INFO, "jwt_cookie_val: " .. jwt_cookie_val)                    
+                                                else
+                                                    
+                                                    local jwt_token = jwt:sign(
+                                                        ngx.var.tokenSecret,
+                                                        {
+                                                            header={typ="JWT", alg="HS256"},
+                                                            payload={user="YOUR_USER_EMAIL_OR_NAME"},
+                                                            exp={ngx.time() + 3600}
+                                                        }
+                                                    )
+                                    
+                                                ngx.header['Set-Cookie'] = 'APP_TOKEN=' .. jwt_token .. '; path=/'
+                                                end
+                                                ngx.header['X-Request-Id'] = ngx.var.request_id
+                                            }  
+                                        <code></pre>
+                                        </ol>                                
                 <hr>
 
-
-                        <div class="content">
-                            <ol class="q">
-                                <li>Openresty API Gateway Sample</li>
-
-                                <li>Nginx locations</li>
-                                <p><pre><code>
-                                    location = / {
-
-                                        set $jwt_cookie_is_set 'false';
-                                
-                                        access_by_lua_block {
-                                            local cjson = require "cjson"
-                                            local jwt = require "resty.jwt"
-                                
-                                            local jwt_cookie_val = ngx.var.cookie_APP_TOKEN
-                                                -- set jwt cookie if empty
-                                            if jwt_cookie_val ~= nil then
-                                                ngx.log(ngx.INFO, "jwt_cookie_val: " .. jwt_cookie_val)                    
-                                            else
-                                                
-                                                local jwt_token = jwt:sign(
-                                                    ngx.var.tokenSecret,
-                                                    {
-                                                        header={typ="JWT", alg="HS256"},
-                                                        payload={user="YOUR_USER_EMAIL_OR_NAME"},
-                                                        exp={ngx.time() + 3600}
-                                                    }
-                                                )
-                                
-                                            ngx.header['Set-Cookie'] = 'APP_TOKEN=' .. jwt_token .. '; path=/'
-                                            end
-                                            ngx.header['X-Request-Id'] = ngx.var.request_id
-                                        }  
-                                    <code></pre></p>
-                                    <p>
-                                    <i>In this example location = / match url format <quote>http://localhost/</quote> or simply <quote>http://localhost</quote></i></p>
-                                </p>
-
-                                <li>
-                                <ol class="n">
-
-                                    <li>location block for home page or default response /<li>
-
-                                 </ol>
-                                </li>
-                              </ol>
-                        </div>
 
 
 
