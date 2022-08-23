@@ -6,7 +6,7 @@ RUN apk add --no-cache gcc
 RUN luarocks install lua-resty-openidc
 RUN luarocks install lua-resty-jwt
 
-COPY nginx/test.conf /usr/local/openresty/nginx/conf/nginx.conf
+COPY nginx/nginx.conf /usr/local/openresty/nginx/conf/nginx.conf
 COPY nginx/hd4dp.conf /etc/nginx/conf.d/hd4dp.conf
 
 ENTRYPOINT ["/usr/local/openresty/nginx/sbin/nginx", "-g", "daemon off;"]
