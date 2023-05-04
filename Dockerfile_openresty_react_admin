@@ -1,0 +1,52 @@
+ARG BASE_TAG=latest
+
+#FROM registry.workstation.co.uk/openresty-php:$TAG
+FROM bwalia/openresty-alpine:$BASE_TAG
+
+WORKDIR /usr/local/openresty/nginx/html
+
+RUN apk update && apk upgrade
+RUN apk add --no-cache npm yarn 
+
+RUN node -v
+RUN npm -v
+RUN yarn -v
+
+COPY openresty-admin /usr/local/openresty/nginx/html/openresty-admin
+
+COPY nginx-dev.conf /usr/local/openresty/nginx/conf/nginx.conf
+COPY response.lua /usr/local/openresty/nginx/html/first.lua
+COPY api/ /usr/local/openresty/nginx/html/api
+COPY data/ /usr/local/openresty/nginx/html/data
+COPY nginx-dev.conf /usr/local/openresty/nginx/conf/nginx.conf
+COPY nginx-dev.conf /usr/local/openresty/nginx/conf/nginx.conf
+COPY nginx-dev.conf /usr/local/openresty/nginx/conf/nginx.conf
+COPY nginx-dev.conf /usr/local/openresty/nginx/conf/nginx.conf
+RUN openresty -t
+# RUN touch /usr/local/openresty/nginx/logs/nginx.pid
+# RUN echo "0" > /usr/local/openresty/nginx/logs/nginx.pid
+
+WORKDIR /usr/local/openresty/nginx/html/openresty-admin
+RUN cd /usr/local/openresty/nginx/html/openresty-admin
+
+# Install any needed packages specified in package.json
+RUN yarn install
+# RUN yarn build
+
+RUN ls /usr/local/openresty/nginx/html/openresty-admin
+RUN ls /usr/local/openresty/nginx/html/openresty-admin/public
+
+EXPOSE 5173
+EXPOSE 80
+
+# CMD yarn dev --host
+
+RUN apk add supervisor
+COPY supervisord.conf /etc/
+
+RUN mkdir -p /src/
+COPY start.sh /src/
+RUN chmod +x /src/start.sh
+
+ENTRYPOINT ["bash","-c","/src/start.sh"]
+
