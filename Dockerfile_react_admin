@@ -1,0 +1,26 @@
+ARG ALPINE_IMAGE_VERSION=3.17
+
+ARG ALPINE_IMAGE_BASE="alpine"
+
+FROM ${ALPINE_IMAGE_BASE}:${ALPINE_IMAGE_VERSION}
+
+WORKDIR /app
+
+RUN apk update && apk upgrade
+RUN apk add --no-cache npm yarn tree
+
+RUN node -v
+RUN npm -v
+RUN yarn -v
+
+COPY openresty-admin /app
+
+# Install any needed packages specified in package.json
+RUN yarn install
+# RUN yarn build
+
+RUN tree /app
+
+EXPOSE 5173
+
+CMD yarn dev --host
