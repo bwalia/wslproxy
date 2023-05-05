@@ -3,8 +3,8 @@ const getHeaders = () => {
     const accessToken = JSON.parse(token);
   
     const basicHeaders = {
-      Accept: "application/json",
-      "Content-Type": "application/json",
+      // Accept: "application/json",
+      // "Content-Type": "application/json",
     };
   
     if (accessToken?.access_token) {
@@ -79,8 +79,7 @@ const getHeaders = () => {
       return data;
     },
     create: async (resource, params) => {
-      const pageResource = resource.split("/")[1];
-      const url = `${apiUrl}/${pageResource}?_format=json`;
+      const url = `${apiUrl}/${resource}`;
       const { data } = params;
       data.businessUUID = localStorage.getItem("uuid_business_id");
       try {
@@ -101,16 +100,15 @@ const getHeaders = () => {
       }
     },
     update: async (resource, params) => {
-      const pageResource = resource.split("/")[1];
       const { data } = params;
       const { id } = params;
-      const url = `${apiUrl}/${pageResource}/${id}?_format=json`;
-      data.businessUUID = localStorage.getItem("uuid_business_id");
+      const url = `${apiUrl}/${resource}/${id}`;
       try {
+        console.log({url});
         const response = await fetch(url, {
           method: "PUT",
-          headers: getHeaders(),
           body: JSON.stringify(data),
+          headers: {'Content-Type': 'application/json'},
         });
         if (response.status < 200 || response.status >= 300) {
           localStorage.removeItem("token");

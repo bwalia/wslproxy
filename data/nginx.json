@@ -1,23 +1,25 @@
 {
-	"user": "www www",
-	"worker_processes": 5,
-	"error_log": "logs/error.log",
-	"pid": "logs/nginx.pid",
-	"worker_rlimit_nofile": 8192,
-	"events": {
+	"id": "adsjh34876sdfhjg",
+	"name": "nginx.conf",
+	"context": "root",
+	"type": "nginx",
+	"platform": "bare-metal",
+	"data" : {
+	  "user": "www www",
+	  "worker_processes": 5,
+	  "error_log": "logs/error.log",
+	  "pid": "logs/nginx.pid",
+	  "worker_rlimit_nofile": 8192,
+	  "events": {
 		"worker_connections": 4096
-	},
-	"http": {
+	  },
+	  "http": {
 		"include": [
-			"conf/mime.types",
-			"/etc/nginx/proxy.conf",
-			"/etc/nginx/fastcgi.conf"
+		  "conf/mime.types",
+		  "/etc/nginx/proxy.conf",
+		  "/etc/nginx/fastcgi.conf"
 		],
-		"index": [
-			"index.html",
-			"index.htm",
-			"index.php"
-		],
+		"index": ["index.html", "index.htm", "index.php"],
 		"default_type": "application/octet-stream",
 		"log_format": "main '$remote_addr - $remote_user [$time_local] $status '",
 		"$request": "$body_bytes_sent",
@@ -28,51 +30,53 @@
 		"sendfile": true,
 		"tcp_nopush": true,
 		"server_names_hash_bucket_size": 128,
-		"server": [{
-				"listen": 80,
-				"server_name": "domain1.com www.domain1.com",
-				"access_log": "logs/domain1.access.log main",
-				"root": "html",
-				"location": {
-					"php": {
-						"fastcgi_pass": "127.0.0.1:1025"
-					}
-				}
-			},
-			{
-				"listen": 80,
-				"server_name": "domain2.com www.domain2.com",
-				"access_log": "logs/domain2.access.log main",
-				"location": {
-					"~ ^/(images|javascript|js|css|flash|media|static)/": {
-						"root": "/var/www/virtual/big.server.com/htdocs",
-						"expires": "30d"
-					},
-					"/": {
-						"proxy_pass": "http://127.0.0.1:8080"
-					}
-				}
-			},
-			{
-				"upstream": {
-					"big_server_com": {
-						"server": [
-							"127.0.0.3:8000 weight=5",
-							"127.0.0.3:8001 weight=5",
-							"192.168.0.1:8000",
-							"192.168.0.1:8001"
-						]
-					}
-				},
-				"listen": 80,
-				"server_name": "big.server.com",
-				"access_log": "logs/big.server.access.log main",
-				"location": {
-					"/": {
-						"proxy_pass": "http://big_server_com"
-					}
-				}
+		"server": [
+		  {
+			"listen": 80,
+			"server_name": "domain1.com www.domain1.com",
+			"access_log": "logs/domain1.access.log main",
+			"root": "html",
+			"location": {
+			  "php": {
+				"fastcgi_pass": "127.0.0.1:1025"
+			  }
 			}
+		  },
+		  {
+			"listen": 80,
+			"server_name": "domain2.com www.domain2.com",
+			"access_log": "logs/domain2.access.log main",
+			"location": {
+			  "~ ^/(images|javascript|js|css|flash|media|static)/": {
+				"root": "/var/www/virtual/big.server.com/htdocs",
+				"expires": "30d"
+			  },
+			  "/": {
+				"proxy_pass": "http://127.0.0.1:8080"
+			  }
+			}
+		  },
+		  {
+			"upstream": {
+			  "big_server_com": {
+				"server": [
+				  "127.0.0.3:8000 weight=5",
+				  "127.0.0.3:8001 weight=5",
+				  "192.168.0.1:8000",
+				  "192.168.0.1:8001"
+				]
+			  }
+			},
+			"listen": 80,
+			"server_name": "big.server.com",
+			"access_log": "logs/big.server.access.log main",
+			"location": {
+			  "/": {
+				"proxy_pass": "http://big_server_com"
+			  }
+			}
+		  }
 		]
+	  }
 	}
 }

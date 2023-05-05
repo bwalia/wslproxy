@@ -1,0 +1,19 @@
+name: Whitefalcon Deploy changes
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ feature/* ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout the repo code
+        uses: actions/checkout@v2 
+        with:
+          ref: "main"
+
+      - name: build and run the opsapi docker image unit tests
+        run: chmod +x ./build.sh

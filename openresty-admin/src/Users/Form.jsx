@@ -13,7 +13,7 @@ const Form = () => {
           <TextInput source="email" label="Email" fullWidth type="email" />
         </Grid>
         <Grid item xs={6}>
-          <NumberInput source="phone" label="Phone Number" fullWidth />
+          <TextInput source="phone" label="Phone Number" fullWidth />
         </Grid>
         <Grid item xs={6}>
           <TextInput source="website" label="Website" fullWidth />
@@ -34,7 +34,7 @@ const Form = () => {
           <TextInput source="address.street" fullWidth />
         </Grid>
         <Grid item xs={6}>
-          <NumberInput source="address.zipcode" fullWidth />
+          <TextInput source="address.zipcode" fullWidth />
         </Grid>
       </Grid>
     </SimpleForm>

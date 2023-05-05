@@ -1,4 +1,5 @@
 local json = require("cjson")
+-- local jwt = require "resty.jwt"
 local _Users = {}
 function _Users.getusers()
     local data = {
@@ -242,32 +243,66 @@ function _Users.getusers()
     return json_str
 end
 
-function _Users.getuser(id)
-    local data = {
-        data = {
-            {
-                id = 1,
-                name = "Leanne Graham",
-                username = "Bret",
-                email = "Sincere@april.biz",
-                address = {
-                    street = "Kulas Light",
-                    suite = "Apt. 556",
-                    city = "Gwenborough",
-                    zipcode = "92998-3874",
-                    geo = {
-                        lat = "-37.3159",
-                        lng = "81.1496"
-                    }
-                },
-            }
-        }
-    }
+    -- function _Users.getuser(args)
+    --     do return args end
+    --     local id = ngx.var.id
+    --     local query_string = ngx.var.query_string
+    --     ngx.log(ngx.DEBUG, "ID is: " .. (id or "nil"))
+    --     ngx.log(ngx.DEBUG, "Query string is: " .. (query_string or "nil"))
+    --     local data = {
+    --         data = {
+    --             {
+    --                 id = 1,
+    --                 name = "Leanne Graham",
+    --                 username = "Bret",
+    --                 email = "Sincere@april.biz",
+    --                 address = {
+    --                     street = "Kulas Light",
+    --                     suite = "Apt. 556",
+    --                     city = "Gwenborough",
+    --                     zipcode = "92998-3874",
+    --                     geo = {
+    --                         lat = "-37.3159",
+    --                         lng = "81.1496"
+    --                     }
+    --                 },
+    --             }
+    --         }
+    --     }
 
-    -- Encode the table as a JSON string
-    local json_str = json.encode(data)
-    -- Return the JSON string
-    return json_str
-end
+    --     -- Encode the table as a JSON string
+    --     local json_str = json.encode(data)
+    --     -- Return the JSON string
+    --     return json_str
+    -- end
+
+    -- local function generate_token(payload, secret, expiration)
+    --     local jwt_token = jwt:sign(secret, payload, expiration)
+    --     return jwt_token
+    -- end
+
+    -- local function authenticate(username, password)
+    --     -- TODO: Implement authentication logic
+    --     -- Check the username and password against a database or other user store
+    --     -- Return true if the user is authenticated, false otherwise
+    -- end
+
+    -- function _Users.login()
+    --     local username = ngx.req.get_post_args()["username"]
+    --     local password = ngx.req.get_post_args()["password"]
+    --     if authenticate(username, password) then
+    --         local payload = {
+    --             sub = username,
+    --             exp = ngx.time() + 3600 -- Token expires in 1 hour
+    --         }
+    --         local secret = "my_secret_key"
+    --         local token = generate_token(payload, secret, 3600)
+    --         ngx.say(token)
+    --     else
+    --         ngx.status = ngx.HTTP_UNAUTHORIZED
+    --         ngx.say("Invalid credentials")
+    --     end
+    -- end
+
 
 return _Users

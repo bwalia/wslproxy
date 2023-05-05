@@ -1,0 +1,12 @@
+{
+  "id": "a89ba9c618234c9099e2e2a04a58eea2",
+  "listen": 80,
+  "server_name": "domain1.com www.domain1.com",
+  "access_log": "logs/domain1.access.log main",
+  "root": "html",
+  "location": {
+    "php": {
+      "fastcgi_pass": "127.0.0.1:1025"
+    }
+  }
+}
