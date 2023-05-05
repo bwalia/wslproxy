@@ -15,5 +15,5 @@ jobs:
         with:
           ref: "main"
 
-      - name: build and run the opsapi docker image unit tests
-        run: chmod +x ./build.sh
+      - name: build and run the white falcon docker image
+        run: chmod +x ./build.sh "${{ secrets.DOCKER_USER }}" "${{ DOCKER_PASSWD }}"
