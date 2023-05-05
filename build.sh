@@ -2,7 +2,7 @@
 
 set -x
 
-DOCKER_PUBLIC_IMAGE_NAME=bwalia/openresty-alpine
+DOCKER_PUBLIC_IMAGE_NAME=bwalia/whitefalcon
 VERSION=latest
 
 docker build -t ${DOCKER_PUBLIC_IMAGE_NAME}:${VERSION} -f Dockerfile .
