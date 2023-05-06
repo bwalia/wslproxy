@@ -1,4 +1,5 @@
 local cjson = require "cjson"
+local jwt = require "resty.jwt"
 
 local function generate_uuid()
     local random = math.random(1000000000)                                            -- generate a random number
@@ -12,6 +13,69 @@ end
 local function is_uuid(str)
     local uuid_pattern = "^([0-9a-fA-F]-){4}[0-9a-fA-F]-([0-9a-fA-F]-){3}[0-9a-fA-F]$"
     return string.match(str, uuid_pattern) ~= nil
+end
+
+local function hash_password(password)
+    local resty_sha256 = require "resty.sha256"
+    local sha256 = resty_sha256:new()
+    sha256:update(password)
+    local digest = sha256:final()
+    local hash = ngx.encode_base64(digest)
+    return hash
+end
+
+local function generateToken()
+    return jwt:sign(
+        "HCsKpxQ4hU97V5us5TCwvLnAVBgLqNd1dP2R-4Uywg7946J3zAqT9EOA5hdWRCQn",
+        {
+            header = { typ = "JWT", alg = "HS256" },
+            payload = { sub = "123456", exp = ngx.time() + 3600 }
+        }
+    )
+end
+
+-- Authentication
+
+local function login(args)
+    local file, err = io.open("/usr/local/openresty/nginx/html/data/settings.json", "rb")
+    if file == nil then
+        ngx.say("Couldn't read file: " .. err)
+    else
+        local jsonString = file:read "*a"
+        file:close()
+        local settings = cjson.decode(jsonString)
+        local suEmail = settings.super_user.email
+        local suPassword = settings.super_user.password
+
+        local keyset = {}
+        local n = 0
+        for k, v in pairs(args) do
+            n = n + 1
+            if type(v) == "string" then
+                table.insert(keyset, cjson.decode(k .. v))
+            else
+                table.insert(keyset, cjson.decode(k))
+            end
+        end
+        local payloads = keyset[1]
+        local password = hash_password(payloads.password)
+        if suEmail == payloads.email and suPassword == password then
+            ngx.status = ngx.OK
+            ngx.say(cjson.encode({
+                data = {
+                    user = payloads,
+                    accessToken = generateToken()
+                },
+                status = 200
+            }))
+        else
+            ngx.status = ngx.HTTP_UNAUTHORIZED
+            ngx.say(cjson.encode({
+                data = "Invalid credentials",
+                status = 401
+            }))
+        end
+    end
 end
 
 -- Servers APIs
@@ -117,7 +181,7 @@ local function listUser(args, uuid)
     end
 end
 
-local function createUpdateUser(body)
+local function createUpdateUser(body, uuid)
     local file, err = io.open("/usr/local/openresty/nginx/html/data/users.json", "rb")
     if file == nil then
         ngx.say("Couldn't read file: " .. err)
@@ -125,9 +189,37 @@ local function createUpdateUser(body)
         local jsonString = file:read "*a"
         file:close()
         local users = cjson.decode(jsonString)
-        body.id = generate_uuid()
-        -- table.insert(users, body)
-        ngx.say(cjson.encode(body))
+        local keyset = {}
+        local n = 0
+        for k, v in pairs(body) do
+            n = n + 1
+            if type(v) == "string" then
+                table.insert(keyset, cjson.decode(k .. v))
+            else
+                table.insert(keyset, cjson.decode(k))
+            end
+        end
+        local payloads = keyset[1]
+
+        if uuid then
+            for key, value in pairs(users) do
+                if users[key]["id"] == uuid then
+                    users[key] = payloads
+                end
+            end
+        else
+            payloads.id = generate_uuid()
+        end
+
+        table.insert(users, payloads)
+        local writableFile, writableErr = io.open("/usr/local/openresty/nginx/html/data/users.json", "w")
+        if writableFile == nil then
+            ngx.say("Couldn't write file: " .. writableErr)
+        else
+            writableFile:write(cjson.encode(users))
+            writableFile:close()
+            ngx.say(cjson.encode({ data = payloads }))
+        end
     end
 end
 
@@ -162,6 +254,9 @@ local function handle_post_request(args, path)
     if path == "users" then
         createUpdateUser(args)
     end
+    if path == "user/login" then
+        login(args)
+    end
 end
 
 -- Function to handle PUT requests
@@ -171,6 +266,11 @@ local function handle_put_request(args, path)
         local pattern = ".*/(.*)"
         local uuid = string.match(path, pattern)
         createUpdateServer(args, uuid)
+    end
+    if string.find(path, "users") then
+        local pattern = ".*/(.*)"
+        local uuid = string.match(path, pattern)
+        createUpdateUser(args, uuid)
     end
 end
 

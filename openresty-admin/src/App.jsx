@@ -12,7 +12,7 @@ const App = () => (
   <Admin
     loginPage={Login}
     dataProvider={dataProvider(API_URL)}
-    // authProvider={authProvider}
+    authProvider={authProvider}
     dashboard={Dashboard}
   >
     <Resource name="users" {...Users} />
