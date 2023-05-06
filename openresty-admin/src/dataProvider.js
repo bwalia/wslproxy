@@ -7,8 +7,8 @@ const getHeaders = () => {
       // "Content-Type": "application/json",
     };
   
-    if (accessToken?.access_token) {
-      basicHeaders.Authorization = `Bearer ${accessToken.access_token}`;
+    if (accessToken?.accessToken) {
+      basicHeaders.Authorization = `Bearer ${accessToken.accessToken}`;
     }
     return basicHeaders;
   };

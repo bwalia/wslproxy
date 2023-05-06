@@ -1,0 +1,12 @@
+{
+    "redis_host": "",
+    "redis_port": "localhost",
+    "super_user": {
+        "username": "admin",
+        "password": "jGl25bVBBBW96Qi9Te4V37Fnqchz/Eu4qB9vKrRIqRg=",
+        "email": "ejeyd@example.com"
+    },
+    "roles": [
+        "release_manager", "admin", "read_only", "read_write"
+    ]
+}

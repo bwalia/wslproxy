@@ -18,15 +18,15 @@ const authProvider = {
         }
         return response.json();
       })
-      .then(({ access_token, user }) => {
+      .then(({ data }) => {
         const expiryDate = new Date();
+        const { accessToken } = data
         expiryDate.setSeconds(expiryDate.getSeconds() + 3600);
         const token = {
-          access_token,
+          accessToken,
           expiryDate,
         };
         localStorage.setItem("token", JSON.stringify(token));
-        localStorage.setItem("uuid_business_id", user.uuid_business_id);
       });
     return Promise.resolve();
   },
