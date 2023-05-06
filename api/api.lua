@@ -200,7 +200,17 @@ local function createUpdateUser(body, uuid)
             end
         end
         local payloads = keyset[1]
-        payloads.id = generate_uuid()
+
+        if uuid then
+            for key, value in pairs(users) do
+                if users[key]["id"] == uuid then
+                    users[key] = payloads
+                end
+            end
+        else
+            payloads.id = generate_uuid()
+        end
+
         table.insert(users, payloads)
         local writableFile, writableErr = io.open("/usr/local/openresty/nginx/html/data/users.json", "w")
         if writableFile == nil then
@@ -256,6 +266,11 @@ local function handle_put_request(args, path)
         local pattern = ".*/(.*)"
         local uuid = string.match(path, pattern)
         createUpdateServer(args, uuid)
+    end
+    if string.find(path, "users") then
+        local pattern = ".*/(.*)"
+        local uuid = string.match(path, pattern)
+        createUpdateUser(args, uuid)
     end
 end
 

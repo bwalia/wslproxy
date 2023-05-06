@@ -108,7 +108,7 @@ const getHeaders = () => {
         const response = await fetch(url, {
           method: "PUT",
           body: JSON.stringify(data),
-          headers: {'Content-Type': 'application/json'},
+          headers: getHeaders(),
         });
         if (response.status < 200 || response.status >= 300) {
           localStorage.removeItem("token");
