@@ -1,5 +1,13 @@
 local cjson = require "cjson"
 local jwt = require "resty.jwt"
+local redis = require "resty.redis"
+local red = redis:new()
+red:set_timeout(1000) -- 1 second
+local ok, err = red:connect("redis", 6379)
+if not ok then
+    ngx.log(ngx.ERR, "failed to connect to Redis: ", err)
+    return
+end
 
 local function generate_uuid()
     local random = math.random(1000000000)                                            -- generate a random number
@@ -138,8 +146,10 @@ local function createUpdateServer(body, uuid)
     local payloads = keyset[1]
     payloads.id = serverId
     if file then
+        local serverData = payloads.server_data
+        serverData.id = serverId
         -- Write the JSON data to the file
-        file:write(cjson.encode(payloads))
+        file:write(serverData)
         -- Close the file
         file:close()
         return ngx.say(cjson.encode({ data = { id = serverId } }))

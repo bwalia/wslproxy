@@ -184,6 +184,7 @@ ENV PATH=$PATH:/usr/local/openresty/luajit/bin:/usr/local/openresty/nginx/sbin:/
 
 RUN /usr/local/openresty/bin/openresty -V
 RUN opm get toopy/lua-resty-jwt
+RUN opm get openresty/lua-resty-redis
 COPY ./openresty-admin ./
 RUN yarn install
 RUN yarn build

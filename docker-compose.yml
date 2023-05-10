@@ -2,16 +2,17 @@ version: "3.7"
 services:
   server:
     container_name: openresty-alpine
+    restart: always
     build:
       context: .
       dockerfile: Dockerfile
     ports:
       - "8080:80"
     volumes:
-      - ./nginx-dev.conf:/usr/local/openresty/nginx/conf/nginx.conf:ro
-      - ./openresty-admin:/usr/local/openresty/nginx/html/openresty-admin:ro      
-      - ./data:/usr/local/openresty/nginx/html/data:ro
-      - ./api:/usr/local/openresty/nginx/html/api:ro
+      - ./nginx-dev.conf:/usr/local/openresty/nginx/conf/nginx.conf
+      - ./openresty-admin:/usr/local/openresty/nginx/html/openresty-admin   
+      - ./data:/usr/local/openresty/nginx/html/data
+      - ./api:/usr/local/openresty/nginx/html/api
     environment:
       FLASK_DEBUG: "true"
 
