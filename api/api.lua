@@ -146,10 +146,8 @@ local function createUpdateServer(body, uuid)
     local payloads = keyset[1]
     payloads.id = serverId
     if file then
-        local serverData = payloads.server_data
-        serverData.id = serverId
         -- Write the JSON data to the file
-        file:write(serverData)
+        file:write(cjson.encode(payloads))
         -- Close the file
         file:close()
         return ngx.say(cjson.encode({ data = { id = serverId } }))

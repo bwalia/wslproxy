@@ -81,7 +81,6 @@ const getHeaders = () => {
     create: async (resource, params) => {
       const url = `${apiUrl}/${resource}`;
       const { data } = params;
-      data.businessUUID = localStorage.getItem("uuid_business_id");
       try {
         const response = await fetch(url, {
           method: "POST",
