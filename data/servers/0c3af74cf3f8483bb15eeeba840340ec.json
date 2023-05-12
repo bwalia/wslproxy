@@ -1,15 +1,1 @@
-{
-  "id": "0c3af74cf3f8483bb15eeeba840340ec",
-  "listen": 80,
-  "server_name": "domain2.com www.domain2.com",
-  "access_log": "logs/domain2.access.log main",
-  "location": {
-    "~ ^/(images|javascript|js|css|flash|media|static)/": {
-      "root": "/var/www/virtual/big.server.com/htdocs",
-      "expires": "30d"
-    },
-    "/": {
-      "proxy_pass": "http://127.0.0.1:8080"
-    }
-  }
-}
+{"listen":9000,"id":"0c3af74cf3f8483bb15eeeba840340ec","server_text":"server {listen       9000; listen       somename:9000; server_name  somename  alias  another.alias; location \/ { root   html; index  index.html index.htm; }}","server_name":"domain2.com www.domain2.com"}

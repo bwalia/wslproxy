@@ -1,7 +1,7 @@
 version: "3.7"
 services:
   server:
-    container_name: openresty-alpine
+    container_name: whitefalcon
     restart: always
     build:
       context: .
@@ -17,6 +17,7 @@ services:
       FLASK_DEBUG: "true"
 
   redis:
+    container_name: whitefalcon-redis
     image: "redis:alpine"
     ports:
       - "6379:6379"

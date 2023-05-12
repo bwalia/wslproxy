@@ -1,5 +1,13 @@
 local cjson = require "cjson"
 local jwt = require "resty.jwt"
+local redis = require "resty.redis"
+local red = redis:new()
+red:set_timeout(1000) -- 1 second
+local ok, err = red:connect("redis", 6379)
+if not ok then
+    ngx.log(ngx.ERR, "failed to connect to Redis: ", err)
+    return
+end
 
 local function generate_uuid()
     local random = math.random(1000000000)                                            -- generate a random number
@@ -80,31 +88,61 @@ end
 
 -- Servers APIs
 
-local function listServers()
-    local files = {}
-    -- Run the 'ls' command to get a list of filenames
-    local output = io.popen("ls /usr/local/openresty/nginx/html/data/servers"):read("*all")
-    for filename in string.gmatch(output, "[^\r\n]+") do
-        table.insert(files, filename)
-    end
-    -- Print the list of filenames
-    for _, filename in ipairs(files) do
-        print(filename)
-    end
-    local jsonData = {}
-    for _, filename in ipairs(files) do
-        local file, err = io.open("/usr/local/openresty/nginx/html/data/servers/" .. filename, "rb")
-        if file == nil then
-            ngx.say("Couldn't read file: " .. err)
-        else
-            local jsonString = file:read "*a"
-            file:close()
-            local servers = cjson.decode(jsonString)
+-- local function listServers()
+--     local files = {}
+--     -- Run the 'ls' command to get a list of filenames
+--     local output, error = io.popen("ls /usr/local/openresty/nginx/html/data/servers"):read("*all")
 
-            jsonData[_] = servers
+--     for filename in string.gmatch(output, "[^\r\n]+") do
+--         table.insert(files, filename)
+--     end
+--     local localFilesCount = #files
+--     local getAllRecords, allServers, readFromLocal, redServers = {}, {}, true, {}
+--     getAllRecords = red:get("servers");
+--     if type(getAllRecords) == "string" then
+--         allServers = cjson.decode(getAllRecords)
+--         for index, server in pairs(allServers) do
+--             table.insert(redServers, server)
+--         end
+--     end
+
+--     do return ngx.say(#redServers) end
+--     -- if localFilesCount == redisFilesCount then
+--     --     readFromLocal = true
+--     -- else
+--     --     for key, value in ipairs(allServers) do
+--     --         do return ngx.say(cjson.encode(value)) end
+--     --     end
+--     --     os.execute("rm /usr/local/openresty/nginx/html/data/servers/*")
+--     -- end
+--     local jsonData = {}
+--     if readFromLocal then
+--         for _, filename in ipairs(files) do
+--             local file, err = io.open("/usr/local/openresty/nginx/html/data/servers/" .. filename, "rb")
+--             if file == nil then
+--                 ngx.say("Couldn't read file: " .. err)
+--             else
+--                 local jsonString = file:read "*a"
+--                 file:close()
+--                 local servers = cjson.decode(jsonString)
+
+--                 jsonData[_] = servers
+--             end
+--         end
+--     end
+--     return ngx.say(cjson.encode({ data = jsonData, total = 3 }))
+-- end
+
+local function listServers()
+    local getAllRecords = red:get("servers");
+    local allServers, servers = {}, {}
+    if type(getAllRecords) == "string" then
+        allServers = cjson.decode(getAllRecords)
+        for index, server in pairs(allServers) do
+            table.insert(servers, server)
         end
+        return ngx.say(cjson.encode({ data = servers, total = #servers }))
     end
-    return ngx.say(cjson.encode({ data = jsonData, total = 3 }))
 end
 
 local function listServer(args, id)
@@ -139,9 +177,22 @@ local function createUpdateServer(body, uuid)
     payloads.id = serverId
     if file then
         -- Write the JSON data to the file
+        local allServers = {}
+        local getAllRecords = {}
         file:write(cjson.encode(payloads))
         -- Close the file
         file:close()
+        getAllRecords = red:get("servers");
+        if type(getAllRecords) == "string" then
+            allServers = cjson.decode(getAllRecords)
+        end
+        allServers[serverId] = payloads
+        local res, redErr = red:set("servers", cjson.encode(allServers))
+        if not res then
+            ngx.status = 500
+            ngx.say("Failed to save JSON data to Redis: ", redErr)
+            return
+        end
         return ngx.say(cjson.encode({ data = { id = serverId } }))
     else
         ngx.say("Error opening file", err)
