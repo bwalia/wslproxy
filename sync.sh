@@ -2,10 +2,13 @@
 
 clear
 
-docker cp nginx-dev.conf openresty-alpine:/usr/local/openresty/nginx/conf/nginx.conf
-docker cp response.lua openresty-alpine:/usr/local/openresty/nginx/html/first.lua
-docker cp api/ openresty-alpine:/usr/local/openresty/nginx/html/
-docker cp data/ openresty-alpine:/usr/local/openresty/nginx/html/
-docker cp openresty-admin/src openresty-alpine:/usr/local/openresty/nginx/html/openresty-admin/
-docker exec -it openresty-alpine openresty -t 
-docker exec -it openresty-alpine openresty -s reload
+DOCKER_CONTAINER_NAME="openresty-alpine"
+DOCKER_CONTAINER_NAME="whitefalcon"
+
+docker cp nginx-dev.conf ${DOCKER_CONTAINER_NAME}:/usr/local/openresty/nginx/conf/nginx.conf
+docker cp response.lua ${DOCKER_CONTAINER_NAME}:/usr/local/openresty/nginx/html/first.lua
+docker cp api/ ${DOCKER_CONTAINER_NAME}:/usr/local/openresty/nginx/html/
+docker cp data/ ${DOCKER_CONTAINER_NAME}:/usr/local/openresty/nginx/html/
+docker cp openresty-admin/src ${DOCKER_CONTAINER_NAME}:/usr/local/openresty/nginx/html/openresty-admin/
+docker exec -it ${DOCKER_CONTAINER_NAME} openresty -t 
+docker exec -it ${DOCKER_CONTAINER_NAME} openresty -s reload
