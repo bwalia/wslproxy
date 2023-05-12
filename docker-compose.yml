@@ -14,7 +14,7 @@ services:
       - ./data:/usr/local/openresty/nginx/html/data
       - ./api:/usr/local/openresty/nginx/html/api
     environment:
-      FLASK_DEBUG: "true"
+      LUA_DEBUG: "true"
 
   redis:
     container_name: whitefalcon-redis
