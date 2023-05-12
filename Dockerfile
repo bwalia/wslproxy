@@ -76,4 +76,7 @@ COPY ./openresty-admin /usr/local/openresty/nginx/html/openresty-admin
 COPY ./data /usr/local/openresty/nginx/data
 COPY ./api /usr/local/openresty/nginx/api
 
+RUN yarn install
+RUN yarn build
+
 ENTRYPOINT ["/usr/local/openresty/nginx/sbin/nginx", "-g", "daemon off;"] 
