@@ -1,0 +1,68 @@
+{
+	"lua_red_1": { "user": "nobody nobody" },
+	"lua_red_2": {"worker_processes": 5},
+	"lua_red_3": { "error_log": "logs/error.log"},
+	"lua_red_4": { "pid": "logs/nginx.pid"},
+	"lua_red_5": { "worker_rlimit_nofile": 8192},
+	"lua_red_6": {"events": {"worker_connections": 4096} },
+	"lua_red_7": {
+		"http": {
+			"lua_red_1": {
+				"include": ["include conf/mime.types",			
+					"include /etc/nginx/proxy.conf",
+					"include /tmp/myngixservers/*.conf",
+					"include  /etc/nginx/fastcgi.conf"
+					]
+			},"lua_red_2": {
+				"index": "index.html index.html index.php"
+			},"lua_red_3": {
+				"default_type": "application/octet-stream"
+			},"lua_red_4": {
+				"log_format": [
+					"main '$remote_addr - $remote_user [$time_local]  $status '","'\"$request\" $body_bytes_sent \"$http_referer\" '",
+					"'\"$http_user_agent\" \"$http_x_forwarded_for\"'"
+					]
+			},"lua_red_5": {
+				"access_log": "logs/access.log main"
+			},"lua_red_6": {
+				"sendfile": "on"
+			},"lua_red_7": {
+				"tcp_nopush": "on"
+			},"lua_red_8": {
+				"server_names_hash_bucket_size": 128
+			},"lua_red_9": {
+				"upstream big_server_com": [
+					"server 127.0.0.3:8000 weight=5",
+					"server 127.0.0.3:8001 weight=5",
+					"server 192.168.0.1:8000",
+					"server 192.168.0.1:8001"
+					]
+			},"lua_red_10": {
+				"server": [{
+					"listen": 80,
+					"server_name": "domain1.com www.domain1.com",
+					"access_log": "logs/domain1.access.log main",
+					"root": "html",
+					"location ~ \\.php$": { "fastcgi_pass": "127.0.0.1:1025"}
+				},
+				{
+					"listen": 80,
+					"server_name": "domain2.com www.domain2.com",
+					"access_log": "logs/domain2.access.log main",
+					"location ~ ^/(images|javascript|js|css|flash|media|static)/": {
+							"root": "/var/www/virtual/big.server.com/htdocs",
+							"expires": "30d"
+					}
+				},{
+					"listen": 80,
+					"server_name": "big.server.com",
+					"access_log": "logs/big.server.access.log main",
+					"location /": {
+							"proxy_pass": "http://big_server_com"
+					}
+				}
+				]
+			}
+		} 
+	}
+}

@@ -77,9 +77,12 @@ RUN apk update && \
     zlib \
     vim \
     git \
-    g++ 
+    g++ \
+    npm \
+    yarn
     
 ARG SOURCES_DIR="/src"
+ARG WORK_DIR="/usr/local/openresty/nginx/html/openresty-admin"
 
 RUN mkdir -p ${SOURCES_DIR} && cd ${SOURCES_DIR}
 
@@ -87,7 +90,7 @@ ARG OPENRESTY_SOCKET_DIR="/var/run/openresty"
 ARG LOGS_DIR="/var/log/nginx"
 RUN mkdir -p ${LOGS_DIR}
 
-WORKDIR ${SOURCES_DIR}
+WORKDIR ${WORK_DIR}
 
 RUN cd ${SOURCES_DIR} && wget https://openresty.org/download/openresty-1.11.2.5.tar.gz -O ${SOURCES_DIR}/openresty-1.11.2.5.tar.gz \
     && tar -zxvf ${SOURCES_DIR}/openresty-1.11.2.5.tar.gz
@@ -180,6 +183,11 @@ RUN rm -rf ${SOURCES_DIR}
 ENV PATH=$PATH:/usr/local/openresty/luajit/bin:/usr/local/openresty/nginx/sbin:/usr/local/openresty/bin
 
 RUN /usr/local/openresty/bin/openresty -V
+RUN opm get toopy/lua-resty-jwt
+RUN opm get openresty/lua-resty-redis
+COPY ./openresty-admin ./
+RUN yarn install
+RUN yarn build
 
 CMD ["/usr/local/openresty/bin/openresty", "-g", "daemon off;"]
 
