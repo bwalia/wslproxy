@@ -36,6 +36,8 @@ RUN apk add --no-cache --virtual .build-deps \
         perl \
         unzip \
         wget \
+        npm \
+        yarn \
     && cd /tmp \
     && curl -fSL https://luarocks.github.io/luarocks/releases/luarocks-${RESTY_LUAROCKS_VERSION}.tar.gz -o luarocks-${RESTY_LUAROCKS_VERSION}.tar.gz \
     && tar xzf luarocks-${RESTY_LUAROCKS_VERSION}.tar.gz \
