@@ -70,7 +70,6 @@ RUN luarocks install lua-resty-session
 # COPY nginx/hd4dp.conf /etc/nginx/conf.d/hd4dp.conf
 # COPY nginx/sessions_demo_server.conf /etc/nginx/conf.d/sessions_demo_server.conf
 COPY nginx-dev.conf /usr/local/openresty/nginx/conf/nginx.conf
-
-COPY ./openresty-admin ./
+COPY ./openresty-admin /usr/local/openresty/nginx/html/
 
 ENTRYPOINT ["/usr/local/openresty/nginx/sbin/nginx", "-g", "daemon off;"] 
