@@ -67,6 +67,8 @@ ENV LUA_CPATH="/usr/local/openresty/site/lualib/?.so;/usr/local/openresty/lualib
 RUN luarocks install lua-resty-openidc
 RUN luarocks install lua-resty-jwt
 RUN luarocks install lua-resty-session
+RUN luarocks install lua-resty-http
+RUN opm get ip2location/ip2location-resty
 
 #COPY nginx/test.conf /usr/local/openresty/nginx/conf/nginx.conf
 # COPY nginx/hd4dp.conf /etc/nginx/conf.d/hd4dp.conf
@@ -75,6 +77,7 @@ COPY nginx-dev.conf /usr/local/openresty/nginx/conf/nginx.conf
 COPY ./openresty-admin /usr/local/openresty/nginx/html/openresty-admin
 COPY ./data /usr/local/openresty/nginx/data
 COPY ./api /usr/local/openresty/nginx/api
+COPY ./IP2LOCATION-LITE-DB11.IPV6.BIN /tmp
 
 RUN cd /usr/local/openresty/nginx/html/openresty-admin && yarn install && yarn build
 

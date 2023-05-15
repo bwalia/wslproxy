@@ -1,0 +1,45 @@
+{
+	"total": 1,
+	"data": [{
+		"name": "security_rule_1",
+		"version": "1",
+		"priority": 1,
+		"match": {
+			"client_ip": "149.5.25.178",
+			"operator": {
+				"lookup": "equals"
+			},
+			"response": {
+				"allow": "true"
+			}
+		}
+	},
+	{
+		"name": "security_rule_2",
+		"version": "1",
+		"priority": 2,
+		"match": {
+			"client_ip": "106.196.55.155",
+			"operator": {
+				"lookup": "equals"
+			},
+			"response": {
+				"allow": "true"
+			}
+		}
+	},
+	{
+		"name": "security_rule_3",
+		"version": "1",
+		"priority": 3,
+		"match": {
+			"path": "/api/",
+			"operator": {
+				"lookup": "prefix"
+			},
+			"response": {
+				"allow": "true"
+			}
+		}
+	}]
+}
