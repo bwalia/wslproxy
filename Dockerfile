@@ -75,6 +75,7 @@ RUN opm get ip2location/ip2location-resty
 # COPY nginx/sessions_demo_server.conf /etc/nginx/conf.d/sessions_demo_server.conf
 COPY nginx-dev.conf /usr/local/openresty/nginx/conf/nginx.conf
 COPY ./openresty-admin /usr/local/openresty/nginx/html/openresty-admin
+
 COPY ./data /usr/local/openresty/nginx/data
 COPY ./api /usr/local/openresty/nginx/api
 COPY ./IP2LOCATION-LITE-DB11.IPV6.BIN /tmp

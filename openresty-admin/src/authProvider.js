@@ -2,7 +2,7 @@ const authProvider = {
   // send username and password to the auth server and get back credentials
   login: async (params) => {
     const { email, password } = params;
-    const request = new Request("http://localhost:8080/api/user/login ", {
+    const request = new Request("https://test.whitefalcon.io/api/user/login ", {
       method: "POST",
       body: JSON.stringify({ email, password }),
       headers: new Headers({
