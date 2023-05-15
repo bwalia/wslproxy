@@ -6,7 +6,7 @@ import Sessions from "./Sessions";
 import Users from "./Users";
 import Login from "./Login";
 import Servers from "./Servers";
-const API_URL = "http://localhost:8080/api";
+const API_URL = "https://test.whitefalcon.io/api";
 
 const App = () => (
   <Admin
