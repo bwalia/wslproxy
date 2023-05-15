@@ -26,6 +26,7 @@ RUN apk add --no-cache --virtual .build-deps \
         perl-dev \
     && apk add --no-cache \
         bash \
+        aws-cli \
         build-base \
         curl \
         libintl \ 
@@ -78,7 +79,9 @@ COPY ./openresty-admin /usr/local/openresty/nginx/html/openresty-admin
 
 COPY ./data /usr/local/openresty/nginx/data
 COPY ./api /usr/local/openresty/nginx/api
-COPY ./IP2LOCATION-LITE-DB11.IPV6.BIN /tmp
+
+RUN cd /tmp/ && wget s3://edgeone-public/src/openresty/IP2LOCATION-LITE-DB11.IPV6.BIN/IP2LOCATION-LITE-DB11.IPV6.BIN -O /tmp/IP2LOCATION-LITE-DB11.IPV6.BIN
+#COPY ./IP2LOCATION-LITE-DB11.IPV6.BIN /tmp
 
 RUN cd /usr/local/openresty/nginx/html/openresty-admin && yarn install && yarn build
 

@@ -3,7 +3,14 @@ local jwt = require "resty.jwt"
 local redis = require "resty.redis"
 local red = redis:new()
 red:set_timeout(1000) -- 1 second
-local ok, err = red:connect("redis-service.test.svc.cluster.local", 6379)
+
+local redisHost = os.getenv("REDIS_HOST")
+
+if  redisHost == nil then
+    redisHost = "redis-service.test.svc.cluster.local"
+end
+
+local ok, err = red:connect(redisHost, 6379)
 if not ok then
     ngx.log(ngx.ERR, "failed to connect to Redis: ", err)
     return
