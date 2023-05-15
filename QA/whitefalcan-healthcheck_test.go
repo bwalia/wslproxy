@@ -1,9 +1,9 @@
 package main
 
 import (
-	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
 	"testing"
 )
 
@@ -26,14 +26,14 @@ func TestHealthCheck(t *testing.T) {
 		t.Log(err)
 	}
 
-	fmt.Println(string(body))
+	//fmt.Println(string(body))
 
-	// if !strings.Contains(string(body), "pong") {
-	// 	t.Error("Returned unexpected body ")
-	// } else {
-	// 	t.Log("Received response pong")
-	// }
-	if res.StatusCode != http.StatusNotFound {
+	if !strings.Contains(string(body), "pong") {
+		t.Error("Returned unexpected body ")
+	} else {
+		t.Log("Received response pong")
+	}
+	if res.StatusCode != http.StatusOK {
 		t.Error("Unexpected response status code", res.StatusCode)
 		return
 	}
