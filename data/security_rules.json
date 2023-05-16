@@ -1,16 +1,37 @@
 {
-	"total": 1,
+	"total": 4,
 	"data": [{
+		"name": "security_rule_0",
+		"version": "1",
+		"priority": 0,
+		"match": {
+			"rules":{
+				"path": "/"
+			},
+			"operator": {
+				"lookup": "prefix"
+			},
+			"response": {
+				"allow": "true",
+				"code": 200,
+				"message": "Hello world, You are allowed!!"
+			}
+		}
+	},{
 		"name": "security_rule_1",
 		"version": "1",
 		"priority": 1,
 		"match": {
-			"client_ip": "149.5.25.178",
+			"rules":{
+				"client_ip": "149.5.25.178"
+			},
 			"operator": {
 				"lookup": "equals"
 			},
 			"response": {
-				"allow": "true"
+				"allow": "true",
+				"code": 1000,
+				"redirect_uri": "http://www.domain.com"
 			}
 		}
 	},
@@ -19,12 +40,17 @@
 		"version": "1",
 		"priority": 2,
 		"match": {
-			"client_ip": "106.196.55.155",
+			"rules":{
+				"client_ip": "106.196.55.155",
+				"country": "US"
+			},
 			"operator": {
-				"lookup": "equals"
+				"lookup": "and"
 			},
 			"response": {
-				"allow": "true"
+				"allow": "true",
+				"code": 1001,
+				"redirect_uri": ""
 			}
 		}
 	},
@@ -33,12 +59,16 @@
 		"version": "1",
 		"priority": 3,
 		"match": {
-			"path": "/api/",
+			"rules":{
+				"path": "/api/"
+			},
 			"operator": {
 				"lookup": "prefix"
 			},
 			"response": {
-				"allow": "true"
+				"allow": "false",
+				"code": 1002,
+				"message": "no data found!!"
 			}
 		}
 	}]
