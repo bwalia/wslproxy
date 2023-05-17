@@ -69,6 +69,7 @@ RUN luarocks install lua-resty-openidc
 RUN luarocks install lua-resty-jwt
 RUN luarocks install lua-resty-session
 RUN luarocks install lua-resty-http
+RUN luarocks install base64
 RUN opm get ip2location/ip2location-resty
 
 #COPY nginx/test.conf /usr/local/openresty/nginx/conf/nginx.conf

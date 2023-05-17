@@ -2,7 +2,12 @@
 -- ngx.exit(ngx.HTTP_FORBIDDEN)
 client_ip = ngx.var.remote_addr
 client_ip='149.5.25.178'
--- ngx.say("Client IP: ", client_ip)
+local ip2location = require('ip2location')
+local ip2loc = ip2location:new('/tmp/IP2LOCATION-LITE-DB11.IPV6.BIN')
+local result = ip2loc:get_all(client_ip)
+country = ""
+if result.country_short then country = result.country_short end
+-- ngx.say("country: ", country)
 
 -- local handle = io.popen("wget -qO- ifconfig.co")
 -- local result = handle:read("*a")
@@ -27,27 +32,115 @@ client_ip='149.5.25.178'
 local cjson = require("cjson")
 local json_str
 local data = ""
+txt = ""
 
-function parse_rules(json_data,public_ip)
+function tablelength(T)
+    local count = 0
+    for _ in pairs(T) do count = count + 1 end
+    return count
+end
+
+function check_conditions_loop(rules)
+
+    local check_condition = 0
+    for key,value in pairs(rules) do
+
+        if key=='path' and string.match(ngx.var.request_uri, value)  then
+            txt = txt .. "Rule Passed: " .. key .. " - " ..value .. "\n"
+            check_condition = check_condition + 1
+        end
+        
+        if key=='client_ip' and value == client_ip  then
+            txt = txt .. "Rule Passed: " .. key .. " - " ..value .. "\n"
+            check_condition = check_condition + 1
+        end
+
+        if key=='country' and value == country  then
+            txt = txt .. "Rule Passed: " .. key .. " - " ..value .. "\n"
+            check_condition = check_condition + 1
+        end
+
+    end
+    return check_condition
+    
+end
+
+function parse_rules(json_data,client_ip)
     if json_data.data and #json_data.data > 0 then
-        local txt = ""
-        local checkbreak
         for k,v in next,json_data.data do 
             -- txt = txt .. v.name
+            local checkbreak = false
             if v.match.rules then
-                for key,value in pairs(v.match.rules) do 
-                    if key=='path' and v.match.operator.lookup and v.match.operator.lookup == 'prefix' and string.match(ngx.var.request_uri, value)  then
-                        txt = txt .. "Rule Passed: " .. key .. " - " ..value .. "\n"
+                local total = tablelength(v.match.rules)
+                local lookup = v.match.operator.lookup
+                if total == 1 then
+                    local n,t = pairs(v.match.rules)
+                    local firstKey, firstValue = n(t)
+
+                    if firstKey=='path' and lookup == 'prefix' and string.match(ngx.var.request_uri, firstValue)  then
+                        txt = txt .. "Rule Passed: " .. firstKey .. " - " ..firstValue .. "\n"
+                    elseif firstKey=='client_ip' and lookup == 'equals' and firstValue == client_ip  then
+                        txt = txt .. "Rule Passed: " .. firstKey .. " - " ..firstValue .. "\n"
+                    elseif firstKey=='country' and lookup == 'equals' and firstValue == country  then
+                        txt = txt .. "Rule Passed: " .. firstKey .. " - " ..firstValue .. "\n"
                     else
                         txt = false
                         checkbreak = true
                         break
                     end
-                end                
+                    
+                elseif total>1 and lookup == 'or' then
+                    local check_condition = check_conditions_loop(v.match.rules)
+
+                    if check_condition > 0 then
+                        txt = txt .. "OR Condition satisfy \n"
+                    else
+                        txt = false
+                        checkbreak = true
+                        break
+                    end
+
+                elseif total>1 and lookup == 'and' then
+                    local check_condition = check_conditions_loop(v.match.rules)
+
+                    if check_condition == total then
+                        txt = txt .. "AND Condition satisfy \n"
+                    else
+                        txt = false
+                        checkbreak = true
+                        break
+                    end
+
+
+                end
+
+                -- for key,value in pairs(v.match.rules) do 
+                --     if key=='path' and v.match.operator.lookup and v.match.operator.lookup == 'prefix' and string.match(ngx.var.request_uri, value)  then
+                --         txt = txt .. "Rule Passed: " .. key .. " - " ..value .. "\n"
+                --     elseif key=='client_ip' and v.match.operator.lookup and v.match.operator.lookup == 'equals' and value == client_ip  then
+                --         txt = txt .. "Rule Passed: " .. key .. " - " ..value .. "\n"
+                --     else
+                --         txt = false
+                --         checkbreak = true
+                --         break
+                --     end
+                -- end                
             end
-            if v.priority == 0 or checkbreak then
-                break
-            end
+            
+            if checkbreak == false and v.match.response.message then txt = txt .. "Response: " .. v.match.response.message .. "\n" end
+
+            if checkbreak == false and v.match.response.redirect_uri then 
+                txt = txt .. "redirect_uri: " .. v.match.response.redirect_uri .. "\n"                 
+                -- ngx.redirect(v.match.response.redirect_uri) return
+            end    
+            
+            if checkbreak == false and v.match.response.body_base64 then 
+                base64 = require "base64"
+                txt = txt .. "body_base64: " .. base64.decode(v.match.response.body_base64) .. "\n"
+            end  
+
+
+            if checkbreak then  break  end
         end
         return txt
     else
@@ -73,6 +166,7 @@ if client_ip then
     -- local ip2location = require('ip2location')
     -- local ip2loc = ip2location:new('/tmp/IP2LOCATION-LITE-DB11.IPV6.BIN')
     -- local result = ip2loc:get_all(client_ip)
+    -- local country = result.country_short
     -- ngx.say("country_short: " .. result.country_short)
     -- ngx.say("country_long: " .. result.country_long)
     -- ngx.say("region: " .. result.region)
