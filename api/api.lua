@@ -7,7 +7,7 @@ red:set_timeout(1000) -- 1 second
 local redisHost = os.getenv("REDIS_HOST")
 
 if  redisHost == nil then
-    redisHost = "redis-service.test.svc.cluster.local"
+    redisHost = "localhost"
 end
 
 local ok, err = red:connect(redisHost, 6379)
@@ -149,6 +149,8 @@ local function listServers()
             table.insert(servers, server)
         end
         return ngx.say(cjson.encode({ data = servers, total = #servers }))
+    else 
+        return ngx.say(cjson.encode({ data = {}, total = 0 }))
     end
 end
 
