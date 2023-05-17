@@ -6,6 +6,11 @@ import Sessions from "./Sessions";
 import Users from "./Users";
 import Login from "./Login";
 import Servers from "./Servers";
+import Theme from "./Theme";
+import UserIcon from '@mui/icons-material/Group';
+import SessionIcon from '@mui/icons-material/HistoryToggleOff';
+import ServerIcon from '@mui/icons-material/Storage';
+
 const API_URL = "https://test.whitefalcon.io/api";
 
 const App = () => (
@@ -14,10 +19,11 @@ const App = () => (
     dataProvider={dataProvider(API_URL)}
     authProvider={authProvider}
     dashboard={Dashboard}
+    theme={Theme}
   >
-    <Resource name="users" {...Users} />
-    <Resource name="sessions" {...Sessions} />
-    <Resource name="servers" {...Servers} />
+    <Resource name="users" {...Users} icon={UserIcon} />
+    <Resource name="sessions" {...Sessions} icon={SessionIcon} />
+    <Resource name="servers" {...Servers} icon={ServerIcon} />
   </Admin>
 );
 
