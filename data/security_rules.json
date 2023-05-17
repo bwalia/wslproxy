@@ -1,5 +1,5 @@
 {
-	"total": 4,
+	"total": 5,
 	"data": [{
 		"name": "security_rule_0",
 		"version": "1",
@@ -31,7 +31,8 @@
 			"response": {
 				"allow": "true",
 				"code": 1000,
-				"redirect_uri": "http://www.domain.com"
+				"redirect_uri": "http://www.domain.com",
+				"message": "Your IP allowed!!"
 			}
 		}
 	},
@@ -42,25 +43,42 @@
 		"match": {
 			"rules":{
 				"client_ip": "106.196.55.155",
-				"country": "US"
+				"country": "BE"
 			},
 			"operator": {
-				"lookup": "and"
+				"lookup": "or"
 			},
 			"response": {
 				"allow": "true",
-				"code": 1001,
-				"redirect_uri": ""
+				"code": 1001
 			}
 		}
 	},
 	{
 		"name": "security_rule_3",
 		"version": "1",
+		"priority": 2,
+		"match": {
+			"rules":{
+				"client_ip": "149.5.25.178",
+				"country": "BE"
+			},
+			"operator": {
+				"lookup": "and"
+			},
+			"response": {
+				"allow": "true",
+				"code": 1001
+			}
+		}
+	},
+	{
+		"name": "security_rule_4",
+		"version": "1",
 		"priority": 3,
 		"match": {
 			"rules":{
-				"path": "/api/"
+				"path": "/security"
 			},
 			"operator": {
 				"lookup": "prefix"
@@ -68,7 +86,8 @@
 			"response": {
 				"allow": "false",
 				"code": 1002,
-				"message": "no data found!!"
+				"message": "see body defined below",
+				"body_base64":"PGgxPnRoaXMgYm9keSBjb21lIGZyb20gYmFzZTY0PC9oMT4K"
 			}
 		}
 	}]
