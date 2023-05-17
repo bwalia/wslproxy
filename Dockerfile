@@ -77,8 +77,8 @@ RUN opm get ip2location/ip2location-resty
 COPY nginx-dev.conf /usr/local/openresty/nginx/conf/nginx.conf
 COPY ./openresty-admin /usr/local/openresty/nginx/html/openresty-admin
 
-COPY ./data /usr/local/openresty/nginx/data
-COPY ./api /usr/local/openresty/nginx/api
+COPY ./data /usr/local/openresty/nginx/html/data
+COPY ./api /usr/local/openresty/nginx/html/api
 
 RUN cd /tmp/ && wget https://edgeone-public.s3.eu-west-2.amazonaws.com/src/openresty/IP2LOCATION-LITE-DB11.IPV6.BIN/IP2LOCATION-LITE-DB11.IPV6.BIN -O /tmp/IP2LOCATION-LITE-DB11.IPV6.BIN
 #COPY ./IP2LOCATION-LITE-DB11.IPV6.BIN /tmp
