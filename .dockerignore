@@ -1,0 +1,15 @@
+# Files and directories to ignore when copying to the Docker image
+
+# Node.js dependencies
+openresty-admin/node_modules
+
+# Build output
+openresty-admin/dist
+
+# Development-specific files
+openresty-admin/*.log
+openresty-admin/.DS_Store
+openresty-admin/.env.local
+openresty-admin/.env.development.local
+openresty-admin/.env.test.local
+openresty-admin/.env.production.local
