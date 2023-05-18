@@ -6,7 +6,7 @@ red:set_timeout(1000) -- 1 second
 
 local redisHost = os.getenv("REDIS_HOST")
 
-if  redisHost == nil then
+if redisHost == nil then
     redisHost = "localhost"
 end
 
@@ -102,7 +102,7 @@ end
 
 --     for filename in string.gmatch(output, "[^\r\n]+") do
 --         table.insert(files, filename)
-    --     end
+--     end
 --     local localFilesCount = #files
 --     local getAllRecords, allServers, readFromLocal, redServers = {}, {}, true, {}
 --     getAllRecords = red:get("servers");
@@ -149,7 +149,7 @@ local function listServers()
             table.insert(servers, server)
         end
         return ngx.say(cjson.encode({ data = servers, total = #servers }))
-    else 
+    else
         return ngx.say(cjson.encode({ data = {}, total = 0 }))
     end
 end
@@ -283,6 +283,39 @@ local function createUpdateUser(body, uuid)
     end
 end
 
+-- Storage management
+
+local function setStorage(body)
+    local file, err = io.open("/usr/local/openresty/nginx/html/data/settings.json", "rb")
+    if file == nil then
+        ngx.say("Couldn't read file: " .. err)
+    else
+        local keyset = {}
+        local n = 0
+        for k, v in pairs(body) do
+            n = n + 1
+            if type(v) == "string" then
+                table.insert(keyset, cjson.decode(k .. v))
+            else
+                table.insert(keyset, cjson.decode(k))
+            end
+        end
+        local payloads = keyset[1]
+        local jsonString = file:read "*a"
+        file:close()
+        local writableFile, writableErr = io.open("/usr/local/openresty/nginx/html/data/settings.json", "w")
+        local settings = cjson.decode(jsonString)
+        settings.storage_type = payloads.storage
+        if writableFile == nil then
+            ngx.say("Couldn't write file: " .. writableErr)
+        else
+            writableFile:write(cjson.encode(settings))
+            writableFile:close()
+            ngx.say(cjson.encode({ data = { storage = settings.storage_type } }))
+        end
+    end
+end
+
 local function handle_get_request(args, path)
     -- handle GET request logic
     local delimiter = "/"
@@ -316,6 +349,9 @@ local function handle_post_request(args, path)
     end
     if path == "user/login" then
         login(args)
+    end
+    if path == "storage/management" then
+        setStorage(args)
     end
 end
 

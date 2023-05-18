@@ -120,14 +120,12 @@ const getHeaders = () => {
         console.error("Error:", error);
       }
     },
-    getResource: async (resource, params) => {
+    saveStorageFlag: async (resource, params) => {
       try {
-        params.businessUUID = localStorage.getItem("uuid_business_id");
-        const url = `${apiUrl}/${resource}?_format=json&${JSON.stringify(
-          params
-        )}`;
+        const url = `${apiUrl}/${resource}?_format=json`;
         const response = await fetch(url, {
-          method: "GET",
+          method: "POST",
+          body: JSON.stringify(params),
           headers: getHeaders(),
         });
         if (response.status < 200 || response.status >= 300) {
