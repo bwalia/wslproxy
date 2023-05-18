@@ -20,7 +20,7 @@ local data = {
     response = "pong",
     deployment_time = "20230510055429",
     db_connection = db_connect,
-    up_time =  result -- "10:45:05 up  7:44,  0 users,  load average: 1.46, 1.18, 1.02"
+    uptime =  result -- "10:45:05 up  7:44,  0 users,  load average: 1.46, 1.18, 1.02"
 
 }
 -- Encode the table as a JSON string

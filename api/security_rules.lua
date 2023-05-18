@@ -66,8 +66,8 @@ function check_conditions_loop(rules)
 end
 
 function parse_rules(json_data,client_ip)
-    if json_data.data and #json_data.data > 0 then
-        for k,v in next,json_data.data do 
+    if json_data and #json_data > 0 then
+        for k,v in next,json_data do 
             -- txt = txt .. v.name
             local checkbreak = false
             if v.match.rules then
