@@ -14,42 +14,18 @@ const Form = () => {
   return (
     <SimpleForm>
       <ArrayInput source="data">
-        <SimpleFormIterator>
-          <Grid container spacing={2}>
-            <Grid item xs={6}>
-              <TextInput source="name" fullWidth />
-            </Grid>
-            <Grid item xs={3}>
-              <NumberInput source="version" fullWidth />
-            </Grid>
-            <Grid item xs={3}>
-              <NumberInput source="priority" fullWidth />
-            </Grid>
-            <Grid item xs={4}>
-              <TextInput source="match.rules.path" fullWidth />
-            </Grid>
-            <Grid item xs={4}>
-              <NumberInput source="match.rules.client_ip" fullWidth />
-            </Grid>
-            <Grid item xs={4}>
-              <TextInput source="match.rules.country" fullWidth />
-            </Grid>
-            <Grid item xs={2}>
-              <TextInput source="match.operator.lookup" fullWidth />
-            </Grid>
-            <Grid item xs={2}>
-              <NumberInput source="match.response.code" fullWidth />
-            </Grid>
-            <Grid item xs={6}>
-              <TextInput source="match.response.redirect_uri" fullWidth />
-            </Grid>
-            <Grid item xs={2}>
-              <BooleanInput source="match.response.allow" fullWidth />
-            </Grid>
-            <Grid item xs={12}>
-              <TextInput multiline source="match.response.message" fullWidth />
-            </Grid>
-          </Grid>
+        <SimpleFormIterator inline>
+          <TextInput source="name" fullWidth />
+          <NumberInput source="version" fullWidth />
+          <NumberInput source="priority" fullWidth />
+          <TextInput source="match.rules.path" fullWidth />
+          <NumberInput source="match.rules.client_ip" fullWidth />
+          <TextInput source="match.rules.country" fullWidth />
+          <TextInput source="match.operator.lookup" fullWidth />
+          <NumberInput source="match.response.code" fullWidth />
+          <TextInput source="match.response.redirect_uri" fullWidth />
+          <BooleanInput source="match.response.allow" fullWidth />
+          <TextInput multiline source="match.response.message" fullWidth />
         </SimpleFormIterator>
       </ArrayInput>
     </SimpleForm>
