@@ -4,7 +4,7 @@ import { BooleanField, Datagrid, NumberField, List as RaList, TextField } from '
 const List = () => {
   return (
     <RaList title={"Rules"}>
-        <Datagrid>
+        <Datagrid rowClick="edit">
             <TextField source='name' />
             <TextField source='priority' />
             <TextField source='match.rules.path' />
