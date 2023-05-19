@@ -93,6 +93,37 @@ local function login(args)
     end
 end
 
+local function setStorage(body)
+    local file, err = io.open("/usr/local/openresty/nginx/html/data/settings.json", "rb")
+    if file == nil then
+        ngx.say("Couldn't read file: " .. err)
+    else
+        local keyset = {}
+        local n = 0
+        for k, v in pairs(body) do
+            n = n + 1
+            if type(v) == "string" then
+                table.insert(keyset, cjson.decode(k .. v))
+            else
+                table.insert(keyset, cjson.decode(k))
+            end
+        end
+        local payloads = keyset[1]
+        local jsonString = file:read "*a"
+        file:close()
+        local writableFile, writableErr = io.open("/usr/local/openresty/nginx/html/data/settings.json", "w")
+        local settings = cjson.decode(jsonString)
+        settings.storage_type = payloads.storage
+        if writableFile == nil then
+            ngx.say("Couldn't write file: " .. writableErr)
+        else
+            writableFile:write(cjson.encode(settings))
+            writableFile:close()
+            ngx.say(cjson.encode({ data = { storage = settings.storage_type } }))
+        end
+    end
+end
+
 -- Servers APIs
 
 -- local function listServers()
@@ -283,13 +314,56 @@ local function createUpdateUser(body, uuid)
     end
 end
 
--- Storage management
 
-local function setStorage(body)
-    local file, err = io.open("/usr/local/openresty/nginx/html/data/settings.json", "rb")
+-- HTTP Request rules:
+local function listRules()
+    -- local file, err = io.open("/usr/local/openresty/nginx/html/data/security_rules.json", "rb")
+    -- if file == nil then
+    --     ngx.say("Couldn't read file: " .. err)
+    -- else
+    --     local jsonString = file:read "*a"
+    --     file:close()
+    --     local rules = cjson.decode(jsonString)
+    --     ngx.say(cjson.encode({
+    --         data = rules,
+    --         total = 5
+    --     }))
+    -- end
+
+    local exist_values, err = red:hgetall("request_rules")
+    local array = {}
+    for key, value in pairs(exist_values) do
+        if key%2 == 0 then table.insert(array, cjson.decode(value)) end
+    end
+    ngx.say({ cjson.encode({ data = array,total = 5 }) })
+end
+
+local function listRule(args, uuid)
+    -- local file, err = io.open("/usr/local/openresty/nginx/html/data/security_rules.json", "rb")
+    -- if file == nil then
+    --     ngx.say("Couldn't read file: " .. err)
+    -- else
+    --     local jsonString = file:read "*a"
+    --     file:close()
+    --     local rules = cjson.decode(jsonString)
+        -- for key, value in pairs(rules) do
+        --     if rules[key]["id"] == uuid then
+        --         ngx.say({ cjson.encode({ data = value }) })
+        --     end
+        -- end
+        local exist_value, err = red:hget("request_rules",uuid)
+        ngx.say({ cjson.encode({ data = cjson.decode(exist_value) }) })
+    -- end
+end
+
+local function createUpdateRules(body, uuid)
+    local file, err = io.open("/usr/local/openresty/nginx/html/data/security_rules.json", "rb")
     if file == nil then
         ngx.say("Couldn't read file: " .. err)
     else
+        local jsonString = file:read "*a"
+        file:close()
+        local rules = cjson.decode(jsonString)
         local keyset = {}
         local n = 0
         for k, v in pairs(body) do
@@ -301,17 +375,42 @@ local function setStorage(body)
             end
         end
         local payloads = keyset[1]
-        local jsonString = file:read "*a"
-        file:close()
-        local writableFile, writableErr = io.open("/usr/local/openresty/nginx/html/data/settings.json", "w")
-        local settings = cjson.decode(jsonString)
-        settings.storage_type = payloads.storage
+
+        if payloads.data and #payloads.data>0 and not uuid then
+            payloads = payloads.data
+        end
+
+
+        if uuid then
+            for key, value in pairs(rules) do
+                if rules[key]["id"] == uuid then
+                    rules[key] = payloads
+                    local redis_json = {}
+                    redis_json[uuid] = cjson.encode(payloads)
+                    local inserted, err = red:hmset("request_rules", redis_json)
+                end
+            end
+        -- else
+        --     payloads.id = generate_uuid()
+        end
+        if #payloads>0 and not uuid then 
+            for pkey, pvalue in pairs(payloads) do
+                pvalue.id = generate_uuid()
+                table.insert(rules, pvalue)
+
+                local redis_json = {}
+                redis_json[pvalue.id] = cjson.encode(pvalue)
+                local inserted, err = red:hmset("request_rules", redis_json)
+            end
+        end
+
+        local writableFile, writableErr = io.open("/usr/local/openresty/nginx/html/data/security_rules.json", "w")
         if writableFile == nil then
             ngx.say("Couldn't write file: " .. writableErr)
         else
-            writableFile:write(cjson.encode(settings))
+            writableFile:write(cjson.encode(rules))
             writableFile:close()
-            ngx.say(cjson.encode({ data = { storage = settings.storage_type } }))
+            ngx.say(cjson.encode({ data = uuid }))
         end
     end
 end
@@ -337,6 +436,12 @@ local function handle_get_request(args, path)
     elseif uuid and (#uuid == 36 or #uuid == 32) and subPath[1] == "users" then
         listUser(args, uuid)
     end
+
+    if path == "rules" then
+        listRules()
+    elseif uuid and (#uuid == 36 or #uuid == 32) and subPath[1] == "rules" then
+        listRule(args, uuid)
+    end
 end
 
 local function handle_post_request(args, path)
@@ -346,6 +451,9 @@ local function handle_post_request(args, path)
     end
     if path == "users" then
         createUpdateUser(args)
+    end
+    if path == "rules" then
+        createUpdateRules(args)
     end
     if path == "user/login" then
         login(args)
@@ -367,6 +475,12 @@ local function handle_put_request(args, path)
         local pattern = ".*/(.*)"
         local uuid = string.match(path, pattern)
         createUpdateUser(args, uuid)
+    end
+
+    if string.find(path, "rules") then
+        local pattern = ".*/(.*)"
+        local uuid = string.match(path, pattern)
+        createUpdateRules(args, uuid)
     end
 end
 

@@ -1,94 +1,621 @@
-{
-	"total": 5,
-	"data": [{
-		"name": "security_rule_0",
-		"version": "1",
-		"priority": 0,
-		"match": {
-			"rules":{
-				"path": "/"
-			},
-			"operator": {
-				"lookup": "prefix"
-			},
-			"response": {
-				"allow": "true",
-				"code": 200,
-				"message": "Hello world, You are allowed!!"
-			}
-		}
-	},{
-		"name": "security_rule_1",
-		"version": "1",
-		"priority": 1,
-		"match": {
-			"rules":{
-				"client_ip": "149.5.25.178"
-			},
-			"operator": {
-				"lookup": "equals"
-			},
-			"response": {
-				"allow": "true",
-				"code": 1000,
-				"redirect_uri": "http://www.domain.com",
-				"message": "Your IP allowed!!"
-			}
-		}
-	},
-	{
-		"name": "security_rule_2",
-		"version": "1",
-		"priority": 2,
-		"match": {
-			"rules":{
-				"client_ip": "106.196.55.155",
-				"country": "BE"
-			},
-			"operator": {
-				"lookup": "or"
-			},
-			"response": {
-				"allow": "true",
-				"code": 1001
-			}
-		}
-	},
-	{
-		"name": "security_rule_3",
-		"version": "1",
-		"priority": 2,
-		"match": {
-			"rules":{
-				"client_ip": "149.5.25.178",
-				"country": "BE"
-			},
-			"operator": {
-				"lookup": "and"
-			},
-			"response": {
-				"allow": "true",
-				"code": 1001
-			}
-		}
-	},
-	{
-		"name": "security_rule_4",
-		"version": "1",
-		"priority": 3,
-		"match": {
-			"rules":{
-				"path": "/security"
-			},
-			"operator": {
-				"lookup": "prefix"
-			},
-			"response": {
-				"allow": "false",
-				"code": 1002,
-				"message": "see body defined below",
-				"body_base64":"PGgxPnRoaXMgYm9keSBjb21lIGZyb20gYmFzZTY0PC9oMT4K"
-			}
-		}
-	}]
-}
+[
+    {
+        "version": "1",
+        "id": 1,
+        "name": "security_rule_0",
+        "match": {
+            "operator": {
+                "lookup": "prefix"
+            },
+            "response": {
+                "message": "Hello world, You are allowed!!",
+                "code": 200,
+                "allow": "true"
+            },
+            "rules": {
+                "path": "\/"
+            }
+        },
+        "priority": 0
+    },
+    {
+        "version": "1",
+        "id": 2,
+        "name": "security_rule_1",
+        "match": {
+            "operator": {
+                "lookup": "equals"
+            },
+            "response": {
+                "message": "Your IP allowed!!",
+                "code": 1000,
+                "allow": "true",
+                "redirect_uri": "http:\/\/www.domain.com"
+            },
+            "rules": {
+                "client_ip": "149.5.25.178"
+            }
+        },
+        "priority": 1
+    },
+    {
+        "version": "1",
+        "id": 3,
+        "name": "security_rule_2",
+        "match": {
+            "operator": {
+                "lookup": "or"
+            },
+            "response": {
+                "allow": "true",
+                "code": 1001
+            },
+            "rules": {
+                "client_ip": "106.196.55.155",
+                "country": "BE"
+            }
+        },
+        "priority": 2
+    },
+    {
+        "version": "1",
+        "id": 4,
+        "name": "security_rule_3",
+        "match": {
+            "operator": {
+                "lookup": "and"
+            },
+            "response": {
+                "allow": "true",
+                "code": 1001
+            },
+            "rules": {
+                "client_ip": "149.5.25.178",
+                "country": "BE"
+            }
+        },
+        "priority": 2
+    },
+    {
+        "version": "1",
+        "id": 5,
+        "name": "security_rule_4",
+        "match": {
+            "operator": {
+                "lookup": "prefix"
+            },
+            "response": {
+                "message": "see body defined below",
+                "body_base64": "PGgxPnRoaXMgYm9keSBjb21lIGZyb20gYmFzZTY0PC9oMT4K",
+                "allow": "false",
+                "code": 1002
+            },
+            "rules": {
+                "path": "\/security"
+            }
+        },
+        "priority": 3
+    },
+    {
+        "version": 1,
+        "match.rules.client_ip": "",
+        "match.response.redirect_uri": "",
+        "match.rules.path": "",
+        "match.response.message": "",
+        "match.response.allow": "",
+        "id": "a99b48db-cb71-fc06-f02b-68cdd1655c24",
+        "priority": 2,
+        "name": "new 1",
+        "match.rules.country": "",
+        "match.response.code": "",
+        "match": {
+            "operator": {
+                "lookup": "or"
+            },
+            "response": {
+                "message": "m1",
+                "code": 200,
+                "allow": false,
+                "redirect_uri": "url"
+            },
+            "rules": {
+                "client_ip": null,
+                "path": "\/"
+            }
+        },
+        "match.operator.lookup": ""
+    },
+    {
+        "version": 2,
+        "match.rules.client_ip": "",
+        "match.response.redirect_uri": "",
+        "priority": 4,
+        "match.response.message": "",
+        "data": [
+            ""
+        ],
+        "match.rules.path": "",
+        "id": "4d5d9185-c2e7-f01b-680f-1edebec8a57d",
+        "match.rules.country": "",
+        "name": "new 2 6666666666666",
+        "match.response.code": "",
+        "match.response.allow": "",
+        "match": {
+            "operator": {
+                "lookup": "or"
+            },
+            "response": {
+                "message": "m2",
+                "code": 199,
+                "allow": false,
+                "redirect_uri": "url"
+            },
+            "rules": {
+                "country": "IN",
+                "client_ip": null,
+                "path": "\/"
+            }
+        },
+        "match.operator.lookup": ""
+    },
+    {
+        "version": 2,
+        "match.rules.client_ip": "",
+        "match.response.redirect_uri": "",
+        "match.rules.path": "",
+        "match.response.message": "",
+        "match.response.allow": "",
+        "id": "8309feb1-3c6c-44fa-30cf-67074373e198",
+        "priority": 3,
+        "name": "new 3",
+        "match.rules.country": "",
+        "match.response.code": "",
+        "match": {
+            "operator": {
+                "lookup": "and"
+            },
+            "response": {
+                "message": "n3234234",
+                "code": 200,
+                "allow": false,
+                "redirect_uri": "url"
+            },
+            "rules": {
+                "country": "IN",
+                "client_ip": 1234234,
+                "path": "\/"
+            }
+        },
+        "match.operator.lookup": ""
+    },
+    {
+        "version": 1,
+        "id": "c76db647-254a-9b23-3e13-e381323b5316",
+        "match": {
+            "operator": {
+                "lookup": "and"
+            },
+            "response": {
+                "message": "msg8",
+                "code": 200,
+                "allow": false,
+                "redirect_uri": "url_test"
+            },
+            "rules": {
+                "country": "IN",
+                "client_ip": 23423423,
+                "path": "\/"
+            }
+        },
+        "priority": 2,
+        "name": "name testc333 666",
+        "data": [
+            ""
+        ]
+    },
+    {
+        "version": 3,
+        "match.rules.client_ip": "",
+        "match.response.redirect_uri": "",
+        "match.rules.path": "",
+        "match.response.message": "",
+        "match.response.allow": "",
+        "id": "1430f7e5-2a1a-4cca-32f1-eadf23206869",
+        "priority": 5,
+        "name": "name test 898989898",
+        "match.rules.country": "",
+        "match.response.code": "",
+        "match": {
+            "operator": {
+                "lookup": "equals"
+            },
+            "response": {
+                "message": "sdfsfsdf",
+                "code": 200,
+                "allow": false,
+                "redirect_uri": "url"
+            },
+            "rules": {
+                "client_ip": null,
+                "path": "\/path"
+            }
+        },
+        "match.operator.lookup": ""
+    },
+    {
+        "version": 3,
+        "match.rules.client_ip": "",
+        "match.response.redirect_uri": "",
+        "match.rules.path": "",
+        "match.response.message": "",
+        "match.response.allow": "",
+        "id": "58d9908b-8fee-048d-1519-bb4c8b9fa093",
+        "priority": 5,
+        "name": "name test 898989898",
+        "match.rules.country": "",
+        "match.response.code": "",
+        "match": {
+            "operator": {
+                "lookup": "equals"
+            },
+            "response": {
+                "message": "sdfsfsdf",
+                "code": 200,
+                "allow": false,
+                "redirect_uri": "url"
+            },
+            "rules": {
+                "client_ip": null,
+                "path": "\/path"
+            }
+        },
+        "match.operator.lookup": ""
+    },
+    {
+        "version": 3,
+        "match.rules.client_ip": "",
+        "match.response.redirect_uri": "",
+        "match.rules.path": "",
+        "match.response.message": "",
+        "match.response.allow": "",
+        "id": "60fc5ca8-b832-0e1e-5271-9c609d26b6d5",
+        "priority": 3,
+        "name": "body",
+        "match.rules.country": "",
+        "match.response.code": "",
+        "match": {
+            "operator": {
+                "lookup": "or"
+            },
+            "response": {
+                "message": "message",
+                "code": 200,
+                "allow": false,
+                "redirect_uri": "url"
+            },
+            "rules": {
+                "country": "IN",
+                "client_ip": null,
+                "path": "\/path"
+            }
+        },
+        "match.operator.lookup": ""
+    },
+    {
+        "version": 3,
+        "match.rules.client_ip": "",
+        "match.response.redirect_uri": "",
+        "match.rules.path": "",
+        "match.response.message": "",
+        "match.response.allow": "",
+        "id": "7115493e-4afc-72b6-0bdb-50a4d5ea5ec6",
+        "priority": 5,
+        "name": "name test444444",
+        "match.rules.country": "",
+        "match.response.code": "",
+        "match": {
+            "operator": {
+                "lookup": "or"
+            },
+            "response": {
+                "message": "sdsdfsd",
+                "code": 200,
+                "allow": false,
+                "redirect_uri": "url testing....."
+            },
+            "rules": {
+                "country": "IN",
+                "client_ip": null,
+                "path": "\/path44"
+            }
+        },
+        "match.operator.lookup": ""
+    },
+    {
+        "version": 3,
+        "match.rules.client_ip": "",
+        "match.response.redirect_uri": "",
+        "match.rules.path": "",
+        "match.response.message": "",
+        "match.response.allow": "",
+        "id": "372f1a4e-3a8a-abba-88ef-c67cd1a234dc",
+        "priority": 5,
+        "name": "name test444444",
+        "match.rules.country": "",
+        "match.response.code": "",
+        "match": {
+            "operator": {
+                "lookup": "or"
+            },
+            "response": {
+                "message": "sdsdfsd",
+                "code": 200,
+                "allow": false,
+                "redirect_uri": "url testing....."
+            },
+            "rules": {
+                "country": "IN",
+                "client_ip": null,
+                "path": "\/path44"
+            }
+        },
+        "match.operator.lookup": ""
+    },
+    {
+        "version": 5,
+        "match.rules.client_ip": "",
+        "match.response.redirect_uri": "",
+        "priority": 6,
+        "match.response.message": "",
+        "data": [
+            ""
+        ],
+        "match.rules.path": "",
+        "id": "e90c5e7a-ee87-3c23-9107-9dfe8bf261b2",
+        "match.rules.country": "",
+        "name": "New 2 55555 6666",
+        "match.response.code": "",
+        "match.response.allow": "",
+        "match": {
+            "operator": {
+                "lookup": "and"
+            },
+            "response": {
+                "message": "fsdfsfsdfsdf",
+                "code": 3000,
+                "allow": false,
+                "redirect_uri": "URL"
+            },
+            "rules": {
+                "country": "US",
+                "client_ip": null,
+                "path": "\/api\/66666"
+            }
+        },
+        "match.operator.lookup": ""
+    },
+    {
+        "version": 5,
+        "match.rules.client_ip": "",
+        "match.response.redirect_uri": "",
+        "priority": 6,
+        "match.response.message": "",
+        "data": [
+            ""
+        ],
+        "match.rules.path": "",
+        "id": "e90c5e7a-ee87-3c23-9107-9dfe8bf261b2",
+        "match.rules.country": "",
+        "name": "New 2 55555 6666",
+        "match.response.code": "",
+        "match.response.allow": "",
+        "match": {
+            "operator": {
+                "lookup": "and"
+            },
+            "response": {
+                "message": "fsdfsfsdfsdf",
+                "code": 3000,
+                "allow": false,
+                "redirect_uri": "URL"
+            },
+            "rules": {
+                "country": "US",
+                "client_ip": null,
+                "path": "\/api\/66666"
+            }
+        },
+        "match.operator.lookup": ""
+    },
+    {
+        "version": 3,
+        "match.rules.client_ip": "",
+        "match.response.redirect_uri": "",
+        "priority": 4,
+        "match.response.message": "",
+        "data": [
+            ""
+        ],
+        "match.rules.path": "",
+        "id": "eafb66a3-6397-0bf5-26ab-08d23dbccb22",
+        "match.rules.country": "",
+        "name": "45666",
+        "match.response.code": "",
+        "match.response.allow": "",
+        "match": {
+            "operator": {
+                "lookup": "equals"
+            },
+            "response": {
+                "message": "",
+                "code": null,
+                "allow": false,
+                "redirect_uri": "url testing....."
+            },
+            "rules": {
+                "country": "IN",
+                "client_ip": 3,
+                "path": "\/path66666"
+            }
+        },
+        "match.operator.lookup": ""
+    },
+    {
+        "version": 1,
+        "match.rules.client_ip": "",
+        "match.response.redirect_uri": "",
+        "match.rules.path": "",
+        "match.response.message": "",
+        "match.response.allow": "",
+        "id": "ebd04e16-b5d9-3a0f-920b-8d780dcf94cd",
+        "priority": 3,
+        "name": "redist test",
+        "match.rules.country": "",
+        "match.response.code": "",
+        "match": {
+            "operator": {
+                "lookup": "rules"
+            },
+            "response": {
+                "message": "tahnks",
+                "code": 200,
+                "allow": true,
+                "redirect_uri": "request_url"
+            },
+            "rules": {
+                "client_ip": null,
+                "path": "pathcheck"
+            }
+        },
+        "match.operator.lookup": ""
+    },
+    {
+        "version": 3,
+        "match.rules.client_ip": "",
+        "match.response.redirect_uri": "",
+        "priority": 5,
+        "match.response.message": "",
+        "data": [
+            ""
+        ],
+        "match.rules.country": "",
+        "id": "2814bd52-b301-f5d6-07d6-083f998d8f40",
+        "match.rules.path": "",
+        "name": "redis testing 66666 updated",
+        "match.response.code": "",
+        "match.response.allow": "",
+        "match": {
+            "operator": {
+                "lookup": "equals"
+            },
+            "response": {
+                "redirect_uri": "url testing.....",
+                "code": null,
+                "allow": false,
+                "message": "messageingggggggg"
+            },
+            "rules": {
+                "country": "",
+                "client_ip": null,
+                "path": "\/path"
+            }
+        },
+        "match.operator.lookup": ""
+    },
+    {
+        "match.response.allow": "",
+        "match.response.code": "",
+        "match.rules.country": "",
+        "match": {
+            "operator": {
+                "lookup": "or"
+            },
+            "response": {
+                "message": "test response",
+                "code": 300,
+                "allow": false,
+                "redirect_uri": "URI"
+            },
+            "rules": {
+                "country": "US",
+                "client_ip": 7874.999,
+                "path": "\/kit-api"
+            }
+        },
+        "match.response.message": "",
+        "data": [
+            ""
+        ],
+        "match.response.redirect_uri": "",
+        "id": "d4eebc7c-8588-a145-e643-5ffd494d9e71",
+        "match.rules.client_ip": "",
+        "name": "name test redis update 566666",
+        "match.rules.path": "",
+        "priority": 8,
+        "version": 4,
+        "match.operator.lookup": ""
+    },
+    {
+        "version": 2,
+        "match.rules.client_ip": "",
+        "match.response.redirect_uri": "",
+        "priority": 4,
+        "match.response.message": "",
+        "match": {
+            "operator": {
+                "lookup": "or"
+            },
+            "response": {
+                "message": "Hello world, you can access",
+                "code": 200,
+                "allow": false,
+                "redirect_uri": "request_url"
+            },
+            "rules": {
+                "country": "IN",
+                "client_ip": null,
+                "path": "\/path_test"
+            }
+        },
+        "id": "8518000d-276e-0911-58af-0a630715328b",
+        "match.rules.country": "",
+        "name": "redis test 3",
+        "match.response.code": "",
+        "match.response.allow": "",
+        "match.rules.path": "",
+        "match.operator.lookup": ""
+    },
+    {
+        "version": 3,
+        "match.rules.client_ip": "",
+        "match.response.redirect_uri": "",
+        "priority": 4,
+        "match.response.message": "",
+        "data": [
+            ""
+        ],
+        "match.rules.path": "",
+        "id": "fdcdf07b-7f31-2a43-f56e-d8d2f179bd2c",
+        "match": {
+            "operator": {
+                "lookup": "and"
+            },
+            "response": {
+                "message": "message for testing...9",
+                "code": 200,
+                "allow": false,
+                "redirect_uri": "Request_uri"
+            },
+            "rules": {
+                "country": "IN",
+                "client_ip": "8798089.099.90",
+                "path": "\/path"
+            }
+        },
+        "name": "redis test 2",
+        "match.response.allow": "",
+        "match.response.code": "",
+        "match.rules.country": "",
+        "match.operator.lookup": ""
+    }
+]

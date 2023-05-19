@@ -14,12 +14,12 @@ const Form = () => {
   return (
     <SimpleForm>
       <ArrayInput source="data">
-        <SimpleFormIterator inline>
+        <SimpleFormIterator inline sanitizeEmptyValues={false}>
           <TextInput source="name" fullWidth />
           <NumberInput source="version" fullWidth />
           <NumberInput source="priority" fullWidth />
           <TextInput source="match.rules.path" fullWidth />
-          <NumberInput source="match.rules.client_ip" fullWidth />
+          <TextInput source="match.rules.client_ip" fullWidth />
           <TextInput source="match.rules.country" fullWidth />
           <TextInput source="match.operator.lookup" fullWidth />
           <NumberInput source="match.response.code" fullWidth />
