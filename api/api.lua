@@ -335,7 +335,7 @@ local function listRules()
     for key, value in pairs(exist_values) do
         if key%2 == 0 then table.insert(array, cjson.decode(value)) end
     end
-    ngx.say({ cjson.encode({ data = array,total = 5 }) })
+    ngx.say({ cjson.encode({ data = array,total = #array }) })
 end
 
 local function listRule(args, uuid)
