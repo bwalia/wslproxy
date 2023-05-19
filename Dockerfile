@@ -87,5 +87,7 @@ RUN cd /tmp/ && wget https://edgeone-public.s3.eu-west-2.amazonaws.com/src/openr
 #COPY ./IP2LOCATION-LITE-DB11.IPV6.BIN /tmp
 
 RUN cd /usr/local/openresty/nginx/html/openresty-admin && yarn install && yarn build
-
+RUN chmod -R 777 /usr/local/openresty/nginx/html/data && \
+    chmod -R 777 /usr/local/openresty/nginx/html/data/servers && \
+    chmod 777 /usr/local/openresty/nginx/html/data/settings.json
 ENTRYPOINT ["/usr/local/openresty/nginx/sbin/nginx", "-g", "daemon off;"] 
