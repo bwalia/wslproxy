@@ -2,6 +2,7 @@ local cjson = require "cjson"
 local jwt = require "resty.jwt"
 local redis = require "resty.redis"
 local red = redis:new()
+base64 = require "base64"
 red:set_timeout(1000) -- 1 second
 
 local redisHost = os.getenv("REDIS_HOST")
@@ -363,7 +364,12 @@ local function listRule(args, uuid)
         --     end
         -- end
         local exist_value, err = red:hget("request_rules",uuid)
-        ngx.say({ cjson.encode({ data = cjson.decode(exist_value) }) })
+        exist_value = cjson.decode(exist_value)
+        if exist_value.match.response.message then
+            exist_value.match.response.message = base64.decode(exist_value.match.response.message)
+        end
+
+        ngx.say({ cjson.encode({ data = exist_value }) })
     -- end
 end
 
@@ -374,13 +380,22 @@ local function createUpdateRules(body, uuid)
     else
         local jsonString = file:read "*a"
         file:close()
-        local rules = cjson.decode(jsonString)
+
+        local rules
+        
+        if jsonString==nil or jsonString=="" then
+            rules = {}
+        else 
+            rules  =  cjson.decode(jsonString)
+        end
         local keyset = {}
         local n = 0
         for k, v in pairs(body) do
             n = n + 1
             if type(v) == "string" then
-                table.insert(keyset, cjson.decode(k .. v))
+                if v ~= nil and v~="" then
+                    table.insert(keyset, cjson.decode(k .. v))
+                end
             else
                 table.insert(keyset, cjson.decode(k))
             end
@@ -395,6 +410,15 @@ local function createUpdateRules(body, uuid)
         if uuid then
             for key, value in pairs(rules) do
                 if rules[key]["id"] == uuid then
+                    payloads['data'] = nil
+                    for k, v in pairs(payloads) do
+                        if v == nil or v=="" then
+                            payloads[k] = nil
+                        end                        
+                    end
+                    if payloads.match.response.message then
+                        payloads.match.response.message = base64.encode(payloads.match.response.message)
+                    end
                     rules[key] = payloads
                     local redis_json = {}
                     redis_json[uuid] = cjson.encode(payloads)
@@ -407,6 +431,15 @@ local function createUpdateRules(body, uuid)
         if #payloads>0 and not uuid then 
             for pkey, pvalue in pairs(payloads) do
                 pvalue.id = generate_uuid()
+                for k, v in pairs(pvalue) do
+                    if v == nil or v=="" then
+                        pvalue[k] = nil
+                    end
+                end
+
+                if pvalue.match.response.message then
+                    pvalue.match.response.message = base64.encode(pvalue.match.response.message)
+                end
                 table.insert(rules, pvalue)
 
                 local redis_json = {}
@@ -421,7 +454,7 @@ local function createUpdateRules(body, uuid)
         else
             writableFile:write(cjson.encode(rules))
             writableFile:close()
-            ngx.say(cjson.encode({ data = uuid }))
+            ngx.say(cjson.encode({ data = payloads }))
         end
     end
 end
