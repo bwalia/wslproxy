@@ -188,7 +188,18 @@ end
 local function listServer(args, id)
     local file, err = io.open("/usr/local/openresty/nginx/html/data/servers/" .. id .. ".json", "rb")
     if file == nil then
-        ngx.say("Couldn't read file: " .. err)
+        -- ngx.say("Couldn't read file: " .. err)
+        local getAllRecords = red:get("servers");
+        local allServers, servers = {}, {}
+        if type(getAllRecords) == "string" then
+            allServers = cjson.decode(getAllRecords)
+            for index, server in pairs(allServers) do
+                if index == id then
+                    table.insert(servers, server)
+                end
+            end
+            ngx.say(cjson.encode({data = servers[1]}))
+        end
     else
         local jsonString = file:read "*a"
         file:close()
