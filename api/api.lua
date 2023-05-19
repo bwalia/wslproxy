@@ -383,6 +383,7 @@ local function createDeleteRules(args, uuid)
         file:close()
 
         local rules
+        local nrules = {}
         
         if jsonString==nil or jsonString=="" then
             rules = {}
@@ -390,8 +391,8 @@ local function createDeleteRules(args, uuid)
             rules  =  cjson.decode(jsonString)
         end
         for key, value in pairs(rules) do
-            if rules[key]["id"] == uuid then
-                rules[key] = nil
+            if rules[key]["id"] ~= uuid then
+                table.insert(nrules, value)                
             end
         end
 
@@ -401,9 +402,9 @@ local function createDeleteRules(args, uuid)
         if writableFile == nil then
             ngx.say("Couldn't write file: " .. writableErr)
         else
-            writableFile:write(cjson.encode(rules))
+            writableFile:write(cjson.encode(nrules))
             writableFile:close()
-            ngx.say(cjson.encode({ data = uuid }))
+            ngx.say(cjson.encode({ data = nrules }))
         end
     end
 
