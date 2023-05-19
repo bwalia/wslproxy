@@ -10,7 +10,14 @@ services:
       - "8080:80"
     volumes:
       - ./nginx-dev.conf:/usr/local/openresty/nginx/conf/nginx.conf
-      - ./openresty-admin:/usr/local/openresty/nginx/html/openresty-admin   
+      - ./openresty-admin/public:/usr/local/openresty/nginx/html/openresty-admin/public
+      - ./openresty-admin/src:/usr/local/openresty/nginx/html/openresty-admin/src
+      - ./openresty-admin/.eslintrc.cjs:/usr/local/openresty/nginx/html/openresty-admin/.eslintrc.cjs
+      - ./openresty-admin/.gitignore:/usr/local/openresty/nginx/html/openresty-admin/.gitignore
+      - ./openresty-admin/index.html:/usr/local/openresty/nginx/html/openresty-admin/index.html
+      - ./openresty-admin/package.json:/usr/local/openresty/nginx/html/openresty-admin/package.json
+      - ./openresty-admin/vite.config.js:/usr/local/openresty/nginx/html/openresty-admin/vite.config.js
+      - ./openresty-admin/yarn.lock:/usr/local/openresty/nginx/html/openresty-admin/yarn.lock
       - ./data:/usr/local/openresty/nginx/html/data
       - ./api:/usr/local/openresty/nginx/html/api
     environment:
