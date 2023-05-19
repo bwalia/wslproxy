@@ -120,6 +120,28 @@ const getHeaders = () => {
         console.error("Error:", error);
       }
     },
+    delete: async (resource, params) => {
+      const { data } = params;
+      const { id } = params;
+      const url = `${apiUrl}/${resource}/${id}`;
+      try {
+        console.log({url});
+        const response = await fetch(url, {
+          method: "DELETE",
+          body: JSON.stringify(data),
+          headers: getHeaders(),
+        });
+        if (response.status < 200 || response.status >= 300) {
+          localStorage.removeItem("token");
+          localStorage.removeItem("uuid_business_id");
+          window.location.href = "/login";
+        }
+        const result = await response.json();
+        return result;
+      } catch (error) {
+        console.error("Error:", error);
+      }
+    },
     saveStorageFlag: async (resource, params) => {
       try {
         const url = `${apiUrl}/${resource}?_format=json`;

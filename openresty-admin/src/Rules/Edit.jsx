@@ -280,8 +280,6 @@ const mynewobj = objectToArray(iso_codes)
 return (
     <RaEdit title={"Rule"}>
         <SimpleForm>
-      <ArrayInput source="data" >
-        <SimpleFormIterator inline sanitizeEmptyValues={false}>
           <Grid container spacing={2}>
             <Grid item xs={6}>
               <TextInput source="name" fullWidth />
@@ -322,8 +320,7 @@ return (
               <TextInput multiline source="match.response.message" fullWidth />
             </Grid>
           </Grid>
-        </SimpleFormIterator>
-      </ArrayInput>
+
     </SimpleForm>
     </RaEdit>
   )
