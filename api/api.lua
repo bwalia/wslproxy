@@ -373,6 +373,43 @@ local function listRule(args, uuid)
     -- end
 end
 
+local function createDeleteRules(args, uuid)
+
+    local file, err = io.open("/usr/local/openresty/nginx/html/data/security_rules.json", "rb")
+    if file == nil then
+        ngx.say("Couldn't read file: " .. err)
+    else
+        local jsonString = file:read "*a"
+        file:close()
+
+        local rules
+        
+        if jsonString==nil or jsonString=="" then
+            rules = {}
+        else 
+            rules  =  cjson.decode(jsonString)
+        end
+        for key, value in pairs(rules) do
+            if rules[key]["id"] == uuid then
+                rules[key] = nil
+            end
+        end
+
+        local del, err = red:hdel("request_rules", uuid)
+
+        local writableFile, writableErr = io.open("/usr/local/openresty/nginx/html/data/security_rules.json", "w")
+        if writableFile == nil then
+            ngx.say("Couldn't write file: " .. writableErr)
+        else
+            writableFile:write(cjson.encode(rules))
+            writableFile:close()
+            ngx.say(cjson.encode({ data = uuid }))
+        end
+    end
+
+    -- ngx.say(cjson.encode({ data = uuid }))
+end
+
 local function createUpdateRules(body, uuid)
     local file, err = io.open("/usr/local/openresty/nginx/html/data/security_rules.json", "rb")
     if file == nil then
@@ -531,8 +568,13 @@ end
 -- Function to handle DELETE requests
 local function handle_delete_request(args, path)
     -- handle DELETE request logic
-    local response_data = { message = "Hello, DELETE request!" }
-    ngx.say(cjson.encode(response_data))
+    -- local response_data = { message = path }
+    -- ngx.say(cjson.encode(response_data))
+    if string.find(path, "rules") then
+        local pattern = ".*/(.*)"
+        local uuid = string.match(path, pattern)
+        createDeleteRules(args, uuid)
+    end
 end
 
 -- Get the path name from the URI
