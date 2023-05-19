@@ -45,7 +45,9 @@ function check_conditions_loop(rules)
     local check_condition = 0
     for key,value in pairs(rules) do
 
-        if key=='path' and string.match(ngx.var.request_uri, value)  then
+        value = tostring(value)
+
+        if key=='path' and value~=nil and value~='null' and string.match(ngx.var.request_uri, value)  then
             txt = txt .. "Rule Passed: " .. key .. " - " ..value .. "\n"
             check_condition = check_condition + 1
         end
@@ -65,18 +67,29 @@ function check_conditions_loop(rules)
     
 end
 
+
 function parse_rules(json_data,client_ip)
     if json_data and #json_data > 0 then
         for k,v in next,json_data do 
             -- txt = txt .. v.name
             local checkbreak = false
             if v.match.rules then
+                for rule_k, rule_v in pairs(v.match.rules) do
+                    rule_v = tostring(rule_v)
+                    -- txt = txt .. rule_v 
+                    if rule_v == nil or rule_v == 'userdata: NULL' or rule_v == NULL or rule_v=="" then
+                        v.match.rules[rule_k] = nil
+                    end
+                end
                 local total = tablelength(v.match.rules)
                 local lookup = v.match.operator.lookup
+                -- txt = txt .. total
                 if total == 1 then
                     local n,t = pairs(v.match.rules)
                     local firstKey, firstValue = n(t)
 
+                    firstValue = string.gsub(firstValue, "%\\", "")
+                    -- txt = txt .. firstValue
                     if firstKey=='path' and lookup == 'prefix' and string.match(ngx.var.request_uri, firstValue)  then
                         txt = txt .. "Rule Passed: " .. firstKey .. " - " ..firstValue .. "\n"
                     elseif firstKey=='client_ip' and lookup == 'equals' and firstValue == client_ip  then
