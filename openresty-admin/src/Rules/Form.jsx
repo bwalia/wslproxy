@@ -282,20 +282,26 @@ return (
           <TextInput source="name" fullWidth />
           <NumberInput source="version" fullWidth />
           <NumberInput source="priority" fullWidth />
-          <TextInput source="match.rules.path" fullWidth />
-          <TextInput source="match.rules.client_ip" fullWidth />
-          <SelectInput source="match.rules.country" fullWidth  choices={mynewobj}/>
-          <SelectInput source="match.operator.lookup" fullWidth choices={[
-              { id: 'equals', name: 'Equals' },
-              { id: 'or', name: 'OR' },
-              { id: 'and', name: 'AND' },
-              { id: 'prefix', name: 'prefix' },
+          <SelectInput defaultValue={"starts_with"} source="match.rules.path_key" fullWidth label="Path" choices={[
+              { id: 'starts_with', name: 'Starts With' },
+              { id: 'ends_with', name: 'Ends With' },
+              { id: 'equals', name: 'Equals' }
+          ]} showEmptyOption={false} />
+          <TextInput source="match.rules.path" label="Value" fullWidth />
+          <SelectInput defaultValue={"equals"} source="match.rules.country_key" fullWidth label="Country" choices={[
+              { id: 'equals', name: '=' }
+          ]} showEmptyOption={false} />
+          <SelectInput source="match.rules.country" label="Value" fullWidth  choices={mynewobj}/>
+          <SelectInput defaultValue={"equals"} source="match.rules.client_ip_key" fullWidth label="Client IP" choices={[
+              { id: 'equals', name: '=' },
+              { id: 'starts_with', name: 'Starts With' },
           ]} />
           
-          <NumberInput source="match.response.code" fullWidth />
-          <TextInput source="match.response.redirect_uri" fullWidth />
-          <BooleanInput source="match.response.allow" fullWidth />
-          <TextInput multiline source="match.response.message" fullWidth />
+          <TextInput source="match.rules.client_ip" label="Value" fullWidth />
+          <BooleanInput source="match.response.allow" label="Allow/Disallow" fullWidth />
+          <NumberInput source="match.response.code" label="Response Code" fullWidth />
+          <TextInput source="match.response.redirect_uri" label="Redirect To" fullWidth />
+          <TextInput multiline source="match.response.message" label="Response Message" fullWidth />
         </SimpleFormIterator>
       </ArrayInput>
     </SimpleForm>

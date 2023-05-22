@@ -290,34 +290,56 @@ return (
             <Grid item xs={3}>
               <NumberInput source="priority" fullWidth />
             </Grid>
-            <Grid item xs={4}>
-              <TextInput source="match.rules.path" fullWidth />
+            
+            <Grid item xs={6}>
+              <SelectInput defaultValue={"starts_with"} source="match.rules.path_key" fullWidth label="Path" choices={[
+              { id: 'starts_with', name: 'Starts With' },
+              { id: 'ends_with', name: 'Ends With' },
+              { id: 'equals', name: 'Equals' }
+          ]} showEmptyOption={false} />
             </Grid>
-            <Grid item xs={4}>
-              <TextInput source="match.rules.client_ip" fullWidth />
+
+            <Grid item xs={6}>
+              <TextInput source="match.rules.path" label="Value" fullWidth />
             </Grid>
-            <Grid item xs={4}>
-            <SelectInput source="match.rules.country" fullWidth  choices={mynewobj}/>
+
+
+            <Grid item xs={6}>
+              <SelectInput defaultValue={"equals"} source="match.rules.country_key" fullWidth label="Country" choices={[
+              { id: 'equals', name: '=' }
+          ]} showEmptyOption={false} />
             </Grid>
-            <Grid item xs={2}>
-            <SelectInput source="match.operator.lookup" fullWidth choices={[
-              { id: 'equals', name: 'Equals' },
-              { id: 'or', name: 'OR' },
-              { id: 'and', name: 'AND' },
-              { id: 'prefix', name: 'prefix' },
+
+            <Grid item xs={6}>
+            <SelectInput source="match.rules.country" label="Value" fullWidth  choices={mynewobj}/>
+            </Grid>
+
+            <Grid item xs={6}>
+              <SelectInput defaultValue={"equals"} source="match.rules.client_ip_key" fullWidth label="Client IP" choices={[
+              { id: 'equals', name: '=' },
+              { id: 'starts_with', name: 'Starts With' },
           ]} />
             </Grid>
+
+            <Grid item xs={6}>
+            <TextInput source="match.rules.client_ip" label="Value" fullWidth />
+            </Grid>
+
+            
+
             <Grid item xs={2}>
-              <NumberInput source="match.response.code" fullWidth />
+              <BooleanInput source="match.response.allow" label="Allow/Disallow" fullWidth />
+            </Grid>
+            
+            <Grid item xs={2}>
+              <NumberInput source="match.response.code" label="Response Code" fullWidth />
             </Grid>
             <Grid item xs={6}>
-              <TextInput source="match.response.redirect_uri" fullWidth />
+              <TextInput source="match.response.redirect_uri" label="Redirect To" fullWidth />
             </Grid>
-            <Grid item xs={2}>
-              <BooleanInput source="match.response.allow" fullWidth />
-            </Grid>
+            
             <Grid item xs={12}>
-              <TextInput multiline source="match.response.message" fullWidth />
+              <TextInput multiline source="match.response.message" label="Response Message" fullWidth />
             </Grid>
           </Grid>
 

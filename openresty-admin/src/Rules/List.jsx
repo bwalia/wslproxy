@@ -5,6 +5,7 @@ const List = () => {
   return (
     <RaList title={"Rules"}>
         <Datagrid rowClick="edit">
+            <TextField source='id' />
             <TextField source='name' />
             <TextField source='priority' />
             <TextField source='match.rules.path' />
