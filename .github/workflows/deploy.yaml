@@ -1,10 +1,14 @@
-name: Whitefalcon Deploy changes
+name: Whitefalcon Deploy to K3S2 using Helm
 
 on:
   push:
     branches: [ main ]
   pull_request:
     branches: [ feature/* ]
+
+env:
+  TARGET_ENV: "test"
+  TARGET_CLUSTER: "k3s2"
 
 jobs:
   build:
@@ -17,3 +21,26 @@ jobs:
 
       - name: build and run the white falcon docker image
         run: chmod +x ./build.sh && ./build.sh "${{ secrets.DOCKER_USER }}" "${{ secrets.DOCKER_PASSWD }}"
+
+      - name: Run bash script to perform Cluster kubeconfig mapping and resetting env vars if necessary
+        run: |
+            echo "KUBE_CONFIG_DATA=${{ secrets.KUBE_CONFIG_DATA_K3S2 }}" >> $GITHUB_ENV
+
+      - name: Helm Deploy - Release to selected K3S cluster
+        uses: koslib/helm-eks-action@master
+        with:
+          command: |
+            helm upgrade -i whitefalcon-${{ env.TARGET_ENV }} ./devops/helm-chart/whitefalcon/ -f devops/helm-chart/whitefalcon/values-${{ env.TARGET_ENV }}-${{ env.TARGET_CLUSTER}}.yaml --namespace ${{ env.TARGET_ENV }} --create-namespace
+            kubectl rollout restart deployment/whitefalcon-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
+            kubectl rollout history deployment/whitefalcon-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
+          
+      - name: Slack Notification for Workstation CRM release 
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_CHANNEL: general
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_ICON: https://github.com/rtCamp.png?size=48
+          SLACK_MESSAGE: 'Post Content :rocket:'
+          SLACK_TITLE: Post Title
+          SLACK_USERNAME: rtCamp
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
