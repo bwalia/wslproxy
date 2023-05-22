@@ -13,14 +13,14 @@ if redisHost == nil then
     redisHost = "localhost"
 end
 
-local db_connect = false
+local db_connect_status = false
 local ok, err = red:connect(redisHost, 6379)
 if ok then
-    db_connect = true
+    db_connect_status = "pong"
     db_status_msg = "OK"
 else
     ngx.say("failed to connect to " .. redisHost .. ": ", err)
-    db_connect = false
+    db_connect_status = "err"
     db_status_msg = err
 end
 
@@ -31,7 +31,7 @@ local data = {
     stack = "Lua 5.1",
     response = "pong",
     deployment_time = "20230510055429",
-    redis_status = db_connect,
+    redis_status = db_connect_status,
     redis_status_msg = db_status_msg,
     uptime =  result -- "10:45:05 up  7:44,  0 users,  load average: 1.46, 1.18, 1.02"
 
