@@ -6,10 +6,22 @@ handle:close()
 local redis = require "resty.redis"
 local red = redis:new()
 red:set_timeouts(1000, 1000, 1000) -- 1 sec
-local ok, err = red:connect("redis", 6379)
-local db_connect = true
-if not ok then
+
+local redisHost = os.getenv("REDIS_HOST")
+
+if redisHost == nil then
+    redisHost = "localhost"
+end
+
+local db_connect = false
+local ok, err = red:connect(redisHost, 6379)
+if ok then
+    db_connect = true
+    db_status_msg = "OK"
+else
+    ngx.say("failed to connect to " .. redisHost .. ": ", err)
     db_connect = false
+    db_status_msg = err
 end
 
 local json_str
@@ -19,7 +31,8 @@ local data = {
     stack = "Lua 5.1",
     response = "pong",
     deployment_time = "20230510055429",
-    db_connection = db_connect,
+    redis_status = db_connect,
+    redis_status_msg = db_status_msg,
     uptime =  result -- "10:45:05 up  7:44,  0 users,  load average: 1.46, 1.18, 1.02"
 
 }
