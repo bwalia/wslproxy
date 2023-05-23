@@ -6,28 +6,6 @@ on:
   pull_request:
     branches: [ feature/* ]
 
-  workflow_dispatch:
-    inputs:
-      TARGET_ENV:
-        type: choice
-        description: 'Please choose the environment'
-        default: 'int'
-        required: true
-        options:
-          - dev
-          - int
-          - acc
-          - prod
-
-      TARGET_CLUSTER:
-        type: choice
-        description: 'Please choose the environment'
-        default: 'k3s6'
-        required: true
-        options:
-          - k3s6
-          - k3s2
-
 env:
   TARGET_ENV: "int"
   IMAGE_NAME: "whitefalcon"
