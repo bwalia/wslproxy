@@ -27,3 +27,5 @@ if not ok then
     ngx.log(ngx.ERR, "failed to connect to Redis: ", err)
     return
 end
+
+-- this will replace the need for server block for each website. It will parse JSON and match host header and route to the backend server all in lua

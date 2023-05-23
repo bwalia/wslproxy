@@ -5,6 +5,28 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ feature/* ]
+  # workflow_dispatch:
+  #   inputs:
+  #     TARGET_ENV:
+  #       type: choice
+  #       description: 'Please choose the environment'
+  #       default: 'int'
+  #       required: true
+  #       options:
+  #         - dev
+  #         - int
+  #         - acc
+  #         - prod
+
+  #     TARGET_CLUSTER:
+  #       type: choice
+  #       description: 'Please choose the environment'
+  #       default: 'k3s1'
+  #       required: true
+  #       options:
+  #         - k3s6
+  #         - k3s2
+  #         - k3s1
 
 env:
   TARGET_ENV: "test"
