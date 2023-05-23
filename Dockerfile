@@ -12,6 +12,7 @@
 
 ARG RESTY_FAT_IMAGE_BASE="openresty/openresty"
 ARG RESTY_FAT_IMAGE_TAG="alpine"
+ARG DNS_RESOLVER="127.0.0.11"
 
 FROM ${RESTY_FAT_IMAGE_BASE}:${RESTY_FAT_IMAGE_TAG}
 
@@ -75,7 +76,7 @@ RUN opm get ip2location/ip2location-resty
 #COPY nginx/test.conf /usr/local/openresty/nginx/conf/nginx.conf
 # COPY nginx/hd4dp.conf /etc/nginx/conf.d/hd4dp.conf
 # COPY nginx/sessions_demo_server.conf /etc/nginx/conf.d/sessions_demo_server.conf
-COPY nginx-dev.conf /usr/local/openresty/nginx/conf/nginx.conf
+
 COPY ./openresty-admin /usr/local/openresty/nginx/html/openresty-admin
 
 COPY ./data /usr/local/openresty/nginx/html/data
@@ -85,6 +86,17 @@ RUN chmod -R 777 /usr/local/openresty/nginx/html/data && chmod -R 777 /usr/local
 
 RUN cd /tmp/ && wget https://edgeone-public.s3.eu-west-2.amazonaws.com/src/openresty/IP2LOCATION-LITE-DB11.IPV6.BIN/IP2LOCATION-LITE-DB11.IPV6.BIN -O /tmp/IP2LOCATION-LITE-DB11.IPV6.BIN
 #COPY ./IP2LOCATION-LITE-DB11.IPV6.BIN /tmp
+
+ENV DNS_RESOLVER="127.0.0.11"
+
+ENV DOCKERIZE_VERSION v0.6.1
+RUN wget https://github.com/jwilder/dockerize/releases/download/$DOCKERIZE_VERSION/dockerize-alpine-linux-amd64-$DOCKERIZE_VERSION.tar.gz \
+    && tar -C /usr/local/bin -xzvf dockerize-alpine-linux-amd64-$DOCKERIZE_VERSION.tar.gz \
+    && rm dockerize-alpine-linux-amd64-$DOCKERIZE_VERSION.tar.gz
+
+COPY nginx-dev.conf.tmpl /tmp/nginx.conf.tmpl
+CMD dockerize -template /tmp/nginx.conf.tmpl:/usr/local/openresty/nginx/conf/nginx.conf
+
 
 RUN cd /usr/local/openresty/nginx/html/openresty-admin && yarn install && yarn build
 RUN chmod -R 777 /usr/local/openresty/nginx/html/data && \

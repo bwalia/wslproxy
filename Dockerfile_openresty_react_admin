@@ -14,14 +14,14 @@ RUN yarn -v
 
 COPY openresty-admin /usr/local/openresty/nginx/html/openresty-admin
 
-COPY nginx-dev.conf /usr/local/openresty/nginx/conf/nginx.conf
+COPY nginx-dev.conf.tmpl /usr/local/openresty/nginx/conf/nginx.conf
 COPY response.lua /usr/local/openresty/nginx/html/first.lua
 COPY api/ /usr/local/openresty/nginx/html/api
 COPY data/ /usr/local/openresty/nginx/html/data
-COPY nginx-dev.conf /usr/local/openresty/nginx/conf/nginx.conf
-COPY nginx-dev.conf /usr/local/openresty/nginx/conf/nginx.conf
-COPY nginx-dev.conf /usr/local/openresty/nginx/conf/nginx.conf
-COPY nginx-dev.conf /usr/local/openresty/nginx/conf/nginx.conf
+COPY nginx-dev.conf.tmpl /usr/local/openresty/nginx/conf/nginx.conf
+COPY nginx-dev.conf.tmpl /usr/local/openresty/nginx/conf/nginx.conf
+COPY nginx-dev.conf.tmpl /usr/local/openresty/nginx/conf/nginx.conf
+COPY nginx-dev.conf.tmpl /usr/local/openresty/nginx/conf/nginx.conf
 RUN openresty -t
 # RUN touch /usr/local/openresty/nginx/logs/nginx.pid
 # RUN echo "0" > /usr/local/openresty/nginx/logs/nginx.pid

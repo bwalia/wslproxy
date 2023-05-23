@@ -13,7 +13,7 @@ if redisHost == nil then
     redisHost = "localhost"
 end
 
-local db_connect_status = false
+local db_connect_status = "err"
 local ok, err = red:connect(redisHost, 6379)
 if ok then
     db_connect_status = "pong"

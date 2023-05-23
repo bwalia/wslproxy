@@ -1,4 +1,4 @@
-name: Whitefalcon Deploy to K3S2 using Helm
+name: "Build and Deploy - Whitefalcon Prod"
 
 on:
   push:
