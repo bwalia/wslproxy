@@ -53,9 +53,25 @@ jobs:
         uses: actions/checkout@v3
       - name: Update the Deployed Environment
         run: |
-          HELM_CMD="helm --kubeconfig ~/.kube/vpn-k3s2.yaml"
-          KUBECTL_CMD="kubectl --kubeconfig ~/.kube/vpn-k3s2.yaml"
+          HELM_CMD="helm --kubeconfig /home/bwalia/.kube/vpn-k3s2.yaml"
+          KUBECTL_CMD="kubectl --kubeconfig /home/bwalia/.kube/vpn-k3s2.yaml"
           VALUES=k3s2
+          $HELM_CMD upgrade -i whitefalcon-${{ env.TARGET_ENV }} ./devops/helm-chart/whitefalcon/ -f devops/helm-chart/whitefalcon/values-${{ env.TARGET_ENV }}-${{ env.TARGET_CLUSTER}}.yaml --set TARGET_ENV=${{ env.TARGET_ENV }} --namespace ${{ env.TARGET_ENV }} --create-namespace
+          sleep 60
+          $KUBECTL_CMD rollout restart deployment/whitefalcon-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
+          $KUBECTL_CMD rollout history deployment/whitefalcon-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
+
+  deploy6:
+    runs-on: [self-hosted-node6]
+    needs: [ build ]
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+      - name: Update the Deployed Environment
+        run: |
+          HELM_CMD="helm --kubeconfig /home/bwalia/.kube/vpn-k3s6.yaml"
+          KUBECTL_CMD="kubectl --kubeconfig /home/bwalia/.kube/vpn-k3s6.yaml"
+          VALUES=k3s6
           $HELM_CMD upgrade -i whitefalcon-${{ env.TARGET_ENV }} ./devops/helm-chart/whitefalcon/ -f devops/helm-chart/whitefalcon/values-${{ env.TARGET_ENV }}-${{ env.TARGET_CLUSTER}}.yaml --set TARGET_ENV=${{ env.TARGET_ENV }} --namespace ${{ env.TARGET_ENV }} --create-namespace
           sleep 60
           $KUBECTL_CMD rollout restart deployment/whitefalcon-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
