@@ -17,6 +17,17 @@ if not ok then
     return
 end
 
+local function sortAsc(field)
+    return function(a, b)
+        return a[field] < b[field]
+    end
+end
+local function sortDesc(field)
+    return function(a, b)
+        return a[field] > b[field]
+    end
+end
+
 local function generate_uuid()
     local random = math.random(1000000000)                                            -- generate a random number
     local timestamp = os.time()                                                       -- get the current time in seconds since the Unix epoch
@@ -172,15 +183,29 @@ end
 --     return ngx.say(cjson.encode({ data = jsonData, total = 3 }))
 -- end
 
-local function listServers()
+local function listServers(args)
+    local counter = 0
+    local params = args
+    params = params.params
     local getAllRecords = red:get("servers");
     local allServers, servers = {}, {}
+    params = cjson.decode(params)
     if type(getAllRecords) == "string" then
         allServers = cjson.decode(getAllRecords)
+        local perPage = params.pagination.perPage * params.pagination.page
+        local page = perPage - (params.pagination.perPage - 1)
         for index, server in pairs(allServers) do
-            table.insert(servers, server)
+            counter = counter + 1
+            if counter >= page and counter <= perPage then
+                table.insert(servers, server)
+            end
         end
-        return ngx.say(cjson.encode({ data = servers, total = #servers }))
+        if params.sort.order == "DESC" then
+            table.sort(servers, sortDesc(params.sort.field))
+        else
+            table.sort(servers, sortAsc(params.sort.field))
+        end
+        return ngx.say(cjson.encode({ data = servers, total = counter }))
     else
         return ngx.say(cjson.encode({ data = {}, total = 0 }))
     end
@@ -226,6 +251,10 @@ local function createUpdateServer(body, uuid)
         end
     end
     local payloads = keyset[1]
+    if not uuid then
+        ---@diagnostic disable-next-line: param-type-mismatch
+        payloads.created_at = os.time(os.date("!*t"))
+    end
     payloads.id = serverId
     if file then
         -- Write the JSON data to the file
@@ -550,7 +579,7 @@ local function handle_get_request(args, path)
     local uuid = string.match(path, pattern)
 
     if path == "servers" then
-        listServers()
+        listServers(args)
     elseif uuid and (#uuid == 36 or #uuid == 32) and subPath[1] == "servers" then
         listServer(args, uuid)
     end
