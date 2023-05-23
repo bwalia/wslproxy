@@ -36,7 +36,7 @@ env:
 
 jobs:
   build:
-    runs-on: [vpn-node2]
+    runs-on: [self-hosted-node2]
     steps:
       - name: checkout the repo code
         uses: actions/checkout@v3 
@@ -48,7 +48,7 @@ jobs:
 
   deploy:
     name: Deploy Environment
-    runs-on: [vpn-node2]
+    runs-on: [self-hosted-node2]
     needs: [ build ]
     steps:
       - name: Checkout Repository
