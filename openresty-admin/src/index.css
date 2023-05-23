@@ -67,3 +67,7 @@ button:focus-visible {
     background-color: #f9f9f9;
   }
 }
+textarea#config {
+  height: 300px !important;
+  overflow-y: scroll !important;
+}

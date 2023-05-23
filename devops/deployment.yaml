@@ -21,7 +21,15 @@ spec:
             - containerPort: 80
           env:
           - name: REDIS_HOST
-            value: "redis-service.test.svc.cluster.local"            
+            value: "redis-service.test.svc.cluster.local"    
+          - name: APP_NAME
+            value: "whitefalcon"  
+          - name: VERSION
+            value: "1.0"  
+          - name: STACK
+            value: "Lua 5.1"  
+          - name: DEPLOYMENT_TIME
+            value: "20230510055429"          
 
 ---
 apiVersion: v1

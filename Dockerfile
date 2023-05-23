@@ -89,6 +89,7 @@ RUN cd /tmp/ && wget https://edgeone-public.s3.eu-west-2.amazonaws.com/src/openr
 RUN cd /usr/local/openresty/nginx/html/openresty-admin && yarn install && yarn build
 RUN chmod -R 777 /usr/local/openresty/nginx/html/data && \
     chmod -R 777 /usr/local/openresty/nginx/html/data/servers && \
+    chmod -R 777 /usr/local/openresty/nginx/html/data/rules && \
     chmod -R 777 /usr/local/openresty/nginx/html/data/security_rules.json && \
     chmod 777 /usr/local/openresty/nginx/html/data/settings.json
 ENTRYPOINT ["/usr/local/openresty/nginx/sbin/nginx", "-g", "daemon off;"] 

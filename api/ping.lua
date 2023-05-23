@@ -26,11 +26,11 @@ end
 
 local json_str
 local data = {
-    app = 'WhiteFalcon',
-    version = "20230411134600",
-    stack = "Lua 5.1",
+    app = os.getenv("APP_NAME"),
+    version = os.getenv("VERSION"),
+    stack = os.getenv("STACK"),
     response = "pong",
-    deployment_time = "20230510055429",
+    deployment_time = os.getenv("DEPLOYMENT_TIME"),
     redis_status = db_connect_status,
     redis_status_msg = db_status_msg,
     uptime =  result -- "10:45:05 up  7:44,  0 users,  load average: 1.46, 1.18, 1.02"
