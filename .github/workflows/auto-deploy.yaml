@@ -46,7 +46,7 @@ jobs:
       - name: build and run the white falcon docker image
         run: chmod +x ./build.sh && ./build.sh "${{ secrets.DOCKER_USER }}" "${{ secrets.DOCKER_PASSWD }}"
 
-  deploy-to-node2:
+  deploytonode2:
     name: Deploy Environment
     runs-on: [self-hosted-node2]
     needs: [ build ]
@@ -64,7 +64,7 @@ jobs:
           $KUBECTL_CMD rollout restart deployment/whitefalcon-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
           $KUBECTL_CMD rollout history deployment/whitefalcon-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
 
-  deploy-to-node6:
+  deploytonode6:
     name: Deploy Environment
     runs-on: [self-hosted-node6]
     needs: [ build ]
