@@ -35,6 +35,14 @@ env:
   IMAGE_TAG: ${{ github.ref_name }}
 
 jobs:
+  checkout:
+    runs-on: [self-hosted-node2]
+    steps:
+      - name: checkout the repo code
+        uses: actions/checkout@v3 
+        with:
+          ref: "main"
+
   build:
     runs-on: [self-hosted-node2]
     steps:
@@ -47,8 +55,7 @@ jobs:
         run: chmod +x ./build.sh && ./build.sh "${{ secrets.DOCKER_USER }}" "${{ secrets.DOCKER_PASSWD }}"
 
   deploytonode2:
-    name: Deploy Environment
-    runs-on: [self-hosted-node2]
+    runs-on: [self-hosted-node6]
     needs: [ build ]
     steps:
       - name: Checkout Repository
@@ -65,7 +72,6 @@ jobs:
           $KUBECTL_CMD rollout history deployment/whitefalcon-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
 
   deploytonode6:
-    name: Deploy Environment
     runs-on: [self-hosted-node6]
     needs: [ build ]
     steps:
