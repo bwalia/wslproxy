@@ -60,7 +60,6 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v3
-        
       - name: Update the Deployed Environment
         run: |
             HELM_CMD="helm --kubeconfig ~/.kube/vpn-k3s2.yaml"
@@ -77,7 +76,6 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v3
-        
       - name: Update the Deployed Environment
         run: |
             HELM_CMD=helm
@@ -87,7 +85,6 @@ jobs:
           sleep 60
           $KUBECTL_CMD rollout restart deployment/whitefalcon-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
           $KUBECTL_CMD rollout history deployment/whitefalcon-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
-
       - name: Slack Notification for Workstation CRM release 
         uses: rtCamp/action-slack-notify@v2
         env:
