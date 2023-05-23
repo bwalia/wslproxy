@@ -35,7 +35,7 @@ env:
   IMAGE_TAG: ${{ github.ref_name }}
 
 jobs:
-  image_build_push:
+  build:
     runs-on: [ vpn-node6 ]
     steps:
       - name: checkout the repo code
@@ -46,37 +46,37 @@ jobs:
       - name: build and run the white falcon docker image
         run: chmod +x ./build.sh && ./build.sh "${{ secrets.DOCKER_USER }}" "${{ secrets.DOCKER_PASSWD }}"
 
-    deploy:
-      name: Deploy Environment
-      runs-on: [ vpn-node6 ]
-      needs: [ image_build_push ]
-      steps:
-        - name: Checkout Repository
-          uses: actions/checkout@v3
+  deploy:
+    name: Deploy Environment
+    runs-on: [ vpn-node6 ]
+    needs: [ build ]
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+        
+      - name: Update the Deployed Environment
+        run: |
+          if [ $TARGET_CLUSTER == "k3s2" ]; then 
+            HELM_CMD="helm --kubeconfig ~/.kube/vpn-k3s2.yaml"
+            KUBECTL_CMD="kubectl --kubeconfig ~/.kube/vpn-k3s2.yaml"
+            VALUES=k3s2
+          else
+            HELM_CMD=helm
+            KUBECTL_CMD=kubectl
+            VALUES=k3s6
+          fi
+          $HELM_CMD upgrade -i whitefalcon-${{ env.TARGET_ENV }} ./devops/helm-chart/whitefalcon/ -f devops/helm-chart/whitefalcon/values-${{ env.TARGET_ENV }}-${{ env.TARGET_CLUSTER}}.yaml --set TARGET_ENV=${{ env.TARGET_ENV }} --namespace ${{ env.TARGET_ENV }} --create-namespace
+          sleep 60
+          $KUBECTL_CMD rollout restart deployment/whitefalcon-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
+          $KUBECTL_CMD rollout history deployment/whitefalcon-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
           
-        - name: Update the Deployed Environment
-          run: |
-            if [ $TARGET_CLUSTER == "k3s2" ]; then 
-              HELM_CMD="helm --kubeconfig ~/.kube/vpn-k3s2.yaml"
-              KUBECTL_CMD="kubectl --kubeconfig ~/.kube/vpn-k3s2.yaml"
-              VALUES=k3s2
-            else
-              HELM_CMD=helm
-              KUBECTL_CMD=kubectl
-              VALUES=k3s6
-            fi
-            $HELM_CMD upgrade -i whitefalcon-${{ env.TARGET_ENV }} ./devops/helm-chart/whitefalcon/ -f devops/helm-chart/whitefalcon/values-${{ env.TARGET_ENV }}-${{ env.TARGET_CLUSTER}}.yaml --set TARGET_ENV=${{ env.TARGET_ENV }} --namespace ${{ env.TARGET_ENV }} --create-namespace
-            sleep 60
-            $KUBECTL_CMD rollout restart deployment/whitefalcon-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
-            $KUBECTL_CMD rollout history deployment/whitefalcon-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
-            
-          - name: Slack Notification for Workstation CRM release 
-            uses: rtCamp/action-slack-notify@v2
-            env:
-              SLACK_CHANNEL: general
-              SLACK_COLOR: ${{ job.status }}
-              SLACK_ICON: https://github.com/rtCamp.png?size=48
-              SLACK_MESSAGE: 'Post Content :rocket:'
-              SLACK_TITLE: Post Title
-              SLACK_USERNAME: rtCamp
-              SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      - name: Slack Notification for Workstation CRM release 
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_CHANNEL: general
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_ICON: https://github.com/rtCamp.png?size=48
+          SLACK_MESSAGE: 'Post Content :rocket:'
+          SLACK_TITLE: Post Title
+          SLACK_USERNAME: rtCamp
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
