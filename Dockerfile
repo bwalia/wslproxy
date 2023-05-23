@@ -94,7 +94,7 @@ RUN wget https://github.com/jwilder/dockerize/releases/download/${DOCKERIZE_VERS
     && tar -C /usr/local/bin -xzvf dockerize-alpine-linux-amd64-${DOCKERIZE_VERSION}.tar.gz \
     && rm dockerize-alpine-linux-amd64-${DOCKERIZE_VERSION}.tar.gz
 
-CMD dockerize -template /tmp/nginx.conf.tmpl:/usr/local/openresty/nginx/conf/nginx.conf
+RUN dockerize -template /tmp/nginx.conf.tmpl:/usr/local/openresty/nginx/conf/nginx.conf
 
 RUN cd /usr/local/openresty/nginx/html/openresty-admin && yarn install && yarn build
 RUN chmod -R 777 /usr/local/openresty/nginx/html/data && \
