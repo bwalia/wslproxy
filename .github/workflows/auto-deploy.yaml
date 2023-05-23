@@ -35,22 +35,13 @@ env:
   IMAGE_TAG: ${{ github.ref_name }}
 
 jobs:
-  checkout:
-    runs-on: [self-hosted-node2]
-    steps:
-      - name: checkout the repo code
-        uses: actions/checkout@v3 
-        with:
-          ref: "main"
-
   build:
     runs-on: [self-hosted-node2]
     steps:
       - name: checkout the repo code
-        uses: actions/checkout@v3 
+        uses: actions/checkout@v2 
         with:
           ref: "main"
-
       - name: build and run the white falcon docker image
         run: chmod +x ./build.sh && ./build.sh "${{ secrets.DOCKER_USER }}" "${{ secrets.DOCKER_PASSWD }}"
 
