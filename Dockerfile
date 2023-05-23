@@ -78,9 +78,9 @@ RUN opm get ip2location/ip2location-resty
 # COPY nginx/sessions_demo_server.conf /etc/nginx/conf.d/sessions_demo_server.conf
 
 COPY ./openresty-admin /usr/local/openresty/nginx/html/openresty-admin
-
 COPY ./data /usr/local/openresty/nginx/html/data
 COPY ./api /usr/local/openresty/nginx/html/api
+COPY nginx-dev.conf.tmpl /tmp/nginx.conf.tmpl
 
 RUN chmod -R 777 /usr/local/openresty/nginx/html/data && chmod -R 777 /usr/local/openresty/nginx/html/data/servers 
 
@@ -89,18 +89,17 @@ RUN cd /tmp/ && wget https://edgeone-public.s3.eu-west-2.amazonaws.com/src/openr
 
 ENV DNS_RESOLVER="127.0.0.11"
 
-ENV DOCKERIZE_VERSION v0.6.1
-RUN wget https://github.com/jwilder/dockerize/releases/download/$DOCKERIZE_VERSION/dockerize-alpine-linux-amd64-$DOCKERIZE_VERSION.tar.gz \
-    && tar -C /usr/local/bin -xzvf dockerize-alpine-linux-amd64-$DOCKERIZE_VERSION.tar.gz \
-    && rm dockerize-alpine-linux-amd64-$DOCKERIZE_VERSION.tar.gz
+ARG DOCKERIZE_VERSION="v0.6.1"
+RUN wget https://github.com/jwilder/dockerize/releases/download/${DOCKERIZE_VERSION}/dockerize-alpine-linux-amd64-${DOCKERIZE_VERSION}.tar.gz \
+    && tar -C /usr/local/bin -xzvf dockerize-alpine-linux-amd64-${DOCKERIZE_VERSION}.tar.gz \
+    && rm dockerize-alpine-linux-amd64-${DOCKERIZE_VERSION}.tar.gz
 
-COPY nginx-dev.conf.tmpl /tmp/nginx.conf.tmpl
 CMD dockerize -template /tmp/nginx.conf.tmpl:/usr/local/openresty/nginx/conf/nginx.conf
-
 
 RUN cd /usr/local/openresty/nginx/html/openresty-admin && yarn install && yarn build
 RUN chmod -R 777 /usr/local/openresty/nginx/html/data && \
     chmod -R 777 /usr/local/openresty/nginx/html/data/servers && \
     chmod -R 777 /usr/local/openresty/nginx/html/data/security_rules.json && \
     chmod 777 /usr/local/openresty/nginx/html/data/settings.json
+
 ENTRYPOINT ["/usr/local/openresty/nginx/sbin/nginx", "-g", "daemon off;"] 
