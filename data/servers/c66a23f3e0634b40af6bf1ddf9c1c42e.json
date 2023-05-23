@@ -1,1 +1,0 @@
-{"listen":5555,"id":"c66a23f3e0634b40af6bf1ddf9c1c42e","server_text":"server {listen       5555; listen       somename:5555; server_name  somename  alias  another.alias; location \/ { root   html; index  index.html index.htm; }}","server_name":"domain1.com www.domain1.com"}

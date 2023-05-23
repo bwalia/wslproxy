@@ -148,8 +148,8 @@ function parse_rules(json_data,client_ip)
             end    
             
             if checkbreak == false and v.match.response.body_base64 then 
-                base64 = require "base64"
-                txt = txt .. "body_base64: " .. base64.decode(v.match.response.body_base64) .. "\n"
+                Base64 = require "base64"
+                txt = txt .. "body_base64: " .. Base64.decode(v.match.response.body_base64) .. "\n"
             end  
 
 
