@@ -1,3 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openresty-deployment
+  namespace: test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: openresty
+  template:
+    metadata:
+      labels:
+        app: openresty
+    spec:
+      containers:
+        - name: openresty
+          image: bwalia/whitefalcon:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+          env:
+          - name: REDIS_HOST
+            value: "redis-service.test.svc.cluster.local"    
+          - name: APP_NAME
+            value: "whitefalcon"  
+          - name: VERSION
+            value: "1.0"  
+          - name: STACK
+            value: "Lua 5.1"  
+          - name: DEPLOYMENT_TIME
+            value: "20230510055429"          
 #see helm chart
 
 # apiVersion: apps/v1
