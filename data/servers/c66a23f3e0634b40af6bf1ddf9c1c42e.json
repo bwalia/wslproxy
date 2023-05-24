@@ -1,4 +1,4 @@
 {"listen":80,
 "id":"c66a23f3e0634b40af6bf1ddf9c1c42e",
-"server_text":"server {listen       80; listen       somename:80; server_name  somename  alias  another.alias; location \/ { root   html; index  index.html index.htm; }}",
-"server_name":"http://acc.workstation.co.uk"}
+"server_text":"server {listen       80; listen       acc-my.workstation.co.uk:80; server_name  acc-my.workstation.co.uk; location \/ { root   html; index  index.html index.htm; }}",
+"server_name":"https://acc-my.workstation.co.uk"}
