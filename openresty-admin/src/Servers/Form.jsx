@@ -6,7 +6,8 @@ import { NumberInput, SimpleForm, TextInput,
   SimpleFormIterator,
   SelectInput,
   useGetList,
-  ReferenceArrayInput
+  ReferenceArrayInput,
+  AutocompleteArrayInput
   // Edit,
   // Datagrid,
   // TextField,
@@ -22,18 +23,20 @@ import { NumberInput, SimpleForm, TextInput,
  {
 
  }
+
 const Form = () => {
 
   const { data, total, isLoading, error } = useGetList(
     'rules',
     {}
 );
-if (isLoading) { return <p>Loading...</p>; }
-if (error) { return <p>ERROR</p>; }
+// if (isLoading) { return <p>Loading...</p>; }
+// if (error) { return <p>ERROR</p>; }
 console.log('rules',data)
 const objectToArray = (dataobj = {}) => {
     console.log(dataobj)
     const res = [];
+    if(dataobj.lenght>0){
     dataobj.map(obj =>{
       console.log(obj)
       const myobj = {}
@@ -41,6 +44,7 @@ const objectToArray = (dataobj = {}) => {
       myobj['name'] = obj.name 
       res.push(myobj);
     });
+  }
     return res;
 };
   return (
@@ -52,7 +56,7 @@ const objectToArray = (dataobj = {}) => {
           <TextInput source="listen" fullWidth />
         </Grid>
         <Grid item xs={6}>
-          <TextInput source="server_name" helperText="Domain Name" fullWidth />
+          <TextInput source="server_name" fullWidth />
         </Grid>
         <Grid item xs={12}>
           <TextInput
@@ -65,17 +69,28 @@ const objectToArray = (dataobj = {}) => {
       </Grid>
             </TabbedForm.Tab>
             <TabbedForm.Tab label="Request/Security Rules">
+            <ReferenceArrayInput source="rules.match.rule" reference="rules">
+
+              <SelectInput optionText="name" />
+
+            </ReferenceArrayInput>
+
+      
             <ArrayInput source="rules">
                 <SimpleFormIterator inline>
-
-                <SelectInput defaultValue={""} source="match.rule.statement" fullWidth label="Statement" choices={objectToArray(data)} />
-                
-                
                 <SelectInput defaultValue={"none"} source="match.rule.condition" fullWidth label="Condition" choices={[
                         { id: 'none', name: 'N/A' },
                         { id: 'or', name: 'OR' },
                         { id: 'and', name: 'AND' },
                     ]} />
+                <ReferenceArrayInput source="rules.match.rule.statement" reference="rules">
+
+            <SelectInput optionText="name" />
+
+            </ReferenceArrayInput>
+                
+                
+                
                 </SimpleFormIterator>
             </ArrayInput>
             </TabbedForm.Tab>
