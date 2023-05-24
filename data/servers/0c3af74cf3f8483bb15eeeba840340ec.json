@@ -1,1 +1,4 @@
-{"listen":9000,"id":"0c3af74cf3f8483bb15eeeba840340ec","server_text":"server {listen       9000; listen       somename:9000; server_name  somename  alias  another.alias; location \/ { root   html; index  index.html index.htm; }}","server_name":"domain2.com www.domain2.com"}
+{"listen":80,
+"id":"0c3af74cf3f8483bb15eeeba840340ec",
+"server_text":"server {listen       80; listen       somename:80; server_name  somename  alias  another.alias; location \/ { root   html; index  index.html index.htm; }}",
+"server_name":"https://test.workstation.co.uk"}
