@@ -276,35 +276,71 @@ for(var key in obj){
 const Form = () => {
 const mynewobj = objectToArray(iso_codes)
 return (
-    <SimpleForm>
-      <ArrayInput source="data">
-        <SimpleFormIterator inline sanitizeEmptyValues={false}>
-          <TextInput source="name" fullWidth />
-          <NumberInput source="version" fullWidth />
-          <NumberInput source="priority" fullWidth />
-          <SelectInput defaultValue={"starts_with"} source="match.rules.path_key" fullWidth label="Path" choices={[
-              { id: 'starts_with', name: 'Starts With' },
-              { id: 'ends_with', name: 'Ends With' },
-              { id: 'equals', name: 'Equals' }
-          ]} showEmptyOption={false} />
-          <TextInput source="match.rules.path" label="Value" fullWidth />
-          <SelectInput defaultValue={"equals"} source="match.rules.country_key" fullWidth label="Country" choices={[
-              { id: 'equals', name: '=' }
-          ]} showEmptyOption={false} />
-          <SelectInput source="match.rules.country" label="Value" fullWidth  choices={mynewobj}/>
-          <SelectInput defaultValue={"equals"} source="match.rules.client_ip_key" fullWidth label="Client IP" choices={[
-              { id: 'equals', name: '=' },
-              { id: 'starts_with', name: 'Starts With' },
-          ]} />
-          
-          <TextInput source="match.rules.client_ip" label="Value" fullWidth />
-          <BooleanInput source="match.response.allow" label="Allow/Disallow" fullWidth />
-          <NumberInput source="match.response.code" label="Response Code" fullWidth />
-          <TextInput source="match.response.redirect_uri" label="Redirect To" fullWidth />
-          <TextInput multiline source="match.response.message" label="Response Message" fullWidth />
-        </SimpleFormIterator>
-      </ArrayInput>
-    </SimpleForm>
+  <SimpleForm>
+  <Grid container spacing={2}>
+    <Grid item xs={6}>
+      <TextInput source="name" fullWidth />
+    </Grid>
+    <Grid item xs={3}>
+      <NumberInput source="version" fullWidth />
+    </Grid>
+    <Grid item xs={3}>
+      <NumberInput source="priority" fullWidth />
+    </Grid>
+    
+    <Grid item xs={6}>
+      <SelectInput defaultValue={"starts_with"} source="match.rules.path_key" fullWidth label="Path" choices={[
+      { id: 'starts_with', name: 'Starts With' },
+      { id: 'ends_with', name: 'Ends With' },
+      { id: 'equals', name: 'Equals' }
+  ]} showEmptyOption={false} />
+    </Grid>
+
+    <Grid item xs={6}>
+      <TextInput source="match.rules.path" label="Value" fullWidth />
+    </Grid>
+
+
+    <Grid item xs={6}>
+      <SelectInput defaultValue={"equals"} source="match.rules.country_key" fullWidth label="Country" choices={[
+      { id: 'equals', name: '=' }
+  ]} showEmptyOption={false} />
+    </Grid>
+
+    <Grid item xs={6}>
+    <SelectInput source="match.rules.country" label="Value" fullWidth  choices={mynewobj}/>
+    </Grid>
+
+    <Grid item xs={6}>
+      <SelectInput defaultValue={"equals"} source="match.rules.client_ip_key" fullWidth label="Client IP" choices={[
+      { id: 'equals', name: '=' },
+      { id: 'starts_with', name: 'Starts With' },
+  ]} />
+    </Grid>
+
+    <Grid item xs={6}>
+    <TextInput source="match.rules.client_ip" label="Value" fullWidth />
+    </Grid>
+
+    
+
+    <Grid item xs={2}>
+      <BooleanInput source="match.response.allow" label="Allow/Disallow" fullWidth />
+    </Grid>
+    
+    <Grid item xs={2}>
+      <NumberInput source="match.response.code" label="Response Code" fullWidth />
+    </Grid>
+    <Grid item xs={6}>
+      <TextInput source="match.response.redirect_uri" label="Redirect To" fullWidth />
+    </Grid>
+    
+    <Grid item xs={12}>
+      <TextInput multiline source="match.response.message" label="Response Message" fullWidth />
+    </Grid>
+  </Grid>
+
+</SimpleForm>
   );
 };
 

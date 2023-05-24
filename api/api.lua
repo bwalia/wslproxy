@@ -187,7 +187,12 @@ local function listServers(args)
         if settings.storage_type == "disk" then
             allServers = listDiskServers()
         else
-            local getAllRecords = red:get("servers");
+            local exist_values, err = red:hgetall("servers")
+            local array = {}
+            for key, value in pairs(exist_values) do
+                if key%2 == 0 then table.insert(array, cjson.decode(value)) end
+            end
+            local getAllRecords = array --red:get("servers");
             if type(getAllRecords) == "string" then
                 allServers = cjson.decode(getAllRecords)
             end
@@ -256,53 +261,58 @@ local function listServer(args, id)
 end
 
 local function createUpdateServer(body, uuid)
-    local serverId = uuid
-    if not uuid then
-        serverId = generate_uuid()
-    end
-    local file, err = io.open("/usr/local/openresty/nginx/html/data/servers/" .. serverId .. ".json", "w")
-    local keyset = {}
-    local n = 0
-    for k, v in pairs(body) do
-        n = n + 1
-        if type(v) == "string" then
-            table.insert(keyset, cjson.decode(k .. v))
-        else
-            table.insert(keyset, cjson.decode(k))
-        end
-    end
-    local payloads = keyset[1]
-    if not uuid then
-        ---@diagnostic disable-next-line: param-type-mismatch
-        payloads.created_at = os.time(os.date("!*t"))
-    end
-    payloads.id = serverId
-    if file then
-        -- Write the JSON data to the file
-        local allServers = {}
-        local getAllRecords = {}
-        file:write(cjson.encode(payloads))
-        -- Close the file
-        file:close()
-        getAllRecords = red:get("servers");
-        if type(getAllRecords) == "string" then
-            allServers = cjson.decode(getAllRecords)
-        end
-        allServers[serverId] = payloads
-        local res, redErr = red:set("servers", cjson.encode(allServers))
-        if not res then
-            ngx.status = 500
-            ngx.say("Failed to save JSON data to Redis: ", redErr)
-            return
-        end
-        return ngx.say(cjson.encode({
-            data = {
-                id = serverId
-            }
-        }))
+
+    local payloads = getPayloads(body)
+
+    if uuid then
+        createUpdateRecord(payloads,uuid,"servers","servers")
     else
-        ngx.say("Error opening file", err)
+        payloads.id = generate_uuid()
+        createUpdateRecord(payloads,payloads.id,"servers","servers")
     end
+       
+    ngx.say(cjson.encode({ data = payloads }))
+   
+   
+    -- local serverId = uuid
+    -- if not uuid then
+    --     serverId = generate_uuid()
+    -- end
+    -- local file, err = io.open("/usr/local/openresty/nginx/html/data/servers/" .. serverId .. ".json", "w")
+    -- local keyset = {}
+    -- local n = 0
+    -- for k, v in pairs(body) do
+    --     n = n + 1
+    --     if type(v) == "string" then
+    --         table.insert(keyset, cjson.decode(k .. v))
+    --     else
+    --         table.insert(keyset, cjson.decode(k))
+    --     end
+    -- end
+    -- local payloads = keyset[1]
+    -- payloads.id = serverId
+    -- if file then
+    --     -- Write the JSON data to the file
+    --     local allServers = {}
+    --     local getAllRecords = {}
+    --     file:write(cjson.encode(payloads))
+    --     -- Close the file
+    --     file:close()
+    --     getAllRecords = red:get("servers");
+    --     if type(getAllRecords) == "string" then
+    --         allServers = cjson.decode(getAllRecords)
+    --     end
+    --     allServers[serverId] = payloads
+    --     local res, redErr = red:set("servers", cjson.encode(allServers))
+    --     if not res then
+    --         ngx.status = 500
+    --         ngx.say("Failed to save JSON data to Redis: ", redErr)
+    --         return
+    --     end
+    --     return ngx.say(cjson.encode({ data = { id = serverId } }))
+    -- else
+    --     ngx.say("Error opening file", err)
+    -- end
 end
 
 local function createDeleteServer(body, uuid)
@@ -313,37 +323,49 @@ local function createDeleteServer(body, uuid)
     -- if not uuid then
     --     serverId = generate_uuid()
     -- end
-    local file, err = io.open("/usr/local/openresty/nginx/html/data/servers/" .. serverId .. ".json", "rb")
-    if file == nil then
-        ngx.say("Couldn't read file: " .. err)
-    else
-        os.remove("/usr/local/openresty/nginx/html/data/servers/" .. serverId .. ".json")
+    -- local file, err = io.open("/usr/local/openresty/nginx/html/data/servers/" .. serverId .. ".json", "rb")
+    -- if file == nil then
+    --     ngx.say("Couldn't read file: " .. err)
+    -- else
+    --     os.remove("/usr/local/openresty/nginx/html/data/servers/" .. serverId .. ".json")
 
-        local servers = {}
-        local allServers = {}
-        local getAllRecords = {}
-        getAllRecords = red:get("servers");
-        if type(getAllRecords) == "string" then
-            allServers = cjson.decode(getAllRecords)
-            for index, server in pairs(allServers) do
-                if uuid ~= index then
-                    table.insert(servers, server)
-                end
-            end
-            local res, redErr = red:set("servers", cjson.encode(servers))
-            if not res then
-                ngx.status = 500
-                ngx.say("Failed to save JSON data to Redis: ", redErr)
-                return
-            end
-        end
+    --     local servers = {}
+    --     local allServers = {}
+    --     local getAllRecords = {}
+    --     getAllRecords = red:get("servers");
+    --     if type(getAllRecords) == "string" then
+    --         allServers = cjson.decode(getAllRecords)
+    --         for index, server in pairs(allServers) do
+    --             if uuid ~= index then
+    --                 table.insert(servers, server)
+    --             end
+    --         end
+    --         local res, redErr = red:set("servers", cjson.encode(servers))
+    --         if not res then
+    --             ngx.status = 500
+    --             ngx.say("Failed to save JSON data to Redis: ", redErr)
+    --             return
+    --         end
+    --     end
 
-        ngx.say(cjson.encode({
-            data = servers
-        }))
-    end
+    --     ngx.say(cjson.encode({ data = servers }))
+    -- end
 
     -- ngx.say(cjson.encode({ data = uuid }))
+
+    local payloads = getPayloads(body)
+
+        if uuid ~= "" and uuid ~= nil then
+            os.remove("/usr/local/openresty/nginx/html/data/servers/" .. uuid .. ".json")
+            local del, err = red:hdel("servers", uuid)
+        elseif payloads and payloads.ids and #payloads.ids>0 then
+
+            for value = 1, #payloads.ids do
+                os.remove("/usr/local/openresty/nginx/html/data/servers/" .. payloads.ids[value] .. ".json")
+                local del, err = red:hdel("servers", payloads.ids[value] )
+            end
+                
+        end
 end
 
 -- Users APIs
@@ -507,105 +529,72 @@ end
 
 local function createDeleteRules(body, uuid)
 
-    local payloads = getPayloads(body)
+        local payloads = getPayloads(body)
 
-    local file, err = io.open("/usr/local/openresty/nginx/html/data/security_rules.json", "rb")
-    if file == nil then
-        ngx.say("Couldn't read file: " .. err)
-    else
-        local jsonString = file:read "*a"
-        file:close()
-
-        local rules
-        local nrules = {}
-
-        if jsonString == nil or jsonString == "" then
-            rules = {}
-        else
-            rules = cjson.decode(jsonString)
-        end
-
-        if uuid ~= "" and payloads and #payloads.ids < 1 then
-            for key, value in pairs(rules) do
-                if rules[key]["id"] ~= uuid then
-                    table.insert(nrules, value)
-                end
-            end
+        if uuid ~= "" and uuid ~= nil then
+            os.remove("/usr/local/openresty/nginx/html/data/rules/" .. uuid .. ".json")
             local del, err = red:hdel("request_rules", uuid)
-        elseif payloads and payloads.ids and #payloads.ids > 0 then
+        elseif payloads and payloads.ids and #payloads.ids>0 then
 
-            for key, value in pairs(rules) do
-                -- ngx.say(payloads.ids,rules[key]["id"])
-                if not has_value(payloads.ids, rules[key]["id"]) then
-                    table.insert(nrules, value)
-                end
+            for value = 1, #payloads.ids do
+                os.remove("/usr/local/openresty/nginx/html/data/rules/" .. payloads.ids[value] .. ".json")
+                local del, err = red:hdel("request_rules", payloads.ids[value] )
             end
-
+                
         end
-
-        local writableFile, writableErr = io.open("/usr/local/openresty/nginx/html/data/security_rules.json", "w")
-        if writableFile == nil then
-            ngx.say("Couldn't write file: " .. writableErr)
-        else
-            writableFile:write(cjson.encode(nrules))
-            writableFile:close()
-            ngx.say(cjson.encode({
-                data = nrules
-            }))
-        end
-    end
-
-    -- ngx.say(cjson.encode({ data = uuid }))
+       
+        ngx.say(cjson.encode({ data = payloads }))
+        -- ngx.say(cjson.encode({ data = uuid }))
 end
 
-function createUpdateRecord(json_val, uuid)
-    json_val['data'] = nil
-    for k, v in pairs(json_val) do
-        if v == nil or v == "" then
-            json_val[k] = nil
-        end
-    end
-    if json_val.match.response.message then
-        json_val.match.response.message = Base64.encode(json_val.match.response.message)
-    end
+function createUpdateRecord(json_val,uuid,key_name,folder_name)
+            json_val['data'] = nil
+            for k, v in pairs(json_val) do
+                if v == nil or v=="" then
+                    json_val[k] = nil
+                end                        
+            end
+            if json_val.match and json_val.match.response and json_val.match.response.message then
+                json_val.match.response.message = base64.encode(json_val.match.response.message)
+            end
 
-    local redis_json = {}
-    redis_json[uuid] = cjson.encode(json_val)
-    local inserted, err = red:hmset("request_rules", redis_json)
+            local redis_json = {}
+            redis_json[uuid] = cjson.encode(json_val)
+            local inserted, err = red:hmset(key_name, redis_json)
 
-    local file, err = io.open("/usr/local/openresty/nginx/html/data/rules/" .. uuid .. ".json", "w")
-    if file == nil then
-        ngx.say("Couldn't read file: " .. err)
-    else
-        file:write(cjson.encode(json_val))
-        file:close()
-        ngx.say(cjson.encode({
-            data = json_val
-        }))
-    end
-
+            local file, err = io.open("/usr/local/openresty/nginx/html/data/" ..folder_name .."/" .. uuid .. ".json", "w")
+            if file == nil then
+                ngx.say("Couldn't read file: " .. err)
+            else
+                file:write(cjson.encode(json_val))
+                file:close()
+                -- ngx.say(cjson.encode({ data = json_val }))
+            end
+    
 end
 
 local function createUpdateRules(body, uuid)
     local payloads = getPayloads(body)
 
-    if payloads.data and #payloads.data > 0 and not uuid then
-        payloads = payloads.data
-    end
+        -- if payloads.data and #payloads.data>0 and not uuid then
+        --     payloads = payloads.data
+        -- end
 
-    if uuid then
-        createUpdateRecord(payloads, uuid)
-    end
 
-    if #payloads > 0 and not uuid then
-        for pkey, pvalue in pairs(payloads) do
-            pvalue.id = generate_uuid()
-            createUpdateRecord(pvalue, pvalue.id)
+        if uuid then
+            createUpdateRecord(payloads,uuid,"request_rules","rules")
+        else
+            payloads.id = generate_uuid()
+            createUpdateRecord(payloads,payloads.id,"request_rules","rules")
         end
-    end
-    ngx.say(cjson.encode({
-        data = payloads
-    }))
+
+        -- if #payloads>0 and not uuid then 
+        --     for pkey, pvalue in pairs(payloads) do
+        --         pvalue.id = generate_uuid()
+        --         createUpdateRecord(pvalue,pvalue.id)
+        --     end
+        -- end        
+        ngx.say(cjson.encode({ data = payloads }))
 end
 
 local function handle_get_request(args, path)
