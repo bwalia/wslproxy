@@ -1,4 +1,6 @@
 {"listen":443,
 "id":"a89ba9c618234c9099e2e2a04a58eea2",
-"server_text":"server {listen       443; listen       test.whitefalcon.io:443; server_name  test.whitefalcon.io; location \/ { root   html; index  index.html index.htm; }}",
+"server_text":"c2VydmVyIHtsaXN0ZW4gICAgICAgNDQzOyBsaXN0ZW4gICAgICAgdGVzdC53aGl0ZWZhbGNvbi5p
+bzo0NDM7IHNlcnZlcl9uYW1lICB0ZXN0LndoaXRlZmFsY29uLmlvOyBsb2NhdGlvbiBcLyB7IHJv
+b3QgICBodG1sOyBpbmRleCAgaW5kZXguaHRtbCBpbmRleC5odG07IH19",
 "server_name":"https://test.whitefalcon.io"}

@@ -1,4 +1,6 @@
 {"listen":443,
 "id":"0c3af74cf3f8483bb15eeeba840340ec",
-"server_text":"server {listen       443; listen      test.workstation.co.uk:443; server_name  test.workstation.co.uk; location \/ { root   html; index  index.html index.htm; }}",
+"server_text":"c2VydmVyIHtsaXN0ZW4gICAgICAgNDQzOyBsaXN0ZW4gICAgICB0ZXN0LndvcmtzdGF0aW9uLmNv
+LnVrOjQ0Mzsgc2VydmVyX25hbWUgIHRlc3Qud29ya3N0YXRpb24uY28udWs7IGxvY2F0aW9uIFwv
+IHsgcm9vdCAgIGh0bWw7IGluZGV4ICBpbmRleC5odG1sIGluZGV4Lmh0bTsgfX0=",
 "server_name":"https://test.workstation.co.uk"}
