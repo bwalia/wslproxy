@@ -3,7 +3,7 @@ import { Datagrid, List as RaList, TextField } from "react-admin";
 
 const List = () => {
   return (
-    <RaList title={"Servers"}>
+    <RaList title={"Servers"} sort={{ field: 'created_at', order: 'DESC' }}>
       <Datagrid rowClick="edit">
         <TextField source="listen" />
         <TextField source="server_name" />

@@ -34,6 +34,8 @@ spec:
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
+          - name: DNS_RESOLVER
+            value: "10.43.0.10"
           - name: REDIS_HOST
             value: "redis-service.test.svc.cluster.local"    
           - name: APP_NAME

@@ -46,8 +46,8 @@ http {
     server {
         listen       80;
         server_name  localhost;
-        # For kubernetes use test.whitefalcon.io and nginx ingress controller
-        resolver 127.0.0.11;  # Docker's internal DNS resolver IP this should only be added for Docker deployments
+        # For kubernetes use 10.43.0.10 and nginx ingress controller
+        resolver 8.8.8.8;  # Google resolver
 
         #charset koi8-r;
 

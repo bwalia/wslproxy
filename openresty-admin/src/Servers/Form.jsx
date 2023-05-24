@@ -52,7 +52,7 @@ const objectToArray = (dataobj = {}) => {
           <TextInput source="listen" fullWidth />
         </Grid>
         <Grid item xs={6}>
-          <TextInput source="server_name" fullWidth />
+          <TextInput source="server_name" helperText="Domain Name" fullWidth />
         </Grid>
         <Grid item xs={12}>
           <TextInput
