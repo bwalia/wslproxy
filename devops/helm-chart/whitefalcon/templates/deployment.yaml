@@ -33,11 +33,11 @@ spec:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          env:
+          env: {{ .Values.app.namespace }}
           - name: DNS_RESOLVER
-            value: "10.43.0.10"
+            value: "{{ .Values.app.dns_resolver }}"
           - name: REDIS_HOST
-            value: "redis-service.test.svc.cluster.local"            
+            value: "redis-service.{{ .Values.app.namespace }}.svc.cluster.local"            
           ports:
             - name: http
               containerPort: {{ .Values.service.port }}
