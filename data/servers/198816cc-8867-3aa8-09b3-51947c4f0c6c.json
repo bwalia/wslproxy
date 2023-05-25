@@ -1,1 +1,0 @@
-{"listen":8000,"id":"198816cc-8867-3aa8-09b3-51947c4f0c6c","server_text":"server {listen       8000; listen       somename:8000; server_name  somename  alias  another.alias; location \/ { root   html; index  index.html index.htm; }}","server_name":"newdomain.com"}

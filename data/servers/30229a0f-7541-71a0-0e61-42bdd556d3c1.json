@@ -1,1 +1,0 @@
-{"listen":8080,"id":"30229a0f-7541-71a0-0e61-42bdd556d3c1","server_text":"server {listen       8080; listen       somename:8080; server_name  somename  alias  another.alias; location \/ { root   html; index  index.html index.htm; }}","server_name":"domain2.com www.domain2.com"}

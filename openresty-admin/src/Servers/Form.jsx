@@ -1,4 +1,4 @@
-import { Box, Grid } from "@mui/material";
+import { Box, Grid, Link } from "@mui/material";
 import React from "react";
 import {
   NumberInput,
@@ -11,6 +11,7 @@ import {
   useDataProvider,
   ReferenceArrayInput,
   FormDataConsumer,
+  Menu
 } from "react-admin";
 
 const Form = () => {
@@ -20,19 +21,19 @@ const Form = () => {
   React.useEffect(() => {
     const fetchData = async () => {
       try {
-        const { data, total } = await dataProvider.getList('rules', {
+        const { data, total } = await dataProvider.getList("rules", {
           filter: {}, // Adjust the filter based on your API
           pagination: { page: 1, perPage: 10 }, // Adjust pagination if needed
         });
-  
+
         const totalCount = total; // Extract the total count from the API response
         setTotalResults(totalCount);
       } catch (error) {
-        console.log({error});
+        console.log({ error });
       }
-    }
-    fetchData()
-  }, [])
+    };
+    fetchData();
+  }, []);
   return (
     <TabbedForm>
       <TabbedForm.Tab label="Server Details">
@@ -54,42 +55,48 @@ const Form = () => {
         </Grid>
       </TabbedForm.Tab>
       <TabbedForm.Tab label="Request/Security Rules">
-        <ReferenceArrayInput source="rules" reference="rules">
-          <SelectInput optionText="name" sx={{ minWidth: "342px" }} />
-        </ReferenceArrayInput>
-        <FormDataConsumer>
-          {({ formData, ...rest }) => (
-            <div>
-              {(formData?.rules && totalResults > 1) && (
-                <ArrayInput source="match_cases">
-                  <SimpleFormIterator inline>
-                    <SelectInput
-                      defaultValue={"none"}
-                      source="condition"
-                      fullWidth
-                      label="Condition"
-                      choices={[
-                        { id: "none", name: "N/A" },
-                        { id: "or", name: "OR" },
-                        { id: "and", name: "AND" },
-                      ]}
-                    />
-                    <ReferenceArrayInput
-                      source="statement"
-                      filter={{ id: formData?.rules }}
-                      reference="rules"
-                    >
-                      <SelectInput
-                        optionText="name"
-                        fullWidth
-                      />
-                    </ReferenceArrayInput>
-                  </SimpleFormIterator>
-                </ArrayInput>
+        {totalResults >= 1 ? (
+          <>
+            <ReferenceArrayInput source="rules" reference="rules">
+              <SelectInput optionText="name" sx={{ minWidth: "342px" }} />
+            </ReferenceArrayInput>
+            <FormDataConsumer>
+              {({ formData, ...rest }) => (
+                <div>
+                  {formData?.rules && totalResults > 1 && (
+                    <ArrayInput source="match_cases">
+                      <SimpleFormIterator inline>
+                        <SelectInput
+                          defaultValue={"none"}
+                          source="condition"
+                          fullWidth
+                          label="Condition"
+                          choices={[
+                            { id: "none", name: "N/A" },
+                            { id: "or", name: "OR" },
+                            { id: "and", name: "AND" },
+                          ]}
+                        />
+                        <ReferenceArrayInput
+                          source="statement"
+                          filter={{ id: formData?.rules }}
+                          reference="rules"
+                        >
+                          <SelectInput optionText="name" fullWidth />
+                        </ReferenceArrayInput>
+                      </SimpleFormIterator>
+                    </ArrayInput>
+                  )}
+                </div>
               )}
-            </div>
-          )}
-        </FormDataConsumer>
+            </FormDataConsumer>
+          </>
+        ): (
+          <>
+            <p>There are no rules available yet please create here!</p>
+            <Menu.Item to="/rules" primaryText="Rules" />
+          </>
+        )}
       </TabbedForm.Tab>
     </TabbedForm>
   );

@@ -1,0 +1,1 @@
+{"name":"Victoria Ruiz","id":"f98e2cf6-9d5f-11d8-6733-cb121a544804","created_at":1685001359,"match":{"response":{"code":200,"redirect_uri":"\/","message":"UXVvZCBxdWlhIGlzdGUgdGVtcG8=","allow":true},"rules":{"client_ip_key":"equals","client_ip":"127.0.0.1","path_key":"starts_with","country_key":"equals","country":"AD","path":"\/api"}},"priority":4,"version":8}
