@@ -11,7 +11,7 @@ services:
     networks:
       - whitefalcon-network
     volumes:
-      - ./sessions.conf.tmpl:/usr/local/openresty/nginx/conf/nginx.conf
+      - ./nginx-dev.conf.tmpl:/usr/local/openresty/nginx/conf/nginx.conf
       - ./openresty-admin/public:/usr/local/openresty/nginx/html/openresty-admin/public
       - ./openresty-admin/src:/usr/local/openresty/nginx/html/openresty-admin/src
       - ./openresty-admin/.eslintrc.cjs:/usr/local/openresty/nginx/html/openresty-admin/.eslintrc.cjs

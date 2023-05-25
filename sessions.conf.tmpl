@@ -65,13 +65,15 @@ http {
           <body>
             <p>Session was started by %s (%s)</p>
             <p><blockquote>%s</blockquote></p>
+            <p><blockquote>%s</blockquote></p>
             <p><a href=/modify>Modify the session</a></p>
           </body>
           </html>
         ]],
           session:get_subject() or "Anonymous",
           err or "no error",
-          session:get("quote") or "no quote"
+          session:get("quote") or "no quote",
+          session:get_property("timeout") or "no property"
         ))
       }
     }
