@@ -8,13 +8,31 @@ import {
   ArrayInput,
   SimpleFormIterator,
   SelectInput,
-  useGetList,
+  useDataProvider,
   ReferenceArrayInput,
   FormDataConsumer,
 } from "react-admin";
 
 const Form = () => {
+  const dataProvider = useDataProvider();
+  const [totalResults, setTotalResults] = React.useState(0);
+
+  React.useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const { data, total } = await dataProvider.getList('rules', {
+          filter: {}, // Adjust the filter based on your API
+          pagination: { page: 1, perPage: 10 }, // Adjust pagination if needed
+        });
   
+        const totalCount = total; // Extract the total count from the API response
+        setTotalResults(totalCount);
+      } catch (error) {
+        console.log({error});
+      }
+    }
+    fetchData()
+  }, [])
   return (
     <TabbedForm>
       <TabbedForm.Tab label="Server Details">
@@ -42,9 +60,8 @@ const Form = () => {
         <FormDataConsumer>
           {({ formData, ...rest }) => (
             <div>
-              {/* {console.log({ formData })} */}
-              {formData?.rules && (
-                <ArrayInput source="conditions">
+              {(formData?.rules && totalResults > 1) && (
+                <ArrayInput source="match_cases">
                   <SimpleFormIterator inline>
                     <SelectInput
                       defaultValue={"none"}
@@ -60,14 +77,10 @@ const Form = () => {
                     <ReferenceArrayInput
                       source="statement"
                       filter={{ id: formData?.rules }}
-                      allowEmpty
                       reference="rules"
                     >
                       <SelectInput
                         optionText="name"
-                        parse={(value) =>
-                          value === "not defined" ? undefined : null
-                        }
                         fullWidth
                       />
                     </ReferenceArrayInput>

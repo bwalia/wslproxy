@@ -197,6 +197,8 @@ local function listServers(args)
             local getAllRecords = records
             if type(getAllRecords) == "string" then
                 allServers = cjson.decode(getAllRecords)
+            else
+                allServers = getAllRecords
             end
         end
     end
@@ -240,22 +242,20 @@ local function listServer(args, id)
                 local jsonString = file:read "*a"
                 file:close()
                 local jsonData = cjson.decode(jsonString)
+                if jsonData.config then
+                    jsonData.config = Base64.decode(jsonData.config)
+                end
                 ngx.say(cjson.encode({
                     data = jsonData
                 }))
             end
         else
-            local getAllRecords = red:get("servers");
-            local allServers, servers = {}, {}
+            local getAllRecords = red:hget("servers", id)
+            local server = {}
             if type(getAllRecords) == "string" then
-                allServers = cjson.decode(getAllRecords)
-                for index, server in pairs(allServers) do
-                    if index == id then
-                        table.insert(servers, server)
-                    end
-                end
+                server = cjson.decode(getAllRecords)
                 ngx.say(cjson.encode({
-                    data = servers[1]
+                    data = server
                 }))
             end
         end
@@ -392,18 +392,19 @@ local function listRules(args)
         end
     end
     for key, value in pairs(exist_values) do
-        if tonumber(key) % 2 == 0 then
-            table.insert(keys, value)
-            if type(value) == "string" then
-                local ruleObj = cjson.decode(value)
-                if next(qParams.filter) ~= nil then
-                    if qParams.filter.id == ruleObj.id then
-                        goto continue
+        if type(value) == "string" then
+            if tonumber(key) % 2 == 0 then
+                table.insert(keys, value)
+                if type(value) == "string" then
+                    local ruleObj = cjson.decode(value)
+                    if next(qParams.filter) ~= nil then
+                        if qParams.filter.id == ruleObj.id then
+                            goto continue
+                        end
                     end
+                    table.insert(allRules, cjson.decode(value))
+                    ::continue::
                 end
-                table.insert(allRules, cjson.decode(value))
-
-                ::continue::
             end
         elseif type(value) == "table" then
             if next(qParams.filter) ~= nil then
@@ -422,15 +423,35 @@ local function listRules(args)
 end
 
 local function listRule(args, uuid)
-    local exist_value, err = red:hget("request_rules", uuid)
-    exist_value = cjson.decode(exist_value)
-    if exist_value.match.response.message then
-        exist_value.match.response.message = Base64.decode(exist_value.match.response.message)
-    end
+    local settings = getSettings()
+    if settings then
+        if settings.storage_type == "disk" then
+            local file, err = io.open("/usr/local/openresty/nginx/html/data/rules/" .. uuid .. ".json", "rb")
+            if file == nil then
+                -- ngx.say("Couldn't read file: " .. err)
+                ngx.say(cjson.encode({
+                    data = {}
+                }))
+            else
+                local jsonString = file:read "*a"
+                file:close()
+                local jsonData = cjson.decode(jsonString)
+                ngx.say(cjson.encode({
+                    data = jsonData
+                }))
+            end
+        end
+    else
+        local exist_value, err = red:hget("request_rules", uuid)
+        exist_value = cjson.decode(exist_value)
+        if exist_value.match.response.message then
+            exist_value.match.response.message = Base64.decode(exist_value.match.response.message)
+        end
 
-    ngx.say({cjson.encode({
-        data = exist_value
-    })})
+        ngx.say({cjson.encode({
+            data = exist_value
+        })})
+    end
     -- end
 end
 
@@ -489,9 +510,12 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name)
             json_val[k] = nil
         end
     end
-    -- if json_val.match and json_val.match.response and json_val.match.response.message then
-    --     json_val.match.response.message = base64.encode(json_val.match.response.message)
-    -- end
+    if json_val.config then
+        json_val.config = Base64.encode(json_val.config)
+    end
+    if json_val.match and json_val.match.response and json_val.match.response.message then
+        json_val.match.response.message = Base64.encode(json_val.match.response.message)
+    end
 
     local redis_json = {}
     redis_json[uuid] = cjson.encode(json_val)
