@@ -552,6 +552,52 @@ local function createUpdateRules(body, uuid)
     }))
 end
 
+local function listSessions(args)
+    local counter = 0
+    local params = args
+    params = params.params
+    local allsessions, sessions = {}, {}
+    local exist_values, err = red:scan(0, "match", "session:*") --red:keys("session:*")
+    local records = {}
+    if exist_values[2]~=nil then
+        for key,value in pairs(exist_values[2]) do
+            -- if key % 2 == 0 then
+                table.insert(records, {session_id = value,id=key,subject = 'Redacted',timeout = 'Redacted',quote='Redacted'})
+            -- end
+        end
+    end
+    local getAllRecords = records
+    if type(getAllRecords) == "string" then
+        allsessions = cjson.decode(getAllRecords)
+    else
+        allsessions = getAllRecords
+    end
+    local qParams = cjson.decode(params)
+    local perPage = qParams.pagination.perPage * qParams.pagination.page
+    local page = perPage - (qParams.pagination.perPage - 1)
+    for index, server in pairs(allsessions) do
+        counter = counter + 1
+        if counter >= page and counter <= perPage then
+            table.insert(sessions, server)
+        end
+    end
+    if qParams.sort.order == "DESC" then
+        -- table.sort(sessions, sortDesc(qParams.sort.field))
+    else
+        -- table.sort(sessions, sortAsc(qParams.sort.field))
+    end
+    if counter < 1 then
+        return ngx.say(cjson.encode({
+            data = {},
+            total = 0
+        }))
+    end
+    return ngx.say(cjson.encode({
+        data = sessions,
+        total = counter
+    }))
+end
+
 local function handle_get_request(args, path)
     -- handle GET request logic
     local delimiter = "/"
@@ -578,6 +624,12 @@ local function handle_get_request(args, path)
         listRules(args)
     elseif uuid and (#uuid == 36 or #uuid == 32) and subPath[1] == "rules" then
         listRule(args, uuid)
+    end
+
+    if path == "sessions" then
+        listSessions(args)
+    -- elseif uuid and (#uuid == 36 or #uuid == 32) and subPath[1] == "sessions" then
+    --     listSession(args, uuid)
     end
 end
 

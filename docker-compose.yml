@@ -10,6 +10,8 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8080:80"
+    networks:
+      - whitefalcon-network
     volumes:
       - ./nginx-dev.conf.tmpl:/usr/local/openresty/nginx/conf/nginx.conf
       - ./openresty-admin/public:/usr/local/openresty/nginx/html/openresty-admin/public
@@ -36,3 +38,8 @@ services:
     image: "redis:alpine"
     ports:
       - "6379:6379"
+    networks:
+      - whitefalcon-network
+
+networks: 
+  whitefalcon-network:
