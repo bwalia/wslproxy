@@ -8,13 +8,14 @@ error_log  logs/error.log;
 
 #pid        logs/nginx.pid;
 
-
 events {
     worker_connections  1024;
 }
 
+env DNS_RESOLVER;
 env REDIS_HOST;
 env APP_NAME;
+env LUA_DEBUG;
 env VERSION;
 env STACK;
 env DEPLOYMENT_TIME;
@@ -47,7 +48,7 @@ http {
         listen       80;
         server_name  localhost;
         # For kubernetes use 10.43.0.10 and nginx ingress controller
-        resolver 8.8.8.8;  # Google resolver
+        include /tmp/resolver.conf;
 
         #charset koi8-r;
 

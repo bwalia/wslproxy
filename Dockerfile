@@ -12,7 +12,6 @@
 
 ARG RESTY_FAT_IMAGE_BASE="openresty/openresty"
 ARG RESTY_FAT_IMAGE_TAG="alpine"
-ARG DNS_RESOLVER="127.0.0.11"
 
 FROM ${RESTY_FAT_IMAGE_BASE}:${RESTY_FAT_IMAGE_TAG}
 
@@ -81,20 +80,27 @@ COPY ./openresty-admin /usr/local/openresty/nginx/html/openresty-admin
 COPY ./data /usr/local/openresty/nginx/html/data
 COPY ./api /usr/local/openresty/nginx/html/api
 COPY nginx-dev.conf.tmpl /tmp/nginx.conf.tmpl
+COPY resolver.conf.tmpl /tmp/resolver.conf.tmpl
 
 RUN chmod -R 777 /usr/local/openresty/nginx/html/data && chmod -R 777 /usr/local/openresty/nginx/html/data/servers 
 
 RUN cd /tmp/ && wget https://edgeone-public.s3.eu-west-2.amazonaws.com/src/openresty/IP2LOCATION-LITE-DB11.IPV6.BIN/IP2LOCATION-LITE-DB11.IPV6.BIN -O /tmp/IP2LOCATION-LITE-DB11.IPV6.BIN
-#COPY ./IP2LOCATION-LITE-DB11.IPV6.BIN /tmp
+#   COPY ./IP2LOCATION-LITE-DB11.IPV6.BIN /tmp
 
 ENV DNS_RESOLVER="127.0.0.11"
+ARG DNS_RESOLVER="127.0.0.11"
 
-ARG DOCKERIZE_VERSION="v0.6.1"
-RUN wget https://github.com/jwilder/dockerize/releases/download/${DOCKERIZE_VERSION}/dockerize-alpine-linux-amd64-${DOCKERIZE_VERSION}.tar.gz \
-    && tar -C /usr/local/bin -xzvf dockerize-alpine-linux-amd64-${DOCKERIZE_VERSION}.tar.gz \
-    && rm dockerize-alpine-linux-amd64-${DOCKERIZE_VERSION}.tar.gz
+# ARG DOCKERIZE_VERSION="v0.6.1"
+# RUN wget https://github.com/jwilder/dockerize/releases/download/${DOCKERIZE_VERSION}/dockerize-alpine-linux-amd64-${DOCKERIZE_VERSION}.tar.gz \
+#     && tar -C /usr/local/bin -xzvf dockerize-alpine-linux-amd64-${DOCKERIZE_VERSION}.tar.gz \
+#     && rm dockerize-alpine-linux-amd64-${DOCKERIZE_VERSION}.tar.gz
 
-RUN dockerize -template /tmp/nginx.conf.tmpl:/usr/local/openresty/nginx/conf/nginx.conf
+RUN cp /tmp/nginx.conf.tmpl /usr/local/openresty/nginx/conf/nginx.conf
+RUN cp /tmp/resolver.conf.tmpl /tmp/resolver.conf
+
+#RUN dockerize -template /usr/local/openresty/nginx/conf/nginx.conf:/usr/local/openresty/nginx/conf/nginx.conf
+
+RUN sed -i "s/resolver 127.0.0.11/resolver ${DNS_RESOLVER}/g" /tmp/resolver.conf
 
 RUN cd /usr/local/openresty/nginx/html/openresty-admin && yarn install && yarn build
 RUN chmod -R 777 /usr/local/openresty/nginx/html/data && \
@@ -103,4 +109,4 @@ RUN chmod -R 777 /usr/local/openresty/nginx/html/data && \
     chmod -R 777 /usr/local/openresty/nginx/html/data/security_rules.json && \
     chmod 777 /usr/local/openresty/nginx/html/data/settings.json
 
-ENTRYPOINT ["/usr/local/openresty/nginx/sbin/nginx", "-g", "daemon off;"] 
+ENTRYPOINT ["/usr/local/openresty/nginx/sbin/nginx", "-g", "daemon off;"]
