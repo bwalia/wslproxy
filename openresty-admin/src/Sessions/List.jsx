@@ -6,9 +6,10 @@ const List = () => {
     <RaList title={"Sessions"}>
       <Datagrid>
         <TextField source='id' />
-        <TextField source='name' />
-        <EmailField source='email' />
-        <DateField source='createdAt' />
+        <TextField source='session_id' />
+        <TextField source='subject' />
+        <TextField source='timeout' />
+        <TextField source='quote' />
       </Datagrid>
     </RaList>
   )

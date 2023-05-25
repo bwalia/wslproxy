@@ -1,0 +1,161 @@
+worker_processes  1;
+
+events {
+  worker_connections 1024;
+}
+
+http {
+# -- secret   = "RaJKp8UQW1",
+  init_by_lua_block {
+    require "resty.session".init({
+      remember = true,
+      audience = "demo",
+      storage  = "redis",
+      redis = {
+        host = "whitefalcon-redis",
+        port = 6379,
+
+      }
+      
+    })
+  }
+  
+  server {
+    listen       80;
+    server_name  localhost;
+    default_type text/html;
+    resolver 127.0.0.11;
+
+    location / {
+      content_by_lua_block {
+        ngx.say([[
+          <html>
+          <body>
+            <a href=/start>Start the test</a>
+          </body>
+          </html>
+        ]])
+      }
+    }
+
+    location /start {
+      content_by_lua_block {
+        local session = require "resty.session".new()
+        session:set_subject("OpenResty Fan")
+        session:set("quote", "The quick brown fox jumps over the lazy dog")
+        local ok, err = session:save()
+       
+        ngx.say(string.format([[
+          <html>
+          <body>
+            <p>Session started (%s)</p>
+            <p><a href=/started>Check if it really was</a></p>
+          </body>
+          </html>
+        ]], err or "no error"))
+      }
+    }
+
+    location /started {
+      content_by_lua_block {
+        local session, err = require "resty.session".start()
+        
+        ngx.say(string.format([[
+          <html>
+          <body>
+            <p>Session was started by %s (%s)</p>
+            <p><blockquote>%s</blockquote></p>
+            <p><blockquote>%s</blockquote></p>
+            <p><a href=/modify>Modify the session</a></p>
+          </body>
+          </html>
+        ]],
+          session:get_subject() or "Anonymous",
+          err or "no error",
+          session:get("quote") or "no quote",
+          session:get_property("timeout") or "no property"
+        ))
+      }
+    }
+    
+    location /modify {
+      content_by_lua_block {
+        local session, err = require "resty.session".start()
+        session:set_subject("Lua Fan")
+        session:set("quote", "Lorem ipsum dolor sit amet")
+        local _, err_save = session:save()
+        
+        ngx.say(string.format([[
+          <html>
+          <body>
+            <p>Session was modified (%s)</p>
+            <p><a href=/modified>Check if it is modified</a></p>
+          </body>
+          </html>
+        ]], err or err_save or "no error"))
+      }
+    }
+    
+    location /modified {
+      content_by_lua_block {
+        local session, err = require "resty.session".start()
+
+        ngx.say(string.format([[
+          <html>
+          <body>
+            <p>Session was started by %s (%s)</p>
+            <p><blockquote>%s</blockquote></p>
+            <p><a href=/destroy>Destroy the session</a></p>
+          </body>
+          </html>
+        ]],
+          session:get_subject() or "Anonymous",
+          err or "no error",
+          session:get("quote")  or "no quote"
+        ))
+      }
+    }
+
+    location /modified_json {
+      default_type application/json;
+      content_by_lua_block {
+        local session, err = require "resty.session".start()
+
+        ngx.say()
+      }
+    }
+    
+    location /destroy {
+      content_by_lua_block {
+        local ok, err = require "resty.session".destroy()
+
+        ngx.say(string.format([[
+          <html>
+          <body>
+            <p>Session was destroyed (%s)</p>
+            <p><a href=/destroyed>Check that it really was?</a></p>
+          </body>
+          </html>
+        ]], err or "no error"))
+      }
+    }
+    
+    location /destroyed {
+      content_by_lua_block {
+        local session, err = require "resty.session".open()
+
+        ngx.say(string.format([[
+          <html>
+          <body>
+            <p>Session was really destroyed, you are known as %s (%s)</p>
+            <p><a href=/>Start again</a></p>
+          </body>
+          </html>
+        ]],
+          session:get_subject() or "Anonymous",
+          err or "no error"
+        ))
+      }
+    }    
+  }
+}  
