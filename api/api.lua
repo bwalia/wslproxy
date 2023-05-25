@@ -254,6 +254,9 @@ local function listServer(args, id)
             local server = {}
             if type(getAllRecords) == "string" then
                 server = cjson.decode(getAllRecords)
+                if server.config then
+                    server.config = Base64.decode(server.config)
+                end
                 ngx.say(cjson.encode({
                     data = server
                 }))
@@ -440,17 +443,17 @@ local function listRule(args, uuid)
                     data = jsonData
                 }))
             end
-        end
-    else
-        local exist_value, err = red:hget("request_rules", uuid)
-        exist_value = cjson.decode(exist_value)
-        if exist_value.match.response.message then
-            exist_value.match.response.message = Base64.decode(exist_value.match.response.message)
-        end
+        else
+            local exist_value, err = red:hget("request_rules", uuid)
+            exist_value = cjson.decode(exist_value)
+            if exist_value.match.response.message then
+                exist_value.match.response.message = Base64.decode(exist_value.match.response.message)
+            end
 
-        ngx.say({cjson.encode({
-            data = exist_value
-        })})
+            ngx.say({cjson.encode({
+                data = exist_value
+            })})
+        end
     end
     -- end
 end
