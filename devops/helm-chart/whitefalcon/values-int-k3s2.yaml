@@ -4,6 +4,17 @@
 
 replicaCount: 1
 
+app:
+  name: whitefalcon
+  version: 0.1.0
+  description: A Helm chart for Kubernetes
+  keywords:
+    - helm
+    - chart
+    - kubernetes
+  namespace: int
+  dns_resolver: "10.43.0.10"
+
 image:
   repository: bwalia/whitefalcon
   pullPolicy: Always
