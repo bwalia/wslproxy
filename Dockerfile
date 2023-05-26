@@ -72,6 +72,7 @@ RUN luarocks install lua-resty-openidc
 RUN luarocks install base64
 RUN opm get ip2location/ip2location-resty
 RUN luarocks install lua-resty-redis-connector
+RUN opm get bungle/lua-resty-session
 #COPY nginx/test.conf /usr/local/openresty/nginx/conf/nginx.conf
 # COPY nginx/hd4dp.conf /etc/nginx/conf.d/hd4dp.conf
 # COPY nginx/sessions_demo_server.conf /etc/nginx/conf.d/sessions_demo_server.conf
