@@ -8,19 +8,19 @@ Authorization: Bearer YOUR_API_KEY
 
 Use this API to get your API key with valid credentials: 
 ```http
-http://localhost:8080/api/user/login
+/api/user/login
 ```
 ## Endpoints
 The servers APIs provide the following endpoints:
 ```http
-api/servers
-api/servers/{uuid}
+/api/servers
+/api/servers/{id}
 ```
 
 The rules APIs provide the following endpoints:
 ```http
 api/rules
-api/rules/{uuid}
+api/rules/{id}
 ```
 
 ## API Reference
@@ -33,7 +33,7 @@ api/rules/{uuid}
 
 | Parameter | Description     | Response                |
 | :-------- | :------- | :------------------------- |
-| `none` | `Retrieves a list of all servers ` | `Status Code:- 200 OK, Returns a list of all servers data.` |
+| `none` | `Retrieves a list of all servers ` | `Status Code:- 200 OK, Returned a list of all servers data.` |
 
 
 
@@ -44,7 +44,7 @@ api/rules/{uuid}
 
 | Parameter | Description     | Response                |
 | :-------- | :------- | :------------------------- |
-| `id` | `Retrieves information about a specific server ` | `Status Code:- 200 OK, Retrieves information about a specific server` |
+| `id` | `Retrieves information about a specific server ` | `Status Code:- 200 OK, Returned information about a specific server` |
 
 ```http
   POST /api/servers/
@@ -53,7 +53,7 @@ api/rules/{uuid}
 
 | Parameter | Description     | Response                |
 | :-------- | :------- | :------------------------- |
-| `Listen, server_name and config required` | `Creates a new server. ` | `Status Code:- 200 OK, Created a new server` |
+| `Listen, server_name and config required in request body` | `Creates a new server. ` | `Status Code:- 200 OK, Created a new server` |
 
 ```http
   PUT /api/servers/{id}
@@ -62,7 +62,7 @@ api/rules/{uuid}
 
 | Parameter | Description     | Response                |
 | :-------- | :------- | :------------------------- |
-| `id` | `Updates an existing server. ` | `Status Code:- 200 OK, Updated a existing server` |
+| `id` | `Updates an existing server. ` | `Status Code:- 200 OK, Updated an existing server` |
 
 ```http
   DELETE /api/servers/{id}
@@ -71,7 +71,7 @@ api/rules/{uuid}
 
 | Parameter | Description     | Response                |
 | :-------- | :------- | :------------------------- |
-| `id` | `Delets an existing server. ` | `Status Code:- 200 OK, deleted a existing server` |
+| `id` | `Delets an existing server. ` | `Status Code:- 200 OK, deleted an existing server` |
 
 ### Rules APIs
 
@@ -81,7 +81,7 @@ api/rules/{uuid}
 
 | Parameter | Description     | Response                |
 | :-------- | :------- | :------------------------- |
-| `none` | `Retrieves a list of all rules ` | `Status Code:- 200 OK, Returns a list of all rules data.` |
+| `none` | `Retrieves a list of all rules ` | `Status Code:- 200 OK, Returned a list of all rules data.` |
 
 
 
@@ -92,7 +92,7 @@ api/rules/{uuid}
 
 | Parameter | Description     | Response                |
 | :-------- | :------- | :------------------------- |
-| `id` | `Retrieves information about a specific rule ` | `Status Code:- 200 OK, Retrieves information about a specific rule` |
+| `id` | `Retrieves information about a specific rule ` | `Status Code:- 200 OK, Returned information about a specific rule` |
 
 ```http
   POST /api/rules
@@ -101,7 +101,7 @@ api/rules/{uuid}
 
 | Parameter | Description     | Response                |
 | :-------- | :------- | :------------------------- |
-| `Name, version and priority required` | `Creates a new rule. ` | `Status Code:- 200 OK, Created a new rule` |
+| `Name, version and priority required in request body` | `Creates a new rule. ` | `Status Code:- 200 OK, Created a new rule` |
 
 ```http
   PUT /api/rules/{id}
@@ -110,7 +110,7 @@ api/rules/{uuid}
 
 | Parameter | Description     | Response                |
 | :-------- | :------- | :------------------------- |
-| `id` | `Updates an existing rule. ` | `Status Code:- 200 OK, Updated a existing rule` |
+| `id` | `Updates an existing rule. ` | `Status Code:- 200 OK, Updated an existing rule` |
 
 ```http
   DELETE /api/rules/{id}
@@ -119,7 +119,7 @@ api/rules/{uuid}
 
 | Parameter | Description     | Response                |
 | :-------- | :------- | :------------------------- |
-| `id` | `Delets an existing rule. ` | `Status Code:- 200 OK, deleted a existing rule` |
+| `id` | `Delets an existing rule. ` | `Status Code:- 200 OK, deleted an existing rule` |
 
 
 
