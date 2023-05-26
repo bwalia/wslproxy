@@ -1,4 +1,4 @@
-import { Admin, Resource, ListGuesser } from "react-admin";
+import { Admin, Resource, Layout } from "react-admin";
 import dataProvider from "./dataProvider";
 import authProvider from "./authProvider";
 import Dashboard from "./Dashboard/Dashboard";
@@ -12,8 +12,11 @@ import SessionIcon from '@mui/icons-material/HistoryToggleOff';
 import ServerIcon from '@mui/icons-material/Storage';
 import RuleIcon from '@mui/icons-material/Rule';
 import Rules from "./Rules";
+import AppBar from "./AppBar"
 
 const API_URL = "http://localhost:8080/api";
+
+export const MyLayout = props => <Layout {...props} appBar={AppBar} />;
 
 const App = () => (
   <Admin
@@ -22,6 +25,7 @@ const App = () => (
     authProvider={authProvider}
     dashboard={Dashboard}
     theme={Theme}
+    layout={MyLayout}
   >
     <Resource name="users" {...Users} icon={UserIcon} />
     <Resource name="sessions" {...Sessions} icon={SessionIcon} />

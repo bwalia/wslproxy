@@ -5,11 +5,10 @@ const List = () => {
   return (
     <RaList title={"Users"}>
       <Datagrid rowClick="edit">
-        <TextField source="id" />
-        <TextField source="phone" />
-        <EmailField source="email" />
-        <TextField source="website" />
         <TextField source="name" />
+        <EmailField source="email" />
+        <TextField source="phone" />
+        <TextField source="website" />
         <TextField source="address.city" />
         <TextField source="company.name" />
       </Datagrid>
