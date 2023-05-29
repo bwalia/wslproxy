@@ -6,7 +6,8 @@ Base64 = require "base64"
 red:set_timeout(1000) -- 1 second
 
 local function getSettings()
-    local readSettings, errSettings = io.open("/usr/local/openresty/nginx/html/data/settings.json", "rb")
+    local configurationPath = os.getenv("NGINX_CONFIG_DIR")
+    local readSettings, errSettings = io.open(configurationPath .."settings.json", "rb")
     local settings = {}
     if readSettings == nil then
         ngx.say("Couldn't read file: " .. errSettings)
