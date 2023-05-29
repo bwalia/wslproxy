@@ -14,10 +14,10 @@ import RuleIcon from '@mui/icons-material/Rule';
 import Rules from "./Rules";
 import AppBar from "./AppBar"
 
-console.log(import.meta.env.VITE_API_URL) 
+//console.log(import.meta.env.VITE_API_URL) 
 
 //console.log(__API_URL__);
-const API_URL = __API_URL__;
+const API_URL = "http://int2.whitefalcon.io/api";
 
 export const MyLayout = props => <Layout {...props} appBar={AppBar} />;
 
