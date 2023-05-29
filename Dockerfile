@@ -76,14 +76,16 @@ RUN opm get bungle/lua-resty-session
 #COPY nginx/test.conf /usr/local/openresty/nginx/conf/nginx.conf
 # COPY nginx/hd4dp.conf /etc/nginx/conf.d/hd4dp.conf
 # COPY nginx/sessions_demo_server.conf /etc/nginx/conf.d/sessions_demo_server.conf
+ENV NGINX_CONFIG_DIR="/opt/nginx/"
+RUN mkdir -p ${NGINX_CONFIG_DIR} && chmod 775 ${NGINX_CONFIG_DIR}
 
 COPY ./openresty-admin /usr/local/openresty/nginx/html/openresty-admin
-COPY ./data /usr/local/openresty/nginx/html/data
+COPY ./data ${NGINX_CONFIG_DIR}data
 COPY ./api /usr/local/openresty/nginx/html/api
 COPY nginx-dev.conf.tmpl /tmp/nginx.conf.tmpl
 COPY resolver.conf.tmpl /tmp/resolver.conf.tmpl
 
-RUN chmod -R 777 /usr/local/openresty/nginx/html/data && chmod -R 777 /usr/local/openresty/nginx/html/data/servers 
+#RUN chmod -R 777 /usr/local/openresty/nginx/html/data && chmod -R 777 /usr/local/openresty/nginx/html/data/servers 
 
 RUN cd /tmp/ && wget https://edgeone-public.s3.eu-west-2.amazonaws.com/src/openresty/IP2LOCATION-LITE-DB11.IPV6.BIN/IP2LOCATION-LITE-DB11.IPV6.BIN -O /tmp/IP2LOCATION-LITE-DB11.IPV6.BIN
 #   COPY ./IP2LOCATION-LITE-DB11.IPV6.BIN /tmp
@@ -103,11 +105,12 @@ RUN cp /tmp/resolver.conf.tmpl /tmp/resolver.conf
 
 RUN sed -i "s/resolver 127.0.0.11/resolver ${DNS_RESOLVER}/g" /tmp/resolver.conf
 
+
 RUN cd /usr/local/openresty/nginx/html/openresty-admin && yarn install && yarn build
-RUN chmod -R 777 /usr/local/openresty/nginx/html/data && \
-    chmod -R 777 /usr/local/openresty/nginx/html/data/servers && \
-    chmod -R 777 /usr/local/openresty/nginx/html/data/rules && \
-    chmod -R 777 /usr/local/openresty/nginx/html/data/security_rules.json && \
-    chmod 777 /usr/local/openresty/nginx/html/data/settings.json
+RUN chmod -R 775 ${NGINX_CONFIG_DIR}data && \
+    chmod -R 775 ${NGINX_CONFIG_DIR}data/servers && \
+    chmod -R 775 ${NGINX_CONFIG_DIR}data/rules && \
+    chmod -R 775 ${NGINX_CONFIG_DIR}data/security_rules.json && \
+    chmod 775 ${NGINX_CONFIG_DIR}data/settings.json
 
 ENTRYPOINT ["/usr/local/openresty/nginx/sbin/nginx", "-g", "daemon off;"]

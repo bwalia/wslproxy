@@ -45,7 +45,12 @@ spec:
           - name: STACK
             value: "Lua 5.1"  
           - name: DEPLOYMENT_TIME
-            value: "20230510055429"            
+            value: "20230510055429" 
+          - name: NGINX_CONFIG_DIR
+            value: "/opt/nginx/"
+          - name: JWT_SECURITY_PASSPHRASE
+            value: "HCsKpxQ4hU97V5us5TCwvLnAVBgLqNd1dP2R-4Uywg7946J3zAqT9EOA5hdWRCQn"  
+
           ports:
             - name: http
               containerPort: {{ .Values.service.port }}
