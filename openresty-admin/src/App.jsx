@@ -13,7 +13,7 @@ import ServerIcon from '@mui/icons-material/Storage';
 import RuleIcon from '@mui/icons-material/Rule';
 import Rules from "./Rules";
 import AppBar from "./AppBar"
-
+console.log(__API_URL__);
 const API_URL = "http://localhost:8080/api";
 
 export const MyLayout = props => <Layout {...props} appBar={AppBar} />;
