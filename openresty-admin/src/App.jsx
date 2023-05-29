@@ -14,7 +14,7 @@ import RuleIcon from '@mui/icons-material/Rule';
 import Rules from "./Rules";
 import AppBar from "./AppBar"
 console.log(__API_URL__);
-const API_URL = "http://localhost:8080/api";
+const API_URL = __API_URL__;
 
 export const MyLayout = props => <Layout {...props} appBar={AppBar} />;
 
