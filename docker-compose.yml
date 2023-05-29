@@ -22,7 +22,7 @@ services:
       - ./openresty-admin/package.json:/usr/local/openresty/nginx/html/openresty-admin/package.json
       - ./openresty-admin/vite.config.js:/usr/local/openresty/nginx/html/openresty-admin/vite.config.js
       - ./openresty-admin/yarn.lock:/usr/local/openresty/nginx/html/openresty-admin/yarn.lock
-      - ./data:/usr/local/openresty/nginx/html/data
+      - ./data:/opt/nginx/data
       - ./api:/usr/local/openresty/nginx/html/api
     environment:
       LUA_DEBUG: "true"

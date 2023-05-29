@@ -4,10 +4,10 @@ local redis = require "resty.redis"
 local red = redis:new()
 Base64 = require "base64"
 red:set_timeout(1000) -- 1 second
-
+local configPath = os.getenv("NGINX_CONFIG_DIR")
 local function getSettings()
-    local configurationPath = os.getenv("NGINX_CONFIG_DIR")
-    local readSettings, errSettings = io.open(configurationPath .."settings.json", "rb")
+   
+    local readSettings, errSettings = io.open(configPath .."settings.json", "rb")
     local settings = {}
     if readSettings == nil then
         ngx.say("Couldn't read file: " .. errSettings)
@@ -65,7 +65,8 @@ local function hash_password(password)
 end
 
 local function generateToken()
-    return jwt:sign("HCsKpxQ4hU97V5us5TCwvLnAVBgLqNd1dP2R-4Uywg7946J3zAqT9EOA5hdWRCQn", {
+    local passPhrase = os.getenv("JWT_SECURITY_PASSPHRASE")
+    return jwt:sign(passPhrase, {
         header = {
             typ = "JWT",
             alg = "HS256"
@@ -130,7 +131,7 @@ local function setStorage(body)
             end
         end
         local payloads = keyset[1]
-        local writableFile, writableErr = io.open("/usr/local/openresty/nginx/html/data/settings.json", "w")
+        local writableFile, writableErr = io.open(configPath.."data/settings.json", "w")
         settings.storage_type = payloads.storage
         if writableFile == nil then
             ngx.say("Couldn't write file: " .. writableErr)
@@ -151,7 +152,7 @@ end
 local function listFromDisk(directory)
     local files = {}
     -- Run the 'ls' command to get a list of filenames
-    local output, error = io.popen("ls /usr/local/openresty/nginx/html/data/" .. directory .. ""):read("*all")
+    local output, error = io.popen("ls "..configPath.."data/" .. directory .. ""):read("*all")
 
     for filename in string.gmatch(output, "[^\r\n]+") do
         table.insert(files, filename)
@@ -159,7 +160,7 @@ local function listFromDisk(directory)
 
     local jsonData = {}
     for _, filename in ipairs(files) do
-        local file, err = io.open("/usr/local/openresty/nginx/html/data/" .. directory .. "/" .. filename, "rb")
+        local file, err = io.open(configPath.."data/" .. directory .. "/" .. filename, "rb")
         if file == nil then
             -- ngx.say("Couldn't read file: " .. err)
             return ngx.say(cjson.encode({
@@ -233,7 +234,7 @@ local function listServer(args, id)
     local settings = getSettings()
     if settings then
         if settings.storage_type == "disk" then
-            local file, err = io.open("/usr/local/openresty/nginx/html/data/servers/" .. id .. ".json", "rb")
+            local file, err = io.open(configPath.."data/servers/" .. id .. ".json", "rb")
             if file == nil then
                 -- ngx.say("Couldn't read file: " .. err)
                 ngx.say(cjson.encode({
@@ -290,11 +291,11 @@ local function createDeleteServer(body, uuid)
     local serverId = uuid
     local payloads = GetPayloads(body)
     if uuid ~= "" and uuid ~= nil then
-        os.remove("/usr/local/openresty/nginx/html/data/servers/" .. uuid .. ".json")
+        os.remove(configPath.."data/servers/" .. uuid .. ".json")
         local del, err = red:hdel("servers", uuid)
     elseif payloads and payloads.ids and #payloads.ids > 0 then
         for value = 1, #payloads.ids do
-            os.remove("/usr/local/openresty/nginx/html/data/servers/" .. payloads.ids[value] .. ".json")
+            os.remove(configPath.."data/servers/" .. payloads.ids[value] .. ".json")
             local del, err = red:hdel("servers", payloads.ids[value])
         end
 
@@ -304,7 +305,7 @@ end
 -- Users APIs
 
 local function listUsers()
-    local file, err = io.open("/usr/local/openresty/nginx/html/data/users.json", "rb")
+    local file, err = io.open(configPath.."data/users.json", "rb")
     if file == nil then
         ngx.say("Couldn't read file: " .. err)
     else
@@ -319,7 +320,7 @@ local function listUsers()
 end
 
 local function listUser(args, uuid)
-    local file, err = io.open("/usr/local/openresty/nginx/html/data/users.json", "rb")
+    local file, err = io.open(configPath.."data/users.json", "rb")
     if file == nil then
         ngx.say("Couldn't read file: " .. err)
     else
@@ -337,7 +338,7 @@ local function listUser(args, uuid)
 end
 
 local function createUpdateUser(body, uuid)
-    local file, err = io.open("/usr/local/openresty/nginx/html/data/users.json", "rb")
+    local file, err = io.open(configPath.."data/users.json", "rb")
     if file == nil then
         ngx.say("Couldn't read file: " .. err)
     else
@@ -367,7 +368,7 @@ local function createUpdateUser(body, uuid)
         end
 
         table.insert(users, payloads)
-        local writableFile, writableErr = io.open("/usr/local/openresty/nginx/html/data/users.json", "w")
+        local writableFile, writableErr = io.open(configPath.."data/users.json", "w")
         if writableFile == nil then
             ngx.say("Couldn't write file: " .. writableErr)
         else
@@ -430,7 +431,7 @@ local function listRule(args, uuid)
     local settings = getSettings()
     if settings then
         if settings.storage_type == "disk" then
-            local file, err = io.open("/usr/local/openresty/nginx/html/data/rules/" .. uuid .. ".json", "rb")
+            local file, err = io.open(configPath.."data/rules/" .. uuid .. ".json", "rb")
             if file == nil then
                 -- ngx.say("Couldn't read file: " .. err)
                 ngx.say(cjson.encode({
@@ -491,12 +492,12 @@ local function createDeleteRules(body, uuid)
     local payloads = GetPayloads(body)
 
     if uuid ~= "" and uuid ~= nil then
-        os.remove("/usr/local/openresty/nginx/html/data/rules/" .. uuid .. ".json")
+        os.remove(configPath.."data/rules/" .. uuid .. ".json")
         local del, err = red:hdel("request_rules", uuid)
     elseif payloads and payloads.ids and #payloads.ids > 0 then
 
         for value = 1, #payloads.ids do
-            os.remove("/usr/local/openresty/nginx/html/data/rules/" .. payloads.ids[value] .. ".json")
+            os.remove(configPath.."data/rules/" .. payloads.ids[value] .. ".json")
             local del, err = red:hdel("request_rules", payloads.ids[value])
         end
 
@@ -525,7 +526,7 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name)
     redis_json[uuid] = cjson.encode(json_val)
     local inserted, err = red:hmset(key_name, redis_json)
 
-    local file, err = io.open("/usr/local/openresty/nginx/html/data/" .. folder_name .. "/" .. uuid .. ".json", "w")
+    local file, err = io.open(configPath.."data/" .. folder_name .. "/" .. uuid .. ".json", "w")
     if file == nil then
         ngx.say("Couldn't read file: " .. err)
     else

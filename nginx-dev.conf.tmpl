@@ -19,6 +19,8 @@ env LUA_DEBUG;
 env VERSION;
 env STACK;
 env DEPLOYMENT_TIME;
+env NGINX_CONFIG_DIR;
+env JWT_SECURITY_PASSPHRASE;
 
 http {
     include       mime.types;
@@ -87,7 +89,8 @@ http {
                     end
                     token = string.gsub(token, "^Bearer ", "")
                     -- ngx.say(token)
-                    local verified_token = jwt:verify("HCsKpxQ4hU97V5us5TCwvLnAVBgLqNd1dP2R-4Uywg7946J3zAqT9EOA5hdWRCQn", token)
+                    local passPhrase = os.getenv("JWT_SECURITY_PASSPHRASE")
+                    local verified_token = jwt:verify(passPhrase, token)
                     if not verified_token then
                         ngx.status = ngx.HTTP_UNAUTHORIZED
                         ngx.say("Invalid token")
