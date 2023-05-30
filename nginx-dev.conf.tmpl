@@ -74,7 +74,7 @@ http {
 
         location ~ ^/api(.*)$ {
             default_type 'text/plain';
-            add_header 'Access-Control-Allow-Origin' 'http://172.27.0.3:5173';
+            add_header 'Access-Control-Allow-Origin' 'http://172.30.0.3:5173';
             add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, OPTIONS';
             add_header 'Access-Control-Allow-Headers' 'Content-Type';
             access_by_lua_block {
@@ -143,6 +143,17 @@ http {
             add_header 'Content-Type' 'text/plain; charset=utf-8';
             add_header 'Content-Length' 0;
             content_by_lua_file /usr/local/openresty/nginx/html/api/security_rules.lua;
+        }
+
+        location /router {
+            default_type 'application/json';
+            add_header 'Access-Control-Allow-Origin' '*';
+            add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, PUT, DELETE';
+            add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, X-Requested-With';
+            add_header 'Access-Control-Max-Age' 1728000;
+            add_header 'Content-Type' 'text/plain; charset=utf-8';
+            add_header 'Content-Length' 0;
+            content_by_lua_file /usr/local/openresty/nginx/html/api/router.lua;
         }
 
         location /ip-location {
