@@ -5,7 +5,7 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   define: {
-    __API_URL__: JSON.stringify(process.env.REDIS_HOST)
+    __API_URL__: JSON.stringify(process.env.API_URL)
   },
 
 })

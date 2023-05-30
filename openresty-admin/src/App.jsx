@@ -16,8 +16,8 @@ import AppBar from "./AppBar"
 
 //console.log(import.meta.env.VITE_API_URL) 
 
-//console.log(__API_URL__);
-const API_URL = "http://int2.whitefalcon.io/api";
+// console.log({__API_URL__});
+const API_URL = __API_URL__;
 
 export const MyLayout = props => <Layout {...props} appBar={AppBar} />;
 
