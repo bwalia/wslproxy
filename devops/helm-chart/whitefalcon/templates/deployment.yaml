@@ -37,11 +37,11 @@ spec:
           - name: DNS_RESOLVER
             value: "{{ .Values.app.dns_resolver }}"
           - name: REDIS_HOST
-            value: "redis-service.{{ .Values.app.namespace }}.svc.cluster.local"            
+            value: "{{ .Values.app.redis_host }}"            
           - name: APP_NAME
-            value: "whitefalcon"  
+            value: "{{ .Values.app.name }}"  
           - name: VERSION
-            value: "1.0"  
+            value: "{{ .Values.app.version }}"  
           - name: STACK
             value: "Lua 5.1"  
           - name: DEPLOYMENT_TIME
@@ -49,7 +49,7 @@ spec:
           - name: NGINX_CONFIG_DIR
             value: "/opt/nginx/"
           - name: JWT_SECURITY_PASSPHRASE
-            value: "HCsKpxQ4hU97V5us5TCwvLnAVBgLqNd1dP2R-4Uywg7946J3zAqT9EOA5hdWRCQn"  
+            value: "{{ .Values.app.jwt_security_passphrase }}"
 
           ports:
             - name: http
