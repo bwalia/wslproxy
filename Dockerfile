@@ -82,6 +82,7 @@ RUN mkdir -p ${NGINX_CONFIG_DIR} && chmod 775 ${NGINX_CONFIG_DIR}
 COPY ./openresty-admin /usr/local/openresty/nginx/html/openresty-admin
 COPY ./data ${NGINX_CONFIG_DIR}data
 COPY ./api /usr/local/openresty/nginx/html/api
+COPY ./.react-admin-env /usr/local/openresty/nginx/html/openresty-admin/.env
 COPY nginx-dev.conf.tmpl /tmp/nginx.conf.tmpl
 COPY resolver.conf.tmpl /tmp/resolver.conf.tmpl
 
