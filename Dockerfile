@@ -22,6 +22,8 @@ LABEL resty_fat_image_base="${RESTY_FAT_IMAGE_BASE}"
 LABEL resty_fat_image_tag="${RESTY_FAT_IMAGE_TAG}"
 LABEL resty_luarocks_version="${RESTY_LUAROCKS_VERSION}"
 
+#RUN set -ex && apk --no-cache add sudo
+
 RUN apk add --no-cache --virtual .build-deps \
         perl-dev \
     && apk add --no-cache \
@@ -77,14 +79,17 @@ RUN opm get bungle/lua-resty-session
 # COPY nginx/hd4dp.conf /etc/nginx/conf.d/hd4dp.conf
 # COPY nginx/sessions_demo_server.conf /etc/nginx/conf.d/sessions_demo_server.conf
 ENV NGINX_CONFIG_DIR="/opt/nginx/"
-RUN mkdir -p ${NGINX_CONFIG_DIR} && chmod 775 ${NGINX_CONFIG_DIR}
+RUN mkdir -p ${NGINX_CONFIG_DIR} && chmod 777 ${NGINX_CONFIG_DIR}
+
+ARG APP_ENV="dev"
+ARG ENV_FILE=".env.dev"
 
 COPY ./openresty-admin /usr/local/openresty/nginx/html/openresty-admin
 COPY ./data ${NGINX_CONFIG_DIR}data
 COPY ./api /usr/local/openresty/nginx/html/api
-COPY ./.react-admin-env /usr/local/openresty/nginx/html/openresty-admin/.env
-COPY nginx-dev.conf.tmpl /tmp/nginx.conf.tmpl
-COPY resolver.conf.tmpl /tmp/resolver.conf.tmpl
+#COPY $ENV_FILE /usr/local/openresty/nginx/html/openresty-admin.env
+COPY ./nginx-${APP_ENV}.conf.tmpl /tmp/nginx.conf.tmpl
+COPY ./resolver.conf.tmpl /tmp/resolver.conf.tmpl
 
 #RUN chmod -R 777 /usr/local/openresty/nginx/html/data && chmod -R 777 /usr/local/openresty/nginx/html/data/servers 
 
@@ -106,12 +111,25 @@ RUN cp /tmp/resolver.conf.tmpl /tmp/resolver.conf
 
 RUN sed -i "s/resolver 127.0.0.11/resolver ${DNS_RESOLVER}/g" /tmp/resolver.conf
 
+# set environment file based on the argument
 
-RUN cd /usr/local/openresty/nginx/html/openresty-admin && yarn install && yarn build
-RUN chmod -R 775 ${NGINX_CONFIG_DIR}data && \
-    chmod -R 775 ${NGINX_CONFIG_DIR}data/servers && \
-    chmod -R 775 ${NGINX_CONFIG_DIR}data/rules && \
-    chmod -R 775 ${NGINX_CONFIG_DIR}data/security_rules.json && \
-    chmod 775 ${NGINX_CONFIG_DIR}data/settings.json
+WORKDIR /usr/local/openresty/nginx/html/openresty-admin/
+
+RUN cd /usr/local/openresty/nginx/html/openresty-admin && yarn install \
+  --prefer-offline \
+  --frozen-lockfile \
+  --non-interactive \
+  --production=false
+  
+COPY ./.env.${APP_ENV} /usr/local/openresty/nginx/html/openresty-admin/.env
+RUN cd /usr/local/openresty/nginx/html/openresty-admin/ && yarn build
+#--dest /usr/local/openresty/nginx/html/openresty-admin/dist
+
+RUN chmod -R 777 ${NGINX_CONFIG_DIR}data && \
+    chmod -R 777 ${NGINX_CONFIG_DIR}data/servers && \
+    chmod -R 777 ${NGINX_CONFIG_DIR}data/rules && \
+    chmod -R 777 ${NGINX_CONFIG_DIR}data/security_rules.json && \
+    chown -R nobody:root ${NGINX_CONFIG_DIR}data/ && \
+    chmod 777 ${NGINX_CONFIG_DIR}data/settings.json
 
 ENTRYPOINT ["/usr/local/openresty/nginx/sbin/nginx", "-g", "daemon off;"]
