@@ -26,11 +26,7 @@ const getHeaders = () => {
     },
     getList: async (resource, params) => {
       try {
-        params.businessUUID = localStorage.getItem("uuid_business_id");
-        const pageResource = resource.includes("webimpetus-v1/")
-          ? resource.split("/")[1]
-          : resource;
-        const url = `${apiUrl}/${pageResource}?_format=json&params=${JSON.stringify(
+        const url = `${apiUrl}/${resource}?_format=json&params=${JSON.stringify(
           params
         )}`;
         const response = await fetch(url, {
