@@ -44,6 +44,8 @@ spec:
             value: "{{ .Values.app.version }}"  
           - name: STACK
             value: "Lua 5.1"  
+          - name: API_URL
+            value: "{{ .Values.app.api_url }}"  
           - name: DEPLOYMENT_TIME
             value: "20230510055429" 
           - name: NGINX_CONFIG_DIR
