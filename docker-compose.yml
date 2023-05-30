@@ -5,6 +5,8 @@ services:
     restart: always
     build:
       args:
+        - APP_ENV=dev
+        - APP_NAME=whitefalcon
         - DNS_RESOLVER=127.0.0.11
       context: .
       dockerfile: Dockerfile
@@ -24,7 +26,7 @@ services:
       - ./openresty-admin/yarn.lock:/usr/local/openresty/nginx/html/openresty-admin/yarn.lock
       - ./data:/opt/nginx/data
       - ./api:/usr/local/openresty/nginx/html/api
-      - ./.react-admin-env:/usr/local/openresty/nginx/html/openresty-admin/.env
+      - ./.env.dev:/usr/local/openresty/nginx/html/openresty-admin/.env
     environment:
       LUA_DEBUG: "true"
       REDIS_HOST: "whitefalcon-redis"
