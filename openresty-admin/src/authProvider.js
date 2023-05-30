@@ -1,8 +1,10 @@
 const authProvider = {
   // send username and password to the auth server and get back credentials
   login: async (params) => {
+    const API_URL = __API_URL__;
+    console.log(API_URL);
     const { email, password } = params;
-    const request = new Request("http://localhost:8080/api/user/login ", {
+    const request = new Request(`${API_URL}/user/login`, {
       method: "POST",
       body: JSON.stringify({ email, password }),
       headers: new Headers({
