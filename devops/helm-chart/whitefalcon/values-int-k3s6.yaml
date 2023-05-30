@@ -15,7 +15,7 @@ app:
   namespace: int
   dns_resolver: "10.43.0.10"
   api_url: "http://int6.whitefalcon.io/api"
-  redis_host: "redis-service.test.svc.cluster.local"
+  redis_host: "redis-service.int.svc.cluster.local"
   jwt_security_passphrase: "HCsKpxQ4hU97V5us5TCwvLnAVBgLqNd1dP2R-4Uywg7946J3zAqT9EOA5hdWRCQn"
 
 image:
