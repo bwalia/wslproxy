@@ -1,8 +1,8 @@
 const authProvider = {
   // send username and password to the auth server and get back credentials
   login: async (params) => {
+    console.log(__API_URL__);
     const API_URL = __API_URL__;
-    console.log(API_URL);
     const { email, password } = params;
     const request = new Request(`${API_URL}/user/login`, {
       method: "POST",

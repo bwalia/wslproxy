@@ -7,7 +7,7 @@ red:set_timeout(1000) -- 1 second
 local configPath = os.getenv("NGINX_CONFIG_DIR")
 local function getSettings()
    
-    local readSettings, errSettings = io.open(configPath .."settings.json", "rb")
+    local readSettings, errSettings = io.open(configPath .."data/settings.json", "rb")
     local settings = {}
     if readSettings == nil then
         ngx.say("Couldn't read file: " .. errSettings)
