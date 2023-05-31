@@ -86,6 +86,7 @@ ARG ENV_FILE=".env.dev"
 
 COPY ./openresty-admin /usr/local/openresty/nginx/html/openresty-admin
 COPY ./data ${NGINX_CONFIG_DIR}data
+COPY ./data/settings.json ${NGINX_CONFIG_DIR}data/settings.json
 COPY ./api /usr/local/openresty/nginx/html/api
 #COPY $ENV_FILE /usr/local/openresty/nginx/html/openresty-admin.env
 COPY ./nginx-${APP_ENV}.conf.tmpl /tmp/nginx.conf.tmpl

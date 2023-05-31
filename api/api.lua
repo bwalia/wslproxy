@@ -441,6 +441,9 @@ local function listRule(args, uuid)
                 local jsonString = file:read "*a"
                 file:close()
                 local jsonData = cjson.decode(jsonString)
+                if jsonData.match.response.message then
+                    jsonData.match.response.message = Base64.decode(jsonData.match.response.message)
+                end
                 ngx.say(cjson.encode({
                     data = jsonData
                 }))
@@ -523,6 +526,10 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name)
     end
 
     local redis_json = {}
+
+    if key_name == 'servers' and json_val.server_name then
+        redis_json['server:'..json_val.server_name] = cjson.encode(json_val)       
+    end
     redis_json[uuid] = cjson.encode(json_val)
     local inserted, err = red:hmset(key_name, redis_json)
 
