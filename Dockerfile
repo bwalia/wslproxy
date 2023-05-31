@@ -122,7 +122,6 @@ RUN cd /usr/local/openresty/nginx/html/openresty-admin && yarn install \
   --non-interactive \
   --production=false
   
-COPY ./.env.${APP_ENV} /usr/local/openresty/nginx/html/openresty-admin/.env
 RUN cd /usr/local/openresty/nginx/html/openresty-admin/ && yarn build
 #--dest /usr/local/openresty/nginx/html/openresty-admin/dist
 
