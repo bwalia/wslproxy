@@ -77,10 +77,10 @@ jobs:
         uses: actions/setup-go@v3
         with:
           go-version: 1.19
-          
+
       - name: Ping verification
         working-directory: ./QA
-        with:
+        env:
           API_PING_URL: http://int2.whitefalcon.io/ping
         run: | 
           go mod init myapp
@@ -98,7 +98,7 @@ jobs:
          
       - name: Ping verification
         working-directory: ./QA
-        with:
+        env:
           API_PING_URL: http://int6.whitefalcon.io/ping
          # API_PING_URL: {{ secrets.API_PING_URL }}
         run: | 
