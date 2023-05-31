@@ -15,5 +15,6 @@ docker cp api/ ${DOCKER_CONTAINER_NAME}:/usr/local/openresty/nginx/html/
 docker cp data/ ${DOCKER_CONTAINER_NAME}:/usr/local/openresty/nginx/html/
 docker cp .env.${APP_ENV} ${DOCKER_CONTAINER_NAME}:/usr/local/openresty/nginx/html/openresty-admin/.env
 docker cp openresty-admin/src ${DOCKER_CONTAINER_NAME}:/usr/local/openresty/nginx/html/openresty-admin/
+docker exec -it ${DOCKER_CONTAINER_NAME} chmod -R 777 /opt/nginx/data
 docker exec -it ${DOCKER_CONTAINER_NAME} openresty -t 
 docker exec -it ${DOCKER_CONTAINER_NAME} openresty -s reload
