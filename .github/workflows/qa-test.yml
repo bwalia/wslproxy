@@ -20,6 +20,8 @@ jobs:
   
     - name: Test
       working-directory: ./QA
+      env:
+          API_PING_URL: https://test.whitefalcon.io/ping
       run: | 
         go mod init myapp
         go test -v 
