@@ -192,7 +192,8 @@ local function listServers(args)
             local exist_values, err = red:hgetall("servers")
             local records = {}
             for key, value in pairs(exist_values) do
-                if key % 2 == 0 then
+                local check_key = exist_values[key - 1]
+                if key % 2 == 0 and string.find(check_key, "server:") == nil then
                     table.insert(records, cjson.decode(value))
                 end
             end
