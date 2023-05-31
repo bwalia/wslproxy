@@ -1,14 +1,20 @@
 package main
 
 import (
+	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"strings"
 	"testing"
 )
 
 func TestHealthCheck(t *testing.T) {
-	url := "https://test.whitefalcon.io/ping"
+	url := os.Getenv("API_PING_URL")
+	if len(url) == 0 {
+		url = "http://127.0.0.1:8080/ping"
+	}
+	fmt.Println((url))
 
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", url, nil)
