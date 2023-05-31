@@ -76,10 +76,12 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v3
         with:
-          go-version: 1.19   
-          API_PING_URL: http://int2.whitefalcon.io/ping
+          go-version: 1.19
+          
       - name: Ping verification
         working-directory: ./QA
+        with:
+          API_PING_URL: http://int2.whitefalcon.io/ping
         run: | 
           go mod init myapp
           go test whitefalcan-healthcheck_test.go -v 
@@ -93,10 +95,12 @@ jobs:
         uses: actions/setup-go@v3
         with:
           go-version: 1.19   
-          API_PING_URL: http://int6.whitefalcon.io/ping
-         # API_PING_URL: {{ secrets.API_PING_URL }}
+         
       - name: Ping verification
         working-directory: ./QA
+        with:
+          API_PING_URL: http://int6.whitefalcon.io/ping
+         # API_PING_URL: {{ secrets.API_PING_URL }}
         run: | 
           go mod init myapp
           go test whitefalcan-healthcheck_test.go -v 
