@@ -167,7 +167,7 @@ https://tenthmatrix.slack.com/files/U04UP2GT2HJ/F05AGK840MR/create_rule_ui.png
 ```http
 https://tenthmatrix.slack.com/files/U04UP2GT2HJ/F05AK666S5S/add_rule_to_server.png
 ```
-#### 4. Open the URL in browser.
+#### 4. Open the URL in browser to check the response.
 ```http
 http://localhost:8080/router
 ```
