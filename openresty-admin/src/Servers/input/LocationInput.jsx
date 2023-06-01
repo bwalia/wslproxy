@@ -20,7 +20,7 @@ const LocationInput = () => {
             { id: "proxy_pass", name: "Proxy Pass" },
             { id: "proxy_set_header", name: "Proxy set Header" },
             { id: "allow", name: "Allowed IPs" },
-            { id: "deny", name: "Dehined IPs" },
+            { id: "deny", name: "Denied IPs" },
             { id: "root", name: "Root Dir of Location" },
             { id: "index", name: "Index file of Location" },
             { id: "try_files", name: "Try Files" },

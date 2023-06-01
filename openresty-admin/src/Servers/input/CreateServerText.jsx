@@ -1,13 +1,13 @@
 import React from "react";
 import { TextInput, FormDataConsumer } from "react-admin";
 import { Grid } from "@mui/material";
+import { isEmpty } from "lodash";
 
 const CreateServerText = () => {
   return (
     <FormDataConsumer>
       {({ formData, ...rest }) => (
         <Grid item xs={12}>
-          {console.log({ formData })}
           <TextInput
             multiline
             source="config"
@@ -23,7 +23,7 @@ const CreateServerText = () => {
                     })
                     .join("\n")
                 : ""
-            }  # Listen on port ${formData.listen || 80} (HTTP)
+            }  # Listen on port (HTTP)
             server_name ${
               formData.server_name || "example.com"
             };  # Your domain name
@@ -59,7 +59,7 @@ const CreateServerText = () => {
                 : ""
             }
             ${
-              formData?.custom_block &&
+              !isEmpty(formData?.custom_block) &&
               formData?.custom_block
                 .map((block) => block.additional_block)
                 .join("\n")

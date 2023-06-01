@@ -38,29 +38,29 @@ const Form = () => {
   }, []);
   return (
     <TabbedForm>
-      <TabbedForm.Tab label="Server Details">
+      <TabbedForm.Tab label="Server details">
         <Grid container spacing={2}>
-          <Grid item xs={6}>
-            <ArrayInput source="listens">
+          <Grid item xs={4}>
+            <ArrayInput source="listens" label="" defaultValue={[{"listen": ""}]}>
               <SimpleFormIterator initialValues={initialValues}>
                 <TextInput source="listen" fullWidth />
               </SimpleFormIterator>
             </ArrayInput>
           </Grid>
-          <Grid item xs={6}>
-            <TextInput source="server_name" fullWidth label="Domain Name" />
+          <Grid item xs={8}>
+            <TextInput source="server_name" fullWidth label="Server/Domain name" />
           </Grid>
           <Grid item xs={3}>
-            <TextInput source="root" fullWidth label="Root Path" />
+            <TextInput source="root" fullWidth label="Root path" />
           </Grid>
           <Grid item xs={3}>
-            <TextInput source="index" fullWidth label="Index File" />
+            <TextInput source="index" fullWidth label="Index file" />
           </Grid>
           <Grid item xs={3}>
-            <TextInput source="access_log" fullWidth label="Access Logs Path" />
+            <TextInput source="access_log" fullWidth label="Access logs path" />
           </Grid>
           <Grid item xs={3}>
-            <TextInput source="error_log" fullWidth label="Error Logs Path" />
+            <TextInput source="error_log" fullWidth label="Error logs path" />
           </Grid>
           <Grid item xs={12}>
             <LocationInput />
@@ -77,7 +77,7 @@ const Form = () => {
           </Grid>
         </Grid>
       </TabbedForm.Tab>
-      <TabbedForm.Tab label="Request/Security Rules">
+      <TabbedForm.Tab label="Request/Security rules">
         {totalResults >= 1 ? (
           <>
             <ReferenceArrayInput source="rules" reference="rules">
