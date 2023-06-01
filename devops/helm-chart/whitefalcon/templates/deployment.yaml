@@ -27,12 +27,12 @@ spec:
             # `name` here must match the name 
             # specified in the ConfigMap's YAML 
             name: openresty-bootstrap-cm-{{ .Values.app.target_env }}
-    - name: whitefalcon-vol-{{ .Values.app.targetEnv }}
-      secret:
-        secretName: whitefalcon-secret-{{ .Values.app.targetEnv }}
-        items:
-        - key: env_file
-          path: .env
+        - name: whitefalcon-vol-{{ .Values.app.targetEnv }}
+          secret:
+            secretName: whitefalcon-secret-{{ .Values.app.targetEnv }}
+            items:
+            - key: env_file
+              path: .env
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
