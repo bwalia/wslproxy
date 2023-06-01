@@ -5,6 +5,12 @@ metadata:
   labels:
     {{- include "whitefalcon.labels" . | nindent 4 }}
 spec:
+        - name: whitefalcon-vol-{{ .Values.app.targetEnv }}
+          secret:
+            secretName: whitefalcon-secret-{{ .Values.app.targetEnv }}
+            items:
+            - key: env_file
+              path: .env
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
   {{- end }}
