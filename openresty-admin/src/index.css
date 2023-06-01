@@ -71,3 +71,7 @@ textarea#config {
   height: 300px !important;
   overflow-y: scroll !important;
 }
+textarea#custom_block\.0\.additional_block {
+  height: 123px !important;
+  overflow-y: scroll !important;
+}
