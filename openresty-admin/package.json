@@ -15,6 +15,7 @@
     "@mui/icons-material": "^5.0.1",
     "@mui/material": "latest",
     "history": "^5.1.0",
+    "lodash": "^4.17.21",
     "ra-core": "^4.0.0",
     "ra-data-json-server": "^4.9.3",
     "ra-input-rich-text": "^4.9.2",

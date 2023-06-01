@@ -1,8 +1,6 @@
-import { Box, Grid, Link } from "@mui/material";
+import { Grid } from "@mui/material";
 import React from "react";
 import {
-  NumberInput,
-  SimpleForm,
   TextInput,
   TabbedForm,
   ArrayInput,
@@ -11,12 +9,16 @@ import {
   useDataProvider,
   ReferenceArrayInput,
   FormDataConsumer,
-  Menu
+  Menu,
 } from "react-admin";
+
+import LocationInput from "./input/LocationInput";
+import CreateServerText from "./input/CreateServerText";
 
 const Form = () => {
   const dataProvider = useDataProvider();
   const [totalResults, setTotalResults] = React.useState(0);
+  const initialValues = [{ quantity: 1 }];
 
   React.useEffect(() => {
     const fetchData = async () => {
@@ -39,18 +41,39 @@ const Form = () => {
       <TabbedForm.Tab label="Server Details">
         <Grid container spacing={2}>
           <Grid item xs={6}>
-            <TextInput source="listen" fullWidth />
+            <ArrayInput source="listens">
+              <SimpleFormIterator initialValues={initialValues}>
+                <TextInput source="listen" fullWidth />
+              </SimpleFormIterator>
+            </ArrayInput>
           </Grid>
           <Grid item xs={6}>
             <TextInput source="server_name" fullWidth label="Domain Name" />
           </Grid>
+          <Grid item xs={3}>
+            <TextInput source="root" fullWidth label="Root Path" />
+          </Grid>
+          <Grid item xs={3}>
+            <TextInput source="index" fullWidth label="Index File" />
+          </Grid>
+          <Grid item xs={3}>
+            <TextInput source="access_log" fullWidth label="Access Logs Path" />
+          </Grid>
+          <Grid item xs={3}>
+            <TextInput source="error_log" fullWidth label="Error Logs Path" />
+          </Grid>
           <Grid item xs={12}>
-            <TextInput
-              multiline
-              source="config"
-              helperText="For example: server {listen       8000; listen       somename:8080; server_name  somename  alias  another.alias; location / { root   html; index  index.html index.htm; }}"
-              fullWidth
-            />
+            <LocationInput />
+          </Grid>
+          <Grid item xs={12}>
+            <ArrayInput source="custom_block" label="Additional block">
+              <SimpleFormIterator>
+                <TextInput multiline source="additional_block" />
+              </SimpleFormIterator>
+            </ArrayInput>
+          </Grid>
+          <Grid item xs={12}>
+            <CreateServerText />
           </Grid>
         </Grid>
       </TabbedForm.Tab>
@@ -91,7 +114,7 @@ const Form = () => {
               )}
             </FormDataConsumer>
           </>
-        ): (
+        ) : (
           <>
             <p>There are no rules available yet please create here!</p>
             <Menu.Item to="/rules" primaryText="Rules" />
