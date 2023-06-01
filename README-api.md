@@ -1,6 +1,6 @@
 
 # Server and Rules APIs
-This README file provides an overview and instructions for using the Servers And Rules APIs.We can utilize the API documents to consume these APIs using a tool like Postman.
+This README file provides an overview and instructions for using the Servers And Rules APIs.We can utilize this document to consume these APIs using a tool like Postman.
 
 ## Authentication
 The API uses API keys for authentication. To authenticate your requests, include your API key in the Authorization header as follows:
