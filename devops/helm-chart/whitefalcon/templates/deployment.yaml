@@ -53,6 +53,8 @@ spec:
           volumeMounts:
             - name: openresty-bootstrap-cm-{{ .Values.app.target_env }}-vol
               mountPath: /tmp/configmap
+            - name: whitefalcon-vol-{{ .Values.app.target_env }}
+              mountPath: /tmp/secrets
           env:
           - name: DNS_RESOLVER
             value: "{{ .Values.app.dns_resolver }}"
