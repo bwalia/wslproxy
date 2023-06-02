@@ -30,156 +30,118 @@ api/rules/{id}
 ```http 
   GET /api/servers
 ```
-```http
-https://tenthmatrix.slack.com/files/U04UP2GT2HJ/F05AFCSLLP5/get_servers.png
-```
-
-
 | Parameter | Description     | Response                |
 | :-------- | :------- | :------------------------- |
 | `none` | `Retrieves a list of all servers ` | `Status Code:- 200 OK, Returned a list of all servers data.` |
 
+<img src="https://github.com/bwalia/whitefalcon/tree/main/images/get_servers.png" alt="Get servers" width="500" height="300">
 
 
 ```http
   GET /api/servers/{id}
 ```
-```http
-https://tenthmatrix.slack.com/files/U04UP2GT2HJ/F05ACJ4NT29/get_single_server.png
-```
-
-
 | Parameter | Description     | Response                |
 | :-------- | :------- | :------------------------- |
 | `id` | `Retrieves information about a specific server ` | `Status Code:- 200 OK, Returned information about a specific server` |
 
+<img src="https://github.com/bwalia/whitefalcon/tree/main/images/get_single_server.png" alt="Get single server" width="500" height="300">
+
+
 ```http
   POST /api/servers/
 ```
-```http
-https://tenthmatrix.slack.com/files/U04UP2GT2HJ/F05A8SE2VT8/create_server.png
-```
-
-
 | Parameter | Description     | Response                |
 | :-------- | :------- | :------------------------- |
 | `Listen, server_name and config required in request body` | `Creates a new server. ` | `Status Code:- 200 OK, Created a new server` |
 
+<img src="https://github.com/bwalia/whitefalcon/tree/main/images/create_server.png" alt="create server" width="500" height="300">
+
+
 ```http
   PUT /api/servers/{id}
 ```
-```http
-https://tenthmatrix.slack.com/files/U04UP2GT2HJ/F05B57PV988/update_server.png
-```
-
-
 | Parameter | Description     | Response                |
 | :-------- | :------- | :------------------------- |
 | `id` | `Updates an existing server. ` | `Status Code:- 200 OK, Updated an existing server` |
 
+<img src="https://github.com/bwalia/whitefalcon/tree/main/images/update_server.png" alt="update server" width="500" height="300">
+
 ```http
   DELETE /api/servers/{id}
 ```
-```http
-https://tenthmatrix.slack.com/files/U04UP2GT2HJ/F05AHV4RNSY/delete_server.png
-```
-
-
 | Parameter | Description     | Response                |
 | :-------- | :------- | :------------------------- |
 | `id` | `Delets an existing server. ` | `Status Code:- 200 OK, deleted an existing server` |
+
+<img src="https://github.com/bwalia/whitefalcon/tree/main/images/delete_server.png" alt="Delete server" width="500" height="300">
+
 
 ### Rules APIs
 
 ```http
   GET /api/rules
 ```
-```http
-https://tenthmatrix.slack.com/files/U04UP2GT2HJ/F05AFGL88F4/get_rules.png
-```
-
 | Parameter | Description     | Response                |
 | :-------- | :------- | :------------------------- |
 | `none` | `Retrieves a list of all rules ` | `Status Code:- 200 OK, Returned a list of all rules data.` |
 
+<img src="https://github.com/bwalia/whitefalcon/tree/main/images/get_rules.png" alt="Get rules" width="500" height="300">
 
 
 ```http
   GET /api/rules/{id}
 ```
-```http
-https://tenthmatrix.slack.com/files/U04UP2GT2HJ/F05ACJ4F12R/get_single_rule.png
-```
-
-
 | Parameter | Description     | Response                |
 | :-------- | :------- | :------------------------- |
 | `id` | `Retrieves information about a specific rule ` | `Status Code:- 200 OK, Returned information about a specific rule` |
 
+<img src="https://github.com/bwalia/whitefalcon/tree/main/images/get_single_rule.png" alt="Get single rule" width="500" height="300">
+
+
 ```http
   POST /api/rules
 ```
-```http
-https://tenthmatrix.slack.com/files/U04UP2GT2HJ/F05AFCR3S1Z/create_rule.png
-```
-
-
 | Parameter | Description     | Response                |
 | :-------- | :------- | :------------------------- |
 | `Name, version and priority required in request body` | `Creates a new rule. ` | `Status Code:- 200 OK, Created a new rule` |
 
+<img src="https://github.com/bwalia/whitefalcon/tree/main/images/create_rule.png" alt="Create rule" width="500" height="300">
+
+
 ```http
   PUT /api/rules/{id}
 ```
-```http
-https://tenthmatrix.slack.com/files/U04UP2GT2HJ/F05AHV69E5S/update_rule.png
-```
-
 | Parameter | Description     | Response                |
 | :-------- | :------- | :------------------------- |
 | `id` | `Updates an existing rule. ` | `Status Code:- 200 OK, Updated an existing rule` |
 
+<img src="https://github.com/bwalia/whitefalcon/tree/main/images/update_rule.png" alt="Update rule" width="500" height="300">
+
+
 ```http
   DELETE /api/rules/{id}
 ```
-```http
-https://tenthmatrix.slack.com/files/U04UP2GT2HJ/F05AFCRP65R/delete-rule.png
-```
-
 | Parameter | Description     | Response                |
 | :-------- | :------- | :------------------------- |
 | `id` | `Delets an existing rule. ` | `Status Code:- 200 OK, deleted an existing rule` |
+
+<img src="https://github.com/bwalia/whitefalcon/tree/main/images/delete-rule.png" alt="Delete rule" width="500" height="300">
+
 
 ### Using Rules with Servers
 ##### We can apply multiple rules for any server for allow or disallow requests from specific IPs. To do this we can follow these steps :-
 
 #### 1. Create a server.
-```http
-https://tenthmatrix.slack.com/files/U04UP2GT2HJ/F05AK6742AG/create_server_ui.png
-```
+<img src="https://github.com/bwalia/whitefalcon/tree/main/images/Create_server_UI.png" alt="Create_server_UI" width="500" height="300">
+
 #### 2. Create the Rule.
-```http
-https://tenthmatrix.slack.com/files/U04UP2GT2HJ/F05AGK840MR/create_rule_ui.png
-```
+<img src="https://github.com/bwalia/whitefalcon/tree/main/images/Create_rule_UI.png" alt="Create_rule_UI" width="500" height="300">
+
 #### 3. Apply the rule to the server.
+<img src="https://github.com/bwalia/whitefalcon/tree/main/images/add_rule_to_server.png" alt="Add_rule_to Server" width="500" height="300">
 
-
-```http
-https://tenthmatrix.slack.com/files/U04UP2GT2HJ/F05AK666S5S/add_rule_to_server.png
-```
 #### 4. Open the URL in browser to check the response.
 ```http
 http://localhost:8080/router
 ```
-```http
-https://tenthmatrix.slack.com/files/U04UP2GT2HJ/F05AGK7QXMZ/browser_response.png
-```
-
-
-
-
-
-
-
-
-
+<img src="https://github.com/bwalia/whitefalcon/tree/main/images/browser_response.png" alt="Browser response" width="500" height="300">
