@@ -1,1 +1,23 @@
-{"match":{"rules":{"client_ip_key":"equals","path_key":"starts_with","country":"AS","client_ip":"127.0.0.1","country_key":"equals","path":"\/api"},"response":{"redirect_uri":"\/","message":"Ut amet enim quasi ","allow":true,"code":198}},"created_at":1684977499,"version":36,"priority":76,"name":"Jada Olsen","id":"4adaace3-17b2-17d9-1d89-b9e29e8f0f3d"}
+{
+  "match": {
+    "rules": {
+      "client_ip_key": "equals",
+      "path_key": "starts_with",
+      "country": "AS",
+      "client_ip": "127.0.0.1",
+      "country_key": "equals",
+      "path": "/api"
+    },
+    "response": {
+      "redirect_uri": "/",
+      "message": "UXVvZCBxdWlhIGlzdGUgdGVtcG8=",
+      "allow": true,
+      "code": 198
+    }
+  },
+  "created_at": 1684977499,
+  "version": 36,
+  "priority": 76,
+  "name": "Jada Olsen",
+  "id": "4adaace3-17b2-17d9-1d89-b9e29e8f0f3d"
+}
