@@ -1,1 +1,23 @@
-{"match":{"rules":{"client_ip_key":"equals","path_key":"starts_with","country":"BI","client_ip":"127.0.0.1","country_key":"equals","path":"\/api"},"response":{"redirect_uri":"\/","message":"Quaerat porro mollit","allow":true,"code":200}},"created_at":1684977434,"version":7,"priority":24,"name":"Phelan Winters","id":"fbdd4a54-1230-b233-6457-71571de5736e"}
+{
+  "match": {
+    "rules": {
+      "client_ip_key": "equals",
+      "path_key": "starts_with",
+      "country": "BI",
+      "client_ip": "127.0.0.1",
+      "country_key": "equals",
+      "path": "/api"
+    },
+    "response": {
+      "redirect_uri": "/",
+      "message": "UXVvZCBxdWlhIGlzdGUgdGVtcG8=",
+      "allow": true,
+      "code": 200
+    }
+  },
+  "created_at": 1684977434,
+  "version": 7,
+  "priority": 24,
+  "name": "Phelan Winters",
+  "id": "fbdd4a54-1230-b233-6457-71571de5736e"
+}
