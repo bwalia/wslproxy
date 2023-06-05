@@ -348,6 +348,7 @@ const Form = () => {
             source="match.response.allow"
             label="Allow/Disallow"
             fullWidth
+            defaultValue={false}
           />
         </Grid>
 
@@ -356,6 +357,7 @@ const Form = () => {
             source="match.response.code"
             label="Response Code"
             fullWidth
+            defaultValue={403}
           />
         </Grid>
         <Grid item xs={6}>
