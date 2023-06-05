@@ -6,8 +6,8 @@ Base64 = require "base64"
 red:set_timeout(1000) -- 1 second
 local configPath = os.getenv("NGINX_CONFIG_DIR")
 local function getSettings()
-   
-    local readSettings, errSettings = io.open(configPath .."data/settings.json", "rb")
+
+    local readSettings, errSettings = io.open(configPath .. "data/settings.json", "rb")
     local settings = {}
     if readSettings == nil then
         ngx.say("Couldn't read file: " .. errSettings)
@@ -131,7 +131,7 @@ local function setStorage(body)
             end
         end
         local payloads = keyset[1]
-        local writableFile, writableErr = io.open(configPath.."data/settings.json", "w")
+        local writableFile, writableErr = io.open(configPath .. "data/settings.json", "w")
         settings.storage_type = payloads.storage
         if writableFile == nil then
             ngx.say("Couldn't write file: " .. writableErr)
@@ -152,7 +152,7 @@ end
 local function listFromDisk(directory)
     local files = {}
     -- Run the 'ls' command to get a list of filenames
-    local output, error = io.popen("ls "..configPath.."data/" .. directory .. ""):read("*all")
+    local output, error = io.popen("ls " .. configPath .. "data/" .. directory .. ""):read("*all")
 
     for filename in string.gmatch(output, "[^\r\n]+") do
         table.insert(files, filename)
@@ -160,7 +160,7 @@ local function listFromDisk(directory)
 
     local jsonData = {}
     for _, filename in ipairs(files) do
-        local file, err = io.open(configPath.."data/" .. directory .. "/" .. filename, "rb")
+        local file, err = io.open(configPath .. "data/" .. directory .. "/" .. filename, "rb")
         if file == nil then
             -- ngx.say("Couldn't read file: " .. err)
             return ngx.say(cjson.encode({
@@ -235,7 +235,7 @@ local function listServer(args, id)
     local settings = getSettings()
     if settings then
         if settings.storage_type == "disk" then
-            local file, err = io.open(configPath.."data/servers/" .. id .. ".json", "rb")
+            local file, err = io.open(configPath .. "data/servers/" .. id .. ".json", "rb")
             if file == nil then
                 -- ngx.say("Couldn't read file: " .. err)
                 ngx.say(cjson.encode({
@@ -291,97 +291,265 @@ end
 local function createDeleteServer(body, uuid)
     local serverId = uuid
     local payloads = GetPayloads(body)
-    if uuid ~= "" and uuid ~= nil then
-        os.remove(configPath.."data/servers/" .. uuid .. ".json")
-        local del, err = red:hdel("servers", uuid)
-    elseif payloads and payloads.ids and #payloads.ids > 0 then
-        for value = 1, #payloads.ids do
-            os.remove(configPath.."data/servers/" .. payloads.ids[value] .. ".json")
-            local del, err = red:hdel("servers", payloads.ids[value])
-        end
+    local settings = getSettings()
+    if settings then
+        if uuid ~= "" and uuid ~= nil then
+            if settings.storage_type == "disk" then
+                os.remove(configPath .. "data/servers/" .. uuid .. ".json")
+            else
+                local del, err = red:hdel("servers", uuid)
+            end
+        elseif payloads and payloads.ids and #payloads.ids > 0 then
+            for value = 1, #payloads.ids do
+                if settings.storage_type == "disk" then
+                    os.remove(configPath .. "data/servers/" .. payloads.ids[value] .. ".json")
+                else
+                    local del, err = red:hdel("servers", payloads.ids[value])
+                end
+            end
 
+        end
     end
+    ngx.say(cjson.encode({
+        data = {"success"}
+    }))
 end
 
 -- Users APIs
 
-local function listUsers()
-    local file, err = io.open(configPath.."data/users.json", "rb")
+local function createUserInDisk(payloads, uuid)
+    local file, err = io.open(configPath .. "data/users.json", "rb")
     if file == nil then
-        ngx.say("Couldn't read file: " .. err)
-    else
-        local jsonString = file:read "*a"
-        file:close()
-        local users = cjson.decode(jsonString)
         ngx.say(cjson.encode({
-            data = users,
-            total = 4
+            data = {}
         }))
-    end
-end
-
-local function listUser(args, uuid)
-    local file, err = io.open(configPath.."data/users.json", "rb")
-    if file == nil then
-        ngx.say("Couldn't read file: " .. err)
     else
         local jsonString = file:read "*a"
         file:close()
         local users = cjson.decode(jsonString)
-        for key, value in pairs(users) do
-            if users[key]["id"] == uuid then
-                ngx.say({cjson.encode({
-                    data = value
-                })})
-            end
-        end
-    end
-end
-
-local function createUpdateUser(body, uuid)
-    local file, err = io.open(configPath.."data/users.json", "rb")
-    if file == nil then
-        ngx.say("Couldn't read file: " .. err)
-    else
-        local jsonString = file:read "*a"
-        file:close()
-        local users = cjson.decode(jsonString)
-        local keyset = {}
-        local n = 0
-        for k, v in pairs(body) do
-            n = n + 1
-            if type(v) == "string" then
-                table.insert(keyset, cjson.decode(k .. v))
-            else
-                table.insert(keyset, cjson.decode(k))
-            end
-        end
-        local payloads = keyset[1]
-
         if uuid then
             for key, value in pairs(users) do
                 if users[key]["id"] == uuid then
                     users[key] = payloads
                 end
             end
-        else
-            payloads.id = generate_uuid()
         end
 
         table.insert(users, payloads)
-        local writableFile, writableErr = io.open(configPath.."data/users.json", "w")
+        local writableFile, writableErr = io.open(configPath .. "data/users.json", "w")
         if writableFile == nil then
-            ngx.say("Couldn't write file: " .. writableErr)
+            ngx.say(cjson.encode({
+                data = "Couldn't write file: " .. writableErr
+            }))
         else
             writableFile:write(cjson.encode(users))
             writableFile:close()
-            ngx.say(cjson.encode({
-                data = payloads
-            }))
+            return users
         end
     end
 end
 
+local function listUsers(args)
+    local settings = getSettings()
+    local users = {}
+    local keys = {}
+    local params = args
+    params = params.params
+    local qParams = cjson.decode(params)
+    if settings then
+        if settings.storage_type == "disk" then
+            local file, err = io.open(configPath .. "data/users.json", "rb")
+            if file == nil then
+                ngx.say(cjson.encode({
+                    data = {}
+                }))
+            else
+                local jsonString = file:read "*a"
+                file:close()
+                users = cjson.decode(jsonString)
+            end
+        else
+            local getAllRecords = red:hgetall("users")
+            for key, value in pairs(getAllRecords) do
+                if type(value) == "string" then
+                    if tonumber(key) % 2 == 0 then
+                        table.insert(keys, value)
+                        if type(value) == "string" then
+                            local ruleObj = cjson.decode(value)
+                            if next(qParams.filter) ~= nil then
+                                if qParams.filter.id == ruleObj.id then
+                                    goto continue
+                                end
+                            end
+                            table.insert(users, cjson.decode(value))
+                            ::continue::
+                        end
+                    end
+                elseif type(value) == "table" then
+                    if next(qParams.filter) ~= nil then
+                        if qParams.filter.id == value.id then
+                            goto continue
+                        end
+                    end
+                    table.insert(users, value)
+                    ::continue::
+                end
+            end
+        end
+    end
+    ngx.say(cjson.encode({
+        data = users,
+        total = #users
+    }))
+end
+
+local function listUser(args, uuid)
+    local settings = getSettings()
+    if settings then
+        if settings.storage_type == "disk" then
+            local file, err = io.open(configPath .. "data/users.json", "rb")
+            if file == nil then
+                ngx.say(cjson.encode({
+                    data = "Couldn't read file: " .. err
+                }))
+            else
+                local jsonString = file:read "*a"
+                file:close()
+                local users = cjson.decode(jsonString)
+                for key, value in pairs(users) do
+                    if users[key]["id"] == uuid then
+                        ngx.say({cjson.encode({
+                            data = value
+                        })})
+                    end
+                end
+            end
+        else
+            local user, err = red:hget("users", uuid)
+            if user then
+                user = cjson.decode(user)
+                ngx.say(cjson.encode({
+                    data = user
+                }))
+            end
+            if err then
+                ngx.say(cjson.encode({
+                    data = err
+                }))
+            end
+        end
+    end
+end
+
+local function createUpdateUser(body, uuid)
+    local settings = getSettings()
+    local payloads = GetPayloads(body)
+    local getUuid = uuid
+    if not uuid then
+        getUuid = generate_uuid()
+        payloads.id = getUuid
+        ---@diagnostic disable-next-line: param-type-mismatch
+        payloads.created_at = os.time(os.date("!*t"))
+    end
+    if settings then
+        -- if settings.storage_type == "disk" then
+        createUserInDisk(payloads, uuid)
+        -- ngx.say(cjson.encode({
+        --     data = users
+        -- }))
+        -- else
+        local redis_json = {}
+        redis_json[getUuid] = cjson.encode(payloads)
+        local inserted, err = red:hmset("users", redis_json)
+        if inserted then
+            ngx.say(cjson.encode({
+                data = payloads
+            }))
+        end
+        if err then
+            ngx.say(cjson.encode({
+                data = err
+            }))
+        end
+        -- end
+    end
+end
+
+local function deleteUserInDisk(uuid)
+    local file, err = io.open(configPath .. "data/users.json", "rb")
+    if file == nil then
+        ngx.say(cjson.encode({
+            data = "Couldn't read file: " .. err
+        }))
+    else
+        local jsonString = file:read "*a"
+        file:close()
+        local users = cjson.decode(jsonString)
+        if type(uuid) == "string" then
+            for key, value in pairs(users) do
+                if users[key]["id"] == uuid then
+                    table.remove(users, key)
+                end
+            end
+        elseif type(uuid) == "table" then
+            for uuidK, id in pairs(uuid) do
+                for key, value in pairs(users) do
+                    if users[key]["id"] == id then
+                        table.remove(users, key)
+                    end
+                end
+            end
+        end
+        return users
+    end
+end
+
+local function deleteUsers(args, uuid)
+    local settings = getSettings()
+    local payloads = GetPayloads(args)
+    local restUsers = {}
+    if settings then
+        if uuid ~= "" and uuid ~= nil then
+            if settings.storage_type == "disk" then
+                restUsers = deleteUserInDisk(uuid)
+            else
+                local del, err = red:hdel("users", uuid)
+                if del then
+                    restUsers = del
+                end
+                if err then
+                    ngx.say(cjson.encode({
+                        data = err
+                    }))
+                end
+            end
+        elseif payloads and payloads.ids and #payloads.ids > 0 then
+            if settings then
+                if settings.storage_type == "disk" then
+                    restUsers = deleteUserInDisk(payloads.ids)
+                else
+                    for value = 1, #payloads.ids do
+                        restUsers = red:hdel("users", payloads.ids[value])
+                    end
+                end
+            end
+        end
+        if settings.storage_type == "disk" then
+            local writableFile, writableErr = io.open(configPath .. "data/users.json", "w")
+            if writableFile == nil then
+                ngx.say(cjson.encode({
+                    data = "Couldn't write file: " .. writableErr
+                }))
+            else
+                writableFile:write(cjson.encode(restUsers))
+                writableFile:close()
+            end
+        end
+        ngx.say(cjson.encode({
+            data = (type(restUsers) == "table" and restUsers or {restUsers})
+        }))
+    end
+end
 -- HTTP Request rules:
 local function listRules(args)
     local exist_values = {}
@@ -432,7 +600,7 @@ local function listRule(args, uuid)
     local settings = getSettings()
     if settings then
         if settings.storage_type == "disk" then
-            local file, err = io.open(configPath.."data/rules/" .. uuid .. ".json", "rb")
+            local file, err = io.open(configPath .. "data/rules/" .. uuid .. ".json", "rb")
             if file == nil then
                 -- ngx.say("Couldn't read file: " .. err)
                 ngx.say(cjson.encode({
@@ -494,15 +662,25 @@ end
 local function createDeleteRules(body, uuid)
 
     local payloads = GetPayloads(body)
+    local settings = getSettings()
 
     if uuid ~= "" and uuid ~= nil then
-        os.remove(configPath.."data/rules/" .. uuid .. ".json")
-        local del, err = red:hdel("request_rules", uuid)
+        if settings then
+            if settings.storage_type == "disk" then
+                os.remove(configPath .. "data/rules/" .. uuid .. ".json")
+            else
+                local del, err = red:hdel("request_rules", uuid)
+            end
+        end
     elseif payloads and payloads.ids and #payloads.ids > 0 then
-
         for value = 1, #payloads.ids do
-            os.remove(configPath.."data/rules/" .. payloads.ids[value] .. ".json")
-            local del, err = red:hdel("request_rules", payloads.ids[value])
+            if settings then
+                if settings.storage_type == "disk" then
+                    os.remove(configPath .. "data/rules/" .. payloads.ids[value] .. ".json")
+                else
+                    local del, err = red:hdel("request_rules", payloads.ids[value])
+                end
+            end
         end
 
     end
@@ -519,22 +697,22 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name)
             json_val[k] = nil
         end
     end
-    if json_val.config then
+    if key_name == 'servers' and json_val.config then
         json_val.config = Base64.encode(json_val.config)
     end
-    if json_val.match and json_val.match.response and json_val.match.response.message then
+    if key_name == 'rules' and json_val.match and json_val.match.response and json_val.match.response.message then
         json_val.match.response.message = Base64.encode(json_val.match.response.message)
     end
 
     local redis_json = {}
 
     if key_name == 'servers' and json_val.server_name then
-        redis_json['server:'..json_val.server_name] = cjson.encode(json_val)       
+        redis_json['server:' .. json_val.server_name] = cjson.encode(json_val)
     end
     redis_json[uuid] = cjson.encode(json_val)
     local inserted, err = red:hmset(key_name, redis_json)
 
-    local file, err = io.open(configPath.."data/" .. folder_name .. "/" .. uuid .. ".json", "w")
+    local file, err = io.open(configPath .. "data/" .. folder_name .. "/" .. uuid .. ".json", "w")
     if file == nil then
         ngx.say("Couldn't read file: " .. err)
     else
@@ -567,12 +745,18 @@ local function listSessions(args)
     local params = args
     params = params.params
     local allsessions, sessions = {}, {}
-    local exist_values, err = red:scan(0, "match", "session:*") --red:keys("session:*")
+    local exist_values, err = red:scan(0, "match", "session:*") -- red:keys("session:*")
     local records = {}
-    if exist_values[2]~=nil then
-        for key,value in pairs(exist_values[2]) do
+    if exist_values[2] ~= nil then
+        for key, value in pairs(exist_values[2]) do
             -- if key % 2 == 0 then
-                table.insert(records, {session_id = value,id=key,subject = 'Redacted',timeout = 'Redacted',quote='Redacted'})
+            table.insert(records, {
+                session_id = value,
+                id = key,
+                subject = 'Redacted',
+                timeout = 'Redacted',
+                quote = 'Redacted'
+            })
             -- end
         end
     end
@@ -625,7 +809,7 @@ local function handle_get_request(args, path)
     end
 
     if path == "users" then
-        listUsers()
+        listUsers(args)
     elseif uuid and (#uuid == 36 or #uuid == 32) and subPath[1] == "users" then
         listUser(args, uuid)
     end
@@ -638,8 +822,8 @@ local function handle_get_request(args, path)
 
     if path == "sessions" then
         listSessions(args)
-    -- elseif uuid and (#uuid == 36 or #uuid == 32) and subPath[1] == "sessions" then
-    --     listSession(args, uuid)
+        -- elseif uuid and (#uuid == 36 or #uuid == 32) and subPath[1] == "sessions" then
+        --     listSession(args, uuid)
     end
 end
 
@@ -686,17 +870,16 @@ end
 -- Function to handle DELETE requests
 local function handle_delete_request(args, path)
     -- handle DELETE request logic
-    -- local response_data = { message = path }
-    -- ngx.say(cjson.encode(response_data))
+    local pattern = ".*/(.*)"
+    local uuid = string.match(path, pattern)
     if string.find(path, "rules") then
-        local pattern = ".*/(.*)"
-        local uuid = string.match(path, pattern)
         createDeleteRules(args, uuid)
     end
     if string.find(path, "servers") then
-        local pattern = ".*/(.*)"
-        local uuid = string.match(path, pattern)
         createDeleteServer(args, uuid)
+    end
+    if string.find(path, "users") then
+        deleteUsers(args, uuid)
     end
 end
 

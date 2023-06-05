@@ -4,7 +4,7 @@ import Form from './Form'
 
 const Create = () => {
   return (
-    <RaCreate title={"Rule"}>
+    <RaCreate title={"Rule"} redirect="list">
         <Form />
     </RaCreate>
   )

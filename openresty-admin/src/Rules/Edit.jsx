@@ -267,7 +267,6 @@ const objectToArray = (obj = {}) => {
   const res = [];
   const keys = Object.keys(obj);
 for(var key in obj){
-    console.log(key)
     const myobj = {}
     myobj['id'] = key;
     myobj['name'] = obj[key] + ' ('+key+')'
@@ -278,7 +277,7 @@ for(var key in obj){
 const Edit = () => {
 const mynewobj = objectToArray(iso_codes)
 return (
-    <RaEdit title={"Rule"}>
+    <RaEdit title={"Rule"} redirect="list">
         <SimpleForm>
           <Grid container spacing={2}>
             <Grid item xs={6}>
