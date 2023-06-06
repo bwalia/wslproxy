@@ -102,7 +102,7 @@ const Form = () => {
                         />
                         <ReferenceArrayInput
                           source="statement"
-                          filter={{ id: formData?.rules }}
+                          queryOptions={{ meta: { exclude: formData?.rules } }}
                           reference="rules"
                         >
                           <SelectInput optionText="name" fullWidth />

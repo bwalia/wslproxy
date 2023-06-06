@@ -354,6 +354,42 @@ local function createUserInDisk(payloads, uuid)
     end
 end
 
+local function listWithPagination(recordsKey, cursor, pageSize, pageNumber)
+    local recordCount, totalRecords, records = 0, 0, {}
+    -- Calculate the start and end indices for pagination
+    local startIdx = (pageNumber - 1) * pageSize
+    local endIdx = startIdx + pageSize - 1
+    -- Get the total number of records
+    local totalKeys, err = red:hlen(recordsKey)
+    if not totalKeys then
+        ngx.log(ngx.ERR, "Failed to retrieve total number of records: ", err)
+        ngx.exit(ngx.HTTP_INTERNAL_SERVER_ERROR)
+    end
+    ---@diagnostic disable-next-line: cast-local-type
+    totalRecords = tonumber(totalKeys)
+    repeat
+        local res, err = red:hscan(recordsKey, cursor, "COUNT", pageSize)
+        if not res then
+            ngx.log(ngx.ERR, "Failed to retrieve records: ", err)
+            ngx.exit(ngx.HTTP_INTERNAL_SERVER_ERROR)
+        end
+        cursor = res[1]
+        -- Iterate over the returned records
+        for i = 1, #res[2], 2 do
+            local recordValue = res[2][i + 1]
+            recordCount = recordCount + 1
+            -- Store the record in the result table if within the desired range
+            if recordCount >= startIdx + 1 and recordCount <= endIdx + 1 then
+                table.insert(records, cjson.decode(recordValue))
+            elseif recordCount > endIdx + 1 then
+                -- Break the loop if we have retrieved enough records
+                break
+            end
+        end
+    until cursor == "0" or recordCount >= endIdx + 1
+    return records, totalRecords
+end
+
 local function listUsers(args)
     local settings = getSettings()
     local users = {}
@@ -361,6 +397,13 @@ local function listUsers(args)
     local params = args
     params = params.params
     local qParams = cjson.decode(params)
+    -- Set the pagination parameters
+    local pageSize = qParams.pagination.perPage -- Number of records per page
+    local pageNumber = qParams.pagination.page -- Page number (starting from 1)
+
+    -- Retrieve a page of records using HSCAN
+    local cursor = "0"
+    local recordCount, totalRecords = 0, 0
     if settings then
         if settings.storage_type == "disk" then
             local file, err = io.open(configPath .. "data/users.json", "rb")
@@ -374,37 +417,20 @@ local function listUsers(args)
                 users = cjson.decode(jsonString)
             end
         else
-            local getAllRecords = red:hgetall("users")
-            for key, value in pairs(getAllRecords) do
-                if type(value) == "string" then
-                    if tonumber(key) % 2 == 0 then
-                        table.insert(keys, value)
-                        if type(value) == "string" then
-                            local ruleObj = cjson.decode(value)
-                            if next(qParams.filter) ~= nil then
-                                if qParams.filter.id == ruleObj.id then
-                                    goto continue
-                                end
-                            end
-                            table.insert(users, cjson.decode(value))
-                            ::continue::
-                        end
-                    end
-                elseif type(value) == "table" then
-                    if next(qParams.filter) ~= nil then
-                        if qParams.filter.id == value.id then
-                            goto continue
-                        end
-                    end
-                    table.insert(users, value)
-                    ::continue::
-                end
-            end
+            local recordsKey = "users"
+            local records, totalCount = listWithPagination(recordsKey, cursor, pageSize, pageNumber)
+            users = records
+            totalRecords = totalCount
         end
+    end
+    if qParams.sort.order == "DESC" then
+        table.sort(users, sortDesc(qParams.sort.field))
+    else
+        table.sort(users, sortAsc(qParams.sort.field))
     end
     ngx.say(cjson.encode({
         data = users,
-        total = #users
+        total = totalRecords
     }))
 end
 
@@ -603,8 +629,8 @@ local function listRules(args)
                 end
             end
         elseif type(value) == "table" then
-            if next(qParams.filter) ~= nil then
-                if qParams.filter.id == value.id then
+            if type(qParams.meta) == "table" then
+                if qParams.meta.exclude == value.id then
                     goto continue
                 end
             end
