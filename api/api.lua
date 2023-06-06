@@ -100,6 +100,10 @@ local function login(args)
         local password = hash_password(payloads.password)
         if suEmail == payloads.email and suPassword == password then
             ngx.status = ngx.OK
+            local session = require"resty.session".new()
+            session:set_subject("OpenResty Fan")
+            session:set("quote", "The quick brown fox jumps over the lazy dog")
+            local ok, err = session:save()
             ngx.say(cjson.encode({
                 data = {
                     user = payloads,
@@ -333,9 +337,10 @@ local function createUserInDisk(payloads, uuid)
                     users[key] = payloads
                 end
             end
+        else
+            table.insert(users, payloads)
         end
 
-        table.insert(users, payloads)
         local writableFile, writableErr = io.open(configPath .. "data/users.json", "w")
         if writableFile == nil then
             ngx.say(cjson.encode({
@@ -344,7 +349,7 @@ local function createUserInDisk(payloads, uuid)
         else
             writableFile:write(cjson.encode(users))
             writableFile:close()
-            return users
+            return payloads
         end
     end
 end
@@ -452,26 +457,43 @@ local function createUpdateUser(body, uuid)
         payloads.created_at = os.time(os.date("!*t"))
     end
     if settings then
-        -- if settings.storage_type == "disk" then
-        createUserInDisk(payloads, uuid)
-        -- ngx.say(cjson.encode({
-        --     data = users
-        -- }))
-        -- else
-        local redis_json = {}
-        redis_json[getUuid] = cjson.encode(payloads)
-        local inserted, err = red:hmset("users", redis_json)
-        if inserted then
-            ngx.say(cjson.encode({
-                data = payloads
-            }))
+        if uuid ~= "" and uuid ~= nil then
+            if settings.storage_type == "disk" then
+                local users = createUserInDisk(payloads, uuid)
+                ngx.say(cjson.encode({
+                    data = users
+                }))
+            else
+                local redis_json = {}
+                redis_json[getUuid] = cjson.encode(payloads)
+                local inserted, err = red:hmset("users", redis_json)
+                if inserted then
+                    ngx.say(cjson.encode({
+                        data = payloads
+                    }))
+                end
+                if err then
+                    ngx.say(cjson.encode({
+                        data = err
+                    }))
+                end
+            end
+        else
+            createUserInDisk(payloads, uuid)
+            local redis_json = {}
+            redis_json[getUuid] = cjson.encode(payloads)
+            local inserted, err = red:hmset("users", redis_json)
+            if inserted then
+                ngx.say(cjson.encode({
+                    data = payloads
+                }))
+            end
+            if err then
+                ngx.say(cjson.encode({
+                    data = err
+                }))
+            end
         end
-        if err then
-            ngx.say(cjson.encode({
-                data = err
-            }))
-        end
-        -- end
     end
 end
 

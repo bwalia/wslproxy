@@ -23,6 +23,7 @@ const StorageModal = ({ isOpen }) => {
         const { storage } = data;
         setOpen(false);
         localStorage.setItem("storageManagement", storage);
+        window.location.reload();
       })
       .catch((error) => {
         console.log(error);
