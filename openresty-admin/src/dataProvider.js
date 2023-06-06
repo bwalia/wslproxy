@@ -1,3 +1,4 @@
+import { isEmpty } from "lodash";
 const getHeaders = () => {
     const token = localStorage.getItem("token");
     const accessToken = JSON.parse(token);
@@ -36,11 +37,10 @@ const getHeaders = () => {
   
         if (response.status < 200 || response.status >= 300 && response.status !== 404) {
           localStorage.removeItem("token");
-          localStorage.removeItem("uuid_business_id");
           window.location.href = "/#/login";
         }
         const data = await response.json();
-        return data;
+        return isEmpty(data.data) ? Promise.resolve({ data: [], total: 0 }) : data;
       } catch (error) {
         console.warn({ error });
       }
@@ -154,7 +154,7 @@ const getHeaders = () => {
           window.location.href = "/login";
         }
         const result = await response.json();
-        return result;
+        return isEmpty(result.data) ? Promise.resolve({ data: [], total: 0 }) : result;
       } catch (error) {
         console.error("Error:", error);
       }

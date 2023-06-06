@@ -46,10 +46,10 @@ http {
         cjson = require("cjson")
         require "resty.session".init({
           remember = true,
-          audience = "demo",
+          audience = "whitefalcon",
           storage  = "redis",
           redis = {
-            host = "whitefalcon-redis",
+            host = os.getenv("REDIS_HOST"),
             port = 6379,
 
           }
