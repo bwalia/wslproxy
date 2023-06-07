@@ -59,10 +59,11 @@ const CreateServerText = () => {
                 : ""
             }
             ${
-              !isEmpty(formData?.custom_block) &&
-              formData?.custom_block
-                .map((block) => block.additional_block)
-                .join("\n")
+              !isEmpty(formData?.custom_block)
+                ? formData?.custom_block
+                    .map((block) => block.additional_block)
+                    .join("\n")
+                : ""
             }
         }
         `}
