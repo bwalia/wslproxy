@@ -393,15 +393,14 @@ end
 local function listPaginationLocal(data, pageSize, pageNumber)
     local startIdx = (pageNumber - 1) * pageSize + 1
     local endIdx = startIdx + pageSize - 1
-    
+
     local currentPageData = {}
     for i = startIdx, math.min(endIdx, #data) do
         table.insert(currentPageData, data[i])
     end
-    
+
     return currentPageData, #data
 end
-
 
 local function listUsers(args)
     local settings = getSettings()
@@ -438,10 +437,12 @@ local function listUsers(args)
             totalRecords = totalCount
         end
     end
-    if qParams.sort.order == "DESC" then
-        table.sort(users, sortDesc(qParams.sort.field))
-    else
-        table.sort(users, sortAsc(qParams.sort.field))
+    if next(users) ~= nil then
+        if qParams.sort.order == "DESC" then
+            table.sort(users, sortDesc(qParams.sort.field))
+        else
+            table.sort(users, sortAsc(qParams.sort.field))
+        end
     end
     ngx.say(cjson.encode({
         data = users,
