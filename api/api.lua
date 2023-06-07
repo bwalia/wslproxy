@@ -32,12 +32,34 @@ end
 
 local function sortAsc(field)
     return function(a, b)
-        return a[field] < b[field]
+        local aValue = a[field]
+        local bValue = b[field]
+
+        if aValue == nil and bValue == nil then
+            return false
+        elseif aValue == nil then
+            return false
+        elseif bValue == nil then
+            return true
+        end
+
+        return aValue < bValue
     end
 end
 local function sortDesc(field)
     return function(a, b)
-        return a[field] > b[field]
+        local aValue = a[field]
+        local bValue = b[field]
+
+        if aValue == nil and bValue == nil then
+            return false
+        elseif aValue == nil then
+            return false
+        elseif bValue == nil then
+            return true
+        end
+
+        return aValue > bValue
     end
 end
 
@@ -76,6 +98,42 @@ local function generateToken()
             exp = ngx.time() + 3600
         }
     })
+end
+
+local function listWithPagination(recordsKey, cursor, pageSize, pageNumber)
+    local recordCount, totalRecords, records = 0, 0, {}
+    -- Calculate the start and end indices for pagination
+    local startIdx = (pageNumber - 1) * pageSize
+    local endIdx = startIdx + pageSize - 1
+    -- Get the total number of records
+    local totalKeys, err = red:hlen(recordsKey)
+    if not totalKeys then
+        ngx.log(ngx.ERR, "Failed to retrieve total number of records: ", err)
+        ngx.exit(ngx.HTTP_INTERNAL_SERVER_ERROR)
+    end
+    ---@diagnostic disable-next-line: cast-local-type
+    totalRecords = tonumber(totalKeys)
+    repeat
+        local res, err = red:hscan(recordsKey, cursor, "COUNT", pageSize)
+        if not res then
+            ngx.log(ngx.ERR, "Failed to retrieve records: ", err)
+            ngx.exit(ngx.HTTP_INTERNAL_SERVER_ERROR)
+        end
+        cursor = res[1]
+        -- Iterate over the returned records
+        for i = 1, #res[2], 2 do
+            local recordValue = res[2][i + 1]
+            recordCount = recordCount + 1
+            -- Store the record in the result table if within the desired range
+            if recordCount >= startIdx + 1 and recordCount <= endIdx + 1 then
+                table.insert(records, cjson.decode(recordValue))
+            elseif recordCount > endIdx + 1 then
+                -- Break the loop if we have retrieved enough records
+                break
+            end
+        end
+    until cursor == "0" or recordCount >= endIdx + 1
+    return records, totalRecords
 end
 
 -- Authentication
@@ -187,41 +245,58 @@ local function listServers(args)
     local counter = 0
     local params = args
     params = params.params
+    local qParams = cjson.decode(params)
+    -- Set the pagination parameters
+    local pageSize = qParams.pagination.perPage -- Number of records per page
+    local pageNumber = qParams.pagination.page -- Page number (starting from 1)
+
+    -- Retrieve a page of records using HSCAN
+    local cursor, totalRecords = "0", 0
     local allServers, servers = {}, {}
     local settings = getSettings()
     if settings then
         if settings.storage_type == "disk" then
             allServers = listFromDisk("servers")
         else
-            local exist_values, err = red:hgetall("servers")
-            local records = {}
-            for key, value in pairs(exist_values) do
-                local check_key = exist_values[key - 1]
-                if key % 2 == 0 and string.find(check_key, "server:") == nil then
-                    table.insert(records, cjson.decode(value))
-                end
-            end
-            local getAllRecords = records
-            if type(getAllRecords) == "string" then
-                allServers = cjson.decode(getAllRecords)
-            else
-                allServers = getAllRecords
-            end
+            -- local exist_values, err = red:hgetall("servers")
+            -- local records = {}
+            -- for key, value in pairs(exist_values) do
+            --     local check_key = exist_values[key - 1]
+            --     if key % 2 == 0 and string.find(check_key, "server:") == nil then
+            --         table.insert(records, cjson.decode(value))
+            --     end
+            -- end
+            -- local getAllRecords = records
+            -- if type(getAllRecords) == "string" then
+            --     allServers = cjson.decode(getAllRecords)
+            -- else
+            --     allServers = getAllRecords
+            -- end
+            local recordsKey = "servers"
+            local records, totalCount = listWithPagination(recordsKey, cursor, pageSize, pageNumber)
+            allServers = records
+            totalRecords = totalCount
         end
     end
-    local qParams = cjson.decode(params)
-    local perPage = qParams.pagination.perPage * qParams.pagination.page
-    local page = perPage - (qParams.pagination.perPage - 1)
-    for index, server in pairs(allServers) do
-        counter = counter + 1
-        if counter >= page and counter <= perPage then
-            table.insert(servers, server)
-        end
+    -- local qParams = cjson.decode(params)
+    -- local perPage = qParams.pagination.perPage * qParams.pagination.page
+    -- local page = perPage - (qParams.pagination.perPage - 1)
+    -- for index, server in pairs(allServers) do
+    --     counter = counter + 1
+    --     if counter >= page and counter <= perPage then
+    --         table.insert(servers, server)
+    --     end
+    -- end
+    do
+        return ngx.say(cjson.encode({
+            data = allServers,
+            total = totalRecords
+        }))
     end
     if qParams.sort.order == "DESC" then
-        -- table.sort(servers, sortDesc(qParams.sort.field))
+        table.sort(servers, sortDesc(qParams.sort.field))
     else
-        -- table.sort(servers, sortAsc(qParams.sort.field))
+        table.sort(servers, sortAsc(qParams.sort.field))
     end
     if counter < 1 then
         return ngx.say(cjson.encode({
@@ -352,42 +427,6 @@ local function createUserInDisk(payloads, uuid)
             return payloads
         end
     end
-end
-
-local function listWithPagination(recordsKey, cursor, pageSize, pageNumber)
-    local recordCount, totalRecords, records = 0, 0, {}
-    -- Calculate the start and end indices for pagination
-    local startIdx = (pageNumber - 1) * pageSize
-    local endIdx = startIdx + pageSize - 1
-    -- Get the total number of records
-    local totalKeys, err = red:hlen(recordsKey)
-    if not totalKeys then
-        ngx.log(ngx.ERR, "Failed to retrieve total number of records: ", err)
-        ngx.exit(ngx.HTTP_INTERNAL_SERVER_ERROR)
-    end
-    ---@diagnostic disable-next-line: cast-local-type
-    totalRecords = tonumber(totalKeys)
-    repeat
-        local res, err = red:hscan(recordsKey, cursor, "COUNT", pageSize)
-        if not res then
-            ngx.log(ngx.ERR, "Failed to retrieve records: ", err)
-            ngx.exit(ngx.HTTP_INTERNAL_SERVER_ERROR)
-        end
-        cursor = res[1]
-        -- Iterate over the returned records
-        for i = 1, #res[2], 2 do
-            local recordValue = res[2][i + 1]
-            recordCount = recordCount + 1
-            -- Store the record in the result table if within the desired range
-            if recordCount >= startIdx + 1 and recordCount <= endIdx + 1 then
-                table.insert(records, cjson.decode(recordValue))
-            elseif recordCount > endIdx + 1 then
-                -- Break the loop if we have retrieved enough records
-                break
-            end
-        end
-    until cursor == "0" or recordCount >= endIdx + 1
-    return records, totalRecords
 end
 
 local function listPaginationLocal(data, pageSize, pageNumber)
@@ -770,9 +809,9 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name)
 
     local redis_json = {}
 
-    if key_name == 'servers' and json_val.server_name then
-        redis_json['server:' .. json_val.server_name] = cjson.encode(json_val)
-    end
+    -- if key_name == 'servers' and json_val.server_name then
+    --     redis_json['server:' .. json_val.server_name] = cjson.encode(json_val)
+    -- end
     redis_json[uuid] = cjson.encode(json_val)
     local inserted, err = red:hmset(key_name, redis_json)
 
