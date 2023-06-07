@@ -19,11 +19,12 @@ data:
         cd /usr/local/openresty/nginx/html/openresty-admin/ && yarn build
         DATE_GEN_VERSION=$(date +"%Y%m%d%I%M%S")
         export DATE_GEN_VERSION=$(date +"%Y%m%d%I%M%S")
+        export VITE_DEPLOYMENT_TIME=$DATE_GEN_VERSION
+        VITE_DEPLOYMENT_TIME=$DATE_GEN_VERSION
         echo "==========================="
-        FILE=/tmp/.env
-        echo DYNAMIC_SCRIPTS_PATH=/tmp >> $FILE
+        echo "VITE_DEPLOYMENT_TIME=$DATE_GEN_VERSION" >> $FILE
         echo "==========================="
-        echo "Copy openresty config file for Openresty WhiteFalcon"
+        echo "Update openresty config file for this WhiteFalcon env"
         echo "==========================="
         echo "Restart openresty nginx"
         openresty -s reload
