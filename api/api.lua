@@ -804,17 +804,14 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name)
     if key_name == 'servers' and json_val.config then
         json_val.config = Base64.encode(json_val.config)
     end
-    if key_name == 'rules' and json_val.match and json_val.match.response and json_val.match.response.message then
+    if folder_name == 'rules' and json_val.match and json_val.match.response and json_val.match.response.message then
         json_val.match.response.message = Base64.encode(json_val.match.response.message)
     end
 
     local redis_json = {}
 
-    -- if key_name == 'servers' and json_val.server_name then
-    --     redis_json['server:' .. json_val.server_name] = cjson.encode(json_val)
-    -- end
     redis_json[uuid] = cjson.encode(json_val)
-    local inserted, err = red:hmset(key_name, redis_json)
+    red:hmset(key_name, redis_json)
 
     local file, err = io.open(configPath .. "data/" .. folder_name .. "/" .. uuid .. ".json", "w")
     if file == nil then
@@ -822,7 +819,6 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name)
     else
         file:write(cjson.encode(json_val))
         file:close()
-        -- ngx.say(cjson.encode({ data = json_val }))
     end
 
 end

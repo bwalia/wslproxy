@@ -37,14 +37,15 @@ const App = () => (
     </Admin>
     <div
       style={{
-        position: "fixed",
+        position: "sticky",
         right: 0,
         bottom: 0,
         left: 0,
         zIndex: 100,
         padding: 6,
         backgroundColor: "#efefef",
-        textAlign: "center",
+        textAlign: "left",
+        color: "#213547"
       }}
     >
       <p>Deploy at: {deploymentTime}</p>
