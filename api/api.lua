@@ -390,6 +390,19 @@ local function listWithPagination(recordsKey, cursor, pageSize, pageNumber)
     return records, totalRecords
 end
 
+local function listPaginationLocal(data, pageSize, pageNumber)
+    local startIdx = (pageNumber - 1) * pageSize + 1
+    local endIdx = startIdx + pageSize - 1
+    
+    local currentPageData = {}
+    for i = startIdx, math.min(endIdx, #data) do
+        table.insert(currentPageData, data[i])
+    end
+    
+    return currentPageData, #data
+end
+
+
 local function listUsers(args)
     local settings = getSettings()
     local users = {}
@@ -415,6 +428,8 @@ local function listUsers(args)
                 local jsonString = file:read "*a"
                 file:close()
                 users = cjson.decode(jsonString)
+                local currentPageData, totalPages = listPaginationLocal(users, pageSize, pageNumber)
+                users, totalRecords = currentPageData, totalPages
             end
         else
             local recordsKey = "users"
