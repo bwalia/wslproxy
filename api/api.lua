@@ -257,6 +257,7 @@ local function listServers(args)
     if settings then
         if settings.storage_type == "disk" then
             allServers = listFromDisk("servers")
+            totalRecords = #allServers
         else
             -- local exist_values, err = red:hgetall("servers")
             -- local records = {}
@@ -376,14 +377,14 @@ local function createDeleteServer(body, uuid)
             if settings.storage_type == "disk" then
                 os.remove(configPath .. "data/servers/" .. uuid .. ".json")
             else
-                local del, err = red:hdel("servers", uuid)
+                red:hdel("servers", uuid)
             end
         elseif payloads and payloads.ids and #payloads.ids > 0 then
             for value = 1, #payloads.ids do
                 if settings.storage_type == "disk" then
                     os.remove(configPath .. "data/servers/" .. payloads.ids[value] .. ".json")
                 else
-                    local del, err = red:hdel("servers", payloads.ids[value])
+                    red:hdel("servers", payloads.ids[value])
                 end
             end
 
