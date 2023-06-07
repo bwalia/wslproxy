@@ -100,7 +100,7 @@ local function generateToken()
     })
 end
 
-local function listWithPagination(recordsKey, cursor, pageSize, pageNumber)
+local function listWithPagination(recordsKey, cursor, pageSize, pageNumber, qParams)
     local recordCount, totalRecords, records = 0, 0, {}
     -- Calculate the start and end indices for pagination
     local startIdx = (pageNumber - 1) * pageSize
@@ -123,10 +123,17 @@ local function listWithPagination(recordsKey, cursor, pageSize, pageNumber)
         -- Iterate over the returned records
         for i = 1, #res[2], 2 do
             local recordValue = res[2][i + 1]
+            local key = res[2][i]
             recordCount = recordCount + 1
             -- Store the record in the result table if within the desired range
             if recordCount >= startIdx + 1 and recordCount <= endIdx + 1 then
+                if type(qParams.meta) == "table" then
+                    if qParams.meta.exclude == key then
+                        goto continue
+                    end
+                end
                 table.insert(records, cjson.decode(recordValue))
+                ::continue::
             elseif recordCount > endIdx + 1 then
                 -- Break the loop if we have retrieved enough records
                 break
@@ -134,6 +141,24 @@ local function listWithPagination(recordsKey, cursor, pageSize, pageNumber)
         end
     until cursor == "0" or recordCount >= endIdx + 1
     return records, totalRecords
+end
+
+local function listPaginationLocal(data, pageSize, pageNumber, qParams)
+    local startIdx = (pageNumber - 1) * pageSize + 1
+    local endIdx = startIdx + pageSize - 1
+
+    local currentPageData = {}
+    for i = startIdx, math.min(endIdx, #data) do
+        if type(qParams.meta) == "table" then
+            if qParams.meta.exclude == data[i].id then
+                goto continue
+            end
+        end
+        table.insert(currentPageData, data[i])
+        ::continue::
+    end
+
+    return currentPageData, #data
 end
 
 -- Authentication
@@ -211,7 +236,7 @@ end
 
 -- Servers APIs
 
-local function listFromDisk(directory)
+local function listFromDisk(directory, pageSize, pageNumber, qParams)
     local files = {}
     -- Run the 'ls' command to get a list of filenames
     local output, error = io.popen("ls " .. configPath .. "data/" .. directory .. ""):read("*all")
@@ -237,8 +262,8 @@ local function listFromDisk(directory)
             jsonData[_] = data
         end
     end
-
-    return jsonData
+    local data, count = listPaginationLocal(jsonData, pageSize, pageNumber, qParams)
+    return data, count
 end
 
 local function listServers(args)
@@ -256,58 +281,24 @@ local function listServers(args)
     local settings = getSettings()
     if settings then
         if settings.storage_type == "disk" then
-            allServers = listFromDisk("servers")
-            totalRecords = #allServers
+            allServers, totalRecords = listFromDisk("servers", pageSize, pageNumber, qParams)
+            -- totalRecords = #allServers
         else
-            -- local exist_values, err = red:hgetall("servers")
-            -- local records = {}
-            -- for key, value in pairs(exist_values) do
-            --     local check_key = exist_values[key - 1]
-            --     if key % 2 == 0 and string.find(check_key, "server:") == nil then
-            --         table.insert(records, cjson.decode(value))
-            --     end
-            -- end
-            -- local getAllRecords = records
-            -- if type(getAllRecords) == "string" then
-            --     allServers = cjson.decode(getAllRecords)
-            -- else
-            --     allServers = getAllRecords
-            -- end
             local recordsKey = "servers"
-            local records, totalCount = listWithPagination(recordsKey, cursor, pageSize, pageNumber)
+            local records, totalCount = listWithPagination(recordsKey, cursor, pageSize, pageNumber, qParams)
             allServers = records
             totalRecords = totalCount
         end
     end
-    -- local qParams = cjson.decode(params)
-    -- local perPage = qParams.pagination.perPage * qParams.pagination.page
-    -- local page = perPage - (qParams.pagination.perPage - 1)
-    -- for index, server in pairs(allServers) do
-    --     counter = counter + 1
-    --     if counter >= page and counter <= perPage then
-    --         table.insert(servers, server)
-    --     end
-    -- end
-    do
-        return ngx.say(cjson.encode({
-            data = allServers,
-            total = totalRecords
-        }))
-    end
+
     if qParams.sort.order == "DESC" then
-        table.sort(servers, sortDesc(qParams.sort.field))
+        table.sort(allServers, sortDesc(qParams.sort.field))
     else
-        table.sort(servers, sortAsc(qParams.sort.field))
-    end
-    if counter < 1 then
-        return ngx.say(cjson.encode({
-            data = {},
-            total = 0
-        }))
+        table.sort(allServers, sortAsc(qParams.sort.field))
     end
     return ngx.say(cjson.encode({
-        data = servers,
-        total = counter
+        data = allServers,
+        total = totalRecords
     }))
 end
 
@@ -430,18 +421,6 @@ local function createUserInDisk(payloads, uuid)
     end
 end
 
-local function listPaginationLocal(data, pageSize, pageNumber)
-    local startIdx = (pageNumber - 1) * pageSize + 1
-    local endIdx = startIdx + pageSize - 1
-
-    local currentPageData = {}
-    for i = startIdx, math.min(endIdx, #data) do
-        table.insert(currentPageData, data[i])
-    end
-
-    return currentPageData, #data
-end
-
 local function listUsers(args)
     local settings = getSettings()
     local users = {}
@@ -467,12 +446,12 @@ local function listUsers(args)
                 local jsonString = file:read "*a"
                 file:close()
                 users = cjson.decode(jsonString)
-                local currentPageData, totalPages = listPaginationLocal(users, pageSize, pageNumber)
+                local currentPageData, totalPages = listPaginationLocal(users, pageSize, pageNumber, qParams)
                 users, totalRecords = currentPageData, totalPages
             end
         else
             local recordsKey = "users"
-            local records, totalCount = listWithPagination(recordsKey, cursor, pageSize, pageNumber)
+            local records, totalCount = listWithPagination(recordsKey, cursor, pageSize, pageNumber, qParams)
             users = records
             totalRecords = totalCount
         end
@@ -658,45 +637,48 @@ end
 local function listRules(args)
     local exist_values = {}
     local settings = getSettings()
-    local allRules, keys = {}, {}
+    local allRules, keys, totalRecords = {}, {}, 0
     local params = args
     params = params.params
     local qParams = cjson.decode(params)
+    -- Set the pagination parameters
+    local pageSize = qParams.pagination.perPage -- Number of records per page
+    local pageNumber = qParams.pagination.page -- Page number (starting from 1)
     if settings then
         if settings.storage_type == "disk" then
-            exist_values = listFromDisk("rules")
+            allRules, totalRecords = listFromDisk("rules", pageSize, pageNumber, qParams)
         else
-            exist_values, err = red:hgetall("request_rules")
+            allRules, totalRecords = listWithPagination("request_rules", "0", pageSize, pageNumber, qParams)
         end
     end
-    for key, value in pairs(exist_values) do
-        if type(value) == "string" then
-            if tonumber(key) % 2 == 0 then
-                table.insert(keys, value)
-                if type(value) == "string" then
-                    local ruleObj = cjson.decode(value)
-                    if next(qParams.filter) ~= nil then
-                        if qParams.filter.id == ruleObj.id then
-                            goto continue
-                        end
-                    end
-                    table.insert(allRules, cjson.decode(value))
-                    ::continue::
-                end
-            end
-        elseif type(value) == "table" then
-            if type(qParams.meta) == "table" then
-                if qParams.meta.exclude == value.id then
-                    goto continue
-                end
-            end
-            table.insert(allRules, value)
-            ::continue::
-        end
-    end
+    -- for key, value in pairs(exist_values) do
+    --     if type(value) == "string" then
+    --         if tonumber(key) % 2 == 0 then
+    --             table.insert(keys, value)
+    --             if type(value) == "string" then
+    --                 local ruleObj = cjson.decode(value)
+    --                 if next(qParams.filter) ~= nil then
+    --                     if qParams.filter.id == ruleObj.id then
+    --                         goto continue
+    --                     end
+    --                 end
+    --                 table.insert(allRules, cjson.decode(value))
+    --                 ::continue::
+    --             end
+    --         end
+    --     elseif type(value) == "table" then
+    --         if type(qParams.meta) == "table" then
+    --             if qParams.meta.exclude == value.id then
+    --                 goto continue
+    --             end
+    --         end
+    --         table.insert(allRules, value)
+    --         ::continue::
+    --     end
+    -- end
     ngx.say({cjson.encode({
         data = allRules,
-        total = #allRules
+        total = totalRecords
     })})
 end
 
