@@ -16,7 +16,6 @@ data:
         cp /tmp/secrets/.env $FILE
         echo "==========================="
         echo "Openresty WhiteFalcon Src copy to /var/www/html Complete"
-        cd /usr/local/openresty/nginx/html/openresty-admin/ && yarn build
         DATE_GEN_VERSION=$(date +"%Y%m%d%I%M%S")
         export DATE_GEN_VERSION=$(date +"%Y%m%d%I%M%S")
         export VITE_DEPLOYMENT_TIME=$DATE_GEN_VERSION
@@ -27,6 +26,9 @@ data:
         echo "Update openresty config file for this WhiteFalcon env"
         echo "==========================="
         echo "Restart openresty nginx"
+        echo "Rebuilding yarn"
+        cd /usr/local/openresty/nginx/html/openresty-admin/ && yarn build
+        echo "Rebuilding done"
         openresty -s reload
         echo "==========================="
         echo "Openresty WhiteFalcon Nginx Bootstrap Script Completed"      
