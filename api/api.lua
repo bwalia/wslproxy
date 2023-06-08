@@ -792,6 +792,11 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name)
 
     local redis_json = {}
 
+    if key_name == 'servers' and json_val.server_name then
+        redis_json['domain:'..json_val.server_name] = cjson.encode(json_val)       
+        red:hmset('domains', redis_json)
+    end
+
     redis_json[uuid] = cjson.encode(json_val)
     red:hmset(key_name, redis_json)
 
