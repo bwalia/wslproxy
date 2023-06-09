@@ -103,7 +103,7 @@ jobs:
       - name: Ping verification
         working-directory: ./QA
         env:
-          API_PING_URL: http://test.whitefalcon.io/ping
+          API_PING_URL: https://test.whitefalcon.io/ping
           API_PING_NODE: node2
         run: | 
           go mod init myapp
@@ -122,7 +122,7 @@ jobs:
       - name: Ping verification
         working-directory: ./QA
         env:
-          API_PING_URL: http://test.whitefalcon.io/ping
+          API_PING_URL: https://test.whitefalcon.io/ping
           API_PING_NODE: node6
         run: | 
           go mod init myapp
