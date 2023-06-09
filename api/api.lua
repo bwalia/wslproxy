@@ -368,6 +368,15 @@ local function createDeleteServer(body, uuid)
             if settings.storage_type == "disk" then
                 os.remove(configPath .. "data/servers/" .. uuid .. ".json")
             else
+                local oldServerName = ""
+                local oldDomain, oldDmnErr = red:hget("servers", uuid)
+                if oldDomain and oldDomain ~= "null" and type(oldDomain) == "string" then
+                    oldDomain = cjson.decode(oldDomain)
+                    oldServerName = oldDomain.server_name
+                    red:hdel('domains', 'domain:'..oldServerName)
+                else
+                    ngx.log(ngx.ERR, "Error while getting domain from redis: ", oldDmnErr)
+                end
                 red:hdel("servers", uuid)
             end
         elseif payloads and payloads.ids and #payloads.ids > 0 then
@@ -375,6 +384,15 @@ local function createDeleteServer(body, uuid)
                 if settings.storage_type == "disk" then
                     os.remove(configPath .. "data/servers/" .. payloads.ids[value] .. ".json")
                 else
+                    local oldServerName = ""
+                    local oldDomain, oldDmnErr = red:hget("servers", payloads.ids[value])
+                    if oldDomain and oldDomain ~= "null" and type(oldDomain) == "string" then
+                        oldDomain = cjson.decode(oldDomain)
+                        oldServerName = oldDomain.server_name
+                        red:hdel('domains', 'domain:'..oldServerName)
+                    else
+                        ngx.log(ngx.ERR, "Error while getting domain from redis: ", oldDmnErr)
+                    end
                     red:hdel("servers", payloads.ids[value])
                 end
             end
@@ -792,6 +810,17 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name)
 
     local redis_json, domainJson = {}, {}
     if key_name == 'servers' and json_val.server_name then
+        local oldServerName = ""
+        local oldDomain, oldDmnErr = red:hget(key_name, uuid)
+        if oldDomain and oldDomain ~= "null" and type(oldDomain) == "string" then
+            oldDomain = cjson.decode(oldDomain)
+            oldServerName = oldDomain.server_name
+        else
+            ngx.log(ngx.ERR, "Error while getting domain from redis: ", oldDmnErr)
+        end
+        if oldServerName ~= json_val.server_name then
+            red:hdel('domains', 'domain:'..oldServerName)
+        end
         domainJson['domain:'..json_val.server_name] = cjson.encode(json_val)
         red:hmset('domains', domainJson)
     end
