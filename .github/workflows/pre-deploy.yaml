@@ -10,7 +10,7 @@ on:
         TARGET_ENV:
             type: choice
             description: 'Please choose the environment'
-            default: 'int'
+            default: 'test'
             required: true
             options:
               - dev
