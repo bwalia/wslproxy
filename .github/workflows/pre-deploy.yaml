@@ -105,27 +105,27 @@ jobs:
         working-directory: ./QA
         env:
           API_PING_URL: http://test.whitefalcon.io/ping
-          API_PING_NODE: "node2"
+          API_PING_NODE: node2
         run: | 
           go mod init myapp
           go test whitefalcan-healthcheck_test.go -v 
 
   healthcheck6:
-    runs-on: [self-hosted-node6]
+    runs-on: [self-hosted-node2]
     needs: [ deploy6 ]
     steps:
       - uses: actions/checkout@v3
       - name: Set up Go
         uses: actions/setup-go@v3
         with:
-          go-version: 1.19   
-         
+          go-version: 1.19
+
       - name: Ping verification
         working-directory: ./QA
         env:
           API_PING_URL: http://test.whitefalcon.io/ping
-          API_PING_NODE: "node6"
-         # API_PING_URL: {{ secrets.API_PING_URL }}
-         run: | 
+          API_PING_NODE: node6
+        run: | 
           go mod init myapp
           go test whitefalcan-healthcheck_test.go -v 
+  
