@@ -7,30 +7,19 @@ on:
     branches: [ dummy/* ]
   workflow_dispatch:
     inputs:
-        TARGET_ENV:
-            type: choice
-            description: 'Please choose the environment'
-            default: 'test'
-            required: true
-            options:
-              - dev
-              - int
-              - test
-              - acc
-              - prod
-    
-        #   TARGET_CLUSTER:
-        #     type: choice
-        #     description: 'Please choose the target cluster'
-        #     default: 'k3s6'
-        #     required: true
-        #     options:
-        #       - k3s6
-        #       - k3s2
+      TARGET_ENV:
+        type: choice
+        description: 'Please choose the Target Environment'
+        default: 'test'
+        required: true
+        options:
+        - prod
+        - test
+        - int
+        - dev
     
 env:
-  TARGET_ENV: "{{ github.event.inputs.TARGET_ENV }}"
-  #   TARGET_CLUSTER: "{{ github.event.inputs.TARGET_CLUSTER }}"
+  TARGET_ENV: ${{ github.event.inputs.TARGET_ENV }}
   IMAGE_NAME: "whitefalcon"
   IMAGE_TAG: ${{ github.ref_name }}
 
