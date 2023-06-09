@@ -2,9 +2,9 @@ name: "Build and Deploy - Whitefalcon INT, TEST, ACC or PROD"
 
 on:
   push:
-    branches: [ main ]
+    branches: [ dummy ]
   pull_request:
-    branches: [ feature/* ]
+    branches: [ dummy/* ]
   workflow_dispatch:
     inputs:
         TARGET_ENV:
