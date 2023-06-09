@@ -16,8 +16,10 @@ fi
 
 DOCKER_PUBLIC_IMAGE_NAME=bwalia/whitefalcon
 VERSION=latest
+SOURCE_IMAGE=openresty_alpine
 
 docker image rm ${DOCKER_PUBLIC_IMAGE_NAME}
 docker build -t ${DOCKER_PUBLIC_IMAGE_NAME}:${VERSION} -f Dockerfile . --no-cache
 docker login -u $1 -p $2
+docker tag whitefalcon-${SOURCE_IMAGE} ${DOCKER_PUBLIC_IMAGE_NAME}:${VERSION}
 docker push ${DOCKER_PUBLIC_IMAGE_NAME}:${VERSION}
