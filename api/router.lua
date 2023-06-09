@@ -33,15 +33,15 @@ end
 local function check_rules(rules)
 
     local chk_path = rules.path
-    local pass = true
+    local pass = false
     local req_url = ngx.var.request_uri
     if chk_path and chk_path ~= nil and type(chk_path) ~= "userdata" then
         if rules.path_key == 'starts_with' and req_url:startswith(chk_path) ~= true then
-            pass = false
+            pass = true
         elseif rules.path_key == 'ends_with' and req_url:endswith(chk_path) ~= true then
-            pass = false
+            pass = true
         elseif rules.path_key == 'equals' and chk_path ~= req_url then
-            pass = false
+            pass = true
         end
     end
 
@@ -60,16 +60,16 @@ local function check_rules(rules)
     -- user data type is null
     if client_ip and client_ip ~= nil and type(client_ip) ~= "userdata" then
         if rules.client_ip_key == 'starts_with' and req_add:startswith(client_ip) ~= true then -- and req_add~=client_ipand  (req_add:startswith(client_ip) ~= true
-            pass = false
+            pass = true
         elseif rules.client_ip_key ~= 'equals' and req_add == client_ip then
-            pass = false
+            pass = true
         end
     end
 
     -- check country 
     if rules.country and rules.country ~= nil and type(rules.country) ~= "userdata" then
         if rules.country_key == 'equals' and rules.country ~= country then
-            pass = false
+            pass = true
         end
     end
     return pass
