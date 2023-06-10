@@ -35,7 +35,7 @@ local data = {
     redis_host = redisHost,
     redis_status = db_connect_status,
     redis_status_msg = db_status_msg,
-    Values.app.target_env =  result -- "10:45:05 up  7:44,  0 users,  load average: 1.46, 1.18, 1.02"
+    uptime =  result -- "10:45:05 up  7:44,  0 users,  load average: 1.46, 1.18, 1.02"
 
 }
 -- Encode the table as a JSON string
