@@ -17,9 +17,9 @@ on:
         - test
         - int
         - dev
-    
+ 
 env:
-  TARGET_ENV: ${{ github.event.inputs.TARGET_ENV }}
+  TARGET_ENV: ${{ github.event.inputs.TARGET_ENV != '' && github.event.inputs.TARGET_ENV }}
   IMAGE_NAME: "whitefalcon"
   IMAGE_TAG: ${{ github.ref_name }}
 
