@@ -6,7 +6,7 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogContentText from "@mui/material/DialogContentText";
 import DialogTitle from "@mui/material/DialogTitle";
 import Slide from "@mui/material/Slide";
-import { useDataProvider } from "react-admin";
+import { useDataProvider, useStore } from "react-admin";
 
 const Transition = React.forwardRef(function Transition(props, ref) {
   return <Slide direction="up" ref={ref} {...props} />;
@@ -14,8 +14,10 @@ const Transition = React.forwardRef(function Transition(props, ref) {
 
 const StorageModal = ({ isOpen }) => {
   const dataProvider = useDataProvider();
+  const [storageMgmt, setStorageMgmt] = useStore('storageManagement.type', 'redis');
+  const [sModalOpen, setSModalOpen] = useStore('storage.modal', false);
   const [open, setOpen] = React.useState(isOpen);
-
+  const storageType = localStorage.getItem("storageManagement")
   const setStorage = (storageType) => {
     dataProvider
       .saveStorageFlag("storage/management", { storage: storageType })
@@ -23,6 +25,7 @@ const StorageModal = ({ isOpen }) => {
         const { storage } = data;
         setOpen(false);
         localStorage.setItem("storageManagement", storage);
+        setStorageMgmt(storage);
         window.location.reload();
       })
       .catch((error) => {
@@ -39,6 +42,7 @@ const StorageModal = ({ isOpen }) => {
 
   const handleClose = () => {
     setOpen(false);
+    setSModalOpen(false)
   };
 
   return (
@@ -60,8 +64,8 @@ const StorageModal = ({ isOpen }) => {
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleRedis}>Redis</Button>
-          <Button onClick={HandleDisk}>Disk</Button>
+          <Button variant={storageMgmt == "redis" ? "contained" : "outlined"} onClick={handleRedis}>Redis</Button>
+          <Button variant={storageMgmt == "disk" ? "contained" : "outlined"} onClick={HandleDisk}>Disk</Button>
         </DialogActions>
       </Dialog>
     </div>
