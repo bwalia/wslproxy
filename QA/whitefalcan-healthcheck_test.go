@@ -17,10 +17,11 @@ func TestHealthCheck(t *testing.T) {
 		url = "http://127.0.0.1:8080/ping"
 	}
 	fmt.Println((url))
-
+        
 	type pingResp struct {
 		Redis_status string `json:"redis_status_msg"`
-		Uptime       string `json:"uptime"`
+		Pod_Uptime   string `json:"pod_uptime"`
+		Node_Uptime  string `json:"node_uptime"`
 	}
 
 	client := &http.Client{}
@@ -54,13 +55,19 @@ func TestHealthCheck(t *testing.T) {
 		t.Error("failed to decode json", err)
 	} else {
 		fmt.Println(jsonData.Redis_status)
-		fmt.Println(jsonData.Uptime)
+		fmt.Println(jsonData.Pod_Uptime)
+		fmt.Println(jsonData.Node_Uptime)
 	}
 	if jsonData.Redis_status != "OK" {
 		t.Error("Redis status is not ok")
 	}
-	if jsonData.Uptime == "" {
-		t.Error("Missing uptime")
+	if jsonData.Pod_Uptime == "" {
+		t.Error("Missing pod uptime")
+	}
+	if jsonData.Node_Uptime == "" {
+		t.Error("Missing node uptime")
 	}
 
 }
+
+	
