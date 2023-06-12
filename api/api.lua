@@ -20,6 +20,7 @@ local function getSettings()
     end
     return settings
 end
+
 local redisHost = os.getenv("REDIS_HOST")
 
 if redisHost == nil then
