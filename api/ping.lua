@@ -1,7 +1,36 @@
 local cjson = require("cjson")
-local handle = io.popen("Values.app.target_env")
-local result = handle:read("*a")
-handle:close()
+
+-- functions
+
+function os.capture(cmd, raw) -- this function cannot be local
+    local handle = assert(io.popen(cmd, 'r'))
+    local output = assert(handle:read('*a'))
+    
+    handle:close()
+    
+    if raw then 
+        return output 
+    end
+   
+    output = string.gsub(
+        string.gsub(
+            string.gsub(output, '^%s+', ''), 
+            '%s+$', 
+            ''
+        ), 
+        '[\n\r]+',
+        '<br>'
+    )
+   
+   return output
+end
+
+local function shell_exec_output(cmd)
+    result = os.capture(cmd)
+    return result
+    end
+    
+-- functions
 
 local redis = require "resty.redis"
 local red = redis:new()
@@ -35,8 +64,8 @@ local data = {
     redis_host = redisHost,
     redis_status = db_connect_status,
     redis_status_msg = db_status_msg,
-    uptime =  result -- "10:45:05 up  7:44,  0 users,  load average: 1.46, 1.18, 1.02"
-
+    node_uptime =  shell_exec_output("uptime"), -- "10:45:05 up  7:44,  0 users,  load average: 1.46, 1.18, 1.02"
+    pod_uptime = os.date("%X", os.time() - os.getenv("DEPLOYMENT_TIME"))
 }
 -- Encode the table as a JSON string
 json_str = cjson.encode(data)
