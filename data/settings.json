@@ -1,1 +1,1 @@
-{"redis_host":"","redis_port":"localhost","roles":["release_manager","admin","read_only","read_write"],"storage_type":"disk","super_user":{"username":"admin","email":"ejeyd@example.com","password":"jGl25bVBBBW96Qi9Te4V37Fnqchz\/Eu4qB9vKrRIqRg="}}
+{"super_user":{"password":"jGl25bVBBBW96Qi9Te4V37Fnqchz\/Eu4qB9vKrRIqRg=","username":"admin","email":"ejeyd@example.com"},"storage_type":"redis","redis_host":"","roles":["release_manager","admin","read_only","read_write"],"redis_port":"localhost"}

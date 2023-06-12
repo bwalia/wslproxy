@@ -5,6 +5,8 @@ local red = redis:new()
 Base64 = require "base64"
 red:set_timeout(1000) -- 1 second
 local configPath = os.getenv("NGINX_CONFIG_DIR")
+local storageTypeOverride = os.getenv("STORAGE_TYPE")
+
 local function getSettings()
 
     local readSettings, errSettings = io.open(configPath .. "data/settings.json", "rb")
@@ -207,20 +209,26 @@ end
 
 local function setStorage(body)
     local settings = getSettings()
+    local storageType = ""
     if settings then
-        local keyset = {}
-        local n = 0
-        for k, v in pairs(body) do
-            n = n + 1
-            if type(v) == "string" then
-                table.insert(keyset, cjson.decode(k .. v))
-            else
-                table.insert(keyset, cjson.decode(k))
+        if type(body) == "table" then
+            local keyset = {}
+            local n = 0
+            for k, v in pairs(body) do
+                n = n + 1
+                if type(v) == "string" then
+                    table.insert(keyset, cjson.decode(k .. v))
+                else
+                    table.insert(keyset, cjson.decode(k))
+                end
             end
+            local payloads = keyset[1]
+            storageType = payloads.storage
+        else 
+            storageType = body
         end
-        local payloads = keyset[1]
         local writableFile, writableErr = io.open(configPath .. "data/settings.json", "w")
-        settings.storage_type = payloads.storage
+        settings.storage_type = storageType
         if writableFile == nil then
             ngx.say("Couldn't write file: " .. writableErr)
         else
@@ -233,6 +241,9 @@ local function setStorage(body)
             }))
         end
     end
+end
+if storageTypeOverride and storageTypeOverride ~= nil then
+    setStorage(storageTypeOverride)
 end
 
 -- Servers APIs

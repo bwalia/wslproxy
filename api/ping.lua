@@ -44,6 +44,7 @@ end
 
 local db_connect_status = "err"
 local ok, err = red:connect(redisHost, 6379)
+local storageTypeOverride = os.getenv("STORAGE_TYPE")
 if ok then
     db_connect_status = "pong"
     db_status_msg = "OK"
@@ -65,7 +66,8 @@ local data = {
     redis_status = db_connect_status,
     redis_status_msg = db_status_msg,
     node_uptime =  shell_exec_output("uptime"), -- "10:45:05 up  7:44,  0 users,  load average: 1.46, 1.18, 1.02"
-    pod_uptime = os.date("%X", os.time() - os.getenv("DEPLOYMENT_TIME"))
+    pod_uptime = os.date("%X", os.time() - os.getenv("DEPLOYMENT_TIME")),
+    storage_type = storageTypeOverride
 }
 -- Encode the table as a JSON string
 json_str = cjson.encode(data)
