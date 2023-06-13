@@ -80,42 +80,40 @@ jobs:
           SLACK_USERNAME: rtCamp
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
   
-  healthcheck2:
-    runs-on: [self-hosted-node2]
-    needs: [ deploy2 ]
-    steps:
-      - uses: actions/checkout@v3
-      - name: Set up Go
-        uses: actions/setup-go@v3
-        with:
-          go-version: 1.19
+  # healthcheck2:
+  #   runs-on: [self-hosted-node2]
+  #   needs: [ deploy2 ]
+  #   steps:
+  #     - uses: actions/checkout@v3
+  #     - name: Set up Go
+  #       uses: actions/setup-go@v3
+  #       with:
+  #         go-version: 1.19
+  #     - name: Ping verification
+  #       working-directory: ./QA
+  #       env:
+  #         API_PING_URL: http://int2.whitefalcon.io/ping
+  #       run: | 
+  #         go mod init myapp
+  #         go test whitefalcan-healthcheck_test.go -v 
 
-      - name: Ping verification
-        working-directory: ./QA
-        env:
-          API_PING_URL: http://int2.whitefalcon.io/ping
-        run: | 
-          go mod init myapp
-          go test whitefalcan-healthcheck_test.go -v 
-
-  healthcheck6:
-    runs-on: [self-hosted-node6]
-    needs: [ deploy6 ]
-    steps:
-      - uses: actions/checkout@v3
-      - name: Set up Go
-        uses: actions/setup-go@v3
-        with:
-          go-version: 1.19   
-         
-      - name: Ping verification
-        working-directory: ./QA
-        env:
-          API_PING_URL: http://int6.whitefalcon.io/ping
-         # API_PING_URL: {{ secrets.API_PING_URL }}
-        run: | 
-          go mod init myapp
-          go test whitefalcan-healthcheck_test.go -v
+  # healthcheck6:
+  #   runs-on: [self-hosted-node6]
+  #   needs: [ deploy6 ]
+  #   steps:
+  #     - uses: actions/checkout@v3
+  #     - name: Set up Go
+  #       uses: actions/setup-go@v3
+  #       with:
+  #         go-version: 1.19   
+  #     - name: Ping verification
+  #       working-directory: ./QA
+  #       env:
+  #         API_PING_URL: http://int6.whitefalcon.io/ping
+  #        # API_PING_URL: {{ secrets.API_PING_URL }}
+  #       run: | 
+  #         go mod init myapp
+  #         go test whitefalcan-healthcheck_test.go -v
   
   healthcheck2test:
     runs-on: [self-hosted-node2]
@@ -126,7 +124,6 @@ jobs:
         uses: actions/setup-go@v3
         with:
           go-version: 1.19
-
       - name: Ping verification
         working-directory: ./QA
         env:
@@ -145,7 +142,6 @@ jobs:
         uses: actions/setup-go@v3
         with:
           go-version: 1.19
-
       - name: Ping verification
         working-directory: ./QA
         env:
