@@ -59,7 +59,7 @@ http {
     }
 
     server {
-        listen       80;
+        listen       8080;
         server_name  localhost;
         # For kubernetes use 10.43.0.10 and nginx ingress controller
         include /tmp/resolver.conf;
@@ -146,11 +146,302 @@ http {
             content_by_lua_file /usr/local/openresty/nginx/html/api/security_rules.lua;
         }
 
-        location /router {
+        #location /router {
+        #    default_type 'application/json';
+        #    add_header 'Access-Control-Allow-Origin' '*';
+        #   add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, PUT, DELETE';
+        #   add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, X-Requested-With';
+        #    add_header 'Access-Control-Max-Age' 1728000;
+        #    add_header 'Content-Type' 'text/plain; charset=utf-8';
+        #    add_header 'Content-Length' 0;
+        #    content_by_lua_file /usr/local/openresty/nginx/html/api/router.lua;
+        #}
+
+        location /ip-location {
+            default_type text/html;
+            content_by_lua_block {
+                local ip2location = require('ip2location')
+                local ip2loc = ip2location:new('/tmp/IP2LOCATION-LITE-DB11.IPV6.BIN')
+                local result = ip2loc:get_all('106.196.55.155')
+                ngx.say("country_short: " .. result.country_short)
+                ngx.say("country_long: " .. result.country_long)
+                ngx.say("region: " .. result.region)
+                ngx.say("city: " .. result.city)
+                ngx.say("isp: " .. result.isp)
+                ngx.say("latitude: " .. result.latitude)
+                ngx.say("longitude: " .. result.longitude)
+                ngx.say("domain: " .. result.domain)
+                ngx.say("zipcode: " .. result.zipcode)
+                ngx.say("timezone: " .. result.timezone)
+                ngx.say("netspeed: " .. result.netspeed)
+                ngx.say("iddcode: " .. result.iddcode)
+                ngx.say("areacode: " .. result.areacode)
+                ngx.say("weatherstationcode: " .. result.weatherstationcode)
+                ngx.say("weatherstationname: " .. result.weatherstationname)
+                ngx.say("mcc: " .. result.mcc)
+                ngx.say("mnc: " .. result.mnc)
+                ngx.say("mobilebrand: " .. result.mobilebrand)
+                ngx.say("elevation: " .. result.elevation)
+                ngx.say("usagetype: " .. result.usagetype)
+                ngx.say("addresstype: " .. result.addresstype)
+                ngx.say("category: " .. result.category)
+                ngx.say("district: " .. result.district)
+                ngx.say("asn: " .. result.asn)
+                ngx.say("as: " .. result.as)
+                ip2loc:close()
+            }
+        }
+
+
+        location /test {            
+            default_type 'application/json';
+            content_by_lua_block {
+                local redis = require "resty.redis"
+                local red = redis:new()
+
+                red:set_timeouts(1000, 1000, 1000) -- 1 sec
+
+                -- or connect to a unix domain socket file listened
+                -- by a redis server:
+                --     local ok, err = red:connect("unix:/path/to/redis.sock")
+
+                -- connect via ip address directly
+                local ok, err = red:connect("redis", 6379)
+
+                if not ok then
+                    ngx.say("failed to connect: ", err)
+                    return
+                end
+
+                ok, err = red:set("dog", "an animal")
+                if not ok then
+                    ngx.say("failed to set dog: ", err)
+                    return
+                end
+
+                ngx.say("set result: ", ok)
+
+                local res, err = red:get("dog")
+                if not res then
+                    ngx.say("failed to get dog: ", err)
+                    return
+                end
+
+                if res == ngx.null then
+                    ngx.say("dog not found.")
+                    return
+                end
+
+                ngx.say("dog: ", res)
+
+                red:init_pipeline()
+                red:set("cat", "Marry")
+                red:set("horse", "Bob")
+                red:get("cat")
+                red:get("horse")
+                local results, err = red:commit_pipeline()
+                if not results then
+                    ngx.say("failed to commit the pipelined requests: ", err)
+                    return
+                end
+
+                for i, res in ipairs(results) do
+                    if type(res) == "table" then
+                        if res[1] == false then
+                            ngx.say("failed to run command ", i, ": ", res[2])
+                        else
+                            -- process the table value
+                        end
+                    else
+                        -- process the scalar value
+                    end
+                end
+
+                -- put it into the connection pool of size 100,
+                -- with 10 seconds max idle time
+                local ok, err = red:set_keepalive(10000, 100)
+                if not ok then
+                    ngx.say("failed to set keepalive: ", err)
+                    return
+                end
+
+                -- or just close the connection right away:
+                -- local ok, err = red:close()
+                -- if not ok then
+                --     ngx.say("failed to close: ", err)
+                --     return
+                -- end
+            }
+
+        }
+
+        #comment
+        #error_page  404              /404.html;
+
+        # redirect server error pages to the static page /50x.html
+        #
+        error_page   500 502 503 504  /50x.html;
+        location = /50x.html {
+            root   html;
+        }
+
+        # proxy the PHP scripts to Apache listening on 127.0.0.1:80
+        #
+        #location ~ \.php$ {
+        #    proxy_pass   http://127.0.0.1;
+        #}
+
+        # pass the PHP scripts to FastCGI server listening on 127.0.0.1:9000
+        #
+        #location ~ \.php$ {
+        #    root           html;
+        #    fastcgi_pass   127.0.0.1:9000;
+        #    fastcgi_index  index.php;
+        #    fastcgi_param  SCRIPT_FILENAME  /scripts$fastcgi_script_name;
+        #    include        fastcgi_params;
+        #}
+
+        # deny access to .htaccess files, if Apache's document root
+        # concurs with nginx's one
+        #
+        #location ~ /\.ht {
+        #    deny  all;
+        #}
+
+        location /start {
+          default_type text/html;
+          content_by_lua_block {
+            local session = require "resty.session".new()
+            session:set_subject("OpenResty Fan")
+            session:set("quote", "The quick brown fox jumps over the lazy dog")
+            local ok, err = session:save()
+           
+            ngx.say(string.format([[
+              <html>
+              <body>
+                <p>Session started (%s)</p>
+                <p><button><a href=/started>Check if it really was</a></button></p>
+              </body>
+              </html>
+            ]], err or "no error"))
+          }
+        }
+    
+        location /started {
+          default_type text/html;
+          content_by_lua_block {
+            local session, err = require "resty.session".start()
+            
+            ngx.say(string.format([[
+              <html>
+              <body>
+                <p>Session was started by %s (%s)</p>
+                <p><blockquote>%s</blockquote></p>
+                <p><button><a href=/modify>Modify the session</a></button></p>
+              </body>
+              </html>
+            ]],
+              session:get_subject() or "Anonymous",
+              err or "no error",
+              session:get("quote") or "no quote"
+            ))
+          }
+        }
+        
+        location /modify {
+          default_type text/html;
+          content_by_lua_block {
+            local session, err = require "resty.session".start()
+            session:set_subject("Lua Fan")
+            session:set("quote", "Lorem ipsum dolor sit amet")
+            local _, err_save = session:save()
+            
+            ngx.say(string.format([[
+              <html>
+              <body>
+                <p>Session was modified (%s)</p>
+                <p><a href=/modified>Check if it is modified</a></p>
+              </body>
+              </html>
+            ]], err or err_save or "no error"))
+          }
+        }
+        
+        location /modified {
+          default_type text/html;
+          content_by_lua_block {
+            local session, err = require "resty.session".start()
+    
+            ngx.say(string.format([[
+              <html>
+              <body>
+                <p>Session was started by %s (%s)</p>
+                <p><blockquote>%s</blockquote></p>
+                <p><button><a href=/destroy>Destroy the session</a></button></p>
+              </body>
+              </html>
+            ]],
+              session:get_subject() or "Anonymous",
+              err or "no error",
+              session:get("quote")  or "no quote"
+            ))
+          }
+        }
+        
+        location /destroy {
+          default_type text/html;
+          content_by_lua_block {
+            local ok, err = require "resty.session".destroy()
+    
+            ngx.say(string.format([[
+              <html>
+              <body>
+                <p>Session was destroyed (%s)</p>
+                <p><button><a href=/destroyed>Check that it really was?</a></button></p>
+              </body>
+              </html>
+            ]], err or "no error"))
+          }
+        }
+        
+        location /destroyed {
+          default_type text/html;
+          content_by_lua_block {
+            local session, err = require "resty.session".open()
+    
+            ngx.say(string.format([[
+              <html>
+              <body>
+                <p>Session was really destroyed, you are known as %s (%s)</p>
+                <p><button><a href=/>Start again</a></button></p>
+              </body>
+              </html>
+            ]],
+              session:get_subject() or "Anonymous",
+              err or "no error"
+            ))
+          }
+        }
+    }
+
+
+    
+    server {
+        listen       80 default_server;
+        server_name  _; 
+        # For kubernetes use 10.43.0.10 and nginx ingress controller
+        include /tmp/resolver.conf;
+
+        #charset koi8-r;
+
+        #access_log  logs/host.access.log  main;
+
+
+        location / {
             default_type 'application/json';
             add_header 'Access-Control-Allow-Origin' '*';
-            add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, PUT, DELETE';
-            add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, X-Requested-With';
+           add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, PUT, DELETE';
+           add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, X-Requested-With';
             add_header 'Access-Control-Max-Age' 1728000;
             add_header 'Content-Type' 'text/plain; charset=utf-8';
             add_header 'Content-Length' 0;
@@ -424,41 +715,6 @@ http {
         }
     }
 
-
-    # another virtual host using mix of IP-, name-, and port-based configuration
-    #
-    #server {
-    #    listen       8000;
-    #    listen       somename:8080;
-    #    server_name  somename  alias  another.alias;
-
-    #    location / {
-    #        root   html;
-    #        index  index.html index.htm;
-    #    }
-    #}
-
-
-    # HTTPS server
-    #
-    #server {
-    #    listen       443 ssl;
-    #    server_name  localhost;
-
-    #    ssl_certificate      cert.pem;
-    #    ssl_certificate_key  cert.key;
-
-    #    ssl_session_cache    shared:SSL:1m;
-    #    ssl_session_timeout  5m;
-
-    #    ssl_ciphers  HIGH:!aNULL:!MD5;
-    #    ssl_prefer_server_ciphers  on;
-
-    #    location / {
-    #        root   html;
-    #        index  index.html index.htm;
-    #    }
-    #}
 
       server {
         listen       80;
