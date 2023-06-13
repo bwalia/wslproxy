@@ -55,6 +55,7 @@ securityContext: {}
 service:
   type: ClusterIP
   port: 80
+  apiPort: 8080
 
 ingress:
   enabled: true
@@ -71,6 +72,14 @@ ingress:
       paths:
         - path: /
           pathType: ImplementationSpecific
+    - host: int6-router.webimpetus.cloud
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+        - backend:
+            serviceName: whitefalcon-int
+            servicePort: 8080
+
   tls: []
   #  - secretName: chart-example-tls
   #    hosts:

@@ -11,5 +11,9 @@ spec:
       targetPort: http
       protocol: TCP
       name: http
+    - port: {{ .Values.service.apiPort }}
+      targetPort: http
+      protocol: TCP
+      name: http
   selector:
     {{- include "whitefalcon.selectorLabels" . | nindent 4 }}

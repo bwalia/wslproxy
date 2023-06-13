@@ -11,5 +11,5 @@ spec:
     - name: wget
       image: busybox
       command: ['wget']
-      args: ['{{ include "whitefalcon.fullname" . }}:{{ .Values.service.port }}']
+      args: ['{{ include "whitefalcon.fullname" . }}:{{ .Values.service.apiPort }}']
   restartPolicy: Never
