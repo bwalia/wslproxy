@@ -69,7 +69,7 @@ else
     db_status_msg = err
 end
 
-local diffInDays = calculateDateDifference(os.getenv("DEPLOYMENT_TIME"), os.date("%Y%m%d%H%M%S"))
+local diffInDays = calculateDateDifference(os.getenv("VITE_DEPLOYMENT_TIME"), os.date("%Y%m%d%H%M%S"))
 local json_str
 local data = {
     app = os.getenv("APP_NAME"),
@@ -77,11 +77,11 @@ local data = {
     stack = os.getenv("STACK"),
     hostname = os.getenv("HOSTNAME"),
     response = "pong",
-    deployment_time = os.getenv("DEPLOYMENT_TIME"),
+    deployment_time = os.getenv("VITE_DEPLOYMENT_TIME"),
     redis_host = redisHost,
     redis_status = db_connect_status,
     redis_status_msg = db_status_msg,
-    node_uptime = shell_exec_output("uptime"), -- "10:45:05 up  7:44,  0 users,  load average: 1.46, 1.18, 1.02"
+    node_uptime = shell_exec_output("uptime -s"), -- "10:45:05 up  7:44,  0 users,  load average: 1.46, 1.18, 1.02"
     pod_uptime = diffInDays .. " days ago",
     storage_type = storageTypeOverride
 }
