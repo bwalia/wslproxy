@@ -68,13 +68,13 @@ ingress:
       paths:
         - path: /
           pathType: ImplementationSpecific
-          serviceName: whitefalcon-int-api
+          serviceName: whitefalcon-test-api
           servicePort: 8080
     - host: test-router.webimpetus.cloud
       paths:
         - path: /
           pathType: ImplementationSpecific
-          serviceName: whitefalcon-int
+          serviceName: whitefalcon-test
           servicePort: 80
   tls: []
   #  - secretName: chart-example-tls
