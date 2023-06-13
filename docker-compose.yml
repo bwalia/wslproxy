@@ -33,7 +33,7 @@ services:
       APP_NAME: "whitefalcon"
       VERSION: "1.0"
       STACK: "Lua 5.1"
-      DEPLOYMENT_TIME: "20230510055429"
+      VITE_DEPLOYMENT_TIME: "20230510055429"
       NGINX_CONFIG_DIR: "/opt/nginx/"
       JWT_SECURITY_PASSPHRASE: "HCsKpxQ4hU97V5us5TCwvLnAVBgLqNd1dP2R-4Uywg7946J3zAqT9EOA5hdWRCQn"
 #      DNS_RESOLVER: "127.0.0.11"       # Docker's internal DNS resolver IP this should only be added for Docker deployments

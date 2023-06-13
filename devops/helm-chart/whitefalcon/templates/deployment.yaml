@@ -68,8 +68,8 @@ spec:
             value: "Lua 5.1"  
           - name: API_URL
             value: "{{ .Values.app.api_url }}"  
-          - name: DEPLOYMENT_TIME
-            value: "20230510055429" 
+          - name: VITE_DEPLOYMENT_TIME
+            value: "{{ now | date "20060102150405" }}"
           - name: NGINX_CONFIG_DIR
             value: "/opt/nginx/"
           - name: JWT_SECURITY_PASSPHRASE
