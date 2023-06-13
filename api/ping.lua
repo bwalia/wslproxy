@@ -19,30 +19,32 @@ local function shell_exec_output(cmd)
 end
 
 local function calculateDateDifference(dateString1, dateString2)
-    local year1, month1, day1, hour1, min1, sec1 = dateString1:match("(%d%d%d%d)(%d%d)(%d%d)(%d%d)(%d%d)(%d%d)")
-    local year2, month2, day2, hour2, min2, sec2 = dateString2:match("(%d%d%d%d)(%d%d)(%d%d)(%d%d)(%d%d)(%d%d)")
-
-    local time1 = os.time({
-        year = year1,
-        month = month1,
-        day = day1,
-        hour = hour1,
-        min = min1,
-        sec = sec1
-    })
-    local time2 = os.time({
-        year = year2,
-        month = month2,
-        day = day2,
-        hour = hour2,
-        min = min2,
-        sec = sec2
-    })
-
-    local diffInSeconds = os.difftime(time2, time1)
-    local diffInDays = math.abs(diffInSeconds / (24 * 60 * 60))
-    diffInDays = math.floor(diffInDays)
-    return diffInDays
+    if dateString1 ~= nil and dateString2 ~= nil then
+        local year1, month1, day1, hour1, min1, sec1 = dateString1:match("(%d%d%d%d)(%d%d)(%d%d)(%d%d)(%d%d)(%d%d)")
+        local year2, month2, day2, hour2, min2, sec2 = dateString2:match("(%d%d%d%d)(%d%d)(%d%d)(%d%d)(%d%d)(%d%d)")
+    
+        local time1 = os.time({
+            year = year1,
+            month = month1,
+            day = day1,
+            hour = hour1,
+            min = min1,
+            sec = sec1
+        })
+        local time2 = os.time({
+            year = year2,
+            month = month2,
+            day = day2,
+            hour = hour2,
+            min = min2,
+            sec = sec2
+        })
+    
+        local diffInSeconds = os.difftime(time2, time1)
+        local diffInDays = math.abs(diffInSeconds / (24 * 60 * 60))
+        diffInDays = math.floor(diffInDays)
+        return diffInDays
+    end
 end
 
 -- functions
