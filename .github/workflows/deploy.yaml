@@ -1,4 +1,4 @@
-name: "Build and Deploy - Whitefalcon Prod"
+name: "Build and Deploy - whitefalcon-api Prod"
 
 on:
   push:
@@ -52,9 +52,9 @@ jobs:
         uses: koslib/helm-eks-action@master
         with:
           command: |
-            helm upgrade -i whitefalcon-${{ env.TARGET_ENV }} ./devops/helm-chart/whitefalcon/ -f devops/helm-chart/whitefalcon/values-${{ env.TARGET_ENV }}-${{ env.TARGET_CLUSTER}}.yaml --namespace ${{ env.TARGET_ENV }} --create-namespace
-            kubectl rollout restart deployment/whitefalcon-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
-            kubectl rollout history deployment/whitefalcon-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
+            helm upgrade -i whitefalcon-api-${{ env.TARGET_ENV }} ./devops/helm-charts/whitefalcon-api/ -f devops/helm-charts/whitefalcon-api/values-${{ env.TARGET_ENV }}-${{ env.TARGET_CLUSTER}}.yaml --namespace ${{ env.TARGET_ENV }} --create-namespace
+            kubectl rollout restart deployment/whitefalcon-api-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
+            kubectl rollout history deployment/whitefalcon-api-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
           
       - name: Slack Notification for Workstation CRM release 
         uses: rtCamp/action-slack-notify@v2

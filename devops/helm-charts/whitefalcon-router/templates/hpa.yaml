@@ -2,14 +2,14 @@
 apiVersion: autoscaling/v2beta1
 kind: HorizontalPodAutoscaler
 metadata:
-  name: {{ include "whitefalcon.fullname" . }}-{{ .Values.app.type }}
+  name: {{ include "whitefalcon-router.fullname" . }}
   labels:
-    {{- include "whitefalcon.labels" . | nindent 4 }}
+    {{- include "whitefalcon-router.labels" . | nindent 4 }}
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: {{ include "whitefalcon.fullname" . }}-{{ .Values.app.type }}
+    name: {{ include "whitefalcon-router.fullname" . }}
   minReplicas: {{ .Values.autoscaling.minReplicas }}
   maxReplicas: {{ .Values.autoscaling.maxReplicas }}
   metrics:

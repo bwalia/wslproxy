@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: openresty-bootstrap-cm-{{ .Values.app.target_env }}
+  name: {{ .Values.app.name }}-cm-{{ .Values.app.target_env }}
 #   namespace: {{ .Values.targetNS }}
 data:
     bootstrap-openresty.sh: |
@@ -10,12 +10,12 @@ data:
         # Set Resolver for nginx
         cp /tmp/resolver.conf ~/resolver_backup.conf && sed -i -e 's/Docker resolver/K3S resolver/' /tmp/resolver.conf && sed -i -e 's/resolver 127.0.0.11/resolver {{ .Values.app.dns_resolver }}/' /tmp/resolver.conf
         # Set Timezone
-        echo "Openresty WhiteFalcon Nginx Bootstrap Script"
+        echo "Openresty whitefalcon-router Nginx Bootstrap Script"
         echo "==========================="
         FILE=/usr/local/openresty/nginx/html/openresty-admin/.env
         cp /tmp/secrets/.env $FILE
         echo "==========================="
-        echo "Openresty WhiteFalcon Src copy to /var/www/html Complete"
+        echo "Openresty whitefalcon-router Src copy to /var/www/html Complete"
         DATE_GEN_VERSION=$(date +"%Y%m%d%I%M%S")
         export DATE_GEN_VERSION=$(date +"%Y%m%d%I%M%S")
         export VITE_DEPLOYMENT_TIME=$DATE_GEN_VERSION
@@ -23,7 +23,7 @@ data:
         echo "==========================="
         echo "VITE_DEPLOYMENT_TIME=$DATE_GEN_VERSION" >> $FILE
         echo "==========================="
-        echo "Update openresty config file for this WhiteFalcon env"
+        echo "Update openresty config file for this whitefalcon-router env"
         echo "==========================="
         echo "Restart openresty nginx"
         echo "Rebuilding yarn"
@@ -31,17 +31,17 @@ data:
         echo "Rebuilding done"
         openresty -s reload
         echo "==========================="
-        echo "Openresty WhiteFalcon Nginx Bootstrap Script Completed"      
-    whitefalcon.conf: |
+        echo "Openresty whitefalcon-router Nginx Bootstrap Script Completed"      
+    whitefalcon-router.conf: |
 {{- range .Values.ingress.hosts }}
-        # Openresty WhiteFalcon Nginx Conf Openresty WhiteFalcon.conf src ConfigMap loaded by openresty
+        # Openresty whitefalcon-router Nginx Conf Openresty whitefalcon-router.conf src ConfigMap loaded by openresty
         server {
         listen         80;
         server_name {{ .host | quote }};
         root  /usr/local/openresty/nginx/html;
         index          index.html;
         location / {
-            return 200 "Openresty WhiteFalcon Nginx Conf Openresty WhiteFalcon.conf src ConfigMap loaded by openresty";
+            return 200 "Openresty whitefalcon-router Nginx Conf Openresty whitefalcon-router.conf src ConfigMap loaded by openresty";
         }
         location ~ /\. {
             deny all;
