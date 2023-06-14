@@ -1,12 +1,11 @@
-# Default values for whitefalcon.
+# Default values for whitefalcon-api.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
 replicaCount: 1
 
 app:
-  name: whitefalcon
-  type: api
+  name: whitefalcon-api
   version: 0.1.0
   description: A Helm chart for Kubernetes
   keywords:
@@ -15,11 +14,11 @@ app:
     - kubernetes
   namespace: int
   dns_resolver: "10.43.0.10"
-  api_url: "http://int6.whitefalcon.io/api"
+  api_url: "http://int2.whitefalcon-api.io/api"
   redis_host: "redis-service.int.svc.cluster.local"
   target_env: "int"
 
-secure_env_file: "AgCdrtqvHL6ZIs/Pt4LTW4M+hT0JXbNWwdR+N+M1wbd94YTpI6NxYIo5puheVpY/hcd8c31yyTFoepvr9CYkaAizlXcbBhIm7nhWIQT6MMv1Qgb5PTHVtfXX0Z9ab9tP5EEzUlBRaM/HExlvFBPTTWneXBeFupAuYEZ7oDl9GvBkvfDxqH3BUo4Bq8+KiJm5VRg1eCkWPhT5CgM5OZjsJNMrac+Xo9VvNlmaECY1flLflNRJfft0R9Fru8GI5Ib2yvcy+xGTKpDSqh8cA84Xz0JWA0m4qoIdnzIYStrU7yDR7s/DlHCojk1iocU5NPxdZJzA6+EaWOBGaLZl5h/+e85wslfO2SRcrd9B7xaF1HYS+7bJb7FV3SIGfrW52IG8dlT0eusBesCiX22PWQVvHzAc1O5kwWntwrShZeboFvF25jAiLiQw6EF3JZcp89e4KNZl/9z7BjuwYJ3pEyP/zQUi4H3wa6iR3ArJyVPALjFOtEGi7DIf9S6jbjGDKHVvHeavzHsBDE1xXn+PIojKqvUjZJfV4weoxLE7KYlbKDlgaLCX341WnUmgnT45lPRFdF1LX/UAgZyoaQogkeu8zThIUiNV7jr83UvnL2TVfF9OXtQQim/9NZ7ldPvHjcHOwQ7bDhMx4Uv08NoXxZtW+WqTKtcytcb9wJnwjCSQyfRZ6FAYql4gfWDilCnq2sZ3LAelmYzugmT+PJrVk9Bd70pKb7Kl7fKMc/57L8/e/OXa1H8Rw6ZYyieffVuYNUm6Tt/HrU2xNM75d3zSyIw2IOHaqA5qWANGexYo7/+Y5FLQfb8EJdyibKzQXLM4JsH5LniYBO/zprXnbzsqZ29sTvU2PXIzI62ttdPtIVqAv6LYCvR0gQDDgPERikITLaEtDtNkC9XlhVahEOP3tgJczygcjjymsXeeNLaRfrdo"
+secure_env_file: "AgC5PzzROWOgpOXkRfV7g8LyCQekR5DaPlv4BaUIIQiMveI/4TQF2++Nsm/JB2phWCsCjZ9gUVoSDkJF+I/Jp+3h6sf/KvfUrdn8G1W1lD2fTjbK+q377NhgXUj41LrfGeNBGejT0UlBFQS27tRyeSBAD4S794aeze0b+o+OIs5arS3f4kK/Pwr+CUYS4p4ELpececJifYXBkE83oPSxbpo7PC47EdiLincUd3aOUopFAOMV1J/P1xc9WuKLvwYrEwlsiifgzljXvfVWdNgDXsOMvt9qk1d+iZGwig9NncUrViXufyZ99ivMhaOKex9uLKAv+9JgRzm2Jj6lS8615maXXuepDaqL7AlQO08r9JEVayFb9txCc2lbtBo1iz+SYufoLSSD/EY2eox3Ie/Lj4UV3Z55LYbSkhUahv0xNLjDXpoAjRh727ns+32mGT5RR2oWdf/bZ477nwWVQWuJFpvpWrrWq/4q51zPaEkZ4n5y/QH4Z7jVEC7namnEd5bzsYxi0ZdEkIPwwFcH27vWBrauj1aBa99NKhhBy0IHZl/C3K4OZ92jMoPZSGw6UKqcGH9tvSCo9NyWz4qKfkwBkE+iaqjPh3nbsd3l6HLXY1rAT3Rqg/Sd71b+gvdGuEQ8KHxjkVZ/ldA/Riwt8ZLOxmt4WTWQ4OzdXR+tKHeXzfrBGU75x9L3jSpSyFfZs8FBJAS3ZJYLHOxZS+3+f7HZ/A67psRKGeSQccAtb26QpUwO5r0+JbIptYh6MBW5gvlz1AoPe2aN2zUiskLLB5DFdHmqHHEzL15J2vHREbpEGgWZAigh9nVIFl+Xv/lXyuPTTxHNxZwzgbdAvQM+32ZTXrJjq7c96bli55XjuDEfbuAt50bDWRYEro9KMqBKpsXixKd5+JsNs2qJPZ6BvvT55I/ALyegHpL/Sm0M+CqQ"
 
 image:
   repository: bwalia/whitefalcon
@@ -64,17 +63,17 @@ ingress:
     # kubernetes.io/ingress.class: nginx
     # kubernetes.io/tls-acme: "true"
   hosts:
-    - host: int.whitefalcon.io
+    - host: int-api.whitefalcon.io
       paths:
         - path: /
           pathType: ImplementationSpecific
-          serviceName: whitefalcon-int-api
+          serviceName: whitefalcon-api-int
           servicePort: 8080
-    - host: int6.whitefalcon.io
+    - host: int2.whitefalcon-api.io
       paths:
         - path: /
           pathType: ImplementationSpecific
-          serviceName: whitefalcon-int-api
+          serviceName: whitefalcon-api-int
           servicePort: 8080
   tls: []
   #  - secretName: chart-example-tls

@@ -1,16 +1,16 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "whitefalcon.fullname" . }}-{{ .Values.app.type }}
+  name: {{ include "whitefalcon-api.fullname" . }}
   labels:
-    {{- include "whitefalcon.labels" . | nindent 4 }}
+    {{- include "whitefalcon-api.labels" . | nindent 4 }}
 spec:
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
   {{- end }}
   selector:
     matchLabels:
-      {{- include "whitefalcon.selectorLabels" . | nindent 6 }}
+      {{- include "whitefalcon-api.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       {{- with .Values.podAnnotations }}
@@ -18,18 +18,18 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
-        {{- include "whitefalcon.selectorLabels" . | nindent 8 }}
+        {{- include "whitefalcon-api.selectorLabels" . | nindent 8 }}
     spec:
       volumes:
-        - name: openresty-bootstrap-cm-{{ .Values.app.target_env }}-vol
+        - name: {{ .Values.app.name }}-openresty-cm-{{ .Values.app.target_env }}-{{ .Values.app.type }}-vol
           # Populate the volume with config map data
           configMap:
             # `name` here must match the name 
             # specified in the ConfigMap's YAML 
-            name: openresty-bootstrap-cm-{{ .Values.app.target_env }}
-        - name: whitefalcon-vol-{{ .Values.app.target_env }}
+            name: {{ .Values.app.name }}-openresty-cm-{{ .Values.app.target_env }}-{{ .Values.app.type }}
+        - name: openresty-vol-{{ .Values.app.target_env }}
           secret:
-            secretName: whitefalcon-secret-{{ .Values.app.target_env }}
+            secretName: "openresty-secret-{{ .Values.app.target_env }}-{{ .Values.app.type }}"
             items:
             - key: env_file
               path: .env
@@ -37,7 +37,7 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      serviceAccountName: {{ include "whitefalcon.serviceAccountName" . }}
+      serviceAccountName: {{ include "whitefalcon-api.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
@@ -51,9 +51,9 @@ spec:
               exec:
                 command: ["/bin/sh", "-c", "stat -c %a /tmp && ls -la /tmp && cp /tmp/configmap/bootstrap-openresty.sh /usr/local/bin/bootstrap-openresty.sh && chmod +x /usr/local/bin/bootstrap-openresty.sh && bash /usr/local/bin/bootstrap-openresty.sh"]
           volumeMounts:
-            - name: openresty-bootstrap-cm-{{ .Values.app.target_env }}-vol
+            - name: {{ .Values.app.name }}-openresty-cm-{{ .Values.app.target_env }}-{{ .Values.app.type }}-vol
               mountPath: /tmp/configmap
-            - name: whitefalcon-vol-{{ .Values.app.target_env }}
+            - name: openresty-vol-{{ .Values.app.target_env }}
               mountPath: /tmp/secrets
           env:
           - name: DNS_RESOLVER

@@ -1,4 +1,4 @@
-name: "Build and Deploy - Whitefalcon INT, TEST, ACC or PROD"
+name: "Build and Deploy - whitefalcon-api INT, TEST, ACC or PROD"
 
 on:
   push:
@@ -20,7 +20,7 @@ on:
  
 env:
   TARGET_ENV: ${{ github.event.inputs.TARGET_ENV != '' && github.event.inputs.TARGET_ENV }}
-  IMAGE_NAME: "whitefalcon"
+  IMAGE_NAME: "whitefalcon-api"
   IMAGE_TAG: ${{ github.ref_name }}
 
 jobs:
@@ -50,10 +50,10 @@ jobs:
           HELM_CMD="helm --kubeconfig /home/bwalia/.kube/vpn-k3s2.yaml"
           KUBECTL_CMD="kubectl --kubeconfig /home/bwalia/.kube/vpn-k3s2.yaml"
           VALUES=k3s2
-          $HELM_CMD upgrade -i whitefalcon-${{ env.TARGET_ENV }} ./devops/helm-chart/whitefalcon/ -f devops/helm-chart/whitefalcon/values-${{ env.TARGET_ENV }}-k3s2.yaml --set TARGET_ENV=${{ env.TARGET_ENV }} --namespace ${{ env.TARGET_ENV }} --create-namespace
+          $HELM_CMD upgrade -i whitefalcon-api-${{ env.TARGET_ENV }} ./devops/helm-charts/whitefalcon-api/ -f devops/helm-charts/whitefalcon-api/values-${{ env.TARGET_ENV }}-k3s2.yaml --set TARGET_ENV=${{ env.TARGET_ENV }} --namespace ${{ env.TARGET_ENV }} --create-namespace
           sleep 60
-          $KUBECTL_CMD rollout restart deployment/whitefalcon-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
-          $KUBECTL_CMD rollout history deployment/whitefalcon-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
+          $KUBECTL_CMD rollout restart deployment/whitefalcon-api-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
+          $KUBECTL_CMD rollout history deployment/whitefalcon-api-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
           sleep 60
           $KUBECTL_CMD get pods,ing -n ${{ env.TARGET_ENV }}
 
@@ -73,10 +73,10 @@ jobs:
           HELM_CMD="helm --kubeconfig /home/bwalia/.kube/vpn-k3s6.yaml"
           KUBECTL_CMD="kubectl --kubeconfig /home/bwalia/.kube/vpn-k3s6.yaml"
           VALUES=k3s6
-          $HELM_CMD upgrade -i whitefalcon-${{ env.TARGET_ENV }} ./devops/helm-chart/whitefalcon/ -f devops/helm-chart/whitefalcon/values-${{ env.TARGET_ENV }}-k3s6.yaml --set TARGET_ENV=${{ env.TARGET_ENV }} --namespace ${{ env.TARGET_ENV }} --create-namespace
+          $HELM_CMD upgrade -i whitefalcon-api-${{ env.TARGET_ENV }} ./devops/helm-charts/whitefalcon-api/ -f devops/helm-charts/whitefalcon-api/values-${{ env.TARGET_ENV }}-k3s6.yaml --set TARGET_ENV=${{ env.TARGET_ENV }} --namespace ${{ env.TARGET_ENV }} --create-namespace
           sleep 60
-          $KUBECTL_CMD rollout restart deployment/whitefalcon-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
-          $KUBECTL_CMD rollout history deployment/whitefalcon-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
+          $KUBECTL_CMD rollout restart deployment/whitefalcon-api-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
+          $KUBECTL_CMD rollout history deployment/whitefalcon-api-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
           sleep 60
           $KUBECTL_CMD get pods,ing -n ${{ env.TARGET_ENV }}
       - name: Slack Notification for Workstation CRM release 
@@ -103,7 +103,7 @@ jobs:
       - name: Ping verification
         working-directory: ./QA
         env:
-          API_PING_URL: https://test.whitefalcon.io/ping
+          API_PING_URL: https://test-api.whitefalcon.io/ping
           API_PING_NODE: node2
         run: | 
           go mod init myapp
@@ -122,7 +122,7 @@ jobs:
       - name: Ping verification
         working-directory: ./QA
         env:
-          API_PING_URL: https://test.whitefalcon.io/ping
+          API_PING_URL: https://test-api.whitefalcon.io/ping
           API_PING_NODE: node6
         run: | 
           go mod init myapp
