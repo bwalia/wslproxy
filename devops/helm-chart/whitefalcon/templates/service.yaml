@@ -1,13 +1,13 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "whitefalcon.fullname" . }}-api
+  name: {{ include "whitefalcon.fullname" . }}-{{ .Values.app.type }}
   labels:
     {{- include "whitefalcon.labels" . | nindent 4 }}
 spec:
   type: {{ .Values.service.type }}
   ports:
-    - port: {{ .Values.service.apiPort }}
+    - port: {{ .Values.service.port }}
       targetPort: http
       protocol: TCP
       name: http
@@ -17,7 +17,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "whitefalcon.fullname" . }}
+  name: {{ include "whitefalcon.fullname" . }}-{{ .Values.app.type }}
   labels:
     {{- include "whitefalcon.labels" . | nindent 4 }}
 spec:

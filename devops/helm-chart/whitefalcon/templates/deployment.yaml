@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "whitefalcon.fullname" . }}
+  name: {{ include "whitefalcon.fullname" . }}-{{ .Values.app.type }}
   labels:
     {{- include "whitefalcon.labels" . | nindent 4 }}
 spec:
@@ -78,8 +78,6 @@ spec:
           ports:
             - name: http
               containerPort: {{ .Values.service.port }}
-              protocol: TCP
-              containerPort: {{ .Values.service.apiPort }}
               protocol: TCP
           livenessProbe:
             httpGet:
