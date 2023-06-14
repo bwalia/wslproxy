@@ -6,20 +6,20 @@ replicaCount: 1
 
 app:
   name: whitefalcon
+  type: api
   version: 0.1.0
   description: A Helm chart for Kubernetes
   keywords:
     - helm
     - chart
     - kubernetes
-  namespace: int
+  namespace: test
   dns_resolver: "10.43.0.10"
-  api_url: "http://int6.whitefalcon.io/api"
-  redis_host: "redis-service.int.svc.cluster.local"
-  target_env: "int"
+  api_url: "http://test.whitefalcon.io/api"
+  redis_host: "redis-service.test.svc.cluster.local"
+  target_env: "test"
 
-secure_env_file: "AgBvSTVvolhh+eI6VV8ids+BTvKZgkHCwGZj+LWJkW1g+Hg83AnZBRnw9pTBUjIWlZx4ENRg4wbT7R2FEqBaFWvDx1cjGxXs52yz96EDeDXip7axYnFF5XYEpnWhZFQlJRPgIbxRsX7JsgWxb6BEdHerH2IcRqRL57BbZthRp/Im9iuOEf8EDUY95GlAS8H2ge2IN0wYXo/UjXceH9jSeANt/SDlI+FHlh4jfbTBp3mQo/BdCxTIgRdaqowitka7ymdkcYP1QZsgOwscYwpoyVWscJs05xe5HLlHhbXOX7T3gELx10EfWVdanBh89i1osS8XzkU03YwTaWIRdzNkRwpMpjKinYsL4saCasfD03euK+xDM+csPGTXISJ3P/4dN/MdtnPjyN6invZk5qQ3KhO06CYnUKhmVFaWhfn475grIgzv9lEwhE9ZzarZWL5QnXcSmr/PF/c3pMcMe6ct2Nve32/lL/hWfECtU+ewPGKsIXOifnHWElhMsjhtirOxGzkUKKULZkidihJcwupAYVsNoqYz3aTQ0Bg3FSoAJHRL0q/hjUOGyflnvRkQb0V7QMjNPG1L59M5uwGloDIx1O3NPjXN3ucd57ge0wC/xK2bLwyujY2kqwbSVyrmuXHePc41qp4Gi7A3yzbgW3Rju9MVFa9h8Txe99M0BK0N9QgINH1b+j++qY/eCSFoHdENE0Y52SmEadjXdEqufOr/2edp7BftQN34rzqaOySou/ihMXWeCPbmLSZORyrYL2ayX4dha9dtqeGC0/sMI5x9FxzSqpKHmmAgEhduQAYMUxqNUm3Nl3ibtuQi69kBk9Ok3do/5Ai3sPqEpxP1q9YbisOrjZafC6wzde6Bhg5Ch8dFBs+/VkX2oo+ODzJKXbxZ5UU1DJxTxN1fSYyuVvJtvPcyH0SWapcHzmUSbCST"
-
+secure_env_file: "AgByWC4cTjFH+AvduvnJhpopcKdIiYb1XtCX2fTkVO4Ww8RXsjSbckLymLpGR4xaQxNxBSx0Fi5MESn3Wd6QlNU39VBL87rYHXtBm8RE8vYE18+teafhcXxJvOroA7RZVURD+7uPbcc9qy8WmVsPyv/N99pUqG9jrArS6f6lykuUCjzBtra4C8MhqLWamCLbf4CHHkLhT9ln0HVjqxgPVQLifx21GDdUnkaSO+pwpo/dnr3m+uW/lxN7sJ6rFmSg0Zmq1U4aQ2BYEP2UuLczFlCXDVA8UFqofHsbsvzQpjbpOOoJ7+Luc3VB+wYaqkp3JUyHnAEyuODcTBTCZ+t/SnM+PiR3MvZewM0mEFNk2VF1UoiZ2hhbz2zXY0ORYSR9rZ4kwb4+BodpN4NxtuOYPCc/VC+9YqbZRMpFyEvb3MWiQxDLgaTgS2gvfx8n3J5G0JxJxpXinFi1mX5zNe5DcNgdUm6CD4UFNxauSIKO7rQtA0rSl/Qx6Rr2R2T4S1tVmYv82OiS62TZBvA9KpBWXTnkWxFgSVrbk4cmNpHw06E6LBFq1dJEDTCHbM8ikVaXn/4aaBxP7S81e73IIbASHjxcJMM8+RERmECz/J+KpkU0uh5+lJLsGY4eLPD+FnYS1IS2e9FctT6UR3WSHGfcTlIEx6aNraX/82MMSdQvm0sIH181AKo0k47otwObWbTs92Hah0B82p0cQI6Znz46ZbMyx9Z9+8V/1rjzlt8fpwi18i3oVzXJ0ZfuniEVqgugPLYnBkqSZhJ/O7z6vaqIAzwS0CtF2B8u/AdOYOa2j7fYfdQ7q5LgUSvL21XLyRkv52h2RlNWTevHGdcF7ECp6u+sYel64uVQ/F9iZe/JeXduIYC2TwHjyZoLD2p/38VKUSZJM4ShI/jEtw0Fcg1+wQnMpvRZTkN7e9hSYAIT/g=="
 image:
   repository: bwalia/whitefalcon
   pullPolicy: Always
@@ -54,8 +54,7 @@ securityContext: {}
 
 service:
   type: ClusterIP
-  port: 80
-  apiPort: 8080
+  port: 8080
 
 ingress:
   enabled: true
@@ -64,24 +63,12 @@ ingress:
     # kubernetes.io/ingress.class: nginx
     # kubernetes.io/tls-acme: "true"
   hosts:
-    - host: int.whitefalcon.io
+    - host: test.whitefalcon.io
       paths:
         - path: /
           pathType: ImplementationSpecific
-          serviceName: whitefalcon-int-api
+          serviceName: whitefalcon-api-test-api
           servicePort: 8080
-    - host: int6.whitefalcon.io
-      paths:
-        - path: /
-          pathType: ImplementationSpecific
-          serviceName: whitefalcon-int-api
-          servicePort: 8080
-    - host: int6-router.webimpetus.cloud
-      paths:
-        - path: /
-          pathType: ImplementationSpecific
-          serviceName: whitefalcon-int
-          servicePort: 80
   tls: []
   #  - secretName: chart-example-tls
   #    hosts:

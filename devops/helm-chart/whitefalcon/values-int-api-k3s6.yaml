@@ -6,6 +6,7 @@ replicaCount: 1
 
 app:
   name: whitefalcon
+  type: api
   version: 0.1.0
   description: A Helm chart for Kubernetes
   keywords:
@@ -14,7 +15,7 @@ app:
     - kubernetes
   namespace: int
   dns_resolver: "10.43.0.10"
-  api_url: "http://int2.whitefalcon.io/api"
+  api_url: "http://int6.whitefalcon.io/api"
   redis_host: "redis-service.int.svc.cluster.local"
   target_env: "int"
 
@@ -54,8 +55,7 @@ securityContext: {}
 
 service:
   type: ClusterIP
-  port: 80
-  apiPort: 8080
+  port: 8080
 
 ingress:
   enabled: true
@@ -70,18 +70,12 @@ ingress:
           pathType: ImplementationSpecific
           serviceName: whitefalcon-int-api
           servicePort: 8080
-    - host: int2.whitefalcon.io
+    - host: int6.whitefalcon.io
       paths:
         - path: /
           pathType: ImplementationSpecific
           serviceName: whitefalcon-int-api
           servicePort: 8080
-    - host: int2-router.webimpetus.cloud
-      paths:
-        - path: /
-          pathType: ImplementationSpecific
-          serviceName: whitefalcon-int
-          servicePort: 80
   tls: []
   #  - secretName: chart-example-tls
   #    hosts:
