@@ -103,6 +103,101 @@ local function generateToken()
     })
 end
 
+local function removeServerFromRule(oldRuleId, serverId)
+    local loadRules = red:hget("request_rules", oldRuleId)
+    if loadRules and loadRules ~= "null" and type(loadRules) == "string" then
+        loadRules = cjson.decode(loadRules)
+        local valueToRemove = serverId
+        local i = 1
+        while i <= #loadRules.servers do
+            if loadRules.servers[i] == valueToRemove then
+                table.remove(loadRules.servers, i)
+            else
+                i = i + 1
+            end
+        end
+        red:hset("request_rules", oldRuleId, cjson.encode(loadRules))
+    end
+end
+
+local function updateServerInRules(ruleId, serverId, Rtype)
+    local getRules, ruleErr = red:hget("request_rules", ruleId)
+    if getRules and getRules ~= "null" and type(getRules) == "string" then
+        getRules = cjson.decode(getRules)
+        local getServer = red:hget("servers", serverId)
+        if getServer and getServer ~= "null" and type(getServer) == "string" then
+            getServer = cjson.decode(getServer)
+            if Rtype == "rules" and getServer.rules ~= ruleId then
+                removeServerFromRule(getServer.rules, serverId)
+            end
+            if Rtype == "statement" and type(next(getServer.match_cases)) ~= nil then
+                for _, matchCase in ipairs(getServer.match_cases) do
+                    removeServerFromRule(matchCase.statement, serverId)
+                end
+            end
+        end
+        local isServer = true
+        if not getRules.servers and getRules.servers == nil then
+            getRules.servers = {}
+        else
+            for idx, server in ipairs(getRules.servers) do
+                if server == serverId then
+                    isServer = false
+                end
+            end
+        end
+        if isServer == true then
+            table.insert(getRules.servers, serverId)
+            red:hset("request_rules", ruleId, cjson.encode(getRules))
+        end
+    end
+end
+
+local function deleteRuleFromServer(ruleId)
+    local getRule = red:hget("request_rules", ruleId)
+    if getRule and getRule ~= "null" and type(getRule) == "string" then
+        getRule = cjson.decode(getRule)
+        -- Remove the rules from all servers that are using it as a statement or case
+        for _, server in ipairs(getRule.servers) do
+            local getServer = red:hget("servers", server)
+            if getServer and getServer ~= "null" and type(getServer) == "string" then
+                getServer = cjson.decode(getServer)
+                if getServer.rules == ruleId then
+                    getServer.rules = nil
+                else
+                    if type(next(getServer.match_cases)) ~= nil then
+                        for i = #getServer.match_cases, 1, -1 do
+                            -- Iterate over the array and remove objects with matching statement value
+                            if getServer.match_cases[i].statement == ruleId then
+                                table.remove(getServer.match_cases, i)
+                            end
+                        end
+                    end
+                end
+                red:hset("servers", server, cjson.encode(getServer))
+                if getServer.rules == nil and type(next(getServer.match_cases)) == nil then
+                    red:hdel('domains', 'domain:' .. getServer.name)
+                end
+            end
+        end
+    end
+end
+
+local function deleteServerFromRules(ruleId, serverId)
+    local getRule = red:hget("request_rules", ruleId)
+    if getRule and getRule ~= "null" and type(getRule) == "string" then
+        getRule = cjson.decode(getRule)
+        if getRule.servers ~= nil and type(getRule.servers) == "table" then
+            for _, server in ipairs(getRule.servers) do
+                if server == serverId then
+                    table.remove(getRule.servers, _)
+                end
+            end
+            red:hset("request_rules", ruleId, cjson.encode(getRule))
+        end
+    end
+end
+
 local function listWithPagination(recordsKey, cursor, pageSize, pageNumber, qParams)
     local recordCount, totalRecords, records = 0, 0, {}
     -- Calculate the start and end indices for pagination
@@ -224,7 +319,7 @@ local function setStorage(body)
             end
             local payloads = keyset[1]
             storageType = payloads.storage
-        else 
+        else
             storageType = body
         end
         local writableFile, writableErr = io.open(configPath .. "data/settings.json", "w")
@@ -385,7 +480,15 @@ local function createDeleteServer(body, uuid)
                 if oldDomain and oldDomain ~= "null" and type(oldDomain) == "string" then
                     oldDomain = cjson.decode(oldDomain)
                     oldServerName = oldDomain.server_name
-                    red:hdel('domains', 'domain:'..oldServerName)
+                    red:hdel('domains', 'domain:' .. oldServerName)
+                    if oldDomain.rules ~= nil then
+                        deleteServerFromRules(oldDomain.rules, uuid)
+                    end
+                    if type(next(oldDomain.match_cases)) ~= nil then
+                        for _, matchCase in pairs(oldDomain.match_cases) do
+                            deleteServerFromRules(matchCase.statement, uuid)
+                        end
+                    end
                 else
                     ngx.log(ngx.ERR, "Error while getting domain from redis: ", oldDmnErr)
                 end
@@ -401,7 +504,15 @@ local function createDeleteServer(body, uuid)
                     if oldDomain and oldDomain ~= "null" and type(oldDomain) == "string" then
                         oldDomain = cjson.decode(oldDomain)
                         oldServerName = oldDomain.server_name
-                        red:hdel('domains', 'domain:'..oldServerName)
+                        red:hdel('domains', 'domain:' .. oldServerName)
+                        if oldDomain.rules ~= nil then
+                            deleteServerFromRules(oldDomain.rules, uuid)
+                        end
+                        if type(next(oldDomain.match_cases)) ~= nil then
+                            for _, matchCase in pairs(oldDomain.match_cases) do
+                                deleteServerFromRules(matchCase.statement, uuid)
+                            end
+                        end
                     else
                         ngx.log(ngx.ERR, "Error while getting domain from redis: ", oldDmnErr)
                     end
@@ -681,31 +792,6 @@ local function listRules(args)
             allRules, totalRecords = listWithPagination("request_rules", "0", pageSize, pageNumber, qParams)
         end
     end
-    -- for key, value in pairs(exist_values) do
-    --     if type(value) == "string" then
-    --         if tonumber(key) % 2 == 0 then
-    --             table.insert(keys, value)
-    --             if type(value) == "string" then
-    --                 local ruleObj = cjson.decode(value)
-    --                 if next(qParams.filter) ~= nil then
-    --                     if qParams.filter.id == ruleObj.id then
-    --                         goto continue
-    --                     end
-    --                 end
-    --                 table.insert(allRules, cjson.decode(value))
-    --                 ::continue::
-    --             end
-    --         end
-    --     elseif type(value) == "table" then
-    --         if type(qParams.meta) == "table" then
-    --             if qParams.meta.exclude == value.id then
-    --                 goto continue
-    --             end
-    --         end
-    --         table.insert(allRules, value)
-    --         ::continue::
-    --     end
-    -- end
     ngx.say({cjson.encode({
         data = allRules,
         total = totalRecords
@@ -718,7 +804,6 @@ local function listRule(args, uuid)
         if settings.storage_type == "disk" then
             local file, err = io.open(configPath .. "data/rules/" .. uuid .. ".json", "rb")
             if file == nil then
-                -- ngx.say("Couldn't read file: " .. err)
                 ngx.say(cjson.encode({
                     data = {}
                 }))
@@ -764,17 +849,6 @@ function GetPayloads(body)
     return keyset[1]
 end
 
-local function has_value(tab, val)
-    for value = 1, #tab do
-        if tab[value] == val then
-            local del, err = red:hdel("request_rules", val)
-            return true
-        end
-    end
-
-    return false
-end
-
 local function createDeleteRules(body, uuid)
 
     local payloads = GetPayloads(body)
@@ -785,7 +859,8 @@ local function createDeleteRules(body, uuid)
             if settings.storage_type == "disk" then
                 os.remove(configPath .. "data/rules/" .. uuid .. ".json")
             else
-                local del, err = red:hdel("request_rules", uuid)
+                deleteRuleFromServer(uuid)
+                red:hdel("request_rules", uuid)
             end
         end
     elseif payloads and payloads.ids and #payloads.ids > 0 then
@@ -794,7 +869,8 @@ local function createDeleteRules(body, uuid)
                 if settings.storage_type == "disk" then
                     os.remove(configPath .. "data/rules/" .. payloads.ids[value] .. ".json")
                 else
-                    local del, err = red:hdel("request_rules", payloads.ids[value])
+                    deleteRuleFromServer(payloads.ids[value])
+                    red:hdel("request_rules", payloads.ids[value])
                 end
             end
         end
@@ -831,12 +907,20 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name)
             ngx.log(ngx.ERR, "Error while getting domain from redis: ", oldDmnErr)
         end
         if oldServerName ~= json_val.server_name then
-            red:hdel('domains', 'domain:'..oldServerName)
+            red:hdel('domains', 'domain:' .. oldServerName)
         end
-        domainJson['domain:'..json_val.server_name] = cjson.encode(json_val)
+        domainJson['domain:' .. json_val.server_name] = cjson.encode(json_val)
         red:hmset('domains', domainJson)
     end
+    if key_name == 'servers' and json_val.rules ~= nil and type(json_val.rules) ~= "userdata" and json_val.rules then
+        updateServerInRules(json_val.rules, json_val.id, "rules")
+    end
 
+    if key_name == "servers" and type(next(json_val.match_cases)) ~= nil then
+        for index, case in ipairs(json_val.match_cases) do
+            updateServerInRules(case.statement, json_val.id, "statement")
+        end
+    end
     redis_json[uuid] = cjson.encode(json_val)
     red:hmset(key_name, redis_json)
 

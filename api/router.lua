@@ -104,7 +104,7 @@ end
 
 local function matchRules(ruleId)
     local ruleFromRedis = red:hget("request_rules", ruleId)
-    if ruleFromRedis ~= nil then
+    if ruleFromRedis ~= nil and type(ruleFromRedis) ~= "userdata" then
         ruleFromRedis = cjson.decode(ruleFromRedis)
         if ruleFromRedis.match and ruleFromRedis.match.rules then
             -- parse_rules[ruleId] = ruleFromRedis.match.rules
@@ -127,7 +127,7 @@ local exist_values, err = red:hscan("domains", 0, "match", "domain:" .. Hostname
 if exist_values[2] and exist_values[2][2] then
     local jsonval = cjson.decode(exist_values[2][2])
     local parse_rules = {}
-    if jsonval.rules then
+    if jsonval.rules and type(jsonval.rules) ~= "userdata" then
         if jsonval.match_cases then
             local hasAnd = hasAndCondition(jsonval.match_cases)
             if next(hasAnd) ~= nil then
@@ -140,6 +140,8 @@ if exist_values[2] and exist_values[2][2] then
     else
         ngx.say(jsonval.server_name, '---', 'no rules, please ask your administrative to set the Rules for server')
     end
+else
+    ngx.say("Please add a server first")
 end
 return
 -- this will replace the need for server block for each website. It will parse JSON and match host header and route to the backend server all in lua

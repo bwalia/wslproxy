@@ -55,7 +55,7 @@ const getHeaders = () => {
       if (response.status < 200 || response.status >= 300) {
         localStorage.removeItem("token");
         localStorage.removeItem("uuid_business_id");
-        window.location.href = "/login";
+        window.location.href = "/#/login";
       }
       const data = await response.json();
       return data;
@@ -69,7 +69,7 @@ const getHeaders = () => {
       if (response.status < 200 || response.status >= 300) {
         localStorage.removeItem("token");
         localStorage.removeItem("uuid_business_id");
-        window.location.href = "/login";
+        window.location.href = "/#/login";
       }
       const data = await response.json();
       return data;
@@ -86,7 +86,7 @@ const getHeaders = () => {
         if (response.status < 200 || response.status >= 300) {
           localStorage.removeItem("token");
           localStorage.removeItem("uuid_business_id");
-          window.location.href = "/login";
+          window.location.href = "/#/login";
         }
         const result = await response.json();
         return result;
@@ -108,7 +108,7 @@ const getHeaders = () => {
         if (response.status < 200 || response.status >= 300) {
           localStorage.removeItem("token");
           localStorage.removeItem("uuid_business_id");
-          window.location.href = "/login";
+          window.location.href = "/#/login";
         }
         const result = await response.json();
         return result;
@@ -130,7 +130,7 @@ const getHeaders = () => {
         if (response.status < 200 || response.status >= 300) {
           localStorage.removeItem("token");
           localStorage.removeItem("uuid_business_id");
-          window.location.href = "/login";
+          window.location.href = "/#/login";
         }
         const result = await response.json();
         return result;
@@ -151,7 +151,7 @@ const getHeaders = () => {
         if (response.status < 200 || response.status >= 300) {
           localStorage.removeItem("token");
           localStorage.removeItem("uuid_business_id");
-          window.location.href = "/login";
+          window.location.href = "/#/login";
         }
         const result = await response.json();
         return isEmpty(result.data) ? Promise.resolve({ data: [], total: 0 }) : result;
@@ -170,7 +170,7 @@ const getHeaders = () => {
         if (response.status < 200 || response.status >= 300) {
           localStorage.removeItem("token");
           localStorage.removeItem("uuid_business_id");
-          window.location.href = "/login";
+          window.location.href = "/#/login";
         }
         const data = await response.json();
         return data;
