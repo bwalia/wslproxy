@@ -10,6 +10,7 @@ import {
   ReferenceArrayInput,
   FormDataConsumer,
   Menu,
+  required,
 } from "react-admin";
 
 import LocationInput from "./input/LocationInput";
@@ -41,14 +42,23 @@ const Form = () => {
       <TabbedForm.Tab label="Server details">
         <Grid container spacing={2}>
           <Grid item xs={4}>
-            <ArrayInput source="listens" label="" defaultValue={[{"listen": ""}]}>
+            <ArrayInput
+              source="listens"
+              label=""
+              defaultValue={[{ listen: "" }]}
+            >
               <SimpleFormIterator initialValues={initialValues}>
                 <TextInput source="listen" fullWidth />
               </SimpleFormIterator>
             </ArrayInput>
           </Grid>
           <Grid item xs={8}>
-            <TextInput source="server_name" fullWidth label="Server/Domain name" />
+            <TextInput
+              source="server_name"
+              fullWidth
+              label="Server/Domain name"
+              validate={[required()]}
+            />
           </Grid>
           <Grid item xs={3}>
             <TextInput source="root" fullWidth label="Root path" />

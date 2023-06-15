@@ -1,15 +1,15 @@
 import { Grid } from "@mui/material";
 import React from "react";
 import {
-  ArrayInput,
   BooleanInput,
   NumberInput,
-  RichTextField,
   SimpleForm,
-  SimpleFormIterator,
   TextInput,
   SelectInput,
+  required,
 } from "react-admin";
+import { RichTextInput } from 'ra-input-rich-text';
+
 const iso_codes = {
   AF: "Afghanistan",
   AL: "Albania",
@@ -278,7 +278,7 @@ const Form = () => {
     <SimpleForm>
       <Grid container spacing={2}>
         <Grid item xs={6}>
-          <TextInput source="name" fullWidth />
+          <TextInput source="name" validate={[required()]} fullWidth />
         </Grid>
         <Grid item xs={3}>
           <NumberInput source="version" fullWidth />
@@ -303,7 +303,7 @@ const Form = () => {
         </Grid>
 
         <Grid item xs={6}>
-          <TextInput source="match.rules.path" label="Value" fullWidth />
+          <TextInput source="match.rules.path" validate={[required()]} label="Value" fullWidth />
         </Grid>
 
         <Grid item xs={6}>
@@ -369,11 +369,12 @@ const Form = () => {
         </Grid>
 
         <Grid item xs={12}>
-          <TextInput
+          <RichTextInput
             multiline
             source="match.response.message"
             label="Response Message"
             fullWidth
+            validate={[required()]}
           />
         </Grid>
       </Grid>

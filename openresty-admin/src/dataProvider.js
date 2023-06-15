@@ -35,7 +35,7 @@ const getHeaders = () => {
           headers: getHeaders(),
         });
   
-        if (response.status < 200 || response.status >= 300 && response.status !== 404) {
+        if (response.status < 200 || response.status >= 300 && response.status !== 409 && response.status !== 404) {
           localStorage.removeItem("token");
           window.location.href = "/#/login";
         }
@@ -52,7 +52,7 @@ const getHeaders = () => {
         method: "GET",
         headers: getHeaders(),
       });
-      if (response.status < 200 || response.status >= 300) {
+      if (response.status < 200 || response.status >= 300 && response.status !== 409) {
         localStorage.removeItem("token");
         localStorage.removeItem("uuid_business_id");
         window.location.href = "/#/login";
@@ -66,7 +66,7 @@ const getHeaders = () => {
         method: "GET",
         headers: getHeaders(),
       });
-      if (response.status < 200 || response.status >= 300) {
+      if (response.status < 200 || response.status >= 300 && response.status !== 409) {
         localStorage.removeItem("token");
         localStorage.removeItem("uuid_business_id");
         window.location.href = "/#/login";
@@ -83,7 +83,11 @@ const getHeaders = () => {
           headers: getHeaders(),
           body: JSON.stringify(data),
         });
-        if (response.status < 200 || response.status >= 300) {
+        if (response.status === 409) {
+          const responseMessage = await response.json();
+          return Promise.reject(responseMessage.data.message)
+        }
+        if (response.status < 200 || response.status >= 300 && response.status !== 409) {
           localStorage.removeItem("token");
           localStorage.removeItem("uuid_business_id");
           window.location.href = "/#/login";
@@ -105,7 +109,7 @@ const getHeaders = () => {
           body: JSON.stringify(data),
           headers: getHeaders(),
         });
-        if (response.status < 200 || response.status >= 300) {
+        if (response.status < 200 || response.status >= 300 && response.status !== 409) {
           localStorage.removeItem("token");
           localStorage.removeItem("uuid_business_id");
           window.location.href = "/#/login";
@@ -127,7 +131,7 @@ const getHeaders = () => {
           body: JSON.stringify(data),
           headers: getHeaders(),
         });
-        if (response.status < 200 || response.status >= 300) {
+        if (response.status < 200 || response.status >= 300 && response.status !== 409) {
           localStorage.removeItem("token");
           localStorage.removeItem("uuid_business_id");
           window.location.href = "/#/login";
@@ -148,7 +152,7 @@ const getHeaders = () => {
           body: JSON.stringify({ ids: params.ids }),
           headers: getHeaders(),
         });
-        if (response.status < 200 || response.status >= 300) {
+        if (response.status < 200 || response.status >= 300 && response.status !== 409) {
           localStorage.removeItem("token");
           localStorage.removeItem("uuid_business_id");
           window.location.href = "/#/login";
@@ -167,7 +171,7 @@ const getHeaders = () => {
           body: JSON.stringify(params),
           headers: getHeaders(),
         });
-        if (response.status < 200 || response.status >= 300) {
+        if (response.status < 200 || response.status >= 300 && response.status !== 409) {
           localStorage.removeItem("token");
           localStorage.removeItem("uuid_business_id");
           window.location.href = "/#/login";

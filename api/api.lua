@@ -450,21 +450,21 @@ end
 
 local function createUpdateServer(body, uuid)
 
-    local payloads = GetPayloads(body)
+    local payloads, response = GetPayloads(body), {}
     if not uuid then
         ---@diagnostic disable-next-line: param-type-mismatch
         payloads.created_at = os.time(os.date("!*t"))
     end
 
     if uuid then
-        CreateUpdateRecord(payloads, uuid, "servers", "servers")
+        response = CreateUpdateRecord(payloads, uuid, "servers", "servers", "update")
     else
         payloads.id = generate_uuid()
-        CreateUpdateRecord(payloads, payloads.id, "servers", "servers")
+        response = CreateUpdateRecord(payloads, payloads.id, "servers", "servers", "create")
     end
 
     ngx.say(cjson.encode({
-        data = payloads
+        data = response
     }))
 end
 
@@ -884,7 +884,8 @@ local function createDeleteRules(body, uuid)
     }))
 end
 
-function CreateUpdateRecord(json_val, uuid, key_name, folder_name)
+function CreateUpdateRecord(json_val, uuid, key_name, folder_name, method)
+    local formatResponse = {}
     json_val['data'] = nil
     for k, v in pairs(json_val) do
         if v == nil or v == "" then
@@ -900,6 +901,16 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name)
 
     local redis_json, domainJson = {}, {}
     if key_name == 'servers' and json_val.server_name then
+        local getDomain = red:hget('domains', 'domain:' .. json_val.server_name)
+        if getDomain and getDomain ~= nil and type(getDomain) == "string" and method == "create" then
+            ngx.status = ngx.HTTP_CONFLICT
+            formatResponse = {
+                message = string.format(
+                    "Server name %s is alredy exist either you need to delete that, or you can update the same record.",
+                    json_val.server_name),
+            }
+            return formatResponse
+        end
         local oldServerName = ""
         local oldDomain, oldDmnErr = red:hget(key_name, uuid)
         if oldDomain and oldDomain ~= "null" and type(oldDomain) == "string" then
@@ -933,23 +944,24 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name)
         file:write(cjson.encode(json_val))
         file:close()
     end
-
+    ngx.status = ngx.HTTP_OK
+    return json_val
 end
 
 local function createUpdateRules(body, uuid)
-    local payloads = GetPayloads(body)
+    local payloads, response = GetPayloads(body), {}
     if not uuid then
         ---@diagnostic disable-next-line: param-type-mismatch
         payloads.created_at = os.time(os.date("!*t"))
     end
     if uuid then
-        CreateUpdateRecord(payloads, uuid, "request_rules", "rules")
+        response = CreateUpdateRecord(payloads, uuid, "request_rules", "rules", "update")
     else
         payloads.id = generate_uuid()
-        CreateUpdateRecord(payloads, payloads.id, "request_rules", "rules")
+        response = CreateUpdateRecord(payloads, payloads.id, "request_rules", "rules", "create")
     end
     ngx.say(cjson.encode({
-        data = payloads
+        data = response
     }))
 end
 
