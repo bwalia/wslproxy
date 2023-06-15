@@ -20,7 +20,7 @@ jobs:
         with:
           ref: "main"
       - name: build and run the white falcon docker image
-        run: chmod +x ./build.sh && ./build.sh "${{ secrets.DOCKER_USER }}" "${{ secrets.DOCKER_PASSWD }}"
+        run: echo "building the docker image is moved to another workflow"
 
   deploy2:
     runs-on: [self-hosted-node2]
@@ -38,7 +38,7 @@ jobs:
           $KUBECTL_CMD rollout restart deployment/whitefalcon-api-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
           $KUBECTL_CMD rollout history deployment/whitefalcon-api-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
           sleep 60
-          $HELM_CMD upgrade -i whitefalcon-router-${{ env.TARGET_ENV }} ./devops/helm-charts/whitefalcon-router/ -f devops/helm-charts/whitefalcon-router/values-${{ env.TARGET_ENV }}-router-k3s2.yaml --set TARGET_ENV=test --namespace int --create-namespace
+          $HELM_CMD upgrade -i whitefalcon-router-${{ env.TARGET_ENV }} ./devops/helm-charts/whitefalcon-api/ -f devops/helm-charts/whitefalcon-api/values-${{ env.TARGET_ENV }}-router-k3s2.yaml --set TARGET_ENV=test --namespace int --create-namespace
           sleep 60
           $KUBECTL_CMD rollout restart deployment/whitefalcon-router-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
           $KUBECTL_CMD rollout history deployment/whitefalcon-router-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
@@ -96,7 +96,7 @@ jobs:
           $KUBECTL_CMD rollout restart deployment/whitefalcon-api-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
           $KUBECTL_CMD rollout history deployment/whitefalcon-api-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
           sleep 60
-          $HELM_CMD upgrade -i whitefalcon-router-${{ env.TARGET_ENV }} ./devops/helm-charts/whitefalcon-router/ -f devops/helm-charts/whitefalcon-router/values-${{ env.TARGET_ENV }}-router-k3s6.yaml --set TARGET_ENV=test --namespace int --create-namespace
+          $HELM_CMD upgrade -i whitefalcon-router-${{ env.TARGET_ENV }} ./devops/helm-charts/whitefalcon-api/ -f devops/helm-charts/whitefalcon-api/values-${{ env.TARGET_ENV }}-router-k3s6.yaml --set TARGET_ENV=test --namespace int --create-namespace
           sleep 60
           $KUBECTL_CMD rollout restart deployment/whitefalcon-router-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
           $KUBECTL_CMD rollout history deployment/whitefalcon-router-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
