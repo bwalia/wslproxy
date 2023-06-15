@@ -158,25 +158,27 @@ local function deleteRuleFromServer(ruleId)
     if getRule and getRule ~= "null" and type(getRule) == "string" then
         getRule = cjson.decode(getRule)
         -- Remove the rules from all servers that are using it as a statement or case
-        for _, server in ipairs(getRule.servers) do
-            local getServer = red:hget("servers", server)
-            if getServer and getServer ~= "null" and type(getServer) == "string" then
-                getServer = cjson.decode(getServer)
-                if getServer.rules == ruleId then
-                    getServer.rules = nil
-                else
-                    if getServer.match_cases ~= nil and type(next(getServer.match_cases)) ~= nil then
-                        for i = #getServer.match_cases, 1, -1 do
-                            -- Iterate over the array and remove objects with matching statement value
-                            if getServer.match_cases[i].statement == ruleId then
-                                table.remove(getServer.match_cases, i)
+        if getRule.servers and getRule.servers ~= nil then
+            for _, server in ipairs(getRule.servers) do
+                local getServer = red:hget("servers", server)
+                if getServer and getServer ~= "null" and type(getServer) == "string" then
+                    getServer = cjson.decode(getServer)
+                    if getServer.rules == ruleId then
+                        getServer.rules = nil
+                    else
+                        if getServer.match_cases ~= nil and type(next(getServer.match_cases)) ~= nil then
+                            for i = #getServer.match_cases, 1, -1 do
+                                -- Iterate over the array and remove objects with matching statement value
+                                if getServer.match_cases[i].statement == ruleId then
+                                    table.remove(getServer.match_cases, i)
+                                end
                             end
                         end
                     end
-                end
-                red:hset("servers", server, cjson.encode(getServer))
-                if getServer.rules == nil and getServer.match_cases == nil then
-                    red:hdel('domains', 'domain:' .. getServer.name)
+                    red:hset("servers", server, cjson.encode(getServer))
+                    if getServer.rules == nil and getServer.match_cases == nil then
+                        red:hdel('domains', 'domain:' .. getServer.name)
+                    end
                 end
             end
         end
