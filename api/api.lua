@@ -130,7 +130,7 @@ local function updateServerInRules(ruleId, serverId, Rtype)
             if Rtype == "rules" and getServer.rules ~= ruleId then
                 removeServerFromRule(getServer.rules, serverId)
             end
-            if Rtype == "statement" and type(next(getServer.match_cases)) ~= nil then
+            if Rtype == "statement" and getServer.match_cases ~= nil and type(next(getServer.match_cases)) ~= nil then
                 for _, matchCase in ipairs(getServer.match_cases) do
                     removeServerFromRule(matchCase.statement, serverId)
                 end
@@ -165,7 +165,7 @@ local function deleteRuleFromServer(ruleId)
                 if getServer.rules == ruleId then
                     getServer.rules = nil
                 else
-                    if type(next(getServer.match_cases)) ~= nil then
+                    if getServer.match_cases ~= nil and type(next(getServer.match_cases)) ~= nil then
                         for i = #getServer.match_cases, 1, -1 do
                             -- Iterate over the array and remove objects with matching statement value
                             if getServer.match_cases[i].statement == ruleId then
@@ -175,7 +175,7 @@ local function deleteRuleFromServer(ruleId)
                     end
                 end
                 red:hset("servers", server, cjson.encode(getServer))
-                if getServer.rules == nil and type(next(getServer.match_cases)) == nil then
+                if getServer.rules == nil and getServer.match_cases == nil then
                     red:hdel('domains', 'domain:' .. getServer.name)
                 end
             end
@@ -484,7 +484,7 @@ local function createDeleteServer(body, uuid)
                     if oldDomain.rules ~= nil then
                         deleteServerFromRules(oldDomain.rules, uuid)
                     end
-                    if type(next(oldDomain.match_cases)) ~= nil then
+                    if oldDomain.match_cases ~= nil and type(next(oldDomain.match_cases)) ~= nil then
                         for _, matchCase in pairs(oldDomain.match_cases) do
                             deleteServerFromRules(matchCase.statement, uuid)
                         end
@@ -508,7 +508,7 @@ local function createDeleteServer(body, uuid)
                         if oldDomain.rules ~= nil then
                             deleteServerFromRules(oldDomain.rules, uuid)
                         end
-                        if type(next(oldDomain.match_cases)) ~= nil then
+                        if oldDomain.match_cases ~= nil and type(next(oldDomain.match_cases)) ~= nil then
                             for _, matchCase in pairs(oldDomain.match_cases) do
                                 deleteServerFromRules(matchCase.statement, uuid)
                             end
@@ -916,7 +916,7 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name)
         updateServerInRules(json_val.rules, json_val.id, "rules")
     end
 
-    if key_name == "servers" and type(next(json_val.match_cases)) ~= nil then
+    if key_name == "servers" and json_val.match_cases ~= nil and type(next(json_val.match_cases)) ~= nil then
         for index, case in ipairs(json_val.match_cases) do
             updateServerInRules(case.statement, json_val.id, "statement")
         end
