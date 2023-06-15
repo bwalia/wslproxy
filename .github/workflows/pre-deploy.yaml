@@ -32,7 +32,7 @@ jobs:
         with:
           ref: "main"
       - name: build and run the white falcon docker image
-        run: chmod +x ./build.sh && ./build.sh "${{ secrets.DOCKER_USER }}" "${{ secrets.DOCKER_PASSWD }}"
+        run: echo "building the docker image is moved to another workflow"
 
   deploy2:
     runs-on: [self-hosted-node2]

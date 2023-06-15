@@ -10,7 +10,7 @@ on:
       IMAGE_TAG:
         type: choice
         description: 'Please choose the Docker image tag'
-        default: 'test'
+        default: 'latest'
         required: true
         options:
         - latest
