@@ -5,6 +5,19 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ feature/* ]
+  workflow_dispatch:
+    inputs:
+      IMAGE_TAG:
+        type: choice
+        description: 'Please choose the Docker image tag'
+        default: 'test'
+        required: true
+        options:
+        - latest
+        - prod
+        - test
+        - int
+        - dev
 
 env:
   IMAGE_NAME: "whitefalcon"
