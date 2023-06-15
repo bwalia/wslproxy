@@ -2,23 +2,11 @@ name: "Build and Deploy - whitefalcon-api Prod"
 
 on:
   push:
-    branches: [ dummy ]
+    branches: [ prod ]
   pull_request:
     branches: [ feature/* ]
   workflow_dispatch:
     inputs:
-      TARGET_ENV:
-        type: choice
-        description: 'Please choose the environment'
-        default: 'int'
-        required: true
-        options:
-          - dev
-          - int
-          - test
-          - acc
-          - prod
-
       TARGET_CLUSTER:
         type: choice
         description: 'Please choose the environment'
@@ -29,8 +17,8 @@ on:
           - k3s2
 
 env:
-  TARGET_ENV: "test"
-  TARGET_CLUSTER: "k3s2"
+  TARGET_ENV: "prod"
+  TARGET_CLUSTER: "k3s1"
 
 jobs:
   build:
