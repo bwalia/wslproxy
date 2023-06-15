@@ -1,0 +1,22 @@
+name: "Build and Push WhiteFalcon Docker Image to Docker Hub"
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ feature/* ]
+
+env:
+  IMAGE_NAME: "whitefalcon"
+  IMAGE_TAG: ${{ github.ref_name }}
+
+jobs:
+  build:
+    runs-on: [ubuntu-latest]
+    steps:
+      - name: checkout the repo code
+        uses: actions/checkout@v2 
+        with:
+          ref: "main"
+      - name: build and run the white falcon docker image
+        run: chmod +x ./build.sh && ./build.sh "${{ secrets.DOCKER_USER }}" "${{ secrets.DOCKER_PASSWD }}"
