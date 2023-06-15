@@ -14,11 +14,11 @@ app:
     - kubernetes
   namespace: int
   dns_resolver: "10.43.0.10"
-  api_url: "http://int2.whitefalcon.io/api"
+  api_url: "http://int2-router.whitefalcon.io/api"
   redis_host: "redis-service.int.svc.cluster.local"
   target_env: "int"
 
-secure_env_file: "AgA5Lk5ND74z0OAVQMijx11mY1S1KETdEJXCqQ24eWeDDNiVmC9vdCUslWOBY0/RYRRbeld17WeJeoX+aSDJZffW0II9Gu37iFcJhZSUYnnLc+zDsmBjEkyjZuQp1i58ZbVBIjaCujDDs4gjTDNmSGqArWyMp1w4zJcGfeW7nWsxY2bSA55bBKAQbL+nD384l+1Jjip6aqR/WE9uT5bI83wO0tTUUHyPyl3oNSE4xkC0ysEuCBhrTk7JL+WjUkFonCnsHX5azqJ5fE4x1qWtZgxf3kX068DUoqjn51PDqNyWX1539TqA7soJyUjzUSKxfJScaJyfI28UexNvuXxO8mMz2MuTOhLd0NzDZVTBU0Zovh7TeG8k+QqDrstnW5iH+xXfn19aOTpwtX1xlopEGJi/C1Te3HuWTcn+GdI/STo6dhYxbBgOqHFiwd/HZNoJ5Ae8jB6zLHXDDXJHxA1gyXOeXJnWRPrO47Ibv8LVRJdOmFfXT/72Fp1q2j5MN4xJYXkpKpaS1t0d7CGdy7517ebATBaRAP0VFql6cq4YDhZgj0CiLS/xPZ0kpJXjnGooOBgBpRpji2nAguKIPlX4pGw3DjisWnZUO6giKahy9oDmk34uWGJ7cbEMykmQIdYykJkjAl7J7UEd5lRzI1QzetBqeO4MQeS76XSMuOKWKE3WJ3Ld8HSKniV9m1zK/Oi/syIIqOkV7nTfHk0AWxJzQ+Nv0m/zvk8HLDwVmPfMeD13P9+5XIQEcJ6QkBMfiKxYGuHfWyJ8lzxBccGk6If7cBahxw1HEkfNwGUGa7lzLN1+/ctBsnnzfUBW3Bec4uYw8b+oTqQ2kd1WjV28ZqHDzXYC6s0vMNctpCIkOsIf7e4gvnPmy7If6p0YG14nbZCSW/+AWg+gTNHBrmIi2rd7KdeqULmEDjLR1PS/CH3PVXKk3w=="
+secure_env_file: "AgBNKmboeRNVX0ZAHmWO11iYCZir2Eoucj/8Qw9zNkvQ/YuYWeTG3oo51I1N01bAI8iLwqnXIuBfHzPuEL1hRtFWO1LZe0eJGXAx4aSNVadgggJLkL6lTinOXKkhHRuIlDJrtuwfWt2qj2LG1pH3bEzYuiuadJjm2cgU/RINhmxTt0dJ2WCjyLhQQiw0FJ2PaaHBYAp19UFFlLHrZnrrVc23/tmWkTEzeRkeZXRv3S/cmSn8pC9BvVUEiPzpt5X2R03x34Fc2q9awOSFgG2jaborstO6CiDub06Iq+r4pbLTOLLDy0Ces7YEOyCfOviydn4q5+fVr/I1CB3nx7pf9EkkvNIIpWdpWBjnk8kNltzzpO5pP+hDdZPSaO2pvAa1Xpv+nOboyoMs/TL267JcHgjRT5XBG7qf5jEJF3LdWqwaNbN6XdFiMN5RsUo4uTR+cd1Cjg0ZxGce1zy2jQTdduGQ/5p4U/5eLURa7oYciYouA8v5L0PNBuSG9ZY4ZveDzUtLDPna+44HxTPizLmHobj5SQB9N2cKQe17KalxOx3yXNpMWkCb6Oj93bOGBwBcbX0DFSdYO+C5bTxoA0Nw7PzYk2Is8/x2mzPmgYvRktAtpxMHhfyNBU2RxZN3VLI9+O+xHqenC+I/xK2Mr+5ve3Ssp1Oo9JGXDNN0rvx51WxifCDvQW7u89uu7iGaXlCgt3z4aeVAHMzY3IuTulI5ppTWxQec1Rp2ZLApAP4jiOgySnW+BhfaD02fGv1qe64xL8k14wNtIkwuAFC8MgBJ7Vpoh/X1gPVithwaJwoozEFaQgFUN5F2LSqk6Ab5Imx7Ucz6Q8yBViLk12cXDCJD/2+oUV2MKh1FMTvCIucbUjhQODz897w79R9D5ijCPTmCLNQvOVQL6SUF0DXxvlfYeZpgwZTXntBAx8Z6DG8L"
 
 image:
   repository: bwalia/whitefalcon
@@ -54,7 +54,7 @@ securityContext: {}
 
 service:
   type: ClusterIP
-  port: 80
+  port: 8080
 
 ingress:
   enabled: true
@@ -63,17 +63,29 @@ ingress:
     # kubernetes.io/ingress.class: nginx
     # kubernetes.io/tls-acme: "true"
   hosts:
+    - host: int-router.whitefalcon.io
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+          serviceName: whitefalcon-router-int-router
+          servicePort: 8080
     - host: int.whitefalcon.io
       paths:
         - path: /
           pathType: ImplementationSpecific
-          serviceName: whitefalcon-router-int
+          serviceName: whitefalcon-router-int-router
           servicePort: 8080
     - host: int2.whitefalcon.io
       paths:
         - path: /
           pathType: ImplementationSpecific
-          serviceName: whitefalcon-router
+          serviceName: whitefalcon-router-int-router
+          servicePort: 8080
+    - host: int2-router.whitefalcon.io
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+          serviceName: whitefalcon-router-int-router
           servicePort: 8080
   tls: []
   #  - secretName: chart-example-tls
