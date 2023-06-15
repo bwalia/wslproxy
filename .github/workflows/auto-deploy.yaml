@@ -42,7 +42,7 @@ jobs:
           sleep 60
           $KUBECTL_CMD rollout restart deployment/whitefalcon-router-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
           $KUBECTL_CMD rollout history deployment/whitefalcon-router-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
-          sleep 60
+          sleep 120
           $KUBECTL_CMD get pods,ing -n test
   
   healthcheck2:
@@ -100,7 +100,7 @@ jobs:
           sleep 60
           $KUBECTL_CMD rollout restart deployment/whitefalcon-router-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
           $KUBECTL_CMD rollout history deployment/whitefalcon-router-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
-          sleep 60
+          sleep 120
           $KUBECTL_CMD get pods,ing -n test
   
   healthcheck6:
