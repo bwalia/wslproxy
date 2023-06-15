@@ -30,9 +30,15 @@ if not ok then
     return
 end
 
+local function trimWhitespace(str)
+    -- Trim whitespace from the start and end of the string
+    local trimmedStr = string.gsub(str, "^%s*(.-)%s*$", "%1")
+    return trimmedStr
+  end
+
 local function check_rules(rules)
 
-    local chk_path = rules.path
+    local chk_path = trimWhitespace(rules.path)
     local pass, failMessage = false, ""
     local req_url = ngx.var.request_uri
     if chk_path and chk_path ~= nil and type(chk_path) ~= "userdata" then
@@ -59,7 +65,7 @@ local function check_rules(rules)
         country = result.country_short
     end
 
-    local client_ip = rules.client_ip
+    local client_ip = trimWhitespace(rules.client_ip)
     -- user data type is null
     if client_ip and client_ip ~= nil and type(client_ip) ~= "userdata" then
         if rules.client_ip_key == 'starts_with' and req_add:startswith(client_ip) == true then -- and req_add~=client_ipand  (req_add:startswith(client_ip) ~= true
@@ -114,8 +120,11 @@ local function matchRules(ruleId)
                 ngx.say(ruleFromRedis.name, ' --- ', failMessage, ' fail')
                 return
             else
-                ngx.say(ruleFromRedis.name, ' --- ', failMessage, ' pass')
-
+                if ruleFromRedis.match.response.message ~= nil then
+                    ngx.say(Base64.decode(ruleFromRedis.match.response.message))
+                else
+                    ngx.say(string.format("%s, has pass the security check", ruleFromRedis.name))
+                end
             end
             -- return
 
