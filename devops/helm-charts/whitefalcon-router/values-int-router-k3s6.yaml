@@ -54,7 +54,7 @@ securityContext: {}
 
 service:
   type: ClusterIP
-  port: 8080
+  port: 80
 
 ingress:
   enabled: true
@@ -68,25 +68,25 @@ ingress:
         - path: /
           pathType: ImplementationSpecific
           serviceName: whitefalcon-router-int-router
-          servicePort: 8080
+          servicePort: 80
     - host: int.whitefalcon.io
       paths:
         - path: /
           pathType: ImplementationSpecific
           serviceName: whitefalcon-router-int-router
-          servicePort: 8080
+          servicePort: 80
     - host: int6.whitefalcon.io
       paths:
         - path: /
           pathType: ImplementationSpecific
           serviceName: whitefalcon-router-int-router
-          servicePort: 8080
+          servicePort: 80
     - host: int6-router.whitefalcon.io
       paths:
         - path: /
           pathType: ImplementationSpecific
           serviceName: whitefalcon-router-int-router
-          servicePort: 8080
+          servicePort: 80
   tls: []
   #  - secretName: chart-example-tls
   #    hosts:
