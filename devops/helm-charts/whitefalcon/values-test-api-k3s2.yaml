@@ -1,0 +1,101 @@
+# Default values for whitefalcon.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+app:
+  name: whitefalcon
+  version: 0.1.0
+  description: A Helm chart for Kubernetes
+  keywords:
+    - helm
+    - chart
+    - kubernetes
+  namespace: test
+  dns_resolver: "10.43.0.10"
+  api_url: "http://test-api.whitefalcon.io/api"
+  redis_host: "redis-service.test.svc.cluster.local"
+  target_env: "test"
+  target_type: "api"
+
+secure_env_file: "AgAN0uemYmdUpE4ULWUJV6AjgkpR+LUaZeAmieuh41N6+9mc1WzysbDUAQxiP/k7KbX9MrvjkMjgWutxYhxC3On9vZ7sCAnQ815UoUMzcTUdcLuwlggqrXlj6Q1gA17q6dVUp0ibOZ+DeKVPfZdxSeB4Giy/NaLimkdfHL+RjxpOKCkhq0REX7fxuUuJQny/hSQIY2lBshtsG4PGuYUeRzFIhp2gkDANwg+Y4ECnUd5QOgmu4KqvhoVJH14eZRK/dKNViqlils/bgkMqSE9Upb+vPBd1lF6B6EaKFNmNIoI8G2v9yZ+vTdQiGUbwuQMFy/gQPgg8RpmWz/ixVTcQnYxtLKolSHFzubRSJv9phmnrP6MqoAGE0SWVouNDJyCwj3Lu0gFAD22oa5DXFNu92bw7fM+l0jxUAjrv2ad/wj2QQDidWAwxfH0JkL6j+8FXExzFUqIGzNl2+I5Oy36Juqb+qoZ/8sVnIeICbvA0opo3e61DO+rqZMxIx7S5i1Vic2FN+CBh3rfQPOyiIMTkB6Ss6aKfZbNqQhYmzsRUGl6gii0KEWFMo5xHyTrG3qqZN/TzmY+faE/sorX2XWR42mqHqnNrHVvJR/yeuzB+6IDPqVuuE26WuzAXfmZGUHaPxNgw/UvYTIHwVPAVmoDmC27pe0AdkAA2QuoxdZNKQpmaE/Id/AzAIDPEFJM5EWtJ60j3kS1l1XJT57Kknw7k0fhnTCXuggVl2WessNBtRbrVBbTO6uHSjLJ/2ebbrL3n7fDEfDIVra7d7c51PY/8XbhUu76wbS/FFSKOce9AsDdNRiRs+VVzckkMOBjSJZOWnWaKLSs2oLeoa6SR/J26j/QfcXgR4YZqqgaSXVEc202BE0Ve6phcWv3TdYYdLjQDet4XyiAKB5fdEu3SINWXJVTzdmCwoxpAz1u39kZ2OA=="
+
+image:
+  repository: bwalia/whitefalcon
+  pullPolicy: Always
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: "latest"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+service:
+  type: ClusterIP
+  port: 8080
+
+ingress:
+  enabled: true
+#  className: "nginx"
+  annotations: {}
+    # kubernetes.io/ingress.class: nginx
+    # kubernetes.io/tls-acme: "true"
+  hosts:
+    - host: test-router.webimpetus.cloud
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+          servicename: whitefalcon-api
+          servicePort: 8080
+  tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - chart-example.local
+
+resources: {}
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}

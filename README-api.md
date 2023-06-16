@@ -154,6 +154,6 @@ api/rules/{id}
 
 #### 4. Open the URL in browser to check the response.
 ```http
-http://localhost:8080/router
+http://localhost:8080/
 ```
 <img src="https://github.com/bwalia/whitefalcon/blob/main/images/browser_response.png" alt="Browser response" width="500" height="300">

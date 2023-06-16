@@ -3,7 +3,7 @@
 clear
 
 DOCKER_CONTAINER_NAME="openresty-alpine"
-DOCKER_CONTAINER_NAME="whitefalcon-api"
+DOCKER_CONTAINER_NAME="whitefalcon"
 APP_ENV="dev"
 
 docker cp nginx-dev.conf.tmpl ${DOCKER_CONTAINER_NAME}:/usr/local/openresty/nginx/conf/nginx.conf

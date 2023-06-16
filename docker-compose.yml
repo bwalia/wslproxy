@@ -1,12 +1,12 @@
 version: "3.7"
 services:
   server:
-    container_name: whitefalcon-api
+    container_name: whitefalcon
     restart: always
     build:
       args:
         - APP_ENV=dev
-        - APP_NAME=whitefalcon-api
+        - APP_NAME=whitefalcon
         - DNS_RESOLVER=127.0.0.11
       context: .
       dockerfile: Dockerfile
@@ -31,7 +31,7 @@ services:
     environment:
       LUA_DEBUG: "true"
       REDIS_HOST: "whitefalcon-redis"
-      APP_NAME: "whitefalcon-api"
+      APP_NAME: "whitefalcon"
       VERSION: "1.0"
       STACK: "Lua 5.1"
       VITE_DEPLOYMENT_TIME: "20230510055429"
