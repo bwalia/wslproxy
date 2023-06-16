@@ -41,7 +41,7 @@ local function check_rules(rules, ruleId, priority, message)
     local isPathPass, failMessage = false, ""
     local finalResult, results = {}, {}
     local req_url = ngx.var.request_uri
-    if chk_path and chk_path ~= nil and type(chk_path) ~= "userdata" then
+    if chk_path and chk_path ~= nil and chk_path ~= "" and type(chk_path) ~= "userdata" then
         if rules.path_key == 'starts_with' and req_url:startswith(chk_path) == true then
             isPathPass = true
         elseif rules.path_key == 'ends_with' and req_url:endswith(chk_path) == true then
@@ -52,6 +52,8 @@ local function check_rules(rules, ruleId, priority, message)
             isPathPass, failMessage = false, string.format(
                 "Route does not match. Expected path is %s, but current is %s", chk_path, req_url)
         end
+    else
+        isPathPass = true
     end
     results["path"] = isPathPass
 
@@ -69,7 +71,7 @@ local function check_rules(rules, ruleId, priority, message)
 
     local client_ip = rules.client_ip ~= nil and trimWhitespace(rules.client_ip) or rules.client_ip
     -- user data type is null
-    if client_ip and client_ip ~= nil and type(client_ip) ~= "userdata" then
+    if client_ip and client_ip ~= nil and client_ip ~= "" and type(client_ip) ~= "userdata" then
         if rules.client_ip_key == 'starts_with' and req_add:startswith(client_ip) == true then -- and req_add~=client_ipand  (req_add:startswith(client_ip) ~= true
             isClientIpPass = true
         elseif rules.client_ip_key == 'equals' and req_add == client_ip then
@@ -78,18 +80,22 @@ local function check_rules(rules, ruleId, priority, message)
             isClientIpPass, failMessage = false, string.format(
                 "Client IP does not match. Expected IP is %s, but your IP is %s", client_ip, req_add)
         end
+    else
+        isClientIpPass = true
     end
 
     results["client_ip"] = isClientIpPass
     local isCountryPass = false
     -- check country 
-    if rules.country and rules.country ~= nil and type(rules.country) ~= "userdata" then
+    if rules.country and rules.country ~= nil and rules.country ~= "" and type(rules.country) ~= "userdata" then
         if rules.country_key == 'equals' and rules.country == country then
             isCountryPass = true
         else
             isCountryPass, failMessage = false, string.format(
                 "Country does not match. Expected country is %s, but your country is %s", rules.country, country)
         end
+    else
+        isCountryPass = true
     end
     results["country"] = isCountryPass
     results["priority"] = priority
