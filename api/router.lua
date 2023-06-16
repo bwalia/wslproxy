@@ -34,27 +34,29 @@ local function trimWhitespace(str)
     -- Trim whitespace from the start and end of the string
     local trimmedStr = string.gsub(str, "^%s*(.-)%s*$", "%1")
     return trimmedStr
-  end
+end
 
-local function check_rules(rules)
-
-    local chk_path = trimWhitespace(rules.path)
-    local pass, failMessage = false, ""
+local function check_rules(rules, ruleId, priority, message)
+    local chk_path = rules.path ~= nil and trimWhitespace(rules.path) or rules.path
+    local isPathPass, failMessage = false, ""
+    local finalResult, results = {}, {}
     local req_url = ngx.var.request_uri
     if chk_path and chk_path ~= nil and type(chk_path) ~= "userdata" then
         if rules.path_key == 'starts_with' and req_url:startswith(chk_path) == true then
-            pass = true
+            isPathPass = true
         elseif rules.path_key == 'ends_with' and req_url:endswith(chk_path) == true then
-            pass = true
+            isPathPass = true
         elseif rules.path_key == 'equals' and chk_path == req_url then
-            pass = true
+            isPathPass = true
         else
-            pass, failMessage = false, string.format("Route does not match. Expected path is %s, but current is %s",
-                chk_path, req_url)
+            isPathPass, failMessage = false, string.format(
+                "Route does not match. Expected path is %s, but current is %s", chk_path, req_url)
         end
     end
+    results["path"] = isPathPass
 
     -- client IP check rules
+    local isClientIpPass = false
     local req_add = ngx.var.remote_addr
     -- req_add = '117.245.73.99'
     local ip2location = require('ip2location')
@@ -65,29 +67,36 @@ local function check_rules(rules)
         country = result.country_short
     end
 
-    local client_ip = trimWhitespace(rules.client_ip)
+    local client_ip = rules.client_ip ~= nil and trimWhitespace(rules.client_ip) or rules.client_ip
     -- user data type is null
     if client_ip and client_ip ~= nil and type(client_ip) ~= "userdata" then
         if rules.client_ip_key == 'starts_with' and req_add:startswith(client_ip) == true then -- and req_add~=client_ipand  (req_add:startswith(client_ip) ~= true
-            pass = true
+            isClientIpPass = true
         elseif rules.client_ip_key == 'equals' and req_add == client_ip then
-            pass = true
+            isClientIpPass = true
         else
-            pass, failMessage = false, string.format("Client IP does not match. Expected IP is %s, but your IP is %s",
-                client_ip, req_add)
+            isClientIpPass, failMessage = false, string.format(
+                "Client IP does not match. Expected IP is %s, but your IP is %s", client_ip, req_add)
         end
     end
 
+    results["client_ip"] = isClientIpPass
+    local isCountryPass = false
     -- check country 
     if rules.country and rules.country ~= nil and type(rules.country) ~= "userdata" then
         if rules.country_key == 'equals' and rules.country == country then
-            pass = true
+            isCountryPass = true
         else
-            pass, failMessage = false, string.format(
+            isCountryPass, failMessage = false, string.format(
                 "Country does not match. Expected country is %s, but your country is %s", rules.country, country)
         end
     end
-    return pass, failMessage
+    results["country"] = isCountryPass
+    results["priority"] = priority
+    results["message"] = message
+    finalResult[ruleId] = results
+
+    return finalResult
 end
 
 string.startswith = function(self, str)
@@ -113,21 +122,10 @@ local function matchRules(ruleId)
     if ruleFromRedis ~= nil and type(ruleFromRedis) ~= "userdata" then
         ruleFromRedis = cjson.decode(ruleFromRedis)
         if ruleFromRedis.match and ruleFromRedis.match.rules then
-            -- parse_rules[ruleId] = ruleFromRedis.match.rules
             -- check prefix and postfix URL
-            local pass, failMessage = check_rules(ruleFromRedis.match.rules)
-            if pass == false then
-                ngx.say(ruleFromRedis.name, ' --- ', failMessage, ' fail')
-                return
-            else
-                if ruleFromRedis.match.response.message ~= nil then
-                    ngx.say(Base64.decode(ruleFromRedis.match.response.message))
-                else
-                    ngx.say(string.format("%s, has pass the security check", ruleFromRedis.name))
-                end
-            end
-            -- return
-
+            local results = check_rules(ruleFromRedis.match.rules, ruleFromRedis.id, ruleFromRedis.priority,
+                ruleFromRedis.match.response.message)
+            return results
         end
     end
 end
@@ -141,11 +139,48 @@ if exist_values[2] and exist_values[2][2] then
             local hasAnd = hasAndCondition(jsonval.match_cases)
             if next(hasAnd) ~= nil then
                 for inx, conditionRule in ipairs(hasAnd) do
-                    matchRules(conditionRule)
+                    table.insert(parse_rules, matchRules(conditionRule))
                 end
             end
         end
-        matchRules(jsonval.rules)
+        table.insert(parse_rules, matchRules(jsonval.rules))
+        -- ngx.say(cjson.encode(parse_rules))
+        local highestPriority = 0
+        local highestPriorityKey, highestPriorityParentKey
+        local hasFalseValue = false
+
+        for _, record in ipairs(parse_rules) do
+            for key, value in pairs(record) do
+                local hasFalseField = false
+                for field, fieldValue in pairs(value) do
+                    if fieldValue == false then
+                        hasFalseField = true
+                        highestPriorityKey = field
+                        break
+                    end
+                end
+                if not hasFalseField then
+                    if value.priority > highestPriority then
+                        highestPriority = value.priority
+                        highestPriorityKey = key
+                        highestPriorityParentKey = _
+                    end
+                else
+                    hasFalseValue = true
+                    break
+                end
+            end
+
+            if hasFalseValue then
+                break
+            end
+        end
+
+        if hasFalseValue then
+            ngx.say(string.format("Please check your Security rules. your %s is incorrect", highestPriorityKey))
+        else
+            ngx.say(Base64.decode(parse_rules[highestPriorityParentKey][highestPriorityKey].message))
+        end
     else
         ngx.say(jsonval.server_name, '---', 'no rules, please ask your administrative to set the Rules for server')
     end

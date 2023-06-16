@@ -438,14 +438,14 @@ http {
 
 
         location / {
-            default_type 'application/json';
-            add_header 'Access-Control-Allow-Origin' '*';
-           add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, PUT, DELETE';
-           add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, X-Requested-With';
-            add_header 'Access-Control-Max-Age' 1728000;
-            add_header 'Content-Type' 'text/plain; charset=utf-8';
-            add_header 'Content-Length' 0;
-            content_by_lua_file /usr/local/openresty/nginx/html/api/router.lua;
+          default_type text/html;
+          add_header 'Access-Control-Allow-Origin' '*';
+          add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, PUT, DELETE';
+          add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, X-Requested-With';
+          add_header 'Access-Control-Max-Age' 1728000;
+          add_header Content-Type text/html;
+          add_header 'Content-Length' 0;
+          content_by_lua_file /usr/local/openresty/nginx/html/api/router.lua;
         }
 
         location /ip-location {
