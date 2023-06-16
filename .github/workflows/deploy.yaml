@@ -1,4 +1,4 @@
-name: "Build and Deploy - whitefalcon-api Prod"
+name: "Build and Deploy - whitefalcon Prod"
 
 on:
   push:
@@ -40,7 +40,7 @@ jobs:
         uses: koslib/helm-eks-action@master
         with:
           command: |
-            helm upgrade -i whitefalcon-api-${{ env.TARGET_ENV }} ./devops/helm-charts/whitefalcon-api/ -f devops/helm-charts/whitefalcon-api/values-${{ env.TARGET_ENV }}-${{ env.TARGET_CLUSTER}}.yaml --namespace ${{ env.TARGET_ENV }} --create-namespace
+            helm upgrade -i whitefalcon-api-${{ env.TARGET_ENV }} ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-${{ env.TARGET_ENV }}-api-${{ env.TARGET_CLUSTER}}.yaml --namespace ${{ env.TARGET_ENV }} --create-namespace
             kubectl rollout restart deployment/whitefalcon-api-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
             kubectl rollout history deployment/whitefalcon-api-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
           

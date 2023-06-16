@@ -1,4 +1,4 @@
-# whitefalcon-api
+# whitefalcon
 
 Whitefalcon is an API Gateway and a CDN, and it fully powered itself via API so that it can be fully configured automatically via pipelines and release mangement.
 
