@@ -7,8 +7,8 @@ on:
     branches: [ feature/* ]
 
 env:
-  target_env: "int"
-  target_type: "api"
+  TARGET_ENV: "int"
+  TARGET_TYPE: "api"
   IMAGE_NAME: "whitefalcon"
   IMAGE_TAG: ${{ github.ref_name }}
 
