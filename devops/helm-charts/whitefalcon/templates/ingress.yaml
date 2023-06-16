@@ -15,7 +15,7 @@ apiVersion: extensions/v1beta1
 {{- end }}
 kind: Ingress
 metadata:
-  name: {{ .Values.app.name }}-api-ing-{{ .Values.app.target_env }}-{{ .Values.app.target_type }}
+  name: {{ .Values.app.name }}-ing-{{ .Values.app.target_env }}-{{ .Values.app.target_type }}
   labels:
     {{- include "whitefalcon.labels" . | nindent 4 }}
   {{- with .Values.ingress.annotations }}
@@ -47,15 +47,10 @@ spec:
             pathType: {{ .pathType }}
             {{- end }}
             backend:
-              {{- if semverCompare ">=1.19-0" $.Capabilities.KubeVersion.GitVersion }}
               service:
                 name: {{ .serviceName }}
                 port:
                   number: {{ .servicePort }}
-              {{- else }}
-              serviceName: {{ .serviceName }}
-              servicePort: {{ .servicePort }}
-              {{- end }}
           {{- end }}
     {{- end }}
 {{- end }}
