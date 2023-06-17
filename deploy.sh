@@ -15,6 +15,13 @@ else
 fi
 
 if [ -z "$3" ]; then
+   echo "Cluster is not provided"
+   exit -1
+else
+   echo "Cluster is provided ok"
+fi
+
+if [ -z "$4" ]; then
    echo "Env is not provided"
    exit -1
 else
@@ -31,15 +38,15 @@ SOURCE_IMAGE=openresty_alpine
 # #docker tag whitefalcon-${SOURCE_IMAGE} ${DOCKER_PUBLIC_IMAGE_NAME}:${VERSION}
 # docker push ${DOCKER_PUBLIC_IMAGE_NAME}:${VERSION}
 
-HELM_CMD="helm --kubeconfig $HOME/.kube/vpn-k3s2.yaml"
-KUBECTL_CMD="kubectl --kubeconfig $HOME/.kube/vpn-k3s2.yaml"
-#KUBECTL_CMD="kubectl --kubeconfig /Users/balinderwalia/.kube/vpn-k3s2.yaml"
-$HELM_CMD upgrade -i whitefalcon-api-$3 ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-$3-api-k3s2.yaml --set TARGET_ENV=$3 --namespace $3 --create-namespace
-$HELM_CMD upgrade -i whitefalcon-front-$3 ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-$3-front-k3s2.yaml --set TARGET_ENV=$3 --namespace $3 --create-namespace
+HELM_CMD="helm --kubeconfig $HOME/.kube/vpn-$3.yaml"
+KUBECTL_CMD="kubectl --kubeconfig $HOME/.kube/vpn-$3.yaml"
+#KUBECTL_CMD="kubectl --kubeconfig /Users/balinderwalia/.kube/vpn-$3.yaml"
+$HELM_CMD upgrade -i whitefalcon-api-$4 ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-$4-api-$3.yaml --set TARGET_ENV=$4 --namespace $4 --create-namespace
+$HELM_CMD upgrade -i whitefalcon-front-$4 ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-$4-front-$3.yaml --set TARGET_ENV=$4 --namespace $4 --create-namespace
 sleep 30
-$KUBECTL_CMD rollout restart deployment/whitefalcon-api-$3-api -n $3
-$KUBECTL_CMD rollout history deployment/whitefalcon-api-$3-api -n $3
-$KUBECTL_CMD rollout restart deployment/whitefalcon-front-$3-front -n $3
-$KUBECTL_CMD rollout history deployment/whitefalcon-front-$3-front -n $3
+$KUBECTL_CMD rollout restart deployment/whitefalcon-api-$4-api -n $4
+$KUBECTL_CMD rollout history deployment/whitefalcon-api-$4-api -n $4
+$KUBECTL_CMD rollout restart deployment/whitefalcon-front-$4-front -n $4
+$KUBECTL_CMD rollout history deployment/whitefalcon-front-$4-front -n $4
 sleep 120
-$KUBECTL_CMD get svc,pods,ing -n $3
+$KUBECTL_CMD get svc,pods,ing -n $4
