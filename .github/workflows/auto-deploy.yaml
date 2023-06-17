@@ -14,7 +14,7 @@ env:
   IMAGE_TAG: ${{ github.ref_name }}
 
 jobs:
-  build:
+  deploy2:
     runs-on: [self-hosted-node2]
     steps:
       - name: checkout the repo code
@@ -23,11 +23,20 @@ jobs:
           ref: "main"
       - name: Deploy whitefalcon api gw to k3s optionally build and push the white falcon docker image
         run: chmod +x ./deploy.sh && ./deploy.sh "${{ secrets.DOCKER_USER }}" "${{ secrets.DOCKER_PASSWD }}" "${{ env.TARGET_CLUSTER }}" "${{ env.TARGET_ENV }}" "${{ env.TARGET_TYPE }}" "${{ env.IMAGE_NAME }}" "${{ env.IMAGE_TAG }}"
+  deploy6:
+    runs-on: [self-hosted-node6]
+    steps:
+      - name: checkout the repo code
+        uses: actions/checkout@v2 
+        with:
+          ref: "main"
       - name: Deploy whitefalcon api gw to k3s optionally build and push the white falcon docker image
-        run: |
-            echo "TARGET_CLUSTER=k3s6" >> $GITHUB_ENV
-            chmod +x ./deploy.sh && ./deploy.sh "${{ secrets.DOCKER_USER }}" "${{ secrets.DOCKER_PASSWD }}" "${{ env.TARGET_CLUSTER }}" "${{ env.TARGET_ENV }}" "${{ env.TARGET_TYPE }}" "${{ env.IMAGE_NAME }}" "${{ env.IMAGE_TAG }}"
-  
+        run: echo "TARGET_CLUSTER=k3s6" >> $GITHUB_ENV
+      - name: Deploy whitefalcon api gw to k3s optionally build and push the white falcon docker image
+        run: chmod +x ./deploy.sh && ./deploy.sh "${{ secrets.DOCKER_USER }}" "${{ secrets.DOCKER_PASSWD }}" "${{ env.TARGET_CLUSTER }}" "${{ env.TARGET_ENV }}" "${{ env.TARGET_TYPE }}" "${{ env.IMAGE_NAME }}" "${{ env.IMAGE_TAG }}"
+
+
+            
   # healthcheck2:
   #   runs-on: [self-hosted-node2]
   #   needs: [ deploy2 ]

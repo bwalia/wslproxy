@@ -49,4 +49,4 @@ $KUBECTL_CMD rollout history deployment/whitefalcon-api-$4-api -n $4
 $KUBECTL_CMD rollout restart deployment/whitefalcon-front-$4-front -n $4
 $KUBECTL_CMD rollout history deployment/whitefalcon-front-$4-front -n $4
 sleep 120
-$KUBECTL_CMD get svc,pods,ing -n $4
+$KUBECTL_CMD get deploy,svc,pods,ing -n $4
