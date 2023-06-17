@@ -68,26 +68,26 @@ ingress:
       paths:
         - path: /
           pathType: ImplementationSpecific
-#          serviceName: whitefalcon-svc-int-api
-          serviceName: whitefalcon-svc-int-front
+#          serviceName: wf-api-svc-int
+          serviceName: wf-front-svc-int
           servicePort: 80
     - host: int.whitefalcon.io
       paths:
         - path: /
           pathType: ImplementationSpecific
-          serviceName: whitefalcon-svc-int-front
+          serviceName: wf-front-svc-int
           servicePort: 80
     - host: int2.whitefalcon.io
       paths:
         - path: /
           pathType: ImplementationSpecific
-          serviceName: whitefalcon-svc-int-front
+          serviceName: wf-front-svc-int
           servicePort: 80
     - host: int2-front.whitefalcon.io
       paths:
         - path: /
           pathType: ImplementationSpecific
-          serviceName: whitefalcon-svc-int-front
+          serviceName: wf-front-svc-int
           servicePort: 80
   tls: []
   #  - secretName: chart-example-tls

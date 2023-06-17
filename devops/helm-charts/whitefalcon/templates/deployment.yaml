@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Values.app.name }}-api-{{ .Values.app.target_env }}-{{ .Values.app.target_type }}
+  name: {{ .Values.app.name }}-api-{{ .Values.app.target_env }}
   labels:
     {{- include "whitefalcon.labels" . | nindent 4 }}
 spec:
@@ -21,15 +21,15 @@ spec:
         {{- include "whitefalcon.selectorLabels" . | nindent 8 }}
     spec:
       volumes:
-        - name: {{ .Values.app.name }}-cm-{{ .Values.app.target_env }}-{{ .Values.app.target_type }}-vol
+        - name: {{ .Values.app.name }}-cm-{{ .Values.app.target_env }}-vol
           # Populate the volume with config map data
           configMap:
             # `name` here must match the name 
             # specified in the ConfigMap's YAML 
-            name: {{ .Values.app.name }}-cm-{{ .Values.app.target_env }}-{{ .Values.app.target_type }}
-        - name: {{ .Values.app.name }}-vol-{{ .Values.app.target_env }}-{{ .Values.app.target_type }}
+            name: {{ .Values.app.name }}-cm-{{ .Values.app.target_env }}
+        - name: {{ .Values.app.name }}-vol-{{ .Values.app.target_env }}
           secret:
-            secretName: "{{ .Values.app.name }}-secret-{{ .Values.app.target_env }}-{{ .Values.app.target_type }}"
+            secretName: "{{ .Values.app.name }}-secret-{{ .Values.app.target_env }}"
             items:
             - key: env_file
               path: .env
@@ -51,9 +51,9 @@ spec:
               exec:
                 command: ["/bin/sh", "-c", "stat -c %a /tmp && ls -la /tmp && cp /tmp/configmap/bootstrap-openresty.sh /usr/local/bin/bootstrap-openresty.sh && chmod +x /usr/local/bin/bootstrap-openresty.sh && bash /usr/local/bin/bootstrap-openresty.sh"]
           volumeMounts:
-            - name: {{ .Values.app.name }}-cm-{{ .Values.app.target_env }}-{{ .Values.app.target_type }}-vol
+            - name: {{ .Values.app.name }}-cm-{{ .Values.app.target_env }}-vol
               mountPath: /tmp/configmap
-            - name: {{ .Values.app.name }}-vol-{{ .Values.app.target_env }}-{{ .Values.app.target_type }}
+            - name: {{ .Values.app.name }}-vol-{{ .Values.app.target_env }}
               mountPath: /tmp/secrets
           env:
           - name: DNS_RESOLVER

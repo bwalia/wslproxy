@@ -2,7 +2,7 @@
 apiVersion: autoscaling/v2beta1
 kind: HorizontalPodAutoscaler
 metadata:
-  name: {{ .Values.app.name }}-api-hpa-{{ .Values.app.target_env }}-{{ .Values.app.target_type }}
+  name: {{ .Values.app.name }}-api-hpa-{{ .Values.app.target_env }}
   labels:
     {{- include "whitefalcon.labels" . | nindent 4 }}
 spec:

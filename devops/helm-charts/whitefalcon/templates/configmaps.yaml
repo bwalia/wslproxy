@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ .Values.app.name }}-cm-{{ .Values.app.target_env }}-{{ .Values.app.target_type }}
+  name: {{ .Values.app.name }}-cm-{{ .Values.app.target_env }}
 #   namespace: {{ .Values.targetNS }}
 data:
     bootstrap-openresty.sh: |
