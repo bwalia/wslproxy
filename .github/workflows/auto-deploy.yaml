@@ -20,88 +20,25 @@ jobs:
         uses: actions/checkout@v2 
         with:
           ref: "main"
-      - name: build and run the white falcon docker image
-        run: echo "building the docker image is moved to another workflow"
-
-  deploy2:
-    runs-on: [self-hosted-node2]
-    needs: [ build ]
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v3
-      - name: Update the Deployed Environment
-        run: |
-          HELM_CMD="helm --kubeconfig /home/bwalia/.kube/vpn-k3s2.yaml"
-          KUBECTL_CMD="kubectl --kubeconfig /home/bwalia/.kube/vpn-k3s2.yaml"
-          VALUES=k3s2
-          $HELM_CMD upgrade -i whitefalcon-api-${{ env.TARGET_ENV }} ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-${{ env.TARGET_ENV }}-api-k3s2.yaml --set TARGET_ENV=${{ env.TARGET_ENV }} --namespace ${{ env.TARGET_ENV }} --create-namespace
-          sleep 60
-          # $KUBECTL_CMD rollout restart deployment/whitefalcon-api-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
-          $KUBECTL_CMD rollout history deployment/whitefalcon-api-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
-          sleep 60
-          $HELM_CMD upgrade -i whitefalcon-front-${{ env.TARGET_ENV }} ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-${{ env.TARGET_ENV }}-front-k3s2.yaml --set TARGET_ENV=${{ env.TARGET_ENV }} --namespace ${{ env.TARGET_ENV }} --create-namespace
-          sleep 60
-          # $KUBECTL_CMD rollout restart deployment/whitefalcon-front-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
-          $KUBECTL_CMD rollout history deployment/whitefalcon-front-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
-          sleep 120
-          $KUBECTL_CMD get pods,ing -n ${{ env.TARGET_ENV }}
-
-  healthcheck2:
-    runs-on: [self-hosted-node2]
-    needs: [ deploy2 ]
-    steps:
-      - uses: actions/checkout@v3
-      - name: Set up Go
-        uses: actions/setup-go@v3
-        with:
-          go-version: 1.19
-      - name: Ping verification
-        working-directory: ./QA
-        env:
-          API_PING_URL: http://int2-api.whitefalcon.io/ping
-        run: | 
-          go mod init myapp
-          go test whitefalcan-healthcheck_test.go -v 
-
-  deploy6:
-    runs-on: [self-hosted-node6]
-    needs: [ build ]
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v3
-      - name: Update the Deployed Environment
-        run: |
-          HELM_CMD="helm --kubeconfig /home/bwalia/.kube/vpn-k3s6.yaml"
-          KUBECTL_CMD="kubectl --kubeconfig /home/bwalia/.kube/vpn-k3s6.yaml"
-          VALUES=k3s6
-          $HELM_CMD upgrade -i whitefalcon-api-${{ env.TARGET_ENV }} ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-${{ env.TARGET_ENV }}-api-k3s6.yaml --set TARGET_ENV=${{ env.TARGET_ENV }} --namespace ${{ env.TARGET_ENV }} --create-namespace
-          sleep 60
-          # $KUBECTL_CMD rollout restart deployment/whitefalcon-api-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
-          $KUBECTL_CMD rollout history deployment/whitefalcon-api-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
-          sleep 60
-          $HELM_CMD upgrade -i whitefalcon-front-${{ env.TARGET_ENV }} ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-${{ env.TARGET_ENV }}-front-k3s6.yaml --set TARGET_ENV=${{ env.TARGET_ENV }} --namespace ${{ env.TARGET_ENV }} --create-namespace
-          sleep 60
-          # $KUBECTL_CMD rollout restart deployment/whitefalcon-front-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
-          $KUBECTL_CMD rollout history deployment/whitefalcon-front-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
-          sleep 120
-          $KUBECTL_CMD get pods,ing -n ${{ env.TARGET_ENV }}
-
-  healthcheck6:
-    runs-on: [self-hosted-node6]
-    needs: [ deploy6 ]
-    steps:
-      - uses: actions/checkout@v3
-      - name: Set up Go
-        uses: actions/setup-go@v3
-        with:
-          go-version: 1.19
-      - name: Ping verification
-        working-directory: ./QA
-        env:
-          API_PING_URL: http://int6-api.whitefalcon.io/ping
-        run: | 
-          go mod init myapp
-          go test whitefalcan-healthcheck_test.go -v 
+      - name: Deploy whitefalcon api gw to k3s optionally build and push the white falcon docker image
+      run: chmod +x ./deploy.sh && ./deploy.sh "${{ secrets.DOCKER_USER }}" "${{ secrets.DOCKER_PASSWD }}" "{{ env.TARGET_ENV }}" "{{ env.TARGET_TYPE }}" "{{ env.IMAGE_NAME }}" "{{ env.IMAGE_TAG }}"
+  
+  # healthcheck2:
+  #   runs-on: [self-hosted-node2]
+  #   needs: [ deploy2 ]
+  #   steps:
+  #     - uses: actions/checkout@v3
+  #     - name: Set up Go
+  #       uses: actions/setup-go@v3
+  #       with:
+  #         go-version: 1.19
+  #     - name: Ping verification
+  #       working-directory: ./QA
+  #       env:
+  #         API_PING_URL: http://int2-api.whitefalcon.io/ping
+  #       run: | 
+  #         go mod init myapp
+  #         go test whitefalcan-healthcheck_test.go -v 
   
   # healthcheck6test:
   #   runs-on: [self-hosted-node6]
@@ -120,3 +57,4 @@ jobs:
   #       run: | 
   #         go mod init myapp
   #         go test whitefalcan-healthcheck_test.go -v 
+                
