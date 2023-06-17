@@ -45,10 +45,10 @@ jobs:
           HELM_CMD="helm --kubeconfig /home/bwalia/.kube/vpn-k3s2.yaml"
           KUBECTL_CMD="kubectl --kubeconfig /home/bwalia/.kube/vpn-k3s2.yaml"
           VALUES=k3s2
-          $HELM_CMD upgrade -i whitefalcon-api-${{ env.TARGET_ENV }} ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-${{ env.TARGET_ENV }}-api-k3s2.yaml --set TARGET_ENV=${{ env.TARGET_ENV }} --namespace ${{ env.TARGET_ENV }} --create-namespace
+          $HELM_CMD upgrade -i wf-api-${{ env.TARGET_ENV }} ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-${{ env.TARGET_ENV }}-api-k3s2.yaml --set TARGET_ENV=${{ env.TARGET_ENV }} --namespace ${{ env.TARGET_ENV }} --create-namespace
           sleep 60
-          $KUBECTL_CMD rollout restart deployment/whitefalcon-api-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
-          $KUBECTL_CMD rollout history deployment/whitefalcon-api-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
+          $KUBECTL_CMD rollout restart deployment/wf-api-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
+          $KUBECTL_CMD rollout history deployment/wf-api-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
           sleep 60
           $HELM_CMD upgrade -i whitefalcon-front-${{ env.TARGET_ENV }} ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-${{ env.TARGET_ENV }}-front-k3s2.yaml --set TARGET_ENV=test --namespace int --create-namespace
           sleep 60
@@ -103,10 +103,10 @@ jobs:
           HELM_CMD="helm --kubeconfig /home/bwalia/.kube/vpn-k3s6.yaml"
           KUBECTL_CMD="kubectl --kubeconfig /home/bwalia/.kube/vpn-k3s6.yaml"
           VALUES=k3s6
-          $HELM_CMD upgrade -i whitefalcon-api-${{ env.TARGET_ENV }} ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-${{ env.TARGET_ENV }}-api-k3s6.yaml --set TARGET_ENV=${{ env.TARGET_ENV }} --namespace ${{ env.TARGET_ENV }} --create-namespace
+          $HELM_CMD upgrade -i wf-api-${{ env.TARGET_ENV }} ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-${{ env.TARGET_ENV }}-api-k3s6.yaml --set TARGET_ENV=${{ env.TARGET_ENV }} --namespace ${{ env.TARGET_ENV }} --create-namespace
           sleep 60
-          $KUBECTL_CMD rollout restart deployment/whitefalcon-api-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
-          $KUBECTL_CMD rollout history deployment/whitefalcon-api-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
+          $KUBECTL_CMD rollout restart deployment/wf-api-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
+          $KUBECTL_CMD rollout history deployment/wf-api-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
           sleep 60
           $HELM_CMD upgrade -i whitefalcon-front-${{ env.TARGET_ENV }} ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-${{ env.TARGET_ENV }}-front-k3s6.yaml --set TARGET_ENV=test --namespace int --create-namespace
           sleep 60

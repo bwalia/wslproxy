@@ -68,7 +68,7 @@ ingress:
       paths:
         - path: /
           pathType: ImplementationSpecific
-          serviceName: whitefalcon-api
+          serviceName: wf-api
           servicePort: 8080
   tls: []
   #  - secretName: chart-example-tls

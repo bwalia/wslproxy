@@ -27,7 +27,7 @@ spec:
             # `name` here must match the name 
             # specified in the ConfigMap's YAML 
             name: {{ .Values.app.name }}-cm-{{ .Values.app.target_env }}-{{ .Values.app.target_type }}
-        - name: openresty-vol-{{ .Values.app.target_env }}-{{ .Values.app.target_type }}
+        - name: {{ .Values.app.name }}-vol-{{ .Values.app.target_env }}-{{ .Values.app.target_type }}
           secret:
             secretName: "{{ .Values.app.name }}-secret-{{ .Values.app.target_env }}-{{ .Values.app.target_type }}"
             items:
@@ -53,7 +53,7 @@ spec:
           volumeMounts:
             - name: {{ .Values.app.name }}-cm-{{ .Values.app.target_env }}-{{ .Values.app.target_type }}-vol
               mountPath: /tmp/configmap
-            - name: openresty-vol-{{ .Values.app.target_env }}-{{ .Values.app.target_type }}
+            - name: {{ .Values.app.name }}-vol-{{ .Values.app.target_env }}-{{ .Values.app.target_type }}
               mountPath: /tmp/secrets
           env:
           - name: DNS_RESOLVER

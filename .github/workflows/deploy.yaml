@@ -40,9 +40,9 @@ jobs:
         uses: koslib/helm-eks-action@master
         with:
           command: |
-            helm upgrade -i whitefalcon-api-${{ env.TARGET_ENV }} ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-${{ env.TARGET_ENV }}-api-${{ env.TARGET_CLUSTER}}.yaml --namespace ${{ env.TARGET_ENV }} --create-namespace
-            kubectl rollout restart deployment/whitefalcon-api-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
-            kubectl rollout history deployment/whitefalcon-api-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
+            helm upgrade -i wf-api-${{ env.TARGET_ENV }} ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-${{ env.TARGET_ENV }}-api-${{ env.TARGET_CLUSTER}}.yaml --namespace ${{ env.TARGET_ENV }} --create-namespace
+            kubectl rollout restart deployment/wf-api-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
+            kubectl rollout history deployment/wf-api-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
           
       - name: Slack Notification for Workstation CRM release 
         uses: rtCamp/action-slack-notify@v2
