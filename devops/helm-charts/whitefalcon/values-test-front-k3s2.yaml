@@ -1,11 +1,11 @@
-# Default values for whitefalcon-router.
+# Default values for whitefalcon front.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
 replicaCount: 1
 
 app:
-  name: whitefalcon-router
+  name: whitefalcon-front
   version: 0.1.0
   description: A Helm chart for Kubernetes
   keywords:
@@ -22,7 +22,7 @@ app:
 secure_env_file: "AgAN0uemYmdUpE4ULWUJV6AjgkpR+LUaZeAmieuh41N6+9mc1WzysbDUAQxiP/k7KbX9MrvjkMjgWutxYhxC3On9vZ7sCAnQ815UoUMzcTUdcLuwlggqrXlj6Q1gA17q6dVUp0ibOZ+DeKVPfZdxSeB4Giy/NaLimkdfHL+RjxpOKCkhq0REX7fxuUuJQny/hSQIY2lBshtsG4PGuYUeRzFIhp2gkDANwg+Y4ECnUd5QOgmu4KqvhoVJH14eZRK/dKNViqlils/bgkMqSE9Upb+vPBd1lF6B6EaKFNmNIoI8G2v9yZ+vTdQiGUbwuQMFy/gQPgg8RpmWz/ixVTcQnYxtLKolSHFzubRSJv9phmnrP6MqoAGE0SWVouNDJyCwj3Lu0gFAD22oa5DXFNu92bw7fM+l0jxUAjrv2ad/wj2QQDidWAwxfH0JkL6j+8FXExzFUqIGzNl2+I5Oy36Juqb+qoZ/8sVnIeICbvA0opo3e61DO+rqZMxIx7S5i1Vic2FN+CBh3rfQPOyiIMTkB6Ss6aKfZbNqQhYmzsRUGl6gii0KEWFMo5xHyTrG3qqZN/TzmY+faE/sorX2XWR42mqHqnNrHVvJR/yeuzB+6IDPqVuuE26WuzAXfmZGUHaPxNgw/UvYTIHwVPAVmoDmC27pe0AdkAA2QuoxdZNKQpmaE/Id/AzAIDPEFJM5EWtJ60j3kS1l1XJT57Kknw7k0fhnTCXuggVl2WessNBtRbrVBbTO6uHSjLJ/2ebbrL3n7fDEfDIVra7d7c51PY/8XbhUu76wbS/FFSKOce9AsDdNRiRs+VVzckkMOBjSJZOWnWaKLSs2oLeoa6SR/J26j/QfcXgR4YZqqgaSXVEc202BE0Ve6phcWv3TdYYdLjQDet4XyiAKB5fdEu3SINWXJVTzdmCwoxpAz1u39kZ2OA=="
 
 image:
-  repository: bwalia/whitefalcon-router
+  repository: bwalia/whitefalcon
   pullPolicy: Always
   # Overrides the image tag whose default is the chart appVersion.
   tag: "latest"
