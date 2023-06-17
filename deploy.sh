@@ -32,14 +32,14 @@ SOURCE_IMAGE=openresty_alpine
 # docker push ${DOCKER_PUBLIC_IMAGE_NAME}:${VERSION}
 
 HELM_CMD="helm --kubeconfig $HOME/.kube/vpn-k3s2.yaml"
-KUBECTL_CMD="kubectl --kubeconfig $HOME//.kube/vpn-k3s2.yaml"
+KUBECTL_CMD="kubectl --kubeconfig $HOME/.kube/vpn-k3s2.yaml"
 #KUBECTL_CMD="kubectl --kubeconfig /Users/balinderwalia/.kube/vpn-k3s2.yaml"
 $HELM_CMD upgrade -i whitefalcon-api-$3 ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-$3-api-k3s2.yaml --set TARGET_ENV=$3 --namespace $3 --create-namespace
 $HELM_CMD upgrade -i whitefalcon-front-$3 ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-$3-front-k3s2.yaml --set TARGET_ENV=$3 --namespace $3 --create-namespace
 sleep 30
-$KUBECTL_CMD rollout history deployment/whitefalcon-api-$3-api -n $3
 $KUBECTL_CMD rollout restart deployment/whitefalcon-api-$3-api -n $3
-$KUBECTL_CMD rollout history deployment/whitefalcon-front-$3-front -n $3
+$KUBECTL_CMD rollout history deployment/whitefalcon-api-$3-api -n $3
 $KUBECTL_CMD rollout restart deployment/whitefalcon-front-$3-front -n $3
+$KUBECTL_CMD rollout history deployment/whitefalcon-front-$3-front -n $3
 sleep 120
 $KUBECTL_CMD get svc,pods,ing -n $3
