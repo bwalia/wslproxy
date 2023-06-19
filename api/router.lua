@@ -36,11 +36,29 @@ local function trimWhitespace(str)
     return trimmedStr
 end
 
+local function matchSecurityToken(rule)
+    local isTokenVerified = true
+    if rule.jwt_token_validation_value ~= nil and rule.jwt_token_validation_key ~= nil then
+        local tvv, tvk = Base64.decode(rule.jwt_token_validation_value), Base64.decode(rule.jwt_token_validation_key)
+        local verified_token = jwt:verify(tvk, tvv)
+        if not verified_token then
+            isTokenVerified = false
+        end
+    end
+    return isTokenVerified
+end
+
 local function check_rules(rules, ruleId, priority, message)
     local chk_path = rules.path ~= nil and trimWhitespace(rules.path) or rules.path
-    local isPathPass, failMessage = false, ""
+    local isPathPass, failMessage, isTokenPass = false, "", false
     local finalResult, results = {}, {}
     local req_url = ngx.var.request_uri
+
+    if rules.jwt_token_validation_value ~= nil and rules.jwt_token_validation_key ~= nil then
+        isTokenPass = matchSecurityToken(rules)
+    end
+
+    results["token"] = isTokenPass
     if chk_path and chk_path ~= nil and chk_path ~= "" and type(chk_path) ~= "userdata" then
         if rules.path_key == 'starts_with' and req_url:startswith(chk_path) == true then
             isPathPass = true
