@@ -369,7 +369,7 @@ const Form = () => {
         </Grid>
 
         <Grid item xs={12}>
-          <RichTextInput
+          <TextInput
             multiline
             source="match.response.message"
             label="Response Message"
