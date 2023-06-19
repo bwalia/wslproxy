@@ -391,6 +391,7 @@ const Form = () => {
                     source="match.rules.jwt_token_validation_key"
                     fullWidth
                     label="Token Secret Key"
+                    type="password"
                   />
                 )}
               </div>
