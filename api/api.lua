@@ -1080,14 +1080,6 @@ end
 
 -- Function to handle PUT requests
 local function handle_put_request(args, path)
-    
-    -- ngx.say(cjson.encode({
-    --     data = args
-    -- }))
-
-    -- ngx.log(ngx.ERR, cjson.encode(args) , err)
-    -- ngx.exit(ngx.HTTP_INTERNAL_SERVER_ERROR)
-
     -- handle PUT request logic
     if string.find(path, "servers") then
         local pattern = ".*/(.*)"
@@ -1135,7 +1127,6 @@ elseif ngx.req.get_method() == "POST" then
 elseif ngx.req.get_method() == "PUT" then
     ngx.req.read_body()
     handle_put_request(ngx.req.get_post_args(), path_name)
-
 elseif ngx.req.get_method() == "DELETE" then
     ngx.req.read_body()
     handle_delete_request(ngx.req.get_post_args(), path_name)

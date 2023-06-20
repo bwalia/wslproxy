@@ -278,7 +278,7 @@ const objectToArray = (obj = {}) => {
 const Form = () => {
   const mynewobj = objectToArray(iso_codes);
   return (
-    <SimpleForm toolbar={<Toolbar/>} >
+    <SimpleForm>
       <h3>Enter the Rule below:</h3>
       <Grid container spacing={2}>
         <Grid item xs={6}>
