@@ -10,8 +10,6 @@ import {
   FormDataConsumer,
 } from "react-admin";
 import { RichTextInput } from "ra-input-rich-text";
-import Toolbar from "./toolbar/Toolbar"
-
 
 const iso_codes = {
   AF: "Afghanistan",
@@ -430,7 +428,7 @@ const Form = () => {
           <TextInput
             multiline
             source="match.response.message"
-            label="Response Message (Base64 encoded)"
+            label="Response Message"
             fullWidth
             validate={[required()]}
           />
