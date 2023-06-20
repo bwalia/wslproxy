@@ -22,7 +22,7 @@ const SettingsButton = () => {
 };
 
 const AppBar = () => (
-  <RaAppBar>
+  <RaAppBar sx={{background: "green"}}>
     <Toolbar
       sx={{
         background: "transparent",
