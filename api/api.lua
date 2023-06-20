@@ -828,7 +828,6 @@ local function listRule(args, uuid)
             end
 
             if exist_value.match.rules.jwt_token_validation_value ~= nil and exist_value.match.rules.jwt_token_validation_key ~= nil then
-                exist_value.match.rules.jwt_token_validation_value = Base64.decode(exist_value.match.rules.jwt_token_validation_value)
                 exist_value.match.rules.jwt_token_validation_key = Base64.decode(exist_value.match.rules.jwt_token_validation_key)
             end
 
@@ -898,7 +897,6 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name, method)
         end
     end
     if folder_name == "rules" and json_val.match.rules.jwt_token_validation_value ~= nil and json_val.match.rules.jwt_token_validation_key ~= nil then
-        json_val.match.rules.jwt_token_validation_value = Base64.encode(json_val.match.rules.jwt_token_validation_value)
         json_val.match.rules.jwt_token_validation_key = Base64.encode(json_val.match.rules.jwt_token_validation_key)
     end
     if key_name == 'servers' and json_val.config then

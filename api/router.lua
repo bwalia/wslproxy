@@ -39,8 +39,9 @@ end
 local function matchSecurityToken(rule)
     local isTokenVerified = true
     if rule.jwt_token_validation_value ~= nil and rule.jwt_token_validation_key ~= nil then
-        local tvv, tvk = Base64.decode(rule.jwt_token_validation_value), Base64.decode(rule.jwt_token_validation_key)
-        local verified_token = jwt:verify(tvk, tvv)
+        local tvk = Base64.decode(rule.jwt_token_validation_key)
+        local passPhrase = os.getenv("JWT_SECURITY_PASSPHRASE")
+        local verified_token = jwt:verify(passPhrase, tvk)
         if not verified_token then
             isTokenVerified = false
         end
