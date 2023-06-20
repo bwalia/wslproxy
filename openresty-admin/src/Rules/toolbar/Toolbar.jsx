@@ -6,25 +6,21 @@ import {
   useRedirect,
 } from "react-admin";
 import { useFormContext } from "react-hook-form";
-import {Base64} from 'js-base64';
 
 const Toolbar = () => {
   const { getValues } = useFormContext();
   const dataProvider = useDataProvider();
   const redirect = useRedirect();
-  const utf8ToBase64 = (str) => {
-    const latin = Base64.encode(str, true)
-    return latin
-  };
 
   const handleRuleSubmit = async (e) => {
     e.preventDefault();
     const { id, ...data } = getValues();
-    const encodeData = utf8ToBase64(data.match.response.message);
+    const encodeData = encodeURIComponent(data.match.response.message);
     data.match.response.message = encodeData;
 
     if (id) {
-      await dataProvider.update("rules", { id, data });
+      console.log("data: ", data)
+      await dataProvider.update("rules", { data });
     } else {
       await dataProvider.create("rules", { data });
     }
