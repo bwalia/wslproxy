@@ -813,9 +813,9 @@ local function listRule(args, uuid)
                 local jsonString = file:read "*a"
                 file:close()
                 local jsonData = cjson.decode(jsonString)
-                if jsonData.match.response.message then
-                    jsonData.match.response.message = Base64.decode(jsonData.match.response.message)
-                end
+                -- if jsonData.match.response.message then
+                --     jsonData.match.response.message = Base64.decode(jsonData.match.response.message)
+                -- end
                 ngx.say(cjson.encode({
                     data = jsonData
                 }))
@@ -823,9 +823,9 @@ local function listRule(args, uuid)
         else
             local exist_value, err = red:hget("request_rules", uuid)
             exist_value = cjson.decode(exist_value)
-            if exist_value.match.response.message then
-                exist_value.match.response.message = Base64.decode(exist_value.match.response.message)
-            end
+            -- if exist_value.match.response.message then
+            --     exist_value.match.response.message = Base64.decode(exist_value.match.response.message)
+            -- end
 
             if exist_value.match.rules.jwt_token_validation_value ~= nil and exist_value.match.rules.jwt_token_validation_key ~= nil then
                 exist_value.match.rules.jwt_token_validation_key = Base64.decode(exist_value.match.rules.jwt_token_validation_key)
@@ -902,9 +902,9 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name, method)
     if key_name == 'servers' and json_val.config then
         json_val.config = Base64.encode(json_val.config)
     end
-    if folder_name == 'rules' and json_val.match and json_val.match.response and json_val.match.response.message then
-        json_val.match.response.message = Base64.encode(json_val.match.response.message)
-    end
+    -- if folder_name == 'rules' and json_val.match and json_val.match.response and json_val.match.response.message then
+    --     json_val.match.response.message = Base64.encode(json_val.match.response.message)
+    -- end
 
     local redis_json, domainJson = {}, {}
     if key_name == 'servers' and json_val.server_name then
