@@ -57,8 +57,6 @@ local function check_rules(rules, ruleId, priority, message)
 
     if rules.jwt_token_validation_value ~= nil and rules.jwt_token_validation_key ~= nil then
         isTokenPass = matchSecurityToken(rules)
-    else
-        isTokenPass = true
     end
 
     results["token"] = isTokenPass
