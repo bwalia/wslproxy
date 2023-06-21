@@ -10,6 +10,7 @@ import {
   FormDataConsumer,
 } from "react-admin";
 import { RichTextInput } from "ra-input-rich-text";
+import Toolbar from "./toolbar/Toolbar";
 
 const iso_codes = {
   AF: "Afghanistan",
@@ -276,7 +277,7 @@ const objectToArray = (obj = {}) => {
 const Form = () => {
   const mynewobj = objectToArray(iso_codes);
   return (
-    <SimpleForm>
+    <SimpleForm toolbar={<Toolbar />}>
       <h3>Enter the Rule below:</h3>
       <Grid container spacing={2}>
         <Grid item xs={6}>
@@ -402,7 +403,7 @@ const Form = () => {
         <Grid item xs={2}>
           <BooleanInput
             source="match.response.allow"
-            label="Allow/Disallow"
+            label="Allow Request"
             fullWidth
             defaultValue={false}
           />
@@ -419,7 +420,7 @@ const Form = () => {
         <Grid item xs={6}>
           <TextInput
             source="match.response.redirect_uri"
-            label="Redirect To"
+            label="Proxy Pass/Redirect To"
             fullWidth
           />
         </Grid>
@@ -428,7 +429,7 @@ const Form = () => {
           <TextInput
             multiline
             source="match.response.message"
-            label="Response Message"
+            label="Response Message (Base64 Encoded)"
             fullWidth
             validate={[required()]}
           />
