@@ -289,10 +289,10 @@ const Form = () => {
           />
         </Grid>
         <Grid item xs={3}>
-          <NumberInput source="version" fullWidth />
+          <NumberInput source="version" defaultValue={1} fullWidth />
         </Grid>
         <Grid item xs={3}>
-          <NumberInput source="priority" fullWidth />
+          <NumberInput source="priority" defaultValue={1} fullWidth />
         </Grid>
 
         <Grid item xs={6}>

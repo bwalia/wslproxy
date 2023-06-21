@@ -50,7 +50,7 @@ local function matchSecurityToken(rule)
 end
 
 local function check_rules(rules, ruleId, priority, message)
-    local chk_path = rules.path ~= nil and trimWhitespace(rules.path) or rules.path
+    local chk_path = (rules.path ~= nil and type(rules.path) ~= "userdata") and trimWhitespace(rules.path) or rules.path
     local isPathPass, failMessage, isTokenPass = false, "", false
     local finalResult, results = {}, {}
     local req_url = ngx.var.request_uri
@@ -89,8 +89,7 @@ local function check_rules(rules, ruleId, priority, message)
     if result.country_short then
         country = result.country_short
     end
-
-    local client_ip = rules.client_ip ~= nil and trimWhitespace(rules.client_ip) or rules.client_ip
+    local client_ip = (rules.client_ip ~= nil and type(rules.client_ip) ~= "userdata") and rules.client_ip or rules.client_ip
     -- user data type is null
     if client_ip and client_ip ~= nil and client_ip ~= "" and type(client_ip) ~= "userdata" then
         if rules.client_ip_key == 'starts_with' and req_add:startswith(client_ip) == true then -- and req_add~=client_ipand  (req_add:startswith(client_ip) ~= true
