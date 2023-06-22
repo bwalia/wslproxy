@@ -17,7 +17,7 @@ func TestHealthCheck(t *testing.T) {
 		url = "http://127.0.0.1:8080/ping"
 	}
 	fmt.Println((url))
-
+        
 	type pingResp struct {
 		Redis_status string `json:"redis_status_msg"`
 		Pod_Uptime   string `json:"pod_uptime"`
@@ -69,3 +69,5 @@ func TestHealthCheck(t *testing.T) {
 	}
 
 }
+
+	

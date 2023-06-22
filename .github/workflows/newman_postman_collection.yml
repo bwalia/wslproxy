@@ -1,0 +1,24 @@
+name: Run Postman Collection
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:      
+
+jobs:
+  build:
+    runs-on: [self-hosted-node6]
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+      
+      - name: Install Newman
+        run: npm install -g newman
+        
+      - name: newman postman collection run
+        working-directory: ./QA
+      
+      - name: Run Postman Collection
+        run: newman run /home/bwalia/whitefalcon_int6.postman_collection.json
