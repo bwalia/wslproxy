@@ -2,23 +2,12 @@
 
 clear
 
-echo "Usage docker-compose up -d instead."
+echo "Running docker-compose up -d."
 
-exit 1
+docker compose up -d --build --remove-orphans
 
-CONTAINER_ID=whitefalcon
+DOCKER_CONTAINER_NAME="whitefalcon"
 
-echo "Stopping old container ${CONTAINER_ID}"
-docker container stop ${CONTAINER_ID}
+docker exec -it ${DOCKER_CONTAINER_NAME} yarn build
 
-echo "Removing old container ${CONTAINER_ID}"
-docker container rm ${CONTAINER_ID}
-#docker image rm bwalia/whitefalcon
-
-#docker build -t="bwalia/whitefalcon" .
-#--env-file config/env.list \
-#   -v /Users/balinderwalia/Documents/Work/docker/openresty/custom/conf.d:/etc/nginx/conf.d 
-docker run \
--d \
---name ${CONTAINER_ID} \
--p 8080:80 bwalia/whitefalcon
+docker exec -it ${DOCKER_CONTAINER_NAME} openresty -s reload

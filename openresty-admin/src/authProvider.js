@@ -49,6 +49,7 @@ const authProvider = {
   // remove local credentials and notify the auth server that the user logged out
   logout: () => {
     localStorage.removeItem("token");
+    localStorage.removeItem("storageManagement");
     return Promise.resolve();
   },
   // get the user's profile

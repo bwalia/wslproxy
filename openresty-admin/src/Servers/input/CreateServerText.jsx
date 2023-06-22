@@ -11,7 +11,7 @@ const CreateServerText = () => {
           <TextInput
             multiline
             source="config"
-            label="Completed Server Config"
+            label="Generated Nginx Server Config"
             helperText="For example: server {listen       8000; listen       somename:8080; server_name  somename  alias  another.alias; location / { root   html; index  index.html index.htm; }}"
             fullWidth
             format={() => `server {
