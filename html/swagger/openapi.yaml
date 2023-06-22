@@ -1,0 +1,367 @@
+openapi: 3.0.0
+info:
+  title: Whitefalcon CDN
+  description: APIs for performing CRUD operations
+  version: 1.0.0
+tags:
+  - name: Servers
+    description: Create and Manage your servers  
+  - name: Rules  
+    description: Create and Manage your Rules
+paths:
+  /api/servers:
+    get:
+      tags:
+        - Servers
+      summary: Retrieve a list of all server. 
+      operationId: getServers
+      parameters:
+        - name: search
+          in: query
+          description: Search keyword
+          required: false
+          schema:
+            type: object
+            properties:
+              pagination:
+                type: object
+                default: {page: 1, perPage: 10}
+              sort:
+                type: object
+                default: {field: id, order: ASC}
+      responses:
+        '200':
+          description: Successfully retrieved a list of all servers
+    post:
+      tags:
+        - Servers
+      summary: Create a new server
+      operationId: createServer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Servers'
+      responses:
+        '201':
+          description: Successfully created a new server
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerResponse'
+                
+  /api/servers/{id}:
+    get:
+      tags:
+        - Servers
+      summary: Retrieve an server by ID
+      operationId: getServerById
+      parameters:
+        - name: id
+          in: path
+          description: ID of the server to retrieve
+          required: true
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerResponse'
+      responses:
+         '200':
+            description: Returned information about a specific server
+         '404':
+            description: Item not found
+          
+    put:
+      tags:
+        - Servers
+      summary: Update an server by ID
+      operationId: updateItemById
+      parameters:
+        - name: id
+          in: path
+          description: ID of the server to update
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Servers'
+      responses:
+        '200':
+          description: OK
+        '404':
+          description: Item not found
+          
+          
+    delete:
+      tags:
+        - Servers
+      summary: Delete an server by ID
+      operationId: deleteServerById
+      parameters:
+        - name: id
+          in: path
+          description: ID of the item to delete
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully deleted a server
+          
+  /api/rules:
+    get:
+      tags:
+        - Rules
+      summary: Retrieve a list of all rules. 
+      operationId: getRules
+      parameters:
+        - name: search
+          in: query
+          description: Search keyword
+          required: false
+          schema:
+            type: object
+            properties:
+              pagination:
+                type: object
+                default: {page: 1, perPage: 10}
+              sort:
+                type: object
+                default: {field: id, order: ASC}
+      responses:
+        '200':
+          description: Successfully retrieved a list of all rules
+          
+    post:
+      tags:
+        - Rules
+      summary: Create a new rule
+      operationId: createRule
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Rules'
+      responses:
+        '201':
+          description: Successfully created a new rule
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RuleResponse'    
+                
+  /api/rules/{id}:
+    get:
+      tags:
+        - Rules
+      summary: Retrieve an rule by ID
+      operationId: getRuleById
+      parameters:
+        - name: id
+          in: path
+          description: ID of the rule to retrieve
+          required: true
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerResponse'
+      responses:
+         '200':
+            description: Returned information about a specific rule
+         '404':
+            description: Not found       
+            
+    put:
+      tags:
+        - Rules
+      summary: Update an rule by ID
+      operationId: updateRuleById
+      parameters:
+        - name: id
+          in: path
+          description: ID of the rule to update
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Servers'
+      responses:
+        '200':
+          description: Successfully updated rule
+        '404':
+          description: Not found
+          
+          
+    delete:
+      tags:
+        - Rules
+      summary: Delete an rule by ID
+      operationId: deleteRuleById
+      parameters:
+        - name: id
+          in: path
+          description: ID of the rule to delete
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successfully deleted a rule            
+          
+components:
+  schemas:
+    Servers:
+      type: object
+      properties:
+        server_name:
+          type: string
+          default: localhost
+        root:
+          type: string
+          default: /var/www/html
+        rules:
+          type: string
+          default: f8107018-2979-4c16-cd61-ab8a8b3303b1 (Rule uuid)
+        index:
+          type: string
+          default: index.html
+        locations:
+          type: object
+          default: {
+            "location_path": "/api",
+            "location_opts": ["allow", "try_files"],
+            "location_vals": { "allow": "127.0.0.1", "try_files": "html" }
+          }
+        access_log:
+          type: string
+          default: logs/access.log
+        error_log:
+          type: string
+          default: logs/error.log
+        match_cases:
+          type: object
+          default: [
+            { "statement": "a0b5fe52-2fdc-cf47-2b82-f3c69ee39ae2 (Rule uuid)", "condition": "and"}
+          ]
+        listens:
+          type: object
+          default: [{ "listen": "8080" }]
+        created_at:
+          type: number
+          default: 1687334596
+        custom_block:
+          type: object
+          default: [{ "additional_block": "include /tmp/resolver.conf;" }]
+    ServerResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          default: ef9d2897-92ea-9a96-ce7d-268dd0cb36b7
+        server_name:
+          type: string
+          default: localhost
+        root:
+          type: string
+          default: /var/www/html
+        rules:
+          type: string
+          default: f8107018-2979-4c16-cd61-ab8a8b3303b1 (Rule uuid)
+        index:
+          type: string
+          default: index.html
+        locations:
+          type: object
+          default: {
+            "location_path": "/api",
+            "location_opts": ["allow", "try_files"],
+            "location_vals": { "allow": "127.0.0.1", "try_files": "html" }
+          }
+        access_log:
+          type: string
+          default: logs/access.log
+        error_log:
+          type: string
+          default: logs/error.log
+        match_cases:
+          type: object
+          default: [
+            { "statement": "a0b5fe52-2fdc-cf47-2b82-f3c69ee39ae2 (Rule uuid)", "condition": "and"}
+          ]
+        listens:
+          type: object
+          default: [{ "listen": "8080" }]
+        created_at:
+          type: number
+          default: 1687334596
+        custom_block:
+          type: object
+          default: [{ "additional_block": "include /tmp/resolver.conf;" }]
+          
+  
+    Rules:
+      type: object
+      properties:
+        name:
+          type: string
+          default: Rule_Name
+        version:
+          type: string
+          default: 1
+        priority:
+          type: string
+          default: 1
+        match:
+          type: object
+          default: [
+              {"rules":{"path_key":"starts_with","path":"/router","country_key":"equals", "country": "", "client_ip_key":"equals"}}
+          ]
+        response:  
+          type: object
+          default: [
+            {response":{"allow":false,"code":403,"message":"SGVsbG8gd29ybGQh"}
+          }
+          ]
+  
+          
+    RuleResponse:
+      type: object
+      properties:
+        name: 
+          type: string
+          default: Rule_name
+        id:
+          type: string
+          default: ef9d2897-92ea-9a96-ce7d-268dd0cb36b7
+        priority:
+          type: string
+          default: 1
+        version:
+          type: string
+          default: 1
+        created_at:
+          type: number
+          default: 1687429983
+        match:
+          type: object
+          default:
+            "match": {"rules": {"jwt_token_validation": "equals", "path_key": "starts_with", "client_ip_key": "equals", "path": "/router", "country_key": "equals"}}
+          
+        response:  
+          type: object
+          default: [
+            {response":{"allow":false,"code":403,"message":"SGVsbG8gd29ybGQh"}
+          }
+          ]
+  
+       

@@ -26,6 +26,7 @@ services:
       - ./openresty-admin/vite.config.js:/usr/local/openresty/nginx/html/openresty-admin/vite.config.js
       - ./openresty-admin/yarn.lock:/usr/local/openresty/nginx/html/openresty-admin/yarn.lock
       - ./data:/opt/nginx/data
+      - ./html/swagger:/usr/local/openresty/nginx/html/swagger
       - ./api:/usr/local/openresty/nginx/html/api
       - ./.env.dev:/usr/local/openresty/nginx/html/openresty-admin/.env
     environment:

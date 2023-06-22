@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>No Rules</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.1.0/swagger-ui.min.css" integrity="sha512-5TyX+tqywXCNq3Jxiu90K7MPhm9BwSBbOnFcthr+IlyJoWWEr/o/xnKpBWsnSn7cURPORDCJzIKW0o7RWHDOFA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.1.0/swagger-ui-bundle.js" integrity="sha512-gE6XVS8M1HkE4ugeWx8WXQR+4rh9QNxTN6NaJE9B9o72LLtTwsbsfSRHSgIOIupN/pBBLzRnxLf6mvIW0WUmPQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+</head>
+<body>
+  <div class="container">
+    <div id="swagger-ui"></div>
+  </div>
+
+  <script>
+    window.onload = function() {
+      const ui = SwaggerUIBundle({
+        url: "openapi.yaml",
+        dom_id: '#swagger-ui',
+        presets: [
+          SwaggerUIBundle.presets.apis,
+        ],
+        layout: "BaseLayout",
+      });
+    }
+  </script>
+  
+</body>
+</html>

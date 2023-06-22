@@ -91,6 +91,7 @@ COPY ./api /usr/local/openresty/nginx/html/api
 #COPY $ENV_FILE /usr/local/openresty/nginx/html/openresty-admin.env
 COPY ./nginx-${APP_ENV}.conf.tmpl /tmp/nginx.conf.tmpl
 COPY ./resolver.conf.tmpl /tmp/resolver.conf.tmpl
+COPY ./html/swagger /usr/local/openresty/nginx/html/swagger
 
 #RUN chmod -R 777 /usr/local/openresty/nginx/html/data && chmod -R 777 /usr/local/openresty/nginx/html/data/servers 
 
