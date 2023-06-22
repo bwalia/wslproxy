@@ -137,6 +137,11 @@ http {
             content_by_lua_file /usr/local/openresty/nginx/html/api/ping.lua;
         }
 
+        location /swagger {
+          root   html;
+          index  swagger.html swagger.htm;
+        }
+
         location /security-rules {
             default_type 'application/json';
             add_header 'Access-Control-Allow-Origin' '*';
@@ -437,7 +442,6 @@ http {
         #charset koi8-r;
 
         #access_log  logs/host.access.log  main;
-
 
         location / {
           default_type text/html;

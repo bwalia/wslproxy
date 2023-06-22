@@ -15,6 +15,7 @@ local red = redis:new()
 Base64 = require "base64"
 ConfigPath = os.getenv("NGINX_CONFIG_DIR")
 Hostname = ngx.var.host
+local configPath = os.getenv("NGINX_CONFIG_DIR")
 
 red:set_timeout(1000) -- 1 second
 
@@ -28,6 +29,20 @@ local ok, err = red:connect(redisHost, 6379)
 if not ok then
     ngx.log(ngx.ERR, "failed to connect to Redis: ", err)
     return
+end
+
+local function getSettings()
+
+    local readSettings, errSettings = io.open(configPath .. "data/settings.json", "rb")
+    local settings = {}
+    if readSettings == nil then
+        ngx.say("Couldn't read file: " .. errSettings)
+    else
+        local jsonString = readSettings:read "*a"
+        readSettings:close()
+        settings = cjson.decode(jsonString)
+    end
+    return settings
 end
 
 local function trimWhitespace(str)
@@ -49,7 +64,7 @@ local function matchSecurityToken(rule)
     return isTokenVerified
 end
 
-local function check_rules(rules, ruleId, priority, message)
+local function check_rules(rules, ruleId, priority, message, statusCode, redirectUri)
     local chk_path = (rules.path ~= nil and type(rules.path) ~= "userdata") and trimWhitespace(rules.path) or rules.path
     local isPathPass, failMessage, isTokenPass = false, "", false
     local finalResult, results = {}, {}
@@ -120,6 +135,9 @@ local function check_rules(rules, ruleId, priority, message)
     results["country"] = isCountryPass
     results["priority"] = priority
     results["message"] = message
+    results["statusCode"] = statusCode
+    results["redirectUri"] = redirectUri
+
     finalResult[ruleId] = results
 
     return finalResult
@@ -150,7 +168,7 @@ local function matchRules(ruleId)
         if ruleFromRedis.match and ruleFromRedis.match.rules then
             -- check prefix and postfix URL
             local results = check_rules(ruleFromRedis.match.rules, ruleFromRedis.id, ruleFromRedis.priority,
-                ruleFromRedis.match.response.message)
+                ruleFromRedis.match.response.message, ruleFromRedis.match.response.code, ruleFromRedis.match.response.redirect_uri)
             return results
         end
     end
@@ -205,10 +223,28 @@ if exist_values[2] and exist_values[2][2] then
         if hasFalseValue then
             ngx.say(string.format("Please check your Security rules. your %s is incorrect", highestPriorityKey))
         else
-            ngx.say(Base64.decode(parse_rules[highestPriorityParentKey][highestPriorityKey].message))
+            local selectedRule = parse_rules[highestPriorityParentKey][highestPriorityKey]
+            if selectedRule.statusCode == 301 or selectedRule.statusCode == 302 then
+                -- ngx.say(selectedRule.redirectUri)
+                ngx.redirect(selectedRule.redirectUri, ngx.HTTP_MOVED_TEMPORARILY)
+            elseif selectedRule.statusCode == 305 then
+                local getServer = red:hget("servers", jsonval.id)
+                if getServer ~= nil and type(getServer) ~= "userdata" then
+                    getServer = cjson.decode(getServer)
+                    getServer.proxy_pass = selectedRule.redirectUri
+                    red:hset("servers", getServer.id, cjson.encode(getServer))
+                    ngx.var.proxy_pass = selectedRule.redirectUri
+                end
+            elseif selectedRule.statusCode == 200 or selectedRule.statusCode == 403 or selectedRule.statusCode == 403 then
+                ngx.say(Base64.decode(parse_rules[highestPriorityParentKey][highestPriorityKey].message))
+            end
         end
     else
-        ngx.say(jsonval.server_name, '---', 'no rules, please ask your administrative to set the Rules for server')
+        -- load settings default pages
+        local settings = getSettings()
+        if settings.nginx.index ~= nil then
+            ngx.say(Base64.decode(settings.nginx.index))
+        end
     end
 else
     ngx.say("Please add a server first")
