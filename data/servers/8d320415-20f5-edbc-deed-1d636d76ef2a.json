@@ -1,0 +1,1 @@
+{"error_log":"\/logs\/error.log","custom_block":{},"listens":[{"listen":"80"}],"rules":"0c0b5e03-c6e2-308e-bfab-1c46b474b9c9","locations":{},"created_at":1687448048,"server_name":"localhost","root":"\/var\/www\/html","index":"index\/html","access_log":"\/logs\/access.log","id":"8d320415-20f5-edbc-deed-1d636d76ef2a"}

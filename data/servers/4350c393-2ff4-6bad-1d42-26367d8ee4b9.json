@@ -1,0 +1,1 @@
+{"created_at":1687292440,"locations":{},"rules":"ef48a21a-0556-df6b-cb2e-7fb9c0f28119","index":"index\/html","id":"4350c393-2ff4-6bad-1d42-26367d8ee4b9","root":"\/var\/www\/html","server_name":"localhost","match_cases":{},"access_log":"\/logs\/access.log","listens":[{"listen":"80"}],"error_log":"\/logs\/error.log","custom_block":{}}

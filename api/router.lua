@@ -224,9 +224,12 @@ if exist_values[2] and exist_values[2][2] then
             ngx.say(string.format("Please check your Security rules. your %s is incorrect", highestPriorityKey))
         else
             local selectedRule = parse_rules[highestPriorityParentKey][highestPriorityKey]
-            if selectedRule.statusCode == 301 or selectedRule.statusCode == 302 then
-                -- ngx.say(selectedRule.redirectUri)
+            if selectedRule.statusCode == 301 then
+                ngx.redirect(selectedRule.redirectUri, ngx.HTTP_MOVED_PERMANENTLY)
+                ngx.exit(ngx.HTTP_MOVED_PERMANENTLY)
+            elseif selectedRule.statusCode == 302 then
                 ngx.redirect(selectedRule.redirectUri, ngx.HTTP_MOVED_TEMPORARILY)
+                ngx.exit(ngx.HTTP_MOVED_TEMPORARILY)
             elseif selectedRule.statusCode == 305 then
                 local getServer = red:hget("servers", jsonval.id)
                 if getServer ~= nil and type(getServer) ~= "userdata" then
@@ -247,7 +250,7 @@ if exist_values[2] and exist_values[2][2] then
         end
     end
 else
-    ngx.say("Please add a server first")
+    ngx.say("No Nginx Server Config found.")
 end
 return
 -- this will replace the need for server block for each website. It will parse JSON and match host header and route to the backend server all in lua
