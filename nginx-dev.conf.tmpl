@@ -27,11 +27,11 @@ http {
     include       mime.types;
     default_type  application/octet-stream;
 
-    #log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
-    #                  '$status $body_bytes_sent "$http_referer" '
-    #                  '"$http_user_agent" "$http_x_forwarded_for"';
+    log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                      '$status $body_bytes_sent "$http_referer" '
+                      '"$http_user_agent" "$http_x_forwarded_for"';
 
-    # access_log  logs/access.log  main;
+    access_log  logs/access.log  main;
     sendfile        on;
     #tcp_nopush     on;
 
@@ -431,7 +431,21 @@ http {
         }
     }
 
+    upstream global_backend {
+      server 0.0.0.1:1000 max_fails=3 fail_timeout=5s;
 
+      balancer_by_lua_block {
+        local balancer = require "ngx.balancer"
+        local host = ngx.var.proxy_host
+        local port = ngx.var.proxy_port
+        local ok, err = balancer.set_current_peer(host, port)
+        if not ok then
+            ngx.log(ngx.ERR, "balancer.set_current_peer failed to set the host " .. host .. ":" .. port .. " current peer: ", err)
+            return ngx.exit(500)
+            end
+      }
+        keepalive 10; # connection pool
+    }
     
     server {
         listen       80 default_server;
@@ -443,6 +457,11 @@ http {
 
         #access_log  logs/host.access.log  main;
 
+        #Set default generic server vars here
+
+        set $proxy_host "127.0.0.1";
+        set $proxy_port "80";
+
         location / {
           default_type text/html;
           add_header 'Access-Control-Allow-Origin' '*';
@@ -452,6 +471,7 @@ http {
           add_header Content-Type text/html;
           # add_header 'Content-Length' 0;
           content_by_lua_file /usr/local/openresty/nginx/html/api/router.lua;
+          proxy_pass http://global_backend;
         }
 
         location /ip-location {
