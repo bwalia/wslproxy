@@ -13,7 +13,12 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
-        
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '18' 
+
       - name: Decrypt GPG file
         working-directory: ./QA
         run: |
