@@ -25,6 +25,17 @@ api/rules/{id}
 
 ## API Reference
 
+### API reference overview can be found below. In order to understand the structure of the API we suggest you to visit our Swagger API reference guide and you can try it out in actual API env:
+
+`Dev env swagger page`
+`http://localhost:8081/swagger/`
+
+`Test env swagger page`
+`https://test.whitefalcon.io/swagger/`
+
+`Prod env swagger page`
+`https://www.whitefalcon.io/swagger/`
+
 ### Server APIs
 
 ```http 
