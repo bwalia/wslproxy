@@ -126,7 +126,7 @@ api/rules/{id}
 | `Name, version and priority required in request body` | `Creates a new rule. ` | `Status Code:- 200 OK, Created a new rule` |
 
 
-<img src="https://github.com/bwalia/whitefalcon/blob/main/images/images/CreateRule.png.png" alt="Create rule" width="600" height="350">
+<img src="https://github.com/bwalia/whitefalcon/blob/main/images/CreateRule.png" alt="Create rule" width="600" height="350">
 
 
 ```http
@@ -137,7 +137,7 @@ api/rules/{id}
 | `id` | `Updates an existing rule. ` | `Status Code:- 200 OK, Updated an existing rule` |
 
 
-<img src="https://github.com/bwalia/whitefalcon/blob/main/images/images/images/UpdateRules.png" alt="Update rule" width="600" height="350">
+<img src="https://github.com/bwalia/whitefalcon/blob/main/images/UpdateRules.png" alt="Update rule" width="600" height="350">
 
 
 ```http
