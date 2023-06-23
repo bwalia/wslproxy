@@ -22,11 +22,11 @@ jobs:
       - name: Decrypt GPG file
         working-directory: ./QA
         run: |
-          gpg --quiet --batch --yes --decrypt --passphrase="${{ secrets.GPG_PASSPHRASE }}" --output whitefalcon_int6-api.postman_collection.json whitefalcon_int6-api.postman_collection.json.gpg
+          gpg --quiet --batch --yes --decrypt --passphrase="${{ secrets.GPG_PASSPHRASE }}" --output Whitefalcon_int6-api.postman_collection.json Whitefalcon_int6-api.postman_collection.json.gpg
 
       - name: Install Newman
         run: npm install -g newman 
       
       - name: Run Postman Collection
-        run: newman run ./QA/whitefalcon_int6-api.postman_collection.json
+        run: newman run ./QA/Whitefalcon_int6-api.postman_collection.json
        
