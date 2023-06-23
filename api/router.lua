@@ -236,8 +236,12 @@ if exist_values[2] and exist_values[2][2] then
                     getServer = cjson.decode(getServer)
                     getServer.proxy_pass = selectedRule.redirectUri
                     red:hset("servers", getServer.id, cjson.encode(getServer))
-                    ngx.var.proxy_pass = selectedRule.redirectUri
+                    ngx.var.proxy_host = selectedRule.redirectUri
+                    ngx.log(ngx.INFO, ngx.var.proxy_host)
+                else
+                    ngx.log(ngx.ERR, "[ERROR]: Server not found!")
                 end
+                return
             elseif selectedRule.statusCode == 200 or selectedRule.statusCode == 403 or selectedRule.statusCode == 403 then
                 ngx.say(Base64.decode(parse_rules[highestPriorityParentKey][highestPriorityKey].message))
             end
