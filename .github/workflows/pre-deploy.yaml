@@ -20,7 +20,7 @@ on:
         
 env:
   TARGET_CLUSTER: "k3s2"
-  TARGET_ENV: "{{ github.event.inputs.TARGET_ENV }}"
+  TARGET_ENV: ${{ github.event.inputs.TARGET_ENV }}
   TARGET_TYPE: "api"
   IMAGE_NAME: "whitefalcon"
   IMAGE_TAG: ${{ github.ref_name }}
@@ -74,7 +74,7 @@ jobs:
       - name: Ping verification
         working-directory: ./QA
         env:
-          API_PING_URL: http://$TARGET_ENV2-api.whitefalcon.io/ping
+          API_PING_URL: http://test2-api.whitefalcon.io/ping
         run: | 
           go mod init myapp
           go test whitefalcan-healthcheck_test.go -v 
@@ -92,7 +92,7 @@ jobs:
       - name: Ping verification
         working-directory: ./QA
         env:
-          API_PING_URL: http://$TARGET_ENV2-api.whitefalcon.io/ping
+          API_PING_URL: http://test6-api.whitefalcon.io/ping
           API_PING_NODE: node6
         run: | 
           go mod init myapp
