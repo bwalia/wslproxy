@@ -235,7 +235,10 @@ if exist_values[2] and exist_values[2][2] then
                 if getServer ~= nil and type(getServer) ~= "userdata" then
                     getServer = cjson.decode(getServer)
                     getServer.proxy_pass = selectedRule.redirectUri
-                    red:hset("servers", getServer.id, cjson.encode(getServer))
+                    -- remove http:// from the url or https:// as it should be added in the proxy_pass
+                    selectedRule.redirectUri = string.gsub(selectedRule.redirectUri, "https://", "")
+                    selectedRule.redirectUri = string.gsub(selectedRule.redirectUri, "http://", "")
+                    --red:hset("servers", getServer.id, cjson.encode(getServer))
                     ngx.var.proxy_host = selectedRule.redirectUri
                     ngx.log(ngx.INFO, ngx.var.proxy_host)
                 else

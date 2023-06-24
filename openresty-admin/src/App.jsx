@@ -48,7 +48,7 @@ const App = () => (
         color: "#213547"
       }}
     >
-      <p>Deploy at: {deploymentTime}</p>
+      <p>Deployment timestamp: {deploymentTime}</p>
     </div>
   </React.Fragment>
 );

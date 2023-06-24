@@ -430,22 +430,24 @@ http {
           }
         }
     }
+# Set default generic server vars here
 
-    upstream global_backend {
-      server 0.0.0.1:1000 max_fails=3 fail_timeout=5s;
+upstream global_backend {
+server 0.0.0.1:1000 max_fails=3 fail_timeout=5s;
 
-      balancer_by_lua_block {
-        local balancer = require "ngx.balancer"
-        local host = ngx.var.proxy_host
-        local port = ngx.var.proxy_port
-        local ok, err = balancer.set_current_peer(host, port)
-        if not ok then
-            ngx.log(ngx.ERR, "balancer.set_current_peer failed to set the host " .. host .. ":" .. port .. " current peer: ", err)
-            return ngx.exit(500)
-            end
-      }
-        keepalive 10; # connection pool
-    }
+balancer_by_lua_block {
+local balancer = require "ngx.balancer"
+local host = ngx.var.proxy_host
+local port = ngx.var.proxy_port
+local ok, err = balancer.set_current_peer(host, port)
+if not ok then
+    ngx.log(ngx.ERR, "balancer.set_current_peer failed to set the host " .. host .. ":" .. port .. " current peer: ", err)
+    return ngx.exit(500)
+    end
+}
+
+keepalive 10; # connection pool
+}
     
     server {
         listen       80 default_server;
@@ -462,6 +464,11 @@ http {
         set $proxy_host "127.0.0.1";
         set $proxy_port "80";
 
+       # rewrite_by_lua_block {
+         # ngx.var.proxy_host = '127.0.0.1'
+         # ngx.var.proxy_port = '8080'
+       # }
+
         location / {
           default_type text/html;
           add_header 'Access-Control-Allow-Origin' '*';
@@ -470,7 +477,8 @@ http {
           add_header 'Access-Control-Max-Age' 1728000;
           add_header Content-Type text/html;
           # add_header 'Content-Length' 0;
-          content_by_lua_file /usr/local/openresty/nginx/html/api/router.lua;
+          #content_by_lua_file /usr/local/openresty/nginx/html/api/router.lua;
+          rewrite_by_lua_file /usr/local/openresty/nginx/html/api/router.lua; 
           proxy_pass http://global_backend;
         }
 
