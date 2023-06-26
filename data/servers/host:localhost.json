@@ -1,0 +1,1 @@
+{"root":"\/var\/www\/html","index":"index\/html","access_log":"\/logs\/access.log","error_log":"\/logs\/error.log","rules":"cc6c9730-8ed6-7376-d126-ed53321d8af5","locations":{},"id":"host:localhost","proxy_pass":"http:\/\/localhost","created_at":1687792033,"server_name":"localhost","custom_block":{},"listens":[{"listen":"8080"}]}

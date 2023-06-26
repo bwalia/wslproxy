@@ -1,10 +1,16 @@
 import React from "react";
-import { AppBar as RaAppBar, TitlePortal, Toolbar } from "react-admin";
+import {
+  AppBar as RaAppBar,
+  TitlePortal,
+  Toolbar,
+  useRedirect,
+} from "react-admin";
 import SdStorageIcon from "@mui/icons-material/SdStorage";
 import { IconButton, Tooltip, Typography } from "@mui/material";
 import StorageModal from "./Dashboard/StorageModal";
+import SettingsIcon from "@mui/icons-material/Settings";
 
-const SettingsButton = () => {
+const StorageButton = () => {
   const [isStrgTypeSet, setStrgTypeSet] = React.useState(false);
   const handleStorgeType = () => {
     setStrgTypeSet(true);
@@ -21,8 +27,22 @@ const SettingsButton = () => {
   );
 };
 
+const SettingButton = () => {
+  const redirect = useRedirect();
+  const handleSettings = () => {
+    redirect("/settings");
+  };
+  return (
+    <Tooltip title="Basic site settings">
+      <IconButton color="inherit" onClick={handleSettings}>
+        <SettingsIcon />
+      </IconButton>
+    </Tooltip>
+  );
+};
+
 const AppBar = () => (
-  <RaAppBar sx={{background: "green"}}>
+  <RaAppBar sx={{ background: "green" }}>
     <Toolbar
       sx={{
         background: "transparent",
@@ -31,7 +51,7 @@ const AppBar = () => (
       <img
         src="falcon-removebg-preview.png"
         alt="Logo"
-        style={{ height: "40px" }}
+        style={{ height: "50px" }}
       />
       <Typography
         variant="h5"
@@ -44,7 +64,8 @@ const AppBar = () => (
       </Typography>
     </Toolbar>
     <TitlePortal />
-    <SettingsButton />
+    <StorageButton />
+    <SettingButton />
   </RaAppBar>
 );
 

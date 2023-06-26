@@ -418,11 +418,27 @@ const Form = () => {
           />
         </Grid>
         <Grid item xs={6}>
-          <TextInput
-            source="match.response.redirect_uri"
-            label="Proxy Pass/Redirect To"
-            fullWidth
-          />
+          <FormDataConsumer>
+            {({ formData, ...rest }) => (
+              <React.Fragment>
+                {formData?.match?.response?.code >= 301 &&
+                formData?.match?.response?.code <= 305 ? (
+                  <TextInput
+                    source="match.response.redirect_uri"
+                    label="Proxy Pass/Redirect To"
+                    fullWidth
+                    validate={[required()]}
+                  />
+                ) : (
+                  <TextInput
+                    source="match.response.redirect_uri"
+                    label="Proxy Pass/Redirect To"
+                    fullWidth
+                  />
+                )}
+              </React.Fragment>
+            )}
+          </FormDataConsumer>
         </Grid>
 
         <Grid item xs={12}>
