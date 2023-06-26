@@ -174,7 +174,7 @@ local function matchRules(ruleId)
     end
 end
 
-local exist_values, err = red:hscan("domains", 0, "match", "domain:" .. Hostname)
+local exist_values, err = red:hscan("servers", 0, "match", "host:" .. Hostname)
 if exist_values[2] and exist_values[2][2] then
     local jsonval = cjson.decode(exist_values[2][2])
     local parse_rules = {}
