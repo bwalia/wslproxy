@@ -4,7 +4,7 @@ import { Create as RaCreate } from 'react-admin';
 const Create = () => {
   return (
     <RaCreate title={"Server"} redirect="list">
-        <Form />
+        <Form type="create" />
     </RaCreate>
   )
 }
