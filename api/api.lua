@@ -908,7 +908,7 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name, method)
     local redis_json, domainJson = {}, {}
     if key_name == 'servers' and json_val.server_name then
         local getDomain = red:hget(key_name, json_val.id)
-        if getDomain and getDomain ~= nil and type(getDomain) == "string" then
+        if getDomain and getDomain ~= nil and type(getDomain) == "string" and method == "create" then
             ngx.status = ngx.HTTP_CONFLICT
             formatResponse = {
                 message = string.format(
@@ -916,6 +916,18 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name, method)
                     json_val.server_name)
             }
             return formatResponse
+        end
+        if method == "update" and json_val.id ~= "host:" .. json_val.server_name then
+            local previousDomain = red:hget(key_name, "host:"..json_val.server_name)
+            if previousDomain and previousDomain ~= nil and type(previousDomain) == "string" then
+                ngx.status = ngx.HTTP_CONFLICT
+                formatResponse = {
+                    message = string.format(
+                        "Server name %s is alredy exist either you need to delete that, or you can update the same record.",
+                        json_val.server_name)
+                }
+                return formatResponse
+            end
         end
     end
     if key_name == 'servers' and json_val.rules ~= nil and type(json_val.rules) ~= "userdata" and json_val.rules then

@@ -16,7 +16,7 @@ import {
 import LocationInput from "./input/LocationInput";
 import CreateServerText from "./input/CreateServerText";
 
-const Form = () => {
+const Form = ({type}) => {
   const dataProvider = useDataProvider();
   const [totalResults, setTotalResults] = React.useState(0);
   const initialValues = [{ quantity: 1 }];
@@ -58,6 +58,7 @@ const Form = () => {
               fullWidth
               label="Server/Domain name"
               validate={[required()]}
+              disabled={type === "edit" ? true : false}
             />
           </Grid>
           <Grid item xs={3}>
