@@ -8,9 +8,9 @@ import {
   SelectArrayInput,
 } from "react-admin";
 
-const LocationInput = () => {
+const LocationInput = ({source}) => {
   return (
-    <ArrayInput source="locations">
+    <ArrayInput source={source}>
       <SimpleFormIterator>
         <TextInput source="location_path" />
         <SelectArrayInput
