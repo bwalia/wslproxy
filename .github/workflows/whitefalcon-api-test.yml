@@ -1,0 +1,26 @@
+name: Whitefalcon Test Suite
+on:
+  push:
+    branches:
+      - 'main'
+  workflow_dispatch: 
+    
+jobs:
+  build:
+    runs-on: [self-hosted-node2]
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Go
+      uses: actions/setup-go@v3
+      with:
+        go-version: 1.19    
+
+    - name: API Test For Rules & Servers
+      working-directory: ./QA
+      run: | 
+        go mod init myapp
+        go test rules-servers-api_test.go -v 
+      env: 
+        INT2_LOGIN_EMAIL: ${{ secrets.INT2_LOGIN_EMAIL }}
+        INT2_LOGIN_PASSWORD: ${{ secrets.INT2_LOGIN_PASSWORD }}
