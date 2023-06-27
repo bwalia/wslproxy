@@ -64,16 +64,16 @@ const Form = () => {
             <TextInput source="root" defaultValue={"/var/www/html"} fullWidth label="Root path" />
           </Grid>
           <Grid item xs={3}>
-            <TextInput source="index" defaultValue={"index/html"} fullWidth label="Index file" />
+            <TextInput source="index" defaultValue={"index.html"} fullWidth label="Index file" />
           </Grid>
           <Grid item xs={3}>
-            <TextInput source="access_log" defaultValue={"/logs/access.log"} fullWidth label="Access logs path" />
+            <TextInput source="access_log" defaultValue={"logs/access.log"} fullWidth label="Access logs path" />
           </Grid>
           <Grid item xs={3}>
-            <TextInput source="error_log" defaultValue={"/logs/error.log"} fullWidth label="Error logs path" />
+            <TextInput source="error_log" defaultValue={"logs/error.log"} fullWidth label="Error logs path" />
           </Grid>
           <Grid item xs={12}>
-            <LocationInput />
+            <LocationInput source="locations" />
           </Grid>
           <Grid item xs={12}>
             <ArrayInput source="custom_block" label="Additional block">
@@ -83,7 +83,7 @@ const Form = () => {
             </ArrayInput>
           </Grid>
           <Grid item xs={12}>
-            <CreateServerText />
+            <CreateServerText source="config" />
           </Grid>
         </Grid>
       </TabbedForm.Tab>

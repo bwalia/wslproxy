@@ -907,8 +907,8 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name, method)
 
     local redis_json, domainJson = {}, {}
     if key_name == 'servers' and json_val.server_name then
-        local getDomain = red:hget('servers', 'host:' .. json_val.server_name)
-        if getDomain and getDomain ~= nil and type(getDomain) == "string" and method == "create" then
+        local getDomain = red:hget(key_name, json_val.id)
+        if getDomain and getDomain ~= nil and type(getDomain) == "string" then
             ngx.status = ngx.HTTP_CONFLICT
             formatResponse = {
                 message = string.format(
@@ -916,14 +916,6 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name, method)
                     json_val.server_name)
             }
             return formatResponse
-        end
-        local oldServerName = ""
-        local oldDomain, oldDmnErr = red:hget(key_name, uuid)
-        if oldDomain and oldDomain ~= "null" and type(oldDomain) == "string" then
-            oldDomain = cjson.decode(oldDomain)
-            oldServerName = oldDomain.server_name
-        else
-            ngx.log(ngx.ERR, "Error while getting domain from redis: ", oldDmnErr)
         end
     end
     if key_name == 'servers' and json_val.rules ~= nil and type(json_val.rules) ~= "userdata" and json_val.rules then
