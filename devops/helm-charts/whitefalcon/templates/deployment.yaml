@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Values.app.name }}-api-{{ .Values.app.target_env }}
+  name: {{ .Values.app.name }}-{{ .Values.app.target_env }}
   labels:
     {{- include "whitefalcon.labels" . | nindent 4 }}
 spec:
