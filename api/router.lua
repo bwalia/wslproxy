@@ -246,6 +246,7 @@ if exist_values[2] and exist_values[2][2] then
                 end
                 return
             elseif selectedRule.statusCode == 200 or selectedRule.statusCode == 403 or selectedRule.statusCode == 403 then
+                ngx.status = selectedRule.statusCode
                 ngx.say(Base64.decode(parse_rules[highestPriorityParentKey][highestPriorityKey].message))
             end
         end
