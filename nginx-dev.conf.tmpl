@@ -81,6 +81,7 @@ http {
             add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, OPTIONS';
             add_header 'Access-Control-Allow-Headers' 'Content-Type';
             access_by_lua_block {
+                local cjson = require "cjson"
                 local path_name = ngx.var.uri:match("^/api/(.*)$")
                 if path_name ~= "user/login" then
                     local jwt = require "resty.jwt"
@@ -94,9 +95,9 @@ http {
                     -- ngx.say(token)
                     local passPhrase = os.getenv("JWT_SECURITY_PASSPHRASE")
                     local verified_token = jwt:verify(passPhrase, token)
-                    if not verified_token then
+                    if verified_token.verified == false then
                         ngx.status = ngx.HTTP_UNAUTHORIZED
-                        ngx.say("Invalid token")
+                        ngx.say(cjson.encode({data = {message = verified_token.reason}}))
                         return ngx.exit(ngx.HTTP_UNAUTHORIZED)
                     end
                 end
