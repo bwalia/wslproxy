@@ -5,7 +5,7 @@
 replicaCount: 1
 
 app:
-  name: whitefalcon-router
+  name: wf-front
   version: 0.1.0
   description: A Helm chart for Kubernetes
   keywords:
@@ -14,14 +14,15 @@ app:
     - kubernetes
   namespace: test
   dns_resolver: "10.43.0.10"
-  api_url: "http://test-api.whitefalcon.io/api"
+  front_url: "http://test-front.whitefalcon.io/front"
   redis_host: "redis-service.test.svc.cluster.local"
   target_env: "test"
   target_type: "front"
 
-secure_env_file: "AgByWC4cTjFH+AvduvnJhpopcKdIiYb1XtCX2fTkVO4Ww8RXsjSbckLymLpGR4xaQxNxBSx0Fi5MESn3Wd6QlNU39VBL87rYHXtBm8RE8vYE18+teafhcXxJvOroA7RZVURD+7uPbcc9qy8WmVsPyv/N99pUqG9jrArS6f6lykuUCjzBtra4C8MhqLWamCLbf4CHHkLhT9ln0HVjqxgPVQLifx21GDdUnkaSO+pwpo/dnr3m+uW/lxN7sJ6rFmSg0Zmq1U4aQ2BYEP2UuLczFlCXDVA8UFqofHsbsvzQpjbpOOoJ7+Luc3VB+wYaqkp3JUyHnAEyuODcTBTCZ+t/SnM+PiR3MvZewM0mEFNk2VF1UoiZ2hhbz2zXY0ORYSR9rZ4kwb4+BodpN4NxtuOYPCc/VC+9YqbZRMpFyEvb3MWiQxDLgaTgS2gvfx8n3J5G0JxJxpXinFi1mX5zNe5DcNgdUm6CD4UFNxauSIKO7rQtA0rSl/Qx6Rr2R2T4S1tVmYv82OiS62TZBvA9KpBWXTnkWxFgSVrbk4cmNpHw06E6LBFq1dJEDTCHbM8ikVaXn/4aaBxP7S81e73IIbASHjxcJMM8+RERmECz/J+KpkU0uh5+lJLsGY4eLPD+FnYS1IS2e9FctT6UR3WSHGfcTlIEx6aNraX/82MMSdQvm0sIH181AKo0k47otwObWbTs92Hah0B82p0cQI6Znz46ZbMyx9Z9+8V/1rjzlt8fpwi18i3oVzXJ0ZfuniEVqgugPLYnBkqSZhJ/O7z6vaqIAzwS0CtF2B8u/AdOYOa2j7fYfdQ7q5LgUSvL21XLyRkv52h2RlNWTevHGdcF7ECp6u+sYel64uVQ/F9iZe/JeXduIYC2TwHjyZoLD2p/38VKUSZJM4ShI/jEtw0Fcg1+wQnMpvRZTkN7e9hSYAIT/g=="
+secure_env_file: "AgBzXpdlJ+q/5Hqvkbi4o7ACbvmh7LV+sXF5ceUdb1F9iTbUVc+DnKmy7+lB3bcjTMWnxuOrGp6WyvrweE7jyY7ST5a2fcZFzioUMbFiBlthcE2f9K2JDR0W5IJ6kT8Bkh8T86JS9Sljc28wCc0y/DPJdDzZL+CddPWa+8NCrZRP95w0C/rHZwLPwSfnN6kJFmm8KAf5CBljfx3Qhf0UAKdwrQGqRfEO/BRtCSxs45Fv00s4+NWfw6VfVZxap83qWrmdd1Z73use6fKnraS8/z3/s56DgvsECQNHmIdAF+eqjGVuDgfEl1R0yfKA5l2aFD8M/Uxd25JwqgsLiknPY4rDMlGyI1OfkpIQj98PkRjkIuZCYP7t2lpu6IWUF+ataQgOpiax0R7ZgIh03CyEzUcH0mqZ1QK6PYWcJaLZfm7ig/yju0bhrCUMU7dSu1mVkfBIPRJnlDXF/YQEKi5LTRrLsgChpkHhfnutd3Ov1jDJpvr87FGSlMQSPRkQuTvxa67EWJwdJlHed1btV3z+DCNNyOUjhKz27cd4+3L8dvi8IxWCIBruAuPXXZEttqIkqryf8KpCtY4Dyq8I5iX5xv7Zw43TCnG7FvXp0Q+XwTfvKFQyNSkA/mWEUopEhVsnMQk+5Ecxt/69paz8EYSSYEhv9cARzXUWpW84aCMaeu/cYEE6d4FEfo46copR/0QLUfxboJzKz9PzEGhkRVb0ea+SrcF/NPWJQ4plEjYttiC3/KA8zjGk2FNpg9BbwkFfvxXMuajoTOsVHd8ayuAVlQrmvrkFFiBbNidQuy8Ye+yobCnj2ptbbejB2Mldsm0yNTUDIyGE9HLJMS7qgYIckkP74dXwiiQX8qyWGRPW/l61TibhwtezrhrPNFXZfJZ5kTImhhDIOabkEBW1nUnueBOYVcO4WWMHn/foiB5ULlV+DN0="
+
 image:
-  repository: bwalia/whitefalcon-router
+  repository: bwalia/whitefalcon
   pullPolicy: Always
   # Overrides the image tag whose default is the chart appVersion.
   tag: "latest"
@@ -63,11 +64,29 @@ ingress:
     # kubernetes.io/ingress.class: nginx
     # kubernetes.io/tls-acme: "true"
   hosts:
-    - host: test-api.whitefalcon.io
+    - host: test-front.whitefalcon.io
       paths:
         - path: /
           pathType: ImplementationSpecific
-          serviceName: whitefalcon-front
+          serviceName: wf-front-svc-test
+          servicePort: 80
+    - host: test6-front.whitefalcon.io
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+          serviceName: wf-front-svc-test
+          servicePort: 80
+    - host: test.whitefalcon.io
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+          serviceName: wf-front-svc-int
+          servicePort: 80
+    - host: test-front.whitefalcon.io
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+          serviceName: wf-front-svc-int
           servicePort: 80
   tls: []
   #  - secretName: chart-example-tls
