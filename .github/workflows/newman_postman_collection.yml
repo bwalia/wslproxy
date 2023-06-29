@@ -1,9 +1,6 @@
 name: Run Postman Collection
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:    
 
 jobs:
