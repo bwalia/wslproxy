@@ -175,6 +175,7 @@ local function matchRules(ruleId)
 end
 
 local exist_values, err = red:hscan("servers", 0, "match", "host:" .. Hostname)
+local settings = getSettings()
 if exist_values[2] and exist_values[2][2] then
     local jsonval = cjson.decode(exist_values[2][2])
     local parse_rules = {}
@@ -221,7 +222,10 @@ if exist_values[2] and exist_values[2][2] then
         end
 
         if hasFalseValue then
-            ngx.say(string.format("Please check your Security rules. your %s is incorrect", highestPriorityKey))
+            -- ngx.say(string.format("Please check your Security rules. your %s is incorrect", highestPriorityKey))
+            if settings.nginx.default.conf_mismatch ~= nil then
+                ngx.say(Base64.decode(settings.nginx.default.conf_mismatch))
+            end
         else
             local selectedRule = parse_rules[highestPriorityParentKey][highestPriorityKey]
             if selectedRule.statusCode == 301 then
@@ -251,14 +255,15 @@ if exist_values[2] and exist_values[2][2] then
             end
         end
     else
-        -- load settings default pages
-        local settings = getSettings()
-        if settings.nginx.index ~= nil then
-            ngx.say(Base64.decode(settings.nginx.index))
+        if settings.nginx.default.no_rule ~= nil then
+            ngx.say(Base64.decode(settings.nginx.default.no_rule))
         end
     end
 else
-    ngx.say("No Nginx Server Config found.")
+    -- ngx.say("No Nginx Server Config found.")
+    if settings.nginx.default.no_server ~= nil then
+        ngx.say(Base64.decode(settings.nginx.default.no_server))
+    end
 end
 return
 -- this will replace the need for server block for each website. It will parse JSON and match host header and route to the backend server all in lua
