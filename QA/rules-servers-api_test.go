@@ -31,8 +31,8 @@ func TestAuthLoginAndFetchToken(t *testing.T) {
 
 	url := targetHost + "/api/user/login"
 	method := "POST"
-	Email := os.Getenv("INT2_LOGIN_EMAIL")
-	Password := os.Getenv("INT2_LOGIN_PASSWORD")
+	Email := os.Getenv("LOGIN_EMAIL")
+	Password := os.Getenv("LOGIN_PASSWORD")
 
 	payload := LoginPayload{
 		Email:    Email,
