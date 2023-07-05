@@ -22,5 +22,6 @@ jobs:
         go mod init myapp
         go test rules-servers-api_test.go -v 
       env: 
-        INT2_LOGIN_EMAIL: ${{ secrets.INT2_LOGIN_EMAIL }}
-        INT2_LOGIN_PASSWORD: ${{ secrets.INT2_LOGIN_PASSWORD }}
+        LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
+        LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
+        SERVER_ID: ${{ secrets.SERVER_ID }}
