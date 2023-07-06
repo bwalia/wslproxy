@@ -463,6 +463,7 @@ keepalive 10; # connection pool
         #Set default generic server vars here
 
         set $proxy_host "127.0.0.1";
+        set $proxy_host_override "";
         set $proxy_port "80";
 
        # rewrite_by_lua_block {
@@ -471,15 +472,8 @@ keepalive 10; # connection pool
        # }
 
         location / {
-          default_type text/html;
-          add_header 'Access-Control-Allow-Origin' '*';
-          add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, PUT, DELETE';
-          add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, X-Requested-With';
-          add_header 'Access-Control-Max-Age' 1728000;
-          add_header Content-Type text/html;
-          # add_header 'Content-Length' 0;
-          #content_by_lua_file /usr/local/openresty/nginx/html/api/router.lua;
           rewrite_by_lua_file /usr/local/openresty/nginx/html/api/router.lua; 
+          proxy_set_header Host $proxy_host_override;
           proxy_pass http://global_backend;
         }
 
