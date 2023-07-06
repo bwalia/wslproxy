@@ -51,12 +51,23 @@ local function trimWhitespace(str)
     return trimmedStr
 end
 
+local function splitString(inputString, separator)
+    local result = {}
+    local pattern = string.format("([^%s]+)", separator)
+    for value in string.gmatch(inputString, pattern) do
+        table.insert(result, value)
+    end
+    return result
+end
+
 local function matchSecurityToken(rule)
     local isTokenVerified = true
     if rule.jwt_token_validation_value ~= nil and rule.jwt_token_validation_key ~= nil then
-        local tvk = Base64.decode(rule.jwt_token_validation_key)
-        local passPhrase = os.getenv("JWT_SECURITY_PASSPHRASE")
-        local verified_token = jwt:verify(passPhrase, tvk)
+        local passPhrase = Base64.decode(rule.jwt_token_validation_key)
+        local reqHeaders = ngx.req.get_headers()
+        local securityToken = reqHeaders['cookie']
+        local token = string.match(securityToken, "session=([^;]+)")
+        local verified_token = jwt:verify(passPhrase, token)
         if not verified_token then
             isTokenVerified = false
         end
@@ -69,7 +80,6 @@ local function check_rules(rules, ruleId, priority, message, statusCode, redirec
     local isPathPass, failMessage, isTokenPass = false, "", false
     local finalResult, results = {}, {}
     local req_url = ngx.var.request_uri
-
     if rules.jwt_token_validation_value ~= nil and rules.jwt_token_validation_key ~= nil then
         isTokenPass = matchSecurityToken(rules)
     else
