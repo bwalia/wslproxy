@@ -235,6 +235,8 @@ if exist_values[2] and exist_values[2][2] then
                 ngx.redirect(selectedRule.redirectUri, ngx.HTTP_MOVED_TEMPORARILY)
                 ngx.exit(ngx.HTTP_MOVED_TEMPORARILY)
             elseif selectedRule.statusCode == 305 then
+                local proxy_server_name = jsonval.proxy_server_name
+                
                 local getServer = red:hget("servers", jsonval.id)
                 if getServer ~= nil and type(getServer) ~= "userdata" then
                     getServer = cjson.decode(getServer)
@@ -244,6 +246,11 @@ if exist_values[2] and exist_values[2][2] then
                     selectedRule.redirectUri = string.gsub(selectedRule.redirectUri, "http://", "")
                     --red:hset("servers", getServer.id, cjson.encode(getServer))
                     ngx.var.proxy_host = selectedRule.redirectUri
+                    if proxy_server_name == nil or proxy_server_name == "" then
+                        ngx.var.proxy_host_override = ngx.var.proxy_host
+                    else
+                        ngx.var.proxy_host_override = proxy_server_name
+                    end
                     ngx.log(ngx.INFO, ngx.var.proxy_host)
                 else
                     ngx.log(ngx.ERR, "[ERROR]: Server not found!")

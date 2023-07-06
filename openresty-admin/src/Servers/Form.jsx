@@ -52,13 +52,20 @@ const Form = ({type}) => {
               </SimpleFormIterator>
             </ArrayInput>
           </Grid>
-          <Grid item xs={8}>
+          <Grid item xs={4}>
             <TextInput
               source="server_name"
               fullWidth
               label="Server/Domain name"
               validate={[required()]}
               disabled={type === "edit" ? true : false}
+            />
+          </Grid>
+          <Grid item xs={4}>
+            <TextInput
+              source="proxy_server_name"
+              fullWidth
+              label="Proxy Server/Domain name"
             />
           </Grid>
           <Grid item xs={3}>
