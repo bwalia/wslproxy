@@ -147,6 +147,7 @@ local function check_rules(rules, ruleId, priority, message, statusCode, redirec
     results["message"] = message
     results["statusCode"] = statusCode
     results["redirectUri"] = redirectUri
+    results["rule_data"] = rules
 
     finalResult[ruleId] = results
 
@@ -190,6 +191,7 @@ if exist_values[2] and exist_values[2][2] then
     local jsonval = cjson.decode(exist_values[2][2])
     local parse_rules = {}
     if jsonval.rules and type(jsonval.rules) ~= "userdata" then
+        table.insert(parse_rules, matchRules(jsonval.rules))
         if jsonval.match_cases then
             local hasAnd = hasAndCondition(jsonval.match_cases)
             if next(hasAnd) ~= nil then
@@ -198,13 +200,14 @@ if exist_values[2] and exist_values[2][2] then
                 end
             end
         end
-        table.insert(parse_rules, matchRules(jsonval.rules))
-        -- ngx.say(cjson.encode(parse_rules))
+
         local highestPriority = 0
         local highestPriorityKey, highestPriorityParentKey
-        local hasFalseValue = false
-
+        local hasFalseValue, pathMatched = false, false
         for _, record in ipairs(parse_rules) do
+            if pathMatched == true then
+                break
+            end
             for key, value in pairs(record) do
                 local hasFalseField = false
                 for field, fieldValue in pairs(value) do
@@ -215,7 +218,13 @@ if exist_values[2] and exist_values[2][2] then
                     end
                 end
                 if not hasFalseField then
-                    if value.priority > highestPriority then
+                    if value.rule_data.path == ngx.var.request_uri then
+                        highestPriority = value.priority
+                        highestPriorityKey = key
+                        highestPriorityParentKey = _
+                        pathMatched = true
+                        break
+                    elseif value.priority > highestPriority then
                         highestPriority = value.priority
                         highestPriorityKey = key
                         highestPriorityParentKey = _
