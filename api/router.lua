@@ -280,13 +280,19 @@ if exist_values[2] and exist_values[2][2] then
                     selectedRule.redirectUri = string.gsub(selectedRule.redirectUri, "https://", "")
                     selectedRule.redirectUri = string.gsub(selectedRule.redirectUri, "http://", "")
                     --red:hset("servers", getServer.id, cjson.encode(getServer))
-                    if proxy_server_name == nil or proxy_server_name == "" then
-                        ngx.var.proxy_host_override = selectedRule.redirectUri
-                    else
-                        ngx.var.proxy_host_override = proxy_server_name
-                    end
                     ngx.var.proxy_host = selectedRule.redirectUri
+                    if proxy_server_name == nil or proxy_server_name == "" then
+                        -- ngx.req.set_header("Host", selectedRule.redirectUri)
+                        ngx.ctx.proxy_host_override = selectedRule.redirectUri
+                        ngx.header["X-Debug-Host"] = ngx.ctx.proxy_host_override
+                    else
+                        -- ngx.req.set_header("Host", proxy_server_name)
+                        ngx.ctx.proxy_host_override = proxy_server_name
+                        ngx.header["X-Debug-Host"] = ngx.ctx.proxy_host_override
+                    end
                     ngx.log(ngx.INFO, ngx.var.proxy_host)
+                    ngx.log(ngx.INFO, ngx.var.proxy_host_override)
+                    -- do return ngx.say(ngx.var.proxy_host_override) end
                 else
                     ngx.log(ngx.ERR, "[ERROR]: Server not found!")
                 end
@@ -307,5 +313,5 @@ else
         ngx.say(Base64.decode(settings.nginx.default.no_server))
     end
 end
-return
+-- ngx.var.proxy_host_override = 'test313.workstation.co.uk'
 -- this will replace the need for server block for each website. It will parse JSON and match host header and route to the backend server all in lua
