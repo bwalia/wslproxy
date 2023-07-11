@@ -197,6 +197,20 @@ local function anyValueIsTrue(table)
     return false
 end
 
+local function isIpAddress(str)
+    local pattern = "^%d+%.%d+%.%d+%.%d+$"
+    local match = string.match(str, pattern)
+    if match then
+        -- Further validate the IP address components
+        local a, b, c, d = string.match(str, "(%d+)%.(%d+)%.(%d+)%.(%d+)")
+        if tonumber(a) <= 255 and tonumber(b) <= 255 and tonumber(c) <= 255 and tonumber(d) <= 255 then
+            return true
+        end
+    end
+    return false
+end
+
+
 local exist_values, err = red:hscan("servers", 0, "match", "host:" .. Hostname)
 local settings = getSettings()
 if exist_values[2] and exist_values[2][2] then
@@ -279,7 +293,28 @@ if exist_values[2] and exist_values[2][2] then
                     -- remove http:// from the url or https:// as it should be added in the proxy_pass
                     selectedRule.redirectUri = string.gsub(selectedRule.redirectUri, "https://", "")
                     selectedRule.redirectUri = string.gsub(selectedRule.redirectUri, "http://", "")
-                    --red:hset("servers", getServer.id, cjson.encode(getServer))
+                    if not isIpAddress(selectedRule.redirectUri) then
+                        local resolver = require "resty.dns.resolver"
+                        local r, err = resolver:new {
+                            nameservers = { "8.8.8.8", { "8.8.4.4", 53 } },
+                            retrans = 5, -- 5 retransmissions on receive timeout
+                            timeout = 2000, -- 2 sec
+                            no_random = true, -- always start with first nameserver
+                        }
+                        if not r then
+                            ngx.say("failed to instantiate the resolver: ", err)
+                            return
+                        end
+                        local answers, err, tries = r:query(selectedRule.redirectUri, nil, {})
+                        if not answers then
+                            ngx.say("failed to query the DNS server: ", err)
+                            ngx.say("retry historie:\n  ", table.concat(tries, "\n  "))
+                            return
+                        end
+                        for i, ans in ipairs(answers) do
+                            selectedRule.redirectUri = ans.address
+                        end
+                    end
                     ngx.var.proxy_host = selectedRule.redirectUri
                     if proxy_server_name == nil or proxy_server_name == "" then
                         -- ngx.req.set_header("Host", selectedRule.redirectUri)
