@@ -243,9 +243,23 @@ if exist_values[2] and exist_values[2][2] then
                         break
                     end
                 end
-                -- ngx.say(cjson.encode(value))
                 if not hasFalseField then
-                    if value.rule_data.path == ngx.var.request_uri then
+                    local reqUri = ngx.var.request_uri
+                    if value.rule_data.path_key == "starts_with" and reqUri:startswith(value.rule_data.path) == true then
+                        highestPriority = value.priority
+                        highestPriorityKey = key
+                        highestPriorityParentKey = _
+                        pathMatched = true
+                        hasFalseValue = {}
+                        break
+                    elseif value.rule_data.path_key == 'ends_with' and reqUri:endswith(value.rule_data.path) == true then
+                        highestPriority = value.priority
+                        highestPriorityKey = key
+                        highestPriorityParentKey = _
+                        pathMatched = true
+                        hasFalseValue = {}
+                        break
+                    elseif value.rule_data.path_key == 'equals' and value.rule_data.path == reqUri then
                         highestPriority = value.priority
                         highestPriorityKey = key
                         highestPriorityParentKey = _
@@ -293,6 +307,7 @@ if exist_values[2] and exist_values[2][2] then
                     -- remove http:// from the url or https:// as it should be added in the proxy_pass
                     selectedRule.redirectUri = string.gsub(selectedRule.redirectUri, "https://", "")
                     selectedRule.redirectUri = string.gsub(selectedRule.redirectUri, "http://", "")
+                    local extracted = string.match(selectedRule.redirectUri, ":(.*)")
                     if not isIpAddress(selectedRule.redirectUri) then
                         local resolver = require "resty.dns.resolver"
                         local r, err = resolver:new {
@@ -315,7 +330,13 @@ if exist_values[2] and exist_values[2][2] then
                             selectedRule.redirectUri = ans.address
                         end
                     end
-                    ngx.var.proxy_host = selectedRule.redirectUri
+                    local finalProxyHost = selectedRule.redirectUri
+                    if extracted ~= nil then
+                        ngx.var.proxy_port = extracted
+                        finalProxyHost = string.gsub(selectedRule.redirectUri, ":(.*)", "")
+                    end
+
+                    ngx.var.proxy_host = finalProxyHost
                     if proxy_server_name == nil or proxy_server_name == "" then
                         -- ngx.req.set_header("Host", selectedRule.redirectUri)
                         ngx.ctx.proxy_host_override = selectedRule.redirectUri
