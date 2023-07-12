@@ -473,10 +473,11 @@ keepalive 10; # connection pool
         location / {
           default_type text/html;
           rewrite_by_lua_file /usr/local/openresty/nginx/html/api/router.lua;
-          set_by_lua $proxy_host_override '
-            return ngx.ctx.proxy_host_override
-          ';
-          proxy_set_header Host $proxy_host_override;
+          set $ngx_proxy_host_override "";
+          access_by_lua_block { -- this code run just before the setting the proxy pass and content phase.
+              ngx.var.ngx_proxy_host_override = ngx.ctx.proxy_host_override
+          }
+          proxy_set_header Host $ngx_proxy_host_override;
           proxy_pass http://global_backend;
         }
 
