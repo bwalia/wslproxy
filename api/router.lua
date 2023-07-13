@@ -65,12 +65,20 @@ local function matchSecurityToken(rule)
         local passPhrase = Base64.decode(rule.jwt_token_validation_key)
         local reqHeaders = ngx.req.get_headers()
         local securityToken = reqHeaders['cookie']
-        if securityToken and securityToken ~= nil then
-            local token = string.match(securityToken, "session=([^;]+)")
-            local verified_token = jwt:verify(passPhrase, token)
-            if not verified_token then
+        if securityToken and securityToken ~= nil and type(securityToken) ~= nil then
+            local token = string.match(tostring(securityToken), "Authorization=([^;]+)")
+            if token ~= nil then
+                token = string.gsub(token, "Bearer", "")
+                token = trimWhitespace(ngx.unescape_uri(token))
+                local verified_token = jwt:verify(passPhrase, token)
+                if not verified_token then
+                    isTokenVerified = false
+                end
+            else
                 isTokenVerified = false
             end
+        else 
+            isTokenVerified = false
         end
     end
     return isTokenVerified
@@ -229,68 +237,80 @@ if exist_values[2] and exist_values[2][2] then
         -- do return ngx.say(cjson.encode(parse_rules)) end
         local highestPriority = 0
         local highestPriorityKey, highestPriorityParentKey
-        local hasFalseValue, pathMatched, priorityMatched = {}, false, false
+        local hasFalseValue, pathMatched, finalObj = {}, false, {}
+        local reqUri = ngx.var.request_uri
         for _, record in ipairs(parse_rules) do
-            if pathMatched == true then
-                break
-            end
             for key, value in pairs(record) do
+                local preFinalObj = {}
                 local hasFalseField = false
+                if value.rule_data.path_key == "starts_with" and reqUri:startswith(value.rule_data.path) == true then
+                    highestPriority = value.priority
+                    highestPriorityKey = key
+                    highestPriorityParentKey = _
+                    pathMatched = true
+                    hasFalseValue = {}
+                    preFinalObj["path_matched"] = true
+                elseif value.rule_data.path_key == 'ends_with' and reqUri:endswith(value.rule_data.path) == true then
+                    highestPriority = value.priority
+                    highestPriorityKey = key
+                    highestPriorityParentKey = _
+                    pathMatched = true
+                    hasFalseValue = {}
+                    preFinalObj["path_matched"] = true
+                elseif value.rule_data.path_key == 'equals' and value.rule_data.path == reqUri then
+                    highestPriority = value.priority
+                    highestPriorityKey = key
+                    highestPriorityParentKey = _
+                    pathMatched = true
+                    hasFalseValue = {}
+                    preFinalObj["path_matched"] = true
+                elseif value.priority > highestPriority then
+                    highestPriority = value.priority
+                    highestPriorityKey = key
+                    highestPriorityParentKey = _
+                    preFinalObj["path_matched"] = false
+                else
+                    preFinalObj["path_matched"] = false
+                end
+                preFinalObj["paths"] = value.rule_data.path
+                preFinalObj["paths_key"] = value.rule_data.path_key
+
                 for field, fieldValue in pairs(value) do
                     if fieldValue == false then
                         hasFalseField = true
-                        highestPriorityKey = field
-                        break
                     end
+                    preFinalObj["has_false_value"] = hasFalseField
                 end
-                if not hasFalseField then
-                    local reqUri = ngx.var.request_uri
-                    if value.rule_data.path_key == "starts_with" and reqUri:startswith(value.rule_data.path) == true then
-                        highestPriority = value.priority
-                        highestPriorityKey = key
-                        highestPriorityParentKey = _
-                        pathMatched = true
-                        hasFalseValue = {}
-                        break
-                    elseif value.rule_data.path_key == 'ends_with' and reqUri:endswith(value.rule_data.path) == true then
-                        highestPriority = value.priority
-                        highestPriorityKey = key
-                        highestPriorityParentKey = _
-                        pathMatched = true
-                        hasFalseValue = {}
-                        break
-                    elseif value.rule_data.path_key == 'equals' and value.rule_data.path == reqUri then
-                        highestPriority = value.priority
-                        highestPriorityKey = key
-                        highestPriorityParentKey = _
-                        pathMatched = true
-                        hasFalseValue = {}
-                        break
-                    elseif value.priority > highestPriority then
-                        highestPriority = value.priority
-                        highestPriorityKey = key
-                        highestPriorityParentKey = _
-                        priorityMatched = true
-                        -- hasFalseValue = {}
-                    end
-                else
-                    -- hasFalseValue = true
-                    table.insert(hasFalseValue, true)
-                    goto continue
-                end
-                ::continue::
+                finalObj[key] = preFinalObj
             end
-
-            -- if anyValueIsTrue(hasFalseValue) then
-            --     break
-            -- end
         end
-        if #hasFalseValue > 0 and anyValueIsTrue(hasFalseValue) and not pathMatched then
-            -- ngx.say(string.format("Please check your Security rules. your %s is incorrect", highestPriorityKey))
-            if settings.nginx.default.conf_mismatch ~= nil then
-                ngx.say(Base64.decode(settings.nginx.default.conf_mismatch))
+        -- do return ngx.say(cjson.encode(finalObj)) end
+        local rulePasses = false
+        local requestedUri = ngx.var.request_uri
+        -- do return ngx.say(requestedUri) end
+        for index, passedRule in pairs(finalObj) do
+            if requestedUri == "/" and passedRule.has_false_value == false then
+                rulePasses = true
+                break
+            elseif passedRule.paths_key == "starts_with" and requestedUri:startswith(passedRule.paths) == false then
+                rulePasses = true
+                break
+            elseif passedRule.paths_key == "ends_with" and requestedUri:startswith(passedRule.paths) == false then
+                rulePasses = true
+                break
+            elseif passedRule.paths_key == "equals" and requestedUri:startswith(passedRule.paths) == false then
+                rulePasses = true
+                break
             end
-        else
+            if passedRule.path_matched == true and passedRule.has_false_value == false and passedRule.paths ~= "/" then
+                rulePasses = true
+            else
+                rulePasses = false
+            end
+        end
+        -- do return ngx.say(tostring(rulePasses)) end
+        -- do return ngx.say(cjson.encode({data = {highestPriorityParentKey = highestPriorityParentKey, highestPriorityKey = highestPriorityKey}})) end
+        if rulePasses == true then
             local selectedRule = parse_rules[highestPriorityParentKey][highestPriorityKey]
             if selectedRule.statusCode == 301 then
                 ngx.redirect(selectedRule.redirectUri, ngx.HTTP_MOVED_PERMANENTLY)
@@ -312,8 +332,8 @@ if exist_values[2] and exist_values[2][2] then
                         local resolver = require "resty.dns.resolver"
                         local r, err = resolver:new {
                             nameservers = { "8.8.8.8", { "8.8.4.4", 53 } },
-                            retrans = 5, -- 5 retransmissions on receive timeout
-                            timeout = 2000, -- 2 sec
+                            retrans = 5,      -- 5 retransmissions on receive timeout
+                            timeout = 2000,   -- 2 sec
                             no_random = true, -- always start with first nameserver
                         }
                         if not r then
@@ -356,6 +376,11 @@ if exist_values[2] and exist_values[2][2] then
             elseif selectedRule.statusCode == 200 or selectedRule.statusCode == 403 or selectedRule.statusCode == 403 then
                 ngx.status = selectedRule.statusCode
                 ngx.say(Base64.decode(parse_rules[highestPriorityParentKey][highestPriorityKey].message))
+            end
+        else
+            if settings.nginx.default.conf_mismatch ~= nil then
+                ngx.status = ngx.HTTP_FORBIDDEN
+                ngx.say(Base64.decode(settings.nginx.default.conf_mismatch))
             end
         end
     else
