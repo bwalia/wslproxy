@@ -205,6 +205,14 @@ local function anyValueIsTrue(table)
     return false
 end
 
+local function getTableLength(tbl)
+    local count = 0
+    for _ in pairs(tbl) do
+        count = count + 1
+    end
+    return count
+end
+
 local function isIpAddress(str)
     local pattern = "^%d+%.%d+%.%d+%.%d+$"
     local match = string.match(str, pattern)
@@ -284,7 +292,11 @@ if exist_values[2] and exist_values[2][2] then
                 finalObj[key] = preFinalObj
             end
         end
-        -- do return ngx.say(cjson.encode(finalObj)) end
+        local finalObjCount = 0
+        if type(finalObj) == "table" then
+            finalObjCount = getTableLength(finalObj)
+        end
+        -- do return ngx.say(tostring(finalObjCount)) end
         local rulePasses = false
         local requestedUri = ngx.var.request_uri
         -- do return ngx.say(requestedUri) end
@@ -303,6 +315,8 @@ if exist_values[2] and exist_values[2][2] then
                 break
             end
             if passedRule.path_matched == true and passedRule.has_false_value == false and passedRule.paths ~= "/" then
+                rulePasses = true
+            elseif passedRule.path_matched == true and passedRule.has_false_value == false and finalObjCount >= 1 then
                 rulePasses = true
             else
                 rulePasses = false
