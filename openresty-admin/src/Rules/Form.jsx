@@ -432,7 +432,7 @@ const Form = () => {
                 ) : (
                   <TextInput
                     source="match.response.redirect_uri"
-                    label="Proxy Pass/Redirect To"
+                    label="Proxy Pass/Redirect To (Target)"
                     fullWidth
                   />
                 )}
