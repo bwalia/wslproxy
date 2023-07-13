@@ -77,7 +77,7 @@ local function matchSecurityToken(rule)
             else
                 isTokenVerified = false
             end
-        else 
+        else
             isTokenVerified = false
         end
     end
@@ -226,6 +226,17 @@ local function isIpAddress(str)
     return false
 end
 
+local function isAllPathAllowed(myTable, targetPath)
+    local isPathEqual = false
+    for _, entry in pairs(myTable) do
+        if entry.paths == targetPath then
+            isPathEqual = true
+            break
+        end
+    end
+    return isPathEqual
+end
+
 
 local exist_values, err = red:hscan("servers", 0, "match", "host:" .. Hostname)
 local settings = getSettings()
@@ -292,34 +303,77 @@ if exist_values[2] and exist_values[2][2] then
                 finalObj[key] = preFinalObj
             end
         end
-        local finalObjCount = 0
+        local finalObjCount, isAllPathPass, isPathExists = 0, false, false
         if type(finalObj) == "table" then
             finalObjCount = getTableLength(finalObj)
+            isAllPathPass = isAllPathAllowed(finalObj, "/")
+            isPathExists = isAllPathAllowed(finalObj, ngx.var.request_uri)
         end
-        -- do return ngx.say(tostring(finalObjCount)) end
+        -- do return ngx.say(cjson.encode(finalObj)) end
         local rulePasses = false
         local requestedUri = ngx.var.request_uri
-        -- do return ngx.say(requestedUri) end
         for index, passedRule in pairs(finalObj) do
-            if requestedUri == "/" and passedRule.has_false_value == false then
-                rulePasses = true
-                break
-            elseif passedRule.paths_key == "starts_with" and requestedUri:startswith(passedRule.paths) == false then
-                rulePasses = true
-                break
-            elseif passedRule.paths_key == "ends_with" and requestedUri:startswith(passedRule.paths) == false then
-                rulePasses = true
-                break
-            elseif passedRule.paths_key == "equals" and requestedUri:startswith(passedRule.paths) == false then
-                rulePasses = true
-                break
+            if isAllPathPass and not isPathExists then
+                if requestedUri == "/" and passedRule.has_false_value == false then
+                    rulePasses = true
+                    break
+                elseif passedRule.paths_key == "starts_with" and
+                    requestedUri:startswith(passedRule.paths) == false 
+                then
+                    rulePasses = true
+                    break
+                elseif passedRule.paths_key == "ends_with" and
+                    requestedUri:startswith(passedRule.paths) == false
+                then
+                    rulePasses = true
+                    break
+                elseif passedRule.paths_key == "equals" and
+                    requestedUri:startswith(passedRule.paths) == false
+                then
+                    rulePasses = true
+                    break
+                end
             end
-            if passedRule.path_matched == true and passedRule.has_false_value == false and passedRule.paths ~= "/" then
-                rulePasses = true
-            elseif passedRule.path_matched == true and passedRule.has_false_value == false and finalObjCount >= 1 then
-                rulePasses = true
+            if isAllPathPass == true then
+                if requestedUri == "/" and passedRule.has_false_value == false then
+                    rulePasses = true
+                    break
+                elseif passedRule.paths_key == "starts_with" and
+                    requestedUri:startswith(passedRule.paths) == false and
+                    passedRule.path_matched == true and
+                    passedRule.has_false_value == false
+                then
+                    rulePasses = true
+                    break
+                elseif passedRule.paths_key == "ends_with" and
+                    requestedUri:startswith(passedRule.paths) == false and
+                    passedRule.path_matched == true and
+                    passedRule.has_false_value == false
+                then
+                    rulePasses = true
+                    break
+                elseif passedRule.paths_key == "equals" and
+                    requestedUri:startswith(passedRule.paths) == false and
+                    passedRule.path_matched == true and
+                    passedRule.has_false_value == false
+                then
+                    rulePasses = true
+                    break
+                end
+                if passedRule.path_matched == true and passedRule.has_false_value == false and passedRule.paths ~= "/" then
+                    rulePasses = true
+                    break
+                elseif passedRule.path_matched == true and passedRule.has_false_value == false and finalObjCount == 1 then
+                    rulePasses = true
+                    break
+                else
+                    rulePasses = false
+                end
             else
-                rulePasses = false
+                if passedRule.path_matched == true and passedRule.has_false_value == false then
+                    rulePasses = true
+                    break
+                end
             end
         end
         -- do return ngx.say(tostring(rulePasses)) end
