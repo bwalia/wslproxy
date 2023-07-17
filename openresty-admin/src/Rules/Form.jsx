@@ -7,8 +7,10 @@ import {
   TextInput,
   SelectInput,
   required,
+  FormDataConsumer,
 } from "react-admin";
-import { RichTextInput } from 'ra-input-rich-text';
+import { RichTextInput } from "ra-input-rich-text";
+import Toolbar from "./toolbar/Toolbar";
 
 const iso_codes = {
   AF: "Afghanistan",
@@ -275,24 +277,31 @@ const objectToArray = (obj = {}) => {
 const Form = () => {
   const mynewobj = objectToArray(iso_codes);
   return (
-    <SimpleForm>
+    <SimpleForm toolbar={<Toolbar />}>
+      <h3>Enter the Rule below:</h3>
       <Grid container spacing={2}>
         <Grid item xs={6}>
-          <TextInput source="name" validate={[required()]} fullWidth />
+          <TextInput
+            source="name"
+            label="Rule Name"
+            validate={[required()]}
+            fullWidth
+          />
         </Grid>
         <Grid item xs={3}>
-          <NumberInput source="version" fullWidth />
+          <NumberInput source="version" defaultValue={1} fullWidth />
         </Grid>
         <Grid item xs={3}>
-          <NumberInput source="priority" fullWidth />
+          <NumberInput source="priority" defaultValue={1} fullWidth />
         </Grid>
 
         <Grid item xs={6}>
           <SelectInput
+            sx={{ marginTop: "0", marginBottom: "0" }}
             defaultValue={"starts_with"}
             source="match.rules.path_key"
             fullWidth
-            label="Path"
+            label="URL Path"
             choices={[
               { id: "starts_with", name: "Starts With" },
               { id: "ends_with", name: "Ends With" },
@@ -303,15 +312,21 @@ const Form = () => {
         </Grid>
 
         <Grid item xs={6}>
-          <TextInput source="match.rules.path" validate={[required()]} label="Value" fullWidth />
+          <TextInput
+            source="match.rules.path"
+            validate={[required()]}
+            label="Value"
+            fullWidth
+          />
         </Grid>
 
         <Grid item xs={6}>
           <SelectInput
+            sx={{ marginTop: "0", marginBottom: "0" }}
             defaultValue={"equals"}
             source="match.rules.country_key"
             fullWidth
-            label="Country"
+            label="Client Country"
             choices={[{ id: "equals", name: "=" }]}
             showEmptyOption={false}
           />
@@ -319,6 +334,7 @@ const Form = () => {
 
         <Grid item xs={6}>
           <SelectInput
+            sx={{ marginTop: "0", marginBottom: "0" }}
             source="match.rules.country"
             label="Value"
             fullWidth
@@ -328,6 +344,7 @@ const Form = () => {
 
         <Grid item xs={6}>
           <SelectInput
+            sx={{ marginTop: "0", marginBottom: "0" }}
             defaultValue={"equals"}
             source="match.rules.client_ip_key"
             fullWidth
@@ -343,10 +360,50 @@ const Form = () => {
           <TextInput source="match.rules.client_ip" label="Value" fullWidth />
         </Grid>
 
+        <Grid item xs={6}>
+          <SelectInput
+            sx={{ marginTop: "0", marginBottom: "0" }}
+            defaultValue={"equals"}
+            source="match.rules.jwt_token_validation"
+            choices={[
+              { id: "equals", name: "=" },
+              { id: "cookie", name: "Cookie header validation" },
+              { id: "redis", name: "Redis token validation" },
+            ]}
+            fullWidth
+            label="Token Validation"
+          />
+        </Grid>
+
+        <Grid item xs={6}>
+          <TextInput
+            source="match.rules.jwt_token_validation_value"
+            fullWidth
+            label="Value"
+          />
+        </Grid>
+
+        <Grid item xs={12}>
+          <FormDataConsumer>
+            {({ formData, ...rest }) => (
+              <div>
+                {formData.match?.rules?.jwt_token_validation_value && (
+                  <TextInput
+                    source="match.rules.jwt_token_validation_key"
+                    fullWidth
+                    label="Token Secret Key"
+                    type="password"
+                  />
+                )}
+              </div>
+            )}
+          </FormDataConsumer>
+        </Grid>
+
         <Grid item xs={2}>
           <BooleanInput
             source="match.response.allow"
-            label="Allow/Disallow"
+            label="Allow Request"
             fullWidth
             defaultValue={false}
           />
@@ -361,18 +418,34 @@ const Form = () => {
           />
         </Grid>
         <Grid item xs={6}>
-          <TextInput
-            source="match.response.redirect_uri"
-            label="Redirect To"
-            fullWidth
-          />
+          <FormDataConsumer>
+            {({ formData, ...rest }) => (
+              <React.Fragment>
+                {formData?.match?.response?.code >= 301 &&
+                formData?.match?.response?.code <= 305 ? (
+                  <TextInput
+                    source="match.response.redirect_uri"
+                    label="Proxy Pass/Redirect To"
+                    fullWidth
+                    validate={[required()]}
+                  />
+                ) : (
+                  <TextInput
+                    source="match.response.redirect_uri"
+                    label="Proxy Pass/Redirect To (Target)"
+                    fullWidth
+                  />
+                )}
+              </React.Fragment>
+            )}
+          </FormDataConsumer>
         </Grid>
 
         <Grid item xs={12}>
-          <RichTextInput
+          <TextInput
             multiline
             source="match.response.message"
-            label="Response Message"
+            label="Response Message (Base64 Encoded)"
             fullWidth
             validate={[required()]}
           />

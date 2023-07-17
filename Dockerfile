@@ -74,6 +74,7 @@ RUN luarocks install lua-resty-openidc
 RUN luarocks install base64
 RUN opm get ip2location/ip2location-resty
 RUN luarocks install lua-resty-redis-connector
+RUN luarocks install lua-resty-dns
 RUN opm get bungle/lua-resty-session
 #COPY nginx/test.conf /usr/local/openresty/nginx/conf/nginx.conf
 # COPY nginx/hd4dp.conf /etc/nginx/conf.d/hd4dp.conf
@@ -91,6 +92,7 @@ COPY ./api /usr/local/openresty/nginx/html/api
 #COPY $ENV_FILE /usr/local/openresty/nginx/html/openresty-admin.env
 COPY ./nginx-${APP_ENV}.conf.tmpl /tmp/nginx.conf.tmpl
 COPY ./resolver.conf.tmpl /tmp/resolver.conf.tmpl
+COPY ./html/swagger /usr/local/openresty/nginx/html/swagger
 
 #RUN chmod -R 777 /usr/local/openresty/nginx/html/data && chmod -R 777 /usr/local/openresty/nginx/html/data/servers 
 

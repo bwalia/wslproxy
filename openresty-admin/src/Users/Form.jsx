@@ -1,6 +1,6 @@
 import { Grid } from "@mui/material";
 import React from "react";
-import { NumberInput, SimpleForm, TextInput } from "react-admin";
+import { NumberInput, SelectInput, SimpleForm, TextInput } from "react-admin";
 
 const Form = () => {
   return (
@@ -35,6 +35,15 @@ const Form = () => {
         </Grid>
         <Grid item xs={6}>
           <TextInput source="address.zipcode" fullWidth />
+        </Grid>
+        <Grid item xs={6}>
+          <TextInput source="password" type="password" fullWidth />
+        </Grid>
+        <Grid item xs={6}>
+          <SelectInput source="user_role" sx={{ marginTop: "0", marginBottom: "0"}} fullWidth choices={[
+            {id: '98aolp-asd32-sdfczsd-34fds', name: 'authenticated'},
+            {id: '91adfp-trd32-sdkm23d-34f5s', name: 'admin'},
+          ]} />
         </Grid>
       </Grid>
     </SimpleForm>

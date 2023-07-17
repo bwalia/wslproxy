@@ -3,14 +3,14 @@ import { TextInput, FormDataConsumer } from "react-admin";
 import { Grid } from "@mui/material";
 import { isEmpty } from "lodash";
 
-const CreateServerText = () => {
+const CreateServerText = ({source}) => {
   return (
     <FormDataConsumer>
       {({ formData, ...rest }) => (
         <Grid item xs={12}>
           <TextInput
             multiline
-            source="config"
+            source={source}
             label="Generated Nginx Server Config"
             helperText="For example: server {listen       8000; listen       somename:8080; server_name  somename  alias  another.alias; location / { root   html; index  index.html index.htm; }}"
             fullWidth

@@ -1,0 +1,29 @@
+name: Run Postman Collection
+
+on:
+  workflow_dispatch:    
+
+jobs:
+  build:
+    runs-on: [self-hosted-node6]
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '16' 
+
+      - name: Decrypt GPG file
+        working-directory: ./QA
+        run: |
+          gpg --quiet --batch --yes --decrypt --passphrase="${{ secrets.GPG_PASSPHRASE }}" --output whitefalcon_int6-api.postman_test-collection.json whitefalcon_int6-api.postman_test-collection.json.gpg
+
+      - name: Install Newman
+        run: npm install -g newman 
+      
+      - name: Run Postman Collection
+        run: newman run ./QA/whitefalcon_int6-api.postman_test-collection.json
+       

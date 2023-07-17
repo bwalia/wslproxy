@@ -71,7 +71,7 @@ textarea#config {
   height: 300px !important;
   overflow-y: scroll !important;
 }
-textarea#custom_block\.0\.additional_block {
+textarea#custom_block\.0\.additional_block, textarea#match\.response\.message {
   height: 123px !important;
   overflow-y: scroll !important;
 }

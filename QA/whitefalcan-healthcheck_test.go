@@ -18,11 +18,13 @@ func TestHealthCheck(t *testing.T) {
 	}
 	fmt.Println((url))
 
+
 	// type pingResp struct {
 	// 	Redis_status string `json:"redis_status_msg"`
 	// 	Pod_Uptime   string `json:"pod_uptime"`
 	// 	Node_Uptime  string `json:"node_uptime"`
 	// }
+
 
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", url, nil)
@@ -69,3 +71,5 @@ func TestHealthCheck(t *testing.T) {
 	// }
 
 }
+
+	

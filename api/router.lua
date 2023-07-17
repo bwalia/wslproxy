@@ -15,6 +15,7 @@ local red = redis:new()
 Base64 = require "base64"
 ConfigPath = os.getenv("NGINX_CONFIG_DIR")
 Hostname = ngx.var.host
+local configPath = os.getenv("NGINX_CONFIG_DIR")
 
 red:set_timeout(1000) -- 1 second
 
@@ -30,17 +31,71 @@ if not ok then
     return
 end
 
+local function getSettings()
+    local readSettings, errSettings = io.open(configPath .. "data/settings.json", "rb")
+    local settings = {}
+    if readSettings == nil then
+        ngx.say("Couldn't read file: " .. errSettings)
+    else
+        local jsonString = readSettings:read "*a"
+        readSettings:close()
+        settings = cjson.decode(jsonString)
+    end
+    return settings
+end
+
 local function trimWhitespace(str)
     -- Trim whitespace from the start and end of the string
     local trimmedStr = string.gsub(str, "^%s*(.-)%s*$", "%1")
     return trimmedStr
 end
 
-local function check_rules(rules, ruleId, priority, message)
-    local chk_path = rules.path ~= nil and trimWhitespace(rules.path) or rules.path
-    local isPathPass, failMessage = false, ""
+local function splitString(inputString, separator)
+    local result = {}
+    local pattern = string.format("([^%s]+)", separator)
+    for value in string.gmatch(inputString, pattern) do
+        table.insert(result, value)
+    end
+    return result
+end
+
+local function matchSecurityToken(rule)
+    local isTokenVerified = true
+    if rule.jwt_token_validation_value ~= nil and rule.jwt_token_validation_key ~= nil then
+        local passPhrase = Base64.decode(rule.jwt_token_validation_key)
+        local reqHeaders = ngx.req.get_headers()
+        local securityToken = reqHeaders['cookie']
+        if securityToken and securityToken ~= nil and type(securityToken) ~= nil then
+            local token = string.match(tostring(securityToken), "Authorization=([^;]+)")
+            if token ~= nil then
+                token = string.gsub(token, "Bearer", "")
+                token = trimWhitespace(ngx.unescape_uri(token))
+                local verified_token = jwt:verify(passPhrase, token)
+                if not verified_token then
+                    isTokenVerified = false
+                end
+            else
+                isTokenVerified = false
+            end
+        else
+            isTokenVerified = false
+        end
+    end
+    return isTokenVerified
+end
+
+local function check_rules(rules, ruleId, priority, message, statusCode, redirectUri)
+    local chk_path = (rules.path ~= nil and type(rules.path) ~= "userdata") and trimWhitespace(rules.path) or rules.path
+    local isPathPass, failMessage, isTokenPass = false, "", false
     local finalResult, results = {}, {}
     local req_url = ngx.var.request_uri
+    if rules.jwt_token_validation_value ~= nil and rules.jwt_token_validation_key ~= nil then
+        isTokenPass = matchSecurityToken(rules)
+    else
+        isTokenPass = true
+    end
+
+    results["token"] = isTokenPass
     if chk_path and chk_path ~= nil and chk_path ~= "" and type(chk_path) ~= "userdata" then
         if rules.path_key == 'starts_with' and req_url:startswith(chk_path) == true then
             isPathPass = true
@@ -68,8 +123,8 @@ local function check_rules(rules, ruleId, priority, message)
     if result.country_short then
         country = result.country_short
     end
-
-    local client_ip = rules.client_ip ~= nil and trimWhitespace(rules.client_ip) or rules.client_ip
+    local client_ip = (rules.client_ip ~= nil and type(rules.client_ip) ~= "userdata") and rules.client_ip or
+        rules.client_ip
     -- user data type is null
     if client_ip and client_ip ~= nil and client_ip ~= "" and type(client_ip) ~= "userdata" then
         if rules.client_ip_key == 'starts_with' and req_add:startswith(client_ip) == true then -- and req_add~=client_ipand  (req_add:startswith(client_ip) ~= true
@@ -86,7 +141,7 @@ local function check_rules(rules, ruleId, priority, message)
 
     results["client_ip"] = isClientIpPass
     local isCountryPass = false
-    -- check country 
+    -- check country
     if rules.country and rules.country ~= nil and rules.country ~= "" and type(rules.country) ~= "userdata" then
         if rules.country_key == 'equals' and rules.country == country then
             isCountryPass = true
@@ -100,6 +155,10 @@ local function check_rules(rules, ruleId, priority, message)
     results["country"] = isCountryPass
     results["priority"] = priority
     results["message"] = message
+    results["statusCode"] = statusCode
+    results["redirectUri"] = redirectUri
+    results["rule_data"] = rules
+
     finalResult[ruleId] = results
 
     return finalResult
@@ -110,7 +169,7 @@ string.startswith = function(self, str)
 end
 
 function string:endswith(suffix)
-    return self:sub(-#suffix) == suffix
+    return self:sub(- #suffix) == suffix
 end
 
 local function hasAndCondition(tbl)
@@ -130,17 +189,62 @@ local function matchRules(ruleId)
         if ruleFromRedis.match and ruleFromRedis.match.rules then
             -- check prefix and postfix URL
             local results = check_rules(ruleFromRedis.match.rules, ruleFromRedis.id, ruleFromRedis.priority,
-                ruleFromRedis.match.response.message)
+                ruleFromRedis.match.response.message, ruleFromRedis.match.response.code,
+                ruleFromRedis.match.response.redirect_uri)
             return results
         end
     end
 end
 
-local exist_values, err = red:hscan("domains", 0, "match", "domain:" .. Hostname)
+local function anyValueIsTrue(table)
+    for _, value in ipairs(table) do
+        if value == true then
+            return true
+        end
+    end
+    return false
+end
+
+local function getTableLength(tbl)
+    local count = 0
+    for _ in pairs(tbl) do
+        count = count + 1
+    end
+    return count
+end
+
+local function isIpAddress(str)
+    local pattern = "^%d+%.%d+%.%d+%.%d+$"
+    local match = string.match(str, pattern)
+    if match then
+        -- Further validate the IP address components
+        local a, b, c, d = string.match(str, "(%d+)%.(%d+)%.(%d+)%.(%d+)")
+        if tonumber(a) <= 255 and tonumber(b) <= 255 and tonumber(c) <= 255 and tonumber(d) <= 255 then
+            return true
+        end
+    end
+    return false
+end
+
+local function isAllPathAllowed(myTable, targetPath)
+    local isPathEqual = false
+    for _, entry in pairs(myTable) do
+        if entry.paths == targetPath then
+            isPathEqual = true
+            break
+        end
+    end
+    return isPathEqual
+end
+
+
+local exist_values, err = red:hscan("servers", 0, "match", "host:" .. Hostname)
+local settings = getSettings()
 if exist_values[2] and exist_values[2][2] then
     local jsonval = cjson.decode(exist_values[2][2])
     local parse_rules = {}
     if jsonval.rules and type(jsonval.rules) ~= "userdata" then
+        table.insert(parse_rules, matchRules(jsonval.rules))
         if jsonval.match_cases then
             local hasAnd = hasAndCondition(jsonval.match_cases)
             if next(hasAnd) ~= nil then
@@ -149,49 +253,214 @@ if exist_values[2] and exist_values[2][2] then
                 end
             end
         end
-        table.insert(parse_rules, matchRules(jsonval.rules))
-        -- ngx.say(cjson.encode(parse_rules))
+        -- do return ngx.say(cjson.encode(parse_rules)) end
         local highestPriority = 0
         local highestPriorityKey, highestPriorityParentKey
-        local hasFalseValue = false
-
+        local hasFalseValue, pathMatched, finalObj = {}, false, {}
+        local reqUri = ngx.var.request_uri
         for _, record in ipairs(parse_rules) do
             for key, value in pairs(record) do
+                local preFinalObj = {}
                 local hasFalseField = false
+                if value.rule_data.path_key == "starts_with" and reqUri:startswith(value.rule_data.path) == true then
+                    highestPriority = value.priority
+                    highestPriorityKey = key
+                    highestPriorityParentKey = _
+                    pathMatched = true
+                    hasFalseValue = {}
+                    preFinalObj["path_matched"] = true
+                elseif value.rule_data.path_key == 'ends_with' and reqUri:endswith(value.rule_data.path) == true then
+                    highestPriority = value.priority
+                    highestPriorityKey = key
+                    highestPriorityParentKey = _
+                    pathMatched = true
+                    hasFalseValue = {}
+                    preFinalObj["path_matched"] = true
+                elseif value.rule_data.path_key == 'equals' and value.rule_data.path == reqUri then
+                    highestPriority = value.priority
+                    highestPriorityKey = key
+                    highestPriorityParentKey = _
+                    pathMatched = true
+                    hasFalseValue = {}
+                    preFinalObj["path_matched"] = true
+                elseif value.priority > highestPriority then
+                    highestPriority = value.priority
+                    highestPriorityKey = key
+                    highestPriorityParentKey = _
+                    preFinalObj["path_matched"] = false
+                else
+                    preFinalObj["path_matched"] = false
+                end
+                preFinalObj["paths"] = value.rule_data.path
+                preFinalObj["paths_key"] = value.rule_data.path_key
+
                 for field, fieldValue in pairs(value) do
                     if fieldValue == false then
                         hasFalseField = true
-                        highestPriorityKey = field
-                        break
                     end
+                    preFinalObj["has_false_value"] = hasFalseField
                 end
-                if not hasFalseField then
-                    if value.priority > highestPriority then
-                        highestPriority = value.priority
-                        highestPriorityKey = key
-                        highestPriorityParentKey = _
-                    end
-                else
-                    hasFalseValue = true
+                finalObj[key] = preFinalObj
+            end
+        end
+        local finalObjCount, isAllPathPass, isPathExists = 0, false, false
+        if type(finalObj) == "table" then
+            finalObjCount = getTableLength(finalObj)
+            isAllPathPass = isAllPathAllowed(finalObj, "/")
+            isPathExists = isAllPathAllowed(finalObj, ngx.var.request_uri)
+        end
+        -- do return ngx.say(cjson.encode(finalObj)) end
+        local rulePasses = false
+        local requestedUri = ngx.var.request_uri
+        for index, passedRule in pairs(finalObj) do
+            if isAllPathPass and not isPathExists then
+                if requestedUri == "/" and passedRule.has_false_value == false then
+                    rulePasses = true
+                    break
+                elseif passedRule.paths_key == "starts_with" and
+                    requestedUri:startswith(passedRule.paths) == false 
+                then
+                    rulePasses = true
+                    break
+                elseif passedRule.paths_key == "ends_with" and
+                    requestedUri:startswith(passedRule.paths) == false
+                then
+                    rulePasses = true
+                    break
+                elseif passedRule.paths_key == "equals" and
+                    requestedUri:startswith(passedRule.paths) == false
+                then
+                    rulePasses = true
                     break
                 end
             end
-
-            if hasFalseValue then
-                break
+            if isAllPathPass == true then
+                if requestedUri == "/" and passedRule.has_false_value == false then
+                    rulePasses = true
+                    break
+                elseif passedRule.paths_key == "starts_with" and
+                    requestedUri:startswith(passedRule.paths) == false and
+                    passedRule.path_matched == true and
+                    passedRule.has_false_value == false
+                then
+                    rulePasses = true
+                    break
+                elseif passedRule.paths_key == "ends_with" and
+                    requestedUri:startswith(passedRule.paths) == false and
+                    passedRule.path_matched == true and
+                    passedRule.has_false_value == false
+                then
+                    rulePasses = true
+                    break
+                elseif passedRule.paths_key == "equals" and
+                    requestedUri:startswith(passedRule.paths) == false and
+                    passedRule.path_matched == true and
+                    passedRule.has_false_value == false
+                then
+                    rulePasses = true
+                    break
+                end
+                if passedRule.path_matched == true and passedRule.has_false_value == false and passedRule.paths ~= "/" then
+                    rulePasses = true
+                    break
+                elseif passedRule.path_matched == true and passedRule.has_false_value == false and finalObjCount == 1 then
+                    rulePasses = true
+                    break
+                else
+                    rulePasses = false
+                end
+            else
+                if passedRule.path_matched == true and passedRule.has_false_value == false then
+                    rulePasses = true
+                    break
+                end
             end
         end
+        -- do return ngx.say(tostring(rulePasses)) end
+        -- do return ngx.say(cjson.encode({data = {highestPriorityParentKey = highestPriorityParentKey, highestPriorityKey = highestPriorityKey}})) end
+        if rulePasses == true then
+            local selectedRule = parse_rules[highestPriorityParentKey][highestPriorityKey]
+            if selectedRule.statusCode == 301 then
+                ngx.redirect(selectedRule.redirectUri, ngx.HTTP_MOVED_PERMANENTLY)
+                ngx.exit(ngx.HTTP_MOVED_PERMANENTLY)
+            elseif selectedRule.statusCode == 302 then
+                ngx.redirect(selectedRule.redirectUri, ngx.HTTP_MOVED_TEMPORARILY)
+                ngx.exit(ngx.HTTP_MOVED_TEMPORARILY)
+            elseif selectedRule.statusCode == 305 then
+                local proxy_server_name = jsonval.proxy_server_name
+                local getServer = red:hget("servers", jsonval.id)
+                if getServer ~= nil and type(getServer) ~= "userdata" then
+                    getServer = cjson.decode(getServer)
+                    getServer.proxy_pass = selectedRule.redirectUri
+                    -- remove http:// from the url or https:// as it should be added in the proxy_pass
+                    selectedRule.redirectUri = string.gsub(selectedRule.redirectUri, "https://", "")
+                    selectedRule.redirectUri = string.gsub(selectedRule.redirectUri, "http://", "")
+                    local extracted = string.match(selectedRule.redirectUri, ":(.*)")
+                    if not isIpAddress(selectedRule.redirectUri) then
+                        local resolver = require "resty.dns.resolver"
+                        local r, err = resolver:new {
+                            nameservers = { "8.8.8.8", { "8.8.4.4", 53 } },
+                            retrans = 5,      -- 5 retransmissions on receive timeout
+                            timeout = 2000,   -- 2 sec
+                            no_random = true, -- always start with first nameserver
+                        }
+                        if not r then
+                            ngx.say("failed to instantiate the resolver: ", err)
+                            return
+                        end
+                        local answers, err, tries = r:query(selectedRule.redirectUri, nil, {})
+                        if not answers then
+                            ngx.say("failed to query the DNS server: ", err)
+                            ngx.say("retry historie:\n  ", table.concat(tries, "\n  "))
+                            return
+                        end
+                        for i, ans in ipairs(answers) do
+                            selectedRule.redirectUri = ans.address
+                        end
+                    end
+                    local finalProxyHost = selectedRule.redirectUri
+                    if extracted ~= nil then
+                        ngx.var.proxy_port = extracted
+                        finalProxyHost = string.gsub(selectedRule.redirectUri, ":(.*)", "")
+                    end
 
-        if hasFalseValue then
-            ngx.say(string.format("Please check your Security rules. your %s is incorrect", highestPriorityKey))
+                    ngx.var.proxy_host = finalProxyHost
+                    if proxy_server_name == nil or proxy_server_name == "" then
+                        -- ngx.req.set_header("Host", selectedRule.redirectUri)
+                        ngx.ctx.proxy_host_override = selectedRule.redirectUri
+                        ngx.header["X-Debug-Host"] = ngx.ctx.proxy_host_override
+                    else
+                        -- ngx.req.set_header("Host", proxy_server_name)
+                        ngx.ctx.proxy_host_override = proxy_server_name
+                        ngx.header["X-Debug-Host"] = ngx.ctx.proxy_host_override
+                    end
+                    ngx.log(ngx.INFO, ngx.var.proxy_host)
+                    ngx.log(ngx.INFO, ngx.var.proxy_host_override)
+                    -- do return ngx.say(ngx.var.proxy_host_override) end
+                else
+                    ngx.log(ngx.ERR, "[ERROR]: Server not found!")
+                end
+                return
+            elseif selectedRule.statusCode == 200 or selectedRule.statusCode == 403 or selectedRule.statusCode == 403 then
+                ngx.status = selectedRule.statusCode
+                ngx.say(Base64.decode(parse_rules[highestPriorityParentKey][highestPriorityKey].message))
+            end
         else
-            ngx.say(Base64.decode(parse_rules[highestPriorityParentKey][highestPriorityKey].message))
+            if settings.nginx.default.conf_mismatch ~= nil then
+                ngx.status = ngx.HTTP_FORBIDDEN
+                ngx.say(Base64.decode(settings.nginx.default.conf_mismatch))
+            end
         end
     else
-        ngx.say(jsonval.server_name, '---', 'no rules, please ask your administrative to set the Rules for server')
+        if settings.nginx.default.no_rule ~= nil then
+            ngx.say(Base64.decode(settings.nginx.default.no_rule))
+        end
     end
 else
-    ngx.say("Please add a server first")
+    -- ngx.say("No Nginx Server Config found.")
+    if settings.nginx.default.no_server ~= nil then
+        ngx.say(Base64.decode(settings.nginx.default.no_server))
+    end
 end
-return
+-- ngx.var.proxy_host_override = 'test313.workstation.co.uk'
 -- this will replace the need for server block for each website. It will parse JSON and match host header and route to the backend server all in lua

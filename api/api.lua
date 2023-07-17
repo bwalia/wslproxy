@@ -176,9 +176,6 @@ local function deleteRuleFromServer(ruleId)
                         end
                     end
                     red:hset("servers", server, cjson.encode(getServer))
-                    if getServer.rules == nil and getServer.match_cases == nil then
-                        red:hdel('domains', 'domain:' .. getServer.name)
-                    end
                 end
             end
         end
@@ -378,8 +375,23 @@ end
 local function listServers(args)
     local counter = 0
     local params = args
+    local qParams = {}
     params = params.params
-    local qParams = cjson.decode(params)
+    if params == nil and type(params) == "nil" then
+        qParams = {
+            pagination = {
+                page = args['pagination[page]'],
+                perPage = args['pagination[perPage]']
+            },
+            sort = {
+                field = args['sort[field]'],
+                order = args['sort[order]']
+            },
+            filter = {}
+        }
+    else
+        qParams = cjson.decode(params)
+    end
     -- Set the pagination parameters
     local pageSize = qParams.pagination.perPage -- Number of records per page
     local pageNumber = qParams.pagination.page -- Page number (starting from 1)
@@ -459,7 +471,8 @@ local function createUpdateServer(body, uuid)
     if uuid then
         response = CreateUpdateRecord(payloads, uuid, "servers", "servers", "update")
     else
-        payloads.id = generate_uuid()
+        payloads.id = "host:" .. payloads.server_name
+        payloads.proxy_pass = "http://localhost"
         response = CreateUpdateRecord(payloads, payloads.id, "servers", "servers", "create")
     end
 
@@ -482,7 +495,6 @@ local function createDeleteServer(body, uuid)
                 if oldDomain and oldDomain ~= "null" and type(oldDomain) == "string" then
                     oldDomain = cjson.decode(oldDomain)
                     oldServerName = oldDomain.server_name
-                    red:hdel('domains', 'domain:' .. oldServerName)
                     if oldDomain.rules ~= nil then
                         deleteServerFromRules(oldDomain.rules, uuid)
                     end
@@ -506,7 +518,6 @@ local function createDeleteServer(body, uuid)
                     if oldDomain and oldDomain ~= "null" and type(oldDomain) == "string" then
                         oldDomain = cjson.decode(oldDomain)
                         oldServerName = oldDomain.server_name
-                        red:hdel('domains', 'domain:' .. oldServerName)
                         if oldDomain.rules ~= nil then
                             deleteServerFromRules(oldDomain.rules, uuid)
                         end
@@ -782,8 +793,23 @@ local function listRules(args)
     local settings = getSettings()
     local allRules, keys, totalRecords = {}, {}, 0
     local params = args
+    local qParams = {}
     params = params.params
-    local qParams = cjson.decode(params)
+    if params == nil and type(params) == "nil" then
+        qParams = {
+            pagination = {
+                page = args['pagination[page]'],
+                perPage = args['pagination[perPage]']
+            },
+            sort = {
+                field = args['sort[field]'],
+                order = args['sort[order]']
+            },
+            filter = {}
+        }
+    else
+        qParams = cjson.decode(params)
+    end
     -- Set the pagination parameters
     local pageSize = qParams.pagination.perPage -- Number of records per page
     local pageNumber = qParams.pagination.page -- Page number (starting from 1)
@@ -813,9 +839,9 @@ local function listRule(args, uuid)
                 local jsonString = file:read "*a"
                 file:close()
                 local jsonData = cjson.decode(jsonString)
-                if jsonData.match.response.message then
-                    jsonData.match.response.message = Base64.decode(jsonData.match.response.message)
-                end
+                -- if jsonData.match.response.message then
+                --     jsonData.match.response.message = Base64.decode(jsonData.match.response.message)
+                -- end
                 ngx.say(cjson.encode({
                     data = jsonData
                 }))
@@ -823,8 +849,14 @@ local function listRule(args, uuid)
         else
             local exist_value, err = red:hget("request_rules", uuid)
             exist_value = cjson.decode(exist_value)
-            if exist_value.match.response.message then
-                exist_value.match.response.message = Base64.decode(exist_value.match.response.message)
+            -- if exist_value.match.response.message then
+            --     exist_value.match.response.message = Base64.decode(exist_value.match.response.message)
+            -- end
+
+            if exist_value.match.rules.jwt_token_validation_value ~= nil and
+                exist_value.match.rules.jwt_token_validation_key ~= nil then
+                exist_value.match.rules.jwt_token_validation_key =
+                    Base64.decode(exist_value.match.rules.jwt_token_validation_key)
             end
 
             ngx.say({cjson.encode({
@@ -892,38 +924,41 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name, method)
             json_val[k] = nil
         end
     end
+    if folder_name == "rules" and json_val.match.rules.jwt_token_validation_value ~= nil and
+        json_val.match.rules.jwt_token_validation_key ~= nil then
+        json_val.match.rules.jwt_token_validation_key = Base64.encode(json_val.match.rules.jwt_token_validation_key)
+    end
     if key_name == 'servers' and json_val.config then
         json_val.config = Base64.encode(json_val.config)
     end
     if folder_name == 'rules' and json_val.match and json_val.match.response and json_val.match.response.message then
-        json_val.match.response.message = Base64.encode(json_val.match.response.message)
+        json_val.match.response.message = string.gsub(json_val.match.response.message, "%%2B", "+")
     end
 
     local redis_json, domainJson = {}, {}
     if key_name == 'servers' and json_val.server_name then
-        local getDomain = red:hget('domains', 'domain:' .. json_val.server_name)
+        local getDomain = red:hget(key_name, json_val.id)
         if getDomain and getDomain ~= nil and type(getDomain) == "string" and method == "create" then
             ngx.status = ngx.HTTP_CONFLICT
             formatResponse = {
                 message = string.format(
                     "Server name %s is alredy exist either you need to delete that, or you can update the same record.",
-                    json_val.server_name),
+                    json_val.server_name)
             }
             return formatResponse
         end
-        local oldServerName = ""
-        local oldDomain, oldDmnErr = red:hget(key_name, uuid)
-        if oldDomain and oldDomain ~= "null" and type(oldDomain) == "string" then
-            oldDomain = cjson.decode(oldDomain)
-            oldServerName = oldDomain.server_name
-        else
-            ngx.log(ngx.ERR, "Error while getting domain from redis: ", oldDmnErr)
+        if method == "update" and json_val.id ~= "host:" .. json_val.server_name then
+            local previousDomain = red:hget(key_name, "host:"..json_val.server_name)
+            if previousDomain and previousDomain ~= nil and type(previousDomain) == "string" then
+                ngx.status = ngx.HTTP_CONFLICT
+                formatResponse = {
+                    message = string.format(
+                        "Server name %s is alredy exist either you need to delete that, or you can update the same record.",
+                        json_val.server_name)
+                }
+                return formatResponse
+            end
         end
-        if oldServerName ~= json_val.server_name then
-            red:hdel('domains', 'domain:' .. oldServerName)
-        end
-        domainJson['domain:' .. json_val.server_name] = cjson.encode(json_val)
-        red:hmset('domains', domainJson)
     end
     if key_name == 'servers' and json_val.rules ~= nil and type(json_val.rules) ~= "userdata" and json_val.rules then
         updateServerInRules(json_val.rules, json_val.id, "rules")
@@ -1017,6 +1052,35 @@ local function listSessions(args)
     }))
 end
 
+-- Settings section
+
+local function listSettings(args, uuid)
+    local settingsLogo = red:hget("company_logo", uuid)
+    if settingsLogo and settingsLogo ~= "null" and type(settingsLogo) == "string" then
+        ngx.say(cjson.encode({
+            data = cjson.decode(settingsLogo)
+        }))
+    end
+end
+
+local function createUpdateSettings(body, uuid)
+    body = GetPayloads(body)
+    local settingsJson, settingUUID = {}, uuid
+    if not uuid then
+        ---@diagnostic disable-next-line: param-type-mismatch
+        body.created_at = os.time(os.date("!*t"))
+        body.id = generate_uuid()
+        settingUUID = body.id
+    end
+    settingsJson[settingUUID] = cjson.encode(body)
+    local savingToRedis = red:hmset("company_logo", settingsJson)
+    if savingToRedis and savingToRedis ~= nil and type(savingToRedis) == "string" then
+        return ngx.say(cjson.encode({
+            data = body
+        }))
+    end
+end
+
 local function handle_get_request(args, path)
     -- handle GET request logic
     local delimiter = "/"
@@ -1029,7 +1093,7 @@ local function handle_get_request(args, path)
 
     if path == "servers" then
         listServers(args)
-    elseif uuid and (#uuid == 36 or #uuid == 32) and subPath[1] == "servers" then
+    elseif uuid and string.match(uuid, "^host:") and subPath[1] == "servers" then
         listServer(args, uuid)
     end
 
@@ -1050,6 +1114,9 @@ local function handle_get_request(args, path)
         -- elseif uuid and (#uuid == 36 or #uuid == 32) and subPath[1] == "sessions" then
         --     listSession(args, uuid)
     end
+    if uuid and (#uuid == 36 or #uuid == 32) and subPath[1] == "settings" then
+        listSettings(args, uuid)
+    end
 end
 
 local function handle_post_request(args, path)
@@ -1069,26 +1136,38 @@ local function handle_post_request(args, path)
     if path == "storage/management" then
         setStorage(args)
     end
+    if path == "settings" then
+        createUpdateSettings(args)
+    end
 end
 
 -- Function to handle PUT requests
 local function handle_put_request(args, path)
     -- handle PUT request logic
+    local pattern = ".*/(.*)"
+    local uuid = string.match(path, pattern)
+    if not uuid or uuid == nil or uuid == "" then
+        ngx.status = ngx.HTTP_BAD_REQUEST
+        ngx.say(cjson.encode({
+            data = {
+                message = "The uuid must be present while updating the data."
+            }
+        }))
+        ngx.exit(ngx.HTTP_BAD_REQUEST)
+        return
+    end
     if string.find(path, "servers") then
-        local pattern = ".*/(.*)"
-        local uuid = string.match(path, pattern)
         createUpdateServer(args, uuid)
     end
     if string.find(path, "users") then
-        local pattern = ".*/(.*)"
-        local uuid = string.match(path, pattern)
         createUpdateUser(args, uuid)
     end
 
     if string.find(path, "rules") then
-        local pattern = ".*/(.*)"
-        local uuid = string.match(path, pattern)
         createUpdateRules(args, uuid)
+    end
+    if string.find(path, "settings") then
+        createUpdateSettings(args, uuid)
     end
 end
 

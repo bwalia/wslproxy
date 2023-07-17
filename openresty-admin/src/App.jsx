@@ -13,6 +13,7 @@ import SessionIcon from "@mui/icons-material/HistoryToggleOff";
 import ServerIcon from "@mui/icons-material/Storage";
 import RuleIcon from "@mui/icons-material/Rule";
 import Rules from "./Rules";
+import Settings from "./Settings";
 import AppBar from "./AppBar";
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -34,6 +35,7 @@ const App = () => (
       <Resource name="sessions" {...Sessions} icon={SessionIcon} />
       <Resource name="servers" {...Servers} icon={ServerIcon} />
       <Resource name="rules" {...Rules} icon={RuleIcon} />
+      <Resource name="settings" {...Settings} icon={RuleIcon} />
     </Admin>
     <div
       style={{
@@ -48,7 +50,7 @@ const App = () => (
         color: "#213547"
       }}
     >
-      <p>Deploy at: {deploymentTime}</p>
+      <p>Deployment timestamp: {deploymentTime}</p>
     </div>
   </React.Fragment>
 );

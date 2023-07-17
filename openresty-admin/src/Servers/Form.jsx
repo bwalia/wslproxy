@@ -16,7 +16,7 @@ import {
 import LocationInput from "./input/LocationInput";
 import CreateServerText from "./input/CreateServerText";
 
-const Form = () => {
+const Form = ({type}) => {
   const dataProvider = useDataProvider();
   const [totalResults, setTotalResults] = React.useState(0);
   const initialValues = [{ quantity: 1 }];
@@ -52,28 +52,36 @@ const Form = () => {
               </SimpleFormIterator>
             </ArrayInput>
           </Grid>
-          <Grid item xs={8}>
+          <Grid item xs={4}>
             <TextInput
               source="server_name"
               fullWidth
               label="Server/Domain name"
               validate={[required()]}
+              disabled={type === "edit" ? true : false}
+            />
+          </Grid>
+          <Grid item xs={4}>
+            <TextInput
+              source="proxy_server_name"
+              fullWidth
+              label="Proxy Server/Domain name"
             />
           </Grid>
           <Grid item xs={3}>
-            <TextInput source="root" fullWidth label="Root path" />
+            <TextInput source="root" defaultValue={"/var/www/html"} fullWidth label="Root path" />
           </Grid>
           <Grid item xs={3}>
-            <TextInput source="index" fullWidth label="Index file" />
+            <TextInput source="index" defaultValue={"index.html"} fullWidth label="Index file" />
           </Grid>
           <Grid item xs={3}>
-            <TextInput source="access_log" fullWidth label="Access logs path" />
+            <TextInput source="access_log" defaultValue={"logs/access.log"} fullWidth label="Access logs path" />
           </Grid>
           <Grid item xs={3}>
-            <TextInput source="error_log" fullWidth label="Error logs path" />
+            <TextInput source="error_log" defaultValue={"logs/error.log"} fullWidth label="Error logs path" />
           </Grid>
           <Grid item xs={12}>
-            <LocationInput />
+            <LocationInput source="locations" />
           </Grid>
           <Grid item xs={12}>
             <ArrayInput source="custom_block" label="Additional block">
@@ -83,7 +91,7 @@ const Form = () => {
             </ArrayInput>
           </Grid>
           <Grid item xs={12}>
-            <CreateServerText />
+            <CreateServerText source="config" />
           </Grid>
         </Grid>
       </TabbedForm.Tab>

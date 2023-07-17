@@ -27,11 +27,11 @@ http {
     include       mime.types;
     default_type  application/octet-stream;
 
-    #log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
-    #                  '$status $body_bytes_sent "$http_referer" '
-    #                  '"$http_user_agent" "$http_x_forwarded_for"';
+    log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                      '$status $body_bytes_sent "$http_referer" '
+                      '"$http_user_agent" "$http_x_forwarded_for"';
 
-    # access_log  logs/access.log  main;
+    access_log  logs/access.log  main;
     sendfile        on;
     #tcp_nopush     on;
 
@@ -72,6 +72,8 @@ http {
             root   html/openresty-admin/dist;
             index  index.html index.htm;
         }
+        client_max_body_size    256M;
+        client_body_buffer_size 128k;
 
         location ~ ^/api(.*)$ {
             default_type 'text/plain';
@@ -79,6 +81,7 @@ http {
             add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, OPTIONS';
             add_header 'Access-Control-Allow-Headers' 'Content-Type';
             access_by_lua_block {
+                local cjson = require "cjson"
                 local path_name = ngx.var.uri:match("^/api/(.*)$")
                 if path_name ~= "user/login" then
                     local jwt = require "resty.jwt"
@@ -92,9 +95,9 @@ http {
                     -- ngx.say(token)
                     local passPhrase = os.getenv("JWT_SECURITY_PASSPHRASE")
                     local verified_token = jwt:verify(passPhrase, token)
-                    if not verified_token then
+                    if verified_token.verified == false then
                         ngx.status = ngx.HTTP_UNAUTHORIZED
-                        ngx.say("Invalid token")
+                        ngx.say(cjson.encode({data = {message = verified_token.reason}}))
                         return ngx.exit(ngx.HTTP_UNAUTHORIZED)
                     end
                 end
@@ -106,7 +109,7 @@ http {
                 add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, X-Requested-With';
                 add_header 'Access-Control-Max-Age' 1728000;
                 add_header 'Content-Type' 'text/plain; charset=utf-8';
-                add_header 'Content-Length' 0;
+                # add_header 'Content-Length' 0;
                 return 204;
             }
 
@@ -120,7 +123,7 @@ http {
             add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, X-Requested-With';
             add_header 'Access-Control-Max-Age' 1728000;
             add_header 'Content-Type' 'text/plain; charset=utf-8';
-            add_header 'Content-Length' 0;
+            # add_header 'Content-Length' 0;
             content_by_lua_file /usr/local/openresty/nginx/html/api/redis_connect.lua;
         }
 
@@ -131,8 +134,13 @@ http {
             add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, X-Requested-With';
             add_header 'Access-Control-Max-Age' 1728000;
             add_header 'Content-Type' 'text/plain; charset=utf-8';
-            add_header 'Content-Length' 0;
+            # add_header 'Content-Length' 0;
             content_by_lua_file /usr/local/openresty/nginx/html/api/ping.lua;
+        }
+
+        location /swagger {
+          root   html;
+          index  swagger.html swagger.htm;
         }
 
         location /security-rules {
@@ -142,7 +150,7 @@ http {
             add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, X-Requested-With';
             add_header 'Access-Control-Max-Age' 1728000;
             add_header 'Content-Type' 'text/plain; charset=utf-8';
-            add_header 'Content-Length' 0;
+            # add_header 'Content-Length' 0;
             content_by_lua_file /usr/local/openresty/nginx/html/api/security_rules.lua;
         }
 
@@ -423,8 +431,24 @@ http {
           }
         }
     }
+# Set default generic server vars here
 
+upstream global_backend {
+server 0.0.0.1:1000 max_fails=3 fail_timeout=5s;
 
+balancer_by_lua_block {
+local balancer = require "ngx.balancer"
+local host = ngx.var.proxy_host
+local port = ngx.var.proxy_port
+local ok, err = balancer.set_current_peer(host, port)
+if not ok then
+    ngx.log(ngx.ERR, "balancer.set_current_peer failed to set the host " .. host .. ":" .. port .. " current peer: ", err)
+    return ngx.exit(500)
+    end
+}
+
+keepalive 10; # connection pool
+}
     
     server {
         listen       80 default_server;
@@ -436,16 +460,25 @@ http {
 
         #access_log  logs/host.access.log  main;
 
+        #Set default generic server vars here
+
+        set $proxy_host "127.0.0.1";
+        set $proxy_port "80";
+
+       # rewrite_by_lua_block {
+         # ngx.var.proxy_host = '127.0.0.1'
+         # ngx.var.proxy_port = '8080'
+       # }
 
         location / {
           default_type text/html;
-          add_header 'Access-Control-Allow-Origin' '*';
-          add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, PUT, DELETE';
-          add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, X-Requested-With';
-          add_header 'Access-Control-Max-Age' 1728000;
-          add_header Content-Type text/html;
-          add_header 'Content-Length' 0;
-          content_by_lua_file /usr/local/openresty/nginx/html/api/router.lua;
+          rewrite_by_lua_file /usr/local/openresty/nginx/html/api/router.lua;
+          set $ngx_proxy_host_override "";
+          access_by_lua_block { -- this code run just before the setting the proxy pass and content phase.
+              ngx.var.ngx_proxy_host_override = ngx.ctx.proxy_host_override
+          }
+          proxy_set_header Host $ngx_proxy_host_override;
+          proxy_pass http://global_backend;
         }
 
         location /ip-location {
