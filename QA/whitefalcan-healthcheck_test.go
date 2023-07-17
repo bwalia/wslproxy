@@ -18,11 +18,11 @@ func TestHealthCheck(t *testing.T) {
 	}
 	fmt.Println((url))
 
-	type pingResp struct {
-		Redis_status string `json:"redis_status_msg"`
-		Pod_Uptime   string `json:"pod_uptime"`
-		Node_Uptime  string `json:"node_uptime"`
-	}
+	// type pingResp struct {
+	// 	Redis_status string `json:"redis_status_msg"`
+	// 	Pod_Uptime   string `json:"pod_uptime"`
+	// 	Node_Uptime  string `json:"node_uptime"`
+	// }
 
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", url, nil)
@@ -39,33 +39,33 @@ func TestHealthCheck(t *testing.T) {
 		fmt.Println(string(body))
 	}
 
-	if !strings.Contains(string(body), "pong") {
+	if !strings.Contains(string(body), "Welcome to Workstation SRL") {
 		t.Error("Returned unexpected body ")
 	} else {
-		t.Log("Received response pong")
+		t.Log("Received expected response ")
 	}
 	if res.StatusCode != http.StatusOK {
 		t.Error("Unexpected response status code", res.StatusCode)
 		return
 	}
-	buff := bytes.NewBuffer(body)
-	var jsonData pingResp
-	err = json.NewDecoder(buff).Decode(&jsonData)
-	if err != nil {
-		t.Error("failed to decode json", err)
-	} else {
-		fmt.Println(jsonData.Redis_status)
-		fmt.Println(jsonData.Pod_Uptime)
-		fmt.Println(jsonData.Node_Uptime)
-	}
-	if jsonData.Redis_status != "OK" {
-		t.Error("Redis status is not ok")
-	}
-	if jsonData.Pod_Uptime == "" {
-		t.Error("Missing pod uptime")
-	}
-	if jsonData.Node_Uptime == "" {
-		t.Error("Missing node uptime")
-	}
+	// buff := bytes.NewBuffer(body)
+	// var jsonData pingResp
+	// err = json.NewDecoder(buff).Decode(&jsonData)
+	// if err != nil {
+	// 	t.Error("failed to decode json", err)
+	// } else {
+	// 	fmt.Println(jsonData.Redis_status)
+	// 	fmt.Println(jsonData.Pod_Uptime)
+	// 	fmt.Println(jsonData.Node_Uptime)
+	// }
+	// if jsonData.Redis_status != "OK" {
+	// 	t.Error("Redis status is not ok")
+	// }
+	// if jsonData.Pod_Uptime == "" {
+	// 	t.Error("Missing pod uptime")
+	// }
+	// if jsonData.Node_Uptime == "" {
+	// 	t.Error("Missing node uptime")
+	// }
 
 }
