@@ -375,8 +375,23 @@ end
 local function listServers(args)
     local counter = 0
     local params = args
+    local qParams = {}
     params = params.params
-    local qParams = cjson.decode(params)
+    if params == nil and type(params) == "nil" then
+        qParams = {
+            pagination = {
+                page = args['pagination[page]'],
+                perPage = args['pagination[perPage]']
+            },
+            sort = {
+                field = args['sort[field]'],
+                order = args['sort[order]']
+            },
+            filter = {}
+        }
+    else
+        qParams = cjson.decode(params)
+    end
     -- Set the pagination parameters
     local pageSize = qParams.pagination.perPage -- Number of records per page
     local pageNumber = qParams.pagination.page -- Page number (starting from 1)
@@ -778,8 +793,23 @@ local function listRules(args)
     local settings = getSettings()
     local allRules, keys, totalRecords = {}, {}, 0
     local params = args
+    local qParams = {}
     params = params.params
-    local qParams = cjson.decode(params)
+    if params == nil and type(params) == "nil" then
+        qParams = {
+            pagination = {
+                page = args['pagination[page]'],
+                perPage = args['pagination[perPage]']
+            },
+            sort = {
+                field = args['sort[field]'],
+                order = args['sort[order]']
+            },
+            filter = {}
+        }
+    else
+        qParams = cjson.decode(params)
+    end
     -- Set the pagination parameters
     local pageSize = qParams.pagination.perPage -- Number of records per page
     local pageNumber = qParams.pagination.page -- Page number (starting from 1)

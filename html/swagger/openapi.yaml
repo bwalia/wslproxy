@@ -8,6 +8,7 @@ tags:
     description: Create and Manage your servers  
   - name: Servers  
     description: Create and Manage your Rules
+
 paths:
   /api/rules:
     get:
@@ -16,7 +17,7 @@ paths:
       summary: Retrieve a list of all rules. 
       operationId: getRules
       parameters:
-        - name: search
+        - name: params
           in: query
           description: Search keyword
           required: false
@@ -32,6 +33,8 @@ paths:
       responses:
         '200':
           description: Successfully retrieved a list of all rules
+      security:
+        - bearerAuth: []  
           
     post:
       tags:
@@ -50,7 +53,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/RuleResponse'    
+                $ref: '#/components/schemas/RuleResponse'   
+      security:
+        - bearerAuth: [] 
                 
   /api/rules/{id}:
     get:
@@ -61,17 +66,17 @@ paths:
       parameters:
         - name: id
           in: path
-          description: ID of the rule to retrieve
+          description: ID of the record to retrieve
           required: true
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ServerResponse'
+          schema:
+            type: string
       responses:
          '200':
             description: Returned information about a specific rule
          '404':
             description: Not found       
+      security:
+        - bearerAuth: []             
             
     put:
       tags:
@@ -96,6 +101,8 @@ paths:
           description: Successfully updated rule
         '404':
           description: Not found
+      security:
+        - bearerAuth: []           
           
           
     delete:
@@ -112,7 +119,10 @@ paths:
             type: string
       responses:
         '200':
-          description: Successfully deleted a rule            
+          description: Successfully deleted a rule    
+      security:
+        - bearerAuth: [] 
+        
   /api/servers:
     get:
       tags:
@@ -120,7 +130,7 @@ paths:
       summary: Retrieve a list of all server. 
       operationId: getServers
       parameters:
-        - name: search
+        - name: params
           in: query
           description: Search keyword
           required: false
@@ -136,6 +146,8 @@ paths:
       responses:
         '200':
           description: Successfully retrieved a list of all servers
+      security:
+        - bearerAuth: []           
     post:
       tags:
         - Servers
@@ -154,6 +166,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ServerResponse'
+      security:
+        - bearerAuth: []                 
                 
   /api/servers/{id}:
     get:
@@ -164,17 +178,17 @@ paths:
       parameters:
         - name: id
           in: path
-          description: ID of the server to retrieve
+          description: ID of the record to retrieve
           required: true
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ServerResponse'
+          schema:
+            type: string
       responses:
          '200':
             description: Returned information about a specific server
          '404':
             description: Item not found
+      security:
+        - bearerAuth: []             
           
     put:
       tags:
@@ -199,6 +213,8 @@ paths:
           description: OK
         '404':
           description: Item not found
+      security:
+        - bearerAuth: []           
           
           
     delete:
@@ -216,8 +232,15 @@ paths:
       responses:
         '200':
           description: Successfully deleted a server
+      security:
+        - bearerAuth: []           
           
 components:
+  securitySchemes:
+    bearerAuth:            # arbitrary name for the security scheme
+      type: http
+      scheme: bearer
+      bearerFormat: JWT 
   schemas:
     Servers:
       type: object
