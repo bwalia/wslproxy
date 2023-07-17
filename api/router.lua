@@ -59,6 +59,16 @@ local function splitString(inputString, separator)
     return result
 end
 
+local function getDataFromFile(path)
+    local fileData = nil
+    local file, err = io.open(path, "rb")
+    if file ~= nil then
+        fileData = file:read "*a"
+        file:close()
+    end
+    return fileData, err
+end
+
 local function matchSecurityToken(rule)
     local isTokenVerified = true
     if rule.jwt_token_validation_value ~= nil and rule.jwt_token_validation_key ~= nil then
@@ -183,7 +193,13 @@ local function hasAndCondition(tbl)
 end
 
 local function matchRules(ruleId)
-    local ruleFromRedis = red:hget("request_rules", ruleId)
+    local settings = getSettings()
+    local ruleFromRedis = nil
+    if settings.storage_type == "redis" then
+        ruleFromRedis = red:hget("request_rules", ruleId)
+    else
+        ruleFromRedis = getDataFromFile(configPath .. "data/rules/" .. ruleId .. ".json")
+    end
     if ruleFromRedis ~= nil and type(ruleFromRedis) ~= "userdata" then
         ruleFromRedis = cjson.decode(ruleFromRedis)
         if ruleFromRedis.match and ruleFromRedis.match.rules then
@@ -238,10 +254,29 @@ local function isAllPathAllowed(myTable, targetPath)
 end
 
 
-local exist_values, err = red:hscan("servers", 0, "match", "host:" .. Hostname)
 local settings = getSettings()
-if exist_values[2] and exist_values[2][2] then
-    local jsonval = cjson.decode(exist_values[2][2])
+local exist_values = ""
+if settings.storage_type == "redis" then
+    exist_values = red:hscan("servers", 0, "match", "host:" .. Hostname)
+    if exist_values[2] and exist_values[2][2] then
+        exist_values = exist_values[2][2]
+    else
+        if settings.nginx.default.no_server ~= nil then
+            do return ngx.say(Base64.decode(settings.nginx.default.no_server)) end
+        end
+    end
+else
+    local file, err = io.open(configPath .. "data/servers/host:" .. Hostname .. ".json", "rb")
+    if file == nil then
+        if settings.nginx.default.no_server ~= nil then
+            do return ngx.say(Base64.decode(settings.nginx.default.no_server)) end
+        end
+    else
+        exist_values = file:read "*a"
+    end
+end
+if exist_values and exist_values ~= 0 then
+    local jsonval = cjson.decode(exist_values)
     local parse_rules = {}
     if jsonval.rules and type(jsonval.rules) ~= "userdata" then
         table.insert(parse_rules, matchRules(jsonval.rules))
@@ -388,10 +423,10 @@ if exist_values[2] and exist_values[2][2] then
                 ngx.exit(ngx.HTTP_MOVED_TEMPORARILY)
             elseif selectedRule.statusCode == 305 then
                 local proxy_server_name = jsonval.proxy_server_name
-                local getServer = red:hget("servers", jsonval.id)
-                if getServer ~= nil and type(getServer) ~= "userdata" then
-                    getServer = cjson.decode(getServer)
-                    getServer.proxy_pass = selectedRule.redirectUri
+                -- local getServer = red:hget("servers", jsonval.id)
+                -- if getServer ~= nil and type(getServer) ~= "userdata" then
+                --     getServer = cjson.decode(getServer)
+                --     getServer.proxy_pass = selectedRule.redirectUri
                     -- remove http:// from the url or https:// as it should be added in the proxy_pass
                     selectedRule.redirectUri = string.gsub(selectedRule.redirectUri, "https://", "")
                     selectedRule.redirectUri = string.gsub(selectedRule.redirectUri, "http://", "")
@@ -437,9 +472,9 @@ if exist_values[2] and exist_values[2][2] then
                     ngx.log(ngx.INFO, ngx.var.proxy_host)
                     ngx.log(ngx.INFO, ngx.var.proxy_host_override)
                     -- do return ngx.say(ngx.var.proxy_host_override) end
-                else
-                    ngx.log(ngx.ERR, "[ERROR]: Server not found!")
-                end
+                -- else
+                --     ngx.log(ngx.ERR, "[ERROR]: Server not found!")
+                -- end
                 return
             elseif selectedRule.statusCode == 200 or selectedRule.statusCode == 403 or selectedRule.statusCode == 403 then
                 ngx.status = selectedRule.statusCode

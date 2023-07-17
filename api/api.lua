@@ -8,7 +8,7 @@ local configPath = os.getenv("NGINX_CONFIG_DIR")
 local storageTypeOverride = os.getenv("STORAGE_TYPE")
 
 local function getSettings()
-
+    
     local readSettings, errSettings = io.open(configPath .. "data/settings.json", "rb")
     local settings = {}
     if readSettings == nil then
@@ -22,6 +22,7 @@ local function getSettings()
 end
 
 local redisHost = os.getenv("REDIS_HOST")
+local settings = getSettings()
 
 if redisHost == nil then
     redisHost = "localhost"
@@ -67,9 +68,9 @@ local function sortDesc(field)
 end
 
 local function generate_uuid()
-    local random = math.random(1000000000) -- generate a random number
-    local timestamp = os.time() -- get the current time in seconds since the Unix epoch
-    local hash = ngx.md5(tostring(random) .. tostring(timestamp)) -- create a hash of the random number and timestamp
+    local random = math.random(1000000000)                                            -- generate a random number
+    local timestamp = os.time()                                                       -- get the current time in seconds since the Unix epoch
+    local hash = ngx.md5(tostring(random) .. tostring(timestamp))                     -- create a hash of the random number and timestamp
     local uuid = string.format("%s-%s-%s-%s-%s", string.sub(hash, 1, 8), string.sub(hash, 9, 12),
         string.sub(hash, 13, 16), string.sub(hash, 17, 20), string.sub(hash, 21, 32)) -- format the hash as a UUID
     return uuid
@@ -103,8 +104,33 @@ local function generateToken()
     })
 end
 
+local function getDataFromFile(path)
+    local fileData = nil
+    local file, err = io.open(path, "rb")
+    if file ~= nil then
+        fileData = file:read "*a"
+        file:close()
+    end
+    return fileData, err
+end
+
+local function setDataToFile(path, value)
+    local file, err = io.open(path, "w")
+    if file == nil then
+        ngx.say("Couldn't read file: " .. err)
+    else
+        file:write(cjson.encode(value))
+        file:close()
+    end
+end
+
 local function removeServerFromRule(oldRuleId, serverId)
-    local loadRules = red:hget("request_rules", oldRuleId)
+    local loadRules = nil
+    if settings.storage_type == "redis" then
+        loadRules = red:hget("request_rules", oldRuleId)
+    else
+        loadRules = getDataFromFile(configPath .. "data/rules/" .. oldRuleId .. ".json")
+    end
     if loadRules and loadRules ~= "null" and type(loadRules) == "string" then
         loadRules = cjson.decode(loadRules)
         local valueToRemove = serverId
@@ -116,15 +142,30 @@ local function removeServerFromRule(oldRuleId, serverId)
                 i = i + 1
             end
         end
-        red:hset("request_rules", oldRuleId, cjson.encode(loadRules))
+        if settings.storage_type == "redis" then
+            red:hset("request_rules", oldRuleId, cjson.encode(loadRules))
+        else
+            setDataToFile(configPath .. "data/rules/" .. oldRuleId .. ".json", loadRules)
+        end
     end
 end
 
 local function updateServerInRules(ruleId, serverId, Rtype)
-    local getRules, ruleErr = red:hget("request_rules", ruleId)
+    local getRules, ruleErr = nil, nil
+    if settings.storage_type == "redis" then
+        getRules, ruleErr = red:hget("request_rules", ruleId)
+    else
+        getRules, ruleErr = getDataFromFile(configPath .. "data/rules/" .. ruleId .. ".json")
+    end
     if getRules and getRules ~= "null" and type(getRules) == "string" then
         getRules = cjson.decode(getRules)
-        local getServer = red:hget("servers", serverId)
+        local getServer = nil
+        if settings.storage_type == "redis" then
+            getServer = red:hget("servers", serverId)
+        else
+            getServer = getDataFromFile(configPath .. "data/servers/" .. serverId .. ".json")
+        end
+        -- do return ngx.say(getServer) end
         if getServer and getServer ~= "null" and type(getServer) == "string" then
             getServer = cjson.decode(getServer)
             if Rtype == "rules" and getServer.rules ~= ruleId then
@@ -148,19 +189,33 @@ local function updateServerInRules(ruleId, serverId, Rtype)
         end
         if isServer == true then
             table.insert(getRules.servers, serverId)
-            red:hset("request_rules", ruleId, cjson.encode(getRules))
+            if settings.storage_type == "redis" then
+                red:hset("request_rules", ruleId, cjson.encode(getRules))
+            else
+                setDataToFile(configPath .. "data/rules/" .. ruleId .. ".json", getRules)
+            end
         end
     end
 end
 
 local function deleteRuleFromServer(ruleId)
-    local getRule = red:hget("request_rules", ruleId)
+    local getRule = nil
+    if settings.storage_type == "redis" then
+        getRule = red:hget("request_rules", ruleId)
+    else
+        getRule = getDataFromFile(configPath .. "data/rules/" .. ruleId .. ".json")
+    end
     if getRule and getRule ~= "null" and type(getRule) == "string" then
         getRule = cjson.decode(getRule)
         -- Remove the rules from all servers that are using it as a statement or case
         if getRule.servers and getRule.servers ~= nil then
             for _, server in ipairs(getRule.servers) do
-                local getServer = red:hget("servers", server)
+                local getServer = nil
+                if settings.storage_type == "redis" then
+                    getServer = red:hget("servers", server)
+                else
+                    getDataFromFile(configPath .. "data/servers/" .. server .. ".json")
+                end
                 if getServer and getServer ~= "null" and type(getServer) == "string" then
                     getServer = cjson.decode(getServer)
                     if getServer.rules == ruleId then
@@ -175,7 +230,11 @@ local function deleteRuleFromServer(ruleId)
                             end
                         end
                     end
-                    red:hset("servers", server, cjson.encode(getServer))
+                    if settings.storage_type == "redis" then
+                        red:hset("servers", server, cjson.encode(getServer))
+                    else
+                        setDataToFile(configPath .. "data/servers/" .. server .. ".json", getServer)
+                    end
                 end
             end
         end
@@ -183,7 +242,12 @@ local function deleteRuleFromServer(ruleId)
 end
 
 local function deleteServerFromRules(ruleId, serverId)
-    local getRule = red:hget("request_rules", ruleId)
+    local getRule = nil
+    if settings.storage_type == "redis" then
+        getRule = red:hget("request_rules", ruleId)
+    else
+        getRule = getDataFromFile(configPath .. "data/rules/" .. ruleId .. ".json")
+    end
     if getRule and getRule ~= "null" and type(getRule) == "string" then
         getRule = cjson.decode(getRule)
         if getRule.servers ~= nil and type(getRule.servers) == "table" then
@@ -192,7 +256,11 @@ local function deleteServerFromRules(ruleId, serverId)
                     table.remove(getRule.servers, _)
                 end
             end
-            red:hset("request_rules", ruleId, cjson.encode(getRule))
+            if settings.storage_type == "redis" then
+                red:hset("request_rules", ruleId, cjson.encode(getRule))
+            else
+                setDataToFile(configPath .. "data/rules/" .. ruleId .. ".json", getRule)
+            end
         end
     end
 end
@@ -204,17 +272,18 @@ local function listWithPagination(recordsKey, cursor, pageSize, pageNumber, qPar
     local endIdx = startIdx + pageSize - 1
     -- Get the total number of records
     local totalKeys, err = red:hlen(recordsKey)
-    if not totalKeys then
-        ngx.log(ngx.ERR, "Failed to retrieve total number of records: ", err)
-        ngx.exit(ngx.HTTP_INTERNAL_SERVER_ERROR)
+    if not totalKeys or err or totalKeys == 0 then
+        ngx.log(ngx.INFO, "Failed to retrieve total number of records: ", err)
+        return {}
     end
     ---@diagnostic disable-next-line: cast-local-type
     totalRecords = tonumber(totalKeys)
+
     repeat
         local res, err = red:hscan(recordsKey, cursor, "COUNT", pageSize)
         if not res then
-            ngx.log(ngx.ERR, "Failed to retrieve records: ", err)
-            ngx.exit(ngx.HTTP_INTERNAL_SERVER_ERROR)
+            ngx.log(ngx.INFO, "Failed to retrieve records: ", err)
+            return {}
         end
         cursor = res[1]
         -- Iterate over the returned records
@@ -280,7 +349,7 @@ local function login(args)
         local password = hash_password(payloads.password)
         if suEmail == payloads.email and suPassword == password then
             ngx.status = ngx.OK
-            local session = require"resty.session".new()
+            local session = require "resty.session".new()
             session:set_subject("OpenResty Fan")
             session:set("quote", "The quick brown fox jumps over the lazy dog")
             local ok, err = session:save()
@@ -394,7 +463,7 @@ local function listServers(args)
     end
     -- Set the pagination parameters
     local pageSize = qParams.pagination.perPage -- Number of records per page
-    local pageNumber = qParams.pagination.page -- Page number (starting from 1)
+    local pageNumber = qParams.pagination.page  -- Page number (starting from 1)
 
     -- Retrieve a page of records using HSCAN
     local cursor, totalRecords = "0", 0
@@ -461,7 +530,6 @@ local function listServer(args, id)
 end
 
 local function createUpdateServer(body, uuid)
-
     local payloads, response = GetPayloads(body), {}
     if not uuid then
         ---@diagnostic disable-next-line: param-type-mismatch
@@ -532,11 +600,10 @@ local function createDeleteServer(body, uuid)
                     red:hdel("servers", payloads.ids[value])
                 end
             end
-
         end
     end
     ngx.say(cjson.encode({
-        data = {"success"}
+        data = { "success" }
     }))
 end
 
@@ -584,7 +651,7 @@ local function listUsers(args)
     local qParams = cjson.decode(params)
     -- Set the pagination parameters
     local pageSize = qParams.pagination.perPage -- Number of records per page
-    local pageNumber = qParams.pagination.page -- Page number (starting from 1)
+    local pageNumber = qParams.pagination.page  -- Page number (starting from 1)
 
     -- Retrieve a page of records using HSCAN
     local cursor = "0"
@@ -638,9 +705,9 @@ local function listUser(args, uuid)
                 local users = cjson.decode(jsonString)
                 for key, value in pairs(users) do
                     if users[key]["id"] == uuid then
-                        ngx.say({cjson.encode({
+                        ngx.say({ cjson.encode({
                             data = value
-                        })})
+                        }) })
                     end
                 end
             end
@@ -783,7 +850,7 @@ local function deleteUsers(args, uuid)
             end
         end
         ngx.say(cjson.encode({
-            data = (type(restUsers) == "table" and restUsers or {restUsers})
+            data = (type(restUsers) == "table" and restUsers or { restUsers })
         }))
     end
 end
@@ -812,7 +879,7 @@ local function listRules(args)
     end
     -- Set the pagination parameters
     local pageSize = qParams.pagination.perPage -- Number of records per page
-    local pageNumber = qParams.pagination.page -- Page number (starting from 1)
+    local pageNumber = qParams.pagination.page  -- Page number (starting from 1)
     if settings then
         if settings.storage_type == "disk" then
             allRules, totalRecords = listFromDisk("rules", pageSize, pageNumber, qParams)
@@ -820,10 +887,10 @@ local function listRules(args)
             allRules, totalRecords = listWithPagination("request_rules", "0", pageSize, pageNumber, qParams)
         end
     end
-    ngx.say({cjson.encode({
+    ngx.say({ cjson.encode({
         data = allRules,
         total = totalRecords
-    })})
+    }) })
 end
 
 local function listRule(args, uuid)
@@ -859,9 +926,9 @@ local function listRule(args, uuid)
                     Base64.decode(exist_value.match.rules.jwt_token_validation_key)
             end
 
-            ngx.say({cjson.encode({
+            ngx.say({ cjson.encode({
                 data = exist_value
-            })})
+            }) })
         end
     end
     -- end
@@ -884,7 +951,6 @@ function GetPayloads(body)
 end
 
 local function createDeleteRules(body, uuid)
-
     local payloads = GetPayloads(body)
     local settings = getSettings()
 
@@ -908,7 +974,6 @@ local function createDeleteRules(body, uuid)
                 end
             end
         end
-
     end
 
     ngx.say(cjson.encode({
@@ -917,6 +982,7 @@ local function createDeleteRules(body, uuid)
 end
 
 function CreateUpdateRecord(json_val, uuid, key_name, folder_name, method)
+    local settings = getSettings()
     local formatResponse = {}
     json_val['data'] = nil
     for k, v in pairs(json_val) do
@@ -937,7 +1003,12 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name, method)
 
     local redis_json, domainJson = {}, {}
     if key_name == 'servers' and json_val.server_name then
-        local getDomain = red:hget(key_name, json_val.id)
+        local getDomain = ""
+        if settings.storage_type == "redis" then
+            getDomain = red:hget(key_name, json_val.id)
+        else
+            getDomain = getDataFromFile(configPath .. "data/servers/" .. json_val.id .. ".json")
+        end
         if getDomain and getDomain ~= nil and type(getDomain) == "string" and method == "create" then
             ngx.status = ngx.HTTP_CONFLICT
             formatResponse = {
@@ -948,7 +1019,12 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name, method)
             return formatResponse
         end
         if method == "update" and json_val.id ~= "host:" .. json_val.server_name then
-            local previousDomain = red:hget(key_name, "host:"..json_val.server_name)
+            local previousDomain = ""
+            if settings.storage_type == "redis" then
+                previousDomain = red:hget(key_name, "host:" .. json_val.server_name)
+            else
+                previousDomain = getDataFromFile(configPath .. "data/servers/host:" .. json_val.server_name .. ".json")
+            end
             if previousDomain and previousDomain ~= nil and type(previousDomain) == "string" then
                 ngx.status = ngx.HTTP_CONFLICT
                 formatResponse = {
@@ -969,15 +1045,12 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name, method)
             updateServerInRules(case.statement, json_val.id, "statement")
         end
     end
-    redis_json[uuid] = cjson.encode(json_val)
-    red:hmset(key_name, redis_json)
-
-    local file, err = io.open(configPath .. "data/" .. folder_name .. "/" .. uuid .. ".json", "w")
-    if file == nil then
-        ngx.say("Couldn't read file: " .. err)
+    if settings.storage_type == "redis" then
+        redis_json[uuid] = cjson.encode(json_val)
+        red:hmset(key_name, redis_json)
+        setDataToFile(configPath .. "data/" .. folder_name .. "/" .. uuid .. ".json", json_val)
     else
-        file:write(cjson.encode(json_val))
-        file:close()
+        setDataToFile(configPath .. "data/" .. folder_name .. "/" .. uuid .. ".json", json_val)
     end
     ngx.status = ngx.HTTP_OK
     return json_val
