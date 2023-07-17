@@ -1,23 +1,22 @@
 openapi: 3.0.0
 info:
-  title: Whitefalcon CDN
-  description: APIs for performing CRUD operations
+  title: Whitefalcon API Gateway
+  description: API endpoints reference for performing CRUD operations for Servers, Security Rules and HTTP Routes
   version: 1.0.0
 tags:
-  - name: Rules
-    description: Create and Manage your servers  
   - name: Servers  
-    description: Create and Manage your Rules
-
+    description: Create and Manage servers aka HTTP hosts
+  - name: Rules
+    description: Create and Manage host specific Security Rules and HTTP Routes  
 paths:
   /api/rules:
     get:
       tags:
         - Rules
-      summary: Retrieve a list of all rules. 
+      summary: Retrieve a list of all the security rules and the routes. 
       operationId: getRules
       parameters:
-        - name: params
+        - name: search
           in: query
           description: Search keyword
           required: false
@@ -32,9 +31,7 @@ paths:
                 default: {field: id, order: ASC}
       responses:
         '200':
-          description: Successfully retrieved a list of all rules
-      security:
-        - bearerAuth: []  
+          description: Successfully retrieved a list of all HTTP Security rules and or the routes
           
     post:
       tags:
@@ -49,39 +46,37 @@ paths:
               $ref: '#/components/schemas/Rules'
       responses:
         '201':
-          description: Successfully created a new rule
+          description: Successfully created a new Security Rule and HTTP Route
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/RuleResponse'   
-      security:
-        - bearerAuth: [] 
+                $ref: '#/components/schemas/RuleResponse'    
                 
   /api/rules/{id}:
     get:
       tags:
         - Rules
-      summary: Retrieve an rule by ID
+      summary: Retrieve HTTP Route or Security Rule by ID
       operationId: getRuleById
       parameters:
         - name: id
           in: path
-          description: ID of the record to retrieve
+          description: ID of the rule to retrieve
           required: true
-          schema:
-            type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerResponse'
       responses:
          '200':
             description: Returned information about a specific rule
          '404':
             description: Not found       
-      security:
-        - bearerAuth: []             
             
     put:
       tags:
         - Rules
-      summary: Update an rule by ID
+      summary: Update a security rule or HTTP Route by ID
       operationId: updateRuleById
       parameters:
         - name: id
@@ -101,14 +96,12 @@ paths:
           description: Successfully updated rule
         '404':
           description: Not found
-      security:
-        - bearerAuth: []           
           
           
     delete:
       tags:
         - Rules
-      summary: Delete an rule by ID
+      summary: Delete a security rule or HTTP Route by ID
       operationId: deleteRuleById
       parameters:
         - name: id
@@ -119,18 +112,15 @@ paths:
             type: string
       responses:
         '200':
-          description: Successfully deleted a rule    
-      security:
-        - bearerAuth: [] 
-        
+          description: Successfully deleted a rule            
   /api/servers:
     get:
       tags:
         - Servers
-      summary: Retrieve a list of all server. 
+      summary: Retrieve a list of all the HTTP server hosts. 
       operationId: getServers
       parameters:
-        - name: params
+        - name: search
           in: query
           description: Search keyword
           required: false
@@ -145,9 +135,7 @@ paths:
                 default: {field: id, order: ASC}
       responses:
         '200':
-          description: Successfully retrieved a list of all servers
-      security:
-        - bearerAuth: []           
+          description: Successfully retrieved a list of all the HTTP servers
     post:
       tags:
         - Servers
@@ -166,34 +154,32 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ServerResponse'
-      security:
-        - bearerAuth: []                 
                 
   /api/servers/{id}:
     get:
       tags:
         - Servers
-      summary: Retrieve an server by ID
+      summary: Retrieve a HTTP server by ID
       operationId: getServerById
       parameters:
         - name: id
           in: path
-          description: ID of the record to retrieve
+          description: ID of the server to retrieve
           required: true
-          schema:
-            type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServerResponse'
       responses:
          '200':
             description: Returned information about a specific server
          '404':
             description: Item not found
-      security:
-        - bearerAuth: []             
           
     put:
       tags:
         - Servers
-      summary: Update an server by ID
+      summary: Update a HTTP server by ID
       operationId: updateItemById
       parameters:
         - name: id
@@ -213,14 +199,12 @@ paths:
           description: OK
         '404':
           description: Item not found
-      security:
-        - bearerAuth: []           
           
           
     delete:
       tags:
         - Servers
-      summary: Delete an server by ID
+      summary: Delete a HTTP server by ID
       operationId: deleteServerById
       parameters:
         - name: id
@@ -232,15 +216,8 @@ paths:
       responses:
         '200':
           description: Successfully deleted a server
-      security:
-        - bearerAuth: []           
           
 components:
-  securitySchemes:
-    bearerAuth:            # arbitrary name for the security scheme
-      type: http
-      scheme: bearer
-      bearerFormat: JWT 
   schemas:
     Servers:
       type: object
