@@ -8,7 +8,6 @@ local configPath = os.getenv("NGINX_CONFIG_DIR")
 local storageTypeOverride = os.getenv("STORAGE_TYPE")
 
 local function getSettings()
-    
     local readSettings, errSettings = io.open(configPath .. "data/settings.json", "rb")
     local settings = {}
     if readSettings == nil then
@@ -125,26 +124,28 @@ end
 
 local function removeServerFromRule(oldRuleId, serverId)
     local loadRules = nil
-    if settings.storage_type == "redis" then
-        loadRules = red:hget("request_rules", oldRuleId)
-    else
-        loadRules = getDataFromFile(configPath .. "data/rules/" .. oldRuleId .. ".json")
-    end
-    if loadRules and loadRules ~= "null" and type(loadRules) == "string" then
-        loadRules = cjson.decode(loadRules)
-        local valueToRemove = serverId
-        local i = 1
-        while i <= #loadRules.servers do
-            if loadRules.servers[i] == valueToRemove then
-                table.remove(loadRules.servers, i)
-            else
-                i = i + 1
-            end
-        end
+    if oldRuleId and oldRuleId ~= nil and type(oldRuleId) ~= "userdata" then
         if settings.storage_type == "redis" then
-            red:hset("request_rules", oldRuleId, cjson.encode(loadRules))
+            loadRules = red:hget("request_rules", oldRuleId)
         else
-            setDataToFile(configPath .. "data/rules/" .. oldRuleId .. ".json", loadRules)
+            loadRules = getDataFromFile(configPath .. "data/rules/" .. oldRuleId .. ".json")
+        end
+        if loadRules and loadRules ~= "null" and type(loadRules) == "string" then
+            loadRules = cjson.decode(loadRules)
+            local valueToRemove = serverId
+            local i = 1
+            while i <= #loadRules.servers do
+                if loadRules.servers[i] == valueToRemove then
+                    table.remove(loadRules.servers, i)
+                else
+                    i = i + 1
+                end
+            end
+            if settings.storage_type == "redis" then
+                red:hset("request_rules", oldRuleId, cjson.encode(loadRules))
+            else
+                setDataToFile(configPath .. "data/rules/" .. oldRuleId .. ".json", loadRules)
+            end
         end
     end
 end
@@ -164,10 +165,9 @@ local function updateServerInRules(ruleId, serverId, Rtype)
         else
             getServer = getDataFromFile(configPath .. "data/servers/" .. serverId .. ".json")
         end
-        -- do return ngx.say(getServer) end
         if getServer and getServer ~= "null" and type(getServer) == "string" then
             getServer = cjson.decode(getServer)
-            if Rtype == "rules" and getServer.rules ~= ruleId then
+            if Rtype == "rules" and getServer.rules ~= nil and getServer.rules ~= ruleId then
                 removeServerFromRule(getServer.rules, serverId)
             end
             if Rtype == "statement" and getServer.match_cases ~= nil and type(next(getServer.match_cases)) ~= nil then
