@@ -32,6 +32,8 @@ paths:
       responses:
         '200':
           description: Successfully retrieved a list of all HTTP Security rules and or the routes
+      security:
+        - bearerAuth: []          
           
     post:
       tags:
@@ -50,7 +52,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/RuleResponse'    
+                $ref: '#/components/schemas/RuleResponse'
+      security:
+        - bearerAuth: []                
                 
   /api/rules/{id}:
     get:
@@ -71,7 +75,9 @@ paths:
          '200':
             description: Returned information about a specific rule
          '404':
-            description: Not found       
+            description: Not found
+      security:
+        - bearerAuth: []            
             
     put:
       tags:
@@ -96,6 +102,8 @@ paths:
           description: Successfully updated rule
         '404':
           description: Not found
+      security:
+        - bearerAuth: []          
           
           
     delete:
@@ -112,7 +120,10 @@ paths:
             type: string
       responses:
         '200':
-          description: Successfully deleted a rule            
+          description: Successfully deleted a rule
+      security:
+        - bearerAuth: []
+            
   /api/servers:
     get:
       tags:
@@ -136,6 +147,9 @@ paths:
       responses:
         '200':
           description: Successfully retrieved a list of all the HTTP servers
+      security:
+        - bearerAuth: []
+
     post:
       tags:
         - Servers
@@ -154,6 +168,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ServerResponse'
+      security:
+        - bearerAuth: []                
                 
   /api/servers/{id}:
     get:
@@ -175,6 +191,8 @@ paths:
             description: Returned information about a specific server
          '404':
             description: Item not found
+      security:
+        - bearerAuth: []            
           
     put:
       tags:
@@ -199,6 +217,8 @@ paths:
           description: OK
         '404':
           description: Item not found
+      security:
+        - bearerAuth: []          
           
           
     delete:
@@ -216,8 +236,15 @@ paths:
       responses:
         '200':
           description: Successfully deleted a server
+      security:
+        - bearerAuth: []          
           
 components:
+  securitySchemes:
+    bearerAuth:            # arbitrary name for the security scheme
+      type: http
+      scheme: bearer
+      bearerFormat: JWT 
   schemas:
     Servers:
       type: object
