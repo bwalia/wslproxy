@@ -31,7 +31,6 @@ end
 local ok, err = red:connect(redisHost, 6379)
 if not ok then
     ngx.log(ngx.ERR, "failed to connect to Redis: ", err)
-    return
 end
 
 local function sortAsc(field)
