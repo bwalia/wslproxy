@@ -16,7 +16,7 @@ paths:
       summary: Retrieve a list of all the security rules and the routes. 
       operationId: getRules
       parameters:
-        - name: search
+        - name: params
           in: query
           description: Search keyword
           required: false
@@ -67,10 +67,8 @@ paths:
           in: path
           description: ID of the rule to retrieve
           required: true
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ServerResponse'
+          schema:
+            type: string
       responses:
          '200':
             description: Returned information about a specific rule
@@ -131,7 +129,7 @@ paths:
       summary: Retrieve a list of all the HTTP server hosts. 
       operationId: getServers
       parameters:
-        - name: search
+        - name: params
           in: query
           description: Search keyword
           required: false
@@ -182,10 +180,8 @@ paths:
           in: path
           description: ID of the server to retrieve
           required: true
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ServerResponse'
+          schema:
+            type: string
       responses:
          '200':
             description: Returned information about a specific server
