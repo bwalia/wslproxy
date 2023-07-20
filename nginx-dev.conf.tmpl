@@ -39,7 +39,7 @@ http {
     keepalive_timeout  65;
 
     #gzip  on;
-    #lua_package_path "/usr/local/openresty/nginx/html/api/?.lua;;";
+    lua_package_path "/usr/local/openresty/nginx/html/api/?.lua;;";
     #lua_package_path '/usr/local/Cellar/openresty/1.19.3.1_1/site/lualib/resty/?.lua;;';
     lua_package_cpath '/usr/local/openresty/site/lualib/resty/?.so;;';
 
