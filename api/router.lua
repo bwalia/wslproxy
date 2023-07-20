@@ -10,52 +10,40 @@
 -- No need to restart nginx when changing the backend servers
 local cjson = require "cjson"
 local jwt = require "resty.jwt"
-local redis = require "resty.redis"
-local red = redis:new()
 Base64 = require "base64"
 ConfigPath = os.getenv("NGINX_CONFIG_DIR")
 Hostname = ngx.var.host
 local configPath = os.getenv("NGINX_CONFIG_DIR")
+local diskHelper = require "disk_helper"
+local getServerRedis = require "get_server_redis"
+local settings = diskHelper.getSettings()
 
-red:set_timeout(1000) -- 1 second
+local currentServer = nil
 
-local redisHost = os.getenv("REDIS_HOST")
-
-if redisHost == nil then
-    redisHost = "localhost"
-end
-
-local ok, err = red:connect(redisHost, 6379)
-if not ok then
-    ngx.log(ngx.ERR, "failed to connect to Redis: ", err)
-end
-
-local function getSettings()
-    local readSettings, errSettings = io.open(configPath .. "data/settings.json", "rb")
-    local settings = {}
-    if readSettings == nil then
-        ngx.say("Couldn't read file: " .. errSettings)
+local serverFile, err = io.open(configPath .. "data/servers/host:" .. Hostname .. ".json", "rb")
+if serverFile == nil then
+    if settings.storage_type == "redis" then
+        local urlServer = getServerRedis.getCurrentServer()
+        if urlServer ~= nil then
+            currentServer = urlServer
+        else
+            if settings.nginx.default.no_server ~= nil then
+                do return ngx.say(Base64.decode(settings.nginx.default.no_server)) end
+            end
+        end
     else
-        local jsonString = readSettings:read "*a"
-        readSettings:close()
-        settings = cjson.decode(jsonString)
+        if settings.nginx.default.no_server ~= nil then
+            do return ngx.say(Base64.decode(settings.nginx.default.no_server)) end
+        end
     end
-    return settings
+else
+    currentServer = serverFile:read "*a"
 end
 
 local function trimWhitespace(str)
     -- Trim whitespace from the start and end of the string
     local trimmedStr = string.gsub(str, "^%s*(.-)%s*$", "%1")
     return trimmedStr
-end
-
-local function splitString(inputString, separator)
-    local result = {}
-    local pattern = string.format("([^%s]+)", separator)
-    for value in string.gmatch(inputString, pattern) do
-        table.insert(result, value)
-    end
-    return result
 end
 
 local function getDataFromFile(path)
@@ -192,12 +180,12 @@ local function hasAndCondition(tbl)
 end
 
 local function matchRules(ruleId)
-    local settings = getSettings()
     local ruleFromRedis = nil
-    if settings.storage_type == "redis" then
-        ruleFromRedis = red:hget("request_rules", ruleId)
-    else
-        ruleFromRedis = getDataFromFile(configPath .. "data/rules/" .. ruleId .. ".json")
+    ruleFromRedis = getDataFromFile(configPath .. "data/rules/" .. ruleId .. ".json")
+    if ruleFromRedis == nil or not ruleFromRedis then
+        if settings.storage_type == "redis" then
+            ruleFromRedis = getServerRedis.getFromRedis("request_rules", ruleId)
+        end
     end
     if ruleFromRedis ~= nil and type(ruleFromRedis) ~= "userdata" then
         ruleFromRedis = cjson.decode(ruleFromRedis)
@@ -252,30 +240,8 @@ local function isAllPathAllowed(myTable, targetPath)
     return isPathEqual
 end
 
-
-local settings = getSettings()
-local exist_values = ""
-if settings.storage_type == "redis" then
-    exist_values = red:hscan("servers", 0, "match", "host:" .. Hostname)
-    if exist_values[2] and exist_values[2][2] then
-        exist_values = exist_values[2][2]
-    else
-        if settings.nginx.default.no_server ~= nil then
-            do return ngx.say(Base64.decode(settings.nginx.default.no_server)) end
-        end
-    end
-else
-    local file, err = io.open(configPath .. "data/servers/host:" .. Hostname .. ".json", "rb")
-    if file == nil then
-        if settings.nginx.default.no_server ~= nil then
-            do return ngx.say(Base64.decode(settings.nginx.default.no_server)) end
-        end
-    else
-        exist_values = file:read "*a"
-    end
-end
-if exist_values and exist_values ~= 0 then
-    local jsonval = cjson.decode(exist_values)
+if currentServer and currentServer ~= 0 then
+    local jsonval = cjson.decode(currentServer)
     local parse_rules = {}
     if jsonval.rules and type(jsonval.rules) ~= "userdata" then
         table.insert(parse_rules, matchRules(jsonval.rules))

@@ -109,7 +109,29 @@ local function setDataToFile(path, value)
     end
 end
 
-local function removeServerFromRule(oldRuleId, serverId)
+local function remveServerByID(serverId)
+    local getServer = nil
+    if settings.storage_type == "redis" then
+        getServer = red:hget("servers", serverId)
+    else
+        getServer = getDataFromFile(configPath .. "data/servers/" .. serverId .. ".json")
+    end
+
+    if getServer and getServer ~= "null" and type(getServer) == "string" then
+        getServer = cjson.decode(getServer)
+
+        if getServer.rules ~= nil and type(getServer.rules) ~= "userdata" then
+            RemoveServerFromRule(getServer.rules, serverId)
+        end
+        if getServer.match_cases ~= nil and type(next(getServer.match_cases)) ~= nil then
+            for _, matchCase in ipairs(getServer.match_cases) do
+                RemoveServerFromRule(matchCase.statement, serverId)
+            end
+        end
+    end
+end
+
+function RemoveServerFromRule(oldRuleId, serverId)
     local loadRules = nil
     if oldRuleId and oldRuleId ~= nil and type(oldRuleId) ~= "userdata" then
         if settings.storage_type == "redis" then
@@ -135,73 +157,79 @@ local function removeServerFromRule(oldRuleId, serverId)
                 setDataToFile(configPath .. "data/rules/" .. oldRuleId .. ".json", loadRules)
             end
         end
+    else
+        remveServerByID(serverId)
     end
 end
 
 local function updateServerInRules(ruleId, serverId, Rtype)
-    local getRules, ruleErr = nil, nil
-    if settings.storage_type == "redis" then
-        getRules, ruleErr = red:hget("request_rules", ruleId)
-    else
-        getRules, ruleErr = getDataFromFile(configPath .. "data/rules/" .. ruleId .. ".json")
-    end
-    if getRules and getRules ~= "null" and type(getRules) == "string" then
-        getRules = cjson.decode(getRules)
-        local getServer = nil
+    if type(ruleId) ~= "userdata" and ruleId ~= ngx.null then
+        local getRules, ruleErr = nil, nil
         if settings.storage_type == "redis" then
-            getServer = red:hget("servers", serverId)
+            getRules, ruleErr = red:hget("request_rules", ruleId)
         else
-            getServer = getDataFromFile(configPath .. "data/servers/" .. serverId .. ".json")
+            getRules, ruleErr = getDataFromFile(configPath .. "data/rules/" .. ruleId .. ".json")
         end
-        if getServer and getServer ~= "null" and type(getServer) == "string" then
-            getServer = cjson.decode(getServer)
-            if Rtype == "rules" and getServer.rules ~= nil and getServer.rules ~= ruleId then
-                removeServerFromRule(getServer.rules, serverId)
-            end
-            if Rtype == "statement" and getServer.match_cases ~= nil and type(next(getServer.match_cases)) ~= nil then
-                for _, matchCase in ipairs(getServer.match_cases) do
-                    removeServerFromRule(matchCase.statement, serverId)
-                end
-            end
-        end
-        local isServer = true
-        if not getRules.servers and getRules.servers == nil then
-            getRules.servers = {}
-        else
-            for idx, server in ipairs(getRules.servers) do
-                if server == serverId then
-                    isServer = false
-                end
-            end
-        end
-        if isServer == true then
-            table.insert(getRules.servers, serverId)
+        if getRules and getRules ~= "null" and type(getRules) == "string" then
+            getRules = cjson.decode(getRules)
+            local getServer = nil
             if settings.storage_type == "redis" then
-                red:hset("request_rules", ruleId, cjson.encode(getRules))
-                setDataToFile(configPath .. "data/rules/" .. ruleId .. ".json", getRules)
+                getServer = red:hget("servers", serverId)
             else
-                setDataToFile(configPath .. "data/rules/" .. ruleId .. ".json", getRules)
+                getServer = getDataFromFile(configPath .. "data/servers/" .. serverId .. ".json")
             end
-        end
-        return getRules
-    else
-        local getServer = nil
-        if settings.storage_type == "redis" then
-            getServer = red:hget("servers", serverId)
+            if getServer and getServer ~= "null" and type(getServer) == "string" then
+                getServer = cjson.decode(getServer)
+                if Rtype == "rules" and getServer.rules ~= nil and getServer.rules ~= ruleId then
+                    RemoveServerFromRule(getServer.rules, serverId)
+                end
+                if Rtype == "statement" and getServer.match_cases ~= nil and type(next(getServer.match_cases)) ~= nil then
+                    for _, matchCase in ipairs(getServer.match_cases) do
+                        RemoveServerFromRule(matchCase.statement, serverId)
+                    end
+                end
+            end
+            local isServer = true
+            if not getRules.servers and getRules.servers == nil then
+                getRules.servers = {}
+            else
+                for idx, server in ipairs(getRules.servers) do
+                    if server == serverId then
+                        isServer = false
+                    end
+                end
+            end
+            if isServer == true then
+                table.insert(getRules.servers, serverId)
+                if settings.storage_type == "redis" then
+                    red:hset("request_rules", ruleId, cjson.encode(getRules))
+                    setDataToFile(configPath .. "data/rules/" .. ruleId .. ".json", getRules)
+                else
+                    setDataToFile(configPath .. "data/rules/" .. ruleId .. ".json", getRules)
+                end
+            end
+            return getRules
         else
-            getServer = getDataFromFile(configPath .. "data/servers/" .. serverId .. ".json")
-        end
-        if getServer and getServer ~= "null" and type(getServer) == "string" then
-            getServer = cjson.decode(getServer)
-            if getServer.rules ~= nil then
-                removeServerFromRule(getServer.rules, serverId)
+            local getServer = nil
+            if settings.storage_type == "redis" then
+                getServer = red:hget("servers", serverId)
+            else
+                getServer = getDataFromFile(configPath .. "data/servers/" .. serverId .. ".json")
             end
-            if getServer.match_cases ~= nil and type(next(getServer.match_cases)) ~= nil then
-                for _, matchCase in ipairs(getServer.match_cases) do
-                    removeServerFromRule(matchCase.statement, serverId)
+            if getServer and getServer ~= "null" and type(getServer) == "string" then
+                getServer = cjson.decode(getServer)
+                if getServer.rules ~= nil then
+                    RemoveServerFromRule(getServer.rules, serverId)
+                end
+                if getServer.match_cases ~= nil and type(next(getServer.match_cases)) ~= nil then
+                    for _, matchCase in ipairs(getServer.match_cases) do
+                        RemoveServerFromRule(matchCase.statement, serverId)
+                    end
                 end
             end
         end
+    else
+        RemoveServerFromRule(ruleId, serverId)
     end
 end
 
@@ -596,7 +624,8 @@ local function createDeleteServer(body, uuid)
                 local oldDomain, oldDmnErr = nil, nil
                 local oldServerName = ""
                 if settings.storage_type == "disk" then
-                    oldDomain, oldDmnErr = getDataFromFile(configPath .. "data/servers/" .. payloads.ids[value] .. ".json")
+                    oldDomain, oldDmnErr = getDataFromFile(configPath ..
+                    "data/servers/" .. payloads.ids[value] .. ".json")
                 else
                     oldDomain, oldDmnErr = red:hget("servers", payloads.ids[value])
                 end
@@ -962,20 +991,24 @@ local function createDeleteRules(body, uuid)
     if uuid ~= "" and uuid ~= nil then
         if settings then
             if settings.storage_type == "disk" then
+                deleteRuleFromServer(uuid)
                 os.remove(configPath .. "data/rules/" .. uuid .. ".json")
             else
                 deleteRuleFromServer(uuid)
                 red:hdel("request_rules", uuid)
+                os.remove(configPath .. "data/rules/" .. uuid .. ".json")
             end
         end
     elseif payloads and payloads.ids and #payloads.ids > 0 then
         for value = 1, #payloads.ids do
             if settings then
                 if settings.storage_type == "disk" then
+                    deleteRuleFromServer(payloads.ids[value])
                     os.remove(configPath .. "data/rules/" .. payloads.ids[value] .. ".json")
                 else
                     deleteRuleFromServer(payloads.ids[value])
                     red:hdel("request_rules", payloads.ids[value])
+                    os.remove(configPath .. "data/rules/" .. payloads.ids[value] .. ".json")
                 end
             end
         end
@@ -1040,7 +1073,7 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name, method)
             end
         end
     end
-    
+
     if key_name == 'servers' and json_val.rules ~= nil and json_val.rules then
         updateServerInRules(json_val.rules, json_val.id, "rules")
     end
