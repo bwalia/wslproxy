@@ -184,6 +184,24 @@ local function updateServerInRules(ruleId, serverId, Rtype)
             end
         end
         return getRules
+    else
+        local getServer = nil
+        if settings.storage_type == "redis" then
+            getServer = red:hget("servers", serverId)
+        else
+            getServer = getDataFromFile(configPath .. "data/servers/" .. serverId .. ".json")
+        end
+        if getServer and getServer ~= "null" and type(getServer) == "string" then
+            getServer = cjson.decode(getServer)
+            if getServer.rules ~= nil then
+                removeServerFromRule(getServer.rules, serverId)
+            end
+            if getServer.match_cases ~= nil and type(next(getServer.match_cases)) ~= nil then
+                for _, matchCase in ipairs(getServer.match_cases) do
+                    removeServerFromRule(matchCase.statement, serverId)
+                end
+            end
+        end
     end
 end
 
@@ -1022,8 +1040,8 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name, method)
             end
         end
     end
-    ngx.log(ngx.INFO, tostring(json_val.rules))
-    if key_name == 'servers' and json_val.rules ~= nil and type(json_val.rules) ~= "userdata" and json_val.rules then
+    
+    if key_name == 'servers' and json_val.rules ~= nil and json_val.rules then
         updateServerInRules(json_val.rules, json_val.id, "rules")
     end
 
