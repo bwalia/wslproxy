@@ -10,24 +10,43 @@
 -- No need to restart nginx when changing the backend servers
 local cjson = require "cjson"
 local jwt = require "resty.jwt"
-local redis = require "resty.redis"
-local red = redis:new()
 Base64 = require "base64"
+local http = require "resty.http"
 ConfigPath = os.getenv("NGINX_CONFIG_DIR")
 Hostname = ngx.var.host
+
 local configPath = os.getenv("NGINX_CONFIG_DIR")
 
-red:set_timeout(1000) -- 1 second
-
-local redisHost = os.getenv("REDIS_HOST")
-
-if redisHost == nil then
-    redisHost = "localhost"
+local function generateToken()
+    local passPhrase = os.getenv("JWT_SECURITY_PASSPHRASE")
+    return jwt:sign(passPhrase, {
+        header = {
+            typ = "JWT",
+            alg = "HS256"
+        },
+        payload = {
+            sub = "123456",
+            exp = ngx.time() + 3600
+        }
+    })
 end
 
-local ok, err = red:connect(redisHost, 6379)
-if not ok then
-    ngx.log(ngx.ERR, "failed to connect to Redis: ", err)
+local httpc = http.new()
+local apiUrl = os.getenv("API_URL")
+
+local httpHeaders = {
+    ["Authorization"] = "Bearer " .. generateToken(),
+    ["Content-Type"] = "application/json",
+}
+
+local currentServer, httpErr = httpc:request_uri(apiUrl .. "/servers/host:" .. Hostname, {
+    method = "GET",
+    headers = httpHeaders,
+    ssl_verify = false,
+})
+
+if httpErr == nil then
+    currentServer = currentServer.body
 end
 
 local function getSettings()
@@ -193,14 +212,18 @@ end
 
 local function matchRules(ruleId)
     local settings = getSettings()
-    local ruleFromRedis = nil
-    if settings.storage_type == "redis" then
-        ruleFromRedis = red:hget("request_rules", ruleId)
-    else
-        ruleFromRedis = getDataFromFile(configPath .. "data/rules/" .. ruleId .. ".json")
+    local ruleFromRedis, reqError = httpc:request_uri(apiUrl .. "/rules/" .. ruleId, {
+        method = "GET",
+        headers = httpHeaders,
+        ssl_verify = false,
+    })
+    if reqError == nil then
+        ruleFromRedis = ruleFromRedis.body
     end
+    
     if ruleFromRedis ~= nil and type(ruleFromRedis) ~= "userdata" then
         ruleFromRedis = cjson.decode(ruleFromRedis)
+        ruleFromRedis = ruleFromRedis.data
         if ruleFromRedis.match and ruleFromRedis.match.rules then
             -- check prefix and postfix URL
             local results = check_rules(ruleFromRedis.match.rules, ruleFromRedis.id, ruleFromRedis.priority,
@@ -254,28 +277,10 @@ end
 
 
 local settings = getSettings()
-local exist_values = ""
-if settings.storage_type == "redis" then
-    exist_values = red:hscan("servers", 0, "match", "host:" .. Hostname)
-    if exist_values[2] and exist_values[2][2] then
-        exist_values = exist_values[2][2]
-    else
-        if settings.nginx.default.no_server ~= nil then
-            do return ngx.say(Base64.decode(settings.nginx.default.no_server)) end
-        end
-    end
-else
-    local file, err = io.open(configPath .. "data/servers/host:" .. Hostname .. ".json", "rb")
-    if file == nil then
-        if settings.nginx.default.no_server ~= nil then
-            do return ngx.say(Base64.decode(settings.nginx.default.no_server)) end
-        end
-    else
-        exist_values = file:read "*a"
-    end
-end
+local exist_values = currentServer
 if exist_values and exist_values ~= 0 then
     local jsonval = cjson.decode(exist_values)
+    jsonval = jsonval.data
     local parse_rules = {}
     if jsonval.rules and type(jsonval.rules) ~= "userdata" then
         table.insert(parse_rules, matchRules(jsonval.rules))
