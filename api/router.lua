@@ -90,7 +90,7 @@ end
 local function matchSecurityToken(rule)
     local isTokenVerified = true
     if rule.jwt_token_validation_value ~= nil and rule.jwt_token_validation_key ~= nil then
-        local passPhrase = Base64.decode(rule.jwt_token_validation_key)
+        local passPhrase = rule.jwt_token_validation_key
         local reqHeaders = ngx.req.get_headers()
         local securityToken = reqHeaders['cookie']
         if securityToken and securityToken ~= nil and type(securityToken) ~= nil then
