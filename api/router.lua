@@ -290,7 +290,7 @@ end
 
 local settings = getSettings()
 local exist_values = currentServer
-if exist_values and exist_values ~= 0 then
+if exist_values and exist_values ~= 0 and exist_values ~= nil and exist_values ~= "" then
     local jsonval = cjson.decode(exist_values)
     jsonval = jsonval.data
     local parse_rules = {}
