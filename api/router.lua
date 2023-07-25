@@ -143,7 +143,19 @@ local function check_rules(rules, ruleId, priority, message, statusCode, redirec
     -- client IP check rules
     local isClientIpPass = false
     local req_add = ngx.var.remote_addr
-    -- req_add = '117.245.73.99'
+    local testingIps = {
+        BE = "104.155.127.255",
+        IN = "117.245.73.99",
+        AU = "1.44.255.255",
+        GB = "103.219.168.255",
+        TH = "101.109.255.255"
+    }
+    if string.find(Hostname, "localhost") or string.find(Hostname, "int") then
+        if rules.country ~= nil and rules.client_ip ~= nil then
+            req_add = testingIps[rules.country]
+        end
+    end
+
     local ip2location = require('ip2location')
     local ip2loc = ip2location:new('/tmp/IP2LOCATION-LITE-DB11.IPV6.BIN')
     local result = ip2loc:get_all(req_add)
