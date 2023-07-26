@@ -11,42 +11,14 @@
 local cjson = require "cjson"
 local jwt = require "resty.jwt"
 Base64 = require "base64"
-local http = require "resty.http"
 ConfigPath = os.getenv("NGINX_CONFIG_DIR")
 Hostname = ngx.var.host
-
 local configPath = os.getenv("NGINX_CONFIG_DIR")
 
-local function generateToken()
-    local passPhrase = os.getenv("JWT_SECURITY_PASSPHRASE")
-    return jwt:sign(passPhrase, {
-        header = {
-            typ = "JWT",
-            alg = "HS256"
-        },
-        payload = {
-            sub = "123456",
-            exp = ngx.time() + 3600
-        }
-    })
-end
+local redisHost = os.getenv("REDIS_HOST")
 
-local httpc = http.new()
-local apiUrl = os.getenv("API_URL")
-
-local httpHeaders = {
-    ["Authorization"] = "Bearer " .. generateToken(),
-    ["Content-Type"] = "application/json",
-}
-
-local currentServer, httpErr = httpc:request_uri(apiUrl .. "/servers/host:" .. Hostname, {
-    method = "GET",
-    headers = httpHeaders,
-    ssl_verify = false,
-})
-
-if httpErr == nil then
-    currentServer = currentServer.body
+if redisHost == nil then
+    redisHost = "localhost"
 end
 
 local function getSettings()
@@ -90,7 +62,7 @@ end
 local function matchSecurityToken(rule)
     local isTokenVerified = true
     if rule.jwt_token_validation_value ~= nil and rule.jwt_token_validation_key ~= nil then
-        local passPhrase = rule.jwt_token_validation_key
+        local passPhrase = Base64.decode(rule.jwt_token_validation_key)
         local reqHeaders = ngx.req.get_headers()
         local securityToken = reqHeaders['cookie']
         if securityToken and securityToken ~= nil and type(securityToken) ~= nil then
@@ -224,18 +196,10 @@ end
 
 local function matchRules(ruleId)
     local settings = getSettings()
-    local ruleFromRedis, reqError = httpc:request_uri(apiUrl .. "/rules/" .. ruleId, {
-        method = "GET",
-        headers = httpHeaders,
-        ssl_verify = false,
-    })
-    if reqError == nil then
-        ruleFromRedis = ruleFromRedis.body
-    end
-    
+    local ruleFromRedis = nil
+    ruleFromRedis = getDataFromFile(configPath .. "data/rules/" .. ruleId .. ".json")
     if ruleFromRedis ~= nil and type(ruleFromRedis) ~= "userdata" then
         ruleFromRedis = cjson.decode(ruleFromRedis)
-        ruleFromRedis = ruleFromRedis.data
         if ruleFromRedis.match and ruleFromRedis.match.rules then
             -- check prefix and postfix URL
             local results = check_rules(ruleFromRedis.match.rules, ruleFromRedis.id, ruleFromRedis.priority,
@@ -289,10 +253,18 @@ end
 
 
 local settings = getSettings()
-local exist_values = currentServer
-if exist_values and exist_values ~= 0 and exist_values ~= nil and exist_values ~= "" then
+local exist_values = nil
+
+local file, err = io.open(configPath .. "data/servers/host:" .. Hostname .. ".json", "rb")
+if file == nil then
+    if settings.nginx.default.no_server ~= nil then
+        do return ngx.say(Base64.decode(settings.nginx.default.no_server)) end
+    end
+else
+    exist_values = file:read "*a"
+end
+if exist_values and exist_values ~= 0 then
     local jsonval = cjson.decode(exist_values)
-    jsonval = jsonval.data
     local parse_rules = {}
     if jsonval.rules and type(jsonval.rules) ~= "userdata" then
         table.insert(parse_rules, matchRules(jsonval.rules))
@@ -369,7 +341,7 @@ if exist_values and exist_values ~= 0 and exist_values ~= nil and exist_values ~
                     rulePasses = true
                     break
                 elseif passedRule.paths_key == "starts_with" and
-                    requestedUri:startswith(passedRule.paths) == false 
+                    requestedUri:startswith(passedRule.paths) == false
                 then
                     rulePasses = true
                     break
@@ -443,51 +415,51 @@ if exist_values and exist_values ~= 0 and exist_values ~= nil and exist_values ~
                 -- if getServer ~= nil and type(getServer) ~= "userdata" then
                 --     getServer = cjson.decode(getServer)
                 --     getServer.proxy_pass = selectedRule.redirectUri
-                    -- remove http:// from the url or https:// as it should be added in the proxy_pass
-                    selectedRule.redirectUri = string.gsub(selectedRule.redirectUri, "https://", "")
-                    selectedRule.redirectUri = string.gsub(selectedRule.redirectUri, "http://", "")
-                    local extracted = string.match(selectedRule.redirectUri, ":(.*)")
-                    if not isIpAddress(selectedRule.redirectUri) then
-                        local resolver = require "resty.dns.resolver"
-                        local r, err = resolver:new {
-                            nameservers = { "8.8.8.8", { "8.8.4.4", 53 } },
-                            retrans = 5,      -- 5 retransmissions on receive timeout
-                            timeout = 2000,   -- 2 sec
-                            no_random = true, -- always start with first nameserver
-                        }
-                        if not r then
-                            ngx.say("failed to instantiate the resolver: ", err)
-                            return
-                        end
-                        local answers, err, tries = r:query(selectedRule.redirectUri, nil, {})
-                        if not answers then
-                            ngx.say("failed to query the DNS server: ", err)
-                            ngx.say("retry historie:\n  ", table.concat(tries, "\n  "))
-                            return
-                        end
-                        for i, ans in ipairs(answers) do
-                            selectedRule.redirectUri = ans.address
-                        end
+                -- remove http:// from the url or https:// as it should be added in the proxy_pass
+                selectedRule.redirectUri = string.gsub(selectedRule.redirectUri, "https://", "")
+                selectedRule.redirectUri = string.gsub(selectedRule.redirectUri, "http://", "")
+                local extracted = string.match(selectedRule.redirectUri, ":(.*)")
+                if not isIpAddress(selectedRule.redirectUri) then
+                    local resolver = require "resty.dns.resolver"
+                    local r, err = resolver:new {
+                        nameservers = { "8.8.8.8", { "8.8.4.4", 53 } },
+                        retrans = 5,      -- 5 retransmissions on receive timeout
+                        timeout = 2000,   -- 2 sec
+                        no_random = true, -- always start with first nameserver
+                    }
+                    if not r then
+                        ngx.say("failed to instantiate the resolver: ", err)
+                        return
                     end
-                    local finalProxyHost = selectedRule.redirectUri
-                    if extracted ~= nil then
-                        ngx.var.proxy_port = extracted
-                        finalProxyHost = string.gsub(selectedRule.redirectUri, ":(.*)", "")
+                    local answers, err, tries = r:query(selectedRule.redirectUri, nil, {})
+                    if not answers then
+                        ngx.say("failed to query the DNS server: ", err)
+                        ngx.say("retry historie:\n  ", table.concat(tries, "\n  "))
+                        return
                     end
+                    for i, ans in ipairs(answers) do
+                        selectedRule.redirectUri = ans.address
+                    end
+                end
+                local finalProxyHost = selectedRule.redirectUri
+                if extracted ~= nil then
+                    ngx.var.proxy_port = extracted
+                    finalProxyHost = string.gsub(selectedRule.redirectUri, ":(.*)", "")
+                end
 
-                    ngx.var.proxy_host = finalProxyHost
-                    if proxy_server_name == nil or proxy_server_name == "" then
-                        -- ngx.req.set_header("Host", selectedRule.redirectUri)
-                        ngx.ctx.proxy_host_override = selectedRule.redirectUri
-                        ngx.header["X-Debug-Host"] = ngx.ctx.proxy_host_override
-                    else
-                        -- ngx.req.set_header("Host", proxy_server_name)
-                        ngx.ctx.proxy_host_override = proxy_server_name
-                        ngx.header["X-Debug-Host"] = ngx.ctx.proxy_host_override
-                    end
-                    ngx.log(ngx.INFO, ngx.var.proxy_host)
-                    ngx.log(ngx.INFO, ngx.var.proxy_host_override)
-                    -- do return ngx.say(ngx.var.proxy_host_override) end
+                ngx.var.proxy_host = finalProxyHost
+                if proxy_server_name == nil or proxy_server_name == "" then
+                    -- ngx.req.set_header("Host", selectedRule.redirectUri)
+                    ngx.ctx.proxy_host_override = selectedRule.redirectUri
+                    ngx.header["X-Debug-Host"] = ngx.ctx.proxy_host_override
+                else
+                    -- ngx.req.set_header("Host", proxy_server_name)
+                    ngx.ctx.proxy_host_override = proxy_server_name
+                    ngx.header["X-Debug-Host"] = ngx.ctx.proxy_host_override
+                end
+                ngx.log(ngx.INFO, ngx.var.proxy_host)
+                ngx.log(ngx.INFO, ngx.var.proxy_host_override)
+                -- do return ngx.say(ngx.var.proxy_host_override) end
                 -- else
                 --     ngx.log(ngx.ERR, "[ERROR]: Server not found!")
                 -- end
