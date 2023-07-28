@@ -97,13 +97,13 @@ function _R.server()
     return currentServer
 end
 
-function _R.syncAPI()
+function syncAPI()
     local updateServers = saveRecordsToDisk(apiUrl .. "/servers?_format=json&&params={%22pagination%22:{%22page%22:1,%22perPage%22:10},%22sort%22:{%22field%22:%22created_at%22,%22order%22:%22DESC%22},%22filter%22:{}}", "servers")
     local updateRules = saveRecordsToDisk(apiUrl .. "/rules?_format=json&&params={%22pagination%22:{%22page%22:1,%22perPage%22:10},%22sort%22:{%22field%22:%22created_at%22,%22order%22:%22DESC%22},%22filter%22:{}}", "rules")
 
-    return cjson.encode({
+    return ngx.say(cjson.encode({
         servers = updateServers,
         rules = updateRules,
-    })
+    }))
 end
-return _R
+syncAPI()
