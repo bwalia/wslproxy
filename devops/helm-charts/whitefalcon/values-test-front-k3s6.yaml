@@ -14,7 +14,7 @@ app:
     - kubernetes
   namespace: test
   dns_resolver: "10.43.0.10"
-  front_url: "http://test-front.whitefalcon.io/front"
+  api_url: "http://test6-api.whitefalcon.io/api"
   redis_host: "redis-service.test.svc.cluster.local"
   target_env: "test"
   target_type: "front"
