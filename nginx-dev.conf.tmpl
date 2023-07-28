@@ -479,7 +479,7 @@ keepalive 10; # connection pool
           proxy_pass http://global_backend;
         }
 
-        location api-sync {
+        location /api-sync {
           content_by_lua_block {
             local apiData = require "get_data"
             local sync = fetchData.syncAPI()
