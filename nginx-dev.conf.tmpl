@@ -2,9 +2,9 @@
 #user  nobody;
 worker_processes  1;
 
-error_log  logs/error.log;
+#error_log  logs/error.log;
 #error_log  logs/error.log  notice;
-#error_log  logs/error.log  info;
+error_log  logs/error.log  info;
 
 #pid        logs/nginx.pid;
 
@@ -40,7 +40,7 @@ http {
     keepalive_timeout  65;
 
     #gzip  on;
-    #lua_package_path "/usr/local/openresty/nginx/html/api/?.lua;;";
+    lua_package_path "/usr/local/openresty/nginx/html/api/?.lua;;";
     #lua_package_path '/usr/local/Cellar/openresty/1.19.3.1_1/site/lualib/resty/?.lua;;';
     lua_package_cpath '/usr/local/openresty/site/lualib/resty/?.so;;';
 
@@ -53,9 +53,7 @@ http {
           redis = {
             host = os.getenv("REDIS_HOST"),
             port = 6379,
-
           }
-          
         })
     }
 
@@ -479,6 +477,14 @@ keepalive 10; # connection pool
           }
           proxy_set_header Host $ngx_proxy_host_override;
           proxy_pass http://global_backend;
+        }
+
+        location api-sync {
+          content_by_lua_block {
+            local apiData = require "get_data"
+            local sync = fetchData.syncAPI()
+            sync()
+          }
         }
 
         location /ip-location {
