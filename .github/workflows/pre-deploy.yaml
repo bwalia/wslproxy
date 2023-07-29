@@ -19,29 +19,29 @@ on:
         - dev
         
 env:
-  TARGET_CLUSTER: "k3s10"
+  TARGET_CLUSTER: "k3s6"
   TARGET_ENV: ${{ github.event.inputs.TARGET_ENV }}
   TARGET_TYPE: "api"
   IMAGE_NAME: "whitefalcon"
   IMAGE_TAG: ${{ github.ref_name }}
 
 jobs:
-  deploy10:
-    runs-on: [self-hosted]
-    steps:
-      - name: checkout the repo code
-        uses: actions/checkout@v2 
-        with:
-          ref: "main"
-      - name: Deploy whitefalcon api gw to k3s optionally build and push the white falcon docker image
-        run: |
-          if [ "${{ env.TARGET_ENV }}" == "" ]; then
-          TARGET_ENV=test
-          else
-          TARGET_ENV=${{ env.TARGET_ENV }}
-          echo "TARGET_ENV is provided : $TARGET_ENV"
-          fi
-          chmod +x ./deploy.sh && ./deploy.sh "${{ secrets.DOCKER_USER }}" "${{ secrets.DOCKER_PASSWD }}" "${{ env.TARGET_CLUSTER }}" "$TARGET_ENV" "${{ env.TARGET_TYPE }}" "${{ env.IMAGE_NAME }}" "${{ env.IMAGE_TAG }}"
+  # deploy10:
+  #   runs-on: [self-hosted]
+  #   steps:
+  #     - name: checkout the repo code
+  #       uses: actions/checkout@v2 
+  #       with:
+  #         ref: "main"
+  #     - name: Deploy whitefalcon api gw to k3s optionally build and push the white falcon docker image
+  #       run: |
+  #         if [ "${{ env.TARGET_ENV }}" == "" ]; then
+  #         TARGET_ENV=test
+  #         else
+  #         TARGET_ENV=${{ env.TARGET_ENV }}
+  #         echo "TARGET_ENV is provided : $TARGET_ENV"
+  #         fi
+  #         chmod +x ./deploy.sh && ./deploy.sh "${{ secrets.DOCKER_USER }}" "${{ secrets.DOCKER_PASSWD }}" "${{ env.TARGET_CLUSTER }}" "$TARGET_ENV" "${{ env.TARGET_TYPE }}" "${{ env.IMAGE_NAME }}" "${{ env.IMAGE_TAG }}"
   deploy6:
     runs-on: [self-hosted-node6]
     steps:
@@ -61,23 +61,23 @@ jobs:
           fi
           chmod +x ./deploy.sh && ./deploy.sh "${{ secrets.DOCKER_USER }}" "${{ secrets.DOCKER_PASSWD }}" "${{ env.TARGET_CLUSTER }}" "$TARGET_ENV" "${{ env.TARGET_TYPE }}" "${{ env.IMAGE_NAME }}" "${{ env.IMAGE_TAG }}"
             
-  healthcheck2:
-    runs-on: [self-hosted]
-    needs: [ deploy10 ]
-    steps:
-      - uses: actions/checkout@v3
-      - name: Set up Go
-        uses: actions/setup-go@v3
-        with:
-          go-version: 1.19
-          TARGET_ENV: ${{ env.TARGET_ENV }}
-      - name: Ping verification
-        working-directory: ./QA
-        env:
-          API_PING_URL: http://test2-api.whitefalcon.io/ping
-        run: | 
-          go mod init myapp
-          go test whitefalcan-healthcheck_test.go -v 
+  # healthcheck10:
+  #   runs-on: [self-hosted]
+  #   needs: [ deploy10 ]
+  #   steps:
+  #     - uses: actions/checkout@v3
+  #     - name: Set up Go
+  #       uses: actions/setup-go@v3
+  #       with:
+  #         go-version: 1.19
+  #         TARGET_ENV: ${{ env.TARGET_ENV }}
+  #     - name: Ping verification
+  #       working-directory: ./QA
+  #       env:
+  #         API_PING_URL: http://test2-api.whitefalcon.io/ping
+  #       run: | 
+  #         go mod init myapp
+  #         go test whitefalcan-healthcheck_test.go -v 
   
   healthcheck6:
     runs-on: [self-hosted-node6]
