@@ -19,14 +19,14 @@ on:
         - dev
         
 env:
-  TARGET_CLUSTER: "k3s2"
+  TARGET_CLUSTER: "k3s10"
   TARGET_ENV: ${{ github.event.inputs.TARGET_ENV }}
   TARGET_TYPE: "api"
   IMAGE_NAME: "whitefalcon"
   IMAGE_TAG: ${{ github.ref_name }}
 
 jobs:
-  deploy2:
+  deploy10:
     runs-on: [self-hosted]
     steps:
       - name: checkout the repo code
@@ -63,7 +63,7 @@ jobs:
             
   healthcheck2:
     runs-on: [self-hosted]
-    needs: [ deploy2 ]
+    needs: [ deploy10 ]
     steps:
       - uses: actions/checkout@v3
       - name: Set up Go
