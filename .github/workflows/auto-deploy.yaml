@@ -7,20 +7,22 @@ on:
     branches: [ feature/* ]
 
 env:
-  TARGET_CLUSTER: "k3s2"
+  TARGET_CLUSTER: "k3s10"
   TARGET_ENV: "int"
   TARGET_TYPE: "api"
   IMAGE_NAME: "whitefalcon"
   IMAGE_TAG: ${{ github.ref_name }}
 
 jobs:
-  deploy2:
-    runs-on: [self-hosted-node2]
+  deploy10:
+    runs-on: [pop-os]
     steps:
       - name: checkout the repo code
         uses: actions/checkout@v2 
         with:
           ref: "main"
+      - name: Deploy whitefalcon api gw to k3s optionally build and push the white falcon docker image
+        run: echo "TARGET_CLUSTER=k3s10" >> $GITHUB_ENV
       - name: Deploy whitefalcon api gw to k3s optionally build and push the white falcon docker image
         run: chmod +x ./deploy.sh && ./deploy.sh "${{ secrets.DOCKER_USER }}" "${{ secrets.DOCKER_PASSWD }}" "${{ env.TARGET_CLUSTER }}" "${{ env.TARGET_ENV }}" "${{ env.TARGET_TYPE }}" "${{ env.IMAGE_NAME }}" "${{ env.IMAGE_TAG }}"
   deploy6:
@@ -38,8 +40,8 @@ jobs:
 
             
   healthcheck2:
-    runs-on: [self-hosted-node2]
-    needs: [ deploy2 ]
+    runs-on: [pop-os]
+    needs: [ deploy10 ]
     steps:
       - uses: actions/checkout@v3
       - name: Set up Go
