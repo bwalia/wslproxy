@@ -49,7 +49,7 @@ spec:
           lifecycle:
             postStart:
               exec:
-                command: ["/bin/sh", "-c", "stat -c %a /tmp && ls -la /tmp && cp /tmp/configmap/bootstrap-node-app.sh /usr/local/bin/bootstrap-node-app.sh && chmod +x /usr/local/bin/bootstrap-node-app.sh && sh /usr/local/bin/bootstrap-node-app.sh"]          
+                command: ["/bin/sh", "-c", "cp /tmp/configmap/bootstrap-node-app.sh /usr/local/bin/bootstrap-node-app.sh && chmod +x /usr/local/bin/bootstrap-node-app.sh && sh /usr/local/bin/bootstrap-node-app.sh"]          
           ports:
             - name: http
               containerPort: {{ .Values.service.port }}
