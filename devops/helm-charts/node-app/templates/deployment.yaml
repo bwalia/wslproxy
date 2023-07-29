@@ -53,7 +53,7 @@ spec:
           volumeMounts:
             - name: node-app-vol
               mountPath: /tmp/configmap
-            - name: node-app-secret
+            - name: node-app-vol-secrets
               mountPath: /tmp/secrets                
           ports:
             - name: http
