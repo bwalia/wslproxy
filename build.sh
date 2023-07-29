@@ -23,3 +23,13 @@ docker build -t ${DOCKER_PUBLIC_IMAGE_NAME}:${VERSION} -f Dockerfile . --no-cach
 docker login -u $1 -p $2
 #docker tag whitefalcon-${SOURCE_IMAGE} ${DOCKER_PUBLIC_IMAGE_NAME}:${VERSION}
 docker push ${DOCKER_PUBLIC_IMAGE_NAME}:${VERSION}
+
+
+DOCKER_PUBLIC_IMAGE_NAME=bwalia/node-app
+VERSION=latest
+
+docker image rm ${DOCKER_PUBLIC_IMAGE_NAME}
+docker build -t ${DOCKER_PUBLIC_IMAGE_NAME}:${VERSION} -f demos-origins/node-app/Dockerfile . --no-cache
+docker login -u $1 -p $2
+#docker tag whitefalcon-${SOURCE_IMAGE} ${DOCKER_PUBLIC_IMAGE_NAME}:${VERSION}
+docker push ${DOCKER_PUBLIC_IMAGE_NAME}:${VERSION}
