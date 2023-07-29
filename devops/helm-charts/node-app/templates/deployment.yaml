@@ -50,6 +50,11 @@ spec:
             postStart:
               exec:
                 command: ["/bin/sh", "-c", "cp /tmp/configmap/bootstrap-node-app.sh /usr/local/bin/bootstrap-node-app.sh && chmod +x /usr/local/bin/bootstrap-node-app.sh && sh /usr/local/bin/bootstrap-node-app.sh"]          
+          volumeMounts:
+            - name: node-app-vol
+              mountPath: /tmp/configmap
+            - name: node-app-secret
+              mountPath: /tmp/secrets                
           ports:
             - name: http
               containerPort: {{ .Values.service.port }}
