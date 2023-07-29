@@ -2,7 +2,7 @@ name: Whitefalcon Test Suite
 on:
   push:
     branches:
-      - 'main'
+      - 'zzzmain'
   workflow_dispatch: 
     
 jobs:
