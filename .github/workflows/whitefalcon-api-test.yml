@@ -7,7 +7,7 @@ on:
     
 jobs:
   build:
-    runs-on: [self-hosted-node2]
+    runs-on: [pop-os]
     steps:
     - uses: actions/checkout@v3
 
