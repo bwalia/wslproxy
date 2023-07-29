@@ -50,5 +50,12 @@ services:
     networks:
       - whitefalcon-network
 
+  cdn_node:
+    container_name: cdn-node
+    build:
+      context: ./demos-origins/node-app
+      dockerfile: Dockerfile
+    ports:
+      - "3009:3009"
 networks: 
   whitefalcon-network:

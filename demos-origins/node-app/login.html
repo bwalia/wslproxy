@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Login Page</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f4;
+    }
+
+    .container {
+      max-width: 400px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #fff;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      border-radius: 5px;
+    }
+
+    h2 {
+      text-align: center;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 10px;
+      font-weight: bold;
+    }
+
+    input[type="email"],
+    input[type="password"] {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      box-sizing: border-box; /* Include padding and border in the width calculation */
+    }
+
+    button {
+      display: block;
+      width: 100%;
+      background-color: #4caf50;
+      color: #fff;
+      border: none;
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      border-radius: 5px;
+    }
+
+    button:hover {
+      background-color: #45a049;
+    }
+
+    .error {
+      color: red;
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Login</h2>
+    <form action="/login" method="POST" id="loginForm">
+      <div>
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" required>
+      </div>
+      <div>
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" required>
+      </div>
+      <div>
+        <button type="submit">Login</button>
+      </div>
+      <div id="errorMessage" class="error"></div>
+    </form>
+  </div>
+
+  <!-- <script>
+    document.getElementById('loginForm').addEventListener('submit', function(event) {
+      event.preventDefault(); // Prevent form submission
+
+      // Get the form values
+      var username = document.getElementById('username').value;
+      var password = document.getElementById('password').value;
+
+      // Make an API call using fetch
+      fetch('https://api.example.com/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ username: username, password: password })
+      })
+        .then(function(response) {
+          if (response.ok) {
+            return response.json();
+          } else {
+            throw new Error('Login failed');
+          }
+        })
+        .then(function(data) {
+          // Handle successful login response
+          console.log('Login successful:', data);
+          // Redirect to another page or perform other actions
+        })
+        .catch(function(error) {
+          // Handle error
+          document.getElementById('errorMessage').textContent = error.message;
+        });
+    });
+  </script> -->
+</body>
+</html>
