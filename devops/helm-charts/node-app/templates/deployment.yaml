@@ -20,6 +20,19 @@ spec:
       labels:
         {{- include "node-app.selectorLabels" . | nindent 8 }}
     spec:
+      volumes:
+        - name: node-app-vol
+          # Populate the volume with config map data
+          configMap:
+            # `name` here must match the name 
+            # specified in the ConfigMap's YAML 
+            name: node-app
+        - name: node-app-vol-secrets
+          secret:
+            secretName: "node-app"
+            items:
+            - key: env_file
+              path: .env    
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
@@ -33,6 +46,10 @@ spec:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          lifecycle:
+            postStart:
+              exec:
+                command: ["/bin/sh", "-c", "stat -c %a /tmp && ls -la /tmp && cp /tmp/configmap/bootstrap-node-app.sh /usr/local/bin/bootstrap-node-app.sh && chmod +x /usr/local/bin/bootstrap-node-app.sh && sh /usr/local/bin/bootstrap-node-app.sh"]          
           ports:
             - name: http
               containerPort: {{ .Values.service.port }}

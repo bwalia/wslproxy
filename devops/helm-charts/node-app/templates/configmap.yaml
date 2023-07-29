@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: node-app
+data:
+    bootstrap-node-app.sh: |
+        #!/bin/bash
+        set -x
+        FILE=/app/.env
+        cp /tmp/secrets/.env $FILE
