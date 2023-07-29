@@ -40,6 +40,13 @@ jobs:
         with:
           push: true
           tags: bwalia/whitefalcon:latest
+      -
+        name: Build and push node app
+        uses: docker/build-push-action@v4
+        with:
+          file: demos-origins/node-app/Dockerfile
+          push: true
+          tags: bwalia/node-app:latest
           
           
           
