@@ -27,7 +27,7 @@ env:
 
 jobs:
   deploy2:
-    runs-on: [pop-os]
+    runs-on: [self-hosted]
     steps:
       - name: checkout the repo code
         uses: actions/checkout@v2 
@@ -62,7 +62,7 @@ jobs:
           chmod +x ./deploy.sh && ./deploy.sh "${{ secrets.DOCKER_USER }}" "${{ secrets.DOCKER_PASSWD }}" "${{ env.TARGET_CLUSTER }}" "$TARGET_ENV" "${{ env.TARGET_TYPE }}" "${{ env.IMAGE_NAME }}" "${{ env.IMAGE_TAG }}"
             
   healthcheck2:
-    runs-on: [pop-os]
+    runs-on: [self-hosted]
     needs: [ deploy2 ]
     steps:
       - uses: actions/checkout@v3

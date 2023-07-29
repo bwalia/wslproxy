@@ -15,7 +15,7 @@ env:
 
 jobs:
   deploy10:
-    runs-on: [pop-os]
+    runs-on: [self-hosted]
     steps:
       - name: checkout the repo code
         uses: actions/checkout@v2 
@@ -37,10 +37,8 @@ jobs:
       - name: Deploy whitefalcon api gw to k3s optionally build and push the white falcon docker image
         run: chmod +x ./deploy.sh && ./deploy.sh "${{ secrets.DOCKER_USER }}" "${{ secrets.DOCKER_PASSWD }}" "${{ env.TARGET_CLUSTER }}" "${{ env.TARGET_ENV }}" "${{ env.TARGET_TYPE }}" "${{ env.IMAGE_NAME }}" "${{ env.IMAGE_TAG }}"
 
-
-            
-  healthcheck2:
-    runs-on: [pop-os]
+  healthcheck10:
+    runs-on: [self-hosted]
     needs: [ deploy10 ]
     steps:
       - uses: actions/checkout@v3
@@ -51,7 +49,7 @@ jobs:
       - name: Ping verification
         working-directory: ./QA
         env:
-          API_PING_URL: http://int2-api.whitefalcon.io/ping
+          API_PING_URL: http://int10-api.whitefalcon.io/ping
         run: | 
           go mod init myapp
           go test whitefalcan-healthcheck_test.go -v 
