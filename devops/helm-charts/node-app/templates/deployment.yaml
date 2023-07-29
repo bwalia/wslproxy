@@ -29,7 +29,7 @@ spec:
             name: node-app
         - name: node-app-vol-secrets
           secret:
-            secretName: "node-app"
+            secretName: "node-app-secret"
             items:
             - key: env_file
               path: .env    
