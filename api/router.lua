@@ -240,6 +240,23 @@ local function isIpAddress(str)
     return false
 end
 
+local function isAnyPathExists(myTable, targetPath)
+    local isPathEqual = false
+    for _, entry in pairs(myTable) do
+        if entry.paths_key == "starts_with" and targetPath:startswith(entry.paths) == true and entry.paths ~= "/" then
+            isPathEqual = true
+            break
+        elseif entry.paths_key == 'ends_with' and targetPath:endswith(entry.paths) == true and entry.paths ~= "/" then
+            isPathEqual = true
+            break
+        elseif entry.paths_key == 'equals' and entry.paths == targetPath then
+            isPathEqual = true
+            break
+        end
+    end
+    return isPathEqual
+end
+
 local function isAllPathAllowed(myTable, targetPath)
     local isPathEqual = false
     for _, entry in pairs(myTable) do
@@ -263,7 +280,7 @@ if file == nil then
 else
     exist_values = file:read "*a"
 end
-if exist_values and exist_values ~= 0 then
+if exist_values and exist_values ~= 0 and exist_values ~= nil and exist_values ~= "" then
     local jsonval = cjson.decode(exist_values)
     local parse_rules = {}
     if jsonval.rules and type(jsonval.rules) ~= "userdata" then
@@ -330,8 +347,13 @@ if exist_values and exist_values ~= 0 then
         if type(finalObj) == "table" then
             finalObjCount = getTableLength(finalObj)
             isAllPathPass = isAllPathAllowed(finalObj, "/")
-            isPathExists = isAllPathAllowed(finalObj, ngx.var.request_uri)
+            isPathExists = isAnyPathExists(finalObj, ngx.var.request_uri)
         end
+        -- do return ngx.say(cjson.encode({
+        --     finalObjCount = finalObjCount,
+        --     isAllPathPass= isAllPathPass,
+        --     isPathExists = isPathExists
+        -- })) end
         -- do return ngx.say(cjson.encode(finalObj)) end
         local rulePasses = false
         local requestedUri = ngx.var.request_uri
@@ -470,6 +492,7 @@ if exist_values and exist_values ~= 0 then
             end
         else
             if settings.nginx.default.conf_mismatch ~= nil then
+                ngx.header["Content-Type"] = settings.nginx.content_type ~= nil and settings.nginx.content_type or "text/html"
                 ngx.status = ngx.HTTP_FORBIDDEN
                 ngx.say(Base64.decode(settings.nginx.default.conf_mismatch))
             end
