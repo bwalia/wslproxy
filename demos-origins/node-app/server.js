@@ -52,7 +52,6 @@ app.get('/api/sample-data.json', (req, res) => {
     "email": "atuny0@sohu.com",
     "phone": "+63 791 675 8914",
     "username": "atuny0",
-    "password": "9uQFF1Lh",
     "birthDate": "2000-12-25",
     "image": "https://robohash.org/hicveldicta.png?size=50x50&set=set1",
     "bloodGroup": "A−",
