@@ -23,8 +23,8 @@ const deploymentTime = import.meta.env.VITE_DEPLOYMENT_TIME
 
 export const MyLayout = (props) => <Layout {...props} appBar={AppBar} />;
 const App = () => {
-  const [isLoading] = useStore('fetch.data.loading')
-  const [syncPopupOpen, setSyncPopupOpen] = useStore('sync.data.success');
+  const [isLoading] = useStore('fetch.data.loading', false)
+  const [syncPopupOpen, setSyncPopupOpen] = useStore('sync.data.success', false);
   return (
     <div style={isLoading ? { filter: "blur" } : {}}>
       <Puff
