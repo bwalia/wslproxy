@@ -444,21 +444,21 @@ if exist_values and exist_values ~= 0 and exist_values ~= nil and exist_values ~
                 if not isIpAddress(selectedRule.redirectUri) then
                     local resolver = require "resty.dns.resolver"
                     local primaryNameserver = os.getenv("PRIMARY_DNS_RESOLVER")
-                    if primaryNameserver == nil or primaryNameserver == "" and settings.dns_resolver != nil then
+                    if primaryNameserver == nil or primaryNameserver == "" and settings.dns_resolver not nil then
                         primaryNameserver = settings.dns_resolver.nameservers.primary
                     end
                     if primaryNameserver == nil or primaryNameserver == "" then
                         primaryNameserver = "8.8.8.8"
                     end
                     local secondaryNameserver = os.getenv("SECONDARY_DNS_RESOLVER")
-                    if primaryNameserver == nil or primaryNameserver == "" and settings.dns_resolver != nil then
+                    if primaryNameserver == nil or primaryNameserver == "" and settings.dns_resolver not nil then
                         secondaryNameserver = settings.dns_resolver.nameservers.secondary
                     end
                     if secondaryNameserver == nil or secondaryNameserver == "" then
                         secondaryNameserver = "8.8.4.4"
                     end
                     local portNameserver = os.getenv("DNS_RESOLVER_PORT")
-                    if portNameserver == nil or portNameserver == "" and settings.dns_resolver != nil then
+                    if portNameserver == nil or portNameserver == "" and settings.dns_resolver not nil then
                         portNameserver = settings.dns_resolver.nameservers.port
                     end
                     if portNameserver == nil or portNameserver == "" then
