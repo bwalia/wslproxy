@@ -1,6 +1,6 @@
 openapi: 3.0.0
 info:
-  title: Whitefalcon API Gateway
+  title: OPSAPI Gateway Consumer Documentation
   description: API endpoints reference for performing CRUD operations for Servers, Security Rules and HTTP Routes
   version: 1.0.0
 tags:

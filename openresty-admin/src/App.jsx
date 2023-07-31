@@ -1,5 +1,5 @@
 import React from "react";
-import { Admin, Resource, Layout } from "react-admin";
+import { Admin, Resource, Layout, useStore } from "react-admin";
 import dataProvider from "./dataProvider";
 import authProvider from "./authProvider";
 import Dashboard from "./Dashboard/Dashboard";
@@ -15,44 +15,66 @@ import RuleIcon from "@mui/icons-material/Rule";
 import Rules from "./Rules";
 import Settings from "./Settings";
 import AppBar from "./AppBar";
+import { Puff } from 'react-loader-spinner';
+import CheckModal from "./component/CheckModal";
 
 const API_URL = import.meta.env.VITE_API_URL;
 const deploymentTime = import.meta.env.VITE_DEPLOYMENT_TIME
 
 export const MyLayout = (props) => <Layout {...props} appBar={AppBar} />;
-
-const App = () => (
-  <React.Fragment>
-    <Admin
-      loginPage={Login}
-      dataProvider={dataProvider(API_URL)}
-      authProvider={authProvider}
-      dashboard={Dashboard}
-      theme={Theme}
-      layout={MyLayout}
-    >
-      <Resource name="users" {...Users} icon={UserIcon} />
-      <Resource name="sessions" {...Sessions} icon={SessionIcon} />
-      <Resource name="servers" {...Servers} icon={ServerIcon} />
-      <Resource name="rules" {...Rules} icon={RuleIcon} />
-      <Resource name="settings" {...Settings} icon={RuleIcon} />
-    </Admin>
-    <div
-      style={{
-        position: "sticky",
-        right: 0,
-        bottom: 0,
-        left: 0,
-        zIndex: 100,
-        padding: 6,
-        backgroundColor: "#efefef",
-        textAlign: "left",
-        color: "#213547"
-      }}
-    >
-      <p>Deployment timestamp: {deploymentTime}</p>
+const App = () => {
+  const [isLoading] = useStore('fetch.data.loading', false)
+  const [syncPopupOpen, setSyncPopupOpen] = useStore('sync.data.success', false);
+  return (
+    <div style={isLoading ? { filter: "blur" } : {}}>
+      <Puff
+        height="80"
+        width="80"
+        radius={1}
+        color="#4fa94d"
+        ariaLabel="puff-loading"
+        wrapperStyle={{
+          zIndex: "9",
+          top: "50%",
+          position: "absolute",
+          left: "50%",
+          transform: "translate(-50%, 0px)"
+        }}
+        wrapperClass=""
+        visible={isLoading}
+      />
+      <CheckModal open={syncPopupOpen} onClose={() => setSyncPopupOpen(false)} />
+      <Admin
+        loginPage={Login}
+        dataProvider={dataProvider(API_URL)}
+        authProvider={authProvider}
+        dashboard={Dashboard}
+        theme={Theme}
+        layout={MyLayout}
+      >
+        <Resource name="users" {...Users} icon={UserIcon} />
+        <Resource name="sessions" {...Sessions} icon={SessionIcon} />
+        <Resource name="servers" {...Servers} icon={ServerIcon} />
+        <Resource name="rules" {...Rules} icon={RuleIcon} />
+        <Resource name="settings" {...Settings} icon={RuleIcon} />
+      </Admin>
+      <div
+        style={{
+          position: "sticky",
+          right: 0,
+          bottom: 0,
+          left: 0,
+          zIndex: 100,
+          padding: 6,
+          backgroundColor: "#efefef",
+          textAlign: "left",
+          color: "#213547"
+        }}
+      >
+        <p>Deployment timestamp: {deploymentTime}</p>
+      </div>
     </div>
-  </React.Fragment>
-);
+  )
+};
 
 export default App;

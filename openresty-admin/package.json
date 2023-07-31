@@ -24,6 +24,7 @@
     "react-admin": "^4.9.4",
     "react-dom": "^18.2.0",
     "react-hook-form": "^7.43.9",
+    "react-loader-spinner": "^5.3.4",
     "react-router": "^6.1.0",
     "react-router-dom": "^6.1.0",
     "recharts": "^2.5.0",
