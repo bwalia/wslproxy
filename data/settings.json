@@ -20,5 +20,12 @@
         "password": "jGl25bVBBBW96Qi9Te4V37Fnqchz\/Eu4qB9vKrRIqRg=",
         "email": "ejeyd@example.com"
     },
-    "redis_host": ""
+    "redis_host": "",
+    "dns_resolver": {
+        "nameservers": { 
+            "primary": "8.8.8.8",
+            "secondary": "8.8.4.4",
+            "port": "53"
+        }
+    }
 }

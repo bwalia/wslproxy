@@ -4,11 +4,13 @@ import {
   TitlePortal,
   Toolbar,
   useRedirect,
+  useDataProvider
 } from "react-admin";
 import SdStorageIcon from "@mui/icons-material/SdStorage";
 import { IconButton, Tooltip, Typography } from "@mui/material";
 import StorageModal from "./Dashboard/StorageModal";
 import SettingsIcon from "@mui/icons-material/Settings";
+import CloudSyncIcon from '@mui/icons-material/CloudSync';
 
 const StorageButton = () => {
   const [isStrgTypeSet, setStrgTypeSet] = React.useState(false);
@@ -26,6 +28,22 @@ const StorageButton = () => {
     </>
   );
 };
+
+const ApiSync = () => {
+  const dataProvider = useDataProvider()
+  const handleSyncAPI = () => {
+    dataProvider.syncAPI("frontdoor/opsapi/sync", {})
+  }
+  return (
+    <React.Fragment>
+      <Tooltip title="Sync API Storage">
+        <IconButton color="inherit" onClick={handleSyncAPI}>
+          <CloudSyncIcon />
+        </IconButton>
+      </Tooltip>
+    </React.Fragment>
+  )
+}
 
 const SettingButton = () => {
   const redirect = useRedirect();
@@ -64,6 +82,7 @@ const AppBar = () => (
       </Typography>
     </Toolbar>
     <TitlePortal />
+    <ApiSync />
     <StorageButton />
     <SettingButton />
   </RaAppBar>

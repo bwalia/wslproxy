@@ -443,8 +443,11 @@ if exist_values and exist_values ~= 0 and exist_values ~= nil and exist_values ~
                 local extracted = string.match(selectedRule.redirectUri, ":(.*)")
                 if not isIpAddress(selectedRule.redirectUri) then
                     local resolver = require "resty.dns.resolver"
+                    local primaryNameserver = os.getenv("PRIMARY_DNS_RESOLVER") ~= nil and os.getenv("PRIMARY_DNS_RESOLVER") or settings.dns_resolver.nameservers.primary
+                    local secondaryNameserver = os.getenv("SECONDARY_DNS_RESOLVER") ~= nil and os.getenv("SECONDARY_DNS_RESOLVER") or settings.dns_resolver.nameservers.secondary
+                    local portNameserver = os.getenv("DNS_RESOLVER_PORT") ~= nil and os.getenv("DNS_RESOLVER_PORT") or settings.dns_resolver.nameservers.port
                     local r, err = resolver:new {
-                        nameservers = { "8.8.8.8", { "8.8.4.4", 53 } },
+                        nameservers = { primaryNameserver, { secondaryNameserver, tonumber(portNameserver) } },
                         retrans = 5,      -- 5 retransmissions on receive timeout
                         timeout = 2000,   -- 2 sec
                         no_random = true, -- always start with first nameserver
