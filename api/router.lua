@@ -447,13 +447,22 @@ if exist_values and exist_values ~= 0 and exist_values ~= nil and exist_values ~
                     if primaryNameserver == nil or primaryNameserver == "" then
                         primaryNameserver = settings.dns_resolver.nameservers.primary
                     end
+                    if primaryNameserver == nil or primaryNameserver == "" then
+                        primaryNameserver = "8.8.8.8"
+                    end
                     local secondaryNameserver = os.getenv("SECONDARY_DNS_RESOLVER")
                     if secondaryNameserver == nil or secondaryNameserver == "" then
                         secondaryNameserver = settings.dns_resolver.nameservers.secondary
                     end
+                    if secondaryNameserver == nil or secondaryNameserver == "" then
+                        secondaryNameserver = "8.8.4.4"
+                    end
                     local portNameserver = os.getenv("DNS_RESOLVER_PORT")
                     if portNameserver == nil or portNameserver == "" then
                         portNameserver = settings.dns_resolver.nameservers.port
+                    end
+                    if portNameserver == nil or portNameserver == "" then
+                        portNameserver = "53"
                     end
                     local r, err = resolver:new {
                         nameservers = { primaryNameserver, { secondaryNameserver, tonumber(portNameserver) } },
