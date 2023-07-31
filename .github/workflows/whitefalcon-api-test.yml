@@ -2,7 +2,9 @@ name: Whitefalcon Test Suite
 on:
   push:
     branches:
-      - 'zzzmain'
+      - 'dixa/qa-checks'
+  schedule:
+    - cron: '0 */12 * * *'    
   workflow_dispatch: 
     
 jobs:
@@ -20,7 +22,7 @@ jobs:
       working-directory: ./QA
       run: | 
         go mod init myapp
-        go test rules-servers-api_test.go -v 
+        go test -v 
       env: 
         LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
         LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}

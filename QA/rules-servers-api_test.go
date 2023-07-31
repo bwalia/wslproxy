@@ -15,7 +15,9 @@ var serverId string
 var ruleId string
 var tokenValue string
 
-const targetHost = "http://int2-api.whitefalcon.io"
+//const targetHost = "http://int2-api.whitefalcon.io"
+
+const targetHost = "http://int6-api.whitefalcon.io"
 
 func TestAuthLoginAndFetchToken(t *testing.T) {
 	type authResponse struct {
@@ -144,8 +146,8 @@ func TestCreateServer(t *testing.T) {
 	url := targetHost + "/api/servers"
 	method := "POST"
 
-	payload := strings.NewReader(`{"listens":[{"listen":"80"}],"server_name":"int2.whitefalcon.io","root":"/var/www/html","index":"index/html","access_log":"/logs/access.log","error_log":"/logs/error.log","locations":[],"custom_block":[]}`)
-
+	//payload := strings.NewReader(`{"listens":[{"listen":"80"}],"server_name":"int6.whitefalcon.io","root":"/var/www/html","index":"index/html","access_log":"/logs/access.log","error_log":"/logs/error.log","locations":[],"custom_block":[]}`)
+	payload := strings.NewReader(`{"listens":[{"listen":"80"}],"server_name":"int6.whitefalcon.io","proxy_server_name":"test-my.workstation.co.uk","root":"/var/www/html","index":"index.html","access_log":"logs/access.log","error_log":"logs/error.log","locations":[],"custom_block":[],"config":"server {\n      listen 80;  # Listen on port (HTTP)\n      server_name int6.whitefalcon.io;  # Your domain name\n      root /var/www/html;  # Document root directory\n      index index.html;  # Default index files\n      access_log logs/access.log;  # Access log file location\n      error_log logs/error.log;  # Error log file location\n\n      \n      \n  }\n  "}`)
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, payload)
 	if err != nil {
@@ -259,7 +261,7 @@ func TestGetSingleServer(t *testing.T) {
 		t.Error("Unexpected response status code", res.StatusCode)
 		return
 	}
-	if !strings.Contains(string(body), "int2.whitefalcon.io") {
+	if !strings.Contains(string(body), "int6.whitefalcon.io") {
 		t.Error("Returned unexpected body")
 		return
 	}
@@ -303,8 +305,8 @@ func TestUpdateRule(t *testing.T) {
 	url := targetHost + "/api/rules/" + ruleId
 	method := "PUT"
 
-	payload := strings.NewReader(fmt.Sprintf(`{"created_at":1687853270,"version":1,"priority":1,"name":"Test rule","match":{"response":{"code":200,"message":"SGVsbG8gd29ybGQh","allow":true},"rules":{"jwt_token_validation":"equals","country_key":"equals","client_ip_key":"equals","path":"/router","path_key":"starts_with"}},"id":"%s"}`, ruleId))
-
+	//payload := strings.NewReader(fmt.Sprintf(`{"created_at":1687853270,"version":1,"priority":1,"name":"Test rule","match":{"response":{"code":200,"message":"SGVsbG8gd29ybGQh","allow":true},"rules":{"jwt_token_validation":"equals","country_key":"equals","client_ip_key":"equals","path":"/router","path_key":"starts_with"}},"id":"%s"}`, ruleId))
+	payload := strings.NewReader(fmt.Sprintf(`{"created_at":1689744334,"match":{"rules":{"path_key":"starts_with","client_ip_key":"equals","country_key":"equals","path":"/router","jwt_token_validation":"equals"},"response":{"allow":false,"code":200,"message":"SGVsbG8gd29ybGQh"}},"version":1,"name":"Test rule ","priority":1,"id":"%s"}`, ruleId))
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, payload)
 	if err != nil {
@@ -339,7 +341,9 @@ func TestUpdateRuleWithServer(t *testing.T) {
 	url := targetHost + "/api/servers/" + serverId
 	method := "PUT"
 
-	payload := strings.NewReader(fmt.Sprintf(`{"server_name":"int2.whitefalcon.io","listens":[{"listen":"81"}],"proxy_pass":"http://localhost","index":"index/html","id":"%s","match_cases":{},"error_log":"/logs/error.log","rules":"%s","locations":{},"root":"/var/www/html","custom_block":{},"access_log":"/logs/access.log","created_at":1687844569}`, serverId, ruleId))
+	//payload := strings.NewReader(fmt.Sprintf(`{"server_name":"int6.whitefalcon.io","listens":[{"listen":"81"}],"proxy_pass":"http://localhost","index":"index/html","id":"%s","match_cases":{},"error_log":"/logs/error.log","rules":"%s","locations":{},"root":"/var/www/html","custom_block":{},"access_log":"/logs/access.log","created_at":1687844569}`, serverId, ruleId))
+	//payload := strings.NewReader(fmt.Sprintf(`{"listens":[{"listen":"81"}],"locations":{},"error_log":"logs/error.log","index":"index.html","custom_block":{},"root":"/var/www/html","created_at":1689686953,"config":"server {\n      listen 80;  # Listen on port (HTTP)\n      server_name int2.whitefalcon.io;  # Your domain name\n      root /var/www/html;  # Document root directory\n      index index.html;  # Default index files\n      access_log logs/access.log;  # Access log file location\n      error_log logs/error.log;  # Error log file location\n\n      \n      \n  }\n  ","rules":"%s","id":"%s","proxy_pass":"http://localhost","access_log":"logs/access.log","server_name":"int2.whitefalcon.io"}`, ruleId, serverId))
+	payload := strings.NewReader(fmt.Sprintf(`{"id":"%s","root":"/var/www/html","created_at":1689853714,"proxy_server_name":"test-my.workstation.co.uk","locations":{},"index":"index.html","proxy_pass":"http://localhost","access_log":"logs/access.log","server_name":"int6.whitefalcon.io","config":"server {\n      listen 80;  # Listen on port (HTTP)\n      server_name int6.whitefalcon.io;  # Your domain name\n      root /var/www/html;  # Document root directory\n      index index.html;  # Default index files\n      access_log logs/access.log;  # Access log file location\n      error_log logs/error.log;  # Error log file location\n\n      \n      \n  }\n  ","rules":"%s","error_log":"logs/error.log","match_cases":{},"custom_block":{},"listens":[{"listen":"80"}]}`, serverId, ruleId))
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, payload)
 	if err != nil {
@@ -364,14 +368,14 @@ func TestUpdateRuleWithServer(t *testing.T) {
 	if res.StatusCode != http.StatusOK {
 		t.Error("Unexpected response status code", res.StatusCode)
 	}
-	if !strings.Contains(string(body), "81") {
+	if !strings.Contains(string(body), "80") {
 		t.Error("Returned unexpected body")
 		return
 	}
 }
 
-func TestServerResponse(t *testing.T) {
-	url := "http://int2.whitefalcon.io/router"
+func TestDataSync(t *testing.T) {
+	url := "http://int6.whitefalcon.io/frontdoor/opsapi/sync"
 
 	client := &http.Client{}
 
@@ -380,6 +384,31 @@ func TestServerResponse(t *testing.T) {
 		t.Log(err)
 		return
 	}
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Log(err)
+		return
+	}
+	//t.Log(resp)
+
+	if resp.StatusCode != http.StatusOK {
+		t.Error("Unexpected response status code", resp.StatusCode)
+		return
+	}
+
+}
+
+func TestServerResponse(t *testing.T) {
+	url := "http://int6.whitefalcon.io/router"
+
+	client := &http.Client{}
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		t.Log(err)
+		return
+	}
+	//fmt.Println(req)
 	req.Header.Set("Authorization", "Bearer "+tokenValue)
 	resp, err := client.Do(req)
 	if err != nil {
@@ -392,6 +421,7 @@ func TestServerResponse(t *testing.T) {
 	if false {
 		t.Log(string(body))
 	}
+	fmt.Println(string(body))
 
 	if resp.StatusCode != http.StatusOK {
 		t.Error("Unexpected response status code", resp.StatusCode)
