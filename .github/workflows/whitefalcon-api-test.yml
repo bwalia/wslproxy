@@ -1,8 +1,5 @@
 name: Whitefalcon Test Suite
 on:
-  push:
-    branches:
-      - 'dixa/qa-checks'
   schedule:
     - cron: '0 */12 * * *'    
   workflow_dispatch: 
