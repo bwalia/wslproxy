@@ -74,6 +74,12 @@ spec:
             value: "/opt/nginx/"
           - name: JWT_SECURITY_PASSPHRASE
             value: "{{ .Values.app.jwt_security_passphrase }}"
+          - name: PRIMARY_DNS_RESOLVER
+            value: "{{ .Values.app.primary_dns_resolver }}"
+          - name: SECONDARY_DNS_RESOLVER
+            value: "{{ .Values.app.secondary_dns_resolver }}"
+          - name: DNS_RESOLVER_PORT
+            value: "{{ .Values.app.dns_resolver_port }}"
 
           ports:
             - name: http

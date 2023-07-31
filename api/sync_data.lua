@@ -102,8 +102,10 @@ function syncAPI()
     local updateRules = saveRecordsToDisk(apiUrl .. "/rules?_format=json&&params={%22pagination%22:{%22page%22:1,%22perPage%22:10},%22sort%22:{%22field%22:%22created_at%22,%22order%22:%22DESC%22},%22filter%22:{}}", "rules")
 
     return ngx.say(cjson.encode({
-        servers = updateServers,
-        rules = updateRules,
+        data = {
+            servers = updateServers,
+            rules = updateRules,
+        }
     }))
 end
 syncAPI()

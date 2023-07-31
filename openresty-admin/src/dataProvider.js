@@ -1,77 +1,75 @@
 import { isEmpty } from "lodash";
+import { useStore, useNotify } from "react-admin"
 const getHeaders = () => {
-    const token = localStorage.getItem("token");
-    const accessToken = JSON.parse(token);
-  
-    const basicHeaders = {
-      // Accept: "application/json",
-      // "Content-Type": "application/json",
-    };
-  
-    if (accessToken?.accessToken) {
-      basicHeaders.Authorization = `Bearer ${accessToken.accessToken}`;
-    }
-    return basicHeaders;
+  const token = localStorage.getItem("token");
+  const accessToken = JSON.parse(token);
+
+  const basicHeaders = {
+    // Accept: "application/json",
+    // "Content-Type": "application/json",
   };
 
-  const handleConfigField = (data) => {
-    data.config = `server {
-      ${
-        data?.listens?.length
-          ? data?.listens
-              .map((listen) => {
-                return `listen ${listen.listen || ""};`;
-              })
-              .join("\n")
-          : ""
-      }  # Listen on port (HTTP)
-      server_name ${
-        data.server_name || "example.com"
-      };  # Your domain name
-      root ${data.root || "/var/www/html"};  # Document root directory
-      index ${
-        data.index || "index.html index.htm"
-      };  # Default index files
-      access_log ${
-        data.access_log || "/var/log/nginx/access.log"
-      };  # Access log file location
-      error_log ${
-        data.error_log || "/var/log/nginx/error.log"
-      };  # Error log file location
+  if (accessToken?.accessToken) {
+    basicHeaders.Authorization = `Bearer ${accessToken.accessToken}`;
+  }
+  return basicHeaders;
+};
 
-      ${
-        data?.locations?.length
-          ? data.locations
-              .map((location) => {
-                return `location ${location?.location_path || "/"} {
-                ${
-                  location?.location_vals
-                    ? Object.values(location?.location_opts)
-                        .map((idx) => {
-                          const value = location?.location_vals[idx];
-                          return idx + " " + value;
-                        })
-                        .join("\n")
-                    : "#Please select an Options"
-                }
+const handleConfigField = (data) => {
+  data.config = `server {
+      ${data?.listens?.length
+      ? data?.listens
+        .map((listen) => {
+          return `listen ${listen.listen || ""};`;
+        })
+        .join("\n")
+      : ""
+    }  # Listen on port (HTTP)
+      server_name ${data.server_name || "example.com"
+    };  # Your domain name
+      root ${data.root || "/var/www/html"};  # Document root directory
+      index ${data.index || "index.html index.htm"
+    };  # Default index files
+      access_log ${data.access_log || "/var/log/nginx/access.log"
+    };  # Access log file location
+      error_log ${data.error_log || "/var/log/nginx/error.log"
+    };  # Error log file location
+
+      ${data?.locations?.length
+      ? data.locations
+        .map((location) => {
+          return `location ${location?.location_path || "/"} {
+                ${location?.location_vals
+              ? Object.values(location?.location_opts)
+                .map((idx) => {
+                  const value = location?.location_vals[idx];
+                  return idx + " " + value;
+                })
+                .join("\n")
+              : "#Please select an Options"
+            }
                 }`;
-              })
-              .join("\n")
-          : ""
-      }
-      ${
-        !isEmpty(data?.custom_block)
-          ? data?.custom_block
-              .map((block) => block.additional_block)
-              .join("\n")
-          : ""
-      }
+        })
+        .join("\n")
+      : ""
+    }
+      ${!isEmpty(data?.custom_block)
+      ? data?.custom_block
+        .map((block) => block.additional_block)
+        .join("\n")
+      : ""
+    }
   }
   `;
   return data;
-  }
-  const dataProvider = (apiUrl, settings = {}) => ({
+}
+const dataProvider = (apiUrl, settings = {}) => {
+  const [isLoading, setIsLoadig] = useStore('fetch.data.loading', false);
+  const [syncPopupOpen, setSyncPopupOpen] = useStore('sync.data.success', false);
+  const notify = useNotify();
+  return {
     get: async (resource, params) => {
+      setIsLoadig(true)
       const url = `${apiUrl}/resource?_format=json&params=${JSON.stringify(
         params
       )}`;
@@ -80,9 +78,11 @@ const getHeaders = () => {
         headers: getHeaders(),
       });
       const { data } = await response.json();
+      setIsLoadig(false)
       return { data };
     },
     getList: async (resource, params) => {
+      setIsLoadig(true)
       try {
         const url = `${apiUrl}/${resource}?_format=json&params=${JSON.stringify(
           params
@@ -91,18 +91,21 @@ const getHeaders = () => {
           method: "GET",
           headers: getHeaders(),
         });
-  
+
         if (response.status < 200 || response.status >= 300 && response.status !== 409 && response.status !== 404) {
           localStorage.removeItem("token");
           window.location.href = "/#/login";
         }
         const data = await response.json();
+        setIsLoadig(false)
         return isEmpty(data.data) ? Promise.resolve({ data: [], total: 0 }) : data;
       } catch (error) {
         console.warn({ error });
+        setIsLoadig(false)
       }
     },
     getOne: async (resource, params) => {
+      setIsLoadig(true)
       const { id } = params;
       const url = `${apiUrl}/${resource}/${id}?_format=json`;
       const response = await fetch(url, {
@@ -115,9 +118,11 @@ const getHeaders = () => {
         window.location.href = "/#/login";
       }
       const data = await response.json();
+      setIsLoadig(false)
       return data;
     },
     getMany: async (resource, params) => {
+      setIsLoadig(true)
       const url = `${apiUrl}/${resource}?filter=${JSON.stringify(params)}`;
       const response = await fetch(url, {
         method: "GET",
@@ -129,9 +134,11 @@ const getHeaders = () => {
         window.location.href = "/#/login";
       }
       const data = await response.json();
+      setIsLoadig(false)
       return data;
     },
     create: async (resource, params) => {
+      setIsLoadig(true)
       const url = `${apiUrl}/${resource}`;
       let { data } = params;
       if (resource === "servers") {
@@ -148,12 +155,15 @@ const getHeaders = () => {
           return Promise.reject(responseMessage?.data?.message);
         }
         const result = await response.json();
+        setIsLoadig(false)
         return result;
       } catch (error) {
         console.error("Error:", error);
+        setIsLoadig(false)
       }
     },
     update: async (resource, params) => {
+      setIsLoadig(true)
       let { data } = params;
       const { id } = params;
       const url = `${apiUrl}/${resource}/${id}`;
@@ -171,17 +181,20 @@ const getHeaders = () => {
           return Promise.reject(responseMessage?.data?.message);
         }
         const result = await response.json();
+        setIsLoadig(false)
         return result;
       } catch (error) {
         console.error("Error:", error);
+        setIsLoadig(false)
       }
     },
     delete: async (resource, params) => {
+      setIsLoadig(true)
       const { data } = params;
       const { id } = params;
       const url = `${apiUrl}/${resource}/${id}`;
       try {
-        console.log({url});
+        console.log({ url });
         const response = await fetch(url, {
           method: "DELETE",
           body: JSON.stringify(data),
@@ -193,16 +206,19 @@ const getHeaders = () => {
           window.location.href = "/#/login";
         }
         const result = await response.json();
+        setIsLoadig(false)
         return result;
       } catch (error) {
         console.error("Error:", error);
+        setIsLoadig(false)
       }
     },
     deleteMany: async (resource, params) => {
+      setIsLoadig(true)
       const url = `${apiUrl}/${resource}`;
 
       try {
-        console.log({url});
+        console.log({ url });
         const response = await fetch(url, {
           method: "DELETE",
           body: JSON.stringify({ ids: params.ids }),
@@ -214,13 +230,16 @@ const getHeaders = () => {
           window.location.href = "/#/login";
         }
         const result = await response.json();
+        setIsLoadig(false)
         return isEmpty(result.data) ? Promise.resolve({ data: [], total: 0 }) : result;
       } catch (error) {
         console.error("Error:", error);
+        setIsLoadig(false)
       }
     },
     saveStorageFlag: async (resource, params) => {
       try {
+        setIsLoadig(true)
         const url = `${apiUrl}/${resource}?_format=json`;
         const response = await fetch(url, {
           method: "POST",
@@ -233,11 +252,34 @@ const getHeaders = () => {
           window.location.href = "/#/login";
         }
         const data = await response.json();
+        setIsLoadig(false)
         return data;
       } catch (error) {
         console.log({ error });
+        setIsLoadig(false)
         throw new Error(error);
       }
     },
-  });
-  export default dataProvider;
+
+    syncAPI: async (resource, params) => {
+      try {
+        setIsLoadig(true)
+        const url = `${apiUrl}/${resource}`;
+        const response = await fetch(url, {
+          method: "GET",
+          headers: getHeaders(),
+        });
+        if (response.status === 200) {
+          setIsLoadig(false);
+          console.log("here");
+          setSyncPopupOpen(true);
+        }
+      } catch (error) {
+        console.log(error)
+        setSyncPopupOpen(false);
+        setIsLoadig(false)
+      }
+    }
+  }
+};
+export default dataProvider;
