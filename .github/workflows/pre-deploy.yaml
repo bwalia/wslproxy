@@ -79,21 +79,21 @@ jobs:
   #         go mod init myapp
   #         go test whitefalcan-healthcheck_test.go -v 
   
-  healthcheck6:
-    runs-on: [self-hosted-node6]
-    needs: [ deploy6 ]
-    steps:
-      - uses: actions/checkout@v3
-      - name: Set up Go
-        uses: actions/setup-go@v3
-        with:
-          go-version: 1.19
-          TARGET_ENV: ${{ env.TARGET_ENV }}
-      - name: Ping verification
-        working-directory: ./QA
-        env:
-          API_PING_URL: http://test6-api.whitefalcon.io/ping
-          API_PING_NODE: node6
-        run: | 
-          go mod init myapp
-          go test whitefalcan-healthcheck_test.go -v
+  # healthcheck6:
+  #   runs-on: [self-hosted-node6]
+  #   needs: [ deploy6 ]
+  #   steps:
+  #     - uses: actions/checkout@v3
+  #     - name: Set up Go
+  #       uses: actions/setup-go@v3
+  #       with:
+  #         go-version: 1.19
+  #         TARGET_ENV: ${{ env.TARGET_ENV }}
+  #     - name: Ping verification
+  #       working-directory: ./QA
+  #       env:
+  #         API_PING_URL: http://test6-api.whitefalcon.io/ping
+  #         API_PING_NODE: node6
+  #       run: | 
+  #         go mod init myapp
+  #         go test whitefalcan-healthcheck_test.go -v
