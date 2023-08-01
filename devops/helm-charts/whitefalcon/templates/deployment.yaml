@@ -80,6 +80,8 @@ spec:
             value: "{{ .Values.app.secondary_dns_resolver }}"
           - name: DNS_RESOLVER_PORT
             value: "{{ .Values.app.dns_resolver_port }}"
+          - name: FRONT_URL
+            value: "{{ .Values.app.front_url }}"
 
           ports:
             - name: http
