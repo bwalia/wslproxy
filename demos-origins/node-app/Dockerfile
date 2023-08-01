@@ -5,13 +5,13 @@ FROM node:16-alpine
 WORKDIR /app
 
 # Copy package.json and package-lock.json to the working directory
-COPY demos-origins/node-app/package*.json ./
+COPY package*.json ./
 
 # Install Node.js dependencies
 RUN npm install
 
 # Copy the rest of the application code to the working directory
-COPY demos-origins/node-app/. .
+COPY . .
 
 # Expose the application port
 EXPOSE 3009
