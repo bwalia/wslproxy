@@ -95,7 +95,13 @@ ingress:
           pathType: ImplementationSpecific
           serviceName: wf-front-svc-int
           servicePort: 80
-      
+    - host: nodeapp.whitefalcon.io
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+          serviceName: wf-front-svc-int
+          servicePort: 80
+
   tls: []
   #  - secretName: chart-example-tls
   #    hosts:
