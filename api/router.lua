@@ -66,7 +66,7 @@ local function matchSecurityToken(rule)
         local reqHeaders = ngx.req.get_headers()
         local securityToken = reqHeaders['cookie']
         if securityToken and securityToken ~= nil and type(securityToken) ~= nil then
-            local token = string.match(tostring(securityToken), "Authorization=([^;]+)")
+            local token = string.match(tostring(securityToken), rule.jwt_token_validation_value .. "=([^;]+)")
             if token ~= nil then
                 token = string.gsub(token, "Bearer", "")
                 token = trimWhitespace(ngx.unescape_uri(token))
