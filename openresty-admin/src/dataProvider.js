@@ -262,9 +262,10 @@ const dataProvider = (apiUrl, settings = {}) => {
     },
 
     syncAPI: async (resource, params) => {
+      const FRONT_URL = import.meta.env.VITE_FRONT_URL;
       try {
         setIsLoadig(true)
-        const url = `${apiUrl}/${resource}`;
+        const url = `${FRONT_URL}/${resource}`;
         const response = await fetch(url, {
           method: "GET",
           headers: getHeaders(),

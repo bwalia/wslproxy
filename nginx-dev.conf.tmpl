@@ -26,6 +26,7 @@ env API_URL;
 env PRIMARY_DNS_RESOLVER;
 env SECONDARY_DNS_RESOLVER;
 env DNS_RESOLVER_PORT;
+env FRONT_URL;
 
 http {
     include       mime.types;
@@ -484,6 +485,8 @@ keepalive 10; # connection pool
 
         location = /frontdoor/opsapi/sync {
           default_type 'application/json';
+          add_header 'Access-Control-Allow-Origin' '*';
+          add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, PUT, DELETE';
           content_by_lua_file /usr/local/openresty/nginx/html/api/sync_data.lua;
         }
 

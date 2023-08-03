@@ -6,7 +6,7 @@ Base64 = require "base64"
 red:set_timeout(1000) -- 1 second
 local configPath = os.getenv("NGINX_CONFIG_DIR")
 local storageTypeOverride = os.getenv("STORAGE_TYPE")
-
+ngx.header["Access-Control-Allow-Origin"] = "*"
 local function getSettings()
     local readSettings, errSettings = io.open(configPath .. "data/settings.json", "rb")
     local settings = {}

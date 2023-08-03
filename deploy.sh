@@ -50,5 +50,8 @@ $KUBECTL_CMD rollout restart deployment/wf-api-$4 -n $4
 $KUBECTL_CMD rollout history deployment/wf-api-$4 -n $4
 $KUBECTL_CMD rollout restart deployment/wf-front-$4 -n $4
 $KUBECTL_CMD rollout history deployment/wf-front-$4 -n $4
+$KUBECTL_CMD rollout restart deployment/node-app
+$KUBECTL_CMD rollout history deployment/node-app
+
 sleep 120
 $KUBECTL_CMD get deploy,svc,pods,ing -n $4
