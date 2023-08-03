@@ -62,7 +62,7 @@ local function saveRecordsToDisk(path, keyName)
     if allServers and allServers ~= nil and type(allServers) == "string" then
         allServers = cjson.decode(allServers)["data"]
         for index, server in ipairs(allServers) do
-            setDataToFile(configPath .. "data/".. keyName .."/" .. server.id .. ".json", server)
+            setDataToFile(configPath .. "data/" .. keyName .. "/" .. server.id .. ".json", server)
         end
     end
     return true
@@ -97,12 +97,33 @@ function _R.server()
     return currentServer
 end
 
+-- Function to remove all files inside a directory
+local function deleteFilesInDirectory(directory)
+    local handle = io.popen("ls " .. directory)
+    local files = handle:read("*a")
+    handle:close()
+
+    for file in files:gmatch("[^\r\n]+") do
+        local filepath = directory .. "/" .. file
+        os.remove(filepath)
+        print("Deleted file:", filepath)
+    end
+end
+
 function syncAPI()
     ngx.header["Access-Control-Allow-Origin"] = "*"
     ngx.header["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
     ngx.header["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
-    local updateServers = saveRecordsToDisk(apiUrl .. "/servers?_format=json&&params={%22pagination%22:{%22page%22:1,%22perPage%22:10},%22sort%22:{%22field%22:%22created_at%22,%22order%22:%22DESC%22},%22filter%22:{}}", "servers")
-    local updateRules = saveRecordsToDisk(apiUrl .. "/rules?_format=json&&params={%22pagination%22:{%22page%22:1,%22perPage%22:10},%22sort%22:{%22field%22:%22created_at%22,%22order%22:%22DESC%22},%22filter%22:{}}", "rules")
+    deleteFilesInDirectory(configPath .. "data/servers")
+    deleteFilesInDirectory(configPath .. "data/rules")
+    local updateServers = saveRecordsToDisk(
+    apiUrl ..
+    "/servers?_format=json&&params={%22pagination%22:{%22page%22:1,%22perPage%22:10},%22sort%22:{%22field%22:%22created_at%22,%22order%22:%22DESC%22},%22filter%22:{}}",
+        "servers")
+    local updateRules = saveRecordsToDisk(
+    apiUrl ..
+    "/rules?_format=json&&params={%22pagination%22:{%22page%22:1,%22perPage%22:10},%22sort%22:{%22field%22:%22created_at%22,%22order%22:%22DESC%22},%22filter%22:{}}",
+        "rules")
 
     return ngx.say(cjson.encode({
         data = {
@@ -111,4 +132,5 @@ function syncAPI()
         }
     }))
 end
+
 syncAPI()
