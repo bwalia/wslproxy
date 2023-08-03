@@ -20,7 +20,7 @@ func TestRedirectURI(t *testing.T) {
 		ExpectedOutput string
 	}
 	tests := []TestPayload{
-		{ResponseCode: 305, Target: "10.43.69.108:3009", ExpectedOutput: "Login Page"},
+		{ResponseCode: 305, Target: "httpbin.org", ExpectedOutput: "httpbin.org"},
 		{ResponseCode: 302, Target: "https://test-my.workstation.co.uk/", ExpectedOutput: "test-my.workstation.co.uk"},
 		{ResponseCode: 301, Target: "http://vpn.workstation.be", ExpectedOutput: "Welcome to Workstation SRL"},
 	}
@@ -76,7 +76,7 @@ func TestRedirectURI(t *testing.T) {
 			TestDataSync(t)
 
 			// compairing with the response output
-			URL := "http://int6.whitefalcon.io/"
+			URL := "http://int6-qa.whitefalcon.io/"
 
 			client = &http.Client{}
 			req, err = http.NewRequest("GET", URL, nil)

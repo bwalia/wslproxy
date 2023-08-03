@@ -79,7 +79,7 @@ func TestURLPath(t *testing.T) {
 			TestDataSync(t)
 
 			// compairing with the response output
-			URL := "http://int6.whitefalcon.io/router"
+			URL := "http://int6-qa.whitefalcon.io/router"
 
 			client = &http.Client{}
 			req, err = http.NewRequest("GET", URL, nil)

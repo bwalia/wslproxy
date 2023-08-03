@@ -79,14 +79,39 @@ func TestClientIP(t *testing.T) {
 			}
 
 			// applying the rule to the server
-			ruleId = IpRuleId
-			TestUpdateRuleWithServer(t)
+			Url := targetHost + "/api/servers/" + serverId
+			method := "PUT"
 
-			// Call the data sync API
+			Payload := strings.NewReader(fmt.Sprintf(`{"id":"%s","root":"/var/www/html","created_at":1689853714,"proxy_server_name":"test-my.workstation.co.uk","locations":{},"index":"index.html","proxy_pass":"http://localhost","access_log":"logs/access.log","server_name":"int6-qa.whitefalcon.io","config":"server {\n      listen 80;  # Listen on port (HTTP)\n      server_name int6-qa.whitefalcon.io;  # Your domain name\n      root /var/www/html;  # Document root directory\n      index index.html;  # Default index files\n      access_log logs/access.log;  # Access log file location\n      error_log logs/error.log;  # Error log file location\n\n      \n      \n  }\n  ","rules":"%s","error_log":"logs/error.log","match_cases":{},"custom_block":{},"listens":[{"listen":"80"}]}`, serverId, IpRuleId))
+			client = &http.Client{}
+			req, err = http.NewRequest(method, Url, Payload)
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+
+			req.Header.Add("Authorization", "Bearer "+tokenValue)
+			req.Header.Set("Content-Type", "application/json")
+
+			res, err = client.Do(req)
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+			body, err = ioutil.ReadAll(res.Body)
+			if false {
+				fmt.Println(string(body))
+			}
+			defer res.Body.Close()
+
+			if res.StatusCode != http.StatusOK {
+				t.Error("Unexpected response status code", res.StatusCode)
+			}
+			// Call the sync api
 			TestDataSync(t)
 
 			// compairing with the response output
-			URL := "http://int6.whitefalcon.io/"
+			URL := "http://int6-qa.whitefalcon.io/"
 
 			client = &http.Client{}
 			req, err = http.NewRequest("GET", URL, nil)
@@ -115,6 +140,7 @@ func TestClientIP(t *testing.T) {
 			// Deleting the rules to clear the junk
 			TestDeleteRule(t)
 			ruleId = IpRuleId
+
 		})
 	}
 }

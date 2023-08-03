@@ -82,7 +82,7 @@ func TestRuleResponse(t *testing.T) {
 			TestDataSync(t)
 
 			// compairing with the response output
-			URL := "http://int6.whitefalcon.io/"
+			URL := "http://int6-qa.whitefalcon.io/"
 
 			client = &http.Client{}
 			req, err = http.NewRequest("GET", URL, nil)

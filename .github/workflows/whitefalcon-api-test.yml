@@ -26,4 +26,4 @@ jobs:
       env: 
         LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
         LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
-        SERVER_ID: ${{ secrets.SERVER_ID }}
+        SERVER_ID_QA: ${{ secrets.SERVER_ID_QA }}

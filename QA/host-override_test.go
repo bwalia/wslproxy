@@ -63,7 +63,7 @@ func TestHostOverRide(t *testing.T) {
 	TestDataSync(t)
 
 	// verifying the host header
-	Url := "http://int6.whitefalcon.io/"
+	Url := "http://int6-qa.whitefalcon.io/"
 
 	client = &http.Client{}
 	req, err = http.NewRequest("GET", Url, nil)

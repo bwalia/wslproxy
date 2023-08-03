@@ -147,7 +147,7 @@ func TestCreateServer(t *testing.T) {
 	method := "POST"
 
 	//payload := strings.NewReader(`{"listens":[{"listen":"80"}],"server_name":"int6.whitefalcon.io","root":"/var/www/html","index":"index/html","access_log":"/logs/access.log","error_log":"/logs/error.log","locations":[],"custom_block":[]}`)
-	payload := strings.NewReader(`{"listens":[{"listen":"80"}],"server_name":"int6.whitefalcon.io","proxy_server_name":"test-my.workstation.co.uk","root":"/var/www/html","index":"index.html","access_log":"logs/access.log","error_log":"logs/error.log","locations":[],"custom_block":[],"config":"server {\n      listen 80;  # Listen on port (HTTP)\n      server_name int6.whitefalcon.io;  # Your domain name\n      root /var/www/html;  # Document root directory\n      index index.html;  # Default index files\n      access_log logs/access.log;  # Access log file location\n      error_log logs/error.log;  # Error log file location\n\n      \n      \n  }\n  "}`)
+	payload := strings.NewReader(`{"listens":[{"listen":"80"}],"server_name":"int6-qa.whitefalcon.io","proxy_server_name":"test-my.workstation.co.uk","root":"/var/www/html","index":"index.html","access_log":"logs/access.log","error_log":"logs/error.log","locations":[],"custom_block":[],"config":"server {\n      listen 80;  # Listen on port (HTTP)\n      server_name int6-qa.whitefalcon.io;  # Your domain name\n      root /var/www/html;  # Document root directory\n      index index.html;  # Default index files\n      access_log logs/access.log;  # Access log file location\n      error_log logs/error.log;  # Error log file location\n\n      \n      \n  }\n  "}`)
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, payload)
 	if err != nil {
@@ -178,7 +178,7 @@ func TestCreateServer(t *testing.T) {
 			serverId = jsonData.Data.ID
 
 		} else if res.StatusCode == http.StatusConflict {
-			serverId = os.Getenv("SERVER_ID")
+			serverId = os.Getenv("SERVER_ID_QA")
 		}
 	}
 }
@@ -261,7 +261,7 @@ func TestGetSingleServer(t *testing.T) {
 		t.Error("Unexpected response status code", res.StatusCode)
 		return
 	}
-	if !strings.Contains(string(body), "int6.whitefalcon.io") {
+	if !strings.Contains(string(body), "int6-qa.whitefalcon.io") {
 		t.Error("Returned unexpected body")
 		return
 	}
@@ -306,7 +306,7 @@ func TestUpdateRule(t *testing.T) {
 	method := "PUT"
 
 	//payload := strings.NewReader(fmt.Sprintf(`{"created_at":1687853270,"version":1,"priority":1,"name":"Test rule","match":{"response":{"code":200,"message":"SGVsbG8gd29ybGQh","allow":true},"rules":{"jwt_token_validation":"equals","country_key":"equals","client_ip_key":"equals","path":"/router","path_key":"starts_with"}},"id":"%s"}`, ruleId))
-	payload := strings.NewReader(fmt.Sprintf(`{"created_at":1689744334,"match":{"rules":{"path_key":"starts_with","client_ip_key":"equals","country_key":"equals","path":"/router","jwt_token_validation":"equals"},"response":{"allow":false,"code":200,"message":"SGVsbG8gd29ybGQh"}},"version":1,"name":"Test rule ","priority":1,"id":"%s"}`, ruleId))
+	payload := strings.NewReader(fmt.Sprintf(`{"created_at":1689744334,"match":{"rules":{"path_key":"starts_with","client_ip_key":"equals","country_key":"equals","path":"/router","jwt_token_validation":"equals"},"response":{"allow":false,"code":200,"message":"SGVsbG8gd29ybGQh"}},"version":1,"name":"Test rule for test workflow","priority":1,"id":"%s"}`, ruleId))
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, payload)
 	if err != nil {
@@ -341,12 +341,12 @@ func TestUpdateRuleWithServer(t *testing.T) {
 	url := targetHost + "/api/servers/" + serverId
 	method := "PUT"
 
-	//payload := strings.NewReader(fmt.Sprintf(`{"server_name":"int6.whitefalcon.io","listens":[{"listen":"81"}],"proxy_pass":"http://localhost","index":"index/html","id":"%s","match_cases":{},"error_log":"/logs/error.log","rules":"%s","locations":{},"root":"/var/www/html","custom_block":{},"access_log":"/logs/access.log","created_at":1687844569}`, serverId, ruleId))
 	//payload := strings.NewReader(fmt.Sprintf(`{"listens":[{"listen":"81"}],"locations":{},"error_log":"logs/error.log","index":"index.html","custom_block":{},"root":"/var/www/html","created_at":1689686953,"config":"server {\n      listen 80;  # Listen on port (HTTP)\n      server_name int2.whitefalcon.io;  # Your domain name\n      root /var/www/html;  # Document root directory\n      index index.html;  # Default index files\n      access_log logs/access.log;  # Access log file location\n      error_log logs/error.log;  # Error log file location\n\n      \n      \n  }\n  ","rules":"%s","id":"%s","proxy_pass":"http://localhost","access_log":"logs/access.log","server_name":"int2.whitefalcon.io"}`, ruleId, serverId))
-	payload := strings.NewReader(fmt.Sprintf(`{"id":"%s","root":"/var/www/html","created_at":1689853714,"proxy_server_name":"test-my.workstation.co.uk","locations":{},"index":"index.html","proxy_pass":"http://localhost","access_log":"logs/access.log","server_name":"int6.whitefalcon.io","config":"server {\n      listen 80;  # Listen on port (HTTP)\n      server_name int6.whitefalcon.io;  # Your domain name\n      root /var/www/html;  # Document root directory\n      index index.html;  # Default index files\n      access_log logs/access.log;  # Access log file location\n      error_log logs/error.log;  # Error log file location\n\n      \n      \n  }\n  ","rules":"%s","error_log":"logs/error.log","match_cases":{},"custom_block":{},"listens":[{"listen":"80"}]}`, serverId, ruleId))
+	payload := strings.NewReader(fmt.Sprintf(`{"id":"%s","root":"/var/www/html","created_at":1689853714,"proxy_server_name":"test-my.workstation.co.uk","locations":{},"index":"index.html","proxy_pass":"http://localhost","access_log":"logs/access.log","server_name":"int6-qa.whitefalcon.io","config":"server {\n      listen 80;  # Listen on port (HTTP)\n      server_name int6-qa.whitefalcon.io;  # Your domain name\n      root /var/www/html;  # Document root directory\n      index index.html;  # Default index files\n      access_log logs/access.log;  # Access log file location\n      error_log logs/error.log;  # Error log file location\n\n      \n      \n  }\n  ","rules":"%s","error_log":"logs/error.log","match_cases":{},"custom_block":{},"listens":[{"listen":"80"}]}`, serverId, ruleId))
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, payload)
-	if err != nil {
+	if err != nil { //payload := strings.NewReader(fmt.Sprintf(`{"server_name":"int6.whitefalcon.io","listens":[{"listen":"81"}],"proxy_pass":"http://localhost","index":"index/html","id":"%s","match_cases":{},"error_log":"/logs/error.log","rules":"%s","locations":{},"root":"/var/www/html","custom_block":{},"access_log":"/logs/access.log","created_at":1687844569}`, serverId, ruleId))
+
 		fmt.Println(err)
 		return
 	}
@@ -375,7 +375,7 @@ func TestUpdateRuleWithServer(t *testing.T) {
 }
 
 func TestDataSync(t *testing.T) {
-	url := "http://int6.whitefalcon.io/frontdoor/opsapi/sync"
+	url := "http://int6-qa.whitefalcon.io/frontdoor/opsapi/sync"
 
 	client := &http.Client{}
 
@@ -399,7 +399,7 @@ func TestDataSync(t *testing.T) {
 }
 
 func TestServerResponse(t *testing.T) {
-	url := "http://int6.whitefalcon.io/router"
+	url := "http://int6-qa.whitefalcon.io/router"
 
 	client := &http.Client{}
 
