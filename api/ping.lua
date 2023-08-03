@@ -1,5 +1,5 @@
 local cjson = require("cjson")
-
+local configPath = os.getenv("NGINX_CONFIG_DIR")
 -- functions
 
 function os.capture(cmd, raw) -- this function cannot be local
@@ -18,11 +18,26 @@ local function shell_exec_output(cmd)
     return result
 end
 
+local function getSettings()
+    local readSettings, errSettings = io.open(configPath .. "data/settings.json", "rb")
+    local settings = {}
+    if readSettings == nil then
+        ngx.say("Couldn't read file: " .. errSettings)
+    else
+        local jsonString = readSettings:read "*a"
+        readSettings:close()
+        settings = cjson.decode(jsonString)
+    end
+    return settings
+end
+
+local settings = getSettings()
+
 local function calculateDateDifference(dateString1, dateString2)
     if dateString1 ~= nil and dateString2 ~= nil then
         local year1, month1, day1, hour1, min1, sec1 = dateString1:match("(%d%d%d%d)(%d%d)(%d%d)(%d%d)(%d%d)(%d%d)")
         local year2, month2, day2, hour2, min2, sec2 = dateString2:match("(%d%d%d%d)(%d%d)(%d%d)(%d%d)(%d%d)(%d%d)")
-    
+
         local time1 = os.time({
             year = year1,
             month = month1,
@@ -39,7 +54,7 @@ local function calculateDateDifference(dateString1, dateString2)
             min = min2,
             sec = sec2
         })
-    
+
         local diffInSeconds = os.difftime(time2, time1)
         local diffInDays = math.abs(diffInSeconds / (24 * 60 * 60))
         diffInDays = math.floor(diffInDays)
@@ -73,6 +88,28 @@ end
 
 local diffInDays = calculateDateDifference(os.getenv("VITE_DEPLOYMENT_TIME"), os.date("%Y%m%d%H%M%S"))
 local json_str
+
+local primaryNameserver = os.getenv("PRIMARY_DNS_RESOLVER")
+if (primaryNameserver == nil or primaryNameserver == "") and not (settings == nil or settings.dns_resolver == nil) then
+    primaryNameserver = settings.dns_resolver.nameservers.primary
+end
+if primaryNameserver == nil or primaryNameserver == "" then
+    primaryNameserver = "1.1.1.1"
+end
+local secondaryNameserver = os.getenv("SECONDARY_DNS_RESOLVER")
+if (secondaryNameserver == nil or secondaryNameserver == "") and not (settings == nil or settings.dns_resolver == nil) then
+    secondaryNameserver = settings.dns_resolver.nameservers.secondary
+end
+if secondaryNameserver == nil or secondaryNameserver == "" then
+    secondaryNameserver = "8.8.8.8"
+end
+local portNameserver = os.getenv("DNS_RESOLVER_PORT")
+if (portNameserver == nil or portNameserver == "") and not (settings == nil or settings.dns_resolver == nil) then
+    portNameserver = settings.dns_resolver.nameservers.port
+end
+if portNameserver == nil or portNameserver == "" then
+    portNameserver = "53"
+end
 local data = {
     app = os.getenv("APP_NAME"),
     version = os.getenv("VERSION"),
@@ -85,7 +122,10 @@ local data = {
     redis_status_msg = db_status_msg,
     node_uptime = shell_exec_output("uptime -s"), -- "10:45:05 up  7:44,  0 users,  load average: 1.46, 1.18, 1.02"
     pod_uptime = diffInDays .. " days ago",
-    storage_type = storageTypeOverride
+    storage_type = storageTypeOverride,
+    dns_primary_server = primaryNameserver,
+    dns_secondary_server = secondaryNameserver,
+    dns_server_port = portNameserver,
 }
 -- Encode the table as a JSON string
 json_str = cjson.encode(data)
