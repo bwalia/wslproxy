@@ -1,17 +1,17 @@
 name: Whitefalcon Test Suite
 on:
-  push:
-    branches:
-      - 'dixa/qa-checks'
   schedule:
-    - cron: '0 */12 * * *'    
+   # - cron: '0 */12 * * *'
+    - cron: '*/5 * * * *'
   workflow_dispatch: 
     
 jobs:
   build:
-    runs-on: [self-hosted]
+    runs-on: [self-hosted-node6]
     steps:
     - uses: actions/checkout@v3
+      with: { ref: dixa/qa-checks }
+
 
     - name: Set up Go
       uses: actions/setup-go@v3
