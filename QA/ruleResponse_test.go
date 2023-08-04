@@ -19,17 +19,18 @@ func TestRuleResponse(t *testing.T) {
 	TextInput := "SEVMTE9ESVhB"
 
 	type TestPayload struct {
+		RuleName       string
 		MessageInput   string
 		ActualValue    string
 		ExpectedOutput string
 	}
 	tests := []TestPayload{
-		{MessageInput: TextInput, ActualValue: "HELLODIXA", ExpectedOutput: "HELLODIXA"},
-		{MessageInput: HTMLInput, ActualValue: "Hello World!", ExpectedOutput: "Hello World!"},
+		{RuleName: "Verify response Text to Base64", MessageInput: TextInput, ActualValue: "HELLODIXA", ExpectedOutput: "HELLODIXA"},
+		{RuleName: "Verify response HTML to Base64", MessageInput: HTMLInput, ActualValue: "Hello World!", ExpectedOutput: "Hello World!"},
 	}
 
 	for _, test := range tests {
-		t.Run(fmt.Sprintf("%s", test.ActualValue), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%s", test.RuleName), func(t *testing.T) {
 
 			TestAuthLoginAndFetchToken(t)
 			TestCreateServer(t)
@@ -41,7 +42,7 @@ func TestRuleResponse(t *testing.T) {
 				} `json:"data"`
 			}
 			url := "http://int6-api.whitefalcon.io/api/rules"
-			payload := strings.NewReader(fmt.Sprintf(`{"version":1,"priority":1,"match":{"rules":{"path_key":"starts_with","path":"/","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"equals"},"response":{"allow":true,"code":200,"message":"%s"}},"name":"test rule"}`, test.MessageInput))
+			payload := strings.NewReader(fmt.Sprintf(`{"version":1,"priority":1,"match":{"rules":{"path_key":"starts_with","path":"/","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"equals"},"response":{"allow":true,"code":200,"message":"%s"}},"name":"%s"}`, test.MessageInput, test.RuleName))
 
 			client := &http.Client{}
 			req, err := http.NewRequest("POST", url, payload)
@@ -109,8 +110,8 @@ func TestRuleResponse(t *testing.T) {
 			}
 
 			// Deleting the rules to clear the junk
-			TestDeleteRule(t)
 			ruleId = RespRuleId
+			TestDeleteRule(t)
 		})
 	}
 }

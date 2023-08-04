@@ -29,7 +29,7 @@ func TestCreateRuleForAccessAll(t *testing.T) {
 	url := targetHost + "/api/rules"
 	method := "POST"
 
-	payload := strings.NewReader(`{"version":1,"priority":1,"match":{"rules":{"path_key":"starts_with","path":"/","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"equals"},"response":{"allow":false,"code":305,"redirect_uri":"10.43.69.108:3009","message":"undefined"}},"name":"Access All"}`)
+	payload := strings.NewReader(`{"version":1,"priority":1,"match":{"rules":{"path_key":"starts_with","path":"/","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"equals"},"response":{"allow":false,"code":305,"redirect_uri":"10.43.69.108:3009","message":"undefined"}},"name":"Access All Rule"}`)
 
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, payload)
@@ -80,7 +80,7 @@ func TestCreateRuleForAccessApi(t *testing.T) {
 	url := targetHost + "/api/rules"
 	method := "POST"
 
-	payload := strings.NewReader(`{"version":1,"priority":1,"match":{"rules":{"path_key":"starts_with","path":"/api","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"cookie","jwt_token_validation_value":"Authorization","jwt_token_validation_key":"HCsKpxQ4hU97V5us5TCwvLnAVBgLqNd1dP2R-4Uywg7946J3zAqT9EOA5hdWRCQn"},"response":{"allow":false,"code":305,"redirect_uri":"10.43.69.108:3009","message":"undefined"}},"name":"Test rule "}`)
+	payload := strings.NewReader(`{"version":1,"priority":1,"match":{"rules":{"path_key":"starts_with","path":"/api","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"cookie","jwt_token_validation_value":"Authorization","jwt_token_validation_key":"HCsKpxQ4hU97V5us5TCwvLnAVBgLqNd1dP2R-4Uywg7946J3zAqT9EOA5hdWRCQn"},"response":{"allow":false,"code":305,"redirect_uri":"10.43.69.108:3009","message":"undefined"}},"name":"Access Api Rule"}`)
 
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, payload)
@@ -179,7 +179,7 @@ func TestVerifyRule(t *testing.T) {
 	if false {
 		t.Log(string(body))
 	}
-	fmt.Println(string(body))
+	//fmt.Println(string(body))
 
 	if resp.StatusCode != http.StatusForbidden {
 		t.Error("Unexpected response status code", resp.StatusCode)
@@ -217,8 +217,8 @@ func TestVerifyRule(t *testing.T) {
 	// login and fetch the token
 	Url := "http://int6-qa.whitefalcon.io/login"
 	method := "POST"
-	Email := os.Getenv("email")
-	Password := os.Getenv("password")
+	Email := os.Getenv("LOGIN_EMAIL")
+	Password := os.Getenv("LOGIN_PASSWORD")
 
 	payload := &bytes.Buffer{}
 	writer := multipart.NewWriter(payload)
@@ -263,13 +263,13 @@ func TestVerifyRule(t *testing.T) {
 		fmt.Println(err)
 		return
 	}
-	fmt.Println("Response body:", string(body))
+	//fmt.Println("Response body:", string(body))
 	if resp.StatusCode != http.StatusOK {
 		fmt.Println("Failed to login", resp.StatusCode)
 	} else {
 		fmt.Println("Login successful!")
 	}
-	fmt.Println(string(body))
+	//fmt.Println(string(body))
 
 	cookies := jar.Cookies(req.URL)
 	//fmt.Println(cookies)
@@ -314,7 +314,7 @@ func TestVerifyRule(t *testing.T) {
 	if false {
 		t.Log(string(body))
 	}
-	fmt.Println(string(body))
+	//fmt.Println(string(body))
 
 	if resp.StatusCode != http.StatusOK {
 		t.Error("Unexpected response status code", resp.StatusCode)
@@ -328,15 +328,15 @@ func TestVerifyRule(t *testing.T) {
 func TestDeleteAccessAllRule(t *testing.T) {
 
 	// Deleting the AccessAll rule
-	TestDeleteRule(t)
 	ruleId = ruleAccessAll
+	TestDeleteRule(t)
 }
 
 func TestDeleteAccessApiRule(t *testing.T) {
 
 	// Deleting the AccessApi rule
-	TestDeleteRule(t)
 	ruleId = ruleAccessApi
+	TestDeleteRule(t)
 
 	// Deleting the server
 	TestDeleteServer(t)

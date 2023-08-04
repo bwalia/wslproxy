@@ -15,18 +15,19 @@ var RedirectRuleId string
 func TestRedirectURI(t *testing.T) {
 
 	type TestPayload struct {
+		RuleName       string
 		ResponseCode   int
 		Target         string
 		ExpectedOutput string
 	}
 	tests := []TestPayload{
-		{ResponseCode: 305, Target: "httpbin.org", ExpectedOutput: "httpbin.org"},
-		{ResponseCode: 302, Target: "https://test-my.workstation.co.uk/", ExpectedOutput: "test-my.workstation.co.uk"},
-		{ResponseCode: 301, Target: "http://vpn.workstation.be", ExpectedOutput: "Welcome to Workstation SRL"},
+		{RuleName: "Test Rule-305", ResponseCode: 305, Target: "10.43.69.108:3009", ExpectedOutput: "Login Page"},
+		{RuleName: "Test Rule-302", ResponseCode: 302, Target: "https://test-my.workstation.co.uk/", ExpectedOutput: "test-my.workstation.co.uk"},
+		{RuleName: "Test Rule-301", ResponseCode: 301, Target: "http://vpn.workstation.be", ExpectedOutput: "Welcome to Workstation SRL"},
 	}
 
 	for _, test := range tests {
-		t.Run(fmt.Sprintf("%d: %s", test.ResponseCode, test.Target), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%s: %s", test.RuleName, test.Target), func(t *testing.T) {
 
 			TestAuthLoginAndFetchToken(t)
 			TestCreateServer(t)
@@ -38,7 +39,7 @@ func TestRedirectURI(t *testing.T) {
 				} `json:"data"`
 			}
 			url := "http://int6-api.whitefalcon.io/api/rules"
-			payload := strings.NewReader(fmt.Sprintf(`{"version":1,"priority":1,"match":{"rules":{"path_key":"starts_with","path":"/","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"equals"},"response":{"allow":false,"code":%d,"redirect_uri":"%s","message":"undefined"}},"name":"Test rule"}`, test.ResponseCode, test.Target))
+			payload := strings.NewReader(fmt.Sprintf(`{"version":1,"priority":1,"match":{"rules":{"path_key":"starts_with","path":"/","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"equals"},"response":{"allow":false,"code":%d,"redirect_uri":"%s","message":"undefined"}},"name":"%s"}`, test.ResponseCode, test.Target, test.RuleName))
 			client := &http.Client{}
 			req, err := http.NewRequest("POST", url, payload)
 			if err != nil {
@@ -103,8 +104,9 @@ func TestRedirectURI(t *testing.T) {
 			}
 
 			// Deleting the rules to clear the junk
-			TestDeleteRule(t)
 			ruleId = RedirectRuleId
+			TestDeleteRule(t)
+
 		})
 	}
 }

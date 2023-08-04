@@ -24,7 +24,7 @@ func TestHostOverRide(t *testing.T) {
 		} `json:"data"`
 	}
 	url := "http://int6-api.whitefalcon.io/api/rules"
-	payload := strings.NewReader((`{"version":1,"priority":1,"match":{"rules":{"path_key":"starts_with","path":"/","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"equals"},"response":{"allow":false,"code":305,"redirect_uri":"httpbin.org","message":"undefined"}},"name":"Test rule host"}`))
+	payload := strings.NewReader((`{"version":1,"priority":1,"match":{"rules":{"path_key":"starts_with","path":"/","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"equals"},"response":{"allow":false,"code":305,"redirect_uri":"httpbin.org","message":"undefined"}},"name":"Test rule host-override"}`))
 
 	client := &http.Client{}
 	req, err := http.NewRequest("POST", url, payload)
@@ -88,7 +88,7 @@ func TestHostOverRide(t *testing.T) {
 	}
 
 	// Deleting the rules to clear the junk
-	TestDeleteRule(t)
 	ruleId = RuleID
+	TestDeleteRule(t)
 
 }

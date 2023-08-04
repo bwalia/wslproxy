@@ -194,7 +194,7 @@ func TestCreateRule(t *testing.T) {
 	url := targetHost + "/api/rules"
 	method := "POST"
 
-	payload := strings.NewReader(`{"version":1,"priority":1,"match":{"rules":{"path_key":"starts_with","path":"/router","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"equals"},"response":{"allow":true,"code":200,"message":"SGVsbG8gd29ybGQh"}},"name":"test rule"}`)
+	payload := strings.NewReader(`{"version":1,"priority":1,"match":{"rules":{"path_key":"starts_with","path":"/router","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"equals"},"response":{"allow":true,"code":200,"message":"SGVsbG8gd29ybGQh"}},"name":"API test rule"}`)
 
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, payload)
@@ -306,7 +306,7 @@ func TestUpdateRule(t *testing.T) {
 	method := "PUT"
 
 	//payload := strings.NewReader(fmt.Sprintf(`{"created_at":1687853270,"version":1,"priority":1,"name":"Test rule","match":{"response":{"code":200,"message":"SGVsbG8gd29ybGQh","allow":true},"rules":{"jwt_token_validation":"equals","country_key":"equals","client_ip_key":"equals","path":"/router","path_key":"starts_with"}},"id":"%s"}`, ruleId))
-	payload := strings.NewReader(fmt.Sprintf(`{"created_at":1689744334,"match":{"rules":{"path_key":"starts_with","client_ip_key":"equals","country_key":"equals","path":"/router","jwt_token_validation":"equals"},"response":{"allow":false,"code":200,"message":"SGVsbG8gd29ybGQh"}},"version":1,"name":"Test rule for test workflow","priority":1,"id":"%s"}`, ruleId))
+	payload := strings.NewReader(fmt.Sprintf(`{"created_at":1689744334,"match":{"rules":{"path_key":"starts_with","client_ip_key":"equals","country_key":"equals","path":"/router","jwt_token_validation":"equals"},"response":{"allow":false,"code":200,"message":"SGVsbG8gd29ybGQh"}},"version":1,"name":"API Test Rule","priority":1,"id":"%s"}`, ruleId))
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, payload)
 	if err != nil {
@@ -331,7 +331,7 @@ func TestUpdateRule(t *testing.T) {
 		t.Error("Unexpected response status code", res.StatusCode)
 		return
 	}
-	if !strings.Contains(string(body), "Test rule") {
+	if !strings.Contains(string(body), "Test Rule") {
 		t.Error("Returned unexpected body")
 		return
 	}
@@ -375,7 +375,7 @@ func TestUpdateRuleWithServer(t *testing.T) {
 }
 
 func TestDataSync(t *testing.T) {
-	url := "http://int6-qa.whitefalcon.io/frontdoor/opsapi/sync"
+	url := "http://int6.whitefalcon.io/frontdoor/opsapi/sync"
 
 	client := &http.Client{}
 
@@ -488,5 +488,8 @@ func TestDeleteRule(t *testing.T) {
 	if res.StatusCode != http.StatusOK {
 		t.Error("Unexpected response status code", res.StatusCode)
 		return
+	} else {
+		fmt.Println("Successfully deleted rule")
+
 	}
 }

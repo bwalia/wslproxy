@@ -14,26 +14,26 @@ var IpRuleId string
 
 func TestClientIP(t *testing.T) {
 	type TestPayload struct {
-		TestName       string
+		RuleName       string
 		Country        string
 		ClientIP       string
 		ExpectedOutput string
 	}
 	tests := []TestPayload{
-		{TestName: "Valid clientIp for BE", Country: "BE", ClientIP: "104.155.127.255", ExpectedOutput: "Hello world!"},
-		{TestName: "Invalid clientIp for BE", Country: "BE", ClientIP: "204.155.127.25", ExpectedOutput: "Configuration not match"},
-		{TestName: "Valid clientIp for IN", Country: "IN", ClientIP: "117.245.73.99", ExpectedOutput: "Hello world!"},
-		{TestName: "Invalid clientIp for IN", Country: "IN", ClientIP: "11.245.73.934", ExpectedOutput: "Configuration not match"},
-		{TestName: "Valid clientIp for AU", Country: "AU", ClientIP: "1.44.255.255", ExpectedOutput: "Hello world!"},
-		{TestName: "Invalid clientIp for AU", Country: "AU", ClientIP: "123.44.255.25", ExpectedOutput: "Configuration not match"},
-		{TestName: "Valid clientIp for GB", Country: "GB", ClientIP: "103.219.168.255", ExpectedOutput: "Hello world!"},
-		{TestName: "Invalid clientIp for GB", Country: "GB", ClientIP: "13.219.168.25", ExpectedOutput: "Configuration not match"},
-		{TestName: "Valid clientIp for TH", Country: "TH", ClientIP: "101.109.255.255", ExpectedOutput: "Hello world!"},
-		{TestName: "Invalid clientIp for TH", Country: "TH", ClientIP: "11.109.255.2", ExpectedOutput: "Configuration not match"},
+		{RuleName: "Valid clientIp for BE", Country: "BE", ClientIP: "104.155.127.255", ExpectedOutput: "Hello world!"},
+		{RuleName: "Invalid clientIp for BE", Country: "BE", ClientIP: "204.155.127.25", ExpectedOutput: "Configuration not match"},
+		{RuleName: "Valid clientIp for IN", Country: "IN", ClientIP: "117.245.73.99", ExpectedOutput: "Hello world!"},
+		{RuleName: "Invalid clientIp for IN", Country: "IN", ClientIP: "11.245.73.934", ExpectedOutput: "Configuration not match"},
+		{RuleName: "Valid clientIp for AU", Country: "AU", ClientIP: "1.44.255.255", ExpectedOutput: "Hello world!"},
+		{RuleName: "Invalid clientIp for AU", Country: "AU", ClientIP: "123.44.255.25", ExpectedOutput: "Configuration not match"},
+		{RuleName: "Valid clientIp for GB", Country: "GB", ClientIP: "103.219.168.255", ExpectedOutput: "Hello world!"},
+		{RuleName: "Invalid clientIp for GB", Country: "GB", ClientIP: "13.219.168.25", ExpectedOutput: "Configuration not match"},
+		{RuleName: "Valid clientIp for TH", Country: "TH", ClientIP: "101.109.255.255", ExpectedOutput: "Hello world!"},
+		{RuleName: "Invalid clientIp for TH", Country: "TH", ClientIP: "11.109.255.2", ExpectedOutput: "Configuration not match"},
 	}
 
 	for _, test := range tests {
-		t.Run(fmt.Sprintf("%s : %s", test.TestName, test.ClientIP), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%s : %s", test.RuleName, test.ClientIP), func(t *testing.T) {
 
 			TestAuthLoginAndFetchToken(t)
 			TestCreateServer(t)
@@ -45,7 +45,7 @@ func TestClientIP(t *testing.T) {
 				} `json:"data"`
 			}
 			url := targetHost + "/api/rules"
-			payload := strings.NewReader(fmt.Sprintf(`{"version":1,"priority":1,"match":{"rules":{"path_key":"starts_with","path":"/","country_key":"equals","country":"%s","client_ip_key":"equals","client_ip":"%s","jwt_token_validation":"equals"},"response":{"allow":false,"code":200,"message":"SGVsbG8gd29ybGQh"}},"name":"Test rule "}`, test.Country, test.ClientIP))
+			payload := strings.NewReader(fmt.Sprintf(`{"version":1,"priority":1,"match":{"rules":{"path_key":"starts_with","path":"/","country_key":"equals","country":"%s","client_ip_key":"equals","client_ip":"%s","jwt_token_validation":"equals"},"response":{"allow":false,"code":200,"message":"SGVsbG8gd29ybGQh"}},"name":"%s"}`, test.Country, test.ClientIP, test.RuleName))
 
 			client := &http.Client{}
 			req, err := http.NewRequest("POST", url, payload)
@@ -138,8 +138,8 @@ func TestClientIP(t *testing.T) {
 			}
 
 			// Deleting the rules to clear the junk
-			TestDeleteRule(t)
 			ruleId = IpRuleId
+			TestDeleteRule(t)
 
 		})
 	}
