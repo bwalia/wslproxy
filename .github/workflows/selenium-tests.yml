@@ -7,6 +7,8 @@ jobs:
     steps:
       - name: Checking out repo
         uses: actions/checkout@v3
+        with: { ref: dixa/qa-checks }
+        
       - name: Setting up Python
         uses: actions/setup-python@v4
         with:
