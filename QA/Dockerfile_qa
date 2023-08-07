@@ -6,12 +6,19 @@ WORKDIR /app
 # Copy the repository files to the container
 COPY . /app
 
-# Install necessary packages
-RUN apt-get update && apt-get install -y \
-    && pip install --no-cache-dir pytest chromedriver-autoinstaller selenium pyvirtualdisplay
-
-# Install xvfb
+# Install necessary packages and install xvfb
 RUN apt-get update && apt-get install -y xvfb
+
+# Removing previous chrome instances on runner
+RUN pip install selenium
+RUN pip install pytest
+RUN pip install chromedriver_autoinstaller
+
+# Install Chrome
+RUN apt-get install wget -y
+
+RUN wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+RUN dpkg -i google-chrome-stable_current_amd64.deb || apt-get -f install -y
 
 # Run the pytest command
 CMD ["py.test", "-v"]

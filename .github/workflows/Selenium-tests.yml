@@ -11,6 +11,9 @@ jobs:
         uses: actions/checkout@v2
         with:
           ref: dixa/qa-checks
+      
+      - uses: browser-actions/setup-chrome@v1
+      - run: chrome --version
 
       - name: Build and Run dockerfile for test execution
         working-directory: ./QA
