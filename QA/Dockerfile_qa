@@ -1,0 +1,17 @@
+FROM python:3.9.17-slim-bullseye
+
+# Set the working directory in the container
+WORKDIR /app
+
+# Copy the repository files to the container
+COPY . /app
+
+# Install necessary packages
+RUN apt-get update && apt-get install -y \
+    && pip install --no-cache-dir pytest chromedriver-autoinstaller selenium pyvirtualdisplay
+
+# Install xvfb
+RUN apt-get update && apt-get install -y xvfb
+
+# Run the pytest command
+CMD ["py.test", "-v"]
