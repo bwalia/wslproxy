@@ -1,0 +1,30 @@
+name: Run Selenium UI tests
+on:
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: [self-hosted-node6]
+    steps:
+      - name: Checking out repo
+        uses: actions/checkout@v3
+        with: { ref: dixa/qa-checks }
+        
+      - name: Setting up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      - name: Installing pytest framwork
+        run: pip install pytest    
+      - name: Installing package list
+        run: apt list --installed    
+      - name: Removing previous chrome instances on runner 
+        run: sudo apt purge google-chrome-stable  
+        
+       # To run on machines with no display hardware
+      - name: Installing all necessary packages
+        run: pip install chromedriver-autoinstaller selenium pyvirtualdisplay
+      - name: Install xvfb
+        run: sudo apt-get install xvfb
+
+      - name: Running the Python script
+        run: py.test -v 
