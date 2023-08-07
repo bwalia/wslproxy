@@ -12,11 +12,6 @@ jobs:
         with:
           ref: dixa/qa-checks
 
-      - name: Setting up Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: '3.10.11'
-
       - name: Build and Run dockerfile for test execution
         working-directory: ./QA
         run: | 
