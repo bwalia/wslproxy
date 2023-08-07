@@ -106,7 +106,6 @@ local function deleteFilesInDirectory(directory)
     for file in files:gmatch("[^\r\n]+") do
         local filepath = directory .. "/" .. file
         os.remove(filepath)
-        print("Deleted file:", filepath)
     end
 end
 

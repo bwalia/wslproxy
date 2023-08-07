@@ -280,6 +280,48 @@ if file == nil then
 else
     exist_values = file:read "*a"
 end
+
+local function findIndexByKey(table, keyToFind)
+    for index, item in ipairs(table) do
+        for key, _ in pairs(item) do
+            if key == keyToFind then
+                return index
+            end
+        end
+    end
+    return nil
+end
+
+local function isPathsValueUnique(table)
+    local seenPaths = {}
+    local maxPriority = -math.huge
+    local keyWithMaxPriority
+    local reqUri = ngx.var.request_uri
+
+    for key, item in pairs(table) do
+        local path, isCheck = item["paths"], false
+        if item.paths_key == "starts_with" and reqUri:startswith(item.paths) == true then
+            isCheck = true
+        elseif item.paths_key == "ends_with" and reqUri:endswith(item.paths) == true then
+            isCheck = true
+        elseif item.paths_key == "equals" and reqUri == item.paths then
+            isCheck = true
+        end
+        if isCheck == true then
+            if seenPaths[path] then
+                if item["path_priority"] > maxPriority then
+                    maxPriority = item["path_priority"]
+                    keyWithMaxPriority = key
+                end
+            else
+                seenPaths[path] = true
+            end
+        end
+    end
+
+    return keyWithMaxPriority
+end
+
 if exist_values and exist_values ~= 0 and exist_values ~= nil and exist_values ~= "" then
     local jsonval = cjson.decode(exist_values)
     local parse_rules = {}
@@ -309,6 +351,7 @@ if exist_values and exist_values ~= 0 and exist_values ~= nil and exist_values ~
                     pathMatched = true
                     hasFalseValue = {}
                     preFinalObj["path_matched"] = true
+                    preFinalObj["path_key"] = _
                 elseif value.rule_data.path_key == 'ends_with' and reqUri:endswith(value.rule_data.path) == true then
                     highestPriority = value.priority
                     highestPriorityKey = key
@@ -316,6 +359,7 @@ if exist_values and exist_values ~= 0 and exist_values ~= nil and exist_values ~
                     pathMatched = true
                     hasFalseValue = {}
                     preFinalObj["path_matched"] = true
+                    preFinalObj["path_key"] = _
                 elseif value.rule_data.path_key == 'equals' and value.rule_data.path == reqUri then
                     highestPriority = value.priority
                     highestPriorityKey = key
@@ -323,13 +367,16 @@ if exist_values and exist_values ~= 0 and exist_values ~= nil and exist_values ~
                     pathMatched = true
                     hasFalseValue = {}
                     preFinalObj["path_matched"] = true
+                    preFinalObj["path_key"] = _
                 elseif value.priority > highestPriority then
                     highestPriority = value.priority
                     highestPriorityKey = key
                     highestPriorityParentKey = _
                     preFinalObj["path_matched"] = false
+                    preFinalObj["path_key"] = _
                 else
                     preFinalObj["path_matched"] = false
+                    preFinalObj["path_key"] = _
                 end
                 preFinalObj["paths"] = value.rule_data.path
                 preFinalObj["paths_key"] = value.rule_data.path_key
@@ -340,20 +387,25 @@ if exist_values and exist_values ~= 0 and exist_values ~= nil and exist_values ~
                     end
                     preFinalObj["has_false_value"] = hasFalseField
                 end
+                preFinalObj['path_priority'] = value.priority
                 finalObj[key] = preFinalObj
             end
         end
-        local finalObjCount, isAllPathPass, isPathExists = 0, false, false
+        local finalObjCount, isAllPathPass, isPathExists, isUnique = 0, false, false, false
         if type(finalObj) == "table" then
             finalObjCount = getTableLength(finalObj)
             isAllPathPass = isAllPathAllowed(finalObj, "/")
             isPathExists = isAnyPathExists(finalObj, ngx.var.request_uri)
+            isUnique = isPathsValueUnique(finalObj)
         end
-        -- do return ngx.say(cjson.encode({
-        --     finalObjCount = finalObjCount,
-        --     isAllPathPass= isAllPathPass,
-        --     isPathExists = isPathExists
-        -- })) end
+        -- do
+        --     return ngx.say(cjson.encode({
+        --         finalObjCount = finalObjCount,
+        --         isAllPathPass = isAllPathPass,
+        --         isPathExists = isPathExists,
+        --         isUnique = type(isUnique)
+        --     }))
+        -- end
         -- do return ngx.say(cjson.encode(finalObj)) end
         local rulePasses = false
         local requestedUri = ngx.var.request_uri
@@ -361,6 +413,8 @@ if exist_values and exist_values ~= 0 and exist_values ~= nil and exist_values ~
             if isAllPathPass and not isPathExists then
                 if requestedUri == "/" and passedRule.has_false_value == false then
                     rulePasses = true
+                    highestPriorityKey = index
+                    highestPriorityParentKey = passedRule.path_key
                     break
                 elseif passedRule.paths_key == "starts_with" and
                     requestedUri:startswith(passedRule.paths) == false
@@ -382,6 +436,8 @@ if exist_values and exist_values ~= 0 and exist_values ~= nil and exist_values ~
             if isAllPathPass == true then
                 if requestedUri == "/" and passedRule.has_false_value == false then
                     rulePasses = true
+                    highestPriorityKey = index
+                    highestPriorityParentKey = passedRule.path_key
                     break
                 elseif passedRule.paths_key == "starts_with" and
                     requestedUri:startswith(passedRule.paths) == false and
@@ -389,6 +445,8 @@ if exist_values and exist_values ~= 0 and exist_values ~= nil and exist_values ~
                     passedRule.has_false_value == false
                 then
                     rulePasses = true
+                    highestPriorityKey = index
+                    highestPriorityParentKey = passedRule.path_key
                     break
                 elseif passedRule.paths_key == "ends_with" and
                     requestedUri:startswith(passedRule.paths) == false and
@@ -396,6 +454,8 @@ if exist_values and exist_values ~= 0 and exist_values ~= nil and exist_values ~
                     passedRule.has_false_value == false
                 then
                     rulePasses = true
+                    highestPriorityKey = index
+                    highestPriorityParentKey = passedRule.path_key
                     break
                 elseif passedRule.paths_key == "equals" and
                     requestedUri:startswith(passedRule.paths) == false and
@@ -403,13 +463,19 @@ if exist_values and exist_values ~= 0 and exist_values ~= nil and exist_values ~
                     passedRule.has_false_value == false
                 then
                     rulePasses = true
+                    highestPriorityKey = index
+                    highestPriorityParentKey = passedRule.path_key
                     break
                 end
                 if passedRule.path_matched == true and passedRule.has_false_value == false and passedRule.paths ~= "/" then
                     rulePasses = true
+                    highestPriorityKey = index
+                    highestPriorityParentKey = passedRule.path_key
                     break
                 elseif passedRule.path_matched == true and passedRule.has_false_value == false and finalObjCount == 1 then
                     rulePasses = true
+                    highestPriorityKey = index
+                    highestPriorityParentKey = passedRule.path_key
                     break
                 else
                     rulePasses = false
@@ -417,12 +483,20 @@ if exist_values and exist_values ~= 0 and exist_values ~= nil and exist_values ~
             else
                 if passedRule.path_matched == true and passedRule.has_false_value == false then
                     rulePasses = true
+                    highestPriorityKey = index
+                    highestPriorityParentKey = passedRule.path_key
                     break
                 end
             end
         end
-        -- do return ngx.say(tostring(rulePasses)) end
-        -- do return ngx.say(cjson.encode({data = {highestPriorityParentKey = highestPriorityParentKey, highestPriorityKey = highestPriorityKey}})) end
+        -- do return ngx.say(isUnique) end
+        -- do return ngx.say(cjson.encode({
+        --         data = { highestPriorityParentKey = highestPriorityParentKey, highestPriorityKey = highestPriorityKey } })) end
+        if isUnique and type(isUnique) ~= "nil" then
+            highestPriorityKey = isUnique
+            highestPriorityParentKey = findIndexByKey(parse_rules, isUnique)
+        end
+        -- do return ngx.say(highestPriorityKey) end
         if rulePasses == true then
             local selectedRule = parse_rules[highestPriorityParentKey][highestPriorityKey]
             if selectedRule.statusCode == 301 then
@@ -514,7 +588,7 @@ if exist_values and exist_values ~= 0 and exist_values ~= nil and exist_values ~
         else
             if settings.nginx.default.conf_mismatch ~= nil then
                 ngx.header["Content-Type"] = settings.nginx.content_type ~= nil and settings.nginx.content_type or
-                "text/html"
+                    "text/html"
                 ngx.status = ngx.HTTP_FORBIDDEN
                 ngx.say(Base64.decode(settings.nginx.default.conf_mismatch))
             end
