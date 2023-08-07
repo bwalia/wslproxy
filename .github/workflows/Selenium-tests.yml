@@ -17,13 +17,8 @@ jobs:
         with:
           python-version: '3.10.11'
 
-      - name: Installing necessary packages
-        run: |
-          pip install pytest
-          pip install chromedriver-autoinstaller selenium pyvirtualdisplay
-
-      - name: Install xvfb
-        run: sudo apt-get update && sudo apt-get install -y xvfb
-
-      - name: Running the Python script
-        run: xvfb-run -a py.test -v 
+      - name: Build and Run dockerfile for test execution
+        working-directory: ./QA
+        run: | 
+        docker build -t selenium-tests -f Dockerfile_qa .
+        docker run selenium-tests
