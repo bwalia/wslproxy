@@ -20,5 +20,5 @@ jobs:
       - name: Build and Run dockerfile for test execution
         working-directory: ./QA
         run: | 
-        docker build -t selenium-tests -f Dockerfile_qa .
-        docker run selenium-tests
+          docker build -t selenium-tests -f Dockerfile_qa .
+          docker run selenium-tests
