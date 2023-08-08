@@ -28,6 +28,7 @@ def test_server(setup, request):
     driver.find_element(By.NAME, "match.rules.path").send_keys("/")
     element = driver.find_element(By.NAME, "match.response.code")
     # Clear the text using backspace key
+    driver.execute_script("window.scrollBy(0, document.body.scrollHeight);")
     time.sleep(2)
     element.click()
     element.send_keys(Keys.END)
