@@ -18,7 +18,7 @@ def setup(request):
     # Add your options as needed    
     options = [
     
-        "--headless",
+        "--headless"
         #"--disable-gpu",
         #"--window-size=1920,1200",
         #"--ignore-certificate-errors",

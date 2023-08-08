@@ -19,4 +19,4 @@ RUN wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.d
 RUN dpkg -i google-chrome-stable_current_amd64.deb || apt-get -f install -y
 
 # Run the pytest command
-CMD ["py.test", "-v"]
+CMD ["xvfb-run", "py.test", "-v"]
