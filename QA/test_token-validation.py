@@ -11,7 +11,7 @@ def test_server(setup, request):
     driver = request.function.driver
 
     # Creating a server
-    # time.sleep(2)
+    time.sleep(2)
     driver.find_element(By.XPATH, "//a[@href='#/servers']").click()
     driver.find_element(By.XPATH, "//a[@href='#/servers/create']").click()
     driver.find_element(By.NAME, "listens.0.listen").send_keys("82")
@@ -28,6 +28,7 @@ def test_server(setup, request):
     driver.find_element(By.NAME, "match.rules.path").send_keys("/")
     element = driver.find_element(By.NAME, "match.response.code")
     # Clear the text using backspace key
+    time.sleep(2)
     element.click()
     element.send_keys(Keys.END)
     length = len(element.get_attribute("value"))
