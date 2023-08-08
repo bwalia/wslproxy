@@ -8,29 +8,26 @@ from selenium.webdriver.support import expected_conditions
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.chrome.options import Options
 import chromedriver_autoinstaller
+from chromedriver_autoinstaller import install as install_chrome_driver
+
 
 
 
 @pytest.fixture(scope="function")
 def setup(request):
-    chromedriver_autoinstaller.install()
+    chrome_driver_path = chromedriver_autoinstaller.install()
+    chrome_service: Service = Service(executable_path=chrome_driver_path)
+
     chrome_options = webdriver.ChromeOptions()    
     # Add your options as needed    
     options = [
-    
-        "--headless"
-        #"--disable-gpu",
-        #"--window-size=1920,1200",
-        #"--ignore-certificate-errors",
-        #"--disable-extensions",
-        #"--no-sandbox"
-        #"--disable-dev-shm-usage",
-        #'--remote-debugging-port=9222'
+         "--headless",
+         "--disable-gpu",
+         "--no-sandbox",
     ]
 
     for option in options:
-      chrome_options.add_argument(option)
-
+        chrome_options.add_argument(option)
     
     driver = webdriver.Chrome(options = chrome_options)
 

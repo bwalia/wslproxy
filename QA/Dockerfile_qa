@@ -9,14 +9,12 @@ COPY . /app
 # Install necessary packages and install xvfb and wget
 RUN apt-get update && apt-get install -y xvfb wget
 
-# Removing previous chrome instances on runner
-RUN pip install selenium
-RUN pip install pytest
-RUN pip install chromedriver_autoinstaller
-
 # Install Chrome
 RUN wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
 RUN dpkg -i google-chrome-stable_current_amd64.deb || apt-get -f install -y
 
+# Install required Python packages
+RUN pip install selenium pytest chromedriver_autoinstaller
+
 # Run the pytest command
-CMD ["xvfb-run", "py.test", "-v"]
+CMD ["pytest", "-v"]
