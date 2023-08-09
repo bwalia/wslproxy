@@ -308,10 +308,11 @@ local function isPathsValueUnique(table)
             isCheck = true
         end
         if isCheck == true then
+            maxPriority = item["path_priority"]
             if seenPaths[path] then
+                keyWithMaxPriority = key
                 if item["path_priority"] > maxPriority then
                     maxPriority = item["path_priority"]
-                    keyWithMaxPriority = key
                 end
             else
                 seenPaths[path] = true
