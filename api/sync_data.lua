@@ -117,7 +117,7 @@ function syncRulesAPI()
     ngx.header["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
     local apiPageSize = os.getenv("API_PAGE_SIZE")
     local apiTotalPages = 1
-    apiPageSize = (apiPageSize == nil or apiPageSize == "") and 3 or apiPageSize
+    apiPageSize = (apiPageSize == nil or apiPageSize == "") and 100 or apiPageSize
 
     deleteFilesInDirectory(configPath .. "data/rules")
     local totalPages = 1
@@ -157,7 +157,7 @@ function syncServersAPI()
     ngx.header["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
     local apiPageSize = os.getenv("API_PAGE_SIZE")
     local apiTotalPages = 1
-    apiPageSize = (apiPageSize == nil or apiPageSize == "") and 3 or apiPageSize
+    apiPageSize = (apiPageSize == nil or apiPageSize == "") and 100 or apiPageSize
 
     deleteFilesInDirectory(configPath .. "data/servers")
     local totalPages = 1
