@@ -488,8 +488,6 @@ func TestDeleteRule(t *testing.T) {
 	if res.StatusCode != http.StatusOK {
 		t.Error("Unexpected response status code", res.StatusCode)
 		return
-	} else {
-		fmt.Println("Successfully deleted rule")
-
 	}
+
 }
