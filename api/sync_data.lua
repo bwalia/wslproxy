@@ -51,6 +51,7 @@ end
 
 local function saveRecordsToDisk(path, keyName)
     local httpc = http.new()
+    local allDataTotal = 0
     local allServers, serverErr = httpc:request_uri(path, {
         method = "GET",
         headers = httpHeaders,
@@ -60,12 +61,13 @@ local function saveRecordsToDisk(path, keyName)
         allServers = allServers.body
     end
     if allServers and allServers ~= nil and type(allServers) == "string" then
-        allServers = cjson.decode(allServers)["data"]
-        for index, server in ipairs(allServers) do
+        local allServersData = cjson.decode(allServers)["data"]
+        allDataTotal = cjson.decode(allServers)["total"]
+        for index, server in ipairs(allServersData) do
             setDataToFile(configPath .. "data/" .. keyName .. "/" .. server.id .. ".json", server)
         end
     end
-    return true
+    return allDataTotal
 end
 
 function _R.server()
@@ -109,27 +111,86 @@ local function deleteFilesInDirectory(directory)
     end
 end
 
-function syncAPI()
+function syncRulesAPI()
     ngx.header["Access-Control-Allow-Origin"] = "*"
     ngx.header["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
     ngx.header["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
-    deleteFilesInDirectory(configPath .. "data/servers")
+    local apiPageSize = os.getenv("API_PAGE_SIZE")
+    local apiTotalPages = 1
+    apiPageSize = (apiPageSize == nil or apiPageSize == "") and 3 or apiPageSize
+
     deleteFilesInDirectory(configPath .. "data/rules")
-    local updateServers = saveRecordsToDisk(
-    apiUrl ..
-    "/servers?_format=json&&params={%22pagination%22:{%22page%22:1,%22perPage%22:10},%22sort%22:{%22field%22:%22created_at%22,%22order%22:%22DESC%22},%22filter%22:{}}",
-        "servers")
-    local updateRules = saveRecordsToDisk(
-    apiUrl ..
-    "/rules?_format=json&&params={%22pagination%22:{%22page%22:1,%22perPage%22:10},%22sort%22:{%22field%22:%22created_at%22,%22order%22:%22DESC%22},%22filter%22:{}}",
+    local totalPages = 1
+    local totalRules = saveRecordsToDisk(
+        apiUrl ..
+        "/rules?_format=json&&params={%22pagination%22:{%22page%22:" ..
+        apiTotalPages ..
+        ",%22perPage%22:" ..
+        apiPageSize .. "},%22sort%22:{%22field%22:%22created_at%22,%22order%22:%22DESC%22},%22filter%22:{}}",
         "rules")
+    if totalRules > apiPageSize then
+        totalPages = totalRules / apiPageSize
+        totalPages = math.ceil(totalPages)
+        repeat
+            apiTotalPages = apiTotalPages + 1
+            saveRecordsToDisk(
+                apiUrl ..
+                "/rules?_format=json&&params={%22pagination%22:{%22page%22:" ..
+                apiTotalPages ..
+                ",%22perPage%22:" ..
+                apiPageSize .. "},%22sort%22:{%22field%22:%22created_at%22,%22order%22:%22DESC%22},%22filter%22:{}}",
+                "rules")
+        until apiTotalPages >= totalPages
+    end
 
     return ngx.say(cjson.encode({
         data = {
-            servers = updateServers,
-            rules = updateRules,
+            rules = totalRules,
+            totalPage = totalPages,
         }
     }))
 end
 
-syncAPI()
+function syncServersAPI()
+    ngx.header["Access-Control-Allow-Origin"] = "*"
+    ngx.header["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+    ngx.header["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+    local apiPageSize = os.getenv("API_PAGE_SIZE")
+    local apiTotalPages = 1
+    apiPageSize = (apiPageSize == nil or apiPageSize == "") and 3 or apiPageSize
+
+    deleteFilesInDirectory(configPath .. "data/servers")
+    local totalPages = 1
+    local totalServers = saveRecordsToDisk(
+        apiUrl ..
+        "/servers?_format=json&&params={%22pagination%22:{%22page%22:" ..
+        apiTotalPages ..
+        ",%22perPage%22:" ..
+        apiPageSize .. "},%22sort%22:{%22field%22:%22created_at%22,%22order%22:%22DESC%22},%22filter%22:{}}",
+        "servers")
+
+    if totalServers > apiPageSize then
+        totalPages = totalServers / apiPageSize
+        totalPages = math.ceil(totalPages)
+        repeat
+            apiTotalPages = apiTotalPages + 1
+            saveRecordsToDisk(
+                apiUrl ..
+                "/servers?_format=json&&params={%22pagination%22:{%22page%22:" ..
+                apiTotalPages ..
+                ",%22perPage%22:" ..
+                apiPageSize .. "},%22sort%22:{%22field%22:%22created_at%22,%22order%22:%22DESC%22},%22filter%22:{}}",
+                "servers")
+        until apiTotalPages >= totalPages
+    end
+
+    return ngx.say(cjson.encode({
+        data = {
+            servers = totalServers,
+            totalPage = totalPages,
+        }
+    }))
+end
+
+syncRulesAPI()
+syncServersAPI()
