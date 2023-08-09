@@ -293,10 +293,26 @@ local function findIndexByKey(table, keyToFind)
 end
 
 local function isPathsValueUnique(table)
-    local seenPaths = {}
-    local maxPriority = -math.huge
-    local keyWithMaxPriority
     local reqUri = ngx.var.request_uri
+
+    local uniquePaths = {}  -- To keep track of unique paths
+    local highestPriorityByPath = {}  -- To keep track of the highest priority for each path
+    local highestPriority = -1
+    local highestPriorityUUID = nil
+
+    local function processEntry(key, entry)
+        local path = entry.paths
+        local priority = entry.path_priority
+
+        if uniquePaths[path] then
+            if priority > highestPriorityByPath[path] then
+                highestPriorityByPath[path] = priority
+            end
+        else
+            uniquePaths[path] = true
+            highestPriorityByPath[path] = priority
+        end
+    end
 
     for key, item in pairs(table) do
         local path, isCheck = item["paths"], false
@@ -308,19 +324,20 @@ local function isPathsValueUnique(table)
             isCheck = true
         end
         if isCheck == true then
-            maxPriority = item["path_priority"]
-            if seenPaths[path] then
-                keyWithMaxPriority = key
-                if item["path_priority"] > maxPriority then
-                    maxPriority = item["path_priority"]
-                end
-            else
-                seenPaths[path] = true
+            processEntry(key, item)
+            local path = item.paths
+            local priority = item.path_priority
+    
+            if priority > highestPriority then
+                highestPriority = priority
+                highestPriorityUUID = key
+            elseif priority == highestPriority and uniquePaths[path] then
+                highestPriorityUUID = key
             end
         end
     end
 
-    return keyWithMaxPriority
+    return highestPriorityUUID
 end
 
 if exist_values and exist_values ~= 0 and exist_values ~= nil and exist_values ~= "" then
