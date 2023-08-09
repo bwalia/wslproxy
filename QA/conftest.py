@@ -9,6 +9,7 @@ from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.chrome.options import Options
 import chromedriver_autoinstaller
 from chromedriver_autoinstaller import install as install_chrome_driver
+import os
 
 
 
@@ -21,7 +22,7 @@ def setup(request):
     chrome_options = webdriver.ChromeOptions()    
     # Add your options as needed    
     options = [
-         "--headless",
+         # "--headless",
          "--disable-gpu",
          "--no-sandbox",
     ]
@@ -33,8 +34,10 @@ def setup(request):
 
     
     driver.get("http://int6-api.whitefalcon.io/")
-    driver.find_element(By.NAME, "email").send_keys("ejeyd@example.com")
-    driver.find_element(By.NAME, "password").send_keys("admin")
+    EMAIL = os.environ.get('LOGIN_EMAIL')
+    PASSWORD = os.environ.get('LOGIN_PASSWORD')
+    driver.find_element(By.NAME, "email").send_keys(EMAIL)
+    driver.find_element(By.NAME, "password").send_keys(PASSWORD)
     driver.find_element(By.XPATH, "//button[@type='submit']").click()
     wait = WebDriverWait(driver, 10)
     wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//button[normalize-space()='Redis']"))).click()

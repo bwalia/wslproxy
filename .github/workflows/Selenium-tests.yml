@@ -15,10 +15,10 @@ jobs:
       - uses: browser-actions/setup-chrome@v1
       - run: chrome --version
 
-      - name: Build docker image selenium-tests 
+      - name: Build docker image for selenium tests
         working-directory: ./QA
         run: docker build -t selenium-tests -f Dockerfile_qa .
 
-      - name: Run dockerfile for test execution
+      - name: Test execution
         working-directory: ./QA
         run: docker run selenium-tests    
