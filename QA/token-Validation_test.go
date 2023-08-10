@@ -15,6 +15,7 @@ import (
 
 var ruleAccessAll string
 var ruleAccessApi string
+var jwtToken string
 
 func TestCreateRuleForAccessAll(t *testing.T) {
 
@@ -215,82 +216,77 @@ func TestVerifyRule(t *testing.T) {
 	}
 
 	// login and fetch the token
-	Url := "http://int6-qa.whitefalcon.io/login"
-	method := "POST"
-	Email := os.Getenv("LOGIN_EMAIL")
-	Password := os.Getenv("LOGIN_PASSWORD")
 
-	payload := &bytes.Buffer{}
-	writer := multipart.NewWriter(payload)
-	_ = writer.WriteField("email", Email)
-	_ = writer.WriteField("password", Password)
-	err = writer.Close()
-	if err != nil {
-		fmt.Println("Error creating payload:", err)
-		return
-	}
-	// Create a new HTTP client with a cookie jar
-	jar, err := cookiejar.New(nil)
-	if err != nil {
-		fmt.Println("Error creating cookie jar:", err)
-		return
-	}
+	for {
+		Url := "http://int6-qa.whitefalcon.io/login"
+		method := "POST"
+		Email := os.Getenv("email")
+		Password := os.Getenv("password")
 
-	client = &http.Client{
-		Jar: jar,
-	}
-	req, err = http.NewRequest(method, Url, payload)
-	if err != nil {
-		fmt.Println("Error creating request:", err)
-		return
-	}
-
-	req.Header.Add("Content-Type", writer.FormDataContentType())
-
-	resp, err = client.Do(req)
-	if err != nil {
-		fmt.Println("Error making request:", err)
-		return
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		fmt.Println("Login failed. Status code:", resp.Status)
-		return
-	}
-
-	body, err = ioutil.ReadAll(resp.Body)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	//fmt.Println("Response body:", string(body))
-	if resp.StatusCode != http.StatusOK {
-		fmt.Println("Failed to login", resp.StatusCode)
-	} else {
-		fmt.Println("Login successful!")
-	}
-	//fmt.Println(string(body))
-
-	cookies := jar.Cookies(req.URL)
-	//fmt.Println(cookies)
-
-	// Find the "Authorization" cookie
-	var jwtToken string
-	for _, cookie := range cookies {
-		if cookie.Name == "Authorization" {
-			jwtToken = cookie.Value
-			break
+		payload := &bytes.Buffer{}
+		writer := multipart.NewWriter(payload)
+		_ = writer.WriteField("email", Email)
+		_ = writer.WriteField("password", Password)
+		err := writer.Close()
+		if err != nil {
+			fmt.Println("Error creating payload:", err)
+			return
 		}
+
+		// Create a new HTTP client with a cookie jar
+		jar, err := cookiejar.New(nil)
+		if err != nil {
+			fmt.Println("Error creating cookie jar:", err)
+			return
+		}
+
+		client := &http.Client{
+			Jar: jar,
+		}
+
+		req, err := http.NewRequest(method, Url, payload)
+		if err != nil {
+			fmt.Println("Error creating request:", err)
+			return
+		}
+
+		req.Header.Add("Content-Type", writer.FormDataContentType())
+
+		resp, err := client.Do(req)
+		if err != nil {
+			fmt.Println("Error making request:", err)
+			return
+		}
+
+		// body, err := ioutil.ReadAll(resp.Body)
+		// if err != nil {
+		// 	fmt.Println(err)
+		// 	return
+		// }
+
+		if resp.StatusCode == http.StatusOK {
+			fmt.Println("Login successful!")
+			// fmt.Println(string(body))
+
+			// Find the "Authorization" cookie
+			cookies := jar.Cookies(req.URL)
+			//fmt.Println(cookies)
+			for _, cookie := range cookies {
+				if cookie.Name == "Authorization" {
+					jwtToken = cookie.Value
+					break
+				}
+			}
+			break
+		} else if resp.StatusCode == http.StatusBadGateway {
+			fmt.Println("Received 502 Bad Gateway status code. Retrying.")
+		} else {
+			t.Error("Failed to login:", resp.StatusCode)
+			return
+		}
+
+		defer resp.Body.Close()
 	}
-
-	// Check if the "Authorization" cookie is found
-	// if jwtToken != "" {
-	// 	fmt.Println("JWT Token:", jwtToken)
-	// } else {
-	// 	fmt.Println("Authorization Cookie not found in the response.")
-	// }
-
-	defer resp.Body.Close()
 
 	// Accessing the data with the token
 	uRL := "http://int6-qa.whitefalcon.io/api/v2/sample-data.json"
@@ -325,15 +321,11 @@ func TestVerifyRule(t *testing.T) {
 	}
 }
 
-func TestDeleteAccessAllRule(t *testing.T) {
+func TestDeleteBothRules(t *testing.T) {
 
 	// Deleting the AccessAll rule
 	ruleId = ruleAccessAll
 	TestDeleteRule(t)
-}
-
-func TestDeleteAccessApiRule(t *testing.T) {
-
 	// Deleting the AccessApi rule
 	ruleId = ruleAccessApi
 	TestDeleteRule(t)
