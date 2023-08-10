@@ -11,6 +11,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 )
 
 var ruleAccessAll string
@@ -263,7 +264,7 @@ func TestVerifyRule(t *testing.T) {
 		// 	fmt.Println(err)
 		// 	return
 		// }
-
+		time.Sleep(4 * time.Second)
 		if resp.StatusCode == http.StatusOK {
 			fmt.Println("Login successful!")
 			// fmt.Println(string(body))
