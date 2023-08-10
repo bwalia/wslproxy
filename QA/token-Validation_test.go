@@ -264,7 +264,7 @@ func TestVerifyRule(t *testing.T) {
 		// 	fmt.Println(err)
 		// 	return
 		// }
-		time.Sleep(4 * time.Second)
+		time.Sleep(6 * time.Second)
 		if resp.StatusCode == http.StatusOK {
 			fmt.Println("Login successful!")
 			// fmt.Println(string(body))
