@@ -36,6 +36,10 @@ jobs:
         run: echo "TARGET_CLUSTER=k3s6" >> $GITHUB_ENV
       - name: Deploy whitefalcon api gw to k3s optionally build and push the white falcon docker image
         run: chmod +x ./deploy.sh && ./deploy.sh "${{ secrets.DOCKER_USER }}" "${{ secrets.DOCKER_PASSWD }}" "${{ env.TARGET_CLUSTER }}" "${{ env.TARGET_ENV }}" "${{ env.TARGET_TYPE }}" "${{ env.IMAGE_NAME }}" "${{ env.IMAGE_TAG }}"
+      - name: Deploy whitefalcon api gw to k3s optionally build and push the white falcon docker image for test env
+        run: echo "TARGET_ENV=test" >> $GITHUB_ENV        
+      - name: Deploy whitefalcon api gw to k3s optionally build and push the white falcon docker image
+        run: chmod +x ./deploy.sh && ./deploy.sh "${{ secrets.DOCKER_USER }}" "${{ secrets.DOCKER_PASSWD }}" "${{ env.TARGET_CLUSTER }}" "${{ env.TARGET_ENV }}" "${{ env.TARGET_TYPE }}" "${{ env.IMAGE_NAME }}" "${{ env.IMAGE_TAG }}"
 
   # healthcheck10:
   #   runs-on: [self-hosted]
