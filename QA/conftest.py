@@ -10,6 +10,8 @@ from selenium.webdriver.chrome.options import Options
 import chromedriver_autoinstaller
 from chromedriver_autoinstaller import install as install_chrome_driver
 import os
+from selenium.common.exceptions import NoSuchElementException
+
 
 
 
@@ -22,7 +24,7 @@ def setup(request):
     chrome_options = webdriver.ChromeOptions()    
     # Add your options as needed    
     options = [
-         "--headless",
+         # "--headless",
          "--disable-gpu",
          "--no-sandbox",
     ]
@@ -40,8 +42,17 @@ def setup(request):
     driver.find_element(By.NAME, "password").send_keys(PASSWORD)
     driver.find_element(By.XPATH, "//button[@type='submit']").click()
     wait = WebDriverWait(driver, 10)
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//button[normalize-space()='Redis']"))).click()
+    try:
+      wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//button[normalize-space()='Redis']"))).click()
     # wait.until(expected_conditions.presence_of_element_located((By.CSS_SELECTOR, ".MuiButton-outlined"))).click()
+    except NoSuchElementException:
+      print("Element 1 not found")  
+      try:
+         wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//button[@aria-label='Select Storage Type']"))).click()
+         wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//button[normalize-space()='Redis']"))).click()
+
+      except NoSuchElementException:
+         print("Element 2 also not found")
     request.function.driver = driver
     yield
     driver.close()

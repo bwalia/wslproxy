@@ -6,6 +6,10 @@ from selenium.webdriver.support import expected_conditions
 from selenium.webdriver.support.select import Select
 from selenium.webdriver.support.wait import WebDriverWait
 import os
+from selenium.common.exceptions import NoSuchElementException
+from selenium.webdriver.common.action_chains import ActionChains
+
+
 
 def test_server(setup, request):
     driver = request.function.driver
@@ -62,10 +66,25 @@ def test_server(setup, request):
     wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//a[@id='tabheader-1']"))).click()
     wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//div[@id='rules']"))).click()
     driver.find_element(By.XPATH, "//li[contains(.,'Access all rule')]").click()
+    try :
+        hover_element = driver.find_element(By.XPATH, "//div[@id='match_cases.0.condition']")
+        actions = ActionChains(driver)
+        actions.move_to_element(hover_element).perform()
+        wait.until(expected_conditions.presence_of_element_located((By.CSS_SELECTOR, ".button-remove-match_cases-0 > .MuiSvgIcon-root"))).click() 
+    except NoSuchElementException:
+        print("Not found the remove rule element")
+
+        try:
+          wait.until(expected_conditions.presence_of_element_located((By.CSS_SELECTOR, ".button-add-match_cases"))).click()
+          time.sleep(2)
+          driver.find_element(By.XPATH, "//div[@id='match_cases.0.statement']").click()
+        except NoSuchElementException:
+          print("Not found the remove rule element")
+
     wait.until(expected_conditions.presence_of_element_located((By.CSS_SELECTOR, ".button-add-match_cases"))).click()
-    time.sleep(2)
     driver.find_element(By.XPATH, "//div[@id='match_cases.0.statement']").click()
     wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//li[contains(.,'Access api rule')]"))).click()
+
     driver.find_element(By.XPATH, "//div[@id='match_cases.0.condition']").click()
     driver.find_element(By.XPATH, "//li[contains(text(),'AND')]").click()
     driver.find_element(By.XPATH, "//button[normalize-space()='Save']").click()
