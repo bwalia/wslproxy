@@ -4,6 +4,19 @@ on:
    # - cron: '0 */12 * * *'
     - cron: '5 4 * * fri'
   workflow_dispatch: 
+    inputs:
+      TARGET_ENV:
+        type: choice
+        description: 'Please choose the Target Environment'
+        default: 'int'
+        required: true
+        options:
+        - int
+        - test
+        - acc
+        - prod
+env:
+  TARGET_ENV: ${{ github.event.inputs.TARGET_ENV }}        
     
 jobs:
   build:
