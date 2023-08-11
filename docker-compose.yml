@@ -61,5 +61,7 @@ services:
       dockerfile: Dockerfile
     ports:
       - "3009:3009"
+    networks:
+      - whitefalcon-network
 networks: 
   whitefalcon-network:

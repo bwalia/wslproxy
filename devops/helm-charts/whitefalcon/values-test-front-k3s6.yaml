@@ -65,7 +65,7 @@ ingress:
     # kubernetes.io/ingress.class: nginx
     # kubernetes.io/tls-acme: "true"
   hosts:
-    - host: test-front.whitefalcon.io
+    - host: test6.whitefalcon.io
       paths:
         - path: /
           pathType: ImplementationSpecific
