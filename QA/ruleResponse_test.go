@@ -41,7 +41,7 @@ func TestRuleResponse(t *testing.T) {
 					ID string `json:"id"`
 				} `json:"data"`
 			}
-			url := "http://int6-api.whitefalcon.io/api/rules"
+			url := targetHost + "/api/rules"
 			payload := strings.NewReader(fmt.Sprintf(`{"version":1,"priority":1,"match":{"rules":{"path_key":"starts_with","path":"/","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"equals"},"response":{"allow":true,"code":200,"message":"%s"}},"name":"%s"}`, test.MessageInput, test.RuleName))
 
 			client := &http.Client{}
@@ -83,7 +83,7 @@ func TestRuleResponse(t *testing.T) {
 			TestDataSync(t)
 
 			// compairing with the response output
-			URL := "http://int6-qa.whitefalcon.io/"
+			URL := "http://" + serverName
 
 			client = &http.Client{}
 			req, err = http.NewRequest("GET", URL, nil)

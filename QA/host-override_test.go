@@ -23,7 +23,7 @@ func TestHostOverRide(t *testing.T) {
 			ID string `json:"id"`
 		} `json:"data"`
 	}
-	url := "http://int6-api.whitefalcon.io/api/rules"
+	url := targetHost + "/api/rules"
 	payload := strings.NewReader((`{"version":1,"priority":1,"match":{"rules":{"path_key":"starts_with","path":"/","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"equals"},"response":{"allow":false,"code":305,"redirect_uri":"httpbin.org","message":"undefined"}},"name":"Test rule host-override"}`))
 
 	client := &http.Client{}
@@ -63,7 +63,7 @@ func TestHostOverRide(t *testing.T) {
 	TestDataSync(t)
 
 	// verifying the host header
-	Url := "http://int6-qa.whitefalcon.io/"
+	Url := "http://" + serverName
 
 	client = &http.Client{}
 	req, err = http.NewRequest("GET", Url, nil)

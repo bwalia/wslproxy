@@ -15,9 +15,10 @@ var serverId string
 var ruleId string
 var tokenValue string
 
-//const targetHost = "http://int2-api.whitefalcon.io"
+//const targetHost = "http://int6-api.whitefalcon.io"
 
-const targetHost = "http://int6-api.whitefalcon.io"
+var targetHost = os.Getenv("TARGET_HOST")
+var serverName = os.Getenv("SERVER_NAME")
 
 func TestAuthLoginAndFetchToken(t *testing.T) {
 	type authResponse struct {
@@ -147,7 +148,7 @@ func TestCreateServer(t *testing.T) {
 	method := "POST"
 
 	//payload := strings.NewReader(`{"listens":[{"listen":"80"}],"server_name":"int6.whitefalcon.io","root":"/var/www/html","index":"index/html","access_log":"/logs/access.log","error_log":"/logs/error.log","locations":[],"custom_block":[]}`)
-	payload := strings.NewReader(`{"listens":[{"listen":"80"}],"server_name":"int6-qa.whitefalcon.io","proxy_server_name":"test-my.workstation.co.uk","root":"/var/www/html","index":"index.html","access_log":"logs/access.log","error_log":"logs/error.log","locations":[],"custom_block":[],"config":"server {\n      listen 80;  # Listen on port (HTTP)\n      server_name int6-qa.whitefalcon.io;  # Your domain name\n      root /var/www/html;  # Document root directory\n      index index.html;  # Default index files\n      access_log logs/access.log;  # Access log file location\n      error_log logs/error.log;  # Error log file location\n\n      \n      \n  }\n  "}`)
+	payload := strings.NewReader(fmt.Sprintf(`{"listens":[{"listen":"80"}],"server_name":"%s","proxy_server_name":"test-my.workstation.co.uk","root":"/var/www/html","index":"index.html","access_log":"logs/access.log","error_log":"logs/error.log","locations":[],"custom_block":[],"config":"server {\n      listen 80;  # Listen on port (HTTP)\n      server_name %s;  # Your domain name\n      root /var/www/html;  # Document root directory\n      index index.html;  # Default index files\n      access_log logs/access.log;  # Access log file location\n      error_log logs/error.log;  # Error log file location\n\n      \n      \n  }\n  "}`, serverName, serverName))
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, payload)
 	if err != nil {
@@ -261,7 +262,7 @@ func TestGetSingleServer(t *testing.T) {
 		t.Error("Unexpected response status code", res.StatusCode)
 		return
 	}
-	if !strings.Contains(string(body), "int6-qa.whitefalcon.io") {
+	if !strings.Contains(string(body), serverName) {
 		t.Error("Returned unexpected body")
 		return
 	}
@@ -341,11 +342,10 @@ func TestUpdateRuleWithServer(t *testing.T) {
 	url := targetHost + "/api/servers/" + serverId
 	method := "PUT"
 
-	//payload := strings.NewReader(fmt.Sprintf(`{"listens":[{"listen":"81"}],"locations":{},"error_log":"logs/error.log","index":"index.html","custom_block":{},"root":"/var/www/html","created_at":1689686953,"config":"server {\n      listen 80;  # Listen on port (HTTP)\n      server_name int2.whitefalcon.io;  # Your domain name\n      root /var/www/html;  # Document root directory\n      index index.html;  # Default index files\n      access_log logs/access.log;  # Access log file location\n      error_log logs/error.log;  # Error log file location\n\n      \n      \n  }\n  ","rules":"%s","id":"%s","proxy_pass":"http://localhost","access_log":"logs/access.log","server_name":"int2.whitefalcon.io"}`, ruleId, serverId))
-	payload := strings.NewReader(fmt.Sprintf(`{"id":"%s","root":"/var/www/html","created_at":1689853714,"proxy_server_name":"test-my.workstation.co.uk","locations":{},"index":"index.html","proxy_pass":"http://localhost","access_log":"logs/access.log","server_name":"int6-qa.whitefalcon.io","config":"server {\n      listen 80;  # Listen on port (HTTP)\n      server_name int6-qa.whitefalcon.io;  # Your domain name\n      root /var/www/html;  # Document root directory\n      index index.html;  # Default index files\n      access_log logs/access.log;  # Access log file location\n      error_log logs/error.log;  # Error log file location\n\n      \n      \n  }\n  ","rules":"%s","error_log":"logs/error.log","match_cases":{},"custom_block":{},"listens":[{"listen":"80"}]}`, serverId, ruleId))
+	payload := strings.NewReader(fmt.Sprintf(`{"id":"%s","root":"/var/www/html","created_at":1689853714,"proxy_server_name":"test-my.workstation.co.uk","locations":{},"index":"index.html","proxy_pass":"http://localhost","access_log":"logs/access.log","server_name":"%s","config":"server {\n      listen 80;  # Listen on port (HTTP)\n      server_name %s;  # Your domain name\n      root /var/www/html;  # Document root directory\n      index index.html;  # Default index files\n      access_log logs/access.log;  # Access log file location\n      error_log logs/error.log;  # Error log file location\n\n      \n      \n  }\n  ","rules":"%s","error_log":"logs/error.log","match_cases":{},"custom_block":{},"listens":[{"listen":"80"}]}`, serverId, serverName, serverName, ruleId))
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, payload)
-	if err != nil { //payload := strings.NewReader(fmt.Sprintf(`{"server_name":"int6.whitefalcon.io","listens":[{"listen":"81"}],"proxy_pass":"http://localhost","index":"index/html","id":"%s","match_cases":{},"error_log":"/logs/error.log","rules":"%s","locations":{},"root":"/var/www/html","custom_block":{},"access_log":"/logs/access.log","created_at":1687844569}`, serverId, ruleId))
+	if err != nil {
 
 		fmt.Println(err)
 		return
@@ -375,7 +375,7 @@ func TestUpdateRuleWithServer(t *testing.T) {
 }
 
 func TestDataSync(t *testing.T) {
-	url := "http://int6.whitefalcon.io/frontdoor/opsapi/sync"
+	url := "http://" + serverName + "/frontdoor/opsapi/sync"
 
 	client := &http.Client{}
 
@@ -399,7 +399,7 @@ func TestDataSync(t *testing.T) {
 }
 
 func TestServerResponse(t *testing.T) {
-	url := "http://int6-qa.whitefalcon.io/router"
+	url := "http://" + serverName + "/router"
 
 	client := &http.Client{}
 
@@ -463,31 +463,35 @@ func TestDeleteServer(t *testing.T) {
 }
 
 func TestDeleteRule(t *testing.T) {
-	url := targetHost + "/api/rules/" + ruleId
-	method := "DELETE"
+	executeFunction := os.Getenv("EXECUTE_FUNCTION")
+	if executeFunction == "true" {
+		url := targetHost + "/api/rules/" + ruleId
+		method := "DELETE"
 
-	client := &http.Client{}
-	req, err := http.NewRequest(method, url, nil)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
+		client := &http.Client{}
+		req, err := http.NewRequest(method, url, nil)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
 
-	req.Header.Add("Authorization", "Bearer "+tokenValue)
-	res, err := client.Do(req)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	body, err := ioutil.ReadAll(res.Body)
-	if false {
-		fmt.Println(string(body))
-	}
-	defer res.Body.Close()
+		req.Header.Add("Authorization", "Bearer "+tokenValue)
+		res, err := client.Do(req)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		body, err := ioutil.ReadAll(res.Body)
+		if false {
+			fmt.Println(string(body))
+		}
+		defer res.Body.Close()
 
-	if res.StatusCode != http.StatusOK {
-		t.Error("Unexpected response status code", res.StatusCode)
-		return
+		if res.StatusCode != http.StatusOK {
+			t.Error("Unexpected response status code", res.StatusCode)
+			return
+		}
+
 	}
 
 }

@@ -39,7 +39,7 @@ func TestURLPath(t *testing.T) {
 					ID string `json:"id"`
 				} `json:"data"`
 			}
-			url := "http://int6-api.whitefalcon.io/api/rules"
+			url := targetHost + "/api/rules"
 			payload := strings.NewReader(fmt.Sprintf(`{"version":1,"priority":1,"match":{"rules":{"path_key":"%s","path":"%s","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"equals"},"response":{"allow":true,"code":200,"message":"SEVMTE9ESVhB"}},"name":"%s"}`, test.PathCondition, test.Input, test.RuleName))
 			//fmt.Println(payload)
 			client := &http.Client{}
@@ -80,7 +80,7 @@ func TestURLPath(t *testing.T) {
 			TestDataSync(t)
 
 			// compairing with the response output
-			URL := "http://int6-qa.whitefalcon.io/router"
+			URL := "http://" + serverName + "/router"
 
 			client = &http.Client{}
 			req, err = http.NewRequest("GET", URL, nil)

@@ -15,9 +15,11 @@ on:
         - test
         - acc
         - prod
-env:
-  TARGET_ENV: ${{ github.event.inputs.TARGET_ENV }}        
-    
+      EXECUTE_FUNCTION:
+        description: 'Delete Rules After Execution'
+        required: true
+        type: boolean 
+      
 jobs:
   build:
     runs-on: [self-hosted-node6]
@@ -37,6 +39,10 @@ jobs:
         go mod init myapp
         go test -v 
       env: 
+        TARGET_HOST : http://int6-api.whitefalcon.io
+        SERVER_NAME : int6-qa.whitefalcon.io
         LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
         LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
         SERVER_ID_QA: ${{ secrets.SERVER_ID_QA }}
+        EXECUTE_FUNCTION: ${{ github.event.inputs.EXECUTE_FUNCTION }} 
+

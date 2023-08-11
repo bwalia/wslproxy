@@ -125,7 +125,7 @@ func TestCreateRuleForAccessApi(t *testing.T) {
 func TestAddRulesWithServer(t *testing.T) {
 	url := targetHost + "/api/servers/" + serverId
 	method := "PUT"
-	payload := strings.NewReader(fmt.Sprintf(`{"server_name":"int6-qa.whitefalcon.io","access_log":"logs/access.log","created_at":1690282152,"listens":[{"listen":"80"}],"rules":"%s","locations":{},"custom_block":{},"error_log":"logs/error.log","id":"%s","root":"/var/www/html","config":"server {\n      listen 80;  # Listen on port (HTTP)\n      server_name int6-qa.whitefalcon.io;  # Your domain name\n      root /var/www/html;  # Document root directory\n      index index.html;  # Default index files\n      access_log logs/access.log;  # Access log file location\n      error_log logs/error.log;  # Error log file location\n\n      \n      \n  }\n  ","proxy_pass":"http://localhost","match_cases":[{"statement":"%s","condition":"and"}],"index":"index.html"}`, ruleAccessAll, serverId, ruleAccessApi))
+	payload := strings.NewReader(fmt.Sprintf(`{"server_name":"%s","access_log":"logs/access.log","created_at":1690282152,"listens":[{"listen":"80"}],"rules":"%s","locations":{},"custom_block":{},"error_log":"logs/error.log","id":"%s","root":"/var/www/html","config":"server {\n      listen 80;  # Listen on port (HTTP)\n      server_name %s;  # Your domain name\n      root /var/www/html;  # Document root directory\n      index index.html;  # Default index files\n      access_log logs/access.log;  # Access log file location\n      error_log logs/error.log;  # Error log file location\n\n      \n      \n  }\n  ","proxy_pass":"http://localhost","match_cases":[{"statement":"%s","condition":"and"}],"index":"index.html"}`, serverName, ruleAccessAll, serverId, serverName, ruleAccessApi))
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, payload)
 	if err != nil {
@@ -161,7 +161,7 @@ func TestAddRulesWithServer(t *testing.T) {
 
 func TestVerifyRule(t *testing.T) {
 	// Accessing the data without token
-	url := "http://int6-qa.whitefalcon.io/api/v2/sample-data.json"
+	url := "http://" + serverName + "/api/v2/sample-data.json"
 
 	client := &http.Client{}
 
@@ -189,7 +189,7 @@ func TestVerifyRule(t *testing.T) {
 	}
 
 	// On homepage
-	URL := "http://int6-qa.whitefalcon.io/"
+	URL := "http://" + serverName
 
 	client = &http.Client{}
 
@@ -219,7 +219,7 @@ func TestVerifyRule(t *testing.T) {
 	// login and fetch the token
 
 	for {
-		Url := "http://int6-qa.whitefalcon.io/login"
+		Url := "http://" + serverName + "/login"
 		method := "POST"
 		Email := os.Getenv("email")
 		Password := os.Getenv("password")
@@ -290,7 +290,7 @@ func TestVerifyRule(t *testing.T) {
 	}
 
 	// Accessing the data with the token
-	uRL := "http://int6-qa.whitefalcon.io/api/v2/sample-data.json"
+	uRL := "http://" + serverName + "/api/v2/sample-data.json"
 
 	client = &http.Client{}
 

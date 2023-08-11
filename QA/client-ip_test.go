@@ -111,7 +111,7 @@ func TestClientIP(t *testing.T) {
 			TestDataSync(t)
 
 			// compairing with the response output
-			URL := "http://int6-qa.whitefalcon.io/"
+			URL := "http://" + serverName
 
 			client = &http.Client{}
 			req, err = http.NewRequest("GET", URL, nil)
