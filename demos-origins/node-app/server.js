@@ -106,15 +106,21 @@ app.get('/api/sample-data.json', (req, res) => {
 });
 
 // Handle login form submission
-app.post('/login', async (req, res) => {
+app.post('/login', (req, res) => {
   const { email, password } = req.body;
 
-  // Here, you can validate the username and password
-  // against your desired authentication mechanism.
-  const token = await generateToken(email);
+  const user = {
+    id: 1,
+    username: email,
+    email: email
+  };
+
+  // Generate the JWT
+  const token = jwt.sign(user, secretKey, { expiresIn: '1h' });
   // res.setHeader('Autorization', `Bearer ${token}`);
   res.cookie('Authorization', `Bearer ${token}`)
-  res.redirect('/success')
+  res.status(200);
+  res.sendFile(__dirname + '/success.html');
 });
 
 
