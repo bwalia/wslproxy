@@ -2,6 +2,7 @@ const express = require('express');
 const axios = require('axios');
 const generateToken = require('./jwt');
 const { parse } = require('dotenv');
+const jwt = require('jsonwebtoken');
 
 const app = express();
 const port = 3009;
@@ -114,7 +115,7 @@ app.post('/login', (req, res) => {
     username: email,
     email: email
   };
-
+  const secretKey = process.env.JWT_SECRET_KEY;
   // Generate the JWT
   const token = jwt.sign(user, secretKey, { expiresIn: '1h' });
   // res.setHeader('Autorization', `Bearer ${token}`);
