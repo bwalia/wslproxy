@@ -1,0 +1,86 @@
+# Default values for node-app.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+image:
+  repository: bwalia/node-app
+  pullPolicy: Always
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: "latest"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+secure_env_file: AgBApKueLaZ0dHuUL43huKaX33eZzSJSy8S1JHP1dvp3KgtsiIqiVHsevJ+OSoKCUkb/c7CNhBDsgHvK3Tk5A1AwQNHK5rbBO9RCTPvDWnUNrDQMq4huiWbC4p+ekVPNw8TPesORdIgm6/r7J0aMHi+8DB2bLJbLU8ptuBOJq8ihZccEIIOjteLUBTrj+26Gf942uURUKx7HLjHkqcj0dt0nq22rNI4Z7XyBHTCWHEENzjtgn8O1MnUXCwoauJIt2BqhPPDqyfFXe9fJUiCiZyuqDzIAMopKaTyELHceXCKWUUlLxT/jb4OFGrDGkrEwaXkQPfQ/Q2JVG9+8qHUazqPAFBFxZ/pvl/YqZAgANWNJQi3Q8OyaZ4Be2OVuP6x5edAPMJZ4fnGILHFKtRVKJcP6mAOFra2SoPE63xPLo9MyAeOhUjI7GtKv34b1wY4H5gB1L0oh6YCvTxtFuU6vFsSoYg2ofCnuyIp5FYHxrdxBSKY+HyW04Cn7eJmBjM2pBSXieVPJHPLfF934d2+p6ypW+29ZEWBVDM0r/gxsZdmRFl+1T1DkQwZDyQI4UHBloL9KfHQNdINTQroGoLaqYXQovmNJwPzZmIf5uL5at6Ey6uhs4Z2GgqxwenSGbJEos5a6aHP5T3s7FdZwHrPxIwFy6mBxXfdY4wi2EBIuqKEweNh9BYbc5t/JryS2wmUPOQsXKVwjjszwc/H8s+t1nVBH+jffJLBBPi4VUDbZh9jXkAiUqRJ6/XX6oBrh9bLi2lcwTq7TEYtKDQZinxDeLtBWpvTcMrmsEBNdLyFiG3PejQ==
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+service:
+  type: ClusterIP
+  port: 3009
+
+ingress:
+  enabled: true
+  className: ""
+  annotations: {}
+    # kubernetes.io/ingress.class: nginx
+    # kubernetes.io/tls-acme: "true"
+  hosts:
+    - host: node-app.whitefalcon.io
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+          serviceName: node-app
+          servicePort: 3009
+  tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - node-app.whitefalcon.io
+
+resources: {}
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
