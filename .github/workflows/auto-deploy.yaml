@@ -2,7 +2,7 @@ name: "Build and Auto Deploy - whitefalcon INT, TEST, ACC"
 
 on:
   push:
-    branches: [ zzzmain ]
+    branches: [ main ]
   pull_request:
     branches: [ feature/* ]
 
