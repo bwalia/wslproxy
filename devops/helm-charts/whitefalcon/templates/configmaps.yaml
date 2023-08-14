@@ -31,7 +31,11 @@ data:
         echo "Rebuilding done"
         openresty -s reload
         echo "==========================="
-        echo "Openresty whitefalcon Nginx Bootstrap Script Completed"      
+        echo "Openresty whitefalcon Nginx Bootstrap Script Completed"
+{{- if .Values.app.sync_data_onload -}}
+        echo "Openresty data sync"
+        curl -IL http://localhost/frontdoor/opsapi/sync
+{{- end }}
     whitefalcon.conf: |
 {{- range .Values.ingress.hosts }}
         # Openresty whitefalcon Nginx Conf Openresty whitefalcon.conf src ConfigMap loaded by openresty
