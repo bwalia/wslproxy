@@ -38,8 +38,8 @@ SOURCE_IMAGE=openresty_alpine
 # #docker tag whitefalcon-${SOURCE_IMAGE} ${DOCKER_PUBLIC_IMAGE_NAME}:${VERSION}
 # docker push ${DOCKER_PUBLIC_IMAGE_NAME}:${VERSION}
 
-HELM_CMD="helm --kubeconfig /home/bwalia/.kube/vpn-$3.yaml"
-KUBECTL_CMD="kubectl --kubeconfig /home/bwalia/.kube/vpn-$3.yaml"
+HELM_CMD="helm --kubeconfig ~/.kube/vpn-$3.yaml"
+KUBECTL_CMD="kubectl --kubeconfig ~/.kube/vpn-$3.yaml"
 #KUBECTL_CMD="kubectl --kubeconfig /Users/balinderwalia/.kube/vpn-$3.yaml"
 $HELM_CMD upgrade -i whitefalcon-api-$4 ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-$4-api-$3.yaml --set TARGET_ENV=$4 --namespace $4 --create-namespace
 $HELM_CMD upgrade -i whitefalcon-front-$4 ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-$4-front-$3.yaml --set TARGET_ENV=$4 --namespace $4 --create-namespace
