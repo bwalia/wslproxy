@@ -85,6 +85,8 @@ RUN mkdir -p ${NGINX_CONFIG_DIR} && chmod 777 ${NGINX_CONFIG_DIR}
 ARG APP_ENV="dev"
 ARG ENV_FILE=".env.dev"
 
+COPY ./system ${NGINX_CONFIG_DIR}system
+
 COPY ./openresty-admin /usr/local/openresty/nginx/html/openresty-admin
 COPY ./data ${NGINX_CONFIG_DIR}data
 COPY ./data/settings.json ${NGINX_CONFIG_DIR}data/settings.json
@@ -127,7 +129,8 @@ RUN cd /usr/local/openresty/nginx/html/openresty-admin && yarn install \
 RUN cd /usr/local/openresty/nginx/html/openresty-admin/ && yarn build
 #--dest /usr/local/openresty/nginx/html/openresty-admin/dist
 
-RUN chmod -R 777 ${NGINX_CONFIG_DIR}data && \
+RUN chmod -R 777 ${NGINX_CONFIG_DIR}system && \
+    chmod -R 777 ${NGINX_CONFIG_DIR}data && \
     chmod -R 777 ${NGINX_CONFIG_DIR}data/servers && \
     chmod -R 777 ${NGINX_CONFIG_DIR}data/rules && \
     chmod -R 777 ${NGINX_CONFIG_DIR}data/security_rules.json && \
