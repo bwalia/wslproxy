@@ -622,5 +622,5 @@ else
         ngx.say(Base64.decode(settings.nginx.default.no_server))
     end
 end
--- ngx.var.proxy_host_override = 'test313.workstation.co.uk'
+-- ngx.var.proxy_host_override = 'test313.yourdomain.com'
 -- this will replace the need for server block for each website. It will parse JSON and match host header and route to the backend server all in lua
