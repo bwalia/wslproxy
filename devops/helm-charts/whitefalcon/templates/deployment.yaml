@@ -1,35 +1,3 @@
-kind: PersistentVolume
-apiVersion: v1
-metadata:
-  name: {{ .Values.app.name }}-{{ .Values.app.target_env }}-pv
-  labels:
-    type: local
-    app: {{ .Values.app.name }}-{{ .Values.app.target_env }}
-spec:
-  storageClassName: local-path
-  capacity:
-    storage: 1Gi
-  volumeMode: Filesystem
-  accessModes:
-    - ReadWriteOnce
-    - ReadWriteMany
-  hostPath:
-    path: "/{{ .Values.app.name }}/data/{{ .Values.app.target_env }}"
-  persistentVolumeReclaimPolicy: Retain
----
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  labels:
-    app: {{ .Values.app.name }}-{{ .Values.app.target_env }}
-  name: {{ .Values.app.name }}-{{ .Values.app.target_env }}-pvc
-spec:
-  accessModes:
-  - ReadWriteOnce
-  resources:
-    requests:
-      storage: 1Gi    
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -53,9 +21,9 @@ spec:
         {{- include "whitefalcon.selectorLabels" . | nindent 8 }}
     spec:
       volumes:
-        - name: {{ .Values.app.name }}-db-{{ .Values.app.target_env }}-vol
-          persistentVolumeClaim:
-            claimName: {{ .Values.app.name }}-{{ .Values.app.target_env }}-pvc
+        # - name: {{ .Values.app.name }}-db-{{ .Values.app.target_env }}-vol
+        #   persistentVolumeClaim:
+        #     claimName: {{ .Values.app.name }}-{{ .Values.app.target_env }}-pvc
         - name: {{ .Values.app.name }}-cm-{{ .Values.app.target_env }}-vol
           # Populate the volume with config map data
           configMap:
@@ -90,8 +58,8 @@ spec:
               mountPath: /tmp/configmap
             - name: {{ .Values.app.name }}-vol-{{ .Values.app.target_env }}
               mountPath: /tmp/secrets
-            - name: {{ .Values.app.name }}-db-{{ .Values.app.target_env }}-vol
-              mountPath: /opt/nginx/data/
+            # - name: {{ .Values.app.name }}-db-{{ .Values.app.target_env }}-vol
+            #   mountPath: /opt/nginx/data/
           env:
           - name: DNS_RESOLVER
             value: "{{ .Values.app.dns_resolver }}"
