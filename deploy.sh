@@ -64,16 +64,17 @@ fi
 
 #KUBECTL_CMD="kubectl --kubeconfig /Users/balinderwalia/.kube/vpn-$3.yaml"
 $HELM_CMD upgrade -i whitefalcon-api-$4 ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-$4-api-$3.yaml --set TARGET_ENV=$4 --namespace $4 --create-namespace
-$HELM_CMD upgrade -i whitefalcon-front-$4 ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-$4-front-$3.yaml --set TARGET_ENV=$4 --namespace $4 --create-namespace
 $HELM_CMD upgrade -i node-app ./devops/helm-charts/node-app/ -f devops/helm-charts/node-app/values-$3.yaml
-
-sleep 30
+sleep 10
 $KUBECTL_CMD rollout restart deployment/wf-api-$4 -n $4
 $KUBECTL_CMD rollout history deployment/wf-api-$4 -n $4
-$KUBECTL_CMD rollout restart deployment/wf-front-$4 -n $4
-$KUBECTL_CMD rollout history deployment/wf-front-$4 -n $4
 $KUBECTL_CMD rollout restart deployment/node-app
 $KUBECTL_CMD rollout history deployment/node-app
 
-sleep 120
+sleep 30
+$HELM_CMD upgrade -i whitefalcon-front-$4 ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-$4-front-$3.yaml --set TARGET_ENV=$4 --namespace $4 --create-namespace
+$KUBECTL_CMD rollout restart deployment/wf-front-$4 -n $4
+$KUBECTL_CMD rollout history deployment/wf-front-$4 -n $4
+
+sleep 30
 $KUBECTL_CMD get deploy,svc,pods,ing -n $4
