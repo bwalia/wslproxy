@@ -85,7 +85,7 @@ ingress:
           pathType: ImplementationSpecific
           serviceName: wf-front-svc-int
           servicePort: 80
-    - host: int10-front.whitefalcon.io
+    - host: front.int10.whitefalcon.io
       paths:
         - path: /
           pathType: ImplementationSpecific
