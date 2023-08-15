@@ -34,7 +34,7 @@ data:
         echo "Openresty whitefalcon Nginx Bootstrap Script Completed"
 {{- if .Values.app.sync_data_onload -}}
         echo "Openresty data sync"
-        curl http://localhost/frontdoor/opsapi/sync
+        curl http://localhost/frontdoor/opsapi/sync >> /tmp/sync.log
 {{- end }}
     whitefalcon.conf: |
 {{- range .Values.ingress.hosts }}
