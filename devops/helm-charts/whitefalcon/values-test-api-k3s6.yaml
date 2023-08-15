@@ -14,7 +14,7 @@ app:
     - kubernetes
   namespace: test
   dns_resolver: "10.43.0.10"
-  api_url: "http://api.int6.whitefalcon.io/api"
+  api_url: "http://api.test6.whitefalcon.io/api"
   redis_host: "redis-service.test.svc.cluster.local"
   target_env: "test"
   target_type: "api"
@@ -72,7 +72,7 @@ ingress:
           pathType: ImplementationSpecific
           serviceName: wf-api-svc-test
           servicePort: 8080
-    - host: api.int6.whitefalcon.io
+    - host: api.test6.whitefalcon.io
       paths:
         - path: /
           pathType: ImplementationSpecific
