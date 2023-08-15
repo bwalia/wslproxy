@@ -14,7 +14,7 @@ app:
     - kubernetes
   namespace: int
   dns_resolver: "10.43.0.10"
-  api_url: "http://int2-api.whitefalcon.io/api"
+  api_url: "http://api.int2.whitefalcon.io/api"
   redis_host: "redis-service.int.svc.cluster.local"
   target_env: "int"
   target_type: "front"

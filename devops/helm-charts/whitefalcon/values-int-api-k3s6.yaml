@@ -14,7 +14,7 @@ app:
     - kubernetes
   namespace: int
   dns_resolver: "10.43.0.10"
-  api_url: "http://int6-api.whitefalcon.io/api"
+  api_url: "http://api.int6.whitefalcon.io/api"
   redis_host: "redis-service.int.svc.cluster.local"
   target_env: "int"
   target_type: "api"
@@ -66,13 +66,13 @@ ingress:
     # kubernetes.io/ingress.class: nginx
     # kubernetes.io/tls-acme: "true"
   hosts:
-    - host: int-api.whitefalcon.io
+    - host: api.int.whitefalcon.io
       paths:
         - path: /
           pathType: ImplementationSpecific
           serviceName: wf-api-svc-int
           servicePort: 8080
-    - host: int6-api.whitefalcon.io
+    - host: api.int6.whitefalcon.io
       paths:
         - path: /
           pathType: ImplementationSpecific
