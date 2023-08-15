@@ -41,23 +41,24 @@ SOURCE_IMAGE=openresty_alpine
 # #docker tag whitefalcon-${SOURCE_IMAGE} ${DOCKER_PUBLIC_IMAGE_NAME}:${VERSION}
 # docker push ${DOCKER_PUBLIC_IMAGE_NAME}:${VERSION}
 
-HELM_CMD="helm --kubeconfig ~/.kube/vpn-$3.yaml"
-KUBECTL_CMD="kubectl --kubeconfig ~/.kube/vpn-$3.yaml"
+HELM_CMD="helm"
+KUBECTL_CMD="kubectl"
 
 echo "Deploying to $3 cluster"
 
 if [ "$3" = "k3s10" ]; then
-HELM_CMD="helm"
-KUBECTL_CMD="kubectl"
+
+HELM_CMD="helm --kubeconfig /home/bwalia/.kube/vpn-$3.yaml"
+KUBECTL_CMD="kubectl --kubeconfig /home/bwalia/.kube/vpn-$3.yaml"
 
 elif [ "$3" = "k3s6" ]; then
-   HELM_CMD="helm --kubeconfig ~/.kube/vpn-$3.yaml"
-   KUBECTL_CMD="kubectl --kubeconfig ~/.kube/vpn-$3.yaml"
+   HELM_CMD="helm --kubeconfig /home/bwalia/.kube/vpn-$3.yaml"
+   KUBECTL_CMD="kubectl --kubeconfig /home/bwalia/.kube/vpn-$3.yaml"
 
 elif [ "$3" = "k3s0" ]; then
 
-HELM_CMD="helm --kubeconfig ~/.kube/vpn-$3.yaml"
-KUBECTL_CMD="kubectl --kubeconfig ~/.kube/vpn-$3.yaml"
+HELM_CMD="helm --kubeconfig /home/bwalia/.kube/vpn-$3.yaml"
+KUBECTL_CMD="kubectl --kubeconfig /home/bwalia/.kube/vpn-$3.yaml"
 
 fi
 
