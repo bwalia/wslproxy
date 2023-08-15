@@ -38,8 +38,6 @@ else
    APP_TYPE=$5
 fi
 
-
-
 echo "Deploying to $3 cluster"
 
 DOCKER_PUBLIC_IMAGE_NAME=bwalia/whitefalcon
@@ -56,22 +54,9 @@ HELM_CMD="helm"
 KUBECTL_CMD="kubectl"
 
 echo "Deploying to $3 cluster"
-
-if [ "$3" = "k3s10" ]; then
-
+# Init kubeconfig for the cluster
 HELM_CMD="helm --kubeconfig /home/bwalia/.kube/vpn-$3.yaml"
 KUBECTL_CMD="kubectl --kubeconfig /home/bwalia/.kube/vpn-$3.yaml"
-
-elif [ "$3" = "k3s6" ]; then
-   HELM_CMD="helm --kubeconfig /home/bwalia/.kube/vpn-$3.yaml"
-   KUBECTL_CMD="kubectl --kubeconfig /home/bwalia/.kube/vpn-$3.yaml"
-
-elif [ "$3" = "k3s0" ]; then
-
-HELM_CMD="helm --kubeconfig /home/bwalia/.kube/vpn-$3.yaml"
-KUBECTL_CMD="kubectl --kubeconfig /home/bwalia/.kube/vpn-$3.yaml"
-
-fi
 
 $HELM_CMD upgrade -i node-app ./devops/helm-charts/node-app/ -f devops/helm-charts/node-app/values-$3.yaml
 $KUBECTL_CMD rollout restart deployment/node-app
