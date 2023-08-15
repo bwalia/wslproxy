@@ -40,6 +40,7 @@ jobs:
         go test -v 
       env: 
         TARGET_HOST : http://int6-api.whitefalcon.io
+        SERVER_ID_QA : host:qa.int6.whitefalcon.io
         SERVER_NAME : int6-qa.whitefalcon.io
         LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
         LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
