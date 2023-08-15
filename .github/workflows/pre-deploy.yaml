@@ -36,7 +36,7 @@ env:
 
 jobs:
   deploy10:
-    runs-on: [self-hosted]
+    runs-on: [self-hosted-node10]
     steps:
       - name: checkout the repo code
         uses: actions/checkout@v2 

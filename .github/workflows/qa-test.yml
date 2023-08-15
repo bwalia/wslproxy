@@ -16,7 +16,7 @@ jobs:
     - name: Test
       working-directory: ./QA
       env:
-          API_PING_URL: https://test-api.whitefalcon.io/ping
+          API_PING_URL: https://api.test.whitefalcon.io/ping
       run: | 
         go mod init myapp
         go test whitefalcan-healthcheck_test.go -v 

@@ -44,7 +44,7 @@ jobs:
           tags: bwalia/node-app:latest
 
   deploy10:
-    runs-on: [self-hosted]
+    runs-on: [self-hosted-node10]
     steps:
       - name: checkout the repo code
         uses: actions/checkout@v2 
@@ -68,7 +68,7 @@ jobs:
         run: chmod +x ./deploy.sh && ./deploy.sh "${{ secrets.DOCKER_USER }}" "${{ secrets.DOCKER_PASSWD }}" "k3s6" "test" "both" "${{ env.IMAGE_NAME }}" "${{ env.IMAGE_TAG }}"
 
   healthcheck10:
-    runs-on: [self-hosted]
+    runs-on: [self-hosted-node10]
     needs: [ deploy10 ]
     steps:
       - uses: actions/checkout@v3
