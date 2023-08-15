@@ -1,11 +1,11 @@
-# Default values for whitefalcon-router.
+# Default values for whitefalcon.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
 replicaCount: 1
 
 app:
-  name: wf-front
+  name: wf-api
   version: 0.1.1
   description: A Helm chart for Kubernetes
   keywords:
@@ -14,14 +14,14 @@ app:
     - kubernetes
   namespace: test
   dns_resolver: "10.43.0.10"
-  api_url: "http://api.int6.whitefalcon.io/api"
+  api_url: "http://api.test10.whitefalcon.io/api"
   redis_host: "redis-service.test.svc.cluster.local"
   target_env: "test"
-  target_type: "front"
-  front_url: "http://test6.whitefalcon.io"
+  target_type: "api"
+  front_url: "http://test10.whitefalcon.io"
   sync_data_onload: false
 
-secure_env_file: "AgBf8VkQ6oPVcVCu1SYP98tT+4JnEobVmXSt4sGHQ87Ff/5dLcmnUElvj+s0KgR1oARlOsqSmwkerJ1naQmFxJ3yhep0cB2vQGe/pvF9EsteO/rT3ZMDdDG6Q7p4I4dNxVzARwgPcAEViucb0LvR7OxFnzjI0aFPuXcXTk3uf3wKHm6RO288wuHlwiMWruR4xOhwqc7WgxtE46JjMS9Q3AvxIOOzSpOa0Vjfq94sNyu87J7T4SGmGPguRhW46ynUYChNXbT73fye55UmqHoHe2QvGz9fwekiCCLjRhwd+/2P9jGFy4owq0Cf/th2W13pI1Dfr5tKCh9mUDVBfh3En4EaokYvmuzguXoOLiLblkectsM2EUrihaImREsQ3b4Bov5xkzCh6aBT2ZDZmwsnfUryrfaQw8f6ufiwHsOzGgZdGJB/sejr1favRG93TR9HsOqJNdSnRuuApnYuJSiW7fbsPGFWsna6iBHlil0cB9YCHO8gq8ySpZz1SvGrCndlOChzPL1lXx/c5FfnhXmr4TH1oN2ok8kqfWw6dNvwJCkzOnFWZGeW7jfMl+8RlxCbW0HlvfcwTOb9YkJ+ncd3Q2+z2V7xyfTfj03kOghfss9Ck0VFFyINYid1FQwz1ulTev4TCFEs682XLeGCh+IcysYF3HGH3896hc4xB1IGhYAhxxhhHEu9YKtamV2ZijXCeZb70RLXFcg1P1AB/5aVMwnTkzcILNq47M3SzHdJBPj+jM3emv9GY6rXg+x0mLJq+uBqWkL2E2h5/Xmim6ffXlXXC/Nn2xt0FUY6kVLopqsyVBpIDBBOkz/adlq4BVZIrD5Oekz9xwcfVJvmcdYOlMuQjEHlxq+kXlbGjWpFapGcrAw9oeNsPkPSaWwz5DqPa7nLOaGXpk6+MxVug5pTeAH9d59IRwtwW3V2dfCKRMHzY/o="
+secure_env_file: "AgBm3CtVg/bMtL1ZhXM+lifq6PEAbnnY/9dcb7RwaxHoWaP0o0GVldRKHbqX8ExBGcFB6KZO7jNZQEuzrLL4xD1W05QPb5W2kORwMgQCWVA6iMCFI7o0Vc7NJubDy+PhaARMA74yDWsnciQ1zN7VGKlar2MMkb/yOS8QsAG5NYyIVUAuY4vvv59X4THl9JwHkq/2268zQ5tZDFxKnscBBoETzfZr1ZZ7b8GvqmFKVS7oF4rC3G+WFWxEO5PQP/fw4vF4dwZcdCqS42fF0rQ7exBEefV1xKMgQqTw5KvkxlUwLD1e9URVIGS5474t1Bn796kfuQrmEyKRR70o5QKUoCup5vb0a0NmlfsglbY+hDBNDXEldH9gweWStnyan08kLfmG2ndSJBzG4lN+9Q1bRas5HS/RlD/PmapLB0dT5rBtFXZMP+6uIXPgkm1CthXf33OOkDliUPKVnFZz/T2U4Yy7waKApedGcgAuU1o1YuDZGBT8kBYfOBdZE4zy/ZzhgslCZspTz0wimPwoq7kDdl3NsDqrLotggS1Ev66id5rtppaRXOolHJAenDIa3ZYjPSzdEUoOAK9TrPvTSa/1v+J21bxtZu9mKbqG+/hwyu19c0IpzAWBL8p9nYSNP8jO6xZkmp0BQPvf6y7Wg4+/9dX1VJHuDG4ulOnjQ3SsmqDDpeBhxT7WNMjF82KyGhqHa+mAnpo+kR4A540camQebQ+irpkSCsG/RmjDCP+zzOe01Z+g9DyiV64SptJVwszSEjv+X3QUyHrDXiVf0a0slFQinoNq8uxaz7NfQcWfY2czc1b0L1rLYjqUj3G0vaqzbFoAds2gZnT0O5bYDukXqjjroV31/8mwed4r2yvfbzeivwMCn2E8G26Yye4M/RYCSq36yl98iIYiChbUN0FDOOdm8K9nvRPJlT8yaRKVVdrOh3aWc/hGeKU5n8HoOcSmHVGobcAKy4yizDaHiX5hqHbn/ExKh3kR8ahzi9Ip7Gn87T4NLyw="
 
 image:
   repository: bwalia/whitefalcon
@@ -57,7 +57,7 @@ securityContext: {}
 
 service:
   type: ClusterIP
-  port: 80
+  port: 8080
 
 ingress:
   enabled: true
@@ -66,30 +66,18 @@ ingress:
     # kubernetes.io/ingress.class: nginx
     # kubernetes.io/tls-acme: "true"
   hosts:
-    - host: test6.whitefalcon.io
+    - host: api.test.whitefalcon.io
       paths:
         - path: /
           pathType: ImplementationSpecific
-          serviceName: wf-front-svc-test
-          servicePort: 80
-    - host: front.test6.whitefalcon.io
+          serviceName: wf-api-svc-test
+          servicePort: 8080
+    - host: api.test10.whitefalcon.io
       paths:
         - path: /
           pathType: ImplementationSpecific
-          serviceName: wf-front-svc-test
-          servicePort: 80
-    - host: test.whitefalcon.io
-      paths:
-        - path: /
-          pathType: ImplementationSpecific
-          serviceName: wf-front-svc-test
-          servicePort: 80
-    - host: test-front.whitefalcon.io
-      paths:
-        - path: /
-          pathType: ImplementationSpecific
-          serviceName: wf-front-svc-test
-          servicePort: 80
+          serviceName: wf-api-svc-test
+          servicePort: 8080
   tls: []
   #  - secretName: chart-example-tls
   #    hosts:
