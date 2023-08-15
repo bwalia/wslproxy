@@ -62,18 +62,21 @@ $HELM_CMD upgrade -i node-app ./devops/helm-charts/node-app/ -f devops/helm-char
 $KUBECTL_CMD rollout restart deployment/node-app
 $KUBECTL_CMD rollout history deployment/node-app
 
-if [[ "$APP_TYPE" = "both"] || ["$APP_TYPE" = "api" ]]; then
-$HELM_CMD upgrade -i whitefalcon-api-$4 ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-$4-api-$3.yaml --set TARGET_ENV=$4 --namespace $4 --create-namespace
-sleep 10
-$KUBECTL_CMD rollout restart deployment/wf-api-$4 -n $4
-$KUBECTL_CMD rollout history deployment/wf-api-$4 -n $4
-fi
-
-if [[ "$APP_TYPE" = "both"] || ["$APP_TYPE" = "front" ]]; then
-$HELM_CMD upgrade -i whitefalcon-front-$4 ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-$4-front-$3.yaml --set TARGET_ENV=$4 --namespace $4 --create-namespace
-sleep 10
-$KUBECTL_CMD rollout restart deployment/wf-front-$4 -n $4
-$KUBECTL_CMD rollout history deployment/wf-front-$4 -n $4
+if [ "$APP_TYPE" == "both" ]; then
+   $HELM_CMD upgrade -i whitefalcon-api-$4 ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-$4-api-$3.yaml --set TARGET_ENV=$4 --namespace $4 --create-namespace
+   $KUBECTL_CMD rollout restart deployment/wf-api-$4 -n $4
+   $KUBECTL_CMD rollout history deployment/wf-api-$4 -n $4
+   $HELM_CMD upgrade -i whitefalcon-front-$4 ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-$4-front-$3.yaml --set TARGET_ENV=$4 --namespace $4 --create-namespace
+   $KUBECTL_CMD rollout restart deployment/wf-front-$4 -n $4
+   $KUBECTL_CMD rollout history deployment/wf-front-$4 -n $4
+elif [ "$APP_TYPE" == "api" ]; then
+   $HELM_CMD upgrade -i whitefalcon-api-$4 ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-$4-api-$3.yaml --set TARGET_ENV=$4 --namespace $4 --create-namespace
+   $KUBECTL_CMD rollout restart deployment/wf-api-$4 -n $4
+   $KUBECTL_CMD rollout history deployment/wf-api-$4 -n $4
+elif [ "$APP_TYPE" == "front" ]; then
+   $HELM_CMD upgrade -i whitefalcon-front-$4 ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-$4-front-$3.yaml --set TARGET_ENV=$4 --namespace $4 --create-namespace
+   $KUBECTL_CMD rollout restart deployment/wf-front-$4 -n $4
+   $KUBECTL_CMD rollout history deployment/wf-front-$4 -n $4
 fi
 
 sleep 30
