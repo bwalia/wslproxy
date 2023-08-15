@@ -1,6 +1,7 @@
 #!/bin/bash
 
 set -x
+
 if [ -z "$1" ]; then
    echo "Docker username is not provided"
    exit -1
@@ -28,6 +29,8 @@ else
    echo "Env is provided ok"
 fi
 
+echo "Deploying to $3 cluster"
+
 DOCKER_PUBLIC_IMAGE_NAME=bwalia/whitefalcon
 VERSION=latest
 SOURCE_IMAGE=openresty_alpine
@@ -38,8 +41,27 @@ SOURCE_IMAGE=openresty_alpine
 # #docker tag whitefalcon-${SOURCE_IMAGE} ${DOCKER_PUBLIC_IMAGE_NAME}:${VERSION}
 # docker push ${DOCKER_PUBLIC_IMAGE_NAME}:${VERSION}
 
+HELM_CMD="helm"
+KUBECTL_CMD="kubectl"
+
+echo "Deploying to $3 cluster"
+
+if [ "$3" = "k3s10" ]; then
+
 HELM_CMD="helm --kubeconfig /home/bwalia/.kube/vpn-$3.yaml"
 KUBECTL_CMD="kubectl --kubeconfig /home/bwalia/.kube/vpn-$3.yaml"
+
+elif [ "$3" = "k3s6" ]; then
+   HELM_CMD="helm --kubeconfig /home/bwalia/.kube/vpn-$3.yaml"
+   KUBECTL_CMD="kubectl --kubeconfig /home/bwalia/.kube/vpn-$3.yaml"
+
+elif [ "$3" = "k3s0" ]; then
+
+HELM_CMD="helm --kubeconfig /home/bwalia/.kube/vpn-$3.yaml"
+KUBECTL_CMD="kubectl --kubeconfig /home/bwalia/.kube/vpn-$3.yaml"
+
+fi
+
 #KUBECTL_CMD="kubectl --kubeconfig /Users/balinderwalia/.kube/vpn-$3.yaml"
 $HELM_CMD upgrade -i whitefalcon-api-$4 ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-$4-api-$3.yaml --set TARGET_ENV=$4 --namespace $4 --create-namespace
 $HELM_CMD upgrade -i whitefalcon-front-$4 ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-$4-front-$3.yaml --set TARGET_ENV=$4 --namespace $4 --create-namespace

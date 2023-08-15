@@ -87,7 +87,7 @@ jobs:
       - name: Ping verification
         working-directory: ./QA
         env:
-          API_PING_URL: http://int10-api.whitefalcon.io/ping
+          API_PING_URL: http://api.int10.whitefalcon.io/ping
         run: | 
           go mod init myapp
           go test whitefalcan-healthcheck_test.go -v 
@@ -104,7 +104,7 @@ jobs:
       - name: Ping verification
         working-directory: ./QA
         env:
-          API_PING_URL: http://int6-api.whitefalcon.io/ping
+          API_PING_URL: http://api.int6.whitefalcon.io/ping
           API_PING_NODE: node6
         run: | 
           go mod init myapp

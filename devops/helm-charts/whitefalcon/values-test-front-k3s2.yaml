@@ -6,7 +6,7 @@ replicaCount: 1
 
 app:
   name: wf-front
-  version: 0.1.0
+  version: 0.1.1
   description: A Helm chart for Kubernetes
   keywords:
     - helm
@@ -14,7 +14,7 @@ app:
     - kubernetes
   namespace: test
   dns_resolver: "10.43.0.10"
-  api_url: "http://test2-api.whitefalcon.io/api"
+  api_url: "http://api.int2.whitefalcon.io/api"
   redis_host: "redis-service.test.svc.cluster.local"
   target_env: "test"
   target_type: "front"
@@ -85,7 +85,7 @@ ingress:
           pathType: ImplementationSpecific
           serviceName: wf-front-svc-test
           servicePort: 80
-    - host: test2-front.whitefalcon.io
+    - host: front.test2.whitefalcon.io
       paths:
         - path: /
           pathType: ImplementationSpecific

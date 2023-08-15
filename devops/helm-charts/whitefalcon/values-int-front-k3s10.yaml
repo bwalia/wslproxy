@@ -6,7 +6,7 @@ replicaCount: 1
 
 app:
   name: wf-front
-  version: 0.1.0
+  version: 0.1.1
   description: A Helm chart for Kubernetes
   keywords:
     - helm
@@ -14,14 +14,14 @@ app:
     - kubernetes
   namespace: int
   dns_resolver: "10.43.0.10"
-  api_url: "http://int10-api.whitefalcon.io/api"
+  api_url: "http://api.int10.whitefalcon.io/api"
   redis_host: "redis-service.int.svc.cluster.local"
   target_env: "int"
   target_type: "front"
   front_url: "http://int10.whitefalcon.io"
   sync_data_onload: false
 
-secure_env_file: "AgCKDwoP6LLYsQmSZ7g+tdY2grvELMv4+XFaj4oG9KpFdNFXJY7kWtGtNkF2SiShircpEfEbRobV74GzgwBiTa+3/iXZU7D7tVdJlLqH2qjrDiKpnGLXC3Jezu8eao0/+QK2hnfM6KkVAOMXCIxsqlhJ0ewqQL3XY0rSh5Dx9in2m+qLs39bg5yrmw6+E/2DIwf/xJXUioOFnL13W6XfSaMQ+AFxpB4Kac2a//+qgiNzrr3yAGmLY4Rnd8IV5GAfPH75Qb/n57mhcZzeg5XqzmCsA8vzeTxT4Jh+GvfXr4XDNBbTONt+IsPpwz5LT4lC+8P1XAfL8oxdJB2D1C5fe3bdP4gErmk5XrNVWgm8Ti9W1d9b4euaMYBc8x+PjfE6NQDpCCnSoErusRCvjj2DzX5Wy5EmgoFoOXwEjTUoO/OEk7xBqiFYIiWZ70FaT0kJFIii7E4awdgQ6xlHYMH9AJcxWWQZC82wSunm3ygErZPzYl8YowwSchUAxIytRI3Up9hmBLn3/15Dy+5n24aNqiU5/umqt5CwjHYDpsTI9u9NOBr1B0G3mlA500yyEXwsdPY34CfRpGYJO2tSvrDCl7UWgMkC/4mIghR8mOeu0WsmvILYclfpdbTTldX7Y3+ml3B3HFvwyWCiZ35va/vrXJ91wnUy+58Ei4Ebs670mmfCXmehkEUyHYMBSbKDHA7gFqOV53Vo57i+JkEtmxL3GO3NFPGBHOTNBA2h/pfF45RsgeJ9phWMgirx5abMq6DLaQ5KnR4S1xCQHBPKMsfMcBv1yD+A07pT4ig2bEIZFhc6yG3JL0P6WAUy7psZ7L1VeEnBvLCIDnZrsW3vXFBthR9sPuHfv51Vb5T/9pcwDOR1hQb+lVY7qWPVwe+VXZBggce0cbm/l4chnllyIbyKoWAk6IA32+FCGQ6pL9UOzB0c8hc="
+secure_env_file: "AgA+zaPRBEztxCaWqoFrMZ00rwDfvp/qUsO7DH+f8+aklNuIgsQ2WdmZp5UdCyEx9oQIHEcq8mEufgWOcCNVnCK6+++LnSpqRHUP5yhDGfiR3FnJ6BDv38DSCJYr1VGgb6TNRkj1UsP8D4UT4XW5LW/1oIn8nRIChejO7ghvZAQGVb6c0HoNg80WbzXtSktL96Gl0K1V0AP88CBnuANWcCkKs2kw5MCLOKjUkufJFNAalAIlfkd8cnqoTA0MVtMxtEhbJGzLm/dhMdu32Vbg2lCbSKd5uSRD1pAzXQdBbYTju34FyiWN/xKRBPdJuH0zJfrBx8wVbnh/qpcSFutJhbjHA0gFe9NLov08YGdvQLDfDgNJJR4AgGW9FzteuwCF9v1Tgixbx7oHHx3ncPjdqqeo4N1N3Hd2BdSKAEZIhytLNXSiHGrBDoWK7XeSX4B8n1HsWusA53wUTtS33iPLrdfM4QGLivorMpfeP0MyEIcq7JzYpZGrC8cFJYHahMSuwUN37iWxDmsTn6bjdCGioFNHL0mnPOmdeFFRRyBq42pSMD2m6U37UUTGTmajsmBC3N9Zq9YHksKMH66SqVKBlKGu2yLnMWuwi4x3S4ruNowAec7bjAcNn/1sgWiUakjmcKp3wuWM49QRqU1Ez69L87hRv99SzTDgf7JQxvvb4N5HoIXAlvhjFgJLeU37RnPyhErKqx6BHvPKhYRFMF9vf6tXhFsojV8UJbcRUawqBEAfBNxbh98Rj/pAbCoeDz4VQdnSuONgpp0pRaTzp+2EAxrQJO5c0KTIkVKiBAYoHfpWG9cOmxyeQY5KjdAZn2bqKgY5T90ukFFTSB8c7EBtVIkccI2uZgwjlqJEdJnae7slx4TQMMFvHjuVM6k9lezLEIH8sqNIxZnDJj5Po1I9sw0hIXkTptKIOoaH2kW5LTEmKvGDgEu8SaEdK9Vc9MR6l4ahDmih/A9QMLce4NRbVtWz9MBwO1IWXOSSYPUw4ZgtpUf2"
 
 image:
   repository: bwalia/whitefalcon
@@ -66,7 +66,7 @@ ingress:
     # kubernetes.io/ingress.class: nginx
     # kubernetes.io/tls-acme: "true"
   hosts:
-    - host: int-front.whitefalcon.io
+    - host: front.int.whitefalcon.io
       paths:
         - path: /
           pathType: ImplementationSpecific
