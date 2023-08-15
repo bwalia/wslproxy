@@ -29,6 +29,17 @@ else
    echo "Env is provided ok"
 fi
 
+
+if [ -z "$5" ]; then
+   echo "App type is not provided default (api) will be used"
+   APP_TYPE="api"
+else
+   echo "App type is provided ok"
+   APP_TYPE=$5
+fi
+
+
+
 echo "Deploying to $3 cluster"
 
 DOCKER_PUBLIC_IMAGE_NAME=bwalia/whitefalcon
@@ -62,19 +73,23 @@ KUBECTL_CMD="kubectl --kubeconfig /home/bwalia/.kube/vpn-$3.yaml"
 
 fi
 
-#KUBECTL_CMD="kubectl --kubeconfig /Users/balinderwalia/.kube/vpn-$3.yaml"
-$HELM_CMD upgrade -i whitefalcon-api-$4 ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-$4-api-$3.yaml --set TARGET_ENV=$4 --namespace $4 --create-namespace
 $HELM_CMD upgrade -i node-app ./devops/helm-charts/node-app/ -f devops/helm-charts/node-app/values-$3.yaml
-sleep 10
-$KUBECTL_CMD rollout restart deployment/wf-api-$4 -n $4
-$KUBECTL_CMD rollout history deployment/wf-api-$4 -n $4
 $KUBECTL_CMD rollout restart deployment/node-app
 $KUBECTL_CMD rollout history deployment/node-app
 
-sleep 30
+if [ "$APP_TYPE" = "both" || "$APP_TYPE" = "api" ]; then
+$HELM_CMD upgrade -i whitefalcon-api-$4 ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-$4-api-$3.yaml --set TARGET_ENV=$4 --namespace $4 --create-namespace
+sleep 10
+$KUBECTL_CMD rollout restart deployment/wf-api-$4 -n $4
+$KUBECTL_CMD rollout history deployment/wf-api-$4 -n $4
+fi
+
+if [ "$APP_TYPE" = "both" || "$APP_TYPE" = "front" ]; then
 $HELM_CMD upgrade -i whitefalcon-front-$4 ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-$4-front-$3.yaml --set TARGET_ENV=$4 --namespace $4 --create-namespace
+sleep 10
 $KUBECTL_CMD rollout restart deployment/wf-front-$4 -n $4
 $KUBECTL_CMD rollout history deployment/wf-front-$4 -n $4
+fi
 
 sleep 30
 $KUBECTL_CMD get deploy,svc,pods,ing -n $4
