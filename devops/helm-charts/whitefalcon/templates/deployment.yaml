@@ -9,8 +9,10 @@ spec:
   storageClassName: local-path
   capacity:
     storage: 1Gi
+  volumeMode: Filesystem
   accessModes:
     - ReadWriteOnce
+    - ReadWriteMany
   hostPath:
     path: "/{{ .Values.app.name }}/data/{{ .Values.app.target_env }}"
   persistentVolumeReclaimPolicy: Retain
@@ -89,7 +91,7 @@ spec:
             - name: {{ .Values.app.name }}-vol-{{ .Values.app.target_env }}
               mountPath: /tmp/secrets
             - name: {{ .Values.app.name }}-db-{{ .Values.app.target_env }}-vol
-              mountPath: /data
+              mountPath: /opt/nginx/data/
           env:
           - name: DNS_RESOLVER
             value: "{{ .Values.app.dns_resolver }}"
