@@ -1,4 +1,4 @@
-# Default values for whitefalcon-router.
+# Default values for whitefalcon-router frontend related to router.lua.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
@@ -14,8 +14,8 @@ app:
     - kubernetes
   namespace: int
   dns_resolver: "10.43.0.10"
-  primary_dns_resolver : "127.0.0.1"
-  secondary_dns_resolver : "127.0.0.1"
+  primary_dns_resolver : "10.43.0.10"
+  secondary_dns_resolver : "10.43.0.10"
   dns_resolver_port: 53
   api_url: "http://api.int6.whitefalcon.io/api"
   redis_host: "redis-service.int.svc.cluster.local"
