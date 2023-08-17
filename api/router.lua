@@ -316,8 +316,13 @@ local function isPathsValueUnique(table)
 
     for key, item in pairs(table) do
         local path, isCheck = item["paths"], false
-        if item.paths_key == "starts_with" and reqUri:startswith(item.paths) == true then
+        if reqUri == "/" and item.paths == "/" then
             isCheck = true
+        end
+        if item.paths_key == "starts_with" and reqUri:startswith(item.paths) == true then
+            if string.len(item.paths) > 1 then
+                isCheck = true
+            end
         elseif item.paths_key == "ends_with" and reqUri:endswith(item.paths) == true then
             isCheck = true
         elseif item.paths_key == "equals" and reqUri == item.paths then
