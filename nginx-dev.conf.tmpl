@@ -456,8 +456,9 @@ keepalive 10; # connection pool
         listen       80 default_server;
         server_name  _; 
         # For kubernetes use 10.43.0.10 and nginx ingress controller
+        # resolver 127.0.0.1 local=on;
         include /tmp/resolver.conf;
-
+        
         #charset koi8-r;
 
         #access_log  logs/host.access.log  main;
