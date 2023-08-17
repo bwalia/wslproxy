@@ -35,6 +35,7 @@ data:
 {{- if .Values.app.sync_data_onload -}}
         echo "Openresty data sync"
         sleep 10
+        touch /tmp/opsapi/sync.log
         curl http://localhost/frontdoor/opsapi/sync >> /tmp/opsapi/sync.log
 {{- end }}
     whitefalcon.conf: |
