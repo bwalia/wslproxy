@@ -100,6 +100,9 @@ func TestRuleResponse(t *testing.T) {
 			//t.Log(resp)
 
 			body, err = ioutil.ReadAll(resp.Body)
+			if err != nil {
+				t.Log(err)
+			}
 
 			got := string(body)
 			//fmt.Println(got)
