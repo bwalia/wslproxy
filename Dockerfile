@@ -28,6 +28,7 @@ RUN apk add --no-cache --virtual .build-deps \
         perl-dev \
     && apk add --no-cache \
         bash \
+        git \
         aws-cli \
         build-base \
         curl \
@@ -67,16 +68,17 @@ ENV LUA_PATH="/usr/local/openresty/site/lualib/?.ljbc;/usr/local/openresty/site/
 
 ENV LUA_CPATH="/usr/local/openresty/site/lualib/?.so;/usr/local/openresty/lualib/?.so;./?.so;/usr/local/lib/lua/5.1/?.so;/usr/local/openresty/luajit/lib/lua/5.1/?.so;/usr/local/lib/lua/5.1/loadall.so;/usr/local/openresty/luajit/lib/lua/5.1/?.so"
 
+RUN opm get bungle/lua-resty-session
+RUN opm get ip2location/ip2location-resty
+
 RUN luarocks install lua-resty-jwt
 RUN luarocks install lua-resty-session
 RUN luarocks install lua-resty-http
 RUN luarocks install lua-resty-openidc
 RUN luarocks install base64
-RUN opm get ip2location/ip2location-resty
 RUN luarocks install lua-resty-redis-connector
 RUN luarocks install lua-resty-dns
 RUN luarocks install lua-resty-resolver
-RUN opm get bungle/lua-resty-session
 #COPY nginx/test.conf /usr/local/openresty/nginx/conf/nginx.conf
 # COPY nginx/hd4dp.conf /etc/nginx/conf.d/hd4dp.conf
 # COPY nginx/sessions_demo_server.conf /etc/nginx/conf.d/sessions_demo_server.conf
