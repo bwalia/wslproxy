@@ -45,6 +45,7 @@ jobs:
 
   deploy10:
     runs-on: [self-hosted-node10]
+    needs: docker
     steps:
       - name: checkout the repo code
         uses: actions/checkout@v2 
@@ -57,6 +58,7 @@ jobs:
 
   deploy6:
     runs-on: [self-hosted-node6]
+    needs: docker
     steps:
       - name: checkout the repo code
         uses: actions/checkout@v2 
