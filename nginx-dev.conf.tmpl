@@ -508,8 +508,10 @@ server {
 
           location / {
             default_type text/plain;
+            set_by_lua_file $vars /usr/local/openresty/nginx/html/api/vars.lua;
             rewrite_by_lua_file /usr/local/openresty/nginx/html/api/router.lua;
-            access_by_lua_file /usr/local/openresty/nginx/html/api/auth.lua;   -- this code run just before the setting the proxy pass and content phase.
+            access_by_lua_file /usr/local/openresty/nginx/html/api/auth.lua;    # this code run just before the setting the proxy pass and content phase.
+            content_by_lua_file /usr/local/openresty/nginx/html/api/response.lua;
 
           # echo $proxy_host:$proxy_port;
           # echo $upstream_server;
@@ -528,8 +530,7 @@ server {
         {
         default_type text/html;
           content_by_lua_block {
-            local redis = require "local-resolver"
-            local red = redis:new()
+            local resolver = require "local-resolver"
             resolver = resolver.new("/etc/hosts")
 --              local host_ip_addr = resolver:resolve("kube-dns.kube-system.svc.cluster.local") -- kube-dns did not work
             local host_ip_addr = resolver:resolve("localhost")  -- localhost worked

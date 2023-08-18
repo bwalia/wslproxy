@@ -119,6 +119,13 @@ RUN cp /tmp/resolver.conf.tmpl /tmp/resolver.conf
 
 RUN sed -i "s/resolver 127.0.0.11/resolver ${DNS_RESOLVER}/g" /tmp/resolver.conf
 
+# Unix section
+# Unix socket will be created here "/var/run/nginx/nginx.sock"
+RUN mkdir -p "/var/run/nginx/" \
+    && chmod +x "/var/run/nginx/" \
+    && chown root:root "/var/run/nginx/" \
+    && chmod 755 -R "/var/run/nginx/"
+
 # set environment file based on the argument
 
 WORKDIR /usr/local/openresty/nginx/html/openresty-admin/
