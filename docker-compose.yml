@@ -12,7 +12,7 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8081:8080"
-      - "8080:80"
+      - "8000:80"
     networks:
       - whitefalcon-network
     volumes:
