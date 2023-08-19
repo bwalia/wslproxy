@@ -508,9 +508,16 @@ server {
 
           location / {
             default_type text/plain;
-            set_by_lua_file $vars /usr/local/openresty/nginx/html/api/vars.lua;
+            set_by_lua_block $vars {
+              local json = require("cjson")
+              local executableRule, proxyServerName = {}, nil
+              return cjson.encode({
+                executableRule = executableRule,
+                proxyServerName = proxyServerName
+              })
+            }
             rewrite_by_lua_file /usr/local/openresty/nginx/html/api/router.lua;
-            access_by_lua_file /usr/local/openresty/nginx/html/api/auth.lua;    # this code run just before the setting the proxy pass and content phase.
+            access_by_lua_file /usr/local/openresty/nginx/html/api/execution.lua;    # this code run just before the setting the proxy pass and content phase.
             content_by_lua_file /usr/local/openresty/nginx/html/api/response.lua;
 
           # echo $proxy_host:$proxy_port;
