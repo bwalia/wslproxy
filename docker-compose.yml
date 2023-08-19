@@ -57,7 +57,7 @@ services:
   cdn_node:
     container_name: cdn-node
     build:
-      context: ./demos-origins/node-app
+      context: .
       dockerfile: Dockerfile_nodeapp
     ports:
       - "3009:3009"
