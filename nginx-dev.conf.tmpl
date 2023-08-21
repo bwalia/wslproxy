@@ -1,10 +1,10 @@
 
-#user  nobody;
+# user  nobody;
 worker_processes  1;
 
 error_log  logs/error.log;
-#error_log  logs/error.log  notice;
-#error_log  logs/error.log  info;
+# error_log  logs/error.log  notice;
+# error_log  logs/error.log  info;
 
 #pid        logs/nginx.pid;
 
@@ -34,18 +34,18 @@ http {
 
     log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
                       '$status $body_bytes_sent "$http_referer" '
-                      '"$http_user_agent" "$http_x_forwarded_for"';
+                      '"$http_user_agent" "$http_x_forwarded_for" "$host"';
 
     access_log  logs/access.log  main;
     sendfile        on;
-    #tcp_nopush     on;
+    # tcp_nopush     on;
 
-    #keepalive_timeout  0;
+    # keepalive_timeout  0;
     keepalive_timeout  65;
 
-    #gzip  on;
+    gzip  on;
     lua_package_path "/usr/local/openresty/nginx/html/api/?.lua;;";
-    #lua_package_path '/usr/local/Cellar/openresty/1.19.3.1_1/site/lualib/resty/?.lua;;';
+    # lua_package_path '/usr/local/Cellar/openresty/1.19.3.1_1/site/lualib/resty/?.lua;;';
     lua_package_cpath '/usr/local/openresty/site/lualib/resty/?.so;;';
 
     init_by_lua_block  {
@@ -64,8 +64,8 @@ http {
     server {
         listen       8080;
         server_name  localhost;
-        # For kubernetes use 10.43.0.10 and nginx ingress controller
-        include /tmp/resolver.conf;
+          
+        include /tmp/resolver.conf;     # For kubernetes use 10.43.0.10 and nginx ingress controller
 
         #charset koi8-r;
 
@@ -156,18 +156,7 @@ http {
             content_by_lua_file /usr/local/openresty/nginx/html/api/security_rules.lua;
         }
 
-        #location /router {
-        #    default_type 'application/json';
-        #    add_header 'Access-Control-Allow-Origin' '*';
-        #   add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, PUT, DELETE';
-        #   add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, X-Requested-With';
-        #    add_header 'Access-Control-Max-Age' 1728000;
-        #    add_header 'Content-Type' 'text/plain; charset=utf-8';
-        #    add_header 'Content-Length' 0;
-        #    content_by_lua_file /usr/local/openresty/nginx/html/api/router.lua;
-        #}
-
-        location /ip-location {
+        location /__ip_location {
             default_type text/html;
             content_by_lua_block {
                 local ip2location = require('ip2location')
@@ -203,7 +192,7 @@ http {
         }
 
 
-        location /test {            
+        location /__redis_test {            
             default_type 'application/json';
             content_by_lua_block {
                 local redis = require "resty.redis"
@@ -286,7 +275,7 @@ http {
         }
 
         #comment
-        #error_page  404              /404.html;
+        error_page  404              /404.html;
 
         # redirect server error pages to the static page /50x.html
         #
@@ -314,9 +303,9 @@ http {
         # deny access to .htaccess files, if Apache's document root
         # concurs with nginx's one
         #
-        #location ~ /\.ht {
-        #    deny  all;
-        #}
+        location ~ /\.ht {
+            deny  all;
+        }
 
         location /start {
           default_type text/html;
@@ -451,37 +440,91 @@ if not ok then
 
 keepalive 10; # connection pool
 }
-    
+
+# /var/run/nginx/nginx.sock
+
+server {
+
+    listen unix:/var/run/nginx/nginx.sock;
+    server_name _;
+    include /tmp/resolver.conf;
+    default_type text/plain;
+
+    location /
+    {
+
+    proxy_ssl_protocols TLSv1 TLSv1.1 TLSv1.2 TLSv1.3;
+
+    set $upstream_endpoint $http_x_origin_host;
+    set $upstream_port $http_x_origin_port;
+    set $upstream_scheme $http_x_origin_scheme;
+
+    if ( $upstream_endpoint = "" ) {
+    return 200 "$http_x_origin_host host header validation failed. Please refer to the Technical Documentation!";
+    }
+
+    if ( $upstream_port != "" ) {
+    set $upstream_endpoint $upstream_endpoint:$upstream_port;
+    }
+
+    if ( $upstream_scheme = "" ) {
+    set $upstream_scheme "http://";
+    }
+
+        proxy_set_header HTTPS "on";
+        proxy_ssl_verify_depth 2;
+        proxy_set_header X-Forwarded-Proto https;
+
+    proxy_read_timeout     120;
+    proxy_connect_timeout  120;
+
+    proxy_http_version 1.1;
+
+     proxy_set_header Connection "";
+
+     proxy_pass_request_headers      on;
+     proxy_set_header host $host;
+     proxy_set_header X-Forwarded-Host $http_X-Origin-Host;
+     proxy_set_header X-Real-IP $http_X-Real-IP;
+     proxy_set_header X-Forwarded-For $http_proxy_add_x_forwarded_for;
+     proxy_pass $upstream_scheme$upstream_endpoint;
+
+}
+}
+
     server {
         listen       80 default_server;
-        server_name  _; 
-        # For kubernetes use 10.43.0.10 and nginx ingress controller
-        include /tmp/resolver.conf;
+        server_name _;
 
-        #charset koi8-r;
+        # resolver 127.0.0.1 local=on;
+        include /tmp/resolver.conf;         #   For kubernetes use 10.43.0.10 and nginx ingress controller
 
-        #access_log  logs/host.access.log  main;
+          # define shared variables between lua and nginx lua balancer;
+          set $proxy_host "";
+          set $proxy_port "";
+          
+          set $proxy_host_override "";
+          set $upstream_server "global_backend";
 
-        #Set default generic server vars here
+          location / {
+            default_type text/plain;
+            set_by_lua_block $vars {
+              local json = require("cjson")
+              local executableRule, proxyServerName = {}, nil
+              return cjson.encode({
+                executableRule = executableRule,
+                proxyServerName = proxyServerName
+              })
+            }
+            rewrite_by_lua_file /usr/local/openresty/nginx/html/api/router.lua;
+            access_by_lua_file /usr/local/openresty/nginx/html/api/execution.lua;    # this code run just before the setting the proxy pass and content phase.
+            content_by_lua_file /usr/local/openresty/nginx/html/api/response.lua;
 
-        set $proxy_host "127.0.0.1";
-        set $proxy_port "80";
-
-       # rewrite_by_lua_block {
-         # ngx.var.proxy_host = '127.0.0.1'
-         # ngx.var.proxy_port = '8080'
-       # }
-
-        location / {
-          default_type text/html;
-          rewrite_by_lua_file /usr/local/openresty/nginx/html/api/router.lua;
-          set $ngx_proxy_host_override "";
-          access_by_lua_block { -- this code run just before the setting the proxy pass and content phase.
-              ngx.var.ngx_proxy_host_override = ngx.ctx.proxy_host_override
+          # echo $proxy_host:$proxy_port;
+          # echo $upstream_server;
+          proxy_pass http://$upstream_server;
+        
           }
-          proxy_set_header Host $ngx_proxy_host_override;
-          proxy_pass http://global_backend;
-        }
 
         location = /frontdoor/opsapi/sync {
           default_type 'application/json';
@@ -490,7 +533,20 @@ keepalive 10; # connection pool
           content_by_lua_file /usr/local/openresty/nginx/html/api/sync_data.lua;
         }
 
-        location /ip-location {
+        location = /__resolver_test__
+        {
+        default_type text/html;
+          content_by_lua_block {
+            local resolver = require "local-resolver"
+            resolver = resolver.new("/etc/hosts")
+--              local host_ip_addr = resolver:resolve("kube-dns.kube-system.svc.cluster.local") -- kube-dns did not work
+            local host_ip_addr = resolver:resolve("localhost")  -- localhost worked
+            ngx.say(host_ip_addr)
+            ngx.exit(ngx.HTTP_OK)
+          }
+        }
+
+        location /__ip_location {
             default_type text/html;
             content_by_lua_block {
                 local ip2location = require('ip2location')
@@ -525,8 +581,7 @@ keepalive 10; # connection pool
             }
         }
 
-
-        location /test {            
+        location /__redis_test {            
             default_type 'application/json';
             content_by_lua_block {
                 local redis = require "resty.redis"
@@ -609,7 +664,7 @@ keepalive 10; # connection pool
         }
 
         #comment
-        #error_page  404              /404.html;
+        error_page  404              /404.html;
 
         # redirect server error pages to the static page /50x.html
         #
@@ -618,143 +673,10 @@ keepalive 10; # connection pool
             root   html;
         }
 
-        # proxy the PHP scripts to Apache listening on 127.0.0.1:80
-        #
-        #location ~ \.php$ {
-        #    proxy_pass   http://127.0.0.1;
-        #}
+        location ~ /\.ht {
+            deny  all;
+        }
 
-        # pass the PHP scripts to FastCGI server listening on 127.0.0.1:9000
-        #
-        #location ~ \.php$ {
-        #    root           html;
-        #    fastcgi_pass   127.0.0.1:9000;
-        #    fastcgi_index  index.php;
-        #    fastcgi_param  SCRIPT_FILENAME  /scripts$fastcgi_script_name;
-        #    include        fastcgi_params;
-        #}
-
-        # deny access to .htaccess files, if Apache's document root
-        # concurs with nginx's one
-        #
-        #location ~ /\.ht {
-        #    deny  all;
-        #}
-
-        location /start {
-          default_type text/html;
-          content_by_lua_block {
-            local session = require "resty.session".new()
-            session:set_subject("OpenResty Fan")
-            session:set("quote", "The quick brown fox jumps over the lazy dog")
-            local ok, err = session:save()
-           
-            ngx.say(string.format([[
-              <html>
-              <body>
-                <p>Session started (%s)</p>
-                <p><button><a href=/started>Check if it really was</a></button></p>
-              </body>
-              </html>
-            ]], err or "no error"))
-          }
-        }
-    
-        location /started {
-          default_type text/html;
-          content_by_lua_block {
-            local session, err = require "resty.session".start()
-            
-            ngx.say(string.format([[
-              <html>
-              <body>
-                <p>Session was started by %s (%s)</p>
-                <p><blockquote>%s</blockquote></p>
-                <p><button><a href=/modify>Modify the session</a></button></p>
-              </body>
-              </html>
-            ]],
-              session:get_subject() or "Anonymous",
-              err or "no error",
-              session:get("quote") or "no quote"
-            ))
-          }
-        }
-        
-        location /modify {
-          default_type text/html;
-          content_by_lua_block {
-            local session, err = require "resty.session".start()
-            session:set_subject("Lua Fan")
-            session:set("quote", "Lorem ipsum dolor sit amet")
-            local _, err_save = session:save()
-            
-            ngx.say(string.format([[
-              <html>
-              <body>
-                <p>Session was modified (%s)</p>
-                <p><a href=/modified>Check if it is modified</a></p>
-              </body>
-              </html>
-            ]], err or err_save or "no error"))
-          }
-        }
-        
-        location /modified {
-          default_type text/html;
-          content_by_lua_block {
-            local session, err = require "resty.session".start()
-    
-            ngx.say(string.format([[
-              <html>
-              <body>
-                <p>Session was started by %s (%s)</p>
-                <p><blockquote>%s</blockquote></p>
-                <p><button><a href=/destroy>Destroy the session</a></button></p>
-              </body>
-              </html>
-            ]],
-              session:get_subject() or "Anonymous",
-              err or "no error",
-              session:get("quote")  or "no quote"
-            ))
-          }
-        }
-        
-        location /destroy {
-          default_type text/html;
-          content_by_lua_block {
-            local ok, err = require "resty.session".destroy()
-    
-            ngx.say(string.format([[
-              <html>
-              <body>
-                <p>Session was destroyed (%s)</p>
-                <p><button><a href=/destroyed>Check that it really was?</a></button></p>
-              </body>
-              </html>
-            ]], err or "no error"))
-          }
-        }
-        
-        location /destroyed {
-          default_type text/html;
-          content_by_lua_block {
-            local session, err = require "resty.session".open()
-    
-            ngx.say(string.format([[
-              <html>
-              <body>
-                <p>Session was really destroyed, you are known as %s (%s)</p>
-                <p><button><a href=/>Start again</a></button></p>
-              </body>
-              </html>
-            ]],
-              session:get_subject() or "Anonymous",
-              err or "no error"
-            ))
-          }
-        }
     }
 
 

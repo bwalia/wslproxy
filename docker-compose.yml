@@ -12,7 +12,7 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8081:8080"
-      - "8080:80"
+      - "8000:80"
     networks:
       - whitefalcon-network
     volumes:
@@ -57,8 +57,8 @@ services:
   cdn_node:
     container_name: cdn-node
     build:
-      context: ./demos-origins/node-app
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: Dockerfile_nodeapp
     ports:
       - "3009:3009"
     networks:
