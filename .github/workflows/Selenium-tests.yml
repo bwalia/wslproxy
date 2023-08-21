@@ -23,5 +23,5 @@ jobs:
         working-directory: ./QA
         run: docker run selenium-tests    
         env: 
-        LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
-        LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
+          LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
+          LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
