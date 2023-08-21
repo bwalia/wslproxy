@@ -21,7 +21,7 @@ def test_login():
     chrome_options = webdriver.ChromeOptions()    
     # Add your options as needed    
     options = [
-         #"--headless",
+         "--headless",
          "--disable-gpu",
          "--no-sandbox",
     ]
