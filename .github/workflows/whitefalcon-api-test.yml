@@ -2,7 +2,7 @@ name: Whitefalcon Test Suite
 on:
   schedule:
    # - cron: '0 */12 * * *'
-    - cron: '5 4 * * fri'
+    - cron: '00 12 * * *'
   workflow_dispatch: 
     inputs:
       TARGET_ENV:
