@@ -21,7 +21,7 @@ jobs:
 
       - name: Test execution
         working-directory: ./QA
-        run: docker run selenium-tests    
+        run: docker run -e LOGIN_EMAIL=$LOGIN_EMAIL -e LOGIN_PASSWORD=$LOGIN_PASSWORD -e JWT_TOKEN_KEY=$JWT_TOKEN_KEY selenium-tests    
         env: 
           LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
           LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
