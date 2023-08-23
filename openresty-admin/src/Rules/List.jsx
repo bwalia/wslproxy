@@ -1,9 +1,17 @@
 import React from 'react';
-import { BooleanField, Datagrid, NumberField, List as RaList, TextField } from 'react-admin'
+import { BooleanField, Datagrid, NumberField, List as RaList, TextField, TopToolbar } from 'react-admin'
+import ExportJsonButton from './toolbar/ExportJsonButton';
+import ImportJsonButton from './toolbar/ImportJsonButton';
+
+const ListActions = () => (
+  <TopToolbar>
+      <ImportJsonButton />
+  </TopToolbar>
+);
 
 const List = () => {
   return (
-    <RaList title={"Rules"}>
+    <RaList title={"Rules"} exporter={ExportJsonButton} actions={<ListActions/>}>
         <Datagrid rowClick="edit">
             <TextField source='name' />
             <TextField source='priority' />

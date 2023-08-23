@@ -280,6 +280,30 @@ const dataProvider = (apiUrl, settings = {}) => {
         setSyncPopupOpen(false);
         setIsLoadig(false)
       }
+    },
+
+    importProjects: async (resource, params) => {
+      try {
+        setIsLoadig(true)
+        const url = `${apiUrl}/${resource}?_format=json`;
+        const response = await fetch(url, {
+          method: "POST",
+          body: JSON.stringify(params),
+          headers: getHeaders(),
+        });
+        if (response.status < 200 || response.status >= 300 && response.status !== 409) {
+          localStorage.removeItem("token");
+          localStorage.removeItem("uuid_business_id");
+          window.location.href = "/#/login";
+        }
+        const data = await response.json();
+        setIsLoadig(false)
+        return data;
+      } catch (error) {
+        console.log({ error });
+        setIsLoadig(false)
+        throw new Error(error);
+      }
     }
   }
 };
