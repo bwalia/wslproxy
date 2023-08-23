@@ -31,7 +31,7 @@ func TestCreateRuleForAccessAll(t *testing.T) {
 	url := targetHost + "/api/rules"
 	method := "POST"
 
-	payload := strings.NewReader(`{"version":1,"priority":1,"match":{"rules":{"path_key":"starts_with","path":"/","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"equals"},"response":{"allow":false,"code":305,"redirect_uri":"10.43.69.108:3009","message":"undefined"}},"name":"Access All Rule- gotest"}`)
+	payload := strings.NewReader(`{"version":1,"priority":1,"match":{"rules":{"path_key":"starts_with","path":"/","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"equals"},"response":{"allow":false,"code":305,"redirect_uri":"10.43.69.108:80","message":"undefined"}},"name":"Access All Rule- gotest"}`)
 
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, payload)
@@ -82,7 +82,7 @@ func TestCreateRuleForAccessApi(t *testing.T) {
 	url := targetHost + "/api/rules"
 	method := "POST"
 	tokenKey := os.Getenv("JWT_TOKEN_KEY")
-	payload := strings.NewReader(fmt.Sprintf(`{"version":1,"priority":1,"match":{"rules":{"path_key":"starts_with","path":"/api","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"cookie","jwt_token_validation_value":"Authorization","jwt_token_validation_key":"%s"},"response":{"allow":false,"code":305,"redirect_uri":"10.43.69.108:3009","message":"undefined"}},"name":"Access Api Rule-gotest"}`, tokenKey))
+	payload := strings.NewReader(fmt.Sprintf(`{"version":1,"priority":1,"match":{"rules":{"path_key":"starts_with","path":"/api","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"cookie","jwt_token_validation_value":"Authorization","jwt_token_validation_key":"%s"},"response":{"allow":false,"code":305,"redirect_uri":"10.43.69.108:80","message":"undefined"}},"name":"Access Api Rule-gotest"}`, tokenKey))
 
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, payload)
