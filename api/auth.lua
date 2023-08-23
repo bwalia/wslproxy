@@ -1,5 +1,5 @@
 ngx.var.proxy_host_override = ngx.ctx.proxy_host_override
-if false then
+if false then   --this is only for testing in container/pods
     ngx.var.proxy_host = "10.43.69.108"
     ngx.var.proxy_port = "3009"
 end
