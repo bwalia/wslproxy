@@ -367,8 +367,10 @@ const Form = () => {
             source="match.rules.jwt_token_validation"
             choices={[
               { id: "equals", name: "=" },
+              { id: "basic", name: "Basic Auth" },
               { id: "cookie", name: "Cookie header validation" },
               { id: "redis", name: "Redis token validation" },
+              { id: "header", name: "Header JWT token validation" },
             ]}
             fullWidth
             label="Token Validation"
@@ -393,6 +395,7 @@ const Form = () => {
                     fullWidth
                     label="Token Secret Key"
                     type="password"
+                    inputProps={{ autoComplete: "new-password" }}
                   />
                 )}
               </div>

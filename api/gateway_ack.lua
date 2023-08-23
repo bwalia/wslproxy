@@ -8,10 +8,12 @@
 -- No need to restart nginx when adding new backend servers
 -- No need to restart nginx when removing backend servers
 -- No need to restart nginx when changing the backend servers
+-- v1 - Initial version is taken and then modified for more API GW features in gateway.lua
+-- For authentication see auth.lua
+
 local cjson = require "cjson"
 local jwt = require "resty.jwt"
 Base64 = require "base64"
-ConfigPath = os.getenv("NGINX_CONFIG_DIR")
 Hostname = ngx.var.host
 local configPath = os.getenv("NGINX_CONFIG_DIR")
 
@@ -21,7 +23,7 @@ if redisHost == nil then
     redisHost = "localhost"
 end
 
-local function getSettings()
+local function loadGlobalSettings()
     local readSettings, errSettings = io.open(configPath .. "data/settings.json", "rb")
     local settings = {}
     if readSettings == nil then
@@ -49,7 +51,7 @@ local function splitString(inputString, separator)
     return result
 end
 
-local function getDataFromFile(path)
+local function loadFileContent(path)
     local fileData = nil
     local file, err = io.open(path, "rb")
     if file ~= nil then
@@ -59,38 +61,99 @@ local function getDataFromFile(path)
     return fileData, err
 end
 
-local function matchSecurityToken(rule)
+local function isEmpty(s)
+    return s == ''
+end
+
+local function isNil(s)
+    return s == nil
+end
+
+local function gatewayHostAuthenticate(rule)
     local isTokenVerified = true
-    if rule.jwt_token_validation_value ~= nil and rule.jwt_token_validation_key ~= nil then
-        local passPhrase = Base64.decode(rule.jwt_token_validation_key)
+    if rule.jwt_token_validation_key ~= nil and rule.jwt_token_validation_value ~= nil and type(rule.jwt_token_validation_key) ~= "userdata" and  type(rule.jwt_token_validation_value) ~= "userdata" then
+        local jwt_token_key_passphrase = tostring(rule.jwt_token_validation_key)
+        local jwt_token_key_val_value = tostring(rule.jwt_token_validation_value)
+    if isEmpty(jwt_token_key_passphrase) or isEmpty(jwt_token_key_val_value) then
+            isTokenVerified = true
+    else
+        local passPhrase = Base64.decode(jwt_token_key_passphrase)
         local reqHeaders = ngx.req.get_headers()
-        local securityToken = reqHeaders['cookie']
+        local securityToken = nil
+       	local tokenAuthTokenSource = nil
+
+        if rule.jwt_token_validation ~= nil then
+          tokenAuthTokenSource = rule.jwt_token_validation
+         end
+
+        if tokenAuthTokenSource == "cookie" then
+        securityToken = reqHeaders['cookie']
         if securityToken and securityToken ~= nil and type(securityToken) ~= nil then
-            local token = string.match(tostring(securityToken), rule.jwt_token_validation_value .. "=([^;]+)")
-            if token ~= nil then
-                token = string.gsub(token, "Bearer", "")
-                token = trimWhitespace(ngx.unescape_uri(token))
-                local verified_token = jwt:verify(passPhrase, token)
-                if not verified_token then
-                    isTokenVerified = false
-                end
+            local securityToken = string.match(tostring(securityToken), jwt_token_key_val_value .. "=([^;]+)")
+            if securityToken ~= nil then
+                securityToken = string.gsub(securityToken, "Bearer", "")
+                securityToken = trimWhitespace(ngx.unescape_uri(securityToken))
+                local isTokenVerified = jwt:verify(passPhrase, securityToken)
             else
                 isTokenVerified = false
             end
         else
             isTokenVerified = false
         end
+        end
+
+        if tokenAuthTokenSource == "header" then
+            securityToken = ngx.req.get_headers()[jwt_token_key_val_value]
+            if securityToken ~= nil then
+                isTokenVerified = false
+                securityToken = trimWhitespace(ngx.unescape_uri(securityToken))
+                local verified_token = jwt:verify(passPhrase, securityToken)
+                if not verified_token then
+                    isTokenVerified = false
+                end
+
+                ngx.say("header token found ok: "..jwt_token_key_val_value.." - "..securityToken)
+                ngx.exit(ngx.HTTP_OK)
+
+            else
+                isTokenVerified = true
+            end
+        end
+
+        -- if tokenAuthTokenSource == "redis" then
+        --     -- local redis = require "resty.redis"
+        --     -- local red = redis:new()
+        --     -- red:set_timeout(1000) -- 1 sec
+        --     -- local ok, err = red:connect(redisHost, 6379)
+        --     -- if not ok then
+        --     --     ngx.say("failed to connect: ", err)
+        --     --     return
+        --     -- end
+        --     -- local res, err = red:get("token:"..jwt_token_key_val_value)
+        --     -- if not res then
+        --     --     ngx.say("failed to get token: ", err)
+        --     --     return
+        --     -- end
+        --     -- securityToken = res
+        --     -- local ok, err = red:close()
+        --     -- if not ok then
+        --     --     ngx.say("failed to close: ", err)
+        --     --     return
+        --     -- end
+        -- end
+
     end
+end
     return isTokenVerified
 end
 
-local function check_rules(rules, ruleId, priority, message, statusCode, redirectUri)
+local function gatewayHostRulesParser(rules, ruleId, priority, message, statusCode, redirectUri)
     local chk_path = (rules.path ~= nil and type(rules.path) ~= "userdata") and trimWhitespace(rules.path) or rules.path
     local isPathPass, failMessage, isTokenPass = false, "", false
     local finalResult, results = {}, {}
     local req_url = ngx.var.request_uri
-    if rules.jwt_token_validation_value ~= nil and rules.jwt_token_validation_key ~= nil then
-        isTokenPass = matchSecurityToken(rules)
+    if rules.jwt_token_validation_value ~= nil and rules.jwt_token_validation_key ~= nil and type(rules.jwt_token_validation_value) ~= "userdata" and  type(rules.jwt_token_validation_key) ~= "userdata" then
+        isTokenPass = gatewayHostAuthenticate(rules)
     else
         isTokenPass = true
     end
@@ -194,15 +257,15 @@ local function hasAndCondition(tbl)
     return andKeys
 end
 
-local function matchRules(ruleId)
-    local settings = getSettings()
+local function gatewayRequestHandler(ruleId)
+    local settings = loadGlobalSettings()
     local ruleFromRedis = nil
-    ruleFromRedis = getDataFromFile(configPath .. "data/rules/" .. ruleId .. ".json")
+    ruleFromRedis = loadFileContent(configPath .. "data/rules/" .. ruleId .. ".json")
     if ruleFromRedis ~= nil and type(ruleFromRedis) ~= "userdata" then
         ruleFromRedis = cjson.decode(ruleFromRedis)
         if ruleFromRedis.match and ruleFromRedis.match.rules then
             -- check prefix and postfix URL
-            local results = check_rules(ruleFromRedis.match.rules, ruleFromRedis.id, ruleFromRedis.priority,
+            local results = gatewayHostRulesParser(ruleFromRedis.match.rules, ruleFromRedis.id, ruleFromRedis.priority,
                 ruleFromRedis.match.response.message, ruleFromRedis.match.response.code,
                 ruleFromRedis.match.response.redirect_uri)
             return results
@@ -269,13 +332,13 @@ local function isAllPathAllowed(myTable, targetPath)
 end
 
 
-local settings = getSettings()
+local settingsObj = loadGlobalSettings()
 local exist_values = nil
 
 local file, err = io.open(configPath .. "data/servers/host:" .. Hostname .. ".json", "rb")
 if file == nil then
-    if settings.nginx.default.no_server ~= nil then
-        do return ngx.say(Base64.decode(settings.nginx.default.no_server)) end
+    if settingsObj.nginx.default.no_server ~= nil then
+        do return ngx.say(Base64.decode(settingsObj.nginx.default.no_server)) end
     end
 else
     exist_values = file:read "*a"
@@ -332,7 +395,7 @@ local function isPathsValueUnique(table)
             processEntry(key, item)
             local path = item.paths
             local priority = item.path_priority
-    
+
             if priority > highestPriority then
                 highestPriority = priority
                 highestPriorityUUID = key
@@ -349,12 +412,12 @@ if exist_values and exist_values ~= 0 and exist_values ~= nil and exist_values ~
     local jsonval = cjson.decode(exist_values)
     local parse_rules = {}
     if jsonval.rules and type(jsonval.rules) ~= "userdata" then
-        table.insert(parse_rules, matchRules(jsonval.rules))
+        table.insert(parse_rules, gatewayRequestHandler(jsonval.rules))
         if jsonval.match_cases then
             local hasAnd = hasAndCondition(jsonval.match_cases)
             if next(hasAnd) ~= nil then
                 for inx, conditionRule in ipairs(hasAnd) do
-                    table.insert(parse_rules, matchRules(conditionRule))
+                    table.insert(parse_rules, gatewayRequestHandler(conditionRule))
                 end
             end
         end
@@ -523,22 +586,22 @@ if exist_values and exist_values ~= 0 and exist_values ~= nil and exist_values ~
             globalVars.proxyServerName = jsonval.proxy_server_name
             ngx.var.vars = cjson.encode(globalVars)
         else
-            if settings.nginx.default.conf_mismatch ~= nil then
-                ngx.header["Content-Type"] = settings.nginx.content_type ~= nil and settings.nginx.content_type or
+            if settingsObj.nginx.default.conf_mismatch ~= nil then
+                ngx.header["Content-Type"] = settingsObj.nginx.content_type ~= nil and settingsObj.nginx.content_type or
                     "text/html"
                 ngx.status = ngx.HTTP_FORBIDDEN
-                ngx.say(Base64.decode(settings.nginx.default.conf_mismatch))
+                ngx.say(Base64.decode(settingsObj.nginx.default.conf_mismatch))
             end
         end
     else
-        if settings.nginx.default.no_rule ~= nil then
-            ngx.say(Base64.decode(settings.nginx.default.no_rule))
+        if settingsObj.nginx.default.no_rule ~= nil then
+            ngx.say(Base64.decode(settingsObj.nginx.default.no_rule))
         end
     end
 else
     -- ngx.say("No Nginx Server Config found.")
-    if settings.nginx.default.no_server ~= nil then
-        ngx.say(Base64.decode(settings.nginx.default.no_server))
+    if settingsObj.nginx.default.no_server ~= nil then
+        ngx.say(Base64.decode(settingsObj.nginx.default.no_server))
     end
 end
 -- ngx.var.proxy_host_override = 'test313.yourdomain.com'
