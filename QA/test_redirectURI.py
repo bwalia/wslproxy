@@ -90,8 +90,13 @@ def test_redirectRule(setup, request):
     driver.find_element(By.XPATH, "//a[@id='tabheader-1']").click()
     driver.find_element(By.XPATH, "//div[@id='rules']").click()
     time.sleep(2)
-    driver.find_element(By.XPATH, "//li[contains(.,'redirect rule 305-py')]").click()
-    time.sleep(2)
+    try:
+        driver.find_element(By.XPATH, "//li[contains(.,'redirect rule 305-py')]").click()
+    except NoSuchElementException:
+        driver.execute_script("window.scrollBy(0, document.body.scrollHeight);")
+        time.sleep(2)
+        driver.find_element(By.XPATH, "//li[contains(.,'redirect rule 305-py')]").click()
+        time.sleep(2)
     
     driver.find_element(By.CSS_SELECTOR, ".button-add-match_cases").click()     
     time.sleep(2)  
@@ -133,8 +138,9 @@ def test_redirectRule(setup, request):
     driver.implicitly_wait(4)
 
     driver.get("http://qa.int6.whitefalcon.io/")
-    time.sleep(4)
+    time.sleep(2)
     driver.refresh()
+    time.sleep(2)
     response1 = driver.find_element(By.CSS_SELECTOR, "body").text
     assert "Login" in response1
     print(response1)

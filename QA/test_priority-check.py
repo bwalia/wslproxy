@@ -42,11 +42,10 @@ def test_priorityCheck(setup, request):
     element.send_keys(Keys.BACKSPACE * length)
     element.send_keys("200")
     time.sleep(2)
-    driver.find_element(By.NAME, "match.response.allow").click()
 
     driver.execute_script("window.scrollBy(0, document.body.scrollHeight);")
+    driver.find_element(By.NAME, "match.response.allow").click()
     driver.find_element(By.NAME, "match.response.message").send_keys("SGlnaCBwcmlvcml0eSBydWxl")
-
     driver.find_element(By.CSS_SELECTOR, ".MuiButton-sizeMedium").click()
 
 

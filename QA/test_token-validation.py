@@ -67,7 +67,7 @@ def test_authToken(setup, request):
     # except NoSuchElementException:
     #     driver.find_element(By.CSS_SELECTOR, ".button-add-match_cases").click()
     #     print("Not found the remove rule element")
-       
+    time.sleep(2)   
     driver.find_element(By.CSS_SELECTOR, ".button-add-match_cases").click()
     time.sleep(2)
     driver.find_element(By.XPATH, "//div[@id='match_cases.0.statement']").click()
@@ -99,7 +99,7 @@ def test_authToken(setup, request):
     print(response)
 
     # Login and get Authorization cookie
-    time.sleep(4)
+    time.sleep(2)
     driver.get("http://qa.int6.whitefalcon.io/")
     time.sleep(4)
     EMAIL = os.environ.get('LOGIN_EMAIL')
@@ -107,7 +107,7 @@ def test_authToken(setup, request):
     driver.find_element(By.NAME, "email").send_keys(EMAIL)
     driver.find_element(By.NAME, "password").send_keys(PASSWORD)
     driver.find_element(By.CSS_SELECTOR, "button[type='submit']").click()
-    time.sleep(4)
+    time.sleep(2)
     driver.refresh()
     driver.execute_script("location.reload()")
     login_text = driver.find_element(By.CLASS_NAME, "message-container").text
