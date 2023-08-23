@@ -40,7 +40,7 @@ securityContext: {}
 
 service:
   type: ClusterIP
-  port: 3009
+  port: 80
 
 ingress:
   enabled: true
@@ -53,8 +53,8 @@ ingress:
       paths:
         - path: /
           pathType: ImplementationSpecific
-          serviceName: node-app
-          servicePort: 3009
+          serviceName: wf-front-svc-int
+          servicePort: 80
   tls: []
   #  - secretName: chart-example-tls
   #    hosts:
