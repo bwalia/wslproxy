@@ -13,11 +13,12 @@ from selenium.webdriver.common.action_chains import ActionChains
 
 def test_authToken(setup, request):
     driver = request.function.driver
-    wait = WebDriverWait(driver, 10)
+    driver.implicitly_wait(20)
+
 
     # Creating rule for access all requests
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//a[@href='#/rules']"))).click()
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//a[@href='#/rules/create']"))).click()
+    driver.find_element(By.XPATH, "//a[@href='#/rules']").click()
+    driver.find_element(By.XPATH, "//a[@href='#/rules/create']").click()
     driver.find_element(By.NAME, "name").send_keys("Access all rule-py")
     driver.find_element(By.NAME, "match.rules.path").send_keys("/")
     element = driver.find_element(By.NAME, "match.response.code")
@@ -30,9 +31,10 @@ def test_authToken(setup, request):
     driver.find_element(By.CSS_SELECTOR, ".MuiButton-sizeMedium").click()
 
     # Creating rule for access request with /api
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//a[@href='#/rules']"))).click()
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//a[@href='#/rules/create']"))).click()
-    wait.until(expected_conditions.presence_of_element_located((By.NAME, "name"))).send_keys("Access api rule-py")
+    driver.find_element(By.XPATH, "//a[@href='#/rules']").click()
+    driver.find_element(By.XPATH, "//a[@href='#/rules/create']").click()
+    time.sleep(2)
+    driver.find_element(By.NAME, "name").send_keys("Access api rule-py")
     driver.find_element(By.NAME, "match.rules.path").send_keys("/api")
     driver.execute_script("window.scrollBy(0, document.body.scrollHeight);")
     driver.find_element(By.XPATH, "//div[@id='match.rules.jwt_token_validation']").click()
@@ -51,42 +53,47 @@ def test_authToken(setup, request):
     driver.refresh()
 
     # Apply both rules to the server
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//a[@href='#/servers']"))).click()
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//td[contains(.,'qa.int6.whitefalcon.io')]"))).click()
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//a[@id='tabheader-1']"))).click()
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//div[@id='rules']"))).click()
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//li[contains(.,'Access all rule-py')]"))).click()
-    try :
-        hover_element = driver.find_element(By.XPATH, "//div[@id='match_cases.0.condition']")
-        actions = ActionChains(driver)
-        actions.move_to_element(hover_element).perform()
-        wait.until(expected_conditions.presence_of_element_located((By.CSS_SELECTOR, ".button-remove-match_cases-0 > .MuiSvgIcon-root"))).click() 
-    except NoSuchElementException:
-        wait.until(expected_conditions.presence_of_element_located((By.CSS_SELECTOR, ".button-add-match_cases"))).click()
-        print("Not found the remove rule element")
+    driver.find_element(By.XPATH, "//a[@href='#/servers']").click()
+    driver.find_element(By.XPATH, "//td[contains(.,'qa.int6.whitefalcon.io')]").click()
+    driver.find_element(By.XPATH, "//a[@id='tabheader-1']").click()
+    driver.find_element(By.XPATH, "//div[@id='rules']").click()
+    time.sleep(2)
+    driver.find_element(By.XPATH, "//li[contains(.,'Access all rule-py')]").click()
+    # try :
+    #     hover_element = driver.find_element(By.XPATH, "//div[@id='match_cases.0.condition']")
+    #     actions = ActionChains(driver)
+    #     actions.move_to_element(hover_element).perform()
+    #     driver.find_element(By.CSS_SELECTOR, ".button-remove-match_cases-0 > .MuiSvgIcon-root").click() 
+    # except NoSuchElementException:
+    #     driver.find_element(By.CSS_SELECTOR, ".button-add-match_cases").click()
+    #     print("Not found the remove rule element")
+       
+    driver.find_element(By.CSS_SELECTOR, ".button-add-match_cases").click()
+    time.sleep(2)
+    driver.find_element(By.XPATH, "//div[@id='match_cases.0.statement']").click()
+    time.sleep(2)
+    driver.find_element(By.XPATH, "//li[contains(.,'Access api rule-py')]").click()
 
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//div[@id='match_cases.0.statement']"))).click()
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//li[contains(.,'Access api rule-py')]"))).click()
-
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//div[@id='match_cases.0.condition']"))).click()
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//li[contains(text(),'AND')]"))).click()
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//button[normalize-space()='Save']"))).click()
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//a[@href='#/servers']"))).click()
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//td[contains(.,'qa.int6.whitefalcon.io')]"))).click()
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//a[@id='tabheader-1']"))).click()
+    driver.find_element(By.XPATH, "//div[@id='match_cases.0.condition']").click()
+    driver.find_element(By.XPATH, "//li[contains(text(),'AND')]").click()
+    time.sleep(2)
+    driver.find_element(By.XPATH, "//button[normalize-space()='Save']").click()
+    driver.find_element(By.XPATH, "//a[@href='#/servers']").click()
+    driver.find_element(By.XPATH, "//td[contains(.,'qa.int6.whitefalcon.io')]").click()
+    driver.find_element(By.XPATH, "//a[@id='tabheader-1']").click()
     driver.refresh()
     driver.back()
     driver.execute_script("location.reload()")
 
     # Clicking the sync API button
     time.sleep(4)
-    sync_button = wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//button[@aria-label='Sync API Storage']")))
+    sync_button = driver.find_element(By.XPATH, "//button[@aria-label='Sync API Storage']")
     sync_button.click()
     time.sleep(4)
 
     # Accessing API without Authorization token in cookies
     driver.get("http://qa.int6.whitefalcon.io/api/v2/sample-data.json")
-    response = wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//h1[normalize-space()='Configuration not match!']"))).text
+    response = driver.find_element(By.XPATH, "//h1[normalize-space()='Configuration not match!']").text
     time.sleep(2)
     assert "Configuration not match!" in response
     print(response)

@@ -13,11 +13,11 @@ from selenium.webdriver.common.action_chains import ActionChains
 
 def test_priorityCheck(setup, request):
     driver = request.function.driver
-    wait = WebDriverWait(driver, 10)
+    driver.implicitly_wait(20)
 
     # Creating a server
     time.sleep(2)
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//a[@href='#/servers']"))).click()
+    driver.find_element(By.XPATH, "//a[@href='#/servers']").click()
     driver.find_element(By.XPATH, "//a[@href='#/servers/create']").click()
     driver.find_element(By.NAME, "listens.0.listen").send_keys("82")
     driver.find_element(By.NAME, "server_name").send_keys("qa.int6.whitefalcon.io")
@@ -26,8 +26,8 @@ def test_priorityCheck(setup, request):
     driver.find_element(By.CSS_SELECTOR, ".MuiButton-sizeMedium").click()
 
     # Creating rule with a high priority
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//a[@href='#/rules']"))).click()
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//a[@href='#/rules/create']"))).click()
+    driver.find_element(By.XPATH, "//a[@href='#/rules']").click()
+    driver.find_element(By.XPATH, "//a[@href='#/rules/create']").click()
     driver.find_element(By.NAME, "name").send_keys("High priority rule-py")
     priority = driver.find_element(By.NAME, "priority")
     priority.click()
@@ -41,6 +41,7 @@ def test_priorityCheck(setup, request):
     length = len(element.get_attribute("value"))
     element.send_keys(Keys.BACKSPACE * length)
     element.send_keys("200")
+    time.sleep(2)
     driver.find_element(By.NAME, "match.response.allow").click()
 
     driver.execute_script("window.scrollBy(0, document.body.scrollHeight);")
@@ -51,9 +52,9 @@ def test_priorityCheck(setup, request):
 
     # Creating rule with a low priority
     time.sleep(2)
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//a[@href='#/rules']"))).click()
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//a[@href='#/rules/create']"))).click()
-    wait.until(expected_conditions.presence_of_element_located((By.NAME, "name"))).send_keys("Low priority rule-py")
+    driver.find_element(By.XPATH, "//a[@href='#/rules']").click()
+    driver.find_element(By.XPATH, "//a[@href='#/rules/create']").click()
+    driver.find_element(By.NAME, "name").send_keys("Low priority rule-py")
     priority = driver.find_element(By.NAME, "priority")
     priority.click()
     priority.send_keys(Keys.END)
@@ -76,26 +77,25 @@ def test_priorityCheck(setup, request):
     driver.refresh()
 
     # Apply both rules to the server
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//a[@href='#/servers']"))).click()
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//td[contains(.,'qa.int6.whitefalcon.io')]"))).click()
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//a[@id='tabheader-1']"))).click()
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//div[@id='rules']"))).click()
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//li[contains(.,'High priority rule-py')]"))).click()
-     
-    wait.until(expected_conditions.presence_of_element_located((By.CSS_SELECTOR, ".button-add-match_cases"))).click()
-
-
+    driver.find_element(By.XPATH, "//a[@href='#/servers']").click()
+    driver.find_element(By.XPATH, "//td[contains(.,'qa.int6.whitefalcon.io')]").click()
+    driver.find_element(By.XPATH, "//a[@id='tabheader-1']").click()
+    driver.find_element(By.XPATH, "//div[@id='rules']").click()
     time.sleep(2)
-
+    driver.find_element(By.XPATH, "//li[contains(.,'High priority rule-py')]").click()
+     
+    driver.find_element(By.CSS_SELECTOR, ".button-add-match_cases").click()
+    time.sleep(2)
     driver.find_element(By.XPATH, "//div[@id='match_cases.0.statement']").click()
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//li[contains(.,'Low priority rule-py')]"))).click()
+    time.sleep(2)
+    driver.find_element(By.XPATH, "//li[contains(.,'Low priority rule-py')]").click()
 
     driver.find_element(By.XPATH, "//div[@id='match_cases.0.condition']").click()
     driver.find_element(By.XPATH, "//li[contains(text(),'AND')]").click()
     driver.find_element(By.XPATH, "//button[normalize-space()='Save']").click()
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//a[@href='#/servers']"))).click()
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//td[contains(.,'qa.int6.whitefalcon.io')]"))).click()
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//a[@id='tabheader-1']"))).click()
+    driver.find_element(By.XPATH, "//a[@href='#/servers']").click()
+    driver.find_element(By.XPATH, "//td[contains(.,'qa.int6.whitefalcon.io')]").click()
+    driver.find_element(By.XPATH, "//a[@id='tabheader-1']").click()
     driver.refresh()
     driver.back()
     driver.execute_script("location.reload()")

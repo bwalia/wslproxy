@@ -18,6 +18,8 @@ def test_redirectRule(setup, request):
 
 # Creating redirect rule with 305
     # time.sleep(2)
+    driver.implicitly_wait(20)
+
     driver.find_element(By.XPATH, "//a[@href='#/rules']").click()
     driver.find_element(By.XPATH, "//a[@href='#/rules/create']").click()
     driver.find_element(By.NAME, "name").send_keys("redirect rule 305-py")
@@ -40,13 +42,12 @@ def test_redirectRule(setup, request):
 
 # Creating redirect rule with 302
     time.sleep(2)
-    wait = WebDriverWait(driver, 15)
 
     driver.find_element(By.XPATH, "//a[@href='#/rules']").click()
     driver.find_element(By.XPATH, "//a[@href='#/rules/create']").click()
     driver.find_element(By.NAME, "name").send_keys("redirect rule 302-py")
     time.sleep(2)
-    wait.until(expected_conditions.presence_of_element_located((By.NAME, "match.rules.path"))).send_keys("/football")
+    driver.find_element(By.NAME, "match.rules.path").send_keys("/football")
     driver.execute_script("window.scrollBy(0, document.body.scrollHeight);")
     element = driver.find_element(By.NAME, "match.response.code")
     # Clear the text using backspace key
@@ -83,28 +84,30 @@ def test_redirectRule(setup, request):
     driver.refresh()
 
     # Apply rules to the server
-
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//a[@href='#/servers']"))).click()
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//td[contains(.,'qa.int6.whitefalcon.io')]"))).click()
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//a[@id='tabheader-1']"))).click()
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//div[@id='rules']"))).click()
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//li[contains(.,'redirect rule 305-py')]"))).click()
+    time.sleep(2)
+    driver.find_element(By.XPATH, "//a[@href='#/servers']").click()
+    driver.find_element(By.XPATH, "//td[contains(.,'qa.int6.whitefalcon.io')]").click()
+    driver.find_element(By.XPATH, "//a[@id='tabheader-1']").click()
+    driver.find_element(By.XPATH, "//div[@id='rules']").click()
+    time.sleep(2)
+    driver.find_element(By.XPATH, "//li[contains(.,'redirect rule 305-py')]").click()
     time.sleep(2)
     
-    wait.until(expected_conditions.presence_of_element_located((By.CSS_SELECTOR, ".button-add-match_cases"))).click()     
+    driver.find_element(By.CSS_SELECTOR, ".button-add-match_cases").click()     
     time.sleep(2)  
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//div[@id='match_cases.0.statement']"))).click()
+    driver.find_element(By.XPATH, "//div[@id='match_cases.0.statement']").click()
     time.sleep(2)
     driver.execute_script("window.scrollBy(0, document.body.scrollHeight);")
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//li[contains(.,'redirect rule 302-py')]"))).click()
+    driver.find_element(By.XPATH, "//li[contains(.,'redirect rule 302-py')]").click()
     driver.find_element(By.XPATH, "//div[@id='match_cases.0.condition']").click()
     driver.find_element(By.XPATH, "//li[contains(text(),'AND')]").click()
 
 
 
-    wait.until(expected_conditions.presence_of_element_located((By.CSS_SELECTOR, ".button-add-match_cases"))).click()       
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//div[@id='match_cases.1.statement']"))).click()
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//li[contains(.,'redirect rule 301-py')]"))).click()
+    driver.find_element(By.CSS_SELECTOR, ".button-add-match_cases").click()       
+    driver.find_element(By.XPATH, "//div[@id='match_cases.1.statement']").click()
+    time.sleep(2)
+    driver.find_element(By.XPATH, "//li[contains(.,'redirect rule 301-py')]").click()
     driver.find_element(By.XPATH, "//div[@id='match_cases.1.condition']").click()
     driver.find_element(By.XPATH, "//li[contains(text(),'AND')]").click()
 
@@ -112,10 +115,10 @@ def test_redirectRule(setup, request):
     time.sleep(2)
     driver.execute_script("window.scrollBy(0, document.body.scrollHeight);")
     time.sleep(2)
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//button[normalize-space()='Save']"))).click()
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//a[@href='#/servers']"))).click()
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//td[contains(.,'qa.int6.whitefalcon.io')]"))).click()
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//a[@id='tabheader-1']"))).click()
+    driver.find_element(By.XPATH, "//button[normalize-space()='Save']").click()
+    driver.find_element(By.XPATH, "//a[@href='#/servers']").click()
+    driver.find_element(By.XPATH, "//td[contains(.,'qa.int6.whitefalcon.io')]").click()
+    driver.find_element(By.XPATH, "//a[@id='tabheader-1']").click()
     driver.refresh()
     driver.back()
     driver.execute_script("location.reload()")
@@ -127,6 +130,8 @@ def test_redirectRule(setup, request):
     time.sleep(4)
 
     # Verifying the rule redirect with 305
+    driver.implicitly_wait(4)
+
     driver.get("http://qa.int6.whitefalcon.io/")
     time.sleep(4)
     driver.refresh()
@@ -144,8 +149,8 @@ def test_redirectRule(setup, request):
 
     # Verifying the rule redirect with 301
     driver.get("http://qa.int6.whitefalcon.io/cricket")
-    time.sleep(4)
     driver.refresh()
+    time.sleep(4)
     response3 = driver.find_element(By.XPATH, "//a[@href='/sport/cricket']").text
     assert "Cricket" in response3
     print(response3)

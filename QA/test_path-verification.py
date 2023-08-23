@@ -18,6 +18,8 @@ def test_pathRule(setup, request):
 
 # Creating rule for path condition - starts with
     # time.sleep(2)
+    driver.implicitly_wait(15)
+
     driver.find_element(By.XPATH, "//a[@href='#/rules']").click()
     driver.find_element(By.XPATH, "//a[@href='#/rules/create']").click()
     driver.find_element(By.NAME, "name").send_keys("Path rule starts with-py")
@@ -40,15 +42,14 @@ def test_pathRule(setup, request):
 
 # Creating rule for path condition - ends with
     time.sleep(2)
-    wait = WebDriverWait(driver, 15)
 
     driver.find_element(By.XPATH, "//a[@href='#/rules']").click()
     driver.find_element(By.XPATH, "//a[@href='#/rules/create']").click()
     driver.find_element(By.NAME, "name").send_keys("Path rule ends with-py")
     driver.find_element(By.XPATH, "//div[@id='match.rules.path_key']").click()
     time.sleep(2)
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//li[contains(.,'Ends With')]"))).click()
-    wait.until(expected_conditions.presence_of_element_located((By.NAME, "match.rules.path"))).send_keys("ter")
+    driver.find_element(By.XPATH, "//li[contains(.,'Ends With')]").click()
+    driver.find_element(By.NAME, "match.rules.path").send_keys("ter")
     driver.execute_script("window.scrollBy(0, document.body.scrollHeight);")
     element = driver.find_element(By.NAME, "match.response.code")
     # Clear the text using backspace key
@@ -71,7 +72,7 @@ def test_pathRule(setup, request):
     driver.find_element(By.NAME, "name").send_keys("Path rule equals-py")
     driver.find_element(By.XPATH, "//div[@id='match.rules.path_key']").click()
     time.sleep(2)
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//li[normalize-space()='Equals']"))).click()
+    driver.find_element(By.XPATH, "//li[normalize-space()='Equals']").click()
     driver.find_element(By.NAME, "match.rules.path").send_keys("/path")
     driver.execute_script("window.scrollBy(0, document.body.scrollHeight);")
     element = driver.find_element(By.NAME, "match.response.code")
@@ -89,11 +90,12 @@ def test_pathRule(setup, request):
 
     # Apply rules to the server
 
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//a[@href='#/servers']"))).click()
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//td[contains(.,'qa.int6.whitefalcon.io')]"))).click()
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//a[@id='tabheader-1']"))).click()
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//div[@id='rules']"))).click()
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//li[contains(.,'Path rule starts with-py')]"))).click()
+    driver.find_element(By.XPATH, "//a[@href='#/servers']").click()
+    driver.find_element(By.XPATH, "//td[contains(.,'qa.int6.whitefalcon.io')]").click()
+    driver.find_element(By.XPATH, "//a[@id='tabheader-1']").click()
+    driver.find_element(By.XPATH, "//div[@id='rules']").click()
+    time.sleep(2)
+    driver.find_element(By.XPATH, "//li[contains(.,'Path rule starts with-py')]").click()
     time.sleep(2)
     # try :
     #     hover_element = driver.find_element(By.XPATH, "//div[@id='match_cases.0.condition']")
@@ -110,20 +112,20 @@ def test_pathRule(setup, request):
     #     except NoSuchElementException:
     #       print("Not found the remove rule element")
     
-    wait.until(expected_conditions.presence_of_element_located((By.CSS_SELECTOR, ".button-add-match_cases"))).click()     
+    driver.find_element(By.CSS_SELECTOR, ".button-add-match_cases").click()     
     time.sleep(2)  
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//div[@id='match_cases.0.statement']"))).click()
-    time.sleep(2)
+    driver.find_element(By.XPATH, "//div[@id='match_cases.0.statement']").click()
     driver.execute_script("window.scrollBy(0, document.body.scrollHeight);")
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//li[contains(.,'Path rule ends with-py')]"))).click()
+    time.sleep(2)
+    driver.find_element(By.XPATH, "//li[contains(.,'Path rule ends with-py')]").click()
     driver.find_element(By.XPATH, "//div[@id='match_cases.0.condition']").click()
     driver.find_element(By.XPATH, "//li[contains(text(),'AND')]").click()
 
 
 
-    wait.until(expected_conditions.presence_of_element_located((By.CSS_SELECTOR, ".button-add-match_cases"))).click()       
+    driver.find_element(By.CSS_SELECTOR, ".button-add-match_cases").click()       
     driver.find_element(By.XPATH, "//div[@id='match_cases.1.statement']").click()
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//li[contains(.,'Path rule equals-py')]"))).click()
+    driver.find_element(By.XPATH, "//li[contains(.,'Path rule equals-py')]").click()
     driver.find_element(By.XPATH, "//div[@id='match_cases.1.condition']").click()
     driver.find_element(By.XPATH, "//li[contains(text(),'AND')]").click()
 
@@ -132,9 +134,9 @@ def test_pathRule(setup, request):
     driver.execute_script("window.scrollBy(0, document.body.scrollHeight);")
 
     driver.find_element(By.XPATH, "//button[normalize-space()='Save']").click()
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//a[@href='#/servers']"))).click()
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//td[contains(.,'qa.int6.whitefalcon.io')]"))).click()
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//a[@id='tabheader-1']"))).click()
+    driver.find_element(By.XPATH, "//a[@href='#/servers']").click()
+    driver.find_element(By.XPATH, "//td[contains(.,'qa.int6.whitefalcon.io')]").click()
+    driver.find_element(By.XPATH, "//a[@id='tabheader-1']").click()
     driver.refresh()
     driver.back()
     driver.execute_script("location.reload()")

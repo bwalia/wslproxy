@@ -31,6 +31,7 @@ def setup(request):
     
     driver = webdriver.Chrome(options = chrome_options)
 
+    driver.implicitly_wait(15)
     driver.get("http://api.int6.whitefalcon.io/")
     EMAIL = os.environ.get('LOGIN_EMAIL')
     PASSWORD = os.environ.get('LOGIN_PASSWORD')
@@ -38,17 +39,17 @@ def setup(request):
     driver.find_element(By.NAME, "email").send_keys(EMAIL)
     driver.find_element(By.NAME, "password").send_keys(PASSWORD)
     driver.find_element(By.XPATH, "//button[@type='submit']").click()
-    wait = WebDriverWait(driver, 10)
     try:
         time.sleep(4)
-        wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//button[normalize-space()='Redis']"))).click()
+        driver.find_element(By.XPATH, "//button[normalize-space()='Redis']").click()
         #wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//button[normalize-space()='Disk']"))).click()
     except NoSuchElementException:
         driver.get("http://api.int6.whitefalcon.io/")
+        time.sleep(2)
         driver.find_element(By.NAME, "email").send_keys(EMAIL)
         driver.find_element(By.NAME, "password").send_keys(PASSWORD)
         driver.find_element(By.XPATH, "//button[@type='submit']").click()
-        wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//button[normalize-space()='Redis']"))).click()
+        driver.find_element(By.XPATH, "//button[normalize-space()='Redis']").click()
 
 
 
@@ -63,12 +64,11 @@ def setup(request):
     driver.find_element(By.CSS_SELECTOR, ".MuiButton-sizeMedium").click()
     request.function.driver = driver
     yield
+    time.sleep(2)
     driver.get("http://api.int6.whitefalcon.io/#/")
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//a[@href='#/servers']"))).click()
-    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "(//input[@type='checkbox'])[2]"))).click()
-    wait.until(expected_conditions.presence_of_element_located((By.CSS_SELECTOR, "button[aria-label='Delete']"))).click()
-    time.sleep(4)
-    driver.back()
-    driver.forward()
+    driver.find_element(By.XPATH, "//a[@href='#/servers']").click()
+    driver.find_element(By.XPATH, "(//input[@type='checkbox'])[2]").click()
+    driver.find_element(By.CSS_SELECTOR, "button[aria-label='Delete']").click()
+    time.sleep(6)
     driver.refresh()
     driver.close()
