@@ -61,12 +61,15 @@ local function loadFileContent(path)
     return fileData, err
 end
 
-local function isEmpty(s)
-    return s == ''
-end
-
 local function isNil(s)
     return s == nil
+end
+
+local function isEmpty(s)
+    if isNil(s) then
+        return true
+    end
+    return s == ''
 end
 
 local function gatewayHostAuthenticate(rule)
@@ -306,7 +309,9 @@ end
 local function isAnyPathExists(myTable, targetPath)
     local isPathEqual = false
     for _, entry in pairs(myTable) do
-        if entry.paths_key == "starts_with" and targetPath:startswith(entry.paths) == true and entry.paths ~= "/" then
+        if isEmpty(entry.paths) then
+            isPathEqual = false 
+        elseif entry.paths_key == "starts_with" and targetPath:startswith(entry.paths) == true and entry.paths ~= "/" then
             isPathEqual = true
             break
         elseif entry.paths_key == 'ends_with' and targetPath:endswith(entry.paths) == true and entry.paths ~= "/" then
