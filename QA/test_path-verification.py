@@ -121,7 +121,14 @@ def test_pathRule(setup, request):
 
     wait_for_element(By.CSS_SELECTOR, ".button-add-match_cases").click()       
     wait_for_element(By.XPATH, "//div[@id='match_cases.1.statement']").click()
-    wait_for_element(By.XPATH, "//li[contains(.,'Path rule equals-py')]").click()
+    time.sleep(2)
+    try:
+        wait_for_element(By.XPATH, "//li[contains(.,'Path rule equals-py')]").click()
+    except:
+        driver.execute_script("window.scrollBy(0, document.body.scrollHeight);")
+        time.sleep(2)
+        wait_for_element(By.XPATH, "//li[contains(.,'Path rule equals-py')]").click()
+
     wait_for_element(By.XPATH, "//div[@id='match_cases.1.condition']").click()
     wait_for_element(By.XPATH, "//li[contains(text(),'AND')]").click()
 

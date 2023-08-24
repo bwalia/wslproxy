@@ -102,7 +102,7 @@ def test_redirectRule(setup, request):
         wait_for_element(By.XPATH, "//li[contains(.,'redirect rule 305-py')]").click()
         time.sleep(2)
         print("rule not found")
-    
+    time.sleep(2)
     wait_for_element(By.CSS_SELECTOR, ".button-add-match_cases").click()     
     time.sleep(2)  
     wait_for_element(By.XPATH, "//div[@id='match_cases.0.statement']").click()
@@ -113,7 +113,7 @@ def test_redirectRule(setup, request):
     time.sleep(2)
     wait_for_element(By.XPATH, "//li[contains(text(),'AND')]").click()
     time.sleep(2)
-    
+
     wait_for_element(By.CSS_SELECTOR, ".button-add-match_cases").click()       
     wait_for_element(By.XPATH, "//div[@id='match_cases.1.statement']").click()
     time.sleep(2)
@@ -151,6 +151,8 @@ def test_redirectRule(setup, request):
     # Verifying the rule redirect with 302
     time.sleep(2)
     driver.get("http://qa.int6.whitefalcon.io/football")
+    wait.until(expected_conditions.title_contains("Football"))
+
     driver.refresh()
     time.sleep(2)
     try:
@@ -162,7 +164,10 @@ def test_redirectRule(setup, request):
         assert "Football" in response2
         print(response2, "-Second attempt")
     # Verifying the rule redirect with 301
+
     driver.get("http://qa.int6.whitefalcon.io/cricket")
+    wait.until(expected_conditions.title_contains("Cricket"))
+
     driver.refresh()
     time.sleep(4)
     response3 = wait_for_element(By.XPATH, "//a[@href='/sport/cricket']").text
