@@ -71,6 +71,7 @@ def setup(request):
     wait = WebDriverWait(driver, 10)
     try:
         driver.get("http://api.int6.whitefalcon.io/#/")
+        time.sleep(4)
     except:
         driver.execute_script("window.location.href = 'http://api.int6.whitefalcon.io#/';")
     
