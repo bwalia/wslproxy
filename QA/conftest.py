@@ -32,6 +32,8 @@ def setup(request):
     driver = webdriver.Chrome(options = chrome_options)
 
     driver.implicitly_wait(15)
+    driver.delete_all_cookies()
+
     driver.get("http://api.int6.whitefalcon.io/")
     EMAIL = os.environ.get('LOGIN_EMAIL')
     PASSWORD = os.environ.get('LOGIN_PASSWORD')
@@ -43,7 +45,7 @@ def setup(request):
         time.sleep(4)
         driver.find_element(By.XPATH, "//button[normalize-space()='Redis']").click()
         #wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//button[normalize-space()='Disk']"))).click()
-    except NoSuchElementException:
+    except:
         driver.get("http://api.int6.whitefalcon.io/")
         time.sleep(2)
         driver.find_element(By.NAME, "email").send_keys(EMAIL)
