@@ -56,6 +56,7 @@ def setup(request):
     # Creating a server
     time.sleep(2)
     driver.find_element(By.XPATH, "//a[@href='#/servers']").click()
+    time.sleep(2)
     driver.find_element(By.XPATH, "//a[@href='#/servers/create']").click()
     driver.find_element(By.NAME, "listens.0.listen").send_keys("82")
     driver.find_element(By.NAME, "server_name").send_keys("qa.int6.whitefalcon.io")
@@ -65,7 +66,12 @@ def setup(request):
     request.function.driver = driver
     yield
     time.sleep(2)
-    driver.get("http://api.int6.whitefalcon.io/#/")
+    wait = WebDriverWait(driver, 10)
+    try:
+        driver.get("http://api.int6.whitefalcon.io/#/")
+    except:
+        driver.execute_script("window.location.href = 'http://api.int6.whitefalcon.io#/';")
+    
     driver.find_element(By.XPATH, "//a[@href='#/servers']").click()
     driver.find_element(By.XPATH, "(//input[@type='checkbox'])[2]").click()
     driver.find_element(By.CSS_SELECTOR, "button[aria-label='Delete']").click()
