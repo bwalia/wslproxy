@@ -40,7 +40,7 @@ securityContext: {}
 
 service:
   type: ClusterIP
-  port: 80
+  port: 3009
 
 ingress:
   enabled: true
@@ -49,16 +49,16 @@ ingress:
     # kubernetes.io/ingress.class: nginx
     # kubernetes.io/tls-acme: "true"
   hosts:
-    - host: nodeapp.whitefalcon.io
+    - host: nodeapp-origin.whitefalcon.io
       paths:
         - path: /
           pathType: ImplementationSpecific
-          serviceName: wf-front-svc-int
-          servicePort: 80
+          serviceName: node-app
+          servicePort: 3009
   tls: []
   #  - secretName: chart-example-tls
   #    hosts:
-  #      - nodeapp.whitefalcon.io
+  #      - hitefalcon.io
 
 resources: {}
   # We usually recommend not to specify default resources and to leave this as a conscious
