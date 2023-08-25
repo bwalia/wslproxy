@@ -297,7 +297,8 @@ const dataProvider = (apiUrl, settings = {}) => {
           window.location.href = "/#/login";
         }
         const data = await response.json();
-        setIsLoadig(false)
+        setIsLoadig(false);
+        window.location.reload();
         return data;
       } catch (error) {
         console.log({ error });

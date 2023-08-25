@@ -1153,6 +1153,25 @@ local function createUpdateSettings(body, uuid)
     end
 end
 
+-- Import rules and servers from json file
+local function importProjects(args)
+    args = GetPayloads(args)
+    local response, formattedJson = nil, {}
+    local redisKey = args.dataType == "rules" and "request_rules" or args.dataType
+    for key, value in pairs(args.data) do
+        if settings.storage_type == "redis" then
+            formattedJson[value.id] = cjson.encode(value)
+            red:hmset(redisKey, formattedJson)
+            response = setDataToFile(configPath .. "data/" .. args.dataType .. "/" .. value.id .. ".json", value)
+        else
+            response = setDataToFile(configPath .. "data/" .. args.dataType .. "/" .. value.id .. ".json", value)
+        end
+    end
+    ngx.say(cjson.encode({
+        data = response
+    }))
+end
+
 local function handle_get_request(args, path)
     -- handle GET request logic
     local delimiter = "/"
@@ -1210,6 +1229,9 @@ local function handle_post_request(args, path)
     end
     if path == "settings" then
         createUpdateSettings(args)
+    end
+    if path == "projects/import" then
+        importProjects(args)
     end
 end
 
