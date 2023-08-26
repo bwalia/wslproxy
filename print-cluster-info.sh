@@ -25,3 +25,4 @@ $KUBECTL_CMD cluster-info
 $HELM_CMD ls -A | grep whitefalcon
 $KUBECTL_CMD get deploy,svc,pods,ing -A | grep whitefalcon
 $KUBECTL_CMD get svc -A | grep wf
+$KUBECTL_CMD get svc -A | grep node
