@@ -29,8 +29,6 @@ on:
         - k3s10
         - all
 
-env:
-
 jobs:
   k3s10:
     runs-on: [self-hosted-node10]
