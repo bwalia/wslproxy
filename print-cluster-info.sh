@@ -9,15 +9,15 @@ else
    echo "Cluster is provided ok"
 fi
 
-echo "Printing $3 cluster pods, services and ingress related to whitefalcon INT, TEST and ACC environments"
+echo "Printing $1 cluster pods, services and ingress related to whitefalcon INT, TEST and ACC environments"
 
 HELM_CMD="helm"
 KUBECTL_CMD="kubectl"
 
-echo "Deploying to $3 cluster"
+echo "Deploying to $1 cluster"
 # Init kubeconfig for the cluster
-HELM_CMD="helm --kubeconfig /home/bwalia/.kube/vpn-$3.yaml"
-KUBECTL_CMD="kubectl --kubeconfig /home/bwalia/.kube/vpn-$3.yaml"
+HELM_CMD="helm --kubeconfig /home/bwalia/.kube/vpn-$1.yaml"
+KUBECTL_CMD="kubectl --kubeconfig /home/bwalia/.kube/vpn-$1.yaml"
 
 $KUBECTL_CMD version
 $KUBECTL_CMD cluster-info
