@@ -280,7 +280,7 @@ const Form = () => {
     <SimpleForm toolbar={<Toolbar />}>
       <h3>Enter the Rule below:</h3>
       <Grid container spacing={2}>
-        <Grid item xs={6}>
+        <Grid item xs={4}>
           <TextInput
             source="name"
             label="Rule Name"
@@ -288,10 +288,18 @@ const Form = () => {
             fullWidth
           />
         </Grid>
-        <Grid item xs={3}>
+        <Grid item xs={4}>
+          <SelectInput source="profiles" choices={[
+            {"id": "dev", "name": "Dev"},
+            {"id": "test", "name": "Test"},
+            {"id": "acc", "name": "Acc"},
+            {"id": "prod", "name": "Prod"},
+          ]} />
+        </Grid>
+        <Grid item xs={2}>
           <NumberInput source="version" defaultValue={1} fullWidth />
         </Grid>
-        <Grid item xs={3}>
+        <Grid item xs={2}>
           <NumberInput source="priority" defaultValue={1} fullWidth />
         </Grid>
 

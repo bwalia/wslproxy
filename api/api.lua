@@ -1172,6 +1172,56 @@ local function importProjects(args)
     }))
 end
 
+-- Hanlde the Profiles settings
+
+local function listDirectories(path)
+    local directories = {}
+    local p = io.popen('ls -d ' .. path .. '/*/ 2>/dev/null')  -- Using shell command to list directories
+
+    for directory in p:lines() do
+        local dirName = directory:match("^.+/(.-)/$")  -- Extract the directory name
+        table.insert(directories, dirName)
+    end
+
+    p:close()
+    return directories
+end
+
+local function listProfiles(args)
+    local params, allProfiles, totalRecords = args, {}, 0
+    local qParams = {}
+    params = params.params
+    if params == nil and type(params) == "nil" then
+        qParams = {
+            pagination = {
+                page = args['pagination[page]'],
+                perPage = args['pagination[perPage]']
+            },
+            sort = {
+                field = args['sort[field]'],
+                order = args['sort[order]']
+            },
+            filter = {}
+        }
+    else
+        qParams = cjson.decode(params)
+    end
+    -- Set the pagination parameters
+    local pageSize = qParams.pagination.perPage -- Number of records per page
+    local pageNumber = qParams.pagination.page  -- Page number (starting from 1)
+    if settings then
+        if settings.storage_type == "disk" then
+            allProfiles, totalRecords = listFromDisk(configPath .. "data/rules", pageSize, pageNumber, qParams)
+        else
+            allProfiles, totalRecords = listWithPagination("profiles", "0", pageSize, pageNumber, qParams)
+        end
+    end
+    ngx.say({ cjson.encode({
+        data = allProfiles,
+        total = totalRecords
+    }) })
+end
+
 local function handle_get_request(args, path)
     -- handle GET request logic
     local delimiter = "/"
@@ -1207,6 +1257,11 @@ local function handle_get_request(args, path)
     end
     if uuid and (#uuid == 36 or #uuid == 32) and subPath[1] == "settings" then
         listSettings(args, uuid)
+    end
+    if path == "profiles" then
+        listProfiles(args)
+    elseif uuid and (#uuid == 36 or #uuid == 32) and subPath[1] == "profiles" then
+        listRule(args, uuid)
     end
 end
 
