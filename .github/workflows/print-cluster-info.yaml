@@ -1,0 +1,51 @@
+name: "Print k3s pods, services, ingress for - whitefalcon INT, TEST, ACC"
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ feature/* ]
+  workflow_dispatch:
+    inputs:
+      TARGET_ENV:
+        type: choice
+        description: 'Please choose the Environment to print'
+        default: 'all'
+        required: true
+        options:
+        - prod
+        - test
+        - int
+        - dev
+        - all
+      TARGET_TYPE:
+        type: choice
+        description: 'Please choose the Target Cluster'
+        default: 'all'
+        required: true
+        options:
+        - k3s2
+        - k3s6
+        - k3s10
+        - all
+
+jobs:
+  k3s10:
+    runs-on: [self-hosted-node10]
+    steps:
+      - name: checkout the repo code
+        uses: actions/checkout@v2 
+        with:
+          ref: "main"
+      - name: Print K3s10 cluster info
+        run: chmod +x ./print-cluster-info.sh && ./print-cluster-info.sh "k3s10"
+
+  k3s6:
+    runs-on: [self-hosted-node6]
+    steps:
+      - name: checkout the repo code
+        uses: actions/checkout@v2 
+        with:
+          ref: "main"
+      - name: Print K3s6 cluster info
+        run: chmod +x ./print-cluster-info.sh && ./print-cluster-info.sh "k3s6"
