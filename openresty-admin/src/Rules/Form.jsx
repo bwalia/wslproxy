@@ -8,6 +8,7 @@ import {
   SelectInput,
   required,
   FormDataConsumer,
+  ReferenceInput
 } from "react-admin";
 import { RichTextInput } from "ra-input-rich-text";
 import Toolbar from "./toolbar/Toolbar";
@@ -289,12 +290,24 @@ const Form = () => {
           />
         </Grid>
         <Grid item xs={4}>
-          <SelectInput source="profiles" choices={[
-            {"id": "dev", "name": "Dev"},
-            {"id": "test", "name": "Test"},
-            {"id": "acc", "name": "Acc"},
-            {"id": "prod", "name": "Prod"},
-          ]} />
+          {/* <SelectInput
+            source="profiles"
+            choices={[
+              { "id": "dev", "name": "Dev" },
+              { "id": "test", "name": "Test" },
+              { "id": "acc", "name": "Acc" },
+              { "id": "prod", "name": "Prod" },
+            ]}
+            sx={{ marginTop: "0", marginBottom: "0" }}
+            fullWidth
+          /> */}
+          <ReferenceInput source="profile_id" reference="profiles" >
+            <SelectInput
+              sx={{ marginTop: "0", marginBottom: "0" }}
+              fullWidth
+              optionText="name"
+            />
+          </ReferenceInput>
         </Grid>
         <Grid item xs={2}>
           <NumberInput source="version" defaultValue={1} fullWidth />
@@ -433,7 +446,7 @@ const Form = () => {
             {({ formData, ...rest }) => (
               <React.Fragment>
                 {formData?.match?.response?.code >= 301 &&
-                formData?.match?.response?.code <= 305 ? (
+                  formData?.match?.response?.code <= 305 ? (
                   <TextInput
                     source="match.response.redirect_uri"
                     label="Proxy Pass/Redirect To"

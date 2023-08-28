@@ -1,8 +1,12 @@
-import React from 'react'
+import React from 'react';
+import { Edit as RaEdit } from 'react-admin'
+import Form from './Form';
 
 const Edit = () => {
   return (
-    <div>Edit</div>
+    <RaEdit title="Profiles" >
+      <Form />
+    </RaEdit>
   )
 }
 

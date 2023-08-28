@@ -7,6 +7,8 @@ red:set_timeout(1000) -- 1 second
 local configPath = os.getenv("NGINX_CONFIG_DIR")
 local storageTypeOverride = os.getenv("STORAGE_TYPE")
 ngx.header["Access-Control-Allow-Origin"] = "*"
+local lfs = require("lfs")
+
 local function getSettings()
     local readSettings, errSettings = io.open(configPath .. "data/settings.json", "rb")
     local settings = {}
@@ -881,7 +883,7 @@ local function listRules(args)
     local pageNumber = qParams.pagination.page  -- Page number (starting from 1)
     if settings then
         if settings.storage_type == "disk" then
-            allRules, totalRecords = listFromDisk("rules", pageSize, pageNumber, qParams)
+            allRules, totalRecords = listFromDisk("rules/test", pageSize, pageNumber, qParams)
         else
             allRules, totalRecords = listWithPagination("request_rules", "0", pageSize, pageNumber, qParams)
         end
@@ -1174,17 +1176,35 @@ end
 
 -- Hanlde the Profiles settings
 
-local function listDirectories(path)
-    local directories = {}
-    local p = io.popen('ls -d ' .. path .. '/*/ 2>/dev/null')  -- Using shell command to list directories
-
-    for directory in p:lines() do
-        local dirName = directory:match("^.+/(.-)/$")  -- Extract the directory name
-        table.insert(directories, dirName)
+local function handleUpdateCreateProfiles(body, uuid)
+    local successCreation, errorCreation = nil, nil
+    if uuid == nil then
+        successCreation, errorCreation = lfs.mkdir(configPath .. "data/rules/" .. body.name)
+    elseif uuid ~= nil then
+        local oldPath, newPath = configPath .. "data/rules/" .. uuid, configPath .. "data/rules/" .. body.name
+        -- Rename the directory using the shell command
+        local command = string.format("mv %s %s", oldPath, newPath)
+        successCreation, errorCreation = os.execute(command)
     end
+    return successCreation, errorCreation
+end
 
-    p:close()
-    return directories
+local function listDirectories(path, pageSize, pageNumber, qParams)
+    local directories = {}
+
+    for dir in lfs.dir(path) do
+        if dir ~= "." and dir ~= ".." then
+            local dirPath = path .. "/" .. dir
+            local attr = lfs.attributes(dirPath)
+
+            if attr and attr.mode == "directory" then
+                local createdAt = os.date("%Y-%m-%d %H:%M:%S", attr.change)
+                table.insert(directories, { id = tostring(dir), name = dir, createdAt = createdAt })
+            end
+        end
+    end
+    local data, count = listPaginationLocal(directories, pageSize, pageNumber, qParams)
+    return data, count
 end
 
 local function listProfiles(args)
@@ -1209,17 +1229,47 @@ local function listProfiles(args)
     -- Set the pagination parameters
     local pageSize = qParams.pagination.perPage -- Number of records per page
     local pageNumber = qParams.pagination.page  -- Page number (starting from 1)
-    if settings then
-        if settings.storage_type == "disk" then
-            allProfiles, totalRecords = listFromDisk(configPath .. "data/rules", pageSize, pageNumber, qParams)
-        else
-            allProfiles, totalRecords = listWithPagination("profiles", "0", pageSize, pageNumber, qParams)
-        end
+    allProfiles, totalRecords = listDirectories(configPath .. "data/rules", pageSize, pageNumber, qParams)
+    ngx.say(
+        cjson.encode({
+            data = allProfiles,
+            total = totalRecords
+        }))
+end
+local function listProfile(args, uuid)
+    local dirPath = configPath .. "data/rules/" .. uuid
+    local attr = lfs.attributes(dirPath)
+    ngx.say(cjson.encode({
+        data = {
+            name = uuid,
+            pathUuid = uuid,
+            directoryAttr = attr
+        }
+    }))
+end
+
+local function createUpdateProfiles(body, uuid)
+    body = GetPayloads(body)
+    local successCreate, errorCreate = handleUpdateCreateProfiles(body, uuid)
+    if successCreate then
+        ngx.status = ngx.HTTP_OK
+        ngx.say(cjson.encode({
+            data = {
+                message = "Success.",
+                status = ngx.HTTP_OK
+            }
+        }))
+        ngx.exit(ngx.HTTP_OK)
+    else
+        ngx.status = ngx.HTTP_BAD_REQUEST
+        ngx.say(cjson.encode({
+            data = {
+                message = "Error:",
+                errorCreate,
+                status = ngx.HTTP_BAD_GATEWAY
+            }
+        }))
     end
-    ngx.say({ cjson.encode({
-        data = allProfiles,
-        total = totalRecords
-    }) })
 end
 
 local function handle_get_request(args, path)
@@ -1260,8 +1310,8 @@ local function handle_get_request(args, path)
     end
     if path == "profiles" then
         listProfiles(args)
-    elseif uuid and (#uuid == 36 or #uuid == 32) and subPath[1] == "profiles" then
-        listRule(args, uuid)
+    elseif uuid and subPath[1] == "profiles" then
+        listProfile(args, uuid)
     end
 end
 
@@ -1287,6 +1337,9 @@ local function handle_post_request(args, path)
     end
     if path == "projects/import" then
         importProjects(args)
+    end
+    if path == "profiles" then
+        createUpdateProfiles(args, nil)
     end
 end
 
@@ -1317,6 +1370,9 @@ local function handle_put_request(args, path)
     end
     if string.find(path, "settings") then
         createUpdateSettings(args, uuid)
+    end
+    if string.find(path, "profiles") then
+        createUpdateProfiles(args, uuid)
     end
 end
 
