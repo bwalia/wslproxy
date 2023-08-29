@@ -51,7 +51,7 @@ def test_redirectRule(setup, request):
     wait_for_element(By.XPATH, "//a[@href='#/rules/create']").click()
     wait_for_element(By.NAME, "name").send_keys("redirect rule 302-py")
     time.sleep(2)
-    wait_for_element(By.NAME, "match.rules.path").send_keys("/football")
+    wait_for_element(By.NAME, "match.rules.path").send_keys("/workstation")
     driver.execute_script("window.scrollBy(0, document.body.scrollHeight);")
     element = wait_for_element(By.NAME, "match.response.code")
     # Clear the text using backspace key
@@ -62,7 +62,7 @@ def test_redirectRule(setup, request):
     # time.sleep(2)
     element.send_keys("302")
     wait_for_element(By.NAME, "match.response.allow").click()
-    wait_for_element(By.NAME, "match.response.redirect_uri").send_keys("https://www.bbc.com/sport/football")
+    wait_for_element(By.NAME, "match.response.redirect_uri").send_keys("https://test-my.workstation.co.uk/")
     wait_for_element(By.CSS_SELECTOR, ".MuiButton-sizeMedium").click()
 
 
@@ -72,7 +72,7 @@ def test_redirectRule(setup, request):
     wait_for_element(By.XPATH, "//a[@href='#/rules/create']").click()
     wait_for_element(By.NAME, "name").send_keys("redirect rule 301-py")
     time.sleep(2)
-    wait_for_element(By.NAME, "match.rules.path").send_keys("/cricket")
+    wait_for_element(By.NAME, "match.rules.path").send_keys("/be")
     driver.execute_script("window.scrollBy(0, document.body.scrollHeight);")
     element = wait_for_element(By.NAME, "match.response.code")
     # Clear the text using backspace key
@@ -82,7 +82,7 @@ def test_redirectRule(setup, request):
     element.send_keys(Keys.BACKSPACE * length)
     element.send_keys("301")
     wait_for_element(By.NAME, "match.response.allow").click()
-    wait_for_element(By.NAME, "match.response.redirect_uri").send_keys("https://www.bbc.com/sport/cricket")
+    wait_for_element(By.NAME, "match.response.redirect_uri").send_keys("http://vpn.workstation.be/")
     wait_for_element(By.CSS_SELECTOR, ".MuiButton-sizeMedium").click()
     driver.refresh()
 
@@ -170,42 +170,42 @@ def test_redirectRule(setup, request):
     # Verifying the rule redirect with 302
     time.sleep(2)
     try:
-        driver.get("http://qa.int6.whitefalcon.io/football")
+        driver.get("http://qa.int6.whitefalcon.io/workstation")
         time.sleep(4)
     except:
-        driver.get("http://qa.int6.whitefalcon.io/football")
+        driver.get("http://qa.int6.whitefalcon.io/workstation")
         time.sleep(4)
 
     try:
-        response2 = wait_for_element(By.XPATH, "//a[@href='/sport/football']").text
-        assert "Football" in response2
+        response2 = wait_for_element(By.XPATH, "//button[normalize-space()='Log in']").text
+        assert "LOG IN" in response2
         print(response2)
     except:
         driver.refresh()
         time.sleep(4)
-        response2 = wait_for_element(By.XPATH, "//a[@href='/sport/football']").text
-        assert "Football" in response2
+        response2 = wait_for_element(By.XPATH, "//button[normalize-space()='Log in']").text
+        assert "LOG IN" in response2
         print(response2, "-Second attempt")
 
     # Verifying the rule redirect with 301
     time.sleep(2)
     try:
-        driver.get("http://qa.int6.whitefalcon.io/cricket")
+        driver.get("http://qa.int6.whitefalcon.io/be")
         time.sleep(4)
     except:
-        driver.get("http://qa.int6.whitefalcon.io/cricket")
+        driver.get("http://qa.int6.whitefalcon.io/be")
         time.sleep(4)
 
     try:
-        response3 = wait_for_element(By.XPATH, "//a[@href='/sport/cricket']").text
-        assert "Cricket" in response3
+        response3 = wait_for_element(By.XPATH, "//body").text
+        assert "Welcome to Workstation SRL" in response3
         print(response3)
     except:
         time.sleep(2)
         driver.refresh()
         time.sleep(4)
-        response3 = wait_for_element(By.XPATH, "//a[@href='/sport/cricket']").text
-        assert "Cricket" in response3
+        response3 = wait_for_element(By.XPATH, "//body").text
+        assert "Welcome to Workstation SRL" in response3
         print(response3, "-Second attempt")    
     time.sleep(2)
     
