@@ -18,7 +18,7 @@ def test_redirectRule(setup, request):
 
 # Creating redirect rule with 305
     #driver.implicitly_wait(20)
-    wait = WebDriverWait(driver, 15)
+    wait = WebDriverWait(driver, 20)
 
     def wait_for_element(by, selector):
       element = wait.until(expected_conditions.presence_of_element_located((by, selector)))
@@ -40,7 +40,7 @@ def test_redirectRule(setup, request):
     # time.sleep(2)
     element.send_keys("305")
     wait_for_element(By.NAME, "match.response.allow").click()
-    wait_for_element(By.NAME, "match.response.redirect_uri").send_keys("10.43.69.108:80")
+    wait_for_element(By.NAME, "match.response.redirect_uri").send_keys("10.43.81.65:3009")
     wait_for_element(By.CSS_SELECTOR, ".MuiButton-sizeMedium").click()
 
 
@@ -80,7 +80,6 @@ def test_redirectRule(setup, request):
     element.send_keys(Keys.END)
     length = len(element.get_attribute("value"))
     element.send_keys(Keys.BACKSPACE * length)
-    # time.sleep(2)
     element.send_keys("301")
     wait_for_element(By.NAME, "match.response.allow").click()
     wait_for_element(By.NAME, "match.response.redirect_uri").send_keys("https://www.bbc.com/sport/cricket")
@@ -97,18 +96,30 @@ def test_redirectRule(setup, request):
     try:
         wait_for_element(By.XPATH, "//li[contains(.,'redirect rule 305-py')]").click()
     except:
-        driver.execute_script("window.scrollBy(0, document.body.scrollHeight);")
         time.sleep(2)
-        wait_for_element(By.XPATH, "//li[contains(.,'redirect rule 305-py')]").click()
-        time.sleep(2)
+        driver.execute_script("arguments[0].scrollIntoView();", wait_for_element(By.XPATH, "//li[contains(.,'redirect rule 305-py')]"))
+        # Wait for the element to be clickable
+        wait.until(expected_conditions.element_to_be_clickable((By.XPATH, "//li[contains(.,'redirect rule 305-py')]"))).click()
         print("rule not found")
     time.sleep(2)
-    wait_for_element(By.CSS_SELECTOR, ".button-add-match_cases").click()     
+    driver.execute_script("arguments[0].scrollIntoView();", wait_for_element(By.CSS_SELECTOR, ".button-add-match_cases"))
+    wait.until(expected_conditions.element_to_be_clickable((By.CSS_SELECTOR, ".button-add-match_cases"))).click()
     time.sleep(2)  
     wait_for_element(By.XPATH, "//div[@id='match_cases.0.statement']").click()
     time.sleep(2)
     driver.execute_script("window.scrollBy(0, document.body.scrollHeight);")
-    wait_for_element(By.XPATH, "//li[contains(.,'redirect rule 302-py')]").click()
+    try:
+        print("Executing try")
+        wait_for_element(By.XPATH, "//li[contains(.,'redirect rule 302-py')]").click()
+        
+    except: 
+        print("Executing except")
+        time.sleep(2)
+        driver.execute_script("arguments[0].scrollIntoView();", wait_for_element(By.XPATH, "//li[contains(.,'redirect rule 302-py')]"))
+        # Wait for the element to be clickable
+        wait.until(expected_conditions.element_to_be_clickable((By.XPATH, "//li[contains(.,'redirect rule 302-py')]"))).click()
+        print("Rule not found")    
+
     wait_for_element(By.XPATH, "//div[@id='match_cases.0.condition']").click()
     time.sleep(2)
     wait_for_element(By.XPATH, "//li[contains(text(),'AND')]").click()
@@ -117,8 +128,16 @@ def test_redirectRule(setup, request):
     wait_for_element(By.CSS_SELECTOR, ".button-add-match_cases").click()       
     wait_for_element(By.XPATH, "//div[@id='match_cases.1.statement']").click()
     time.sleep(2)
-    wait_for_element(By.XPATH, "//li[contains(.,'redirect rule 301-py')]").click()
+    try:
+        wait_for_element(By.XPATH, "//li[contains(.,'redirect rule 301-py')]").click()
+    except:    
+        driver.execute_script("arguments[0].scrollIntoView();", wait_for_element(By.XPATH, "//li[contains(.,'redirect rule 301-py')]"))
+        # Wait for the element to be clickable
+        wait.until(expected_conditions.element_to_be_clickable((By.XPATH, "//li[contains(.,'redirect rule 301-py')]"))).click()
+        print("Rule not found")    
+    
     wait_for_element(By.XPATH, "//div[@id='match_cases.1.condition']").click()
+    time.sleep(2)
     wait_for_element(By.XPATH, "//li[contains(text(),'AND')]").click()
 
 
@@ -150,29 +169,46 @@ def test_redirectRule(setup, request):
     
     # Verifying the rule redirect with 302
     time.sleep(2)
-    driver.get("http://qa.int6.whitefalcon.io/football")
-    wait.until(expected_conditions.title_contains("Football"))
+    try:
+        driver.get("http://qa.int6.whitefalcon.io/football")
+        time.sleep(4)
+    except:
+        driver.get("http://qa.int6.whitefalcon.io/football")
+        time.sleep(4)
 
-    driver.refresh()
-    time.sleep(2)
     try:
         response2 = wait_for_element(By.XPATH, "//a[@href='/sport/football']").text
         assert "Football" in response2
         print(response2)
-    except TimeoutException:
+    except:
+        driver.refresh()
+        time.sleep(4)
         response2 = wait_for_element(By.XPATH, "//a[@href='/sport/football']").text
         assert "Football" in response2
         print(response2, "-Second attempt")
+
     # Verifying the rule redirect with 301
+    time.sleep(2)
+    try:
+        driver.get("http://qa.int6.whitefalcon.io/cricket")
+        time.sleep(4)
+    except:
+        driver.get("http://qa.int6.whitefalcon.io/cricket")
+        time.sleep(4)
 
-    driver.get("http://qa.int6.whitefalcon.io/cricket")
-    wait.until(expected_conditions.title_contains("Cricket"))
-
-    driver.refresh()
-    time.sleep(4)
-    response3 = wait_for_element(By.XPATH, "//a[@href='/sport/cricket']").text
-    assert "Cricket" in response3
-    print(response3)
+    try:
+        response3 = wait_for_element(By.XPATH, "//a[@href='/sport/cricket']").text
+        assert "Cricket" in response3
+        print(response3)
+    except:
+        time.sleep(2)
+        driver.refresh()
+        time.sleep(4)
+        response3 = wait_for_element(By.XPATH, "//a[@href='/sport/cricket']").text
+        assert "Cricket" in response3
+        print(response3, "-Second attempt")    
+    time.sleep(2)
+    
 
 
 

@@ -10,8 +10,9 @@ COPY . /app
 RUN apt-get update && apt-get install -y xvfb wget
 
 # Install Chrome
-RUN wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
-RUN dpkg -i google-chrome-stable_current_amd64.deb || apt-get -f install -y
+ADD 113_google-chrome-stable_current_amd64.deb .
+RUN dpkg -i 113_google-chrome-stable_current_amd64.deb || apt-get -f install -y
+RUN rm 113_google-chrome-stable_current_amd64.deb
 
 # Install required Python packages
 RUN pip install selenium pytest chromedriver_autoinstaller

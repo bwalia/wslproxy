@@ -31,7 +31,7 @@ def test_authToken(setup, request):
     length = len(element.get_attribute("value"))
     element.send_keys(Keys.BACKSPACE * length)
     element.send_keys("305")
-    wait_for_element(By.NAME, "match.response.redirect_uri").send_keys("10.43.69.108:80")
+    wait_for_element(By.NAME, "match.response.redirect_uri").send_keys("10.43.81.65:3009")
     driver.execute_script("window.scrollBy(0, document.body.scrollHeight);")
     wait_for_element(By.CSS_SELECTOR, ".MuiButton-sizeMedium").click()
 
@@ -42,9 +42,14 @@ def test_authToken(setup, request):
     time.sleep(2)
     wait_for_element(By.NAME, "name").send_keys("Access api rule-py")
     wait_for_element(By.NAME, "match.rules.path").send_keys("/api")
-    driver.execute_script("window.scrollBy(0, document.body.scrollHeight);")
     time.sleep(2)
-    wait_for_element(By.XPATH, "//div[@id='match.rules.jwt_token_validation']").click()
+    try:
+        wait_for_element(By.XPATH, "//div[@id='match.rules.jwt_token_validation']").click()
+    except:
+        driver.execute_script("arguments[0].scrollIntoView();", wait_for_element(By.XPATH, "//div[@id='match.rules.jwt_token_validation']"))
+        wait.until(expected_conditions.element_to_be_clickable((By.XPATH, "//div[@id='match.rules.jwt_token_validation']"))).click()
+
+    driver.execute_script("window.scrollBy(0, document.body.scrollHeight);")
     wait_for_element(By.XPATH, "//li[normalize-space()='Cookie header validation']").click()
     wait_for_element(By.NAME, "match.rules.jwt_token_validation_value").send_keys("Authorization")
     tokenKey = os.environ.get('JWT_TOKEN_KEY')
@@ -54,7 +59,7 @@ def test_authToken(setup, request):
     length = len(element.get_attribute("value"))
     element.send_keys(Keys.BACKSPACE * length)
     element.send_keys("305")
-    wait_for_element(By.NAME, "match.response.redirect_uri").send_keys("10.43.69.108:80")
+    wait_for_element(By.NAME, "match.response.redirect_uri").send_keys("10.43.81.65:3009")
     driver.execute_script("window.scrollBy(0, document.body.scrollHeight);")
     wait_for_element(By.CSS_SELECTOR, ".MuiButton-sizeMedium").click()
     driver.refresh()
@@ -65,25 +70,35 @@ def test_authToken(setup, request):
     wait_for_element(By.XPATH, "//a[@id='tabheader-1']").click()
     wait_for_element(By.XPATH, "//div[@id='rules']").click()
     time.sleep(2)
-    wait_for_element(By.XPATH, "//li[contains(.,'Access all rule-py')]").click()
+    try:
+        wait_for_element(By.XPATH, "//li[contains(.,'Access all rule-py')]").click()
+    except:
+        driver.execute_script("arguments[0].scrollIntoView();", wait_for_element(By.XPATH, "//li[contains(.,'Access all rule-py')]"))
+        wait.until(expected_conditions.element_to_be_clickable((By.XPATH, "//li[contains(.,'Access all rule-py')]"))).click()
     
-    time.sleep(2)   
-    wait_for_element(By.CSS_SELECTOR, ".button-add-match_cases").click()
+    time.sleep(2)  
+    driver.execute_script("arguments[0].scrollIntoView();", wait_for_element(By.CSS_SELECTOR, ".button-add-match_cases"))
+    wait.until(expected_conditions.element_to_be_clickable((By.CSS_SELECTOR, ".button-add-match_cases"))).click()
+
+
+    time.sleep(2)
     wait_for_element(By.XPATH, "//div[@id='match_cases.0.statement']").click()
     try:
         wait_for_element(By.XPATH, "//li[contains(.,'Access api rule-py')]").click()
     except:
-        driver.execute_script("window.scrollBy(0, document.body.scrollHeight);")
+        # Scroll to the element to make it visible
         time.sleep(2)
-        wait_for_element(By.XPATH, "//li[contains(.,'Access api rule-py')]").click()
-        time.sleep(2)
+        driver.execute_script("arguments[0].scrollIntoView();", wait_for_element(By.XPATH, "//li[contains(.,'Access api rule-py')]"))
+        # Wait for the element to be clickable
+        wait.until(expected_conditions.element_to_be_clickable((By.XPATH, "//li[contains(.,'Access api rule-py')]"))).click()
         print("Rule not found")
             
 
     wait_for_element(By.XPATH, "//div[@id='match_cases.0.condition']").click()
-    wait_for_element(By.XPATH, "//li[contains(text(),'AND')]").click()
     time.sleep(2)
+    wait_for_element(By.XPATH, "//li[contains(text(),'AND')]").click()
     driver.execute_script("window.scrollBy(0, document.body.scrollHeight);")
+    time.sleep(2)
     wait_for_element(By.XPATH, "//button[normalize-space()='Save']").click()
     wait_for_element(By.XPATH, "//a[@href='#/servers']").click()
     wait_for_element(By.XPATH, "//td[contains(.,'qa.int6.whitefalcon.io')]").click()
@@ -98,7 +113,11 @@ def test_authToken(setup, request):
     sync_button.click()
     time.sleep(4)
 
+    driver.delete_all_cookies()
+
+
     # Accessing API without Authorization token in cookies
+    time.sleep(2)
     driver.get("http://qa.int6.whitefalcon.io/api/v2/sample-data.json")
     time.sleep(2)
     response1 = wait_for_element(By.XPATH, "//h1[normalize-space()='Configuration not match!']").text
@@ -132,6 +151,8 @@ def test_authToken(setup, request):
     print(response2)
 
     driver.delete_all_cookies()
+
+
 
     # Delete the rules
     # driver.get("http://int6-api.whitefalcon.io/")

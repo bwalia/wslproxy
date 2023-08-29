@@ -103,37 +103,47 @@ def test_pathRule(setup, request):
     try:
         wait_for_element(By.XPATH, "//li[contains(.,'Path rule starts with-py')]").click()
     except:
-        driver.execute_script("window.scrollBy(0, document.body.scrollHeight);")
-        time.sleep(2)
-        wait_for_element(By.XPATH, "//li[contains(.,'Path rule starts with-py')]").click()
-    
+        # Scroll to the element to make it visible
+        driver.execute_script("arguments[0].scrollIntoView();", wait_for_element(By.XPATH, "//li[contains(.,'Path rule starts with-py')]"))
+        # Wait for the element to be clickable
+        wait.until(expected_conditions.element_to_be_clickable((By.XPATH, "//li[contains(.,'Path rule starts with-py')]"))).click()
+        print("Rule not found") 
+
     time.sleep(2)
     wait_for_element(By.CSS_SELECTOR, ".button-add-match_cases").click()     
     time.sleep(2)  
     wait_for_element(By.XPATH, "//div[@id='match_cases.0.statement']").click()
     driver.execute_script("window.scrollBy(0, document.body.scrollHeight);")
     time.sleep(2)
-    wait_for_element(By.XPATH, "//li[contains(.,'Path rule ends with-py')]").click()
+    try:
+        wait_for_element(By.XPATH, "//li[contains(.,'Path rule ends with-py')]").click()
+    except:
+        driver.execute_script("arguments[0].scrollIntoView();", wait_for_element(By.XPATH, "//li[contains(.,'Path rule ends with-py')]"))
+        wait_for_element(By.XPATH, "//li[contains(.,'Path rule ends with-py')]").click()
+        
     wait_for_element(By.XPATH, "//div[@id='match_cases.0.condition']").click()
     wait_for_element(By.XPATH, "//li[contains(text(),'AND')]").click()
 
 
 
-    wait_for_element(By.CSS_SELECTOR, ".button-add-match_cases").click()       
+    driver.execute_script("arguments[0].scrollIntoView();", wait_for_element(By.CSS_SELECTOR, ".button-add-match_cases"))
+    wait.until(expected_conditions.element_to_be_clickable((By.CSS_SELECTOR, ".button-add-match_cases"))).click()
+   
     wait_for_element(By.XPATH, "//div[@id='match_cases.1.statement']").click()
     time.sleep(2)
     try:
         wait_for_element(By.XPATH, "//li[contains(.,'Path rule equals-py')]").click()
     except:
-        driver.execute_script("window.scrollBy(0, document.body.scrollHeight);")
         time.sleep(2)
+        driver.execute_script("arguments[0].scrollIntoView();", wait_for_element(By.XPATH, "//li[contains(.,'Path rule equals-py')]"))
         wait_for_element(By.XPATH, "//li[contains(.,'Path rule equals-py')]").click()
-
+    
+    time.sleep(2)
     wait_for_element(By.XPATH, "//div[@id='match_cases.1.condition']").click()
+    time.sleep(2)
     wait_for_element(By.XPATH, "//li[contains(text(),'AND')]").click()
 
 
-    time.sleep(4)
     driver.execute_script("window.scrollBy(0, document.body.scrollHeight);")
 
     wait_for_element(By.XPATH, "//button[normalize-space()='Save']").click()
@@ -160,8 +170,10 @@ def test_pathRule(setup, request):
     
     # Verifying the rule 'Ends with'
     driver.get("http://qa.int6.whitefalcon.io/outer")
-    time.sleep(4)
+    time.sleep(2)
     driver.refresh()
+    driver.refresh()
+    time.sleep(2)
     response2 = wait_for_element(By.CSS_SELECTOR, "body").text
     assert "ends with" in response2
     print(response2)

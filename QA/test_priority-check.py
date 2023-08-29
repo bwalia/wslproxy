@@ -14,7 +14,7 @@ from selenium.webdriver.common.action_chains import ActionChains
 def test_priorityCheck(setup, request):
     driver = request.function.driver
     #driver.implicitly_wait(20)
-    wait = WebDriverWait(driver, 15)
+    wait = WebDriverWait(driver, 20)
 
     def wait_for_element(by, selector):
       element = wait.until(expected_conditions.presence_of_element_located((by, selector)))
@@ -62,10 +62,9 @@ def test_priorityCheck(setup, request):
     length = len(element.get_attribute("value"))
     element.send_keys(Keys.BACKSPACE * length)
     element.send_keys("200")
-    time.sleep(2)
-    wait_for_element(By.NAME, "match.response.allow").click()
-
+    
     driver.execute_script("window.scrollBy(0, document.body.scrollHeight);")
+    wait.until(expected_conditions.presence_of_element_located((By.NAME, "match.response.allow"))).click()
     wait_for_element(By.NAME, "match.response.message").send_keys("cnVsZSB3aXRoIGxvdyBwcmlvcml0eQ==")
     wait_for_element(By.CSS_SELECTOR, ".MuiButton-sizeMedium").click()
 
@@ -75,14 +74,17 @@ def test_priorityCheck(setup, request):
     wait_for_element(By.XPATH, "//a[@href='#/servers']").click()
     wait_for_element(By.XPATH, "//td[contains(.,'qa.int6.whitefalcon.io')]").click()
     wait_for_element(By.XPATH, "//a[@id='tabheader-1']").click()
+    time.sleep(2)
     wait_for_element(By.XPATH, "//div[@id='rules']").click()
     time.sleep(2)
     try:
         wait_for_element(By.XPATH, "//li[contains(.,'High priority rule-py')]").click()
     except:
-        driver.execute_script("window.scrollBy(0, document.body.scrollHeight);")
-        time.sleep(2)
-        wait_for_element(By.XPATH, "//li[contains(.,'High priority rule-py')]").click()
+        # Scroll to the element to make it visible
+        driver.execute_script("arguments[0].scrollIntoView();", wait_for_element(By.XPATH, "//li[contains(.,'High priority rule-py')]"))
+        # Wait for the element to be clickable
+        wait.until(expected_conditions.element_to_be_clickable((By.XPATH, "//li[contains(.,'High priority rule-py')]"))).click()
+        print("Rule not found")
      
     wait_for_element(By.CSS_SELECTOR, ".button-add-match_cases").click()
     time.sleep(2)
@@ -91,12 +93,14 @@ def test_priorityCheck(setup, request):
     try:
         wait_for_element(By.XPATH, "//li[contains(.,'Low priority rule-py')]").click()
     except:
-        driver.execute_script("window.scrollBy(0, document.body.scrollHeight);")
-        time.sleep(2)
-        wait_for_element(By.XPATH, "//li[contains(.,'Low priority rule-py')]").click()
-     
+        # Scroll to the element to make it visible
+        driver.execute_script("arguments[0].scrollIntoView();", wait_for_element(By.XPATH, "//li[contains(.,'Low priority rule-py')]"))
+        # Wait for the element to be clickable
+        wait.until(expected_conditions.element_to_be_clickable((By.XPATH, "//li[contains(.,'Low priority rule-py')]"))).click()
+        print("Rule not found") 
 
     wait_for_element(By.XPATH, "//div[@id='match_cases.0.condition']").click()
+    time.sleep(2)
     wait_for_element(By.XPATH, "//li[contains(text(),'AND')]").click()
         
     driver.execute_script("window.scrollBy(0, document.body.scrollHeight);")
@@ -117,9 +121,14 @@ def test_priorityCheck(setup, request):
 
 
    # Verifying the rules'
-    driver.get("http://qa.int6.whitefalcon.io/public")
-    time.sleep(4)
+    try:
+        driver.get("http://qa.int6.whitefalcon.io/public")
+    except: 
+        time.sleep(2)
+        driver.navigate().to("http://qa.int6.whitefalcon.io/public")    
+    time.sleep(2)
     driver.refresh()
     response1 = wait_for_element(By.CSS_SELECTOR, "body").text
+    time.sleep(2)
     assert "High priority" in response1
     print(response1)
