@@ -98,7 +98,7 @@ const Form = ({type}) => {
       <TabbedForm.Tab label="Request/Security rules">
         {totalResults >= 1 ? (
           <>
-            <ReferenceArrayInput source="rules" reference="rules">
+            <ReferenceArrayInput source="rules" reference="rules" perPage={1000}>
               <SelectInput optionText="name" sx={{ minWidth: "342px" }} />
             </ReferenceArrayInput>
             <FormDataConsumer>
@@ -122,6 +122,7 @@ const Form = ({type}) => {
                           source="statement"
                           queryOptions={{ meta: { exclude: formData?.rules } }}
                           reference="rules"
+                          perPage={1000}
                         >
                           <SelectInput optionText="name" fullWidth />
                         </ReferenceArrayInput>
