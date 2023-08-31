@@ -106,8 +106,9 @@ const dataProvider = (apiUrl, settings = {}) => {
     },
     getOne: async (resource, params) => {
       setIsLoadig(true)
+      const environmentProfile = localStorage.getItem('environment')
       const { id } = params;
-      const url = `${apiUrl}/${resource}/${id}?_format=json`;
+      const url = `${apiUrl}/${resource}/${id}?_format=json&envprofile=${environmentProfile || ''}`;
       const response = await fetch(url, {
         method: "GET",
         headers: getHeaders(),

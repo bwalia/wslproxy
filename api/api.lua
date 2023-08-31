@@ -311,8 +311,12 @@ local function listWithPagination(recordsKey, cursor, pageSize, pageNumber, qPar
 end
 
 local function listPaginationLocal(data, pageSize, pageNumber, qParams)
-    local startIdx = (pageNumber - 1) * pageSize + 1
-    local endIdx = startIdx + pageSize - 1
+    local startIdx, endIdx = 0, #data
+
+    if pageSize ~= nil or pageNumber ~= nil then
+        startIdx = (pageNumber - 1) * pageSize + 1
+        endIdx = startIdx + pageSize - 1
+    end
 
     local currentPageData = {}
     for i = startIdx, math.min(endIdx, #data) do
@@ -861,7 +865,7 @@ local function listRules(args)
     local settings = getSettings()
     local allRules, keys, totalRecords = {}, {}, 0
     local params = args
-    local qParams = {}
+    local qParams, environment = {}, "prod"
     params = params.params
     if params == nil and type(params) == "nil" then
         qParams = {
@@ -881,11 +885,20 @@ local function listRules(args)
     -- Set the pagination parameters
     local pageSize = qParams.pagination.perPage -- Number of records per page
     local pageNumber = qParams.pagination.page  -- Page number (starting from 1)
+    if qParams.filter ~= nil then
+        local filter = qParams.filter
+        if filter.profile_id ~= nil then
+            environment = filter.profile_id
+        end
+    end
     if settings then
         if settings.storage_type == "disk" then
-            allRules, totalRecords = listFromDisk("rules/test", pageSize, pageNumber, qParams)
+            allRules, totalRecords = listFromDisk("rules/" .. environment, pageSize, pageNumber, qParams)
         else
-            allRules, totalRecords = listWithPagination("request_rules", "0", pageSize, pageNumber, qParams)
+            allRules, totalRecords = listFromDisk("rules/" .. environment, pageSize, pageNumber, qParams)
+            if allRules == nil or totalRecords == 0 then
+                allRules, totalRecords = listWithPagination("request_rules", "0", pageSize, pageNumber, qParams)
+            end
         end
     end
     ngx.say({ cjson.encode({
@@ -895,27 +908,29 @@ local function listRules(args)
 end
 
 local function listRule(args, uuid)
+    local envProfile = args.envprofile ~= nil and args.envprofile or "prod"
     local settings = getSettings()
     if settings then
         if settings.storage_type == "disk" then
-            local file, err = io.open(configPath .. "data/rules/" .. uuid .. ".json", "rb")
-            if file == nil then
+            local jsonData, dataErr = getDataFromFile(configPath .. "data/rules/" .. envProfile .."/" .. uuid .. ".json")
+            if dataErr == nil then
                 ngx.say(cjson.encode({
-                    data = {}
+                    data = cjson.decode(jsonData)
                 }))
             else
-                local jsonString = file:read "*a"
-                file:close()
-                local jsonData = cjson.decode(jsonString)
-                -- if jsonData.match.response.message then
-                --     jsonData.match.response.message = Base64.decode(jsonData.match.response.message)
-                -- end
+                ngx.status = ngx.HTTP_BAD_REQUEST
                 ngx.say(cjson.encode({
-                    data = jsonData
+                    data = {
+                        message = "Error" .. dataErr
+                    }
                 }))
+
             end
         else
-            local exist_value, err = red:hget("request_rules", uuid)
+            local exist_value, Rerr = getDataFromFile(configPath .. "data/rules/" .. envProfile .."/" .. uuid .. ".json")
+            if exist_value == nil or Rerr then
+                exist_value, Rerr = red:hget("request_rules", uuid)
+            end
             exist_value = cjson.decode(exist_value)
             -- if exist_value.match.response.message then
             --     exist_value.match.response.message = Base64.decode(exist_value.match.response.message)
@@ -1046,12 +1061,16 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name, method)
             updateServerInRules(case.statement, json_val.id, "statement")
         end
     end
+    local envProfile = "prod"
+    if json_val.profile_id ~= nil then
+        envProfile = json_val.profile_id
+    end
     if settings.storage_type == "redis" then
         redis_json[uuid] = cjson.encode(json_val)
         red:hmset(key_name, redis_json)
-        setDataToFile(configPath .. "data/" .. folder_name .. "/" .. uuid .. ".json", json_val)
+        setDataToFile(configPath .. "data/" .. folder_name .. "/" .. envProfile .. "/" .. uuid .. ".json", json_val)
     else
-        setDataToFile(configPath .. "data/" .. folder_name .. "/" .. uuid .. ".json", json_val)
+        setDataToFile(configPath .. "data/" .. folder_name .. "/" .. envProfile .. "/" .. uuid .. ".json", json_val)
     end
     ngx.status = ngx.HTTP_OK
     return json_val
