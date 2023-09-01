@@ -111,11 +111,9 @@ def test_redirectRule(setup, request):
     time.sleep(2)
     driver.execute_script("window.scrollBy(0, document.body.scrollHeight);")
     try:
-        print("Executing try")
         wait_for_element(By.XPATH, "//li[contains(.,'redirect rule 302-py')]").click()
         
     except: 
-        print("Executing except")
         time.sleep(2)
         driver.execute_script("arguments[0].scrollIntoView();", wait_for_element(By.XPATH, "//li[contains(.,'redirect rule 302-py')]"))
         # Wait for the element to be clickable

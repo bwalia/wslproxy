@@ -45,7 +45,7 @@ def test_login():
     time.sleep(2)
     wait = WebDriverWait(driver, 10)
     expectedError1 = wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//div[@class='MuiSnackbarContent-message css-1w0ym84']"))).text
-    print(expectedError1)
+    #print(expectedError1)
     assert "Invalid email or password" in expectedError1
 
     # Verify login with valid email and invalid password
@@ -64,7 +64,7 @@ def test_login():
     time.sleep(2)
     wait = WebDriverWait(driver, 10)
     expectedError2 = wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//div[@class='MuiSnackbarContent-message css-1w0ym84']"))).text
-    print(expectedError2)
+    #print(expectedError2)
     assert "Invalid email or password" in expectedError2
 
 
@@ -84,7 +84,7 @@ def test_login():
     time.sleep(2)
     wait = WebDriverWait(driver, 10)
     expectedError3 = wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//div[@class='MuiSnackbarContent-message css-1w0ym84']"))).text
-    print(expectedError3)
+    #print(expectedError3)
     assert "Invalid email or password" in expectedError3
 
     # Verify login with empty email and valid password
@@ -102,7 +102,7 @@ def test_login():
     time.sleep(2)
     wait = WebDriverWait(driver, 10)
     expectedError4 = wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//div[@class='MuiSnackbarContent-message css-1w0ym84']"))).text
-    print(expectedError4)
+    #print(expectedError4)
     assert "Invalid email or password" in expectedError4
 
      # Verify login with valid email and empty password
@@ -120,7 +120,7 @@ def test_login():
     time.sleep(2)
     wait = WebDriverWait(driver, 10)
     expectedError5 = wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//div[@class='MuiSnackbarContent-message css-1w0ym84']"))).text
-    print(expectedError5)
+    #print(expectedError5)
     assert "Invalid email or password" in expectedError5
 
      # Verify login with both empty credentials
@@ -137,7 +137,7 @@ def test_login():
     time.sleep(2)
     wait = WebDriverWait(driver, 10)
     expectedError6 = wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//div[@class='MuiSnackbarContent-message css-1w0ym84']"))).text
-    print(expectedError6)
+    #print(expectedError6)
     assert "Invalid email or password" in expectedError6
 
     # Verify login with both valid credentials

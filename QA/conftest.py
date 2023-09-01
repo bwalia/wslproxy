@@ -100,8 +100,10 @@ def setup(request):
 
     checkbox = server_row.find_element(By.XPATH, ".//input[@type='checkbox']")
     checkbox.click()
-    time.sleep(4)
+    time.sleep(2)
     driver.find_element(By.CSS_SELECTOR, "button[aria-label='Delete']").click()
+    time.sleep(2)
+    sync_button = driver.find_element(By.XPATH, "//button[@aria-label='Sync API Storage']")
+    sync_button.click()
     time.sleep(4)
-    driver.refresh()
     driver.close()

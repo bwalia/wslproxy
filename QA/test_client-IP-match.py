@@ -176,7 +176,7 @@ def test_clientIPRule(setup, request):
     driver.refresh()
     response = wait_for_element(By.CSS_SELECTOR, "body").text
     assert "client-ip-matched" in response
-    print(response)
+    #print(response)
     
  
     # Verifying the rule with invalid client IP
@@ -185,7 +185,7 @@ def test_clientIPRule(setup, request):
     driver.refresh()
     response = wait_for_element(By.CSS_SELECTOR, "body").text
     assert "Configuration not match" in response
-    print(response)
+    #print(response)
     
 
     # Verifying the rule with the valid client IP using key starts_with
