@@ -18,4 +18,4 @@ RUN rm 113_google-chrome-stable_current_amd64.deb
 RUN pip install selenium pytest chromedriver_autoinstaller
 
 # Run the pytest command
-CMD ["pytest", "-v"]
+CMD ["pytest", "-v", "-s"]

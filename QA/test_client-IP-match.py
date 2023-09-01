@@ -135,7 +135,7 @@ def test_clientIPRule(setup, request):
     time.sleep(2)
     wait_for_element(By.XPATH, "//li[contains(text(),'AND')]").click()
     time.sleep(2)
-
+    driver.execute_script("arguments[0].scrollIntoView();", wait_for_element(By.CSS_SELECTOR, ".button-add-match_cases"))
     wait_for_element(By.CSS_SELECTOR, ".button-add-match_cases").click()       
     wait_for_element(By.XPATH, "//div[@id='match_cases.1.statement']").click()
     time.sleep(2)

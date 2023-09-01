@@ -55,23 +55,18 @@ def setup(request):
     driver.get(targetHost)
     EMAIL = os.environ.get('LOGIN_EMAIL')
     PASSWORD = os.environ.get('LOGIN_PASSWORD')
+    storageType = os.environ.get('STORAGE_TYPE')
 
     driver.find_element(By.NAME, "email").send_keys(EMAIL)
     driver.find_element(By.NAME, "password").send_keys(PASSWORD)
     driver.find_element(By.XPATH, "//button[@type='submit']").click()
-    try:
+    
+    if storageType == "redis":
         time.sleep(4)
         driver.find_element(By.XPATH, "//button[normalize-space()='Redis']").click()
-        #driver.find_element(By.XPATH, "//button[normalize-space()='Disk']").click()
-    except:
-        driver.get(targetHost)
-        time.sleep(2)
-        driver.find_element(By.NAME, "email").send_keys(EMAIL)
-        driver.find_element(By.NAME, "password").send_keys(PASSWORD)
-        driver.find_element(By.XPATH, "//button[@type='submit']").click()
+    elif storageType == "disk": 
+        time.sleep(4)
         driver.find_element(By.XPATH, "//button[normalize-space()='Disk']").click()
-
-
 
     # Creating a server
     time.sleep(2)
@@ -105,7 +100,7 @@ def setup(request):
 
     checkbox = server_row.find_element(By.XPATH, ".//input[@type='checkbox']")
     checkbox.click()
-    time.sleep(2)
+    time.sleep(4)
     driver.find_element(By.CSS_SELECTOR, "button[aria-label='Delete']").click()
     time.sleep(4)
     driver.refresh()
