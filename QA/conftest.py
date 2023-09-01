@@ -36,33 +36,23 @@ def setup(request):
 
     driver.implicitly_wait(15)
 
-    # Clearing the cookie and cache
+    # Clearing the cookie 
     driver.delete_all_cookies()
 
-    # def delete_cache():
-    #         try:
-    #             driver.execute_script("window.open('');")
-    #             time.sleep(2)
-    #             driver.switch_to.window(driver.window_handles[-1])
-    #             time.sleep(2)
-    #             driver.get('chrome://settings/clearBrowserData')  # Correct URL for clearing data
-    #             time.sleep(4)
-    #             driver.find_element(By.XPATH, "//cr-button[@class='action-button']").click()
-    #             time.sleep(5)
-    #         except:
-    #             print("Unsuccessfull to delete cache")
-
-    # delete_cache()
-
-
+    # Take screenshot on failure
     def take_screenshot(browser, test_name):
         screenshots_dir = "/home/dixa/Visual_studio_code/Whitefalcon_test_branch/whitefalcon/QA/failure_screenshots"
         screenshot_file_path = "{}/{}.png".format(screenshots_dir, test_name)
         browser.save_screenshot(
             screenshot_file_path
         )
+    if request.session.testsfailed != failed_before:
+        test_name = request.node.name
+        take_screenshot(driver, test_name)
 
-    driver.get("http://api.int6.whitefalcon.io/")
+
+    targetHost = os.environ.get('TARGET_HOST')
+    driver.get(targetHost)
     EMAIL = os.environ.get('LOGIN_EMAIL')
     PASSWORD = os.environ.get('LOGIN_PASSWORD')
 
@@ -72,53 +62,51 @@ def setup(request):
     try:
         time.sleep(4)
         driver.find_element(By.XPATH, "//button[normalize-space()='Redis']").click()
-        #wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//button[normalize-space()='Disk']"))).click()
+        #driver.find_element(By.XPATH, "//button[normalize-space()='Disk']").click()
     except:
-        driver.get("http://api.int6.whitefalcon.io/")
+        driver.get(targetHost)
         time.sleep(2)
         driver.find_element(By.NAME, "email").send_keys(EMAIL)
         driver.find_element(By.NAME, "password").send_keys(PASSWORD)
         driver.find_element(By.XPATH, "//button[@type='submit']").click()
-        driver.find_element(By.XPATH, "//button[normalize-space()='Redis']").click()
+        driver.find_element(By.XPATH, "//button[normalize-space()='Disk']").click()
 
 
 
     # Creating a server
     time.sleep(2)
+    server_name = os.environ.get('SERVER_NAME')
+
     driver.find_element(By.XPATH, "//a[@href='#/servers']").click()
     time.sleep(2)
     driver.find_element(By.XPATH, "//a[@href='#/servers/create']").click()
     driver.find_element(By.NAME, "listens.0.listen").send_keys("82")
-    driver.find_element(By.NAME, "server_name").send_keys("qa.int6.whitefalcon.io")
+    driver.find_element(By.NAME, "server_name").send_keys(server_name)
     #driver.find_element(By.NAME, "proxy_server_name").send_keys("10.43.69.108:3009")
     driver.execute_script("window.scrollBy(0, document.body.scrollHeight);")
     driver.find_element(By.CSS_SELECTOR, ".MuiButton-sizeMedium").click()
     request.function.driver = driver
-    yield driver
-    if request.session.testsfailed != failed_before:
-        test_name = request.node.name
-        take_screenshot(driver, test_name)
+    request.function.server_name = server_name
+    request.function.targetHost = targetHost
 
-    time.sleep(2)
-    wait = WebDriverWait(driver, 10)
+    yield driver
     try:
-        driver.get("http://api.int6.whitefalcon.io/#/")
+        driver.get(targetHost+"/#/")
         time.sleep(4)
     except:
-        driver.execute_script("window.location.href = 'http://api.int6.whitefalcon.io/#/';")
+        driver.execute_script({"window.location.href = {}'/#/';"}.format(targetHost))
         time.sleep(4)
     
     driver.find_element(By.XPATH, "//a[@href='#/servers']").click()
     time.sleep(2)
 
     # Find the row containing the specific text
-    server_name = "qa.int6.whitefalcon.io"
     server_row = driver.find_element(By.XPATH, f"//tr[td/span[contains(text(), '{server_name}')]]")
 
     checkbox = server_row.find_element(By.XPATH, ".//input[@type='checkbox']")
     checkbox.click()
-
+    time.sleep(2)
     driver.find_element(By.CSS_SELECTOR, "button[aria-label='Delete']").click()
-    time.sleep(6)
+    time.sleep(4)
     driver.refresh()
     driver.close()

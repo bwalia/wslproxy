@@ -13,7 +13,9 @@ from selenium.webdriver.common.action_chains import ActionChains
 
 def test_authToken(setup, request):
     driver = request.function.driver
-    #driver.implicitly_wait(20)
+    server_name = request.function.server_name
+    targetHost = request.function.targetHost 
+
     wait = WebDriverWait(driver, 15)
 
     def wait_for_element(by, selector):
@@ -66,7 +68,7 @@ def test_authToken(setup, request):
 
     # Apply both rules to the server
     wait_for_element(By.XPATH, "//a[@href='#/servers']").click()
-    wait_for_element(By.XPATH, "//td[contains(.,'qa.int6.whitefalcon.io')]").click()
+    wait_for_element(By.XPATH, f"//td[contains(.,'{server_name}')]").click()
     wait_for_element(By.XPATH, "//a[@id='tabheader-1']").click()
     wait_for_element(By.XPATH, "//div[@id='rules']").click()
     time.sleep(2)
@@ -101,7 +103,7 @@ def test_authToken(setup, request):
     time.sleep(2)
     wait_for_element(By.XPATH, "//button[normalize-space()='Save']").click()
     wait_for_element(By.XPATH, "//a[@href='#/servers']").click()
-    wait_for_element(By.XPATH, "//td[contains(.,'qa.int6.whitefalcon.io')]").click()
+    wait_for_element(By.XPATH, f"//td[contains(.,'{server_name}')]").click()
     wait_for_element(By.XPATH, "//a[@id='tabheader-1']").click()
     driver.refresh()
     driver.back()
@@ -118,7 +120,7 @@ def test_authToken(setup, request):
 
     # Accessing API without Authorization token in cookies
     time.sleep(2)
-    driver.get("http://qa.int6.whitefalcon.io/api/v2/sample-data.json")
+    driver.get("http://"+server_name+"/api/v2/sample-data.json")
     time.sleep(2)
     response1 = wait_for_element(By.XPATH, "//h1[normalize-space()='Configuration not match!']").text
     time.sleep(2)
@@ -127,7 +129,7 @@ def test_authToken(setup, request):
 
     # Login and get Authorization cookie
     time.sleep(2)
-    driver.get("http://qa.int6.whitefalcon.io/")
+    driver.get("http://"+server_name+"/")
     time.sleep(4)
     EMAIL = os.environ.get('LOGIN_EMAIL')
     PASSWORD = os.environ.get('LOGIN_PASSWORD')
@@ -142,7 +144,7 @@ def test_authToken(setup, request):
     print(login_text)
 
     # Accessing API with Authorization token in cookies
-    driver.get("http://qa.int6.whitefalcon.io/api/v2/sample-data.json")
+    driver.get("http://"+server_name+"/api/v2/sample-data.json")
     time.sleep(4)
     driver.refresh()
     driver.execute_script("location.reload()")

@@ -7,12 +7,17 @@ from selenium.webdriver.support.select import Select
 from selenium.webdriver.support.wait import WebDriverWait
 import os
 from selenium.common.exceptions import NoSuchElementException
+
 from selenium.webdriver.common.action_chains import ActionChains
 
 
 
 def test_priorityCheck(setup, request):
     driver = request.function.driver
+    server_name = request.function.server_name
+    targetHost = request.function.targetHost 
+
+
     #driver.implicitly_wait(20)
     wait = WebDriverWait(driver, 20)
 
@@ -72,7 +77,8 @@ def test_priorityCheck(setup, request):
 
     # Apply both rules to the server
     wait_for_element(By.XPATH, "//a[@href='#/servers']").click()
-    wait_for_element(By.XPATH, "//td[contains(.,'qa.int6.whitefalcon.io')]").click()
+    wait_for_element(By.XPATH, f"//td[contains(., '{server_name}')]").click()
+
     wait_for_element(By.XPATH, "//a[@id='tabheader-1']").click()
     time.sleep(2)
     wait_for_element(By.XPATH, "//div[@id='rules']").click()
@@ -95,6 +101,7 @@ def test_priorityCheck(setup, request):
     except:
         # Scroll to the element to make it visible
         driver.execute_script("arguments[0].scrollIntoView();", wait_for_element(By.XPATH, "//li[contains(.,'Low priority rule-py')]"))
+        time.sleep(2)
         # Wait for the element to be clickable
         wait.until(expected_conditions.element_to_be_clickable((By.XPATH, "//li[contains(.,'Low priority rule-py')]"))).click()
         print("Rule not found") 
@@ -107,7 +114,7 @@ def test_priorityCheck(setup, request):
     time.sleep(2)
     wait_for_element(By.XPATH, "//button[normalize-space()='Save']").click()
     wait_for_element(By.XPATH, "//a[@href='#/servers']").click()
-    wait_for_element(By.XPATH, "//td[contains(.,'qa.int6.whitefalcon.io')]").click()
+    wait_for_element(By.XPATH, f"//td[contains(.,'{server_name}')]").click()
     wait_for_element(By.XPATH, "//a[@id='tabheader-1']").click()
     driver.refresh()
     driver.back()
@@ -122,10 +129,10 @@ def test_priorityCheck(setup, request):
 
    # Verifying the rules'
     try:
-        driver.get("http://qa.int6.whitefalcon.io/public")
+        driver.get("http://"+server_name+"/public")
     except: 
         time.sleep(2)
-        driver.navigate().to("http://qa.int6.whitefalcon.io/public")    
+        driver.get("http://"+server_name+"/public")
     time.sleep(2)
     driver.refresh()
     response1 = wait_for_element(By.CSS_SELECTOR, "body").text

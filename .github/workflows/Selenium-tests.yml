@@ -2,6 +2,25 @@ name: Run Selenium UI tests
 
 on:
   workflow_dispatch:
+    inputs:
+      TARGET_ENV:
+        type: choice
+        description: 'Please choose the Target Environment'
+        default: 'int'
+        required: true
+        options:
+        - int
+        - test
+        - acc
+        - prod
+      STORAGE_TYPE:
+        description: 'Please choose the Data Storage Type'
+        required: true
+        type: choice 
+        default: 'redis'
+        options:
+        - redis
+        - disk
 
 jobs:
   build:
@@ -21,9 +40,13 @@ jobs:
 
       - name: Test execution
         working-directory: ./QA
-        run: docker run -e LOGIN_EMAIL=$LOGIN_EMAIL -e LOGIN_PASSWORD=$LOGIN_PASSWORD -e JWT_TOKEN_KEY=$JWT_TOKEN_KEY selenium-tests    
+        run: docker run -e LOGIN_EMAIL=$LOGIN_EMAIL -e LOGIN_PASSWORD=$LOGIN_PASSWORD -e JWT_TOKEN_KEY=$JWT_TOKEN_KEY -e TARGET_HOST=$TARGET_HOST -e SERVER_NAME=$SERVER_NAME selenium-tests    
         env: 
+          TARGET_HOST : http://api.int6.whitefalcon.io
+          SERVER_NAME : qa.int6.whitefalcon.io
           LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
           LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
           JWT_TOKEN_KEY: ${{ secrets.JWT_TOKEN_KEY }}
+          STORAGE_TYPE: ${{ github.event.inputs.STORAGE_TYPE }} 
+
 

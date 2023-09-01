@@ -14,6 +14,8 @@ from selenium.webdriver.support.select import Select
 
 def test_pathRule(setup, request):
     driver = request.function.driver
+    server_name = request.function.server_name
+    targetHost = request.function.targetHost 
 
 
 # Creating rule for path condition - starts with
@@ -96,7 +98,7 @@ def test_pathRule(setup, request):
     # Apply rules to the server
 
     wait_for_element(By.XPATH, "//a[@href='#/servers']").click()
-    wait_for_element(By.XPATH, "//td[contains(.,'qa.int6.whitefalcon.io')]").click()
+    wait_for_element(By.XPATH, f"//td[contains(.,'{server_name}')]").click()
     wait_for_element(By.XPATH, "//a[@id='tabheader-1']").click()
     wait_for_element(By.XPATH, "//div[@id='rules']").click()
     time.sleep(2)
@@ -148,7 +150,7 @@ def test_pathRule(setup, request):
 
     wait_for_element(By.XPATH, "//button[normalize-space()='Save']").click()
     wait_for_element(By.XPATH, "//a[@href='#/servers']").click()
-    wait_for_element(By.XPATH, "//td[contains(.,'qa.int6.whitefalcon.io')]").click()
+    wait_for_element(By.XPATH, f"//td[contains(.,'{server_name}')]").click()
     wait_for_element(By.XPATH, "//a[@id='tabheader-1']").click()
     driver.refresh()
     driver.back()
@@ -161,7 +163,7 @@ def test_pathRule(setup, request):
     time.sleep(4)
 
     # Verifying the rule 'Starts with'
-    driver.get("http://qa.int6.whitefalcon.io/route")
+    driver.get("http://"+server_name+"/route")
     time.sleep(4)
     driver.refresh()
     response1 = wait_for_element(By.CSS_SELECTOR, "body").text
@@ -169,7 +171,7 @@ def test_pathRule(setup, request):
     print(response1)
     
     # Verifying the rule 'Ends with'
-    driver.get("http://qa.int6.whitefalcon.io/outer")
+    driver.get("http://"+server_name+"/outer")
     time.sleep(2)
     driver.refresh()
     driver.refresh()
@@ -179,7 +181,7 @@ def test_pathRule(setup, request):
     print(response2)
 
     # Verifying the rule 'Equals'
-    driver.get("http://qa.int6.whitefalcon.io/path")
+    driver.get("http://"+server_name+"/path")
     time.sleep(4)
     driver.refresh()
     response3 = wait_for_element(By.CSS_SELECTOR, "body").text

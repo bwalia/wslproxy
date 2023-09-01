@@ -31,9 +31,11 @@ def test_login():
     
     driver = webdriver.Chrome(options = chrome_options)
 
-    driver.get("http://api.int6.whitefalcon.io/")
+    targetHost = os.environ.get('TARGET_HOST')
     EMAIL = os.environ.get('LOGIN_EMAIL')
     PASSWORD = os.environ.get('LOGIN_PASSWORD')
+        
+    driver.get(targetHost)
 
 
     # Verify login with invalid credentials
