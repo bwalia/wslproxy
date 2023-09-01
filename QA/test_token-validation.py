@@ -125,7 +125,7 @@ def test_authToken(setup, request):
     response1 = wait_for_element(By.XPATH, "//h1[normalize-space()='Configuration not match!']").text
     time.sleep(2)
     assert "Configuration not match!" in response1
-    print(response1)
+    #print(response1)
 
     # Login and get Authorization cookie
     time.sleep(2)
@@ -150,7 +150,7 @@ def test_authToken(setup, request):
     driver.execute_script("location.reload()")
     response2 = wait_for_element(By.CSS_SELECTOR, "body pre").text
     assert "smartphones" in response2
-    print(response2)
+    #print(response2)
 
     driver.delete_all_cookies()
 
