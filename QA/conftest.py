@@ -64,9 +64,11 @@ def setup(request):
     if storageType == "redis":
         time.sleep(4)
         driver.find_element(By.XPATH, "//button[normalize-space()='Redis']").click()
+        print("Executing test on Redis data storage")
     elif storageType == "disk": 
         time.sleep(4)
         driver.find_element(By.XPATH, "//button[normalize-space()='Disk']").click()
+        print("Executing test on Disk data storage")
 
     # Creating a server
     time.sleep(2)
