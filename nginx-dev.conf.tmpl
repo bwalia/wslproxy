@@ -2,9 +2,9 @@
 # user  nobody;
 worker_processes  1;
 
-error_log  logs/error.log;
+#error_log  logs/error.log;
 # error_log  logs/error.log  notice;
-# error_log  logs/error.log  info;
+ error_log  logs/error.log  info;
 
 #pid        logs/nginx.pid;
 
@@ -527,6 +527,12 @@ server {
           }
 
         location = /frontdoor/opsapi/sync {
+          default_type 'application/json';
+          add_header 'Access-Control-Allow-Origin' '*';
+          add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, PUT, DELETE';
+          content_by_lua_file /usr/local/openresty/nginx/html/api/sync_data.lua;
+        }
+        location = /frontdoor/opsapi/handle-profile {
           default_type 'application/json';
           add_header 'Access-Control-Allow-Origin' '*';
           add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, PUT, DELETE';

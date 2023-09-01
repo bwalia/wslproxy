@@ -340,7 +340,9 @@ end
 local settingsObj = loadGlobalSettings()
 local exist_values = nil
 
-local file, err = io.open(configPath .. "data/servers/host:" .. Hostname .. ".json", "rb")
+local envProfile = settingsObj.env_profile == nil and "prod" or settingsObj.env_profile
+
+local file, err = io.open(configPath .. "data/servers/" .. envProfile .. "/host:" .. Hostname .. ".json", "rb")
 if file == nil then
     if settingsObj.nginx.default.no_server ~= nil then
         do return ngx.say(Base64.decode(settingsObj.nginx.default.no_server)) end

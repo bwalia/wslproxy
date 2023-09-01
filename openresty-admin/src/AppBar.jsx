@@ -11,6 +11,8 @@ import { IconButton, Tooltip, Typography } from "@mui/material";
 import StorageModal from "./Dashboard/StorageModal";
 import SettingsIcon from "@mui/icons-material/Settings";
 import CloudSyncIcon from '@mui/icons-material/CloudSync';
+import ProfileIcon from '@mui/icons-material/RememberMe';
+import EnvProfileHandler from './component/EnvProfileHandler'
 
 const StorageButton = () => {
   const [isStrgTypeSet, setStrgTypeSet] = React.useState(false);
@@ -42,6 +44,22 @@ const ApiSync = () => {
         </IconButton>
       </Tooltip>
     </React.Fragment>
+  )
+}
+const ProfileHandler = () => {
+  const [envProfile, setEnvProfile] = React.useState(false);
+  const handleEnvProfile = () => {
+    setEnvProfile(true);
+  };
+  return (
+    <>
+      <Tooltip title="Select Storage Type">
+        <IconButton color="inherit" onClick={handleEnvProfile}>
+          <ProfileIcon />
+        </IconButton>
+      </Tooltip>
+      {envProfile && <EnvProfileHandler open={envProfile} onClose={() => setEnvProfile(false)} />}
+    </>
   )
 }
 
@@ -85,6 +103,7 @@ const AppBar = () => (
     <ApiSync />
     <StorageButton />
     <SettingButton />
+    <ProfileHandler />
   </RaAppBar>
 );
 
