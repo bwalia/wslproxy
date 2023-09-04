@@ -299,6 +299,7 @@ const Form = () => {
               fullWidth
               optionText="name"
               onChange={handleProfileChange}
+              validate={[required()]}
             />
           </ReferenceInput>
         </Grid>

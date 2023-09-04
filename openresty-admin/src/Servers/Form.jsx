@@ -80,6 +80,7 @@ const Form = ({ type }) => {
                 fullWidth
                 optionText="name"
                 onChange={handleProfileChange}
+                validate={[required()]}
               />
             </ReferenceInput>
           </Grid>

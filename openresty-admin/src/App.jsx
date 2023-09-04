@@ -22,6 +22,8 @@ import CheckModal from "./component/CheckModal";
 
 const API_URL = import.meta.env.VITE_API_URL;
 const deploymentTime = import.meta.env.VITE_DEPLOYMENT_TIME
+const versionNumber = import.meta.env.VITE_APP_VERSION
+const buildNumber = import.meta.env.VITE_APP_BUILD_NUMBER
 
 export const MyLayout = (props) => <Layout {...props} appBar={AppBar} />;
 const App = () => {
@@ -74,7 +76,7 @@ const App = () => {
           color: "#213547"
         }}
       >
-        <p>Deployment timestamp: {deploymentTime}</p>
+        <p><span>Version: {versionNumber}, </span><span>Build: {buildNumber}, </span><span>Deployment timestamp: {deploymentTime}</span></p>
       </div>
     </div>
   )
