@@ -536,7 +536,7 @@ server {
           default_type 'application/json';
           add_header 'Access-Control-Allow-Origin' '*';
           add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, PUT, DELETE';
-          content_by_lua_file /usr/local/openresty/nginx/html/api/sync_data.lua;
+          content_by_lua_file /usr/local/openresty/nginx/html/api/profile_handler.lua;
         }
 
         location = /__resolver_test__

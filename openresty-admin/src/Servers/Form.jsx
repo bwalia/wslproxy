@@ -17,6 +17,10 @@ import {
 import LocationInput from "./input/LocationInput";
 import CreateServerText from "./input/CreateServerText";
 
+const handleProfileChange = (e) => {
+  localStorage.setItem('environment', e.target.value);
+}
+
 const Form = ({ type }) => {
   const dataProvider = useDataProvider();
   const [totalResults, setTotalResults] = React.useState(0);
@@ -75,6 +79,7 @@ const Form = ({ type }) => {
                 sx={{ marginTop: "0", marginBottom: "0" }}
                 fullWidth
                 optionText="name"
+                onChange={handleProfileChange}
               />
             </ReferenceInput>
           </Grid>

@@ -47,18 +47,26 @@ const ApiSync = () => {
   )
 }
 const ProfileHandler = () => {
-  const [envProfile, setEnvProfile] = React.useState(false);
-  const handleEnvProfile = () => {
-    setEnvProfile(true);
+  const [isProfileModalOpen, setProfileModalOpen] = React.useState(false);
+
+  const handleOpenModal = () => {
+    setProfileModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setProfileModalOpen(false);
   };
   return (
     <>
       <Tooltip title="Select Storage Type">
-        <IconButton color="inherit" onClick={handleEnvProfile}>
+        <IconButton color="inherit" onClick={handleOpenModal}>
           <ProfileIcon />
         </IconButton>
       </Tooltip>
-      {envProfile && <EnvProfileHandler open={envProfile} onClose={() => setEnvProfile(false)} />}
+      {isProfileModalOpen && <EnvProfileHandler open={isProfileModalOpen}
+        onClose={handleCloseModal}
+        title="Please select the profile for frontdoor."
+        content="This is profile modal." />}
     </>
   )
 }

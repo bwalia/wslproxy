@@ -17,7 +17,7 @@ const handleProfileChange = (e) => {
   localStorage.setItem('environment', e.target.value);
 }
 const rulesFilters = [
-  <ReferenceInput source="profile_id" reference="profiles" >
+  <ReferenceInput source="profile_id" reference="profiles" alwaysOn>
     <SelectInput
       sx={{ marginTop: "0", marginBottom: "0" }}
       fullWidth

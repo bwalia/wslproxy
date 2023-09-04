@@ -83,8 +83,8 @@ const dataProvider = (apiUrl, settings = {}) => {
     },
     getList: async (resource, params) => {
       setIsLoadig(true)
-      try {
-        const environmentProfile = localStorage.getItem('environment');
+            try {
+        const environmentProfile = localStorage.getItem('environment') || "prod";
         if (isEmpty(params.filter) && environmentProfile) {
           params.filter = {
             profile_id: environmentProfile

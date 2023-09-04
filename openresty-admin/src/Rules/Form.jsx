@@ -276,6 +276,9 @@ const objectToArray = (obj = {}) => {
   return res;
 };
 const Form = () => {
+  const handleProfileChange = (e) => {
+    localStorage.setItem('environment', e.target.value);
+  }
   const mynewobj = objectToArray(iso_codes);
   return (
     <SimpleForm toolbar={<Toolbar />}>
@@ -295,6 +298,7 @@ const Form = () => {
               sx={{ marginTop: "0", marginBottom: "0" }}
               fullWidth
               optionText="name"
+              onChange={handleProfileChange}
             />
           </ReferenceInput>
         </Grid>
