@@ -515,9 +515,9 @@ local function listServers(args)
         end
     end
 
-    if qParams.sort.order == "DESC" then
+    if qParams.sort ~= nil and qParams.sort.order == "DESC" then
         table.sort(allServers, sortDesc(qParams.sort.field))
-    else
+    elseif qParams.sort ~= nil and qParams.sort.order == "ASC" then
         table.sort(allServers, sortAsc(qParams.sort.field))
     end
     return ngx.say(cjson.encode({
@@ -932,6 +932,11 @@ local function listRules(args)
             end
         end
     end
+    if qParams.sort ~= nil and qParams.sort.order == "DESC" then
+        table.sort(allRules, sortDesc(qParams.sort.field))
+    elseif qParams.sort ~= nil and qParams.sort.order == "ASC" then
+        table.sort(allRules, sortAsc(qParams.sort.field))
+    end
     ngx.say({ cjson.encode({
         data = allRules,
         total = totalRecords
@@ -1015,6 +1020,7 @@ local function createDeleteRules(body, uuid)
                 if settings.storage_type == "disk" then
                     os.remove(configPath .. "data/rules/" .. envProfile .. "/" .. payloads.ids.ids[value] .. ".json")
                 else
+                    os.remove(configPath .. "data/rules/" .. envProfile .. "/" .. payloads.ids.ids[value] .. ".json")
                     deleteRuleFromServer(payloads.ids.ids[value], envProfile)
                     red:hdel("request_rules_" .. envProfile, payloads.ids.ids[value])
                 end
