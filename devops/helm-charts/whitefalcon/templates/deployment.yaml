@@ -68,6 +68,10 @@ spec:
             value: "Lua 5.1"  
           - name: API_URL
             value: "{{ .Values.app.api_url }}"  
+          - name: VITE_APP_VERSION
+            value: "{{ .Values.app.version }}"  
+          - name: VITE_APP_BUILD_NUMBER
+            value: "{{ .Values.app.build_number }}"  
           - name: VITE_DEPLOYMENT_TIME
             value: "{{ now | date "20060102150405" }}"
           - name: NGINX_CONFIG_DIR
