@@ -11,12 +11,17 @@ import {
   FormDataConsumer,
   Menu,
   required,
+  ReferenceInput,
 } from "react-admin";
 
 import LocationInput from "./input/LocationInput";
 import CreateServerText from "./input/CreateServerText";
 
-const Form = ({type}) => {
+const handleProfileChange = (e) => {
+  localStorage.setItem('environment', e.target.value);
+}
+
+const Form = ({ type }) => {
   const dataProvider = useDataProvider();
   const [totalResults, setTotalResults] = React.useState(0);
   const initialValues = [{ quantity: 1 }];
@@ -41,7 +46,7 @@ const Form = ({type}) => {
     <TabbedForm>
       <TabbedForm.Tab label="Server details">
         <Grid container spacing={2}>
-          <Grid item xs={4}>
+          <Grid item xs={3}>
             <ArrayInput
               source="listens"
               label=""
@@ -52,7 +57,7 @@ const Form = ({type}) => {
               </SimpleFormIterator>
             </ArrayInput>
           </Grid>
-          <Grid item xs={4}>
+          <Grid item xs={3}>
             <TextInput
               source="server_name"
               fullWidth
@@ -61,12 +66,22 @@ const Form = ({type}) => {
               disabled={type === "edit" ? true : false}
             />
           </Grid>
-          <Grid item xs={4}>
+          <Grid item xs={3}>
             <TextInput
               source="proxy_server_name"
               fullWidth
               label="Proxy Server/Domain name"
             />
+          </Grid>
+          <Grid item xs={3}>
+            <ReferenceInput source="profile_id" reference="profiles" >
+              <SelectInput
+                sx={{ marginTop: "0", marginBottom: "0" }}
+                fullWidth
+                optionText="name"
+                onChange={handleProfileChange}
+              />
+            </ReferenceInput>
           </Grid>
           <Grid item xs={3}>
             <TextInput source="root" defaultValue={"/var/www/html"} fullWidth label="Root path" />

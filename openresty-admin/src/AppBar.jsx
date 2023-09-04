@@ -11,6 +11,8 @@ import { IconButton, Tooltip, Typography } from "@mui/material";
 import StorageModal from "./Dashboard/StorageModal";
 import SettingsIcon from "@mui/icons-material/Settings";
 import CloudSyncIcon from '@mui/icons-material/CloudSync';
+import ProfileIcon from '@mui/icons-material/RememberMe';
+import EnvProfileHandler from './component/EnvProfileHandler'
 
 const StorageButton = () => {
   const [isStrgTypeSet, setStrgTypeSet] = React.useState(false);
@@ -42,6 +44,30 @@ const ApiSync = () => {
         </IconButton>
       </Tooltip>
     </React.Fragment>
+  )
+}
+const ProfileHandler = () => {
+  const [isProfileModalOpen, setProfileModalOpen] = React.useState(false);
+
+  const handleOpenModal = () => {
+    setProfileModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setProfileModalOpen(false);
+  };
+  return (
+    <>
+      <Tooltip title="Select Environment Profile">
+        <IconButton color="inherit" onClick={handleOpenModal}>
+          <ProfileIcon />
+        </IconButton>
+      </Tooltip>
+      {isProfileModalOpen && <EnvProfileHandler open={isProfileModalOpen}
+        onClose={handleCloseModal}
+        title="Please select the profile for frontdoor."
+        content="This is profile modal." />}
+    </>
   )
 }
 
@@ -85,6 +111,7 @@ const AppBar = () => (
     <ApiSync />
     <StorageButton />
     <SettingButton />
+    <ProfileHandler />
   </RaAppBar>
 );
 

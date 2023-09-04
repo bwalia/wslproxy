@@ -79,6 +79,7 @@ RUN luarocks install base64
 RUN luarocks install lua-resty-redis-connector
 RUN luarocks install lua-resty-dns
 RUN luarocks install lua-resty-resolver
+RUN luarocks install luafilesystem
 #COPY nginx/test.conf /usr/local/openresty/nginx/conf/nginx.conf
 # COPY nginx/hd4dp.conf /etc/nginx/conf.d/hd4dp.conf
 # COPY nginx/sessions_demo_server.conf /etc/nginx/conf.d/sessions_demo_server.conf
