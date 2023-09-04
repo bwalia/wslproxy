@@ -345,6 +345,8 @@ local envProfile = settingsObj.env_profile == nil and "prod" or settingsObj.env_
 local file, err = io.open(configPath .. "data/servers/" .. envProfile .. "/host:" .. Hostname .. ".json", "rb")
 if file == nil then
     if settingsObj.nginx.default.no_server ~= nil then
+        ngx.header["Content-Type"] = settingsObj.nginx.content_type ~= nil and settingsObj.nginx.content_type or
+        "text/html"
         do return ngx.say(Base64.decode(settingsObj.nginx.default.no_server)) end
     end
 else
@@ -602,12 +604,16 @@ if exist_values and exist_values ~= 0 and exist_values ~= nil and exist_values ~
         end
     else
         if settingsObj.nginx.default.no_rule ~= nil then
+            ngx.header["Content-Type"] = settingsObj.nginx.content_type ~= nil and settingsObj.nginx.content_type or
+            "text/html"
             ngx.say(Base64.decode(settingsObj.nginx.default.no_rule))
         end
     end
 else
     -- ngx.say("No Nginx Server Config found.")
     if settingsObj.nginx.default.no_server ~= nil then
+        ngx.header["Content-Type"] = settingsObj.nginx.content_type ~= nil and settingsObj.nginx.content_type or
+        "text/html"
         ngx.say(Base64.decode(settingsObj.nginx.default.no_server))
     end
 end

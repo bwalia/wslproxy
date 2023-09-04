@@ -58,7 +58,7 @@ const ProfileHandler = () => {
   };
   return (
     <>
-      <Tooltip title="Select Storage Type">
+      <Tooltip title="Select Environment Profile">
         <IconButton color="inherit" onClick={handleOpenModal}>
           <ProfileIcon />
         </IconButton>

@@ -13,6 +13,7 @@ import UserIcon from "@mui/icons-material/Group";
 import SessionIcon from "@mui/icons-material/HistoryToggleOff";
 import ServerIcon from "@mui/icons-material/Storage";
 import RuleIcon from "@mui/icons-material/Rule";
+import ProfileIcon from '@mui/icons-material/RecentActors';
 import Rules from "./Rules";
 import Settings from "./Settings";
 import AppBar from "./AppBar";
@@ -58,7 +59,7 @@ const App = () => {
         <Resource name="servers" {...Servers} icon={ServerIcon} />
         <Resource name="rules" {...Rules} icon={RuleIcon} />
         <Resource name="settings" {...Settings} icon={RuleIcon} />
-        <Resource name="profiles" {...Profiles} icon={RuleIcon} />
+        <Resource name="profiles" {...Profiles} icon={ProfileIcon} />
       </Admin>
       <div
         style={{

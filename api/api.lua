@@ -1056,9 +1056,9 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name, method)
     if key_name == 'servers' and json_val.server_name then
         local getDomain = ""
         if settings.storage_type == "redis" then
-            getDomain = red:hget(key_name, json_val.id)
+            getDomain = red:hget(key_name .. "_" .. envProfile, json_val.id)
         else
-            getDomain = getDataFromFile(configPath .. "data/servers/" .. json_val.id .. ".json")
+            getDomain = getDataFromFile(configPath .. "data/servers/" .. envProfile .. "/" .. json_val.id .. ".json")
         end
         if getDomain and getDomain ~= nil and type(getDomain) == "string" and method == "create" then
             ngx.status = ngx.HTTP_CONFLICT
@@ -1072,9 +1072,9 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name, method)
         if method == "update" and json_val.id ~= "host:" .. json_val.server_name then
             local previousDomain = ""
             if settings.storage_type == "redis" then
-                previousDomain = red:hget(key_name, "host:" .. json_val.server_name)
+                previousDomain = red:hget(key_name .. "_" .. envProfile, "host:" .. json_val.server_name)
             else
-                previousDomain = getDataFromFile(configPath .. "data/servers/host:" .. json_val.server_name .. ".json")
+                previousDomain = getDataFromFile(configPath .. "data/servers/" .. envProfile .. "/host:" .. json_val.server_name .. ".json")
             end
             if previousDomain and previousDomain ~= nil and type(previousDomain) == "string" then
                 ngx.status = ngx.HTTP_CONFLICT
