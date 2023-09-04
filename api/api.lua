@@ -1017,13 +1017,13 @@ local function createDeleteRules(body, uuid)
     elseif payloads and payloads.ids.ids and #payloads.ids.ids > 0 then
         for value = 1, #payloads.ids.ids do
             if settings then
-                if settings.storage_type == "disk" then
-                    os.remove(configPath .. "data/rules/" .. envProfile .. "/" .. payloads.ids.ids[value] .. ".json")
-                else
-                    os.remove(configPath .. "data/rules/" .. envProfile .. "/" .. payloads.ids.ids[value] .. ".json")
+                if settings.storage_type == "redis" then
                     deleteRuleFromServer(payloads.ids.ids[value], envProfile)
                     red:hdel("request_rules_" .. envProfile, payloads.ids.ids[value])
                 end
+                os.remove(configPath .. "data/rules/" .. envProfile .. "/" .. payloads.ids.ids[value] .. ".json")
+                local command = "rm -f " .. configPath .. "data/rules/" .. envProfile .. "/" .. payloads.ids.ids[value] .. ".json"
+                os.execute(command)
             end
         end
     end
