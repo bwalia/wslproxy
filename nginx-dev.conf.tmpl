@@ -48,6 +48,17 @@ http {
     # lua_package_path '/usr/local/Cellar/openresty/1.19.3.1_1/site/lualib/resty/?.lua;;';
     lua_package_cpath '/usr/local/openresty/site/lualib/resty/?.so;;';
 
+    geo $limit {
+        default 1;
+        10.0.0.0/8 0;
+        192.168.0.0/24 0;
+    }
+    
+    map $limit $limit_key {
+        0 "";
+        1 $binary_remote_addr;
+    }
+
     limit_req_zone $limit_key zone=req_zone:10m rate=5r/s;
     limit_req_zone $binary_remote_addr zone=req_zone_wl:10m rate=15r/s;
 
