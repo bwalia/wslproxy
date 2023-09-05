@@ -1,0 +1,69 @@
+version: "3.7"
+services:
+  server:
+    container_name: synpopacc
+    restart: always
+    build:
+      args:
+        - APP_ENV=dev
+        - APP_NAME=synpopacc
+        - DNS_RESOLVER=127.0.0.11
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8080"
+      - "8000:80"
+    networks:
+      - openresty-network
+    volumes:
+      - ./nginx-dev.conf.tmpl:/usr/local/openresty/nginx/conf/nginx.conf
+      - ./openresty-admin/public:/usr/local/openresty/nginx/html/openresty-admin/public
+      - ./openresty-admin/src:/usr/local/openresty/nginx/html/openresty-admin/src
+      - ./openresty-admin/.eslintrc.cjs:/usr/local/openresty/nginx/html/openresty-admin/.eslintrc.cjs
+      - ./openresty-admin/.gitignore:/usr/local/openresty/nginx/html/openresty-admin/.gitignore
+      - ./openresty-admin/index.html:/usr/local/openresty/nginx/html/openresty-admin/index.html
+      - ./openresty-admin/package.json:/usr/local/openresty/nginx/html/openresty-admin/package.json
+      - ./openresty-admin/vite.config.js:/usr/local/openresty/nginx/html/openresty-admin/vite.config.js
+      - ./openresty-admin/yarn.lock:/usr/local/openresty/nginx/html/openresty-admin/yarn.lock
+      - ./data:/opt/nginx/data
+      - ./html/swagger:/usr/local/openresty/nginx/html/swagger
+      - ./api:/usr/local/openresty/nginx/html/api
+      - ./.env.syntest:/usr/local/openresty/nginx/html/openresty-admin/.env
+    environment:
+      LUA_DEBUG: "true"
+      REDIS_HOST: "synpopacc-redis"
+      APP_NAME: "synpopacc"
+      VITE_APP_VERSION: "0.0.1"
+      VITE_APP_BUILD_NUMBER: "182900"
+      VERSION: "1.0"
+      STACK: "Lua 5.1"
+      VITE_DEPLOYMENT_TIME: "20230510055429"
+      NGINX_CONFIG_DIR: "/opt/nginx/"
+      JWT_SECURITY_PASSPHRASE: "HCsKpxQ4hU97V5us5TCwvLnAVBgLqNd1dP2R-4Uywg7946J3zAqT9EOA5hdWRCQn"
+      API_URL: "https://opsapi.acc.uk.synergist.cloud/api"
+      HOST: "localhost"
+      PRIMARY_DNS_RESOLVER: "8.8.8.8"
+      SECONDARY_DNS_RESOLVER: "8.8.4.4"
+      DNS_RESOLVER_PORT: "53"
+      FRONT_URL: "https://frontdoor.acc.uk.synergist.cloud/"
+#      DNS_RESOLVER: "127.0.0.11"       # Docker's internal DNS resolver IP this should only be added for Docker deployments
+
+  redis:
+    container_name: synpopacc-redis
+    image: "redis:alpine"
+    ports:
+      - "6379:6379"
+    networks:
+      - openresty-network
+
+  cdn_node:
+    container_name: synpopacc-sample-api
+    build:
+      context: .
+      dockerfile: Dockerfile_nodeapp
+    ports:
+      - "3009:3009"
+    networks:
+      - openresty-network
+networks: 
+  openresty-network:
