@@ -1,0 +1,22 @@
+name: Deploy Syn POP v2 environment using Docker Compose
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: [syn-control-node]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Docker Compose
+        run: docker-compose --version
+
+      - name: Build and run Deploy Syn POP v2 environment
+        run: |
+          docker-compose up -d --build
+          docker-compose ps
