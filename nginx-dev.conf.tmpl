@@ -48,6 +48,9 @@ http {
     # lua_package_path '/usr/local/Cellar/openresty/1.19.3.1_1/site/lualib/resty/?.lua;;';
     lua_package_cpath '/usr/local/openresty/site/lualib/resty/?.so;;';
 
+    limit_req_zone $limit_key zone=req_zone:10m rate=5r/s;
+    limit_req_zone $binary_remote_addr zone=req_zone_wl:10m rate=15r/s;
+
     init_by_lua_block  {
         cjson = require("cjson")
         require "resty.session".init({
@@ -64,7 +67,10 @@ http {
     server {
         listen       8080;
         server_name  localhost;
-          
+
+        limit_req zone=req_zone burst=10 nodelay;
+        limit_req zone=req_zone_wl burst=20 nodelay;
+
         include /tmp/resolver.conf;     # For kubernetes use 10.43.0.10 and nginx ingress controller
 
         #charset koi8-r;
@@ -495,6 +501,9 @@ server {
     server {
         listen       80 default_server;
         server_name _;
+
+        limit_req zone=req_zone burst=10 nodelay;
+        limit_req zone=req_zone_wl burst=20 nodelay;
 
         # resolver 127.0.0.1 local=on;
         include /tmp/resolver.conf;         #   For kubernetes use 10.43.0.10 and nginx ingress controller
