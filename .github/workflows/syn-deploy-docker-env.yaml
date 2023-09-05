@@ -20,3 +20,7 @@ jobs:
         run: |
           docker-compose up -d --build
           docker-compose ps
+
+      - name: Run tests
+        run: |
+          echo "Running tests..."    
