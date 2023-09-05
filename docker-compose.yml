@@ -57,7 +57,7 @@ services:
       - openresty-network
 
   cdn_node:
-    container_name: cdn-node
+    container_name: ${VITE_APP_NAME}-sample-api
     build:
       context: .
       dockerfile: Dockerfile_nodeapp
