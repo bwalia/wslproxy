@@ -40,12 +40,12 @@ services:
       VITE_DEPLOYMENT_TIME: "20230510055429"
       NGINX_CONFIG_DIR: "/opt/nginx/"
       JWT_SECURITY_PASSPHRASE: "HCsKpxQ4hU97V5us5TCwvLnAVBgLqNd1dP2R-4Uywg7946J3zAqT9EOA5hdWRCQn"
-      API_URL: "https://opsapi.test.uk.synergist.cloud/api"
+      API_URL: "https://opsapi.acc.uk.synergist.cloud/api"
       HOST: "localhost"
       PRIMARY_DNS_RESOLVER: "8.8.8.8"
       SECONDARY_DNS_RESOLVER: "8.8.4.4"
       DNS_RESOLVER_PORT: "53"
-      FRONT_URL: "https://frontdoor.test.uk.synergist.cloud/"
+      FRONT_URL: "https://frontdoor.acc.uk.synergist.cloud/"
 #      DNS_RESOLVER: "127.0.0.11"       # Docker's internal DNS resolver IP this should only be added for Docker deployments
 
   redis:
