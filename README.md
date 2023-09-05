@@ -22,7 +22,7 @@ yarn install
 yarn build
 
 # Run the docker
-docker compose up -d --build
+docker compose --env-file .env.dev up -d --build
 ```
 
 ## Usage
