@@ -4,8 +4,8 @@ clear
 
 echo "Running docker-compose up -d."
 
-docker compose up -d --build --remove-orphans
 docker compose down --remove-orphans
+docker compose up -d --build --remove-orphans
 
 DOCKER_CONTAINER_NAME="whitefalcon"
 
