@@ -14,6 +14,8 @@ import CloudSyncIcon from '@mui/icons-material/CloudSync';
 import ProfileIcon from '@mui/icons-material/RememberMe';
 import EnvProfileHandler from './component/EnvProfileHandler'
 
+const appDisplayNname = import.meta.env.VITE_APP_DISPLAY_NAME
+
 const StorageButton = () => {
   const [isStrgTypeSet, setStrgTypeSet] = React.useState(false);
   const handleStorgeType = () => {
@@ -104,7 +106,7 @@ const AppBar = () => (
           color: "#6fb374",
         }}
       >
-        Whitefalcon
+        {appDisplayNname}
       </Typography>
     </Toolbar>
     <TitlePortal />
