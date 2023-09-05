@@ -19,12 +19,12 @@ jobs:
       - name: Build and run Deploy Syn POP v2 environment
         run: |
           docker-compose --env-file .env.syntest up -d --build
-          docker-compose ps
+          docker-compose --env-file .env.syntest ps
 
       - name: Build and run Deploy Syn POP v2 environment
         run: |
           docker-compose --env-file .env.synacc up -d --build
-          docker-compose ps
+          docker-compose --env-file .env.syntest ps
             
       - name: Run tests
         run: |
