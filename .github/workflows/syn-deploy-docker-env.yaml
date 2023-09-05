@@ -16,14 +16,14 @@ jobs:
       - name: Set up Docker Compose
         run: docker-compose --version
 
-      - name: Build and run Deploy Syn POP v2 environment
+      - name: Build and run Deploy Syn POP v2 TEST environment
         run: |
-          docker-compose --env-file .env.syntest up -d --build
+          docker-compose --env-file .env.syntest -f docker-compose-syntst.yml up -d --build
           docker-compose --env-file .env.syntest ps
 
-      - name: Build and run Deploy Syn POP v2 environment
+      - name: Build and run Deploy Syn POP v2 ACC environment
         run: |
-          docker-compose --env-file .env.synacc up -d --build
+          docker-compose --env-file .env.synacc -f docker-compose-synacc.yml up -d --build
           docker-compose --env-file .env.syntest ps
             
       - name: Run tests
