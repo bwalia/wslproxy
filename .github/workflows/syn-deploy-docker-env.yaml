@@ -21,10 +21,10 @@ jobs:
           docker-compose --env-file .env.syntest -f docker-compose-syntst.yml up -d --build
           docker-compose --env-file .env.syntest ps
 
-      - name: Build and run Deploy Syn POP v2 ACC environment
-        run: |
-          docker-compose --env-file .env.synacc -f docker-compose-synacc.yml up -d --build
-          docker-compose --env-file .env.syntest ps
+    #   - name: Build and run Deploy Syn POP v2 ACC environment
+    #     run: |
+    #       docker-compose --env-file .env.synacc -f docker-compose-synacc.yml up -d --build
+    #       docker-compose --env-file .env.syntest ps
             
       - name: Run tests
         run: |
