@@ -14,7 +14,7 @@ services:
       - "8081:8080"
       - "8000:80"
     networks:
-      - ${VITE_APP_NAME}-network
+      - openresty-network
     volumes:
       - ./nginx-dev.conf.tmpl:/usr/local/openresty/nginx/conf/nginx.conf
       - ./openresty-admin/public:/usr/local/openresty/nginx/html/openresty-admin/public
@@ -54,7 +54,7 @@ services:
     ports:
       - "6379:6379"
     networks:
-      - ${VITE_APP_NAME}-network
+      - openresty-network
 
   cdn_node:
     container_name: cdn-node
@@ -64,6 +64,6 @@ services:
     ports:
       - "3009:3009"
     networks:
-      - ${VITE_APP_NAME}-network
+      - openresty-network
 networks: 
-  ${VITE_APP_NAME}-network:
+  openresty-network:
