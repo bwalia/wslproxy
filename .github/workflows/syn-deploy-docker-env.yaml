@@ -9,17 +9,17 @@ on:
       TARGET_ENV:
         type: choice
         description: 'Please choose the Target Environment'
-        default: 'test'
+        default: 'syntest'
         required: true
         options:
-            - prod
-            - test
-            - acc
-            - dev
+            - synprod
+            - syntest
+            - synacc
+            - syndev
             
 env:
   TARGET_CLUSTER: "vm-1"
-  TARGET_ENV: ${{ github.event.inputs.TARGET_ENV || 'test'}}
+  TARGET_ENV: ${{ github.event.inputs.TARGET_ENV || 'syntest'}}
     
 jobs:
   build:
