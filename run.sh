@@ -35,13 +35,11 @@ ${DOCKER_COMPOSE_BIN} --env-file ${TARGET_ENV_FILE} down --remove-orphans
 sleep 5
 ${DOCKER_COMPOSE_BIN} --env-file ${TARGET_ENV_FILE} up -d --build --remove-orphans
 
-DOCKER_CONTAINER_NAME=""
-
 docker exec -it ${DOCKER_CONTAINER_NAME} yarn build
-
 docker exec -it ${DOCKER_CONTAINER_NAME} openresty -s reload
 
 # replace app name in dashboard and other places to whitelabel the api gw
 docker exec -it ${DOCKER_CONTAINER_NAME} "/usr/local/openresty/nginx/html/openresty-admin/.env"
 
+sleep 5
 docker system prune -f --all --volumes
