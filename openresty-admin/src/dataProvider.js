@@ -197,14 +197,16 @@ const dataProvider = (apiUrl, settings = {}) => {
     },
     delete: async (resource, params) => {
       setIsLoadig(true)
+      const environmentProfile = localStorage.getItem('environment') || "";
       const { data } = params;
       const { id } = params;
+      params.envProfile = environmentProfile
       const url = `${apiUrl}/${resource}/${id}`;
       try {
         console.log({ url });
         const response = await fetch(url, {
           method: "DELETE",
-          body: JSON.stringify(data),
+          body: JSON.stringify(params),
           headers: getHeaders(),
         });
         if (response.status < 200 || response.status >= 300 && response.status !== 409) {
