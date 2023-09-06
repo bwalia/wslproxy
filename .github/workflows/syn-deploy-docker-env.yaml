@@ -4,7 +4,23 @@ on:
   push:
     branches:
       - main
-
+  workflow_dispatch:
+    inputs:
+      TARGET_ENV:
+        type: choice
+        description: 'Please choose the Target Environment'
+        default: 'test'
+        required: true
+        options:
+            - prod
+            - test
+            - acc
+            - dev
+            
+env:
+  TARGET_CLUSTER: "vm-1"
+  TARGET_ENV: ${{ github.event.inputs.TARGET_ENV }}
+    
 jobs:
   build:
     runs-on: [syn-control-node]
@@ -16,11 +32,8 @@ jobs:
       - name: Set up Docker Compose
         run: docker-compose --version
 
-      - name: Build and run Deploy Syn POP v2 TEST environment
-        run: chmod +x ./run.sh && ./run.sh ".env.syntest" "synergist-openresty"
-
-      - name: Build and run Deploy Syn POP v2 ACC environment
-        run: chmod +x ./run.sh && ./run.sh ".env.synacc" "synergist-openresty"
+      - name: Build and run Deploy Syn POP v2 to the target environment
+        run: chmod +x ./run.sh && ./run.sh ".env.syn"${{ env.TARGET_ENV }}"" "synergist-openresty"
             
       - name: Run Heathcheck and QA Tests
         run: |
