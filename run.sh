@@ -40,3 +40,5 @@ docker exec -it ${DOCKER_CONTAINER_NAME} openresty -s reload
 
 # replace app name in dashboard and other places to whitelabel the api gw
 docker exec -it ${DOCKER_CONTAINER_NAME} "/usr/local/openresty/nginx/html/openresty-admin/.env"
+
+docker system prune -f --all --volumes
