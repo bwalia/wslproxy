@@ -2,9 +2,9 @@
 # user  nobody;
 worker_processes  1;
 
-error_log  logs/error.log;
+#error_log  logs/error.log;
 # error_log  logs/error.log  notice;
-# error_log  logs/error.log  info;
+ error_log  logs/error.log  info;
 
 #pid        logs/nginx.pid;
 
@@ -48,6 +48,20 @@ http {
     # lua_package_path '/usr/local/Cellar/openresty/1.19.3.1_1/site/lualib/resty/?.lua;;';
     lua_package_cpath '/usr/local/openresty/site/lualib/resty/?.so;;';
 
+    geo $limit {
+        default 1;
+        10.0.0.0/8 0;
+        192.168.0.0/24 0;
+    }
+    
+    map $limit $limit_key {
+        0 "";
+        1 $binary_remote_addr;
+    }
+
+    limit_req_zone $limit_key zone=req_zone:10m rate=5r/s;
+    limit_req_zone $binary_remote_addr zone=req_zone_wl:10m rate=15r/s;
+
     init_by_lua_block  {
         cjson = require("cjson")
         require "resty.session".init({
@@ -64,7 +78,10 @@ http {
     server {
         listen       8080;
         server_name  localhost;
-          
+
+        limit_req zone=req_zone burst=10 nodelay;
+        limit_req zone=req_zone_wl burst=20 nodelay;
+
         include /tmp/resolver.conf;     # For kubernetes use 10.43.0.10 and nginx ingress controller
 
         #charset koi8-r;
@@ -496,6 +513,9 @@ server {
         listen       80 default_server;
         server_name _;
 
+        limit_req zone=req_zone burst=10 nodelay;
+        limit_req zone=req_zone_wl burst=20 nodelay;
+
         # resolver 127.0.0.1 local=on;
         include /tmp/resolver.conf;         #   For kubernetes use 10.43.0.10 and nginx ingress controller
 
@@ -531,6 +551,12 @@ server {
           add_header 'Access-Control-Allow-Origin' '*';
           add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, PUT, DELETE';
           content_by_lua_file /usr/local/openresty/nginx/html/api/sync_data.lua;
+        }
+        location = /frontdoor/opsapi/handle-profile {
+          default_type 'application/json';
+          add_header 'Access-Control-Allow-Origin' '*';
+          add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, PUT, DELETE';
+          content_by_lua_file /usr/local/openresty/nginx/html/api/profile_handler.lua;
         }
 
         location = /__resolver_test__

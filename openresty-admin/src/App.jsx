@@ -7,11 +7,13 @@ import Sessions from "./Sessions";
 import Users from "./Users";
 import Login from "./Login";
 import Servers from "./Servers";
+import Profiles from "./Profiles";
 import Theme from "./Theme";
 import UserIcon from "@mui/icons-material/Group";
 import SessionIcon from "@mui/icons-material/HistoryToggleOff";
 import ServerIcon from "@mui/icons-material/Storage";
 import RuleIcon from "@mui/icons-material/Rule";
+import ProfileIcon from '@mui/icons-material/RecentActors';
 import Rules from "./Rules";
 import Settings from "./Settings";
 import AppBar from "./AppBar";
@@ -20,6 +22,8 @@ import CheckModal from "./component/CheckModal";
 
 const API_URL = import.meta.env.VITE_API_URL;
 const deploymentTime = import.meta.env.VITE_DEPLOYMENT_TIME
+const versionNumber = import.meta.env.VITE_APP_VERSION
+const buildNumber = import.meta.env.VITE_APP_BUILD_NUMBER
 
 export const MyLayout = (props) => <Layout {...props} appBar={AppBar} />;
 const App = () => {
@@ -57,6 +61,7 @@ const App = () => {
         <Resource name="servers" {...Servers} icon={ServerIcon} />
         <Resource name="rules" {...Rules} icon={RuleIcon} />
         <Resource name="settings" {...Settings} icon={RuleIcon} />
+        <Resource name="profiles" {...Profiles} icon={ProfileIcon} />
       </Admin>
       <div
         style={{
@@ -71,7 +76,7 @@ const App = () => {
           color: "#213547"
         }}
       >
-        <p>Deployment timestamp: {deploymentTime}</p>
+        <p><span>Version: {versionNumber}, </span><span>Build: {buildNumber}, </span><span>Deployment timestamp: {deploymentTime}</span></p>
       </div>
     </div>
   )

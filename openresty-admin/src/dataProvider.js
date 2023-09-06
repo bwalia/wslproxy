@@ -83,7 +83,13 @@ const dataProvider = (apiUrl, settings = {}) => {
     },
     getList: async (resource, params) => {
       setIsLoadig(true)
-      try {
+            try {
+        const environmentProfile = localStorage.getItem('environment') || "prod";
+        if (isEmpty(params.filter) && environmentProfile) {
+          params.filter = {
+            profile_id: environmentProfile
+          }
+        }
         const url = `${apiUrl}/${resource}?_format=json&params=${JSON.stringify(
           params
         )}`;
@@ -106,8 +112,9 @@ const dataProvider = (apiUrl, settings = {}) => {
     },
     getOne: async (resource, params) => {
       setIsLoadig(true)
+      const environmentProfile = localStorage.getItem('environment');
       const { id } = params;
-      const url = `${apiUrl}/${resource}/${id}?_format=json`;
+      const url = `${apiUrl}/${resource}/${id}?_format=json&envprofile=${environmentProfile || ''}`;
       const response = await fetch(url, {
         method: "GET",
         headers: getHeaders(),
@@ -190,14 +197,16 @@ const dataProvider = (apiUrl, settings = {}) => {
     },
     delete: async (resource, params) => {
       setIsLoadig(true)
+      const environmentProfile = localStorage.getItem('environment') || "";
       const { data } = params;
       const { id } = params;
+      params.envProfile = environmentProfile
       const url = `${apiUrl}/${resource}/${id}`;
       try {
         console.log({ url });
         const response = await fetch(url, {
           method: "DELETE",
-          body: JSON.stringify(data),
+          body: JSON.stringify(params),
           headers: getHeaders(),
         });
         if (response.status < 200 || response.status >= 300 && response.status !== 409) {
@@ -216,12 +225,12 @@ const dataProvider = (apiUrl, settings = {}) => {
     deleteMany: async (resource, params) => {
       setIsLoadig(true)
       const url = `${apiUrl}/${resource}`;
-
+      params.envProfile = localStorage.getItem('environment');
       try {
         console.log({ url });
         const response = await fetch(url, {
           method: "DELETE",
-          body: JSON.stringify({ ids: params.ids }),
+          body: JSON.stringify({ ids: params }),
           headers: getHeaders(),
         });
         if (response.status < 200 || response.status >= 300 && response.status !== 409) {
@@ -264,15 +273,15 @@ const dataProvider = (apiUrl, settings = {}) => {
     syncAPI: async (resource, params) => {
       const FRONT_URL = import.meta.env.VITE_FRONT_URL;
       try {
-        setIsLoadig(true)
-        const url = `${FRONT_URL}/${resource}`;
+        setIsLoadig(true);
+        const environmentProfile = localStorage.getItem('environment');
+        const url = `${FRONT_URL}/${resource}?envprofile=${environmentProfile || ''}`;
         const response = await fetch(url, {
           method: "GET",
           headers: getHeaders(),
         });
         if (response.status === 200) {
           setIsLoadig(false);
-          console.log("here");
           setSyncPopupOpen(true);
         }
       } catch (error) {
@@ -280,7 +289,60 @@ const dataProvider = (apiUrl, settings = {}) => {
         setSyncPopupOpen(false);
         setIsLoadig(false)
       }
-    }
+    },
+
+    importProjects: async (resource, params) => {
+      try {
+        setIsLoadig(true)
+        const environmentProfile = localStorage.getItem('environment');
+        params.envProfile = environmentProfile;
+        const url = `${apiUrl}/${resource}?_format=json`;
+        const response = await fetch(url, {
+          method: "POST",
+          body: JSON.stringify(params),
+          headers: getHeaders(),
+        });
+        if (response.status < 200 || response.status >= 300 && response.status !== 409) {
+          localStorage.removeItem("token");
+          localStorage.removeItem("uuid_business_id");
+          window.location.href = "/#/login";
+        }
+        const data = await response.json();
+        setIsLoadig(false);
+        window.location.reload();
+        return data;
+      } catch (error) {
+        console.log({ error });
+        setIsLoadig(false)
+        throw new Error(error);
+      }
+    },
+
+    profileUpdate: async (resource, params) => {
+      const FRONT_URL = import.meta.env.VITE_FRONT_URL;
+      try {
+        setIsLoadig(true)
+        const url = `${FRONT_URL}/${resource}`;
+        const response = await fetch(url, {
+          method: "POST",
+          body: JSON.stringify(params),
+          headers: getHeaders(),
+        });
+        if (response.status < 200 || response.status >= 300 && response.status !== 409) {
+          localStorage.removeItem("token");
+          localStorage.removeItem("uuid_business_id");
+          window.location.href = "/#/login";
+        }
+        const data = await response.json();
+        setIsLoadig(false);
+        window.location.reload();
+        return data;
+      } catch (error) {
+        console.log(error)
+        setSyncPopupOpen(false);
+        setIsLoadig(false)
+      }
+    },
   }
 };
 export default dataProvider;
