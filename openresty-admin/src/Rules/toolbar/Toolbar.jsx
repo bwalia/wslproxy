@@ -18,10 +18,10 @@ const Toolbar = () => {
     e.preventDefault();
     const { id, ...data } = getValues();
 
-    if (!formContext.formState.isValid) {
-      notify(`Something went wrong! Please check all required fields`, { type: 'error' });
-      return false;
-    }
+    // if (!formContext.formState.isValid) {
+    //   notify(`Something went wrong! Please check all required fields`, { type: 'error' });
+    //   return false;
+    // }
     const encodeData = encodeURIComponent(data.match.response.message);
     data.match.response.message = encodeData;
 
