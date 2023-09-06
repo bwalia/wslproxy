@@ -68,7 +68,7 @@ ENV LUA_PATH="/usr/local/openresty/site/lualib/?.ljbc;/usr/local/openresty/site/
 
 ENV LUA_CPATH="/usr/local/openresty/site/lualib/?.so;/usr/local/openresty/lualib/?.so;./?.so;/usr/local/lib/lua/5.1/?.so;/usr/local/openresty/luajit/lib/lua/5.1/?.so;/usr/local/lib/lua/5.1/loadall.so;/usr/local/openresty/luajit/lib/lua/5.1/?.so"
 
-#RUN opm get bungle/lua-resty-session duplicate use luarocks
+RUN opm get bungle/lua-resty-session
 RUN opm get ip2location/ip2location-resty
 
 RUN luarocks install lua-resty-jwt

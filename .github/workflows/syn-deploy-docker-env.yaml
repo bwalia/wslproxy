@@ -33,8 +33,8 @@ jobs:
         run: docker-compose --version
 
       - name: Build and run Deploy Syn POP v2 to the target environment
-        run: chmod +x ./run.sh && ./run.sh ".env.syn${{ env.TARGET_ENV }}" "synergist-openresty"
+        run: chmod +x ./run.sh && ./run.sh "${{ env.TARGET_ENV }}" "synergist-openresty"
             
       - name: Run Heathcheck and QA Tests
         run: |
-          echo "Run Heathcheck and QA Tests..."    
+          echo "Run Heathcheck and QA Tests..."
