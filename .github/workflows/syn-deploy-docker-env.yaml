@@ -17,15 +17,11 @@ jobs:
         run: docker-compose --version
 
       - name: Build and run Deploy Syn POP v2 TEST environment
-        run: |
-          docker-compose --env-file .env.syntest -f docker-compose-syntst.yml up -d --build
-          docker-compose --env-file .env.syntest ps
+        run: chmod +x ./run.sh && ./run.sh ".env.syntest" "synergist-openresty"
 
-    #   - name: Build and run Deploy Syn POP v2 ACC environment
-    #     run: |
-    #       docker-compose --env-file .env.synacc -f docker-compose-synacc.yml up -d --build
-    #       docker-compose --env-file .env.syntest ps
+      - name: Build and run Deploy Syn POP v2 ACC environment
+        run: chmod +x ./run.sh && ./run.sh ".env.synacc" "synergist-openresty"
             
-      - name: Run tests
+      - name: Run Heathcheck and QA Tests
         run: |
-          echo "Running tests..."    
+          echo "Run Heathcheck and QA Tests..."    
