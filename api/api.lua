@@ -481,7 +481,9 @@ local function listServers(args)
                 field = args['sort[field]'],
                 order = args['sort[order]']
             },
-            filter = {}
+            filter = {
+                profile_id = args['filter[profile_id]']
+            }
         }
     else
         qParams = cjson.decode(params)
@@ -586,7 +588,16 @@ end
 local function createDeleteServer(body, uuid)
     local serverId = uuid
     local payloads = GetPayloads(body)
-    local envProfile = payloads.ids.envProfile == nil and "prod" or payloads.ids.envProfile
+    if payloads == ngx.null or not body or type(payloads) == "nil" then
+        payloads = ngx.req.get_uri_args()
+    end
+    local envProfile = "prod"
+    if payloads.ids ~= nil then
+      envProfile = payloads.ids.envProfile
+    else
+        envProfile = payloads.envProfile
+    end
+
     local settings = getSettings()
     if settings then
         if uuid ~= "" and uuid ~= nil then
@@ -907,7 +918,9 @@ local function listRules(args)
                 field = args['sort[field]'],
                 order = args['sort[order]']
             },
-            filter = {}
+            filter = {
+                profile_id = args['filter[profile_id]']
+            }
         }
     else
         qParams = cjson.decode(params)
@@ -1003,8 +1016,16 @@ end
 
 local function createDeleteRules(body, uuid)
     local payloads = GetPayloads(body)
+    if payloads == ngx.null or not body or type(payloads) == "nil" then
+        payloads = ngx.req.get_uri_args()
+    end
+    local envProfile = "prod"
+    if payloads.ids ~= nil then
+      envProfile = payloads.ids.envProfile
+    else
+        envProfile = payloads.envProfile
+    end
     local settings = getSettings()
-    local envProfile = payloads.ids.envProfile == nil and "prod" or payloads.ids.envProfile
     if uuid ~= "" and uuid ~= nil then
         if settings then
             if settings.storage_type == "disk" then

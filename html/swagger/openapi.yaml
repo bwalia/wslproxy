@@ -29,6 +29,9 @@ paths:
               sort:
                 type: object
                 default: {field: id, order: ASC}
+              filter:
+                type: object
+                default: {profile_id: prod}
       responses:
         '200':
           description: Successfully retrieved a list of all HTTP Security rules and or the routes
@@ -69,6 +72,13 @@ paths:
           required: true
           schema:
             type: string
+        - name: envprofile
+          in: query
+          description: Profile Name
+          required: false
+          schema:
+            type: string
+            default: test
       responses:
          '200':
             description: Returned information about a specific rule
@@ -116,6 +126,13 @@ paths:
           required: true
           schema:
             type: string
+        - name: envProfile
+          in: query
+          description: Profile Name
+          required: false
+          schema:
+            type: string
+            default: test
       responses:
         '200':
           description: Successfully deleted a rule
@@ -142,6 +159,9 @@ paths:
               sort:
                 type: object
                 default: {field: id, order: ASC}
+              filter:
+                type: object
+                default: {profile_id: prod}
       responses:
         '200':
           description: Successfully retrieved a list of all the HTTP servers
@@ -182,6 +202,13 @@ paths:
           required: true
           schema:
             type: string
+        - name: envprofile
+          in: query
+          description: Profile Name
+          required: false
+          schema:
+            type: string
+            default: test
       responses:
          '200':
             description: Returned information about a specific server
@@ -229,6 +256,13 @@ paths:
           required: true
           schema:
             type: string
+        - name: envProfile
+          in: query
+          description: Profile Name
+          required: false
+          schema:
+            type: string
+            default: test
       responses:
         '200':
           description: Successfully deleted a server
@@ -248,6 +282,9 @@ components:
         server_name:
           type: string
           default: localhost
+        profile_id:
+          type: string
+          default: test
         root:
           type: string
           default: /var/www/html
@@ -296,6 +333,9 @@ components:
         server_name:
           type: string
           default: localhost
+        profile_id:
+          type: string
+          default: test
         root:
           type: string
           default: /var/www/html
@@ -341,6 +381,9 @@ components:
         name:
           type: string
           default: Rule_Name
+        profile_id:
+          type: string
+          default: test
         version:
           type: string
           default: 1
@@ -363,6 +406,9 @@ components:
         name: 
           type: string
           default: Rule_name
+        profile_id:
+          type: string
+          default: test
         id:
           type: string
           default: ef9d2897-92ea-9a96-ce7d-268dd0cb36b7
