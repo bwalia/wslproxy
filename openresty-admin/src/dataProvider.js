@@ -271,15 +271,15 @@ const dataProvider = (apiUrl, settings = {}) => {
     syncAPI: async (resource, params) => {
       const FRONT_URL = import.meta.env.VITE_FRONT_URL;
       try {
-        setIsLoadig(true)
-        const url = `${FRONT_URL}/${resource}`;
+        setIsLoadig(true);
+        const environmentProfile = localStorage.getItem('environment');
+        const url = `${FRONT_URL}/${resource}?envprofile=${environmentProfile || ''}`;
         const response = await fetch(url, {
           method: "GET",
           headers: getHeaders(),
         });
         if (response.status === 200) {
           setIsLoadig(false);
-          console.log("here");
           setSyncPopupOpen(true);
         }
       } catch (error) {
