@@ -21,10 +21,10 @@ func TestURLPath(t *testing.T) {
 		ExpectedOutput string
 	}
 	tests := []TestPayload{
-		{RuleName: "Path rule-starts with", PathCondition: "starts_with", Input: "/rou", ExpectedOutput: "HELLODIXA"},
-		{RuleName: "Path rule-ends with", PathCondition: "ends_with", Input: "ter", ExpectedOutput: "HELLODIXA"},
-		{RuleName: "Path rule-equals", PathCondition: "equals", Input: "/router", ExpectedOutput: "HELLODIXA"},
-		{RuleName: "Path rule-Invalid", PathCondition: "starts_with", Input: "/outer", ExpectedOutput: "No Rules"},
+		{RuleName: "Path rule-starts with-gotest", PathCondition: "starts_with", Input: "/rou", ExpectedOutput: "HELLODIXA"},
+		{RuleName: "Path rule-ends with-gotest", PathCondition: "ends_with", Input: "ter", ExpectedOutput: "HELLODIXA"},
+		{RuleName: "Path rule-equals-gotest", PathCondition: "equals", Input: "/router", ExpectedOutput: "HELLODIXA"},
+		{RuleName: "Path rule-Invalid-gotest", PathCondition: "starts_with", Input: "/outer", ExpectedOutput: "No Rules"},
 	}
 
 	for _, test := range tests {
@@ -40,8 +40,8 @@ func TestURLPath(t *testing.T) {
 				} `json:"data"`
 			}
 			url := targetHost + "/api/rules"
-			payload := strings.NewReader(fmt.Sprintf(`{"version":1,"priority":1,"match":{"rules":{"path_key":"%s","path":"%s","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"equals"},"response":{"allow":true,"code":200,"message":"SEVMTE9ESVhB"}},"name":"%s"}`, test.PathCondition, test.Input, test.RuleName))
-			//fmt.Println(payload)
+			payload := strings.NewReader(fmt.Sprintf(`{"version":1,"priority":1,"match":{"rules":{"path_key":"%s","path":"%s","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"equals"},"response":{"allow":true,"code":200,"message":"SEVMTE9ESVhB"}},"name":"%s","profile_id":"test"}`, test.PathCondition, test.Input, test.RuleName))
+
 			client := &http.Client{}
 			req, err := http.NewRequest("POST", url, payload)
 			if err != nil {
@@ -75,6 +75,9 @@ func TestURLPath(t *testing.T) {
 			// applying the rule to the server
 			ruleId = RuleId
 			TestUpdateRuleWithServer(t)
+
+			// Call the handle profile API
+			TestHandleProfileAPI(t)
 
 			// Call the data sync API
 			TestDataSync(t)

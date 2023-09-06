@@ -15,22 +15,22 @@ func TestLoginAccess(t *testing.T) {
 	validPassword := os.Getenv("LOGIN_PASSWORD")
 
 	type TestPayload struct {
-		RuleName           string
+		TestName           string
 		TestEmail          string
 		TestPassword       string
 		ExpectedStatusCode int
 		ExpectedOutput     string
 	}
 	tests := []TestPayload{
-		{RuleName: "Test login with valid credential", TestEmail: validEmail, TestPassword: validPassword, ExpectedStatusCode: 200, ExpectedOutput: "accessToken"},
-		{RuleName: "Test login with invalid password", TestEmail: validEmail, TestPassword: "234567", ExpectedStatusCode: 401, ExpectedOutput: "Invalid credentials"},
-		{RuleName: "Test login with invalid email", TestEmail: "abc@xyz.com", TestPassword: validPassword, ExpectedStatusCode: 401, ExpectedOutput: "Invalid credentials"},
-		{RuleName: "Test login with empty password", TestEmail: validEmail, TestPassword: "", ExpectedStatusCode: 401, ExpectedOutput: "Invalid credentials"},
-		{RuleName: "Test login with empty email", TestEmail: "", TestPassword: validPassword, ExpectedStatusCode: 401, ExpectedOutput: "Invalid credentials"},
+		{TestName: "Test login with valid credential", TestEmail: validEmail, TestPassword: validPassword, ExpectedStatusCode: 200, ExpectedOutput: "accessToken"},
+		{TestName: "Test login with invalid password", TestEmail: validEmail, TestPassword: "234567", ExpectedStatusCode: 401, ExpectedOutput: "Invalid credentials"},
+		{TestName: "Test login with invalid email", TestEmail: "abc@xyz.com", TestPassword: validPassword, ExpectedStatusCode: 401, ExpectedOutput: "Invalid credentials"},
+		{TestName: "Test login with empty password", TestEmail: validEmail, TestPassword: "", ExpectedStatusCode: 401, ExpectedOutput: "Invalid credentials"},
+		{TestName: "Test login with empty email", TestEmail: "", TestPassword: validPassword, ExpectedStatusCode: 401, ExpectedOutput: "Invalid credentials"},
 	}
 
 	for _, test := range tests {
-		t.Run(fmt.Sprintf(test.RuleName), func(t *testing.T) {
+		t.Run(fmt.Sprintf(test.TestName), func(t *testing.T) {
 			type LoginPayload struct {
 				Email    string `json:"email"`
 				Password string `json:"password"`
@@ -77,10 +77,10 @@ func TestLoginAccess(t *testing.T) {
 
 			if !strings.Contains(string(body), test.ExpectedOutput) {
 				//if got != test.ExpectedOutput {
-				t.Errorf("for rule %s, expected %s, but got %s", test.RuleName, test.ExpectedOutput, got)
+				t.Errorf("for rule %s, expected %s, but got %s", test.TestName, test.ExpectedOutput, got)
 			}
 			if res.StatusCode != test.ExpectedStatusCode {
-				t.Errorf("for rule %s, expected status code %d, but got %d", test.RuleName, test.ExpectedStatusCode, res.StatusCode)
+				t.Errorf("for rule %s, expected status code %d, but got %d", test.TestName, test.ExpectedStatusCode, res.StatusCode)
 			}
 
 		})

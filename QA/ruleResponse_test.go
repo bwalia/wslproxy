@@ -25,8 +25,8 @@ func TestRuleResponse(t *testing.T) {
 		ExpectedOutput string
 	}
 	tests := []TestPayload{
-		{RuleName: "Verify response Text to Base64", MessageInput: TextInput, ActualValue: "HELLODIXA", ExpectedOutput: "HELLODIXA"},
-		{RuleName: "Verify response HTML to Base64", MessageInput: HTMLInput, ActualValue: "Hello World!", ExpectedOutput: "Hello World!"},
+		{RuleName: "Verify response Text to Base64-gotest", MessageInput: TextInput, ActualValue: "HELLODIXA", ExpectedOutput: "HELLODIXA"},
+		{RuleName: "Verify response HTML to Base64-gotest", MessageInput: HTMLInput, ActualValue: "Hello World!", ExpectedOutput: "Hello World!"},
 	}
 
 	for _, test := range tests {
@@ -42,7 +42,7 @@ func TestRuleResponse(t *testing.T) {
 				} `json:"data"`
 			}
 			url := targetHost + "/api/rules"
-			payload := strings.NewReader(fmt.Sprintf(`{"version":1,"priority":1,"match":{"rules":{"path_key":"starts_with","path":"/","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"equals"},"response":{"allow":true,"code":200,"message":"%s"}},"name":"%s"}`, test.MessageInput, test.RuleName))
+			payload := strings.NewReader(fmt.Sprintf(`{"version":1,"priority":1,"match":{"rules":{"path_key":"starts_with","path":"/","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"equals"},"response":{"allow":true,"code":200,"message":"%s"}},"name":"%s","profile_id":"test"}`, test.MessageInput, test.RuleName))
 
 			client := &http.Client{}
 			req, err := http.NewRequest("POST", url, payload)
@@ -78,6 +78,9 @@ func TestRuleResponse(t *testing.T) {
 			// applying the rule to the server
 			ruleId = RespRuleId
 			TestUpdateRuleWithServer(t)
+
+			// Call the handle profile API
+			TestHandleProfileAPI(t)
 
 			// Call the data sync API
 			TestDataSync(t)

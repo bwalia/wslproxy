@@ -24,7 +24,7 @@ func TestHostOverRide(t *testing.T) {
 		} `json:"data"`
 	}
 	url := targetHost + "/api/rules"
-	payload := strings.NewReader((`{"version":1,"priority":1,"match":{"rules":{"path_key":"starts_with","path":"/","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"equals"},"response":{"allow":false,"code":305,"redirect_uri":"httpbin.org","message":"undefined"}},"name":"Test rule host-override"}`))
+	payload := strings.NewReader((`{"version":1,"priority":1,"match":{"rules":{"path_key":"starts_with","path":"/","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"equals"},"response":{"allow":true,"code":305,"redirect_uri":"httpbin.org","message":"undefined"}},"name":"Test rule host-override-gotest","profile_id":"test"}`))
 
 	client := &http.Client{}
 	req, err := http.NewRequest("POST", url, payload)
@@ -58,6 +58,9 @@ func TestHostOverRide(t *testing.T) {
 	// applying the rule to the server
 	ruleId = RuleID
 	TestUpdateRuleWithServer(t)
+
+	// Call the handle profile API
+	TestHandleProfileAPI(t)
 
 	// Call the data sync API
 	TestDataSync(t)

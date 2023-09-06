@@ -21,9 +21,9 @@ func TestRedirectURI(t *testing.T) {
 		ExpectedOutput string
 	}
 	tests := []TestPayload{
-		{RuleName: "Test Rule-305", ResponseCode: 305, Target: "10.43.81.65:3009", ExpectedOutput: "Login Page"},
-		{RuleName: "Test Rule-302", ResponseCode: 302, Target: "https://test-my.workstation.co.uk/", ExpectedOutput: "test-my.workstation.co.uk"},
-		{RuleName: "Test Rule-301", ResponseCode: 301, Target: "http://vpn.workstation.be", ExpectedOutput: "Welcome to Workstation SRL"},
+		{RuleName: "Test Rule-305-gotest", ResponseCode: 305, Target: "10.43.81.65:3009", ExpectedOutput: "Login Page"},
+		{RuleName: "Test Rule-302-gotest", ResponseCode: 302, Target: "https://test-my.workstation.co.uk/", ExpectedOutput: "test-my.workstation.co.uk"},
+		{RuleName: "Test Rule-301-gotest", ResponseCode: 301, Target: "http://vpn.workstation.be", ExpectedOutput: "Welcome to Workstation SRL"},
 	}
 
 	for _, test := range tests {
@@ -39,7 +39,8 @@ func TestRedirectURI(t *testing.T) {
 				} `json:"data"`
 			}
 			url := targetHost + "/api/rules"
-			payload := strings.NewReader(fmt.Sprintf(`{"version":1,"priority":1,"match":{"rules":{"path_key":"starts_with","path":"/","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"equals"},"response":{"allow":false,"code":%d,"redirect_uri":"%s","message":"undefined"}},"name":"%s"}`, test.ResponseCode, test.Target, test.RuleName))
+			payload := strings.NewReader(fmt.Sprintf(`{"version":1,"priority":1,"match":{"rules":{"path_key":"starts_with","path":"/","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"equals"},"response":{"allow":true,"code":%d,"redirect_uri":"%s","message":"undefined"}},"name":"%s","profile_id":"test"}`, test.ResponseCode, test.Target, test.RuleName))
+
 			client := &http.Client{}
 			req, err := http.NewRequest("POST", url, payload)
 			if err != nil {
@@ -72,6 +73,9 @@ func TestRedirectURI(t *testing.T) {
 			// applying the rule to the server
 			ruleId = RedirectRuleId
 			TestUpdateRuleWithServer(t)
+
+			// Call the handle profile API
+			TestHandleProfileAPI(t)
 
 			// Call the data sync API
 			TestDataSync(t)

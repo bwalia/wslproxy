@@ -31,7 +31,7 @@ func TestCreateRuleForAccessAll(t *testing.T) {
 	url := targetHost + "/api/rules"
 	method := "POST"
 
-	payload := strings.NewReader(`{"version":1,"priority":1,"match":{"rules":{"path_key":"starts_with","path":"/","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"equals"},"response":{"allow":false,"code":305,"redirect_uri":"10.43.81.65:3009","message":"undefined"}},"name":"Access All Rule- gotest"}`)
+	payload := strings.NewReader(`{"version":1,"priority":1,"match":{"rules":{"path_key":"starts_with","path":"/","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"equals"},"response":{"allow":true,"code":305,"redirect_uri":"10.43.81.65:3009","message":"undefined"}},"name":"Access All Rule- gotest","profile_id":"test"}`)
 
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, payload)
@@ -82,7 +82,7 @@ func TestCreateRuleForAccessApi(t *testing.T) {
 	url := targetHost + "/api/rules"
 	method := "POST"
 	tokenKey := os.Getenv("JWT_TOKEN_KEY")
-	payload := strings.NewReader(fmt.Sprintf(`{"version":1,"priority":1,"match":{"rules":{"path_key":"starts_with","path":"/api","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"cookie","jwt_token_validation_value":"Authorization","jwt_token_validation_key":"%s"},"response":{"allow":false,"code":305,"redirect_uri":"10.43.81.65:3009","message":"undefined"}},"name":"Access Api Rule-gotest"}`, tokenKey))
+	payload := strings.NewReader(fmt.Sprintf(`{"version":1,"priority":1,"match":{"rules":{"path_key":"starts_with","path":"/api","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"cookie","jwt_token_validation_value":"Authorization","jwt_token_validation_key":"%s"},"response":{"allow":true,"code":305,"redirect_uri":"10.43.81.65:3009","message":"undefined"}},"name":"Access Api Rule-gotest","profile_id":"test"}`, tokenKey))
 
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, payload)
@@ -125,7 +125,7 @@ func TestCreateRuleForAccessApi(t *testing.T) {
 func TestAddRulesWithServer(t *testing.T) {
 	url := targetHost + "/api/servers/" + serverId
 	method := "PUT"
-	payload := strings.NewReader(fmt.Sprintf(`{"server_name":"%s","access_log":"logs/access.log","created_at":1690282152,"listens":[{"listen":"80"}],"rules":"%s","locations":{},"custom_block":{},"error_log":"logs/error.log","id":"%s","root":"/var/www/html","config":"server {\n      listen 80;  # Listen on port (HTTP)\n      server_name %s;  # Your domain name\n      root /var/www/html;  # Document root directory\n      index index.html;  # Default index files\n      access_log logs/access.log;  # Access log file location\n      error_log logs/error.log;  # Error log file location\n\n      \n      \n  }\n  ","proxy_pass":"http://localhost","match_cases":[{"statement":"%s","condition":"and"}],"index":"index.html"}`, serverName, ruleAccessAll, serverId, serverName, ruleAccessApi))
+	payload := strings.NewReader(fmt.Sprintf(`{"server_name":"%s","profile_id":"test","config":"server {\n      listen 82;  # Listen on port (HTTP)\n      server_name %s;  # Your domain name\n      root /var/www/html;  # Document root directory\n      index index.html;  # Default index files\n      access_log logs/access.log;  # Access log file location\n      error_log logs/error.log;  # Error log file location\n\n      \n      \n  }\n  ","access_log":"logs/access.log","rules":"%s","custom_block":{},"id":"%s","created_at":1694002895,"root":"/var/www/html","match_cases":[{"statement":"%s","condition":"and"}],"locations":{},"proxy_pass":"http://localhost","error_log":"logs/error.log","listens":[{"listen":"82"}],"index":"index.html"}`, serverName, serverName, ruleAccessAll, serverId, ruleAccessApi))
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, payload)
 	if err != nil {
@@ -150,10 +150,13 @@ func TestAddRulesWithServer(t *testing.T) {
 	if res.StatusCode != http.StatusOK {
 		t.Error("Unexpected response status code", res.StatusCode)
 	}
-	if !strings.Contains(string(body), "80") {
+	if !strings.Contains(string(body), "82") {
 		t.Error("Returned unexpected body")
 		return
 	}
+
+	// Call the handle profile API
+	TestHandleProfileAPI(t)
 
 	// Calling sync data api
 	TestDataSync(t)

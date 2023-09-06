@@ -86,7 +86,7 @@ func TestGetServers(t *testing.T) {
 
 	client := &http.Client{}
 
-	req, err := http.NewRequest("GET", targetHost+"/api/servers?_format=json&params={%22pagination%22:{%22page%22:1,%22perPage%22:10},%22sort%22:{%22field%22:%22created_at%22,%22order%22:%22DESC%22},%22filter%22:{},%22businessUUID%22:null}", nil)
+	req, err := http.NewRequest("GET", targetHost+"/api/servers?_format=json&params={%22pagination%22:{%22page%22:1,%22perPage%22:25},%22sort%22:{%22field%22:%22created_at%22,%22order%22:%22DESC%22},%22filter%22:{%22profile_id%22:%22test%22}}", nil)
 	if err != nil {
 		t.Log(err)
 		return
@@ -113,7 +113,7 @@ func TestGetRules(t *testing.T) {
 
 	client := &http.Client{}
 
-	req, err := http.NewRequest("GET", targetHost+"/api/rules?_format=json&params={%22pagination%22:{%22page%22:1,%22perPage%22:10},%22sort%22:{%22field%22:%22created_at%22,%22order%22:%22DESC%22},%22filter%22:{},%22businessUUID%22:null}", nil)
+	req, err := http.NewRequest("GET", targetHost+"/api/rules?_format=json&params={%22pagination%22:{%22page%22:1,%22perPage%22:10},%22sort%22:{%22field%22:%22id%22,%22order%22:%22ASC%22},%22filter%22:{%22profile_id%22:%22test%22}}", nil)
 	if err != nil {
 		t.Log(err)
 		return
@@ -147,8 +147,9 @@ func TestCreateServer(t *testing.T) {
 	url := targetHost + "/api/servers"
 	method := "POST"
 
-	//payload := strings.NewReader(`{"listens":[{"listen":"80"}],"server_name":"int6.whitefalcon.io","root":"/var/www/html","index":"index/html","access_log":"/logs/access.log","error_log":"/logs/error.log","locations":[],"custom_block":[]}`)
-	payload := strings.NewReader(fmt.Sprintf(`{"listens":[{"listen":"80"}],"server_name":"%s","proxy_server_name":"test-my.workstation.co.uk","root":"/var/www/html","index":"index.html","access_log":"logs/access.log","error_log":"logs/error.log","locations":[],"custom_block":[],"config":"server {\n      listen 80;  # Listen on port (HTTP)\n      server_name %s;  # Your domain name\n      root /var/www/html;  # Document root directory\n      index index.html;  # Default index files\n      access_log logs/access.log;  # Access log file location\n      error_log logs/error.log;  # Error log file location\n\n      \n      \n  }\n  "}`, serverName, serverName))
+	//payload := strings.NewReader(fmt.Sprintf(`{"listens":[{"listen":"80"}],"server_name":"%s","proxy_server_name":"test-my.workstation.co.uk","root":"/var/www/html","index":"index.html","access_log":"logs/access.log","error_log":"logs/error.log","locations":[],"custom_block":[],"config":"server {\n      listen 80;  # Listen on port (HTTP)\n      server_name %s;  # Your domain name\n      root /var/www/html;  # Document root directory\n      index index.html;  # Default index files\n      access_log logs/access.log;  # Access log file location\n      error_log logs/error.log;  # Error log file location\n\n      \n      \n  }\n  "}`, serverName, serverName))
+	payload := strings.NewReader(fmt.Sprintf(`{"listens":[{"listen":"80"}],"server_name":"%s", "proxy_server_name":"test-my.workstation.co.uk", "profile_id":"test","root":"/var/www/html","index":"index.html","access_log":"logs/access.log","error_log":"logs/error.log","locations":[],"custom_block":[],"config":"server {\n      listen 80;  # Listen on port (HTTP)\n      server_name %s;  # Your domain name\n      root /var/www/html;  # Document root directory\n      index index.html;  # Default index files\n      access_log logs/access.log;  # Access log file location\n      error_log logs/error.log;  # Error log file location\n\n      \n      \n  }\n  "}`, serverName, serverName))
+
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, payload)
 	if err != nil {
@@ -195,7 +196,8 @@ func TestCreateRule(t *testing.T) {
 	url := targetHost + "/api/rules"
 	method := "POST"
 
-	payload := strings.NewReader(`{"version":1,"priority":1,"match":{"rules":{"path_key":"starts_with","path":"/router","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"equals"},"response":{"allow":true,"code":200,"message":"SGVsbG8gd29ybGQh"}},"name":"API test rule"}`)
+	//payload := strings.NewReader(`{"version":1,"priority":1,"match":{"rules":{"path_key":"starts_with","path":"/router","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"equals"},"response":{"allow":true,"code":200,"message":"SGVsbG8gd29ybGQh"}},"name":"API test rule"}`)
+	payload := strings.NewReader(`{"version":1,"priority":1,"match":{"rules":{"path_key":"starts_with","path":"/router","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"equals"},"response":{"allow":true,"code":200,"message":"SGVsbG8gd29ybGQh"}},"name":"API test rule-gotest","profile_id":"test"}`)
 
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, payload)
@@ -236,7 +238,8 @@ func TestCreateRule(t *testing.T) {
 	}
 }
 func TestGetSingleServer(t *testing.T) {
-	url := targetHost + "/api/servers/" + serverId
+	url := targetHost + "/api/servers/" + serverId + "?_format=json&envprofile=test"
+
 	method := "GET"
 
 	client := &http.Client{}
@@ -269,7 +272,8 @@ func TestGetSingleServer(t *testing.T) {
 }
 
 func TestGetSingleRule(t *testing.T) {
-	url := targetHost + "/api/rules/" + ruleId
+	url := targetHost + "/api/rules/" + ruleId + "?_format=json&envprofile=test"
+
 	method := "GET"
 
 	client := &http.Client{}
@@ -306,8 +310,9 @@ func TestUpdateRule(t *testing.T) {
 	url := targetHost + "/api/rules/" + ruleId
 	method := "PUT"
 
-	//payload := strings.NewReader(fmt.Sprintf(`{"created_at":1687853270,"version":1,"priority":1,"name":"Test rule","match":{"response":{"code":200,"message":"SGVsbG8gd29ybGQh","allow":true},"rules":{"jwt_token_validation":"equals","country_key":"equals","client_ip_key":"equals","path":"/router","path_key":"starts_with"}},"id":"%s"}`, ruleId))
-	payload := strings.NewReader(fmt.Sprintf(`{"created_at":1689744334,"match":{"rules":{"path_key":"starts_with","client_ip_key":"equals","country_key":"equals","path":"/router","jwt_token_validation":"equals"},"response":{"allow":false,"code":200,"message":"SGVsbG8gd29ybGQh"}},"version":1,"name":"API Test Rule","priority":1,"id":"%s"}`, ruleId))
+	//payload := strings.NewReader(fmt.Sprintf(`{"created_at":1689744334,"match":{"rules":{"path_key":"starts_with","client_ip_key":"equals","country_key":"equals","path":"/router","jwt_token_validation":"equals"},"response":{"allow":false,"code":200,"message":"SGVsbG8gd29ybGQh"}},"version":1,"name":"API Test Rule","priority":1,"id":"%s"}`, ruleId))
+	payload := strings.NewReader(fmt.Sprintf(`{"name":"API Test Rule-gotest","version":1,"match":{"rules":{"country_key":"equals","client_ip_key":"equals","path_key":"starts_with","path":"/router","jwt_token_validation":"equals"},"response":{"code":200,"message":"SGVsbG8gd29ybGQh","allow":true}},"profile_id":"test","created_at":1693981946,"priority":1,"id":"%s"}`, ruleId))
+
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, payload)
 	if err != nil {
@@ -342,7 +347,8 @@ func TestUpdateRuleWithServer(t *testing.T) {
 	url := targetHost + "/api/servers/" + serverId
 	method := "PUT"
 
-	payload := strings.NewReader(fmt.Sprintf(`{"id":"%s","root":"/var/www/html","created_at":1689853714,"proxy_server_name":"test-my.workstation.co.uk","locations":{},"index":"index.html","proxy_pass":"http://localhost","access_log":"logs/access.log","server_name":"%s","config":"server {\n      listen 80;  # Listen on port (HTTP)\n      server_name %s;  # Your domain name\n      root /var/www/html;  # Document root directory\n      index index.html;  # Default index files\n      access_log logs/access.log;  # Access log file location\n      error_log logs/error.log;  # Error log file location\n\n      \n      \n  }\n  ","rules":"%s","error_log":"logs/error.log","match_cases":{},"custom_block":{},"listens":[{"listen":"80"}]}`, serverId, serverName, serverName, ruleId))
+	payload := strings.NewReader(fmt.Sprintf(`{"error_log":"logs/error.log","config":"server {\n      listen 80;  # Listen on port (HTTP)\n      server_name %s;  # Your domain name\n      root /var/www/html;  # Document root directory\n      index index.html;  # Default index files\n      access_log logs/access.log;  # Access log file location\n      error_log logs/error.log;  # Error log file location\n\n      \n      \n  }\n  ","custom_block":{},"locations":{},"root":"/var/www/html","id":"%s","index":"index.html","profile_id":"test","listens":[{"listen":"80"}],"server_name":"%s","access_log":"logs/access.log","created_at":1693981431,"proxy_pass":"http://localhost","proxy_server_name":"test-my.workstation.co.uk","rules":"%s","match_cases":[]}`, serverName, serverId, serverName, ruleId))
+
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, payload)
 	if err != nil {
@@ -374,8 +380,34 @@ func TestUpdateRuleWithServer(t *testing.T) {
 	}
 }
 
+func TestHandleProfileAPI(t *testing.T) {
+	url := "http://" + serverName + "/frontdoor/opsapi/handle-profile"
+	payload := strings.NewReader(`{"profile":"test"}`)
+
+	client := &http.Client{}
+
+	req, err := http.NewRequest("POST", url, payload)
+	if err != nil {
+		t.Log(err)
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Log(err)
+		return
+	}
+	//t.Log(resp)
+
+	if resp.StatusCode != http.StatusOK {
+		t.Error("Unexpected response status code", resp.StatusCode)
+		return
+	}
+
+}
 func TestDataSync(t *testing.T) {
-	url := "http://" + serverName + "/frontdoor/opsapi/sync"
+	url := "http://" + serverName + "/frontdoor/opsapi/sync?envprofile=test"
 
 	client := &http.Client{}
 
@@ -434,11 +466,12 @@ func TestServerResponse(t *testing.T) {
 }
 
 func TestDeleteServer(t *testing.T) {
-	url := targetHost + "/api/servers/" + serverId
+	url := targetHost + "/api/servers"
 	method := "DELETE"
+	payload := strings.NewReader(fmt.Sprintf(`{"ids":{"ids":["%s"],"envProfile":"test"}}`, serverId))
 
 	client := &http.Client{}
-	req, err := http.NewRequest(method, url, nil)
+	req, err := http.NewRequest(method, url, payload)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -465,11 +498,13 @@ func TestDeleteServer(t *testing.T) {
 func TestDeleteRule(t *testing.T) {
 	executeFunction := os.Getenv("EXECUTE_FUNCTION")
 	if executeFunction == "true" {
-		url := targetHost + "/api/rules/" + ruleId
+		url := targetHost + "/api/rules"
 		method := "DELETE"
 
+		payload := strings.NewReader(fmt.Sprintf(`{"ids":{"ids":["%s"],"envProfile":"test"}}`, ruleId))
+
 		client := &http.Client{}
-		req, err := http.NewRequest(method, url, nil)
+		req, err := http.NewRequest(method, url, payload)
 		if err != nil {
 			fmt.Println(err)
 			return
