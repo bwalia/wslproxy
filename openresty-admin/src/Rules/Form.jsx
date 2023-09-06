@@ -465,7 +465,6 @@ const Form = () => {
             source="match.response.message"
             label="Response Message (Base64 Encoded)"
             fullWidth
-            validate={[required()]}
           />
         </Grid>
       </Grid>

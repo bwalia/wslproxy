@@ -111,23 +111,24 @@ local function deleteFilesInDirectory(directory)
     end
 end
 
-function syncRulesAPI()
+function syncRulesAPI(args)
     ngx.header["Access-Control-Allow-Origin"] = "*"
     ngx.header["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
     ngx.header["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
     local apiPageSize = os.getenv("API_PAGE_SIZE")
     local apiTotalPages = 1
+    local profileName = args.envprofile
     apiPageSize = (apiPageSize == nil or apiPageSize == "") and 100 or apiPageSize
 
-    deleteFilesInDirectory(configPath .. "data/rules")
+    deleteFilesInDirectory(configPath .. "data/rules/" .. profileName)
     local totalPages = 1
     local totalRules = saveRecordsToDisk(
         apiUrl ..
         "/rules?_format=json&&params={%22pagination%22:{%22page%22:" ..
         apiTotalPages ..
         ",%22perPage%22:" ..
-        apiPageSize .. "},%22sort%22:{%22field%22:%22created_at%22,%22order%22:%22DESC%22},%22filter%22:{}}",
-        "rules")
+        apiPageSize .. "},%22sort%22:{%22field%22:%22created_at%22,%22order%22:%22DESC%22},%22filter%22:{%22profile_id%22:%22" .. profileName .. "%22}}",
+        "rules/" .. profileName)
     if totalRules > apiPageSize then
         totalPages = totalRules / apiPageSize
         totalPages = math.ceil(totalPages)
@@ -138,8 +139,8 @@ function syncRulesAPI()
                 "/rules?_format=json&&params={%22pagination%22:{%22page%22:" ..
                 apiTotalPages ..
                 ",%22perPage%22:" ..
-                apiPageSize .. "},%22sort%22:{%22field%22:%22created_at%22,%22order%22:%22DESC%22},%22filter%22:{}}",
-                "rules")
+                apiPageSize .. "},%22sort%22:{%22field%22:%22created_at%22,%22order%22:%22DESC%22},%22filter%22:{%22profile_id%22:%22" .. profileName .. "%22}}",
+                "rules/" .. profileName)
         until apiTotalPages >= totalPages
     end
 
@@ -151,23 +152,24 @@ function syncRulesAPI()
     }))
 end
 
-function syncServersAPI()
+function syncServersAPI(args)
     ngx.header["Access-Control-Allow-Origin"] = "*"
     ngx.header["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
     ngx.header["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
     local apiPageSize = os.getenv("API_PAGE_SIZE")
     local apiTotalPages = 1
+    local profileName = args.envprofile
     apiPageSize = (apiPageSize == nil or apiPageSize == "") and 100 or apiPageSize
 
-    deleteFilesInDirectory(configPath .. "data/servers")
+    deleteFilesInDirectory(configPath .. "data/servers/" .. profileName)
     local totalPages = 1
     local totalServers = saveRecordsToDisk(
         apiUrl ..
         "/servers?_format=json&&params={%22pagination%22:{%22page%22:" ..
         apiTotalPages ..
         ",%22perPage%22:" ..
-        apiPageSize .. "},%22sort%22:{%22field%22:%22created_at%22,%22order%22:%22DESC%22},%22filter%22:{}}",
-        "servers")
+        apiPageSize .. "},%22sort%22:{%22field%22:%22created_at%22,%22order%22:%22DESC%22},%22filter%22:{%22profile_id%22:%22" .. profileName .. "%22}}",
+        "servers/" .. profileName)
 
     if totalServers > apiPageSize then
         totalPages = totalServers / apiPageSize
@@ -179,8 +181,8 @@ function syncServersAPI()
                 "/servers?_format=json&&params={%22pagination%22:{%22page%22:" ..
                 apiTotalPages ..
                 ",%22perPage%22:" ..
-                apiPageSize .. "},%22sort%22:{%22field%22:%22created_at%22,%22order%22:%22DESC%22},%22filter%22:{}}",
-                "servers")
+                apiPageSize .. "},%22sort%22:{%22field%22:%22created_at%22,%22order%22:%22DESC%22},%22filter%22:{%22profile_id%22:%22" .. profileName .. "%22}}",
+                "servers/" .. profileName)
         until apiTotalPages >= totalPages
     end
 
@@ -191,6 +193,7 @@ function syncServersAPI()
         }
     }))
 end
+local args = ngx.req.get_uri_args()
 
-syncRulesAPI()
-syncServersAPI()
+syncRulesAPI(args)
+syncServersAPI(args)
