@@ -31,9 +31,9 @@ echo "Running docker-compose up -d."
 
 DOCKER_COMPOSE_BIN=$(which docker-compose)
 
-${DOCKER_COMPOSE_BIN} down --remove-orphans
+${DOCKER_COMPOSE_BIN} --env-file ${TARGET_ENV_FILE} down --remove-orphans
 sleep 5
-${DOCKER_COMPOSE_BIN} --env-file ${TARGET_ENV_FILE}  up -d --build --remove-orphans
+${DOCKER_COMPOSE_BIN} --env-file ${TARGET_ENV_FILE} up -d --build --remove-orphans
 
 DOCKER_CONTAINER_NAME=""
 
