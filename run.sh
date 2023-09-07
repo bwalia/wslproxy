@@ -71,6 +71,8 @@ docker exec -i ${DOCKER_CONTAINER_NAME} yarn build
 docker exec -i ${DOCKER_CONTAINER_NAME} chmod -R 777 /opt/nginx/data/
 # && chown -R root:root /opt/nginx/data/
 docker exec -i ${DOCKER_CONTAINER_NAME} openresty -s reload
+echo "Loaded env file content from within the container: .env :"
+docker exec -i ${DOCKER_CONTAINER_NAME} cat .env
 
 #rm -Rf .env
 docker system prune -f

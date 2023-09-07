@@ -60,6 +60,10 @@ RUN apk add --no-cache --virtual .build-deps \
     && apk del .build-deps .gettext \
     && mv /tmp/envsubst /usr/local/bin/
 
+# IP to Country DB - https://lite.ip2location.com/database/ip-country
+RUN cd /tmp/ && wget https://edgeone-public.s3.eu-west-2.amazonaws.com/src/openresty/IP2LOCATION-LITE-DB11.IPV6.BIN/IP2LOCATION-LITE-DB11.IPV6.BIN -O /tmp/IP2LOCATION-LITE-DB11.IPV6.BIN
+#   COPY ./IP2LOCATION-LITE-DB11.IPV6.BIN /tmp
+
 # Add LuaRocks paths
 # If OpenResty changes, these may need updating:
 #    /usr/local/openresty/bin/resty -e 'print(package.path)'
@@ -102,9 +106,6 @@ COPY ./html/swagger /usr/local/openresty/nginx/html/swagger
 COPY ./build.sh /tmp/build.sh
 
 #RUN chmod -R 777 /usr/local/openresty/nginx/html/data && chmod -R 777 /usr/local/openresty/nginx/html/data/servers 
-
-RUN cd /tmp/ && wget https://edgeone-public.s3.eu-west-2.amazonaws.com/src/openresty/IP2LOCATION-LITE-DB11.IPV6.BIN/IP2LOCATION-LITE-DB11.IPV6.BIN -O /tmp/IP2LOCATION-LITE-DB11.IPV6.BIN
-#   COPY ./IP2LOCATION-LITE-DB11.IPV6.BIN /tmp
 
 ENV DNS_RESOLVER="127.0.0.11"
 ARG DNS_RESOLVER="127.0.0.11"
