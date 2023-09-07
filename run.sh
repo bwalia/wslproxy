@@ -66,11 +66,11 @@ ${DOCKER_COMPOSE_BIN} -f ${TARGET_DOCKER_COMPOSE_FILE} --env-file ${TARGET_ENV_F
 # echo "${DOCKER_COMPOSE_BIN} -f ${TARGET_DOCKER_COMPOSE_FILE} --env-file ${TARGET_ENV_FILE} up -d --build --remove-orphans"
 # exit 0
 
+sleep 5
 docker exec -i ${DOCKER_CONTAINER_NAME} yarn build
 docker exec -i ${DOCKER_CONTAINER_NAME} chmod -R 777 /opt/nginx/data/
 # && chown -R root:root /opt/nginx/data/
 docker exec -i ${DOCKER_CONTAINER_NAME} openresty -s reload
-sleep 5
 
 #rm -Rf .env
 docker system prune -f
