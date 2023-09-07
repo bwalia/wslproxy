@@ -99,6 +99,7 @@ COPY ./api /usr/local/openresty/nginx/html/api
 COPY ./nginx-${APP_ENV}.conf.tmpl /tmp/nginx.conf.tmpl
 COPY ./resolver.conf.tmpl /tmp/resolver.conf.tmpl
 COPY ./html/swagger /usr/local/openresty/nginx/html/swagger
+COPY ./build.sh /tmp/build.sh
 
 #RUN chmod -R 777 /usr/local/openresty/nginx/html/data && chmod -R 777 /usr/local/openresty/nginx/html/data/servers 
 
@@ -137,7 +138,7 @@ RUN cd /usr/local/openresty/nginx/html/openresty-admin && yarn install \
   --non-interactive \
   --production=false
   
-RUN cd /usr/local/openresty/nginx/html/openresty-admin/ && yarn build
+# RUN cd /usr/local/openresty/nginx/html/openresty-admin/ && yarn build
 #--dest /usr/local/openresty/nginx/html/openresty-admin/dist
 
 RUN chmod -R 777 ${NGINX_CONFIG_DIR}system && \
