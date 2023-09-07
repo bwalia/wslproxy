@@ -63,8 +63,7 @@ def setup(request):
     driver.get(targetHost)
     EMAIL = os.environ.get('LOGIN_EMAIL')
     PASSWORD = os.environ.get('LOGIN_PASSWORD')
-    #storageType = os.environ.get('STORAGE_TYPE')
-    storageType = "redis"
+    storageType = os.environ.get('STORAGE_TYPE')
 
     driver.find_element(By.NAME, "email").send_keys(EMAIL)
     driver.find_element(By.NAME, "password").send_keys(PASSWORD)
