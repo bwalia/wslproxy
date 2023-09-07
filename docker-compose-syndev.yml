@@ -52,7 +52,7 @@ services:
     container_name: syndev-pop-redis
     image: "redis:alpine"
     ports:
-      - "6379:6379"
+      - "6375:6379"
     networks:
       - openresty-network
 
@@ -62,7 +62,7 @@ services:
       context: .
       dockerfile: Dockerfile_nodeapp
     ports:
-      - "3009:3009"
+      - "3005:3009"
     networks:
       - openresty-network
 networks: 
