@@ -32,6 +32,8 @@ fi
 
 if [ -f .env ]; then
 truncate -s 0 .env
+else
+touch .env
 fi
 
 DATE_GEN_VERSION=$(date +"%Y%m%d%I%M%S")
