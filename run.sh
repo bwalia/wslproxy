@@ -2,13 +2,6 @@
 
 set -x
 
-if [ -f .env.dev ]; then
-    echo "File .env.dev exists."
-else 
-    echo "File .env.dev does not exist."
-exit 1
-fi
-
 TARGET_ENV_FILE=".env.dev"
 
 if [ -z "$1" ]
@@ -19,6 +12,13 @@ else
     echo "Using .env file: $1"
     TARGET_ENV_NAME="$1"
     TARGET_ENV_FILE=".env.$1"
+fi
+
+if [ -f ${TARGET_ENV_FILE} ]; then
+    echo "File ${TARGET_ENV_FILE} exists."
+else 
+    echo "File ${TARGET_ENV_FILE} does not exist."
+exit 1
 fi
 
 if [ -z "$2" ]
@@ -44,6 +44,16 @@ elif [ "$TARGET_ENV_NAME" == "synprod" ]; then
     TARGET_DOCKER_COMPOSE_FILE="docker-compose-${TARGET_ENV_NAME}.yml"
 fi
 
+if [ -f .env ]; then
+truncate -s 0 .env
+fi
+
+cp ${TARGET_ENV_FILE} .env
+# replace app name in dashboard and other places to whitelabel the api gw
+echo 'VITE_APP_VERSION: "2.0.0"' >> .env
+echo 'VITE_DEPLOYMENT_TIME: "20230906205429"' >> .env
+echo 'VITE_APP_BUILD_NUMBER: "205429"' >> .env
+
 echo "Running docker-compose up -d."
 
 DOCKER_COMPOSE_BIN=$(which docker-compose)
@@ -55,12 +65,12 @@ ${DOCKER_COMPOSE_BIN} -f ${TARGET_DOCKER_COMPOSE_FILE} --env-file ${TARGET_ENV_F
 # echo "${DOCKER_COMPOSE_BIN} -f ${TARGET_DOCKER_COMPOSE_FILE} --env-file ${TARGET_ENV_FILE} up -d --build --remove-orphans"
 # exit 0
 
-docker exec -it ${DOCKER_CONTAINER_NAME} yarn build
-docker exec -it ${DOCKER_CONTAINER_NAME} openresty -s reload
-
-# replace app name in dashboard and other places to whitelabel the api gw
-#   docker exec -it ${DOCKER_CONTAINER_NAME} "sed -i 's\whitefalcon\whitefalcon\g' /usr/local/openresty/nginx/html/openresty-admin/.env"
-
+docker exec -i ${DOCKER_CONTAINER_NAME} yarn build
+docker exec -i ${DOCKER_CONTAINER_NAME} chmod -R 777 /opt/nginx/data/
+# && chown -R root:root /opt/nginx/data/
+docker exec -i ${DOCKER_CONTAINER_NAME} openresty -s reload
 sleep 5
+
+#rm -Rf .env
 docker system prune -f
 # --all --volumes

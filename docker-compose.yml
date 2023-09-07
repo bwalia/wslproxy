@@ -28,7 +28,8 @@ services:
       - ./data:/opt/nginx/data
       - ./html/swagger:/usr/local/openresty/nginx/html/swagger
       - ./api:/usr/local/openresty/nginx/html/api
-      - ./.env.dev:/usr/local/openresty/nginx/html/openresty-admin/.env
+      - ./.env:/usr/local/openresty/nginx/html/openresty-admin/.env
+      # - ./.env.dev:/tmp/.env
     environment:
       LUA_DEBUG: "true"
       REDIS_HOST: "whitefalcon-redis"
