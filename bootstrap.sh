@@ -33,21 +33,21 @@ fi
 mkdir -p ./tmp
 
 if [ -f ./tmp/.env ]; then
-truncate -s 0 ./tmp/.env
+    truncate -s 0 ./tmp/.env
 else
-touch ./tmp/.env
+    touch ./tmp/.env
 fi
 
 DATE_GEN_VERSION=$(date +"%Y%m%d%I%M%S")
 cp ${TARGET_ENV_FILE} ./tmp/.env
-# replace app name in dashboard and other places to whitelabel the api gw
-echo "" >> ./tmp/.env
+    # replace app name in dashboard and other places to whitelabel the api gw
+echo "" >> /tmp/.env
 echo "VITE_APP_VERSION: 2.0.0" >> ./tmp/.env
 echo "VITE_DEPLOYMENT_TIME=$DATE_GEN_VERSION" >> ./tmp/.env
 DATE_GEN_VERSION=$(date +"%I%M%S")
 echo "VITE_APP_BUILD_NUMBER=$DATE_GEN_VERSION" >> ./tmp/.env
 
-sleep 5
+sleep 10
 docker exec -i ${DOCKER_CONTAINER_NAME} yarn build
 docker exec -i ${DOCKER_CONTAINER_NAME} chmod -R 777 /opt/nginx/data/
 # && chown -R root:root /opt/nginx/data/
