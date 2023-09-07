@@ -1395,8 +1395,10 @@ local function handle_get_request(args, path)
         -- elseif uuid and (#uuid == 36 or #uuid == 32) and subPath[1] == "sessions" then
         --     listSession(args, uuid)
     end
-    if uuid and (#uuid == 36 or #uuid == 32) and subPath[1] == "settings" then
-        listSettings(args, uuid)
+    if path == "global/settings" then
+        ngx.say(cjson.encode({
+            data = settings
+        }))
     end
     if path == "profiles" then
         listProfiles(args)

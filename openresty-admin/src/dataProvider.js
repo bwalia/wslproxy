@@ -343,6 +343,25 @@ const dataProvider = (apiUrl, settings = {}) => {
         setIsLoadig(false)
       }
     },
+
+    loadSettings: async (resource, params) => {
+      try {
+        setIsLoadig(true);
+        const url = `${apiUrl}/${resource}`;
+        const response = await fetch(url, {
+          method: "GET",
+          headers: getHeaders(),
+        });
+        if (response.status === 200) {
+          setIsLoadig(false);
+          const data = await response.json();
+          return data;
+        }
+      } catch (error) {
+        console.log(error)
+        setIsLoadig(false)
+      }
+    },
   }
 };
 export default dataProvider;
