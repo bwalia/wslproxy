@@ -50,6 +50,7 @@ fi
 
 cp ${TARGET_ENV_FILE} .env
 # replace app name in dashboard and other places to whitelabel the api gw
+echo '\n' >> .env
 echo 'VITE_APP_VERSION: "2.0.0"' >> .env
 echo 'VITE_DEPLOYMENT_TIME: "20230906205429"' >> .env
 echo 'VITE_APP_BUILD_NUMBER: "205429"' >> .env
