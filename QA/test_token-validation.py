@@ -25,8 +25,12 @@ def test_authToken(setup, request):
 
     # Creating rule for access all requests
     wait_for_element(By.XPATH, "//a[@href='#/rules']").click()
+    wait_for_element(By.ID, "profile_id").click()
+    wait_for_element(By.XPATH, "//li[contains(.,'test')]").click()
     wait_for_element(By.XPATH, "//a[@href='#/rules/create']").click()
     wait_for_element(By.NAME, "name").send_keys("Access all rule-py")
+    wait_for_element(By.ID, "profile_id").click()
+    wait_for_element(By.XPATH, "//li[contains(.,'test')]").click()
     wait_for_element(By.NAME, "match.rules.path").send_keys("/")
     element = wait_for_element(By.NAME, "match.response.code")
     element.send_keys(Keys.END)
@@ -39,10 +43,11 @@ def test_authToken(setup, request):
 
     # Creating rule for access request with /api
     wait_for_element(By.XPATH, "//a[@href='#/rules']").click()
-    time.sleep(2)
     wait_for_element(By.XPATH, "//a[@href='#/rules/create']").click()
     time.sleep(2)
     wait_for_element(By.NAME, "name").send_keys("Access api rule-py")
+    wait_for_element(By.ID, "profile_id").click()
+    wait_for_element(By.XPATH, "//li[contains(.,'test')]").click()
     wait_for_element(By.NAME, "match.rules.path").send_keys("/api")
     time.sleep(2)
     try:
@@ -68,6 +73,8 @@ def test_authToken(setup, request):
 
     # Apply both rules to the server
     wait_for_element(By.XPATH, "//a[@href='#/servers']").click()
+    wait_for_element(By.ID, "profile_id").click()
+    wait_for_element(By.XPATH, "//li[contains(.,'test')]").click()
     wait_for_element(By.XPATH, f"//td[contains(.,'{server_name}')]").click()
     wait_for_element(By.XPATH, "//a[@id='tabheader-1']").click()
     wait_for_element(By.XPATH, "//div[@id='rules']").click()
@@ -93,7 +100,6 @@ def test_authToken(setup, request):
         driver.execute_script("arguments[0].scrollIntoView();", wait_for_element(By.XPATH, "//li[contains(.,'Access api rule-py')]"))
         # Wait for the element to be clickable
         wait.until(expected_conditions.element_to_be_clickable((By.XPATH, "//li[contains(.,'Access api rule-py')]"))).click()
-        print("Rule not found")
             
 
     wait_for_element(By.XPATH, "//div[@id='match_cases.0.condition']").click()

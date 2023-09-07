@@ -19,17 +19,19 @@ def test_redirectRule(setup, request):
 
 
 # Creating redirect rule with 305
-    #driver.implicitly_wait(20)
-    wait = WebDriverWait(driver, 20)
+    wait = WebDriverWait(driver, 15)
 
     def wait_for_element(by, selector):
       element = wait.until(expected_conditions.presence_of_element_located((by, selector)))
       return element
 
     wait_for_element(By.XPATH, "//a[@href='#/rules']").click()
+    wait_for_element(By.ID, "profile_id").click()
+    wait_for_element(By.XPATH, "//li[contains(.,'test')]").click()
     wait_for_element(By.XPATH, "//a[@href='#/rules/create']").click()
     wait_for_element(By.NAME, "name").send_keys("redirect rule 305-py")
-
+    wait_for_element(By.ID, "profile_id").click()
+    wait_for_element(By.XPATH, "//li[contains(.,'test')]").click()
  
     wait_for_element(By.NAME, "match.rules.path").send_keys("/")
     driver.execute_script("window.scrollBy(0, document.body.scrollHeight);")
@@ -52,6 +54,8 @@ def test_redirectRule(setup, request):
     wait_for_element(By.XPATH, "//a[@href='#/rules']").click()
     wait_for_element(By.XPATH, "//a[@href='#/rules/create']").click()
     wait_for_element(By.NAME, "name").send_keys("redirect rule 302-py")
+    wait_for_element(By.ID, "profile_id").click()
+    wait_for_element(By.XPATH, "//li[contains(.,'test')]").click()
     time.sleep(2)
     wait_for_element(By.NAME, "match.rules.path").send_keys("/workstation")
     driver.execute_script("window.scrollBy(0, document.body.scrollHeight);")
@@ -73,6 +77,8 @@ def test_redirectRule(setup, request):
     wait_for_element(By.XPATH, "//a[@href='#/rules']").click()
     wait_for_element(By.XPATH, "//a[@href='#/rules/create']").click()
     wait_for_element(By.NAME, "name").send_keys("redirect rule 301-py")
+    wait_for_element(By.ID, "profile_id").click()
+    wait_for_element(By.XPATH, "//li[contains(.,'test')]").click()
     time.sleep(2)
     wait_for_element(By.NAME, "match.rules.path").send_keys("/be")
     driver.execute_script("window.scrollBy(0, document.body.scrollHeight);")
@@ -91,6 +97,8 @@ def test_redirectRule(setup, request):
     # Apply rules to the server
     time.sleep(2)
     wait_for_element(By.XPATH, "//a[@href='#/servers']").click()
+    wait_for_element(By.ID, "profile_id").click()
+    wait_for_element(By.XPATH, "//li[contains(.,'test')]").click()
     wait_for_element(By.XPATH, f"//td[contains(.,'{server_name}')]").click()
     wait_for_element(By.XPATH, "//a[@id='tabheader-1']").click()
     wait_for_element(By.XPATH, "//div[@id='rules']").click()
@@ -98,11 +106,9 @@ def test_redirectRule(setup, request):
     try:
         wait_for_element(By.XPATH, "//li[contains(.,'redirect rule 305-py')]").click()
     except:
-        time.sleep(2)
         driver.execute_script("arguments[0].scrollIntoView();", wait_for_element(By.XPATH, "//li[contains(.,'redirect rule 305-py')]"))
         # Wait for the element to be clickable
         wait.until(expected_conditions.element_to_be_clickable((By.XPATH, "//li[contains(.,'redirect rule 305-py')]"))).click()
-        print("rule not found")
     time.sleep(2)
     driver.execute_script("arguments[0].scrollIntoView();", wait_for_element(By.CSS_SELECTOR, ".button-add-match_cases"))
     wait.until(expected_conditions.element_to_be_clickable((By.CSS_SELECTOR, ".button-add-match_cases"))).click()
@@ -118,7 +124,6 @@ def test_redirectRule(setup, request):
         driver.execute_script("arguments[0].scrollIntoView();", wait_for_element(By.XPATH, "//li[contains(.,'redirect rule 302-py')]"))
         # Wait for the element to be clickable
         wait.until(expected_conditions.element_to_be_clickable((By.XPATH, "//li[contains(.,'redirect rule 302-py')]"))).click()
-        print("Rule not found")    
 
     wait_for_element(By.XPATH, "//div[@id='match_cases.0.condition']").click()
     time.sleep(2)
@@ -134,7 +139,6 @@ def test_redirectRule(setup, request):
         driver.execute_script("arguments[0].scrollIntoView();", wait_for_element(By.XPATH, "//li[contains(.,'redirect rule 301-py')]"))
         # Wait for the element to be clickable
         wait.until(expected_conditions.element_to_be_clickable((By.XPATH, "//li[contains(.,'redirect rule 301-py')]"))).click()
-        print("Rule not found")    
     
     wait_for_element(By.XPATH, "//div[@id='match_cases.1.condition']").click()
     time.sleep(2)
@@ -165,7 +169,7 @@ def test_redirectRule(setup, request):
     time.sleep(2)
     response1 = wait_for_element(By.CSS_SELECTOR, "body").text
     assert "Login" in response1
-    print(response1)
+    #print(response1)
     
     # Verifying the rule redirect with 302
     time.sleep(2)
@@ -179,13 +183,13 @@ def test_redirectRule(setup, request):
     try:
         response2 = wait_for_element(By.XPATH, "//button[normalize-space()='Log in']").text
         assert "LOG IN" in response2
-        print(response2)
+        #print(response2)
     except:
         driver.refresh()
         time.sleep(4)
         response2 = wait_for_element(By.XPATH, "//button[normalize-space()='Log in']").text
         assert "LOG IN" in response2
-        print(response2, "-Second attempt")
+        #print(response2, "-Second attempt")
 
     # Verifying the rule redirect with 301
     time.sleep(2)
@@ -199,14 +203,14 @@ def test_redirectRule(setup, request):
     try:
         response3 = wait_for_element(By.XPATH, "//body").text
         assert "Welcome to Workstation SRL" in response3
-        print(response3)
+        #print(response3)
     except:
         time.sleep(2)
         driver.refresh()
         time.sleep(4)
         response3 = wait_for_element(By.XPATH, "//body").text
         assert "Welcome to Workstation SRL" in response3
-        print(response3, "-Second attempt")    
+        #print(response3, "-Second attempt")    
     time.sleep(2)
     
 

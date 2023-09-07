@@ -18,7 +18,7 @@ def test_clientIPRule(setup, request):
     targetHost = request.function.targetHost 
 
 # Creating rule for allow request when the client IP is matched
-    wait = WebDriverWait(driver, 20)
+    wait = WebDriverWait(driver, 15)
 
     def wait_for_element(by, selector):
       element = wait.until(expected_conditions.presence_of_element_located((by, selector)))
@@ -26,9 +26,13 @@ def test_clientIPRule(setup, request):
 
 
     wait_for_element(By.XPATH, "//a[@href='#/rules']").click()
+    wait_for_element(By.ID, "profile_id").click()
+    wait_for_element(By.XPATH, "//li[contains(.,'test')]").click()
+    time.sleep(2)
     wait_for_element(By.XPATH, "//a[@href='#/rules/create']").click()
     wait_for_element(By.NAME, "name").send_keys("Valid client IP match-py")
-
+    wait_for_element(By.ID, "profile_id").click()
+    wait_for_element(By.XPATH, "//li[contains(.,'test')]").click()
     wait_for_element(By.NAME, "match.rules.path").send_keys("/valid")
     wait_for_element(By.ID, "match.rules.country").click()
     driver.execute_script("arguments[0].scrollIntoView();", wait_for_element(By.XPATH, "//li[contains(.,'Belgium (BE)')]"))
@@ -53,7 +57,8 @@ def test_clientIPRule(setup, request):
     wait_for_element(By.XPATH, "//a[@href='#/rules']").click()
     wait_for_element(By.XPATH, "//a[@href='#/rules/create']").click()
     wait_for_element(By.NAME, "name").send_keys("Invalid client IP match-py")
-
+    wait_for_element(By.ID, "profile_id").click()
+    wait_for_element(By.XPATH, "//li[contains(.,'test')]").click()
     wait_for_element(By.NAME, "match.rules.path").send_keys("/invalid")
     wait_for_element(By.ID, "match.rules.country").click()
     driver.execute_script("arguments[0].scrollIntoView();", wait_for_element(By.XPATH, "//li[contains(.,'India (IN)')]"))
@@ -77,7 +82,8 @@ def test_clientIPRule(setup, request):
     wait_for_element(By.XPATH, "//a[@href='#/rules']").click()
     wait_for_element(By.XPATH, "//a[@href='#/rules/create']").click()
     wait_for_element(By.NAME, "name").send_keys("Valid client IP match-starts_with-py")
-
+    wait_for_element(By.ID, "profile_id").click()
+    wait_for_element(By.XPATH, "//li[contains(.,'test')]").click()
     wait_for_element(By.NAME, "match.rules.path").send_keys("/start")
     wait_for_element(By.ID, "match.rules.country").click()
     driver.execute_script("arguments[0].scrollIntoView();", wait_for_element(By.XPATH, "//li[contains(.,'Belgium (BE)')]"))
@@ -103,6 +109,8 @@ def test_clientIPRule(setup, request):
     # Apply rules to the server
     time.sleep(2)
     wait_for_element(By.XPATH, "//a[@href='#/servers']").click()
+    wait_for_element(By.ID, "profile_id").click()
+    wait_for_element(By.XPATH, "//li[contains(.,'test')]").click()
     wait_for_element(By.XPATH, f"//td[contains(.,'{server_name}')]").click()
     wait_for_element(By.XPATH, "//a[@id='tabheader-1']").click()
     wait_for_element(By.XPATH, "//div[@id='rules']").click()
@@ -196,6 +204,68 @@ def test_clientIPRule(setup, request):
     assert "client-ip-matched" in response
     print(response)
    
+    # # Find and delete the rule containing the specific text
+    # driver.get(targetHost+"#/")
+    # wait_for_element(By.XPATH, "//a[@href='#/rules']").click()
+    # time.sleep(2)
 
+    # rule_name1 = "Valid client IP match-py"
+    # rule_name2 = "Invalid client IP match-py"
+    # rule_name3 = "Valid client IP match-starts_with-py"
+
+
+    # try:
+    #     rule1 = wait_for_element(By.XPATH, f"//tr[td/span[contains(text(), '{rule_name1}')]]")
+    # except NoSuchElementException:
+    #     driver.execute_script("window.scrollBy(0, document.body.scrollHeight);")
+    #     rule1 = wait_for_element(By.XPATH, f"//tr[td/span[contains(text(), '{rule_name1}')]]")
+    # except:    
+    #     driver.execute_script("arguments[0].scrollIntoView();", wait_for_element(By.CSS_SELECTOR, "button[aria-label='Go to page 2']"))
+    #     wait_for_element(By.CSS_SELECTOR, "button[aria-label='Go to page 2']").click()
+    #     time.sleep(2)
+    #     rule1 = wait_for_element(By.XPATH, f"//tr[td/span[contains(text(), '{rule_name1}')]]")
+
+
+    # checkbox = rule1.find_element(By.XPATH, ".//input[@type='checkbox']")
+    # checkbox.click()
+
+    # try:
+    #     driver.execute_script("arguments[0].scrollIntoView();", wait_for_element(By.CSS_SELECTOR, "button[aria-label='Go to page 1']"))
+    #     wait_for_element(By.CSS_SELECTOR, "button[aria-label='Go to page 1']").click()
+    #     time.sleep(2)
+    #     rule2 = wait_for_element(By.XPATH, f"//tr[td/span[contains(text(), '{rule_name2}')]]")
+    # except NoSuchElementException:
+    #     driver.execute_script("window.scrollBy(0, document.body.scrollHeight);")
+    #     rule2 = wait_for_element(By.XPATH, f"//tr[td/span[contains(text(), '{rule_name2}')]]")
+    # except:    
+    #     driver.execute_script("arguments[0].scrollIntoView();", wait_for_element(By.CSS_SELECTOR, "button[aria-label='Go to page 2']"))
+    #     wait_for_element(By.CSS_SELECTOR, "button[aria-label='Go to page 2']").click()
+    #     time.sleep(2)
+    #     rule2 = wait_for_element(By.XPATH, f"//tr[td/span[contains(text(), '{rule_name2}')]]")
+
+    # checkbox = rule2.find_element(By.XPATH, ".//input[@type='checkbox']")
+    # checkbox.click()
+
+    # try:
+    #     driver.execute_script("arguments[0].scrollIntoView();", wait_for_element(By.CSS_SELECTOR, "button[aria-label='Go to page 1']"))
+    #     wait_for_element(By.CSS_SELECTOR, "button[aria-label='Go to page 1']").click()
+    #     time.sleep(2)
+    #     rule3 = wait_for_element(By.XPATH, f"//tr[td/span[contains(text(), '{rule_name3}')]]")
+    # except NoSuchElementException:
+    #     driver.execute_script("window.scrollBy(0, document.body.scrollHeight);")
+    #     rule3 = wait_for_element(By.XPATH, f"//tr[td/span[contains(text(), '{rule_name3}')]]")
+    # except:    
+    #     driver.execute_script("arguments[0].scrollIntoView();", wait_for_element(By.CSS_SELECTOR, "button[aria-label='Go to page 2']"))
+    #     wait_for_element(By.CSS_SELECTOR, "button[aria-label='Go to page 2']").click()
+    #     time.sleep(2)
+    #     rule3 = wait_for_element(By.XPATH, f"//tr[td/span[contains(text(), '{rule_name3}')]]")
+
+    # checkbox = rule3.find_element(By.XPATH, ".//input[@type='checkbox']")
+    # checkbox.click()
+
+
+    # driver.find_element(By.CSS_SELECTOR, "button[aria-label='Delete']").click()
+    # time.sleep(4)
+    # driver.refresh()
 
 

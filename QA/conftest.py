@@ -1,5 +1,6 @@
 import time
 from selenium.webdriver.common.action_chains import ActionChains
+import requests
 
 import pytest 
 from selenium import webdriver
@@ -50,12 +51,20 @@ def setup(request):
         test_name = request.node.name
         take_screenshot(driver, test_name)
 
+    def handle_profile_api():
+        # Calling the handle profile API
+        url = "http://"+server_name+"/frontdoor/opsapi/handle-profile"
+        body = {"profile":"test"}
+        response = requests.post(url, json=body)
+        #print(response)
+
 
     targetHost = os.environ.get('TARGET_HOST')
     driver.get(targetHost)
     EMAIL = os.environ.get('LOGIN_EMAIL')
     PASSWORD = os.environ.get('LOGIN_PASSWORD')
-    storageType = os.environ.get('STORAGE_TYPE')
+    #storageType = os.environ.get('STORAGE_TYPE')
+    storageType = "redis"
 
     driver.find_element(By.NAME, "email").send_keys(EMAIL)
     driver.find_element(By.NAME, "password").send_keys(PASSWORD)
@@ -76,12 +85,20 @@ def setup(request):
 
     driver.find_element(By.XPATH, "//a[@href='#/servers']").click()
     time.sleep(2)
+    driver.find_element(By.ID, "profile_id").click()
+    driver.find_element(By.XPATH, "//li[contains(.,'test')]").click()
+    time.sleep(2)
     driver.find_element(By.XPATH, "//a[@href='#/servers/create']").click()
     driver.find_element(By.NAME, "listens.0.listen").send_keys("82")
     driver.find_element(By.NAME, "server_name").send_keys(server_name)
     #driver.find_element(By.NAME, "proxy_server_name").send_keys("10.43.69.108:3009")
+    driver.find_element(By.ID,"profile_id").click()
+    driver.find_element(By.XPATH, "//li[contains(.,'test')]").click()
     driver.execute_script("window.scrollBy(0, document.body.scrollHeight);")
     driver.find_element(By.CSS_SELECTOR, ".MuiButton-sizeMedium").click()
+
+    handle_profile_api()
+
     request.function.driver = driver
     request.function.server_name = server_name
     request.function.targetHost = targetHost
@@ -95,6 +112,8 @@ def setup(request):
         time.sleep(4)
     
     driver.find_element(By.XPATH, "//a[@href='#/servers']").click()
+    driver.find_element(By.ID, "profile_id").click()
+    driver.find_element(By.XPATH, "//li[contains(.,'test')]").click()
     time.sleep(2)
 
     # Find the row containing the specific text
@@ -102,7 +121,6 @@ def setup(request):
 
     checkbox = server_row.find_element(By.XPATH, ".//input[@type='checkbox']")
     checkbox.click()
-    time.sleep(2)
     driver.find_element(By.CSS_SELECTOR, "button[aria-label='Delete']").click()
     time.sleep(2)
     sync_button = driver.find_element(By.XPATH, "//button[@aria-label='Sync API Storage']")

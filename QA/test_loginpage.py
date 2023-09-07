@@ -156,6 +156,17 @@ def test_login():
     driver.find_element(By.XPATH, "//button[@type='submit']").click()
     time.sleep(2)
     wait = WebDriverWait(driver, 10)
-    expectedRes = wait.until(expected_conditions.presence_of_element_located((By.CSS_SELECTOR, ".MuiTypography-root.MuiTypography-h5.css-149cr09"))).text
-    print(expectedRes)
-    assert "Whitefalcon" in expectedRes
+    time.sleep(2)
+    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//button[normalize-space()='Redis']"))).click()
+    time.sleep(2)
+
+    expectedRes = wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//a[@href='#/']"))).text
+   # print(expectedRes)
+    assert "Dashboard" in expectedRes
+
+    wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//button[@aria-label='Profile']"))).click()
+    driver.find_element(By.XPATH, "//span[@class='MuiTypography-root MuiTypography-body1 MuiListItemText-primary css-yb0lig']").click()
+    time.sleep(2)
+    logOutRes = wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//h1[normalize-space()='Sign in']"))).text
+    #print(logOutRes)
+    assert "Sign in" in logOutRes
