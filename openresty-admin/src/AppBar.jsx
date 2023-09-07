@@ -14,7 +14,7 @@ import CloudSyncIcon from '@mui/icons-material/CloudSync';
 import ProfileIcon from '@mui/icons-material/RememberMe';
 import EnvProfileHandler from './component/EnvProfileHandler'
 
-const appDisplayNname = import.meta.env.VITE_APP_DISPLAY_NAME
+const appDisplayNname = import.meta.env.VITE_APP_DISPLAY_NAME;
 
 const StorageButton = () => {
   const [isStrgTypeSet, setStrgTypeSet] = React.useState(false);
@@ -87,34 +87,44 @@ const SettingButton = () => {
   );
 };
 
-const AppBar = () => (
-  <RaAppBar sx={{ background: "green" }}>
-    <Toolbar
-      sx={{
-        background: "transparent",
-      }}
-    >
-      <img
-        src="falcon-removebg-preview.png"
-        alt="Logo"
-        style={{ height: "50px" }}
-      />
-      <Typography
-        variant="h5"
+const AppBar = () => {
+  const dataProvider = useDataProvider();
+  const [settings, setSettings] = React.useState({})
+  React.useEffect(() => {
+    const globalSettings = dataProvider.loadSettings("global/settings", {});
+    globalSettings.then(settings => {
+      setSettings(settings.data);
+    })
+  }, [])
+  return (
+    <RaAppBar sx={{ background: "green" }}>
+      <Toolbar
         sx={{
-          textShadow: "0 13.36px 8.896px #2c482e, 0 -2px 1px #aeffb4",
-          color: "#6fb374",
+          background: "transparent",
         }}
       >
-        {appDisplayNname}
-      </Typography>
-    </Toolbar>
-    <TitlePortal />
-    <ApiSync />
-    <StorageButton />
-    <SettingButton />
-    <ProfileHandler />
-  </RaAppBar>
-);
+        <img
+          src="falcon-removebg-preview.png"
+          alt="Logo"
+          style={{ height: "50px" }}
+        />
+        <Typography
+          variant="h5"
+          sx={{
+            textShadow: "0 13.36px 8.896px #2c482e, 0 -2px 1px #aeffb4",
+            color: "#6fb374",
+          }}
+        >
+          {appDisplayNname}
+        </Typography>
+      </Toolbar>
+      <TitlePortal />
+      <ApiSync />
+      {settings.storage_type === "disk" && <StorageButton />}
+      {/* <SettingButton /> */}
+      <ProfileHandler />
+    </RaAppBar>
+  );
+}
 
 export default AppBar;
