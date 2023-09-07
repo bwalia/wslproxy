@@ -28,7 +28,6 @@ services:
       - ./data:/opt/nginx/data
       - ./html/swagger:/usr/local/openresty/nginx/html/swagger
       - ./api:/usr/local/openresty/nginx/html/api
-      - ./tmp:/usr/local/openresty/nginx/html/openresty-admin
     environment:
       LUA_DEBUG: "true"
       REDIS_HOST: "syndev-pop-redis"

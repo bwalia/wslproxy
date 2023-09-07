@@ -30,22 +30,20 @@ else
     DOCKER_CONTAINER_NAME="$2"
 fi
 
-mkdir -p ./tmp
-
-if [ -f ./tmp/.env ]; then
-    truncate -s 0 ./tmp/.env
+if [ -f .env ]; then
+    truncate -s 0 .env
 else
-    touch ./tmp/.env
+    touch .env
 fi
 
 DATE_GEN_VERSION=$(date +"%Y%m%d%I%M%S")
-cp ${TARGET_ENV_FILE} ./tmp/.env
+cp ${TARGET_ENV_FILE} .env
     # replace app name in dashboard and other places to whitelabel the api gw
 echo "" >> /tmp/.env
-echo "VITE_APP_VERSION: 2.0.0" >> ./tmp/.env
-echo "VITE_DEPLOYMENT_TIME=$DATE_GEN_VERSION" >> ./tmp/.env
+echo "VITE_APP_VERSION: 2.0.0" >> .env
+echo "VITE_DEPLOYMENT_TIME=$DATE_GEN_VERSION" >> .env
 DATE_GEN_VERSION=$(date +"%I%M%S")
-echo "VITE_APP_BUILD_NUMBER=$DATE_GEN_VERSION" >> ./tmp/.env
+echo "VITE_APP_BUILD_NUMBER=$DATE_GEN_VERSION" >> .env
 
 sleep 10
 docker exec -i ${DOCKER_CONTAINER_NAME} yarn build
