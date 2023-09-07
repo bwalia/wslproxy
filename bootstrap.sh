@@ -30,6 +30,10 @@ else
     DOCKER_CONTAINER_NAME="$2"
 fi
 
+if [ -d .env/ ]; then
+    rm -rf .env/
+fi
+
 if [ -f .env ]; then
     truncate -s 0 .env
 else
@@ -39,13 +43,14 @@ fi
 DATE_GEN_VERSION=$(date +"%Y%m%d%I%M%S")
 cp ${TARGET_ENV_FILE} .env
     # replace app name in dashboard and other places to whitelabel the api gw
-echo "" >> /tmp/.env
+echo "" >> .env
 echo "VITE_APP_VERSION: 2.0.0" >> .env
 echo "VITE_DEPLOYMENT_TIME=$DATE_GEN_VERSION" >> .env
 DATE_GEN_VERSION=$(date +"%I%M%S")
 echo "VITE_APP_BUILD_NUMBER=$DATE_GEN_VERSION" >> .env
+docker cp .env ${DOCKER_CONTAINER_NAME}:/usr/local/openresty/nginx/html/openresty-admin/.env
 
-sleep 10
+sleep 2
 docker exec -i ${DOCKER_CONTAINER_NAME} yarn build
 docker exec -i ${DOCKER_CONTAINER_NAME} chmod -R 777 /opt/nginx/data/
 # && chown -R root:root /opt/nginx/data/
