@@ -1,12 +1,12 @@
 version: "3.7"
 services:
-  whitefalcon-server:
-    container_name: whitefalcon
+  syndev-pop-server:
+    container_name: syndev-pop
     restart: always
     build:
       args:
         - APP_ENV=dev
-        - APP_NAME=whitefalcon
+        - APP_NAME=syndev-pop
         - DNS_RESOLVER=127.0.0.11
       context: .
       dockerfile: Dockerfile
@@ -28,11 +28,11 @@ services:
       - ./data:/opt/nginx/data
       - ./html/swagger:/usr/local/openresty/nginx/html/swagger
       - ./api:/usr/local/openresty/nginx/html/api
-      - ./.env.dev:/usr/local/openresty/nginx/html/openresty-admin/.env
+      - ./.env.syndev:/usr/local/openresty/nginx/html/openresty-admin/.env
     environment:
       LUA_DEBUG: "true"
-      REDIS_HOST: "whitefalcon-redis"
-      APP_NAME: "whitefalcon"
+      REDIS_HOST: "syndev-pop-redis"
+      APP_NAME: "syndev-pop"
       VITE_APP_VERSION: "0.0.1"
       VITE_APP_BUILD_NUMBER: "182900"
       VERSION: "1.0"
@@ -48,16 +48,16 @@ services:
       FRONT_URL: "http://localhost:8000"
 #      DNS_RESOLVER: "127.0.0.11"       # Docker's internal DNS resolver IP this should only be added for Docker deployments
 
-  whitefalcon-redis:
-    container_name: whitefalcon-redis
+  syndev-pop-redis:
+    container_name: syndev-pop-redis
     image: "redis:alpine"
     ports:
       - "6379:6379"
     networks:
       - openresty-network
 
-  whitefalcon-sample-api:
-    container_name: whitefalcon-sample-api
+  syndev-pop-sample-api:
+    container_name: syndev-pop-sample-api
     build:
       context: .
       dockerfile: Dockerfile_nodeapp
