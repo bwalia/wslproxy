@@ -4,6 +4,7 @@ local cjson = require "cjson"
 Hostname = os.getenv("HOST")
 local apiUrl = os.getenv("API_URL")
 local configPath = os.getenv("NGINX_CONFIG_DIR")
+local lfs = require("lfs")
 
 local _R = {}
 
@@ -64,7 +65,12 @@ local function saveRecordsToDisk(path, keyName)
         local allServersData = cjson.decode(allServers)["data"]
         allDataTotal = cjson.decode(allServers)["total"]
         for index, server in ipairs(allServersData) do
-            setDataToFile(configPath .. "data/" .. keyName .. "/" .. server.id .. ".json", server)
+            local success, errorMsg = lfs.mkdir(configPath .. "data/" .. keyName)
+            if success then
+                setDataToFile(configPath .. "data/" .. keyName .. "/" .. server.id .. ".json", server)
+            else
+                ngx.say("Failed to create directory " .. errorMsg)
+            end
         end
     end
     return allDataTotal
