@@ -1,22 +1,15 @@
 import time
-
 from selenium.webdriver import Keys
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions
-from selenium.webdriver.support.select import Select
 from selenium.webdriver.support.wait import WebDriverWait
-import os
 from selenium.common.exceptions import NoSuchElementException
-from selenium.webdriver.common.action_chains import ActionChains
-from selenium.webdriver.support.select import Select
-
 
 
 def test_pathRule(setup, request):
     driver = request.function.driver
     server_name = request.function.server_name
     targetHost = request.function.targetHost 
-
 
 # Creating rule for path condition - starts with
     wait = WebDriverWait(driver, 15)
@@ -27,8 +20,7 @@ def test_pathRule(setup, request):
 
 
     wait_for_element(By.XPATH, "//a[@href='#/rules']").click()
-    wait_for_element(By.ID, "profile_id").click()
-    wait_for_element(By.XPATH, "//li[contains(.,'test')]").click()
+    time.sleep(2)
     wait_for_element(By.XPATH, "//a[@href='#/rules/create']").click()
     wait_for_element(By.NAME, "name").send_keys("Path rule starts with-py")
     wait_for_element(By.ID, "profile_id").click()
@@ -56,6 +48,7 @@ def test_pathRule(setup, request):
     wait_for_element(By.XPATH, "//a[@href='#/rules/create']").click()
     wait_for_element(By.NAME, "name").send_keys("Path rule ends with-py")
     wait_for_element(By.ID, "profile_id").click()
+    time.sleep(2)
     wait_for_element(By.XPATH, "//li[contains(.,'test')]").click()
     wait_for_element(By.XPATH, "//div[@id='match.rules.path_key']").click()
     time.sleep(2)
@@ -104,6 +97,7 @@ def test_pathRule(setup, request):
     wait_for_element(By.XPATH, "//a[@href='#/servers']").click()
     wait_for_element(By.ID, "profile_id").click()
     wait_for_element(By.XPATH, "//li[contains(.,'test')]").click()
+    time.sleep(2)
     wait_for_element(By.XPATH, f"//td[contains(.,'{server_name}')]").click()
     wait_for_element(By.XPATH, "//a[@id='tabheader-1']").click()
     wait_for_element(By.XPATH, "//div[@id='rules']").click()
@@ -195,5 +189,69 @@ def test_pathRule(setup, request):
     assert "Equal" in response3
     print(response3)
 
+    # Find and delete the rule containing the specific text
+    driver.get(targetHost+"/#/")
+    wait_for_element(By.XPATH, "//a[@href='#/rules']").click()
+    wait_for_element(By.ID, "profile_id").click()
+    wait_for_element(By.XPATH, "//li[contains(.,'test')]").click()
+
+    time.sleep(2)
+
+    rule_name1 = "Path rule starts with-py"
+    rule_name2 = "Path rule ends with-py"
+    rule_name3 = "Path rule equals-py"
+
+
+    try:
+        rule1 = wait_for_element(By.XPATH, f"//tr[td/span[contains(text(), '{rule_name1}')]]")
+    except NoSuchElementException:
+        driver.execute_script("window.scrollBy(0, document.body.scrollHeight);")
+        rule1 = wait_for_element(By.XPATH, f"//tr[td/span[contains(text(), '{rule_name1}')]]")
+    except:    
+        driver.execute_script("arguments[0].scrollIntoView();", wait_for_element(By.CSS_SELECTOR, "button[aria-label='Go to page 2']"))
+        wait_for_element(By.CSS_SELECTOR, "button[aria-label='Go to page 2']").click()
+        time.sleep(2)
+        rule1 = wait_for_element(By.XPATH, f"//tr[td/span[contains(text(), '{rule_name1}')]]")
+
+
+    checkbox = rule1.find_element(By.XPATH, ".//input[@type='checkbox']")
+    checkbox.click()
+
+    try:
+        rule2 = wait_for_element(By.XPATH, f"//tr[td/span[contains(text(), '{rule_name2}')]]")
+    except NoSuchElementException:
+        driver.execute_script("window.scrollBy(0, document.body.scrollHeight);")
+        rule2 = wait_for_element(By.XPATH, f"//tr[td/span[contains(text(), '{rule_name2}')]]")
+    except:    
+        driver.execute_script("arguments[0].scrollIntoView();", wait_for_element(By.CSS_SELECTOR, "button[aria-label='Go to page 2']"))
+        wait_for_element(By.CSS_SELECTOR, "button[aria-label='Go to page 1']").click()
+        time.sleep(2)
+        rule2 = wait_for_element(By.XPATH, f"//tr[td/span[contains(text(), '{rule_name2}')]]")
+
+    checkbox = rule2.find_element(By.XPATH, ".//input[@type='checkbox']")
+    checkbox.click()
+
+    try:
+        rule3 = wait_for_element(By.XPATH, f"//tr[td/span[contains(text(), '{rule_name3}')]]")
+    except NoSuchElementException:
+        driver.execute_script("window.scrollBy(0, document.body.scrollHeight);")
+        rule3 = wait_for_element(By.XPATH, f"//tr[td/span[contains(text(), '{rule_name3}')]]")
+    except:    
+        driver.execute_script("arguments[0].scrollIntoView();", wait_for_element(By.CSS_SELECTOR, "button[aria-label='Go to page 2']"))
+        wait_for_element(By.CSS_SELECTOR, "button[aria-label='Go to page 2']").click()
+        time.sleep(2)
+        rule3 = wait_for_element(By.XPATH, f"//tr[td/span[contains(text(), '{rule_name3}')]]")
+
+    checkbox = rule3.find_element(By.XPATH, ".//input[@type='checkbox']")
+    checkbox.click()
+
+
+    driver.find_element(By.CSS_SELECTOR, "button[aria-label='Delete']").click()
+
+    # Clicking the sync API button
+    time.sleep(4)
+    sync_button = wait_for_element(By.XPATH, "//button[@aria-label='Sync API Storage']")
+    sync_button.click()
+    time.sleep(4)
 
 

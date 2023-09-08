@@ -1,19 +1,12 @@
 import time
-from selenium.webdriver.common.action_chains import ActionChains
 import requests
-
 import pytest 
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support import expected_conditions
-from selenium.webdriver.support.wait import WebDriverWait
-from selenium.webdriver.chrome.options import Options
 import chromedriver_autoinstaller
 from chromedriver_autoinstaller import install as install_chrome_driver
 import os
-from selenium.common.exceptions import NoSuchElementException
-from selenium.webdriver import Keys
 
 
 @pytest.fixture(scope="function")
@@ -39,17 +32,6 @@ def setup(request):
 
     # Clearing the cookie 
     driver.delete_all_cookies()
-
-    # Take screenshot on failure
-    def take_screenshot(browser, test_name):
-        screenshots_dir = "/home/dixa/Visual_studio_code/Whitefalcon_test_branch/whitefalcon/QA/failure_screenshots"
-        screenshot_file_path = "{}/{}.png".format(screenshots_dir, test_name)
-        browser.save_screenshot(
-            screenshot_file_path
-        )
-    if request.session.testsfailed != failed_before:
-        test_name = request.node.name
-        take_screenshot(driver, test_name)
 
     def handle_profile_api():
         # Calling the handle profile API
@@ -84,10 +66,8 @@ def setup(request):
 
     driver.find_element(By.XPATH, "//a[@href='#/servers']").click()
     time.sleep(2)
-    driver.find_element(By.ID, "profile_id").click()
-    driver.find_element(By.XPATH, "//li[contains(.,'test')]").click()
-    time.sleep(2)
     driver.find_element(By.XPATH, "//a[@href='#/servers/create']").click()
+    time.sleep(2)
     driver.find_element(By.NAME, "listens.0.listen").send_keys("82")
     driver.find_element(By.NAME, "server_name").send_keys(server_name)
     #driver.find_element(By.NAME, "proxy_server_name").send_keys("10.43.69.108:3009")
@@ -111,6 +91,7 @@ def setup(request):
         time.sleep(4)
     
     driver.find_element(By.XPATH, "//a[@href='#/servers']").click()
+    time.sleep(2)
     driver.find_element(By.ID, "profile_id").click()
     driver.find_element(By.XPATH, "//li[contains(.,'test')]").click()
     time.sleep(2)

@@ -1,13 +1,10 @@
 import time
-
 from selenium.webdriver import Keys
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions
-from selenium.webdriver.support.select import Select
 from selenium.webdriver.support.wait import WebDriverWait
 import os
 from selenium.common.exceptions import NoSuchElementException
-from selenium.webdriver.common.action_chains import ActionChains
 
 
 
@@ -25,8 +22,7 @@ def test_authToken(setup, request):
 
     # Creating rule for access all requests
     wait_for_element(By.XPATH, "//a[@href='#/rules']").click()
-    wait_for_element(By.ID, "profile_id").click()
-    wait_for_element(By.XPATH, "//li[contains(.,'test')]").click()
+    time.sleep(2)
     wait_for_element(By.XPATH, "//a[@href='#/rules/create']").click()
     wait_for_element(By.NAME, "name").send_keys("Access all rule-py")
     wait_for_element(By.ID, "profile_id").click()
@@ -43,6 +39,7 @@ def test_authToken(setup, request):
 
     # Creating rule for access request with /api
     wait_for_element(By.XPATH, "//a[@href='#/rules']").click()
+    time.sleep(2)
     wait_for_element(By.XPATH, "//a[@href='#/rules/create']").click()
     time.sleep(2)
     wait_for_element(By.NAME, "name").send_keys("Access api rule-py")
@@ -159,34 +156,51 @@ def test_authToken(setup, request):
     #print(response2)
 
     driver.delete_all_cookies()
+    
+  # Find and delete the rule containing the specific text
+    driver.get(targetHost+"/#/")
+    wait_for_element(By.XPATH, "//a[@href='#/rules']").click()
+    wait_for_element(By.ID, "profile_id").click()
+    wait_for_element(By.XPATH, "//li[contains(.,'test')]").click()
+
+    time.sleep(2)
+
+    rule_name1 = "Access all rule-py"
+    rule_name2 = "Access api rule-py"
+
+    try:
+        rule1 = wait_for_element(By.XPATH, f"//tr[td/span[contains(text(), '{rule_name1}')]]")
+    except NoSuchElementException:
+        driver.execute_script("window.scrollBy(0, document.body.scrollHeight);")
+        rule1 = wait_for_element(By.XPATH, f"//tr[td/span[contains(text(), '{rule_name1}')]]")
+    except:    
+        driver.execute_script("arguments[0].scrollIntoView();", wait_for_element(By.CSS_SELECTOR, "button[aria-label='Go to page 2']"))
+        wait_for_element(By.CSS_SELECTOR, "button[aria-label='Go to page 2']").click()
+        time.sleep(2)
+        rule1 = wait_for_element(By.XPATH, f"//tr[td/span[contains(text(), '{rule_name1}')]]")
 
 
+    checkbox = rule1.find_element(By.XPATH, ".//input[@type='checkbox']")
+    checkbox.click()
 
-    # Delete the rules
-    # driver.get("http://int6-api.whitefalcon.io/")
-    # time.sleep(2)
-    # wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//a[text()='Rules']"))).click()
+    try:
+        rule2 = wait_for_element(By.XPATH, f"//tr[td/span[contains(text(), '{rule_name2}')]]")
+    except NoSuchElementException:
+        driver.execute_script("window.scrollBy(0, document.body.scrollHeight);")
+        rule2 = wait_for_element(By.XPATH, f"//tr[td/span[contains(text(), '{rule_name2}')]]")
+    except:    
+        driver.execute_script("arguments[0].scrollIntoView();", wait_for_element(By.CSS_SELECTOR, "button[aria-label='Go to page 2']"))
+        wait_for_element(By.CSS_SELECTOR, "button[aria-label='Go to page 1']").click()
+        time.sleep(2)
+        rule2 = wait_for_element(By.XPATH, f"//tr[td/span[contains(text(), '{rule_name2}')]]")
 
-    # checkboxes = driver.find_elements(By.XPATH, "//td[contains(.,'Access all rule')]") # ,"//td[contains(.,'Access api rule')]") 
-    # for checkbox in checkboxes:
-    #     checkbox.click()
-    #     time.sleep(4)
+    checkbox = rule2.find_element(By.XPATH, ".//input[@type='checkbox']")
+    checkbox.click()
 
-    # wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//button[normalize-space()='Delete']"))).click()
-    # time.sleep(2)
-    # driver.back()
-    # wait.until(expected_conditions.presence_of_element_located((By.XPATH, "//a[text()='Rules']"))).click()
-    # time.sleep(4)
+    driver.find_element(By.CSS_SELECTOR, "button[aria-label='Delete']").click()
 
-
-    # # Delete the rules
-    # driver.get("http://int6-api.whitefalcon.io/")
-    # time.sleep(2)
-    # driver.find_element(By.XPATH, "//a[@href='#/rules']").click()
-    # driver.find_element(By.XPATH, "(//input[@type='checkbox'])[2]").click()
-    # driver.find_element(By.XPATH, "(//input[@type='checkbox'])[3]").click()
-    # time.sleep(2)
-    # driver.find_element(By.XPATH, "//button[normalize-space()='Delete']").click()
-    # time.sleep(2)
-    # driver.back()
+    # Clicking the sync API button
+    time.sleep(4)
+    sync_button = wait_for_element(By.XPATH, "//button[@aria-label='Sync API Storage']")
+    sync_button.click()
     time.sleep(4)

@@ -2,13 +2,8 @@ import time
 from selenium.webdriver import Keys
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions
-from selenium.webdriver.support.select import Select
 from selenium.webdriver.support.wait import WebDriverWait
-import os
 from selenium.common.exceptions import NoSuchElementException
-
-from selenium.webdriver.common.action_chains import ActionChains
-
 
 
 def test_priorityCheck(setup, request):
@@ -27,8 +22,6 @@ def test_priorityCheck(setup, request):
 
     # Creating rule with a high priority
     wait_for_element(By.XPATH, "//a[@href='#/rules']").click()
-    wait_for_element(By.ID, "profile_id").click()
-    wait_for_element(By.XPATH, "//li[contains(.,'test')]").click()
     time.sleep(2)
     wait_for_element(By.XPATH, "//a[@href='#/rules/create']").click()
     wait_for_element(By.NAME, "name").send_keys("High priority rule-py")
@@ -148,47 +141,51 @@ def test_priorityCheck(setup, request):
     assert "High priority" in response1
     print(response1)
 
-#   # Deleting the rules
-#     driver.get(targetHost+"#/")
-#     wait_for_element(By.XPATH, "//a[@href='#/rules']").click()
-#     time.sleep(2)
+  # Deleting the rules
+    driver.get(targetHost+"/#/")
+    wait_for_element(By.XPATH, "//a[@href='#/rules']").click()
+    wait_for_element(By.ID, "profile_id").click()
+    wait_for_element(By.XPATH, "//li[contains(.,'test')]").click()
 
-#     # Find and delete the rule containing the specific text
-#     rule_name1 = "High priority rule-py"
-#     rule_name2 = "Low priority rule-py"
+    time.sleep(2)
 
-#     try:
-#         rule1 = wait_for_element(By.XPATH, f"//tr[td/span[contains(text(), '{rule_name1}')]]")
-#     except NoSuchElementException:
-#         driver.execute_script("window.scrollBy(0, document.body.scrollHeight);")
-#         rule1 = wait_for_element(By.XPATH, f"//tr[td/span[contains(text(), '{rule_name1}')]]")
-#     except:    
-#         driver.execute_script("arguments[0].scrollIntoView();", wait_for_element(By.CSS_SELECTOR, "button[aria-label='Go to page 2']"))
-#         wait_for_element(By.CSS_SELECTOR, "button[aria-label='Go to page 2']").click()
-#         time.sleep(2)
-#         rule1 = wait_for_element(By.XPATH, f"//tr[td/span[contains(text(), '{rule_name1}')]]")
+    # Find and delete the rule containing the specific text
+    rule_name1 = "High priority rule-py"
+    rule_name2 = "Low priority rule-py"
+
+    try:
+        rule1 = wait_for_element(By.XPATH, f"//tr[td/span[contains(text(), '{rule_name1}')]]")
+    except NoSuchElementException:
+        driver.execute_script("window.scrollBy(0, document.body.scrollHeight);")
+        rule1 = wait_for_element(By.XPATH, f"//tr[td/span[contains(text(), '{rule_name1}')]]")
+    except:    
+        driver.execute_script("arguments[0].scrollIntoView();", wait_for_element(By.CSS_SELECTOR, "button[aria-label='Go to page 2']"))
+        wait_for_element(By.CSS_SELECTOR, "button[aria-label='Go to page 2']").click()
+        time.sleep(2)
+        rule1 = wait_for_element(By.XPATH, f"//tr[td/span[contains(text(), '{rule_name1}')]]")
 
 
-#     checkbox = rule1.find_element(By.XPATH, ".//input[@type='checkbox']")
-#     checkbox.click()
+    checkbox = rule1.find_element(By.XPATH, ".//input[@type='checkbox']")
+    checkbox.click()
 
-#     try:
-#         driver.execute_script("arguments[0].scrollIntoView();", wait_for_element(By.CSS_SELECTOR, "button[aria-label='Go to page 1']"))
-#         wait_for_element(By.CSS_SELECTOR, "button[aria-label='Go to page 1']").click()
-#         time.sleep(2)
-#         rule2 = wait_for_element(By.XPATH, f"//tr[td/span[contains(text(), '{rule_name2}')]]")
-#     except NoSuchElementException:
-#         driver.execute_script("window.scrollBy(0, document.body.scrollHeight);")
-#         rule2 = wait_for_element(By.XPATH, f"//tr[td/span[contains(text(), '{rule_name2}')]]")
-#     except:    
-#         driver.execute_script("arguments[0].scrollIntoView();", wait_for_element(By.CSS_SELECTOR, "button[aria-label='Go to page 2']"))
-#         wait_for_element(By.CSS_SELECTOR, "button[aria-label='Go to page 2']").click()
-#         time.sleep(2)
-#         rule2 = wait_for_element(By.XPATH, f"//tr[td/span[contains(text(), '{rule_name2}')]]")
+    try:
+        rule2 = wait_for_element(By.XPATH, f"//tr[td/span[contains(text(), '{rule_name2}')]]")
+    except NoSuchElementException:
+        driver.execute_script("window.scrollBy(0, document.body.scrollHeight);")
+        rule2 = wait_for_element(By.XPATH, f"//tr[td/span[contains(text(), '{rule_name2}')]]")
+    except:    
+        driver.execute_script("arguments[0].scrollIntoView();", wait_for_element(By.CSS_SELECTOR, "button[aria-label='Go to page 2']"))
+        wait_for_element(By.CSS_SELECTOR, "button[aria-label='Go to page 1']").click()
+        time.sleep(2)
+        rule2 = wait_for_element(By.XPATH, f"//tr[td/span[contains(text(), '{rule_name2}')]]")
 
-#     checkbox = rule2.find_element(By.XPATH, ".//input[@type='checkbox']")
-#     checkbox.click()
+    checkbox = rule2.find_element(By.XPATH, ".//input[@type='checkbox']")
+    checkbox.click()
 
-#     driver.find_element(By.CSS_SELECTOR, "button[aria-label='Delete']").click()
-#     time.sleep(4)
-#     driver.refresh()
+    driver.find_element(By.CSS_SELECTOR, "button[aria-label='Delete']").click()
+    
+    # Clicking the sync API button
+    time.sleep(4)
+    sync_button = wait_for_element(By.XPATH, "//button[@aria-label='Sync API Storage']")
+    sync_button.click()
+    time.sleep(4)
