@@ -26,7 +26,9 @@ def test_priorityCheck(setup, request):
     wait_for_element(By.XPATH, "//a[@href='#/rules/create']").click()
     wait_for_element(By.NAME, "name").send_keys("High priority rule-py")
     wait_for_element(By.ID, "profile_id").click()
-    wait_for_element(By.XPATH, "//li[contains(.,'test')]").click()
+    time.sleep(2)
+    wait_for_element(By.XPATH, "//li[contains(.,'qa_test')]").click()
+    time.sleep(2)
     priority = wait_for_element(By.NAME, "priority")
     priority.click()
     priority.send_keys(Keys.END)
@@ -50,12 +52,12 @@ def test_priorityCheck(setup, request):
     # Creating rule with a low priority
     time.sleep(2)
     wait_for_element(By.XPATH, "//a[@href='#/rules']").click()
-    wait_for_element(By.ID, "profile_id").click()
-    wait_for_element(By.XPATH, "//li[contains(.,'test')]").click()
     wait_for_element(By.XPATH, "//a[@href='#/rules/create']").click()
     wait_for_element(By.NAME, "name").send_keys("Low priority rule-py")
     wait_for_element(By.ID, "profile_id").click()
-    wait_for_element(By.XPATH, "//li[contains(.,'test')]").click()
+    time.sleep(2)
+    wait_for_element(By.XPATH, "//li[contains(.,'qa_test')]").click()
+    time.sleep(2)
     priority = wait_for_element(By.NAME, "priority")
     priority.click()
     priority.send_keys(Keys.END)
@@ -78,8 +80,11 @@ def test_priorityCheck(setup, request):
 
     # Apply both rules to the server
     wait_for_element(By.XPATH, "//a[@href='#/servers']").click()
+    wait_for_element(By.ID, "profile_id").click()
+    time.sleep(2)
+    wait_for_element(By.XPATH, "//li[contains(.,'qa_test')]").click()
+    time.sleep(2)
     wait_for_element(By.XPATH, f"//td[contains(., '{server_name}')]").click()
-
     wait_for_element(By.XPATH, "//a[@id='tabheader-1']").click()
     time.sleep(2)
     wait_for_element(By.XPATH, "//div[@id='rules']").click()
@@ -145,8 +150,8 @@ def test_priorityCheck(setup, request):
     driver.get(targetHost+"/#/")
     wait_for_element(By.XPATH, "//a[@href='#/rules']").click()
     wait_for_element(By.ID, "profile_id").click()
-    wait_for_element(By.XPATH, "//li[contains(.,'test')]").click()
-
+    time.sleep(2)
+    wait_for_element(By.XPATH, "//li[contains(.,'qa_test')]").click()
     time.sleep(2)
 
     # Find and delete the rule containing the specific text

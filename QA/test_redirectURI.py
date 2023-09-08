@@ -25,8 +25,9 @@ def test_redirectRule(setup, request):
     wait_for_element(By.XPATH, "//a[@href='#/rules/create']").click()
     wait_for_element(By.NAME, "name").send_keys("redirect rule 305-py")
     wait_for_element(By.ID, "profile_id").click()
-    wait_for_element(By.XPATH, "//li[contains(.,'test')]").click()
- 
+    time.sleep(2)
+    wait_for_element(By.XPATH, "//li[contains(.,'qa_test')]").click()
+    time.sleep(2)
     wait_for_element(By.NAME, "match.rules.path").send_keys("/")
     driver.execute_script("window.scrollBy(0, document.body.scrollHeight);")
     element = wait_for_element(By.NAME, "match.response.code")
@@ -49,7 +50,8 @@ def test_redirectRule(setup, request):
     wait_for_element(By.XPATH, "//a[@href='#/rules/create']").click()
     wait_for_element(By.NAME, "name").send_keys("redirect rule 302-py")
     wait_for_element(By.ID, "profile_id").click()
-    wait_for_element(By.XPATH, "//li[contains(.,'test')]").click()
+    time.sleep(2)
+    wait_for_element(By.XPATH, "//li[contains(.,'qa_test')]").click()
     time.sleep(2)
     wait_for_element(By.NAME, "match.rules.path").send_keys("/workstation")
     driver.execute_script("window.scrollBy(0, document.body.scrollHeight);")
@@ -72,7 +74,8 @@ def test_redirectRule(setup, request):
     wait_for_element(By.XPATH, "//a[@href='#/rules/create']").click()
     wait_for_element(By.NAME, "name").send_keys("redirect rule 301-py")
     wait_for_element(By.ID, "profile_id").click()
-    wait_for_element(By.XPATH, "//li[contains(.,'test')]").click()
+    time.sleep(2)
+    wait_for_element(By.XPATH, "//li[contains(.,'qa_test')]").click()
     time.sleep(2)
     wait_for_element(By.NAME, "match.rules.path").send_keys("/be")
     driver.execute_script("window.scrollBy(0, document.body.scrollHeight);")
@@ -92,7 +95,9 @@ def test_redirectRule(setup, request):
     time.sleep(2)
     wait_for_element(By.XPATH, "//a[@href='#/servers']").click()
     wait_for_element(By.ID, "profile_id").click()
-    wait_for_element(By.XPATH, "//li[contains(.,'test')]").click()
+    time.sleep(2)
+    wait_for_element(By.XPATH, "//li[contains(.,'qa_test')]").click()
+    time.sleep(2)
     wait_for_element(By.XPATH, f"//td[contains(.,'{server_name}')]").click()
     wait_for_element(By.XPATH, "//a[@id='tabheader-1']").click()
     wait_for_element(By.XPATH, "//div[@id='rules']").click()
@@ -211,14 +216,13 @@ def test_redirectRule(setup, request):
     driver.get(targetHost+"/#/")
     wait_for_element(By.XPATH, "//a[@href='#/rules']").click()
     wait_for_element(By.ID, "profile_id").click()
-    wait_for_element(By.XPATH, "//li[contains(.,'test')]").click()
-
+    time.sleep(2)
+    wait_for_element(By.XPATH, "//li[contains(.,'qa_test')]").click()
     time.sleep(2)
 
     rule_name1 = "redirect rule 301-py"
     rule_name2 = "redirect rule 302-py"
     rule_name3 = "redirect rule 305-py"
-
 
     try:
         rule1 = wait_for_element(By.XPATH, f"//tr[td/span[contains(text(), '{rule_name1}')]]")

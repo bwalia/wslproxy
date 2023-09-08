@@ -26,7 +26,6 @@ def setup(request):
         chrome_options.add_argument(option)
     
     driver = webdriver.Chrome(options = chrome_options)
-    failed_before = request.session.testsfailed
 
     driver.implicitly_wait(15)
 
@@ -36,7 +35,7 @@ def setup(request):
     def handle_profile_api():
         # Calling the handle profile API
         url = "http://"+server_name+"/frontdoor/opsapi/handle-profile"
-        body = {"profile":"test"}
+        body = {"profile":"qa_test"}
         response = requests.post(url, json=body)
         #print(response)
 
@@ -72,7 +71,9 @@ def setup(request):
     driver.find_element(By.NAME, "server_name").send_keys(server_name)
     #driver.find_element(By.NAME, "proxy_server_name").send_keys("10.43.69.108:3009")
     driver.find_element(By.ID,"profile_id").click()
-    driver.find_element(By.XPATH, "//li[contains(.,'test')]").click()
+    time.sleep(2)
+    driver.find_element(By.XPATH, "//li[contains(.,'qa_test')]").click()
+    time.sleep(2)
     driver.execute_script("window.scrollBy(0, document.body.scrollHeight);")
     driver.find_element(By.CSS_SELECTOR, ".MuiButton-sizeMedium").click()
 
@@ -93,7 +94,8 @@ def setup(request):
     driver.find_element(By.XPATH, "//a[@href='#/servers']").click()
     time.sleep(2)
     driver.find_element(By.ID, "profile_id").click()
-    driver.find_element(By.XPATH, "//li[contains(.,'test')]").click()
+    time.sleep(2)
+    driver.find_element(By.XPATH, "//li[contains(.,'qa_test')]").click()
     time.sleep(2)
 
     # Find the row containing the specific text

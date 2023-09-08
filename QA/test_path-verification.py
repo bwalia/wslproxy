@@ -11,21 +11,22 @@ def test_pathRule(setup, request):
     server_name = request.function.server_name
     targetHost = request.function.targetHost 
 
-# Creating rule for path condition - starts with
     wait = WebDriverWait(driver, 15)
 
     def wait_for_element(by, selector):
       element = wait.until(expected_conditions.presence_of_element_located((by, selector)))
       return element
 
+# Creating rule for path condition - starts with
 
     wait_for_element(By.XPATH, "//a[@href='#/rules']").click()
     time.sleep(2)
     wait_for_element(By.XPATH, "//a[@href='#/rules/create']").click()
     wait_for_element(By.NAME, "name").send_keys("Path rule starts with-py")
     wait_for_element(By.ID, "profile_id").click()
-    wait_for_element(By.XPATH, "//li[contains(.,'test')]").click()
- 
+    time.sleep(2)
+    wait_for_element(By.XPATH, "//li[contains(.,'qa_test')]").click()
+    time.sleep(2)
     wait_for_element(By.NAME, "match.rules.path").send_keys("/rou")
     driver.execute_script("window.scrollBy(0, document.body.scrollHeight);")
     element = wait_for_element(By.NAME, "match.response.code")
@@ -49,7 +50,8 @@ def test_pathRule(setup, request):
     wait_for_element(By.NAME, "name").send_keys("Path rule ends with-py")
     wait_for_element(By.ID, "profile_id").click()
     time.sleep(2)
-    wait_for_element(By.XPATH, "//li[contains(.,'test')]").click()
+    wait_for_element(By.XPATH, "//li[contains(.,'qa_test')]").click()
+    time.sleep(2)
     wait_for_element(By.XPATH, "//div[@id='match.rules.path_key']").click()
     time.sleep(2)
     wait_for_element(By.XPATH, "//li[contains(.,'Ends With')]").click()
@@ -74,7 +76,9 @@ def test_pathRule(setup, request):
     wait_for_element(By.XPATH, "//a[@href='#/rules/create']").click()
     wait_for_element(By.NAME, "name").send_keys("Path rule equals-py")
     wait_for_element(By.ID, "profile_id").click()
-    wait_for_element(By.XPATH, "//li[contains(.,'test')]").click()
+    time.sleep(2)
+    wait_for_element(By.XPATH, "//li[contains(.,'qa_test')]").click()
+    time.sleep(2)
     wait_for_element(By.XPATH, "//div[@id='match.rules.path_key']").click()
     time.sleep(2)
     wait_for_element(By.XPATH, "//li[normalize-space()='Equals']").click()
@@ -96,7 +100,8 @@ def test_pathRule(setup, request):
 
     wait_for_element(By.XPATH, "//a[@href='#/servers']").click()
     wait_for_element(By.ID, "profile_id").click()
-    wait_for_element(By.XPATH, "//li[contains(.,'test')]").click()
+    time.sleep(2)
+    wait_for_element(By.XPATH, "//li[contains(.,'qa_test')]").click()
     time.sleep(2)
     wait_for_element(By.XPATH, f"//td[contains(.,'{server_name}')]").click()
     wait_for_element(By.XPATH, "//a[@id='tabheader-1']").click()
@@ -193,8 +198,8 @@ def test_pathRule(setup, request):
     driver.get(targetHost+"/#/")
     wait_for_element(By.XPATH, "//a[@href='#/rules']").click()
     wait_for_element(By.ID, "profile_id").click()
-    wait_for_element(By.XPATH, "//li[contains(.,'test')]").click()
-
+    time.sleep(2)
+    wait_for_element(By.XPATH, "//li[contains(.,'qa_test')]").click()
     time.sleep(2)
 
     rule_name1 = "Path rule starts with-py"
