@@ -166,7 +166,8 @@ local function removeServerFromRule(oldRuleId, serverId, envProfile)
             if settings.storage_type == "redis" then
                 red:hset("request_rules_" .. envProfile, oldRuleId, cjson.encode(loadRules))
             else
-                setDataToFile(configPath .. "data/rules/" .. envProfile .. "/" .. oldRuleId .. ".json", loadRules, configPath .. "data/rules")
+                setDataToFile(configPath .. "data/rules/" .. envProfile .. "/" .. oldRuleId .. ".json", loadRules,
+                    configPath .. "data/rules")
             end
         end
     end
@@ -213,7 +214,8 @@ local function updateServerInRules(ruleId, serverId, Rtype, envProfile)
             if settings.storage_type == "redis" then
                 red:hset("request_rules_" .. envProfile, ruleId, cjson.encode(getRules))
             else
-                setDataToFile(configPath .. "data/rules/" .. envProfile .. "/" .. ruleId .. ".json", getRules, configPath .. "data/rules")
+                setDataToFile(configPath .. "data/rules/" .. envProfile .. "/" .. ruleId .. ".json", getRules,
+                    configPath .. "data/rules")
             end
         end
     end
@@ -254,7 +256,8 @@ local function deleteRuleFromServer(ruleId, envProfile)
                     if settings.storage_type == "redis" then
                         red:hset("servers_" .. envProfile, server, cjson.encode(getServer))
                     else
-                        setDataToFile(configPath .. "data/servers/" .. envProfile .. "/" .. server .. ".json", getServer, configPath .. "data/servers")
+                        setDataToFile(configPath .. "data/servers/" .. envProfile .. "/" .. server .. ".json", getServer,
+                            configPath .. "data/servers")
                     end
                 end
             end
@@ -280,7 +283,8 @@ local function deleteServerFromRules(ruleId, serverId, envProfile)
             if settings.storage_type == "redis" then
                 red:hset("request_rules_" .. envProfile, ruleId, cjson.encode(getRule))
             else
-                setDataToFile(configPath .. "data/rules/" .. envProfile .. "/" .. ruleId .. ".json", getRule, configPath .. "data/rules")
+                setDataToFile(configPath .. "data/rules/" .. envProfile .. "/" .. ruleId .. ".json", getRule,
+                    configPath .. "data/rules")
             end
         end
     end
@@ -507,13 +511,13 @@ local function listServers(args)
             allServers, totalRecords = listFromDisk("servers/" .. environment, pageSize, pageNumber, qParams)
             -- totalRecords = #allServers
         else
-            allServers, totalRecords = listFromDisk("servers/" .. environment, pageSize, pageNumber, qParams)
-            if (allServers == nil or totalRecords == 0) then
-                local recordsKey = "servers_" .. environment
-                local records, totalCount = listWithPagination(recordsKey, cursor, pageSize, pageNumber, qParams)
-                allServers = records
-                totalRecords = totalCount
-            end
+            -- allServers, totalRecords = listFromDisk("servers/" .. environment, pageSize, pageNumber, qParams)
+            -- if (allServers == nil or totalRecords == 0) then
+            local recordsKey = "servers_" .. environment
+            local records, totalCount = listWithPagination(recordsKey, cursor, pageSize, pageNumber, qParams)
+            allServers = records
+            totalRecords = totalCount
+            -- end
         end
     end
 
@@ -548,10 +552,10 @@ local function listServer(args, id)
                 }))
             end
         else
-            local server, dataErr = getDataFromFile(configPath .. "data/servers/" .. envProfile .. "/" .. id .. ".json")
-            if dataErr or dataErr ~= nil then
-                server = red:hget("servers_" .. envProfile, id)
-            end
+            --     local server, dataErr = getDataFromFile(configPath .. "data/servers/" .. envProfile .. "/" .. id .. ".json")
+            --     if dataErr or dataErr ~= nil then
+            local server = red:hget("servers_" .. envProfile, id)
+            -- end
             if type(server) == "string" then
                 server = cjson.decode(server)
                 if server.config then
@@ -593,7 +597,7 @@ local function createDeleteServer(body, uuid)
     end
     local envProfile = "prod"
     if payloads.ids ~= nil then
-      envProfile = payloads.ids.envProfile
+        envProfile = payloads.ids.envProfile
     else
         envProfile = payloads.envProfile
     end
@@ -604,7 +608,7 @@ local function createDeleteServer(body, uuid)
             if settings.storage_type == "disk" then
                 os.remove(configPath .. "data/servers/" .. envProfile .. "/" .. uuid .. ".json")
             else
-                os.remove(configPath .. "data/servers/" .. envProfile .. "/" .. uuid .. ".json")
+                -- os.remove(configPath .. "data/servers/" .. envProfile .. "/" .. uuid .. ".json")
                 local oldDomain, oldDmnErr = red:hget("servers_" .. envProfile, uuid)
                 if oldDomain and oldDomain ~= "null" and type(oldDomain) == "string" then
                     oldDomain = cjson.decode(oldDomain)
@@ -627,7 +631,7 @@ local function createDeleteServer(body, uuid)
                 if settings.storage_type == "disk" then
                     os.remove(configPath .. "data/servers/" .. envProfile .. "/" .. payloads.ids.ids[value] .. ".json")
                 else
-                    os.remove(configPath .. "data/servers/" .. envProfile .. "/" .. payloads.ids.ids[value] .. ".json")
+                    -- os.remove(configPath .. "data/servers/" .. envProfile .. "/" .. payloads.ids.ids[value] .. ".json")
                     local oldDomain, oldDmnErr = red:hget("servers_" .. envProfile, payloads.ids.ids[value])
                     if oldDomain and oldDomain ~= "null" and type(oldDomain) == "string" then
                         oldDomain = cjson.decode(oldDomain)
@@ -938,11 +942,11 @@ local function listRules(args)
         if settings.storage_type == "disk" then
             allRules, totalRecords = listFromDisk("rules/" .. environment, pageSize, pageNumber, qParams)
         else
-            allRules, totalRecords = listFromDisk("rules/" .. environment, pageSize, pageNumber, qParams)
-            if allRules == nil or totalRecords == 0 then
-                allRules, totalRecords = listWithPagination("request_rules_" .. environment, "0", pageSize, pageNumber,
-                    qParams)
-            end
+            -- allRules, totalRecords = listFromDisk("rules/" .. environment, pageSize, pageNumber, qParams)
+            -- if allRules == nil or totalRecords == 0 then
+            allRules, totalRecords = listWithPagination("request_rules_" .. environment, "0", pageSize, pageNumber,
+                qParams)
+            -- end
         end
     end
     if qParams.sort ~= nil and qParams.sort.order == "DESC" then
@@ -975,10 +979,10 @@ local function listRule(args, uuid)
                 }))
             end
         else
-            local exist_value, Rerr = getDataFromFile(configPath .. "data/rules/" .. envProfile .. "/" .. uuid .. ".json")
-            if exist_value == nil or Rerr then
-                exist_value, Rerr = red:hget("request_rules_" .. envProfile, uuid)
-            end
+            -- local exist_value, Rerr = getDataFromFile(configPath .. "data/rules/" .. envProfile .. "/" .. uuid .. ".json")
+            -- if exist_value == nil or Rerr then
+            local exist_value, Rerr = red:hget("request_rules_" .. envProfile, uuid)
+            -- end
             exist_value = cjson.decode(exist_value)
             -- if exist_value.match.response.message then
             --     exist_value.match.response.message = Base64.decode(exist_value.match.response.message)
@@ -1021,7 +1025,7 @@ local function createDeleteRules(body, uuid)
     end
     local envProfile = "prod"
     if payloads.ids ~= nil then
-      envProfile = payloads.ids.envProfile
+        envProfile = payloads.ids.envProfile
     else
         envProfile = payloads.envProfile
     end
@@ -1041,10 +1045,12 @@ local function createDeleteRules(body, uuid)
                 if settings.storage_type == "redis" then
                     deleteRuleFromServer(payloads.ids.ids[value], envProfile)
                     red:hdel("request_rules_" .. envProfile, payloads.ids.ids[value])
+                else
+                    os.remove(configPath .. "data/rules/" .. envProfile .. "/" .. payloads.ids.ids[value] .. ".json")
+                    local command = "rm -f " ..
+                        configPath .. "data/rules/" .. envProfile .. "/" .. payloads.ids.ids[value] .. ".json"
+                    os.execute(command)
                 end
-                os.remove(configPath .. "data/rules/" .. envProfile .. "/" .. payloads.ids.ids[value] .. ".json")
-                local command = "rm -f " .. configPath .. "data/rules/" .. envProfile .. "/" .. payloads.ids.ids[value] .. ".json"
-                os.execute(command)
             end
         end
     end
@@ -1101,7 +1107,8 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name, method)
             if settings.storage_type == "redis" then
                 previousDomain = red:hget(key_name .. "_" .. envProfile, "host:" .. json_val.server_name)
             else
-                previousDomain = getDataFromFile(configPath .. "data/servers/" .. envProfile .. "/host:" .. json_val.server_name .. ".json")
+                previousDomain = getDataFromFile(configPath ..
+                    "data/servers/" .. envProfile .. "/host:" .. json_val.server_name .. ".json")
             end
             if previousDomain and previousDomain ~= nil and type(previousDomain) == "string" then
                 ngx.status = ngx.HTTP_CONFLICT
@@ -1388,8 +1395,10 @@ local function handle_get_request(args, path)
         -- elseif uuid and (#uuid == 36 or #uuid == 32) and subPath[1] == "sessions" then
         --     listSession(args, uuid)
     end
-    if uuid and (#uuid == 36 or #uuid == 32) and subPath[1] == "settings" then
-        listSettings(args, uuid)
+    if path == "global/settings" then
+        ngx.say(cjson.encode({
+            data = settings
+        }))
     end
     if path == "profiles" then
         listProfiles(args)

@@ -43,7 +43,7 @@ jobs:
         with:
           ref: "main"
       - name: Deploy whitefalcon api gw to k3s10 onto the given env
-        run: chmod +x ./deploy.sh && ./deploy.sh "${{ secrets.DOCKER_USER }}" "${{ secrets.DOCKER_PASSWD }}" "k3s10" "${{ env.TARGET_ENV }}" "${{ env.TARGET_TYPE }}" "${{ env.IMAGE_NAME }}" "${{ env.IMAGE_TAG }}"
+        run: chmod +x ./deploy-to-kubernetes.sh && ./deploy-to-kubernetes.sh "${{ secrets.DOCKER_USER }}" "${{ secrets.DOCKER_PASSWD }}" "k3s10" "${{ env.TARGET_ENV }}" "${{ env.TARGET_TYPE }}" "${{ env.IMAGE_NAME }}" "${{ env.IMAGE_TAG }}"
 
   deploy6:
     runs-on: [self-hosted-node6]
@@ -53,4 +53,4 @@ jobs:
         with:
           ref: "main"
       - name: Deploy whitefalcon api gw to k3s6 onto the given env
-        run: chmod +x ./deploy.sh && ./deploy.sh "${{ secrets.DOCKER_USER }}" "${{ secrets.DOCKER_PASSWD }}" "k3s6" "${{ env.TARGET_ENV }}" "${{ env.TARGET_TYPE }}" "${{ env.IMAGE_NAME }}" "${{ env.IMAGE_TAG }}"
+        run: chmod +x ./deploy-to-kubernetes.sh && ./deploy-to-kubernetes.sh "${{ secrets.DOCKER_USER }}" "${{ secrets.DOCKER_PASSWD }}" "k3s6" "${{ env.TARGET_ENV }}" "${{ env.TARGET_TYPE }}" "${{ env.IMAGE_NAME }}" "${{ env.IMAGE_TAG }}"

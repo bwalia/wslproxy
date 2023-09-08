@@ -4,6 +4,7 @@ local cjson = require "cjson"
 Hostname = os.getenv("HOST")
 local apiUrl = os.getenv("API_URL")
 local configPath = os.getenv("NGINX_CONFIG_DIR")
+local lfs = require("lfs")
 
 local _R = {}
 
@@ -19,6 +20,12 @@ local function generateToken()
             exp = ngx.time() + 3600
         }
     })
+end
+
+local function createDirectoryIfNotExists(directoryPath)
+    if not lfs.attributes(directoryPath, "mode") then
+        assert(lfs.mkdir(directoryPath))
+    end
 end
 
 local function setDataToFile(path, value)
@@ -64,6 +71,7 @@ local function saveRecordsToDisk(path, keyName)
         local allServersData = cjson.decode(allServers)["data"]
         allDataTotal = cjson.decode(allServers)["total"]
         for index, server in ipairs(allServersData) do
+            createDirectoryIfNotExists(configPath .. "data/" .. keyName)
             setDataToFile(configPath .. "data/" .. keyName .. "/" .. server.id .. ".json", server)
         end
     end
@@ -127,7 +135,9 @@ function syncRulesAPI(args)
         "/rules?_format=json&&params={%22pagination%22:{%22page%22:" ..
         apiTotalPages ..
         ",%22perPage%22:" ..
-        apiPageSize .. "},%22sort%22:{%22field%22:%22created_at%22,%22order%22:%22DESC%22},%22filter%22:{%22profile_id%22:%22" .. profileName .. "%22}}",
+        apiPageSize ..
+        "},%22sort%22:{%22field%22:%22created_at%22,%22order%22:%22DESC%22},%22filter%22:{%22profile_id%22:%22" ..
+        profileName .. "%22}}",
         "rules/" .. profileName)
     if totalRules > apiPageSize then
         totalPages = totalRules / apiPageSize
@@ -139,7 +149,9 @@ function syncRulesAPI(args)
                 "/rules?_format=json&&params={%22pagination%22:{%22page%22:" ..
                 apiTotalPages ..
                 ",%22perPage%22:" ..
-                apiPageSize .. "},%22sort%22:{%22field%22:%22created_at%22,%22order%22:%22DESC%22},%22filter%22:{%22profile_id%22:%22" .. profileName .. "%22}}",
+                apiPageSize ..
+                "},%22sort%22:{%22field%22:%22created_at%22,%22order%22:%22DESC%22},%22filter%22:{%22profile_id%22:%22" ..
+                profileName .. "%22}}",
                 "rules/" .. profileName)
         until apiTotalPages >= totalPages
     end
@@ -168,7 +180,9 @@ function syncServersAPI(args)
         "/servers?_format=json&&params={%22pagination%22:{%22page%22:" ..
         apiTotalPages ..
         ",%22perPage%22:" ..
-        apiPageSize .. "},%22sort%22:{%22field%22:%22created_at%22,%22order%22:%22DESC%22},%22filter%22:{%22profile_id%22:%22" .. profileName .. "%22}}",
+        apiPageSize ..
+        "},%22sort%22:{%22field%22:%22created_at%22,%22order%22:%22DESC%22},%22filter%22:{%22profile_id%22:%22" ..
+        profileName .. "%22}}",
         "servers/" .. profileName)
 
     if totalServers > apiPageSize then
@@ -181,7 +195,9 @@ function syncServersAPI(args)
                 "/servers?_format=json&&params={%22pagination%22:{%22page%22:" ..
                 apiTotalPages ..
                 ",%22perPage%22:" ..
-                apiPageSize .. "},%22sort%22:{%22field%22:%22created_at%22,%22order%22:%22DESC%22},%22filter%22:{%22profile_id%22:%22" .. profileName .. "%22}}",
+                apiPageSize ..
+                "},%22sort%22:{%22field%22:%22created_at%22,%22order%22:%22DESC%22},%22filter%22:{%22profile_id%22:%22" ..
+                profileName .. "%22}}",
                 "servers/" .. profileName)
         until apiTotalPages >= totalPages
     end
@@ -193,6 +209,7 @@ function syncServersAPI(args)
         }
     }))
 end
+
 local args = ngx.req.get_uri_args()
 
 syncRulesAPI(args)

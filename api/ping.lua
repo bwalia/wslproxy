@@ -86,6 +86,10 @@ else
     db_status_msg = err
 end
 
+if storageTypeOverride == nil or storageTypeOverride == "" then
+    storageTypeOverride = settings.storage_type
+end
+
 local diffInDays = calculateDateDifference(os.getenv("VITE_DEPLOYMENT_TIME"), os.date("%Y%m%d%H%M%S"))
 local json_str
 

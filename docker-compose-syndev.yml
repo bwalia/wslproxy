@@ -11,8 +11,8 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "8081:8080"
-      - "8000:80"
+      - "8085:8080"
+      - "8005:80"
     networks:
       - openresty-network
     volumes:
@@ -28,16 +28,12 @@ services:
       - ./data:/opt/nginx/data
       - ./html/swagger:/usr/local/openresty/nginx/html/swagger
       - ./api:/usr/local/openresty/nginx/html/api
-      - ./.env.syndev:/usr/local/openresty/nginx/html/openresty-admin/.env
     environment:
       LUA_DEBUG: "true"
       REDIS_HOST: "syndev-pop-redis"
       APP_NAME: "syndev-pop"
-      VITE_APP_VERSION: "0.0.1"
-      VITE_APP_BUILD_NUMBER: "182900"
       VERSION: "1.0"
       STACK: "Lua 5.1"
-      VITE_DEPLOYMENT_TIME: "20230510055429"
       NGINX_CONFIG_DIR: "/opt/nginx/"
       JWT_SECURITY_PASSPHRASE: "HCsKpxQ4hU97V5us5TCwvLnAVBgLqNd1dP2R-4Uywg7946J3zAqT9EOA5hdWRCQn"
       API_URL: "http://localhost:8080/api"
@@ -52,7 +48,7 @@ services:
     container_name: syndev-pop-redis
     image: "redis:alpine"
     ports:
-      - "6379:6379"
+      - "6375:6379"
     networks:
       - openresty-network
 
@@ -62,7 +58,7 @@ services:
       context: .
       dockerfile: Dockerfile_nodeapp
     ports:
-      - "3009:3009"
+      - "3005:3009"
     networks:
       - openresty-network
 networks: 
