@@ -45,7 +45,7 @@ func TestClientIP(t *testing.T) {
 				} `json:"data"`
 			}
 			url := targetHost + "/api/rules"
-			payload := strings.NewReader(fmt.Sprintf(`{"version":1,"priority":1,"match":{"rules":{"path_key":"starts_with","path":"/","country_key":"equals","country":"%s","client_ip_key":"equals","client_ip":"%s","jwt_token_validation":"equals"},"response":{"allow":false,"code":200,"message":"SGVsbG8gd29ybGQh"}},"name":"%s"}`, test.Country, test.ClientIP, test.RuleName))
+			payload := strings.NewReader(fmt.Sprintf(`{"version":1,"priority":1,"match":{"rules":{"path_key":"starts_with","path":"/","country_key":"equals","country":"%s","client_ip_key":"equals","client_ip":"%s","jwt_token_validation":"equals"},"response":{"allow":true,"code":200,"message":"SGVsbG8gd29ybGQh"}},"name":"%s","profile_id":"test"}`, test.Country, test.ClientIP, test.RuleName))
 
 			client := &http.Client{}
 			req, err := http.NewRequest("POST", url, payload)
@@ -82,7 +82,9 @@ func TestClientIP(t *testing.T) {
 			Url := targetHost + "/api/servers/" + serverId
 			method := "PUT"
 
-			Payload := strings.NewReader(fmt.Sprintf(`{"id":"%s","root":"/var/www/html","created_at":1689853714,"proxy_server_name":"test-my.workstation.co.uk","locations":{},"index":"index.html","proxy_pass":"http://localhost","access_log":"logs/access.log","server_name":"int6-qa.whitefalcon.io","config":"server {\n      listen 80;  # Listen on port (HTTP)\n      server_name int6-qa.whitefalcon.io;  # Your domain name\n      root /var/www/html;  # Document root directory\n      index index.html;  # Default index files\n      access_log logs/access.log;  # Access log file location\n      error_log logs/error.log;  # Error log file location\n\n      \n      \n  }\n  ","rules":"%s","error_log":"logs/error.log","match_cases":{},"custom_block":{},"listens":[{"listen":"80"}]}`, serverId, IpRuleId))
+			//Payload := strings.NewReader(fmt.Sprintf(`{"id":"%s","root":"/var/www/html","created_at":1689853714,"proxy_server_name":"test-my.workstation.co.uk","locations":{},"index":"index.html","proxy_pass":"http://localhost","access_log":"logs/access.log","server_name":"int6-qa.whitefalcon.io","config":"server {\n      listen 80;  # Listen on port (HTTP)\n      server_name int6-qa.whitefalcon.io;  # Your domain name\n      root /var/www/html;  # Document root directory\n      index index.html;  # Default index files\n      access_log logs/access.log;  # Access log file location\n      error_log logs/error.log;  # Error log file location\n\n      \n      \n  }\n  ","rules":"%s","error_log":"logs/error.log","match_cases":{},"custom_block":{},"listens":[{"listen":"80"}]}`, serverId, IpRuleId))
+			Payload := strings.NewReader(fmt.Sprintf(`{"error_log":"logs/error.log","config":"server {\n      listen 80;  # Listen on port (HTTP)\n      server_name %s;  # Your domain name\n      root /var/www/html;  # Document root directory\n      index index.html;  # Default index files\n      access_log logs/access.log;  # Access log file location\n      error_log logs/error.log;  # Error log file location\n\n      \n      \n  }\n  ","custom_block":{},"locations":{},"root":"/var/www/html","id":"%s","index":"index.html","profile_id":"test","listens":[{"listen":"80"}],"server_name":"%s","access_log":"logs/access.log","created_at":1693981431,"proxy_pass":"http://localhost","proxy_server_name":"test-my.workstation.co.uk","rules":"%s","match_cases":[]}`, serverName, serverId, serverName, IpRuleId))
+
 			client = &http.Client{}
 			req, err = http.NewRequest(method, Url, Payload)
 			if err != nil {
@@ -107,6 +109,9 @@ func TestClientIP(t *testing.T) {
 			if res.StatusCode != http.StatusOK {
 				t.Error("Unexpected response status code", res.StatusCode)
 			}
+			// Call the handle profile API
+			TestHandleProfileAPI(t)
+
 			// Call the sync api
 			TestDataSync(t)
 

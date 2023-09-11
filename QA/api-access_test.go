@@ -53,7 +53,7 @@ func TestApiAccessAuth(t *testing.T) {
 			fmt.Println("Executing GET request for token Authorization")
 			client := &http.Client{}
 
-			req, err := http.NewRequest("GET", targetHost+"/api/rules?_format=json&params={%22pagination%22:{%22page%22:1,%22perPage%22:10},%22sort%22:{%22field%22:%22created_at%22,%22order%22:%22DESC%22},%22filter%22:{},%22businessUUID%22:null}", nil)
+			req, err := http.NewRequest("GET", targetHost+"/api/rules?_format=json&params={%22pagination%22:{%22page%22:1,%22perPage%22:10},%22sort%22:{%22field%22:%22id%22,%22order%22:%22ASC%22},%22filter%22:{%22profile_id%22:%22test%22}}", nil)
 			if err != nil {
 				t.Log(err)
 				return
@@ -71,7 +71,8 @@ func TestApiAccessAuth(t *testing.T) {
 			// Verifying the access for POST request for server
 			fmt.Println("Executing POST request for token Authorization")
 
-			payload := strings.NewReader(fmt.Sprintf(`{"listens":[{"listen":"80"}],"server_name":"%s","proxy_server_name":"test-my.workstation.co.uk","root":"/var/www/html","index":"index.html","access_log":"logs/access.log","error_log":"logs/error.log","locations":[],"custom_block":[],"config":"server {\n      listen 80;  # Listen on port (HTTP)\n      server_name %s;  # Your domain name\n      root /var/www/html;  # Document root directory\n      index index.html;  # Default index files\n      access_log logs/access.log;  # Access log file location\n      error_log logs/error.log;  # Error log file location\n\n      \n      \n  }\n  "}`, serverName, serverName))
+			payload := strings.NewReader(fmt.Sprintf(`{"listens":[{"listen":"80"}],"server_name":"%s", "proxy_server_name":"test-my.workstation.co.uk", "profile_id":"test","root":"/var/www/html","index":"index.html","access_log":"logs/access.log","error_log":"logs/error.log","locations":[],"custom_block":[],"config":"server {\n      listen 80;  # Listen on port (HTTP)\n      server_name %s;  # Your domain name\n      root /var/www/html;  # Document root directory\n      index index.html;  # Default index files\n      access_log logs/access.log;  # Access log file location\n      error_log logs/error.log;  # Error log file location\n\n      \n      \n  }\n  "}`, serverName, serverName))
+
 			client = &http.Client{}
 			req, err = http.NewRequest("POST", targetHost+"/api/servers", payload)
 			if err != nil {
@@ -92,7 +93,8 @@ func TestApiAccessAuth(t *testing.T) {
 			fmt.Println("Executing PUT request for token Authorization")
 			serverID := os.Getenv("SERVER_ID_QA")
 
-			Payload := strings.NewReader(fmt.Sprintf(`{"access_log":"logs/access.log","error_log":"logs/error.log","locations":{},"custom_block":{},"root":"/var/www/html","created_at":1692206258,"listens":[{"listen":"82"}],"server_name":"%s","config":"server {\n      listen 82;  # Listen on port (HTTP)\n      server_name %s;  # Your domain name\n      root /var/www/html;  # Document root directory\n      index index.html;  # Default index files\n      access_log logs/access.log;  # Access log file location\n      error_log logs/error.log;  # Error log file location\n\n      \n      \n  }\n  ","proxy_pass":"http://localhost","id":"%s","index":"index.html"}`, serverName, serverName, serverID))
+			Payload := strings.NewReader(fmt.Sprintf(`{"access_log":"logs/access.log","server_name":"%s","error_log":"logs/error.log","config":"server {\n      listen 82;  # Listen on port (HTTP)\n      server_name %s;  # Your domain name\n      root /var/www/html;  # Document root directory\n      index index.html;  # Default index files\n      access_log logs/access.log;  # Access log file location\n      error_log logs/error.log;  # Error log file location\n\n      \n      \n  }\n  ","locations":{},"custom_block":{},"listens":[{"listen":"82"}],"created_at":1693985295,"root":"/var/www/html","proxy_pass":"http://localhost","id":"%s","index":"index.html","profile_id":"test"}`, serverName, serverName, serverID))
+
 			client = &http.Client{}
 			req, err = http.NewRequest("PUT", targetHost+"/api/servers/"+serverID, Payload)
 			if err != nil {
@@ -113,9 +115,10 @@ func TestApiAccessAuth(t *testing.T) {
 
 			// Verifying the access for Delete request for server
 			fmt.Println("Executing DELETE request for token Authorization")
+			PAYLOAD := strings.NewReader(fmt.Sprintf(`{"ids":{"ids":["%s"],"envProfile":"test"}}`, serverId))
 
 			client = &http.Client{}
-			req, err = http.NewRequest("DELETE", targetHost+"/api/servers/"+serverID, nil)
+			req, err = http.NewRequest("DELETE", targetHost+"/api/servers", PAYLOAD)
 			if err != nil {
 				fmt.Println(err)
 				return

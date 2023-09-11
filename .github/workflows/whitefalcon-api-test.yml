@@ -1,9 +1,9 @@
-name: Whitefalcon Test Suite
+name: API Test Suite
+
 on:
   schedule:
-   # - cron: '0 */12 * * *'
-    - cron: '00 12 * * *'
-  workflow_dispatch: 
+    - cron: '0 0 * * *'
+  workflow_dispatch:
     inputs:
       TARGET_ENV:
         type: choice
@@ -11,37 +11,49 @@ on:
         default: 'int'
         required: true
         options:
-        - int
-        - test
-        - acc
-        - prod
+          - int
+          - test
+          - acc
+          - prod
       EXECUTE_FUNCTION:
         description: 'Delete Rules After Execution'
         required: true
-        type: boolean 
-      
+        type: boolean
+
+env:
+  TARGET_ENV: ${{ inputs.TARGET_ENV }}
+  LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
+  LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
+  JWT_TOKEN_KEY: ${{ secrets.JWT_TOKEN_KEY }}
+  EXECUTE_FUNCTION: ${{ inputs.EXECUTE_FUNCTION }}
+  
 jobs:
   build:
-    runs-on: [self-hosted-node6]
+    runs-on: self-hosted-node6
     steps:
-    - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.19
 
-    - name: Set up Go
-      uses: actions/setup-go@v3
-      with:
-        go-version: 1.19    
-
-    - name: API Test For Rules & Servers
-      working-directory: ./QA
-      run: | 
-        go mod init myapp
-        go test -v 
-      env: 
-        TARGET_HOST : http://api.int6.whitefalcon.io
-        SERVER_NAME : qa.int6.whitefalcon.io
-        SERVER_ID_QA : host:qa.int6.whitefalcon.io
-        LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
-        LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
-        JWT_TOKEN_KEY: ${{ secrets.JWT_TOKEN_KEY }}
-        EXECUTE_FUNCTION: ${{ github.event.inputs.EXECUTE_FUNCTION }} 
-
+      - name: API Test For Rules & Servers
+        working-directory: ./QA
+        run: |  
+          if [[ "${{ inputs.TARGET_ENV }}" == 'int' ]]; then
+            export TARGET_HOST="http://api.int6.whitefalcon.io"
+            export SERVER_NAME="qa.int6.whitefalcon.io"
+            export SERVER_ID_QA="host:qa.int6.whitefalcon.io"
+          elif [[ "${{ inputs.TARGET_ENV }}" == 'test' ]]; then
+            export TARGET_HOST="http://api.test.whitefalcon.io"
+            export SERVER_NAME="test.whitefalcon.io"
+            export SERVER_ID_QA="host:test.whitefalcon.io"
+          else
+            echo "Unsupported TARGET_ENV:${{ inputs.TARGET_ENV }}"
+            exit 1
+          fi
+                     
+          go mod init myapp
+          go test -v
