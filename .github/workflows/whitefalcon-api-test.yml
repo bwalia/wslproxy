@@ -51,6 +51,7 @@ jobs:
           go test -v
 
         env:
+          TARGET_ENV: ${{ github.event.inputs.TARGET_ENV }}
           LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
           LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
           JWT_TOKEN_KEY: ${{ secrets.JWT_TOKEN_KEY }}
