@@ -43,7 +43,8 @@ jobs:
 
       - name: API Test For Rules & Servers
         working-directory: ./QA
-         if [[ "${{ inputs.TARGET_ENV }}" == 'int' ]]; then
+        run: |
+          if [[ "${{ inputs.TARGET_ENV }}" == 'int' ]]; then
             TARGET_HOST="http://api.int6.whitefalcon.io"
             SERVER_NAME="qa.int6.whitefalcon.io"
             SERVER_ID_QA="host:qa.int6.whitefalcon.io"
