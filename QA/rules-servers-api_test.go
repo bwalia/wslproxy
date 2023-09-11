@@ -87,7 +87,7 @@ func TestAuthLoginAndFetchToken(t *testing.T) {
 
 func TestGetServers(t *testing.T) {
         t.Log("test host value", host_test)
-        fmt.println("test host value", host_test)
+        fmt.Println("test host value", host_test)
 
 
 
