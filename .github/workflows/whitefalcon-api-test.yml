@@ -21,7 +21,6 @@ on:
         type: boolean
 
 env:
-  HOST_TEST: "abc.com"
   TARGET_ENV: ${{ inputs.TARGET_ENV }}
   LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
   LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
@@ -44,18 +43,18 @@ jobs:
 
       - name: API Test For Rules & Servers
         working-directory: ./QA
-        env:
-          HOST_TEST: ${{ env.HOST_TEST }}
+        if: ${{ inputs.TARGET_ENV == 'int' }}
         run: |
-          if [[ ${{ inputs.TARGET_ENV }} == "int" ]]; then
-            echo "TARGET_HOST=http://api.int6.whitefalcon.io" >> $GITHUB_ENV
-            echo "SERVER_NAME=qa.int6.whitefalcon.io" >> $GITHUB_ENV
-            echo "SERVER_ID_QA=host:qa.int6.whitefalcon.io" >> $GITHUB_ENV
-          elif [[ ${{ inputs.TARGET_ENV }} == "test" ]]; then
-            echo "TARGET_HOST=http://api.test.whitefalcon.io" >> $GITHUB_ENV
-            echo "SERVER_NAME=test.whitefalcon.io" >> $GITHUB_ENV
-            echo "SERVER_ID_QA=host:test.whitefalcon.io" >> $GITHUB_ENV
-          fi
+          echo "TARGET_HOST=http://api.int6.whitefalcon.io" >> $GITHUB_ENV
+          echo "SERVER_NAME=qa.int6.whitefalcon.io" >> $GITHUB_ENV
+          echo "SERVER_ID_QA=host:qa.int6.whitefalcon.io" >> $GITHUB_ENV
+      - name: API Test For Rules & Servers
+        working-directory: ./QA
+        if: ${{ inputs.TARGET_ENV == 'test' }}
+        run: |
+          echo "TARGET_HOST=http://api.test.whitefalcon.io" >> $GITHUB_ENV
+          echo "SERVER_NAME=test.whitefalcon.io" >> $GITHUB_ENV
+          echo "SERVER_ID_QA=host:test.whitefalcon.io" >> $GITHUB_ENV
          
           go mod init myapp
           go test -v
