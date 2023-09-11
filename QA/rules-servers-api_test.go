@@ -18,7 +18,6 @@ var tokenValue string
 //const targetHost = "http://int6-api.whitefalcon.io"
 
 var targetHost = os.Getenv("TARGET_HOST")
-var host_test = os.Getenv("HOST_TEST")
 var serverName = os.Getenv("SERVER_NAME")
 
 func TestAuthLoginAndFetchToken(t *testing.T) {
@@ -82,14 +81,9 @@ func TestAuthLoginAndFetchToken(t *testing.T) {
 		tokenValue = jsonData.Data.AccessToken
 	}
 
-	t.Log("test host value", host_test)
 }
 
 func TestGetServers(t *testing.T) {
-        t.Log("test host value", host_test)
-        fmt.Println("test host value", host_test)
-
-
 
 	client := &http.Client{}
 
