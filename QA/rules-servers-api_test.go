@@ -87,6 +87,7 @@ func TestAuthLoginAndFetchToken(t *testing.T) {
 func TestGetServers(t *testing.T) {
 
 	t.Log("test host value", host_test)
+	t.Log("target host value", targetHost)
         t.Log("test host value", host_test)
 
 	client := &http.Client{}
