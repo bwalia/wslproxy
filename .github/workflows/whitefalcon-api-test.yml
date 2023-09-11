@@ -47,11 +47,11 @@ jobs:
               echo "SERVER_ID_QA=host:test.whitefalcon.io" >> $GITHUB_ENV
             fi
           echo "Printing target env"  
-          echo ${{ env.TARGET_ENV }}
+          echo "${{ env.TARGET_ENV }}""
           echo "env var"
           env
           echo "Printing hithub env"
-          echo $GITHUB_ENV
+          echo "$GITHUB_ENV"
           go mod init myapp
           go test -v
 
