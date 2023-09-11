@@ -41,12 +41,11 @@ jobs:
             echo "TARGET_HOST=http://api.int6.whitefalcon.io" >> $GITHUB_ENV
             echo "SERVER_NAME=qa.int6.whitefalcon.io" >> $GITHUB_ENV
             echo "SERVER_ID_QA=host:qa.int6.whitefalcon.io" >> $GITHUB_ENV
-          elif [ "${{ env.TARGET_ENV }}" == "test" ]; then
-            echo "TARGET_HOST=http://api.test.whitefalcon.io" >> $GITHUB_ENV
-            echo "SERVER_NAME=test.whitefalcon.io" >> $GITHUB_ENV
-            echo "SERVER_ID_QA=host:test.whitefalcon.io" >> $GITHUB_ENV
-          fi
-
+            elif [ "${{ env.TARGET_ENV }}" == "test" ]; then
+              echo "TARGET_HOST=http://api.test.whitefalcon.io" >> $GITHUB_ENV
+              echo "SERVER_NAME=test.whitefalcon.io" >> $GITHUB_ENV
+              echo "SERVER_ID_QA=host:test.whitefalcon.io" >> $GITHUB_ENV
+            fi
 
           go mod init myapp
           go test -v
