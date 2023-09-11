@@ -62,6 +62,7 @@ jobs:
         go test -v 
 
       env: 
+        TARGET_ENV: ${{ github.event.inputs.TARGET_ENV }}
         LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
         LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
         EXECUTE_FUNCTION: ${{ github.event.inputs.EXECUTE_FUNCTION }}         
