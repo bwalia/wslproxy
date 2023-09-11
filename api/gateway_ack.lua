@@ -36,6 +36,9 @@ local function loadGlobalSettings()
     return settings
 end
 
+local settingsObj = loadGlobalSettings()
+local envProfile = settingsObj.env_profile == nil and "prod" or settingsObj.env_profile
+
 local function trimWhitespace(str)
     -- Trim whitespace from the start and end of the string
     local trimmedStr = string.gsub(str, "^%s*(.-)%s*$", "%1")
@@ -263,7 +266,7 @@ end
 local function gatewayRequestHandler(ruleId)
     local settings = loadGlobalSettings()
     local ruleFromRedis = nil
-    ruleFromRedis = loadFileContent(configPath .. "data/rules/" .. ruleId .. ".json")
+    ruleFromRedis = loadFileContent(configPath .. "data/rules/" .. envProfile .. "/" .. ruleId .. ".json")
     if ruleFromRedis ~= nil and type(ruleFromRedis) ~= "userdata" then
         ruleFromRedis = cjson.decode(ruleFromRedis)
         if ruleFromRedis.match and ruleFromRedis.match.rules then
@@ -336,13 +339,13 @@ local function isAllPathAllowed(myTable, targetPath)
     return isPathEqual
 end
 
-
-local settingsObj = loadGlobalSettings()
 local exist_values = nil
 
-local file, err = io.open(configPath .. "data/servers/host:" .. Hostname .. ".json", "rb")
+local file, err = io.open(configPath .. "data/servers/" .. envProfile .. "/host:" .. Hostname .. ".json", "rb")
 if file == nil then
     if settingsObj.nginx.default.no_server ~= nil then
+        ngx.header["Content-Type"] = settingsObj.nginx.content_type ~= nil and settingsObj.nginx.content_type or
+        "text/html"
         do return ngx.say(Base64.decode(settingsObj.nginx.default.no_server)) end
     end
 else
@@ -600,12 +603,16 @@ if exist_values and exist_values ~= 0 and exist_values ~= nil and exist_values ~
         end
     else
         if settingsObj.nginx.default.no_rule ~= nil then
+            ngx.header["Content-Type"] = settingsObj.nginx.content_type ~= nil and settingsObj.nginx.content_type or
+            "text/html"
             ngx.say(Base64.decode(settingsObj.nginx.default.no_rule))
         end
     end
 else
     -- ngx.say("No Nginx Server Config found.")
     if settingsObj.nginx.default.no_server ~= nil then
+        ngx.header["Content-Type"] = settingsObj.nginx.content_type ~= nil and settingsObj.nginx.content_type or
+        "text/html"
         ngx.say(Base64.decode(settingsObj.nginx.default.no_server))
     end
 end

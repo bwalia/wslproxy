@@ -1,0 +1,51 @@
+name: Deploy Syn POP v2 environment using Docker Compose
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      TARGET_ENV:
+        type: choice
+        description: 'Please choose the Target Environment'
+        default: 'syntest'
+        required: true
+        options:
+            - synprod
+            - syntest
+            - synacc
+            - syndev
+            
+env:
+  TARGET_CLUSTER: "vm-1"
+  TARGET_ENV: ${{ github.event.inputs.TARGET_ENV || 'syntest'}}
+    
+jobs:
+  build:
+    runs-on: [syn-control-node]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Docker Compose
+        run: docker-compose --version
+
+      - name: Build and run Deploy Syn POP v2 to the target environment
+        run: chmod +x ./deploy-to-docker.sh && ./deploy-to-docker.sh "${{ env.TARGET_ENV }}" "${{ env.TARGET_ENV }}-pop"
+            
+      - name: Run Heathcheck and QA Tests
+        run: |
+          echo "Run Heathcheck and QA Tests..."
+
+      - name: Slack Notification for WhiteFalcon - Docker Compose Deploy 
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_CHANNEL: general
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_ICON: https://github.com/rtCamp.png?size=48
+          SLACK_MESSAGE: 'Post Content :rocket:'
+          SLACK_TITLE: Post Title
+          SLACK_USERNAME: rtCamp
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}

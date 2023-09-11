@@ -3,26 +3,30 @@
 Whitefalcon is an API Gateway and a CDN, and it fully powered itself via API so that it can be fully configured automatically via pipelines and release mangement.
 
 ## Rquirements
+
+Bash
+
 Docker
 
 node > 16
 
 yarn
 
-
 ## Installation
 
-```python
-cd openresty-alpine
+# Run the docker example: to build dev environment
+```
+./deploy-to-docker.sh "dev" "whitefalcon" && ./show.sh
+```
 
-# install the libraries
-yarn install
+# To purely build docker image and run locally
+```
+./build.sh "dev" "whitefalcon"
+```
 
-# create the build
-yarn build
-
-# Run the docker
-docker compose up -d --build
+# To bootstrap the docker deployment
+```
+./bootstrap.sh "dev" "whitefalcon"
 ```
 
 ## Usage

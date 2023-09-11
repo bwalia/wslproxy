@@ -8,6 +8,7 @@ import {
   SelectInput,
   required,
   FormDataConsumer,
+  ReferenceInput
 } from "react-admin";
 import { RichTextInput } from "ra-input-rich-text";
 import Toolbar from "./toolbar/Toolbar";
@@ -275,12 +276,15 @@ const objectToArray = (obj = {}) => {
   return res;
 };
 const Form = () => {
+  const handleProfileChange = (e) => {
+    localStorage.setItem('environment', e.target.value);
+  }
   const mynewobj = objectToArray(iso_codes);
   return (
     <SimpleForm toolbar={<Toolbar />}>
       <h3>Enter the Rule below:</h3>
       <Grid container spacing={2}>
-        <Grid item xs={6}>
+        <Grid item xs={4}>
           <TextInput
             source="name"
             label="Rule Name"
@@ -288,10 +292,21 @@ const Form = () => {
             fullWidth
           />
         </Grid>
-        <Grid item xs={3}>
+        <Grid item xs={4}>
+          <ReferenceInput source="profile_id" reference="profiles" >
+            <SelectInput
+              sx={{ marginTop: "0", marginBottom: "0" }}
+              fullWidth
+              optionText="name"
+              onChange={handleProfileChange}
+              validate={[required()]}
+            />
+          </ReferenceInput>
+        </Grid>
+        <Grid item xs={2}>
           <NumberInput source="version" defaultValue={1} fullWidth />
         </Grid>
-        <Grid item xs={3}>
+        <Grid item xs={2}>
           <NumberInput source="priority" defaultValue={1} fullWidth />
         </Grid>
 
@@ -425,7 +440,7 @@ const Form = () => {
             {({ formData, ...rest }) => (
               <React.Fragment>
                 {formData?.match?.response?.code >= 301 &&
-                formData?.match?.response?.code <= 305 ? (
+                  formData?.match?.response?.code <= 305 ? (
                   <TextInput
                     source="match.response.redirect_uri"
                     label="Proxy Pass/Redirect To"
@@ -450,7 +465,6 @@ const Form = () => {
             source="match.response.message"
             label="Response Message (Base64 Encoded)"
             fullWidth
-            validate={[required()]}
           />
         </Grid>
       </Grid>

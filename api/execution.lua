@@ -115,6 +115,8 @@ elseif selectedRule.statusCode == 305 then
     -- end
     return
 elseif selectedRule.statusCode == 200 or selectedRule.statusCode == 403 or selectedRule.statusCode == 403 then
+    ngx.header["Content-Type"] = settings.nginx.content_type ~= nil and settings.nginx.content_type or
+    "text/html"
     ngx.status = selectedRule.statusCode
     ngx.say(Base64.decode(selectedRule.message))
 end

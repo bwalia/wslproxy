@@ -4,17 +4,24 @@ import {
   SaveButton,
   useDataProvider,
   useRedirect,
+  useNotify,
 } from "react-admin";
 import { useFormContext } from "react-hook-form";
 
 const Toolbar = () => {
+  const formContext = useFormContext()
   const { getValues } = useFormContext();
   const dataProvider = useDataProvider();
   const redirect = useRedirect();
-
+  const notify = useNotify();
   const handleRuleSubmit = async (e) => {
     e.preventDefault();
     const { id, ...data } = getValues();
+
+    // if (!formContext.formState.isValid) {
+    //   notify(`Something went wrong! Please check all required fields`, { type: 'error' });
+    //   return false;
+    // }
     const encodeData = encodeURIComponent(data.match.response.message);
     data.match.response.message = encodeData;
 

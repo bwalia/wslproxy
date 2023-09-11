@@ -60,6 +60,10 @@ RUN apk add --no-cache --virtual .build-deps \
     && apk del .build-deps .gettext \
     && mv /tmp/envsubst /usr/local/bin/
 
+# IP to Country DB - https://lite.ip2location.com/database/ip-country
+RUN cd /tmp/ && wget https://edgeone-public.s3.eu-west-2.amazonaws.com/src/openresty/IP2LOCATION-LITE-DB11.IPV6.BIN/IP2LOCATION-LITE-DB11.IPV6.BIN -O /tmp/IP2LOCATION-LITE-DB11.IPV6.BIN
+#   COPY ./IP2LOCATION-LITE-DB11.IPV6.BIN /tmp
+
 # Add LuaRocks paths
 # If OpenResty changes, these may need updating:
 #    /usr/local/openresty/bin/resty -e 'print(package.path)'
@@ -79,6 +83,7 @@ RUN luarocks install base64
 RUN luarocks install lua-resty-redis-connector
 RUN luarocks install lua-resty-dns
 RUN luarocks install lua-resty-resolver
+RUN luarocks install luafilesystem
 #COPY nginx/test.conf /usr/local/openresty/nginx/conf/nginx.conf
 # COPY nginx/hd4dp.conf /etc/nginx/conf.d/hd4dp.conf
 # COPY nginx/sessions_demo_server.conf /etc/nginx/conf.d/sessions_demo_server.conf
@@ -100,9 +105,6 @@ COPY ./resolver.conf.tmpl /tmp/resolver.conf.tmpl
 COPY ./html/swagger /usr/local/openresty/nginx/html/swagger
 
 #RUN chmod -R 777 /usr/local/openresty/nginx/html/data && chmod -R 777 /usr/local/openresty/nginx/html/data/servers 
-
-RUN cd /tmp/ && wget https://edgeone-public.s3.eu-west-2.amazonaws.com/src/openresty/IP2LOCATION-LITE-DB11.IPV6.BIN/IP2LOCATION-LITE-DB11.IPV6.BIN -O /tmp/IP2LOCATION-LITE-DB11.IPV6.BIN
-#   COPY ./IP2LOCATION-LITE-DB11.IPV6.BIN /tmp
 
 ENV DNS_RESOLVER="127.0.0.11"
 ARG DNS_RESOLVER="127.0.0.11"
@@ -136,7 +138,7 @@ RUN cd /usr/local/openresty/nginx/html/openresty-admin && yarn install \
   --non-interactive \
   --production=false
   
-RUN cd /usr/local/openresty/nginx/html/openresty-admin/ && yarn build
+# RUN cd /usr/local/openresty/nginx/html/openresty-admin/ && yarn build
 #--dest /usr/local/openresty/nginx/html/openresty-admin/dist
 
 RUN chmod -R 777 ${NGINX_CONFIG_DIR}system && \

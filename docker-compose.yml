@@ -1,6 +1,6 @@
 version: "3.7"
 services:
-  server:
+  whitefalcon-server:
     container_name: whitefalcon
     restart: always
     build:
@@ -14,7 +14,7 @@ services:
       - "8081:8080"
       - "8000:80"
     networks:
-      - whitefalcon-network
+      - openresty-network
     volumes:
       - ./nginx-dev.conf.tmpl:/usr/local/openresty/nginx/conf/nginx.conf
       - ./openresty-admin/public:/usr/local/openresty/nginx/html/openresty-admin/public
@@ -28,14 +28,13 @@ services:
       - ./data:/opt/nginx/data
       - ./html/swagger:/usr/local/openresty/nginx/html/swagger
       - ./api:/usr/local/openresty/nginx/html/api
-      - ./.env.dev:/usr/local/openresty/nginx/html/openresty-admin/.env
+      # - ./.env.dev:/tmp/.env
     environment:
       LUA_DEBUG: "true"
       REDIS_HOST: "whitefalcon-redis"
       APP_NAME: "whitefalcon"
       VERSION: "1.0"
       STACK: "Lua 5.1"
-      VITE_DEPLOYMENT_TIME: "20230510055429"
       NGINX_CONFIG_DIR: "/opt/nginx/"
       JWT_SECURITY_PASSPHRASE: "HCsKpxQ4hU97V5us5TCwvLnAVBgLqNd1dP2R-4Uywg7946J3zAqT9EOA5hdWRCQn"
       API_URL: "http://localhost:8080/api"
@@ -43,25 +42,25 @@ services:
       PRIMARY_DNS_RESOLVER: "8.8.8.8"
       SECONDARY_DNS_RESOLVER: "8.8.4.4"
       DNS_RESOLVER_PORT: "53"
-      FRONT_URL: "http://localhost:8080"
+      FRONT_URL: "http://localhost:8000"
 #      DNS_RESOLVER: "127.0.0.11"       # Docker's internal DNS resolver IP this should only be added for Docker deployments
 
-  redis:
+  whitefalcon-redis:
     container_name: whitefalcon-redis
     image: "redis:alpine"
     ports:
       - "6379:6379"
     networks:
-      - whitefalcon-network
+      - openresty-network
 
-  cdn_node:
-    container_name: cdn-node
+  whitefalcon-sample-api:
+    container_name: whitefalcon-sample-api
     build:
       context: .
       dockerfile: Dockerfile_nodeapp
     ports:
       - "3009:3009"
     networks:
-      - whitefalcon-network
+      - openresty-network
 networks: 
-  whitefalcon-network:
+  openresty-network:
