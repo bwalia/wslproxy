@@ -104,7 +104,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Servers'
+              $ref: '#/components/schemas/Rules'
       responses:
         '200':
           description: Successfully updated rule
