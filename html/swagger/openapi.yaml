@@ -104,7 +104,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Servers'
+              $ref: '#/components/schemas/Rules'
       responses:
         '200':
           description: Successfully updated rule
@@ -267,7 +267,69 @@ paths:
         '200':
           description: Successfully deleted a server
       security:
+        - bearerAuth: []
+
+  /api/profiles:
+    get:
+      tags:
+        - Profiles
+      summary: Retrieve a list of all the security rules and the routes. 
+      operationId: getProfiles
+      parameters:
+        - name: params
+          in: query
+          description: Search keyword
+          required: false
+          schema:
+            type: object
+            properties:
+              pagination:
+                type: object
+                default: {page: 1, perPage: 10}
+              sort:
+                type: object
+                default: {field: id, order: ASC}
+              filter:
+                type: object
+                default: {profile_id: prod}
+      responses:
+        '200':
+          description: Successfully retrieved a list of all HTTP Security rules and or the routes
+      security:
         - bearerAuth: []          
+          
+    post:
+      tags:
+        - Profiles
+      summary: Create a new profile
+      operationId: createProfile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  default: prod
+      responses:
+        '201':
+          description: Successfully created a new Security Rule and HTTP Route
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: number
+                    default: 200
+                  message:
+                    type: string
+                    default: Success
+      security:
+        - bearerAuth: []                
+  
           
 components:
   securitySchemes:
