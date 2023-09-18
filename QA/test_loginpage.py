@@ -34,7 +34,6 @@ def test_login():
         
     driver.get(targetHost)
 
-
     # Verify login with invalid credentials
     driver.find_element(By.NAME, "email").send_keys("abc@xyz.com")
     driver.find_element(By.NAME, "password").send_keys("invalidpass")
