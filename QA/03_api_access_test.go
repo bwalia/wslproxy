@@ -71,7 +71,7 @@ func TestApiAccessAuth(t *testing.T) {
 			// Verifying the access for POST request for server
 			fmt.Println("Executing POST request for token Authorization")
 
-			payload := strings.NewReader(fmt.Sprintf(`{"listens":[{"listen":"80"}],"server_name":"%s", "proxy_server_name":"test-my.workstation.co.uk", "profile_id":"test","root":"/var/www/html","index":"index.html","access_log":"logs/access.log","error_log":"logs/error.log","locations":[],"custom_block":[],"config":"server {\n      listen 80;  # Listen on port (HTTP)\n      server_name %s;  # Your domain name\n      root /var/www/html;  # Document root directory\n      index index.html;  # Default index files\n      access_log logs/access.log;  # Access log file location\n      error_log logs/error.log;  # Error log file location\n\n      \n      \n  }\n  "}`, serverName, serverName))
+			payload := strings.NewReader(fmt.Sprintf(`{"listens":[{"listen":"80"}],"server_name":"%s", "proxy_server_name":"myorigin.mydomain.com", "profile_id":"test","root":"/var/www/html","index":"index.html","access_log":"logs/access.log","error_log":"logs/error.log","locations":[],"custom_block":[],"config":"server {\n      listen 80;  # Listen on port (HTTP)\n      server_name %s;  # Your domain name\n      root /var/www/html;  # Document root directory\n      index index.html;  # Default index files\n      access_log logs/access.log;  # Access log file location\n      error_log logs/error.log;  # Error log file location\n\n      \n      \n  }\n  "}`, serverName, serverName))
 
 			client = &http.Client{}
 			req, err = http.NewRequest("POST", targetHost+"/api/servers", payload)
