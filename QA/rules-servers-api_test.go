@@ -15,11 +15,10 @@ var serverId string
 var ruleId string
 var tokenValue string
 
-//const targetHost = "http://int6-api.whitefalcon.io"
-
 var targetHost = os.Getenv("TARGET_HOST")
 var serverName = os.Getenv("SERVER_NAME")
 
+// Calling the auth API with the valid credentials to get the access token
 func TestAuthLoginAndFetchToken(t *testing.T) {
 	type authResponse struct {
 		Data struct {
@@ -82,6 +81,7 @@ func TestAuthLoginAndFetchToken(t *testing.T) {
 	}
 }
 
+// Calling the Server API for GET method to get all server list
 func TestGetServers(t *testing.T) {
 
 	client := &http.Client{}
@@ -109,6 +109,7 @@ func TestGetServers(t *testing.T) {
 	}
 }
 
+// Calling the Rule API for GET method to get all rules list
 func TestGetRules(t *testing.T) {
 
 	client := &http.Client{}
@@ -136,6 +137,7 @@ func TestGetRules(t *testing.T) {
 	}
 }
 
+// Calling the Server API for POST method to create a new server
 func TestCreateServer(t *testing.T) {
 
 	type Server struct {
@@ -185,6 +187,7 @@ func TestCreateServer(t *testing.T) {
 	}
 }
 
+// Calling the Rule API for POST method to create a new rule
 func TestCreateRule(t *testing.T) {
 
 	type Rule struct {
@@ -237,6 +240,8 @@ func TestCreateRule(t *testing.T) {
 		t.Error("Returned unexpected body")
 	}
 }
+
+// Calling the Server API for GET method to get the specific server with the uuid
 func TestGetSingleServer(t *testing.T) {
 	url := targetHost + "/api/servers/" + serverId + "?_format=json&envprofile=test"
 
@@ -271,6 +276,7 @@ func TestGetSingleServer(t *testing.T) {
 	}
 }
 
+// Calling the Rule API for GET method to get the specific rule with the uuid
 func TestGetSingleRule(t *testing.T) {
 	url := targetHost + "/api/rules/" + ruleId + "?_format=json&envprofile=test"
 
@@ -305,6 +311,7 @@ func TestGetSingleRule(t *testing.T) {
 
 }
 
+// Calling the Rule API for PUT method to update a specific rule with the uuid
 func TestUpdateRule(t *testing.T) {
 
 	url := targetHost + "/api/rules/" + ruleId
@@ -343,6 +350,7 @@ func TestUpdateRule(t *testing.T) {
 	}
 }
 
+// Calling the Server API for PUT method to update a specific server and attech the rule
 func TestUpdateRuleWithServer(t *testing.T) {
 	url := targetHost + "/api/servers/" + serverId
 	method := "PUT"
@@ -380,6 +388,7 @@ func TestUpdateRuleWithServer(t *testing.T) {
 	}
 }
 
+// Calling the handle profile API to work with the profiles
 func TestHandleProfileAPI(t *testing.T) {
 	url := "http://" + serverName + "/frontdoor/opsapi/handle-profile"
 	payload := strings.NewReader(`{"profile":"test"}`)
@@ -406,6 +415,8 @@ func TestHandleProfileAPI(t *testing.T) {
 	}
 
 }
+
+// Calling the sync API to sync the data
 func TestDataSync(t *testing.T) {
 	url := "http://" + serverName + "/frontdoor/opsapi/sync?envprofile=test"
 
@@ -430,6 +441,7 @@ func TestDataSync(t *testing.T) {
 
 }
 
+// Verifying the response output and the expected results
 func TestServerResponse(t *testing.T) {
 	url := "http://" + serverName + "/router"
 
@@ -465,6 +477,7 @@ func TestServerResponse(t *testing.T) {
 	}
 }
 
+// Calling the server API for DELETE method to delete the server
 func TestDeleteServer(t *testing.T) {
 	url := targetHost + "/api/servers"
 	method := "DELETE"
@@ -495,6 +508,7 @@ func TestDeleteServer(t *testing.T) {
 	}
 }
 
+// Delete the rules if the value of executeFunction is true
 func TestDeleteRule(t *testing.T) {
 	executeFunction := os.Getenv("EXECUTE_FUNCTION")
 	if executeFunction == "true" {
