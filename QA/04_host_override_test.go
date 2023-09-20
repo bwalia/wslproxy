@@ -84,7 +84,7 @@ func TestHostOverRide(t *testing.T) {
 
 	fmt.Println(res.Header.Get("X-Debug-Host"))
 
-	if strings.Contains(res.Header.Get("X-Debug-Host"), "test-my.workstation.co.uk") {
+	if strings.Contains(res.Header.Get("X-Debug-Host"), "myorigin.mydomain.com") {
 		fmt.Println("Returned expected host header value")
 	} else {
 		t.Error("Failed to get expected host value")
