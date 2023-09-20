@@ -21,6 +21,7 @@ on:
         type: boolean
 
 env:
+  API_PING_URL: http://api.int6.whitefalcon.io/ping
   TARGET_ENV: ${{ inputs.TARGET_ENV }}
   LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
   LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}

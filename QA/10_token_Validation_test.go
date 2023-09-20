@@ -82,7 +82,7 @@ func TestCreateRuleForAccessApi(t *testing.T) {
 	url := targetHost + "/api/rules"
 	method := "POST"
 	tokenKey := os.Getenv("JWT_TOKEN_KEY")
-	payload := strings.NewReader(fmt.Sprintf(`{"version":1,"priority":1,"match":{"rules":{"path_key":"starts_with","path":"/api","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"cookie","jwt_token_validation_value":"Authorization","jwt_token_validation_key":"%s"},"response":{"allow":true,"code":305,"redirect_uri":"10.43.81.65:3009","message":"VGhpcyBpcyBwcm94eSBwYXNzIHJ1bGU="}},"name":"Access Api Rule-gotest","profile_id":"test"}`, tokenKey))
+	payload := strings.NewReader(fmt.Sprintf(`{"version":1,"priority":1,"match":{"rules":{"path_key":"starts_with","path":"/api","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"cookie","jwt_token_validation_value":"Authorization","jwt_token_validation_key":"%s"},"response":{"allow":true,"code":305,"redirect_uri":"10.43.81.65:3009","message":"undefined"}},"name":"Access Api Rule-gotest","profile_id":"test"}`, tokenKey))
 
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, payload)
@@ -191,7 +191,7 @@ func TestVerifyRule(t *testing.T) {
 		return
 	}
 
-	// Going to the homepage to get authorized
+	// On homepage
 	URL := "http://" + serverName
 
 	client = &http.Client{}
@@ -262,6 +262,11 @@ func TestVerifyRule(t *testing.T) {
 			return
 		}
 
+		// body, err := ioutil.ReadAll(resp.Body)
+		// if err != nil {
+		// 	fmt.Println(err)
+		// 	return
+		// }
 		time.Sleep(20 * time.Second)
 		if resp.StatusCode == http.StatusOK {
 			fmt.Println("Login successful!")
