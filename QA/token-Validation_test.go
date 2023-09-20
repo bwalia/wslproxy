@@ -191,7 +191,7 @@ func TestVerifyRule(t *testing.T) {
 		return
 	}
 
-	// On homepage
+	// Going to the homepage to get authorized
 	URL := "http://" + serverName
 
 	client = &http.Client{}
@@ -262,11 +262,6 @@ func TestVerifyRule(t *testing.T) {
 			return
 		}
 
-		// body, err := ioutil.ReadAll(resp.Body)
-		// if err != nil {
-		// 	fmt.Println(err)
-		// 	return
-		// }
 		time.Sleep(20 * time.Second)
 		if resp.StatusCode == http.StatusOK {
 			fmt.Println("Login successful!")
