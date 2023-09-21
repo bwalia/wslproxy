@@ -12,22 +12,22 @@ This document provides guidelines and instructions for the API test suite execut
 ### Test 1: Health Check API test
 - **Description**: Verify the health check API and validate the outputs.
 
-### Test 2: Access Authentication
-- **Description**: Ensure APIs have no broken authentication by testing various access token inputs.
+### Test 2: Login API
+- **Description**: Ensure the login API is secure by testing it with different credential combinations.
 
-### Test 3: Client IP Match Rules
-- **Description**: Verify client IP-based rules with valid and invalid Client IP and country input combinations.
+### Test 3: Access Authentication
+- **Description**: Ensure APIs have no broken authentication by testing various access token inputs.
 
 ### Test 4: Host Override
 - **Description**: Verify that the request is overriding the proxy host by examining the response headers.
 
-### Test 5: Login API
-- **Description**: Ensure the login API is secure by testing it with different credential combinations.
+### Test 5: Client IP Match Rules
+- **Description**: Verify client IP-based rules with valid and invalid Client IP and country input combinations.
 
 ### Test 6: Path-Based Rules
 - **Description**: Verify path match rules with valid and invalid test scenarios based on path match conditions (i) starts_with, (ii) ends_with, (iii) equals.
 
-### Test 7: Priority-Based Rules
+### Test 7: Priority test for multi rules
 - **Description**: Verify that higher-priority rules take precedence over lower-priority rules.
 
 ### Test 8: Redirection-Based Rules
@@ -36,11 +36,11 @@ This document provides guidelines and instructions for the API test suite execut
 ### Test 9: Response Message Verification
 - **Description**: Verify that the response message body works properly with base64-encoded values and returns the expected results, especially for HTML values.
 
-### Test 10: API CRUD Functions
-- **Description**: Verify each API for rules and servers. Execute tests in a 360-degree view circle from creation to deletion using each related API in between.
-
-### Test 11: Token Validation-Based Rules
+### Test 10: Token Validation-Based Rules
 - **Description**: Verify the functionality of token validation in the rules.
+
+### Test 11: API CRUD Functions
+- **Description**: Verify each API for rules and servers. Execute tests in a 360-degree view circle from creation to deletion using each related API in between.
 
 ## Test Data and Environment Variables
 ### GitHub Secrets
