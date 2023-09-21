@@ -29,8 +29,7 @@ func checkExecutionOutput(t *testing.T, ruleName string, expectedStatusCode int,
 func TestApiAccessAuth(t *testing.T) {
 	// Fetching the valid token
 	TestAuthLoginAndFetchToken(t)
-
-	oldToken := "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJleHAiOjE2ODUwMTU2MDIsInN1YiI6IjEyMzQ1NiJ9.icdQxXb9JNrQuqN9clD0oJd60lgjBiA0lG1A8I92WBo"
+	oldToken := os.Getenv("QA_EXPIRED_JWT_TOKEN_KEY")
 
 	type TestToken struct {
 		RuleName           string
