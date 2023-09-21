@@ -29,7 +29,7 @@ func checkExecutionOutput(t *testing.T, ruleName string, expectedStatusCode int,
 func TestApiAccessAuth(t *testing.T) {
 	// Fetching the valid token
 	TestAuthLoginAndFetchToken(t)
-	oldToken := os.Getenv("QA_EXPIRED_JWT_TOKEN_KEY")
+	expiredTokenForTestOnly := os.Getenv("QA_EXPIRED_JWT_TOKEN_KEY")
 
 	type TestToken struct {
 		RuleName           string
@@ -42,7 +42,7 @@ func TestApiAccessAuth(t *testing.T) {
 		{RuleName: "Test API access with valid token", TestTokenValue: tokenValue, ExpectedStatusCode: 200, ExpectedOutput: "data"},
 		{RuleName: "Test API access with invalid token signature", TestTokenValue: tokenValue + "abc", ExpectedStatusCode: 401, ExpectedOutput: "signature mismatch"},
 		{RuleName: "Test API access with invalid token header", TestTokenValue: "eyj" + tokenValue, ExpectedStatusCode: 401, ExpectedOutput: "invalid header"},
-		{RuleName: "Test API access with expired token", TestTokenValue: oldToken, ExpectedStatusCode: 401, ExpectedOutput: "claim expired"},
+		{RuleName: "Test API access with expired token", TestTokenValue: expiredTokenForTestOnly, ExpectedStatusCode: 401, ExpectedOutput: "claim expired"},
 		{RuleName: "Test API access with empty token", TestTokenValue: "", ExpectedStatusCode: 401, ExpectedOutput: "invalid jwt string"},
 	}
 
