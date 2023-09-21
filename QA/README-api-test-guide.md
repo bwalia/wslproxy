@@ -81,7 +81,7 @@ You can trigger the test execution using GitHub Actions by following this [workf
 - **Fail**: Test execution fails if unexpected issues occur.
 
 
-### List of the used Environments
+### List of the available Environments
 #### `Int`: http://api.int.whitefalcon.io/
 ##### Sub-environments of `int` are-
 - int2 : http://api.int2.whitefalcon.io/
