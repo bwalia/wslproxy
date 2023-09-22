@@ -84,7 +84,7 @@ jobs:
           API_PING_URL: http://api.int10.whitefalcon.io/ping
         run: | 
           go mod init myapp
-          go test whitefalcan-healthcheck_test.go -v 
+          go test 01_healthcheck_test.go -v 
   
   healthcheck6:
     runs-on: [self-hosted-node6]
@@ -102,5 +102,5 @@ jobs:
           API_PING_NODE: node6
         run: | 
           go mod init myapp
-          go test whitefalcan-healthcheck_test.go -v 
+          go test 01_healthcheck_test.go -v 
                 
