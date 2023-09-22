@@ -18,6 +18,7 @@ on:
       EXECUTE_FUNCTION:
         description: 'Delete Rules After Execution'
         required: true
+        default: 'true'
         type: boolean
 
 env:
@@ -53,6 +54,10 @@ jobs:
             export TARGET_HOST="http://api.test.whitefalcon.io"
             export SERVER_NAME="test.whitefalcon.io"
             export SERVER_ID_QA="host:test.whitefalcon.io"
+          elif [[ "${{ inputs.TARGET_ENV }}" == '' ]]; then
+            export TARGET_HOST="http://api.int6.whitefalcon.io"
+            export SERVER_NAME="qa.int6.whitefalcon.io"
+            export SERVER_ID_QA="host:qa.int6.whitefalcon.io"  
           else
             echo "Unsupported TARGET_ENV:${{ inputs.TARGET_ENV }}"
             exit 1
@@ -60,3 +65,4 @@ jobs:
                      
           go mod init myapp
           go test -v
+   
