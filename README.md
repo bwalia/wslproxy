@@ -36,3 +36,13 @@ If you want to change anything in the react-admin then you need to run the
 yarn build
 ```
 on your local system. It will automatically sync the build changes with the docker.
+
+## List of the environments:-
+
+| Environment | Link     | Credentials                |
+| :-------- | :------- | :------------------------- |
+| `dev` | `http://localhost:8081/` | `Ask administrator` |
+| `int` | `http://api.int2.whitefalcon.io/` | `Ask administrator` |
+|       | `http://api.int6.whitefalcon.io/` | `Ask administrator` |
+|       | `http://api.int10.whitefalcon.io/` | `Ask administrator` |
+| `test` | `https://api.test.whitefalcon.io/` | `Ask administrator` |
