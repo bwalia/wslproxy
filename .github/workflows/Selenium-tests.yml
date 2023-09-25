@@ -45,6 +45,7 @@ jobs:
           TARGET_HOST : http://api.int6.whitefalcon.io
           SERVER_NAME : qa.int6.whitefalcon.io
           LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
+          QA_EXPIRED_JWT_TOKEN_KEY: ${{ secrets.QA_EXPIRED_JWT_TOKEN_KEY }}
           LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
           JWT_TOKEN_KEY: ${{ secrets.JWT_TOKEN_KEY }}
           STORAGE_TYPE: ${{ github.event.inputs.STORAGE_TYPE }} 

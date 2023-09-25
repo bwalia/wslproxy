@@ -28,7 +28,7 @@ func TestLoginAccess(t *testing.T) {
 		{TestName: "Test login with empty password", TestEmail: validEmail, TestPassword: "", ExpectedStatusCode: 401, ExpectedOutput: "Invalid credentials"},
 		{TestName: "Test login with empty email", TestEmail: "", TestPassword: validPassword, ExpectedStatusCode: 401, ExpectedOutput: "Invalid credentials"},
 	}
-
+	// Attempt to login with the different inputs
 	for _, test := range tests {
 		t.Run(fmt.Sprintf(test.TestName), func(t *testing.T) {
 			type LoginPayload struct {
@@ -75,8 +75,8 @@ func TestLoginAccess(t *testing.T) {
 			got := string(body)
 			//fmt.Println(got)
 
+			// Compairing with the expected results
 			if !strings.Contains(string(body), test.ExpectedOutput) {
-				//if got != test.ExpectedOutput {
 				t.Errorf("for rule %s, expected %s, but got %s", test.TestName, test.ExpectedOutput, got)
 			}
 			if res.StatusCode != test.ExpectedStatusCode {

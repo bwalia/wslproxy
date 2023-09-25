@@ -14,7 +14,7 @@ import (
 func TestHealthCheck(t *testing.T) {
 	url := os.Getenv("API_PING_URL")
 	if len(url) == 0 {
-		url = "http://api.int6.whitefalcon.io/ping"
+		url = "http://localhost:80/ping"
 	}
 	fmt.Println((url))
 

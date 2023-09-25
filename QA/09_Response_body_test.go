@@ -35,7 +35,7 @@ func TestRuleResponse(t *testing.T) {
 			TestAuthLoginAndFetchToken(t)
 			TestCreateServer(t)
 
-			//creating rule with different input
+			//creating rule with different inputs for response message body
 			type Rule struct {
 				Data struct {
 					ID string `json:"id"`
@@ -110,8 +110,8 @@ func TestRuleResponse(t *testing.T) {
 			got := string(body)
 			//fmt.Println(got)
 
+			// Compairing the output with the expected results
 			if !strings.Contains(string(body), test.ExpectedOutput) {
-				//if got != test.ExpectedOutput {
 				t.Errorf("for input %s, expected %s, but got %s", test.MessageInput, test.ExpectedOutput, got)
 			}
 

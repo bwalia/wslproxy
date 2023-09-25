@@ -15,12 +15,10 @@ var serverId string
 var ruleId string
 var tokenValue string
 
-//const targetHost = "http://int6-api.whitefalcon.io"
-
 var targetHost = os.Getenv("TARGET_HOST")
-var host_test = os.Getenv("HOST_TEST")
 var serverName = os.Getenv("SERVER_NAME")
 
+// Calling the auth API with the valid credentials to get the access token
 func TestAuthLoginAndFetchToken(t *testing.T) {
 	type authResponse struct {
 		Data struct {
@@ -81,14 +79,10 @@ func TestAuthLoginAndFetchToken(t *testing.T) {
 	} else {
 		tokenValue = jsonData.Data.AccessToken
 	}
-
 }
 
+// Calling the Server API for GET method to get all server list
 func TestGetServers(t *testing.T) {
-
-	t.Log("test host value", host_test)
-	t.Log("target host value", targetHost)
-        t.Log("test host value", host_test)
 
 	client := &http.Client{}
 
@@ -115,6 +109,7 @@ func TestGetServers(t *testing.T) {
 	}
 }
 
+// Calling the Rule API for GET method to get all rules list
 func TestGetRules(t *testing.T) {
 
 	client := &http.Client{}
@@ -142,6 +137,7 @@ func TestGetRules(t *testing.T) {
 	}
 }
 
+// Calling the Server API for POST method to create a new server
 func TestCreateServer(t *testing.T) {
 
 	type Server struct {
@@ -153,8 +149,7 @@ func TestCreateServer(t *testing.T) {
 	url := targetHost + "/api/servers"
 	method := "POST"
 
-	//payload := strings.NewReader(fmt.Sprintf(`{"listens":[{"listen":"80"}],"server_name":"%s","proxy_server_name":"test-my.workstation.co.uk","root":"/var/www/html","index":"index.html","access_log":"logs/access.log","error_log":"logs/error.log","locations":[],"custom_block":[],"config":"server {\n      listen 80;  # Listen on port (HTTP)\n      server_name %s;  # Your domain name\n      root /var/www/html;  # Document root directory\n      index index.html;  # Default index files\n      access_log logs/access.log;  # Access log file location\n      error_log logs/error.log;  # Error log file location\n\n      \n      \n  }\n  "}`, serverName, serverName))
-	payload := strings.NewReader(fmt.Sprintf(`{"listens":[{"listen":"80"}],"server_name":"%s", "proxy_server_name":"test-my.workstation.co.uk", "profile_id":"test","root":"/var/www/html","index":"index.html","access_log":"logs/access.log","error_log":"logs/error.log","locations":[],"custom_block":[],"config":"server {\n      listen 80;  # Listen on port (HTTP)\n      server_name %s;  # Your domain name\n      root /var/www/html;  # Document root directory\n      index index.html;  # Default index files\n      access_log logs/access.log;  # Access log file location\n      error_log logs/error.log;  # Error log file location\n\n      \n      \n  }\n  "}`, serverName, serverName))
+	payload := strings.NewReader(fmt.Sprintf(`{"listens":[{"listen":"80"}],"server_name":"%s", "proxy_server_name":"myorigin.mydomain.com", "profile_id":"test","root":"/var/www/html","index":"index.html","access_log":"logs/access.log","error_log":"logs/error.log","locations":[],"custom_block":[],"config":"server {\n      listen 80;  # Listen on port (HTTP)\n      server_name %s;  # Your domain name\n      root /var/www/html;  # Document root directory\n      index index.html;  # Default index files\n      access_log logs/access.log;  # Access log file location\n      error_log logs/error.log;  # Error log file location\n\n      \n      \n  }\n  "}`, serverName, serverName))
 
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, payload)
@@ -191,6 +186,7 @@ func TestCreateServer(t *testing.T) {
 	}
 }
 
+// Calling the Rule API for POST method to create a new rule
 func TestCreateRule(t *testing.T) {
 
 	type Rule struct {
@@ -243,6 +239,8 @@ func TestCreateRule(t *testing.T) {
 		t.Error("Returned unexpected body")
 	}
 }
+
+// Calling the Server API for GET method to get the specific server with the uuid
 func TestGetSingleServer(t *testing.T) {
 	url := targetHost + "/api/servers/" + serverId + "?_format=json&envprofile=test"
 
@@ -277,6 +275,7 @@ func TestGetSingleServer(t *testing.T) {
 	}
 }
 
+// Calling the Rule API for GET method to get the specific rule with the uuid
 func TestGetSingleRule(t *testing.T) {
 	url := targetHost + "/api/rules/" + ruleId + "?_format=json&envprofile=test"
 
@@ -311,6 +310,7 @@ func TestGetSingleRule(t *testing.T) {
 
 }
 
+// Calling the Rule API for PUT method to update a specific rule with the uuid
 func TestUpdateRule(t *testing.T) {
 
 	url := targetHost + "/api/rules/" + ruleId
@@ -349,11 +349,12 @@ func TestUpdateRule(t *testing.T) {
 	}
 }
 
+// Calling the Server API for PUT method to update a specific server and attech the rule
 func TestUpdateRuleWithServer(t *testing.T) {
 	url := targetHost + "/api/servers/" + serverId
 	method := "PUT"
 
-	payload := strings.NewReader(fmt.Sprintf(`{"error_log":"logs/error.log","config":"server {\n      listen 80;  # Listen on port (HTTP)\n      server_name %s;  # Your domain name\n      root /var/www/html;  # Document root directory\n      index index.html;  # Default index files\n      access_log logs/access.log;  # Access log file location\n      error_log logs/error.log;  # Error log file location\n\n      \n      \n  }\n  ","custom_block":{},"locations":{},"root":"/var/www/html","id":"%s","index":"index.html","profile_id":"test","listens":[{"listen":"80"}],"server_name":"%s","access_log":"logs/access.log","created_at":1693981431,"proxy_pass":"http://localhost","proxy_server_name":"test-my.workstation.co.uk","rules":"%s","match_cases":[]}`, serverName, serverId, serverName, ruleId))
+	payload := strings.NewReader(fmt.Sprintf(`{"error_log":"logs/error.log","config":"server {\n      listen 80;  # Listen on port (HTTP)\n      server_name %s;  # Your domain name\n      root /var/www/html;  # Document root directory\n      index index.html;  # Default index files\n      access_log logs/access.log;  # Access log file location\n      error_log logs/error.log;  # Error log file location\n\n      \n      \n  }\n  ","custom_block":{},"locations":{},"root":"/var/www/html","id":"%s","index":"index.html","profile_id":"test","listens":[{"listen":"80"}],"server_name":"%s","access_log":"logs/access.log","created_at":1693981431,"proxy_pass":"http://localhost","proxy_server_name":"myorigin.mydomain.com","rules":"%s","match_cases":[]}`, serverName, serverId, serverName, ruleId))
 
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, payload)
@@ -386,6 +387,7 @@ func TestUpdateRuleWithServer(t *testing.T) {
 	}
 }
 
+// Calling the handle profile API to work with the profiles
 func TestHandleProfileAPI(t *testing.T) {
 	url := "http://" + serverName + "/frontdoor/opsapi/handle-profile"
 	payload := strings.NewReader(`{"profile":"test"}`)
@@ -412,6 +414,8 @@ func TestHandleProfileAPI(t *testing.T) {
 	}
 
 }
+
+// Calling the sync API to sync the data
 func TestDataSync(t *testing.T) {
 	url := "http://" + serverName + "/frontdoor/opsapi/sync?envprofile=test"
 
@@ -436,6 +440,7 @@ func TestDataSync(t *testing.T) {
 
 }
 
+// Verifying the response output and the expected results
 func TestServerResponse(t *testing.T) {
 	url := "http://" + serverName + "/router"
 
@@ -471,6 +476,7 @@ func TestServerResponse(t *testing.T) {
 	}
 }
 
+// Calling the server API for DELETE method to delete the server
 func TestDeleteServer(t *testing.T) {
 	url := targetHost + "/api/servers"
 	method := "DELETE"
@@ -501,6 +507,7 @@ func TestDeleteServer(t *testing.T) {
 	}
 }
 
+// Delete the rules if the value of executeFunction is true
 func TestDeleteRule(t *testing.T) {
 	executeFunction := os.Getenv("EXECUTE_FUNCTION")
 	if executeFunction == "true" {
