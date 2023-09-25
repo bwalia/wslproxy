@@ -19,5 +19,5 @@ jobs:
           API_PING_URL: https://api.test.whitefalcon.io/ping
       run: | 
         go mod init myapp
-        go test whitefalcan-healthcheck_test.go -v 
+        go test 01_healthcheck_test.go -v 
       
