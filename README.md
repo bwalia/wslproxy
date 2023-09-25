@@ -36,6 +36,7 @@ If you want to change anything in the react-admin then you need to run the
 yarn build
 ```
 on your local system. It will automatically sync the build changes with the docker.
+
 ## List of the environments:-
 
 | Environment | Link     | Credentials                |
