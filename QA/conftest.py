@@ -26,6 +26,7 @@ def setup(request):
         chrome_options.add_argument(option)
     
     driver = webdriver.Chrome(options = chrome_options)
+    driver.maximize_window()
 
     driver.implicitly_wait(15)
 
