@@ -1,5 +1,6 @@
 local cjson = require("cjson")
 local configPath = os.getenv("NGINX_CONFIG_DIR")
+local developmentTime = os.getenv("VITE_DEPLOYMENT_TIME")
 -- functions
 
 function os.capture(cmd, raw) -- this function cannot be local
@@ -59,6 +60,8 @@ local function calculateDateDifference(dateString1, dateString2)
         local diffInDays = math.abs(diffInSeconds / (24 * 60 * 60))
         diffInDays = math.floor(diffInDays)
         return diffInDays
+    else
+        return 0
     end
 end
 
@@ -90,7 +93,7 @@ if storageTypeOverride == nil or storageTypeOverride == "" then
     storageTypeOverride = settings.storage_type
 end
 
-local diffInDays = calculateDateDifference(os.getenv("VITE_DEPLOYMENT_TIME"), os.date("%Y%m%d%H%M%S"))
+local diffInDays = calculateDateDifference(developmentTime, os.date("%Y%m%d%H%M%S"))
 local json_str
 
 local primaryNameserver = os.getenv("PRIMARY_DNS_RESOLVER")
@@ -120,7 +123,7 @@ local data = {
     stack = os.getenv("STACK"),
     hostname = os.getenv("HOSTNAME"),
     response = "pong",
-    deployment_time = os.getenv("VITE_DEPLOYMENT_TIME"),
+    deployment_time = developmentTime,
     redis_host = redisHost,
     redis_status = db_connect_status,
     redis_status_msg = db_status_msg,

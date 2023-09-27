@@ -83,7 +83,7 @@ const dataProvider = (apiUrl, settings = {}) => {
     },
     getList: async (resource, params) => {
       setIsLoadig(true)
-            try {
+      try {
         const environmentProfile = localStorage.getItem('environment') || "prod";
         if (isEmpty(params.filter) && environmentProfile) {
           params.filter = {
@@ -284,6 +284,7 @@ const dataProvider = (apiUrl, settings = {}) => {
           setIsLoadig(false);
           setSyncPopupOpen(true);
         }
+        setIsLoadig(false);
       } catch (error) {
         console.log(error)
         setSyncPopupOpen(false);
@@ -357,6 +358,7 @@ const dataProvider = (apiUrl, settings = {}) => {
           const data = await response.json();
           return data;
         }
+        setIsLoadig(false);
       } catch (error) {
         console.log(error)
         setIsLoadig(false)
