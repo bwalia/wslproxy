@@ -39,11 +39,10 @@ on your local system. It will automatically sync the build changes with the dock
 
 ## List of the environments:-
 
-| Environment | Link     | Credentials                |  Status       |
-| :-------- | :------- | :------------------------- | :------------ |
-| `dev` | `http://localhost:8081/` | `Ask administrator` |  ![API Test Suite](https://github.com/bwalia/whitefalcon/actions/workflows/whitefalcon-api-test.yml/badge.svg?branch=dixa%2Fqa-checks&event=workflow_dispatch)
-| `int` | `http://api.int2.whitefalcon.io/` | `Ask administrator` |![API Test Suite](https://github.com/bwalia/whitefalcon/actions/workflows/whitefalcon-api-test.yml/badge.svg?branch=dixa%2Fqa-checks&event=workflow_dispatch)
-|       | `http://api.int6.whitefalcon.io/` | `Ask administrator` |![API Test Suite](https://github.com/bwalia/whitefalcon/actions/workflows/whitefalcon-api-test.yml/badge.svg?branch=dixa%2Fqa-checks&event=workflow_dispatch)
-|       | `http://api.int10.whitefalcon.io/` | `Ask administrator` |![API Test Suite](https://github.com/bwalia/whitefalcon/actions/workflows/whitefalcon-api-test.yml/badge.svg?branch=dixa%2Fqa-checks&event=workflow_dispatch)
-| `test` | `https://api.test.whitefalcon.io/` | `Ask administrator` |![API Test Suite](https://github.com/bwalia/whitefalcon/actions/workflows/whitefalcon-api-test.yml/badge.svg?branch=dixa%2Fqa-checks&event=workflow_dispatch)
-
+| Environment | Link     | Credentials                |
+| :-------- | :------- | :------------------------- |
+| `dev` | `http://localhost:8081/` | `Ask administrator` |
+| `int` | `http://api.int2.whitefalcon.io/` | `Ask administrator` |
+|       | `http://api.int6.whitefalcon.io/` | `Ask administrator` |
+|       | `http://api.int10.whitefalcon.io/` | `Ask administrator` |
+| `test` | `https://api.test.whitefalcon.io/` | `Ask administrator` |
