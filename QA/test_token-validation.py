@@ -1,5 +1,5 @@
 import time
-from selenium.webdriver import Keys
+from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions
 from selenium.webdriver.support.wait import WebDriverWait
@@ -147,6 +147,7 @@ def test_authToken(setup, request):
     time.sleep(2)
     driver.refresh()
     driver.execute_script("location.reload()")
+    time.sleep(2)
     login_text = wait_for_element(By.CLASS_NAME, "message-container").text
     assert "Thank you for logging in." in login_text
     print(login_text)

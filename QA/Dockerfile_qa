@@ -18,4 +18,4 @@ COPY . /app
 RUN pip install selenium pytest requests chromedriver_autoinstaller
 
 # Run the pytest command
-CMD ["pytest", "-v", "-s"]
+CMD ["pytest", "-v", "-s", "--save_screenshots"]

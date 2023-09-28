@@ -7,7 +7,7 @@ from selenium.webdriver.support.wait import WebDriverWait
 import chromedriver_autoinstaller
 from chromedriver_autoinstaller import install as install_chrome_driver
 import os
-from selenium.webdriver import Keys
+from selenium.webdriver.common.keys import Keys
 
 
 
