@@ -11,11 +11,11 @@ ADD 113_google-chrome-stable_current_amd64.deb .
 RUN dpkg -i 113_google-chrome-stable_current_amd64.deb || apt-get -f install -y
 RUN rm 113_google-chrome-stable_current_amd64.deb
 
-# Copy the repository files to the container
-COPY . /app
-
 # Install required Python packages
 RUN pip install selenium pytest requests chromedriver_autoinstaller
 
+# Copy the repository files to the container
+COPY . /app
+
 # Run the pytest command
-CMD ["pytest","--save_screenshots", "--screenshots_dir=Screenshots", "-v", "-s"]
+CMD ["pytest", "-v", "-s"]
