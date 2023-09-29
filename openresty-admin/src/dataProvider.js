@@ -112,7 +112,7 @@ const dataProvider = (apiUrl, settings = {}) => {
     },
     getOne: async (resource, params) => {
       setIsLoadig(true)
-      const environmentProfile = localStorage.getItem('environment');
+      const environmentProfile = localStorage.getItem('environment') || "prod";
       const { id } = params;
       const url = `${apiUrl}/${resource}/${id}?_format=json&envprofile=${environmentProfile || ''}`;
       const response = await fetch(url, {
@@ -197,7 +197,7 @@ const dataProvider = (apiUrl, settings = {}) => {
     },
     delete: async (resource, params) => {
       setIsLoadig(true)
-      const environmentProfile = localStorage.getItem('environment') || "";
+      const environmentProfile = localStorage.getItem('environment') || "prod";
       const { data } = params;
       const { id } = params;
       params.envProfile = environmentProfile
@@ -225,7 +225,7 @@ const dataProvider = (apiUrl, settings = {}) => {
     deleteMany: async (resource, params) => {
       setIsLoadig(true)
       const url = `${apiUrl}/${resource}`;
-      params.envProfile = localStorage.getItem('environment');
+      params.envProfile = localStorage.getItem('environment') || "prod";
       try {
         console.log({ url });
         const response = await fetch(url, {
@@ -274,7 +274,7 @@ const dataProvider = (apiUrl, settings = {}) => {
       const FRONT_URL = import.meta.env.VITE_FRONT_URL;
       try {
         setIsLoadig(true);
-        const environmentProfile = localStorage.getItem('environment');
+        const environmentProfile = localStorage.getItem('environment') || "prod";
         const url = `${FRONT_URL}/${resource}?envprofile=${environmentProfile || ''}`;
         const response = await fetch(url, {
           method: "GET",
@@ -295,7 +295,7 @@ const dataProvider = (apiUrl, settings = {}) => {
     importProjects: async (resource, params) => {
       try {
         setIsLoadig(true)
-        const environmentProfile = localStorage.getItem('environment');
+        const environmentProfile = localStorage.getItem('environment') || "prod";
         params.envProfile = environmentProfile;
         const url = `${apiUrl}/${resource}?_format=json`;
         const response = await fetch(url, {
