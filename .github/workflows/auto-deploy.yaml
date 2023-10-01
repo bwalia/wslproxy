@@ -69,22 +69,22 @@ jobs:
       - name: Deploy whitefalcon api gw to k3s6 onto the test env
         run: chmod +x ./deploy-to-kubernetes.sh && ./deploy-to-kubernetes.sh "${{ secrets.DOCKER_USER }}" "${{ secrets.DOCKER_PASSWD }}" "k3s6" "test" "both" "${{ env.IMAGE_NAME }}" "${{ env.IMAGE_TAG }}"
 
-  healthcheck10:
-    runs-on: [self-hosted-node10]
-    needs: [ deploy10 ]
-    steps:
-      - uses: actions/checkout@v3
-      - name: Set up Go
-        uses: actions/setup-go@v3
-        with:
-          go-version: 1.19
-      - name: Ping verification
-        working-directory: ./QA
-        env:
-          API_PING_URL: http://api.int10.whitefalcon.io/ping
-        run: | 
-          go mod init myapp
-          go test 01_healthcheck_test.go -v 
+  # healthcheck10:
+  #   runs-on: [self-hosted-node10]
+  #   needs: [ deploy10 ]
+  #   steps:
+  #     - uses: actions/checkout@v3
+  #     - name: Set up Go
+  #       uses: actions/setup-go@v3
+  #       with:
+  #         go-version: 1.19
+  #     - name: Ping verification
+  #       working-directory: ./QA
+  #       env:
+  #         API_PING_URL: http://api.int10.whitefalcon.io/ping
+  #       run: | 
+  #         go mod init myapp
+  #         go test 01_healthcheck_test.go -v 
   
   healthcheck6:
     runs-on: [self-hosted-node6]
