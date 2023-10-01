@@ -19,7 +19,7 @@ on:
         description: 'Delete Rules After Execution'
         required: true
         default: 'true'
-        type: boolean
+        type: string
 
 env:
   API_PING_URL: http://api.int6.whitefalcon.io/ping
