@@ -7,7 +7,7 @@ from selenium.webdriver.common.by import By
 import chromedriver_autoinstaller
 import os
 
-@pytest.fixture(scope="function", autouse=True)
+@pytest.fixture(scope="function")
 def setup(request):
     chrome_driver_path = chromedriver_autoinstaller.install()
     chrome_service: Service = Service(executable_path=chrome_driver_path)
