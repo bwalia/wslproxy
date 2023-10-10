@@ -203,11 +203,11 @@ def test_redirectRule(setup, request):
         response3 = wait_for_element(By.XPATH, "//div[@class='styles-module__subtitle___WKocD']").text
         assert "Docker Hub" in response3
         #print(response3, "-Second attempt")    
-    time.sleep(2)
+    time.sleep(4)
     
     # Find and delete the rule containing the specific text
     driver.get(targetHost+"/#/")
-    time.sleep(4)
+    time.sleep(2)
     wait_for_element(By.XPATH, "//a[@href='#/rules']").click()
     wait_for_element(By.ID, "profile_id").click()
     time.sleep(2)
