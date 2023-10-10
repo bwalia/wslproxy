@@ -69,6 +69,7 @@ def test_clientIPRule(setup, request):
     element.send_keys("403")
     wait_for_element(By.NAME, "match.response.message").send_keys("Y2xpZW50LWlwLW1hdGNoZWQ=")
     wait_for_element(By.CSS_SELECTOR, ".MuiButton-sizeMedium").click()
+    time.sleep(2)
     driver.refresh()
 
 # Creating rule for allow request when the client IP is matched with the condition starts with

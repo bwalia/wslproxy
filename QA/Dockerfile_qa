@@ -19,4 +19,4 @@ RUN pip install selenium pytest allure-pytest requests chromedriver_autoinstalle
 COPY . /app
 
 # Run the pytest command
-CMD ["sh", "-c", "pytest -v -s --alluredir=/app/allure-results && allure generate /app/allure-results -o /app/allure-report"]
+CMD ["sh", "-c", "pytest -v -s --alluredir=/app/allure-results"]
