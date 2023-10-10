@@ -64,11 +64,11 @@ jobs:
           fi
 
           # Execute tests and generate the allure report
-          docker run -v ./allure_results:/app/allure-report -e LOGIN_EMAIL=$LOGIN_EMAIL -e LOGIN_PASSWORD=$LOGIN_PASSWORD -e JWT_TOKEN_KEY=$JWT_TOKEN_KEY -e TARGET_HOST=$TARGET_HOST -e SERVER_NAME=$SERVER_NAME -e STORAGE_TYPE=$STORAGE_TYPE selenium-tests
+          docker run -v ./allure-results:/app/allure-report -e LOGIN_EMAIL=$LOGIN_EMAIL -e LOGIN_PASSWORD=$LOGIN_PASSWORD -e JWT_TOKEN_KEY=$JWT_TOKEN_KEY -e TARGET_HOST=$TARGET_HOST -e SERVER_NAME=$SERVER_NAME -e STORAGE_TYPE=$STORAGE_TYPE selenium-tests
      
       # Upload Allure report as a GitHub artifact
       - name: Upload Allure Report
         uses: actions/upload-artifact@v3
         with:
           name: allure-report
-          path: ./QA/allure_results
+          path: ./QA/allure-results
