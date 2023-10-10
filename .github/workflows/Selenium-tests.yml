@@ -67,8 +67,8 @@ jobs:
           # Execute tests and generate the allure report
           docker run -v allure_results:/app/allure-report -e LOGIN_EMAIL=$LOGIN_EMAIL -e LOGIN_PASSWORD=$LOGIN_PASSWORD -e JWT_TOKEN_KEY=$JWT_TOKEN_KEY -e TARGET_HOST=$TARGET_HOST -e SERVER_NAME=$SERVER_NAME -e STORAGE_TYPE=$STORAGE_TYPE selenium-tests
           ls allure_results
-          RUN apt-get install -y allure
-          RUN allure --version
+          apt-get install -y allure
+          allure --version
 
           allure generate allure_results -o allure-report
 
