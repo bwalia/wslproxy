@@ -1,22 +1,7 @@
-FROM python:3.9.17-slim-bullseye
-
-# Set the working directory in the container
-WORKDIR /app
-
-# Install necessary packages and install xvfb and wget
-RUN apt-get update && apt-get install -y xvfb wget
-RUN apt-get install -y allure
-
-# Install Chrome
-ADD 113_google-chrome-stable_current_amd64.deb .
-RUN dpkg -i 113_google-chrome-stable_current_amd64.deb || apt-get -f install -y
-RUN rm 113_google-chrome-stable_current_amd64.deb
-
-# Install required Python packages
-RUN pip install selenium pytest allure-pytest requests chromedriver_autoinstaller
+FROM dixajangid/selenium-base:latest
 
 # Copy the repository files to the container
 COPY . /app
 
 # Run the pytest command
-CMD ["sh", "-c", "pytest -v -s --alluredir=/app/allure-results"]
+CMD ["sh", "-c", "pytest -v -s --alluredir=/app/allure-results; allure generate /app/allure-results -o /app/allure-reports"]
