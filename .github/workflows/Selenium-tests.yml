@@ -75,3 +75,12 @@ jobs:
         with:
           name: allure-report
           path: ./QA/allureResults
+          
+      - name: Publish test report
+        uses: peaceiris/actions-gh-pages@v3
+        if: always()
+        with:
+          github_token: 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
+          publish_branch: gh-pages
+          publish_dir: ./QA/allureResults
+          
