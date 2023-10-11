@@ -69,7 +69,6 @@ jobs:
 
       # Upload Allure report as a GitHub artifact
       - name: Upload Allure Report
-        working-directory: ./QA
         uses: actions/upload-artifact@v3
         with:
           name: allure-report
