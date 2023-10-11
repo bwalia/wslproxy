@@ -66,7 +66,7 @@ jobs:
 
           # Execute tests and generate the allure report
           pwd
-          docker run -v /allureResults:/app/testreports -e LOGIN_EMAIL=$LOGIN_EMAIL -e LOGIN_PASSWORD=$LOGIN_PASSWORD -e JWT_TOKEN_KEY=$JWT_TOKEN_KEY -e TARGET_HOST=$TARGET_HOST -e SERVER_NAME=$SERVER_NAME -e STORAGE_TYPE=$STORAGE_TYPE selenium-tests
+          docker run -v /home/bwalia/actions-runner/_work/whitefalcon/whitefalcon/QA/allureResults:/app/testreports -e LOGIN_EMAIL=$LOGIN_EMAIL -e LOGIN_PASSWORD=$LOGIN_PASSWORD -e JWT_TOKEN_KEY=$JWT_TOKEN_KEY -e TARGET_HOST=$TARGET_HOST -e SERVER_NAME=$SERVER_NAME -e STORAGE_TYPE=$STORAGE_TYPE selenium-tests
           ls allureResults
           
       # Upload Allure report as a GitHub artifact
