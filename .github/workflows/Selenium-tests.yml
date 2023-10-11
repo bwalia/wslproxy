@@ -45,7 +45,7 @@ jobs:
           
       - name: Build docker image for selenium tests
         working-directory: ./QA
-        run: docker build -t selenium-tests -f Dockerfile_qa .
+        run: docker build -t --no-cache selenium-tests -f Dockerfile_qa .
 
       - name: Test execution
         working-directory: ./QA
