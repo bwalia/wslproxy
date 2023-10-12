@@ -22,4 +22,4 @@ RUN dpkg -i allure_2.24.0-1_all.deb || apt-get -f install -y
 COPY . /app
 
 # Run the pytest command
-CMD pytest -v -s --alluredir=/app/testresults ; allure generate --clean /app/testresults -o /app/testreports
+CMD pytest -v -s --alluredir=/app/testresults ; allure generate --clean /app/testresults -o /app/testreports; chmod -R /app/testreports 
