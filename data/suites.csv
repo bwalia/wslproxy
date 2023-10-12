@@ -1,8 +1,0 @@
-"Status","Start Time","Stop Time","Duration in ms","Parent Suite","Suite","Sub Suite","Test Class","Test Method","Name","Description"
-"passed","Thu Oct 12 06:51:02 UTC 2023","Thu Oct 12 06:51:29 UTC 2023","27724","","test_02_loginpage","","","","test_login",""
-"passed","Thu Oct 12 06:51:50 UTC 2023","Thu Oct 12 06:53:25 UTC 2023","95397","","test_03_client-IP-match","","","","test_clientIPRule",""
-"passed","Thu Oct 12 06:56:24 UTC 2023","Thu Oct 12 06:57:32 UTC 2023","68721","","test_05_priority-check","","","","test_priorityCheck",""
-"passed","Thu Oct 12 06:54:09 UTC 2023","Thu Oct 12 06:55:42 UTC 2023","92692","","test_04_path-verification","","","","test_pathRule",""
-"passed","Thu Oct 12 06:58:12 UTC 2023","Thu Oct 12 07:00:03 UTC 2023","111333","","test_06_redirectURI","","","","test_redirectRule",""
-"passed","Thu Oct 12 06:50:14 UTC 2023","Thu Oct 12 06:51:02 UTC 2023","47213","","test_01_create_profile","","","","test_creatProfile",""
-"broken","Thu Oct 12 07:00:45 UTC 2023","Thu Oct 12 07:02:02 UTC 2023","77399","","test_07_token-validation","","","","test_authToken",""
