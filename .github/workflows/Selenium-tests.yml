@@ -77,7 +77,7 @@ jobs:
           path: ./QA/allureResults
           
       - name: Deploy report to Minio
-        uses: lovellfelix/minio-deploy-action@v1
+        uses: hkdobrev/minio-deploy-action@v1
         with:
           endpoint: ${{ secrets.MINIO_ENDPOINT }}
           access_key: ${{ secrets.MINIO_ACCESS_KEY }}
