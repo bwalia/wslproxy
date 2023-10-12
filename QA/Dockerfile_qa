@@ -17,6 +17,7 @@ RUN pip install selenium pytest allure-pytest requests chromedriver_autoinstalle
 # Install allure
 ADD allure_2.24.0-1_all.deb .
 RUN dpkg -i allure_2.24.0-1_all.deb || apt-get -f install -y
+RUN apt-get install mc
 
 # Copy the repository files to the container
 COPY . /app
