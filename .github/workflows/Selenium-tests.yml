@@ -76,11 +76,16 @@ jobs:
           name: allure-report
           path: ./QA/allureResults
           
-      - name: Publish test report
-        uses: peaceiris/actions-gh-pages@v3
-        if: always()
+      - name: Deploy report to Minio
+        uses: lovellfelix/minio-deploy-action@v1
         with:
-          github_token: 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
-          publish_branch: gh-pages
-          publish_dir: ./QA/allureResults
+          endpoint: ${{ secrets.MINIO_ENDPOINT }}
+          access_key: ${{ secrets.MINIO_ACCESS_KEY }}
+          secret_key: ${{ secrets.MINIO_SECRET_KEY }}
+          bucket: 'allure-reports'
+          # Optional inputs with their defaults:
+          source_dir: './QA/allureResults'
+          target_dir: '/whitefalcon/20231012'
+          
+          
           
