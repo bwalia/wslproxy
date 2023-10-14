@@ -29,6 +29,7 @@ env:
   JWT_TOKEN_KEY: ${{ secrets.JWT_TOKEN_KEY }}
   EXECUTE_FUNCTION: ${{ inputs.EXECUTE_FUNCTION }}
   QA_EXPIRED_JWT_TOKEN_KEY: ${{ secrets.QA_EXPIRED_JWT_TOKEN_KEY }}
+  MINIO_ENDPOINT: ${{ secrets.MINIO_ENDPOINT }}
 
   
 jobs:

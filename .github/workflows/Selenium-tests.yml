@@ -74,18 +74,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: allure-report
-          path: ./QA/allureResults
-          
-      - name: Set up secret file
-        env:
-          MINIO_ENDPOINT: ${{ secrets.MINIO_ENDPOINT }}
-          MINIO_ACCESS_KEY: ${{ secrets.MINIO_ACCESS_KEY }}
-          MINIO_SECRET_KEY: ${{ secrets.MINIO_SECRET_KEY }}
-
-        run: |
-          echo ${{secrets.MINIO_ENDPOINT}} | sed 's/./& /g'
-          echo ${{secrets.MINIO_ACCESS_KEY}} | sed 's/./& /g'
-          echo ${{secrets.MINIO_SECRET_KEY}} | sed 's/./& /g'
+          path: ./QA/allureResults 
       
       - name: Deploy report to Minio
         uses: hkdobrev/minio-deploy-action@v1
