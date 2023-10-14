@@ -36,7 +36,7 @@ func TestAuthLoginAndFetchToken(t *testing.T) {
 	Email := os.Getenv("LOGIN_EMAIL")
 	Password := os.Getenv("LOGIN_PASSWORD")
 	minioEndpoint:= os.Getenv("MINIO_ENDPOINT")
-	Println(minioEndpoint)
+	t.Log(minioEndpoint)
 
 	payload := LoginPayload{
 		Email:    Email,
