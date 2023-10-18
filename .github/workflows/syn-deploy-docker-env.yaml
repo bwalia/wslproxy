@@ -33,7 +33,7 @@ jobs:
         run: docker-compose --version
 
       - name: Build and run Deploy Syn POP v2 to the target environment
-        run: chmod +x ./deploy-to-docker.sh && ./deploy-to-docker.sh "${{ env.TARGET_ENV }}" "${{ env.TARGET_ENV }}-pop"
+        run: chmod +x build.sh && chmod +x bootstrap.sh && chmod +x ./deploy-to-docker.sh && ./deploy-to-docker.sh "${{ env.TARGET_ENV }}" "${{ env.TARGET_ENV }}-pop"
             
       - name: Run Heathcheck and QA Tests
         run: |
