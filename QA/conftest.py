@@ -20,7 +20,7 @@ def setup(request):
     chrome_service: Service = Service(executable_path=chrome_driver_path)
 
     chrome_options = webdriver.ChromeOptions() 
-    headlessModeDisabled = os.environ.get("HEADLESSMODE")
+    headlessModeDisabled = os.environ.get("HEADLESSMODEDISABLE")
     if headlessModeDisabled == "true":   
     # Add your options as needed    
         options = [

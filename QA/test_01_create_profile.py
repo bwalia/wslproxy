@@ -12,7 +12,7 @@ def test_creatProfile():
 
     chrome_options = webdriver.ChromeOptions()    
     # Add your options as needed  
-    headlessModeDisabled = os.environ.get("HEADLESSMODE")
+    headlessModeDisabled = os.environ.get("HEADLESSMODEDISABLE")
     if headlessModeDisabled == "true":   
     # Add your options as needed    
         options = [
