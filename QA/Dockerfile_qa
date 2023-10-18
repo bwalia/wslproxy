@@ -5,7 +5,6 @@ WORKDIR /app
 
 # Install necessary packages and install xvfb and wget
 RUN apt-get update && apt-get install -y xvfb wget
-RUN apt-get install -y allure
 
 # Install Chrome
 ADD 113_google-chrome-stable_current_amd64.deb .
@@ -15,8 +14,11 @@ RUN rm 113_google-chrome-stable_current_amd64.deb
 # Install required Python packages
 RUN pip install selenium pytest allure-pytest requests chromedriver_autoinstaller
 
+# Install allure
+ADD allure_2.24.0-1_all.deb .
+RUN dpkg -i allure_2.24.0-1_all.deb || apt-get -f install -y
 # Copy the repository files to the container
 COPY . /app
 
 # Run the pytest command
-CMD pytest -v -s --alluredir=/app/testresults ; allure generate /app/testresults -o /app/testreports
+CMD pytest -v -s --alluredir=/app/testresults ; allure generate --clean /app/testresults -o /app/testreports; chmod -R 777 /app/testreports 

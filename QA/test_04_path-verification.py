@@ -179,7 +179,6 @@ def test_pathRule(setup, request):
     driver.get("http://"+server_name+"/outer")
     time.sleep(2)
     driver.refresh()
-    driver.refresh()
     time.sleep(2)
     response2 = wait_for_element(By.CSS_SELECTOR, "body").text
     assert "ends with" in response2
