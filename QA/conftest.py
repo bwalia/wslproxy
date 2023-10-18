@@ -13,18 +13,31 @@ from allure_commons.types import AttachmentType
 def setup(request):
     request.function.driver = None
 
+
+       
+
     chrome_driver_path = chromedriver_autoinstaller.install()
     chrome_service: Service = Service(executable_path=chrome_driver_path)
 
-    chrome_options = webdriver.ChromeOptions()    
+    chrome_options = webdriver.ChromeOptions() 
+    headlessModeDisabled = os.environ.get("HEADLESSMODE")
+    if headlessModeDisabled == "true":   
     # Add your options as needed    
-    options = [
-         "--headless",
-         "--disable-gpu",
-         "--no-sandbox",
-         "--disable-dev-shm-usage",
-    ]
-
+        options = [
+            #"--headless",
+            "--disable-gpu",
+            "--no-sandbox",
+            "--disable-dev-shm-usage",
+        ]
+    else:   
+        # Add your options as needed    
+            options = [
+                "--headless",
+                "--disable-gpu",
+                "--no-sandbox",
+                "--disable-dev-shm-usage",
+            ]
+    
     for option in options:
         chrome_options.add_argument(option)
     
