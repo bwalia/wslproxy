@@ -3,8 +3,9 @@ FROM dixajangid/selenium-base:latest
 WORKDIR /app
 
 # Copy the repository files to the container
+
 COPY . /app
 
 RUN chmod +x QA/runtest.sh
 
-#ENTRYPOINT ["./app/QA/runtest.sh"]
+ENTRYPOINT ["bash -c", "/app/QA/runtest.sh"]
