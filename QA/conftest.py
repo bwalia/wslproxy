@@ -12,9 +12,7 @@ from allure_commons.types import AttachmentType
 @pytest.fixture(scope="function")
 def setup(request):
     request.function.driver = None
-
-
-       
+ 
 
     chrome_driver_path = chromedriver_autoinstaller.install()
     chrome_service: Service = Service(executable_path=chrome_driver_path)
