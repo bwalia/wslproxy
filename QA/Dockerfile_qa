@@ -4,8 +4,8 @@ WORKDIR /app
 
 # Copy the repository files to the container
 
+RUN apt-get install bash
+
 COPY . /app
 
-RUN chmod +x QA/runtest.sh
-
-ENTRYPOINT ["bash -c", "/app/QA/runtest.sh"]
+CMD ["pytest -v -s --alluredir=/app/testresults ; allure generate --clean /app/testresults -o /app/testreports ; chmod -R 777 /app/testreports"]
