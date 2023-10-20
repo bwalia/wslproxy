@@ -6,4 +6,4 @@ WORKDIR /app
 
 COPY . /app
 
-CMD ["pytest -v -s --alluredir=/app/testresults ; allure generate --clean /app/testresults -o /app/testreports ; chmod -R 777 /app/testreports"]
+CMD pytest -v -s --alluredir=/app/testresults ; allure generate --clean /app/testresults -o /app/testreports; chmod -R 777 /app/testreports 
