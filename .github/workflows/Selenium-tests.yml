@@ -26,7 +26,7 @@ on:
         description: 'Deploy allure report to Minio bucket'
         required: true
         default: 'false'
-        type: string        
+        type: boolean
 
 env: 
   TARGET_ENV: ${{ inputs.TARGET_ENV }}
