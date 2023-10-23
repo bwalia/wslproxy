@@ -22,6 +22,11 @@ on:
         options:
         - redis
         - disk
+      DEPLOY_ALLURE_REPORT:
+        description: 'Deploy allure report to Minio bucket'
+        required: true
+        default: 'false'
+        type: string        
 
 env: 
   TARGET_ENV: ${{ inputs.TARGET_ENV }}
@@ -29,6 +34,7 @@ env:
   LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
   JWT_TOKEN_KEY: ${{ secrets.JWT_TOKEN_KEY }}
   STORAGE_TYPE: ${{ github.event.inputs.STORAGE_TYPE }} 
+  DEPLOY_ALLURE_REPORT: ${{ inputs.DEPLOY_ALLURE_REPORT }}
 
   
 jobs:
@@ -77,6 +83,7 @@ jobs:
           path: ./QA/allureResults 
       
       - name: Deploy report to Minio
+        if: ${{ inputs.DEPLOY_ALLURE_REPORT == 'true' }}
         uses: hkdobrev/minio-deploy-action@v1
         with:
           endpoint: ${{ secrets.MINIO_ENDPOINT }}
