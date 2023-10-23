@@ -26,7 +26,7 @@ on:
       DEPLOY_ALLURE_REPORT:
         description: 'Deploy allure report to Minio bucket'
         required: true
-        default: 'false'
+        default: false
         type: boolean
 
 env: 
@@ -84,7 +84,7 @@ jobs:
           path: ./QA/allureResults 
       
       - name: Deploy report to Minio
-        if: ${{ inputs.DEPLOY_ALLURE_REPORT == 'true' }}
+        if: ${{ inputs.DEPLOY_ALLURE_REPORT == true }}
         uses: hkdobrev/minio-deploy-action@v1
         with:
           endpoint: ${{ secrets.MINIO_ENDPOINT }}
