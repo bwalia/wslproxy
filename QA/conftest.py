@@ -6,20 +6,36 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 import chromedriver_autoinstaller
 import os
+import allure
+from allure_commons.types import AttachmentType
 
-@pytest.fixture(scope="function", autouse=True)
+@pytest.fixture(scope="function")
 def setup(request):
+    request.function.driver = None
+ 
+
     chrome_driver_path = chromedriver_autoinstaller.install()
     chrome_service: Service = Service(executable_path=chrome_driver_path)
 
-    chrome_options = webdriver.ChromeOptions()    
+    chrome_options = webdriver.ChromeOptions() 
+    headlessModeDisabled = os.environ.get("HEADLESSMODEDISABLE")
+    if headlessModeDisabled == "true":   
     # Add your options as needed    
-    options = [
-         "--headless",
-         "--disable-gpu",
-         "--no-sandbox",
-    ]
-
+        options = [
+            #"--headless",
+            "--disable-gpu",
+            "--no-sandbox",
+            "--disable-dev-shm-usage",
+        ]
+    else:   
+        # Add your options as needed    
+            options = [
+                "--headless",
+                "--disable-gpu",
+                "--no-sandbox",
+                "--disable-dev-shm-usage",
+            ]
+    
     for option in options:
         chrome_options.add_argument(option)
     
@@ -108,3 +124,10 @@ def setup(request):
     sync_button.click()
     time.sleep(4)
     driver.close()
+
+@pytest.hookimpl(hookwrapper=True, tryfirst=True)
+def pytest_runtest_makereport(item):
+    outcome = yield
+    result = outcome.get_result()   
+    if result.failed:
+        allure.attach(item.function.driver.get_screenshot_as_png(), "Screenshot",  attachment_type=AttachmentType.PNG)

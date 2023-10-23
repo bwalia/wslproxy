@@ -69,6 +69,7 @@ def test_clientIPRule(setup, request):
     element.send_keys("403")
     wait_for_element(By.NAME, "match.response.message").send_keys("Y2xpZW50LWlwLW1hdGNoZWQ=")
     wait_for_element(By.CSS_SELECTOR, ".MuiButton-sizeMedium").click()
+    time.sleep(2)
     driver.refresh()
 
 # Creating rule for allow request when the client IP is matched with the condition starts with
@@ -77,6 +78,7 @@ def test_clientIPRule(setup, request):
     wait_for_element(By.XPATH, "//a[@href='#/rules/create']").click()
     wait_for_element(By.NAME, "name").send_keys("Valid client IP match-starts_with-py")
     wait_for_element(By.ID, "profile_id").click()
+    time.sleep(2)
     wait_for_element(By.XPATH, "//li[contains(.,'qa_test')]").click()
     wait_for_element(By.NAME, "match.rules.path").send_keys("/start")
     wait_for_element(By.ID, "match.rules.country").click()
@@ -149,7 +151,7 @@ def test_clientIPRule(setup, request):
         # Wait for the element to be clickable
         wait.until(expected_conditions.element_to_be_clickable((By.XPATH, "//li[contains(.,'Valid client IP match-starts_with-py')]"))).click()
         print("Rule not found")    
-    
+    time.sleep(2)
     wait_for_element(By.XPATH, "//div[@id='match_cases.1.condition']").click()
     time.sleep(2)
     wait_for_element(By.XPATH, "//li[contains(text(),'AND')]").click()

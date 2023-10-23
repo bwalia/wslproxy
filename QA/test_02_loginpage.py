@@ -16,13 +16,25 @@ def test_login():
     chrome_service: Service = Service(executable_path=chrome_driver_path)
 
     chrome_options = webdriver.ChromeOptions()    
+    # Add your options as needed   
+    headlessModeDisabled = os.environ.get("HEADLESSMODEDISABLE")
+    if headlessModeDisabled == "true":   
     # Add your options as needed    
-    options = [
-         "--headless",
-         "--disable-gpu",
-         "--no-sandbox",
-    ]
-
+        options = [
+            #"--headless",
+            "--disable-gpu",
+            "--no-sandbox",
+            "--disable-dev-shm-usage",
+        ]
+    else:   
+        # Add your options as needed    
+            options = [
+                "--headless",
+                "--disable-gpu",
+                "--no-sandbox",
+                "--disable-dev-shm-usage",
+            ]
+    
     for option in options:
         chrome_options.add_argument(option)
     

@@ -41,6 +41,7 @@ def test_authToken(setup, request):
 
     # Creating rule for access request with /api
     wait_for_element(By.XPATH, "//a[@href='#/rules']").click()
+    time.sleep(2)
     wait_for_element(By.XPATH, "//a[@href='#/rules/create']").click()
     time.sleep(2)
     wait_for_element(By.NAME, "name").send_keys("Access api rule-py")
