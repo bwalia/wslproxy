@@ -2,7 +2,7 @@ name: Run Selenium UI tests
 
 on:
   schedule:
-    - cron: '0 */2 * * *'
+    - cron: '0 1 * * *'
   workflow_dispatch:
     inputs:
       TARGET_ENV:
@@ -30,6 +30,7 @@ on:
         type: boolean
 
 env: 
+  TARGET_ENV: ${{ inputs.TARGET_ENV || 'int' }}
   LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
   LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
   JWT_TOKEN_KEY: ${{ secrets.JWT_TOKEN_KEY }}
