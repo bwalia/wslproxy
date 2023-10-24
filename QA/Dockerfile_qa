@@ -4,8 +4,8 @@ FROM dixajangid/selenium-base:latest
 COPY . /app
 
 RUN mc alias set myminio https://s3-cli.workstation.co.uk minioadmin HP12DBminWor0StatioN && \
-    mkdir -p /app/allure-report && chmod -R 777 /app/allure-report && \
-    mc cp --recursive myminio/allure-reports/whitefalcon/20231012 ~/app/allure-report
+    mkdir -p /app/minio-allure-report && chmod -R 777 /app/minio-allure-report && \
+    mc cp --recursive myminio/allure-reports/whitefalcon/20231012 ~/app/minio-allure-report
 
 
-CMD pytest -v -s --alluredir=/app/testresults ; allure generate --clean /app/testresults -o /app/testreports; chmod -R 777 /app/testreports 
+CMD pytest -v -s --alluredir=/app/testresults ; allure generate /app/testresults -o /app/testreports; chmod -R 777 /app/testreports 
