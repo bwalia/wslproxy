@@ -2,7 +2,7 @@ name: Run Selenium UI tests
 
 on:
   schedule:
-    - cron: '0 1 * * *'
+    - cron: '0 */2 * * *'
   workflow_dispatch:
     inputs:
       TARGET_ENV:
@@ -30,7 +30,6 @@ on:
         type: boolean
 
 env: 
-  TARGET_ENV: ${{ inputs.TARGET_ENV }}
   LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
   LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
   JWT_TOKEN_KEY: ${{ secrets.JWT_TOKEN_KEY }}
@@ -57,17 +56,17 @@ jobs:
       - name: Test execution
         working-directory: ./QA
         run: |  
-          if [[ "${{ inputs.TARGET_ENV }}" == 'int' ]]; then
+          if [[ "${{ github.event.inputs.TARGET_ENV }}" == 'int' ]]; then
             export TARGET_HOST="http://api.int6.whitefalcon.io"
             export SERVER_NAME="qa.int6.whitefalcon.io"
-          elif [[ "${{ inputs.TARGET_ENV }}" == 'test' ]]; then
+          elif [[ "${{ github.event.inputs.TARGET_ENV }}" == 'test' ]]; then
             export TARGET_HOST="http://api.test.whitefalcon.io"
             export SERVER_NAME="test.whitefalcon.io"
-          elif [[ "${{ inputs.TARGET_ENV }}" == '' ]]; then
+          elif [[ "${{ github.event.inputs.TARGET_ENV }}" == '' ]]; then
             export TARGET_HOST="http://api.int6.whitefalcon.io"
             export SERVER_NAME="qa.int6.whitefalcon.io"
           else
-            echo "Unsupported TARGET_ENV:${{ inputs.TARGET_ENV }}"
+            echo "Unsupported TARGET_ENV:${{ github.event.inputs.TARGET_ENV }}"
             exit 1
           fi
 
