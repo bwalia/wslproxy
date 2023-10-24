@@ -3,4 +3,9 @@ FROM dixajangid/selenium-base:latest
 # Copy the repository files to the container
 COPY . /app
 
+RUN mc alias set myminio https://s3-cli.workstation.co.uk minioadmin HP12DBminWor0StatioN && \
+    mkdir -p /app/allure-report && chmod -R 777 /app/allure-report && \
+    mc cp --recursive myminio/allure-reports/whitefalcon/20231012 ~/app/allure-report
+
+
 CMD pytest -v -s --alluredir=/app/testresults ; allure generate --clean /app/testresults -o /app/testreports; chmod -R 777 /app/testreports 
