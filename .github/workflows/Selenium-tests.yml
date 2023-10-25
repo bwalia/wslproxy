@@ -52,7 +52,9 @@ jobs:
           
       - name: Build docker image for selenium tests
         working-directory: ./QA
-        run: docker build --no-cache -t selenium-tests -f Dockerfile_qa .
+        run: |
+          docker pull dixajangid/selenium-base:latest
+          docker build --no-cache -t selenium-tests -f Dockerfile_qa .
 
       - name: Test execution
         working-directory: ./QA
@@ -76,6 +78,7 @@ jobs:
           docker run -v /home/bwalia/actions-runner/_work/whitefalcon/whitefalcon/QA/allureResults:/app/testreports -e LOGIN_EMAIL=$LOGIN_EMAIL -e LOGIN_PASSWORD=$LOGIN_PASSWORD -e JWT_TOKEN_KEY=$JWT_TOKEN_KEY -e TARGET_HOST=$TARGET_HOST -e SERVER_NAME=$SERVER_NAME -e STORAGE_TYPE=$STORAGE_TYPE selenium-tests
           ls allureResults
   
+
       # Upload Allure report as a GitHub artifact
       - name: Upload Allure Report
         uses: actions/upload-artifact@v3
