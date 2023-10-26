@@ -58,7 +58,7 @@ jobs:
         working-directory: ./QA
         run: |
           docker pull dixajangid/selenium-base:latest
-          docker build --no-cache -t selenium-tests -f Dockerfile_qa .
+          docker build --no-cache--build-arg MINIO_ENDPOINT=$MINIO_ENDPOINT --build-arg MINIO_ACCESS_KEY=$MINIO_ACCESS_KEY --build-arg MINIO_SECRET_KEY=$MINIO_SECRET_KEY --no-cache -t selenium-tests -f Dockerfile_qa .
 
       - name: Test execution
         working-directory: ./QA
