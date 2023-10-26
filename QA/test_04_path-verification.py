@@ -262,6 +262,8 @@ class Test_ClassPathRule(TestBaseClass):
         time.sleep(4)
         sync_button = wait_for_element(By.XPATH, "//button[@aria-label='Sync API Storage']")
         sync_button.click()
-        time.sleep(4)
+        time.sleep(2)
+        sync_button.click()
+        time.sleep(2)
 
 

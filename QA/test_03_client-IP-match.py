@@ -29,6 +29,7 @@ class Test_ClassClientIP(TestBaseClass):
         wait_for_element(By.XPATH, "//a[@href='#/rules/create']").click()
         wait_for_element(By.NAME, "name").send_keys("Valid client IP match-py")
         wait_for_element(By.ID, "profile_id").click()
+        time.sleep(2)
         wait_for_element(By.XPATH, "//li[contains(.,'qa_test')]").click()
         time.sleep(2)
         wait_for_element(By.NAME, "match.rules.path").send_keys("/valid")
@@ -56,6 +57,7 @@ class Test_ClassClientIP(TestBaseClass):
         wait_for_element(By.XPATH, "//a[@href='#/rules/create']").click()
         wait_for_element(By.NAME, "name").send_keys("Invalid client IP match-py")
         wait_for_element(By.ID, "profile_id").click()
+        time.sleep(2)
         wait_for_element(By.XPATH, "//li[contains(.,'qa_test')]").click()
         wait_for_element(By.NAME, "match.rules.path").send_keys("/invalid")
         wait_for_element(By.ID, "match.rules.country").click()
@@ -268,7 +270,9 @@ class Test_ClassClientIP(TestBaseClass):
         time.sleep(4)
         sync_button = wait_for_element(By.XPATH, "//button[@aria-label='Sync API Storage']")
         sync_button.click()
-        time.sleep(4)
+        time.sleep(2)
+        sync_button.click()
+        time.sleep(2)
 
 
 

@@ -49,7 +49,6 @@ jobs:
       - name: Checking out repo
         uses: actions/checkout@v2
         with:
-          ref: dixa/qa-checks
       
       - uses: browser-actions/setup-chrome@v1
       - run: chrome --version
