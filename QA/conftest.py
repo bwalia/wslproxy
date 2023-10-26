@@ -9,10 +9,9 @@ import os
 import allure
 from allure_commons.types import AttachmentType
 
-@pytest.fixture(scope="function")
-def setup(request):
-    request.function.driver = None
- 
+
+@pytest.fixture()
+def setup(request): 
 
     chrome_driver_path = chromedriver_autoinstaller.install()
     chrome_service: Service = Service(executable_path=chrome_driver_path)
@@ -46,6 +45,9 @@ def setup(request):
 
     # Clearing the cookie 
     driver.delete_all_cookies()
+
+    request.cls.driver = driver
+
 
     def handle_profile_api():
         # Calling the handle profile API
@@ -94,11 +96,9 @@ def setup(request):
 
     handle_profile_api()
 
-    request.function.driver = driver
-    request.function.server_name = server_name
-    request.function.targetHost = targetHost
 
-    yield driver
+    yield request.cls.driver
+
     try:
         driver.get(targetHost+"/#/")
         time.sleep(4)
@@ -125,9 +125,52 @@ def setup(request):
     time.sleep(4)
     driver.close()
 
+
+@pytest.fixture()
+def login_setup(request): 
+
+    chrome_driver_path = chromedriver_autoinstaller.install()
+    chrome_service: Service = Service(executable_path=chrome_driver_path)
+
+    chrome_options = webdriver.ChromeOptions() 
+    headlessModeDisabled = os.environ.get("HEADLESSMODEDISABLE")
+    if headlessModeDisabled == "true":   
+    # Add your options as needed    
+        options = [
+            #"--headless",
+            "--disable-gpu",
+            "--no-sandbox",
+            "--disable-dev-shm-usage",
+        ]
+    else:   
+        # Add your options as needed    
+            options = [
+                "--headless",
+                "--disable-gpu",
+                "--no-sandbox",
+                "--disable-dev-shm-usage",
+            ]
+    
+    for option in options:
+        chrome_options.add_argument(option)
+    
+    driver = webdriver.Chrome(options = chrome_options)
+    driver.maximize_window()
+
+    driver.implicitly_wait(15)
+
+    # Clearing the cookie 
+    driver.delete_all_cookies()
+
+    request.cls.driver = driver
+
+    yield request.cls.driver
+    driver.close()
+
 @pytest.hookimpl(hookwrapper=True, tryfirst=True)
 def pytest_runtest_makereport(item):
     outcome = yield
     result = outcome.get_result()   
     if result.failed:
-        allure.attach(item.function.driver.get_screenshot_as_png(), "Screenshot",  attachment_type=AttachmentType.PNG)
+        allure.attach(item.cls.driver.get_screenshot_as_png(), "Screenshot",  attachment_type=AttachmentType.PNG)
+

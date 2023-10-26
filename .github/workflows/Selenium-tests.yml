@@ -2,7 +2,7 @@ name: Run Selenium UI tests
 
 on:
   schedule:
-    - cron: '0 */2 * * *'
+    - cron: '0 1 * * *'
   workflow_dispatch:
     inputs:
       TARGET_ENV:
@@ -30,11 +30,16 @@ on:
         type: boolean
 
 env: 
+  TARGET_ENV: ${{ inputs.TARGET_ENV || 'int' }}
   LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
   LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
   JWT_TOKEN_KEY: ${{ secrets.JWT_TOKEN_KEY }}
   STORAGE_TYPE: ${{ github.event.inputs.STORAGE_TYPE }} 
   DEPLOY_ALLURE_REPORT: ${{ inputs.DEPLOY_ALLURE_REPORT }}
+  MINIO_ENDPOINT: ${{ secrets.MINIO_ENDPOINT }}
+  MINIO_ACCESS_KEY: ${{ secrets.MINIO_ACCESS_KEY }}
+  MINIO_SECRET_KEY: ${{ secrets.MINIO_SECRET_KEY }}
+
 
   
 jobs:
@@ -44,14 +49,15 @@ jobs:
       - name: Checking out repo
         uses: actions/checkout@v2
         with:
-          ref: dixa/qa-checks
       
       - uses: browser-actions/setup-chrome@v1
       - run: chrome --version
           
       - name: Build docker image for selenium tests
         working-directory: ./QA
-        run: docker build --no-cache -t selenium-tests -f Dockerfile_qa .
+        run: |
+          docker pull dixajangid/selenium-base:latest
+          docker build --no-cache --build-arg MINIO_ENDPOINT=$MINIO_ENDPOINT --build-arg MINIO_ACCESS_KEY=$MINIO_ACCESS_KEY --build-arg MINIO_SECRET_KEY=$MINIO_SECRET_KEY -t selenium-tests -f Dockerfile_qa .
 
       - name: Test execution
         working-directory: ./QA
@@ -72,9 +78,10 @@ jobs:
 
           # Execute tests and generate the allure report
           pwd
-          docker run -v /home/bwalia/actions-runner/_work/whitefalcon/whitefalcon/QA/allureResults:/app/testreports -e LOGIN_EMAIL=$LOGIN_EMAIL -e LOGIN_PASSWORD=$LOGIN_PASSWORD -e JWT_TOKEN_KEY=$JWT_TOKEN_KEY -e TARGET_HOST=$TARGET_HOST -e SERVER_NAME=$SERVER_NAME -e STORAGE_TYPE=$STORAGE_TYPE selenium-tests
+          docker run -v /home/bwalia/actions-runner/_work/whitefalcon/whitefalcon/QA/allureResults:/app/minio-allure-report -e LOGIN_EMAIL=$LOGIN_EMAIL -e LOGIN_PASSWORD=$LOGIN_PASSWORD -e JWT_TOKEN_KEY=$JWT_TOKEN_KEY -e TARGET_HOST=$TARGET_HOST -e SERVER_NAME=$SERVER_NAME -e STORAGE_TYPE=$STORAGE_TYPE selenium-tests
           ls allureResults
   
+
       # Upload Allure report as a GitHub artifact
       - name: Upload Allure Report
         uses: actions/upload-artifact@v3
@@ -93,7 +100,7 @@ jobs:
   
           # Optional inputs with their defaults:
           source_dir: './QA/allureResults'
-          target_dir: '/whitefalcon/20231012'
+          target_dir: '/whitefalcon/allure-results'
 
 
           
