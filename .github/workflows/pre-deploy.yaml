@@ -33,10 +33,32 @@ env:
   TARGET_TYPE: ${{ github.event.inputs.TARGET_TYPE }}
   IMAGE_NAME: "whitefalcon"
   IMAGE_TAG: ${{ github.ref_name }}
-
+  
 jobs:
+  deploy2:
+    runs-on: [int2]
+    steps:
+      - name: checkout the repo code
+        uses: actions/checkout@v2 
+        with:
+          ref: "main"
+      - name: Deploy whitefalcon api gw to k3s2 onto the given env
+        run: chmod +x ./deploy-to-kubernetes.sh && ./deploy-to-kubernetes.sh "${{ secrets.DOCKER_USER }}" "${{ secrets.DOCKER_PASSWD }}" "k3s2" "${{ env.TARGET_ENV }}" "${{ env.TARGET_TYPE }}" "${{ env.IMAGE_NAME }}" "${{ env.IMAGE_TAG }}"
+
+  deploy6:
+    runs-on: [self-hosted-node6]
+    needs: [deploy2]
+    steps:
+      - name: checkout the repo code
+        uses: actions/checkout@v2 
+        with:
+          ref: "main"
+      - name: Deploy whitefalcon api gw to k3s6 onto the given env
+        run: chmod +x ./deploy-to-kubernetes.sh && ./deploy-to-kubernetes.sh "${{ secrets.DOCKER_USER }}" "${{ secrets.DOCKER_PASSWD }}" "k3s6" "${{ env.TARGET_ENV }}" "${{ env.TARGET_TYPE }}" "${{ env.IMAGE_NAME }}" "${{ env.IMAGE_TAG }}"        
+        
   deploy10:
     runs-on: [self-hosted-node10]
+    needs: [deploy6]
     steps:
       - name: checkout the repo code
         uses: actions/checkout@v2 
@@ -45,12 +67,3 @@ jobs:
       - name: Deploy whitefalcon api gw to k3s10 onto the given env
         run: chmod +x ./deploy-to-kubernetes.sh && ./deploy-to-kubernetes.sh "${{ secrets.DOCKER_USER }}" "${{ secrets.DOCKER_PASSWD }}" "k3s10" "${{ env.TARGET_ENV }}" "${{ env.TARGET_TYPE }}" "${{ env.IMAGE_NAME }}" "${{ env.IMAGE_TAG }}"
 
-  deploy6:
-    runs-on: [self-hosted-node6]
-    steps:
-      - name: checkout the repo code
-        uses: actions/checkout@v2 
-        with:
-          ref: "main"
-      - name: Deploy whitefalcon api gw to k3s6 onto the given env
-        run: chmod +x ./deploy-to-kubernetes.sh && ./deploy-to-kubernetes.sh "${{ secrets.DOCKER_USER }}" "${{ secrets.DOCKER_PASSWD }}" "k3s6" "${{ env.TARGET_ENV }}" "${{ env.TARGET_TYPE }}" "${{ env.IMAGE_NAME }}" "${{ env.IMAGE_TAG }}"
