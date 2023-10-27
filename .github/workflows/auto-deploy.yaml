@@ -1,4 +1,4 @@
-name: "Build and Auto Deploy - whitefalcon INT, TEST, ACC"
+name: "INT - Build and Auto Deploy Whitefalcon"
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
     branches: [ feature/* ]
 
 env:
-  TARGET_CLUSTER: "k3s10"
+  TARGET_CLUSTER: "k3s2"
   TARGET_ENV: "int"
   TARGET_TYPE: "api"
   IMAGE_NAME: "whitefalcon"
@@ -43,31 +43,33 @@ jobs:
           push: true
           tags: bwalia/node-app:latest
 
-  deploy10:
-    runs-on: [self-hosted-node10]
+  deploy2:
+    runs-on: [int2]
     needs: docker
     steps:
       - name: checkout the repo code
         uses: actions/checkout@v2 
         with:
           ref: "main"
-      - name: Deploy whitefalcon api gw to k3s10 onto the int env
-        run: chmod +x ./deploy-to-kubernetes.sh && ./deploy-to-kubernetes.sh "${{ secrets.DOCKER_USER }}" "${{ secrets.DOCKER_PASSWD }}" "k3s10" "int" "both" "${{ env.IMAGE_NAME }}" "${{ env.IMAGE_TAG }}"
-      - name: Deploy whitefalcon api gw to k3s10 onto the test env
-        run: chmod +x ./deploy-to-kubernetes.sh && ./deploy-to-kubernetes.sh "${{ secrets.DOCKER_USER }}" "${{ secrets.DOCKER_PASSWD }}" "k3s10" "test" "both" "${{ env.IMAGE_NAME }}" "${{ env.IMAGE_TAG }}"
+      - name: Deploy whitefalcon api gw to k3s2 onto the int env
+        run: chmod +x ./deploy-to-kubernetes.sh && ./deploy-to-kubernetes.sh "${{ secrets.DOCKER_USER }}" "${{ secrets.DOCKER_PASSWD }}" "k3s2" "int" "both" "${{ env.IMAGE_NAME }}" "${{ env.IMAGE_TAG }}"
 
-  deploy6:
-    runs-on: [self-hosted-node6]
-    needs: docker
-    steps:
-      - name: checkout the repo code
-        uses: actions/checkout@v2 
-        with:
-          ref: "main"
-      - name: Deploy whitefalcon api gw to k3s6 onto the int env
-        run: chmod +x ./deploy-to-kubernetes.sh && ./deploy-to-kubernetes.sh "${{ secrets.DOCKER_USER }}" "${{ secrets.DOCKER_PASSWD }}" "k3s6" "int" "both" "${{ env.IMAGE_NAME }}" "${{ env.IMAGE_TAG }}"
-      - name: Deploy whitefalcon api gw to k3s6 onto the test env
-        run: chmod +x ./deploy-to-kubernetes.sh && ./deploy-to-kubernetes.sh "${{ secrets.DOCKER_USER }}" "${{ secrets.DOCKER_PASSWD }}" "k3s6" "test" "both" "${{ env.IMAGE_NAME }}" "${{ env.IMAGE_TAG }}"
+
+        # - name: Deploy whitefalcon api gw to k3s2 onto the test env
+      #   run: chmod +x ./deploy-to-kubernetes.sh && ./deploy-to-kubernetes.sh "${{ secrets.DOCKER_USER }}" "${{ secrets.DOCKER_PASSWD }}" "k3s2" "test" "both" "${{ env.IMAGE_NAME }}" "${{ env.IMAGE_TAG }}"
+
+  # deploy6:
+  #   runs-on: [self-hosted-node6]
+  #   needs: docker
+  #   steps:
+  #     - name: checkout the repo code
+  #       uses: actions/checkout@v2 
+  #       with:
+  #         ref: "main"
+  #     - name: Deploy whitefalcon api gw to k3s2 onto the int env
+  #       run: chmod +x ./deploy-to-kubernetes.sh && ./deploy-to-kubernetes.sh "${{ secrets.DOCKER_USER }}" "${{ secrets.DOCKER_PASSWD }}" "k3s2" "int" "both" "${{ env.IMAGE_NAME }}" "${{ env.IMAGE_TAG }}"
+  #     - name: Deploy whitefalcon api gw to k3s2 onto the test env
+  #       run: chmod +x ./deploy-to-kubernetes.sh && ./deploy-to-kubernetes.sh "${{ secrets.DOCKER_USER }}" "${{ secrets.DOCKER_PASSWD }}" "k3s2" "test" "both" "${{ env.IMAGE_NAME }}" "${{ env.IMAGE_TAG }}"
 
   # healthcheck10:
   #   runs-on: [self-hosted-node10]
@@ -87,8 +89,8 @@ jobs:
   #         go test 01_healthcheck_test.go -v 
   
   healthcheck6:
-    runs-on: [self-hosted-node6]
-    needs: [ deploy6 ]
+    runs-on: [int2]
+    needs: [ deploy2 ]
     steps:
       - uses: actions/checkout@v3
       - name: Set up Go
@@ -98,8 +100,8 @@ jobs:
       - name: Ping verification
         working-directory: ./QA
         env:
-          API_PING_URL: http://api.int6.whitefalcon.io/ping
-          API_PING_NODE: node6
+          API_PING_URL: http://api.int2.whitefalcon.io/ping
+          API_PING_NODE: node2
         run: | 
           go mod init myapp
           go test 01_healthcheck_test.go -v 
