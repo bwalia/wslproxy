@@ -63,5 +63,8 @@ services:
       - "3009:3009"
     networks:
       - openresty-network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
 networks: 
   openresty-network:

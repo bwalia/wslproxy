@@ -139,6 +139,7 @@ function syncRulesAPI(args)
         "},%22sort%22:{%22field%22:%22created_at%22,%22order%22:%22DESC%22},%22filter%22:{%22profile_id%22:%22" ..
         profileName .. "%22}}",
         "rules/" .. profileName)
+    totalRules = totalRules == nil and 0 or totalRules
     if totalRules > apiPageSize then
         totalPages = totalRules / apiPageSize
         totalPages = math.ceil(totalPages)
@@ -185,6 +186,7 @@ function syncServersAPI(args)
         profileName .. "%22}}",
         "servers/" .. profileName)
 
+    totalServers = totalServers == nil and 0 or totalServers
     if totalServers > apiPageSize then
         totalPages = totalServers / apiPageSize
         totalPages = math.ceil(totalPages)

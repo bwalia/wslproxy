@@ -2,7 +2,7 @@ name: "Print k3s pods, services, ingress for - whitefalcon INT, TEST, ACC"
 
 on:
   push:
-    branches: [ main ]
+    branches: [ dummy ]
   pull_request:
     branches: [ feature/* ]
   workflow_dispatch:
@@ -48,4 +48,4 @@ jobs:
         with:
           ref: "main"
       - name: Print K3s6 cluster info
-        run: chmod +x ./print-cluster-info.sh && ./print-cluster-info.sh "k3s6"
+        run: chmod +x ./print-cluster-info.sh && ./print-cluster-info.sh "k3s2"
