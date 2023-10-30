@@ -6,17 +6,13 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"os"
 	"strings"
 	"testing"
 )
 
 func TestHealthCheck(t *testing.T) {
-	url := os.Getenv("API_PING_URL")
-	if len(url) == 0 {
-		url = "http://localhost:80/ping"
-	}
-	fmt.Println((url))
+	pingUrl := targetHost + "/ping"
+	fmt.Println((pingUrl))
 
 	type pingResp struct {
 		Redis_status string `json:"redis_status_msg"`
@@ -25,7 +21,7 @@ func TestHealthCheck(t *testing.T) {
 	}
 
 	client := &http.Client{}
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest("GET", pingUrl, nil)
 	if err != nil {
 		t.Log(err)
 	}
