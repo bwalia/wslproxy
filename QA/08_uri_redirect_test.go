@@ -21,7 +21,7 @@ func TestRedirectURI(t *testing.T) {
 		ExpectedOutput string
 	}
 	tests := []TestPayload{
-		{RuleName: "Test Rule-305-gotest", ResponseCode: 305, Target: "10.43.81.65:3009", ExpectedOutput: "Login Page"},
+		{RuleName: "Test Rule-305-gotest", ResponseCode: 305, Target: "httpbin.org", ExpectedOutput: "httpbin.org"},
 		{RuleName: "Test Rule-302-gotest", ResponseCode: 302, Target: "https://google.com/", ExpectedOutput: "Google"},
 		{RuleName: "Test Rule-301-gotest", ResponseCode: 301, Target: "https://httpbin.org/", ExpectedOutput: "httpbin.org"},
 	}
