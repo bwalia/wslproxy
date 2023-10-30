@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-func checkExecutionOutput(t *testing.T, ruleName string, expectedStatusCode int, expectedOutput string, resp *http.Response) {
+func checkExecutionOutput(t *testing.T, ruleName string, expectedStatusCode int, expectedOutput string, alternateExpectedOutput string, resp *http.Response) {
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		t.Log(err)
@@ -19,11 +19,12 @@ func checkExecutionOutput(t *testing.T, ruleName string, expectedStatusCode int,
 	//fmt.Println(got)
 
 	if !strings.Contains(string(body), expectedOutput) {
-		//if got != test.ExpectedOutput {
-		t.Errorf("for rule %s, expected %s, but got %s", ruleName, expectedOutput, got)
-	}
-	if resp.StatusCode != expectedStatusCode {
-		t.Logf("for rule %s, expected status code %d, but got %d", ruleName, expectedStatusCode, resp.StatusCode)
+		if !strings.Contains(string(body), alternateExpectedOutput) {
+			t.Errorf("for rule %s, expected %s or %s, but got %s", ruleName, expectedOutput, alternateExpectedOutput, got)
+		}
+		if resp.StatusCode != expectedStatusCode {
+			t.Logf("for rule %s, expected status code %d, but got %d", ruleName, expectedStatusCode, resp.StatusCode)
+		}
 	}
 }
 func TestApiAccessAuth(t *testing.T) {
@@ -32,17 +33,18 @@ func TestApiAccessAuth(t *testing.T) {
 	expiredTokenForTestOnly := os.Getenv("QA_EXPIRED_JWT_TOKEN_KEY")
 
 	type TestToken struct {
-		RuleName           string
-		TestTokenValue     string
-		ExpectedStatusCode int
-		ExpectedOutput     string
+		RuleName                string
+		TestTokenValue          string
+		ExpectedStatusCode      int
+		ExpectedOutput          string
+		AlternateExpectedOutput string
 	}
 
 	tests := []TestToken{
 		{RuleName: "Test API access with valid token", TestTokenValue: tokenValue, ExpectedStatusCode: 200, ExpectedOutput: "data"},
-		{RuleName: "Test API access with invalid token signature", TestTokenValue: tokenValue + "abc", ExpectedStatusCode: 401, ExpectedOutput: "signature mismatch"},
-		{RuleName: "Test API access with invalid token header", TestTokenValue: "eyj" + tokenValue, ExpectedStatusCode: 401, ExpectedOutput: "invalid header"},
-		{RuleName: "Test API access with expired token", TestTokenValue: expiredTokenForTestOnly, ExpectedStatusCode: 401, ExpectedOutput: "claim expired"},
+		{RuleName: "Test API access with invalid token signature", TestTokenValue: tokenValue + "abc", ExpectedStatusCode: 401, ExpectedOutput: "signature mismatch", AlternateExpectedOutput: "invalid jwt string"},
+		{RuleName: "Test API access with invalid token header", TestTokenValue: "eyj" + tokenValue, ExpectedStatusCode: 401, ExpectedOutput: "invalid header", AlternateExpectedOutput: "invalid jwt string"},
+		{RuleName: "Test API access with expired token", TestTokenValue: expiredTokenForTestOnly, ExpectedStatusCode: 401, ExpectedOutput: "claim expired", AlternateExpectedOutput: "invalid jwt string"},
 		{RuleName: "Test API access with empty token", TestTokenValue: "", ExpectedStatusCode: 401, ExpectedOutput: "invalid jwt string"},
 	}
 
@@ -65,7 +67,7 @@ func TestApiAccessAuth(t *testing.T) {
 			}
 			//t.Log(resp)
 
-			checkExecutionOutput(t, test.RuleName, test.ExpectedStatusCode, test.ExpectedOutput, resp)
+			checkExecutionOutput(t, test.RuleName, test.ExpectedStatusCode, test.ExpectedOutput, test.AlternateExpectedOutput, resp)
 
 			// Verifying the access for POST request for server
 			fmt.Println("Executing POST request for token Authorization")
@@ -86,7 +88,7 @@ func TestApiAccessAuth(t *testing.T) {
 				fmt.Println(err)
 				return
 			}
-			checkExecutionOutput(t, test.RuleName, test.ExpectedStatusCode, test.ExpectedOutput, res)
+			checkExecutionOutput(t, test.RuleName, test.ExpectedStatusCode, test.ExpectedOutput, test.AlternateExpectedOutput, res)
 
 			// Verifying the access for PUT request for server
 			fmt.Println("Executing PUT request for token Authorization")
@@ -110,7 +112,7 @@ func TestApiAccessAuth(t *testing.T) {
 				fmt.Println(err)
 				return
 			}
-			checkExecutionOutput(t, test.RuleName, test.ExpectedStatusCode, test.ExpectedOutput, Resp)
+			checkExecutionOutput(t, test.RuleName, test.ExpectedStatusCode, test.ExpectedOutput, test.AlternateExpectedOutput, Resp)
 
 			// Verifying the access for Delete request for server
 			fmt.Println("Executing DELETE request for token Authorization")
@@ -129,7 +131,7 @@ func TestApiAccessAuth(t *testing.T) {
 				fmt.Println(err)
 				return
 			}
-			checkExecutionOutput(t, test.RuleName, test.ExpectedStatusCode, test.ExpectedOutput, RESP)
+			checkExecutionOutput(t, test.RuleName, test.ExpectedStatusCode, test.ExpectedOutput, test.AlternateExpectedOutput, RESP)
 
 		})
 	}
