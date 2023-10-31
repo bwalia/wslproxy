@@ -11,12 +11,17 @@ import (
 	"testing"
 )
 
+var pingUrl string
+
 func TestHealthCheck(t *testing.T) {
-	url := os.Getenv("API_PING_URL")
-	if len(url) == 0 {
-		url = "http://localhost:80/ping"
+	targetHost := os.Getenv("TARGET_HOST")
+	if len(targetHost) != 0 {
+		pingUrl = targetHost + "/ping"
+		fmt.Println(pingUrl)
+	} else {
+		pingUrl = os.Getenv("API_PING_URL")
+		fmt.Println(pingUrl)
 	}
-	fmt.Println((url))
 
 	type pingResp struct {
 		Redis_status string `json:"redis_status_msg"`
@@ -25,7 +30,7 @@ func TestHealthCheck(t *testing.T) {
 	}
 
 	client := &http.Client{}
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest("GET", pingUrl, nil)
 	if err != nil {
 		t.Log(err)
 	}
