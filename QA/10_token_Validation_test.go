@@ -17,10 +17,12 @@ import (
 var ruleAccessAll string
 var ruleAccessApi string
 var jwtToken string
+var nodeAppIP string
 
 func TestCreateRuleForAccessAll(t *testing.T) {
 
 	TestCreateServer(t)
+	nodeAppIP = os.Getenv("NODE_APP_IP")
 
 	type Rule struct {
 		Data struct {
@@ -31,7 +33,7 @@ func TestCreateRuleForAccessAll(t *testing.T) {
 	url := targetHost + "/api/rules"
 	method := "POST"
 
-	payload := strings.NewReader(`{"version":1,"priority":1,"match":{"rules":{"path_key":"starts_with","path":"/","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"equals"},"response":{"allow":true,"code":305,"redirect_uri":"10.43.81.65:3009","message":"undefined"}},"name":"Access All Rule- gotest","profile_id":"test"}`)
+	payload := strings.NewReader(fmt.Sprintf(`{"version":1,"priority":1,"match":{"rules":{"path_key":"starts_with","path":"/","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"equals"},"response":{"allow":true,"code":305,"redirect_uri":"%s","message":"undefined"}},"name":"Access All Rule- gotest","profile_id":"test"}`, nodeAppIP))
 
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, payload)
@@ -82,7 +84,7 @@ func TestCreateRuleForAccessApi(t *testing.T) {
 	url := targetHost + "/api/rules"
 	method := "POST"
 	tokenKey := os.Getenv("JWT_TOKEN_KEY")
-	payload := strings.NewReader(fmt.Sprintf(`{"version":1,"priority":1,"match":{"rules":{"path_key":"starts_with","path":"/api","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"cookie","jwt_token_validation_value":"Authorization","jwt_token_validation_key":"%s"},"response":{"allow":true,"code":305,"redirect_uri":"10.43.81.65:3009","message":"undefined"}},"name":"Access Api Rule-gotest","profile_id":"test"}`, tokenKey))
+	payload := strings.NewReader(fmt.Sprintf(`{"version":1,"priority":1,"match":{"rules":{"path_key":"starts_with","path":"/api","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"cookie","jwt_token_validation_value":"Authorization","jwt_token_validation_key":"%s"},"response":{"allow":true,"code":305,"redirect_uri":"%s","message":"undefined"}},"name":"Access Api Rule-gotest","profile_id":"test"}`, tokenKey, nodeAppIP))
 
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, payload)
@@ -156,15 +158,19 @@ func TestAddRulesWithServer(t *testing.T) {
 	}
 
 	// Call the handle profile API
-	TestHandleProfileAPI(t)
+	if serverName != "localhost" {
+		TestHandleProfileAPI(t)
+	}
 
-	// Calling sync data api
-	TestDataSync(t)
+	// Call the data sync API
+	if serverName != "localhost" {
+		TestDataSync(t)
+	}
 }
 
 func TestVerifyRule(t *testing.T) {
 	// Accessing the data without token
-	url := "http://" + serverName + "/api/v2/sample-data.json"
+	url := "http://" + frontUrl + "/api/v2/sample-data.json"
 
 	client := &http.Client{}
 
@@ -192,7 +198,7 @@ func TestVerifyRule(t *testing.T) {
 	}
 
 	// On homepage
-	URL := "http://" + serverName
+	URL := "http://" + frontUrl
 
 	client = &http.Client{}
 
@@ -201,6 +207,8 @@ func TestVerifyRule(t *testing.T) {
 		t.Log(err)
 		return
 	}
+	time.Sleep(2 * time.Second)
+
 	resp, err = client.Do(req)
 	if err != nil {
 		t.Log(err)
@@ -222,7 +230,7 @@ func TestVerifyRule(t *testing.T) {
 	// login and fetch the token
 
 	for {
-		Url := "http://" + serverName + "/login"
+		Url := "http://" + frontUrl + "/login"
 		method := "POST"
 		Email := os.Getenv("email")
 		Password := os.Getenv("password")
@@ -255,6 +263,7 @@ func TestVerifyRule(t *testing.T) {
 		}
 
 		req.Header.Add("Content-Type", writer.FormDataContentType())
+		time.Sleep(2 * time.Second)
 
 		resp, err := client.Do(req)
 		if err != nil {
@@ -267,7 +276,7 @@ func TestVerifyRule(t *testing.T) {
 		// 	fmt.Println(err)
 		// 	return
 		// }
-		time.Sleep(20 * time.Second)
+		time.Sleep(10 * time.Second)
 		if resp.StatusCode == http.StatusOK {
 			fmt.Println("Login successful!")
 			// fmt.Println(string(body))
@@ -293,7 +302,9 @@ func TestVerifyRule(t *testing.T) {
 	}
 
 	// Accessing the data with the token
-	uRL := "http://" + serverName + "/api/v2/sample-data.json"
+	time.Sleep(2 * time.Second)
+
+	uRL := "http://" + frontUrl + "/api/v2/sample-data.json"
 
 	client = &http.Client{}
 

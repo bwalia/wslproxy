@@ -9,17 +9,20 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 )
 
 var serverId string
 var ruleId string
 var tokenValue string
+var frontUrl string
 
 var targetHost = os.Getenv("TARGET_HOST")
 var serverName = os.Getenv("SERVER_NAME")
 
 // Calling the auth API with the valid credentials to get the access token
 func TestAuthLoginAndFetchToken(t *testing.T) {
+
 	type authResponse struct {
 		Data struct {
 			AccessToken string `json:"accessToken"`
@@ -140,6 +143,13 @@ func TestGetRules(t *testing.T) {
 // Calling the Server API for POST method to create a new server
 func TestCreateServer(t *testing.T) {
 
+	if serverName == "localhost" {
+		frontUrl = "localhost:8000"
+	} else {
+		frontUrl = serverName
+	}
+	//print(frontUrl)
+
 	type Server struct {
 		Data struct {
 			ID string `json:"id"`
@@ -184,6 +194,8 @@ func TestCreateServer(t *testing.T) {
 			serverId = os.Getenv("SERVER_ID_QA")
 		}
 	}
+	//t.Log(serverId)
+
 }
 
 // Calling the Rule API for POST method to create a new rule
@@ -198,9 +210,7 @@ func TestCreateRule(t *testing.T) {
 	url := targetHost + "/api/rules"
 	method := "POST"
 
-	//payload := strings.NewReader(`{"version":1,"priority":1,"match":{"rules":{"path_key":"starts_with","path":"/router","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"equals"},"response":{"allow":true,"code":200,"message":"SGVsbG8gd29ybGQh"}},"name":"API test rule"}`)
-	payload := strings.NewReader(`{"version":1,"priority":1,"match":{"rules":{"path_key":"starts_with","path":"/router","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"equals"},"response":{"allow":true,"code":200,"message":"SGVsbG8gd29ybGQh"}},"name":"API test rule-gotest","profile_id":"test"}`)
-
+	payload := strings.NewReader(`{"version":1,"priority":1,"match":{"rules":{"path_key":"starts_with","path":"/router","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"equals"},"response":{"allow":true,"code":200,"message":"SGVsbG8gd29ybGQh"}},"name":"API_test_rule_gotest","profile_id":"test"}`)
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, payload)
 	if err != nil {
@@ -303,7 +313,7 @@ func TestGetSingleRule(t *testing.T) {
 		t.Error("Unexpected response status code", res.StatusCode)
 		return
 	}
-	if !strings.Contains(string(body), "test rule") {
+	if !strings.Contains(string(body), "API_test_rule") {
 		t.Error("Returned unexpected body")
 		return
 	}
@@ -316,8 +326,7 @@ func TestUpdateRule(t *testing.T) {
 	url := targetHost + "/api/rules/" + ruleId
 	method := "PUT"
 
-	//payload := strings.NewReader(fmt.Sprintf(`{"created_at":1689744334,"match":{"rules":{"path_key":"starts_with","client_ip_key":"equals","country_key":"equals","path":"/router","jwt_token_validation":"equals"},"response":{"allow":false,"code":200,"message":"SGVsbG8gd29ybGQh"}},"version":1,"name":"API Test Rule","priority":1,"id":"%s"}`, ruleId))
-	payload := strings.NewReader(fmt.Sprintf(`{"name":"API Test Rule-gotest","version":1,"match":{"rules":{"country_key":"equals","client_ip_key":"equals","path_key":"starts_with","path":"/router","jwt_token_validation":"equals"},"response":{"code":200,"message":"SGVsbG8gd29ybGQh","allow":true}},"profile_id":"test","created_at":1693981946,"priority":1,"id":"%s"}`, ruleId))
+	payload := strings.NewReader(fmt.Sprintf(`{"name":"API_test_rule_gotest","version":1,"match":{"rules":{"country_key":"equals","client_ip_key":"equals","path_key":"starts_with","path":"/router","jwt_token_validation":"equals"},"response":{"code":200,"message":"SGVsbG8gd29ybGQh","allow":true}},"profile_id":"test","created_at":1693981946,"priority":1,"id":"%s"}`, ruleId))
 
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, payload)
@@ -343,7 +352,7 @@ func TestUpdateRule(t *testing.T) {
 		t.Error("Unexpected response status code", res.StatusCode)
 		return
 	}
-	if !strings.Contains(string(body), "Test Rule") {
+	if !strings.Contains(string(body), "API_test_rule") {
 		t.Error("Returned unexpected body")
 		return
 	}
@@ -387,63 +396,72 @@ func TestUpdateRuleWithServer(t *testing.T) {
 	}
 }
 
-// Calling the handle profile API to work with the profiles
+//Calling the handle profile API to work with the profiles
 func TestHandleProfileAPI(t *testing.T) {
-	url := "http://" + serverName + "/frontdoor/opsapi/handle-profile"
-	payload := strings.NewReader(`{"profile":"test"}`)
+	if serverName != "localhost" {
 
-	client := &http.Client{}
+		url := "http://" + frontUrl + "/frontdoor/opsapi/handle-profile"
+		payload := strings.NewReader(`{"profile":"test"}`)
 
-	req, err := http.NewRequest("POST", url, payload)
-	if err != nil {
-		t.Log(err)
-		return
-	}
-	req.Header.Set("Content-Type", "application/json")
+		client := &http.Client{}
 
-	resp, err := client.Do(req)
-	if err != nil {
-		t.Log(err)
-		return
-	}
-	//t.Log(resp)
+		req, err := http.NewRequest("POST", url, payload)
+		if err != nil {
+			t.Log(err)
+			return
+		}
+		req.Header.Set("Content-Type", "application/json")
 
-	if resp.StatusCode != http.StatusOK {
-		t.Error("Unexpected response status code", resp.StatusCode)
-		return
+		resp, err := client.Do(req)
+		if err != nil {
+			t.Log(err)
+			return
+		}
+		//t.Log(resp)
+
+		if resp.StatusCode != http.StatusOK {
+			t.Error("Unexpected response status code", resp.StatusCode)
+			return
+		}
+
 	}
 
 }
 
 // Calling the sync API to sync the data
 func TestDataSync(t *testing.T) {
-	url := "http://" + serverName + "/frontdoor/opsapi/sync?envprofile=test"
+	if serverName != "localhost" {
 
-	client := &http.Client{}
+		url := "http://" + frontUrl + "/frontdoor/opsapi/sync?envprofile=test"
+		time.Sleep(2 * time.Second)
 
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		t.Log(err)
-		return
+		client := &http.Client{}
+
+		req, err := http.NewRequest("GET", url, nil)
+		if err != nil {
+			t.Log(err)
+			return
+		}
+		resp, err := client.Do(req)
+		if err != nil {
+			t.Log(err)
+			return
+		}
+		//t.Log(resp)
+
+		if resp.StatusCode != http.StatusOK {
+			t.Error("Unexpected response status code", resp.StatusCode)
+			return
+		}
+
 	}
-	resp, err := client.Do(req)
-	if err != nil {
-		t.Log(err)
-		return
-	}
-	//t.Log(resp)
-
-	if resp.StatusCode != http.StatusOK {
-		t.Error("Unexpected response status code", resp.StatusCode)
-		return
-	}
-
 }
 
 // Verifying the response output and the expected results
 func TestServerResponse(t *testing.T) {
-	url := "http://" + serverName + "/router"
+	url := "http://" + frontUrl + "/router"
 
+	time.Sleep(2 * time.Second)
 	client := &http.Client{}
 
 	req, err := http.NewRequest("GET", url, nil)
@@ -478,8 +496,10 @@ func TestServerResponse(t *testing.T) {
 
 // Calling the server API for DELETE method to delete the server
 func TestDeleteServer(t *testing.T) {
-	url := targetHost + "/api/servers"
+	url := targetHost + "/api/servers/"
 	method := "DELETE"
+	time.Sleep(2 * time.Second)
+
 	payload := strings.NewReader(fmt.Sprintf(`{"ids":{"ids":["%s"],"envProfile":"test"}}`, serverId))
 
 	client := &http.Client{}
@@ -496,9 +516,9 @@ func TestDeleteServer(t *testing.T) {
 		return
 	}
 	body, err := ioutil.ReadAll(res.Body)
-	if false {
-		fmt.Println(string(body))
-	}
+	//if false {
+	fmt.Println(string(body))
+	//}
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
@@ -511,8 +531,10 @@ func TestDeleteServer(t *testing.T) {
 func TestDeleteRule(t *testing.T) {
 	executeFunction := os.Getenv("EXECUTE_FUNCTION")
 	if executeFunction == "true" {
-		url := targetHost + "/api/rules"
+		url := targetHost + "/api/rules/"
 		method := "DELETE"
+
+		time.Sleep(2 * time.Second)
 
 		payload := strings.NewReader(fmt.Sprintf(`{"ids":{"ids":["%s"],"envProfile":"test"}}`, ruleId))
 

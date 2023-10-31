@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestHostOverRide(t *testing.T) {
@@ -27,6 +28,8 @@ func TestHostOverRide(t *testing.T) {
 	payload := strings.NewReader((`{"version":1,"priority":1,"match":{"rules":{"path_key":"starts_with","path":"/","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"equals"},"response":{"allow":true,"code":305,"redirect_uri":"httpbin.org","message":"undefined"}},"name":"Test rule host-override-gotest","profile_id":"test"}`))
 
 	client := &http.Client{}
+	time.Sleep(2 * time.Second)
+
 	req, err := http.NewRequest("POST", url, payload)
 	if err != nil {
 		fmt.Println(err)
@@ -60,13 +63,17 @@ func TestHostOverRide(t *testing.T) {
 	TestUpdateRuleWithServer(t)
 
 	// Call the handle profile API
-	TestHandleProfileAPI(t)
+	if serverName != "localhost" {
+		TestHandleProfileAPI(t)
+	}
 
 	// Call the data sync API
-	TestDataSync(t)
+	if serverName != "localhost" {
+		TestDataSync(t)
+	}
 
 	// verifying the host header
-	Url := "http://" + serverName
+	Url := "http://" + frontUrl
 
 	client = &http.Client{}
 	req, err = http.NewRequest("GET", Url, nil)
