@@ -106,7 +106,7 @@ func TestCheckRulePriority(t *testing.T) {
 	}
 
 	// compairing with the response output
-	URL := "http://" + frontdoorUrl
+	URL := "http://" + frontUrl
 
 	client = &http.Client{}
 	req, err = http.NewRequest("GET", URL, nil)

@@ -73,7 +73,7 @@ func TestHostOverRide(t *testing.T) {
 	}
 
 	// verifying the host header
-	Url := "http://" + frontdoorUrl
+	Url := "http://" + frontUrl
 
 	client = &http.Client{}
 	req, err = http.NewRequest("GET", Url, nil)

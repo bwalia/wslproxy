@@ -170,7 +170,7 @@ func TestAddRulesWithServer(t *testing.T) {
 
 func TestVerifyRule(t *testing.T) {
 	// Accessing the data without token
-	url := "http://" + frontdoorUrl + "/api/v2/sample-data.json"
+	url := "http://" + frontUrl + "/api/v2/sample-data.json"
 
 	client := &http.Client{}
 
@@ -198,7 +198,7 @@ func TestVerifyRule(t *testing.T) {
 	}
 
 	// On homepage
-	URL := "http://" + frontdoorUrl
+	URL := "http://" + frontUrl
 
 	client = &http.Client{}
 
@@ -230,7 +230,7 @@ func TestVerifyRule(t *testing.T) {
 	// login and fetch the token
 
 	for {
-		Url := "http://" + frontdoorUrl + "/login"
+		Url := "http://" + frontUrl + "/login"
 		method := "POST"
 		Email := os.Getenv("email")
 		Password := os.Getenv("password")
@@ -304,7 +304,7 @@ func TestVerifyRule(t *testing.T) {
 	// Accessing the data with the token
 	time.Sleep(2 * time.Second)
 
-	uRL := "http://" + frontdoorUrl + "/api/v2/sample-data.json"
+	uRL := "http://" + frontUrl + "/api/v2/sample-data.json"
 
 	client = &http.Client{}
 

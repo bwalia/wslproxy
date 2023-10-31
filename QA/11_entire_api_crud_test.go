@@ -15,7 +15,7 @@ import (
 var serverId string
 var ruleId string
 var tokenValue string
-var frontdoorUrl string
+var frontUrl string
 
 var targetHost = os.Getenv("TARGET_HOST")
 var serverName = os.Getenv("SERVER_NAME")
@@ -144,11 +144,11 @@ func TestGetRules(t *testing.T) {
 func TestCreateServer(t *testing.T) {
 
 	if serverName == "localhost" {
-		frontdoorUrl = "localhost:8000"
+		frontUrl = "localhost:8000"
 	} else {
-		frontdoorUrl = serverName
+		frontUrl = serverName
 	}
-	//print(frontdoorUrl)
+	//print(frontUrl)
 
 	type Server struct {
 		Data struct {
@@ -400,7 +400,7 @@ func TestUpdateRuleWithServer(t *testing.T) {
 func TestHandleProfileAPI(t *testing.T) {
 	if serverName != "localhost" {
 
-		url := "http://" + frontdoorUrl + "/frontdoor/opsapi/handle-profile"
+		url := "http://" + frontUrl + "/frontdoor/opsapi/handle-profile"
 		payload := strings.NewReader(`{"profile":"test"}`)
 
 		client := &http.Client{}
@@ -432,7 +432,7 @@ func TestHandleProfileAPI(t *testing.T) {
 func TestDataSync(t *testing.T) {
 	if serverName != "localhost" {
 
-		url := "http://" + frontdoorUrl + "/frontdoor/opsapi/sync?envprofile=test"
+		url := "http://" + frontUrl + "/frontdoor/opsapi/sync?envprofile=test"
 		time.Sleep(2 * time.Second)
 
 		client := &http.Client{}
@@ -459,7 +459,7 @@ func TestDataSync(t *testing.T) {
 
 // Verifying the response output and the expected results
 func TestServerResponse(t *testing.T) {
-	url := "http://" + frontdoorUrl + "/router"
+	url := "http://" + frontUrl + "/router"
 
 	time.Sleep(2 * time.Second)
 	client := &http.Client{}
