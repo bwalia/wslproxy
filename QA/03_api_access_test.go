@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 )
 
 func checkExecutionOutput(t *testing.T, ruleName string, expectedStatusCode int, expectedOutput string, alternateExpectedOutput string, resp *http.Response) {
@@ -53,6 +54,7 @@ func TestApiAccessAuth(t *testing.T) {
 			// Verifying the access for GET request for rules
 			fmt.Println("Executing GET request for token Authorization")
 			client := &http.Client{}
+			time.Sleep(2 * time.Second)
 
 			req, err := http.NewRequest("GET", targetHost+"/api/rules?_format=json&params={%22pagination%22:{%22page%22:1,%22perPage%22:10},%22sort%22:{%22field%22:%22id%22,%22order%22:%22ASC%22},%22filter%22:{%22profile_id%22:%22test%22}}", nil)
 			if err != nil {

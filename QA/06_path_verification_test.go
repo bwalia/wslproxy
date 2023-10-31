@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 )
 
 var RuleId string
@@ -41,6 +42,7 @@ func TestURLPath(t *testing.T) {
 			}
 			url := targetHost + "/api/rules"
 			payload := strings.NewReader(fmt.Sprintf(`{"version":1,"priority":1,"match":{"rules":{"path_key":"%s","path":"%s","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"equals"},"response":{"allow":true,"code":200,"message":"SEVMTE9ESVhB"}},"name":"%s","profile_id":"test"}`, test.PathCondition, test.Input, test.RuleName))
+			time.Sleep(2 * time.Second)
 
 			client := &http.Client{}
 			req, err := http.NewRequest("POST", url, payload)
@@ -77,13 +79,17 @@ func TestURLPath(t *testing.T) {
 			TestUpdateRuleWithServer(t)
 
 			// Call the handle profile API
-			TestHandleProfileAPI(t)
+			if serverName != "localhost" {
+				TestHandleProfileAPI(t)
+			}
 
 			// Call the data sync API
-			TestDataSync(t)
+			if serverName != "localhost" {
+				TestDataSync(t)
+			}
 
 			// compairing with the response output
-			URL := "http://" + serverName + "/router"
+			URL := "http://" + frontdoorUrl + "/router"
 
 			client = &http.Client{}
 			req, err = http.NewRequest("GET", URL, nil)

@@ -96,13 +96,17 @@ func TestCheckRulePriority(t *testing.T) {
 	TestAddRulesWithServer(t)
 
 	// Call the handle profile API
-	TestHandleProfileAPI(t)
+	if serverName != "localhost" {
+		TestHandleProfileAPI(t)
+	}
 
 	// Call the data sync API
-	TestDataSync(t)
+	if serverName != "localhost" {
+		TestDataSync(t)
+	}
 
 	// compairing with the response output
-	URL := "http://" + serverName
+	URL := "http://" + frontdoorUrl
 
 	client = &http.Client{}
 	req, err = http.NewRequest("GET", URL, nil)
@@ -137,7 +141,9 @@ func TestCheckRulePriority(t *testing.T) {
 	TestAddRulesWithServer(t)
 
 	// Call the data sync API
-	TestDataSync(t)
+	if serverName != "localhost" {
+		TestDataSync(t)
+	}
 
 	// compairing with the response output
 

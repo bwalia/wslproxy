@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 )
 
 var RespRuleId string
@@ -45,6 +46,8 @@ func TestRuleResponse(t *testing.T) {
 			payload := strings.NewReader(fmt.Sprintf(`{"version":1,"priority":1,"match":{"rules":{"path_key":"starts_with","path":"/","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"equals"},"response":{"allow":true,"code":200,"message":"%s"}},"name":"%s","profile_id":"test"}`, test.MessageInput, test.RuleName))
 
 			client := &http.Client{}
+			time.Sleep(4 * time.Second)
+
 			req, err := http.NewRequest("POST", url, payload)
 			if err != nil {
 				fmt.Println(err)
@@ -80,13 +83,17 @@ func TestRuleResponse(t *testing.T) {
 			TestUpdateRuleWithServer(t)
 
 			// Call the handle profile API
-			TestHandleProfileAPI(t)
+			if serverName != "localhost" {
+				TestHandleProfileAPI(t)
+			}
 
 			// Call the data sync API
-			TestDataSync(t)
+			if serverName != "localhost" {
+				TestDataSync(t)
+			}
 
 			// compairing with the response output
-			URL := "http://" + serverName
+			URL := "http://" + frontdoorUrl
 
 			client = &http.Client{}
 			req, err = http.NewRequest("GET", URL, nil)

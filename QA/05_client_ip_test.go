@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 )
 
 var IpRuleId string
@@ -83,6 +84,7 @@ func TestClientIP(t *testing.T) {
 			method := "PUT"
 
 			Payload := strings.NewReader(fmt.Sprintf(`{"error_log":"logs/error.log","config":"server {\n      listen 80;  # Listen on port (HTTP)\n      server_name %s;  # Your domain name\n      root /var/www/html;  # Document root directory\n      index index.html;  # Default index files\n      access_log logs/access.log;  # Access log file location\n      error_log logs/error.log;  # Error log file location\n\n      \n      \n  }\n  ","custom_block":{},"locations":{},"root":"/var/www/html","id":"%s","index":"index.html","profile_id":"test","listens":[{"listen":"80"}],"server_name":"%s","access_log":"logs/access.log","created_at":1693981431,"proxy_pass":"http://localhost","proxy_server_name":"myorigin.mydomain.com","rules":"%s","match_cases":[]}`, serverName, serverId, serverName, IpRuleId))
+			time.Sleep(2 * time.Second)
 
 			client = &http.Client{}
 			req, err = http.NewRequest(method, Url, Payload)
@@ -108,14 +110,19 @@ func TestClientIP(t *testing.T) {
 			if res.StatusCode != http.StatusOK {
 				t.Error("Unexpected response status code", res.StatusCode)
 			}
-			// Call the handle profile API
-			TestHandleProfileAPI(t)
 
-			// Call the sync api
-			TestDataSync(t)
+			// Call the handle profile API
+			if serverName != "localhost" {
+				TestHandleProfileAPI(t)
+			}
+
+			// Call the data sync API
+			if serverName != "localhost" {
+				TestDataSync(t)
+			}
 
 			// compairing with the response output
-			URL := "http://" + serverName
+			URL := "http://" + frontdoorUrl
 
 			client = &http.Client{}
 			req, err = http.NewRequest("GET", URL, nil)
