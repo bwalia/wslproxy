@@ -1,0 +1,28 @@
+FROM ubuntu:22.04
+
+WORKDIR /app
+
+ARG MINIO_ENDPOINT
+ARG MINIO_ACCESS_KEY
+ARG MINIO_SECRET_KEY
+
+ENV endpoint $MINIO_ENDPOINT
+ENV accessKey $MINIO_ACCESS_KEY
+ENV secretKey $MINIO_SECRET_KEY
+
+RUN apt-get update && apt-get install -y curl dpkg openjdk-8-jdk
+
+# Install mc from Minio's GitHub release
+RUN curl -o /usr/local/bin/mc https://dl.min.io/client/mc/release/linux-amd64/mc && \
+    chmod +x /usr/local/bin/mc
+
+RUN mc alias set myminio $endpoint $accessKey $secretKey && \
+    mkdir -p /app/allure-report && chmod -R 777 /app/allure-report && \
+    mc cp --recursive myminio/allure-reports/whitefalcon/allure-results ~/app/allure-report
+
+# Install allure
+ADD allure_2.24.0-1_all.deb /app
+RUN dpkg -i /app/allure_2.24.0-1_all.deb 
+
+# Run the Allure report server
+CMD allure serve -p 9090 /root/app/allure-report/allure-results
