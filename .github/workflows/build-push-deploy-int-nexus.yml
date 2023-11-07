@@ -1,4 +1,4 @@
-name: Build-Push-Deploy whitefalcon Docker Images to Nexus
+name: Build-Push-Deploy whitefalcon Docker Images to INT with Nexus
 on:
   push:
     branches:
