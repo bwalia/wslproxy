@@ -20,7 +20,7 @@ jobs:
       - name: Login to nexus registry
         uses: docker/login-action@v1
         with:
-          registry: ${{ secrets.WSL_NEXUS_REGISTRY }}
+          registry: ${{ secrets.WSL_DOCKER_REGISTRY }}
           username: ${{ secrets.WSL_DOCKER_USER }}
           password: ${{ secrets.WSL_DOCKER_PASSWD }}
      
