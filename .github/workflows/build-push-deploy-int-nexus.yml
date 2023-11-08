@@ -8,6 +8,7 @@ env:
     IMAGE_NAME: "whitefalcon"
     TARGET_IMAGE_TAG: "test"
     TARGET_STACK: openresty_php
+    IMAGE_REGISTRY: ${{ secrets.WSL_NEXUS_REGISTRY }}
 
 jobs:
   build2:
@@ -30,7 +31,7 @@ jobs:
         run: docker tag wsl-${{ env.TARGET_STACK }} ${{ secrets.WSL_NEXUS_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.TARGET_IMAGE_TAG }}
 
       - name: Push Docker image to Nexus
-        run: docker push ${{ secrets.WSL_NEXUS_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.TARGET_IMAGE_TAG }}
+        run: docker push ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}-nodeapp:${{ env.TARGET_IMAGE_TAG }}
 
   # smoke_test2:
   #   runs-on: [int2]
@@ -142,7 +143,7 @@ jobs:
         run: docker tag wsl-${{ env.TARGET_STACK }} ${{ secrets.WSL_NEXUS_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.TARGET_IMAGE_TAG }}
 
       - name: Push Docker image to Nexus
-        run: docker push ${{ secrets.WSL_NEXUS_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.TARGET_IMAGE_TAG }}
+        run: docker push ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}-nodeapp:${{ env.TARGET_IMAGE_TAG }}
 
   # smoke_test10:
   #   runs-on: [self-hosted-node10]
