@@ -2,7 +2,7 @@ name: Build-Push-Deploy whitefalcon Docker Images to INT with Nexus
 on:
   push:
     branches:
-      - main
+      - dixa/test-update
 
 env:
     IMAGE_NAME: "whitefalcon"
