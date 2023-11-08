@@ -1,0 +1,189 @@
+name: Build-Push-Deploy whitefalcon Docker Images to INT with Nexus
+on:
+  push:
+    branches:
+      - main
+
+env:
+    IMAGE_NAME: "whitefalcon"
+    TARGET_IMAGE_TAG: "test"
+    TARGET_STACK: openresty_php
+
+jobs:
+  build2:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Login to nexus registry
+        uses: docker/login-action@v1
+        with:
+          registry: ${{ secrets.WSL_NEXUS_REGISTRY }}
+          username: ${{ secrets.WSL_NEXUS_USER }}
+          password: ${{ secrets.WSL_NEXUS_PASSWD }}
+     
+      - name: Build Docker image
+        run: docker build --build-arg TAG=latest -t wsl-${{ env.TARGET_STACK }} . --no-cache
+
+      - name: Tag Docker image
+        run: docker tag wsl-${{ env.TARGET_STACK }} ${{ secrets.WSL_NEXUS_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.TARGET_IMAGE_TAG }}
+
+      - name: Push Docker image to Nexus
+        run: docker push ${{ secrets.WSL_NEXUS_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.TARGET_IMAGE_TAG }}
+
+  smoke_test2:
+    runs-on: [int2]
+    needs: build2
+
+  deploy2:
+    runs-on: [int2]
+    needs: smoke_test2
+    steps:
+      - name: checkout the repo code
+        uses: actions/checkout@v2 
+        with:
+          ref: "main"
+      - name: Deploy whitefalcon api gw to k3s2 onto the int env
+        run: chmod +x ./deploy-to-kubernetes.sh && ./deploy-to-kubernetes.sh "${{ secrets.WSL_NEXUS_USER }}" "${{ secrets.WSL_NEXUS_PASSWD }}" "k3s2" "int" "both" "${{ env.IMAGE_NAME }}" "${{ env.IMAGE_TAG }}"
+
+  healthcheck2:
+    runs-on: [int2]
+    needs: deploy2 
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.19
+      - name: Ping verification
+        working-directory: ./QA
+        env:
+          API_PING_URL: http://api.int2.whitefalcon.io/ping
+          API_PING_NODE: node2
+        run: | 
+          go mod init myapp
+          go test 01_healthcheck_test.go -v 
+                
+  build6:
+    runs-on: ubuntu-latest
+    needs: healthcheck2 
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Login to nexus registry
+        uses: docker/login-action@v1
+        with:
+          registry: ${{ secrets.WSL_NEXUS_REGISTRY }}
+          username: ${{ secrets.WSL_NEXUS_USER }}
+          password: ${{ secrets.WSL_NEXUS_PASSWD }}
+
+      - name: Build Docker image
+        run: docker build --build-arg TAG=latest -t wsl-${{ env.TARGET_STACK }} . --no-cache
+
+      - name: Tag Docker image
+        run: docker tag wsl-${{ env.TARGET_STACK }} ${{ secrets.WSL_NEXUS_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.TARGET_IMAGE_TAG }}
+
+      - name: Push Docker image to Nexus
+        run: docker push ${{ secrets.WSL_NEXUS_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.TARGET_IMAGE_TAG }}
+
+  smoke_test6:
+    runs-on: [self-hosted-node6]
+    needs: build6
+
+  deploy6:
+    runs-on: [self-hosted-node6]
+    needs: smoke_test6
+    steps:
+      - name: checkout the repo code
+        uses: actions/checkout@v2 
+        with:
+          ref: "main"
+      - name: Deploy whitefalcon api gw to k3s6 onto the int env
+        run: chmod +x ./deploy-to-kubernetes.sh && ./deploy-to-kubernetes.sh "${{ secrets.WSL_NEXUS_USER }}" "${{ secrets.WSL_NEXUS_PASSWD }}" "k3s6" "int" "both" "${{ env.IMAGE_NAME }}" "${{ env.IMAGE_TAG }}"
+
+  healthcheck6:
+    runs-on: [self-hosted-node6]
+    needs: deploy6 
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.19
+      - name: Ping verification
+        working-directory: ./QA
+        env:
+          API_PING_URL: http://api.int6.whitefalcon.io/ping
+          API_PING_NODE: node6
+        run: | 
+          go mod init myapp
+          go test 01_healthcheck_test.go -v 
+                                
+  build10:
+    runs-on: ubuntu-latest
+    needs: healthcheck6   
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Login to nexus registry
+        uses: docker/login-action@v1
+        with:
+          registry: ${{ secrets.WSL_NEXUS_REGISTRY }}
+          username: ${{ secrets.WSL_NEXUS_USER }}
+          password: ${{ secrets.WSL_NEXUS_PASSWD }}
+     
+      - name: Build Docker image
+        run: docker build --build-arg TAG=latest -t wsl-${{ env.TARGET_STACK }} . --no-cache
+
+      - name: Tag Docker image
+        run: docker tag wsl-${{ env.TARGET_STACK }} ${{ secrets.WSL_NEXUS_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.TARGET_IMAGE_TAG }}
+
+      - name: Push Docker image to Nexus
+        run: docker push ${{ secrets.WSL_NEXUS_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.TARGET_IMAGE_TAG }}
+
+  smoke_test10:
+    runs-on: [self-hosted-node10]
+    needs: build10
+
+  deploy10:
+    runs-on: [self-hosted-node10]
+    needs: smoke_test10
+    steps:
+      - name: checkout the repo code
+        uses: actions/checkout@v2 
+        with:
+          ref: "main"
+      - name: Deploy whitefalcon api gw to k3s10 onto the int env
+        run: chmod +x ./deploy-to-kubernetes.sh && ./deploy-to-kubernetes.sh "${{ secrets.WSL_NEXUS_USER }}" "${{ secrets.WSL_NEXUS_PASSWD }}" "k3s10" "int" "both" "${{ env.IMAGE_NAME }}" "${{ env.IMAGE_TAG }}"
+
+  healthcheck10:
+    runs-on: [self-hosted-node10]
+    needs: deploy10
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.19
+      - name: Ping verification
+        working-directory: ./QA
+        env:
+          API_PING_URL: http://api.int10.whitefalcon.io/ping
+          API_PING_NODE: node10
+        run: | 
+          go mod init myapp
+          go test 01_healthcheck_test.go -v 
+
+      # - name: Slack Notification for WhiteFalcon 
+      #   uses: rtCamp/action-slack-notify@v2
+      #   env:
+      #     SLACK_CHANNEL: general
+      #     SLACK_COLOR: ${{ job.status }}
+      #     SLACK_ICON: https://github.com/rtCamp.png?size=48
+      #     SLACK_MESSAGE: 'Post Content :rocket:'
+      #     SLACK_TITLE: Post Title
+      #     SLACK_USERNAME: rtCamp
+      #     SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}                                                                
