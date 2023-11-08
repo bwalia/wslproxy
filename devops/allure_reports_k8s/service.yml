@@ -1,0 +1,20 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: qa-allure-service-ingress
+  namespace: qa 
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: qa.workstation.co.uk
+      http:
+        paths:
+          - backend:
+              service:
+                name: qa-allure-service
+                port:
+                  number: 9090
+
+            path: /
+            pathType: Prefix
+   

@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: qa-allure-service-deployment
+  namespace: qa
+spec:
+  selector:
+    matchLabels:
+      app: qa-allure-service-pod
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: qa-allure-service-pod
+    spec:
+      containers:
+        - name: qa-allure-service-container
+          image: docker.workstation.co.uk/whitefalcon-qa:latest
+          resources:
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 9090
