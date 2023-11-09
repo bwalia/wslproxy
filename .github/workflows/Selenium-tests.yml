@@ -104,7 +104,7 @@ jobs:
     runs-on: [self-hosted-node6]
     steps:
       - name: Restart qa reports Pod
-        working-directory: ./devops/allure_reports_k8s
+        working-directory: devops/allure_reports_k8s
         run: |
           pwd
           kubectl delete -f deployment.yml
