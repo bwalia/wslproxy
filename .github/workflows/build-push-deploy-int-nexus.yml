@@ -7,7 +7,7 @@ on:
 env:
     IMAGE_NAME: "whitefalcon"
     TARGET_IMAGE_TAG: "test"
-    TARGET_STACK: openresty_php
+    TARGET_STACK: openresty
     IMAGE_REGISTRY: ${{ secrets.WSL_NEXUS_REGISTRY }}
 
 jobs:
@@ -21,7 +21,7 @@ jobs:
         run: docker login -u ${{ secrets.WSL_NEXUS_USER }} -p ${{ secrets.WSL_NEXUS_PASSWD }} ${{ env.IMAGE_REGISTRY }}
      
       - name: Build Docker image
-        run: docker build --build-arg TAG=latest -t wsl-${{ env.TARGET_STACK }} . --no-cache
+        run: docker build -t wsl-${{ env.TARGET_STACK }} . --no-cache
 
       - name: Tag Docker image
         run: docker tag wsl-${{ env.TARGET_STACK }} ${{ secrets.WSL_NEXUS_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.TARGET_IMAGE_TAG }}
@@ -30,11 +30,11 @@ jobs:
         run: docker push ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.TARGET_IMAGE_TAG }}
 
   # smoke_test2:
-  #   runs-on: [int2]
+  #   runs-on: [self-hosted-node6]
   #   needs: build2
 
   deploy2:
-    runs-on: [int2]
+    runs-on: [self-hosted-node6]
     needs: build2
     steps:
       - name: checkout the repo code
@@ -45,7 +45,7 @@ jobs:
         run: chmod +x ./deploy-to-kubernetes.sh && ./deploy-to-kubernetes.sh "${{ secrets.WSL_NEXUS_USER }}" "${{ secrets.WSL_NEXUS_PASSWD }}" "k3s2" "int" "both" "${{ env.IMAGE_NAME }}" "${{ env.IMAGE_TAG }}"
 
   healthcheck2:
-    runs-on: [int2]
+    runs-on: [self-hosted-node6]
     needs: deploy2 
     steps:
       - uses: actions/checkout@v3
@@ -57,7 +57,6 @@ jobs:
         working-directory: ./QA
         env:
           API_PING_URL: http://api.int2.whitefalcon.io/ping
-          API_PING_NODE: node2
         run: | 
           go mod init myapp
           go test 01_healthcheck_test.go -v 
@@ -109,7 +108,6 @@ jobs:
         working-directory: ./QA
         env:
           API_PING_URL: http://api.int6.whitefalcon.io/ping
-          API_PING_NODE: node6
         run: | 
           go mod init myapp
           go test 01_healthcheck_test.go -v 
@@ -161,7 +159,6 @@ jobs:
         working-directory: ./QA
         env:
           API_PING_URL: http://api.int10.whitefalcon.io/ping
-          API_PING_NODE: node10
         run: | 
           go mod init myapp
           go test 01_healthcheck_test.go -v 
