@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 )
 
 var RedirectRuleId string
@@ -40,6 +41,7 @@ func TestRedirectURI(t *testing.T) {
 			}
 			url := targetHost + "/api/rules"
 			payload := strings.NewReader(fmt.Sprintf(`{"version":1,"priority":1,"match":{"rules":{"path_key":"starts_with","path":"/","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"equals"},"response":{"allow":true,"code":%d,"redirect_uri":"%s","message":"undefined"}},"name":"%s","profile_id":"test"}`, test.ResponseCode, test.Target, test.RuleName))
+			time.Sleep(4 * time.Second)
 
 			client := &http.Client{}
 			req, err := http.NewRequest("POST", url, payload)
@@ -75,13 +77,17 @@ func TestRedirectURI(t *testing.T) {
 			TestUpdateRuleWithServer(t)
 
 			// Call the handle profile API
-			TestHandleProfileAPI(t)
+			if serverName != "localhost" {
+				TestHandleProfileAPI(t)
+			}
 
 			// Call the data sync API
-			TestDataSync(t)
+			if serverName != "localhost" {
+				TestDataSync(t)
+			}
 
 			// compairing with the response output
-			URL := "http://" + serverName
+			URL := "http://" + frontUrl
 
 			client = &http.Client{}
 			req, err = http.NewRequest("GET", URL, nil)

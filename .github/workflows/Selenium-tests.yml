@@ -101,5 +101,17 @@ jobs:
           source_dir: './QA/allureResults'
           target_dir: '/whitefalcon/allure-results'
 
+  qa_report_refresh:
+    runs-on: [self-hosted]
+    steps:
+      - name: Restart qa reports Pod
+        working-directory: ./devops/allure_reports_k8s
+        run: |
+          kubectl delete -f deployment.yml
+          kubectl apply -f deployment.yml
+          kubectl apply -f service.yml
+          kubectl apply -f ingress.yml
+
+        
 
           

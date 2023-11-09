@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: qa-allure-service
+spec:
+  type: ClusterIP
+  selector:
+    app: qa-allure-service-pod
+  ports:
+    - port: 9090
+      targetPort: 9090
