@@ -107,10 +107,10 @@ jobs:
         working-directory: devops/allure_reports_k8s
         run: |
           pwd
-          kubectl delete -f deployment.yml
-          kubectl apply -f deployment.yml
-          kubectl apply -f service.yml
-          kubectl apply -f ingress.yml
+          kubectl delete -f deployment.yml -n qa
+          kubectl apply -f deployment.yml -n qa
+          kubectl apply -f service.yml -n qa
+          kubectl apply -f ingress.yml -n qa
 
         
 
