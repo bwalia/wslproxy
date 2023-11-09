@@ -34,7 +34,7 @@ env:
   LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
   LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
   JWT_TOKEN_KEY: ${{ secrets.JWT_TOKEN_KEY }}
-  STORAGE_TYPE: ${{ github.event.inputs.STORAGE_TYPE }} 
+  STORAGE_TYPE: ${{ github.event.inputs.STORAGE_TYPE || 'redis' }} 
   DEPLOY_ALLURE_REPORT: ${{ inputs.DEPLOY_ALLURE_REPORT }}
   MINIO_ENDPOINT: ${{ secrets.MINIO_ENDPOINT }}
   MINIO_ACCESS_KEY: ${{ secrets.MINIO_ACCESS_KEY }}
@@ -53,10 +53,9 @@ jobs:
       - run: chrome --version
           
       - name: Build docker image for selenium tests
-        working-directory: ./QA
         run: |
           docker pull dixajangid/selenium-base:latest
-          docker build --no-cache --build-arg MINIO_ENDPOINT=$MINIO_ENDPOINT --build-arg MINIO_ACCESS_KEY=$MINIO_ACCESS_KEY --build-arg MINIO_SECRET_KEY=$MINIO_SECRET_KEY -t selenium-tests -f Dockerfile_qa .
+          docker build --no-cache --build-arg MINIO_ENDPOINT=$MINIO_ENDPOINT --build-arg MINIO_ACCESS_KEY=$MINIO_ACCESS_KEY --build-arg MINIO_SECRET_KEY=$MINIO_SECRET_KEY -t selenium-tests -f QA/Dockerfile_qa .
 
       - name: Test execution
         working-directory: ./QA
@@ -107,6 +106,7 @@ jobs:
       - name: Restart qa reports Pod
         working-directory: ./devops/allure_reports_k8s
         run: |
+          pwd
           kubectl delete -f deployment.yml
           kubectl apply -f deployment.yml
           kubectl apply -f service.yml
