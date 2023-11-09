@@ -101,7 +101,7 @@ jobs:
           target_dir: '/whitefalcon/allure-results'
 
   qa_report_refresh:
-    runs-on: [hemel-node-2]
+    runs-on: [self-hosted]
     steps:
       - name: Restart qa reports Pod
         working-directory: devops/allure_reports_k8s
