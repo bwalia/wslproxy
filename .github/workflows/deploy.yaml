@@ -16,6 +16,7 @@ on:
           - k3s6
           - k3s10
           - k3s2
+          - k3s3
 
 env:
   TARGET_ENV: "prod"

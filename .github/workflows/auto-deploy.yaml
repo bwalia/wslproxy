@@ -2,7 +2,7 @@ name: "INT - Build and Auto Deploy Whitefalcon"
 
 on:
   push:
-    branches: [ main ]
+    branches: [ dummy ]
   pull_request:
     branches: [ feature/* ]
 
@@ -43,9 +43,20 @@ jobs:
           push: true
           tags: bwalia/node-app:latest
 
+  deploy3:
+    runs-on: [ams01]
+    needs: docker
+    steps:
+      - name: checkout the repo code
+        uses: actions/checkout@v2 
+        with:
+          ref: "main"
+      - name: Deploy whitefalcon api gw to k3s3 onto the int env
+        run: chmod +x ./deploy-to-kubernetes.sh && ./deploy-to-kubernetes.sh "${{ secrets.DOCKER_USER }}" "${{ secrets.DOCKER_PASSWD }}" "k3s3" "int" "both" "${{ env.IMAGE_NAME }}" "${{ env.IMAGE_TAG }}"
+
   deploy2:
     runs-on: [int2]
-    needs: docker
+    needs: deploy3
     steps:
       - name: checkout the repo code
         uses: actions/checkout@v2 
@@ -88,7 +99,7 @@ jobs:
   #         go mod init myapp
   #         go test 01_healthcheck_test.go -v 
   
-  healthcheck6:
+  healthcheck2:
     runs-on: [int2]
     needs: [ deploy2 ]
     steps:

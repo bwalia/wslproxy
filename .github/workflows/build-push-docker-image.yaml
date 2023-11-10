@@ -3,7 +3,7 @@ name: Build and Push WhiteFalcon Docker Image to Docker Hub
 on:
   push:
     branches:
-      - 'build'
+      - 'dummy'
   workflow_dispatch:
     inputs:
       IMAGE_TAG:
