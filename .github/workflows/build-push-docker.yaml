@@ -3,7 +3,7 @@ name: Push Node App Docker Images to Docker
 on:
   push:
     branches:
-      - main
+      - dummy
 
 env:
     IMAGE_NAME: "whitefalcon"

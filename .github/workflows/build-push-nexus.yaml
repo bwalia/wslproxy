@@ -3,7 +3,7 @@ name: Push Node app Docker Images to Nexus
 on:
   push:
     branches:
-      - main
+      - dummy
 
 env:
     IMAGE_NAME: "whitefalcon"

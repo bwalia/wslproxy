@@ -24,5 +24,7 @@ RUN mc alias set myminio $endpoint $accessKey $secretKey && \
 ADD allure_2.24.0-1_all.deb /app
 RUN dpkg -i /app/allure_2.24.0-1_all.deb 
 
+EXPOSE 9090
+
 # Run the Allure report server
 CMD allure serve -p 9090 /root/app/allure-report/allure-results
