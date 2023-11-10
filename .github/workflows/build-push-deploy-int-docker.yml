@@ -33,11 +33,11 @@ jobs:
           tags: docker.workstation.co.uk/node-app:latest
 
   # smoke_test2:
-  #   runs-on: [self-hosted-node6]
+  #   runs-on: [int2]
   #   needs: build2
 
   deploy2:
-    runs-on: [self-hosted-node6]
+    runs-on: [int2]
     needs: build
     steps:
       - name: checkout the repo code
@@ -48,7 +48,7 @@ jobs:
         run: chmod +x ./deploy-to-kubernetes.sh && ./deploy-to-kubernetes.sh "${{ secrets.WSL_DOCKER_USER }}" "${{ secrets.WSL_DOCKER_PASSWD }}" "k3s2" "int" "both" "${{ env.IMAGE_NAME }}" "${{ env.IMAGE_TAG }}"
 
   healthcheck2:
-    runs-on: [self-hosted-node6]
+    runs-on: [int2]
     needs: deploy2 
     steps:
       - uses: actions/checkout@v3
@@ -66,11 +66,11 @@ jobs:
  
 
   # smoke_test3:
-  #   runs-on: [ams01]
+  #   runs-on: [label-node3]
   #   needs: build
 
   deploy3:
-    runs-on: [ams01]
+    runs-on: [label-node3]
     needs: healthcheck2
     steps:
       - name: checkout the repo code
@@ -81,7 +81,7 @@ jobs:
         run: chmod +x ./deploy-to-kubernetes.sh && ./deploy-to-kubernetes.sh "${{ secrets.WSL_DOCKER_USER }}" "${{ secrets.WSL_DOCKER_PASSWD }}" "k3s3" "int" "both" "${{ env.IMAGE_NAME }}" "${{ env.IMAGE_TAG }}"
 
   healthcheck3:
-    runs-on: [ams01]
+    runs-on: [label-node3]
     needs: deploy3 
     steps:
       - uses: actions/checkout@v3
