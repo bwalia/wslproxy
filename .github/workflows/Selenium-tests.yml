@@ -34,7 +34,7 @@ env:
   LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
   LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
   JWT_TOKEN_KEY: ${{ secrets.JWT_TOKEN_KEY }}
-  STORAGE_TYPE: ${{ github.event.inputs.STORAGE_TYPE }} 
+  STORAGE_TYPE: ${{ github.event.inputs.STORAGE_TYPE || 'redis' }} 
   DEPLOY_ALLURE_REPORT: ${{ inputs.DEPLOY_ALLURE_REPORT }}
   MINIO_ENDPOINT: ${{ secrets.MINIO_ENDPOINT }}
   MINIO_ACCESS_KEY: ${{ secrets.MINIO_ACCESS_KEY }}
