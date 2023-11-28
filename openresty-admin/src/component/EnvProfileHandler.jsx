@@ -16,26 +16,26 @@ import {
 const EnvProfileHandler = ({ open, onClose, title, content }) => {
     const [profileData, setProfileData] = React.useState({});
     const dataProvider = useDataProvider();
-    // const params = {
-    //     "pagination": {
-    //         "page": 1,
-    //         "perPage": 1000
-    //     },
-    //     "sort": {
-    //         "field": "id",
-    //         "order": "ASC"
-    //     },
-    //     "filter": {}
-    // }
-    // React.useEffect(() => {
-    //     const profileList = dataProvider.getList("profiles", params)
-    //     profileList.then(profiles => {
-    //         setProfileData(profiles?.data)
-    //     })
-    // }, [profileData])
+    const params = {
+        "pagination": {
+            "page": 1,
+            "perPage": 1000
+        },
+        "sort": {
+            "field": "id",
+            "order": "ASC"
+        },
+        "filter": {}
+    }
+    React.useEffect(() => {
+        const profileList = dataProvider.getList("profiles", params)
+        profileList.then(profiles => {
+            setProfileData(profiles?.data)
+        })
+    }, [])
     const [profile, setProfile] = React.useState('');
-
     const handleChange = (event) => {
+        localStorage.setItem('environment', event.target.value);
         setProfile(event.target.value);
         dataProvider.profileUpdate("frontdoor/opsapi/handle-profile", {profile: event.target.value})
     };
@@ -52,11 +52,9 @@ const EnvProfileHandler = ({ open, onClose, title, content }) => {
                         label="Profile"
                         onChange={handleChange}
                     >
-                        <MenuItem value={"prod"}>Prod</MenuItem>
-                        <MenuItem value={"acc"}>Acc</MenuItem>
-                        <MenuItem value={"test"}>Test</MenuItem>
-                        <MenuItem value={"dev"}>Dev</MenuItem>
-                        <MenuItem value={"int"}>Int</MenuItem>
+                        {profileData.length && profileData.map((profile) => (
+                            <MenuItem value={profile.id}>{profile.name}</MenuItem>
+                        ))}
                     </Select>
                 </FormControl>
             </DialogContent>
