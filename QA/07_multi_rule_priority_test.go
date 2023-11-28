@@ -96,9 +96,7 @@ func TestCheckRulePriority(t *testing.T) {
 	TestAddRulesWithServer(t)
 
 	// Call the handle profile API
-	if serverName != "localhost" {
-		TestHandleProfileAPI(t)
-	}
+	TestHandleProfileAPI(t)
 
 	// Call the data sync API
 	if serverName != "localhost" {
@@ -144,6 +142,7 @@ func TestCheckRulePriority(t *testing.T) {
 	if serverName != "localhost" {
 		TestDataSync(t)
 	}
+	TestHandleProfileAPI(t)
 
 	// compairing with the response output
 
