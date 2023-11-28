@@ -112,9 +112,7 @@ func TestClientIP(t *testing.T) {
 			}
 
 			// Call the handle profile API
-			if serverName != "localhost" {
-				TestHandleProfileAPI(t)
-			}
+			TestHandleProfileAPI(t)
 
 			// Call the data sync API
 			if serverName != "localhost" {

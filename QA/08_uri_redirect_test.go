@@ -77,9 +77,7 @@ func TestRedirectURI(t *testing.T) {
 			TestUpdateRuleWithServer(t)
 
 			// Call the handle profile API
-			if serverName != "localhost" {
-				TestHandleProfileAPI(t)
-			}
+			TestHandleProfileAPI(t)
 
 			// Call the data sync API
 			if serverName != "localhost" {

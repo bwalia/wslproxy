@@ -100,7 +100,6 @@ class Test_ClassPathRule(TestBaseClass):
         wait_for_element(By.NAME, "match.response.allow").click()
         wait_for_element(By.NAME, "match.response.message").send_keys("RXF1YWwgcGF0aCBwYXNzCg==")
         wait_for_element(By.CSS_SELECTOR, ".MuiButton-sizeMedium").click()
-        driver.refresh()
 
         # Apply rules to the server
 
@@ -164,9 +163,7 @@ class Test_ClassPathRule(TestBaseClass):
         wait_for_element(By.XPATH, "//a[@href='#/servers']").click()
         wait_for_element(By.XPATH, f"//td[contains(.,'{server_name}')]").click()
         wait_for_element(By.XPATH, "//a[@id='tabheader-1']").click()
-        driver.refresh()
         driver.back()
-        driver.execute_script("location.reload()")
 
         # Clicking the sync API button
         time.sleep(4)
@@ -174,27 +171,29 @@ class Test_ClassPathRule(TestBaseClass):
         sync_button.click()
         time.sleep(4)
 
+        if server_name == "localhost":
+            frontUrl = "localhost:8000"
+        else: 
+            frontUrl = server_name
+            
         # Verifying the rule 'Starts with'
-        driver.get("http://"+server_name+"/route")
+        driver.get("http://"+frontUrl+"/route")
         time.sleep(4)
-        driver.refresh()
         response1 = wait_for_element(By.CSS_SELECTOR, "body").text
         assert "starts with" in response1
         print(response1)
         
         # Verifying the rule 'Ends with'
-        driver.get("http://"+server_name+"/outer")
+        driver.get("http://"+frontUrl+"/outer")
         time.sleep(2)
-        driver.refresh()
         time.sleep(2)
         response2 = wait_for_element(By.CSS_SELECTOR, "body").text
         assert "ends with" in response2
         print(response2)
 
         # Verifying the rule 'Equals'
-        driver.get("http://"+server_name+"/path")
+        driver.get("http://"+frontUrl+"/path")
         time.sleep(4)
-        driver.refresh()
         response3 = wait_for_element(By.CSS_SELECTOR, "body").text
         assert "Equal" in response3
         print(response3)

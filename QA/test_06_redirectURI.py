@@ -90,7 +90,6 @@ class TestClass(TestBaseClass):
         wait_for_element(By.NAME, "match.response.allow").click()
         wait_for_element(By.NAME, "match.response.redirect_uri").send_keys("https://hub.docker.com/")
         wait_for_element(By.CSS_SELECTOR, ".MuiButton-sizeMedium").click()
-        driver.refresh()
 
         # Apply rules to the server
         time.sleep(2)
@@ -153,7 +152,6 @@ class TestClass(TestBaseClass):
         wait_for_element(By.XPATH, "//a[@href='#/servers']").click()
         wait_for_element(By.XPATH, f"//td[contains(.,'{server_name}')]").click()
         wait_for_element(By.XPATH, "//a[@id='tabheader-1']").click()
-        driver.refresh()
         driver.back()
 
         # Clicking the sync API button
@@ -162,10 +160,14 @@ class TestClass(TestBaseClass):
         sync_button.click()
         time.sleep(4)
 
+        if server_name == "localhost":
+            frontUrl = "localhost:8000"
+        else: 
+            frontUrl = server_name
+            
         # Verifying the rule redirect with 305
-        driver.get("http://"+server_name+"/")
+        driver.get("http://"+frontUrl+"/")
         time.sleep(2)
-        driver.refresh()
         time.sleep(2)
         response1 = wait_for_element(By.XPATH, "//h2[@class='title']").text
         assert "httpbin.org" in response1
@@ -174,10 +176,10 @@ class TestClass(TestBaseClass):
         # Verifying the rule redirect with 302
         time.sleep(2)
         try:
-            driver.get("http://"+server_name+"/google")
+            driver.get("http://"+frontUrl+"/google")
             time.sleep(4)
         except:
-            driver.get("http://"+server_name+"/google")
+            driver.get("http://"+frontUrl+"/google")
             time.sleep(4)
 
         try:
@@ -185,7 +187,6 @@ class TestClass(TestBaseClass):
             assert "Google Search" in response2
             #print(response2)
         except:
-            driver.refresh()
             time.sleep(4)
             response2 = wait_for_element(By.NAME, "btnK").get_attribute("value")
             assert "Google Search" in response2
@@ -194,10 +195,10 @@ class TestClass(TestBaseClass):
         # Verifying the rule redirect with 301
         time.sleep(2)
         try:
-            driver.get("http://"+server_name+"/docker")
+            driver.get("http://"+frontUrl+"/docker")
             time.sleep(4)
         except:
-            driver.get("http://"+server_name+"/docker")
+            driver.get("http://"+frontUrl+"/docker")
             time.sleep(4)
 
         try:
@@ -205,8 +206,6 @@ class TestClass(TestBaseClass):
             assert "Docker Hub" in response3
             #print(response3)
         except:
-            time.sleep(2)
-            driver.refresh()
             time.sleep(4)
             response3 = wait_for_element(By.XPATH, "//div[@class='styles-module__subtitle___WKocD']").text
             assert "Docker Hub" in response3

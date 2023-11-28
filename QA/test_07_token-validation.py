@@ -16,6 +16,8 @@ class TestClass(TestBaseClass):
         driver = self.driver
         targetHost = os.environ.get('TARGET_HOST')
         server_name = os.environ.get('SERVER_NAME')
+        nodeAppIp = os.environ.get('NODE_APP_IP')
+
 
         wait = WebDriverWait(driver, 15)
 
@@ -39,7 +41,7 @@ class TestClass(TestBaseClass):
         length = len(element.get_attribute("value"))
         element.send_keys(Keys.BACKSPACE * length)
         element.send_keys("305")
-        wait_for_element(By.NAME, "match.response.redirect_uri").send_keys("10.43.81.65:3009")
+        wait_for_element(By.NAME, "match.response.redirect_uri").send_keys(nodeAppIp)
         driver.execute_script("window.scrollBy(0, document.body.scrollHeight);")
         wait_for_element(By.CSS_SELECTOR, ".MuiButton-sizeMedium").click()
 
@@ -71,10 +73,10 @@ class TestClass(TestBaseClass):
         length = len(element.get_attribute("value"))
         element.send_keys(Keys.BACKSPACE * length)
         element.send_keys("305")
-        wait_for_element(By.NAME, "match.response.redirect_uri").send_keys("10.43.81.65:3009")
+        
+        wait_for_element(By.NAME, "match.response.redirect_uri").send_keys(nodeAppIp)
         driver.execute_script("window.scrollBy(0, document.body.scrollHeight);")
         wait_for_element(By.CSS_SELECTOR, ".MuiButton-sizeMedium").click()
-        driver.refresh()
 
         # Apply both rules to the server
         wait_for_element(By.XPATH, "//a[@href='#/servers']").click()
@@ -118,9 +120,7 @@ class TestClass(TestBaseClass):
         wait_for_element(By.XPATH, "//a[@href='#/servers']").click()
         wait_for_element(By.XPATH, f"//td[contains(.,'{server_name}')]").click()
         wait_for_element(By.XPATH, "//a[@id='tabheader-1']").click()
-        driver.refresh()
         driver.back()
-        driver.execute_script("location.reload()")
 
         # Clicking the sync API button
         time.sleep(4)
@@ -130,10 +130,14 @@ class TestClass(TestBaseClass):
 
         driver.delete_all_cookies()
 
-
+        if server_name == "localhost":
+            frontUrl = "localhost:8000"
+        else: 
+            frontUrl = server_name
+            
         # Accessing API without Authorization token in cookies
         time.sleep(2)
-        driver.get("http://"+server_name+"/api/v2/sample-data.json")
+        driver.get("http://"+frontUrl+"/api/v2/sample-data.json")
         time.sleep(2)
         response1 = wait_for_element(By.XPATH, "//h1[normalize-space()='Configuration not match!']").text
         time.sleep(2)
@@ -142,7 +146,7 @@ class TestClass(TestBaseClass):
 
         # Login and get Authorization cookie
         time.sleep(2)
-        driver.get("http://"+server_name+"/")
+        driver.get("http://"+frontUrl+"/")
         time.sleep(4)
         EMAIL = os.environ.get('LOGIN_EMAIL')
         PASSWORD = os.environ.get('LOGIN_PASSWORD')
@@ -150,18 +154,13 @@ class TestClass(TestBaseClass):
         wait_for_element(By.NAME, "password").send_keys(PASSWORD)
         wait_for_element(By.CSS_SELECTOR, "button[type='submit']").click()
         time.sleep(2)
-        driver.refresh()
-        driver.execute_script("location.reload()")
-        time.sleep(2)
         login_text = wait_for_element(By.CLASS_NAME, "message-container").text
         assert "Thank you for logging in." in login_text
         print(login_text)
 
         # Accessing API with Authorization token in cookies
-        driver.get("http://"+server_name+"/api/v2/sample-data.json")
+        driver.get("http://"+frontUrl+"/api/v2/sample-data.json")
         time.sleep(4)
-        driver.refresh()
-        driver.execute_script("location.reload()")
         response2 = wait_for_element(By.CSS_SELECTOR, "body pre").text
         assert "smartphones" in response2
         #print(response2)

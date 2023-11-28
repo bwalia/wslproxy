@@ -76,7 +76,6 @@ class Test_ClassClientIP(TestBaseClass):
         wait_for_element(By.NAME, "match.response.message").send_keys("Y2xpZW50LWlwLW1hdGNoZWQ=")
         wait_for_element(By.CSS_SELECTOR, ".MuiButton-sizeMedium").click()
         time.sleep(2)
-        driver.refresh()
 
     # Creating rule for allow request when the client IP is matched with the condition starts with
 
@@ -106,7 +105,6 @@ class Test_ClassClientIP(TestBaseClass):
         wait_for_element(By.NAME, "match.response.allow").click()
         wait_for_element(By.NAME, "match.response.message").send_keys("Y2xpZW50LWlwLW1hdGNoZWQ=")
         wait_for_element(By.CSS_SELECTOR, ".MuiButton-sizeMedium").click()
-        driver.refresh()
 
         # Apply rules to the server
         time.sleep(2)
@@ -170,9 +168,7 @@ class Test_ClassClientIP(TestBaseClass):
         wait_for_element(By.XPATH, "//a[@href='#/servers']").click()
         wait_for_element(By.XPATH, f"//td[contains(.,'{server_name}')]").click()
         wait_for_element(By.XPATH, "//a[@id='tabheader-1']").click()
-        driver.refresh()
         driver.back()
-        driver.execute_script("location.reload()")
 
 
         # Clicking the sync API button
@@ -180,29 +176,31 @@ class Test_ClassClientIP(TestBaseClass):
         sync_button = wait_for_element(By.XPATH, "//button[@aria-label='Sync API Storage']")
         sync_button.click()
         time.sleep(4)
+        
+        if server_name == "localhost":
+            frontUrl = "localhost:8000"
+        else: 
+            frontUrl = server_name
 
         # Verifying the rule with valid client IP
-        driver.get("http://"+server_name+"/valid")
+        driver.get("http://"+frontUrl+"/valid")
         time.sleep(4)
-        driver.refresh()
         response = wait_for_element(By.CSS_SELECTOR, "body").text
         assert "client-ip-matched" in response
         #print(response)
         
     
         # Verifying the rule with invalid client IP
-        driver.get("http://"+server_name+"/invalid")
+        driver.get("http://"+frontUrl+"/invalid")
         time.sleep(4)
-        driver.refresh()
         response = wait_for_element(By.CSS_SELECTOR, "body").text
         assert "Configuration not match" in response
         #print(response)
         
 
         # Verifying the rule with the valid client IP using key starts_with
-        driver.get("http://"+server_name+"/start")
+        driver.get("http://"+frontUrl+"/start")
         time.sleep(4)
-        driver.refresh()
         response = wait_for_element(By.CSS_SELECTOR, "body").text
         assert "client-ip-matched" in response
         print(response)

@@ -82,7 +82,6 @@ class TestClass(TestBaseClass):
         wait_for_element(By.NAME, "match.response.message").send_keys("cnVsZSB3aXRoIGxvdyBwcmlvcml0eQ==")
         wait_for_element(By.CSS_SELECTOR, ".MuiButton-sizeMedium").click()
 
-        driver.refresh()
 
         # Apply both rules to the server
         wait_for_element(By.XPATH, "//a[@href='#/servers']").click()
@@ -128,9 +127,7 @@ class TestClass(TestBaseClass):
         wait_for_element(By.XPATH, "//a[@href='#/servers']").click()
         wait_for_element(By.XPATH, f"//td[contains(.,'{server_name}')]").click()
         wait_for_element(By.XPATH, "//a[@id='tabheader-1']").click()
-        driver.refresh()
         driver.back()
-        driver.execute_script("location.reload()")
 
         # Clicking the sync API button
         time.sleep(4)
@@ -138,15 +135,18 @@ class TestClass(TestBaseClass):
         sync_button.click()
         time.sleep(4)
 
-
+        if server_name == "localhost":
+            frontUrl = "localhost:8000"
+        else: 
+            frontUrl = server_name
+            
     # Verifying the rules'
         try:
-            driver.get("http://"+server_name+"/public")
+            driver.get("http://"+frontUrl+"/public")
         except: 
             time.sleep(2)
-            driver.get("http://"+server_name+"/public")
+            driver.get("http://"+frontUrl+"/public")
         time.sleep(2)
-        driver.refresh()
         response1 = wait_for_element(By.CSS_SELECTOR, "body").text
         time.sleep(2)
         assert "High priority" in response1

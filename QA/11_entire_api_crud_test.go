@@ -398,32 +398,28 @@ func TestUpdateRuleWithServer(t *testing.T) {
 
 //Calling the handle profile API to work with the profiles
 func TestHandleProfileAPI(t *testing.T) {
-	if serverName != "localhost" {
+	url := "http://" + frontUrl + "/frontdoor/opsapi/handle-profile"
+	payload := strings.NewReader(`{"profile":"test"}`)
 
-		url := "http://" + frontUrl + "/frontdoor/opsapi/handle-profile"
-		payload := strings.NewReader(`{"profile":"test"}`)
+	client := &http.Client{}
 
-		client := &http.Client{}
+	req, err := http.NewRequest("POST", url, payload)
+	if err != nil {
+		t.Log(err)
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
 
-		req, err := http.NewRequest("POST", url, payload)
-		if err != nil {
-			t.Log(err)
-			return
-		}
-		req.Header.Set("Content-Type", "application/json")
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Log(err)
+		return
+	}
+	//t.Log(resp)
 
-		resp, err := client.Do(req)
-		if err != nil {
-			t.Log(err)
-			return
-		}
-		//t.Log(resp)
-
-		if resp.StatusCode != http.StatusOK {
-			t.Error("Unexpected response status code", resp.StatusCode)
-			return
-		}
-
+	if resp.StatusCode != http.StatusOK {
+		t.Error("Unexpected response status code", resp.StatusCode)
+		return
 	}
 
 }

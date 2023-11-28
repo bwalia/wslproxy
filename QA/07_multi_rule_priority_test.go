@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 )
 
 var HighPriorityRule string
@@ -93,12 +94,12 @@ func TestCheckRulePriority(t *testing.T) {
 
 	ruleAccessAll = HighPriorityRule
 	ruleAccessApi = LowPriorityRule
+	time.Sleep(2 * time.Second)
 	TestAddRulesWithServer(t)
 
 	// Call the handle profile API
-	if serverName != "localhost" {
-		TestHandleProfileAPI(t)
-	}
+	time.Sleep(2 * time.Second)
+	TestHandleProfileAPI(t)
 
 	// Call the data sync API
 	if serverName != "localhost" {
@@ -138,12 +139,14 @@ func TestCheckRulePriority(t *testing.T) {
 	// Reverse the order of rules attached
 	ruleAccessAll = LowPriorityRule
 	ruleAccessApi = HighPriorityRule
+	time.Sleep(2 * time.Second)
 	TestAddRulesWithServer(t)
 
 	// Call the data sync API
 	if serverName != "localhost" {
 		TestDataSync(t)
 	}
+	TestHandleProfileAPI(t)
 
 	// compairing with the response output
 
@@ -154,6 +157,7 @@ func TestCheckRulePriority(t *testing.T) {
 		return
 	}
 	req.Header.Set("Authorization", "Bearer "+tokenValue)
+	time.Sleep(2 * time.Second)
 	resp, err = client.Do(req)
 	if err != nil {
 		t.Log(err)
