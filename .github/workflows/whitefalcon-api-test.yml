@@ -44,10 +44,13 @@ jobs:
         with:
           go-version: 1.19
 
+      - name: Setup local environment
+        run: |  
+          ./deploy-to-docker.sh "dev" "whitefalcon"
+
       - name: API Test For Rules & Servers
         working-directory: ./QA
         run: |  
-          ./deploy-to-docker.sh "dev" "whitefalcon"
           if [[ "${{ inputs.TARGET_ENV }}" == 'int2' ]]; then
             export TARGET_HOST="http://api.int2.whitefalcon.io"
             export SERVER_NAME="qa.int2.whitefalcon.io"
