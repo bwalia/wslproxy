@@ -47,6 +47,7 @@ jobs:
       - name: Setup local environment
         run: |  
           ./deploy-to-docker.sh "dev" "whitefalcon"
+          ip r
 
       - name: API Test For Rules & Servers
         working-directory: ./QA
