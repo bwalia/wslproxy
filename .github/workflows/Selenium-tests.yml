@@ -8,9 +8,10 @@ on:
       TARGET_ENV:
         type: choice
         description: 'Please choose the Target Environment'
-        default: 'int'
+        default: 'local'
         required: true
         options:
+        - local
         - int
         - test
         - acc
@@ -30,7 +31,7 @@ on:
         type: boolean
 
 env: 
-  TARGET_ENV: ${{ inputs.TARGET_ENV || 'int' }}
+  TARGET_ENV: ${{ inputs.TARGET_ENV || 'local' }}
   LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
   LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
   JWT_TOKEN_KEY: ${{ secrets.JWT_TOKEN_KEY }}
@@ -44,7 +45,7 @@ env:
   
 jobs:
   build:
-    runs-on: [self-hosted-node6]
+    runs-on: ubuntu-latest
     steps:
       - name: Checking out repo
         uses: actions/checkout@v2
@@ -58,17 +59,24 @@ jobs:
           docker build --no-cache --build-arg MINIO_ENDPOINT=$MINIO_ENDPOINT --build-arg MINIO_ACCESS_KEY=$MINIO_ACCESS_KEY --build-arg MINIO_SECRET_KEY=$MINIO_SECRET_KEY -t selenium-tests -f QA/Dockerfile_qa .
 
       - name: Test execution
-        working-directory: ./QA
+        working-directory: ./QA  
         run: |  
           if [[ "${{ github.event.inputs.TARGET_ENV }}" == 'int' ]]; then
             export TARGET_HOST="http://api.int6.whitefalcon.io"
             export SERVER_NAME="qa.int6.whitefalcon.io"
+            export NODE_APP_IP="10.43.81.65:3009"
           elif [[ "${{ github.event.inputs.TARGET_ENV }}" == 'test' ]]; then
             export TARGET_HOST="http://api.test.whitefalcon.io"
             export SERVER_NAME="test.whitefalcon.io"
+            export NODE_APP_IP=""
+          elif [[ "${{ github.event.inputs.TARGET_ENV }}" == 'local' ]]; then
+            export TARGET_HOST="http://localhost:8081"
+            export SERVER_NAME="localhost"
+            export NODE_APP_IP=""
           elif [[ "${{ github.event.inputs.TARGET_ENV }}" == '' ]]; then
-            export TARGET_HOST="http://api.int6.whitefalcon.io"
-            export SERVER_NAME="qa.int6.whitefalcon.io"
+            export TARGET_HOST="http://localhost:8081"
+            export SERVER_NAME="localhost" 
+            export NODE_APP_IP=""           
           else
             echo "Unsupported TARGET_ENV:${{ github.event.inputs.TARGET_ENV }}"
             exit 1

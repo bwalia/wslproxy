@@ -51,7 +51,11 @@ def setup(request):
 
     def handle_profile_api():
         # Calling the handle profile API
-        url = "http://"+server_name+"/frontdoor/opsapi/handle-profile"
+        if server_name == "localhost":
+            frontUrl = "localhost:8000"
+        else: 
+            frontUrl = server_name
+        url = "http://"+frontUrl+"/frontdoor/opsapi/handle-profile"
         body = {"profile":"qa_test"}
         response = requests.post(url, json=body)
         #print(response)
