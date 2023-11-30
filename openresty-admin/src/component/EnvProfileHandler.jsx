@@ -44,12 +44,9 @@ const EnvProfileHandler = ({ open, onClose, title, content }) => {
             const ruleFilter = { ...ruleProfileFilter };
             ruleFilter.filter.profile_id = event.target.value
             setRuleProfileFilter(ruleFilter);
-            const searchParams = new URLSearchParams(window.location.search);
-            let displayedFilters = searchParams.get('displayedFilters');
-            displayedFilters = JSON.parse(displayedFilters);
-            console.log({displayedFilters});
-            // displayedFilters.filter.profile_id = event.target.value;
-            // searchParams.set("displayedFilters", displayedFilters);
+            let displayedFilters = window.location.href;
+            displayedFilters = displayedFilters.split("?")[0];
+            window.history.pushState({}, "", displayedFilters);
         }
         if (!isEmpty(serverProfileFilter)) {
             const serverFilter = { ...serverProfileFilter };

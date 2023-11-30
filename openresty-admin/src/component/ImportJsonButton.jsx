@@ -22,6 +22,9 @@ const ImportJsonButton = ({ resource }) => {
                         const ruleFilter = {...ruleProfileFilter};
                         ruleFilter.filter.profile_id = data.data
                         setRuleProfileFilter(ruleFilter);
+                        let displayedFilters = window.location.href;
+                        displayedFilters = displayedFilters.split("?")[0];
+                        window.history.pushState({}, "", displayedFilters);
                     }
                     if (!isEmpty(serverProfileFilter)) {
                         const serverFilter = {...serverProfileFilter};
@@ -29,6 +32,7 @@ const ImportJsonButton = ({ resource }) => {
                         setServerProfileFilter(serverFilter);
                     }
                     localStorage.setItem('environment', data.data);
+                    window.location.reload();
                 });
             };
             reader.readAsText(file);
