@@ -212,7 +212,30 @@ function syncServersAPI(args)
     }))
 end
 
+function syncSettings()
+    local httpc = http.new()
+    local allDataTotal = 0
+    local settingsObj, settingsErr = httpc:request_uri(apiUrl .. "/global/settings", {
+        method = "GET",
+        headers = httpHeaders,
+        ssl_verify = false,
+    })
+    if settingsErr == nil then
+        settingsObj = settingsObj.body
+    end
+    if settingsObj and settingsObj ~= nil and type(settingsObj) == "string" then
+        local settings = cjson.decode(settingsObj)["data"]
+        setDataToFile(configPath .. "data/settings.json", settings)
+        return ngx.say(cjson.encode({
+            data = {
+                settings = settings
+            }
+        }))
+    end
+end
+
 local args = ngx.req.get_uri_args()
 
 syncRulesAPI(args)
 syncServersAPI(args)
+syncSettings()

@@ -1,6 +1,6 @@
 import React from 'react';
-import { ReferenceInput, SelectInput, useDataProvider } from 'react-admin';
-import { 
+import { useStore, useDataProvider } from 'react-admin';
+import {
     Dialog,
     DialogTitle,
     DialogContent,
@@ -12,10 +12,15 @@ import {
     MenuItem,
 } from "@mui/material";
 
+import { isEmpty } from 'lodash';
+
 
 const EnvProfileHandler = ({ open, onClose, title, content }) => {
+    const [ruleProfileFilter, setRuleProfileFilter] = useStore('rules.listParams', {});
+    const [serverProfileFilter, setServerProfileFilter] = useStore('servers.listParams', {});
     const [profileData, setProfileData] = React.useState({});
     const dataProvider = useDataProvider();
+
     const params = {
         "pagination": {
             "page": 1,
@@ -35,9 +40,25 @@ const EnvProfileHandler = ({ open, onClose, title, content }) => {
     }, [])
     const [profile, setProfile] = React.useState('');
     const handleChange = (event) => {
+        if (!isEmpty(ruleProfileFilter)) {
+            const ruleFilter = { ...ruleProfileFilter };
+            ruleFilter.filter.profile_id = event.target.value
+            setRuleProfileFilter(ruleFilter);
+            const searchParams = new URLSearchParams(window.location.search);
+            let displayedFilters = searchParams.get('displayedFilters');
+            displayedFilters = JSON.parse(displayedFilters);
+            console.log({displayedFilters});
+            // displayedFilters.filter.profile_id = event.target.value;
+            // searchParams.set("displayedFilters", displayedFilters);
+        }
+        if (!isEmpty(serverProfileFilter)) {
+            const serverFilter = { ...serverProfileFilter };
+            serverFilter.filter.profile_id = event.target.value
+            setServerProfileFilter(serverFilter);
+        }
         localStorage.setItem('environment', event.target.value);
         setProfile(event.target.value);
-        dataProvider.profileUpdate("frontdoor/opsapi/handle-profile", {profile: event.target.value})
+        dataProvider.profileUpdate("settings/profile", { profile: event.target.value })
     };
     return (
         <Dialog open={open} onClose={onClose}>

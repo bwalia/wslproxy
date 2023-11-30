@@ -170,12 +170,16 @@ const dataProvider = (apiUrl, settings = {}) => {
       }
     },
     update: async (resource, params) => {
+      const environmentProfile = localStorage.getItem('environment');
       setIsLoadig(true)
       let { data } = params;
       const { id } = params;
       const url = `${apiUrl}/${resource}/${id}`;
       if (resource === "servers") {
         data = handleConfigField(data)
+      }
+      if (environmentProfile && data.profile_id !== environmentProfile) {
+        data.profile_id = environmentProfile;
       }
       try {
         const response = await fetch(url, {
@@ -296,7 +300,8 @@ const dataProvider = (apiUrl, settings = {}) => {
       try {
         setIsLoadig(true)
         const environmentProfile = localStorage.getItem('environment') || "prod";
-        params.envProfile = environmentProfile;
+        // console.log({params}); return
+        // params.envProfile = environmentProfile;
         const url = `${apiUrl}/${resource}?_format=json`;
         const response = await fetch(url, {
           method: "POST",
@@ -323,7 +328,7 @@ const dataProvider = (apiUrl, settings = {}) => {
       const FRONT_URL = import.meta.env.VITE_FRONT_URL;
       try {
         setIsLoadig(true)
-        const url = `${FRONT_URL}/${resource}`;
+        const url = `${apiUrl}/${resource}`;
         const response = await fetch(url, {
           method: "POST",
           body: JSON.stringify(params),
