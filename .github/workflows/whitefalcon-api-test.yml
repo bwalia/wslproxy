@@ -71,12 +71,12 @@ jobs:
             export TARGET_HOST="http://localhost:8081"
             export SERVER_NAME="localhost"
             export SERVER_ID_QA="host:localhost"  
-            export NODE_APP_IP="127.0.0.1:3009"  
+            export NODE_APP_IP="172.18.0.1:3009"  
           elif [[ "${{ inputs.TARGET_ENV }}" == '' ]]; then
             export TARGET_HOST="http://localhost:8081"
             export SERVER_NAME="localhost"
             export SERVER_ID_QA="host:localhost"  
-            export NODE_APP_IP="127.0.0.1:3009"              
+            export NODE_APP_IP="172.18.0.1:3009"              
           else
             echo "Unsupported TARGET_ENV:${{ inputs.TARGET_ENV }}"
             exit 1
