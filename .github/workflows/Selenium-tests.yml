@@ -57,6 +57,10 @@ jobs:
         run: |
           docker pull dixajangid/selenium-base:latest
           docker build --no-cache --build-arg MINIO_ENDPOINT=$MINIO_ENDPOINT --build-arg MINIO_ACCESS_KEY=$MINIO_ACCESS_KEY --build-arg MINIO_SECRET_KEY=$MINIO_SECRET_KEY -t selenium-tests -f QA/Dockerfile_qa .
+  
+      - name: Setup local environment
+        run: |  
+          ./deploy-to-docker.sh "dev" "whitefalcon"
 
       - name: Test execution
         working-directory: ./QA  
@@ -70,13 +74,13 @@ jobs:
             export SERVER_NAME="test.whitefalcon.io"
             export NODE_APP_IP=""
           elif [[ "${{ github.event.inputs.TARGET_ENV }}" == 'local' ]]; then
-            export TARGET_HOST="http://localhost:8081"
+            export TARGET_HOST="http://172.18.0.1:8081"
             export SERVER_NAME="localhost"
-            export NODE_APP_IP=""
+            export NODE_APP_IP="172.18.0.1:3009"
           elif [[ "${{ github.event.inputs.TARGET_ENV }}" == '' ]]; then
-            export TARGET_HOST="http://localhost:8081"
+            export TARGET_HOST="http://172.18.0.1:8081"
             export SERVER_NAME="localhost" 
-            export NODE_APP_IP=""           
+            export NODE_APP_IP="172.18.0.1:3009"           
           else
             echo "Unsupported TARGET_ENV:${{ github.event.inputs.TARGET_ENV }}"
             exit 1
@@ -109,7 +113,7 @@ jobs:
           target_dir: '/whitefalcon/allure-results'
 
   qa_report_refresh:
-    runs-on: [ams01]
+    runs-on: [label-node3]
     steps:
       - name: Restart qa reports Pod
         working-directory: devops/allure_reports_k8s
