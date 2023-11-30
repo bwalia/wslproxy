@@ -1248,10 +1248,11 @@ local function importProjects(args)
     local response, formattedJson = nil, {}
     local redisKey = args.dataType == "rules" and "request_rules" or args.dataType
     for key, value in pairs(args.data) do
-        local pathDir = configPath .. "data/" .. args.dataType .. "/" .. envProfile
+        envProfile = value.profile_id
+        local pathDir = configPath .. "data/" .. args.dataType .. "/" .. value.profile_id
         if settings.storage_type == "redis" then
             formattedJson[value.id] = cjson.encode(value)
-            red:hmset(redisKey .. "_" .. envProfile, formattedJson)
+            red:hmset(redisKey .. "_" .. value.profile_id, formattedJson)
             response = setDataToFile(
                 pathDir .. "/" .. value.id .. ".json", value, pathDir)
         else
@@ -1260,7 +1261,7 @@ local function importProjects(args)
         end
     end
     ngx.say(cjson.encode({
-        data = response
+        data = envProfile
     }))
 end
 
@@ -1362,6 +1363,24 @@ local function createUpdateProfiles(body, uuid)
     end
 end
 
+local function updateProfileSettings(args)
+    local payloads = GetPayloads(args)
+    local envProfile = payloads.profile
+    local writableFile, writableErr = io.open(configPath .. "data/settings.json", "w")
+        settings.env_profile = envProfile
+        if writableFile == nil then
+            ngx.say("Couldn't write file: " .. writableErr)
+        else
+            writableFile:write(cjson.encode(settings))
+            writableFile:close()
+            ngx.say(cjson.encode({
+                data = {
+                    profile = settings.env_profile
+                }
+            }))
+        end
+end
+
 local function handle_get_request(args, path)
     -- handle GET request logic
     local delimiter = "/"
@@ -1426,6 +1445,9 @@ local function handle_post_request(args, path)
     end
     if path == "settings" then
         createUpdateSettings(args)
+    end
+    if path == "settings/profile" then
+        updateProfileSettings(args)
     end
     if path == "projects/import" then
         importProjects(args)

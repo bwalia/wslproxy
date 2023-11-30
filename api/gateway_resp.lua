@@ -1,6 +1,7 @@
 local cjson = require("cjson")
 local configPath = os.getenv("NGINX_CONFIG_DIR")
 local globalVars = ngx.var.vars
+Base64 = require "base64"
 
 local function isIpAddress(str)
     local pattern = "^%d+%.%d+%.%d+%.%d+$"
