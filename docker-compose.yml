@@ -55,6 +55,7 @@ services:
       - openresty-network
     volumes:
       - redis-database:/data
+
   whitefalcon-sample-api:
     container_name: whitefalcon-sample-api
     build:
@@ -63,11 +64,19 @@ services:
     ports:
       - "3009:3009"
     networks:
-      - openresty-network
+      openresty-network:
+        ipv4_address: 172.177.0.10
+
     extra_hosts:
       - "host.docker.internal:host-gateway"
-
+    volumes:
+      - ./.env.nodeapp.dev:/app/.env
+      
 networks: 
   openresty-network:
+    ipam:
+      config:
+        - subnet: 172.177.0.0/16
+
 volumes:
   redis-database:
