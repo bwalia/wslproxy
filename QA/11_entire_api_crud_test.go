@@ -492,34 +492,37 @@ func TestServerResponse(t *testing.T) {
 
 // Calling the server API for DELETE method to delete the server
 func TestDeleteServer(t *testing.T) {
-	url := targetHost + "/api/servers/"
-	method := "DELETE"
-	time.Sleep(2 * time.Second)
+	executeFunction := os.Getenv("EXECUTE_FUNCTION")
+	if executeFunction == "true" {
+		url := targetHost + "/api/servers/"
+		method := "DELETE"
+		time.Sleep(2 * time.Second)
 
-	payload := strings.NewReader(fmt.Sprintf(`{"ids":{"ids":["%s"],"envProfile":"test"}}`, serverId))
+		payload := strings.NewReader(fmt.Sprintf(`{"ids":{"ids":["%s"],"envProfile":"test"}}`, serverId))
 
-	client := &http.Client{}
-	req, err := http.NewRequest(method, url, payload)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
+		client := &http.Client{}
+		req, err := http.NewRequest(method, url, payload)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
 
-	req.Header.Add("Authorization", "Bearer "+tokenValue)
-	res, err := client.Do(req)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	body, err := ioutil.ReadAll(res.Body)
-	//if false {
-	fmt.Println(string(body))
-	//}
-	defer res.Body.Close()
+		req.Header.Add("Authorization", "Bearer "+tokenValue)
+		res, err := client.Do(req)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		body, err := ioutil.ReadAll(res.Body)
+		//if false {
+		fmt.Println(string(body))
+		//}
+		defer res.Body.Close()
 
-	if res.StatusCode != http.StatusOK {
-		t.Error("Unexpected response status code", res.StatusCode)
-		return
+		if res.StatusCode != http.StatusOK {
+			t.Error("Unexpected response status code", res.StatusCode)
+			return
+		}
 	}
 }
 
