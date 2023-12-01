@@ -1,0 +1,17 @@
+FROM python:3.9.18-slim-bullseye
+# Set the working directory in the container
+WORKDIR /app
+# Install necessary packages and install xvfb and wget
+RUN apt-get update && apt-get install -y xvfb wget curl
+# Install Chrome
+ADD 113_google-chrome-stable_current_amd64.deb .
+RUN dpkg -i 113_google-chrome-stable_current_amd64.deb || apt-get -f install -y
+RUN rm 113_google-chrome-stable_current_amd64.deb
+# Install required Python packages
+RUN pip install selenium pytest allure-pytest requests chromedriver_autoinstaller
+# Install allure
+ADD allure_2.24.1-1_all.deb .
+RUN dpkg -i allure_2.24.1-1_all.deb || apt-get -f install -y
+# Install mc from Minio's GitHub release
+RUN curl -o /usr/local/bin/mc https://dl.min.io/client/mc/release/linux-amd64/mc && \
+    chmod +x /usr/local/bin/mc
