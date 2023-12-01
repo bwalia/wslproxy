@@ -2,7 +2,7 @@ name: Build-Push-Deploy whitefalcon to INT
 on:
   push:
     branches:
-      - main
+      - dummy
 
 env:
     IMAGE_NAME: "whitefalcon"
