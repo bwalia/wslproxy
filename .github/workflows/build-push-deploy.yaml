@@ -1,0 +1,61 @@
+name: Build-Push-Deploy whitefalcon to INT 
+on:
+  push:
+    branches:
+      - main
+
+env:
+    IMAGE_NAME: "whitefalcon"
+    TARGET_IMAGE_TAG: "int"
+    TARGET_STACK: openresty
+    KUBE_CONFIG_K3S: ${{ secrets.KUBE_CONFIG_DATA_K3S2 }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Login to Docker Hub
+        run: docker login -u ${{ secrets.WSL_DOCKER_USER }} -p ${{ secrets.WSL_DOCKER_PASSWD }} ${{ secrets.WSL_DOCKER_REGISTRY }}
+     
+      - name: Build and push
+        uses: docker/build-push-action@v4
+        with:
+          push: true
+          tags: docker.workstation.co.uk/whitefalcon:latest
+      -
+        name: Build and push node app
+        uses: docker/build-push-action@v4
+        with:
+          file: demos-origins/node-app/Dockerfile
+          push: true
+          tags: docker.workstation.co.uk/node-app:latest
+
+  # smoke_test6:
+  #   runs-on: [self-hosted-node6]
+  #   needs: build
+
+  deploy:
+    runs-on: [ubuntu-latest]
+    needs: build
+    steps:
+      - name: checkout the repo code
+        uses: actions/checkout@v2 
+        with:
+          ref: "main"
+      - name: Deploy whitefalcon api gw to k3s2 onto the int env
+        run: chmod +x ./deploy-to-kubernetes.sh && ./deploy-to-kubernetes.sh "${{ secrets.WSL_DOCKER_USER }}" "${{ secrets.WSL_DOCKER_PASSWD }}" "${{ env.KUBE_CONFIG_K3S }}" "int" "both" "${{ env.IMAGE_NAME }}" "${{ env.TARGET_IMAGE_TAG }}"
+
+
+      - name: Slack Notification for WhiteFalcon 
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_CHANNEL: general
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_ICON: https://github.com/rtCamp.png?size=48
+          SLACK_MESSAGE: 'The Whitefalcon has been deployed to k3s2 INT :rocket:'
+          SLACK_TITLE: Deployed Whitefalcon
+          SLACK_USERNAME: rtCamp
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}                                                                

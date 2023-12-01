@@ -20,6 +20,7 @@ if [ -z "$3" ]; then
    exit -1
 else
    echo "Cluster is provided ok"
+   echo "$KUBE_CONFIG" | base64 -d > /home/bwalia/.kube/vpn-k3s2.yaml
 fi
 
 if [ -z "$4" ]; then
@@ -38,7 +39,7 @@ else
    APP_TYPE=$5
 fi
 
-echo "Deploying to $3 cluster"
+echo "Deploying to k3s2 cluster"
 
 DOCKER_PUBLIC_IMAGE_NAME=bwalia/whitefalcon
 VERSION=latest
@@ -53,28 +54,28 @@ SOURCE_IMAGE=openresty_alpine
 HELM_CMD="helm"
 KUBECTL_CMD="kubectl"
 
-echo "Deploying to $3 cluster"
+echo "Deploying to k3s2 cluster"
 # Init kubeconfig for the cluster
-HELM_CMD="helm --kubeconfig /home/bwalia/.kube/vpn-$3.yaml"
-KUBECTL_CMD="kubectl --kubeconfig /home/bwalia/.kube/vpn-$3.yaml"
+HELM_CMD="helm --kubeconfig /home/bwalia/.kube/vpn-k3s2.yaml"
+KUBECTL_CMD="kubectl --kubeconfig /home/bwalia/.kube/vpn-k3s2.yaml"
 
-$HELM_CMD upgrade -i node-app ./devops/helm-charts/node-app/ -f devops/helm-charts/node-app/values-$3.yaml
+$HELM_CMD upgrade -i node-app ./devops/helm-charts/node-app/ -f devops/helm-charts/node-app/values-k3s2.yaml
 $KUBECTL_CMD rollout restart deployment/node-app
 $KUBECTL_CMD rollout history deployment/node-app
 
 if [ "$APP_TYPE" == "both" ]; then
-   $HELM_CMD upgrade -i whitefalcon-api-$4 ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-$4-api-$3.yaml --set TARGET_ENV=$4 --namespace $4 --create-namespace
+   $HELM_CMD upgrade -i whitefalcon-api-$4 ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-$4-api-k3s2.yaml --set TARGET_ENV=$4 --namespace $4 --create-namespace
    $KUBECTL_CMD rollout restart deployment/wf-api-$4 -n $4
    $KUBECTL_CMD rollout history deployment/wf-api-$4 -n $4
-   $HELM_CMD upgrade -i whitefalcon-front-$4 ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-$4-front-$3.yaml --set TARGET_ENV=$4 --namespace $4 --create-namespace
+   $HELM_CMD upgrade -i whitefalcon-front-$4 ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-$4-front-k3s2.yaml --set TARGET_ENV=$4 --namespace $4 --create-namespace
    $KUBECTL_CMD rollout restart deployment/wf-front-$4 -n $4
    $KUBECTL_CMD rollout history deployment/wf-front-$4 -n $4
 elif [ "$APP_TYPE" == "api" ]; then
-   $HELM_CMD upgrade -i whitefalcon-api-$4 ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-$4-api-$3.yaml --set TARGET_ENV=$4 --namespace $4 --create-namespace
+   $HELM_CMD upgrade -i whitefalcon-api-$4 ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-$4-api-k3s2.yaml --set TARGET_ENV=$4 --namespace $4 --create-namespace
    $KUBECTL_CMD rollout restart deployment/wf-api-$4 -n $4
    $KUBECTL_CMD rollout history deployment/wf-api-$4 -n $4
 elif [ "$APP_TYPE" == "front" ]; then
-   $HELM_CMD upgrade -i whitefalcon-front-$4 ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-$4-front-$3.yaml --set TARGET_ENV=$4 --namespace $4 --create-namespace
+   $HELM_CMD upgrade -i whitefalcon-front-$4 ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-$4-front-k3s2.yaml --set TARGET_ENV=$4 --namespace $4 --create-namespace
    $KUBECTL_CMD rollout restart deployment/wf-front-$4 -n $4
    $KUBECTL_CMD rollout history deployment/wf-front-$4 -n $4
 fi
