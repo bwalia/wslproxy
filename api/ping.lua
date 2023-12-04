@@ -133,6 +133,15 @@ local data = {
     dns_primary_server = primaryNameserver,
     dns_secondary_server = secondaryNameserver,
     dns_server_port = portNameserver,
+    mendatory_env_vars = {
+        NGINX_CONFIG_DIR = os.getenv("NGINX_CONFIG_DIR") and "Found" or "Not Found",
+        JWT_SECURITY_PASSPHRASE = os.getenv("JWT_SECURITY_PASSPHRASE") and "Found" or "Not Found",
+        PRIMARY_DNS_RESOLVER = os.getenv("PRIMARY_DNS_RESOLVER") and "Found" or "Not Found",
+        SECONDARY_DNS_RESOLVER = os.getenv("SECONDARY_DNS_RESOLVER") and "Found" or "Not Found",
+        DNS_RESOLVER_PORT = os.getenv("DNS_RESOLVER_PORT") and "Found" or "Not Found",
+        FRONT_URL = os.getenv("FRONT_URL") and "Found" or "Not Found",
+        API_URL = os.getenv("API_URL") and "Found" or "Not Found"
+    }
 }
 -- Encode the table as a JSON string
 json_str = cjson.encode(data)
