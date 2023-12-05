@@ -1,0 +1,22 @@
+version: 'cypress-docker-v1'
+services:
+  cypress-chrome:
+    image: cypress/included:12.8.1
+    command: "--browser chrome"
+    working_dir: /cypress
+    volumes:
+      - ./openresty-admin/cypress:/cypress/
+    env_file: .env_cypress
+  cypress-firefox:
+    image: cypress/included:12.8.1
+    command: "--browser firefox"
+    working_dir: /cypress
+    volumes:
+      - ./openresty-admin/cypress:/cypress
+    env_file: .env_cypress
+  cypress-electron:
+    image: cypress/included:12.8.1
+    working_dir: /cypress
+    volumes:
+      - ./openresty-admin/cypress:/cypress
+    env_file: .env_cypress 
