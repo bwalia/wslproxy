@@ -144,9 +144,9 @@ func TestGetRules(t *testing.T) {
 func TestCreateServer(t *testing.T) {
 
 	if serverName == "localhost" {
-		frontUrl = "localhost:8000"
+		frontUrl = "http://localhost:8000"
 	} else {
-		frontUrl = serverName
+		frontUrl = "https://" + serverName
 	}
 	//print(frontUrl)
 
@@ -398,7 +398,7 @@ func TestUpdateRuleWithServer(t *testing.T) {
 
 //Calling the handle profile API to work with the profiles
 func TestHandleProfileAPI(t *testing.T) {
-	url := "http://" + frontUrl + "/frontdoor/opsapi/handle-profile"
+	url := frontUrl + "/frontdoor/opsapi/handle-profile"
 	payload := strings.NewReader(`{"profile":"test"}`)
 
 	client := &http.Client{}
@@ -428,7 +428,7 @@ func TestHandleProfileAPI(t *testing.T) {
 func TestDataSync(t *testing.T) {
 	if serverName != "localhost" {
 
-		url := "http://" + frontUrl + "/frontdoor/opsapi/sync?envprofile=test"
+		url := frontUrl + "/frontdoor/opsapi/sync?envprofile=test"
 		time.Sleep(2 * time.Second)
 
 		client := &http.Client{}
@@ -455,7 +455,7 @@ func TestDataSync(t *testing.T) {
 
 // Verifying the response output and the expected results
 func TestServerResponse(t *testing.T) {
-	url := "http://" + frontUrl + "/router"
+	url := frontUrl + "/router"
 
 	time.Sleep(2 * time.Second)
 	client := &http.Client{}
@@ -492,7 +492,7 @@ func TestServerResponse(t *testing.T) {
 
 // Calling the server API for DELETE method to delete the server
 func TestDeleteServer(t *testing.T) {
-	executeFunction := os.Getenv("EXECUTE_FUNCTION")
+	executeFunction := os.Getenv("DELETE_TEST_DATA")
 	if executeFunction == "true" {
 		url := targetHost + "/api/servers/"
 		method := "DELETE"
@@ -528,7 +528,7 @@ func TestDeleteServer(t *testing.T) {
 
 // Delete the rules if the value of executeFunction is true
 func TestDeleteRule(t *testing.T) {
-	executeFunction := os.Getenv("EXECUTE_FUNCTION")
+	executeFunction := os.Getenv("DELETE_TEST_DATA")
 	if executeFunction == "true" {
 		url := targetHost + "/api/rules/"
 		method := "DELETE"

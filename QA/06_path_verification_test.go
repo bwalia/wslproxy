@@ -87,7 +87,7 @@ func TestURLPath(t *testing.T) {
 			}
 
 			// compairing with the response output
-			URL := "http://" + frontUrl + "/router"
+			URL := frontUrl + "/router"
 
 			client = &http.Client{}
 			req, err = http.NewRequest("GET", URL, nil)

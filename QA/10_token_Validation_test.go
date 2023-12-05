@@ -19,8 +19,7 @@ var ruleAccessApi string
 var jwtToken string
 var nodeAppIP string
 
-func TestCreateRuleForAccessAll(t *testing.T) {
-
+func TestCreateRuleForAccessToAll(t *testing.T) {
 	TestCreateServer(t)
 	nodeAppIP = os.Getenv("NODE_APP_IP")
 
@@ -73,7 +72,7 @@ func TestCreateRuleForAccessAll(t *testing.T) {
 		t.Error("Returned unexpected body")
 	}
 }
-func TestCreateRuleForAccessApi(t *testing.T) {
+func TestCreateRuleForAccessToPathApi(t *testing.T) {
 
 	type Rule struct {
 		Data struct {
@@ -166,9 +165,9 @@ func TestAddRulesWithServer(t *testing.T) {
 	}
 }
 
-func TestVerifyRule(t *testing.T) {
+func TestDataAccessForAuthorizationRules(t *testing.T) {
 	// Accessing the data without token
-	url := "http://" + frontUrl + "/api/v2/sample-data.json"
+	url := frontUrl + "/api/v2/sample-data.json"
 
 	client := &http.Client{}
 
@@ -196,7 +195,7 @@ func TestVerifyRule(t *testing.T) {
 	}
 
 	// On homepage
-	URL := "http://" + frontUrl
+	URL := frontUrl
 
 	client = &http.Client{}
 
@@ -228,7 +227,7 @@ func TestVerifyRule(t *testing.T) {
 	// login and fetch the token
 
 	for {
-		Url := "http://" + frontUrl + "/login"
+		Url := frontUrl + "/login"
 		method := "POST"
 		Email := os.Getenv("email")
 		Password := os.Getenv("password")
@@ -302,7 +301,7 @@ func TestVerifyRule(t *testing.T) {
 	// Accessing the data with the token
 	time.Sleep(2 * time.Second)
 
-	uRL := "http://" + frontUrl + "/api/v2/sample-data.json"
+	uRL := frontUrl + "/api/v2/sample-data.json"
 
 	client = &http.Client{}
 
@@ -334,7 +333,7 @@ func TestVerifyRule(t *testing.T) {
 	}
 }
 
-func TestDeleteBothRules(t *testing.T) {
+func TestDeleteAccessRules(t *testing.T) {
 
 	// Deleting the AccessAll rule
 	ruleId = ruleAccessAll
