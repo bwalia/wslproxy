@@ -14,7 +14,8 @@ services:
       - "8081:8080"
       - "8000:80"
     networks:
-      - openresty-network
+      openresty-network:
+        ipv4_address: 172.177.0.8
     volumes:
       - ./nginx-dev.conf.tmpl:/usr/local/openresty/nginx/conf/nginx.conf
       - ./openresty-admin/public:/usr/local/openresty/nginx/html/openresty-admin/public
