@@ -76,10 +76,10 @@ jobs:
             export NODE_APP_IP="172.177.0.10:3009"  
 
           elif [[ "${{ inputs.TARGET_ENV }}" == '' ]]; then
-            export TARGET_HOST="http://localhost:8081"
-            export SERVER_NAME="localhost"
-            export SERVER_ID_QA="host:localhost"  
-            export NODE_APP_IP="172.177.0.10:3009"    
+            export TARGET_HOST="https://api.int2.whitefalcon.io"
+            export SERVER_NAME="front.int2.whitefalcon.io"
+            export SERVER_ID_QA="host:front.int2.whitefalcon.io"
+            export NODE_APP_IP="10.43.140.53:3009"  
 
           else
             echo "Unsupported TARGET_ENV:${{ inputs.TARGET_ENV }}"
