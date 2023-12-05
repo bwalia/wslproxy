@@ -3,12 +3,25 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+    inputs:
+      TARGET_ENV:
+        type: choice
+        description: 'Please choose the environment'
+        default: 'test'
+        required: true
+        options:
+          - int
+          - test
+          - acc
+          - prod
 
 env:
     IMAGE_NAME: "whitefalcon"
-    TARGET_IMAGE_TAG: "int"
+    TARGET_IMAGE_TAG: "latest"
     TARGET_STACK: openresty
     KUBE_CONFIG_K3S: ${{ secrets.KUBE_CONFIG_DATA_K3S2 }}
+    TARGET_ENV: ${{ github.event.inputs.TARGET_ENV || 'int' }}
 
 jobs:
   build:
@@ -38,24 +51,66 @@ jobs:
   #   needs: build
 
   deploy:
-    runs-on: [ubuntu-latest]
-    needs: build
+    name: Deploy the build docker image to the given Environment using Helm
+    runs-on: [ ubuntu-latest ]
+    needs: [ build ]
     steps:
-      - name: checkout the repo code
-        uses: actions/checkout@v2 
-        with:
-          ref: "main"
-      - name: Deploy whitefalcon api gw to k3s2 onto the int env
-        run: chmod +x ./deploy-to-kubernetes.sh && ./deploy-to-kubernetes.sh "${{ secrets.DOCKER_USER }}" "${{ secrets.DOCKER_PASSWD }}" "${{ env.KUBE_CONFIG_K3S }}" "int" "both" "${{ env.IMAGE_NAME }}" "${{ env.TARGET_IMAGE_TAG }}"
+    - name: Checkout Repository
+      uses: actions/checkout@v3
+    - name: Map Cluster kubeconfig for selected env
+      run: |
+        if [ "${{ env.TARGET_ENV }}" == "test" ]; then
+            echo "KUBE_CONFIG_K3S=${{ secrets.KUBE_CONFIG_DATA_K3S2 }}" >> $GITHUB_ENV
+        else
+            echo "KUBE_CONFIG_K3S is set to default env"
+        fi
+        if [ "${{ env.TARGET_ENV }}" == "acc" ]; then
+            echo "KUBE_CONFIG_K3S=${{ secrets.KUBE_CONFIG_DATA_K3S2 }}" >> $GITHUB_ENV
+        else
+            echo "KUBE_CONFIG_K3S is set to default env"
+        fi
+        if [ "${{ env.TARGET_ENV }}" == "prod" ]; then
+            echo "KUBE_CONFIG_K3S=${{ secrets.KUBE_CONFIG_DATA_K3S1 }}" >> $GITHUB_ENV
+        else
+            echo "KUBE_CONFIG_K3S is set to default env"
+        fi
+                  
+    - name: Helm Deploy - Release Whitefalcon to K3S2 Rancher
+      uses: koslib/helm-eks-action@master
+      env:
+        KUBE_CONFIG_DATA: ${{ env.KUBE_CONFIG_K3S }}
+      with:
+        command: |
+          helm upgrade -i whitefalcon-api-${{ env.TARGET_ENV }} ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-${{ env.TARGET_ENV }}-api-${{ env.TARGET_CLUSTER}}.yaml --set TARGET_ENV=${{ env.TARGET_ENV }} --namespace ${{ env.TARGET_ENV }} --create-namespace
+                
+    - name: Restart Whitefalcon Pods using Kubectl            
+      uses: actions-hub/kubectl@master
+      env:
+        KUBE_CONFIG: ${{ env.KUBE_CONFIG_K3S }}
+      with:
+        args: rollout restart deployment/wsl-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}        
 
+    - name: Print Whitefalcon deployment history using Kubectl            
+      uses: actions-hub/kubectl@master
+      env:
+        KUBE_CONFIG: ${{ env.KUBE_CONFIG_K3S }}
+      with:
+        args: rollout history deployment/wsl-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
 
-      - name: Slack Notification for WhiteFalcon 
-        uses: rtCamp/action-slack-notify@v2
-        env:
-          SLACK_CHANNEL: general
-          SLACK_COLOR: ${{ job.status }}
-          SLACK_ICON: https://github.com/rtCamp.png?size=48
-          SLACK_MESSAGE: 'The Whitefalcon has been deployed to k3s2 INT :rocket:'
-          SLACK_TITLE: Deployed Whitefalcon
-          SLACK_USERNAME: rtCamp
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}                                                                
+    - name: Print Whitefalcon Pods using Kubectl            
+      uses: actions-hub/kubectl@master
+      env:
+        KUBE_CONFIG: ${{ env.KUBE_CONFIG_K3S }}
+      with:
+        args: get pods -n ${{ env.TARGET_ENV }}     
+    
+    - name: Slack Notification for Whitefalcon release 
+      uses: rtCamp/action-slack-notify@v2
+      env:
+        SLACK_CHANNEL: general
+        SLACK_COLOR: ${{ job.status }}
+        SLACK_ICON: https://github.com/rtCamp.png?size=48
+        SLACK_MESSAGE: 'Whitefalcon deployed to ${{ env.TARGET_ENV }} env :rocket:'
+        SLACK_TITLE: Whitefalcon deployment status
+        SLACK_USERNAME: rtCamp
+        SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
