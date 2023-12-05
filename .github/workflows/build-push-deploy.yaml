@@ -2,7 +2,7 @@ name: Build-Push-Deploy whitefalcon to INT
 on:
   push:
     branches:
-      - dummy
+      - main
 
 env:
     IMAGE_NAME: "whitefalcon"
@@ -18,7 +18,7 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Login to Docker Hub
-        run: docker login -u ${{ secrets.WSL_DOCKER_USER }} -p ${{ secrets.WSL_DOCKER_PASSWD }} ${{ secrets.WSL_DOCKER_REGISTRY }}
+        run: docker login -u ${{ secrets.DOCKER_USER }} -p ${{ secrets.DOCKER_PASSWD }}
      
       - name: Build and push
         uses: docker/build-push-action@v4
@@ -46,7 +46,7 @@ jobs:
         with:
           ref: "main"
       - name: Deploy whitefalcon api gw to k3s2 onto the int env
-        run: chmod +x ./deploy-to-kubernetes.sh && ./deploy-to-kubernetes.sh "${{ secrets.WSL_DOCKER_USER }}" "${{ secrets.WSL_DOCKER_PASSWD }}" "${{ env.KUBE_CONFIG_K3S }}" "int" "both" "${{ env.IMAGE_NAME }}" "${{ env.TARGET_IMAGE_TAG }}"
+        run: chmod +x ./deploy-to-kubernetes.sh && ./deploy-to-kubernetes.sh "${{ secrets.DOCKER_USER }}" "${{ secrets.DOCKER_PASSWD }}" "${{ env.KUBE_CONFIG_K3S }}" "int" "both" "${{ env.IMAGE_NAME }}" "${{ env.TARGET_IMAGE_TAG }}"
 
 
       - name: Slack Notification for WhiteFalcon 
