@@ -27,7 +27,7 @@ app:
 secure_env_file: "AgCYiJ+a1fbFFrFk9FGE1Py1FRgNtizUDGegaVyieoQIXbuefdwSN713l84XO/MWU6AoHvJWQt0UCj52YdtepoPN8uwg+CSHzd5BRvQvs1Qwyg8AH+PWx7pHGAMvG7odOacoZLtll82Hrj1+JFQl4khdbh89QnrPM8PD8OCDoDIl8VGcliK5nj12HkNhHSMNANSgwgwDftJkSb162eGKZWI0XK0D44HAtLJQAg7T+7HhB7G+UGxNLqRRGahKVLwck9Uu3ge60gcb5KHkSwSRm01J9NJbMRvR9HdkSSxHuJrinMLTS96f/gY8umVTmvrZ3+WPDXu1mJS6XsgmA3D30iwUpajhBQjqavkWHnnvBNP00fm/iO7GDk0hejuYvrTpppsfLO6voWy4+TSwER0JIAueIftG8WVhKODETgqNavu36FVQ6IYN9YvNJzT225wULqEt5kUZQ0SqGH3kQSqiq2Qxhz/kMTH7TdA58fmXuaPtd4M5+sSTssMJIUxLLmVPiAYM974NZHO0ZRgmfHSw9q7AhesPIG+ojxmgAf2GgT7yOzymlvd1fJwiHeXiu5YisV0FXgBYZOlZdbz52Xa7szf3ScUGvHgAhvwhP6e4EGckDmoAKTJgsJ84S5S54wUf5dMr6JThBUtl9Opb+4egBiq7Mm+f6T6B87pIcEGyVxpSF/0aOKXgAoNvEvgFW4RqZX+xLoI9d5t7M18wgbUVzUPTLQ0ZZacDqLzuugskMdulCvOgY/25dDex8dC/WIJR4Er6u5uRavqUQWauZM0onsVzr2b07bXvSkee83U7muoyEmyhVpZdA37ceNeH5/sKxMQOedmfdYxpQcS1qZ8yffOjt9NNFO/zRhOkXLC7/J+EyfMwzRxzyz2beYYg5NkXKuX0SFy5ozwkF5+ymZzZSozjteIRrqdCGvPDkZKq4iTOOxv82xk0Grp9OxTOgEEw4Aoh3d4mW+5OXGqq9oNg/j3tlTfGUiQI5OiY"
 
 image:
-  repository: docker.workstation.co.uk/whitefalcon
+  repository: bwalia/whitefalcon
   pullPolicy: Always
   # Overrides the image tag whose default is the chart appVersion.
   tag: "latest"
@@ -64,7 +64,7 @@ service:
 
 ingress:
   enabled: true
-  className: "traefik"
+  className: "nginx"
   annotations: {}
     # kubernetes.io/ingress.class: nginx
     # kubernetes.io/tls-acme: "true"
