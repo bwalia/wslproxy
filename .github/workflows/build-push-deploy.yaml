@@ -24,14 +24,14 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           push: true
-          tags: docker.workstation.co.uk/whitefalcon:latest
+          tags: bwalia/whitefalcon:latest
       -
         name: Build and push node app
         uses: docker/build-push-action@v4
         with:
           file: demos-origins/node-app/Dockerfile
           push: true
-          tags: docker.workstation.co.uk/node-app:latest
+          tags: bwalia/node-app:latest
 
   # smoke_test6:
   #   runs-on: [self-hosted-node6]
