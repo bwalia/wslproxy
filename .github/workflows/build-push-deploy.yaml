@@ -84,6 +84,7 @@ jobs:
         command: |
           helm upgrade -i whitefalcon-api-${{ env.TARGET_ENV }} ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-${{ env.TARGET_ENV }}-api-${{ env.TARGET_CLUSTER}}.yaml --set TARGET_ENV=${{ env.TARGET_ENV }} --namespace ${{ env.TARGET_ENV }} --create-namespace
           helm upgrade -i whitefalcon-front-${{ env.TARGET_ENV }} ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-${{ env.TARGET_ENV }}-front-${{ env.TARGET_CLUSTER}}.yaml --set TARGET_ENV=${{ env.TARGET_ENV }} --namespace ${{ env.TARGET_ENV }} --create-namespace
+          helm upgrade -i whitefalcon-nodeapp ./devops/helm-charts/node-app/ -f devops/helm-charts/nodeapp/values-${{ env.TARGET_CLUSTER}}.yaml
                 
     - name: Restart Whitefalcon Pods using Kubectl            
       uses: actions-hub/kubectl@master
