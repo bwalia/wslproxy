@@ -22,6 +22,7 @@ env:
     TARGET_STACK: openresty
     KUBE_CONFIG_K3S: ${{ secrets.KUBE_CONFIG_DATA_K3S2 }}
     TARGET_ENV: ${{ github.event.inputs.TARGET_ENV || 'int' }}
+    TARGET_CLUSTER: "k3s2"
 
 jobs:
   build:
