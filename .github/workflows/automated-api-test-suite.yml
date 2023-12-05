@@ -8,7 +8,7 @@ on:
       TARGET_ENV:
         type: choice
         description: 'Please choose the Target Environment'
-        default: 'local'
+        default: 'int2'
         required: true
         options: 
           - local 
