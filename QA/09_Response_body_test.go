@@ -43,7 +43,7 @@ func TestRuleResponse(t *testing.T) {
 				} `json:"data"`
 			}
 			url := targetHost + "/api/rules"
-			payload := strings.NewReader(fmt.Sprintf(`{"version":1,"priority":1,"match":{"rules":{"path_key":"starts_with","path":"/","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"equals"},"response":{"allow":true,"code":200,"message":"%s"}},"name":"%s","profile_id":"test"}`, test.MessageInput, test.RuleName))
+			payload := strings.NewReader(fmt.Sprintf(`{"version":1,"priority":1,"match":{"rules":{"path_key":"starts_with","path":"/","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"equals"},"response":{"allow":true,"code":200,"message":"%s"}},"name":"%s","profile_id":"%s"}`, test.MessageInput, test.RuleName, profile))
 
 			client := &http.Client{}
 			time.Sleep(4 * time.Second)

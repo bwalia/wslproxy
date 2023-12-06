@@ -40,7 +40,7 @@ func TestRedirectURI(t *testing.T) {
 				} `json:"data"`
 			}
 			url := targetHost + "/api/rules"
-			payload := strings.NewReader(fmt.Sprintf(`{"version":1,"priority":1,"match":{"rules":{"path_key":"starts_with","path":"/","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"equals"},"response":{"allow":true,"code":%d,"redirect_uri":"%s","message":"undefined"}},"name":"%s","profile_id":"test"}`, test.ResponseCode, test.Target, test.RuleName))
+			payload := strings.NewReader(fmt.Sprintf(`{"version":1,"priority":1,"match":{"rules":{"path_key":"starts_with","path":"/","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"equals"},"response":{"allow":true,"code":%d,"redirect_uri":"%s","message":"undefined"}},"name":"%s","profile_id":"%s"}`, test.ResponseCode, test.Target, test.RuleName, profile))
 			time.Sleep(4 * time.Second)
 
 			client := &http.Client{}

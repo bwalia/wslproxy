@@ -19,6 +19,7 @@ var frontUrl string
 
 var targetHost = os.Getenv("TARGET_HOST")
 var serverName = os.Getenv("SERVER_NAME")
+var profile = os.Getenv("PROFILE_ID")
 
 // Calling the auth API with the valid credentials to get the access token
 func TestAuthLoginAndFetchToken(t *testing.T) {
@@ -89,7 +90,10 @@ func TestGetServers(t *testing.T) {
 
 	client := &http.Client{}
 
-	req, err := http.NewRequest("GET", targetHost+"/api/servers?_format=json&params={%22pagination%22:{%22page%22:1,%22perPage%22:25},%22sort%22:{%22field%22:%22created_at%22,%22order%22:%22DESC%22},%22filter%22:{%22profile_id%22:%22test%22}}", nil)
+	url := fmt.Sprintf("%s/api/servers?_format=json&params={%%22pagination%%22:{%%22page%%22:1,%%22perPage%%22:25},%%22sort%%22:{%%22field%%22:%%22created_at%%22,%%22order%%22:%%22DESC%%22},%%22filter%%22:{%%22profile_id%%22:%%22%s%%22}}", targetHost, profile)
+
+	req, err := http.NewRequest("GET", url, nil)
+
 	if err != nil {
 		t.Log(err)
 		return
@@ -117,7 +121,9 @@ func TestGetRules(t *testing.T) {
 
 	client := &http.Client{}
 
-	req, err := http.NewRequest("GET", targetHost+"/api/rules?_format=json&params={%22pagination%22:{%22page%22:1,%22perPage%22:10},%22sort%22:{%22field%22:%22id%22,%22order%22:%22ASC%22},%22filter%22:{%22profile_id%22:%22test%22}}", nil)
+	url := fmt.Sprintf("%s/api/rules?_format=json&params={%%22pagination%%22:{%%22page%%22:1,%%22perPage%%22:25},%%22sort%%22:{%%22field%%22:%%22created_at%%22,%%22order%%22:%%22DESC%%22},%%22filter%%22:{%%22profile_id%%22:%%22%s%%22}}", targetHost, profile)
+
+	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		t.Log(err)
 		return
@@ -159,7 +165,7 @@ func TestCreateServer(t *testing.T) {
 	url := targetHost + "/api/servers"
 	method := "POST"
 
-	payload := strings.NewReader(fmt.Sprintf(`{"listens":[{"listen":"80"}],"server_name":"%s", "proxy_server_name":"myorigin.mydomain.com", "profile_id":"test","root":"/var/www/html","index":"index.html","access_log":"logs/access.log","error_log":"logs/error.log","locations":[],"custom_block":[],"config":"server {\n      listen 80;  # Listen on port (HTTP)\n      server_name %s;  # Your domain name\n      root /var/www/html;  # Document root directory\n      index index.html;  # Default index files\n      access_log logs/access.log;  # Access log file location\n      error_log logs/error.log;  # Error log file location\n\n      \n      \n  }\n  "}`, serverName, serverName))
+	payload := strings.NewReader(fmt.Sprintf(`{"listens":[{"listen":"80"}],"server_name":"%s", "proxy_server_name":"myorigin.mydomain.com", "profile_id":"%s","root":"/var/www/html","index":"index.html","access_log":"logs/access.log","error_log":"logs/error.log","locations":[],"custom_block":[],"config":"server {\n      listen 80;  # Listen on port (HTTP)\n      server_name %s;  # Your domain name\n      root /var/www/html;  # Document root directory\n      index index.html;  # Default index files\n      access_log logs/access.log;  # Access log file location\n      error_log logs/error.log;  # Error log file location\n\n      \n      \n  }\n  "}`, serverName, profile, serverName))
 
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, payload)
@@ -210,7 +216,7 @@ func TestCreateRule(t *testing.T) {
 	url := targetHost + "/api/rules"
 	method := "POST"
 
-	payload := strings.NewReader(`{"version":1,"priority":1,"match":{"rules":{"path_key":"starts_with","path":"/router","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"equals"},"response":{"allow":true,"code":200,"message":"SGVsbG8gd29ybGQh"}},"name":"API_test_rule_gotest","profile_id":"test"}`)
+	payload := strings.NewReader(fmt.Sprintf(`{"version":1,"priority":1,"match":{"rules":{"path_key":"starts_with","path":"/router","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"equals"},"response":{"allow":true,"code":200,"message":"SGVsbG8gd29ybGQh"}},"name":"API_test_rule_gotest","profile_id":"%s"}`, profile))
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, payload)
 	if err != nil {
@@ -252,7 +258,7 @@ func TestCreateRule(t *testing.T) {
 
 // Calling the Server API for GET method to get the specific server with the uuid
 func TestGetSingleServer(t *testing.T) {
-	url := targetHost + "/api/servers/" + serverId + "?_format=json&envprofile=test"
+	url := targetHost + "/api/servers/" + serverId + "?_format=json&envprofile=" + profile
 
 	method := "GET"
 
@@ -287,7 +293,7 @@ func TestGetSingleServer(t *testing.T) {
 
 // Calling the Rule API for GET method to get the specific rule with the uuid
 func TestGetSingleRule(t *testing.T) {
-	url := targetHost + "/api/rules/" + ruleId + "?_format=json&envprofile=test"
+	url := targetHost + "/api/rules/" + ruleId + "?_format=json&envprofile=" + profile
 
 	method := "GET"
 
@@ -326,7 +332,7 @@ func TestUpdateRule(t *testing.T) {
 	url := targetHost + "/api/rules/" + ruleId
 	method := "PUT"
 
-	payload := strings.NewReader(fmt.Sprintf(`{"name":"API_test_rule_gotest","version":1,"match":{"rules":{"country_key":"equals","client_ip_key":"equals","path_key":"starts_with","path":"/router","jwt_token_validation":"equals"},"response":{"code":200,"message":"SGVsbG8gd29ybGQh","allow":true}},"profile_id":"test","created_at":1693981946,"priority":1,"id":"%s"}`, ruleId))
+	payload := strings.NewReader(fmt.Sprintf(`{"name":"API_test_rule_gotest","version":1,"match":{"rules":{"country_key":"equals","client_ip_key":"equals","path_key":"starts_with","path":"/router","jwt_token_validation":"equals"},"response":{"code":200,"message":"SGVsbG8gd29ybGQh","allow":true}},"profile_id":"%s","created_at":1693981946,"priority":1,"id":"%s"}`, profile, ruleId))
 
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, payload)
@@ -363,7 +369,7 @@ func TestUpdateRuleWithServer(t *testing.T) {
 	url := targetHost + "/api/servers/" + serverId
 	method := "PUT"
 
-	payload := strings.NewReader(fmt.Sprintf(`{"error_log":"logs/error.log","config":"server {\n      listen 80;  # Listen on port (HTTP)\n      server_name %s;  # Your domain name\n      root /var/www/html;  # Document root directory\n      index index.html;  # Default index files\n      access_log logs/access.log;  # Access log file location\n      error_log logs/error.log;  # Error log file location\n\n      \n      \n  }\n  ","custom_block":{},"locations":{},"root":"/var/www/html","id":"%s","index":"index.html","profile_id":"test","listens":[{"listen":"80"}],"server_name":"%s","access_log":"logs/access.log","created_at":1693981431,"proxy_pass":"http://localhost","proxy_server_name":"myorigin.mydomain.com","rules":"%s","match_cases":[]}`, serverName, serverId, serverName, ruleId))
+	payload := strings.NewReader(fmt.Sprintf(`{"error_log":"logs/error.log","config":"server {\n      listen 80;  # Listen on port (HTTP)\n      server_name %s;  # Your domain name\n      root /var/www/html;  # Document root directory\n      index index.html;  # Default index files\n      access_log logs/access.log;  # Access log file location\n      error_log logs/error.log;  # Error log file location\n\n      \n      \n  }\n  ","custom_block":{},"locations":{},"root":"/var/www/html","id":"%s","index":"index.html","profile_id":"%s","listens":[{"listen":"80"}],"server_name":"%s","access_log":"logs/access.log","created_at":1693981431,"proxy_pass":"http://localhost","proxy_server_name":"myorigin.mydomain.com","rules":"%s","match_cases":[]}`, serverName, serverId, profile, serverName, ruleId))
 
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, payload)
@@ -399,7 +405,7 @@ func TestUpdateRuleWithServer(t *testing.T) {
 //Calling the handle profile API to work with the profiles
 func TestHandleProfileAPI(t *testing.T) {
 	url := frontUrl + "/frontdoor/opsapi/handle-profile"
-	payload := strings.NewReader(`{"profile":"test"}`)
+	payload := strings.NewReader(fmt.Sprintf(`{"profile":"%s"}`, profile))
 
 	client := &http.Client{}
 
@@ -428,7 +434,7 @@ func TestHandleProfileAPI(t *testing.T) {
 func TestDataSync(t *testing.T) {
 	if serverName != "localhost" {
 
-		url := frontUrl + "/frontdoor/opsapi/sync?envprofile=test"
+		url := frontUrl + "/frontdoor/opsapi/sync?envprofile=" + profile
 		time.Sleep(2 * time.Second)
 
 		client := &http.Client{}
@@ -498,7 +504,7 @@ func TestDeleteServer(t *testing.T) {
 		method := "DELETE"
 		time.Sleep(2 * time.Second)
 
-		payload := strings.NewReader(fmt.Sprintf(`{"ids":{"ids":["%s"],"envProfile":"test"}}`, serverId))
+		payload := strings.NewReader(fmt.Sprintf(`{"ids":{"ids":["%s"],"envProfile":"%s"}}`, serverId, profile))
 
 		client := &http.Client{}
 		req, err := http.NewRequest(method, url, payload)
@@ -535,7 +541,7 @@ func TestDeleteRule(t *testing.T) {
 
 		time.Sleep(2 * time.Second)
 
-		payload := strings.NewReader(fmt.Sprintf(`{"ids":{"ids":["%s"],"envProfile":"test"}}`, ruleId))
+		payload := strings.NewReader(fmt.Sprintf(`{"ids":{"ids":["%s"],"envProfile":"%s"}}`, ruleId, profile))
 
 		client := &http.Client{}
 		req, err := http.NewRequest(method, url, payload)
