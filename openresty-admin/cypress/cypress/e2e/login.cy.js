@@ -1,14 +1,14 @@
 describe('Whitefalcon login test Int environment', () => {
 
-  let urlStr = 'http://host.docker.internal:8081'
-  let targetEnv = Cypress.env("CYPRESS_TARGET_ENV")
-  if (targetEnv === "test") 
-      urlStr = 'https://api.test.whitefalcon.io'
-  else if (targetEnv === "int")
-      urlStr = 'https://api.int2.whitefalcon.io'
-
+  let BASE_URL = Cypress.env('BASE_URL') || 'http://host.docker.internal:8081'
+  let FRONTEND_URL = Cypress.env('FRONTEND_URL') || 'http://host.docker.internal:8000'
+  let TARGET_ENV = Cypress.env("CYPRESS_TARGET_ENV")
+  let NODEAPP_ORIGIN_HOST = Cypress.env('NODEAPP_ORIGIN_HOST') || '172.177.0.10:3009'
+  let SERVER_NAME = Cypress.env('SERVER_NAME') || 'host.docker.internal'
+  let TARGET_PLATFORM = Cypress.env('TARGET_PLATFORM') || 'kubernetes'
+  
   it('Login to Whitefalcon', () => {
-    cy.visit(`${urlStr}/#/login`)
+    cy.visit(`${BASE_URL}/#/login`)
 
     var login_username_str = Cypress.env('LOGIN_EMAIL')
     var login_password_str = Cypress.env('LOGIN_PASSWORD')
@@ -34,7 +34,7 @@ describe('Whitefalcon login test Int environment', () => {
     cy.get('input[name="match.response.code"]').clear()
     cy.get('input[name="match.response.code"]').type('{selectall}{backspace}')
     cy.get('input[name="match.response.code"]').type(305)
-    cy.get('input[name="match.response.redirect_uri"]').type('172.177.0.10:3009')
+    cy.get('input[name="match.response.redirect_uri"]').type(NODEAPP_ORIGIN_HOST)
     cy.get('.matchResponseMessage div textarea[aria-invalid="false"]').type("VGhpcyBpcyB0ZXN0aW5nIGJ5IHRoZSBDeXByZXNzCg==")
     cy.get('form > .MuiToolbar-root > button').click()
     cy.wait(2000)
@@ -45,7 +45,7 @@ describe('Whitefalcon login test Int environment', () => {
     cy.wait(1000)
     // Create a new Server
     cy.get('input[name="listens.0.listen"]').type(80)
-    cy.get("#server_name").type("host.docker.internal")
+    cy.get("#server_name").type(SERVER_NAME)
     cy.get('#profile_id').click()
     cy.get('div.MuiPaper-root.MuiMenu-paper ul.MuiMenu-list li[data-value="test"]').click()
     cy.get("#tabheader-1").click()
@@ -63,10 +63,13 @@ describe('Whitefalcon login test Int environment', () => {
     cy.get('div.MuiPaper-root.MuiMenu-paper ul.MuiMenu-list li[data-value="test"]').click()
     cy.wait(2000)
     // Sync the data
-    // cy.get('button[aria-label="Sync API Storage"]').click()
+    
+    if (TARGET_PLATFORM == "kubernetes") {
+      cy.get('button[aria-label="Sync API Storage"]').click()
+    }
+    
     cy.wait(2000)
-
-    cy.visit(`http://host.docker.internal:8000`)
+    cy.visit(FRONTEND_URL)
   })
 
   function generateRandomString() {
