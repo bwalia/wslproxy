@@ -53,7 +53,7 @@ const Form = ({ type }) => {
               defaultValue={[{ listen: "" }]}
             >
               <SimpleFormIterator initialValues={initialValues}>
-                <TextInput source="listen" fullWidth />
+                <TextInput source="listen" fullWidth className="serverListen" />
               </SimpleFormIterator>
             </ArrayInput>
           </Grid>
