@@ -1,0 +1,49 @@
+name: Whitefalcon Admin UI Login Test
+on:
+  schedule:
+    - cron: '0 0 * * *'
+    
+  workflow_dispatch:
+    inputs:
+      TARGET_ENV:
+        type: choice
+        description: 'Please choose the Target Environment'
+        default: 'int'
+        required: true
+        options:
+          - int
+          - test
+          - acc
+          
+env: 
+  TARGET_ENV: ${{ inputs.TARGET_ENV || 'int' }}
+  
+jobs:
+  build:
+    name: Login Test using Cypress Test framework
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Docker Compose to run Cypress Test framework specs
+        uses: ndeloof/install-compose-action@v0.0.1
+        with:
+          version: v2.1.0 # defaults to 'latest'
+          legacy: true    # will also install in PATH as `docker-compose`
+      - run: docker-compose --version
+
+      - name: Smoke test Login Test using Cypress Test framework on ${{ env.TARGET_ENV }}
+        run: |
+            chmod +x ./bootstrap-cypress.sh && sh ./bootstrap-cypress.sh "${{ secrets.QA_LOGIN_EMAIL }}" "${{ secrets.QA_LOGIN_PASSWORD }}" "${{ env.TARGET_ENV }}"
+
+      - name: Slack Notification for Whitefalcon Admin UI Smoke Login Test 
+        uses: rtCamp/action-slack-notify@v2
+        env:
+            SLACK_CHANNEL: general
+            SLACK_COLOR: ${{ job.status }}
+            SLACK_ICON: https://github.com/rtCamp.png?size=48
+            SLACK_MESSAGE: 'Whitefalcon Admin UI Smoke Login Test using Cypress Test framework ${{ env.TARGET_ENV }} env :rocket:'
+            SLACK_TITLE: Whitefalcon Admin UI Smoke Login Test on ${{ env.TARGET_ENV }}
+            SLACK_USERNAME: rtCamp
+            SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+  
