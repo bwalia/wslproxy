@@ -26,7 +26,7 @@ func TestCheckRulePriority(t *testing.T) {
 		} `json:"data"`
 	}
 	url := targetHost + "/api/rules"
-	payload := strings.NewReader(`{"version":1,"priority":8,"match":{"rules":{"path_key":"starts_with","path":"/","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"equals"},"response":{"allow":true,"code":200,"message":"aGlnaCBwcmlvcml0eSBydWxl"}},"name":"Rule with High priority -gotest","profile_id":"test"}`)
+	payload := strings.NewReader(fmt.Sprintf(`{"version":1,"priority":8,"match":{"rules":{"path_key":"starts_with","path":"/","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"equals"},"response":{"allow":true,"code":200,"message":"aGlnaCBwcmlvcml0eSBydWxl"}},"name":"Rule with High priority -gotest","profile_id":"%s"}`, profile))
 
 	client := &http.Client{}
 	req, err := http.NewRequest("POST", url, payload)
@@ -59,7 +59,7 @@ func TestCheckRulePriority(t *testing.T) {
 	}
 
 	//creating rule with low priority
-	Payload := strings.NewReader(`{"version":1,"priority":4,"match":{"rules":{"path_key":"starts_with","path":"/","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"equals"},"response":{"allow":true,"code":200,"message":"bG93IHByaW9yaXR5"}},"name":"Rule with Low priority- gotest","profile_id":"test"}`)
+	Payload := strings.NewReader(fmt.Sprintf(`{"version":1,"priority":4,"match":{"rules":{"path_key":"starts_with","path":"/","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"equals"},"response":{"allow":true,"code":200,"message":"bG93IHByaW9yaXR5"}},"name":"Rule with Low priority- gotest","profile_id":"%s"}`, profile))
 	client = &http.Client{}
 	req, err = http.NewRequest("POST", url, Payload)
 	if err != nil {

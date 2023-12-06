@@ -32,7 +32,7 @@ func TestCreateRuleForAccessToAll(t *testing.T) {
 	url := targetHost + "/api/rules"
 	method := "POST"
 
-	payload := strings.NewReader(fmt.Sprintf(`{"version":1,"priority":1,"match":{"rules":{"path_key":"starts_with","path":"/","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"equals"},"response":{"allow":true,"code":305,"redirect_uri":"%s","message":"undefined"}},"name":"Access All Rule- gotest","profile_id":"test"}`, nodeAppIP))
+	payload := strings.NewReader(fmt.Sprintf(`{"version":1,"priority":1,"match":{"rules":{"path_key":"starts_with","path":"/","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"equals"},"response":{"allow":true,"code":305,"redirect_uri":"%s","message":"undefined"}},"name":"Access All Rule- gotest","profile_id":"%s"}`, nodeAppIP, profile))
 
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, payload)
@@ -83,7 +83,7 @@ func TestCreateRuleForAccessToPathApi(t *testing.T) {
 	url := targetHost + "/api/rules"
 	method := "POST"
 	tokenKey := os.Getenv("JWT_TOKEN_KEY")
-	payload := strings.NewReader(fmt.Sprintf(`{"version":1,"priority":1,"match":{"rules":{"path_key":"starts_with","path":"/api","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"cookie","jwt_token_validation_value":"Authorization","jwt_token_validation_key":"%s"},"response":{"allow":true,"code":305,"redirect_uri":"%s","message":"undefined"}},"name":"Access Api Rule-gotest","profile_id":"test"}`, tokenKey, nodeAppIP))
+	payload := strings.NewReader(fmt.Sprintf(`{"version":1,"priority":1,"match":{"rules":{"path_key":"starts_with","path":"/api","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"cookie","jwt_token_validation_value":"Authorization","jwt_token_validation_key":"%s"},"response":{"allow":true,"code":305,"redirect_uri":"%s","message":"undefined"}},"name":"Access Api Rule-gotest","profile_id":"%s"}`, tokenKey, nodeAppIP, profile))
 
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, payload)
@@ -126,7 +126,7 @@ func TestCreateRuleForAccessToPathApi(t *testing.T) {
 func TestAddRulesWithServer(t *testing.T) {
 	url := targetHost + "/api/servers/" + serverId
 	method := "PUT"
-	payload := strings.NewReader(fmt.Sprintf(`{"server_name":"%s","profile_id":"test","config":"server {\n      listen 82;  # Listen on port (HTTP)\n      server_name %s;  # Your domain name\n      root /var/www/html;  # Document root directory\n      index index.html;  # Default index files\n      access_log logs/access.log;  # Access log file location\n      error_log logs/error.log;  # Error log file location\n\n      \n      \n  }\n  ","access_log":"logs/access.log","rules":"%s","custom_block":{},"id":"%s","created_at":1694002895,"root":"/var/www/html","match_cases":[{"statement":"%s","condition":"and"}],"locations":{},"proxy_pass":"http://localhost","error_log":"logs/error.log","listens":[{"listen":"82"}],"index":"index.html"}`, serverName, serverName, ruleAccessAll, serverId, ruleAccessApi))
+	payload := strings.NewReader(fmt.Sprintf(`{"server_name":"%s","profile_id":"%s","config":"server {\n      listen 82;  # Listen on port (HTTP)\n      server_name %s;  # Your domain name\n      root /var/www/html;  # Document root directory\n      index index.html;  # Default index files\n      access_log logs/access.log;  # Access log file location\n      error_log logs/error.log;  # Error log file location\n\n      \n      \n  }\n  ","access_log":"logs/access.log","rules":"%s","custom_block":{},"id":"%s","created_at":1694002895,"root":"/var/www/html","match_cases":[{"statement":"%s","condition":"and"}],"locations":{},"proxy_pass":"http://localhost","error_log":"logs/error.log","listens":[{"listen":"82"}],"index":"index.html"}`, serverName, profile, serverName, ruleAccessAll, serverId, ruleAccessApi))
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, payload)
 	if err != nil {

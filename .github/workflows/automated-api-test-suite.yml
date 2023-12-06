@@ -17,6 +17,17 @@ on:
           - test
           - acc
 
+      PROFILE_ID:
+        type: choice
+        description: 'Please choose the Target Profile'
+        default: 'test'
+        required: true
+        options: 
+          - dev 
+          - test
+          - qa_test
+          - prod
+
       DELETE_TEST_DATA:
         description: 'Delete Test Data After Execution'
         required: true
@@ -25,6 +36,7 @@ on:
 
 env:
   TARGET_ENV: ${{ inputs.TARGET_ENV || 'int2'}}
+  PROFILE_ID: ${{ inputs.PROFILE_ID || 'test'}}
   LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
   LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
   JWT_TOKEN_KEY: ${{ secrets.JWT_TOKEN_KEY }}
