@@ -323,6 +323,7 @@ const Form = () => {
               { id: "equals", name: "Equals" },
             ]}
             showEmptyOption={false}
+            className="matchRulePathKey"
           />
         </Grid>
 
@@ -332,6 +333,7 @@ const Form = () => {
             validate={[required()]}
             label="Value"
             fullWidth
+            className="matchRulePath"
           />
         </Grid>
 
@@ -344,6 +346,7 @@ const Form = () => {
             label="Client Country"
             choices={[{ id: "equals", name: "=" }]}
             showEmptyOption={false}
+            className="matchRuleCountryKey"
           />
         </Grid>
 
@@ -354,6 +357,7 @@ const Form = () => {
             label="Value"
             fullWidth
             choices={mynewobj}
+            className="matchRuleCountry"
           />
         </Grid>
 
@@ -368,11 +372,12 @@ const Form = () => {
               { id: "equals", name: "=" },
               { id: "starts_with", name: "Starts With" },
             ]}
+            className="matchRuleClientIpKey"
           />
         </Grid>
 
         <Grid item xs={6}>
-          <TextInput source="match.rules.client_ip" label="Value" fullWidth />
+          <TextInput source="match.rules.client_ip" className="matchRuleClientIp" label="Value" fullWidth />
         </Grid>
 
         <Grid item xs={6}>
@@ -389,6 +394,7 @@ const Form = () => {
             ]}
             fullWidth
             label="Token Validation"
+            className="matchRuleJwtTokenValidation"
           />
         </Grid>
 
@@ -397,6 +403,7 @@ const Form = () => {
             source="match.rules.jwt_token_validation_value"
             fullWidth
             label="Value"
+            className="matchRuleJwtTokenValidationValue"
           />
         </Grid>
 
@@ -411,6 +418,7 @@ const Form = () => {
                     label="Token Secret Key"
                     type="password"
                     inputProps={{ autoComplete: "new-password" }}
+                    className="matchRuleJwtTokenValidationKey"
                   />
                 )}
               </div>
@@ -424,6 +432,7 @@ const Form = () => {
             label="Allow Request"
             fullWidth
             defaultValue={false}
+            className="matchResponseAllow"
           />
         </Grid>
 
@@ -433,6 +442,7 @@ const Form = () => {
             label="Response Code"
             fullWidth
             defaultValue={403}
+            className="matchResponseCode"
           />
         </Grid>
         <Grid item xs={6}>
@@ -446,12 +456,14 @@ const Form = () => {
                     label="Proxy Pass/Redirect To"
                     fullWidth
                     validate={[required()]}
+                    className="matchResponseRedirectUri"
                   />
                 ) : (
                   <TextInput
                     source="match.response.redirect_uri"
                     label="Proxy Pass/Redirect To (Target)"
                     fullWidth
+                    className="matchResponseRedirectUri"
                   />
                 )}
               </React.Fragment>
@@ -465,6 +477,7 @@ const Form = () => {
             source="match.response.message"
             label="Response Message (Base64 Encoded)"
             fullWidth
+            className="matchResponseMessage"
           />
         </Grid>
       </Grid>
