@@ -1,6 +1,6 @@
 describe('Whitefalcon login test Int environment', () => {
 
-  let urlStr = 'http://localhost:8081'
+  let urlStr = 'http://host.docker.internal:8081'
   let targetEnv = Cypress.env("CYPRESS_TARGET_ENV")
   if (targetEnv === "test") 
       urlStr = 'https://api.test.whitefalcon.io'
@@ -45,7 +45,7 @@ describe('Whitefalcon login test Int environment', () => {
     cy.wait(1000)
     // Create a new Server
     cy.get('input[name="listens.0.listen"]').type(80)
-    cy.get("#server_name").type("localhost")
+    cy.get("#server_name").type("host.docker.internal")
     cy.get('#profile_id').click()
     cy.get('div.MuiPaper-root.MuiMenu-paper ul.MuiMenu-list li[data-value="test"]').click()
     cy.get("#tabheader-1").click()
@@ -66,7 +66,7 @@ describe('Whitefalcon login test Int environment', () => {
     // cy.get('button[aria-label="Sync API Storage"]').click()
     cy.wait(2000)
 
-    cy.visit(`http://localhost:8000`)
+    cy.visit(`http://host.docker.internal:8000`)
   })
 
   function generateRandomString() {
