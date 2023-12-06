@@ -59,7 +59,8 @@ We use the following dynamic variables, which may vary for each environment:
 - `SERVER_NAME`: The server name used to test the rules.
 - `SERVER_ID_QA`: The ID of the server used for testing.
 - `TARGET_ENV`: Target environment chosen from input options when executing the workflow.
-- `EXECUTE_FUNCTION`: Yes or No to indicate whether to delete the created rules during workflow execution, chosen from input options when executing the workflow.
+- `NODE_APP_IP`: The specific IP addresss where the sample app is running to help verifying autorization based rules.
+- `DELETE_TEST_DATA`: true or false to indicate whether to delete the created rules and server during workflow execution, choosen from input options when executing the workflow.
 
 ## Test Execution
 ### Execute Locally
@@ -90,5 +91,5 @@ You can trigger the test execution using GitHub Actions by following this [workf
 
 #### `test`: http://api.test.whitefalcon.io/
 ##### Sub-environments of `test` are-
-- int2 : http://api.test2.whitefalcon.io/
-- int6 : http://api.test6.whitefalcon.io/
+- test2 : http://api.test2.whitefalcon.io/
+- test6 : http://api.test6.whitefalcon.io/
