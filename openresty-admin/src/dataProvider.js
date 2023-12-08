@@ -283,6 +283,7 @@ const dataProvider = (apiUrl, settings = {}) => {
         const response = await fetch(url, {
           method: "GET",
           headers: getHeaders(),
+          mode: "no-cors",
         });
         if (response.status === 200) {
           setIsLoadig(false);
