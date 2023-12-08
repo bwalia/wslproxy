@@ -120,9 +120,6 @@ local function deleteFilesInDirectory(directory)
 end
 
 function syncRulesAPI(args)
-    ngx.header["Access-Control-Allow-Origin"] = "*"
-    ngx.header["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
-    ngx.header["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
     local apiPageSize = os.getenv("API_PAGE_SIZE")
     local apiTotalPages = 1
     local profileName = args.envprofile
@@ -166,9 +163,6 @@ function syncRulesAPI(args)
 end
 
 function syncServersAPI(args)
-    ngx.header["Access-Control-Allow-Origin"] = "*"
-    ngx.header["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
-    ngx.header["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
     local apiPageSize = os.getenv("API_PAGE_SIZE")
     local apiTotalPages = 1
     local profileName = args.envprofile
