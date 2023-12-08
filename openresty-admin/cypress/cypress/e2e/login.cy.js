@@ -1,11 +1,11 @@
 describe('Whitefalcon login test Int environment', () => {
 
-  let BASE_URL = Cypress.env('BASE_URL') || 'http://host.docker.internal:8081'
-  let FRONTEND_URL = Cypress.env('FRONTEND_URL') || 'http://host.docker.internal:8000'
+  let BASE_URL = Cypress.env('BASE_URL') //|| 'http://host.docker.internal:8081'
+  let FRONTEND_URL = Cypress.env('FRONTEND_URL') //|| 'http://host.docker.internal:8000'
   let TARGET_ENV = Cypress.env("CYPRESS_TARGET_ENV")
-  let NODEAPP_ORIGIN_HOST = Cypress.env('NODEAPP_ORIGIN_HOST') || '172.177.0.10:3009'
-  let SERVER_NAME = Cypress.env('SERVER_NAME') || 'host.docker.internal'
-  let TARGET_PLATFORM = Cypress.env('TARGET_PLATFORM') || 'kubernetes'
+  let NODEAPP_ORIGIN_HOST = Cypress.env('NODEAPP_ORIGIN_HOST') //|| '172.177.0.10:3009'
+  let SERVER_NAME = Cypress.env('SERVER_NAME') //|| 'host.docker.internal'
+  let TARGET_PLATFORM = Cypress.env('TARGET_PLATFORM') //|| 'docker'
   
   it('Login to Whitefalcon', () => {
     cy.visit(`${BASE_URL}/#/login`)
