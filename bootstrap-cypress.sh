@@ -17,7 +17,7 @@ if [ "$TARGET_ENV" = "int" ]; then
     FRONTEND_URL="https://front.int2.whitefalcon.io"
     NODEAPP_ORIGIN_HOST="10.43.140.53"
     SERVER_NAME="front.int2.whitefalcon.io"
-    TARGET_PLATFORM="kubernates"
+    TARGET_PLATFORM="kubernetes"
 fi
 if [ "$TARGET_ENV" = "local" ]; then
     BASE_URL="http://host.docker.internal:8081"
@@ -36,4 +36,5 @@ echo "CYPRESS_TARGET_PLATFORM=$TARGET_PLATFORM" >> /tmp/.env_cypress
 echo "" >> /tmp/.env_cypress
 
 mv /tmp/.env_cypress .env
+cat .env
 docker compose -f docker-compose-cypress.yml up
