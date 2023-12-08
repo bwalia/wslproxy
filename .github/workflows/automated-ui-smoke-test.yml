@@ -14,6 +14,7 @@ on:
           - int
           - test
           - acc
+          - local
           
 env: 
   TARGET_ENV: ${{ inputs.TARGET_ENV || 'int' }}

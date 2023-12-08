@@ -6,6 +6,7 @@ metadata:
     {{- include "node-app.labels" . | nindent 4 }}
 spec:
   type: {{ .Values.service.type }}
+  clusterIP: {{ .Values.service.clusterIP }}
   ports:
     - port: {{ .Values.service.port }}
       targetPort: http

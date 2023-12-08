@@ -40,6 +40,7 @@ securityContext: {}
 
 service:
   type: ClusterIP
+  clusterIP: 10.43.140.53  
   port: 3009
 
 ingress:
