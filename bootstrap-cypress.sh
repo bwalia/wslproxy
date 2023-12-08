@@ -12,13 +12,13 @@ echo "" > /tmp/.env_cypress
 echo "CYPRESS_LOGIN_EMAIL=$USERNAME" >> /tmp/.env_cypress
 echo "CYPRESS_LOGIN_PASSWORD=$PASSWD" >> /tmp/.env_cypress
 echo "CYPRESS_TARGET_ENV=$TARGET_ENV" >> /tmp/.env_cypress
-if [ $TARGET_ENV = "int" ]; then
+if [ "$TARGET_ENV" = "int" ]; then
     echo "CYPRESS_BASE_URL=https://api.int2.whitefalcon.io" >> /tmp/.env_cypress
     echo "CYPRESS_FRONTEND_URL=https://front.int2.whitefalcon.io" >> /tmp/.env_cypress
     echo "CYPRESS_NODEAPP_ORIGIN_HOST=10.43.140.53" >> /tmp/.env_cypress
     echo "CYPRESS_SERVER_NAME=front.int2.whitefalcon.io" >> /tmp/.env_cypress
     echo "CYPRESS_TARGET_PLATFORM=kubernates" >> /tmp/.env_cypress
-elif [ $TARGET_ENV = "local" ]; then
+elif [ "$TARGET_ENV" = "local" ]; then
     echo "CYPRESS_BASE_URL=http://host.docker.internal:8081" >> /tmp/.env_cypress
     echo "CYPRESS_FRONTEND_URL=http://host.docker.internal:8000" >> /tmp/.env_cypress
     echo "CYPRESS_NODEAPP_ORIGIN_HOST=172.177.0.10:3009" >> /tmp/.env_cypress
