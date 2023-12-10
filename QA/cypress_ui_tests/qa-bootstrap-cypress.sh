@@ -2,15 +2,15 @@
 
 set -x
 
-USERNAME="$1"
-PASSWD="$2"
+LOGIN_EMAIL="$1"
+LOGIN_PASSWORD="$2"
 TARGET_ENV="$3"
 
 rm -Rf .env
 rm -Rf /tmp/.env_cypress
 echo "" > /tmp/.env_cypress
-echo "CYPRESS_LOGIN_EMAIL=$USERNAME" >> /tmp/.env_cypress
-echo "CYPRESS_LOGIN_PASSWORD=$PASSWD" >> /tmp/.env_cypress
+echo "CYPRESS_LOGIN_EMAIL=$LOGIN_EMAIL" >> /tmp/.env_cypress
+echo "CYPRESS_LOGIN_PASSWORD=$LOGIN_PASSWORD" >> /tmp/.env_cypress
 echo "CYPRESS_TARGET_ENV=$TARGET_ENV" >> /tmp/.env_cypress
 if [ "$TARGET_ENV" = "int" ]; then
     echo "CYPRESS_BASE_URL=https://api.int2.whitefalcon.io" >> /tmp/.env_cypress

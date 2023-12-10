@@ -1,9 +1,13 @@
 describe('Whitefalcon users test', () => {
+  let BASE_URL = Cypress.env('BASE_URL') || 'https://api.int2.whitefalcon.io'
+  let EMAIL = Cypress.env('LOGIN_EMAIL') 
+  let PASSWORD = Cypress.env('LOGIN_PASSWORD') 
+
 
     it('Validating creating a new user', () => {
-      cy.visit('http://localhost:8081')
-      cy.get('#email').type('ejeyd@example.com')
-      cy.get('#password').type('admin')
+      cy.visit(BASE_URL)
+      cy.get('#email').type(EMAIL)
+      cy.get('#password').type(PASSWORD)
       cy.get('button[type="submit"]').click()
 
       cy.get('.MuiDialogActions-root > .MuiButton-contained').click()
