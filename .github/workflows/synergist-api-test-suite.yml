@@ -71,14 +71,14 @@ jobs:
             export TARGET_HOST="https://localhost:8090"
             export SERVER_NAME="localhost"
             export SERVER_ID_QA="host:localhost"
-            export NODE_APP_IP="172.177.0.25:3009"  
+            export NODE_APP_IP=""  
             export FRONT_URL="http://localhost:8009" 
 
           elif [[ "${{ inputs.TARGET_ENV }}" == 'synprod' ]]; then
             export TARGET_HOST="https://localhost:8095"
             export SERVER_NAME="localhost"
             export SERVER_ID_QA="host:localhost"
-            export NODE_APP_IP="172.177.0.25:3009"  
+            export NODE_APP_IP=""  
             export FRONT_URL="http://localhost:8091" 
 
           else
