@@ -1,0 +1,91 @@
+name: Synergist API Test Suite execution on selected env
+
+on:
+  workflow_dispatch:
+    inputs:
+      TARGET_ENV:
+        type: choice
+        description: 'Please choose the Target Environment'
+        default: 'syntest'
+        required: true
+        options:
+            - synprod
+            - syntest
+            - synacc
+            - syndev
+
+      PROFILE_ID:
+        type: choice
+        description: 'Please choose the Target Profile'
+        default: 'test'
+        required: true
+        options: 
+          - dev 
+          - test
+          - qa_test
+          - prod
+
+      DELETE_TEST_DATA:
+        description: 'Delete Test Data After Execution'
+        required: true
+        default: 'true'
+        type: boolean
+
+env:
+  TARGET_ENV: ${{ inputs.TARGET_ENV || 'syntest'}}
+  PROFILE_ID: ${{ inputs.PROFILE_ID || 'test'}}
+  LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
+  LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
+  JWT_TOKEN_KEY: ${{ secrets.JWT_TOKEN_KEY }}
+  DELETE_TEST_DATA: ${{ inputs.DELETE_TEST_DATA }}
+  QA_EXPIRED_JWT_TOKEN_KEY: ${{ secrets.QA_EXPIRED_JWT_TOKEN_KEY }}
+
+  
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.19
+
+      - name: Environment Setup
+        run: |  
+          ./deploy-to-docker.sh ${{ env.TARGET_ENV }} ${{ env.TARGET_ENV }} "-pop"
+
+      - name: API Test For Rules & Servers
+        working-directory: ./QA
+        run: |  
+          if [[ "${{ inputs.TARGET_ENV }}" == 'syntest' ]]; then
+            export TARGET_HOST="https://localhost:8088"
+            export SERVER_NAME="localhost"
+            export SERVER_ID_QA="host:localhost"
+            export NODE_APP_IP="172.177.0.25:3009"  
+            export FRONT_URL="http://localhost:8008" 
+
+          elif [[ "${{ inputs.TARGET_ENV }}" == 'synacc' ]]; then
+            export TARGET_HOST="https://localhost:8090"
+            export SERVER_NAME="localhost"
+            export SERVER_ID_QA="host:localhost"
+            export NODE_APP_IP="172.177.0.25:3009"  
+            export FRONT_URL="http://localhost:8009" 
+
+          elif [[ "${{ inputs.TARGET_ENV }}" == 'synprod' ]]; then
+            export TARGET_HOST="https://localhost:8095"
+            export SERVER_NAME="localhost"
+            export SERVER_ID_QA="host:localhost"
+            export NODE_APP_IP="172.177.0.25:3009"  
+            export FRONT_URL="http://localhost:8091" 
+
+          else
+            echo "Unsupported TARGET_ENV:${{ inputs.TARGET_ENV }}"
+            exit 1
+          fi
+                     
+          go mod init myapp
+          go test -v
+   
