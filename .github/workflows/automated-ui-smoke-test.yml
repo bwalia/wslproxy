@@ -37,6 +37,13 @@ jobs:
         run: |
             chmod +x ./bootstrap-cypress.sh && sh ./bootstrap-cypress.sh "${{ secrets.QA_LOGIN_EMAIL }}" "${{ secrets.QA_LOGIN_PASSWORD }}" "${{ env.TARGET_ENV }}"
 
+      - name: 'Upload screenshots and videos to Slack'
+        uses: trymbill/cypress-slack-video-upload-action@v1.3.0
+        with:
+            token: ${{ secrets.SLACK_TOKEN }}
+            channels: 'cypress-test-results'
+            workdir: openresty-admin/cypress/cypress
+
       - name: Slack Notification for Whitefalcon Admin UI Smoke Login Test 
         uses: rtCamp/action-slack-notify@v2
         env:
