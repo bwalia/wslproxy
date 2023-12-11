@@ -15,7 +15,7 @@ echo "CYPRESS_TARGET_ENV=$TARGET_ENV" >> /tmp/.env_cypress
 if [ "$TARGET_ENV" = "int" ]; then
     BASE_URL="https://api.int2.whitefalcon.io"
     FRONTEND_URL="https://front.int2.whitefalcon.io"
-    NODEAPP_ORIGIN_HOST="10.43.140.53"
+    NODEAPP_ORIGIN_HOST="10.43.140.53:3009"
     SERVER_NAME="front.int2.whitefalcon.io"
     TARGET_PLATFORM="kubernetes"
 fi
