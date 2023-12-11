@@ -42,6 +42,7 @@ jobs:
         with:
             token: ${{ secrets.SLACK_WEBHOOK }}
             channels: 'devops-ci-cd'
+            workdir: openresty-admin/cypress/cypress
 
       - name: Slack Notification for Whitefalcon Admin UI Smoke Login Test 
         uses: rtCamp/action-slack-notify@v2
