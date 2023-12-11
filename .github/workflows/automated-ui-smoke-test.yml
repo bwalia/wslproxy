@@ -41,7 +41,7 @@ jobs:
         uses: trymbill/cypress-slack-video-upload-action@v1.3.0
         with:
             token: ${{ secrets.SLACK_TOKEN }}
-            channels: 'devops-ci-cd'
+            channels: 'cypress-test-results'
             workdir: openresty-admin/cypress/cypress
 
       - name: Slack Notification for Whitefalcon Admin UI Smoke Login Test 
