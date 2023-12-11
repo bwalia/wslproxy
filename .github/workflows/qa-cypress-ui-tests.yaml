@@ -1,4 +1,4 @@
-name: Whitefalcon Admin UI Login Test
+name: Whitefalcon QA UI Tests Suite
 on:
   schedule:
     - cron: '0 22 * * *'
