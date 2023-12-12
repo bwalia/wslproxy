@@ -1,0 +1,39 @@
+name: Whitefalcon QA UI Tests Suite
+on:
+  schedule:
+    - cron: '0 22 * * *'
+    
+  workflow_dispatch:
+    inputs:
+      TARGET_ENV:
+        type: choice
+        description: 'Please choose the Target Environment'
+        default: 'int'
+        required: true
+        options:
+          - int
+          - test
+          - acc
+          - local
+          
+env: 
+  TARGET_ENV: ${{ inputs.TARGET_ENV || 'int' }}
+  
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Docker Compose to run Cypress Test framework specs
+        uses: ndeloof/install-compose-action@v0.0.1
+        with:
+          version: v2.1.0 # defaults to 'latest'
+          legacy: true    # will also install in PATH as `docker-compose`
+
+      - name: Executing UI tests using Cypress Test framework on ${{ env.TARGET_ENV }}
+        working-directory: ./QA/cypress_ui_tests
+        run: |
+            chmod +x ./qa-bootstrap-cypress.sh && sh ./qa-bootstrap-cypress.sh "${{ secrets.LOGIN_EMAIL }}" "${{ secrets.LOGIN_PASSWORD }}" "${{ env.TARGET_ENV }}"
+
+  
