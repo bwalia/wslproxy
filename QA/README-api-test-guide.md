@@ -62,6 +62,7 @@ We use the following dynamic variables, which may vary for each environment:
 - `NODE_APP_IP`: The specific IP addresss where the sample app is running to help verifying autorization based rules.
 - `DELETE_TEST_DATA`: true or false to indicate whether to delete the created rules and server during workflow execution, choosen from input options when executing the workflow.
 - `PROFILE_ID`: Select preferred profile to execute the tests. (It can be dev, test or prod.)
+- `FRONT_URL`: The front url of the environment.
 
 
 ## Test Execution

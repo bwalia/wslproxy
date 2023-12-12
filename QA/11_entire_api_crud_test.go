@@ -149,11 +149,8 @@ func TestGetRules(t *testing.T) {
 // Calling the Server API for POST method to create a new server
 func TestCreateServer(t *testing.T) {
 
-	if serverName == "localhost" {
-		frontUrl = "http://localhost:8000"
-	} else {
-		frontUrl = "https://" + serverName
-	}
+	frontUrl = os.Getenv("FRONT_URL")
+
 	//print(frontUrl)
 
 	type Server struct {

@@ -11,8 +11,8 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "8081:8080"
-      - "8000:80"
+      - "8088:8080"
+      - "8008:80"
     networks:
       - openresty-network
     volumes:
@@ -36,12 +36,12 @@ services:
       STACK: "Lua 5.1"
       NGINX_CONFIG_DIR: "/opt/nginx/"
       JWT_SECURITY_PASSPHRASE: "HCsKpxQ4hU97V5us5TCwvLnAVBgLqNd1dP2R-4Uywg7946J3zAqT9EOA5hdWRCQn"
-      API_URL: "http://localhost:8080/api"
+      API_URL: "http://localhost:8088/api"
       HOST: "localhost"
       PRIMARY_DNS_RESOLVER: "8.8.8.8"
       SECONDARY_DNS_RESOLVER: "8.8.4.4"
       DNS_RESOLVER_PORT: "53"
-      FRONT_URL: "http://localhost:8000"
+      FRONT_URL: "http://localhost:8008"
 #      DNS_RESOLVER: "127.0.0.11"       # Docker's internal DNS resolver IP this should only be added for Docker deployments
 
   syntest-pop-redis:
@@ -60,6 +60,11 @@ services:
     ports:
       - "3009:3009"
     networks:
-      - openresty-network
+      openresty-network:
+        ipv4_address: 172.178.0.25
+
 networks: 
   openresty-network:
+    ipam:
+      config:
+        - subnet: 172.178.0.0/16
