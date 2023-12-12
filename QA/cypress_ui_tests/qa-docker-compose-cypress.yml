@@ -2,10 +2,10 @@ version: 'cypress-docker-v1'
 services:
   cypress-chrome:
     image: cypress/included:12.8.1
-    command: "--browser electron"
-    working_dir: /tests
+    command: "--browser chrome"
+    working_dir: /cypress
     volumes:
-      - ./:/tests
+      - ./:/cypress
     env_file: .env
   cypress-firefox:
     image: cypress/included:12.8.1

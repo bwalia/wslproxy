@@ -1,5 +1,5 @@
 describe('Whitefalcon login test', () => {
-  let BASE_URL = Cypress.env('BASE_URL') || 'https://api.int2.whitefalcon.io'
+  let BASE_URL = Cypress.env('BASE_PUB_URL') 
   let EMAIL = Cypress.env('LOGIN_EMAIL') 
   let PASSWORD = Cypress.env('LOGIN_PASSWORD') 
 
