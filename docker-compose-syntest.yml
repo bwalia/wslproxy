@@ -58,7 +58,7 @@ services:
       context: .
       dockerfile: Dockerfile_nodeapp
     ports:
-      - "3009:3009"
+      - "3010:3009"
     networks:
       openresty-network:
         ipv4_address: 172.178.0.25
