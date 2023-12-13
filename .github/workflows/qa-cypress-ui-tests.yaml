@@ -8,7 +8,7 @@ on:
       TARGET_ENV:
         type: choice
         description: 'Please choose the Target Environment'
-        default: 'int'
+        default: 'local'
         required: true
         options:
           - int
@@ -17,7 +17,7 @@ on:
           - local
           
 env: 
-  TARGET_ENV: ${{ inputs.TARGET_ENV || 'int' }}
+  TARGET_ENV: ${{ inputs.TARGET_ENV || 'local' }}
   
 jobs:
   build:
@@ -34,6 +34,6 @@ jobs:
       - name: Executing UI tests using Cypress Test framework on ${{ env.TARGET_ENV }}
         working-directory: ./QA/cypress_ui_tests
         run: |
-            chmod +x ./qa-bootstrap-cypress.sh && sh ./qa-bootstrap-cypress.sh "${{ secrets.LOGIN_EMAIL }}" "${{ secrets.LOGIN_PASSWORD }}" "${{ env.TARGET_ENV }}"
+            chmod +x ./qa-bootstrap-cypress.sh && sh ./qa-bootstrap-cypress.sh "${{ secrets.LOGIN_EMAIL }}" "${{ secrets.LOGIN_PASSWORD }}" "${{ env.TARGET_ENV }}" "${{ secrets.JWT_TOKEN_KEY }}"
 
   

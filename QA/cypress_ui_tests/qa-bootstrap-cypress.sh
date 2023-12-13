@@ -5,6 +5,7 @@ set -x
 LOGIN_EMAIL=$1
 LOGIN_PASSWORD=$2
 TARGET_ENV=$3
+JWT_TOKEN_KEY=$4
 
 rm -Rf .env
 rm -Rf /tmp/.env_cypress
@@ -12,6 +13,8 @@ echo "" > /tmp/.env_cypress
 echo "CYPRESS_LOGIN_EMAIL=$LOGIN_EMAIL" >> /tmp/.env_cypress
 echo "CYPRESS_LOGIN_PASSWORD=$LOGIN_PASSWORD" >> /tmp/.env_cypress
 echo "CYPRESS_TARGET_ENV=$TARGET_ENV" >> /tmp/.env_cypress
+echo "CYPRESS_JWT_TOKEN_KEY=$JWT_TOKEN_KEY" >> /tmp/.env_cypress
+
 if [ "$TARGET_ENV" = "int" ]; then
     BASE_URL="https://api.int2.whitefalcon.io"
     FRONTEND_URL="https://front.int2.whitefalcon.io"
