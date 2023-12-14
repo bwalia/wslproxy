@@ -90,6 +90,7 @@ const dataProvider = (apiUrl, settings = {}) => {
             profile_id: environmentProfile
           }
         }
+        params.timestamp = Date.now();
         const url = `${apiUrl}/${resource}?_format=json&params=${JSON.stringify(
           params
         )}`;
