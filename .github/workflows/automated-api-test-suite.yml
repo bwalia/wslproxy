@@ -42,7 +42,7 @@ env:
   JWT_TOKEN_KEY_DEV: ${{ secrets.JWT_TOKEN_KEY_DEV }}
   JWT_TOKEN_KEY_TEST: ${{ secrets.JWT_TOKEN_KEY_TEST }}
   JWT_TOKEN_KEY_INT: ${{ secrets.JWT_TOKEN_KEY_INT }}
-  -cm-_ACC: ${{ secrets.JWT_TOKEN_KEY_ACC }}
+  JWT_TOKEN_KEY_ACC: ${{ secrets.JWT_TOKEN_KEY_ACC }}
   JWT_TOKEN_KEY: ${{ secrets.JWT_TOKEN_KEY }}
   DELETE_TEST_DATA: ${{ inputs.DELETE_TEST_DATA }}
   QA_EXPIRED_JWT_TOKEN_KEY: ${{ secrets.QA_EXPIRED_JWT_TOKEN_KEY }}
