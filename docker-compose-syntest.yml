@@ -61,3 +61,5 @@ networks:
     ipam:
       config:
         - subnet: 172.178.0.0/16
+volumes:
+  redis-database:
