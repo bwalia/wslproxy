@@ -30,6 +30,13 @@ else
     DOCKER_CONTAINER_NAME="$2"
 fi
 
+if [ -z "$3" ]
+  then
+    echo "No JWT token supplied default to whitefalcon"
+else 
+    JWT_TOKEN_KEY="$3"
+fi
+
 TARGET_DOCKER_COMPOSE_FILE="docker-compose.yml"
 
 if [ "$TARGET_ENV_NAME" == "dev" ]; then
@@ -43,6 +50,13 @@ elif [ "$TARGET_ENV_NAME" == "synacc" ]; then
 elif [ "$TARGET_ENV_NAME" == "synprod" ]; then
     TARGET_DOCKER_COMPOSE_FILE="docker-compose-${TARGET_ENV_NAME}.yml"
 fi
+TARGET_ENV_FILE=".env.docker"
+TARGET_NODE_APP_ENV_FILE=".env.nodeapp"
+echo "" >> $TARGET_ENV_FILE
+echo "JWT_SECURITY_PASSPHRASE=$JWT_TOKEN_KEY" >> $TARGET_ENV_FILE
+rm -rf $TARGET_NODE_APP_ENV_FILE
+touch $TARGET_NODE_APP_ENV_FILE
+echo "JWT_SECRET_KEY=$JWT_TOKEN_KEY" >> $TARGET_NODE_APP_ENV_FILE
 
 echo "Building docker deployment using docker-compose up -d."
 

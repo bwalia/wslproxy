@@ -29,6 +29,12 @@ else
     echo "Docker image name: $2"
     DOCKER_CONTAINER_NAME="$2"
 fi
+if [ -z "$3" ]
+  then
+    echo "No JWT token supplied default to whitefalcon"
+else 
+    JWT_TOKEN_KEY="$3"
+fi
 
 if [ -d .env/ ]; then
     rm -rf .env/
@@ -48,6 +54,7 @@ echo "VITE_APP_VERSION: 2.0.0" >> .env
 echo "VITE_DEPLOYMENT_TIME=$DATE_GEN_VERSION" >> .env
 DATE_GEN_VERSION=$(date +"%I%M%S")
 echo "VITE_APP_BUILD_NUMBER=$DATE_GEN_VERSION" >> .env
+echo "VITE_JWT_SECURITY_PASSPHRASE=$JWT_TOKEN_KEY" >> .env
 docker cp .env ${DOCKER_CONTAINER_NAME}:/usr/local/openresty/nginx/html/openresty-admin/.env
 
 sleep 2

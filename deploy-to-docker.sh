@@ -29,9 +29,15 @@ else
     echo "Docker image name: $2"
     DOCKER_CONTAINER_NAME="$2"
 fi
+if [ -z "$3" ]
+  then
+    echo "No JWT token supplied default to whitefalcon"
+else 
+    JWT_TOKEN_KEY="$3"
+fi
 
-./build.sh $TARGET_ENV_NAME $DOCKER_CONTAINER_NAME
-./bootstrap.sh $TARGET_ENV_NAME $DOCKER_CONTAINER_NAME
+./build.sh $TARGET_ENV_NAME $DOCKER_CONTAINER_NAME $JWT_TOKEN_KEY
+./bootstrap.sh $TARGET_ENV_NAME $DOCKER_CONTAINER_NAME $JWT_TOKEN_KEY
 
 docker system prune -f
 # --all --volumes
