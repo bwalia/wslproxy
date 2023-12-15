@@ -73,35 +73,40 @@ jobs:
             export SERVER_NAME="front.int2.whitefalcon.io"
             export SERVER_ID_QA="host:front.int2.whitefalcon.io"
             export NODE_APP_IP="10.43.140.53:3009"  
-            export JWT_TOKEN_KEY="${{ secrets.JWT_TOKEN_KEY_INT }}"  
-            
+            export FRONT_URL="https://front.int2.whitefalcon.io" 
+            export JWT_TOKEN_KEY="${{ secrets.JWT_TOKEN_KEY_INT }}"
+
           elif [[ "${{ inputs.TARGET_ENV }}" == 'int6' ]]; then
             export TARGET_HOST="https://api.int6.whitefalcon.io"
             export SERVER_NAME="qa.int6.whitefalcon.io"
             export SERVER_ID_QA="host:qa.int6.whitefalcon.io"  
-            export NODE_APP_IP="10.43.81.65:3009"  
-            export JWT_TOKEN_KEY="${{ secrets.JWT_TOKEN_KEY_INT }}"  
+            export NODE_APP_IP="10.43.81.65:3009" 
+            export FRONT_URL="https://qa.int6.whitefalcon.io" 
+            export JWT_TOKEN_KEY="${{ secrets.JWT_TOKEN_KEY_INT }}"
 
           elif [[ "${{ inputs.TARGET_ENV }}" == 'test' ]]; then
             export TARGET_HOST="https://api.test6.whitefalcon.io"
-            export SERVER_NAME="test6.whitefalcon.io"
-            export SERVER_ID_QA="host:test6.whitefalcon.io"
+            export SERVER_NAME="front.test6.whitefalcon.io"
+            export SERVER_ID_QA="host:front.test6.whitefalcon.io"
             export NODE_APP_IP=""  
-            export JWT_TOKEN_KEY="${{ secrets.JWT_TOKEN_KEY_TEST }}"  
+            export FRONT_URL="https://front.test6.whitefalcon.io"
+            export JWT_TOKEN_KEY="${{ secrets.JWT_TOKEN_KEY_TEST }}"
 
           elif [[ "${{ inputs.TARGET_ENV }}" == 'local' ]]; then
             export TARGET_HOST="http://localhost:8081"
             export SERVER_NAME="localhost"
             export SERVER_ID_QA="host:localhost"  
             export NODE_APP_IP="172.177.0.10:3009"  
-            export JWT_TOKEN_KEY="${{ secrets.JWT_TOKEN_KEY_DEV }}"  
+            export FRONT_URL="http://localhost:8000"
+            export JWT_TOKEN_KEY="${{ secrets.JWT_TOKEN_KEY_DEV }}"
 
           elif [[ "${{ inputs.TARGET_ENV }}" == '' ]]; then
             export TARGET_HOST="https://api.int2.whitefalcon.io"
             export SERVER_NAME="front.int2.whitefalcon.io"
             export SERVER_ID_QA="host:front.int2.whitefalcon.io"
             export NODE_APP_IP="10.43.140.53:3009"  
-            export JWT_TOKEN_KEY="${{ secrets.JWT_TOKEN_KEY_INT }}"  
+            export FRONT_URL="https://front.int2.whitefalcon.io"
+            export JWT_TOKEN_KEY="${{ secrets.JWT_TOKEN_KEY_INT }}"
 
           else
             echo "Unsupported TARGET_ENV:${{ inputs.TARGET_ENV }}"

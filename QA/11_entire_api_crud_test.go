@@ -432,6 +432,7 @@ func TestDataSync(t *testing.T) {
 	if serverName != "localhost" {
 
 		url := frontUrl + "/frontdoor/opsapi/sync?envprofile=" + profile
+		//fmt.Println(url)
 		time.Sleep(2 * time.Second)
 
 		client := &http.Client{}
