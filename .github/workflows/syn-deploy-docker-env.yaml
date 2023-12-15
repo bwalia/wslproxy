@@ -20,6 +20,11 @@ on:
 env:
   TARGET_CLUSTER: "vm-1"
   TARGET_ENV: ${{ github.event.inputs.TARGET_ENV || 'syntest'}}
+  JWT_TOKEN_KEY_DEV: ${{ secrets.JWT_TOKEN_KEY_DEV }}
+  JWT_TOKEN_KEY_TEST: ${{ secrets.JWT_TOKEN_KEY_TEST }}
+  JWT_TOKEN_KEY_INT: ${{ secrets.JWT_TOKEN_KEY_INT }}
+  JWT_TOKEN_KEY_ACC: ${{ secrets.JWT_TOKEN_KEY_ACC }}
+  JWT_TOKEN_KEY: ${{ secrets.JWT_TOKEN_KEY }}
     
 jobs:
   build:
@@ -33,7 +38,17 @@ jobs:
         run: docker-compose --version
 
       - name: Build and run Deploy Syn POP v2 to the target environment
-        run: chmod +x build.sh && chmod +x bootstrap.sh && chmod +x ./deploy-to-docker.sh && ./deploy-to-docker.sh "${{ env.TARGET_ENV }}" "${{ env.TARGET_ENV }}-pop"
+        run: |
+          if [[ "${{ env.TARGET_ENV }}" == 'syndev' ]]; then
+            chmod +x build.sh && chmod +x bootstrap.sh && chmod +x ./deploy-to-docker.sh && ./deploy-to-docker.sh "${{ env.TARGET_ENV }}" "${{ env.TARGET_ENV }}-pop" "${{ env.JWT_TOKEN_KEY_DEV }}"
+          elif [[ "${{ env.TARGET_ENV }}" == 'syntest' ]]; then
+            chmod +x build.sh && chmod +x bootstrap.sh && chmod +x ./deploy-to-docker.sh && ./deploy-to-docker.sh "${{ env.TARGET_ENV }}" "${{ env.TARGET_ENV }}-pop" "${{ env.JWT_TOKEN_KEY_TEST }}"
+          elif [[ "${{ env.TARGET_ENV }}" == 'synacc' ]]; then
+            chmod +x build.sh && chmod +x bootstrap.sh && chmod +x ./deploy-to-docker.sh && ./deploy-to-docker.sh "${{ env.TARGET_ENV }}" "${{ env.TARGET_ENV }}-pop" "${{ env.JWT_TOKEN_KEY_ACC }}"
+          else
+            chmod +x build.sh && chmod +x bootstrap.sh && chmod +x ./deploy-to-docker.sh && ./deploy-to-docker.sh "${{ env.TARGET_ENV }}" "${{ env.TARGET_ENV }}-pop" "${{ env.JWT_TOKEN_KEY }}"
+          fi
+
             
       - name: Run Heathcheck and QA Tests
         run: |

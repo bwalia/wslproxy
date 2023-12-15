@@ -28,21 +28,7 @@ services:
       - ./data:/opt/nginx/data
       - ./html/swagger:/usr/local/openresty/nginx/html/swagger
       - ./api:/usr/local/openresty/nginx/html/api
-    environment:
-      LUA_DEBUG: "true"
-      REDIS_HOST: "syndev-pop-redis"
-      APP_NAME: "syndev-pop"
-      VERSION: "1.0"
-      STACK: "Lua 5.1"
-      NGINX_CONFIG_DIR: "/opt/nginx/"
-      JWT_SECURITY_PASSPHRASE: "This value is from docker compose file"
-      API_URL: "http://localhost:8080/api"
-      HOST: "localhost"
-      PRIMARY_DNS_RESOLVER: "8.8.8.8"
-      SECONDARY_DNS_RESOLVER: "8.8.4.4"
-      DNS_RESOLVER_PORT: "53"
-      FRONT_URL: "http://localhost:8000"
-#      DNS_RESOLVER: "127.0.0.11"       # Docker's internal DNS resolver IP this should only be added for Docker deployments
+    env_file: .env.docker
 
   syndev-pop-redis:
     container_name: syndev-pop-redis
@@ -51,6 +37,8 @@ services:
       - "6375:6379"
     networks:
       - openresty-network
+    volumes:
+      - redis-database:/data
 
   syndev-pop-sample-api:
     container_name: syndev-pop-sample-api
@@ -60,6 +48,19 @@ services:
     ports:
       - "3005:3009"
     networks:
-      - openresty-network
+      openresty-network:
+        ipv4_address: 172.177.0.10
+
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./.env.nodeapp:/app/.env            
+      
 networks: 
   openresty-network:
+    ipam:
+      config:
+        - subnet: 172.177.0.0/16
+
+volumes:
+  redis-database:
