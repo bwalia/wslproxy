@@ -87,22 +87,49 @@ describe('Token and authorization test rules', () => {
         cy.visit(FRONT_URL)
         cy.get('.container').should("contain", "Login")
 
-        // Delete the rules
+
+        // Getting the total numbers of the rules rows
         cy.visit(BASE_URL+"/#/rules")
+        cy.get('table[class="MuiTable-root RaDatagrid-table css-1owb465"]')
+        .find("tr")
+        .then((row) => {
+        //row.length will give you the row count
+        const totalRuleRow = row.length
+        cy.log(totalRuleRow);
+  
+        // Delete the rules
         cy.get('.MuiTableBody-root > .MuiTableRow-root:contains("Test rule to access all by Cypress") .PrivateSwitchBase-input').click()
         cy.get('.MuiTableBody-root > .MuiTableRow-root:contains("Test rule to access with /api by Cypress") .PrivateSwitchBase-input').click()
         cy.get('button[aria-label="Delete"]').click();
+        cy.wait(4000);
+
+        const rowTable = cy.get('table[class="MuiTable-root RaDatagrid-table css-1owb465"]')
+        if (rowTable){
+          cy.get('table[class="MuiTable-root RaDatagrid-table css-1owb465"]')
+            .find("tr")
+            .then((newRow) => {
+              const currentRuleRows = newRow.length;
+
+              if (totalRuleRow === currentRuleRows) {
+                throw new Error('Rows count did not change after deletion');
+              }
+              cy.wait(4000);
+            });
+        }else{
+          cy.log('Not found any item, successfully deleted');
+        }     
+          
 
         // Delete the server
         cy.visit(BASE_URL+"/#/servers")
 
-        // Getting the total numbers of the rows
+        // Getting the total numbers of the server rows
         cy.get('table[class="MuiTable-root RaDatagrid-table css-1owb465"]')
           .find("tr")
           .then((row) => {
           //row.length will give you the row count
-          const totalRow = row.length
-          cy.log(totalRow);
+          const totalServerRow = row.length
+          cy.log(totalServerRow);
 
           cy.get(`.MuiTableBody-root > .MuiTableRow-root:contains('${SERVER_NAME}') .PrivateSwitchBase-input`).click();
           cy.scrollTo('top');
@@ -114,9 +141,10 @@ describe('Token and authorization test rules', () => {
             cy.get('table[class="MuiTable-root RaDatagrid-table css-1owb465"]')
               .find("tr")
               .then((newRow) => {
-                const currentTotal = newRow.length;
-  
-                if (totalRow === currentTotal) {
+                const currentServerTotal = newRow.length;
+                cy.log(currentServerTotal);
+
+                if (totalServerRow === currentServerTotal) {
                   throw new Error('Rows count did not change after deletion');
                 }
                 cy.wait(4000);
@@ -124,10 +152,55 @@ describe('Token and authorization test rules', () => {
           }else{
             cy.log('Not found any item, successfully deleted');
           }     
-            
+          })
          });
      });
        
 })
     
   
+
+
+
+
+          // // we DO NOT RECOMMEND doing this
+          // cy.get('div[id="main-content"]').then(($body) => {
+          //   // synchronously query for element
+          //   if ($body.find("element").length) {
+          //     cy.get('table[class="MuiTable-root RaDatagrid-table css-1owb465"]')
+          //       .find("tr")
+          //       .then((newRow) => {
+          //         const currentTotal = newRow.length;
+    
+          //         if (totalRow === currentTotal) {
+          //           throw new Error('Rows count did not change after deletion');
+          //         }
+          //         cy.wait(4000);
+          //       });
+          //   } else {
+          //     // do something else
+          //   }
+          // })
+
+
+
+          // cy.get('table[class="MuiTable-root RaDatagrid-table css-1owb465"]')
+          // .if()                            
+          // .then(() => {
+          //   cy.get('table[class="MuiTable-root RaDatagrid-table css-1owb465"]')
+          //       .find("tr")
+          //       .then((newRow) => {
+          //         const currentTotal = newRow.length;
+    
+          //         if (totalRow === currentTotal) {
+          //           throw new Error('Rows count did not change after deletion');
+          //         }
+          //       });      
+          //   })
+          // .else()
+          // .then(() => {
+          //   cy.log("Successfully removed data")
+          // })
+          // .finally(() => {
+          //   // either way
+          // })
