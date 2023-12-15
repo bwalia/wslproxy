@@ -74,7 +74,7 @@ jobs:
             export SERVER_ID_QA="host:front.int2.whitefalcon.io"
             export NODE_APP_IP="10.43.140.53:3009"  
             export FRONT_URL="https://front.int2.whitefalcon.io" 
-            export JWT_TOKEN_KEY=${{ secrets.JWT_TOKEN_KEY }}
+            export JWT_TOKEN_KEY=${{ secrets.JWT_TOKEN_KEY_DEV }}
             
           elif [[ "${{ inputs.TARGET_ENV }}" == 'int6' ]]; then
             export TARGET_HOST="https://api.int6.whitefalcon.io"
