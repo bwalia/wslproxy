@@ -10,6 +10,8 @@ describe('Token and authorization test rules', () => {
 
 
     it('Verifying authorization based test rule to access data with and without token', () => {
+        let randomString = generateRandomString();
+
         cy.visit(BASE_URL);
         cy.get('#email').type(EMAIL);
         cy.get('#password').type(PASSWORD);
@@ -23,9 +25,9 @@ describe('Token and authorization test rules', () => {
         cy.get('.RaCreateButton-root').click();
 
         // Add Rule for access all
-        cy.get('#name').type('Test rule to access all by Cypress');
+        cy.get('#name').type(`Test rule to access all by Cypress ${randomString}`);
         cy.get('#profile_id').click();
-        cy.get('div.MuiPaper-root.MuiMenu-paper ul.MuiMenu-list li[data-value="test"]').click();
+        cy.get('div.MuiPaper-root.MuiMenu-paper ul.MuiMenu-list li[data-value="qa_test"]').click();
         cy.get('.matchRulePath div input').type("/");
         cy.get('input[name="match.response.code"]').clear();
         cy.get('input[name="match.response.code"]').type('{selectall}{backspace}');
@@ -37,9 +39,9 @@ describe('Token and authorization test rules', () => {
        // Add Rule for access with path api
        //  cy.get('[href="#/rules"]').click()
        cy.get('a[aria-label="Create"]').click();
-       cy.get('#name').type('Test rule to access with /api by Cypress');
+       cy.get('#name').type(`Test rule to access with /api by Cypress ${randomString}`);
        cy.get('#profile_id').click();
-       cy.get('div.MuiPaper-root.MuiMenu-paper ul.MuiMenu-list li[data-value="test"]').click();
+       cy.get('div.MuiPaper-root.MuiMenu-paper ul.MuiMenu-list li[data-value="qa_test"]').click();
        cy.get('input[id="match.rules.path"]').type("/api");
        cy.get('input[name="match.response.code"]').clear();
        cy.get('input[name="match.response.code"]').type('{selectall}{backspace}');
@@ -53,23 +55,27 @@ describe('Token and authorization test rules', () => {
        cy.get('form > .MuiToolbar-root > button').click();
 
         // Open the server section
+        cy.wait(2000)
         cy.get('a[href="#/servers"]').click();
+        cy.wait(2000)
         cy.get('a[href="#/servers/create"]').click();
-
+        cy.wait(2000)
         // Create a new Server
         cy.get('input[name="listens.0.listen"]').type(80);
-        cy.get('input[name="server_name"]').type(SERVER_NAME);
-        cy.get('#profile_id').click();
-        cy.get('div.MuiPaper-root.MuiMenu-paper ul.MuiMenu-list li[data-value="test"]').click();
+        cy.wait(1000)
+        cy.get('input[id="server_name"]').type(SERVER_NAME);
+        cy.wait(1000)
+        cy.get('div[id="profile_id"]').click();
+        cy.get('div.MuiPaper-root.MuiMenu-paper ul.MuiMenu-list li[data-value="qa_test"]').click();
         cy.get('a[id="tabheader-1"]').click();
 
         // Attach the Rules
         cy.get("#rules").click();
-        cy.get('div.MuiPaper-root.MuiMenu-paper ul.MuiMenu-list li:contains("Test rule to access all by Cypress")').click();
+        cy.get(`div.MuiPaper-root.MuiMenu-paper ul.MuiMenu-list li:contains("Test rule to access all by Cypress ${randomString}")`).click();
         cy.get('button[class="MuiButtonBase-root MuiIconButton-root MuiIconButton-colorPrimary MuiIconButton-sizeSmall button-add button-add-match_cases css-941tgv"]').click();
         cy.get('div[id="match_cases.0.statement"]').click();
-        cy.contains('li[role="option"]', "Test rule to access with /api by Cypress").click();
-        cy.contains('li[role="option"]', "Test rule to access with /api by Cypress").click();
+        // cy.contains(`'li[role="option"]', "Test rule to access with /api by Cypress ${randomString}"`).click();
+        cy.get(`div.MuiPaper-root.MuiMenu-paper ul.MuiMenu-list li:contains("Test rule to access with /api by Cypress ${randomString}")`).click();
 
         cy.get('div[id="match_cases.0.condition"]').click();
         cy.get('li[data-value="and"]').click();
@@ -78,7 +84,7 @@ describe('Token and authorization test rules', () => {
         // Select the Profile
         cy.get('[aria-label="Select Environment Profile"]').click();
         cy.get("#demo-simple-select").click();
-        cy.get('div.MuiPaper-root.MuiMenu-paper ul.MuiMenu-list li[data-value="test"]').click();
+        cy.get('div.MuiPaper-root.MuiMenu-paper ul.MuiMenu-list li[data-value="qa_test"]').click();
 
         // Sync the data
         if (TARGET_PLATFORM == "kubernetes") {
@@ -90,6 +96,7 @@ describe('Token and authorization test rules', () => {
 
         // Getting the total numbers of the rules rows
         cy.visit(BASE_URL+"/#/rules")
+        cy.wait(2000)
         cy.get('table[class="MuiTable-root RaDatagrid-table css-1owb465"]')
         .find("tr")
         .then((row) => {
@@ -98,10 +105,11 @@ describe('Token and authorization test rules', () => {
         cy.log(totalRuleRow);
   
         // Delete the rules
-        cy.get('.MuiTableBody-root > .MuiTableRow-root:contains("Test rule to access all by Cypress") .PrivateSwitchBase-input').click()
-        cy.get('.MuiTableBody-root > .MuiTableRow-root:contains("Test rule to access with /api by Cypress") .PrivateSwitchBase-input').click()
+        cy.get(`.MuiTableBody-root > .MuiTableRow-root:contains("Test rule to access all by Cypress ${randomString}") .PrivateSwitchBase-input`).click()
+        cy.get(`.MuiTableBody-root > .MuiTableRow-root:contains("Test rule to access with /api by Cypress ${randomString}") .PrivateSwitchBase-input`).click()
         cy.get('button[aria-label="Delete"]').click();
-        cy.wait(4000);
+        cy.reload()
+        cy.wait(2000);
 
         const rowTable = cy.get('table[class="MuiTable-root RaDatagrid-table css-1owb465"]')
         if (rowTable){
@@ -122,7 +130,7 @@ describe('Token and authorization test rules', () => {
 
         // Delete the server
         cy.visit(BASE_URL+"/#/servers")
-
+        cy.wait(2000)
         // Getting the total numbers of the server rows
         cy.get('table[class="MuiTable-root RaDatagrid-table css-1owb465"]')
           .find("tr")
@@ -134,6 +142,7 @@ describe('Token and authorization test rules', () => {
           cy.get(`.MuiTableBody-root > .MuiTableRow-root:contains('${SERVER_NAME}') .PrivateSwitchBase-input`).click();
           cy.scrollTo('top');
           cy.get('button[aria-label="Delete"]').click();
+          cy.reload()
           cy.wait(4000);
 
           const rowTable = cy.get('table[class="MuiTable-root RaDatagrid-table css-1owb465"]')
@@ -155,7 +164,17 @@ describe('Token and authorization test rules', () => {
           })
          });
      });
-       
+
+    function generateRandomString() {
+    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+    let randomString = '';
+  
+    for (let i = 0; i < 6; i++) {
+      const randomIndex = Math.floor(Math.random() * characters.length);
+      randomString += characters.charAt(randomIndex);
+    }
+  
+    return randomString;
+  }
 })
     
-  
