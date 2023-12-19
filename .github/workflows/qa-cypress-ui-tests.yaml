@@ -1,4 +1,4 @@
-name: Whitefalcon QA UI Tests Suite on ${{ env.TARGET_ENV }} env
+name: Whitefalcon QA UI Tests Suite
 on:
   schedule:
     - cron: '0 22 * * *'
