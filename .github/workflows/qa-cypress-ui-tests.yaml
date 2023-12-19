@@ -32,7 +32,7 @@ jobs:
           legacy: true    # will also install in PATH as `docker-compose`
 
       - name: Setup local environment
-        if: ${{ inputs.TARGET_ENV == 'local' }}
+        if: ${{ inputs.TARGET_ENV == 'dockerinternal' }}
         run: |  
           ./deploy-to-docker.sh "dockerinternal" "whitefalcon"
 
