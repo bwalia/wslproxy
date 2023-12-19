@@ -34,7 +34,7 @@ jobs:
       - name: Setup local environment
         if: ${{ inputs.TARGET_ENV == 'dockerinternal' }}
         run: |  
-          ./deploy-to-docker.sh "dockerinternal" "whitefalcon"
+          ./deploy-to-docker.sh "dockerinternal" "whitefalcon" "${{ secrets.JWT_TOKEN_KEY }}"
 
       - name: Executing UI tests using Cypress Test framework on ${{ env.TARGET_ENV }}
         working-directory: ./QA/cypress_ui_tests
