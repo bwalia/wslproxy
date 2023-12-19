@@ -59,6 +59,10 @@ elif [ "$TARGET_ENV_NAME" == "synprod" ]; then
     TARGET_DOCKER_COMPOSE_FILE="docker-compose-${TARGET_ENV_NAME}.yml"
     API_URL="http://localhost:8095/api"
     FRONT_URL="http://localhost:8091"
+elif [ "$TARGET_ENV_NAME" == "dockerinternal" ]; then
+    TARGET_DOCKER_COMPOSE_FILE="docker-compose.yml"
+    API_URL="http://host.docker.internal:8080/api"
+    FRONT_URL="http://host.docker.internal:8000"
 fi
 
 TARGET_ENV_FILE=".env.docker"
