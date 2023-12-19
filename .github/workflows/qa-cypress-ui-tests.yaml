@@ -14,7 +14,7 @@ on:
           - int
           - test
           - acc
-          - local
+          - dockerinternal
           
 env: 
   TARGET_ENV: ${{ inputs.TARGET_ENV || 'int' }}
