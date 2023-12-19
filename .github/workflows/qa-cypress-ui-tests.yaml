@@ -1,4 +1,4 @@
-name: Whitefalcon QA UI Tests Suite
+name: Whitefalcon QA UI Tests Suite on ${{ env.TARGET_ENV }} env
 on:
   schedule:
     - cron: '0 22 * * *'
@@ -8,7 +8,7 @@ on:
       TARGET_ENV:
         type: choice
         description: 'Please choose the Target Environment'
-        default: 'local'
+        default: 'int'
         required: true
         options:
           - int
@@ -17,7 +17,7 @@ on:
           - local
           
 env: 
-  TARGET_ENV: ${{ inputs.TARGET_ENV || 'local' }}
+  TARGET_ENV: ${{ inputs.TARGET_ENV || 'int' }}
   
 jobs:
   build:
@@ -30,6 +30,11 @@ jobs:
         with:
           version: v2.1.0 # defaults to 'latest'
           legacy: true    # will also install in PATH as `docker-compose`
+
+      - name: Setup local environment
+        if: ${{ inputs.TARGET_ENV == 'local' }}
+        run: |  
+          ./deploy-to-docker.sh "dockerinternal" "whitefalcon"
 
       - name: Executing UI tests using Cypress Test framework on ${{ env.TARGET_ENV }}
         working-directory: ./QA/cypress_ui_tests
