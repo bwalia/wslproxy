@@ -8,7 +8,8 @@ describe('Redirection based test rules', () => {
 
     it('Verifying redirections with 305, 302 and 301 status code', () => {
         let randomString = generateRandomString();
-
+        cy.clearCookies()
+        cy.clearAllSessionStorage()
         cy.visit(BASE_URL);
         cy.get('#email').type(EMAIL);
         cy.get('#password').type(PASSWORD);
@@ -53,11 +54,11 @@ describe('Redirection based test rules', () => {
         cy.get('#name').type(`Redirection Rule-301 by Cypress ${randomString}`);
         cy.get('#profile_id').click();
         cy.get('div.MuiPaper-root.MuiMenu-paper ul.MuiMenu-list li[data-value="qa_test"]').click();
-        cy.get('input[id="match.rules.path"]').type("/api");
+        cy.get('input[id="match.rules.path"]').type("/dump");
         cy.get('input[name="match.response.code"]').clear();
         cy.get('input[name="match.response.code"]').type('{selectall}{backspace}');
         cy.get('input[name="match.response.code"]').type(301);
-        cy.get('input[name="match.response.redirect_uri"]').type("https://httpbin.org/m");
+        cy.get('input[name="match.response.redirect_uri"]').type("https://httpdump.app/");
         cy.get('.matchResponseMessage div textarea[aria-invalid="false"]').type("VGhpcyBpcyB0ZXN0aW5nIGJ5IHRoZSBDeXByZXNzCg==");
         cy.get('form > .MuiToolbar-root > button').click();
   
@@ -89,6 +90,8 @@ describe('Redirection based test rules', () => {
         cy.get('button[class="MuiButtonBase-root MuiIconButton-root MuiIconButton-colorPrimary MuiIconButton-sizeSmall button-add button-add-match_cases css-941tgv"]').click();
         cy.get('div[id="match_cases.1.statement"]').click();
         cy.get(`div.MuiPaper-root.MuiMenu-paper ul.MuiMenu-list li:contains("Redirection Rule-301 by Cypress ${randomString}")`).click();
+        cy.get('div[id="match_cases.1.condition"]').click();
+        cy.get('li[data-value="and"]').click();
         cy.get('.RaToolbar-defaultToolbar > button.MuiButtonBase-root').click();
 
         // Select the Profile
@@ -102,19 +105,20 @@ describe('Redirection based test rules', () => {
         }
 
         // Verifying Redirect rule-305
+        cy.wait(2000)
         cy.visit(FRONT_URL)
         cy.reload()
         cy.get('h2[class="title"]').should("contain", "httpbin.org")
 
         // Verifying Redirect rule-302
         cy.visit(FRONT_URL+'/google')
-        cy.reload()
+        // cy.reload()
         cy.get('input[value="Google Search"]').should("be.visible")
 
         // Verifying Redirect rule-301
-        cy.visit(FRONT_URL+'/api')
-        cy.reload()
-        cy.get('h2[class="title"]').should("contain", "httpbin.org")
+        cy.visit(FRONT_URL+'/dump')
+       // cy.reload()
+        cy.get('span[class="px-1 absolute top-0 left-0 z-10"]').should("contain", "HTTP Requests")
         
 
         // Getting the total numbers of the rules rows
