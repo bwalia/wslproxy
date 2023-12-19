@@ -16,7 +16,7 @@ yarn
 
 # Run the docker example: to build dev environment
 ```
-./deploy-to-docker.sh "dev" "whitefalcon" && ./show.sh
+./deploy-to-docker.sh "dev" "whitefalcon" "$JWT_TOKEN" && ./show.sh
 ```
 
 # To purely build docker image and run locally

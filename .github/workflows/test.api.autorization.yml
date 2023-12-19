@@ -44,7 +44,7 @@ jobs:
 
       - name: Setup local environment
         run: |  
-          ./deploy-to-docker.sh "dev" "whitefalcon"
+          ./deploy-to-docker.sh "dev" "whitefalcon" "${{ secrets.JWT_TOKEN_KEY }}"
 
       - name: API Test For Rules & Servers
         working-directory: ./QA
