@@ -1,4 +1,5 @@
 local cjson = require("cjson")
+local lfs = require("lfs")
 local configPath = os.getenv("NGINX_CONFIG_DIR")
 local developmentTime = os.getenv("VITE_DEPLOYMENT_TIME")
 -- functions
@@ -117,6 +118,34 @@ end
 if portNameserver == nil or portNameserver == "" then
     portNameserver = "53"
 end
+
+local function readFile(filePath)
+    local file = io.open(filePath, "r")  -- Open the file in read mode
+    if file then
+        local content = file:read("*a")  -- Read the entire content of the file
+        file:close()  -- Close the file handle
+        return content
+    else
+        return nil
+    end
+end
+
+local function parseEnvString(envString)
+    local envTable = {}
+    
+    for line in envString:gmatch("[^\r\n]+") do
+        local key, value = line:match("(%S+)%s*=%s*(.*)")
+        if key and value then
+            envTable[key] = value
+        end
+    end
+
+    return envTable
+end
+
+local frontFilePath = lfs.currentdir() .. "/.env"
+local frontEnvContent = readFile(frontFilePath)
+frontEnvContent = parseEnvString(frontEnvContent)
 local data = {
     app = os.getenv("APP_NAME"),
     version = os.getenv("VERSION"),
@@ -133,14 +162,23 @@ local data = {
     dns_primary_server = primaryNameserver,
     dns_secondary_server = secondaryNameserver,
     dns_server_port = portNameserver,
-    mendatory_env_vars = {
+    mendatory_env_vars_backend = {
         NGINX_CONFIG_DIR = os.getenv("NGINX_CONFIG_DIR") and "Found" or "Not Found",
         JWT_SECURITY_PASSPHRASE = os.getenv("JWT_SECURITY_PASSPHRASE") and "Found" or "Not Found",
         PRIMARY_DNS_RESOLVER = os.getenv("PRIMARY_DNS_RESOLVER") and "Found" or "Not Found",
         SECONDARY_DNS_RESOLVER = os.getenv("SECONDARY_DNS_RESOLVER") and "Found" or "Not Found",
         DNS_RESOLVER_PORT = os.getenv("DNS_RESOLVER_PORT") and "Found" or "Not Found",
         FRONT_URL = os.getenv("FRONT_URL") and "Found" or "Not Found",
-        API_URL = os.getenv("API_URL") and "Found" or "Not Found"
+        API_URL = os.getenv("API_URL") and "Found" or "Not Found",
+    },
+    mendatory_env_vars_frontend = {
+        VITE_JWT_SECURITY_PASSPHRASE = frontEnvContent.VITE_JWT_SECURITY_PASSPHRASE and "Found" or "Not Found",
+        VITE_API_URL = frontEnvContent.VITE_API_URL and "Found" or "Not Found",
+        VITE_FRONT_URL = frontEnvContent.VITE_FRONT_URL and "Found" or "Not Found",
+        VITE_NGINX_CONFIG_DIR = frontEnvContent.VITE_NGINX_CONFIG_DIR and "Found" or "Not Found",
+        VITE_APP_NAME = frontEnvContent.VITE_APP_NAME and "Found" or "Not Found",
+        VITE_DEPLOYMENT_TIME = frontEnvContent.VITE_DEPLOYMENT_TIME and "Found" or "Not Found",
+        VITE_APP_DISPLAY_NAME = frontEnvContent.VITE_APP_DISPLAY_NAME and "Found" or "Not Found",
     }
 }
 -- Encode the table as a JSON string
