@@ -8,16 +8,16 @@ on:
       TARGET_ENV:
         type: choice
         description: 'Please choose the Target Environment'
-        default: 'local'
+        default: 'int'
         required: true
         options:
           - int
           - test
           - acc
-          - local
+          - dockerinternal
           
 env: 
-  TARGET_ENV: ${{ inputs.TARGET_ENV || 'local' }}
+  TARGET_ENV: ${{ inputs.TARGET_ENV || 'int' }}
   
 jobs:
   build:
@@ -30,6 +30,11 @@ jobs:
         with:
           version: v2.1.0 # defaults to 'latest'
           legacy: true    # will also install in PATH as `docker-compose`
+
+      - name: Setup local environment
+        if: ${{ inputs.TARGET_ENV == 'dockerinternal' }}
+        run: |  
+          ./deploy-to-docker.sh "dockerinternal" "whitefalcon" "${{ secrets.JWT_TOKEN_KEY }}"
 
       - name: Executing UI tests using Cypress Test framework on ${{ env.TARGET_ENV }}
         working-directory: ./QA/cypress_ui_tests
