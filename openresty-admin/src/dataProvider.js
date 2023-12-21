@@ -69,7 +69,8 @@ const dataProvider = (apiUrl, settings = {}) => {
   const notify = useNotify();
   return {
     get: async (resource, params) => {
-      setIsLoadig(true)
+      setIsLoadig(true);
+      params.timestamp = Date.now();
       const url = `${apiUrl}/resource?_format=json&params=${JSON.stringify(
         params
       )}`;
@@ -85,10 +86,8 @@ const dataProvider = (apiUrl, settings = {}) => {
       setIsLoadig(true)
       try {
         const environmentProfile = localStorage.getItem('environment') || "prod";
-        if (isEmpty(params.filter) && environmentProfile) {
-          params.filter = {
-            profile_id: environmentProfile
-          }
+        if (!params.filter?.profile_id && environmentProfile) {
+          params.filter.profile_id = environmentProfile
         }
         params.timestamp = Date.now();
         const url = `${apiUrl}/${resource}?_format=json&params=${JSON.stringify(
@@ -112,10 +111,11 @@ const dataProvider = (apiUrl, settings = {}) => {
       }
     },
     getOne: async (resource, params) => {
-      setIsLoadig(true)
+      setIsLoadig(true);
       const environmentProfile = localStorage.getItem('environment') || "prod";
       const { id } = params;
-      const url = `${apiUrl}/${resource}/${id}?_format=json&envprofile=${environmentProfile || ''}`;
+      const timestamp = Date.now();
+      const url = `${apiUrl}/${resource}/${id}?_format=json&envprofile=${environmentProfile || ''}&timestamp=${timestamp}`;
       const response = await fetch(url, {
         method: "GET",
         headers: getHeaders(),
@@ -175,7 +175,8 @@ const dataProvider = (apiUrl, settings = {}) => {
       setIsLoadig(true)
       let { data } = params;
       const { id } = params;
-      const url = `${apiUrl}/${resource}/${id}`;
+      const timestamp = Date.now();
+      const url = `${apiUrl}/${resource}/${id}?timestamp=${timestamp}`;
       if (resource === "servers") {
         data = handleConfigField(data)
       }
@@ -231,6 +232,7 @@ const dataProvider = (apiUrl, settings = {}) => {
       setIsLoadig(true)
       const url = `${apiUrl}/${resource}`;
       params.envProfile = localStorage.getItem('environment') || "prod";
+      params.timestamp = Date.now();
       try {
         console.log({ url });
         const response = await fetch(url, {
@@ -327,6 +329,7 @@ const dataProvider = (apiUrl, settings = {}) => {
 
     profileUpdate: async (resource, params) => {
       const FRONT_URL = import.meta.env.VITE_FRONT_URL;
+      params.timestamp = Date.now();
       try {
         setIsLoadig(true)
         const url = `${apiUrl}/${resource}`;
@@ -354,7 +357,8 @@ const dataProvider = (apiUrl, settings = {}) => {
     loadSettings: async (resource, params) => {
       try {
         setIsLoadig(true);
-        const url = `${apiUrl}/${resource}`;
+        const timestamp = Date.now();
+        const url = `${apiUrl}/${resource}?timestamp=${timestamp}`;
         const response = await fetch(url, {
           method: "GET",
           headers: getHeaders(),
