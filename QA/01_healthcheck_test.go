@@ -24,7 +24,7 @@ func TestHealthCheck(t *testing.T) {
 	}
 
 	type pingResp struct {
-		Redis_status string `json:"redis_status_msg"`
+		Redis_status_msg string `json:"redis_status_msg"`
 		Pod_Uptime   string `json:"pod_uptime"`
 		Node_Uptime  string `json:"node_uptime"`
 	}
@@ -45,7 +45,7 @@ func TestHealthCheck(t *testing.T) {
 	}
 
 	if !strings.Contains(string(body), "pong") {
-		t.Error("Returned unexpected body ")
+		t.Error("Did not received Pong")
 	} else {
 		t.Log("Received response pong")
 	}
@@ -53,17 +53,23 @@ func TestHealthCheck(t *testing.T) {
 		t.Error("Unexpected response status code", res.StatusCode)
 		return
 	}
+	if strings.Contains(string(body), "Not Found") {
+		t.Error("Missing mendatory_env_vars")
+	} else {
+		t.Log("Found all mendatory_env_vars")
+	}
+
 	buff := bytes.NewBuffer(body)
 	var jsonData pingResp
 	err = json.NewDecoder(buff).Decode(&jsonData)
 	if err != nil {
 		t.Error("failed to decode json", err)
 	} else {
-		fmt.Println(jsonData.Redis_status)
+		fmt.Println(jsonData.Redis_status_msg)
 		fmt.Println(jsonData.Pod_Uptime)
 		fmt.Println(jsonData.Node_Uptime)
 	}
-	if jsonData.Redis_status != "OK" {
+	if jsonData.Redis_status_msg != "OK" {
 		t.Error("Redis status is not ok")
 	}
 	if jsonData.Pod_Uptime == "" {
@@ -71,6 +77,6 @@ func TestHealthCheck(t *testing.T) {
 	}
 	if jsonData.Node_Uptime == "" {
 		t.Error("Missing node uptime")
-	}
+	}	
 
 }
