@@ -82,7 +82,7 @@ elseif selectedRule.statusCode == 305 then
             ngx.say("failed to instantiate the resolver: ", err)
             return
         end
-        local answers, err, tries = r:query(selectedRule.redirectUri, nil, {})
+        local answers, err, tries = r:query(string.gsub(selectedRule.redirectUri, ":(.*)", ""), nil, {})
         if not answers then
             ngx.say("failed to query the DNS server: ", err)
             ngx.say("retry historie:\n  ", table.concat(tries, "\n  "))
@@ -105,10 +105,12 @@ elseif selectedRule.statusCode == 305 then
         -- ngx.req.set_header("Host", selectedRule.redirectUri)
         ngx.ctx.proxy_host_override = selectedRule.redirectUri
         ngx.header["X-Debug-Host"] = ngx.ctx.proxy_host_override
+        ngx.header["X-Debug-Port"] = ngx.var.proxy_port
     else
         -- ngx.req.set_header("Host", proxy_server_name)
         ngx.ctx.proxy_host_override = proxy_server_name
         ngx.header["X-Debug-Host"] = ngx.ctx.proxy_host_override
+        ngx.header["X-Debug-Port"] = ngx.var.proxy_port
     end
     ngx.log(ngx.INFO, ngx.var.proxy_host)
     ngx.log(ngx.INFO, ngx.var.proxy_host_override)
