@@ -314,6 +314,7 @@ local function listWithPagination(recordsKey, cursor, pageSize, pageNumber, qPar
         -- Iterate over the returned records
         for i = 1, #res[2], 2 do
             local recordValue = res[2][i + 1]
+            local dataRecord = cjson.decode(recordValue)
             local key = res[2][i]
             recordCount = recordCount + 1
             -- Store the record in the result table if within the desired range
@@ -323,7 +324,15 @@ local function listWithPagination(recordsKey, cursor, pageSize, pageNumber, qPar
                         goto continue
                     end
                 end
-                table.insert(records, cjson.decode(recordValue))
+                if type(qParams.filter) == "table" and qParams.filter.q ~= nil then
+                    local fieldValue = dataRecord.name
+                    local pattern = qParams.filter.q
+                    if fieldValue and fieldValue:find(pattern, 1, true) then
+                        table.insert(records, cjson.decode(recordValue))
+                    end
+                else
+                    table.insert(records, cjson.decode(recordValue))
+                end
                 ::continue::
             elseif recordCount > endIdx + 1 then
                 -- Break the loop if we have retrieved enough records
@@ -342,14 +351,22 @@ local function listPaginationLocal(data, pageSize, pageNumber, qParams)
         endIdx = startIdx + pageSize - 1
     end
 
-    local currentPageData = {}
+    local currentPageData, currentSearchedData = {}, {}
     for i = startIdx, math.min(endIdx, #data) do
         if type(qParams.meta) == "table" then
             if qParams.meta.exclude == data[i].id then
                 goto continue
             end
         end
-        table.insert(currentPageData, data[i])
+        if type(qParams.filter) == "table" and qParams.filter.q ~= nil then
+            local fieldValue = data[i].name
+            local pattern = qParams.filter.q
+            if fieldValue and fieldValue:find(pattern, 1, true) then
+                table.insert(currentPageData, data[i])
+            end
+        else
+            table.insert(currentPageData, data[i])
+        end
         ::continue::
     end
 

@@ -7,7 +7,7 @@ import {
   TextField,
   ReferenceInput,
   SelectInput,
-  useStore,
+  SearchInput,
 } from 'react-admin'
 import ExportJsonButton from './toolbar/ExportJsonButton';
 import ImportJsonButton from '../component/ImportJsonButton';
@@ -17,6 +17,7 @@ const handleProfileChange = (e) => {
   localStorage.setItem('environment', e.target.value);
 }
 const rulesFilters = [
+  <SearchInput source="q" alwaysOn />,
   <ReferenceInput source="profile_id" reference="profiles" alwaysOn>
     <SelectInput
       sx={{ marginTop: "0", marginBottom: "0" }}

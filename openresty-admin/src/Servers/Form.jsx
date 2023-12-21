@@ -12,6 +12,7 @@ import {
   Menu,
   required,
   ReferenceInput,
+  AutocompleteInput,
 } from "react-admin";
 
 import LocationInput from "./input/LocationInput";
@@ -115,7 +116,7 @@ const Form = ({ type }) => {
         {totalResults >= 1 ? (
           <>
             <ReferenceArrayInput source="rules" reference="rules" perPage={1000}>
-              <SelectInput optionText="name" sx={{ minWidth: "342px" }} />
+              <AutocompleteInput optionText="name" sx={{ minWidth: "342px" }} />
             </ReferenceArrayInput>
             <FormDataConsumer>
               {({ formData, ...rest }) => (
@@ -140,7 +141,7 @@ const Form = ({ type }) => {
                           reference="rules"
                           perPage={1000}
                         >
-                          <SelectInput optionText="name" fullWidth />
+                          <AutocompleteInput optionText="name" fullWidth />
                         </ReferenceArrayInput>
                       </SimpleFormIterator>
                     </ArrayInput>
