@@ -326,7 +326,9 @@ local function listWithPagination(recordsKey, cursor, pageSize, pageNumber, qPar
                 end
                 if type(qParams.filter) == "table" and qParams.filter.q ~= nil then
                     local fieldValue = dataRecord.name
+                    fieldValue = fieldValue:lower()
                     local pattern = qParams.filter.q
+                    pattern = pattern:lower()
                     if fieldValue and fieldValue:find(pattern, 1, true) then
                         table.insert(records, cjson.decode(recordValue))
                     end
@@ -360,7 +362,9 @@ local function listPaginationLocal(data, pageSize, pageNumber, qParams)
         end
         if type(qParams.filter) == "table" and qParams.filter.q ~= nil then
             local fieldValue = data[i].name
+            fieldValue = fieldValue:lower()
             local pattern = qParams.filter.q
+            pattern = pattern:lower()
             if fieldValue and fieldValue:find(pattern, 1, true) then
                 table.insert(currentPageData, data[i])
             end
