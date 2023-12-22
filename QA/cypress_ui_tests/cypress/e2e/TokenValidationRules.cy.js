@@ -11,7 +11,7 @@ describe('Token and authorization test rules', () => {
 
     it('Verifying authorization based test rule to access data with and without token', () => {
         let randomString = generateRandomString();
-
+        cy.clearCookies()
         cy.visit(BASE_URL);
         cy.get('#email').type(EMAIL);
         cy.get('#password').type(PASSWORD);
@@ -19,6 +19,26 @@ describe('Token and authorization test rules', () => {
 
         // Select Storage Type Redis
         cy.get('.MuiDialogActions-root > .MuiButton-contained').click();
+
+        // Cleaning the rule server config from previous test if exist
+        cy.get('a[href="#/servers"]').click();
+          // Select the Profile
+        cy.get('[aria-label="Select Environment Profile"]').click();
+        cy.get("#demo-simple-select").click();
+        cy.get('div.MuiPaper-root.MuiMenu-paper ul.MuiMenu-list li[data-value="qa_test"]').click();
+        cy.wait(6000)
+ 
+        cy.get('div[id="main-content"]').then(($ele) => {
+          if ($ele.find(`.MuiTableBody-root > .MuiTableRow-root:contains('${SERVER_NAME}')`).length > 0) {
+              cy.get(`.MuiTableBody-root > .MuiTableRow-root:contains('${SERVER_NAME}') .PrivateSwitchBase-input`).click()
+                cy.scrollTo('top');
+                cy.get('button[aria-label="Delete"]').click();
+                cy.wait(4000);
+          } else {
+                cy.log("No previous config found")
+            }
+      })
+
 
         // Open the rules Section
         cy.get('[href="#/rules"]').click();
@@ -53,6 +73,7 @@ describe('Token and authorization test rules', () => {
        cy.get('input[name="match.rules.jwt_token_validation_key"]').type(JWT_TOKEN_KEY);
        cy.get('.matchResponseMessage div textarea[aria-invalid="false"]').type("VGhpcyBpcyB0ZXN0aW5nIGJ5IHRoZSBDeXByZXNzCg==");
        cy.get('form > .MuiToolbar-root > button').click();
+       cy.wait(2000)
 
         // Open the server section
         cy.wait(2000)
@@ -68,14 +89,13 @@ describe('Token and authorization test rules', () => {
         cy.get('div[id="profile_id"]').click();
         cy.get('div.MuiPaper-root.MuiMenu-paper ul.MuiMenu-list li[data-value="qa_test"]').click();
         cy.get('a[id="tabheader-1"]').click();
-
+        cy.wait(4000)
         // Attach the Rules
         cy.get("#rules").click();
-        cy.get(`div.MuiPaper-root.MuiMenu-paper ul.MuiMenu-list li:contains("Test rule to access all by Cypress ${randomString}")`).click();
+        cy.get(`li:contains("Test rule to access all by Cypress ${randomString}")`).click();
         cy.get('button[class="MuiButtonBase-root MuiIconButton-root MuiIconButton-colorPrimary MuiIconButton-sizeSmall button-add button-add-match_cases css-941tgv"]').click();
-        cy.get('div[id="match_cases.0.statement"]').click();
-        // cy.contains(`'li[role="option"]', "Test rule to access with /api by Cypress ${randomString}"`).click();
-        cy.get(`div.MuiPaper-root.MuiMenu-paper ul.MuiMenu-list li:contains("Test rule to access with /api by Cypress ${randomString}")`).click();
+        cy.get('input[id="match_cases.0.statement"]').click();
+        cy.get(`li:contains("Test rule to access with /api by Cypress ${randomString}")`).click();
 
         cy.get('div[id="match_cases.0.condition"]').click();
         cy.get('li[data-value="and"]').click();
@@ -108,25 +128,24 @@ describe('Token and authorization test rules', () => {
         cy.get(`.MuiTableBody-root > .MuiTableRow-root:contains("Test rule to access all by Cypress ${randomString}") .PrivateSwitchBase-input`).click()
         cy.get(`.MuiTableBody-root > .MuiTableRow-root:contains("Test rule to access with /api by Cypress ${randomString}") .PrivateSwitchBase-input`).click()
         cy.get('button[aria-label="Delete"]').click();
+        cy.wait(5000);
         cy.reload()
-        cy.wait(2000);
 
-        const rowTable = cy.get('table[class="MuiTable-root RaDatagrid-table css-1owb465"]')
-        if (rowTable){
-          cy.get('table[class="MuiTable-root RaDatagrid-table css-1owb465"]')
-            .find("tr")
-            .then((newRow) => {
-              const currentRuleRows = newRow.length;
-
-              if (totalRuleRow === currentRuleRows) {
-                throw new Error('Rows count did not change after deletion');
-              }
-              cy.wait(4000);
-            });
-        }else{
-          cy.log('Not found any item, successfully deleted');
-        }     
-          
+        cy.get('div[id="main-content"]').then(($rowTable) => {
+          if ($rowTable.find(`table[class="MuiTable-root RaDatagrid-table css-1owb465"]`).length > 0) {
+              cy.get(`table[class="MuiTable-root RaDatagrid-table css-1owb465"]`).click()
+              .find("tr")
+              .then((newRow) => {
+                const currentRuleRows = newRow.length;
+  
+                if (totalRuleRow === currentRuleRows) {
+                  throw new Error('Rows count did not change after deletion');
+                }
+              });
+          } else {
+            cy.log('Not found the Rules, successfully deleted');
+          }
+        })
 
         // Delete the server
         cy.visit(BASE_URL+"/#/servers")
@@ -142,25 +161,25 @@ describe('Token and authorization test rules', () => {
           cy.get(`.MuiTableBody-root > .MuiTableRow-root:contains('${SERVER_NAME}') .PrivateSwitchBase-input`).click();
           cy.scrollTo('top');
           cy.get('button[aria-label="Delete"]').click();
+          cy.wait(5000);
           cy.reload()
-          cy.wait(4000);
 
-          const rowTable = cy.get('table[class="MuiTable-root RaDatagrid-table css-1owb465"]')
-          if (rowTable){
-            cy.get('table[class="MuiTable-root RaDatagrid-table css-1owb465"]')
-              .find("tr")
-              .then((newRow) => {
-                const currentServerTotal = newRow.length;
-                cy.log(currentServerTotal);
+          cy.get('div[id="main-content"]').then(($rowTable) => {
+            if ($rowTable.find(`table[class="MuiTable-root RaDatagrid-table css-1owb465"]`).length > 0) {
+              cy.get('table[class="MuiTable-root RaDatagrid-table css-1owb465"]')
+                .find("tr")
+                .then((newRow) => {
+                  const currentServerTotal = newRow.length;
+                  cy.log(currentServerTotal);
 
-                if (totalServerRow === currentServerTotal) {
-                  throw new Error('Rows count did not change after deletion');
-                }
-                cy.wait(4000);
-              });
-          }else{
-            cy.log('Not found any item, successfully deleted');
-          }     
+                  if (totalServerRow === currentServerTotal) {
+                    throw new Error('Rows count did not change after deletion');
+                  }
+                });
+            }else{
+              cy.log('Not found the Server, successfully deleted');
+            }   
+            })
           })
          });
      });
