@@ -86,19 +86,33 @@ jobs:
           helm upgrade -i whitefalcon-front-${{ env.TARGET_ENV }} ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-${{ env.TARGET_ENV }}-front-${{ env.TARGET_CLUSTER}}.yaml --set TARGET_ENV=${{ env.TARGET_ENV }} --namespace ${{ env.TARGET_ENV }} --create-namespace
           helm upgrade -i whitefalcon-nodeapp ./devops/helm-charts/node-app/ -f devops/helm-charts/node-app/values-${{ env.TARGET_CLUSTER}}.yaml
                 
-    - name: Restart Whitefalcon Pods using Kubectl            
+    - name: Restart Whitefalcon API Pods using Kubectl            
       uses: actions-hub/kubectl@master
       env:
         KUBE_CONFIG: ${{ env.KUBE_CONFIG_K3S }}
       with:
-        args: rollout restart deployment/wsl-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}        
+        args: rollout restart deployment/wf-api-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}        
 
-    - name: Print Whitefalcon deployment history using Kubectl            
+    - name: Restart Whitefalcon Front Pods using Kubectl            
       uses: actions-hub/kubectl@master
       env:
         KUBE_CONFIG: ${{ env.KUBE_CONFIG_K3S }}
       with:
-        args: rollout history deployment/wsl-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
+        args: rollout restart deployment/wf-front-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}        
+
+    - name: Whitefalcon API deployment history using Kubectl            
+      uses: actions-hub/kubectl@master
+      env:
+        KUBE_CONFIG: ${{ env.KUBE_CONFIG_K3S }}
+      with:
+        args: rollout history deployment/wf-api-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
+
+    - name: Whitefalcon Front deployment history using Kubectl            
+      uses: actions-hub/kubectl@master
+      env:
+        KUBE_CONFIG: ${{ env.KUBE_CONFIG_K3S }}
+      with:
+        args: rollout history deployment/wf-front-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
 
     - name: Print Whitefalcon Pods using Kubectl            
       uses: actions-hub/kubectl@master
