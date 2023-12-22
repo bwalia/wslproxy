@@ -18,6 +18,25 @@ describe('Redirection based test rules', () => {
         // Select Storage Type Redis
         cy.get('.MuiDialogActions-root > .MuiButton-contained').click();
 
+        // Cleaning the rule server config from previous test if exist
+        cy.get('a[href="#/servers"]').click();
+          // Select the Profile
+        cy.get('[aria-label="Select Environment Profile"]').click();
+        cy.get("#demo-simple-select").click();
+        cy.get('div.MuiPaper-root.MuiMenu-paper ul.MuiMenu-list li[data-value="qa_test"]').click();
+        cy.wait(6000)    
+
+        cy.get('div[id="main-content"]').then(($ele) => {
+          if ($ele.find(`.MuiTableBody-root > .MuiTableRow-root:contains('${SERVER_NAME}')`).length > 0) {
+              cy.get(`.MuiTableBody-root > .MuiTableRow-root:contains('${SERVER_NAME}') .PrivateSwitchBase-input`).click()
+                cy.scrollTo('top');
+                cy.get('button[aria-label="Delete"]').click();
+                cy.wait(4000);
+          } else {
+                cy.log("No previous config found")
+            }
+      })
+
         // Open the rules Section
         cy.get('[href="#/rules"]').click();
         cy.get('.RaCreateButton-root').click();
@@ -79,17 +98,19 @@ describe('Redirection based test rules', () => {
 
         // Attach the Rules
         cy.get("#rules").click();
-        cy.get(`div.MuiPaper-root.MuiMenu-paper ul.MuiMenu-list li:contains("Redirection Rule-305 by Cypress ${randomString}")`).click();
+        cy.get(`li:contains('Redirection Rule-305 by Cypress ${randomString}')`).click();
         cy.get('button[class="MuiButtonBase-root MuiIconButton-root MuiIconButton-colorPrimary MuiIconButton-sizeSmall button-add button-add-match_cases css-941tgv"]').click();
-        cy.get('div[id="match_cases.0.statement"]').click();
-        cy.get(`div.MuiPaper-root.MuiMenu-paper ul.MuiMenu-list li:contains("Redirection Rule-302 by Cypress ${randomString}")`).click();
+        cy.wait(2000)
+        cy.get('input[id="match_cases.0.statement"]').click();
+        cy.wait(2000)
+        cy.get(`li:contains("Redirection Rule-302 by Cypress ${randomString}")`).click();
 
         cy.get('div[id="match_cases.0.condition"]').click();
         cy.get('li[data-value="and"]').click();
         cy.wait(1000)
         cy.get('button[class="MuiButtonBase-root MuiIconButton-root MuiIconButton-colorPrimary MuiIconButton-sizeSmall button-add button-add-match_cases css-941tgv"]').click();
-        cy.get('div[id="match_cases.1.statement"]').click();
-        cy.get(`div.MuiPaper-root.MuiMenu-paper ul.MuiMenu-list li:contains("Redirection Rule-301 by Cypress ${randomString}")`).click();
+        cy.get('input[id="match_cases.1.statement"]').click();
+        cy.get(`li:contains("Redirection Rule-301 by Cypress ${randomString}")`).click();
         cy.get('div[id="match_cases.1.condition"]').click();
         cy.get('li[data-value="and"]').click();
         cy.get('.RaToolbar-defaultToolbar > button.MuiButtonBase-root').click();
@@ -105,21 +126,34 @@ describe('Redirection based test rules', () => {
         }
 
         // Verifying Redirect rule-305
-        cy.wait(2000)
         cy.visit(FRONT_URL)
         cy.reload()
         cy.get('h2[class="title"]').should("contain", "httpbin.org")
 
         // Verifying Redirect rule-302
-        cy.visit(FRONT_URL+'/google')
-        // cy.reload()
-        cy.get('input[value="Google Search"]').should("be.visible")
-
-        // Verifying Redirect rule-301
-        cy.visit(FRONT_URL+'/dump')
-       // cy.reload()
-        cy.get('span[class="px-1 absolute top-0 left-0 z-10"]').should("contain", "HTTP Requests")
-        
+          cy.request({
+          url: FRONT_URL+'/google',
+          
+          followRedirect: false, // turn off following redirects
+          
+          }).then((resp) => {
+          // redirect status code is 301
+          cy.log(resp)
+          console.log("this is console log "+resp)
+          expect(resp.status).to.eq(302);
+          expect(resp.redirectedToUrl).to.eq("https://google.com/");
+          });
+      
+         // Verifying Redirect rule-301
+          cy.request({
+          url: FRONT_URL+'/dump',
+          followRedirect: false, // turn off following redirects
+          }).then((resp) => {
+          // redirect status code is 301
+          cy.log(resp)
+          expect(resp.status).to.eq(301);
+          expect(resp.redirectedToUrl).to.eq("https://httpdump.app/");
+          });
 
         // Getting the total numbers of the rules rows
         cy.visit(BASE_URL+"/#/rules")
@@ -137,25 +171,26 @@ describe('Redirection based test rules', () => {
         cy.get(`.MuiTableBody-root > .MuiTableRow-root:contains("Redirection Rule-301 by Cypress ${randomString}") .PrivateSwitchBase-input`).click()
 
         cy.get('button[aria-label="Delete"]').click();
+        cy.wait(5000);
         cy.reload()
-        cy.wait(2000);
 
-        const rowTable = cy.get('table[class="MuiTable-root RaDatagrid-table css-1owb465"]')
-        if (rowTable){
-          cy.get('table[class="MuiTable-root RaDatagrid-table css-1owb465"]')
-            .find("tr")
-            .then((newRow) => {
-              const currentRuleRows = newRow.length;
+        cy.get('div[id="main-content"]').then(($rowTable) => {
+          if ($rowTable.find(`table[class="MuiTable-root RaDatagrid-table css-1owb465"]`).length > 0) {
+              cy.get(`table[class="MuiTable-root RaDatagrid-table css-1owb465"] .PrivateSwitchBase-input`).click()
+              .find("tr")
+              .then((newRow) => {
+                const currentRuleRows = newRow.length;
+  
+                if (totalRuleRow === currentRuleRows) {
+                  throw new Error('Rows count did not change after deletion');
+                }
+                cy.wait(4000);
+              });
+          } else {
+            cy.log('Not found the Rules, successfully deleted');
+          }
+        })
 
-              if (totalRuleRow === currentRuleRows) {
-                throw new Error('Rows count did not change after deletion');
-              }
-              cy.wait(4000);
-            });
-        }else{
-          cy.log('Not found any item, successfully deleted');
-        }     
-          
 
         // Delete the server
         cy.visit(BASE_URL+"/#/servers")
@@ -171,27 +206,28 @@ describe('Redirection based test rules', () => {
           cy.get(`.MuiTableBody-root > .MuiTableRow-root:contains('${SERVER_NAME}') .PrivateSwitchBase-input`).click();
           cy.scrollTo('top');
           cy.get('button[aria-label="Delete"]').click();
+          cy.wait(5000);
           cy.reload()
-          cy.wait(4000);
 
-          const rowTable = cy.get('table[class="MuiTable-root RaDatagrid-table css-1owb465"]')
-          if (rowTable){
-            cy.get('table[class="MuiTable-root RaDatagrid-table css-1owb465"]')
-              .find("tr")
-              .then((newRow) => {
-                const currentServerTotal = newRow.length;
-                cy.log(currentServerTotal);
+          cy.get('div[id="main-content"]').then(($rowTable) => {
+            if ($rowTable.find(`table[class="MuiTable-root RaDatagrid-table css-1owb465"]`).length > 0) {
+              cy.get('table[class="MuiTable-root RaDatagrid-table css-1owb465"]')
+                .find("tr")
+                .then((newRow) => {
+                  const currentServerTotal = newRow.length;
+                  cy.log(currentServerTotal);
 
-                if (totalServerRow === currentServerTotal) {
-                  throw new Error('Rows count did not change after deletion');
-                }
-                cy.wait(4000);
-              });
-          }else{
-            cy.log('Not found any item, successfully deleted');
-          }     
+                  if (totalServerRow === currentServerTotal) {
+                    throw new Error('Rows count did not change after deletion');
+                  }
+                });
+            }else{
+              cy.log('Not found the Server, successfully deleted');
+            }     
           })
-         });
+        })
+
+        });
      });
 
     function generateRandomString() {
