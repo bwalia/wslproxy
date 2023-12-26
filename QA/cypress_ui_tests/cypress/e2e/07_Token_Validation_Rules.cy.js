@@ -110,13 +110,14 @@ describe('Token and authorization test rules', () => {
         if (TARGET_PLATFORM == "kubernetes") {
         cy.get('button[aria-label="Sync API Storage"]').click()
         }
+
+        cy.wait(2000)
         cy.visit(FRONT_URL)
         cy.get('.container').should("contain", "Login")
 
 
         // Getting the total numbers of the rules rows
         cy.visit(BASE_URL+"/#/rules")
-        cy.wait(2000)
         cy.get('table[class="MuiTable-root RaDatagrid-table css-1owb465"]')
         .find("tr")
         .then((row) => {

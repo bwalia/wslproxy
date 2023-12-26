@@ -126,6 +126,7 @@ describe('Redirection based test rules', () => {
         }
 
         // Verifying Redirect rule-305
+        cy.wait(2000)
         cy.visit(FRONT_URL)
         cy.reload()
         cy.get('h2[class="title"]').should("contain", "httpbin.org")
