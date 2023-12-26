@@ -44,7 +44,7 @@ env:
   JWT_TOKEN_KEY_INT: ${{ secrets.JWT_TOKEN_KEY_INT }}
   JWT_TOKEN_KEY_ACC: ${{ secrets.JWT_TOKEN_KEY_ACC }}
   JWT_TOKEN_KEY: ${{ secrets.JWT_TOKEN_KEY }}
-  DELETE_TEST_DATA: ${{ inputs.DELETE_TEST_DATA }}
+  DELETE_TEST_DATA: ${{ inputs.DELETE_TEST_DATA || 'true'}}
   QA_EXPIRED_JWT_TOKEN_KEY: ${{ secrets.QA_EXPIRED_JWT_TOKEN_KEY }}
 
   
