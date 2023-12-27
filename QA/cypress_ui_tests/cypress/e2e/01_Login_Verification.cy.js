@@ -5,7 +5,7 @@ describe('Whitefalcon login test', () => {
 
 
   it('Login with invalid email and invalid password', () => {
-    cy.visit(BASE_URL)
+    cy.visit(`${BASE_URL}/#/login`)
     cy.get('#email').type('test@example.com')
     cy.get('#password').type('fakepass')
     cy.get('button[type="submit"]').click()
