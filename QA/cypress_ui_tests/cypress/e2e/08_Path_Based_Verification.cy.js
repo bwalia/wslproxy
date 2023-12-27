@@ -1,10 +1,10 @@
 describe('Path match verification', () => {
-    let BASE_URL = Cypress.env('BASE_PUB_URL') || "https://api.int2.whitefalcon.io";
-    let EMAIL = Cypress.env('LOGIN_EMAIL') || "ejeyd@example.com"
-    let PASSWORD = Cypress.env('LOGIN_PASSWORD') || "admin";
-    let SERVER_NAME = Cypress.env('SERVER_NAME') || "front.int2.whitefalcon.io";
-    let FRONT_URL = Cypress.env('FRONTEND_URL') || "https://front.int2.whitefalcon.io";
-    let TARGET_PLATFORM = Cypress.env('TARGET_PLATFORM') || "kubernetes";
+    let BASE_URL = Cypress.env('BASE_PUB_URL');
+    let EMAIL = Cypress.env('LOGIN_EMAIL');
+    let PASSWORD = Cypress.env('LOGIN_PASSWORD');
+    let SERVER_NAME = Cypress.env('SERVER_NAME');
+    let FRONT_URL = Cypress.env('FRONTEND_URL');
+    let TARGET_PLATFORM = Cypress.env('TARGET_PLATFORM');
 
     it('Verifying Path match rule for Starts_with, Ends_with and Equal condition', () => {
         let randomString = generateRandomString();
