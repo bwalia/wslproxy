@@ -42,4 +42,4 @@ echo "" >> /tmp/$ENV_FILE
 
 mv /tmp/$ENV_FILE .env
 cat .env
-docker compose -f qa-docker-compose-cypress.yml up --remove-orphans
+docker compose -f qa-docker-compose-cypress.yml up
