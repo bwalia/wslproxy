@@ -13,7 +13,7 @@ describe('Whitefalcon login test', () => {
 })  
 
   it('Login with invalid email and valid password', () => {
-    cy.visit(BASE_URL)
+    cy.visit(`${BASE_URL}/#/login`)
     cy.get('#email').clear()
     cy.get('#password').clear()  
     cy.get('#email').type('abc')
@@ -24,7 +24,7 @@ describe('Whitefalcon login test', () => {
   })
 
   it('Login with valid email and invalid password', () => {
-    cy.visit(BASE_URL)
+    cy.visit(`${BASE_URL}/#/login`)
     cy.get('#email').clear()
     cy.get('#password').clear()  
     cy.get('#email').type(EMAIL)
@@ -34,7 +34,7 @@ describe('Whitefalcon login test', () => {
 })
 
 it('Login with valid email and empty password', () => {
-  cy.visit(BASE_URL)
+  cy.visit(`${BASE_URL}/#/login`)
   cy.get('#email').clear()
   cy.get('#password').clear()  
   cy.get('#email').type(EMAIL)
@@ -44,7 +44,7 @@ it('Login with valid email and empty password', () => {
 })
 
 it('Login with empty email and valid password', () => {
-  cy.visit(BASE_URL)
+  cy.visit(`${BASE_URL}/#/login`)
   cy.get('#email').clear()
   cy.get('#password').clear()  
   cy.get('#password').type(PASSWORD)
@@ -54,7 +54,7 @@ it('Login with empty email and valid password', () => {
 })
 
 it('Login with empty email and empty password', () => {
-  cy.visit(BASE_URL)
+  cy.visit(`${BASE_URL}/#/login`)
   cy.get('#email').clear()
   cy.get('#password').clear()  
   cy.get('button[type="submit"]').click()
@@ -63,7 +63,7 @@ it('Login with empty email and empty password', () => {
 })
 
 it('Login with valid email and valid password', () => {
-  cy.visit(BASE_URL)
+  cy.visit(`${BASE_URL}/#/login`)
   cy.get('#email').clear()
   cy.get('#password').clear()  
   cy.get('#email').type(EMAIL)
