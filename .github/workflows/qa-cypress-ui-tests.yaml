@@ -41,7 +41,7 @@ jobs:
         working-directory: ./QA/cypress_ui_tests
         run: |
             docker ps
-            chmod +x ./qa-bootstrap-cypress.sh && sh ./qa-bootstrap-cypress.sh "${{ secrets.LOGIN_EMAIL }}" "${{ secrets.LOGIN_PASSWORD }}" "dev" "${{ secrets.JWT_TOKEN_KEY }}"
+            chmod +x ./qa-bootstrap-cypress.sh && sh ./qa-bootstrap-cypress.sh "${{ secrets.LOGIN_EMAIL }}" "${{ secrets.LOGIN_PASSWORD }}" "${{ env.TARGET_ENV }}" "${{ secrets.JWT_TOKEN_KEY }}"
 
       - name: 'Upload screenshots and videos to Slack'
         uses: trymbill/cypress-slack-video-upload-action@v1.3.0
