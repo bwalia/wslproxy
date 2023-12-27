@@ -35,6 +35,7 @@ jobs:
         if: ${{ inputs.TARGET_ENV == 'dockerinternal' }}
         run: |  
           ./deploy-to-docker.sh "dockerinternal" "whitefalcon" "${{ secrets.JWT_TOKEN_KEY }}"
+          docker ps
 
       - name: Executing UI tests using Cypress Test framework on ${{ env.TARGET_ENV }}
         working-directory: ./QA/cypress_ui_tests
