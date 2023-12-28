@@ -76,20 +76,19 @@ describe('Token and authorization test rules', () => {
        cy.wait(2000)
 
         // Open the server section
-        cy.wait(2000)
         cy.get('a[href="#/servers"]').click();
-        cy.wait(2000)
+        cy.wait(1000)
         cy.get('a[href="#/servers/create"]').click();
-        cy.wait(2000)
+        cy.wait(1000)
         // Create a new Server
         cy.get('input[name="listens.0.listen"]').type(80);
-        cy.wait(1000)
         cy.get('input[id="server_name"]').type(SERVER_NAME);
         cy.wait(1000)
         cy.get('div[id="profile_id"]').click();
+        cy.wait(1000)
         cy.get('div.MuiPaper-root.MuiMenu-paper ul.MuiMenu-list li[data-value="qa_test"]').click();
         cy.get('a[id="tabheader-1"]').click();
-        cy.wait(4000)
+        cy.wait(2000)
         // Attach the Rules
         cy.get("#rules").click();
         cy.get(`li:contains("Test rule to access all by Cypress ${randomString}")`).click();
