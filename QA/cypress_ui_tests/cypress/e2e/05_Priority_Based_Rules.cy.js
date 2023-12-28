@@ -44,6 +44,7 @@ describe('Multi-Rule Prioritization Test', () => {
         // Add a Rule with Higher priority
         cy.get('#name').type(`Test rule with higher priority by Cypress ${randomString}`);
         cy.get('#profile_id').click();
+        cy.wait(1000)
         cy.get('div.MuiPaper-root.MuiMenu-paper ul.MuiMenu-list li[data-value="qa_test"]').click();
         cy.get('input[id="priority"]').type(8)
         cy.get('.matchRulePath div input').type("/public");

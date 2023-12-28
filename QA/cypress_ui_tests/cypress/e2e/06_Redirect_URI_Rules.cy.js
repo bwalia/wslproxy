@@ -89,10 +89,10 @@ describe('Redirection based test rules', () => {
         cy.wait(2000)
         // Create a new Server
         cy.get('input[name="listens.0.listen"]').type(80);
-        cy.wait(1000)
         cy.get('input[id="server_name"]').type(SERVER_NAME);
         cy.wait(1000)
         cy.get('div[id="profile_id"]').click();
+        cy.wait(1000)
         cy.get('div.MuiPaper-root.MuiMenu-paper ul.MuiMenu-list li[data-value="qa_test"]').click();
         cy.get('a[id="tabheader-1"]').click();
 

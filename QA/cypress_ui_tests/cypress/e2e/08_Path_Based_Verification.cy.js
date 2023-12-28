@@ -82,19 +82,19 @@ describe('Path match verification', () => {
         cy.get('input[name="match.response.code"]').type(200);
         cy.get('.matchResponseMessage div textarea[aria-invalid="false"]').type("RXF1YWwgcGF0aCBwYXNzCg==");
         cy.get('form > .MuiToolbar-root > button').click();
-  
+        cy.wait(2000)
+
         // Open the server section
-        cy.wait(2000)
         cy.get('a[href="#/servers"]').click();
-        cy.wait(2000)
+        cy.wait(1000)
         cy.get('a[href="#/servers/create"]').click();
-        cy.wait(2000)
+        cy.wait(1000)
         // Create a new Server
         cy.get('input[name="listens.0.listen"]').type(80);
-        cy.wait(1000)
         cy.get('input[id="server_name"]').type(SERVER_NAME);
         cy.wait(1000)
         cy.get('div[id="profile_id"]').click();
+        cy.wait(1000)
         cy.get('div.MuiPaper-root.MuiMenu-paper ul.MuiMenu-list li[data-value="qa_test"]').click();
         cy.get('a[id="tabheader-1"]').click();
 
@@ -102,9 +102,9 @@ describe('Path match verification', () => {
         cy.get("#rules").click();
         cy.get(`li:contains('Path rule starts_with by Cypress ${randomString}')`).click();
         cy.get('button[class="MuiButtonBase-root MuiIconButton-root MuiIconButton-colorPrimary MuiIconButton-sizeSmall button-add button-add-match_cases css-941tgv"]').click();
-        cy.wait(2000)
+        cy.wait(1000)
         cy.get('input[id="match_cases.0.statement"]').click();
-        cy.wait(2000)
+        cy.wait(1000)
         cy.get(`li:contains('Path rule ends_with by Cypress ${randomString}')`).click();
 
         cy.get('div[id="match_cases.0.condition"]').click();

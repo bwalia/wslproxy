@@ -62,6 +62,7 @@ describe('Client IP match verification', () => {
         cy.get('a[aria-label="Create"]').click();
         cy.get('#name').type(`Invalid client IP match by Cypress ${randomString}`);
         cy.get('#profile_id').click();
+        cy.wait(1000)
         cy.get('div.MuiPaper-root.MuiMenu-paper ul.MuiMenu-list li[data-value="qa_test"]').click();
         cy.get('input[id="match.rules.path"]').type("/invalid");
         cy.get('div[id="match.rules.country"]').click()
