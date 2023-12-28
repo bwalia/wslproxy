@@ -11,12 +11,16 @@ services:
     image: cypress/included:12.8.1
     command: "--browser firefox"
     working_dir: /cypress
+    depends_on:
+      - cypress-chrome
     volumes:
       - ./:/cypress/
     env_file: .env
   cypress-electron:
     image: cypress/included:12.8.1
     working_dir: /cypress
+    depends_on:
+      - cypress-firefox    
     volumes:
       - ./:/cypress
     env_file: .env 
