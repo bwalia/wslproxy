@@ -152,11 +152,13 @@ const dataProvider = (apiUrl, settings = {}) => {
       if (resource === "servers") {
         data = handleConfigField(data)
       }
+      data = JSON.stringify(data)
+      data = data.replace("&", "\\u0026");
       try {
         const response = await fetch(url, {
           method: "POST",
           headers: getHeaders(),
-          body: JSON.stringify(data),
+          body: data,
         });
         if (response.status < 200 || response.status >= 300) {
           const responseMessage = await response.json();
@@ -183,10 +185,12 @@ const dataProvider = (apiUrl, settings = {}) => {
       if (environmentProfile && data.profile_id !== environmentProfile) {
         data.profile_id = environmentProfile;
       }
+      data = JSON.stringify(data)
+      data = data.replace("&", "\\u0026");
       try {
         const response = await fetch(url, {
           method: "PUT",
-          body: JSON.stringify(data),
+          body: data,
           headers: getHeaders(),
         });
         if (response.status < 200 || response.status >= 300) {
