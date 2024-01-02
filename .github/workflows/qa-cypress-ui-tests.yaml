@@ -51,14 +51,14 @@ jobs:
             channels: 'cypress-test-results'
             workdir: ./QA/cypress_ui_tests
 
-      - name: Slack Notification for Whitefalcon QA UI Tests using Cypress 
-        uses: rtCamp/action-slack-notify@v2
-        env:
-            SLACK_CHANNEL: general
-            SLACK_COLOR: ${{ job.status }}
-            SLACK_ICON: https://github.com/rtCamp.png?size=48
-            SLACK_MESSAGE: 'Whitefalcon QA UI test suite executed on ${{ env.TARGET_ENV }} env using Cypress :rocket:'
-            SLACK_TITLE: Whitefalcon QA UI Test Suite Execution On ${{ env.TARGET_ENV }}
-            SLACK_USERNAME: rtCamp
-            SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      # - name: Slack Notification for Whitefalcon QA UI Tests using Cypress 
+      #   uses: rtCamp/action-slack-notify@v2
+      #   env:
+      #       SLACK_CHANNEL: general
+      #       SLACK_COLOR: ${{ job.status }}
+      #       SLACK_ICON: https://github.com/rtCamp.png?size=48
+      #       SLACK_MESSAGE: 'Whitefalcon QA UI test suite executed on ${{ env.TARGET_ENV }} env using Cypress :rocket:'
+      #       SLACK_TITLE: Whitefalcon QA UI Test Suite Execution On ${{ env.TARGET_ENV }}
+      #       SLACK_USERNAME: rtCamp
+      #       SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
   
