@@ -44,6 +44,7 @@ describe('Redirection based test rules', () => {
         // Add Rule for redirection with 305
         cy.get('#name').type(`Redirection Rule-305 by Cypress ${randomString}`);
         cy.get('#profile_id').click();
+        cy.wait(2000)
         cy.get('div.MuiPaper-root.MuiMenu-paper ul.MuiMenu-list li[data-value="qa_test"]').click();
         cy.get('.matchRulePath div input').type("/");
         cy.get('input[name="match.response.code"]').clear();
@@ -58,6 +59,7 @@ describe('Redirection based test rules', () => {
         cy.get('a[aria-label="Create"]').click();
         cy.get('#name').type(`Redirection Rule-302 by Cypress ${randomString}`);
         cy.get('#profile_id').click();
+        cy.wait(2000)
         cy.get('div.MuiPaper-root.MuiMenu-paper ul.MuiMenu-list li[data-value="qa_test"]').click();
         cy.get('input[id="match.rules.path"]').type("/google");
         cy.get('input[name="match.response.code"]').clear();
@@ -72,6 +74,7 @@ describe('Redirection based test rules', () => {
         cy.get('a[aria-label="Create"]').click();
         cy.get('#name').type(`Redirection Rule-301 by Cypress ${randomString}`);
         cy.get('#profile_id').click();
+        cy.wait(2000)
         cy.get('div.MuiPaper-root.MuiMenu-paper ul.MuiMenu-list li[data-value="qa_test"]').click();
         cy.get('input[id="match.rules.path"]').type("/dump");
         cy.get('input[name="match.response.code"]').clear();

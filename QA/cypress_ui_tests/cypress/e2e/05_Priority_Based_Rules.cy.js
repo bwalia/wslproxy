@@ -120,6 +120,7 @@ describe('Multi-Rule Prioritization Test', () => {
         cy.log(totalRuleRow);
   
         // Delete the rules
+        cy.wait(2000)
         cy.get(`.MuiTableBody-root > .MuiTableRow-root:contains("Test rule with higher priority by Cypress ${randomString}") .PrivateSwitchBase-input`).click()
         cy.get(`.MuiTableBody-root > .MuiTableRow-root:contains("Test rule with lower priority by Cypress ${randomString}") .PrivateSwitchBase-input`).click()
         cy.get('button[aria-label="Delete"]').click();
