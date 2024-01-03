@@ -1,12 +1,12 @@
 describe('Token and authorization test rules', () => {
-    let BASE_URL = Cypress.env('BASE_PUB_URL');
-    let EMAIL = Cypress.env('LOGIN_EMAIL');
-    let PASSWORD = Cypress.env('LOGIN_PASSWORD');
-    let NODEAPP_IP = Cypress.env('NODEAPP_ORIGIN_HOST');
-    let SERVER_NAME = Cypress.env('SERVER_NAME');
-    let FRONT_URL = Cypress.env('FRONTEND_URL');
-    let TARGET_PLATFORM = Cypress.env('TARGET_PLATFORM');
-    let JWT_TOKEN_KEY = Cypress.env('JWT_TOKEN_KEY');
+  let BASE_URL = Cypress.env('BASE_PUB_URL');
+  let EMAIL = Cypress.env('LOGIN_EMAIL');
+  let PASSWORD = Cypress.env('LOGIN_PASSWORD');
+  let NODEAPP_IP = Cypress.env('NODEAPP_ORIGIN_HOST');
+  let SERVER_NAME = Cypress.env('SERVER_NAME');
+  let FRONT_URL = Cypress.env('FRONTEND_URL');
+  let TARGET_PLATFORM = Cypress.env('TARGET_PLATFORM');
+  let JWT_TOKEN_KEY = Cypress.env('JWT_TOKEN_KEY');
 
 
     it('Verifying authorization based test rule to access data with and without token', () => {
@@ -47,6 +47,7 @@ describe('Token and authorization test rules', () => {
         // Add Rule for access all
         cy.get('#name').type(`Test rule to access all by Cypress ${randomString}`);
         cy.get('#profile_id').click();
+        cy.wait(1000);
         cy.get('div.MuiPaper-root.MuiMenu-paper ul.MuiMenu-list li[data-value="qa_test"]').click();
         cy.get('.matchRulePath div input').type("/");
         cy.get('input[name="match.response.code"]').clear();
@@ -61,6 +62,7 @@ describe('Token and authorization test rules', () => {
        cy.get('a[aria-label="Create"]').click();
        cy.get('#name').type(`Test rule to access with /api by Cypress ${randomString}`);
        cy.get('#profile_id').click();
+       cy.wait(1000);
        cy.get('div.MuiPaper-root.MuiMenu-paper ul.MuiMenu-list li[data-value="qa_test"]').click();
        cy.get('input[id="match.rules.path"]').type("/api");
        cy.get('input[name="match.response.code"]').clear();
@@ -113,6 +115,22 @@ describe('Token and authorization test rules', () => {
         cy.wait(2000)
         cy.visit(FRONT_URL)
         cy.get('.container').should("contain", "Login")
+
+        // Verifying accessing API without login or Authorization token in cookies
+        cy.visit(FRONT_URL+'/api/v2/sample-data.json', {failOnStatusCode: false})
+        cy.get('.container').should("contain", "Configuration not match!")
+
+        // Login into the sample App to get the Authorization token
+        cy.visit(FRONT_URL)
+        cy.get('#email').type(EMAIL);
+        cy.get('#password').type(PASSWORD);
+        cy.get('button[type="submit"]').click();
+
+        // Verifying accessing API with Authorization token in cookies
+        cy.request(FRONT_URL+'/api/v2/sample-data.json').then((response) => {
+          expect(response.status).to.eq(200)
+          expect(response.body).to.have.property('images')
+        })
 
 
         // Getting the total numbers of the rules rows
