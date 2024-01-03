@@ -47,6 +47,7 @@ describe('Token and authorization test rules', () => {
         // Add Rule for access all
         cy.get('#name').type(`Test rule to access all by Cypress ${randomString}`);
         cy.get('#profile_id').click();
+        cy.wait(1000);
         cy.get('div.MuiPaper-root.MuiMenu-paper ul.MuiMenu-list li[data-value="qa_test"]').click();
         cy.get('.matchRulePath div input').type("/");
         cy.get('input[name="match.response.code"]').clear();
@@ -61,6 +62,7 @@ describe('Token and authorization test rules', () => {
        cy.get('a[aria-label="Create"]').click();
        cy.get('#name').type(`Test rule to access with /api by Cypress ${randomString}`);
        cy.get('#profile_id').click();
+       cy.wait(1000);
        cy.get('div.MuiPaper-root.MuiMenu-paper ul.MuiMenu-list li[data-value="qa_test"]').click();
        cy.get('input[id="match.rules.path"]').type("/api");
        cy.get('input[name="match.response.code"]').clear();
