@@ -47,7 +47,7 @@ describe('Import & Export validation and Search Box validation', () => {
         }
       })
       // Verifying the file is downloaded successfully
-      cy.readFile('./cypress/downloads/servers.json').should('exist')
+      cy.readFile('./cypress/download/servers.json').should('exist')
       
 
       // Testing the Import feature
@@ -66,7 +66,7 @@ describe('Import & Export validation and Search Box validation', () => {
       cy.wait(2000);
 
       // Importing a server json file
-      cy.get('input[type="file"]').selectFile('./cypress/downloads/servers.json', { force: true });
+      cy.get('input[type="file"]').selectFile('./cypress/download/servers.json', { force: true });
       cy.wait(2000);
     
       // Verifying if the import was successfull to create the server
