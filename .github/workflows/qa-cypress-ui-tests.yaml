@@ -42,7 +42,6 @@ jobs:
         run: |
             docker ps
             chmod +x ./qa-bootstrap-cypress.sh && sh ./qa-bootstrap-cypress.sh "${{ secrets.LOGIN_EMAIL }}" "${{ secrets.LOGIN_PASSWORD }}" "${{ env.TARGET_ENV }}" "${{ secrets.JWT_TOKEN_KEY }}"
-            ls -alt cypress
             sudo chmod a+rwx cypress/downloads
 
       - name: 'Upload screenshots and videos to Slack'
@@ -52,15 +51,3 @@ jobs:
             channels: 'cypress-test-results'
             workdir: QA/cypress_ui_tests/cypress
             message-text: 'A QA Cypress UI test just finished. The screenshots and videos are available in this thread. Good luck!.'
-
-      # - name: Slack Notification for Whitefalcon QA UI Tests using Cypress 
-      #   uses: rtCamp/action-slack-notify@v2
-      #   env:
-      #       SLACK_CHANNEL: general
-      #       SLACK_COLOR: ${{ job.status }}
-      #       SLACK_ICON: https://github.com/rtCamp.png?size=48
-      #       SLACK_MESSAGE: 'Whitefalcon QA UI test suite executed on ${{ env.TARGET_ENV }} env using Cypress :rocket:'
-      #       SLACK_TITLE: Whitefalcon QA UI Test Suite Execution On ${{ env.TARGET_ENV }}
-      #       SLACK_USERNAME: rtCamp
-      #       SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-  
