@@ -2,6 +2,11 @@
 
 set -x
 
+if [ "$EUID" -ne 0 ]
+  then echo "Please run as root"
+  exit
+fi
+
 TARGET_ENV_FILE=".env.dev"
 
 if [ -z "$1" ]
