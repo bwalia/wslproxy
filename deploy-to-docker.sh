@@ -42,7 +42,7 @@ else
 fi
 
 ./build.sh $TARGET_ENV_NAME $DOCKER_CONTAINER_NAME $JWT_TOKEN_KEY
-./bootstrap.sh $TARGET_ENV_NAME $DOCKER_CONTAINER_NAME $JWT_TOKEN_KEY
+./bootstrap.sh $TARGET_ENV_NAME $DOCKER_CONTAINER_NAME $JWT_TOKEN_KEY "DOCKER"
 
 docker system prune -f
 # --all --volumes

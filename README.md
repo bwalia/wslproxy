@@ -21,12 +21,12 @@ sudo ./deploy-to-docker.sh "dev" "whitefalcon" "$JWT_TOKEN" && ./show.sh
 
 # To purely build docker image and run locally
 ```
-./build.sh "dev" "whitefalcon"
+./build.sh "dev" "whitefalcon" "$JWT_TOKEN"
 ```
 
 # To bootstrap the docker deployment
 ```
-./bootstrap.sh "dev" "whitefalcon"
+./bootstrap.sh "dev" "whitefalcon" "$JWT_TOKEN" "DOCKER"
 ```
 
 ## Usage
