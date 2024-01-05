@@ -15,6 +15,7 @@ import ProfileIcon from '@mui/icons-material/RememberMe';
 import EnvProfileHandler from './component/EnvProfileHandler'
 
 const appDisplayNname = import.meta.env.VITE_APP_DISPLAY_NAME;
+const targetPlatform = import.meta.env.VITE_TARGET_PLATFORM;
 
 const StorageButton = () => {
   const [isStrgTypeSet, setStrgTypeSet] = React.useState(false);
@@ -119,7 +120,7 @@ const AppBar = () => {
         </Typography>
       </Toolbar>
       <TitlePortal />
-      <ApiSync />
+      {targetPlatform !== "DOCKER" && <ApiSync />}
       {settings.storage_type === "disk" && <StorageButton />}
       {/* <SettingButton /> */}
       <ProfileHandler />

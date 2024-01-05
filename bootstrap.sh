@@ -35,6 +35,13 @@ if [ -z "$3" ]
 else 
     JWT_TOKEN_KEY="$3"
 fi
+if [ -z "$4" ]
+  then
+    echo "No Platform mentioned default to docker"
+    TARGET_PLATFORM="DOCKER"
+else 
+    TARGET_PLATFORM="$4"
+fi
 
 if [ -d .env/ ]; then
     rm -rf .env/
@@ -55,6 +62,7 @@ echo "VITE_DEPLOYMENT_TIME=$DATE_GEN_VERSION" >> .env
 DATE_GEN_VERSION=$(date +"%I%M%S")
 echo "VITE_APP_BUILD_NUMBER=$DATE_GEN_VERSION" >> .env
 echo "VITE_JWT_SECURITY_PASSPHRASE=$JWT_TOKEN_KEY" >> .env
+echo "VITE_TARGET_PLATFORM=$TARGET_PLATFORM" >> .env
 docker cp .env ${DOCKER_CONTAINER_NAME}:/usr/local/openresty/nginx/html/openresty-admin/.env
 
 sleep 2

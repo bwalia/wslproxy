@@ -27,7 +27,7 @@ const Empty = ({resource}) => {
                 Create one or import from a JSON file
             </Typography>
             <CreateButton />
-            <FilterButton filters={rulesFilters} />
+            {/* <FilterButton filters={rulesFilters} /> */}
             <ImportJsonButton resource={resource} />
         </Box>
     )
