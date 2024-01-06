@@ -46,10 +46,16 @@ jobs:
             ls -alt 
             ls -alt cypress/
             ls -alt cypress/videos
+            echo "find command"
             find . -name 01_Login_Verification.cy.js.mp4
-            cd ~/
-            ls -alt /cypress/cypress/videos/
-
+            echo "/"
+            ls -alt /
+            echo "/cypress"
+            ls -alt /cypress/
+            echo "/cypress/cypress/"
+            ls -alt /cypress/cypress/
+            echo "find cypresss"
+            find /cypress -name *.mp4
       - name: 'Upload screenshots and videos to Slack'
         uses: trymbill/cypress-slack-video-upload-action@v1.3.0
         with:
