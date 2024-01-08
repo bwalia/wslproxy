@@ -55,5 +55,5 @@ jobs:
         with:
             token: ${{ secrets.SLACK_TOKEN }}
             channels: 'cypress-test-results'
-            workdir: ./QA/cypress_ui_tests/cypress
+            workdir: QA/cypress_ui_tests/cypress
             message-text: 'A QA Cypress UI test just finished. The screenshots and videos are available in this thread. Good luck!.'
