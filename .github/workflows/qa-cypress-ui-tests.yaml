@@ -50,16 +50,10 @@ jobs:
             find . -name 01_Login_Verification.cy.js.mp4
             echo "/"
             ls -alt /
-            echo "/cypress"
-            ls -alt /cypress/
-            echo "/cypress/cypress/"
-            ls -alt /cypress/cypress/
-            echo "find cypresss"
-            find /cypress -name *.mp4
       - name: 'Upload screenshots and videos to Slack'
         uses: trymbill/cypress-slack-video-upload-action@v1.3.0
         with:
             token: ${{ secrets.SLACK_TOKEN }}
             channels: 'cypress-test-results'
-            workdir: ./QA/cypress_ui_tests/cypress
+            workdir: QA/cypress_ui_tests/cypress
             message-text: 'A QA Cypress UI test just finished. The screenshots and videos are available in this thread. Good luck!.'
