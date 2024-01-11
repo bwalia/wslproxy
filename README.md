@@ -27,6 +27,56 @@ sudo ./deploy-to-docker.sh "dev" "whitefalcon" "$JWT_TOKEN" && ./show.sh
 # To bootstrap the docker deployment
 ```
 ./bootstrap.sh "dev" "whitefalcon" "$JWT_TOKEN" "DOCKER"
+
+```
+# Steps to run on Kubernates
+NOTE: MAKE SURE YOU HAVE KUBESEAL IN YOUR SYSTEM
+1. Create a .env file with following details:
+```
+VITE_API_URL=https://YOUR-DOMAIN/api
+VITE_FRONT_URL=https://YOUR-FRONT-DOMAIN
+VITE_NGINX_CONFIG_DIR=/opt/nginx/
+VITE_APP_NAME=YOUR_APP_NAME
+VITE_APP_DISPLAY_NAME="YOUR APP NAME TO DISPLAY"
+VITE_APP_VERSION: 1.0.0
+VITE_DEPLOYMENT_TIME=20231206025957
+VITE_APP_BUILD_NUMBER=025957
+VITE_JWT_SECURITY_PASSPHRASE=YOUR-JWT-TOKEN
+VITE_TARGET_PLATFORM=KUBERNATES
+```
+2. After creating .env you need to encode this file to base64.
+3. Create a new file with name api-secrets.yaml with following details:
+```
+apiVersion: v1
+kind: Secret
+metadata:
+  name: wf-api-secret-<NAMESPACE>
+  namespace: <NAMESPACE>
+data:
+  env_file: <BASE64 ENCODED ENV FILE>
+```
+4. Create one more secret file for front door with name front-secrets.yaml and add this:
+```
+apiVersion: v1
+kind: Secret
+metadata:
+  name: wf-front-secret-<NAMESPACE>
+  namespace: <NAMESPACE>
+data:
+  env_file: <BASE64 ENCODED ENV FILE>
+```
+5. Now, Run this command to generate the sealed-secrets
+```
+kubeseal --format=yaml < api-secrets.yaml > api-sealed-secret.yaml
+kubeseal --format=yaml < front-secrets.yaml > front-sealed-secret.yaml
+```
+6. Open the api-sealed-secret.yaml and front-sealed-secret.yaml files copy the env_file: encrypted data.
+7. Put that encrypted data into the k3s values files under the 'secure_env_file:'.
+8. After updating env secrets, now you have to run these helm commands to run api-gateway on your kubernates:
+```
+helm upgrade -i whitefalcon-api-<NAMESPACE> ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-<NAMESPACE>-api-<TARGET_CLUSTER>.yaml --set TARGET_ENV=<NAMESPACE> --namespace <NAMESPACE> --create-namespace
+helm upgrade -i whitefalcon-front-<NAMESPACE> ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-<NAMESPACE>-front-<TARGET_CLUSTER>.yaml --set TARGET_ENV=<NAMESPACE> --namespace <NAMESPACE> --create-namespace
+helm upgrade -i whitefalcon-nodeapp ./devops/helm-charts/node-app/ -f devops/helm-charts/node-app/values-<TARGET_CLUSTER>.yaml
 ```
 
 ## Usage
