@@ -42,6 +42,7 @@ jobs:
         working-directory: ./QA/cypress_ui_tests
         run: |
             docker ps
+            docker inspect whitefalcon
             chmod +x ./qa-bootstrap-cypress.sh && sh ./qa-bootstrap-cypress.sh "${{ secrets.LOGIN_EMAIL }}" "${{ secrets.LOGIN_PASSWORD }}" "${{ env.TARGET_ENV }}" "${{ secrets.JWT_TOKEN_KEY }}"
             sudo chmod a+rwx cypress/downloads
             ls -alt 
