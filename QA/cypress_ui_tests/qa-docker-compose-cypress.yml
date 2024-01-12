@@ -5,7 +5,7 @@ services:
     command: "--browser chrome"
     working_dir: /cypress
     volumes:
-      - ./cypress:/cypress
+      - ./:/cypress
     env_file: .env
   cypress-firefox:
     image: cypress/included:12.8.1
@@ -15,11 +15,5 @@ services:
     command: "--browser firefox"
     working_dir: /cypress
     volumes:
-      - ./cypress:/cypress/
+      - ./:/cypress
     env_file: .env
-  cypress-electron:
-    image: cypress/included:12.8.1
-    working_dir: /cypress
-    volumes:
-      - ./cypress:/cypress/
-    env_file: .env 

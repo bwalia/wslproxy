@@ -32,8 +32,9 @@ jobs:
           legacy: true    # will also install in PATH as `docker-compose`
 
       - name: Setup local environment
-        if: ${{ inputs.TARGET_ENV == 'dockerinternal' }}
-        run: |  
+        if: ${{ env.TARGET_ENV == 'dockerinternal' }}
+        run: |
+          echo "spin the whitefalcon server"
           ./deploy-to-docker.sh "dockerinternal" "whitefalcon" "${{ secrets.JWT_TOKEN_KEY }}"
           docker ps
 
@@ -50,10 +51,10 @@ jobs:
             find . -name 01_Login_Verification.cy.js.mp4
             echo "/"
             ls -alt /
-      - name: 'Upload screenshots and videos to Slack'
-        uses: trymbill/cypress-slack-video-upload-action@v1.3.0
-        with:
-            token: ${{ secrets.SLACK_TOKEN }}
-            channels: 'cypress-test-results'
-            workdir: QA/cypress_ui_tests/cypress
-            message-text: 'A QA Cypress UI test just finished. The screenshots and videos are available in this thread. Good luck!.'
+      # - name: 'Upload screenshots and videos to Slack'
+      #   uses: trymbill/cypress-slack-video-upload-action@v1.3.0
+      #   with:
+      #       token: ${{ secrets.SLACK_TOKEN }}
+      #       channels: 'cypress-test-results'
+      #       workdir: QA/cypress_ui_tests/cypress
+      #       message-text: 'A QA Cypress UI test just finished. The screenshots and videos are available in this thread. Good luck!.'
