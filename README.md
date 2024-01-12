@@ -72,7 +72,14 @@ kubeseal --format=yaml < front-secrets.yaml > front-sealed-secret.yaml
 ```
 6. Open the api-sealed-secret.yaml and front-sealed-secret.yaml files copy the env_file: encrypted data.
 7. Put that encrypted data into the k3s values files under the 'secure_env_file:'.
-8. After updating env secrets, now you have to run these helm commands to run api-gateway on your kubernates:
+8. After the secrets, you also need to update some following secrets in k3s api and front values file:
+```
+# NOTE: This is example when you are running kubernates clusters on local, For production you can put your domains of api and front door.
+
+api_url: http://wf-api-svc-<NAMESPACE>.<NAMESPACE>.svc.cluster.local/api
+front_url: http://wf-front-svc-<NAMESPACE>.<NAMESPACE>.svc.cluster.local
+```
+9. After updating env secrets, now you have to run these helm commands to run api-gateway on your kubernates:
 ```
 helm upgrade -i whitefalcon-api-<NAMESPACE> ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-<NAMESPACE>-api-<TARGET_CLUSTER>.yaml --set TARGET_ENV=<NAMESPACE> --namespace <NAMESPACE> --create-namespace
 helm upgrade -i whitefalcon-front-<NAMESPACE> ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-<NAMESPACE>-front-<TARGET_CLUSTER>.yaml --set TARGET_ENV=<NAMESPACE> --namespace <NAMESPACE> --create-namespace
