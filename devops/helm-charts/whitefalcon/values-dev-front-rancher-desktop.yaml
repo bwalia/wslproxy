@@ -1,4 +1,4 @@
-# Default values for whitefalcon front.
+# Default values for whitefalcon front http request handler
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
@@ -12,19 +12,19 @@ app:
     - helm
     - chart
     - kubernetes
-  namespace: test
+  namespace: dev
   dns_resolver: "10.43.0.10"
   primary_dns_resolver : "10.43.0.10"
   secondary_dns_resolver : "10.43.0.10"
   dns_resolver_port: 53
-  api_url: "http://api.test2.whitefalcon.io/api"
-  redis_host: "redis-service.test.svc.cluster.local"
-  target_env: "test"
+  api_url: "http://api.localhost/api"
+  redis_host: "redis-service.dev.svc.cluster.local"
+  target_env: "dev"
   target_type: "front"
-  front_url: "http://test2.whitefalcon.io"
+  front_url: "http://front.localhost"
   sync_data_onload: false
 
-secure_env_file: "AgB1NhEunsQsk+BGNXjL9ed69b5BONdqb1vCN9Jdb10TVuzt8V0zKHC/psgbXTqDrGdlPNyk3/pfIW7dezVK1qTVZ7sL8r2YnrGXf0wjzAtqYqyvOcQo+P3sHGp9ehLk8yrFyQy52S7Z4N/QgMsbd6W6h+8g9KPioT5TV9yFjPXA3Ujrvl65VcNIxWTMBJm1Q47Lsk/dO4pdVvtZ8dTxkVPm2Q6uSRx/8qi2HknFGH0B4rtH3/sYGSWYvf0Dh3rxaytPqVxqyK4R4croxtyr7ZSUJKI1DWsxTXs0rOTeM7QthsRwhc95j8lZwjzKNauYWNwSsT2yw2blCELza+SBWgTd+pvkzsk+TDwhl6eW1X2qUT8R9b8LAmsv9whqedjy5/ErdIOAdSdh54HH/CL13MBbkV+XYJ0V2+a2Kq3ISunH6qGo4FS9mL6dOSfPeeP4wXrIbxKTRxiAgqDvaohCW6fzhswBwCEHNTSX+VHH1lz/fEVu3Aa88SwyIPVZBPrvB7xRYCbkbxoJTMJ2YqH1OkMr1Q1xsyb/QARv7+nQQlweatfAjOaivYPVRFzWBecykGCo0BStvjDPYzQ+KHaAqcqPoRpHdeCVfrHvROT+PKIawvl/CZvF0KPA80KeSH1yctnIqIkf2bcQ6VF64GTJn+o7UwsGWXsbjT/qVLmLyh1d6TQ8oB/QM1V4+6k2JLGRq7jHhOUtXQz08Z4AXKba5pHEcCHIa9hoaYA9jHBY8xuR4QhZDGFOg6S+Erge5vsM68URPjmI5KhHJqLOj5VOCji0dr3JTb7RRW9/xU/cb0f4DyVNPNzU/fF6jYbGx/72p3vgsqYa2Wq7AKynY3on1zCDQeuEpIE17fYHdZL25HiLYye9znuePHOJkHpP4LvYZJmFf2MrWnnWPzpVZeW4Ln768rIRLRj9i0WwxxbDkpHV8CeV"
+secure_env_file: AgAlzQC1kyXDITdOJUd2lhvXBTKLkGV7G0fvg17HF40uqiXt8HEgj8RpK/z/zq6Q80ovR31rIhym4kT02ddivg3O/Jx8cXQRdwEKE4C7EJTzKT7DKCRZzz227isqOd5CmoHYwioACl5XPB4j19vFbe/7973t+fDIXWC20yee+jOJVArEwvtXY9u+mSqh2a0g+YBz8mdaD8khKfhoyPitl9IVLUB2nMGuz/NeFbgpeIKad8PapzAgkP1x3GskxxEkK6DXT+JEhL62qRJgT3yRiln9dkY4URf9O59utX0ZwRz/DWdcbFkM8/OH6XsoPznY1O9BOn9l970dAhBrkgZPIKGPl8bveRPNCJFB819HJhN3HimKJH5WwMo8Otey4p3mGEEWB8uzI56LfjVha0GonzE6xZSJwQ2gqCpNhtW6UIwlzrkci9uS+eyQEqr7DC7Aetiu+3iYi9mWcWvJioIJ07NHO7dw6FYpq2HLVlycSBxMPCa7f16lyc1IPXbeYrAxH5hfMUgwlp79f4fLyJYxFaCRwOOtApMq/UF/rGjxqASnEs08XgTMT4HNAF9zeqWyqIY2rQKnXYuu6sEy8vpaYGHCSxDTk5/vSNpsO2GPIlT8NiIz+AyyLqF3f1scEQADgwnVsZx6/+5B69K41UCp+w247zZP2kpwmwPXgcMjJLSYhiGnETYnpceUo4E3pLD7TGTSraRVie1gn1e3RbqBufpAh6cERtFiqzWMX4S6bo+nWX8pwUnLmDR7RUpEddQuXcCJ9UU/mqjD33fvkUgOrXRvyEA9c48SEPLaYSGqpXzEfliSE0xA9lG3uo7VYR8bv/lbWI24EV/Ws2vGQGSUXNcyWIkB8ZB1sYyNYpUvym3R5e72QdZO4fBBNFYc4PiV1pHma5CoCCJCmoxIRwPgvDykxlug9yvtc2c5ri8dJL85qNcCtjfHvVdK7RzqxNkZMqqLx4pzW/GvFsSKWIVA7WaYvr0sboKO8LPZ7VJW4JS5s8+m2mZNeVi+IZrmFXs2Uv/EBkI//BBQnOBMhDp7DQMT2EKrfC9z8tIW0MQwjEz9LGHJ+LOWX2Yl7k+LIy9HvHDti1dnM1SR/Kb9KR06F0HNpcf+Ugsuox70MdUO5hBAE3PmiH1/PP7DrOI5edfjg5GwUT99R3QjawEfwkfncPFbNFlo6S41zidX55+4
 
 image:
   repository: bwalia/whitefalcon
@@ -64,41 +64,24 @@ service:
 
 ingress:
   enabled: true
-  className: "nginx"
+  className: "traefik"
   annotations: {}
-    # kubernetes.io/ingress.class: nginx
+    # kubernetes.io/ingress.class: traefik
     # kubernetes.io/tls-acme: "true"
   hosts:
-    - host: test-front.whitefalcon.io
+    - host: front.localhost
       paths:
         - path: /
           pathType: ImplementationSpecific
-#          serviceName: wf-api-svc-test
-          serviceName: wf-front-svc-test
+#          serviceName: wf-api-svc-dev
+          serviceName: wf-front-svc-dev
           servicePort: 80
-    - host: test.whitefalcon.io
+    - host: myapptest.localhost
       paths:
         - path: /
           pathType: ImplementationSpecific
-          serviceName: wf-front-svc-test
-          servicePort: 80
-    - host: test2.whitefalcon.io
-      paths:
-        - path: /
-          pathType: ImplementationSpecific
-          serviceName: wf-front-svc-test
-          servicePort: 80
-    - host: front.test2.whitefalcon.io
-      paths:
-        - path: /
-          pathType: ImplementationSpecific
-          serviceName: wf-front-svc-test
-          servicePort: 80
-    - host: front.test.whitefalcon.io
-      paths:
-        - path: /
-          pathType: ImplementationSpecific
-          serviceName: wf-front-svc-test
+#          serviceName: wf-api-svc-dev
+          serviceName: wf-front-svc-dev
           servicePort: 80
   tls: []
   #  - secretName: chart-example-tls
