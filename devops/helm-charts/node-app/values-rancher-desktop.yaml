@@ -1,0 +1,87 @@
+# Default values for node-app.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+image:
+  repository: bwalia/node-app
+  pullPolicy: Always
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: "latest"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+secure_env_file: AgBXTzLt6M779SbcOX0H+I/LFut5Rp6z6LLCR8t9w8nMWrpeKJEibnRddeDV9GsXUrMBaGPv/n9SbZtoHlqq5Hzq38vNGiXPz+EcPviDFWq7HLBXjwTL0vYcpMGtnQt1wH3oFr63Ga1J4XpHDbvsOH45ndFbypNZ8YJTz6lTkyx7PAtMyYUoudIjaAEk51ZMErEuDdZN/GlTg1QZZWbjNgdyoQshkEx6UAm4g8T03zI1mIQpRw27JTqxlUeB+Y7lcHDYGDDu//NBLwObGyIKfa72vW8hHACO0MKostp77OPm0LJg64jOI3hrpoyQ0wl0GOYzZd4Flxe7kb8vBYdwSLbZQWIGkeyd2VLMcqgxFKSwxzOpBppd1ckFGmZNuOKGV8MA9VPfdcA3xiNj1M/K1KrwOKUCH7EKAewK2DjEDuWP4Yke8oQqWlrx8x6T5EV6pch3lP+ddI1jnOxVCx+yTOxbsgYT7IB6hq6bE8fBbtAfg5miDYWGmbPXYDFHM88DloJBg7SvgelIaxHGhCKK8Z0z+OCuOTa1Xgd1CjgtN3lkyElucuWLc4002QaKvxf42+EGIg6bKR9WVyRNNYlmw8XuWt0th3GKuvKUXzaaO+gUBTI61R912MfYw9+oCp+oA1Biz9NqYI6BTPOwcfn+rTSbuTfjbiqPO1Q8X3ALSOZI0yb5SnFS3Oi3zMo6vkEoCuEwiUIYGtDC9ryLBi8vKjytac1N98hGgqqMw5GpAjPDlt9O64EeQqE4t8siY/TTRA867KUgBNXYRAYzQPsl87iAP+cBovgXjeVBKqZnsej+
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+service:
+  type: ClusterIP
+  clusterIP: 10.43.140.53  
+  port: 3009
+
+ingress:
+  enabled: true
+  className: "traefik"
+  annotations: {}
+    # kubernetes.io/ingress.class: traefik
+    # kubernetes.io/tls-acme: "true"
+  hosts:
+    - host: sample.localhost
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+          serviceName: node-app
+          servicePort: 3009
+  tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - hitefalcon.io
+
+resources: {}
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
