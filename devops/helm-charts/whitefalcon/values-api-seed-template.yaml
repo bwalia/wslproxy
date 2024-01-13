@@ -17,7 +17,7 @@ app:
   primary_dns_resolver : "10.43.0.10"
   secondary_dns_resolver : "10.43.0.10"
   dns_resolver_port: 53
-  api_url: "http://api.localhost/api"
+  api_url: "http://wf-api-svc-__target_environment_ref__.__target_environment_ref__.svc.cluster.local/api"
   redis_host: "redis-service.__target_environment_ref__.svc.cluster.local"
   target_env: "__target_environment_ref__"
   target_type: "api"
@@ -64,7 +64,7 @@ service:
 
 ingress:
   enabled: true
-  className: "nginx"
+  className: "traefik"
   annotations: {}
     # kubernetes.io/ingress.class: nginx
     # kubernetes.io/tls-acme: "true"
