@@ -401,7 +401,7 @@ func TestUpdateRuleWithServer(t *testing.T) {
 
 //Calling the handle profile API to work with the profiles
 func TestHandleProfileAPI(t *testing.T) {
-	url := frontUrl + "/frontdoor/opsapi/handle-profile"
+	url := targetHost + "/api/settings/profile"
 	payload := strings.NewReader(fmt.Sprintf(`{"profile":"%s"}`, profile))
 
 	client := &http.Client{}
@@ -411,6 +411,7 @@ func TestHandleProfileAPI(t *testing.T) {
 		t.Log(err)
 		return
 	}
+	req.Header.Add("Authorization", "Bearer "+tokenValue)
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := client.Do(req)
@@ -433,8 +434,7 @@ func TestDataSync(t *testing.T) {
 
 		url := frontUrl + "/frontdoor/opsapi/sync?envprofile=" + profile
 		//fmt.Println(url)
-		time.Sleep(2 * time.Second)
-
+		
 		client := &http.Client{}
 
 		req, err := http.NewRequest("GET", url, nil)
@@ -461,7 +461,6 @@ func TestDataSync(t *testing.T) {
 func TestServerResponse(t *testing.T) {
 	url := frontUrl + "/router"
 
-	time.Sleep(2 * time.Second)
 	client := &http.Client{}
 
 	req, err := http.NewRequest("GET", url, nil)
