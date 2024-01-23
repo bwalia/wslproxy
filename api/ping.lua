@@ -2,6 +2,7 @@ local cjson = require("cjson")
 local lfs = require("lfs")
 local configPath = os.getenv("NGINX_CONFIG_DIR")
 local developmentTime = os.getenv("VITE_DEPLOYMENT_TIME")
+local http = require "resty.http"
 -- functions
 
 function os.capture(cmd, raw) -- this function cannot be local
@@ -143,6 +144,34 @@ local function parseEnvString(envString)
     return envTable
 end
 
+local function check_api_status(url, target)
+    local httpc = http.new()
+    local res, apiErr = httpc:request_uri(url, {
+        method = "GET",
+        headers = {
+            ["Content-Type"] = "application/json",
+        },
+    })
+
+    if not res then
+        ngx.say("HTTP request failed for " .. target .. " ", apiErr)
+        ngx.exit(ngx.HTTP_SERVICE_UNAVAILABLE)
+        return
+    end
+   return res
+end
+local apiResApi = check_api_status(os.getenv("API_URL"), "api")
+if apiResApi ~= nil and apiResApi.status >= 500 and apiResApi.status < 600 then
+    ngx.say("Server error For API_URL. Status code: " .. tostring(apiResApi.status))
+    ngx.exit(ngx.HTTP_SERVICE_UNAVAILABLE)
+end
+
+local apiResFront = check_api_status(os.getenv("FRONT_URL"), "front")
+if apiResFront ~= nil and apiResFront.status >= 500 and apiResFront.status < 600 then
+    ngx.say("Server error for FRONT_URL. Status code: " .. tostring(apiResFront.status))
+    ngx.exit(ngx.HTTP_SERVICE_UNAVAILABLE)
+end
+
 local frontFilePath = lfs.currentdir() .. "/.env"
 local frontEnvContent = readFile(frontFilePath)
 frontEnvContent = parseEnvString(frontEnvContent)
@@ -168,17 +197,17 @@ local data = {
         PRIMARY_DNS_RESOLVER = os.getenv("PRIMARY_DNS_RESOLVER") and "Found" or "Not Found",
         SECONDARY_DNS_RESOLVER = os.getenv("SECONDARY_DNS_RESOLVER") and "Found" or "Not Found",
         DNS_RESOLVER_PORT = os.getenv("DNS_RESOLVER_PORT") and "Found" or "Not Found",
-        FRONT_URL = os.getenv("FRONT_URL") and "Found" or "Not Found",
-        API_URL = os.getenv("API_URL") and "Found" or "Not Found",
+        FRONT_URL = os.getenv("FRONT_URL") and os.getenv("FRONT_URL") or "Not Found",
+        API_URL = os.getenv("API_URL") and os.getenv("API_URL") or "Not Found",
     },
     mendatory_env_vars_frontend = {
         VITE_JWT_SECURITY_PASSPHRASE = frontEnvContent.VITE_JWT_SECURITY_PASSPHRASE and "Found" or "Not Found",
-        VITE_API_URL = frontEnvContent.VITE_API_URL and "Found" or "Not Found",
-        VITE_FRONT_URL = frontEnvContent.VITE_FRONT_URL and "Found" or "Not Found",
+        VITE_API_URL = frontEnvContent.VITE_API_URL and frontEnvContent.VITE_API_URL or "Not Found",
+        VITE_FRONT_URL = frontEnvContent.VITE_FRONT_URL and frontEnvContent.VITE_FRONT_URL or "Not Found",
         VITE_NGINX_CONFIG_DIR = frontEnvContent.VITE_NGINX_CONFIG_DIR and "Found" or "Not Found",
-        VITE_APP_NAME = frontEnvContent.VITE_APP_NAME and "Found" or "Not Found",
-        VITE_DEPLOYMENT_TIME = frontEnvContent.VITE_DEPLOYMENT_TIME and "Found" or "Not Found",
-        VITE_APP_DISPLAY_NAME = frontEnvContent.VITE_APP_DISPLAY_NAME and "Found" or "Not Found",
+        VITE_APP_NAME = frontEnvContent.VITE_APP_NAME and frontEnvContent.VITE_APP_NAME or "Not Found",
+        VITE_DEPLOYMENT_TIME = frontEnvContent.VITE_DEPLOYMENT_TIME and frontEnvContent.VITE_DEPLOYMENT_TIME or "Not Found",
+        VITE_APP_DISPLAY_NAME = frontEnvContent.VITE_APP_DISPLAY_NAME and frontEnvContent.VITE_APP_DISPLAY_NAME or "Not Found",
     }
 }
 -- Encode the table as a JSON string
