@@ -9,11 +9,14 @@ services:
     env_file: .env
   cypress-firefox:
     image: cypress/included:12.8.1
-    depends_on:
-      cypress-chrome:
-        condition: service_completed_successfully
     command: "--browser firefox"
     working_dir: /cypress
     volumes:
       - ./:/cypress/
     env_file: .env
+  cypress-electron:
+    image: cypress/included:12.8.1
+    working_dir: /cypress
+    volumes:
+      - ./:/cypress/
+    env_file: .env     
