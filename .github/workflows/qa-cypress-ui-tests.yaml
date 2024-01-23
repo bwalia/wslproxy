@@ -45,17 +45,10 @@ jobs:
             docker inspect whitefalcon
             chmod +x ./qa-bootstrap-cypress.sh && sh ./qa-bootstrap-cypress.sh "${{ secrets.LOGIN_EMAIL }}" "${{ secrets.LOGIN_PASSWORD }}" "${{ env.TARGET_ENV }}" "${{ secrets.JWT_TOKEN_KEY }}"
             sudo chmod a+rwx cypress/downloads
-            ls -alt 
-            ls -alt cypress/
-            ls -alt cypress/videos
-            echo "find command"
-            find . -name 01_Login_Verification.cy.js.mp4
-            echo "/"
-            ls -alt /
-      # - name: 'Upload screenshots and videos to Slack'
-      #   uses: trymbill/cypress-slack-video-upload-action@v1.3.0
-      #   with:
-      #       token: ${{ secrets.SLACK_TOKEN }}
-      #       channels: 'cypress-test-results'
-      #       workdir: QA/cypress_ui_tests/cypress
-      #       message-text: 'A QA Cypress UI test just finished. The screenshots and videos are available in this thread. Good luck!.'
+      - name: 'Upload screenshots and videos to Slack'
+        uses: trymbill/cypress-slack-video-upload-action@v1.3.0
+        with:
+            token: ${{ secrets.SLACK_TOKEN }}
+            channels: 'cypress-test-results'
+            workdir: QA/cypress_ui_tests/cypress
+            message-text: 'A QA Cypress UI test just finished for Whitefalcon. The screenshots and videos are available in this thread. Good luck!.'
