@@ -154,8 +154,8 @@ local function check_api_status(url, target)
     })
 
     if not res then
-        ngx.say("HTTP request failed for " .. target .. " ", apiErr)
-        ngx.exit(ngx.HTTP_SERVICE_UNAVAILABLE)
+        ngx.say("HTTP request failed for " .. target .. " " .. url .. " ", apiErr)
+        -- ngx.exit(ngx.HTTP_SERVICE_UNAVAILABLE)
         return
     end
    return res
@@ -166,15 +166,18 @@ if apiResApi ~= nil and apiResApi.status >= 500 and apiResApi.status < 600 then
     ngx.exit(ngx.HTTP_SERVICE_UNAVAILABLE)
 end
 
-local apiResFront = check_api_status(os.getenv("FRONT_URL"), "front")
-if apiResFront ~= nil and apiResFront.status >= 500 and apiResFront.status < 600 then
-    ngx.say("Server error for FRONT_URL. Status code: " .. tostring(apiResFront.status))
-    ngx.exit(ngx.HTTP_SERVICE_UNAVAILABLE)
-end
 
 local frontFilePath = lfs.currentdir() .. "/.env"
 local frontEnvContent = readFile(frontFilePath)
 frontEnvContent = parseEnvString(frontEnvContent)
+
+if frontEnvContent.VITE_TARGET_PLATFORM ~= "DOCKER" then
+    local apiResFront = check_api_status(os.getenv("FRONT_URL"), "front")
+    if apiResFront ~= nil and apiResFront.status >= 500 and apiResFront.status < 600 then
+        ngx.say("Server error for FRONT_URL. Status code: " .. tostring(apiResFront.status))
+        ngx.exit(ngx.HTTP_SERVICE_UNAVAILABLE)
+    end
+end
 local data = {
     app = os.getenv("APP_NAME"),
     version = os.getenv("VERSION"),
