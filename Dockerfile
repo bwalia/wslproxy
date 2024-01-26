@@ -87,7 +87,7 @@ RUN luarocks install luafilesystem
 #COPY nginx/test.conf /usr/local/openresty/nginx/conf/nginx.conf
 # COPY nginx/hd4dp.conf /etc/nginx/conf.d/hd4dp.conf
 # COPY nginx/sessions_demo_server.conf /etc/nginx/conf.d/sessions_demo_server.conf
-ENV NGINX_CONFIG_DIR="/opt/nginx/"
+ENV NGINX_CONFIG_DIR="/src/userdata/"
 RUN mkdir -p ${NGINX_CONFIG_DIR} && chmod 777 ${NGINX_CONFIG_DIR}
 
 ARG APP_ENV="dev"
