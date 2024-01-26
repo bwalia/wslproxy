@@ -15,6 +15,13 @@ data:
         FILE=/usr/local/openresty/nginx/html/openresty-admin/.env
         cp /tmp/secrets/.env $FILE
         echo "==========================="
+        echo "Copy user data configurations"
+        FILE=/opt/nginx/
+        cp -r /src/userdata/* $FILE
+        if [ -d "$FILE" ]; then
+          chmod 755 -R $FILE
+          chown nobody:root -R $FILE
+        fi
         echo "Openresty whitefalcon Src copy to /var/www/html Complete"
         DATE_GEN_VERSION=$(date +"%Y%m%d%I%M%S")
         export DATE_GEN_VERSION=$(date +"%Y%m%d%I%M%S")
