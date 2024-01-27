@@ -17,7 +17,7 @@ app:
   primary_dns_resolver : "10.43.0.10"
   secondary_dns_resolver : "10.43.0.10"
   dns_resolver_port: 53
-  api_url: "http://wf-api-svc-__target_environment_ref__.__target_environment_ref__.svc.cluster.local/api"
+  api_url: "http://wf-api-svc-__target_environment_ref__.__target_environment_ref__.svc.cluster.local:8080/api"
   redis_host: "redis-service.__target_environment_ref__.svc.cluster.local"
   target_env: "__target_environment_ref__"
   target_type: "front"
@@ -35,6 +35,8 @@ image:
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
+
+storage: "persistent"
 
 serviceAccount:
   # Specifies whether a service account should be created
@@ -73,9 +75,22 @@ ingress:
       paths:
         - path: /
           pathType: ImplementationSpecific
-#          serviceName: wf-api-svc-__target_environment_ref__
           serviceName: wf-front-svc-__target_environment_ref__
           servicePort: 80
+    - host: protected.localhost
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+          serviceName: wf-front-svc-__target_environment_ref__
+          servicePort: 80
+    - host: httpbin.localhost
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+          serviceName: wf-front-svc-__target_environment_ref__
+          servicePort: 80
+
+
   tls: []
   #  - secretName: chart-example-tls
   #    hosts:

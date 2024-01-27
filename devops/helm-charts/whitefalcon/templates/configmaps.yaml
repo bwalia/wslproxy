@@ -11,6 +11,21 @@ data:
         cp /tmp/resolver.conf ~/resolver_backup.conf && sed -i -e 's/Docker resolver/K3S resolver/' /tmp/resolver.conf && sed -i -e 's/resolver 127.0.0.11/resolver {{ .Values.app.dns_resolver }}/' /tmp/resolver.conf
         # Set Timezone
         echo "Openresty whitefalcon Nginx Bootstrap Script"
+        settings.json
+        FILE=/opt/nginx/data/settings.json
+        if test -f "$FILE"; then
+            echo "$FILE exists."
+            echo "==========================="
+            echo "Settings Script Exists already"
+            echo "==========================="
+        else
+            echo "Settings Script does not exist. Copy sample-settings.json to settings.json"
+            SAMPLE=/opt/nginx/data/sample-settings.json
+            if test -f "$SAMPLE"; then
+                echo "$SAMPLE exists."
+                cp $SAMPLE $FILE
+            fi
+        fi        
         echo "==========================="
         FILE=/usr/local/openresty/nginx/html/openresty-admin/.env
         cp /tmp/secrets/.env $FILE
