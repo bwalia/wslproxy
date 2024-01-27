@@ -102,10 +102,8 @@ else
     exit
 fi
 
-
-
-
 #kubeseal --fetch-cert > /tmp/cert.pem
+
 #--cert /tmp/cert.pem #--scope cluster-wide 
 kubeseal --format yaml <temp_secrets_api_1.yaml> secret-api-env-file-sealed.yaml
 kubeseal --format yaml <temp_secrets_front_1.yaml> secret-front-env-file-sealed.yaml

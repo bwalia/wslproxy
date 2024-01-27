@@ -17,14 +17,14 @@ app:
   primary_dns_resolver : "10.43.0.10"
   secondary_dns_resolver : "10.43.0.10"
   dns_resolver_port: 53
-  api_url: "http://api.localhost/api"
+  api_url: "http://wf-api-svc-dev.dev.svc.cluster.local/api"
   redis_host: "redis-service.dev.svc.cluster.local"
   target_env: "dev"
   target_type: "front"
   front_url: "http://front.localhost"
   sync_data_onload: false
 
-secure_env_file: AgAlzQC1kyXDITdOJUd2lhvXBTKLkGV7G0fvg17HF40uqiXt8HEgj8RpK/z/zq6Q80ovR31rIhym4kT02ddivg3O/Jx8cXQRdwEKE4C7EJTzKT7DKCRZzz227isqOd5CmoHYwioACl5XPB4j19vFbe/7973t+fDIXWC20yee+jOJVArEwvtXY9u+mSqh2a0g+YBz8mdaD8khKfhoyPitl9IVLUB2nMGuz/NeFbgpeIKad8PapzAgkP1x3GskxxEkK6DXT+JEhL62qRJgT3yRiln9dkY4URf9O59utX0ZwRz/DWdcbFkM8/OH6XsoPznY1O9BOn9l970dAhBrkgZPIKGPl8bveRPNCJFB819HJhN3HimKJH5WwMo8Otey4p3mGEEWB8uzI56LfjVha0GonzE6xZSJwQ2gqCpNhtW6UIwlzrkci9uS+eyQEqr7DC7Aetiu+3iYi9mWcWvJioIJ07NHO7dw6FYpq2HLVlycSBxMPCa7f16lyc1IPXbeYrAxH5hfMUgwlp79f4fLyJYxFaCRwOOtApMq/UF/rGjxqASnEs08XgTMT4HNAF9zeqWyqIY2rQKnXYuu6sEy8vpaYGHCSxDTk5/vSNpsO2GPIlT8NiIz+AyyLqF3f1scEQADgwnVsZx6/+5B69K41UCp+w247zZP2kpwmwPXgcMjJLSYhiGnETYnpceUo4E3pLD7TGTSraRVie1gn1e3RbqBufpAh6cERtFiqzWMX4S6bo+nWX8pwUnLmDR7RUpEddQuXcCJ9UU/mqjD33fvkUgOrXRvyEA9c48SEPLaYSGqpXzEfliSE0xA9lG3uo7VYR8bv/lbWI24EV/Ws2vGQGSUXNcyWIkB8ZB1sYyNYpUvym3R5e72QdZO4fBBNFYc4PiV1pHma5CoCCJCmoxIRwPgvDykxlug9yvtc2c5ri8dJL85qNcCtjfHvVdK7RzqxNkZMqqLx4pzW/GvFsSKWIVA7WaYvr0sboKO8LPZ7VJW4JS5s8+m2mZNeVi+IZrmFXs2Uv/EBkI//BBQnOBMhDp7DQMT2EKrfC9z8tIW0MQwjEz9LGHJ+LOWX2Yl7k+LIy9HvHDti1dnM1SR/Kb9KR06F0HNpcf+Ugsuox70MdUO5hBAE3PmiH1/PP7DrOI5edfjg5GwUT99R3QjawEfwkfncPFbNFlo6S41zidX55+4
+secure_env_file: AgAk/P0MsdFz/qi1/49q46ZSlU/P5cyhwVxfP2YJx8zB4QKpIACSKlB8k9g2yKJol7QpopO1nehmYqbHmkUxnv8nnhC3NTDPq9kkzL/++FaAZ3c4RNJ74Sq02u+N1b79j4dybXxb5kfFojOl/HU+H4u5IWhC+P7fY2128c5Pq2llfpj230hmEQbVAsMrsbvScNVQ22HBKOFQ0PDV93KUV+ucZjkXw8nY+flM8qh5ESWHEElnTwtQSw/RbAsYDuEKrzJpbVSFEN8RINs2VLTOM4r5DyyQR1YMYgpVi7Jr6OE+QPPG7K0LfQqP7If/GsJmjDR1VBFu3QtpEknZTiwJ43XTwQ4MaHy4JUaKbrbUvA14a3gCIWE9hzCsyeJtTopebVzG1D60g1CcEE8rUvDX0Wi0SbO1jEPdo9SCLXeLOd7w6t4B57ilv9zo+GOudGAnMy/o5U2k1+MrsK/ukZ8a+KrrI3zg0itbdksbSeXVnIaj9eSssmsvI+NnY5wmYGlx00FVSLS6TzTtiyvgiEZM6SZFdN+f1PSiIrB0njMyBfYgVom8Nrq+12EqeoEkBBFyYc/88ztOihkZPxUi8XmL5qc+EXTqMsk6A4HHASpRZ03kF2L7Hd7UG8YGTf2TQZICytDVotLJRFrU2gmJbHh+2JHt+EwPm89JF5aCWmPdPd3BsjJijOm2Twsbq3ZmlqotL1y05evFWgA4wa0dY9J+/Nw002Pam/+P+7H/VXWBX7Mtl4+bJrUJGRPzTn+jUI827rl9bEj0ajANvEcXtyWiq4ukIuAYfE+q9qXWWv3geP9VFSbs2iqb/hqjc8j89FJC82/ZKaDd75TWUNxgaNV2mbzVPTQski9TYsHvOYcHVLShnfB3RDLN0KT7cDDyXaau4pE6gcMbe8XNMqF1yq2J1AuCMdbeusTGhy/+A+uMctAxvLrmYQEgx7lzLOZMU/wP/b5kAAXsT4vCpDtUc7eo77/tEMydvzQom117ofC98nUfqlkw6EZxrzTgQ1r+eBFCOpdLH1YMH46fLbCoefdoWOZIeUwMpXx2iPNBwY1ua48BZ+8x5sWlKYE9ZHXOSiG62zvNGLagHXlVZxiURH2eSHV/MpO5R3eYuGpXv0en87YtIgEo17ksakZ/9xHy49PEaTEYJl5WbwVo11yscbYc1YQcdnlFmYAtNR7bs+TS
 
 image:
   repository: bwalia/whitefalcon
@@ -66,17 +66,10 @@ ingress:
   enabled: true
   className: "traefik"
   annotations: {}
-    # kubernetes.io/ingress.class: traefik
+    # kubernetes.io/ingress.class: nginx
     # kubernetes.io/tls-acme: "true"
   hosts:
     - host: front.localhost
-      paths:
-        - path: /
-          pathType: ImplementationSpecific
-#          serviceName: wf-api-svc-dev
-          serviceName: wf-front-svc-dev
-          servicePort: 80
-    - host: myapptest.localhost
       paths:
         - path: /
           pathType: ImplementationSpecific
