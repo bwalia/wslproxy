@@ -145,8 +145,9 @@ local function parseEnvString(envString)
 end
 
 local function check_api_status(url, target)
+    local replacedURL = string.gsub(url, "https://", "http://") -- Temporary Fixed for "unable to get local issuer certificate"
     local httpc = http.new()
-    local res, apiErr = httpc:request_uri(url, {
+    local res, apiErr = httpc:request_uri(replacedURL, {
         method = "GET",
         headers = {
             ["Content-Type"] = "application/json",
