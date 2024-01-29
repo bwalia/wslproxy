@@ -31,11 +31,21 @@ data:
         cp /tmp/secrets/.env $FILE
         echo "==========================="
         echo "Copy user data configurations"
-        FILE=/opt/nginx/
-        cp -r /src/userdata/* $FILE
-        if [ -d "$FILE" ]; then
-          chmod 755 -R $FILE
-          chown nobody:root -R $FILE
+        SETTING_FILE=/opt/nginx/data/settings.json
+        if [ -d "$SETTING_FILE" ]; then
+          FILE=/opt/nginx/data/
+          cp -r /src/userdata/data/* $FILE
+          if [ -d "$FILE" ]; then
+            chmod 755 -R $FILE
+            chown nobody:root -R $FILE
+          fi
+        else
+          FILE=/opt/nginx/
+          cp -r /src/userdata/* $FILE
+          if [ -d "$FILE" ]; then
+            chmod 755 -R $FILE
+            chown nobody:root -R $FILE
+          fi
         fi
         echo "Openresty whitefalcon Src copy to /var/www/html Complete"
         DATE_GEN_VERSION=$(date +"%Y%m%d%I%M%S")
