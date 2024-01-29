@@ -147,6 +147,6 @@ RUN chmod -R 777 ${NGINX_CONFIG_DIR}system && \
     chmod -R 777 ${NGINX_CONFIG_DIR}data/rules && \
     chmod -R 777 ${NGINX_CONFIG_DIR}data/security_rules.json && \
     chown -R nobody:root ${NGINX_CONFIG_DIR}data/ && \
-    chmod 777 ${NGINX_CONFIG_DIR}data/settings.json
+    chmod 777 ${NGINX_CONFIG_DIR}data/sample-settings.json
 
 ENTRYPOINT ["/usr/local/openresty/nginx/sbin/nginx", "-g", "daemon off;"]
