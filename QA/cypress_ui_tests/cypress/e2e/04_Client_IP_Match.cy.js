@@ -35,7 +35,7 @@ describe('Client IP match verification', () => {
           } else {
                 cy.log("No previous config found")
             }
-      })
+       })
 
         // Open the rules Section
         cy.get('[href="#/rules"]').click();
@@ -230,7 +230,19 @@ describe('Client IP match verification', () => {
         })
 
         });
-     });
+
+        // Reset the Profile back to the int
+        cy.wait  
+        cy.get('[aria-label="Select Environment Profile"]').click();
+        cy.get("#demo-simple-select").click();
+        cy.get('div.MuiPaper-root.MuiMenu-paper ul.MuiMenu-list li[data-value="int"]').click();
+
+        // Sync the data
+        cy.wait(3000);
+        cy.get('button[aria-label="Sync API Storage"]').click({force: true})  
+        cy.wait(2000);
+      
+      });
 
     function generateRandomString() {
     const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
