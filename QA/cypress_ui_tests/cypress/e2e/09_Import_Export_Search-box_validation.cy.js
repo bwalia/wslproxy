@@ -92,7 +92,7 @@ describe('Import & Export validation and Search Box validation', () => {
 
 
 
-    //  Verifying the search box results in Rules
+      //  Verifying the search box results in Rules
       cy.log('Testing Search Box for rules..');
       cy.visit(BASE_URL+"/#/rules");
       // Creating two rules for the rules search result filter
@@ -170,6 +170,19 @@ describe('Import & Export validation and Search Box validation', () => {
       cy.wait(5000);
       cy.reload()
 
+      // Reset the Profile back to the int
+      cy.wait  
+      cy.get('[aria-label="Select Environment Profile"]').click();
+      cy.get("#demo-simple-select").click();
+      cy.get('div.MuiPaper-root.MuiMenu-paper ul.MuiMenu-list li[data-value="int"]').click();
+
+      // Sync the data
+      cy.wait(3000);
+      cy.get('button[aria-label="Sync API Storage"]').click({force: true})
+      cy.wait(2000);
+
+    })  
+      
       function generateRandomString() {
         const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
         let randomString = '';
@@ -181,5 +194,5 @@ describe('Import & Export validation and Search Box validation', () => {
       
         return randomString;
       }
-    })  
+
 })      

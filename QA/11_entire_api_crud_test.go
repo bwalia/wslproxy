@@ -567,3 +567,40 @@ func TestDeleteRule(t *testing.T) {
 	}
 
 }
+func TestResetProfile(t *testing.T) {
+	envProfile := os.Getenv("TARGET_ENV")
+	url := targetHost + "/api/settings/profile"
+		if envProfile == "int2" || envProfile == "int6" {
+			profile = "int"
+		} else if envProfile == "test" {
+			profile = "test"
+		}	
+	payload := strings.NewReader(fmt.Sprintf(`{"profile":"%s"}`, profile))
+	client := &http.Client{}
+    
+	req, err := http.NewRequest("POST", url, payload)
+	if err != nil {
+		t.Log(err)
+		return
+	}
+	req.Header.Add("Authorization", "Bearer "+tokenValue)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Log(err)
+		return
+	}
+	//t.Log(resp)
+
+	if resp.StatusCode != http.StatusOK {
+		t.Error("Unexpected response status code", resp.StatusCode)
+		return
+	}
+
+	// Call the data sync API
+	if serverName != "localhost" {
+		TestDataSync(t)
+	}
+
+}

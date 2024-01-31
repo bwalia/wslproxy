@@ -178,6 +178,18 @@ describe('Multi-Rule Prioritization Test', () => {
             })
           })
          });
+
+        // Reset the Profile back to the int
+        cy.wait  
+        cy.get('[aria-label="Select Environment Profile"]').click();
+        cy.get("#demo-simple-select").click();
+        cy.get('div.MuiPaper-root.MuiMenu-paper ul.MuiMenu-list li[data-value="int"]').click();
+
+        // Sync the data
+        cy.wait(3000);
+        cy.get('button[aria-label="Sync API Storage"]').click({force: true})    
+        cy.wait(2000);
+
      });
 
     function generateRandomString() {
