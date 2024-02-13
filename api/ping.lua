@@ -195,6 +195,7 @@ local data = {
     dns_primary_server = primaryNameserver,
     dns_secondary_server = secondaryNameserver,
     dns_server_port = portNameserver,
+    swagger_url = ngx.var.scheme.."://".. ngx.var.http_host .. "/swagger/",
     mendatory_env_vars_backend = {
         NGINX_CONFIG_DIR = os.getenv("NGINX_CONFIG_DIR") and "Found" or "Not Found",
         JWT_SECURITY_PASSPHRASE = os.getenv("JWT_SECURITY_PASSPHRASE") and "Found" or "Not Found",
