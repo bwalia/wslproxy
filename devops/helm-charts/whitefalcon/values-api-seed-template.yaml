@@ -71,7 +71,7 @@ ingress:
     # kubernetes.io/ingress.class: nginx
     # kubernetes.io/tls-acme: "true"
   hosts:
-    - host: api.localhost
+    - host: apigw.localhost
       paths:
         - path: /
           pathType: ImplementationSpecific
