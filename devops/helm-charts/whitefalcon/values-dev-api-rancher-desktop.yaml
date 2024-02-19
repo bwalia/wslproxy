@@ -17,14 +17,14 @@ app:
   primary_dns_resolver : "10.43.0.10"
   secondary_dns_resolver : "10.43.0.10"
   dns_resolver_port: 53
-  api_url: "http://wf-api-svc-dev.dev.svc.cluster.local/api"
+  api_url: "http://wf-api-svc-dev.dev.svc.cluster.local:8080/api"
   redis_host: "redis-service.dev.svc.cluster.local"
   target_env: "dev"
   target_type: "api"
   front_url: "http://front.localhost"
   sync_data_onload: false
 
-secure_env_file: AgC7S+sHv04tygTMr7ocUX5S0C5UzlLbOPs3fnw9UkE8b9hpKCFaYMsCS1Ky3miDmhTX3MJPNaZ5+mxGPyo04X3hE+ihhC69/VMySiRlVHOhkt+deSFWcPdHvqtMlxov+JAPJxGEm917KEN7LaA0ZICo0Ox88K9+h1p2le/ILWFjL7BhJ+EZOVt3Is9eljTqepVXxuvHvCd709HDOHY5Z53cSt+nNHs1mJNB6Bd88D2SUhrN6EgEG/+B5FhfZ005d50hJRN6WNl/nZ4zBBlAwgzQOAVsd7yguFbhWV6ikK0oIGJl+2c/DyByriku1LxPc6bFxBqcYakFhoWx7DFBe0GlMZvq+jlbcUCQUBU2IhmeM4jlFa5dxP+8S0Yt6i6palktnWdm4K3Q4MLJVvQab8moZkE2GDK/qNpPw7itlrMI3ImT5Zue2D7F3r0A7axVhWzw8f29H4OMtlz97TTkwqJfYIWs84Ewjr+teKFpbTrF+CzB+nRv46IJYiRPy239FzUhVncTpRUriyDooA374h3+UERmGL5XU0t/JJ0VBywt6yltLoCKBHUFGhmUbYOgqg2AodWIaNnjXNyo1TAKYgMNfkStF61ugNYpcPap1+t9OhikNFZxnWDpDprDxwvaEGRZzjYfoRr84jHUnvcWdszvuyiKUfST3ik8pWmIskrJ9rN7EOd7+fMF4l4G1SLsqcg+gp/sVunQIz5D88xYN19ClNXJr1ESBS0I9KBxEticgtt42FkhNx/FuYwLvaCaHgR8V4XiR9ssAfPSraaUrzJGIU3A+5nA4khrXlIutAauhuL70fIFgJxQXVBCGzGX6tox0PcTTPgAoDO8rkH78AHdzlFZEm4kp1DabnySXx9pN45NmN6xxZh6hMFeQ64jPhd8kNQQO1k5cmIn/oiS0GIzSQiw+fyTUkXdPi+k206u7DMGYnfbUU3lgXhrIjxase8+ZHKqiojhFgGO83ngPFumBWtKKmR+50jYMBXEf6nRWD6EptcXRdmNfkIMojKaVkFyFy8W/nksaC6IOioXcIRn/ws6i4vkWvyW2tCkFgDu3OEgzz+pE1H+KR2QGyvdhf/r8IXuMAuu6lmeQyBtSbT9iNCIDTL0Npu2954c/IctORf6ojP/rr/Qy9zrUrtDdKoIl/gJIH07m4pDtk6ATWML0hhojRIX6+DZ3gfZ
+secure_env_file: AgBKRPasRCET2UJ2xa355xJFYd624lx5gtulsk3yDbOOHjVDSgztYULmEX22Tfm7hvhzTcSFP5Gl9nSACiOu1PWBsUGjwmzQZNU1IdDYEQYSqnWT+Jje2MuifCXUkNpi21x9LTcSVDUsSg+qDdzlE5g+2AfTmqOPcGf37SHEGqIh2ALoqvgUC8OqI1eYSjKYkV+eUOa6Tpa+Cib4rh+ltMJJTuPyQqfkUdt4ZjRV8tXhLqPXvxtXxsEwGP1eRidEyQTEoBomJRL1zAwxnka4sGOGqYE8bpjvXEVp5g5egDHsmNS7WA6nScHpQ5PBSWLBrB8kZZh6pVzP1jtBQLtDfDoA34CnGqYtbbPyBLTvQjZEr0JiA3i4pIhS0Juz3zV2LTAkh42ka2j7UpPCj3sx5R0ipjmDZt9nMJLPl2hTswjMpAqqpkE6sXqi0OXQ5FMBJJV+f2/GLGQ0KJ8+y5sSfRASF75YSNcBxban8lwS2Iuk1WVKBXtczeGy/KMcc4tbwZ4MEZcLYIUWveaMDX8rH9LoWsEooKm0unW0HFZx/e00ivZwHRCJohT6ogA2xuNPnmuaJ5ipqQNB3Disjd2x+U2VtWqws9xdOb6lhNcOB02f4NPjqr2lSMAUBo9k4pPxc9XGNP5vADduqGbYxGaPchuMQfT6qUMmSUEJRDkyIjhmrAfMmv81OoJ2iV7XBbWDbZAJulYih45PJPL6hQDLbCzQ1Xp4N5BcCc107q/xZTUnPJwv7NwFtt6ksHHUF09vHAXABwV/5jKaRg7h8maq5xUBSEh5qEqDmjBgscff2EOF3ZGM0niDfXbx/uijBtBglYPsT6HS61rMH8BcHkFxlf2BC+po1YQr3rd9sUxY28omp0m9GaPXgt3N9Za0LQLHe7UeNU4z3TVuHKhzdGr2ZehzpCBf0RlHUrhKZy8U/05HwDntGKedprx8Y4P49xvZvSJkaPpYYHMBqOdcOhgZxJYGBvOE/gV1St5qQYl74spwCHLXQpCu5hdtn1EyNS4egtQ73W08UsghezFQeMoT/OlA77to2BJOOBMUSQiThqmRBA0kD7M2JnHGkg==
 
 image:
   repository: bwalia/whitefalcon
@@ -35,6 +35,8 @@ image:
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
+
+storage: "non-persistent"
 
 serviceAccount:
   # Specifies whether a service account should be created
@@ -69,7 +71,7 @@ ingress:
     # kubernetes.io/ingress.class: nginx
     # kubernetes.io/tls-acme: "true"
   hosts:
-    - host: api.localhost
+    - host: apigw.localhost
       paths:
         - path: /
           pathType: ImplementationSpecific
