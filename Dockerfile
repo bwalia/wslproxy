@@ -74,6 +74,7 @@ ENV LUA_CPATH="/usr/local/openresty/site/lualib/?.so;/usr/local/openresty/lualib
 
 RUN opm get bungle/lua-resty-session
 RUN opm get ip2location/ip2location-resty
+RUN opm get bungle/lua-resty-template
 
 RUN luarocks install lua-resty-jwt
 RUN luarocks install lua-resty-session
