@@ -509,6 +509,124 @@ server {
 }
 }
 
+# server any host 443 ssl
+server {
+    listen *:443 ssl http2;
+    listen [::]:443 ssl http2; #  http2 not supported by WAF lua lib
+
+        ssl_session_timeout  5m;
+
+        ssl_certificate_by_lua_block {
+        auto_ssl:ssl_certificate()
+        }
+
+        ssl_certificate /etc/ssl/resty-auto-ssl-fallback.crt;
+        ssl_certificate_key /etc/ssl/resty-auto-ssl-fallback.key;
+
+        limit_req zone=req_zone burst=10 nodelay;
+        limit_req zone=req_zone_wl burst=20 nodelay;
+
+        # resolver 127.0.0.1 local=on;
+        include /tmp/resolver.conf;         #   For kubernetes use 10.43.0.10 and nginx ingress controller
+
+          # define shared variables between lua and nginx lua balancer;
+          set $proxy_host "";
+          set $proxy_port "";
+          
+          set $proxy_host_override "";
+          set $upstream_server "global_backend";
+
+          location / {
+            default_type text/plain;
+            set_by_lua_block $vars {
+              local json = require("cjson")
+              local executableRule, proxyServerName = {}, nil
+              return cjson.encode({
+                executableRule = executableRule,
+                proxyServerName = proxyServerName
+              })
+            }
+            
+            rewrite_by_lua_file /usr/local/openresty/nginx/html/api/gateway_ack.lua;
+            access_by_lua_file /usr/local/openresty/nginx/html/api/gateway_resp.lua;    # this code run just before the setting the proxy pass and content phase.
+
+          # echo $proxy_host:$proxy_port;
+          # echo $upstream_server;
+          proxy_pass http://$upstream_server;
+        
+          }
+
+        location = /frontdoor/opsapi/sync {
+          default_type 'application/json';
+          if ($request_method = 'OPTIONS') {
+              add_header 'Access-Control-Allow-Origin' '*';
+              add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, PUT, DELETE';
+              add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, X-Requested-With';
+              add_header 'Access-Control-Max-Age' 1728000;
+              add_header 'Content-Type' 'text/plain; charset=utf-8';
+              # add_header 'Content-Length' 0;
+              return 204;
+          }
+          content_by_lua_file /usr/local/openresty/nginx/html/api/sync_data.lua;
+        }
+        location = /frontdoor/opsapi/handle-profile {
+          default_type 'application/json';
+          add_header 'Access-Control-Allow-Origin' '*';
+          add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, PUT, DELETE';
+          content_by_lua_file /usr/local/openresty/nginx/html/api/profile_handler.lua;
+        }
+
+        location /__ip_location {
+            default_type text/html;
+            content_by_lua_block {
+                local ip2location = require('ip2location')
+                local ip2loc = ip2location:new('/tmp/IP2LOCATION-LITE-DB11.IPV6.BIN')
+                local result = ip2loc:get_all('106.196.55.155')
+                ngx.say("country_short: " .. result.country_short)
+                ngx.say("country_long: " .. result.country_long)
+                ngx.say("region: " .. result.region)
+                ngx.say("city: " .. result.city)
+                ngx.say("isp: " .. result.isp)
+                ngx.say("latitude: " .. result.latitude)
+                ngx.say("longitude: " .. result.longitude)
+                ngx.say("domain: " .. result.domain)
+                ngx.say("zipcode: " .. result.zipcode)
+                ngx.say("timezone: " .. result.timezone)
+                ngx.say("netspeed: " .. result.netspeed)
+                ngx.say("iddcode: " .. result.iddcode)
+                ngx.say("areacode: " .. result.areacode)
+                ngx.say("weatherstationcode: " .. result.weatherstationcode)
+                ngx.say("weatherstationname: " .. result.weatherstationname)
+                ngx.say("mcc: " .. result.mcc)
+                ngx.say("mnc: " .. result.mnc)
+                ngx.say("mobilebrand: " .. result.mobilebrand)
+                ngx.say("elevation: " .. result.elevation)
+                ngx.say("usagetype: " .. result.usagetype)
+                ngx.say("addresstype: " .. result.addresstype)
+                ngx.say("category: " .. result.category)
+                ngx.say("district: " .. result.district)
+                ngx.say("asn: " .. result.asn)
+                ngx.say("as: " .. result.as)
+                ip2loc:close()
+            }
+        }
+
+        error_page  404              /404.html;
+
+        # redirect server error pages to the static page /50x.html
+        #
+        error_page   500 502 503 504  /50x.html;
+        location = /50x.html {
+            root   html;
+        }
+
+        location ~ /\.ht {
+            deny  all;
+        }
+
+}
+# server any host 443 ssl
+
     server {
         listen       80 default_server;
         server_name _;
