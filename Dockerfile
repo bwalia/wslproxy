@@ -75,6 +75,9 @@ ENV LUA_CPATH="/usr/local/openresty/site/lualib/?.so;/usr/local/openresty/lualib
 RUN opm get bungle/lua-resty-session
 RUN opm get ip2location/ip2location-resty
 RUN opm get bungle/lua-resty-template
+RUN opm get thibaultcha/lua-resty-mlcache
+# RUN opm get SkyLothar/lua-resty-jwt
+# RUN opm get pintsized/lua-resty-http
 
 RUN luarocks install lua-resty-jwt
 RUN luarocks install lua-resty-session
@@ -85,6 +88,16 @@ RUN luarocks install lua-resty-redis-connector
 RUN luarocks install lua-resty-dns
 RUN luarocks install lua-resty-resolver
 RUN luarocks install luafilesystem
+RUN luarocks install lua-resty-auto-ssl
+
+RUN mkdir -p /etc/resty-auto-ssl
+RUN chown -R root:nobody /etc/resty-auto-ssl/
+RUN chmod -R 775 /etc/resty-auto-ssl
+
+RUN openssl req -new -newkey rsa:2048 -days 3650 -nodes -x509 \
+  -subj '/CN=sni-support-required-for-valid-ssl' \
+  -keyout /etc/ssl/resty-auto-ssl-fallback.key \
+  -out /etc/ssl/resty-auto-ssl-fallback.crt
 #COPY nginx/test.conf /usr/local/openresty/nginx/conf/nginx.conf
 # COPY nginx/hd4dp.conf /etc/nginx/conf.d/hd4dp.conf
 # COPY nginx/sessions_demo_server.conf /etc/nginx/conf.d/sessions_demo_server.conf
@@ -96,6 +109,7 @@ ARG ENV_FILE=".env.dev"
 
 COPY ./system ${NGINX_CONFIG_DIR}system
 
+COPY ./html /usr/local/openresty/nginx/
 COPY ./openresty-admin /usr/local/openresty/nginx/html/openresty-admin
 COPY ./data ${NGINX_CONFIG_DIR}data
 #   COPY ./data/sample-settings.json ${NGINX_CONFIG_DIR}data/sample-settings.json
