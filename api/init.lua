@@ -1,10 +1,19 @@
-hostName = os.getenv("HOSTNAME")
-gtgToken = os.getenv("OPSAPI_GTG_TOKEN")
-redisEndPoint = os.getenv("REDIS_ENDPOINT")
-redisEndPort = os.getenv("REDIS_PORT")
+cjson = require("cjson")
+require "resty.session".init({
+  remember = true,
+  audience = "whitefalcon",
+  storage  = "redis",
+  redis = {
+    host = os.getenv("REDIS_HOST"),
+    port = os.getenv("REDIS_PORT"),
+  }
+})
 
-if redisEndPoint ~= nil then
-  redisEndPoint = "127.0.0.1"
+local redisHost = os.getenv("REDIS_HOST")
+local redisEndPort = os.getenv("REDIS_PORT")
+
+if redisHost == nil then
+  redisHost = "localhost"
 end
 
 if redisEndPort ~= nil then
@@ -13,9 +22,9 @@ end
 
 auto_ssl = (require "resty.auto-ssl").new()
 
-   auto_ssl:set("allow_domain", function(domain)
+auto_ssl:set("allow_domain", function(domain)
 
-    local redis = require "resty.redis"
+local redis = require "resty.redis"
 local host_header		= ngx.var.host
 
 local ssl_certificate_domain_is_valid = false
@@ -67,7 +76,7 @@ red:set_timeout(5000) -- 1 sec
 --local ok, err = red:connect("unix:/var/run/redis/redis.sock")
 --local ok, err = red:connect("127.0.0.1", 6379)
 
-  local ok, err = red:connect(redisEndPoint, redisEndPort)
+local ok, err = red:connect(redisHost, redisEndPort)
 
 if not ok then
   ssl_certificate_domain_is_valid = false
@@ -94,15 +103,12 @@ else
 ssl_certificate_domain_is_valid = true
 end
 
-
-
-
    return ssl_certificate_domain_is_valid
-  end)
+end)
 
     auto_ssl:set("storage_adapter", "resty.auto-ssl.storage_adapters.redis")
     auto_ssl:set("redis", {
-    host = "127.0.0.1"
+    host = os.getenv("REDIS_HOST")
 --    socket = "unix:/var/run/redis/redis.sock"
     })
 
