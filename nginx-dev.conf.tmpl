@@ -48,6 +48,13 @@ http {
     # lua_package_path '/usr/local/Cellar/openresty/1.19.3.1_1/site/lualib/resty/?.lua;;';
     lua_package_cpath '/usr/local/openresty/site/lualib/resty/?.so;;';
 
+   # Storage for challenge token and cert cache
+
+    lua_shared_dict auto_ssl 100m;
+    lua_shared_dict auto_ssl_settings 64k;
+
+    init_by_lua_file /usr/local/openresty/nginx/html/api/init.lua;
+
     geo $limit {
         default 1;
         10.0.0.0/8 0;
@@ -644,6 +651,13 @@ server {
           set $proxy_host_override "";
           set $upstream_server "global_backend";
 
+          # Endpoint used for performing domain verification with Let's Encrypt.
+          location /.well-known/acme-challenge/ {
+          content_by_lua_block {
+              auto_ssl:challenge_server()
+          }
+          }   
+
           location / {
             default_type text/plain;
             set_by_lua_block $vars {
@@ -830,7 +844,22 @@ server {
 
     }
 
+  # Internal server running on port 8999 for handling certificate tasks.
+  server {
+    listen 8999;
 
+    # Increase the body buffer size, to ensure the internal POSTs can always
+    # parse the full POST contents into memory.
+    client_body_buffer_size 128k;
+    client_max_body_size 128k;
+
+    location / {
+      content_by_lua_block {
+        auto_ssl:hook_server()
+      }
+    }
+  }
+  
       server {
         listen       80;
         server_name  sessions-api.test.whitefalcon.io;
