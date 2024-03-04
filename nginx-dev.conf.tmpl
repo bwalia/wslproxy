@@ -74,18 +74,19 @@ http {
     limit_req_zone $limit_key zone=req_zone:10m rate=5r/s;
     limit_req_zone $binary_remote_addr zone=req_zone_wl:10m rate=15r/s;
 
-    init_by_lua_block  {
-        cjson = require("cjson")
-        require "resty.session".init({
-          remember = true,
-          audience = "whitefalcon",
-          storage  = "redis",
-          redis = {
-            host = os.getenv("REDIS_HOST"),
-            port = 6379,
-          }
-        })
-    }
+#    init_by_lua_block  {
+#        cjson = require("cjson")
+#        require "resty.session".init({
+#          remember = true,
+#          audience = "whitefalcon",
+#          storage  = "redis",
+#          redis = {
+#            host = os.getenv("REDIS_HOST"),
+#            port = 6379,
+#          }
+#        })
+#    }
+# moved to init.lua file
 
     server {
         listen       8080;
