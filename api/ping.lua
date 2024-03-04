@@ -74,13 +74,18 @@ local red = redis:new()
 red:set_timeouts(1000, 1000, 1000) -- 1 sec
 
 local redisHost = os.getenv("REDIS_HOST")
+local redisEndPort = os.getenv("REDIS_PORT")
 
 if redisHost == nil then
     redisHost = "localhost"
 end
 
+if redisEndPort ~= nil then
+    redisEndPort = 6379
+end
+
 local db_connect_status = "err"
-local ok, err = red:connect(redisHost, 6379)
+local ok, err = red:connect(redisHost, redisEndPort)
 local storageTypeOverride = os.getenv("STORAGE_TYPE")
 if ok then
     db_connect_status = "pong"
