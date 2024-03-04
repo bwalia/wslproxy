@@ -36,6 +36,11 @@ http {
                       '$status $body_bytes_sent "$http_referer" '
                       '"$http_user_agent" "$http_x_forwarded_for" "$host"';
 
+    log_format sslparams '$remote_addr - $remote_user [$time_local] "$request" $status '
+                  '$body_bytes_sent "$http_referer" "$http_user_agent" '
+                  '"$http_x_forwarded_for" $request_id $msec $request_time '
+                  '$upstream_connect_time $upstream_header_time $upstream_response_time $host $ssl_protocol $ssl_cipher';
+
     access_log  logs/access.log  main;
     sendfile        on;
     # tcp_nopush     on;
