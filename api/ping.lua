@@ -80,7 +80,7 @@ if redisHost == nil then
     redisHost = "localhost"
 end
 
-if redisEndPort ~= nil then
+if redisEndPort == nil then
     redisEndPort = 6379
 end
 
