@@ -44,7 +44,7 @@ spec:
           volumes:
             - name: openresty-data-vol
               persistentVolumeClaim:
-                claimName: openresty-{{ .Values.app.target_env }}-pvc
+                claimName: {{ .Values.app.name }}-{{ .Values.app.target_env }}-pvc
             - name: {{ .Values.app.name }}-vol-{{ .Values.app.target_env }}
               secret:
                 secretName: {{ .Values.app.name }}-secret-{{ .Values.app.target_env }}
