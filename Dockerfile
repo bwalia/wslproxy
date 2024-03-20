@@ -17,7 +17,7 @@ FROM ${RESTY_FAT_IMAGE_BASE}:${RESTY_FAT_IMAGE_TAG}
 
 ARG RESTY_LUAROCKS_VERSION="3.9.0"
 
-LABEL maintainer="Evan Wies <evan@neomantra.net>"
+LABEL maintainer="Balinder Walia <bwalia@workstation.co.uk>"
 LABEL resty_fat_image_base="${RESTY_FAT_IMAGE_BASE}"
 LABEL resty_fat_image_tag="${RESTY_FAT_IMAGE_TAG}"
 LABEL resty_luarocks_version="${RESTY_LUAROCKS_VERSION}"
@@ -164,5 +164,12 @@ RUN chmod -R 777 ${NGINX_CONFIG_DIR}system && \
     chmod -R 777 ${NGINX_CONFIG_DIR}data/security_rules.json && \
     chown -R nobody:root ${NGINX_CONFIG_DIR}data/ && \
     chmod 777 ${NGINX_CONFIG_DIR}data/sample-settings.json
+
+# mc - MinIO Client is used to backup nginx openresty configuration to S3
+RUN wget https://dl.min.io/client/mc/release/linux-amd64/mc -O /usr/local/bin/mc \
+    --tries=3 --timeout=30 && \
+    chmod +x /usr/local/bin/mc  
+
+RUN mc --version
 
 ENTRYPOINT ["/usr/local/openresty/nginx/sbin/nginx", "-g", "daemon off;"]
