@@ -2,7 +2,7 @@
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: {{ .Values.app.name }}-{{ .Values.app.target_env }}-data-backup-hourly
+  name: {{ .Values.app.name }}-{{ .Values.app.target_env }}-cfg-backup-hourly
   namespace: {{ .Values.app.target_env }}
 spec:
   schedule: "0 * * * *"
@@ -14,7 +14,7 @@ spec:
         spec:
           restartPolicy: Never
           containers:
-          - name: "{{ .Values.app.name }}-{{ .Values.app.target_env }}-data-backup-hourly"
+          - name: "{{ .Values.app.name }}-{{ .Values.app.target_env }}-cfg-backup-hourly"
             image: {{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}
             imagePullPolicy: {{ .Values.image.pullPolicy }}
             command:
@@ -33,7 +33,7 @@ spec:
             resources:
               null
             volumeMounts:
-              - name: openresty-data-vol
+              - name: openresty-cfg-vol
                 mountPath: /openresty-dump
               - name: {{ .Values.app.name }}-vol-{{ .Values.app.target_env }}
                 mountPath: "/tmp/secrets"
@@ -42,7 +42,7 @@ spec:
                 mountPath: "/tmp/configmap"
                 readOnly: false
           volumes:
-            - name: openresty-data-vol
+            - name: openresty-cfg-vol
               persistentVolumeClaim:
                 claimName: {{ .Values.app.name }}-{{ .Values.app.target_env }}-pvc
             - name: {{ .Values.app.name }}-vol-{{ .Values.app.target_env }}
