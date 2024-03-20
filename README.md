@@ -2,7 +2,7 @@
 
 Whitefalcon is an API Gateway and a CDN, and it fully powered itself via API so that it can be fully configured automatically via pipelines and release mangement.
 
-## Rquirements
+## Dev environment Rquirements
 
 Bash
 
@@ -12,7 +12,7 @@ node > 16
 
 yarn
 
-## Installation
+## Installation using Docker
 
 # Run the docker example: to build dev environment
 ```
@@ -29,7 +29,7 @@ sudo ./deploy-to-docker.sh "dev" "whitefalcon" "$JWT_TOKEN" && ./show.sh
 ./bootstrap.sh "dev" "whitefalcon" "$JWT_TOKEN" "DOCKER"
 
 ```
-# Steps to run on Kubernates
+# Deployment onto to the Kubernates
 NOTE: MAKE SURE YOU HAVE KUBESEAL IN YOUR SYSTEM
 1. Create a .env file with following details:
 ```
@@ -84,6 +84,11 @@ front_url: http://wf-front-svc-<NAMESPACE>.<NAMESPACE>.svc.cluster.local
 helm upgrade -i whitefalcon-api-<NAMESPACE> ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-<NAMESPACE>-api-<TARGET_CLUSTER>.yaml --set TARGET_ENV=<NAMESPACE> --namespace <NAMESPACE> --create-namespace
 helm upgrade -i whitefalcon-front-<NAMESPACE> ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-<NAMESPACE>-front-<TARGET_CLUSTER>.yaml --set TARGET_ENV=<NAMESPACE> --namespace <NAMESPACE> --create-namespace
 helm upgrade -i whitefalcon-nodeapp ./devops/helm-charts/node-app/ -f devops/helm-charts/node-app/values-<TARGET_CLUSTER>.yaml
+```
+
+10. Disaster Recovery
+```
+# NOTE: The nginx openresty configuration is backed on to S3 using kubernetes cronjob manifests. See online DR process documentation for more information.
 ```
 
 ## Usage
