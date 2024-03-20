@@ -3,7 +3,7 @@ apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: {{ .Values.app.name }}-{{ .Values.app.target_env }}-data-backup-hourly
-  namespace: {{ .Values.namespace }}
+  namespace: {{ .Values.app.target_env }}
 spec:
   schedule: "0 * * * *"
   #testing 1 min "0 */1 * * *"
@@ -44,7 +44,7 @@ spec:
           volumes:
             - name: openresty-data-vol
               persistentVolumeClaim:
-                claimName: openresty-{{ .Values.namespace }}-pvc
+                claimName: openresty-{{ .Values.app.target_env }}-pvc
             - name: {{ .Values.app.name }}-vol-{{ .Values.app.target_env }}
               secret:
                 secretName: {{ .Values.app.name }}-secret-{{ .Values.app.target_env }}
