@@ -165,4 +165,11 @@ RUN chmod -R 777 ${NGINX_CONFIG_DIR}system && \
     chown -R nobody:root ${NGINX_CONFIG_DIR}data/ && \
     chmod 777 ${NGINX_CONFIG_DIR}data/sample-settings.json
 
+# mc - MinIO Client is used to backup nginx openresty configuration to S3
+RUN wget https://dl.min.io/client/mc/release/linux-amd64/mc -O /usr/local/bin/mc \
+    --tries=3 --timeout=30 && \
+    chmod +x /usr/local/bin/mc  
+
+RUN mc --version
+
 ENTRYPOINT ["/usr/local/openresty/nginx/sbin/nginx", "-g", "daemon off;"]
