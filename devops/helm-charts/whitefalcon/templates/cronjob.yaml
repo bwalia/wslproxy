@@ -1,0 +1,58 @@
+# Source: wf/templates/cronjob.yaml
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ .Values.app.name }}-{{ .Values.app.target_env }}-data-backup-hourly
+  namespace: {{ .Values.namespace }}
+spec:
+  schedule: "0 * * * *"
+  #testing 1 min "0 */1 * * *"
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+          - name: "{{ .Values.app.name }}-{{ .Values.app.target_env }}-data-backup-hourly"
+            image: {{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}
+            imagePullPolicy: {{ .Values.image.pullPolicy }}
+            command:
+              - /bin/sh
+              - -c
+              - --
+            args:
+              - cp /tmp/configmap/backup-database.sh /usr/local/bin/backup-database.sh && chmod +x /usr/local/bin/backup-database.sh && bash /usr/local/bin/backup-database.sh
+              # sleep infinity
+            env:
+              - name: DB_BACKUP_JOB_NAME
+                value: {{ .Values.app.name }}-{{ .Values.app.target_env }}-db-backup-hourly
+              - name: BACKUP_FREQUENCY
+                value: hourly
+            envFrom:
+            resources:
+              null
+            volumeMounts:
+              - name: openresty-data-vol
+                mountPath: /openresty-dump
+              - name: {{ .Values.app.name }}-vol-{{ .Values.app.target_env }}
+                mountPath: "/tmp/secrets"
+                readOnly: false
+              - name: {{ .Values.app.name }}-cm-{{ .Values.app.target_env }}-vol
+                mountPath: "/tmp/configmap"
+                readOnly: false
+          volumes:
+            - name: openresty-data-vol
+              persistentVolumeClaim:
+                claimName: openresty-{{ .Values.namespace }}-pvc
+            - name: {{ .Values.app.name }}-vol-{{ .Values.app.target_env }}
+              secret:
+                secretName: {{ .Values.app.name }}-secret-{{ .Values.app.target_env }}
+                items:
+                - key: env_file
+                  path: .env
+                optional: false
+            - name: {{ .Values.app.name }}-cm-{{ .Values.app.target_env }}-vol
+              configMap:
+                name: {{ .Values.app.name }}-cm-{{ .Values.app.target_env }}
+      backoffLimit: 0

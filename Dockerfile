@@ -17,7 +17,7 @@ FROM ${RESTY_FAT_IMAGE_BASE}:${RESTY_FAT_IMAGE_TAG}
 
 ARG RESTY_LUAROCKS_VERSION="3.9.0"
 
-LABEL maintainer="Evan Wies <evan@neomantra.net>"
+LABEL maintainer="Balinder Walia <bwalia@workstation.co.uk>"
 LABEL resty_fat_image_base="${RESTY_FAT_IMAGE_BASE}"
 LABEL resty_fat_image_tag="${RESTY_FAT_IMAGE_TAG}"
 LABEL resty_luarocks_version="${RESTY_LUAROCKS_VERSION}"

@@ -4,6 +4,38 @@ metadata:
   name: {{ .Values.app.name }}-cm-{{ .Values.app.target_env }}
 #   namespace: {{ .Values.targetNS }}
 data:
+    backup-database.sh: |
+      #!/bin/bash
+      TIMESTAMP=$(date +%Y-%m-%d-%H-%M)
+      if [ -z "$BACKUP_FREQUENCY" ]; then
+        echo "BACKUP_FREQUENCY is not set"
+        BACKUP_FREQUENCY="hourly"
+      fi
+      echo "Copying openresty data to minio"
+      # mc --version
+      source /tmp/secrets/.env
+      TAR_UTIL_BIN=$(which tar)
+      if [ -z "$TAR_UTIL_BIN" ]; then
+        echo "tar util not found but we will continue with the backup without compressing the redis data"
+        OPENRESTY_DUMP_FILE="/openresty-dump/"
+        DUMP_BACKUP_FILE="openresty-dump-$TIMESTAMP"
+      else
+      tar -czvf /tmp/openresty-dump.tar.gz /openresty-dump
+        OPENRESTY_DUMP_FILE="/tmp/openresty-dump.tar.gz"
+        DUMP_BACKUP_FILE="openresty-dump-$TIMESTAMP.tar.gz"
+      fi
+       
+      if [ -f $OPENRESTY_DUMP_FILE ]; then
+      mc config host add myminio $MINIO_ENDPOINT $MINIO_ACCESS_KEY $MINIO_SECRET_KEY
+              # Always save the latest dump file as openresty-dump-latest.rdb or tar.gz
+              mc cp $OPENRESTY_DUMP_FILE myminio/{{ .Values.app.name }}-{{ .Values.app.target_env }}-db-backups/hourly/$DUMP_LATEST_FILE
+              echo "$OPENRESTY_DUMP_FILE found OK and copied to minio bucket."
+              echo "Backup frequency is $BACKUP_FREQUENCY"
+              mc cp $OPENRESTY_DUMP_FILE myminio/{{ .Values.app.name }}-{{ .Values.app.target_env }}-db-backups/$BACKUP_FREQUENCY/$DUMP_BACKUP_FILE
+
+      else
+      echo "$OPENRESTY_DUMP_FILE not found backup failed."
+      fi
     bootstrap-openresty.sh: |
         #!/bin/bash
         set -x
