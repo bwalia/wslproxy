@@ -17,11 +17,11 @@ app:
   primary_dns_resolver : "10.43.0.10"
   secondary_dns_resolver : "10.43.0.10"
   dns_resolver_port: 53
-  api_url: "https://api.int2.whitefalcon.io/api"
+  api_url: "https://api.int.whitefalcon.io/api"
   redis_host: "redis-service.int.svc.cluster.local"
   target_env: "int"
   target_type: "front"
-  front_url: "https://int2.whitefalcon.io"
+  front_url: "https://int.whitefalcon.io"
   sync_data_onload: false
   
 secure_env_file: "AgBI6cJ6JmMGhfv6f4Chu2C/Rz1ZiaWbH3BgtZfBy604PjJ9wEyKEjIK/PlZ7ugz38SsS/RaKxLhEfscOgGnh3smlBnzPFnGCEV+r9fwo31JFjBv+zLDfENNsm8NutWo82rX0K7nTfRZj86EyngE7n9rm8GSosNpbunqsEVn3w2qBH4dZZkn0mydSRpJXuQslQRWmuV5lXnCmVDS1dlVbaXSkd0N5pnM9MC14tQ0X5S5bIX8RzdVKh/PRmSduS5TTnsCs0fZAj3YpHO1GhGZOsDhaeEkpXe0osj73l7Dy+V6wWMCrbRbXZj5HGLB8YiJbzyd3Yp6rv+FKLZgWu6K4T02CDsMFTiH+9xMWANpTQqABav7k4r4tz3KRtRzJ0/BiFeKfR1FlVF+PuoI4DdmONfnk5MKcyI2LbxHQ5tCa7i/ECTkjOZCG8PQV0dvjfUD1YYgi6zVd57j3LAuKMySAiXoim/6qPpabjNKHI5OQyWQyANtCUCldB/NO4bTW+4N1aBeHfN6jh6G8f6Shen7ref4f4S5TZ3GuFjE0zVVnEKPUsOWVYDFx/SHafr1oNCoQ5rnGl788D9OWWR1h4H+8pCrBdpTSrMz5XDcNtP6307CZw7wRKCTi1k91N88lezjni9HInqeAa7SMiDsNlmDOlmcxOmff05z4MrZ6J53I8RQL9kMYEwZ8zewWQT3dgh2i0nhjYgQyaj5pFJmM4XiOtLqbBBqOm5Cj4h+OjF3LY6JU+VaciXYKWUndHd5ouPelrHMc019o8ggIlO9uLk3k8lPgUKDPsMUyg0On9C1sc//uaE6ICWbfK3f6BcjcWOdH36XaesUsFWl+Fk8UpiJHLqq7+ioDTA3qBOi5IwNrPUNvcmulkSFRf1rEQrbZW2jQJAfbY0MEaAjrmG4VcO8B7TDRhwIQpsrCgFVi4MoKCdEd4bteVN12ffavQh8qYk+sQk0ZzfwGQJZG4nwVT21Cp0WTNx+IBhlukwBZQbXg09N5Ns02vy7CDJOTVeNBlgaYeImg154zXt9QddYh3QToeDImrJ8Dxn7NwHG0oZ1TaihEFW1oOp9YsUwf3NHNJLIUSWUFdwNPISM+5SGzBCm"
@@ -40,7 +40,10 @@ serviceAccount:
   # Specifies whether a service account should be created
   create: true
   # Annotations to add to the service account
-  annotations: {}
+  annotations: {
+      cert-manager.io/cluster-issuer: letsencrypt-production,
+      kubernetes.io/ingress.class: traefik
+  }
   # The name of the service account to use.
   # If not set and create is true, a name is generated using the fullname template
   name: ""
@@ -82,19 +85,7 @@ ingress:
           pathType: ImplementationSpecific
           serviceName: wf-front-svc-int
           servicePort: 80
-    - host: int2.whitefalcon.io
-      paths:
-        - path: /
-          pathType: ImplementationSpecific
-          serviceName: wf-front-svc-int
-          servicePort: 80
-    - host: front.int2.whitefalcon.io
-      paths:
-        - path: /
-          pathType: ImplementationSpecific
-          serviceName: wf-front-svc-int
-          servicePort: 80
-    - host: qa.int2.whitefalcon.io
+    - host: qa.int.whitefalcon.io
       paths:
         - path: /
           pathType: ImplementationSpecific
@@ -118,10 +109,16 @@ ingress:
           pathType: ImplementationSpecific
           serviceName: wf-front-svc-int
           servicePort: 80          
-  tls: []
-  #  - secretName: chart-example-tls
-  #    hosts:
-  #      - chart-example.local
+    - host: nodeapp.int.whitefalcon.io
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+          serviceName: wf-front-svc-int
+          servicePort: 80          
+  tls:
+    - hosts:
+        - 'nodeapp.int.whitefalcon.io'
+      secretName: nodeapp-int-tls-secret
 
 resources: {}
   # We usually recommend not to specify default resources and to leave this as a conscious
