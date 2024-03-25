@@ -64,8 +64,11 @@ service:
 
 ingress:
   enabled: true
-  className: "nginx"
-  annotations: {}
+  className: "traefik"
+  annotations: {
+    cert-manager.io/cluster-issuer: letsencrypt-production,
+    kubernetes.io/ingress.class: traefik
+  }
     # kubernetes.io/ingress.class: nginx
     # kubernetes.io/tls-acme: "true"
   hosts:
@@ -73,18 +76,13 @@ ingress:
       paths:
         - path: /
           pathType: ImplementationSpecific
+#          serviceName: wf-api-svc-int
           serviceName: wf-api-svc-int
           servicePort: 8080
-    - host: api.int2.whitefalcon.io
-      paths:
-        - path: /
-          pathType: ImplementationSpecific
-          serviceName: wf-api-svc-int
-          servicePort: 8080
-  tls: []
-  #  - secretName: chart-example-tls
-  #    hosts:
-  #      - chart-example.local
+  tls:
+    - secretName: api-int-tls-secret
+      hosts:
+        - api.int.whitefalcon.io
 
 resources: {}
   # We usually recommend not to specify default resources and to leave this as a conscious
