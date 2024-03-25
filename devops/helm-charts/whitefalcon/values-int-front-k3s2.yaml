@@ -64,7 +64,7 @@ service:
 
 ingress:
   enabled: true
-  className: "nginx"
+  className: "traefik"
   annotations: {
     cert-manager.io/cluster-issuer: letsencrypt-production,
     kubernetes.io/ingress.class: traefik

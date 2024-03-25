@@ -17,11 +17,11 @@ app:
   primary_dns_resolver : "10.43.0.10"
   secondary_dns_resolver : "10.43.0.10"
   dns_resolver_port: 53
-  api_url: "https://api.int.whitefalcon.io/api"
+  api_url: "https://api.int2.whitefalcon.io/api"
   redis_host: "redis-service.int.svc.cluster.local"
   target_env: "int"
   target_type: "api"
-  front_url: "https://int.whitefalcon.io"
+  front_url: "https://int2.whitefalcon.io"
   sync_data_onload: false
 
 secure_env_file: "AgBO0bYsVVSWs7YI+cs+evI3v5d42fxGUrk5SXyw2McAnbdcR/tQw9r0eeBkeIu+jt3+3p8I5fnrQh/LJKQFFvtb3Wo+O8U44nrBJhw2XgstRoYhlBi3O7QbEKu+L1l4FsE/KoZt+FFHkeyKc4+kA34i/6hbjzWAswpDQJVth6uTBPxVIAG9JKmXWMQupE92cs7+n24+UHVNBBgbXWPOWHdIVGhLgqK9SR3ZDzmeOuaVfIBk1WtfxbPtsAYNyddsPMfr1k8awwqgl3+j7VNiwPqgVePzt0NJ1iaoqCcLX1aqc1vq1XZK31sXK8m0jDXxTOuCVm2ValKbreueTMNCIvdx7X4c88Bq3QyzzCExqedj0HwMGoy0FCA4OiJ7ymsxAmZPiDb/49WlxeTGy/HAlQ2scx89sT50t4+GWbZ0rT9FrVyeEsqWzjnIwDZgGja3nDeimWG2JNSzQdrE8T6MCHVT/AnfjJBpzE7ro6e32PNotChnX9g5cKBXyi33zD+VmQPxOAGuKbmJ/pwOx8ja/w4ShEWkI09n/kp71PposndJjuY2lFzPO4EsmIuxSMGIPcsDr7E7Vkhlye/Ct0+Yc++K2b1kR/btteCiWw7hCQ6j5ktsQO9LsExBCHmQARDe53DEvuNIS6+F9IgHUo/4HMPXuYxGYlVnSt+bbKBoKqdiRbvOKjn+n5NVH4oO7bdbKnOmTaWFKNDKu9K+KbP1c1Du7gruhvl4txOIyocJM2IHN3wXGc0/Ma9Hk+LtEDIK2szgM2bHxXGx+zvMZMdFkqzL0qq4OIsM7Z8X+SkBPguaqiDkA000y5d/6QLhlqfz8R9QvR3xQryJPYWjcmgd8gI++zhPYS22P0dwFc4N5Z6q6MZEXzEpdlIhvFvsIrX+JjfAp8UrTePb9wadVSskBC7SBinFEHyGoMlVdA7R+G2ilWgTjmJjuBxiuKKkmU5mfkxxJW40h8JAZsNdNcBC/XssfALu4rxg6y4K1fZjmxofWwyWN6yWVgE/PHHNIpSoPBlYSus8eLMMs4sTsphqhXAPc1IMwzuGaEr9ubsOeCgtLu6rgB0RLTyby/+ClXrUjO1JuMFoAAB3d3t15wJf"
@@ -40,10 +40,7 @@ serviceAccount:
   # Specifies whether a service account should be created
   create: true
   # Annotations to add to the service account
-  annotations: {
-    cert-manager.io/cluster-issuer: letsencrypt-production,
-    kubernetes.io/ingress.class: traefik
-  }
+  annotations: {}
   # The name of the service account to use.
   # If not set and create is true, a name is generated using the fullname template
   name: ""
@@ -68,7 +65,10 @@ service:
 ingress:
   enabled: true
   className: "traefik"
-  annotations: {}
+  annotations: {
+    cert-manager.io/cluster-issuer: letsencrypt-production,
+    kubernetes.io/ingress.class: traefik
+  }
     # kubernetes.io/ingress.class: nginx
     # kubernetes.io/tls-acme: "true"
   hosts:
@@ -76,12 +76,13 @@ ingress:
       paths:
         - path: /
           pathType: ImplementationSpecific
+#          serviceName: wf-api-svc-int
           serviceName: wf-api-svc-int
           servicePort: 8080
   tls:
-    - hosts:
-    - 'api.int.whitefalcon.io'
     - secretName: api-int-tls-secret
+      hosts:
+        - api.int.whitefalcon.io
 
 resources: {}
   # We usually recommend not to specify default resources and to leave this as a conscious
