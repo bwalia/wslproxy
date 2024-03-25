@@ -387,10 +387,11 @@ const Form = () => {
             source="match.rules.jwt_token_validation"
             choices={[
               { id: "equals", name: "=" },
-              { id: "basic", name: "Basic Auth" },
-              { id: "cookie", name: "Cookie header validation" },
-              { id: "redis", name: "Redis token validation" },
-              { id: "header", name: "Header JWT token validation" },
+              // { id: "basic", name: "Basic Auth" },
+              { id: "cookie_jwt_token_validation", name: "Cookie header JWT Token validation" },
+              { id: "cookie_key_value", name: "Cookie Key Value validation" },
+              // { id: "redis", name: "Redis token validation" },
+              { id: "header_jwt_token_validation", name: "Header JWT Token validation" },
             ]}
             fullWidth
             label="Token Validation"

@@ -92,23 +92,40 @@ local function gatewayHostAuthenticate(rule)
           tokenAuthTokenSource = rule.jwt_token_validation
          end
 
-        if tokenAuthTokenSource == "cookie" then
-        securityToken = reqHeaders['cookie']
-        if securityToken and securityToken ~= nil and type(securityToken) ~= nil then
-            local securityToken = string.match(tostring(securityToken), jwt_token_key_val_value .. "=([^;]+)")
-            if securityToken ~= nil then
-                securityToken = string.gsub(securityToken, "Bearer", "")
-                securityToken = trimWhitespace(ngx.unescape_uri(securityToken))
-                local isTokenVerified = jwt:verify(passPhrase, securityToken)
+        if tokenAuthTokenSource == "cookie_jwt_token_validation" then
+            securityToken = reqHeaders['cookie']
+            if securityToken and securityToken ~= nil and type(securityToken) ~= nil then
+                local securityToken = string.match(tostring(securityToken), jwt_token_key_val_value .. "=([^;]+)")
+                if securityToken ~= nil then
+                    securityToken = string.gsub(securityToken, "Bearer", "")
+                    securityToken = trimWhitespace(ngx.unescape_uri(securityToken))
+                    local isTokenVerified = jwt:verify(passPhrase, securityToken)
+                else
+                    isTokenVerified = false
+                end
             else
                 isTokenVerified = false
             end
-        else
-            isTokenVerified = false
         end
+        if tokenAuthTokenSource == "cookie_key_value" then
+            securityToken = reqHeaders['cookie']
+            if securityToken and securityToken ~= nil and type(securityToken) ~= nil then
+                local securityToken = string.match(tostring(securityToken), jwt_token_key_val_value .. "=([^;]+)")
+                if securityToken ~= nil then
+                    -- securityToken = string.gsub(securityToken, "Bearer", "")
+                    securityToken = trimWhitespace(ngx.unescape_uri(securityToken))
+                    if passPhrase == securityToken then
+                        isTokenVerified = true
+                    end
+                else
+                    isTokenVerified = false
+                end
+            else
+                isTokenVerified = false
+            end
         end
 
-        if tokenAuthTokenSource == "header" then
+        if tokenAuthTokenSource == "header_jwt_token_validation" then
             securityToken = ngx.req.get_headers()[jwt_token_key_val_value]
             if securityToken ~= nil then
                 isTokenVerified = false
