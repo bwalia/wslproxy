@@ -17,7 +17,7 @@ app:
   primary_dns_resolver : "10.43.0.10"
   secondary_dns_resolver : "10.43.0.10"
   dns_resolver_port: 53
-  api_url: "https://api.int2.whitefalcon.io/api"
+  api_url: "https://api.int.whitefalcon.io/api"
   redis_host: "redis-service.int.svc.cluster.local"
   target_env: "int"
   target_type: "api"

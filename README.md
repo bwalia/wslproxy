@@ -106,8 +106,8 @@ on your local system. It will automatically sync the build changes with the dock
 | `dev` | `http://localhost:8081/` | `Ask administrator` |  `WhiteFalcon API :- localhost(127.0.0.1) `  | ` 8081->8080`
 |          |           |          |`WhiteFalcon Front :- localhost(127.0.0.1)` | `8000->80`
 |          |           |          |`Docker nodeapp :-localhost(127.0.0.1) -> host.docker.internal if using extra_hosts: - "host.docker.internal:host-gateway" in docker or docker compose` | `3009->3009`
-| `int` | `http://api.int2.whitefalcon.io/` | `Ask administrator` |`WhiteFalcon API :- api.int2.whitefalcon.io` | `80 443`
-|          |           |          |`WhiteFalcon Front :- front.int2.whitefalcon.io` | `80 443`
+| `int` | `http://api.int.whitefalcon.io/` | `Ask administrator` |`WhiteFalcon API :- api.int.whitefalcon.io` | `80 443`
+|          |           |          |`WhiteFalcon Front :- front.int.whitefalcon.io` | `80 443`
 |          |           |          |`Node-app :-     ` |  `3009->3009`
 |   | `http://api.int6.whitefalcon.io/` | `Ask administrator` |`WhiteFalcon API :- api.int6.whitefalcon.io` | `80 443`
 |          |           |          |`WhiteFalcon Front :- front.int6.whitefalcon.io` | `80 443`
