@@ -8,10 +8,10 @@ TARGET_ENV=$3
 JWT_TOKEN_KEY=$4
 
 if [ "$TARGET_ENV" = "int" ]; then
-    BASE_URL="https://api.int2.whitefalcon.io"
-    FRONTEND_URL="https://front.int2.whitefalcon.io"
+    BASE_URL="https://api.int.whitefalcon.io"
+    FRONTEND_URL="https://front.int.whitefalcon.io"
     NODEAPP_ORIGIN_HOST="10.43.140.53:3009"
-    SERVER_NAME="front.int2.whitefalcon.io"
+    SERVER_NAME="front.int.whitefalcon.io"
     TARGET_PLATFORM="kubernetes"
     ENV_FILE=".env_cypress_int"
 fi
