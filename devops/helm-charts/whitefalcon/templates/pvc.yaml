@@ -8,7 +8,7 @@ metadata:
 spec:
   storageClassName: local-path
   capacity:
-    storage: 1Gi
+    storage: {{ .Values.storage.size }}
   accessModes:
     - ReadWriteOnce
   hostPath:
@@ -26,4 +26,4 @@ spec:
   - ReadWriteOnce
   resources:
     requests:
-      storage: 2Gi
+      storage: {{ .Values.storage.size }}

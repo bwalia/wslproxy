@@ -36,7 +36,12 @@ imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
 
-storage: "non-persistent"
+storage:
+  enabled: false
+  accessMode: ReadWriteOnce
+  size: 2Gi
+  storageClass: ""
+
 
 serviceAccount:
   # Specifies whether a service account should be created

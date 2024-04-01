@@ -62,6 +62,13 @@ service:
   type: ClusterIP
   port: 80
 
+storage:
+  enabled: false
+  accessMode: ReadWriteOnce
+  size: 2Gi
+  storageClass: ""
+
+
 ingress:
   enabled: true
   className: "nginx"
