@@ -61,6 +61,13 @@ securityContext: {}
 service:
   type: ClusterIP
   port: 8080
+  
+storage:
+  enabled: false
+  accessMode: ReadWriteOnce
+  size: 2Gi
+  storageClass: ""
+
 
 ingress:
   enabled: true
