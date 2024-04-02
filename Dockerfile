@@ -77,6 +77,7 @@ RUN opm get bungle/lua-resty-session
 RUN opm get ip2location/ip2location-resty
 RUN opm get bungle/lua-resty-template
 RUN opm get thibaultcha/lua-resty-mlcache
+RUN opm get GUI/lua-resty-aws-signature
 # RUN opm get SkyLothar/lua-resty-jwt
 # RUN opm get pintsized/lua-resty-http
 
