@@ -80,6 +80,8 @@ local function gatewayHostAuthenticate(rule)
     if rule.jwt_token_validation_key ~= nil and rule.jwt_token_validation_value ~= nil and type(rule.jwt_token_validation_key) ~= "userdata" and  type(rule.jwt_token_validation_value) ~= "userdata" then
         local jwt_token_key_passphrase = tostring(rule.jwt_token_validation_key)
         local jwt_token_key_val_value = tostring(rule.jwt_token_validation_value)
+        local amazon_s3_access_key = tostring(rule.amazon_s3_access_key)
+        local amazon_s3_secret_key = tostring(rule.amazon_s3_secret_key)
     if isEmpty(jwt_token_key_passphrase) or isEmpty(jwt_token_key_val_value) then
             isTokenVerified = true
     else
@@ -141,6 +143,29 @@ local function gatewayHostAuthenticate(rule)
             else
                 isTokenVerified = true
             end
+        end
+
+        if tokenAuthTokenSource == "amazon_s3_signed_header_validation" then
+            local folderPath, bucketName = passPhrase, jwt_token_key_val_value
+            local s3AccessKey, s3SecretKey = Base64.decode(amazon_s3_access_key), Base64.decode(amazon_s3_secret_key)
+            ngx.var.string_to_sign = ngx.var.request_method .. "\n\n\n\nx-amz-date:" .. ngx.var.now .. "\n/" .. bucketName .. "/" .. folderPath;
+            -- # create the hmac signature
+        --     set_hmac_sha1 $aws_signature $aws_secret_key $string_to_sign;
+        -- # encode the signature with base64
+        -- set_encode_base64 $aws_signature $aws_signature;
+        -- proxy_set_header x-amz-date $now;
+        -- proxy_set_header Authorization "AWS $aws_access_key:$aws_signature";
+        -- set $authorization_header_override "AWS $aws_access_key:$aws_signature";
+
+        -- rewrite .* /$bucket_file_path break;
+
+        -- # we need to set the host header here in order to find the bucket
+        -- proxy_set_header Host $bucket_name.s3.amazonaws.com;
+
+        -- # another solution would be to use the bucket in the url
+        -- # rewrite .* /$bucket/$key break;
+
+        -- # proxy_pass http://s3.amazonaws.com;
         end
 
         -- if tokenAuthTokenSource == "redis" then

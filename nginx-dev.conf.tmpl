@@ -658,6 +658,15 @@ server {
           set $proxy_host_override "";
           set $upstream_server "global_backend";
 
+          set_by_lua $now "return ngx.cookie_time(ngx.time())";
+          set $aws_signature "";
+          set $aws_access_key "";
+          set $aws_secret_key "";
+          set $bucket_name "";
+          set $bucket_file_path "";
+          set $string_to_sign "";
+          set $authorization_header_override "";
+
           # Endpoint used for performing domain verification with Let's Encrypt.
           location /.well-known/acme-challenge/ {
           content_by_lua_block {

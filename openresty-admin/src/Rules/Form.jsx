@@ -392,6 +392,7 @@ const Form = () => {
               { id: "cookie_key_value", name: "Cookie Key Value validation" },
               // { id: "redis", name: "Redis token validation" },
               { id: "header_jwt_token_validation", name: "Header JWT Token validation" },
+              { id: "amazon_s3_signed_header_validation", name: "Amazon S3 Signed Header validation" },
             ]}
             fullWidth
             label="Token Validation"
@@ -400,32 +401,78 @@ const Form = () => {
         </Grid>
 
         <Grid item xs={6}>
-          <TextInput
-            source="match.rules.jwt_token_validation_value"
-            fullWidth
-            label="Value"
-            className="matchRuleJwtTokenValidationValue"
-          />
+          <FormDataConsumer>
+            {({formData, ...rest}) => (
+              <React.Fragment>
+                {formData?.match?.rules?.jwt_token_validation == "amazon_s3_signed_header_validation" ? (
+                  <TextInput
+                    source="match.rules.jwt_token_validation_value"
+                    fullWidth
+                    label="Bucket Name"
+                    className="matchRuleJwtTokenValidationValue"
+                  />
+                ) : (
+                  <TextInput
+                    source="match.rules.jwt_token_validation_value"
+                    fullWidth
+                    label="Value"
+                    className="matchRuleJwtTokenValidationValue"
+                  />
+                )}
+              </React.Fragment>
+            )}
+          </FormDataConsumer>
         </Grid>
 
         <Grid item xs={12}>
           <FormDataConsumer>
             {({ formData, ...rest }) => (
-              <div>
+              <React.Fragment>
                 {formData.match?.rules?.jwt_token_validation_value && (
                   <TextInput
                     source="match.rules.jwt_token_validation_key"
                     fullWidth
-                    label="Token Secret Key"
-                    type="password"
+                    label={formData?.match?.rules?.jwt_token_validation == "amazon_s3_signed_header_validation" ? "Bucket File Paths" : "Token Secret Key"}
+                    type={formData?.match?.rules?.jwt_token_validation == "amazon_s3_signed_header_validation" ? "text" : "password"}
                     inputProps={{ autoComplete: "new-password" }}
                     className="matchRuleJwtTokenValidationKey"
                   />
                 )}
-              </div>
+              </React.Fragment>
             )}
           </FormDataConsumer>
         </Grid>
+
+        <React.Fragment>
+          <FormDataConsumer>
+            {({ formData, ...rest }) => (
+              <React.Fragment>
+                {(formData?.match.rules.jwt_token_validation_key && formData?.match?.rules?.jwt_token_validation == "amazon_s3_signed_header_validation") && (
+                  <React.Fragment>
+                    <Grid item xs={6}>
+                      <TextInput
+                        source="match.rules.amazon_s3_access_key"
+                        fullWidth
+                        label="Amazon S3 Access key"
+                        className="matchRuleAmazonS3AccessKey"
+                        type="password"
+                      />
+                    </Grid>
+                    <Grid item xs={6}>
+                      <TextInput
+                        source="match.rules.amazon_s3_secret_key"
+                        fullWidth
+                        label="Amazon S3 Secret key"
+                        className="matchRuleAmazonS3SecretKey"
+                        type="password"
+                      />
+                    </Grid>
+                  </React.Fragment>
+                )}
+              </React.Fragment>
+            )}
+          </FormDataConsumer>
+        </React.Fragment>
 
         <Grid item xs={2}>
           <BooleanInput
