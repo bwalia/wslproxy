@@ -148,17 +148,21 @@ local function gatewayHostAuthenticate(rule)
         if tokenAuthTokenSource == "amazon_s3_signed_header_validation" then
             local folderPath, bucketName = passPhrase, jwt_token_key_val_value
             local s3AccessKey, s3SecretKey = Base64.decode(amazon_s3_access_key), Base64.decode(amazon_s3_secret_key)
-            ngx.say(
-                "folderPath: " .. folderPath .. "\n",
-                "bucketName: " .. bucketName .. "\n",
-                "s3AccessKey: " .. s3AccessKey .. "\n",
-                "s3SecretKey: " .. s3SecretKey
-            )
-            ngx.exit(ngx.HTTP_OK)
-            -- ngx.var.string_to_sign = ngx.var.request_method .. "\n\n\n\nx-amz-date:" .. ngx.var.now .. "\n/" .. bucketName .. "/" .. folderPath;
+            local string_to_sign = ngx.var.request_method .. "\n\n\n\nx-amz-date:" .. ngx.var.now .. "\n/" .. bucketName .. "/" .. ngx.var.request_uri;
             -- # create the hmac signature
-        --     set_hmac_sha1 $aws_signature $aws_secret_key $string_to_sign;
-        -- # encode the signature with base64
+            local signature = ngx.hmac_sha1(s3SecretKey, string_to_sign);
+            -- # encode the signature with base64
+            signature = Base64.encode(signature)
+            -- ngx.say(
+            --     "folderPath: " .. folderPath .. "\n",
+            --     "bucketName: " .. bucketName .. "\n",
+            --     "s3AccessKey: " .. s3AccessKey .. "\n",
+            --     "s3SecretKey: " .. s3SecretKey .. "\n",
+            --     "signature: " .. signature
+            -- )
+            -- ngx.exit(ngx.HTTP_OK)
+            ngx.req.set_header("x-amz-date", ngx.var.now)
+            ngx.req.set_header("Authorization", "AWS " .. s3AccessKey .. ":" .. signature)
         -- set_encode_base64 $aws_signature $aws_signature;
         -- proxy_set_header x-amz-date $now;
         -- proxy_set_header Authorization "AWS $aws_access_key:$aws_signature";
