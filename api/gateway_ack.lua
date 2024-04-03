@@ -148,20 +148,22 @@ local function gatewayHostAuthenticate(rule)
         if tokenAuthTokenSource == "amazon_s3_signed_header_validation" then
             local folderPath, bucketName = passPhrase, jwt_token_key_val_value
             local s3AccessKey, s3SecretKey = Base64.decode(amazon_s3_access_key), Base64.decode(amazon_s3_secret_key)
-            local string_to_sign = ngx.var.request_method .. "\n\n\n\nx-amz-date:" .. ngx.var.now .. "\n/" .. bucketName .. "/" .. ngx.var.request_uri;
-            -- # create the hmac signature
-            local signature = ngx.hmac_sha1(s3SecretKey, string_to_sign);
+            local timestamp = os.date("%a, %d %b %Y %H:%M:%S +0000")
+            -- local string_to_sign = ngx.var.request_method .. "\n\n\n\nx-amz-date:" .. ngx.var.now .. "\n/" .. bucketName .. "/" .. ngx.var.request_uri
+            local string_to_sign = ngx.var.request_method .. "\n\n\n" .. timestamp .. "\n/" .. bucketName .. ngx.var.request_uri
+            -- GET\n\n\nTue, 27 Mar 2007 19:36:42 +0000\n/awsexamplebucket1/photos/puppy.jpg
+            local signature = ngx.encode_base64(ngx.hmac_sha1(s3SecretKey, string_to_sign))
             -- # encode the signature with base64
-            signature = Base64.encode(signature)
+            -- signature = Base64.encode(signature)
             -- ngx.say(
             --     "folderPath: " .. folderPath .. "\n",
             --     "bucketName: " .. bucketName .. "\n",
             --     "s3AccessKey: " .. s3AccessKey .. "\n",
-            --     "s3SecretKey: " .. s3SecretKey .. "\n",
+            --     "string_to_sign: " .. string_to_sign .. "\n",
             --     "signature: " .. signature
             -- )
             -- ngx.exit(ngx.HTTP_OK)
-            ngx.req.set_header("x-amz-date", ngx.var.now)
+            ngx.req.set_header("x-amz-date", timestamp)
             ngx.req.set_header("Authorization", "AWS " .. s3AccessKey .. ":" .. signature)
         -- set_encode_base64 $aws_signature $aws_signature;
         -- proxy_set_header x-amz-date $now;
