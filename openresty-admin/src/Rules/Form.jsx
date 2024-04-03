@@ -447,7 +447,7 @@ const Form = () => {
           <FormDataConsumer>
             {({ formData, ...rest }) => (
               <React.Fragment>
-                {(formData?.match.rules.jwt_token_validation_key && formData?.match?.rules?.jwt_token_validation == "amazon_s3_signed_header_validation") && (
+                {(formData?.match?.rules?.jwt_token_validation_key && formData?.match?.rules?.jwt_token_validation == "amazon_s3_signed_header_validation") && (
                   <React.Fragment>
                     <Grid item xs={6}>
                       <TextInput

@@ -148,7 +148,14 @@ local function gatewayHostAuthenticate(rule)
         if tokenAuthTokenSource == "amazon_s3_signed_header_validation" then
             local folderPath, bucketName = passPhrase, jwt_token_key_val_value
             local s3AccessKey, s3SecretKey = Base64.decode(amazon_s3_access_key), Base64.decode(amazon_s3_secret_key)
-            ngx.var.string_to_sign = ngx.var.request_method .. "\n\n\n\nx-amz-date:" .. ngx.var.now .. "\n/" .. bucketName .. "/" .. folderPath;
+            ngx.say(
+                "folderPath: " .. folderPath .. "\n",
+                "bucketName: " .. bucketName .. "\n",
+                "s3AccessKey: " .. s3AccessKey .. "\n",
+                "s3SecretKey: " .. s3SecretKey
+            )
+            ngx.exit(ngx.HTTP_OK)
+            -- ngx.var.string_to_sign = ngx.var.request_method .. "\n\n\n\nx-amz-date:" .. ngx.var.now .. "\n/" .. bucketName .. "/" .. folderPath;
             -- # create the hmac signature
         --     set_hmac_sha1 $aws_signature $aws_secret_key $string_to_sign;
         -- # encode the signature with base64

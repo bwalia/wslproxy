@@ -153,7 +153,7 @@ const dataProvider = (apiUrl, settings = {}) => {
         data = handleConfigField(data)
       }
       data = JSON.stringify(data)
-      data = data.replace("&", "\\u0026");
+      data = data.replace("&", "\\u0026").replace("+", '\\u002B').replace("=", '\\u003D');
       try {
         const response = await fetch(url, {
           method: "POST",
@@ -186,7 +186,7 @@ const dataProvider = (apiUrl, settings = {}) => {
         data.profile_id = environmentProfile;
       }
       data = JSON.stringify(data)
-      data = data.replace("&", "\\u0026");
+      data = data.replace("&", "\\u0026").replace("+", '\\u002B').replace("=", '\\u003D');
       try {
         const response = await fetch(url, {
           method: "PUT",
