@@ -77,7 +77,7 @@ RUN opm get bungle/lua-resty-session
 RUN opm get ip2location/ip2location-resty
 RUN opm get bungle/lua-resty-template
 RUN opm get thibaultcha/lua-resty-mlcache
-RUN opm get GUI/lua-resty-aws-signature
+# RUN opm get GUI/lua-resty-aws-signature
 # RUN opm get SkyLothar/lua-resty-jwt
 # RUN opm get pintsized/lua-resty-http
 
@@ -91,6 +91,7 @@ RUN luarocks install lua-resty-dns
 RUN luarocks install lua-resty-resolver
 RUN luarocks install luafilesystem
 RUN luarocks install lua-resty-auto-ssl
+# RUN luarocks install lua-resty-aws-auth
 
 RUN mkdir -p /etc/resty-auto-ssl
 RUN chown -R root:nobody /etc/resty-auto-ssl/
