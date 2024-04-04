@@ -155,38 +155,42 @@ local function gatewayHostAuthenticate(rule)
             --local signature = ngx.encode_base64(ngx.hmac_sha1(s3SecretKey, aws_resource_string_to_sign))
             -- # encode the signature with base64
             -- signature = Base64.encode(signature)
-            -- ngx.say(
-            --     "folderPath: " .. folderPath .. "\n",
-            --     "bucketName: " .. bucketName .. "\n",
-            --     "s3AccessKey: " .. s3AccessKey .. "\n",
-            --     "aws_resource_string_to_sign: " .. aws_resource_string_to_sign .. "\n",
-            --     "signature: " .. signature
-            -- )
             -- ngx.exit(ngx.HTTP_OK)
 
             local bucket = "4d-summit-2018-demo"
             local key = ngx.var.uri
 
-            local now = ngx.cookie_time(ngx.time());
-            local aws_resource_string_to_sign = "GET\n \n\nWed,  ".. now .." \n/4d-summit-2018-demo/prod/category-file/1709032659/OdinSPC-TALSystematicSPFactsheet-Jan24.pdf"
+            local now = ngx.http_time(ngx.time());
+            local file_path = "/4d-summit-2018-demo/prod/category-file/1709032659/OdinSPC-TALSystematicSPFactsheet-Jan24.pdf"
+            -- local digest = ngx.md5(file_path)
+            -- local md5_digest = ngx.encode_base64(digest)
+            local md5_digest = ""
+            local aws_resource_string_to_sign = "'GET\n" .. md5_digest .. "\n\n".. now .."\n"..file_path.."'"
             local digest = ngx.hmac_sha1(s3SecretKey, aws_resource_string_to_sign)
             local base64_aws_signature = ngx.encode_base64(digest)
 
-            date_header_override = "x-amz-date " .. now;
-            authorization_header_override = "Authorization:AWS " .. s3AccessKey .. ":" .. base64_aws_signature
+            local date_header_override = "x-amz-date " .. now;
+            local authorization_header_override = "Authorization:AWS " .. s3AccessKey .. ":" .. base64_aws_signature
             -- host_header_override = "Host "..bucket.."s3.amazonaws.com"
-            host_header_override = "Host s3.amazonaws.com"
+            local host_header_override = "Host s3.amazonaws.com"
 
             -- rewrite .* /$key break;
 
             -- proxy_pass http://s3.amazonaws.com;
-            
-            ngx.req.set_header("hmac_sha1_aws_signature", hmac_sha1_aws_signature)
-            ngx.req.set_header("base64_aws_signature", base64_aws_signature)
-            ngx.req.set_header("aws_resource_string_to_sign", aws_resource_string_to_sign)
-            ngx.req.set_header("x-amz-date header", date_header_override)
+            --    ngx.say(
+            --         "s3AccessKey: " .. s3AccessKey .. "\n",
+            --         "aws_resource_string_to_sign: " .. aws_resource_string_to_sign .. "\n",
+            --         "base64_aws_signature: " .. base64_aws_signature .. "\n",
+            --         "date_header_override: " .. date_header_override .. "\n",
+            --         "authorization_header_override: " .. authorization_header_override
+            --     )
+            --     ngx.exit(ngx.HTTP_OK)
+
+            --ngx.req.set_header("base64_aws_signature", base64_aws_signature)
+            --ngx.req.set_header("aws_resource_string_to_sign", aws_resource_string_to_sign)
+            --ngx.req.set_header("x-amz-date header", date_header_override)
             ngx.req.set_header("Authorization header", authorization_header_override)
-            ngx.req.set_header("host_header_override", host_header_override)
+            --ngx.req.set_header("host_header_override", host_header_override)
         -- set_encode_base64 $aws_signature $aws_signature;
         -- proxy_set_header x-amz-date $now;
         -- proxy_set_header Authorization "AWS $aws_access_key:$aws_signature";
