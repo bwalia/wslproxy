@@ -75,6 +75,20 @@ local function isEmpty(s)
     return s == ''
 end
 
+local function hmac_sha1(key, message)
+    local openssl = require("resty.openssl")
+    local hmac = openssl.hmac.new(key, "sha1")
+    hmac:update(message)
+    return hmac:final()
+end
+
+-- Function to encode base64
+local function base64_encode(data)
+    local openssl = require("resty.openssl")
+    local base64 = openssl.base64()
+    return base64:encode(data)
+end
+
 local function gatewayHostAuthenticate(rule)
     local isTokenVerified = true
     if rule.jwt_token_validation_key ~= nil and rule.jwt_token_validation_value ~= nil and type(rule.jwt_token_validation_key) ~= "userdata" and  type(rule.jwt_token_validation_value) ~= "userdata" then
@@ -160,19 +174,46 @@ local function gatewayHostAuthenticate(rule)
             local bucket = "4d-summit-2018-demo"
             local key = ngx.var.uri
 
-            local now = ngx.http_time(ngx.time());
+            local now = os.date("%a, %d %b %Y %H:%M:%S +0000")
             local file_path = "/4d-summit-2018-demo/prod/category-file/1709032659/OdinSPC-TALSystematicSPFactsheet-Jan24.pdf"
             -- local digest = ngx.md5(file_path)
             -- local md5_digest = ngx.encode_base64(digest)
             local md5_digest = ""
-            local aws_resource_string_to_sign = "'GET\n" .. md5_digest .. "\n\n".. now .."\n"..file_path.."'"
+            local aws_resource_string_to_sign = "GET\n" .. md5_digest .. "\n\n".. now .."\n"..file_path
+            -- local aws_resource_string_to_sign = string.format("%s\n%s\n\n%s\n%s", ngx.var.request_method, md5_digest, now, file_path)
             local digest = ngx.hmac_sha1(s3SecretKey, aws_resource_string_to_sign)
             local base64_aws_signature = ngx.encode_base64(digest)
 
+            -- local base64_aws_signature = base64_encode(hmac_sha1(s3SecretKey, aws_resource_string_to_sign))
+            -- local authorization_header_override = "AWS " .. s3AccessKey .. ":" .. base64_aws_signature
+
+            -- ngx.say(
+            --     "aws_resource_string_to_sign: " .. aws_resource_string_to_sign
+            -- )
+            -- ngx.exit(ngx.HTTP_OK)
+            -- ngx.say(
+            --     "now: " .. now
+            -- )
             local date_header_override = "x-amz-date " .. now;
             local authorization_header_override = "AWS " .. s3AccessKey .. ":" .. base64_aws_signature
             -- host_header_override = "Host "..bucket.."s3.amazonaws.com"
-            local host_header_override = "s3.amazonaws.com"
+            local host_header_override = "4d-summit-2018-demo.eu-west-1.s3.amazonaws.com" -- awsexamplebucket1.us-west-1.s3.amazonaws.com  YOURBUCKETNAME.s3.eu-west-2.amazonaws.com
+            -- ngx.say(
+            --     "authorization_header_override: " .. authorization_header_override
+            -- )
+            -- -- ngx.say(
+            -- --     "host_header_override: " .. host_header_override
+            -- -- )
+            -- ngx.exit(ngx.HTTP_OK) -- http://localhost:8000/4d-summit-2018-demo/prod/category-file/1709032659/OdinSPC-TALSystematicSPFactsheet-Jan24.pdf
+
+--             local date = os.date("!%a, %d %b %Y %H:%M:%S +0000")
+-- local string_to_sign = string.format("%s\n%s\n\n%s\n%s", method, md5, date, path)
+
+-- local hmac = require("openssl").hmac
+-- local digest = require("openssl").digest
+-- local signature = hmac.new(AWS_SECRET_ACCESS_KEY, string_to_sign, digest.sha1):final()
+-- local authorization = "AWS " .. AWS_ACCESS_KEY_ID .. ":" .. digest.base64(signature)
+
 
             -- rewrite .* /$key break;
             -- lua nginx rewrite url works well.
@@ -193,7 +234,7 @@ local function gatewayHostAuthenticate(rule)
 
             --ngx.req.set_header("base64_aws_signature", base64_aws_signature)
             --ngx.req.set_header("aws_resource_string_to_sign", aws_resource_string_to_sign)
-            --ngx.req.set_header("x-amz-date header", date_header_override)
+            ngx.req.set_header("x-amz-date", now)
             ngx.req.set_header("Authorization", authorization_header_override)
             ngx.req.set_header("Host", host_header_override)
         -- set_encode_base64 $aws_signature $aws_signature;
