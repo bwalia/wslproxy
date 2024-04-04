@@ -170,27 +170,32 @@ local function gatewayHostAuthenticate(rule)
             local base64_aws_signature = ngx.encode_base64(digest)
 
             local date_header_override = "x-amz-date " .. now;
-            local authorization_header_override = "Authorization:AWS " .. s3AccessKey .. ":" .. base64_aws_signature
+            local authorization_header_override = "AWS " .. s3AccessKey .. ":" .. base64_aws_signature
             -- host_header_override = "Host "..bucket.."s3.amazonaws.com"
-            local host_header_override = "Host s3.amazonaws.com"
+            local host_header_override = "s3.amazonaws.com"
 
             -- rewrite .* /$key break;
-
+            -- lua nginx rewrite url works well.
+            --local uri = ngx.re.sub(ngx.var.uri, "^(.*)", "/".. bucket .. "$1", "o")
+            --ngx.req.set_uri(uri)
+    
             -- proxy_pass http://s3.amazonaws.com;
             --    ngx.say(
-            --         "s3AccessKey: " .. s3AccessKey .. "\n",
-            --         "aws_resource_string_to_sign: " .. aws_resource_string_to_sign .. "\n",
+            --     "s3AccessKey: " .. s3AccessKey .. "\n",
+            --     "s3SecretKey: " .. s3SecretKey .. "\n",
+            --     "aws_resource_string_to_sign: " .. aws_resource_string_to_sign .. "\n",
             --         "base64_aws_signature: " .. base64_aws_signature .. "\n",
             --         "date_header_override: " .. date_header_override .. "\n",
-            --         "authorization_header_override: " .. authorization_header_override
+            --         "authorization_header_override: " .. authorization_header_override .. "\n",
+            --         "host_header_override: " .. host_header_override
             --     )
             --     ngx.exit(ngx.HTTP_OK)
 
             --ngx.req.set_header("base64_aws_signature", base64_aws_signature)
             --ngx.req.set_header("aws_resource_string_to_sign", aws_resource_string_to_sign)
             --ngx.req.set_header("x-amz-date header", date_header_override)
-            ngx.req.set_header("Authorization header", authorization_header_override)
-            --ngx.req.set_header("host_header_override", host_header_override)
+            ngx.req.set_header("Authorization", authorization_header_override)
+            ngx.req.set_header("Host", host_header_override)
         -- set_encode_base64 $aws_signature $aws_signature;
         -- proxy_set_header x-amz-date $now;
         -- proxy_set_header Authorization "AWS $aws_access_key:$aws_signature";
