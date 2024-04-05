@@ -690,6 +690,8 @@ server {
 
           # echo $proxy_host:$proxy_port;
           # echo $upstream_server;
+          proxy_set_header host $host;
+          proxy_set_header proxy_http_version 1.1;
           proxy_pass http://$upstream_server;
         
           }

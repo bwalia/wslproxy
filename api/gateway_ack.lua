@@ -194,10 +194,10 @@ local function gatewayHostAuthenticate(rule)
             -- ngx.say(
             --     "now: " .. now
             -- )
-            local date_header_override = "x-amz-date " .. now;
+            local date_header_override = "Date " .. now;
             local authorization_header_override = "AWS " .. s3AccessKey .. ":" .. base64_aws_signature
             -- host_header_override = "Host "..bucket.."s3.amazonaws.com"
-            local host_header_override = "4d-summit-2018-demo.eu-west-1.s3.amazonaws.com" -- awsexamplebucket1.us-west-1.s3.amazonaws.com  YOURBUCKETNAME.s3.eu-west-2.amazonaws.com
+            local host_header_override = "s3.eu-west-1.amazonaws.com" -- awsexamplebucket1.us-west-1.s3.amazonaws.com  YOURBUCKETNAME.s3.eu-west-2.amazonaws.com
             -- ngx.say(
             --     "authorization_header_override: " .. authorization_header_override
             -- )
@@ -234,9 +234,10 @@ local function gatewayHostAuthenticate(rule)
 
             --ngx.req.set_header("base64_aws_signature", base64_aws_signature)
             --ngx.req.set_header("aws_resource_string_to_sign", aws_resource_string_to_sign)
-            ngx.req.set_header("x-amz-date", now)
+            ngx.req.set_header("Date", now)
             ngx.req.set_header("Authorization", authorization_header_override)
             ngx.req.set_header("Host", host_header_override)
+            ngx.req.set_header("proxy_http_version", "1.1")
         -- set_encode_base64 $aws_signature $aws_signature;
         -- proxy_set_header x-amz-date $now;
         -- proxy_set_header Authorization "AWS $aws_access_key:$aws_signature";
