@@ -686,12 +686,11 @@ server {
             }
             
             rewrite_by_lua_file /usr/local/openresty/nginx/html/api/gateway_ack.lua;
-            access_by_lua_file /usr/local/openresty/nginx/html/api/gateway_resp.lua;    # this code run just before the setting the proxy pass and content phase.
+            access_by_lua_file /usr/local/openresty/nginx/html/api/gateway_resp.lua;
+            # this code run just before the setting the proxy pass and content phase.
 
-          # echo $proxy_host:$proxy_port;
-          # echo $upstream_server;
+          # proxy_set_header proxy_http_version 1.1;
           proxy_set_header host $host;
-          proxy_set_header proxy_http_version 1.1;
           proxy_pass http://$upstream_server;
         
           }

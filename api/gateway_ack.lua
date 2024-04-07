@@ -23,6 +23,11 @@ if redisHost == nil then
     redisHost = "localhost"
 end
 
+local isItDTAPEnvironment = function(pHostnameStr)
+    --return true
+    return string.find(pHostnameStr, "localhost") or string.find(pHostnameStr, "dev") or string.find(pHostnameStr, "int") or string.find(pHostnameStr, "test")
+end
+
 local function loadGlobalSettings()
     local readSettings, errSettings = io.open(configPath .. "data/settings.json", "rb")
     local settings = {}
@@ -162,96 +167,36 @@ local function gatewayHostAuthenticate(rule)
         if tokenAuthTokenSource == "amazon_s3_signed_header_validation" then
             local folderPath, bucketName = passPhrase, jwt_token_key_val_value
             local s3AccessKey, s3SecretKey = Base64.decode(amazon_s3_access_key), Base64.decode(amazon_s3_secret_key)
-            --local timestamp = os.date("%a, %d %b %Y %H:%M:%S +0000")
-            -- local aws_resource_string_to_sign = ngx.var.request_method .. "\n\n\n\nx-amz-date:" .. ngx.var.now .. "\n/" .. bucketName .. "/" .. ngx.var.request_uri
-            --local aws_resource_string_to_sign = ngx.var.request_method .. "\n\n\n" .. timestamp .. "\n/" .. bucketName .. ngx.var.request_uri
-            -- GET\n\n\nTue, 27 Mar 2007 19:36:42 +0000\n/awsexamplebucket1/photos/puppy.jpg
-            --local signature = ngx.encode_base64(ngx.hmac_sha1(s3SecretKey, aws_resource_string_to_sign))
-            -- # encode the signature with base64
-            -- signature = Base64.encode(signature)
-            -- ngx.exit(ngx.HTTP_OK)
-
-            local bucket = "4d-summit-2018-demo"
+            --bucketName = "4d-summit-2018-demo"
+            local bucketregion = "eu-west-1"
             local key = ngx.var.uri
 
             local now = os.date("%a, %d %b %Y %H:%M:%S +0000")
-            local file_path = "/4d-summit-2018-demo/prod/category-file/1709032659/OdinSPC-TALSystematicSPFactsheet-Jan24.pdf"
+            local file_path = "/" .. bucketName .. "/prod/category-file/1709032659/OdinSPC-TALSystematicSPFactsheet-Jan24.pdf"
             -- local digest = ngx.md5(file_path)
             -- local md5_digest = ngx.encode_base64(digest)
             local md5_digest = ""
             local aws_resource_string_to_sign = "GET\n" .. md5_digest .. "\n\n".. now .."\n"..file_path
-            -- local aws_resource_string_to_sign = string.format("%s\n%s\n\n%s\n%s", ngx.var.request_method, md5_digest, now, file_path)
-            local digest = ngx.hmac_sha1(s3SecretKey, aws_resource_string_to_sign)
-            local base64_aws_signature = ngx.encode_base64(digest)
-
-            -- local base64_aws_signature = base64_encode(hmac_sha1(s3SecretKey, aws_resource_string_to_sign))
-            -- local authorization_header_override = "AWS " .. s3AccessKey .. ":" .. base64_aws_signature
-
-            -- ngx.say(
-            --     "aws_resource_string_to_sign: " .. aws_resource_string_to_sign
-            -- )
-            -- ngx.exit(ngx.HTTP_OK)
-            -- ngx.say(
-            --     "now: " .. now
-            -- )
-            local date_header_override = "Date " .. now;
+            local base64_aws_signature = ngx.encode_base64(ngx.hmac_sha1(s3SecretKey, aws_resource_string_to_sign))
             local authorization_header_override = "AWS " .. s3AccessKey .. ":" .. base64_aws_signature
-            -- host_header_override = "Host "..bucket.."s3.amazonaws.com"
-            local host_header_override = "s3.eu-west-1.amazonaws.com" -- awsexamplebucket1.us-west-1.s3.amazonaws.com  YOURBUCKETNAME.s3.eu-west-2.amazonaws.com
-            -- ngx.say(
-            --     "authorization_header_override: " .. authorization_header_override
-            -- )
-            -- -- ngx.say(
-            -- --     "host_header_override: " .. host_header_override
-            -- -- )
-            -- ngx.exit(ngx.HTTP_OK) -- http://localhost:8000/4d-summit-2018-demo/prod/category-file/1709032659/OdinSPC-TALSystematicSPFactsheet-Jan24.pdf
-
---             local date = os.date("!%a, %d %b %Y %H:%M:%S +0000")
--- local string_to_sign = string.format("%s\n%s\n\n%s\n%s", method, md5, date, path)
-
--- local hmac = require("openssl").hmac
--- local digest = require("openssl").digest
--- local signature = hmac.new(AWS_SECRET_ACCESS_KEY, string_to_sign, digest.sha1):final()
--- local authorization = "AWS " .. AWS_ACCESS_KEY_ID .. ":" .. digest.base64(signature)
-
-
-            -- rewrite .* /$key break;
-            -- lua nginx rewrite url works well.
-            --local uri = ngx.re.sub(ngx.var.uri, "^(.*)", "/".. bucket .. "$1", "o")
-            --ngx.req.set_uri(uri)
-    
+            local host_header_override = "s3." .. bucketregion .. ".amazonaws.com" -- eu-west-1 is hardcidoded for now but it should be a variable field in the UI
+            local uri = ngx.re.sub(key, "^(.*)", "/".. bucketName .. "$1", "o")
+            ngx.req.set_uri(uri)
             -- proxy_pass http://s3.amazonaws.com;
             --    ngx.say(
-            --     "s3AccessKey: " .. s3AccessKey .. "\n",
-            --     "s3SecretKey: " .. s3SecretKey .. "\n",
+            --     -- "s3AccessKey: " .. s3AccessKey .. "\n",
+            --     -- "s3SecretKey: " .. s3SecretKey .. "\n",
             --     "aws_resource_string_to_sign: " .. aws_resource_string_to_sign .. "\n",
             --         "base64_aws_signature: " .. base64_aws_signature .. "\n",
-            --         "date_header_override: " .. date_header_override .. "\n",
-            --         "authorization_header_override: " .. authorization_header_override .. "\n",
-            --         "host_header_override: " .. host_header_override
+            --         "Date: " .. now .. "\n",
+            --         "Authorization: " .. authorization_header_override .. "\n",
+            --         "Host: " .. host_header_override
             --     )
             --     ngx.exit(ngx.HTTP_OK)
-
-            --ngx.req.set_header("base64_aws_signature", base64_aws_signature)
-            --ngx.req.set_header("aws_resource_string_to_sign", aws_resource_string_to_sign)
             ngx.req.set_header("Date", now)
             ngx.req.set_header("Authorization", authorization_header_override)
             ngx.req.set_header("Host", host_header_override)
-            ngx.req.set_header("proxy_http_version", "1.1")
-        -- set_encode_base64 $aws_signature $aws_signature;
-        -- proxy_set_header x-amz-date $now;
-        -- proxy_set_header Authorization "AWS $aws_access_key:$aws_signature";
-        -- set $authorization_header_override "AWS $aws_access_key:$aws_signature";
 
-        -- rewrite .* /$bucket_file_path break;
-
-        -- # we need to set the host header here in order to find the bucket
-        -- proxy_set_header Host $bucket_name.s3.amazonaws.com;
-
-        -- # another solution would be to use the bucket in the url
-        -- # rewrite .* /$bucket/$key break;
-
-        -- # proxy_pass http://s3.amazonaws.com;
         end
 
         -- if tokenAuthTokenSource == "redis" then
@@ -319,7 +264,7 @@ local function gatewayHostRulesParser(rules, ruleId, priority, message, statusCo
         GB = "103.219.168.255",
         TH = "101.109.255.255"
     }
-    if string.find(Hostname, "localhost") or string.find(Hostname, "int") then
+    if isItDTAPEnvironment(Hostname) then
         if rules.country ~= nil and rules.client_ip ~= nil then
             req_add = testingIps[rules.country]
         end
