@@ -33,7 +33,13 @@ local selectedRule = globalVars.executableRule
 local primaryNameserver = globalVars.proxyServerName
 local settings = loadGlobalSettings()
 
-if selectedRule.statusCode == 301 then
+if selectedRule.redirectUri == nil then
+    ngx.say("Redirect url not found: ")
+    ngx.exit(ngx.HTTP_INTERNAL_SERVER_ERROR)
+elseif selectedRule.statusCode == nil then
+    ngx.say("Status code not found: ")
+    ngx.exit(ngx.HTTP_INTERNAL_SERVER_ERROR)
+elseif selectedRule.statusCode == 301 then
     ngx.redirect(selectedRule.redirectUri, ngx.HTTP_MOVED_PERMANENTLY)
     ngx.exit(ngx.HTTP_MOVED_PERMANENTLY)
 elseif selectedRule.statusCode == 302 then

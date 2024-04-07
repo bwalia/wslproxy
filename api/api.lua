@@ -988,8 +988,20 @@ local function listRule(args, uuid)
         if settings.storage_type == "disk" then
             local jsonData, dataErr = getDataFromFile(configPath .. "data/rules/" .. envProfile .. "/" .. uuid .. ".json")
             if dataErr == nil then
+                local resultData = cjson.decode(jsonData)
+                if resultData.match.rules.jwt_token_validation_value ~= nil and
+                    resultData.match.rules.jwt_token_validation_key ~= nil then
+                    resultData.match.rules.jwt_token_validation_key =
+                    Base64.decode(resultData.match.rules.jwt_token_validation_key)
+                end
+                if resultData.match.rules.amazon_s3_access_key then
+                    resultData.match.rules.amazon_s3_access_key = Base64.decode(resultData.match.rules.amazon_s3_access_key)
+                end
+                if resultData.match.rules.amazon_s3_secret_key then
+                    resultData.match.rules.amazon_s3_secret_key = Base64.decode(resultData.match.rules.amazon_s3_secret_key)
+                end
                 ngx.say(cjson.encode({
-                    data = cjson.decode(jsonData)
+                    data = resultData
                 }))
             else
                 ngx.status = ngx.HTTP_BAD_REQUEST
@@ -1013,6 +1025,12 @@ local function listRule(args, uuid)
                 exist_value.match.rules.jwt_token_validation_key ~= nil then
                 exist_value.match.rules.jwt_token_validation_key =
                     Base64.decode(exist_value.match.rules.jwt_token_validation_key)
+            end
+            if exist_value.match.rules.amazon_s3_access_key then
+                exist_value.match.rules.amazon_s3_access_key = Base64.decode(exist_value.match.rules.amazon_s3_access_key)
+            end
+            if exist_value.match.rules.amazon_s3_secret_key then
+                exist_value.match.rules.amazon_s3_secret_key = Base64.decode(exist_value.match.rules.amazon_s3_secret_key)
             end
 
             ngx.say({ cjson.encode({
@@ -1098,6 +1116,14 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name, method)
     if folder_name == "rules" and json_val.match.rules.jwt_token_validation_value ~= nil and
         json_val.match.rules.jwt_token_validation_key ~= nil then
         json_val.match.rules.jwt_token_validation_key = Base64.encode(json_val.match.rules.jwt_token_validation_key)
+        if json_val.match.rules.amazon_s3_access_key then
+            json_val.match.rules.amazon_s3_access_key = string.gsub(json_val.match.rules.amazon_s3_access_key, "%%2B", "+")
+            json_val.match.rules.amazon_s3_access_key = Base64.encode(json_val.match.rules.amazon_s3_access_key)
+        end
+        if json_val.match.rules.amazon_s3_secret_key then
+            json_val.match.rules.amazon_s3_secret_key = string.gsub(json_val.match.rules.amazon_s3_secret_key, "%%2B", "+")
+            json_val.match.rules.amazon_s3_secret_key = Base64.encode(json_val.match.rules.amazon_s3_secret_key)
+        end
     end
     if key_name == 'servers' and json_val.config then
         json_val.config = Base64.encode(json_val.config)

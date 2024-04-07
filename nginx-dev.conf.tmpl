@@ -658,6 +658,15 @@ server {
           set $proxy_host_override "";
           set $upstream_server "global_backend";
 
+          set_by_lua $now "return ngx.cookie_time(ngx.time())";
+          set $aws_signature "";
+          set $aws_access_key "";
+          set $aws_secret_key "";
+          set $bucket_name "";
+          set $bucket_file_path "";
+          set $string_to_sign "";
+          set $authorization_header_override "";
+
           # Endpoint used for performing domain verification with Let's Encrypt.
           location /.well-known/acme-challenge/ {
           content_by_lua_block {
@@ -677,10 +686,11 @@ server {
             }
             
             rewrite_by_lua_file /usr/local/openresty/nginx/html/api/gateway_ack.lua;
-            access_by_lua_file /usr/local/openresty/nginx/html/api/gateway_resp.lua;    # this code run just before the setting the proxy pass and content phase.
+            access_by_lua_file /usr/local/openresty/nginx/html/api/gateway_resp.lua;
+            # this code run just before the setting the proxy pass and content phase.
 
-          # echo $proxy_host:$proxy_port;
-          # echo $upstream_server;
+          # proxy_set_header proxy_http_version 1.1;
+          proxy_set_header host $host;
           proxy_pass http://$upstream_server;
         
           }
