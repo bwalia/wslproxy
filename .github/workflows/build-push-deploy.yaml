@@ -92,6 +92,7 @@ jobs:
           helm upgrade -i whitefalcon-api-${{ env.TARGET_ENV }} ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-${{ env.TARGET_ENV }}-api-${{ env.TARGET_CLUSTER}}.yaml --set TARGET_ENV=${{ env.TARGET_ENV }} --namespace ${{ env.TARGET_ENV }} --create-namespace
           helm upgrade -i whitefalcon-front-${{ env.TARGET_ENV }} ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-${{ env.TARGET_ENV }}-front-${{ env.TARGET_CLUSTER}}.yaml --set TARGET_ENV=${{ env.TARGET_ENV }} --namespace ${{ env.TARGET_ENV }} --create-namespace
           helm upgrade -i whitefalcon-nodeapp ./devops/helm-charts/node-app/ -f devops/helm-charts/node-app/values-${{ env.TARGET_CLUSTER}}.yaml
+          helm upgrade -i whitefalcon-s3-browser ./devops/helm-charts/s3-browser/ -f devops/helm-charts/s3-browser/values-${{ env.TARGET_CLUSTER}}.yaml
                 
     - name: Restart Whitefalcon API Pods using Kubectl            
       uses: actions-hub/kubectl@master
@@ -134,7 +135,7 @@ jobs:
         SLACK_CHANNEL: general
         SLACK_COLOR: ${{ job.status }}
         SLACK_ICON: https://github.com/rtCamp.png?size=48
-        SLACK_MESSAGE: 'Whitefalcon deployed to ${{ env.TARGET_ENV }} env :rocket:'
+        SLACK_MESSAGE: 'Whitefalcon deployed to ${{ env.TARGET_ENV }} https://api.${{ env.TARGET_ENV }}.whitefalcon.io/ping env :rocket:'
         SLACK_TITLE: Whitefalcon deployment status
         SLACK_USERNAME: rtCamp
         SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
