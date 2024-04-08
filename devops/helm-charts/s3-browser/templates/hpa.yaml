@@ -2,14 +2,14 @@
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: {{ include "node-app.fullname" . }}
+  name: {{ include "s3-browser-node-app.fullname" . }}
   labels:
-    {{- include "node-app.labels" . | nindent 4 }}
+    {{- include "s3-browser-node-app.labels" . | nindent 4 }}
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: {{ include "node-app.fullname" . }}
+    name: {{ include "s3-browser-node-app.fullname" . }}
   minReplicas: {{ .Values.autoscaling.minReplicas }}
   maxReplicas: {{ .Values.autoscaling.maxReplicas }}
   metrics:
