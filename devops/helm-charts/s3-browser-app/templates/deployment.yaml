@@ -1,0 +1,83 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "s3-browser-app.fullname" . }}
+  labels:
+    {{- include "s3-browser-app.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "s3-browser-app.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "s3-browser-app.selectorLabels" . | nindent 8 }}
+    spec:
+      volumes:
+        - name: s3-browser-app-vol
+          # Populate the volume with config map data
+          configMap:
+            # `name` here must match the name 
+            # specified in the ConfigMap's YAML 
+            name: s3-browser-app
+        - name: s3-browser-app-vol-secrets
+          secret:
+            secretName: "s3-browser-app-secret"
+            items:
+            - key: env_file
+              path: .env    
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "s3-browser-app.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          lifecycle:
+            postStart:
+              exec:
+                command: ["/bin/sh", "-c", "cp /tmp/configmap/bootstrap-s3-browser-app.sh /usr/local/bin/bootstrap-s3-browser-app.sh && chmod +x /usr/local/bin/bootstrap-s3-browser-app.sh && sh /usr/local/bin/bootstrap-s3-browser-app.sh"]          
+          volumeMounts:
+            - name: s3-browser-app-vol
+              mountPath: /tmp/configmap
+            - name: s3-browser-app-vol-secrets
+              mountPath: /tmp/secrets                
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

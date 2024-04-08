@@ -1,0 +1,87 @@
+# Default values for s3-browser-s3-browser-app.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+
+image:
+  repository: bwalia/s3-browser-app
+  pullPolicy: Always
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: "latest"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+secure_env_file: AgBcJLloLTmyBlPwihOMWtV/zhqsoa6mVVJtVQ3mPtF83588/ykdlnEUk/ggpu7NPRz6hFWfrJRSRnzRY1lrWu4a3xCyr1/KGMA+Mf2H8C6xqZi05I5yLhBqr42+F0qq9Y7qmdxMhMpfn0EvI/mS9RLhI83yv2kFkWn6e2tG3sdz3f+SjhGSaFEtwJd0hOerC/07XnffBVKpA/F49Ds4N7Xp+8DrzGBUNp4x1YMYtewQSOqQA8W+dmgdf3pOEuouAuvyQ2YK/yvpsIpzgu9g/aNXdKrdXuLkum3W61oL6V4+jDswrVAHyPy58I2oNDaJVXK/eSuWSywSz9BNPyPjQH1ujgB5bTR0QBer3KFp/bfYFvTtj4wtA1mXFip1cfMmBFBehL9GpYUdkwV4B7hUShl92rCKhHBvGhyattNs5hoE2Yts5KeSI6Byjv+VZQTxxQ/HpPGkdp57AqhwRDissCA2QpyAOLKDcrc4mDl4y1FFM4LtGlGzMv8z6018+8UaxWz4QZMxowib32dQwd/jh8RWkzlZYpqKM4E7IwHYcR/KpJEs3bnJHC9EhzfkW5GwSUlNjSIPmQ7+2UAB5oc0JafO3SB7sRtaU3LCFfzMoXnULP1K+yIEJ/vGvk60FKOchfpSIA2sxccHABv9v0WfkELhUm8L0p9UHHva1Uxd2wBdqEUs4GYguC7sI/C9cbktPE1nInPUdTerkXlUlux+wqVeL2d1EwwVkbWhjjxEEHV9ivyy9+cYA9MmlsQgzj13xZaOp+++gRhuSAeQKjq0ujXwf+UOThh6lihaeme1JPOvJO0sZd142O/lBFFMbOdDtFl812Ih4X9rIUw1lcI0pUVfuH0pVCzyH+AiKJk5sXcS+g==
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+service:
+  type: ClusterIP
+  clusterIP: 10.43.140.55  
+  port: 3000
+
+ingress:
+  enabled: false
+  className: "nginx"
+  annotations: {}
+    # kubernetes.io/ingress.class: nginx
+    # kubernetes.io/tls-acme: "true"
+  hosts:
+    - host: s3-browser-origin.whitefalcon.io
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+          serviceName: s3-browser-app
+          servicePort: 3000
+  tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - hitefalcon.io
+
+resources: {}
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}

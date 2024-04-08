@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: s3-browser-app
+data:
+    bootstrap-s3-browser-app.sh: |
+        #!/bin/bash
+        set -x
+        FILE=/app/.env
+        cp /tmp/secrets/.env $FILE
