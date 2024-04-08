@@ -1,16 +1,16 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "s3-browser-node-app.fullname" . }}
+  name: {{ include "s3-browser-app.fullname" . }}
   labels:
-    {{- include "s3-browser-node-app.labels" . | nindent 4 }}
+    {{- include "s3-browser-app.labels" . | nindent 4 }}
 spec:
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
   {{- end }}
   selector:
     matchLabels:
-      {{- include "s3-browser-node-app.selectorLabels" . | nindent 6 }}
+      {{- include "s3-browser-app.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       {{- with .Values.podAnnotations }}
@@ -18,18 +18,18 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
-        {{- include "s3-browser-node-app.selectorLabels" . | nindent 8 }}
+        {{- include "s3-browser-app.selectorLabels" . | nindent 8 }}
     spec:
       volumes:
-        - name: s3-browser-node-app-vol
+        - name: s3-browser-app-vol
           # Populate the volume with config map data
           configMap:
             # `name` here must match the name 
             # specified in the ConfigMap's YAML 
-            name: s3-browser-node-app
-        - name: s3-browser-node-app-vol-secrets
+            name: s3-browser-app
+        - name: s3-browser-app-vol-secrets
           secret:
-            secretName: "s3-browser-node-app-secret"
+            secretName: "s3-browser-app-secret"
             items:
             - key: env_file
               path: .env    
@@ -37,7 +37,7 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      serviceAccountName: {{ include "s3-browser-node-app.serviceAccountName" . }}
+      serviceAccountName: {{ include "s3-browser-app.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
@@ -49,11 +49,11 @@ spec:
           lifecycle:
             postStart:
               exec:
-                command: ["/bin/sh", "-c", "cp /tmp/configmap/bootstrap-s3-browser-node-app.sh /usr/local/bin/bootstrap-s3-browser-node-app.sh && chmod +x /usr/local/bin/bootstrap-s3-browser-node-app.sh && sh /usr/local/bin/bootstrap-s3-browser-node-app.sh"]          
+                command: ["/bin/sh", "-c", "cp /tmp/configmap/bootstrap-s3-browser-app.sh /usr/local/bin/bootstrap-s3-browser-app.sh && chmod +x /usr/local/bin/bootstrap-s3-browser-app.sh && sh /usr/local/bin/bootstrap-s3-browser-app.sh"]          
           volumeMounts:
-            - name: s3-browser-node-app-vol
+            - name: s3-browser-app-vol
               mountPath: /tmp/configmap
-            - name: s3-browser-node-app-vol-secrets
+            - name: s3-browser-app-vol-secrets
               mountPath: /tmp/secrets                
           ports:
             - name: http
