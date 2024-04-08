@@ -39,14 +39,21 @@ jobs:
         with:
           push: true
           tags: bwalia/whitefalcon:latest
-      -
-        name: Build and push node app
+
+      - name: Build and push Node app
         uses: docker/build-push-action@v4
         with:
           file: demos-origins/node-app/Dockerfile
           push: true
           tags: bwalia/node-app:latest
 
+      - name: Build and push S3 Browser Node app
+        uses: docker/build-push-action@v4
+        with:
+          file: demos-origins/s3-browser/Dockerfile
+          push: true
+          tags: bwalia/s3-browser:latest
+  
   # smoke_test6:
   #   runs-on: [self-hosted-node6]
   #   needs: build
