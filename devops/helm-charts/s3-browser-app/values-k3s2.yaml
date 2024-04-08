@@ -5,7 +5,7 @@
 replicaCount: 1
 
 image:
-  repository: bwalia/s3-browser
+  repository: bwalia/s3-browser-app
   pullPolicy: Always
   # Overrides the image tag whose default is the chart appVersion.
   tag: "latest"
