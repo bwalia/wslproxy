@@ -15,9 +15,9 @@ const regionCode = process.env.AWS_REGION || 'eu-west-2';
 console.log('Bucket Name: ' + bucketName);
 
 // console.log('Port Number: ' + portNum);
-// console.log('AWS_ACCESS_KEY_ID: ' + process.env.AWS_ACCESS_KEY_ID);
-// console.log('AWS_SECRET_ACCESS_KEY: ' + process.env.AWS_SECRET_ACCESS_KEY);
-// console.log('AWS_REGION: ' + regionCode);
+console.log('AWS_ACCESS_KEY_ID: ' + process.env.AWS_ACCESS_KEY_ID);
+console.log('AWS_SECRET_ACCESS_KEY: ' + process.env.AWS_SECRET_ACCESS_KEY);
+console.log('AWS_REGION: ' + regionCode);
 
 //setting the credentials
 //The region should be the region of the bucket that you created
@@ -33,11 +33,17 @@ const s3= new AWS.S3();
 
 //GET method route for downloading/retrieving file
 app.get('*',(req,res,next)=>{
+  //console.log('Request URL: ' + req.originalUrl);
+  if (req.originalUrl == '/'){
+    res.send('Workstation S3 Retriever running on port.');
+  }  else {
+
   let fullUrl = req.protocol + '://' + req.get('host') + req.originalUrl;
   //console.log(fullUrl);
   //console.log(req.originalUrl);
   retrieveFile(req.originalUrl , res);
   //next();
+  }
 });
 
 //listening to server 3000
