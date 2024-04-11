@@ -138,6 +138,8 @@ local function gatewayHostAuthenticate(rule)
                         securityToken = trimWhitespace(ngx.unescape_uri(securityToken))
                         if passPhrase == securityToken then
                             isTokenVerified = true
+                        else
+                            isTokenVerified = false
                         end
                     else
                         isTokenVerified = false
