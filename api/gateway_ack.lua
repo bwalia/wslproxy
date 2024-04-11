@@ -25,7 +25,8 @@ end
 
 local isItDTAPEnvironment = function(pHostnameStr)
     --return true
-    return string.find(pHostnameStr, "localhost") or string.find(pHostnameStr, "dev") or string.find(pHostnameStr, "int") or string.find(pHostnameStr, "test")
+    return string.find(pHostnameStr, "localhost") or string.find(pHostnameStr, "dev") or string.find(pHostnameStr, "int") or
+    string.find(pHostnameStr, "test")
 end
 
 local function loadGlobalSettings()
@@ -96,133 +97,133 @@ end
 
 local function gatewayHostAuthenticate(rule)
     local isTokenVerified = true
-    if rule.jwt_token_validation_key ~= nil and rule.jwt_token_validation_value ~= nil and type(rule.jwt_token_validation_key) ~= "userdata" and  type(rule.jwt_token_validation_value) ~= "userdata" then
+    if rule.jwt_token_validation_key ~= nil and rule.jwt_token_validation_value ~= nil and type(rule.jwt_token_validation_key) ~= "userdata" and type(rule.jwt_token_validation_value) ~= "userdata" then
         local jwt_token_key_passphrase = tostring(rule.jwt_token_validation_key)
         local jwt_token_key_val_value = tostring(rule.jwt_token_validation_value)
         local amazon_s3_access_key = tostring(rule.amazon_s3_access_key)
         local amazon_s3_secret_key = tostring(rule.amazon_s3_secret_key)
-    if isEmpty(jwt_token_key_passphrase) or isEmpty(jwt_token_key_val_value) then
+        if isEmpty(jwt_token_key_passphrase) or isEmpty(jwt_token_key_val_value) then
             isTokenVerified = true
-    else
-        local passPhrase = Base64.decode(jwt_token_key_passphrase)
-        local reqHeaders = ngx.req.get_headers()
-        local securityToken = nil
-       	local tokenAuthTokenSource = nil
+        else
+            local passPhrase = Base64.decode(jwt_token_key_passphrase)
+            local reqHeaders = ngx.req.get_headers()
+            local securityToken = nil
+            local tokenAuthTokenSource = nil
 
-        if rule.jwt_token_validation ~= nil then
-          tokenAuthTokenSource = rule.jwt_token_validation
-         end
-
-        if tokenAuthTokenSource == "cookie_jwt_token_validation" then
-            securityToken = reqHeaders['cookie']
-            if securityToken and securityToken ~= nil and type(securityToken) ~= nil then
-                local securityToken = string.match(tostring(securityToken), jwt_token_key_val_value .. "=([^;]+)")
-                if securityToken ~= nil then
-                    securityToken = string.gsub(securityToken, "Bearer", "")
-                    securityToken = trimWhitespace(ngx.unescape_uri(securityToken))
-                    local isTokenVerified = jwt:verify(passPhrase, securityToken)
-                else
-                    isTokenVerified = false
-                end
-            else
-                isTokenVerified = false
+            if rule.jwt_token_validation ~= nil then
+                tokenAuthTokenSource = rule.jwt_token_validation
             end
-        end
-        if tokenAuthTokenSource == "cookie_key_value" then
-            securityToken = reqHeaders['cookie']
-            if securityToken and securityToken ~= nil and type(securityToken) ~= nil then
-                local securityToken = string.match(tostring(securityToken), jwt_token_key_val_value .. "=([^;]+)")
-                if securityToken ~= nil then
-                    -- securityToken = string.gsub(securityToken, "Bearer", "")
-                    securityToken = trimWhitespace(ngx.unescape_uri(securityToken))
-                    if passPhrase == securityToken then
-                        isTokenVerified = true
+
+            if tokenAuthTokenSource == "cookie_jwt_token_validation" then
+                securityToken = reqHeaders['cookie']
+                if securityToken and securityToken ~= nil and type(securityToken) ~= nil then
+                    local securityToken = string.match(tostring(securityToken), jwt_token_key_val_value .. "=([^;]+)")
+                    if securityToken ~= nil then
+                        securityToken = string.gsub(securityToken, "Bearer", "")
+                        securityToken = trimWhitespace(ngx.unescape_uri(securityToken))
+                        local isTokenVerified = jwt:verify(passPhrase, securityToken)
+                    else
+                        isTokenVerified = false
                     end
                 else
                     isTokenVerified = false
                 end
-            else
-                isTokenVerified = false
             end
-        end
-
-        if tokenAuthTokenSource == "header_jwt_token_validation" then
-            securityToken = ngx.req.get_headers()[jwt_token_key_val_value]
-            if securityToken ~= nil then
-                isTokenVerified = false
-                securityToken = trimWhitespace(ngx.unescape_uri(securityToken))
-                local verified_token = jwt:verify(passPhrase, securityToken)
-                if not verified_token then
+            if tokenAuthTokenSource == "cookie_key_value" then
+                securityToken = reqHeaders['cookie']
+                if securityToken and securityToken ~= nil and type(securityToken) ~= nil then
+                    local securityToken = string.match(tostring(securityToken), jwt_token_key_val_value .. "=([^;]+)")
+                    if securityToken ~= nil then
+                        -- securityToken = string.gsub(securityToken, "Bearer", "")
+                        securityToken = trimWhitespace(ngx.unescape_uri(securityToken))
+                        if passPhrase == securityToken then
+                            isTokenVerified = true
+                        end
+                    else
+                        isTokenVerified = false
+                    end
+                else
                     isTokenVerified = false
                 end
-
-                ngx.say("header token found ok: "..jwt_token_key_val_value.." - "..securityToken)
-                ngx.exit(ngx.HTTP_OK)
-
-            else
-                isTokenVerified = true
             end
+
+            if tokenAuthTokenSource == "header_jwt_token_validation" then
+                securityToken = ngx.req.get_headers()[jwt_token_key_val_value]
+                if securityToken ~= nil then
+                    isTokenVerified = false
+                    securityToken = trimWhitespace(ngx.unescape_uri(securityToken))
+                    local verified_token = jwt:verify(passPhrase, securityToken)
+                    if not verified_token then
+                        isTokenVerified = false
+                    end
+
+                    ngx.say("header token found ok: " .. jwt_token_key_val_value .. " - " .. securityToken)
+                    ngx.exit(ngx.HTTP_OK)
+                else
+                    isTokenVerified = true
+                end
+            end
+
+            if tokenAuthTokenSource == "amazon_s3_signed_header_validation" then
+                -- This code is working only for aws signature version 2
+                local folderPath, bucketName = passPhrase, jwt_token_key_val_value
+                local s3AccessKey, s3SecretKey = Base64.decode(amazon_s3_access_key), Base64.decode(amazon_s3_secret_key)
+                local bucketregion = "eu-west-1"
+                local key = ngx.var.uri
+
+                local now = os.date("%a, %d %b %Y %H:%M:%S +0000")
+                local file_path = "/" ..
+                bucketName .. "/prod/category-file/1709032659/OdinSPC-TALSystematicSPFactsheet-Jan24.pdf"
+                -- local digest = ngx.md5(file_path)
+                -- local md5_digest = ngx.encode_base64(digest)
+                local md5_digest = ""
+                local aws_resource_string_to_sign = "GET\n" .. md5_digest .. "\n\n" .. now .. "\n" .. file_path
+                local base64_aws_signature = ngx.encode_base64(ngx.hmac_sha1(s3SecretKey, aws_resource_string_to_sign))
+                local authorization_header_override = "AWS " .. s3AccessKey .. ":" .. base64_aws_signature
+                local host_header_override = "s3." ..
+                bucketregion ..
+                ".amazonaws.com"                                                   -- eu-west-1 is hardcidoded for now but it should be a variable field in the UI
+                local uri = ngx.re.sub(key, "^(.*)", "/" .. bucketName .. "$1", "o")
+                ngx.req.set_uri(uri)
+                -- proxy_pass http://s3.amazonaws.com;
+                --    ngx.say(
+                --     -- "s3AccessKey: " .. s3AccessKey .. "\n",
+                --     -- "s3SecretKey: " .. s3SecretKey .. "\n",
+                --     "aws_resource_string_to_sign: " .. aws_resource_string_to_sign .. "\n",
+                --         "base64_aws_signature: " .. base64_aws_signature .. "\n",
+                --         "Date: " .. now .. "\n",
+                --         "Authorization: " .. authorization_header_override .. "\n",
+                --         "Host: " .. host_header_override
+                --     )
+                --     ngx.exit(ngx.HTTP_OK)
+                ngx.req.set_header("Date", now)
+                ngx.req.set_header("Authorization", authorization_header_override)
+                ngx.req.set_header("Host", host_header_override)
+            end
+
+            -- if tokenAuthTokenSource == "redis" then
+            --     -- local redis = require "resty.redis"
+            --     -- local red = redis:new()
+            --     -- red:set_timeout(1000) -- 1 sec
+            --     -- local ok, err = red:connect(redisHost, 6379)
+            --     -- if not ok then
+            --     --     ngx.say("failed to connect: ", err)
+            --     --     return
+            --     -- end
+            --     -- local res, err = red:get("token:"..jwt_token_key_val_value)
+            --     -- if not res then
+            --     --     ngx.say("failed to get token: ", err)
+            --     --     return
+            --     -- end
+            --     -- securityToken = res
+            --     -- local ok, err = red:close()
+            --     -- if not ok then
+            --     --     ngx.say("failed to close: ", err)
+            --     --     return
+            --     -- end
+            -- end
         end
-
-        if tokenAuthTokenSource == "amazon_s3_signed_header_validation" then
-            -- This code is working only for aws signature version 2
-            local folderPath, bucketName = passPhrase, jwt_token_key_val_value
-            local s3AccessKey, s3SecretKey = Base64.decode(amazon_s3_access_key), Base64.decode(amazon_s3_secret_key)
-            local bucketregion = "eu-west-1"
-            local key = ngx.var.uri
-
-            local now = os.date("%a, %d %b %Y %H:%M:%S +0000")
-            local file_path = "/" .. bucketName .. "/prod/category-file/1709032659/OdinSPC-TALSystematicSPFactsheet-Jan24.pdf"
-            -- local digest = ngx.md5(file_path)
-            -- local md5_digest = ngx.encode_base64(digest)
-            local md5_digest = ""
-            local aws_resource_string_to_sign = "GET\n" .. md5_digest .. "\n\n".. now .."\n"..file_path
-            local base64_aws_signature = ngx.encode_base64(ngx.hmac_sha1(s3SecretKey, aws_resource_string_to_sign))
-            local authorization_header_override = "AWS " .. s3AccessKey .. ":" .. base64_aws_signature
-            local host_header_override = "s3." .. bucketregion .. ".amazonaws.com" -- eu-west-1 is hardcidoded for now but it should be a variable field in the UI
-            local uri = ngx.re.sub(key, "^(.*)", "/".. bucketName .. "$1", "o")
-            ngx.req.set_uri(uri)
-            -- proxy_pass http://s3.amazonaws.com;
-            --    ngx.say(
-            --     -- "s3AccessKey: " .. s3AccessKey .. "\n",
-            --     -- "s3SecretKey: " .. s3SecretKey .. "\n",
-            --     "aws_resource_string_to_sign: " .. aws_resource_string_to_sign .. "\n",
-            --         "base64_aws_signature: " .. base64_aws_signature .. "\n",
-            --         "Date: " .. now .. "\n",
-            --         "Authorization: " .. authorization_header_override .. "\n",
-            --         "Host: " .. host_header_override
-            --     )
-            --     ngx.exit(ngx.HTTP_OK)
-            ngx.req.set_header("Date", now)
-            ngx.req.set_header("Authorization", authorization_header_override)
-            ngx.req.set_header("Host", host_header_override)
-
-        end
-
-        -- if tokenAuthTokenSource == "redis" then
-        --     -- local redis = require "resty.redis"
-        --     -- local red = redis:new()
-        --     -- red:set_timeout(1000) -- 1 sec
-        --     -- local ok, err = red:connect(redisHost, 6379)
-        --     -- if not ok then
-        --     --     ngx.say("failed to connect: ", err)
-        --     --     return
-        --     -- end
-        --     -- local res, err = red:get("token:"..jwt_token_key_val_value)
-        --     -- if not res then
-        --     --     ngx.say("failed to get token: ", err)
-        --     --     return
-        --     -- end
-        --     -- securityToken = res
-        --     -- local ok, err = red:close()
-        --     -- if not ok then
-        --     --     ngx.say("failed to close: ", err)
-        --     --     return
-        --     -- end
-        -- end
-
     end
-end
     return isTokenVerified
 end
 
@@ -231,7 +232,7 @@ local function gatewayHostRulesParser(rules, ruleId, priority, message, statusCo
     local isPathPass, failMessage, isTokenPass = false, "", false
     local finalResult, results = {}, {}
     local req_url = ngx.var.request_uri
-    if rules.jwt_token_validation_value ~= nil and rules.jwt_token_validation_key ~= nil and type(rules.jwt_token_validation_value) ~= "userdata" and  type(rules.jwt_token_validation_key) ~= "userdata" then
+    if rules.jwt_token_validation_value ~= nil and rules.jwt_token_validation_key ~= nil and type(rules.jwt_token_validation_value) ~= "userdata" and type(rules.jwt_token_validation_key) ~= "userdata" then
         isTokenPass = gatewayHostAuthenticate(rules)
     else
         isTokenPass = true
@@ -386,7 +387,7 @@ local function isAnyPathExists(myTable, targetPath)
     local isPathEqual = false
     for _, entry in pairs(myTable) do
         if isEmpty(entry.paths) then
-            isPathEqual = false 
+            isPathEqual = false
         elseif entry.paths_key == "starts_with" and targetPath:startswith(entry.paths) == true and entry.paths ~= "/" then
             isPathEqual = true
             break
@@ -418,7 +419,7 @@ local file, err = io.open(configPath .. "data/servers/" .. envProfile .. "/host:
 if file == nil then
     if settingsObj.nginx.default.no_server ~= nil then
         ngx.header["Content-Type"] = settingsObj.nginx.content_type ~= nil and settingsObj.nginx.content_type or
-        "text/html"
+            "text/html"
         do return ngx.say(Base64.decode(settingsObj.nginx.default.no_server)) end
     end
 else
@@ -439,8 +440,8 @@ end
 local function isPathsValueUnique(table)
     local reqUri = ngx.var.request_uri
 
-    local uniquePaths = {}  -- To keep track of unique paths
-    local highestPriorityByPath = {}  -- To keep track of the highest priority for each path
+    local uniquePaths = {}           -- To keep track of unique paths
+    local highestPriorityByPath = {} -- To keep track of the highest priority for each path
     local highestPriority = -1
     local highestPriorityUUID = nil
 
@@ -667,17 +668,23 @@ if exist_values and exist_values ~= 0 and exist_values ~= nil and exist_values ~
             globalVars.proxyServerName = jsonval.proxy_server_name
             ngx.var.vars = cjson.encode(globalVars)
         else
-            if settingsObj.nginx.default.conf_mismatch ~= nil then
-                ngx.header["Content-Type"] = settingsObj.nginx.content_type ~= nil and settingsObj.nginx.content_type or
-                    "text/html"
-                ngx.status = ngx.HTTP_FORBIDDEN
-                ngx.say(Base64.decode(settingsObj.nginx.default.conf_mismatch))
+            local confMismatchHtml = settingsObj.nginx.default.conf_mismatch ~= nil and
+            settingsObj.nginx.default.conf_mismatch or "PGgxPk5vIEhUTUwgc3VwcGxpZWQgZm9yIHRoaXMgZXJyb3I8L2gxPgo="
+            for rKey, ruleOne in pairs(parse_rules[1]) do
+                if ruleOne.message and ruleOne.message ~= nil and ruleOne.message ~= "" and ruleOne.message ~= "null" then
+                    confMismatchHtml = ruleOne.message
+                    break
+                end
             end
+            ngx.header["Content-Type"] = settingsObj.nginx.content_type ~= nil and settingsObj.nginx.content_type or
+                "text/html"
+            ngx.status = ngx.HTTP_FORBIDDEN
+            ngx.say(Base64.decode(confMismatchHtml))
         end
     else
         if settingsObj.nginx.default.no_rule ~= nil then
             ngx.header["Content-Type"] = settingsObj.nginx.content_type ~= nil and settingsObj.nginx.content_type or
-            "text/html"
+                "text/html"
             ngx.say(Base64.decode(settingsObj.nginx.default.no_rule))
         end
     end
@@ -685,7 +692,7 @@ else
     -- ngx.say("No Nginx Server Config found.")
     if settingsObj.nginx.default.no_server ~= nil then
         ngx.header["Content-Type"] = settingsObj.nginx.content_type ~= nil and settingsObj.nginx.content_type or
-        "text/html"
+            "text/html"
         ngx.say(Base64.decode(settingsObj.nginx.default.no_server))
     end
 end
