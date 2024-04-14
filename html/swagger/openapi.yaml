@@ -330,6 +330,38 @@ paths:
       security:
         - bearerAuth: []                
   
+  /api/user/login:
+    post:
+        tags:
+        - Login
+        summary: Login to server
+        requestBody:
+          required: true
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  email:
+                    type: string
+                    default: email@mail.com
+                  password:
+                    type: string
+                    default: abc123
+        responses:
+          '201':
+            description: Login Successfull
+            content:
+              application/json:
+                schema:
+                  type: object
+                  properties:
+                    status:
+                      type: number
+                      default: 200
+                    message:
+                      type: string
+                      default: Success
           
 components:
   securitySchemes:
