@@ -50,7 +50,7 @@ jobs:
         working-directory: ./QA
         run: |  
           if [[ "${{ inputs.TARGET_ENV }}" == 'int2' ]]; then
-            export TARGET_HOST="http://api.int2.whitefalcon.io"
+            export TARGET_HOST="http://api.int.whitefalcon.io"
             export SERVER_NAME="qa.int2.whitefalcon.io"
             export SERVER_ID_QA="host:qa.int2.whitefalcon.io"
             export NODE_APP_IP=""  
