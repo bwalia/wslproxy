@@ -153,7 +153,7 @@ jobs:
         working-directory: ./QA
         run: |
           if [ "${{ env.TARGET_ENV }}" == "int" ]; then
-            export API_PING_URL="https://api.int2.whitefalcon.io/ping"
+            export API_PING_URL="https://api.int.whitefalcon.io/ping"
 
           elif [ "${{ env.TARGET_ENV }}" == "test" ]; then
             export API_PING_URL="https://api.test.whitefalcon.io/ping"
@@ -165,7 +165,7 @@ jobs:
             export API_PING_URL="https://api.whitefalcon.io/ping" 
 
           elif [ "${{ env.TARGET_ENV }}" == "" ]; then
-            export API_PING_URL="https://api.int2.whitefalcon.io/ping"                       
+            export API_PING_URL="https://api.int.whitefalcon.io/ping"                       
        
           else
             echo "Unsupported TARGET_ENV:${{ env.TARGET_ENV }}"

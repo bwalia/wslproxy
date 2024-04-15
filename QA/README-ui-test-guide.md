@@ -49,7 +49,7 @@ With the workflow_dispatch event trigger, we can manually trigger the workflow e
 ### List of the available Environments
 #### `Int`: http://api.int.whitefalcon.io/
 ##### Sub-environments of `int` are-
-- int2 : http://api.int2.whitefalcon.io/
+- int2 : http://api.int.whitefalcon.io/
 - int6 : http://api.int6.whitefalcon.io/
 - int10 : http://api.int10.whitefalcon.io/
 

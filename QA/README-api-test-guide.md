@@ -88,6 +88,7 @@ You can trigger the test execution using GitHub Actions by following this [workf
 ### List of the available Environments
 #### `Int`: http://api.int.whitefalcon.io/
 ##### Sub-environments of `int` are-
+- int : http://api.int.whitefalcon.io/
 - int2 : http://api.int2.whitefalcon.io/
 - int6 : http://api.int6.whitefalcon.io/
 - int10 : http://api.int10.whitefalcon.io/
