@@ -98,12 +98,12 @@ ingress:
           pathType: ImplementationSpecific
           serviceName: wf-front-svc-int
           servicePort: 80          
-    - host: int-my.workstation.co.uk
-      paths:
-        - path: /
-          pathType: ImplementationSpecific
-          serviceName: wf-front-svc-int
-          servicePort: 80          
+    # - host: int-my.workstation.co.uk moved to production permanent ingress for API GW
+    #   paths:
+    #     - path: /
+    #       pathType: ImplementationSpecific
+    #       serviceName: wf-front-svc-int
+    #       servicePort: 80          
     - host: int.workstation.co.uk
       paths:
         - path: /
