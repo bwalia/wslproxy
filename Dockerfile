@@ -95,6 +95,7 @@ RUN luarocks install lua-resty-resolver
 RUN luarocks install luafilesystem
 RUN luarocks install lua-resty-auto-ssl
 # RUN luarocks install lua-resty-aws-auth
+RUN luarocks install pgmoon
 
 RUN mkdir -p /etc/resty-auto-ssl
 RUN chown -R root:nobody /etc/resty-auto-ssl/
