@@ -693,7 +693,7 @@ server {
             # this code run just before the setting the proxy pass and content phase.
 
           # proxy_set_header proxy_http_version 1.1;
-          proxy_set_header host $host;
+          proxy_set_header host $proxy_host_override;
           proxy_pass http://$upstream_server;
         
           }
