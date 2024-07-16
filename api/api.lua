@@ -119,7 +119,17 @@ local function getDataFromFile(path)
     return fileData, err
 end
 
-local function setDataToFile(path, value, dir)
+local function cleanString(input)
+    -- Remove double quotes from start and end
+    local output = input:match('^"(.*)"$') or input
+
+    -- Replace \n with new line
+    output = output:gsub("\\n", "\n")
+
+    return output
+end
+
+local function setDataToFile(path, value, dir, fileType)
     -- Check if the directory exists
     if not isDirectoryExists(dir) then
         -- Directory doesn't exist, so create it
@@ -139,8 +149,16 @@ local function setDataToFile(path, value, dir)
     if file == nil then
         ngx.say("Couldn't read file: " .. err)
     else
-        file:write(cjson.encode(value))
-        file:close()
+        if fileType == "conf" then
+            local cleanedContent = value:gsub('"(.-)"', function(s)
+                return cleanString(s)
+            end)
+            file:write(cleanedContent)
+            file:close()
+        else
+            file:write(cjson.encode(value))
+            file:close()
+        end
     end
 end
 
@@ -1183,8 +1201,16 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name, method)
         redis_json[uuid] = cjson.encode(json_val)
         red:hmset(key_name .. "_" .. envProfile, redis_json)
         setDataToFile(filePathDir .. "/" .. uuid .. ".json", json_val, filePathDir)
+        if key_name == "servers" then
+            local configString = Base64.decode(json_val.config)
+            setDataToFile(filePathDir .. "/conf/" .. json_val.server_name .. ".conf", cleanString(configString), filePathDir .. "/conf", "conf")
+        end
     else
         setDataToFile(filePathDir .. "/" .. uuid .. ".json", json_val, filePathDir)
+        if key_name == "servers" then
+            local configString = Base64.decode(json_val.config)
+            setDataToFile(filePathDir .. "/conf/" .. json_val.server_name .. ".conf", cleanString(configString), filePathDir .. "/conf", "conf")
+        end
     end
     ngx.status = ngx.HTTP_OK
     return json_val
@@ -1428,6 +1454,51 @@ local function updateProfileSettings(args)
         end
 end
 
+local function readFile(filePath)
+    local file = io.open(filePath, "r")
+    if not file then return nil end
+    local content = file:read("*a")
+    file:close()
+    return content
+end
+
+local function listFiles(directory)
+    local files = {}
+    local totalFiles = 0
+
+    for file in lfs.dir(directory) do
+        if file ~= "." and file ~= ".." then
+            local fullPath = directory .. '/' .. file
+            local attr = lfs.attributes(fullPath)
+            if attr.mode == "file" then
+                table.insert(files, {
+                    name = fullPath,
+                    content = readFile(fullPath)
+                })
+                totalFiles = totalFiles + 1
+            elseif attr.mode == "directory" then
+                -- Recursively list files in subdirectories
+                local subFiles, subTotal = listFiles(fullPath)
+                for _, subFile in ipairs(subFiles) do
+                    table.insert(files, subFile)
+                end
+                totalFiles = totalFiles + subTotal
+            end
+        end
+    end
+    return files, totalFiles
+end
+
+local function listServerConf(args)
+    local profile = args.profile
+    local dirPath = configPath .. "data/servers/" .. profile .. "/conf"
+    local files, total = listFiles(dirPath)
+    return ngx.say(cjson.encode({
+        data = files,
+        total = total
+    }))
+end
+
 local function handle_get_request(args, path)
     -- handle GET request logic
     local delimiter = "/"
@@ -1460,6 +1531,9 @@ local function handle_get_request(args, path)
         listSessions(args)
         -- elseif uuid and (#uuid == 36 or #uuid == 32) and subPath[1] == "sessions" then
         --     listSession(args, uuid)
+    end
+    if path == "conf" then
+        listServerConf(args)
     end
     if path == "global/settings" then
         ngx.say(cjson.encode({

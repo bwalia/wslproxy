@@ -8,6 +8,19 @@ local lfs = require("lfs")
 
 local _R = {}
 
+local function getSettings()
+    local readSettings, errSettings = io.open(configPath .. "data/settings.json", "rb")
+    local settings = {}
+    if readSettings == nil then
+        ngx.say("Couldn't read file: " .. errSettings)
+    else
+        local jsonString = readSettings:read "*a"
+        readSettings:close()
+        settings = cjson.decode(jsonString)
+    end
+    return settings
+end
+
 local function generateToken()
     local passPhrase = os.getenv("JWT_SECURITY_PASSPHRASE")
     return jwt:sign(passPhrase, {
@@ -56,7 +69,55 @@ local function getRuleByID(ruleId)
     return serverRule
 end
 
-local function saveRecordsToDisk(path, keyName)
+local function cleanString(input)
+    -- Remove double quotes from start and end
+    local output = input:match('^"(.*)"$') or input
+
+    -- Replace \n with new line
+    output = output:gsub("\\n", "\n")
+
+    return output
+end
+
+local function isDirectoryExists(path)
+    local attributes = lfs.attributes(path)
+    return attributes and attributes.mode == "directory"
+end
+
+local function setDataToLocalFile(path, value, dir, fileType)
+    -- Check if the directory exists
+    if not isDirectoryExists(dir) then
+        -- Directory doesn't exist, so create it
+        local success, errorMsg = lfs.mkdir(dir)
+        if errorMsg ~= nil then
+            ngx.status = ngx.HTTP_BAD_REQUEST
+            ngx.say(cjson.encode({
+                data = {
+                    message = "Error creating directory:", errorMsg
+                }
+            }))
+        end
+    else
+        print("Directory already exists")
+    end
+    local file, err = io.open(path, "w")
+    if file == nil then
+        ngx.say("Couldn't read file: " .. err)
+    else
+        if fileType == "conf" then
+            local cleanedContent = value:gsub('"(.-)"', function(s)
+                return cleanString(s)
+            end)
+            file:write(cleanedContent)
+            file:close()
+        else
+            file:write(cjson.encode(value))
+            file:close()
+        end
+    end
+end
+
+local function saveRecordsToDisk(path, keyName, type)
     local httpc = http.new()
     local allDataTotal = 0
     local allServers, serverErr = httpc:request_uri(path, {
@@ -71,8 +132,12 @@ local function saveRecordsToDisk(path, keyName)
         local allServersData = cjson.decode(allServers)["data"]
         allDataTotal = cjson.decode(allServers)["total"]
         for index, server in ipairs(allServersData) do
-            createDirectoryIfNotExists(configPath .. "data/" .. keyName)
-            setDataToFile(configPath .. "data/" .. keyName .. "/" .. server.id .. ".json", server)
+            if type == "conf" then
+                setDataToLocalFile(configPath .. "data/" .. keyName .. "/" .. server.name .. ".conf", server, configPath .. "data/" .. keyName, "conf")
+            else
+                createDirectoryIfNotExists(configPath .. "data/" .. keyName)
+                setDataToFile(configPath .. "data/" .. keyName .. "/" .. server.id .. ".json", server)
+            end
         end
     end
     return allDataTotal
@@ -117,6 +182,12 @@ local function deleteFilesInDirectory(directory)
         local filepath = directory .. "/" .. file
         os.remove(filepath)
     end
+end
+
+local function runShellScript(script)
+    local command = "sh " .. script
+    local result = os.execute(command)
+    return result
 end
 
 function syncRulesAPI(args)
@@ -167,8 +238,11 @@ function syncServersAPI(args)
     local apiTotalPages = 1
     local profileName = args.envprofile
     apiPageSize = (apiPageSize == nil or apiPageSize == "") and 100 or apiPageSize
-
+    local settings = getSettings()
     deleteFilesInDirectory(configPath .. "data/servers/" .. profileName)
+    if settings.sync_nginx_conf_files ~= nil and settings.sync_nginx_conf_files == true then
+        deleteFilesInDirectory(configPath .. "data/servers/" .. profileName .. "/conf")
+    end
     local totalPages = 1
     local totalServers = saveRecordsToDisk(
         apiUrl ..
@@ -197,7 +271,13 @@ function syncServersAPI(args)
                 "servers/" .. profileName)
         until apiTotalPages >= totalPages
     end
-
+    if settings.sync_nginx_conf_files ~= nil and settings.sync_nginx_conf_files == true then
+        saveRecordsToDisk(apiUrl .. "/conf?_format=json&profile=" .. profileName, "servers/" .. profileName .. "/conf")
+    end
+    if settings.sync_nginx_reload ~= nil and settings.sync_nginx_reload == true then
+        local script_path = settings.script_path
+        runShellScript(script_path)
+    end
     return ngx.say(cjson.encode({
         data = {
             servers = totalServers,
@@ -230,6 +310,6 @@ end
 
 local args = ngx.req.get_uri_args()
 
+syncSettings()
 syncRulesAPI(args)
 syncServersAPI(args)
-syncSettings()
