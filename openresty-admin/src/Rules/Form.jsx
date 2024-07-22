@@ -519,6 +519,16 @@ const Form = () => {
           </FormDataConsumer>
         </Grid>
 
+        <Grid item xs={2}>
+          <BooleanInput
+            source="match.response.is_consul"
+            label="Is Consul"
+            fullWidth
+            defaultValue={false}
+            className="matchResponseIsConsul"
+          />
+        </Grid>
+
         <Grid item xs={12}>
           <TextInput
             multiline

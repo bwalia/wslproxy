@@ -13,6 +13,10 @@ services:
     ports:
       - "8081:8080"
       - "8000:80"
+      - "8500:8500"
+    environment:
+      - APP_ENV=dev
+      - DNS_RESOLVER=127.0.0.11
     networks:
       openresty-network:
         ipv4_address: 172.177.0.8

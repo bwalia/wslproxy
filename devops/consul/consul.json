@@ -1,0 +1,8 @@
+{
+    "server": true,
+    "bootstrap_expect": 1,
+    "data_dir": "/tmp/consul",
+    "ui": true,
+    "client_addr": "0.0.0.0",
+    "log_level": "INFO"
+}

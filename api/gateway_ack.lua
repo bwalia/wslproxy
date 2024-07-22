@@ -229,7 +229,7 @@ local function gatewayHostAuthenticate(rule)
     return isTokenVerified
 end
 
-local function gatewayHostRulesParser(rules, ruleId, priority, message, statusCode, redirectUri)
+local function gatewayHostRulesParser(rules, ruleId, priority, message, statusCode, redirectUri, isConsul)
     local chk_path = (rules.path ~= nil and type(rules.path) ~= "userdata") and trimWhitespace(rules.path) or rules.path
     local isPathPass, failMessage, isTokenPass = false, "", false
     local finalResult, results = {}, {}
@@ -314,6 +314,7 @@ local function gatewayHostRulesParser(rules, ruleId, priority, message, statusCo
     results["message"] = message
     results["statusCode"] = statusCode
     results["redirectUri"] = redirectUri
+    results["isConsul"] = isConsul
     results["rule_data"] = rules
 
     finalResult[ruleId] = results
@@ -349,7 +350,7 @@ local function gatewayRequestHandler(ruleId)
             -- check prefix and postfix URL
             local results = gatewayHostRulesParser(ruleFromRedis.match.rules, ruleFromRedis.id, ruleFromRedis.priority,
                 ruleFromRedis.match.response.message, ruleFromRedis.match.response.code,
-                ruleFromRedis.match.response.redirect_uri)
+                ruleFromRedis.match.response.redirect_uri, ruleFromRedis.match.response.is_consul)
             return results
         end
     end
@@ -696,6 +697,7 @@ else
         ngx.header["Content-Type"] = settingsObj.nginx.content_type ~= nil and settingsObj.nginx.content_type or
             "text/html"
         ngx.say(Base64.decode(settingsObj.nginx.default.no_server))
+        ngx.exit(ngx.HTTP_OK)
     end
 end
 -- ngx.var.proxy_host_override = 'test313.yourdomain.com'
