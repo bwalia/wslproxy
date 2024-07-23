@@ -2,9 +2,12 @@ local Dns = {}
 local dns_res = require "resty.dns.resolver"
 local cjson = require "cjson"
 
-function Dns.access(selectedRule)
+function Dns.access(selectedRule, dnsServerHost, dnsServerPort)
     local query_domain = selectedRule.redirectUri
-    local dns_conf = {"172.177.0.8", 8600}
+    local dns_conf = {dnsServerHost, dnsServerPort}
+    if dnsServerPort == nil then
+      dns_conf = {dnsServerHost}
+    end
     
     local function abort(reason, status_code)
       ngx.status = status_code

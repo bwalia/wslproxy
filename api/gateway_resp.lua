@@ -58,12 +58,20 @@ elseif selectedRule.statusCode == 305 then
     local extracted = string.match(selectedRule.redirectUri, ":(.*)")
     local extractedPort = 80
     if not isIpAddress(selectedRule.redirectUri) then
+        local continueDnsResolve = true
         if selectedRule.rule_data.isConsul then
-            local tIp, tPort = Dns.access(selectedRule)
-            selectedRule.redirectUri = tIp
-            extractedPort = tPort
-        else
-
+            local dnsServerHost = settings.consul.dns_server_host
+            local dnsServerPort = settings.consul.dns_server_port
+            if dnsServerHost ~= nil then
+                local tIp, tPort = Dns.access(selectedRule, dnsServerHost, dnsServerPort)
+                selectedRule.redirectUri = tIp
+                extractedPort = tPort
+                if isIpAddress(tIp) then
+                    continueDnsResolve = false
+                end
+            end
+        end
+        if continueDnsResolve then
             local resolver = require "resty.dns.resolver"
             local primaryNameserver = os.getenv("PRIMARY_DNS_RESOLVER")
             if (primaryNameserver == nil or primaryNameserver == "") and not (settings == nil or settings.dns_resolver == nil) then
