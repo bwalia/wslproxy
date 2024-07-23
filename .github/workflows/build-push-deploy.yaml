@@ -36,7 +36,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-        ref: ${{ env.TARGET_BRANCH }}
+        with:
+          ref: ${{ env.TARGET_BRANCH }}
 
       - name: Login to Docker Hub
         run: docker login -u ${{ secrets.DOCKER_USER }} -p ${{ secrets.DOCKER_PASSWD }}
