@@ -16,6 +16,11 @@ on:
           - acc
           - prod
 
+      TARGET_BRANCH:
+        description: 'Please choose the branch to build and deploy'
+        default: 'main'
+        required: true
+
 env:
     IMAGE_NAME: "whitefalcon"
     TARGET_IMAGE_TAG: "latest"
@@ -23,6 +28,7 @@ env:
     KUBE_CONFIG_K3S: ${{ secrets.KUBE_CONFIG_DATA_K3S2 }}
     TARGET_ENV: ${{ github.event.inputs.TARGET_ENV || 'int' }}
     TARGET_CLUSTER: "k3s2"
+    TARGET_BRANCH: ${{ github.event.inputs.TARGET_BRANCH || 'main' }}
 
 jobs:
   build:
@@ -30,6 +36,7 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
+        ref: ${{ env.TARGET_BRANCH }}
 
       - name: Login to Docker Hub
         run: docker login -u ${{ secrets.DOCKER_USER }} -p ${{ secrets.DOCKER_PASSWD }}
