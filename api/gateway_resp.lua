@@ -56,11 +56,12 @@ elseif selectedRule.statusCode == 305 then
     selectedRule.redirectUri = string.gsub(selectedRule.redirectUri, "https://", "")
     selectedRule.redirectUri = string.gsub(selectedRule.redirectUri, "http://", "")
     local extracted = string.match(selectedRule.redirectUri, ":(.*)")
+    local extractedPort = 80
     if not isIpAddress(selectedRule.redirectUri) then
-        if selectedRule.isConsul then
+        if selectedRule.rule_data.isConsul then
             local tIp, tPort = Dns.access(selectedRule)
             selectedRule.redirectUri = tIp
-            ngx.var.proxy_port = tPort
+            extractedPort = tPort
         else
 
             local resolver = require "resty.dns.resolver"
@@ -107,12 +108,12 @@ elseif selectedRule.statusCode == 305 then
         end
     end
     local finalProxyHost = selectedRule.redirectUri
-    -- if extracted ~= nil then
-    --     ngx.var.proxy_port = extracted
-    --     finalProxyHost = string.gsub(selectedRule.redirectUri, ":(.*)", "")
-    -- else
-    --     ngx.var.proxy_port = "80"
-    -- end
+    if extracted ~= nil then
+        ngx.var.proxy_port = extracted
+        finalProxyHost = string.gsub(selectedRule.redirectUri, ":(.*)", "")
+    else
+        ngx.var.proxy_port = extractedPort
+    end
 
     ngx.var.proxy_host = finalProxyHost
     if proxy_server_name == nil or proxy_server_name == "" then

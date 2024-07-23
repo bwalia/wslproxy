@@ -309,12 +309,12 @@ local function gatewayHostRulesParser(rules, ruleId, priority, message, statusCo
     else
         isCountryPass = true
     end
+    rules.isConsul = isConsul
     results["country"] = isCountryPass
     results["priority"] = priority
     results["message"] = message
     results["statusCode"] = statusCode
     results["redirectUri"] = redirectUri
-    results["isConsul"] = isConsul
     results["rule_data"] = rules
 
     finalResult[ruleId] = results
@@ -682,7 +682,11 @@ if exist_values and exist_values ~= 0 and exist_values ~= nil and exist_values ~
             ngx.header["Content-Type"] = settingsObj.nginx.content_type ~= nil and settingsObj.nginx.content_type or
                 "text/html"
             ngx.status = ngx.HTTP_FORBIDDEN
-            ngx.say(Base64.decode(confMismatchHtml))
+            if confMismatchHtml ~= nil and confMismatchHtml ~= 'undefined' then
+                ngx.say(Base64.decode(confMismatchHtml))
+            else
+                ngx.say("Rule HTML Message not defined")
+            end
         end
     else
         if settingsObj.nginx.default.no_rule ~= nil then
