@@ -1,116 +1,55 @@
-# Default values for whitefalcon.
-# This is a YAML-formatted file.
-# Declare variables to be passed into your templates.
-
 replicaCount: 1
-
 app:
-  name: wf-api
-  version: 0.1.1
-  description: A Helm chart for Kubernetes
-  keywords:
-    - helm
-    - chart
-    - kubernetes
-  namespace: int
-  dns_resolver: "10.43.0.10"
-  primary_dns_resolver : "10.43.0.10"
-  secondary_dns_resolver : "10.43.0.10"
-  dns_resolver_port: 53
-  api_url: "https://api.int.whitefalcon.io/api"
-  redis_host: "redis-service.int.svc.cluster.local"
-  target_env: "int"
-  target_type: "api"
-  front_url: "https://int2.whitefalcon.io"
-  sync_data_onload: false
-
-secure_env_file: "AgBO0bYsVVSWs7YI+cs+evI3v5d42fxGUrk5SXyw2McAnbdcR/tQw9r0eeBkeIu+jt3+3p8I5fnrQh/LJKQFFvtb3Wo+O8U44nrBJhw2XgstRoYhlBi3O7QbEKu+L1l4FsE/KoZt+FFHkeyKc4+kA34i/6hbjzWAswpDQJVth6uTBPxVIAG9JKmXWMQupE92cs7+n24+UHVNBBgbXWPOWHdIVGhLgqK9SR3ZDzmeOuaVfIBk1WtfxbPtsAYNyddsPMfr1k8awwqgl3+j7VNiwPqgVePzt0NJ1iaoqCcLX1aqc1vq1XZK31sXK8m0jDXxTOuCVm2ValKbreueTMNCIvdx7X4c88Bq3QyzzCExqedj0HwMGoy0FCA4OiJ7ymsxAmZPiDb/49WlxeTGy/HAlQ2scx89sT50t4+GWbZ0rT9FrVyeEsqWzjnIwDZgGja3nDeimWG2JNSzQdrE8T6MCHVT/AnfjJBpzE7ro6e32PNotChnX9g5cKBXyi33zD+VmQPxOAGuKbmJ/pwOx8ja/w4ShEWkI09n/kp71PposndJjuY2lFzPO4EsmIuxSMGIPcsDr7E7Vkhlye/Ct0+Yc++K2b1kR/btteCiWw7hCQ6j5ktsQO9LsExBCHmQARDe53DEvuNIS6+F9IgHUo/4HMPXuYxGYlVnSt+bbKBoKqdiRbvOKjn+n5NVH4oO7bdbKnOmTaWFKNDKu9K+KbP1c1Du7gruhvl4txOIyocJM2IHN3wXGc0/Ma9Hk+LtEDIK2szgM2bHxXGx+zvMZMdFkqzL0qq4OIsM7Z8X+SkBPguaqiDkA000y5d/6QLhlqfz8R9QvR3xQryJPYWjcmgd8gI++zhPYS22P0dwFc4N5Z6q6MZEXzEpdlIhvFvsIrX+JjfAp8UrTePb9wadVSskBC7SBinFEHyGoMlVdA7R+G2ilWgTjmJjuBxiuKKkmU5mfkxxJW40h8JAZsNdNcBC/XssfALu4rxg6y4K1fZjmxofWwyWN6yWVgE/PHHNIpSoPBlYSus8eLMMs4sTsphqhXAPc1IMwzuGaEr9ubsOeCgtLu6rgB0RLTyby/+ClXrUjO1JuMFoAAB3d3t15wJf"
-
+    name: wf-api
+    version: 0.1.1
+    description: 'A Helm chart for Kubernetes'
+    keywords: [helm, chart, kubernetes]
+    namespace: prod
+    dns_resolver: 10.43.0.10
+    primary_dns_resolver: 10.43.0.10
+    secondary_dns_resolver: 10.43.0.10
+    dns_resolver_port: 53
+    api_url: 'https://api.prod.diycdn.org/api'
+    redis_host: redis-service.prod.svc.cluster.local
+    target_env: prod
+    target_type: api
+    front_url: 'https://front.prod.diycdn.org'
+    sync_data_onload: false
+secure_env_file: AgARLjJsNOc2yJZfgwsRrENPp798F41hvDCozJKUiPLV6RzLG1PbXyWxPLCvOQUg9sDfuUEku7K81kCgYjWqZ/9tFRb5dShpUKZ4zXBurN/J9CnYvIJbtn96+WqzBXrL+LMYQUHzYm8EOeG+mhd0oVKGO2rPmaQaw5ZFOtzGcCSfCF071iKnhKOge+/8FnDRZ/7aPBzZ863PXeAAR6ip+KkIA4fvbX8UgXkzfGVnXxtg5YduNbfzugAwcBQYL+HXrVDDW5UC0CMTK/G5uxomRj8mVtSjcn+/FV09KROB+Yrdgx8xwPqbM78I4wchPeFzOKWdaZETA72MUQevzhqwNxqYtK8I7mVUit0RipI6z129iVrBP54MGKnk0OMLToCb7JcNtUA7ngk8i22cRDVmeX7RvWWjcHQhwY2KD5MrvLQrex3ct2TAklXdoNLUQbzMBfVuc1VIJ9cFUXuV6Pl2nLuH+rjuIkuU/UF5htoqv999O1TcS8OC0S0bGyAU1oLiXVKHwIMYuyMfk/IvRF4kDUBX/jR8qlVI4v9Z8/Ynri9uu5/6MnYeXJuWRJ2C98vi967JDu+YbkuBVJz74lvkPFXX2Y1rzvMbJQHDK6/oRGSdypw6X/frov72YCEFcQaWvD0TONE3h5qzwliy06D9jzx/2IfWfi80s6dPs+UCfraH4zQd/fqtpHtjEHP8T5aX4bsotirhS+wt9TOKWYIriNK85hGt9FEZLkM+SkiY2U9fhGORxpspgcFwuPixvbwmv3scVBxnVXWj/ckh1sn94TTgU6AB8qY3RFgdfRQrGJtdSr+82q3503nMswjNlybMjaIabHxiBzcUDr3Vuogey6wWGJd6BAhHwiGh0REsl9TztPR2PEE0gEx4oQzpz9M5Is2jS8lQ+wGoCdltOC52f7BiQGlAdtJyKZSe6dBq9oU2mXbQATzfcyUAMzA3t2eueuvphi6pSeZpje5Sl3jc2DkSNaBGS9U/BTd0KJvToMTWfFLNHIvFKACaeKz5W1cqhn6iHt9HNVItsyJ17WljHjZf95QWWVsgp98NA73v40MusQ/FxxZvDIWI31pOi4MYb4YG47dktf5y1xLktAJrz9tUadp0CxNAzF6d93MO4G9xvB9pbrYEUz+kYdT4Ciu/ysdoASXaFWO0ErTF1W+r6evkh6Q6XvJCoNyznqL5xf8Kr4HaMhobxOmDs71E+XK4kf85fI8Vmg==
 image:
-  repository: bwalia/whitefalcon
-  pullPolicy: Always
-  # Overrides the image tag whose default is the chart appVersion.
-  tag: "latest"
-
-imagePullSecrets: []
-nameOverride: ""
-fullnameOverride: ""
-
+    repository: bwalia/whitefalcon
+    pullPolicy: Always
+    tag: latest
+imagePullSecrets: {  }
+nameOverride: ''
+fullnameOverride: ''
 serviceAccount:
-  # Specifies whether a service account should be created
-  create: true
-  # Annotations to add to the service account
-  annotations: {}
-  # The name of the service account to use.
-  # If not set and create is true, a name is generated using the fullname template
-  name: ""
-
-podAnnotations: {}
-
-podSecurityContext: {}
-  # fsGroup: 2000
-
-securityContext: {}
-  # capabilities:
-  #   drop:
-  #   - ALL
-  # readOnlyRootFilesystem: true
-  # runAsNonRoot: true
-  # runAsUser: 1000
-
+    create: true
+    annotations: {  }
+    name: ''
+podAnnotations: {  }
+podSecurityContext: {  }
+securityContext: {  }
 service:
-  type: ClusterIP
-  port: 8080
-
+    type: ClusterIP
+    port: 8080
 storage:
-  enabled: false
-  accessMode: ReadWriteOnce
-  size: 2Gi
-  storageClass: ""
-
+    enabled: false
+    accessMode: ReadWriteOnce
+    size: 2Gi
+    storageClass: ''
 ingress:
-  enabled: true
-  className: "traefik"
-  annotations: {
-    cert-manager.io/cluster-issuer: letsencrypt-production,
-    kubernetes.io/ingress.class: traefik
-  }
-    # kubernetes.io/ingress.class: nginx
-    # kubernetes.io/tls-acme: "true"
-  hosts:
-    - host: api.int.whitefalcon.io
-      paths:
-        - path: /
-          pathType: ImplementationSpecific
-#          serviceName: wf-api-svc-int
-          serviceName: wf-api-svc-int
-          servicePort: 8080
-  tls:
-    - secretName: api-int-tls-secret
-      hosts:
-        - api.int.whitefalcon.io
-
-resources: {}
-  # We usually recommend not to specify default resources and to leave this as a conscious
-  # choice for the user. This also increases chances charts run on environments with little
-  # resources, such as Minikube. If you do want to specify resources, uncomment the following
-  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
-  # limits:
-  #   cpu: 100m
-  #   memory: 128Mi
-  # requests:
-  #   cpu: 100m
-  #   memory: 128Mi
-
+    enabled: true
+    className: traefik
+    annotations: { cert-manager.io/cluster-issuer: letsencrypt-production, kubernetes.io/ingress.class: traefik }
+    hosts: [{ host: api.prod.diycdn.org, paths: [{ path: /, pathType: ImplementationSpecific, serviceName: wf-api-svc-prod, servicePort: 8080 }] }]
+    tls: [{ secretName: api-prod-tls-secret, hosts: [api.prod.diycdn.org] }]
+resources: {  }
 autoscaling:
-  enabled: false
-  minReplicas: 1
-  maxReplicas: 100
-  targetCPUUtilizationPercentage: 80
-  # targetMemoryUtilizationPercentage: 80
-
-nodeSelector: {}
-
-tolerations: []
-
-affinity: {}
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 100
+    targetCPUUtilizationPercentage: 80
+nodeSelector: {  }
+tolerations: {  }
+affinity: {  }

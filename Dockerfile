@@ -1,4 +1,3 @@
-
 # Dockerfile - alpine-fat
 # https://github.com/openresty/docker-openresty
 #
@@ -143,6 +142,22 @@ RUN cp /tmp/resolver.conf.tmpl /tmp/resolver.conf
 
 RUN sed -i "s/resolver 127.0.0.11/resolver ${DNS_RESOLVER}/g" /tmp/resolver.conf
 
+# Install Consul
+RUN apk add --no-cache --virtual .build-deps \
+        unzip \
+        curl \
+    && curl -o /tmp/consul.zip https://releases.hashicorp.com/consul/1.19.1/consul_1.19.1_linux_amd64.zip \
+    && unzip /tmp/consul.zip -d /usr/local/bin/ \
+    && rm /tmp/consul.zip \
+    && mkdir -p /etc/consul.d
+
+# Add a basic Consul configuration file
+COPY ./devops/consul/consul.json /etc/consul.d/consul.json
+
+# Expose Consul port
+EXPOSE 8500
+
+RUN luarocks install lua-resty-consul
 # Unix section
 # Unix socket will be created here "/var/run/nginx/nginx.sock"
 RUN mkdir -p "/var/run/nginx/" \
@@ -178,4 +193,5 @@ RUN wget https://dl.min.io/client/mc/release/linux-amd64/mc -O /usr/local/bin/mc
 
 RUN mc --version
 
-ENTRYPOINT ["/usr/local/openresty/nginx/sbin/nginx", "-g", "daemon off;"]
+# Start Consul in the background and then start OpenResty
+CMD consul agent -bind=172.177.0.8 -config-dir=/etc/consul.d & /usr/local/openresty/nginx/sbin/nginx -g "daemon off;"
