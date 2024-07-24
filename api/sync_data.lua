@@ -128,7 +128,7 @@ local function saveRecordsToDisk(path, keyName, type)
     if serverErr == nil then
         allServers = allServers.body
     end
-    if allServers and allServers ~= nil and type(allServers) == "string" then
+    if allServers and allServers ~= nil and allServers ~= "" then
         local allServersData = cjson.decode(allServers)["data"]
         allDataTotal = cjson.decode(allServers)["total"]
         for index, server in ipairs(allServersData) do

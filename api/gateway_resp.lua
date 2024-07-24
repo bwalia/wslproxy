@@ -34,16 +34,26 @@ local selectedRule = globalVars.executableRule
 local primaryNameserver = globalVars.proxyServerName
 local settings = loadGlobalSettings()
 
-if selectedRule.redirectUri == nil then
-    ngx.say("Redirect url not found: ")
-    ngx.exit(ngx.HTTP_INTERNAL_SERVER_ERROR)
-elseif selectedRule.statusCode == nil then
+
+if selectedRule.statusCode == nil then
     ngx.say("Status code not found: ")
     ngx.exit(ngx.HTTP_INTERNAL_SERVER_ERROR)
+elseif selectedRule.statusCode == 200 or selectedRule.statusCode == 403 then
+    ngx.header["Content-Type"] = "text/html"
+    ngx.status = selectedRule.statusCode
+    ngx.say(Base64.decode(selectedRule.message))
 elseif selectedRule.statusCode == 301 then
+    if selectedRule.redirectUri == nil then
+        ngx.say("Redirect url not found: ")
+        ngx.exit(ngx.HTTP_INTERNAL_SERVER_ERROR)
+    end
     ngx.redirect(selectedRule.redirectUri, ngx.HTTP_MOVED_PERMANENTLY)
     ngx.exit(ngx.HTTP_MOVED_PERMANENTLY)
 elseif selectedRule.statusCode == 302 then
+    if selectedRule.redirectUri == nil then
+        ngx.say("Redirect url not found: ")
+        ngx.exit(ngx.HTTP_INTERNAL_SERVER_ERROR)
+    end
     ngx.redirect(selectedRule.redirectUri, ngx.HTTP_MOVED_TEMPORARILY)
     ngx.exit(ngx.HTTP_MOVED_TEMPORARILY)
 elseif selectedRule.statusCode == 305 then
@@ -53,6 +63,10 @@ elseif selectedRule.statusCode == 305 then
     --     getServer = cjson.decode(getServer)
     --     getServer.proxy_pass = selectedRule.redirectUri
     -- remove http:// from the url or https:// as it should be added in the proxy_pass
+    if selectedRule.redirectUri == nil then
+        ngx.say("Redirect url not found: ")
+        ngx.exit(ngx.HTTP_INTERNAL_SERVER_ERROR)
+    end
     selectedRule.redirectUri = string.gsub(selectedRule.redirectUri, "https://", "")
     selectedRule.redirectUri = string.gsub(selectedRule.redirectUri, "http://", "")
     local extracted = string.match(selectedRule.redirectUri, ":(.*)")
@@ -139,8 +153,4 @@ elseif selectedRule.statusCode == 305 then
     --     ngx.log(ngx.ERR, "[ERROR]: Server not found!")
     -- end
     return
-elseif selectedRule.statusCode == 200 or selectedRule.statusCode == 403 or selectedRule.statusCode == 403 then
-    ngx.header["Content-Type"] = "text/html"
-    ngx.status = selectedRule.statusCode
-    ngx.say(Base64.decode(selectedRule.message))
 end

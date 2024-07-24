@@ -1,170 +1,55 @@
-# Default values for whitefalcon front http request handler
-# This is a YAML-formatted file.
-# Declare variables to be passed into your templates.
-
 replicaCount: 1
-
 app:
-  name: wf-front
-  version: 0.1.1
-  description: A Helm chart for Kubernetes
-  keywords:
-    - helm
-    - chart
-    - kubernetes
-  namespace: int
-  dns_resolver: "10.43.0.10"
-  primary_dns_resolver : "10.43.0.10"
-  secondary_dns_resolver : "10.43.0.10"
-  dns_resolver_port: 53
-  api_url: "https://api.int.whitefalcon.io/api"
-  redis_host: "redis-service.int.svc.cluster.local"
-  target_env: "int"
-  target_type: "front"
-  front_url: "https://int.whitefalcon.io"
-  sync_data_onload: false
-  
-secure_env_file: "AgBI6cJ6JmMGhfv6f4Chu2C/Rz1ZiaWbH3BgtZfBy604PjJ9wEyKEjIK/PlZ7ugz38SsS/RaKxLhEfscOgGnh3smlBnzPFnGCEV+r9fwo31JFjBv+zLDfENNsm8NutWo82rX0K7nTfRZj86EyngE7n9rm8GSosNpbunqsEVn3w2qBH4dZZkn0mydSRpJXuQslQRWmuV5lXnCmVDS1dlVbaXSkd0N5pnM9MC14tQ0X5S5bIX8RzdVKh/PRmSduS5TTnsCs0fZAj3YpHO1GhGZOsDhaeEkpXe0osj73l7Dy+V6wWMCrbRbXZj5HGLB8YiJbzyd3Yp6rv+FKLZgWu6K4T02CDsMFTiH+9xMWANpTQqABav7k4r4tz3KRtRzJ0/BiFeKfR1FlVF+PuoI4DdmONfnk5MKcyI2LbxHQ5tCa7i/ECTkjOZCG8PQV0dvjfUD1YYgi6zVd57j3LAuKMySAiXoim/6qPpabjNKHI5OQyWQyANtCUCldB/NO4bTW+4N1aBeHfN6jh6G8f6Shen7ref4f4S5TZ3GuFjE0zVVnEKPUsOWVYDFx/SHafr1oNCoQ5rnGl788D9OWWR1h4H+8pCrBdpTSrMz5XDcNtP6307CZw7wRKCTi1k91N88lezjni9HInqeAa7SMiDsNlmDOlmcxOmff05z4MrZ6J53I8RQL9kMYEwZ8zewWQT3dgh2i0nhjYgQyaj5pFJmM4XiOtLqbBBqOm5Cj4h+OjF3LY6JU+VaciXYKWUndHd5ouPelrHMc019o8ggIlO9uLk3k8lPgUKDPsMUyg0On9C1sc//uaE6ICWbfK3f6BcjcWOdH36XaesUsFWl+Fk8UpiJHLqq7+ioDTA3qBOi5IwNrPUNvcmulkSFRf1rEQrbZW2jQJAfbY0MEaAjrmG4VcO8B7TDRhwIQpsrCgFVi4MoKCdEd4bteVN12ffavQh8qYk+sQk0ZzfwGQJZG4nwVT21Cp0WTNx+IBhlukwBZQbXg09N5Ns02vy7CDJOTVeNBlgaYeImg154zXt9QddYh3QToeDImrJ8Dxn7NwHG0oZ1TaihEFW1oOp9YsUwf3NHNJLIUSWUFdwNPISM+5SGzBCm"
-
+    name: wf-front
+    version: 0.1.1
+    description: 'A Helm chart for Kubernetes'
+    keywords: [helm, chart, kubernetes]
+    namespace: prod
+    dns_resolver: 10.43.0.10
+    primary_dns_resolver: 10.43.0.10
+    secondary_dns_resolver: 10.43.0.10
+    dns_resolver_port: 53
+    api_url: 'https://api.prod.diycdn.org/api'
+    redis_host: redis-service.prod.svc.cluster.local
+    target_env: prod
+    target_type: front
+    front_url: 'https://front.prod.diycdn.org'
+    sync_data_onload: false
+secure_env_file: AgBLA0XdfWGGP4sTZl4K2cTCzZ8YQZG/svT/elRwkf1qsjB+H/Ks/JbY4p3ZCrIhAyoyVwHnVyC9UOFfWZuR7meA5pzXT5gT7mZXvUpp8mrJmiL2LWg8apKGs2i+WBPsc/US5KN23LT70Ou9JThMK3U26GVIJniPDACKZ3mHxhbNjA1AtplE8SMOrKzcE/6dcww1Qpm0BHZ91MoTt0MjFeVTpWdYJce19XdzEsuLnoawsMSPkPIUmNmclVqyqGKsSaiwCNlO4/YoJRbcvsmjYKAqhXxpXD7I9v/euhel62seu7XiQKnYfOIwh4D90thPk1c08/Brz3zR7xfEFEMkTjhCvgNCAQwLA/to4y4wuTtqX7n4SnHh8AkPFmjJjDMo4voZFsSNIOzxClEKNyd2DV/8yDUKXGZ57hhzaK9pMLto8AAzhtJ7aGzwVW5277kSFK12JTieJNFnBNQI0IEJe3d2k2IMidclzTSwxrMT4QTfNOdqVfG3YFqkK1aGlO/cdyn+3KFTIBmOsajXoM07BHCnPfh7Kd7XPHp9XP/SjgI3vTRai4buzAM40SeikPqcyESsuPdVoasKsX8s2RhZsr+1qjle2IUoxcZDfSf9m3XXK/1jsU8ZTtG+TL0lbF5E7LXWFGT9mOCNjr/Ie2sbGA2NiH9wGhWXXCjHM0Z4osLrrK9bqArlNP7L+XmLFEQJKE+G+MWQCcrx0wmcFzOrsZDWr+zUFf+zi4Tzcn/HBXFDufZMw9eb/btKFxaxtcD6bqe9xmIZuCfXW7jIlT2G6rSJX/fUgxbfSethku3CjkA9Za7HRFRE/M3OeN3sf/9IQnoXsNBXuZ8b94542LBDn+NDaydU4RvnO143pQc7oIjVIUyknZpj5UDqEqihKHrwlxA3sT70P+P0AkHuU0uNajNIh4wMH7881nNiyWtQ8JTrudkbXf64EE71F/OfTnJJ1XQx5xlUlBEu1eEB9b7aJIJw9i6gL3yzGQZYiP1EextH1C2DMm2K4ptKEqnnfo4C6d1lagPHIKNsfWrgSs5aYPvvsSGHjx9yB74mQLnWo5rK4GggWdNNmX6ZSMBQ0/ywazbuDQhOGG3BgZoMrk/IAZpULWA4r1nZr4iOgI+edIraQ9huRUz8V9BDJkodYeqVNsR7+2JTTc8h6zWzFbWEn+3PZ2u9/F1ptSBBSkm1MBOG1kWrE7DOeZKD0UTZKkziR839py/Ygg==
 image:
-  repository: bwalia/whitefalcon
-  pullPolicy: Always
-  # Overrides the image tag whose default is the chart appVersion.
-  tag: "latest"
-
-imagePullSecrets: []
-nameOverride: ""
-fullnameOverride: ""
-
-serviceAccount:
-  # Specifies whether a service account should be created
-  create: true
-  # Annotations to add to the service account
-  annotations: {}
-  # The name of the service account to use.
-  # If not set and create is true, a name is generated using the fullname template
-  name: ""
-
-podAnnotations: {}
-
-podSecurityContext: {}
-  # fsGroup: 2000
-
-securityContext: {}
-  # capabilities:
-  #   drop:
-  #   - ALL
-  # readOnlyRootFilesystem: true
-  # runAsNonRoot: true
-  # runAsUser: 1000
-
-service:
-  type: ClusterIP
-  port: 80
-
+    repository: bwalia/whitefalcon
+    pullPolicy: Always
+    tag: latest
+imagePullSecrets: {  }
+nameOverride: ''
+fullnameOverride: ''
 storage:
-  enabled: false
-  accessMode: ReadWriteOnce
-  size: 2Gi
-  storageClass: ""
-
-
+    enabled: false
+    accessMode: ReadWriteOnce
+    size: 2Gi
+    storageClass: ''
+serviceAccount:
+    create: true
+    annotations: {  }
+    name: ''
+podAnnotations: {  }
+podSecurityContext: {  }
+securityContext: {  }
+service:
+    type: ClusterIP
+    port: 80
 ingress:
-  enabled: true
-  className: "traefik"
-  annotations: {
-    cert-manager.io/cluster-issuer: letsencrypt-production,
-    kubernetes.io/ingress.class: traefik
-  }
-    # kubernetes.io/ingress.class: nginx
-    # kubernetes.io/tls-acme: "true"
-  hosts:
-    - host: front.int.whitefalcon.io
-      paths:
-        - path: /
-          pathType: ImplementationSpecific
-#          serviceName: wf-api-svc-int
-          serviceName: wf-front-svc-int
-          servicePort: 80
-    - host: int.whitefalcon.io
-      paths:
-        - path: /
-          pathType: ImplementationSpecific
-          serviceName: wf-front-svc-int
-          servicePort: 80
-    - host: qa.int.whitefalcon.io
-      paths:
-        - path: /
-          pathType: ImplementationSpecific
-          serviceName: wf-front-svc-int
-          servicePort: 80          
-    # - host: int-my.workstation.co.uk moved to production permanent ingress for API GW
-    #   paths:
-    #     - path: /
-    #       pathType: ImplementationSpecific
-    #       serviceName: wf-front-svc-int
-    #       servicePort: 80          
-    - host: int.workstation.co.uk
-      paths:
-        - path: /
-          pathType: ImplementationSpecific
-          serviceName: wf-front-svc-int
-          servicePort: 80          
-    - host: int.odincm.com
-      paths:
-        - path: /
-          pathType: ImplementationSpecific
-          serviceName: wf-front-svc-int
-          servicePort: 80          
-    - host: nodeapp.int.whitefalcon.io
-      paths:
-        - path: /
-          pathType: ImplementationSpecific
-          serviceName: wf-front-svc-int
-          servicePort: 80          
-  tls:
-    - secretName: nodeapp-int-tls-secret
-      hosts:
-        - nodeapp.int.whitefalcon.io
-    - secretName: odincm-int-tls-secret
-      hosts:
-        - int.odincm.com
-    - secretName: wsw-int-tls-secret
-      hosts:
-        - int.workstation.co.uk
-    - secretName: wsl-int-tls-secret
-      hosts:
-        - int-my.workstation.co.uk
-    - secretName: wf-qa-int-tls-secret
-      hosts:
-        - qa.int.whitefalcon.io
-    - secretName: wf-int-tls-secret
-      hosts:
-        - int.whitefalcon.io
-        - front.int.whitefalcon.io
-  
-
-resources: {}
-  # We usually recommend not to specify default resources and to leave this as a conscious
-  # choice for the user. This also increases chances charts run on environments with little
-  # resources, such as Minikube. If you do want to specify resources, uncomment the following
-  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
-  # limits:
-  #   cpu: 100m
-  #   memory: 128Mi
-  # requests:
-  #   cpu: 100m
-  #   memory: 128Mi
-
+    enabled: true
+    className: traefik
+    annotations: { cert-manager.io/cluster-issuer: letsencrypt-production, kubernetes.io/ingress.class: traefik }
+    hosts: [{ host: front.prod.diycdn.org, paths: [{ path: /, pathType: ImplementationSpecific, serviceName: wf-front-svc-prod, servicePort: 80 }] }, { host: prod.diycdn.org, paths: [{ path: /, pathType: ImplementationSpecific, serviceName: wf-front-svc-prod, servicePort: 80 }] }, { host: qa.prod.diycdn.org, paths: [{ path: /, pathType: ImplementationSpecific, serviceName: wf-front-svc-prod, servicePort: 80 }] }, { host: www.prod.workstationcrm.com, paths: [{ path: /, pathType: ImplementationSpecific, serviceName: wf-front-svc-prod, servicePort: 80 }] }, { host: prod.workstation.co.uk, paths: [{ path: /, pathType: ImplementationSpecific, serviceName: wf-front-svc-prod, servicePort: 80 }] }, { host: prod.odincm.com, paths: [{ path: /, pathType: ImplementationSpecific, serviceName: wf-front-svc-prod, servicePort: 80 }] }, { host: nodeapp.prod.diycdn.org, paths: [{ path: /, pathType: ImplementationSpecific, serviceName: wf-front-svc-prod, servicePort: 80 }] }]
+    tls: [{ secretName: nodeapp-prod-tls-secret, hosts: [nodeapp.prod.diycdn.org] }, { secretName: odincm-prod-tls-secret, hosts: [prod.odincm.com] }, { secretName: wsw-prod-tls-secret, hosts: [prod.workstation.co.uk] }, { secretName: wsl-prod-tls-secret, hosts: [www.prod.workstationcrm.com] }, { secretName: wf-qa-prod-tls-secret, hosts: [qa.prod.diycdn.org] }, { secretName: wf-prod-tls-secret, hosts: [prod.diycdn.org] }, { secretName: wf-front-prod-tls-secret, hosts: [front.prod.diycdn.org] }]
+resources: {  }
 autoscaling:
-  enabled: false
-  minReplicas: 1
-  maxReplicas: 100
-  targetCPUUtilizationPercentage: 80
-  # targetMemoryUtilizationPercentage: 80
-
-nodeSelector: {}
-
-tolerations: []
-
-affinity: {}
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 100
+    targetCPUUtilizationPercentage: 80
+nodeSelector: {  }
+tolerations: {  }
+affinity: {  }
