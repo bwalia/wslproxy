@@ -34,6 +34,8 @@ spec:
             items:
             - key: env_file
               path: .env
+        - name: {{ .Values.app.name }}-vol2-{{ .Values.app.target_env }}
+          secret:
             secretName: "{{ .Values.app.name }}-settings-{{ .Values.app.target_env }}"
             items:
             - key: settings_sec_env_file
@@ -63,6 +65,8 @@ spec:
               mountPath: /tmp/configmap
             - name: {{ .Values.app.name }}-vol-{{ .Values.app.target_env }}
               mountPath: /tmp/secrets
+            - name: {{ .Values.app.name }}-vol2-{{ .Values.app.target_env }}
+              mountPath: /tmp/settings
             - name: {{ .Values.app.name }}-{{ .Values.app.target_env }}-vol
               mountPath: /opt/nginx/ 
           env:
