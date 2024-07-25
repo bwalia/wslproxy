@@ -66,12 +66,12 @@ jobs:
         working-directory: ./QA  
         run: |  
           if [[ "${{ github.event.inputs.TARGET_ENV }}" == 'int' ]]; then
-            export TARGET_HOST="http://api.int6.whitefalcon.io"
-            export SERVER_NAME="qa.int6.whitefalcon.io"
+            export TARGET_HOST="http://api.int.diycdn.org"
+            export SERVER_NAME="qa.int.diycdn.org"
             export NODE_APP_IP="10.43.81.65:3009"
           elif [[ "${{ github.event.inputs.TARGET_ENV }}" == 'test' ]]; then
-            export TARGET_HOST="http://api.test.whitefalcon.io"
-            export SERVER_NAME="test.whitefalcon.io"
+            export TARGET_HOST="http://api.test.diycdn.org"
+            export SERVER_NAME="test.diycdn.org"
             export NODE_APP_IP=""
           elif [[ "${{ github.event.inputs.TARGET_ENV }}" == 'local' ]]; then
             export TARGET_HOST="http://172.18.0.1:8081"

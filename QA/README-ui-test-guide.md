@@ -47,13 +47,13 @@ With the workflow_dispatch event trigger, we can manually trigger the workflow e
 
 
 ### List of the available Environments
-#### `Int`: http://api.int.whitefalcon.io/
+#### `Int`: http://api.int.diycdn.org/
 ##### Sub-environments of `int` are-
-- int2 : http://api.int.whitefalcon.io/
-- int6 : http://api.int6.whitefalcon.io/
-- int10 : http://api.int10.whitefalcon.io/
+- int2 : http://api.int.diycdn.org/
+- int6 : http://api.int.diycdn.org/
+- int10 : http://api.int10.diycdn.org/
 
-#### `test`: http://api.test.whitefalcon.io/
+#### `test`: http://api.test.diycdn.org/
 ##### Sub-environments of `test` are-
-- int2 : http://api.test2.whitefalcon.io/
-- int6 : http://api.test6.whitefalcon.io/
+- int2 : http://api.test2.diycdn.org/
+- int6 : http://api.test6.diycdn.org/
