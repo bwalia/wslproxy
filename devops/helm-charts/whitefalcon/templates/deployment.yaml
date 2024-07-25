@@ -34,7 +34,6 @@ spec:
             items:
             - key: env_file
               path: .env
-          secret:
             secretName: "{{ .Values.app.name }}-settings-{{ .Values.app.target_env }}"
             items:
             - key: settings_sec_env_file
