@@ -21,6 +21,16 @@ on:
         default: 'main'
         required: true
 
+      DEPLOYMENT_TYPE:
+        type: choice
+        description: 'Please select the build only, deploy only or build and deploy'
+        default: 'build-and-deploy'
+        required: true
+        options:
+            - build
+            - deploy
+            - build-and-deploy
+
 env:
     IMAGE_NAME: "whitefalcon"
     TARGET_IMAGE_TAG: "latest"
@@ -29,26 +39,31 @@ env:
     TARGET_ENV: ${{ github.event.inputs.TARGET_ENV || 'int' }}
     TARGET_CLUSTER: "k3s2"
     TARGET_BRANCH: ${{ github.event.inputs.TARGET_BRANCH || 'main' }}
+    DEPLOYMENT_TYPE: ${{ github.event.inputs.DEPLOYMENT_TYPE || 'build-and-deploy' }}
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
+        if: ${{ env.DEPLOYMENT_TYPE == 'build' || env.DEPLOYMENT_TYPE == 'build-and-deploy' }}
         uses: actions/checkout@v2
         with:
           ref: ${{ env.TARGET_BRANCH }}
 
       - name: Login to Docker Hub
+        if: ${{ env.DEPLOYMENT_TYPE == 'build' || env.DEPLOYMENT_TYPE == 'build-and-deploy' }}
         run: docker login -u ${{ secrets.DOCKER_USER }} -p ${{ secrets.DOCKER_PASSWD }}
      
       - name: Build and push
+        if: ${{ env.DEPLOYMENT_TYPE == 'build' || env.DEPLOYMENT_TYPE == 'build-and-deploy' }}
         uses: docker/build-push-action@v4
         with:
           push: true
           tags: bwalia/whitefalcon:latest
 
       - name: Build and push Node app
+        if: ${{ env.DEPLOYMENT_TYPE == 'build' || env.DEPLOYMENT_TYPE == 'build-and-deploy' }}
         uses: docker/build-push-action@v4
         with:
           file: demos-origins/node-app/Dockerfile
@@ -56,6 +71,7 @@ jobs:
           tags: bwalia/node-app:latest
 
       - name: Build and push S3 Browser Node app
+        if: ${{ env.DEPLOYMENT_TYPE == 'build' || env.DEPLOYMENT_TYPE == 'build-and-deploy' }}
         uses: docker/build-push-action@v4
         with:
           file: demos-origins/s3-browser/Dockerfile
@@ -92,6 +108,7 @@ jobs:
         fi
                   
     - name: Helm Deploy - Release Whitefalcon to K3S2 Rancher
+      if: ${{ env.DEPLOYMENT_TYPE == 'deploy' || env.DEPLOYMENT_TYPE == 'build-and-deploy' }}
       uses: koslib/helm-eks-action@master
       env:
         KUBE_CONFIG_DATA: ${{ env.KUBE_CONFIG_K3S }}
@@ -102,14 +119,16 @@ jobs:
           helm upgrade -i whitefalcon-nodeapp ./devops/helm-charts/node-app/ -f devops/helm-charts/node-app/values-${{ env.TARGET_CLUSTER}}.yaml
           helm upgrade -i whitefalcon-s3-browser ./devops/helm-charts/s3-browser-app/ -f devops/helm-charts/s3-browser-app/values-${{ env.TARGET_CLUSTER}}.yaml
                 
-    - name: Restart Whitefalcon API Pods using Kubectl            
+    - name: Restart Whitefalcon API Pods using Kubectl
+      if: ${{ env.DEPLOYMENT_TYPE == 'deploy' || env.DEPLOYMENT_TYPE == 'build-and-deploy' }}
       uses: actions-hub/kubectl@master
       env:
         KUBE_CONFIG: ${{ env.KUBE_CONFIG_K3S }}
       with:
         args: rollout restart deployment/wf-api-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}        
 
-    - name: Restart Whitefalcon Front Pods using Kubectl            
+    - name: Restart Whitefalcon Front Pods using Kubectl
+      if: ${{ env.DEPLOYMENT_TYPE == 'deploy' || env.DEPLOYMENT_TYPE == 'build-and-deploy' }}
       uses: actions-hub/kubectl@master
       env:
         KUBE_CONFIG: ${{ env.KUBE_CONFIG_K3S }}
