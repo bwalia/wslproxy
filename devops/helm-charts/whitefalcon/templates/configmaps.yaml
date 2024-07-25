@@ -44,6 +44,12 @@ data:
         # Set Timezone
         echo "Openresty whitefalcon Nginx Bootstrap Script"
         FILE=/opt/nginx/data/settings.json
+        if test -f "/tmp/secrets/settings.json"; then
+        # Copy settings.json from secrets if provided by the deployment
+        cp /tmp/secrets/settings.json $FILE
+        
+        else
+
         if test -f "$FILE"; then
             echo "$FILE exists."
             echo "==========================="
@@ -56,7 +62,8 @@ data:
                 echo "$SAMPLE exists."
                 cp $SAMPLE $FILE
             fi
-        fi        
+        fi
+        fi
         echo "==========================="
         echo "Copy user data configurations"
         FILE=/opt/nginx/
