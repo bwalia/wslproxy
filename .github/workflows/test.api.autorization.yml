@@ -50,21 +50,21 @@ jobs:
         working-directory: ./QA
         run: |  
           if [[ "${{ inputs.TARGET_ENV }}" == 'int2' ]]; then
-            export TARGET_HOST="http://api.int.whitefalcon.io"
-            export SERVER_NAME="qa.int2.whitefalcon.io"
-            export SERVER_ID_QA="host:qa.int2.whitefalcon.io"
+            export TARGET_HOST="http://api.int.diycdn.org"
+            export SERVER_NAME="qa.int2.diycdn.org"
+            export SERVER_ID_QA="host:qa.int2.diycdn.org"
             export NODE_APP_IP=""  
 
           elif [[ "${{ inputs.TARGET_ENV }}" == 'int6' ]]; then
-            export TARGET_HOST="http://api.int6.whitefalcon.io"
-            export SERVER_NAME="qa.int6.whitefalcon.io"
-            export SERVER_ID_QA="host:qa.int6.whitefalcon.io"  
+            export TARGET_HOST="http://api.int.diycdn.org"
+            export SERVER_NAME="qa.int.diycdn.org"
+            export SERVER_ID_QA="host:qa.int.diycdn.org"  
             export NODE_APP_IP="10.43.81.65:3009"  
 
           elif [[ "${{ inputs.TARGET_ENV }}" == 'test' ]]; then
-            export TARGET_HOST="http://api.test6.whitefalcon.io"
-            export SERVER_NAME="test6.whitefalcon.io"
-            export SERVER_ID_QA="host:test6.whitefalcon.io"
+            export TARGET_HOST="http://api.test6.diycdn.org"
+            export SERVER_NAME="test6.diycdn.org"
+            export SERVER_ID_QA="host:test6.diycdn.org"
             export NODE_APP_IP=""  
 
           elif [[ "${{ inputs.TARGET_ENV }}" == 'local' ]]; then

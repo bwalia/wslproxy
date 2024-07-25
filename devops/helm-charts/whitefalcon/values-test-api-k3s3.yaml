@@ -17,11 +17,11 @@ app:
   primary_dns_resolver : "10.43.0.10"
   secondary_dns_resolver : "10.43.0.10"
   dns_resolver_port: 53
-  api_url: "http://api.test3.whitefalcon.io/api"
+  api_url: "http://api.test3.diycdn.org/api"
   redis_host: "redis-service.test.svc.cluster.local"
   target_env: "test"
   target_type: "api"
-  front_url: "http://test3.whitefalcon.io"
+  front_url: "http://test3.diycdn.org"
   sync_data_onload: false
 
 secure_env_file: "AgBncwtfuz2LAuuEzgX9nBb+IRRAQYdUbFSCwBWbpPD02BPUtI5md25bzPcQXIWvWkDlEvjxnRYNevZrVyjdG+265VEJZMxlcHdExjMH/SD+t46JwAd3XASBTKQ4BayfDkJTy9h/pmO6I7uoPJGcmFajOtNZjjnqO8yHGwNJfe4dZRCfa1qk7wIKJeg2rDeCOpyoEue9/LHRrEqISvQ4e3LOU5NwPwP6K2yNnNgOUJNRkH837wwU+yfhRc7tFKTJvCmjEMymu1jYmbDCzIWPDXq1863nAZ9ws6q1RAj1xgUHXVCOZGRMtAnsyIZB2w1ViPlaDwqcHb3eqCIqLqW1YS5lMJNPWuG/4WobjQPoeGQvnXJnJs+2sEUnYT785bGOnxDsUsOVsoXOUSufZP+4GgPYi6cb95DDeev3+h1RtKCZbMmZAVrZdndoUhwOf/QR9OlfteTnPJt85mHQ32M10ObNJoEF6a3YlvTm69bScetkn5qnIML7McEqB1Dr83Nm5WtiaymzKU1ClO3TSSVnTWBdT5BoKB6IoueNW1keTPTbsSvCHkyM9Hfb+m3prQClDUskKgWjlvuIL3GO9MxTtvDms53klf5+WO5O00Eu+IbYBFaPfkGAFnk1/22SWkh9xr83eU4aTZKSGn0Dfat589avdWTgKtYsNhHtfg6tUGf8M4+XUI4pH8b92qWeDXqpqT6qrShi0eIm60cs5zABoQLXe/FReUA37Rq34Y2a+lm1s1cLozJCsBq/fJZgTtX/PmSlAfaKKJm0ig4WVpiRxenZ0TZCqBJZeJbPKX8LhkuGrG5GjVAGEseKqaKf9FL1oueurFYIkAfW+XomAylG/dX1hql0c7/XPKYW3r3FIBXQluZ+AcXL2U/94ZHk0Q+U/MLlPUZ7ZVB+SjiNDqBFj5ot2TSBto7BvSGNaZ1xSGUAz/2G8SCBS54+HzzkwoJ2dovpAcdhNu9Q2zBZ5AQKc4eto/6wGdz3IGA0NhCAl1JTsl3xQMFHWaiozISKHlUkuPxDWI2EqIBSzuUF+g7bUAfEKbC0eVbQlg=="
@@ -69,13 +69,13 @@ ingress:
     # kubernetes.io/ingress.class: nginx
     # kubernetes.io/tls-acme: "true"
   hosts:
-    - host: api.test.whitefalcon.io
+    - host: api.test.diycdn.org
       paths:
         - path: /
           pathType: ImplementationSpecific
           serviceName: wf-api-svc-test
           servicePort: 8080
-    - host: api.test3.whitefalcon.io
+    - host: api.test3.diycdn.org
       paths:
         - path: /
           pathType: ImplementationSpecific

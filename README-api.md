@@ -33,10 +33,10 @@ api/rules/{id}
 `http://localhost:8081/swagger/`
 
 `Test env swagger page`
-`https://test.whitefalcon.io/swagger/`
+`https://test.diycdn.org/swagger/`
 
 `Prod env swagger page`
-`https://www.whitefalcon.io/swagger/`
+`https://www.diycdn.org/swagger/`
 
 ### Server APIs
 #### 1. Retrieve all the Servers data.

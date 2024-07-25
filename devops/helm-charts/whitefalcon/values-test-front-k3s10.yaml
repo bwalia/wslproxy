@@ -17,11 +17,11 @@ app:
   primary_dns_resolver : "10.43.0.10"
   secondary_dns_resolver : "10.43.0.10"
   dns_resolver_port: 53
-  api_url: "http://api.test10.whitefalcon.io/api"
+  api_url: "http://api.test10.diycdn.org/api"
   redis_host: "redis-service.test.svc.cluster.local"
   target_env: "test"
   target_type: "front"
-  front_url: "http://test10.whitefalcon.io"
+  front_url: "http://test10.diycdn.org"
   sync_data_onload: false
 
 secure_env_file: "AgB53uB4PZzSr6gwuN6TOoeopcCY6AoxuvfmVQrK7qIpotIZrs900gYnIRI72SIChGQeJZLm9hAFMgCfk+N/bx5ZEvQO8NtHQTBDClFCZImYnqWAotNWcDI0BlLV5A2ql9FVzHVpBPQbZploP6OmtgUcja/o4FkkbJrv4E/9pu2MvMUMVfzuBvWC8IJbyHLQE7N95/MQW66MStp76ktmLIs2/v8AnyUvjU2Ccgl9R6M6wolfg/f62BHP8jsYFkox2r51GSRES8jco1EvEzsbYWmsn8qTln/01zzjLsd6i3DpfqW/nE9lcia5lptZr/Vf0agCUyjzpltOUdIrHtf67LzcpF6fsX3RUzr6jqQBEmbstVUXB9Jffh08IhpjQ2uV3hhdxwnIp24CKyRKgsDgI4gZxSP/zPoayQ9PPkq+pBDiEaI9BulEX8YoQAs3B8Lctasv/AlMSvKe02MOlafPtdowN/a/F8yLXOLTJG8cvUUQ0kf8Wd94+hD0+3zZjkv0qWucjLunS+nXKB+mjphwhyahFKeKlS8caykeyIbKy4Lr4dYOn0HzVkMKatECOUw90vD63aOIhnpdAOWlTGUCxMcpctnUfWgK/sXVLAAE6aoSIU98RhCep9QOB3hjsuGLo6BHuxioHR2IZhebbksXQMcmMtigHNrC4L9f8rOgOSembZw9KlnqnS/a9CwELO6miZ1etYtRyv6/HN9ZesKYq2bV3Rno24nHlQO6lwgiaYhAaMsqyeOramLN3LZwanxquAnIQosXXcIVeLSRX5vjMdCb43MoghMbQIPjDg3U9uu3T0fFkA7d8DfCoeZfikKaZwO5dvX9WXBTgrVMwscpWbvnHDiroOv15bHUlhc3xKa3qEBcbfcFpU8PnIVHtez9PRoNQr8bJcHxyOzx/Z65/Wespt6drvl+7ZTQ64d2SEWnQq0Hx2MqJqe3njiKiQarsH7RHtj2OKwyAHFL8PyouAZh3th8ro0om+00agaS81ui+t/X4yY="
@@ -69,25 +69,25 @@ ingress:
     # kubernetes.io/ingress.class: nginx
     # kubernetes.io/tls-acme: "true"
   hosts:
-    - host: test10.whitefalcon.io
+    - host: test10.diycdn.org
       paths:
         - path: /
           pathType: ImplementationSpecific
           serviceName: wf-front-svc-test
           servicePort: 80
-    - host: front.test10.whitefalcon.io
+    - host: front.test10.diycdn.org
       paths:
         - path: /
           pathType: ImplementationSpecific
           serviceName: wf-front-svc-test
           servicePort: 80
-    - host: test.whitefalcon.io
+    - host: test.diycdn.org
       paths:
         - path: /
           pathType: ImplementationSpecific
           serviceName: wf-front-svc-test
           servicePort: 80
-    - host: test-front.whitefalcon.io
+    - host: test-front.diycdn.org
       paths:
         - path: /
           pathType: ImplementationSpecific

@@ -9,11 +9,11 @@ app:
     primary_dns_resolver: 10.43.0.10
     secondary_dns_resolver: 10.43.0.10
     dns_resolver_port: 53
-    api_url: 'https://api.dev.whitefalcon.io/api'
+    api_url: 'https://api.dev.diycdn.org/api'
     redis_host: redis-service.dev.svc.cluster.local
     target_env: dev
     target_type: front
-    front_url: 'https://front.dev.whitefalcon.io'
+    front_url: 'https://front.dev.diycdn.org'
     sync_data_onload: false
 secure_env_file: AgBit2dTUF9ZfnpV+I57fqEZkf5sMyI9M5Vk2jt76p8KYAtQ7Qy2XmYbVaLcK2PRcOwunuBAQb1G3dvHScMBmR1IyxjaYNnM8EroWHyHEIuw5UZNzbxWg+5kLGe9n5MWdsi8kY8+iQRL09JEtK/VeJlvzPJjCQyF1pO4z16NAEiIs/vxvPbDjENqpktm+H4t7g/Ymg3rBSvCZXvjp0G0F51hOgVpk17rFG7BkeiDp+YcZFaLD7cX5uSe8J+qOiki4yAyxl6Xl7nSI44pNntzKKtDUcZqMwDJXgnK7tmjZu7LZKyjRCqyu6dDcEVIgdThyujndy9JQ+SNeShMSxGc7x848hY4ziXzULAkyRGnH3FDvv5DGOZLTzjgU5qqTrHFZenybuK8VCJxbub6WmhU4/rBhQKTRe0FTIQWS8xRgsho0O3dALmmxOeF9wppAcR9luzk0JwJu2j3CTUI1hLrth37kmC2YIb26wJp3HnrVdMS5dYCuPg54foLPI5AVIqxoCABG5ZqF2SDyXFV0FEb8g3Hyu95i95907jcU8qQYP3Dzb5xlK0jqkddxBLNaKOdO4MJ0h9pdKuqSW0zvxipRc+/YogWehIY2Vn8ErtZce5g2Jz/yDrwKIEbuwkEpWYjVMLFNOVQcckIaTiywRzO9X/GEXhNQzIh2UXZTZbmGiBFAewb1w+gWhrTlWN3GpyKZhAXjHCMeR7yiS+N4JNAYPCbi5jYOmBimiWeWze91xSXWLVUcde3AHNAWP6dL+sDiBwaSppZTn+Xrwltxy6HPslIVMgwbLx7AZ5LRx+Wz80SyYXxzB4O9Qqjp6t2iCVgyMu9AHeCVIFJQyGUji7M8GK4x9v0KUmdb8ncjjLZfFL2VbOwX58O1sOs4F1s2qqUGwCpsq0RN7W2PHdlplWw8JVbCmZwKZ+8HHfoym3OnC1xIKTOf0x6qAT3UmL8IpZjTtkh5U52eWcf0tz25AiDYMhaFMau/ByDc8e/s7X0ZduULvdDoVJPzFcjLHkpsVGpdrE11OQXmm4H2P3bMAb8MKE3j2u2o26mLmdhItfylE7NCMIPeQ02WKLPXht4N539HR/1Mft4+xgHIviHHmfiTo4/07ELySoPLYEqIajS1xU9bmHa4jrvcOevOLob833WSysFo9BsGD1Jt+hgvRW7Nr4XJf93wXV2MTDo7Ge43OfjZ3z30v/+gWIVcIckzextQfYwcJEbkVresYZjs5bPkYtMylDoik+S2ZSyYNiKVgjV7byn
 image:
@@ -37,7 +37,7 @@ ingress:
     enabled: true
     className: traefik
     annotations: {  }
-    hosts: [{ host: dev2.whitefalcon.io, paths: [{ path: /, pathType: ImplementationSpecific, serviceName: wf-front-svc-dev, servicePort: 80 }] }, { host: front.dev2.whitefalcon.io, paths: [{ path: /, pathType: ImplementationSpecific, serviceName: wf-front-svc-dev, servicePort: 80 }] }, { host: front-dev.whitefalcon.io, paths: [{ path: /, pathType: ImplementationSpecific, serviceName: wf-front-svc-dev, servicePort: 80 }] }, { host: qa.dev.whitefalcon.io, paths: [{ path: /, pathType: ImplementationSpecific, serviceName: wf-front-svc-dev, servicePort: 80 }] }, { host: nodeappdev.whitefalcon.io, paths: [{ path: /, pathType: ImplementationSpecific, serviceName: wf-front-svc-dev, servicePort: 80 }] }]
+    hosts: [{ host: dev2.diycdn.org, paths: [{ path: /, pathType: ImplementationSpecific, serviceName: wf-front-svc-dev, servicePort: 80 }] }, { host: front.dev2.diycdn.org, paths: [{ path: /, pathType: ImplementationSpecific, serviceName: wf-front-svc-dev, servicePort: 80 }] }, { host: front-dev.diycdn.org, paths: [{ path: /, pathType: ImplementationSpecific, serviceName: wf-front-svc-dev, servicePort: 80 }] }, { host: qa.dev.diycdn.org, paths: [{ path: /, pathType: ImplementationSpecific, serviceName: wf-front-svc-dev, servicePort: 80 }] }, { host: nodeappdev.diycdn.org, paths: [{ path: /, pathType: ImplementationSpecific, serviceName: wf-front-svc-dev, servicePort: 80 }] }]
     tls: {  }
 resources: {  }
 autoscaling:

@@ -17,11 +17,11 @@ app:
   primary_dns_resolver : "10.43.0.10"
   secondary_dns_resolver : "10.43.0.10"
   dns_resolver_port: 53
-  api_url: "https://api.test2.whitefalcon.io/api"
+  api_url: "https://api.test2.diycdn.org/api"
   redis_host: "redis-service.test.svc.cluster.local"
   target_env: "test"
   target_type: "front"
-  front_url: "https://test2.whitefalcon.io"
+  front_url: "https://test2.diycdn.org"
   sync_data_onload: false
 
 secure_env_file: "AgBRlXcx5sm6Aa7etpCeOscSLFiZIyc1LbGBDV71tTqyxBwGhERj1ekaODM4KT/Tmm3LPrevUoR3/c6iimehwFoYyB9aTVMjyPB/8KA5e0deHW9gXtTIR+4DEYlSUHsaYi88M2mlyuZwvVTNDDIJdGNONrwLkAqBmXzaQNHjDOq22TJWCUi3K7HP/6j91SlUFD71bj8WBGUhn+kD09trW/dcdEwHHUuNA7E9vbBu7SZgn5Fbr9enI5I+/yJ/js7gKzZj4V6uABZBPd1UlobXMA0kDNCD0dKYmjPB4Tz2FGyFBxVqZqCPBAfTuLWmwKh/qpUMvSWgGRzfDAH9/NA+5ujESw54f3WnjvPuDnfHtBnR7ROPyar6P4p9Vf83HgmQb1X5qVJboM9FBAE+/ufO9fGBIn/F3OPrjlnenNbbSvJxz0Jg8lQ9nINXt9U5Af76alHSPc+HIkH4G3QPYlIkEVXzzUZ7wOJ+ZEy7EgHA+poLnseAUbyvukTWZ124duUCeQL/nnAq29EuqwretimYtPELo0r80GqxO4wmAUVF7DCgnTFypVKsDjgiZwUKfHGJ9xy5rYS9RnPSQSJ/PDuIp5cmjj2vcUipUO1m79OcYl7Ilp+7ITycotCtOFzlNi6pcv8sELdA/bAfJrtXAjU3pt+zCP9XJfa1BskrHkVkLWL+Cwtfw2sWRBDOm6Xo3dPK3vXri3gOyZjmaOeUsd/ku2/WYnr52GnWJX8geRs16P7xsMN4NtUBCyEKNAs04UjYSRS1vAyyObHqtniNIvI+xoD83Trbsm6G9NjuwTWCyT6twuW6fDoNgr3BsliZcsOTOEKpfQxPeYGKhnhtWKEFsunxU8kMreqidMoEp2qC3Lg4jg0sS9wLlvLueKZUeCj6ZzfG+kSa0IPWwutKnAiCFRRK9s5S6J5Xr7ANwOf1KwuDUAK2r6wnz63EDfkrysqEPKeOSw88nRFrdys4f6vzG6jlQb1b4wxM1klGddZaD29o8kEOLoWrz5Xq+EtAlmtwjAwAlVyDCsmorp3qoAxvKyaPrG/ujTL4PDCpjMZ5rOXaCObuCefBPDrza2g15K2UntDUIizUpWMwwG2rDNRtXMaaQSj6cs0FhtSzswm++m3Q0+4B9haubctQ9FLAWBPgZGp/XlcUffVSIc+dX7TL5v36eo0TvTfXmSuz8wyJDoRpIM1/qeimp9MTdvo8mGNZjWw5oMteQbeW6SJg/YDsd1kBhp11V1FwBDgkqTpmyZeWAo4YxvqtbyDA2D6rWxKd13gLLWm6xtAy2Fn4RMLAEssJ/8LQlRqyiJyCDCsbXbVbyn1HNcq95U9aflBKdh1SZQ5nOtakdmQ9A8QAwDLK0l0c8JJ5fQ41M3RmiRuA"
@@ -69,32 +69,32 @@ ingress:
     # kubernetes.io/ingress.class: nginx
     # kubernetes.io/tls-acme: "true"
   hosts:
-    - host: test-front.whitefalcon.io
+    - host: test-front.diycdn.org
       paths:
         - path: /
           pathType: ImplementationSpecific
 #          serviceName: wf-api-svc-test
           serviceName: wf-front-svc-test
           servicePort: 80
-    - host: test.whitefalcon.io
+    - host: test.diycdn.org
       paths:
         - path: /
           pathType: ImplementationSpecific
           serviceName: wf-front-svc-test
           servicePort: 80
-    - host: test2.whitefalcon.io
+    - host: test2.diycdn.org
       paths:
         - path: /
           pathType: ImplementationSpecific
           serviceName: wf-front-svc-test
           servicePort: 80
-    - host: front.test2.whitefalcon.io
+    - host: front.test2.diycdn.org
       paths:
         - path: /
           pathType: ImplementationSpecific
           serviceName: wf-front-svc-test
           servicePort: 80
-    - host: front.test.whitefalcon.io
+    - host: front.test.diycdn.org
       paths:
         - path: /
           pathType: ImplementationSpecific
