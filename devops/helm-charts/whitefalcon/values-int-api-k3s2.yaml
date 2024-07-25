@@ -4,16 +4,16 @@ app:
     version: 0.1.1
     description: 'A Helm chart for Kubernetes'
     keywords: [helm, chart, kubernetes]
-    namespace: prod
+    namespace: int
     dns_resolver: 10.43.0.10
     primary_dns_resolver: 10.43.0.10
     secondary_dns_resolver: 10.43.0.10
     dns_resolver_port: 53
-    api_url: 'https://api.prod.diycdn.org/api'
-    redis_host: redis-service.prod.svc.cluster.local
-    target_env: prod
+    api_url: 'https://api.int.diycdn.org/api'
+    redis_host: redis-service.int.svc.cluster.local
+    target_env: int
     target_type: api
-    front_url: 'https://front.prod.diycdn.org'
+    front_url: 'https://front.int.diycdn.org'
     sync_data_onload: false
 secure_env_file: AgARLjJsNOc2yJZfgwsRrENPp798F41hvDCozJKUiPLV6RzLG1PbXyWxPLCvOQUg9sDfuUEku7K81kCgYjWqZ/9tFRb5dShpUKZ4zXBurN/J9CnYvIJbtn96+WqzBXrL+LMYQUHzYm8EOeG+mhd0oVKGO2rPmaQaw5ZFOtzGcCSfCF071iKnhKOge+/8FnDRZ/7aPBzZ863PXeAAR6ip+KkIA4fvbX8UgXkzfGVnXxtg5YduNbfzugAwcBQYL+HXrVDDW5UC0CMTK/G5uxomRj8mVtSjcn+/FV09KROB+Yrdgx8xwPqbM78I4wchPeFzOKWdaZETA72MUQevzhqwNxqYtK8I7mVUit0RipI6z129iVrBP54MGKnk0OMLToCb7JcNtUA7ngk8i22cRDVmeX7RvWWjcHQhwY2KD5MrvLQrex3ct2TAklXdoNLUQbzMBfVuc1VIJ9cFUXuV6Pl2nLuH+rjuIkuU/UF5htoqv999O1TcS8OC0S0bGyAU1oLiXVKHwIMYuyMfk/IvRF4kDUBX/jR8qlVI4v9Z8/Ynri9uu5/6MnYeXJuWRJ2C98vi967JDu+YbkuBVJz74lvkPFXX2Y1rzvMbJQHDK6/oRGSdypw6X/frov72YCEFcQaWvD0TONE3h5qzwliy06D9jzx/2IfWfi80s6dPs+UCfraH4zQd/fqtpHtjEHP8T5aX4bsotirhS+wt9TOKWYIriNK85hGt9FEZLkM+SkiY2U9fhGORxpspgcFwuPixvbwmv3scVBxnVXWj/ckh1sn94TTgU6AB8qY3RFgdfRQrGJtdSr+82q3503nMswjNlybMjaIabHxiBzcUDr3Vuogey6wWGJd6BAhHwiGh0REsl9TztPR2PEE0gEx4oQzpz9M5Is2jS8lQ+wGoCdltOC52f7BiQGlAdtJyKZSe6dBq9oU2mXbQATzfcyUAMzA3t2eueuvphi6pSeZpje5Sl3jc2DkSNaBGS9U/BTd0KJvToMTWfFLNHIvFKACaeKz5W1cqhn6iHt9HNVItsyJ17WljHjZf95QWWVsgp98NA73v40MusQ/FxxZvDIWI31pOi4MYb4YG47dktf5y1xLktAJrz9tUadp0CxNAzF6d93MO4G9xvB9pbrYEUz+kYdT4Ciu/ysdoASXaFWO0ErTF1W+r6evkh6Q6XvJCoNyznqL5xf8Kr4HaMhobxOmDs71E+XK4kf85fI8Vmg==
 image:
@@ -42,8 +42,8 @@ ingress:
     enabled: true
     className: traefik
     annotations: { cert-manager.io/cluster-issuer: letsencrypt-production, kubernetes.io/ingress.class: traefik }
-    hosts: [{ host: api.prod.diycdn.org, paths: [{ path: /, pathType: ImplementationSpecific, serviceName: wf-api-svc-prod, servicePort: 8080 }] }]
-    tls: [{ secretName: api-prod-tls-secret, hosts: [api.prod.diycdn.org] }]
+    hosts: [{ host: api.int.diycdn.org, paths: [{ path: /, pathType: ImplementationSpecific, serviceName: wf-api-svc-int, servicePort: 8080 }] }]
+    tls: [{ secretName: api-int-tls-secret, hosts: [api.int.diycdn.org] }]
 resources: {  }
 autoscaling:
     enabled: false

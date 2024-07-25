@@ -4,16 +4,16 @@ app:
     version: 0.1.1
     description: 'A Helm chart for Kubernetes'
     keywords: [helm, chart, kubernetes]
-    namespace: prod
+    namespace: int
     dns_resolver: 10.43.0.10
     primary_dns_resolver: 10.43.0.10
     secondary_dns_resolver: 10.43.0.10
     dns_resolver_port: 53
-    api_url: 'https://api.prod.diycdn.org/api'
-    redis_host: redis-service.prod.svc.cluster.local
-    target_env: prod
+    api_url: 'https://api.int.diycdn.org/api'
+    redis_host: redis-service.int.svc.cluster.local
+    target_env: int
     target_type: front
-    front_url: 'https://front.prod.diycdn.org'
+    front_url: 'https://front.int.diycdn.org'
     sync_data_onload: false
 secure_env_file: AgBLA0XdfWGGP4sTZl4K2cTCzZ8YQZG/svT/elRwkf1qsjB+H/Ks/JbY4p3ZCrIhAyoyVwHnVyC9UOFfWZuR7meA5pzXT5gT7mZXvUpp8mrJmiL2LWg8apKGs2i+WBPsc/US5KN23LT70Ou9JThMK3U26GVIJniPDACKZ3mHxhbNjA1AtplE8SMOrKzcE/6dcww1Qpm0BHZ91MoTt0MjFeVTpWdYJce19XdzEsuLnoawsMSPkPIUmNmclVqyqGKsSaiwCNlO4/YoJRbcvsmjYKAqhXxpXD7I9v/euhel62seu7XiQKnYfOIwh4D90thPk1c08/Brz3zR7xfEFEMkTjhCvgNCAQwLA/to4y4wuTtqX7n4SnHh8AkPFmjJjDMo4voZFsSNIOzxClEKNyd2DV/8yDUKXGZ57hhzaK9pMLto8AAzhtJ7aGzwVW5277kSFK12JTieJNFnBNQI0IEJe3d2k2IMidclzTSwxrMT4QTfNOdqVfG3YFqkK1aGlO/cdyn+3KFTIBmOsajXoM07BHCnPfh7Kd7XPHp9XP/SjgI3vTRai4buzAM40SeikPqcyESsuPdVoasKsX8s2RhZsr+1qjle2IUoxcZDfSf9m3XXK/1jsU8ZTtG+TL0lbF5E7LXWFGT9mOCNjr/Ie2sbGA2NiH9wGhWXXCjHM0Z4osLrrK9bqArlNP7L+XmLFEQJKE+G+MWQCcrx0wmcFzOrsZDWr+zUFf+zi4Tzcn/HBXFDufZMw9eb/btKFxaxtcD6bqe9xmIZuCfXW7jIlT2G6rSJX/fUgxbfSethku3CjkA9Za7HRFRE/M3OeN3sf/9IQnoXsNBXuZ8b94542LBDn+NDaydU4RvnO143pQc7oIjVIUyknZpj5UDqEqihKHrwlxA3sT70P+P0AkHuU0uNajNIh4wMH7881nNiyWtQ8JTrudkbXf64EE71F/OfTnJJ1XQx5xlUlBEu1eEB9b7aJIJw9i6gL3yzGQZYiP1EextH1C2DMm2K4ptKEqnnfo4C6d1lagPHIKNsfWrgSs5aYPvvsSGHjx9yB74mQLnWo5rK4GggWdNNmX6ZSMBQ0/ywazbuDQhOGG3BgZoMrk/IAZpULWA4r1nZr4iOgI+edIraQ9huRUz8V9BDJkodYeqVNsR7+2JTTc8h6zWzFbWEn+3PZ2u9/F1ptSBBSkm1MBOG1kWrE7DOeZKD0UTZKkziR839py/Ygg==
 image:
@@ -42,8 +42,8 @@ ingress:
     enabled: true
     className: traefik
     annotations: { cert-manager.io/cluster-issuer: letsencrypt-production, kubernetes.io/ingress.class: traefik }
-    hosts: [{ host: front.prod.diycdn.org, paths: [{ path: /, pathType: ImplementationSpecific, serviceName: wf-front-svc-prod, servicePort: 80 }] }, { host: prod.diycdn.org, paths: [{ path: /, pathType: ImplementationSpecific, serviceName: wf-front-svc-prod, servicePort: 80 }] }, { host: qa.prod.diycdn.org, paths: [{ path: /, pathType: ImplementationSpecific, serviceName: wf-front-svc-prod, servicePort: 80 }] }, { host: www.prod.workstationcrm.com, paths: [{ path: /, pathType: ImplementationSpecific, serviceName: wf-front-svc-prod, servicePort: 80 }] }, { host: prod.workstation.co.uk, paths: [{ path: /, pathType: ImplementationSpecific, serviceName: wf-front-svc-prod, servicePort: 80 }] }, { host: prod.odincm.com, paths: [{ path: /, pathType: ImplementationSpecific, serviceName: wf-front-svc-prod, servicePort: 80 }] }, { host: nodeapp.prod.diycdn.org, paths: [{ path: /, pathType: ImplementationSpecific, serviceName: wf-front-svc-prod, servicePort: 80 }] }]
-    tls: [{ secretName: nodeapp-prod-tls-secret, hosts: [nodeapp.prod.diycdn.org] }, { secretName: odincm-prod-tls-secret, hosts: [prod.odincm.com] }, { secretName: wsw-prod-tls-secret, hosts: [prod.workstation.co.uk] }, { secretName: wsl-prod-tls-secret, hosts: [www.prod.workstationcrm.com] }, { secretName: wf-qa-prod-tls-secret, hosts: [qa.prod.diycdn.org] }, { secretName: wf-prod-tls-secret, hosts: [prod.diycdn.org] }, { secretName: wf-front-prod-tls-secret, hosts: [front.prod.diycdn.org] }]
+    hosts: [{ host: front.int.diycdn.org, paths: [{ path: /, pathType: ImplementationSpecific, serviceName: wf-front-svc-int, servicePort: 80 }] }, { host: int.diycdn.org, paths: [{ path: /, pathType: ImplementationSpecific, serviceName: wf-front-svc-int, servicePort: 80 }] }, { host: qa.int.diycdn.org, paths: [{ path: /, pathType: ImplementationSpecific, serviceName: wf-front-svc-int, servicePort: 80 }] }, { host: www.int.workstationcrm.com, paths: [{ path: /, pathType: ImplementationSpecific, serviceName: wf-front-svc-int, servicePort: 80 }] }, { host: int.workstation.co.uk, paths: [{ path: /, pathType: ImplementationSpecific, serviceName: wf-front-svc-int, servicePort: 80 }] }, { host: int.odincm.com, paths: [{ path: /, pathType: ImplementationSpecific, serviceName: wf-front-svc-int, servicePort: 80 }] }, { host: nodeapp.int.diycdn.org, paths: [{ path: /, pathType: ImplementationSpecific, serviceName: wf-front-svc-int, servicePort: 80 }] }]
+    tls: [{ secretName: nodeapp-int-tls-secret, hosts: [nodeapp.int.diycdn.org] }, { secretName: odincm-int-tls-secret, hosts: [int.odincm.com] }, { secretName: wsw-int-tls-secret, hosts: [int.workstation.co.uk] }, { secretName: wsl-int-tls-secret, hosts: [www.int.workstationcrm.com] }, { secretName: wf-qa-int-tls-secret, hosts: [qa.int.diycdn.org] }, { secretName: wf-int-tls-secret, hosts: [int.diycdn.org] }, { secretName: wf-front-int-tls-secret, hosts: [front.int.diycdn.org] }]
 resources: {  }
 autoscaling:
     enabled: false
