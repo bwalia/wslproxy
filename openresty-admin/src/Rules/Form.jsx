@@ -530,6 +530,24 @@ const Form = () => {
         </Grid>
 
         <Grid item xs={12}>
+          <FormDataConsumer>
+            {({ formData, ...rest }) => (
+              <React.Fragment>
+                {formData?.match?.response?.is_consul && (
+                  <TextInput
+                    source="match.response.consul_domain_name"
+                    label="Consul Domain Name"
+                    fullWidth
+                    validate={[required()]}
+                    className="matchResponseConsulDomainName"
+                  />
+                )}
+              </React.Fragment>
+            )}
+          </FormDataConsumer>
+        </Grid>
+
+        <Grid item xs={12}>
           <TextInput
             multiline
             source="match.response.message"
