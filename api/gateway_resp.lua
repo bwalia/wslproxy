@@ -78,9 +78,9 @@ elseif selectedRule.statusCode == 305 then
             local dnsServerPort = settings.consul.dns_server_port
             if dnsServerHost ~= nil then
                 local tIp, tPort = Dns.access(selectedRule, dnsServerHost, dnsServerPort)
-                selectedRule.redirectUri = tIp
-                extractedPort = tPort
                 if isIpAddress(tIp) then
+                    selectedRule.redirectUri = tIp
+                    extractedPort = tPort
                     continueDnsResolve = false
                 end
             end
