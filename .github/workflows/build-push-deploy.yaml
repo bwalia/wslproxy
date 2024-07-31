@@ -189,7 +189,7 @@ jobs:
             export API_PING_URL="https://api.acc.diycdn.org/ping"
 
           elif [ "${{ env.TARGET_ENV }}" == "prod" ]; then
-            export API_PING_URL="https://api.diycdn.org/ping" 
+            export API_PING_URL="https://api.prod.diycdn.org/ping" 
 
           elif [ "${{ env.TARGET_ENV }}" == "" ]; then
             export API_PING_URL="https://api.int.diycdn.org/ping"                       
