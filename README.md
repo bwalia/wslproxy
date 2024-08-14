@@ -19,6 +19,11 @@ yarn
 sudo ./deploy-to-docker.sh "dev" "whitefalcon" "$JWT_TOKEN" && ./show.sh
 ```
 
+# Run the docker example on windows: to build dev environment (make sure you have git bash installed)
+```
+bash ./deploy-to-docker-windows.sh "dev" "whitefalcon" "$JWT_TOKEN"
+```
+
 # To purely build docker image and run locally
 ```
 ./build.sh "dev" "whitefalcon" "$JWT_TOKEN"
