@@ -1,9 +1,7 @@
 local http = require "resty.http"
 local jwt = require "resty.jwt"
 local cjson = require "cjson"
-Hostname = os.getenv("HOST")
-local apiUrl = os.getenv("API_URL")
-local configPath = os.getenv("NGINX_CONFIG_DIR")
+local configPath = os.getenv("NGINX_CONFIG_DIR") or "/opt/nginx/"
 local lfs = require("lfs")
 
 local _R = {}
@@ -20,9 +18,11 @@ local function getSettings()
     end
     return settings
 end
-
+local settings = getSettings()
+Hostname = settings.env_vars.HOSTNAME or os.getenv("HOST")
+local apiUrl = settings.env_vars.API_URL or os.getenv("API_URL")
 local function generateToken()
-    local passPhrase = os.getenv("JWT_SECURITY_PASSPHRASE")
+    local passPhrase = settings.env_vars.JWT_SECURITY_PASSPHRASE or os.getenv("JWT_SECURITY_PASSPHRASE")
     return jwt:sign(passPhrase, {
         header = {
             typ = "JWT",
@@ -175,13 +175,15 @@ end
 -- Function to remove all files inside a directory
 local function deleteFilesInDirectory(directory)
     local handle = io.popen("ls " .. directory)
-    local files = handle:read("*a")
-    handle:close()
-
-    for file in files:gmatch("[^\r\n]+") do
-        local filepath = directory .. "/" .. file
-        os.remove(filepath)
+    if handle then
+        local files = handle:read("*a")
+        handle:close()
+        for file in files:gmatch("[^\r\n]+") do
+            local filepath = directory .. "/" .. file
+            os.remove(filepath)
+        end
     end
+
 end
 
 local function runShellScript(script)
@@ -190,8 +192,8 @@ local function runShellScript(script)
     return result
 end
 
-function syncRulesAPI(args)
-    local apiPageSize = os.getenv("API_PAGE_SIZE")
+function SyncRulesAPI(args)
+    local apiPageSize = settings.env_vars.API_PAGE_SIZE or os.getenv("API_PAGE_SIZE")
     local apiTotalPages = 1
     local profileName = args.envprofile
     apiPageSize = (apiPageSize == nil or apiPageSize == "") and 100 or apiPageSize
@@ -233,8 +235,8 @@ function syncRulesAPI(args)
     }))
 end
 
-function syncServersAPI(args)
-    local apiPageSize = os.getenv("API_PAGE_SIZE")
+function SyncServersAPI(args)
+    local apiPageSize = settings.env_vars.API_PAGE_SIZE or os.getenv("API_PAGE_SIZE")
     local apiTotalPages = 1
     local profileName = args.envprofile
     apiPageSize = (apiPageSize == nil or apiPageSize == "") and 100 or apiPageSize
@@ -286,7 +288,7 @@ function syncServersAPI(args)
     }))
 end
 
-function syncSettings()
+function SyncSettings()
     local httpc = http.new()
     local allDataTotal = 0
     local settingsObj, settingsErr = httpc:request_uri(apiUrl .. "/global/settings", {
@@ -302,7 +304,7 @@ function syncSettings()
         setDataToFile(configPath .. "data/settings.json", settings)
         return ngx.say(cjson.encode({
             data = {
-                settings = settings
+                settings = "settings are synced"
             }
         }))
     end
@@ -310,6 +312,6 @@ end
 
 local args = ngx.req.get_uri_args()
 
-syncSettings()
-syncRulesAPI(args)
-syncServersAPI(args)
+SyncSettings()
+SyncRulesAPI(args)
+SyncServersAPI(args)
