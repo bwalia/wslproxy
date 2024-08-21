@@ -1,7 +1,6 @@
 local cjson = require("cjson")
 local lfs = require("lfs")
-local configPath = os.getenv("NGINX_CONFIG_DIR")
-local developmentTime = os.getenv("VITE_DEPLOYMENT_TIME")
+local configPath = os.getenv("NGINX_CONFIG_DIR1") or "/opt/nginx/"
 local http = require "resty.http"
 -- functions
 
@@ -17,7 +16,7 @@ function os.capture(cmd, raw) -- this function cannot be local
 end
 
 local function shell_exec_output(cmd)
-    result = os.capture(cmd)
+    local result = os.capture(cmd)
     return result
 end
 
@@ -35,6 +34,20 @@ local function getSettings()
 end
 
 local settings = getSettings()
+
+local redisHost = settings.env_vars.REDIS_HOST or os.getenv("REDIS_HOST")
+local redisEndPort = settings.env_vars.REDIS_PORT or os.getenv("REDIS_PORT")
+local developmentTime = settings.env_vars.VITE_DEPLOYMENT_TIME or os.getenv("VITE_DEPLOYMENT_TIME")
+local primaryNameserver = settings.dns_resolver.nameservers.primary or os.getenv("PRIMARY_DNS_RESOLVER")
+local secondaryNameserver = settings.dns_resolver.nameservers.secondary or os.getenv("SECONDARY_DNS_RESOLVER")
+local portNameserver = settings.dns_resolver.nameservers.port or os.getenv("DNS_RESOLVER_PORT")
+local apiUrl = settings.env_vars.API_URL or os.getenv("API_URL")
+local frontUrl = settings.env_vars.FRONT_URL or os.getenv("FRONT_URL")
+local appName = settings.env_vars.APP_NAME or os.getenv("APP_NAME")
+local appVersion = settings.env_vars.VERSION or os.getenv("VERSION")
+local appStack = settings.env_vars.STACK or os.getenv("STACK")
+local appHost = settings.env_vars.HOSTNAME or os.getenv("HOSTNAME")
+local jwtPassPhrase = settings.env_vars.JWT_SECURITY_PASSPHRASE or os.getenv("JWT_SECURITY_PASSPHRASE")
 
 local function calculateDateDifference(dateString1, dateString2)
     if dateString1 ~= nil and dateString2 ~= nil then
@@ -67,63 +80,33 @@ local function calculateDateDifference(dateString1, dateString2)
     end
 end
 
--- functions
-
-local redis = require "resty.redis"
-local red = redis:new()
-red:set_timeouts(1000, 1000, 1000) -- 1 sec
-
-local redisHost = os.getenv("REDIS_HOST")
-local redisEndPort = os.getenv("REDIS_PORT")
-
-if redisHost == nil then
-    redisHost = "localhost"
-end
-
-if redisEndPort == nil then
-    redisEndPort = 6379
-end
-
-local db_connect_status = "err"
-local ok, err = red:connect(redisHost, redisEndPort)
-local storageTypeOverride = os.getenv("STORAGE_TYPE")
-if ok then
-    db_connect_status = "pong"
-    db_status_msg = "OK"
-else
-    ngx.say("failed to connect to " .. redisHost .. ": ", err)
-    db_connect_status = "err"
-    db_status_msg = err
-end
-
-if storageTypeOverride == nil or storageTypeOverride == "" then
-    storageTypeOverride = settings.storage_type
+local db_connect_status, db_status_msg = "disk", "No Database Selected"
+local storageTypeOverride = settings.storage_type or os.getenv("STORAGE_TYPE")
+if settings.storage_type == "redis" then
+    local redis = require "resty.redis"
+    local red = redis:new()
+    red:set_timeouts(1000, 1000, 1000) -- 1 sec
+    if redisHost == nil then
+        redisHost = "localhost"
+    end
+    
+    if redisEndPort == nil then
+        redisEndPort = 6379
+    end
+    
+    local ok, err = red:connect(redisHost, redisEndPort)
+    if ok then
+        db_connect_status = "pong"
+        db_status_msg = "OK"
+    else
+        ngx.say("failed to connect to " .. redisHost .. ": ", err)
+        db_connect_status = "err"
+        db_status_msg = err
+    end
 end
 
 local diffInDays = calculateDateDifference(developmentTime, os.date("%Y%m%d%H%M%S"))
 local json_str
-
-local primaryNameserver = os.getenv("PRIMARY_DNS_RESOLVER")
-if (primaryNameserver == nil or primaryNameserver == "") and not (settings == nil or settings.dns_resolver == nil) then
-    primaryNameserver = settings.dns_resolver.nameservers.primary
-end
-if primaryNameserver == nil or primaryNameserver == "" then
-    primaryNameserver = "1.1.1.1"
-end
-local secondaryNameserver = os.getenv("SECONDARY_DNS_RESOLVER")
-if (secondaryNameserver == nil or secondaryNameserver == "") and not (settings == nil or settings.dns_resolver == nil) then
-    secondaryNameserver = settings.dns_resolver.nameservers.secondary
-end
-if secondaryNameserver == nil or secondaryNameserver == "" then
-    secondaryNameserver = "8.8.8.8"
-end
-local portNameserver = os.getenv("DNS_RESOLVER_PORT")
-if (portNameserver == nil or portNameserver == "") and not (settings == nil or settings.dns_resolver == nil) then
-    portNameserver = settings.dns_resolver.nameservers.port
-end
-if portNameserver == nil or portNameserver == "" then
-    portNameserver = "53"
-end
 
 local function readFile(filePath)
     local file = io.open(filePath, "r")  -- Open the file in read mode
@@ -166,7 +149,9 @@ local function check_api_status(url, target)
     end
    return res
 end
-local apiResApi = check_api_status(os.getenv("API_URL"), "api")
+
+
+local apiResApi = check_api_status(apiUrl, "api")
 if apiResApi ~= nil and apiResApi.status >= 500 and apiResApi.status < 600 then
     ngx.say("Server error For API_URL. Status code: " .. tostring(apiResApi.status))
     ngx.exit(ngx.HTTP_SERVICE_UNAVAILABLE)
@@ -178,17 +163,17 @@ local frontEnvContent = readFile(frontFilePath)
 frontEnvContent = parseEnvString(frontEnvContent)
 
 if frontEnvContent.VITE_TARGET_PLATFORM ~= "DOCKER" then
-    local apiResFront = check_api_status(os.getenv("FRONT_URL"), "front")
+    local apiResFront = check_api_status(frontUrl, "front")
     if apiResFront ~= nil and apiResFront.status >= 500 and apiResFront.status < 600 then
         ngx.say("Server error for FRONT_URL. Status code: " .. tostring(apiResFront.status))
         ngx.exit(ngx.HTTP_SERVICE_UNAVAILABLE)
     end
 end
 local data = {
-    app = os.getenv("APP_NAME"),
-    version = os.getenv("VERSION"),
-    stack = os.getenv("STACK"),
-    hostname = os.getenv("HOSTNAME"),
+    app = appName,
+    version = appVersion,
+    stack = appStack,
+    hostname = appHost,
     response = "pong",
     deployment_time = developmentTime,
     redis_host = redisHost,
@@ -202,13 +187,13 @@ local data = {
     dns_server_port = portNameserver,
     swagger_url = ngx.var.scheme.."://".. ngx.var.http_host .. "/swagger/",
     mendatory_env_vars_backend = {
-        NGINX_CONFIG_DIR = os.getenv("NGINX_CONFIG_DIR") and "Found" or "Not Found",
-        JWT_SECURITY_PASSPHRASE = os.getenv("JWT_SECURITY_PASSPHRASE") and "Found" or "Not Found",
-        PRIMARY_DNS_RESOLVER = os.getenv("PRIMARY_DNS_RESOLVER") and "Found" or "Not Found",
-        SECONDARY_DNS_RESOLVER = os.getenv("SECONDARY_DNS_RESOLVER") and "Found" or "Not Found",
-        DNS_RESOLVER_PORT = os.getenv("DNS_RESOLVER_PORT") and "Found" or "Not Found",
-        FRONT_URL = os.getenv("FRONT_URL") and os.getenv("FRONT_URL") or "Not Found",
-        API_URL = os.getenv("API_URL") and os.getenv("API_URL") or "Not Found",
+        NGINX_CONFIG_DIR = configPath and "Found" or "Not Found",
+        JWT_SECURITY_PASSPHRASE = jwtPassPhrase and "Found" or "Not Found",
+        PRIMARY_DNS_RESOLVER = primaryNameserver and "Found" or "Not Found",
+        SECONDARY_DNS_RESOLVER = secondaryNameserver and "Found" or "Not Found",
+        DNS_RESOLVER_PORT = portNameserver and "Found" or "Not Found",
+        FRONT_URL = frontUrl or "Not Found",
+        API_URL = apiUrl or "Not Found",
     },
     mendatory_env_vars_frontend = {
         VITE_JWT_SECURITY_PASSPHRASE = frontEnvContent.VITE_JWT_SECURITY_PASSPHRASE and "Found" or "Not Found",

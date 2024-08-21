@@ -1,17 +1,21 @@
-cjson = require("cjson")
-require "resty.session".init({
-  remember = true,
-  audience = "whitefalcon",
-  storage  = "redis",
-  redis = {
-    host = os.getenv("REDIS_HOST"),
-    port = os.getenv("REDIS_PORT"),
-  }
-})
+local cjson = require("cjson")
+local configPath = os.getenv("NGINX_CONFIG_DIR1") or "/opt/nginx/"
 
-local redisHost = os.getenv("REDIS_HOST")
-local redisEndPort = os.getenv("REDIS_PORT")
-
+local function getSettings()
+  local readSettings, errSettings = io.open(configPath .. "data/settings.json", "rb")
+  local settings = {}
+  if readSettings == nil then
+      ngx.say("Couldn't read file: " .. errSettings)
+  else
+      local jsonString = readSettings:read "*a"
+      readSettings:close()
+      settings = cjson.decode(jsonString)
+  end
+  return settings
+end
+local settings = getSettings()
+local redisHost = settings.env_vars.REDIS_HOST or os.getenv("REDIS_HOST")
+local redisEndPort = settings.env_vars.REDIS_PORT or os.getenv("REDIS_PORT")
 if redisHost == nil then
   redisHost = "localhost"
 end
@@ -20,7 +24,17 @@ if redisEndPort ~= nil then
   redisEndPort = 6379
 end
 
-auto_ssl = (require "resty.auto-ssl").new()
+require "resty.session".init({
+  remember = true,
+  audience = "whitefalcon",
+  storage  = "redis",
+  redis = {
+    host = redisHost,
+    port = redisEndPort,
+  }
+})
+
+local auto_ssl = (require "resty.auto-ssl").new()
 
 auto_ssl:set("allow_domain", function(domain)
 
@@ -108,7 +122,7 @@ end)
 
     auto_ssl:set("storage_adapter", "resty.auto-ssl.storage_adapters.redis")
     auto_ssl:set("redis", {
-    host = os.getenv("REDIS_HOST")
+    host = redisHost
 --    socket = "unix:/var/run/redis/redis.sock"
     })
 

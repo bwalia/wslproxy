@@ -1,11 +1,8 @@
 local cjson = require "cjson"
 local jwt = require "resty.jwt"
-local redis = require "resty.redis"
-local red = redis:new()
 Base64 = require "base64"
-red:set_timeout(1000) -- 1 second
-local configPath = os.getenv("NGINX_CONFIG_DIR")
-local storageTypeOverride = os.getenv("STORAGE_TYPE")
+local configPath = os.getenv("NGINX_CONFIG_DIR1") or "/opt/nginx/"
+
 ngx.header["Access-Control-Allow-Origin"] = "*"
 local lfs = require("lfs")
 
@@ -22,16 +19,24 @@ local function getSettings()
     return settings
 end
 
-local redisHost = os.getenv("REDIS_HOST")
 local settings = getSettings()
+local storageTypeOverride = settings.settings or os.getenv("STORAGE_TYPE")
+local red = {}
 
-if redisHost == nil then
-    redisHost = "localhost"
-end
-
-local ok, err = red:connect(redisHost, 6379)
-if not ok then
-    ngx.log(ngx.ERR, "failed to connect to Redis: ", err)
+if settings.storage_type == "redis" then
+    local redis = require "resty.redis"
+    red = redis:new()
+    red:set_timeout(1000)
+    
+    local redisHost = settings.env_vars.REDIS_HOST or os.getenv("REDIS_HOST")
+    if redisHost == nil then
+        redisHost = "localhost"
+    end
+    
+    local ok, err = red:connect(redisHost, 6379)
+    if not ok then
+        ngx.log(ngx.ERR, "failed to connect to Redis: ", err)
+    end
 end
 
 local function sortAsc(field)
@@ -91,7 +96,7 @@ local function hash_password(password)
 end
 
 local function generateToken()
-    local passPhrase = os.getenv("JWT_SECURITY_PASSPHRASE")
+    local passPhrase = settings.env_vars.JWT_SECURITY_PASSPHRASE or os.getenv("JWT_SECURITY_PASSPHRASE")
     return jwt:sign(passPhrase, {
         header = {
             typ = "JWT",
@@ -1245,8 +1250,9 @@ local function listSessions(args)
     local params = args
     params = params.params
     local allsessions, sessions = {}, {}
-    local exist_values, err = red:scan(0, "match", "session:*") -- red:keys("session:*")
     local records = {}
+    if settings.storage_type == "redis" then
+    local exist_values, err = red:scan(0, "match", "session:*") -- red:keys("session:*")
     if exist_values[2] ~= nil then
         for key, value in pairs(exist_values[2]) do
             -- if key % 2 == 0 then
@@ -1259,6 +1265,7 @@ local function listSessions(args)
             })
             -- end
         end
+    end
     end
     local getAllRecords = records
     if type(getAllRecords) == "string" then

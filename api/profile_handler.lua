@@ -1,5 +1,5 @@
 local cjson = require("cjson")
-local configPath = os.getenv("NGINX_CONFIG_DIR")
+local configPath = os.getenv("NGINX_CONFIG_DIR") or "/opt/nginx/"
 local function getPayloads(body)
     local keyset = {}
     local n = 0

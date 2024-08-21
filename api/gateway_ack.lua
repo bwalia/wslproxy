@@ -15,13 +15,7 @@ local cjson = require "cjson"
 local jwt = require "resty.jwt"
 Base64 = require "base64"
 Hostname = ngx.var.host
-local configPath = os.getenv("NGINX_CONFIG_DIR")
-
-local redisHost = os.getenv("REDIS_HOST")
-
-if redisHost == nil then
-    redisHost = "localhost"
-end
+local configPath = os.getenv("NGINX_CONFIG_DIR") or "/opt/nginx/"
 
 local isItDTAPEnvironment = function(pHostnameStr)
     --return true
