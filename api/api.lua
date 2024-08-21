@@ -483,26 +483,33 @@ local function listFromDisk(directory, pageSize, pageNumber, qParams)
     local files = {}
     -- Run the 'ls' command to get a list of filenames
     local output, error = io.popen("ls " .. configPath .. "data/" .. directory .. ""):read("*all")
-
     for filename in string.gmatch(output, "[^\r\n]+") do
         table.insert(files, filename)
     end
 
     local jsonData = {}
     for _, filename in ipairs(files) do
-        local file, err = io.open(configPath .. "data/" .. directory .. "/" .. filename, "rb")
-        if file == nil then
-            -- ngx.say("Couldn't read file: " .. err)
-            return ngx.say(cjson.encode({
-                data = {},
-                total = 0
-            }))
-        else
-            local jsonString = file:read "*a"
-            file:close()
-            local data = cjson.decode(jsonString)
-
-            jsonData[_] = data
+        local filePath = configPath .. "data/" .. directory .. "/" .. filename
+        local fileAttr = lfs.attributes(filePath)
+        if fileAttr then
+            if fileAttr.mode == "file" then
+                local file, fileErr = io.open(filePath, "rb")
+                if file == nil then
+                    return ngx.say(cjson.encode({
+                        data = {},
+                        total = 0
+                    }))
+                else
+                    local jsonString = file:read "*a"
+                    file:close()
+                    local data = nil
+                    if jsonString and jsonString ~= "" then
+                        data = cjson.decode(jsonString)
+                    end
+        
+                    jsonData[_] = data
+                end
+            end
         end
     end
     local data, count = listPaginationLocal(jsonData, pageSize, pageNumber, qParams)
