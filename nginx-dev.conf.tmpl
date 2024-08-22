@@ -127,8 +127,26 @@ http {
                         return ngx.exit(ngx.HTTP_UNAUTHORIZED)
                     end
                     token = string.gsub(token, "^Bearer ", "")
-                    -- ngx.say(token)
-                    local passPhrase = os.getenv("JWT_SECURITY_PASSPHRASE")
+                    local function getSettings()
+                      local configPath = os.getenv("NGINX_CONFIG_DIR") or "/opt/nginx/"
+                      local readSettings, errSettings = io.open(configPath .. "data/settings.json", "rb")
+                      local settings = {}
+                      if readSettings == nil then
+                          ngx.say("Couldn't read file: " .. errSettings)
+                      else
+                          local jsonString = readSettings:read "*a"
+                          readSettings:close()
+                          settings = cjson.decode(jsonString)
+                      end
+                      return settings
+                    end
+                    local settings = getSettings()
+                    local passPhrase = settings.env_vars.JWT_SECURITY_PASSPHRASE or os.getenv("JWT_SECURITY_PASSPHRASE")
+                    if not passPhrase or passPhrase == "" then
+                      ngx.status = ngx.HTTP_UNAUTHORIZED
+                      ngx.say(cjson.encode({data = {message = "JWT Pass Phrase is missing"}}))
+                      return ngx.exit(ngx.HTTP_UNAUTHORIZED)
+                    end
                     local verified_token = jwt:verify(passPhrase, token)
                     if verified_token.verified == false then
                         ngx.status = ngx.HTTP_UNAUTHORIZED

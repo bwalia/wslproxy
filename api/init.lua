@@ -1,5 +1,5 @@
 local cjson = require("cjson")
-local configPath = os.getenv("NGINX_CONFIG_DIR1") or "/opt/nginx/"
+local configPath = os.getenv("NGINX_CONFIG_DIR") or "/opt/nginx/"
 
 local function getSettings()
   local readSettings, errSettings = io.open(configPath .. "data/settings.json", "rb")

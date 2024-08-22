@@ -1,6 +1,6 @@
 local cjson = require("cjson")
 local lfs = require("lfs")
-local configPath = os.getenv("NGINX_CONFIG_DIR1") or "/opt/nginx/"
+local configPath = os.getenv("NGINX_CONFIG_DIR") or "/opt/nginx/"
 local http = require "resty.http"
 -- functions
 
