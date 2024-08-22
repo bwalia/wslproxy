@@ -134,11 +134,23 @@ local function cleanString(input)
     return output
 end
 
+local function createDirectoryRecursive(path)
+    return lfs.mkdir(path)
+end
+
+local function isDir(path)
+    return lfs.attributes(path, "mode") == "directory"
+end
+
 local function setDataToFile(path, value, dir, fileType)
     -- Check if the directory exists
     if not isDirectoryExists(dir) then
         -- Directory doesn't exist, so create it
-        local success, errorMsg = lfs.mkdir(dir)
+        local parent = dir:match("^(.*)/[^/]+/?$")
+        if parent and not isDir(parent) then
+            createDirectoryRecursive(parent)  -- Recursively create parent directories
+        end
+        local success, errorMsg = createDirectoryRecursive(dir)
         if errorMsg ~= nil then
             ngx.status = ngx.HTTP_BAD_REQUEST
             ngx.say(cjson.encode({
@@ -1357,7 +1369,12 @@ end
 local function handleUpdateCreateProfiles(body, uuid)
     local successCreation, errorCreation = nil, nil
     if uuid == nil then
-        successCreation, errorCreation = lfs.mkdir(configPath .. "data/rules/" .. body.name)
+        local folderPath = configPath .. "data/rules/" .. body.name
+        local parent = folderPath:match("^(.*)/[^/]+/?$")
+        if parent and not isDir(parent) then
+            createDirectoryRecursive(parent)  -- Recursively create parent directories
+        end
+        successCreation, errorCreation = createDirectoryRecursive(folderPath)
     elseif uuid ~= nil then
         local oldPath, newPath = configPath .. "data/rules/" .. uuid, configPath .. "data/rules/" .. body.name
         -- Rename the directory using the shell command
@@ -1369,20 +1386,24 @@ end
 
 local function listDirectories(path, pageSize, pageNumber, qParams)
     local directories = {}
-
-    for dir in lfs.dir(path) do
-        if dir ~= "." and dir ~= ".." then
-            local dirPath = path .. "/" .. dir
-            local attr = lfs.attributes(dirPath)
-
-            if attr and attr.mode == "directory" then
-                local createdAt = os.date("%Y-%m-%d %H:%M:%S", attr.change)
-                table.insert(directories, { id = tostring(dir), name = dir, createdAt = createdAt })
+    local pathAttr = lfs.attributes(path)
+    if pathAttr ~= nil and pathAttr.mode == "directory" then
+        for dir in lfs.dir(path) do
+            if dir ~= "." and dir ~= ".." then
+                local dirPath = path .. "/" .. dir
+                local attr = lfs.attributes(dirPath)
+    
+                if attr and attr.mode == "directory" then
+                    local createdAt = os.date("%Y-%m-%d %H:%M:%S", attr.change)
+                    table.insert(directories, { id = tostring(dir), name = dir, createdAt = createdAt })
+                end
             end
         end
+        local data, count = listPaginationLocal(directories, pageSize, pageNumber, qParams)
+        return data, count
+    else 
+        return {}, 0
     end
-    local data, count = listPaginationLocal(directories, pageSize, pageNumber, qParams)
-    return data, count
 end
 
 local function listProfiles(args)
