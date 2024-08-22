@@ -1,7 +1,7 @@
 local cjson = require "cjson"
 local jwt = require "resty.jwt"
 Base64 = require "base64"
-local configPath = os.getenv("NGINX_CONFIG_DIR1") or "/opt/nginx/"
+local configPath = os.getenv("NGINX_CONFIG_DIR") or "/opt/nginx/"
 
 ngx.header["Access-Control-Allow-Origin"] = "*"
 local lfs = require("lfs")
