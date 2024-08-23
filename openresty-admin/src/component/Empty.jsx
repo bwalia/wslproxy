@@ -26,7 +26,7 @@ const Empty = ({resource}) => {
             <Typography variant="body1">
                 Create one or import from a JSON file
             </Typography>
-            <CreateButton />
+            <CreateButton className="create-button"/>
             {/* <FilterButton filters={rulesFilters} /> */}
             <ImportJsonButton resource={resource} />
         </Box>
