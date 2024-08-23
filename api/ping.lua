@@ -157,6 +157,10 @@ if apiResApi ~= nil and apiResApi.status >= 500 and apiResApi.status < 600 then
     ngx.exit(ngx.HTTP_SERVICE_UNAVAILABLE)
 end
 
+local currentDir = lfs.currentdir()
+if currentDir == nil or currentDir == "/" then
+    currentDir = "/usr/local/openresty/nginx/html/openresty-admin"
+end
 
 local frontFilePath = lfs.currentdir() .. "/.env"
 local frontEnvContent = readFile(frontFilePath)
