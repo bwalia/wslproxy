@@ -4,7 +4,8 @@ import {
   TitlePortal,
   Toolbar,
   useRedirect,
-  useDataProvider
+  useDataProvider,
+  useStore
 } from "react-admin";
 import SdStorageIcon from "@mui/icons-material/SdStorage";
 import { IconButton, Tooltip, Typography } from "@mui/material";
@@ -89,14 +90,7 @@ const SettingButton = () => {
 };
 
 const AppBar = () => {
-  const dataProvider = useDataProvider();
-  const [settings, setSettings] = React.useState({})
-  React.useEffect(() => {
-    const globalSettings = dataProvider.loadSettings("global/settings", {});
-    globalSettings.then(settings => {
-      setSettings(settings.data);
-    })
-  }, [])
+  const [settings] = useStore('app.settings', {});
   return (
     <RaAppBar sx={{ background: "green" }}>
       <Toolbar

@@ -16,25 +16,24 @@ import RuleIcon from "@mui/icons-material/Rule";
 import ProfileIcon from '@mui/icons-material/RecentActors';
 import Rules from "./Rules";
 import Settings from "./Settings";
-import AppBar from "./AppBar";
 import { Puff } from 'react-loader-spinner';
 import CheckModal from "./component/CheckModal";
 import { QueryClient } from 'react-query';
+import { MyLayout } from "./Layout";
 
 const API_URL = import.meta.env.VITE_API_URL;
 const deploymentTime = import.meta.env.VITE_DEPLOYMENT_TIME
 const versionNumber = import.meta.env.VITE_APP_VERSION
 const buildNumber = import.meta.env.VITE_APP_BUILD_NUMBER
 
-export const MyLayout = (props) => <Layout {...props} appBar={AppBar} />;
 const App = () => {
   const queryClient = new QueryClient({
     defaultOptions: {
-        queries: {
-            staleTime: 1000,
-        },
+      queries: {
+        staleTime: 1000,
+      },
     },
-});
+  });
   const [isLoading] = useStore('fetch.data.loading', false)
   const [syncPopupOpen, setSyncPopupOpen] = useStore('sync.data.success', false);
   return (

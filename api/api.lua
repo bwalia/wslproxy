@@ -434,10 +434,12 @@ local function login(args)
         local password = hash_password(payloads.password)
         if suEmail == payloads.email and suPassword == password then
             ngx.status = ngx.OK
-            local session = require "resty.session".new()
-            session:set_subject("OpenResty Fan")
-            session:set("quote", "The quick brown fox jumps over the lazy dog")
-            local ok, err = session:save()
+            if settings.storage_type == "redis" then
+                local session = require "resty.session".new()
+                session:set_subject("OpenResty Fan")
+                session:set("quote", "The quick brown fox jumps over the lazy dog")
+                local ok, err = session:save()
+            end
             ngx.say(cjson.encode({
                 data = {
                     user = payloads,
@@ -1571,8 +1573,16 @@ local function handle_get_request(args, path)
         listServerConf(args)
     end
     if path == "global/settings" then
+        local settingsData = settings
+        settingsData.dns_resolver = nil
+        settingsData.env_vars = nil
+        settingsData.consul = nil
+        settingsData.super_user = nil
+        settingsData.nginx = nil
+        settingsData.redis_host = nil
+        settingsData.redis_port = nil
         ngx.say(cjson.encode({
-            data = settings
+            data = settingsData
         }))
     end
     if path == "profiles" then
