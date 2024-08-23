@@ -727,13 +727,15 @@ end
 local function createUserInDisk(payloads, uuid)
     local file, err = io.open(configPath .. "data/users.json", "rb")
     if file == nil then
-        ngx.say(cjson.encode({
-            data = {}
-        }))
-    else
+        file, err = io.open(configPath .. "data/users.json", "w")
+    end
+    if file ~= nil then
         local jsonString = file:read "*a"
         file:close()
-        local users = cjson.decode(jsonString)
+        local users = {}
+        if jsonString ~= nil and jsonString ~= "" then
+           users = cjson.decode(jsonString)
+        end
         if uuid then
             for key, value in pairs(users) do
                 if users[key]["id"] == uuid then
@@ -749,6 +751,7 @@ local function createUserInDisk(payloads, uuid)
             ngx.say(cjson.encode({
                 data = "Couldn't write file: " .. writableErr
             }))
+            ngx.exit(ngx.HTTP_OK)
         else
             writableFile:write(cjson.encode(users))
             writableFile:close()
@@ -776,8 +779,10 @@ local function listUsers(args)
             local file, err = io.open(configPath .. "data/users.json", "rb")
             if file == nil then
                 ngx.say(cjson.encode({
-                    data = {}
+                    data = {},
+                    total = 0
                 }))
+                ngx.exit(ngx.HTTP_OK)
             else
                 local jsonString = file:read "*a"
                 file:close()
@@ -803,6 +808,7 @@ local function listUsers(args)
         data = users,
         total = totalRecords
     }))
+    ngx.exit(ngx.HTTP_OK)
 end
 
 local function listUser(args, uuid)
@@ -814,6 +820,7 @@ local function listUser(args, uuid)
                 ngx.say(cjson.encode({
                     data = "Couldn't read file: " .. err
                 }))
+                ngx.exit(ngx.HTTP_OK)
             else
                 local jsonString = file:read "*a"
                 file:close()
@@ -823,6 +830,7 @@ local function listUser(args, uuid)
                         ngx.say({ cjson.encode({
                             data = value
                         }) })
+                        ngx.exit(ngx.HTTP_OK)
                     end
                 end
             end
@@ -833,18 +841,19 @@ local function listUser(args, uuid)
                 ngx.say(cjson.encode({
                     data = user
                 }))
+                ngx.exit(ngx.HTTP_OK)
             end
             if err then
                 ngx.say(cjson.encode({
                     data = err
                 }))
+                ngx.exit(ngx.HTTP_OK)
             end
         end
     end
 end
 
 local function createUpdateUser(body, uuid)
-    local settings = getSettings()
     local payloads = GetPayloads(body)
     local getUuid = uuid
     if not uuid then
@@ -860,6 +869,7 @@ local function createUpdateUser(body, uuid)
                 ngx.say(cjson.encode({
                     data = users
                 }))
+                ngx.exit(ngx.HTTP_OK)
             else
                 local redis_json = {}
                 redis_json[getUuid] = cjson.encode(payloads)
@@ -868,15 +878,24 @@ local function createUpdateUser(body, uuid)
                     ngx.say(cjson.encode({
                         data = payloads
                     }))
+                    ngx.exit(ngx.HTTP_OK)
                 end
                 if err then
                     ngx.say(cjson.encode({
                         data = err
                     }))
+                    ngx.exit(ngx.HTTP_OK)
                 end
             end
         else
-            createUserInDisk(payloads, uuid)
+            local users = createUserInDisk(payloads, uuid)
+            if settings.storage_type == "disk" then
+                ngx.say(cjson.encode({
+                    data = users
+                }))
+                ngx.exit(ngx.HTTP_OK)
+            end
+
             local redis_json = {}
             redis_json[getUuid] = cjson.encode(payloads)
             local inserted, err = red:hmset("users", redis_json)
@@ -884,11 +903,13 @@ local function createUpdateUser(body, uuid)
                 ngx.say(cjson.encode({
                     data = payloads
                 }))
+                ngx.exit(ngx.HTTP_OK)
             end
             if err then
                 ngx.say(cjson.encode({
                     data = err
                 }))
+                ngx.exit(ngx.HTTP_OK)
             end
         end
     end
@@ -900,6 +921,7 @@ local function deleteUserInDisk(uuid)
         ngx.say(cjson.encode({
             data = "Couldn't read file: " .. err
         }))
+        ngx.exit(ngx.HTTP_OK)
     else
         local jsonString = file:read "*a"
         file:close()
@@ -940,6 +962,7 @@ local function deleteUsers(args, uuid)
                     ngx.say(cjson.encode({
                         data = err
                     }))
+                    ngx.exit(ngx.HTTP_OK)
                 end
             end
         elseif payloads and payloads.ids and #payloads.ids > 0 then
@@ -959,6 +982,7 @@ local function deleteUsers(args, uuid)
                 ngx.say(cjson.encode({
                     data = "Couldn't write file: " .. writableErr
                 }))
+                ngx.exit(ngx.HTTP_OK)
             else
                 writableFile:write(cjson.encode(restUsers))
                 writableFile:close()
@@ -967,6 +991,7 @@ local function deleteUsers(args, uuid)
         ngx.say(cjson.encode({
             data = (type(restUsers) == "table" and restUsers or { restUsers })
         }))
+        ngx.exit(ngx.HTTP_OK)
     end
 end
 -- HTTP Request rules:
