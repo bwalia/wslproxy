@@ -475,22 +475,24 @@ http {
     }
 # Set default generic server vars here
 
+# global_backend
 upstream global_backend {
-server 0.0.0.1:1000 max_fails=3 fail_timeout=5s;
+  server 0.0.0.1:1000 max_fails=3 fail_timeout=5s;
 
-balancer_by_lua_block {
-local balancer = require "ngx.balancer"
-local host = ngx.var.proxy_host
-local port = ngx.var.proxy_port
-local ok, err = balancer.set_current_peer(host, port)
-if not ok then
-    ngx.log(ngx.ERR, "balancer.set_current_peer failed to set the host " .. host .. ":" .. port .. " current peer: ", err)
-    return ngx.exit(500)
-    end
-}
+  balancer_by_lua_block {
+  local balancer = require "ngx.balancer"
+  local host = ngx.var.proxy_host
+  local port = ngx.var.proxy_port
+  local ok, err = balancer.set_current_peer(host, port)
+      if not ok then
+      ngx.log(ngx.ERR, "balancer.set_current_peer failed to set the host " .. host .. ":" .. port .. " current peer: ", err)
+      return ngx.exit(500)
+      end
+  }
 
-keepalive 10; # connection pool
+  keepalive 10; # connection pool
 }
+# global_backend ends
 
 # /var/run/nginx/nginx.sock
 
@@ -542,6 +544,23 @@ server {
 
 }
 }
+
+  # Internal server running on port 8999 for handling certificate tasks.
+  server {
+    listen 8999;
+
+    # Increase the body buffer size, to ensure the internal POSTs can always
+    # parse the full POST contents into memory.
+    client_body_buffer_size 128k;
+    client_max_body_size 128k;
+
+    location / {
+      content_by_lua_block {
+        auto_ssl:hook_server()
+      }
+    }
+  }
+  # Internal server running on port 8999 for handling certificate tasks.
 
 # server any host 443 ssl
 server {
@@ -662,7 +681,7 @@ server {
 }
 # server any host 443 ssl
 
-    server {
+server {
         listen       80 default_server;
         server_name _;
 
@@ -881,22 +900,6 @@ server {
         }
 
     }
-
-  # Internal server running on port 8999 for handling certificate tasks.
-  server {
-    listen 8999;
-
-    # Increase the body buffer size, to ensure the internal POSTs can always
-    # parse the full POST contents into memory.
-    client_body_buffer_size 128k;
-    client_max_body_size 128k;
-
-    location / {
-      content_by_lua_block {
-        auto_ssl:hook_server()
-      }
-    }
-  }
   
       server {
         listen       80;

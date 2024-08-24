@@ -31,5 +31,28 @@ luarocks install pgmoon
 mkdir -p /opt/nginx/data/
 chmod 777 /opt/nginx/data/
 
+mkdir -p /etc/resty-auto-ssl
+chown -R root:nobody /etc/resty-auto-ssl/
+chmod -R 775 /etc/resty-auto-ssl
+
+mkdir -p /etc/ssl/
+chown -R root:nobody /etc/ssl/
+chmod -R 775 /etc/ssl
+
+openssl req -new -newkey rsa:2048 -days 3650 -nodes -x509 \
+  -subj '/CN=sni-support-required-for-valid-ssl' \
+  -keyout /etc/ssl/resty-auto-ssl-fallback.key \
+  -out /etc/ssl/resty-auto-ssl-fallback.crt
+
+mkdir -p "/var/run/nginx/" \
+    && chmod +x "/var/run/nginx/" \
+    && chown root:root "/var/run/nginx/" \
+    && chmod 755 -R "/var/run/nginx/"
 
 
+# mc - MinIO Client is used to backup nginx openresty configuration to S3
+wget https://dl.min.io/client/mc/release/linux-amd64/mc -O /usr/local/bin/mc \
+    --tries=3 --timeout=30 && \
+    chmod +x /usr/local/bin/mc  
+
+mc --version
