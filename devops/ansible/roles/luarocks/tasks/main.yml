@@ -43,7 +43,7 @@
 
  - name: Copy Environment file
    template:
-    src:  /tmp/.env_hd_openresty
+    src:  /tmp/.env_brahmstra
     dest: /tmp/.env
     mode: 0777
    tags: [ openresty,lapis,codebase ]
