@@ -29,7 +29,7 @@ luarocks install luafilesystem
 luarocks install lua-resty-auto-ssl
 luarocks install pgmoon
 luarocks install lua-cjson
-luarocks install lua-resty-prettycjson
+luarocks install --tree lua_modules lua-resty-prettycjson
 
 mkdir -p /opt/nginx/data/
 chmod 777 /opt/nginx/data/
