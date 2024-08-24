@@ -1,0 +1,221 @@
+#user  nobody;
+worker_processes  1;
+
+#error_log  logs/error.log;
+#error_log  logs/error.log  notice;
+#error_log  logs/error.log  info;
+
+#pid        logs/nginx.pid;
+
+
+events {
+    worker_connections  1024;
+}
+
+env DNS_RESOLVER;
+env REDIS_HOST;
+env HOSTNAME;
+env APP_NAME;
+env LUA_DEBUG;
+env VERSION;
+env STACK;
+env VITE_DEPLOYMENT_TIME;
+env NGINX_CONFIG_DIR;
+env JWT_SECURITY_PASSPHRASE;
+env API_URL;
+env PRIMARY_DNS_RESOLVER;
+env SECONDARY_DNS_RESOLVER;
+env DNS_RESOLVER_PORT;
+env FRONT_URL;
+env AWS_ACCESS_KEY_ID;
+env AWS_SECRET_ACCESS_KEY;
+env AWS_REGION;
+
+
+http {
+    include       mime.types;
+    default_type  application/octet-stream;
+
+    #log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+    #                  '$status $body_bytes_sent "$http_referer" '
+    #                  '"$http_user_agent" "$http_x_forwarded_for"';
+
+    #access_log  logs/access.log  main;
+
+    sendfile        on;
+    #tcp_nopush     on;
+
+    #keepalive_timeout  0;
+    keepalive_timeout  65;
+
+    #gzip  on;
+    gzip  on;
+    lua_package_path "/usr/local/openresty/nginx/html/api/?.lua;;";
+    # lua_package_path '/usr/local/Cellar/openresty/1.19.3.1_1/site/lualib/resty/?.lua;;';
+    lua_package_cpath '/usr/local/openresty/site/lualib/resty/?.so;;';
+
+   # Storage for challenge token and cert cache
+
+    lua_shared_dict auto_ssl 100m;
+    lua_shared_dict auto_ssl_settings 64k;
+
+    init_by_lua_file /usr/local/openresty/nginx/html/api/init.lua;
+
+    server {
+        listen       8080;
+        server_name  localhost;
+
+        #charset koi8-r;
+
+        #access_log  logs/host.access.log  main;
+
+#        location / {
+#            root   html;
+#            index  index.html index.htm;
+#        }
+
+        #error_page  404              /404.html;
+
+        # redirect server error pages to the static page /50x.html
+        #
+        error_page   500 502 503 504  /50x.html;
+        location = /50x.html {
+            root   html;
+        }
+
+        # proxy the PHP scripts to Apache listening on 127.0.0.1:80
+        #
+        #location ~ \.php$ {
+        #    proxy_pass   http://127.0.0.1;
+        #}
+
+        # pass the PHP scripts to FastCGI server listening on 127.0.0.1:9000
+        #
+        #location ~ \.php$ {
+        #    root           html;
+        #    fastcgi_pass   127.0.0.1:9000;
+        #    fastcgi_index  index.php;
+        #    fastcgi_param  SCRIPT_FILENAME  /scripts$fastcgi_script_name;
+        #    include        fastcgi_params;
+        #}
+
+        # deny access to .htaccess files, if Apache's document root
+        # concurs with nginx's one
+        #
+        #location ~ /\.ht {
+        #    deny  all;
+        #}
+        location / {
+    root   /usr/local/openresty/nginx/html/openresty-admin/dist;
+    index  index.html index.htm;
+}
+
+        location ~ ^/api(.*)$ {
+            default_type 'text/plain';
+            add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, OPTIONS';
+            add_header 'Access-Control-Allow-Headers' 'Content-Type';
+            access_by_lua_block {
+                local cjson = require "cjson"
+                local path_name = ngx.var.uri:match("^/api/(.*)$")
+                if path_name ~= "user/login" then
+                    local jwt = require "resty.jwt"
+                    local token = ngx.req.get_headers()["Authorization"]
+                    if not token then
+                        ngx.status = ngx.HTTP_UNAUTHORIZED
+                        ngx.say("Missing token")
+                        return ngx.exit(ngx.HTTP_UNAUTHORIZED)
+                    end
+                    token = string.gsub(token, "^Bearer ", "")
+                    local function getSettings()
+                      local configPath = os.getenv("NGINX_CONFIG_DIR") or "/opt/nginx/"
+                      local readSettings, errSettings = io.open(configPath .. "data/settings.json", "rb")
+                      local settings = {}
+                      if readSettings == nil then
+                          ngx.say("Couldn't read file: " .. errSettings)
+                      else
+                          local jsonString = readSettings:read "*a"
+                          readSettings:close()
+                          settings = cjson.decode(jsonString)
+                      end
+                      return settings
+                    end
+                    local settings = getSettings()
+                    local passPhrase = settings.env_vars.JWT_SECURITY_PASSPHRASE or os.getenv("JWT_SECURITY_PASSPHRASE")
+                    if not passPhrase or passPhrase == "" then
+                      ngx.status = ngx.HTTP_UNAUTHORIZED
+                      ngx.say(cjson.encode({data = {message = "JWT Pass Phrase is missing"}}))
+                      return ngx.exit(ngx.HTTP_UNAUTHORIZED)
+                    end
+                    local verified_token = jwt:verify(passPhrase, token)
+                    if verified_token.verified == false then
+                        ngx.status = ngx.HTTP_UNAUTHORIZED
+                        ngx.say(cjson.encode({data = {message = verified_token.reason}}))
+                        return ngx.exit(ngx.HTTP_UNAUTHORIZED)
+                    end
+                end
+            }
+            
+            if ($request_method = 'OPTIONS') {
+                add_header 'Access-Control-Allow-Origin' '*';
+                add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, PUT, DELETE';
+                add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, X-Requested-With';
+                add_header 'Access-Control-Max-Age' 1728000;
+                add_header 'Content-Type' 'text/plain; charset=utf-8';
+                # add_header 'Content-Length' 0;
+                return 204;
+            }
+
+            content_by_lua_file /usr/local/openresty/nginx/html/api/api.lua; # < Points to Lua file
+        }
+
+location /ping {
+    default_type 'application/json';
+    add_header 'Access-Control-Allow-Origin' '*';
+    add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, PUT, DELETE';
+    add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, X-Requested-With';
+    add_header 'Access-Control-Max-Age' 1728000;
+    add_header 'Content-Type' 'text/plain; charset=utf-8';
+    # add_header 'Content-Length' 0;
+    content_by_lua_file /usr/local/openresty/nginx/html/api/ping.lua;
+}
+    }
+
+
+    # another virtual host using mix of IP-, name-, and port-based configuration
+    #
+    server {
+        listen       8000;
+    #    listen       somename:8080;
+    #    server_name  somename  alias  another.alias;
+
+    #	include cdn.conf;
+
+    #    location / {
+    #        root   html;
+    #        index  index.html index.htm;
+    #    }
+    }
+
+
+    # HTTPS server
+    #
+    #server {
+    #    listen       443 ssl;
+    #    server_name  localhost;
+
+    #    ssl_certificate      cert.pem;
+    #    ssl_certificate_key  cert.key;
+
+    #    ssl_session_cache    shared:SSL:1m;
+    #    ssl_session_timeout  5m;
+
+    #    ssl_ciphers  HIGH:!aNULL:!MD5;
+    #    ssl_prefer_server_ciphers  on;
+
+    #    location / {
+    #        root   html;
+    #        index  index.html index.htm;
+    #    }
+    #}
+
+}

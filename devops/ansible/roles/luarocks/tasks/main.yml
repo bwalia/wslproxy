@@ -1,0 +1,120 @@
+ - name: Update and upgrade apt packages
+   apt:
+    upgrade: yes
+    update_cache: yes
+    cache_valid_time: 86400
+   tags: [ ubuntu,openresty,lapis ]
+
+ - name: Install luarocks
+   apt:
+    name: luarocks 
+    state: present
+   tags: [ openresty,lapis ]
+
+ - name: Copy openresty bootstrap script
+   template:
+    src:  openresty.sh.j2 
+    dest: /tmp/openresty.sh 
+    mode: 0777
+   tags: [ openresty,lapis ] 
+
+ - name: Copy cdn dependencies script
+   template:
+    src:  cdn-dependencies.sh.j2
+    dest: /tmp/cdn-dependencies.sh
+    mode: 0777
+   tags: [ openresty,lapis ]
+
+ - name: Make sure the nginx data directory exists
+   ansible.builtin.file:
+    path: /opt/nginx/data/
+    state: directory
+    owner: "{{ openresty_user }}"
+    group: root
+    mode: 0775
+   tags: [ openresty,lapis ]
+
+ - name: Copy Settings Config file
+   template:
+    src:  /tmp/settings.json
+    dest: /opt/nginx/data/settings.json
+    mode: 0777
+   tags: [ openresty,lapis ]
+
+ - name: Copy Environment file
+   template:
+    src:  /tmp/.env_hd_openresty
+    dest: /tmp/.env
+    mode: 0777
+   tags: [ openresty,lapis,codebase ]
+
+ - name: Execute the openresty.sh bootstrap script
+   shell: /tmp/openresty.sh
+   tags: [ test,openresty,lapis ]
+ 
+ - name: Execute the cdn-dependencies.sh script
+   shell: /tmp/cdn-dependencies.sh
+   tags: [ openresty,lapis ]
+
+ - name: Deploy OpenResty systemd service file
+   template:
+      src: openresty.service.j2
+      dest: /etc/systemd/system/openresty.service
+   notify: Reload systemd
+   tags: [ openresty,lapis ]
+
+ - ansible.posix.synchronize:
+    src: ../../api/
+    dest: /usr/local/openresty/nginx/html/api
+   notify: Restart openresty
+   register: sync_files
+   tags: [ openresty,lapis,codebase ]
+
+ - debug:
+     var: sync_files.stdout_lines
+   tags: [ openresty,lapis,codebase ]
+
+ - ansible.posix.synchronize:
+    src: ../../html/
+    dest: /usr/local/openresty/nginx/html
+   register: sync_files
+   tags: [ openresty,lapis,codebase ]
+
+ - debug:
+     var: sync_files.stdout_lines
+   tags: [ openresty,lapis,codebase ]
+
+ - ansible.posix.synchronize:
+    src: ../../openresty-admin/
+    dest: /usr/local/openresty/nginx/html/openresty-admin
+   register: sync_files
+   tags: [ openresty,lapis,codebase ]
+
+ - debug:
+     var: sync_files.stdout_lines
+   tags: [ openresty,lapis,codebase ]
+
+ - name: Copy npm yarn dependencies script
+   template:
+    src:  install-build-npm-yarn.sh.j2
+    dest: /tmp/install-build-npm-yarn.sh
+    mode: 0777
+   tags: [ openresty,lapis,codebase ]
+
+ - name: Execute the install-build-npm-yarn.sh script
+   shell: /tmp/install-build-npm-yarn.sh
+   tags: [ openresty,lapis,codebase ]
+
+ - name: copy nginx conf file
+   template:
+      src: nginx.conf.j2
+      dest: /usr/local/openresty/nginx/conf/nginx.conf 
+   notify: Restart openresty
+   tags: [ openresty,lapis,codebase ]
+
+ - name: Enable and start OpenResty service
+   systemd:
+       name: openresty
+       state: started
+       enabled: yes 
+   tags: [ openresty,lapis,codebase ]

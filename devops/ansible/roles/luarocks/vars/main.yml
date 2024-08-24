@@ -1,0 +1,3 @@
+openresty_user: "bwalia"
+openresty_group: "root"
+openresty_exec_start: "/usr/local/openresty/nginx/sbin/nginx -g 'daemon off;'"

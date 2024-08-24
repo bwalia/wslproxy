@@ -1,0 +1,6 @@
+ubuntu_packages:
+  - libpcre3
+  - libpcre3-dev
+  - zlib1g
+  - zlib1g-dev
+  - libssl-dev
