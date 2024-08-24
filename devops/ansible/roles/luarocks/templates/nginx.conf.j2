@@ -251,7 +251,7 @@ server {
         limit_req zone=req_zone_wl burst=20 nodelay;
 
         # resolver 127.0.0.1 local=on;
-        include /tmp/resolver.conf;         #   For kubernetes use 10.43.0.10 and nginx ingress controller
+        # include /tmp/resolver.conf;         #   For docker / kubernetes use 10.43.0.10 and nginx ingress controller (not for native installation)
 
           # define shared variables between lua and nginx lua balancer;
           set $proxy_host "";
