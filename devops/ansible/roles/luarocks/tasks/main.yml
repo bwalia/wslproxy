@@ -36,7 +36,7 @@
 
  - name: Copy Settings Config file
    template:
-    src:  /tmp/settings.json
+    src:  /tmp/settings_brahmstra.json
     dest: /opt/nginx/data/settings.json
     mode: 0777
    tags: [ openresty,lapis,codebase ]
