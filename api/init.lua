@@ -1,4 +1,4 @@
-local cjson = require("cjson")
+cjson = require("cjson")
 local configPath = os.getenv("NGINX_CONFIG_DIR") or "/opt/nginx/"
 
 local function getSettings()
@@ -34,7 +34,7 @@ require "resty.session".init({
   }
 })
 
-local auto_ssl = (require "resty.auto-ssl").new()
+auto_ssl = (require "resty.auto-ssl").new()
 
 auto_ssl:set("allow_domain", function(domain)
 
