@@ -39,7 +39,7 @@
     src:  /tmp/settings.json
     dest: /opt/nginx/data/settings.json
     mode: 0777
-   tags: [ openresty,lapis ]
+   tags: [ openresty,lapis,codebase ]
 
  - name: Copy Environment file
    template:
