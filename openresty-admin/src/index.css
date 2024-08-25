@@ -1,7 +1,8 @@
 :root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
+  font-family: "Sen", sans-serif;
+  font-optical-sizing: auto;
   font-weight: 400;
+  font-style: normal;
 
   color-scheme: light dark;
   color: rgba(255, 255, 255, 0.87);
@@ -14,11 +15,17 @@
   -webkit-text-size-adjust: 100%;
 }
 
+* {
+  box-sizing: border-box;
+}
+
 a {
   font-weight: 500;
   color: #646cff;
   text-decoration: inherit;
+  font-family: "Sen", sans-serif
 }
+
 a:hover {
   color: #535bf2;
 }
@@ -29,11 +36,17 @@ body {
   place-items: center;
   min-width: 320px;
   min-height: 100vh;
+  font-family: "Sen", sans-serif
+}
+
+p,span {
+  font-family: "Sen", sans-serif !important;
 }
 
 h1 {
   font-size: 3.2em;
   line-height: 1.1;
+  font-family: "Sen", sans-serif
 }
 
 button {
@@ -47,9 +60,11 @@ button {
   cursor: pointer;
   transition: border-color 0.25s;
 }
+
 button:hover {
   border-color: #646cff;
 }
+
 button:focus,
 button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
@@ -60,18 +75,120 @@ button:focus-visible {
     color: #213547;
     background-color: #ffffff;
   }
+
   a:hover {
     color: #747bff;
   }
+
   button {
     background-color: #f9f9f9;
   }
 }
+
 textarea#config {
   height: 300px !important;
   overflow-y: scroll !important;
 }
-textarea#custom_block\.0\.additional_block, textarea#match\.response\.message {
+
+textarea#custom_block\.0\.additional_block,
+textarea#match\.response\.message {
   height: 123px !important;
   overflow-y: scroll !important;
+}
+
+.nav-bar {
+  background-image: linear-gradient(to left bottom, rgb(105, 147, 189), rgb(19, 64, 109));
+}
+
+.json-button-wrapper {
+  display: flex;
+  justify-content: center;
+}
+
+.json-button {
+  background-color: transparent;
+  background-image: linear-gradient(to left bottom, rgb(105, 147, 189), rgb(19, 64, 109));
+
+  &:hover {
+    background-image: linear-gradient(to left bottom, rgb(49, 68, 87), rgb(19, 64, 109));
+
+  }
+}
+
+.Ralist-css {
+
+  width: 90%;
+  margin: 0 auto;
+  padding: 0;
+  text-align: center;
+  margin-top: 20px;
+}
+
+.create-button {
+  color: #f9f9f9 !important;
+  margin-top: 20px !important;
+  margin-bottom: 10px !important;
+  background-image: linear-gradient(to left bottom, rgb(105, 147, 189), rgb(19, 64, 109));
+  padding: 8px !important;
+
+  &:hover {
+    background-image: linear-gradient(to left bottom, rgb(49, 68, 87), rgb(19, 64, 109));
+  }
+
+}
+
+.RaSidebar-fixed {
+  background-image: linear-gradient(#cfd5de, #6f98c3);
+
+}
+
+.bar-icon {
+  color: rgb(19, 64, 109);
+  ;
+}
+
+.bar-title {
+  font-family: sen !important;
+  color: #363970 !important;
+  font-weight: 700 !important;
+}
+
+
+
+.RaList-main .MuiToolbar-regular a[aria-label="Create"] {
+  color: #f9f9f9;
+  background-image: linear-gradient(to left bottom, rgb(105, 147, 189), rgb(19, 64, 109));
+  padding: 8px !important;
+
+  &:hover {
+    background-image: linear-gradient(to left bottom, rgb(49, 68, 87), rgb(19, 64, 109));
+  }
+}
+
+.RaList-main .MuiToolbar-regular button[aria-label="Export"] {
+  color: #f9f9f9;
+  background-image: linear-gradient(to left bottom, rgb(105, 147, 189), rgb(19, 64, 109));
+  padding: 8px !important;
+
+  &:hover {
+    background-image: linear-gradient(to left bottom, rgb(49, 68, 87), rgb(19, 64, 109));
+  }
+}
+
+.RaSidebar-fixed ul[role="menu"] a[href="#/"]:not(.RaMenuItemLink-active) {
+  font-family: sen !important;
+  color: #363970 !important;
+  font-weight: 700 !important;
+}
+a[href="#/"] .MuiListItemIcon-root svg[data-testid="DashboardIcon"]{
+  color: #1b883a !important;
+  font-size: 40px;
+  margin-right: 8px;
+  margin-left: -8px;
+}
+
+.RaMenuItemLink-active {
+  font-weight: 900 !important;
+  color: #c3582c !important;
+  font-family: sen !important;
 }

@@ -12,14 +12,14 @@ export const Menu = () => {
     return (
         <RaMenu>
             <RaMenu.DashboardItem />
-            <RaMenu.Item to="/users" primaryText="Users" leftIcon={<UserIcon />}/>
+            <RaMenu.Item to="/users" className='bar-title'primaryText="Users" leftIcon={<UserIcon className='bar-icon' />}/>
             {settings.storage_type === "redis" && (
-                <RaMenu.Item to="/sessions" primaryText="Sessions" leftIcon={<SessionIcon />}/>
+                <RaMenu.Item to="/sessions"className='bar-title' primaryText="Sessions" leftIcon={<SessionIcon className='bar-icon'/>}/>
             )}
-            <RaMenu.Item to="/servers" primaryText="Servers" leftIcon={<ServerIcon />}/>
-            <RaMenu.Item to="/rules" primaryText="Rules" leftIcon={<RuleIcon />}/>
-            <RaMenu.Item to="/settings" primaryText="Settings" leftIcon={<SettingsIcon/>}/>
-            <RaMenu.Item to="/profiles" className='anything' primaryText="Profile" leftIcon={<ProfileIcon />}/>
+            <RaMenu.Item to="/servers"className='bar-title' primaryText="Servers" leftIcon={<ServerIcon className='bar-icon'/>}/>
+            <RaMenu.Item to="/rules"className='bar-title' primaryText="Rules" leftIcon={<RuleIcon className='bar-icon'/>}/>
+            <RaMenu.Item to="/settings"className='bar-title' primaryText="Settings" leftIcon={<SettingsIcon className='bar-icon'/>}/>
+            <RaMenu.Item to="/profiles" className='bar-title' primaryText="Profile" leftIcon={<ProfileIcon className='bar-icon' />}/>
         </RaMenu>
     )
 };

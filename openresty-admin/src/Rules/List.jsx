@@ -30,13 +30,23 @@ const rulesFilters = [
 
 const List = () => {
   return (
-    <RaList
+    <>
+    <RaList className="Ralist-css"
       title={"Rules"}
       exporter={ExportJsonButton}
       empty={<Empty resource={"rules"} />}
       filters={rulesFilters}
     >
-      <Datagrid rowClick="edit">
+      <Datagrid rowClick="edit"
+        sx={{
+          '& .RaDatagrid-row': {
+              height: '45px',
+          },
+          '& .RaDatagrid-root': {
+            marginTop: '400px'
+          }
+      }}
+      >
         <TextField source='name' />
         <TextField source='priority' />
         <TextField source='profile_id' />
@@ -44,8 +54,9 @@ const List = () => {
         <NumberField source='match.rules.client_ip' />
         <BooleanField source='match.response.allow' />
       </Datagrid>
-      <ImportJsonButton resource={"rules"} />
     </RaList>
+      <ImportJsonButton resource={"rules"} />
+    </>
   )
 }
 

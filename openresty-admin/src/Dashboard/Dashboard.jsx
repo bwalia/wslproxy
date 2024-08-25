@@ -59,12 +59,12 @@ const Dashboard = () => {
   const storageManagement = localStorage.getItem("storageManagement");
   return (
     <Grid container spacing={2}>
-      <Grid item xs={6}>
-        <LineChart
-          width={400}
+      <Grid item xs={12}>
+        <LineChart 
           height={400}
+          width={1250}
           data={data}
-          margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
+          margin={{ top: 70, right: 10, left: 12, bottom: 5 }}
         >
           <XAxis dataKey="name" />
           <Tooltip />

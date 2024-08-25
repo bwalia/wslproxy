@@ -92,22 +92,22 @@ const SettingButton = () => {
 const AppBar = () => {
   const [settings] = useStore('app.settings', {});
   return (
-    <RaAppBar sx={{ background: "green" }}>
+    <RaAppBar className="nav-bar">
       <Toolbar
         sx={{
           background: "transparent",
         }}
       >
         <img
-          src="falcon-removebg-preview.png"
+          src="logo-img.png"
           alt="Logo"
           style={{ height: "50px" }}
         />
         <Typography
           variant="h5"
           sx={{
-            textShadow: "0 13.36px 8.896px #2c482e, 0 -2px 1px #aeffb4",
-            color: "#6fb374",
+            textShadow: "0 13.36px 8.896px #2c482e, 0 -2px 1px #1976d2",
+            color: "#6993bd",
           }}
         >
           {appDisplayNname}

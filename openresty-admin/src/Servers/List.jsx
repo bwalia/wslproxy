@@ -26,7 +26,8 @@ const rulesFilters = [
 
 const List = () => {
   return (
-    <RaList 
+    <>
+    <RaList className="Ralist-css"
       title={"Servers"} 
       sort={{ field: 'created_at', order: 'DESC' }}
       exporter={ExportJsonButton} 
@@ -40,8 +41,10 @@ const List = () => {
         <TextField source="access_log" />
         <TextField source='profile_id' />
       </Datagrid>
-      <ImportJsonButton resource={"servers"} />
+      
     </RaList>
+    <ImportJsonButton resource={"servers"} />
+    </>
   );
 };
 
