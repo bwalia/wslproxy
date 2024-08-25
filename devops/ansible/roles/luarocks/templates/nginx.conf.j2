@@ -380,19 +380,20 @@ server {
           # Endpoint used for performing domain verification with Let's Encrypt.
           location /.well-known/acme-challenge/ {
           content_by_lua_block {
-              auto_ssl:challenge_server()
+            auto_ssl:challenge_server()
           }
           }   
 
           location / {
             default_type text/plain;
             set_by_lua_block $vars {
-              local json = require("cjson")
+
+              local cjson = require("cjson")
               local executableRule, proxyServerName = {}, nil
-              --return cjson.encode({
-                --executableRule = executableRule,
-                --proxyServerName = proxyServerName
-              --})
+              return cjson.encode({
+                executableRule = executableRule,
+                proxyServerName = proxyServerName
+              })
             }
             
             rewrite_by_lua_file /usr/local/openresty/nginx/html/api/gateway_ack.lua;
