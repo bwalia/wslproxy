@@ -69,23 +69,25 @@ elseif selectedRule.statusCode == 305 then
     end
     selectedRule.redirectUri = string.gsub(selectedRule.redirectUri, "https://", "")
     selectedRule.redirectUri = string.gsub(selectedRule.redirectUri, "http://", "")
-    local extracted = string.match(selectedRule.redirectUri, ":(.*)")
+    local extracted = nil
     local extractedPort = 80
-    if not isIpAddress(selectedRule.redirectUri) then
-        local continueDnsResolve = true
-        if selectedRule.rule_data.isConsul then
-            local dnsServerHost = settings.consul.dns_server_host
-            local dnsServerPort = settings.consul.dns_server_port
-            if dnsServerHost ~= nil then
-                local tIp, tPort = Dns.access(selectedRule, dnsServerHost, dnsServerPort)
-                if isIpAddress(tIp) then
-                    selectedRule.redirectUri = tIp
-                    extractedPort = tPort
-                    continueDnsResolve = false
-                end
+    -- if not isIpAddress(selectedRule.redirectUri) then
+    local continueDnsResolve = true
+    if selectedRule.rule_data.isConsul then
+        local dnsServerHost = settings.consul.dns_server_host
+        local dnsServerPort = settings.consul.dns_server_port
+        if dnsServerHost ~= nil then
+            local tIp, tPort = Dns.access(selectedRule, dnsServerHost, dnsServerPort)
+            if isIpAddress(tIp) then
+                selectedRule.redirectUri = tIp
+                extractedPort = tPort
+                continueDnsResolve = false
             end
         end
-        if continueDnsResolve then
+    end
+    if continueDnsResolve then
+        extracted = string.match(selectedRule.redirectUri, ":(.*)")
+        if not isIpAddress(selectedRule.redirectUri) then
             local resolver = require "resty.dns.resolver"
             local primaryNameserver = os.getenv("PRIMARY_DNS_RESOLVER")
             if (primaryNameserver == nil or primaryNameserver == "") and not (settings == nil or settings.dns_resolver == nil) then
