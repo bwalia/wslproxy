@@ -8,8 +8,21 @@ if (lsb_release -r | grep -q "22"); then
   echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/openresty.gpg] http://openresty.org/package/ubuntu $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/openresty.list > /dev/null
   apt-get update
   apt-get install ldconfig -y
-  apt-get -y install openresty openresty-opm
+  apt-get -y install openresty-opm
+  # compile from source instead openresty package is removed
 fi
+
+if (lsb_release -r | grep -q "24"); then
+  echo "Ubuntu 22 or above"
+  rm -f /usr/share/keyrings/openresty.gpg
+  wget -O - https://openresty.org/package/pubkey.gpg | sudo gpg --dearmor -o /usr/share/keyrings/openresty.gpg
+  echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/openresty.gpg] http://openresty.org/package/ubuntu $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/openresty.list > /dev/null
+  apt-get update
+  apt-get install ldconfig -y
+  apt-get -y install openresty-opm
+  # compile from source instead openresty package is removed
+fi
+
 
 opm get bungle/lua-resty-session
 opm get ip2location/ip2location-resty
