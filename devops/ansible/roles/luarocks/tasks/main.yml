@@ -29,7 +29,7 @@
    ansible.builtin.file:
     path: /opt/nginx/data/
     state: directory
-    owner: "{{ openresty_user }}"
+    owner: "{{ ansible_user }}"
     group: root
     mode: 0775
    tags: [ openresty,lapis ]
