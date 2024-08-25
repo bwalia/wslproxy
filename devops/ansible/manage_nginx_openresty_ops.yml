@@ -1,0 +1,8 @@
+- hosts: nginx_cluster 
+  become: yes
+  roles:
+    - ubuntu 
+    - luarocks 
+    - powerdns
+  vars:
+    nginx_port: 80

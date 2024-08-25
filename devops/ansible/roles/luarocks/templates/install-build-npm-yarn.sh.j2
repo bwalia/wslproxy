@@ -1,0 +1,22 @@
+#!/bin/bash
+
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash
+source ~/.bashrc
+export NVM_DIR="/home/bwalia/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
+
+nvm install 18
+nvm use 18
+npm install --global yarn
+
+mkdir -p /usr/local/openresty/nginx/html/openresty-admin/
+chmod 777 /usr/local/openresty/nginx/html/openresty-admin/
+
+cd /usr/local/openresty/nginx/html/openresty-admin/
+
+if [ -f "/tmp/.env" ]; then
+  cp /tmp/.env /usr/local/openresty/nginx/html/openresty-admin/.env
+fi
+
+yarn install
+yarn build

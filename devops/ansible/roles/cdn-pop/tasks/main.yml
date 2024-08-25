@@ -1,0 +1,5 @@
+ - name: Install luarocks
+   apt:
+    name: luarocks
+    state: present
+   tags: [ openresty,lapis,cdn-pop ]

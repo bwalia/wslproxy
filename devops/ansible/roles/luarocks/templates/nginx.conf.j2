@@ -1,0 +1,611 @@
+#user  nobody;
+worker_processes  1;
+
+#error_log  logs/error.log;
+#error_log  logs/error.log  notice;
+#error_log  logs/error.log  info;
+
+#pid        logs/nginx.pid;
+
+
+events {
+    worker_connections  1024;
+}
+
+env DNS_RESOLVER;
+env REDIS_HOST;
+env HOSTNAME;
+env APP_NAME;
+env LUA_DEBUG;
+env VERSION;
+env STACK;
+env VITE_DEPLOYMENT_TIME;
+env NGINX_CONFIG_DIR;
+env JWT_SECURITY_PASSPHRASE;
+env API_URL;
+env PRIMARY_DNS_RESOLVER;
+env SECONDARY_DNS_RESOLVER;
+env DNS_RESOLVER_PORT;
+env FRONT_URL;
+env AWS_ACCESS_KEY_ID;
+env AWS_SECRET_ACCESS_KEY;
+env AWS_REGION;
+
+
+http {
+    include       mime.types;
+    default_type  application/octet-stream;
+
+    #log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+    #                  '$status $body_bytes_sent "$http_referer" '
+    #                  '"$http_user_agent" "$http_x_forwarded_for"';
+
+    #access_log  logs/access.log  main;
+
+    sendfile        on;
+    #tcp_nopush     on;
+
+    #keepalive_timeout  0;
+    keepalive_timeout  65;
+
+    #gzip  on;
+    gzip  on;
+    lua_package_path "/usr/local/openresty/nginx/html/api/?.lua;;";
+    # lua_package_path '/usr/local/Cellar/openresty/1.19.3.1_1/site/lualib/resty/?.lua;;';
+    lua_package_cpath '/usr/local/openresty/site/lualib/resty/?.so;;';
+
+   # Storage for challenge token and cert cache
+
+    lua_shared_dict auto_ssl 100m;
+    lua_shared_dict auto_ssl_settings 64k;
+
+    geo $limit {
+        default 1;
+        10.0.0.0/8 0;
+        192.168.0.0/24 0;
+    }
+
+    map $limit $limit_key {
+        0 "";
+        1 $binary_remote_addr;
+    }
+
+    limit_req_zone $limit_key zone=req_zone:10m rate=5r/s;
+    limit_req_zone $binary_remote_addr zone=req_zone_wl:10m rate=15r/s;
+
+    init_by_lua_file /usr/local/openresty/nginx/html/api/init.lua;
+
+    # global_backend
+    upstream global_backend {
+    server 0.0.0.1:1000 max_fails=3 fail_timeout=5s;
+
+    balancer_by_lua_block {
+    local balancer = require "ngx.balancer"
+    local host = ngx.var.proxy_host
+    local port = ngx.var.proxy_port
+    local ok, err = balancer.set_current_peer(host, port)
+        if not ok then
+        ngx.log(ngx.ERR, "balancer.set_current_peer failed to set the host " .. host .. ":" .. port .. " current peer: ", err)
+        return ngx.exit(500)
+        end
+    }
+
+    keepalive 10; # connection pool
+    }
+    # global_backend ends
+
+    server {
+        listen       8080;
+        server_name  localhost;
+
+        #charset koi8-r;
+
+        #access_log  logs/host.access.log  main;
+
+#        location / {
+#            root   html;
+#            index  index.html index.htm;
+#        }
+
+        #error_page  404              /404.html;
+
+        # redirect server error pages to the static page /50x.html
+        #
+        error_page   500 502 503 504  /50x.html;
+        location = /50x.html {
+            root   html;
+        }
+
+        # proxy the PHP scripts to Apache listening on 127.0.0.1:80
+        #
+        #location ~ \.php$ {
+        #    proxy_pass   http://127.0.0.1;
+        #}
+
+        # pass the PHP scripts to FastCGI server listening on 127.0.0.1:9000
+        #
+        #location ~ \.php$ {
+        #    root           html;
+        #    fastcgi_pass   127.0.0.1:9000;
+        #    fastcgi_index  index.php;
+        #    fastcgi_param  SCRIPT_FILENAME  /scripts$fastcgi_script_name;
+        #    include        fastcgi_params;
+        #}
+
+        # deny access to .htaccess files, if Apache's document root
+        # concurs with nginx's one
+        #
+        #location ~ /\.ht {
+        #    deny  all;
+        #}
+        location / {
+    root   /usr/local/openresty/nginx/html/openresty-admin/dist;
+    index  index.html index.htm;
+}
+
+        location ~ ^/api(.*)$ {
+            default_type 'text/plain';
+            add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, OPTIONS';
+            add_header 'Access-Control-Allow-Headers' 'Content-Type';
+            access_by_lua_block {
+                local cjson = require "cjson"
+                local path_name = ngx.var.uri:match("^/api/(.*)$")
+                if path_name ~= "user/login" then
+                    local jwt = require "resty.jwt"
+                    local token = ngx.req.get_headers()["Authorization"]
+                    if not token then
+                        ngx.status = ngx.HTTP_UNAUTHORIZED
+                        ngx.say("Missing token")
+                        return ngx.exit(ngx.HTTP_UNAUTHORIZED)
+                    end
+                    token = string.gsub(token, "^Bearer ", "")
+                    local function getSettings()
+                      local configPath = os.getenv("NGINX_CONFIG_DIR") or "/opt/nginx/"
+                      local readSettings, errSettings = io.open(configPath .. "data/settings.json", "rb")
+                      local settings = {}
+                      if readSettings == nil then
+                          ngx.say("Couldn't read file: " .. errSettings)
+                      else
+                          local jsonString = readSettings:read "*a"
+                          readSettings:close()
+                          settings = cjson.decode(jsonString)
+                      end
+                      return settings
+                    end
+                    local settings = getSettings()
+                    local passPhrase = settings.env_vars.JWT_SECURITY_PASSPHRASE or os.getenv("JWT_SECURITY_PASSPHRASE")
+                    if not passPhrase or passPhrase == "" then
+                      ngx.status = ngx.HTTP_UNAUTHORIZED
+                      ngx.say(cjson.encode({data = {message = "JWT Pass Phrase is missing"}}))
+                      return ngx.exit(ngx.HTTP_UNAUTHORIZED)
+                    end
+                    local verified_token = jwt:verify(passPhrase, token)
+                    if verified_token.verified == false then
+                        ngx.status = ngx.HTTP_UNAUTHORIZED
+                        ngx.say(cjson.encode({data = {message = verified_token.reason}}))
+                        return ngx.exit(ngx.HTTP_UNAUTHORIZED)
+                    end
+                end
+            }
+            
+            if ($request_method = 'OPTIONS') {
+                add_header 'Access-Control-Allow-Origin' '*';
+                add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, PUT, DELETE';
+                add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, X-Requested-With';
+                add_header 'Access-Control-Max-Age' 1728000;
+                add_header 'Content-Type' 'text/plain; charset=utf-8';
+                # add_header 'Content-Length' 0;
+                return 204;
+            }
+
+            content_by_lua_file /usr/local/openresty/nginx/html/api/api.lua; # < Points to Lua file
+        }
+
+location /ping {
+    default_type 'application/json';
+    add_header 'Access-Control-Allow-Origin' '*';
+    add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, PUT, DELETE';
+    add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, X-Requested-With';
+    add_header 'Access-Control-Max-Age' 1728000;
+    add_header 'Content-Type' 'text/plain; charset=utf-8';
+    # add_header 'Content-Length' 0;
+    content_by_lua_file /usr/local/openresty/nginx/html/api/ping.lua;
+}
+    }
+
+
+
+  # Internal server running on port 8999 for handling certificate tasks.
+  server {
+    listen 8999;
+
+    # Increase the body buffer size, to ensure the internal POSTs can always
+    # parse the full POST contents into memory.
+    client_body_buffer_size 128k;
+    client_max_body_size 128k;
+
+    location / {
+      content_by_lua_block {
+        auto_ssl:hook_server()
+      }
+    }
+  }
+  # Internal server running on port 8999 for handling certificate tasks.
+
+# server any host 443 ssl
+server {
+    listen *:443 ssl;
+    listen [::]:443 ssl;
+    #  backup-database.sh not supported by WAF lua lib
+    http2 on;
+        ssl_session_timeout  5m;
+
+        ssl_certificate_by_lua_block {
+        auto_ssl:ssl_certificate()
+        }
+
+        ssl_certificate /etc/ssl/resty-auto-ssl-fallback.crt;
+        ssl_certificate_key /etc/ssl/resty-auto-ssl-fallback.key;
+
+        limit_req zone=req_zone burst=10 nodelay;
+        limit_req zone=req_zone_wl burst=20 nodelay;
+
+        # resolver 127.0.0.1 local=on;
+        # include /tmp/resolver.conf;         #   For docker / kubernetes use 10.43.0.10 and nginx ingress controller (not for native installation)
+
+          # define shared variables between lua and nginx lua balancer;
+          set $proxy_host "";
+          set $proxy_port "";
+          
+          set $proxy_host_override "";
+          set $upstream_server "global_backend";
+
+          location / {
+            default_type text/plain;
+            set_by_lua_block $vars {
+              local json = require("cjson")
+              local executableRule, proxyServerName = {}, nil
+              return cjson.encode({
+                executableRule = executableRule,
+                proxyServerName = proxyServerName
+              })
+            }
+            
+            rewrite_by_lua_file /usr/local/openresty/nginx/html/api/gateway_ack.lua;
+            access_by_lua_file /usr/local/openresty/nginx/html/api/gateway_resp.lua;    # this code run just before the setting the proxy pass and content phase.
+
+          # echo $proxy_host:$proxy_port;
+          # echo $upstream_server;
+          proxy_pass http://$upstream_server;
+        
+          }
+
+        location = /frontdoor/opsapi/sync {
+          default_type 'application/json';
+          if ($request_method = 'OPTIONS') {
+              add_header 'Access-Control-Allow-Origin' '*';
+              add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, PUT, DELETE';
+              add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, X-Requested-With';
+              add_header 'Access-Control-Max-Age' 1728000;
+              add_header 'Content-Type' 'text/plain; charset=utf-8';
+              # add_header 'Content-Length' 0;
+              return 204;
+          }
+          content_by_lua_file /usr/local/openresty/nginx/html/api/sync_data.lua;
+        }
+        location = /frontdoor/opsapi/handle-profile {
+          default_type 'application/json';
+          add_header 'Access-Control-Allow-Origin' '*';
+          add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, PUT, DELETE';
+          content_by_lua_file /usr/local/openresty/nginx/html/api/profile_handler.lua;
+        }
+
+        location /__ip_location {
+            default_type text/html;
+            content_by_lua_block {
+                local ip2location = require('ip2location')
+                local ip2loc = ip2location:new('/tmp/IP2LOCATION-LITE-DB11.IPV6.BIN')
+                local result = ip2loc:get_all('106.196.55.155')
+                ngx.say("country_short: " .. result.country_short)
+                ngx.say("country_long: " .. result.country_long)
+                ngx.say("region: " .. result.region)
+                ngx.say("city: " .. result.city)
+                ngx.say("isp: " .. result.isp)
+                ngx.say("latitude: " .. result.latitude)
+                ngx.say("longitude: " .. result.longitude)
+                ngx.say("domain: " .. result.domain)
+                ngx.say("zipcode: " .. result.zipcode)
+                ngx.say("timezone: " .. result.timezone)
+                ngx.say("netspeed: " .. result.netspeed)
+                ngx.say("iddcode: " .. result.iddcode)
+                ngx.say("areacode: " .. result.areacode)
+                ngx.say("weatherstationcode: " .. result.weatherstationcode)
+                ngx.say("weatherstationname: " .. result.weatherstationname)
+                ngx.say("mcc: " .. result.mcc)
+                ngx.say("mnc: " .. result.mnc)
+                ngx.say("mobilebrand: " .. result.mobilebrand)
+                ngx.say("elevation: " .. result.elevation)
+                ngx.say("usagetype: " .. result.usagetype)
+                ngx.say("addresstype: " .. result.addresstype)
+                ngx.say("category: " .. result.category)
+                ngx.say("district: " .. result.district)
+                ngx.say("asn: " .. result.asn)
+                ngx.say("as: " .. result.as)
+                ip2loc:close()
+            }
+        }
+
+        error_page  404              /404.html;
+
+        # redirect server error pages to the static page /50x.html
+        #
+        error_page   500 502 503 504  /50x.html;
+        location = /50x.html {
+            root   html;
+        }
+
+        location ~ /\.ht {
+            deny  all;
+        }
+
+}
+# server any host 443 ssl
+
+server {
+        listen       80 default_server;
+        server_name _;
+
+        limit_req zone=req_zone burst=10 nodelay;
+        limit_req zone=req_zone_wl burst=20 nodelay;
+
+        # resolver 127.0.0.1 local=on;
+        # include /tmp/resolver.conf;         #   For docker / kubernetes use 10.43.0.10 and nginx ingress controller (not for native installation)
+
+          # define shared variables between lua and nginx lua balancer;
+          set $proxy_host "";
+          set $proxy_port "";
+          
+          set $proxy_host_override "";
+          set $upstream_server "global_backend";
+
+          set_by_lua $now "return ngx.cookie_time(ngx.time())";
+          set $aws_signature "";
+          set $aws_access_key "";
+          set $aws_secret_key "";
+          set $bucket_name "";
+          set $bucket_file_path "";
+          set $string_to_sign "";
+          set $authorization_header_override "";
+
+          # Endpoint used for performing domain verification with Let's Encrypt.
+          location /.well-known/acme-challenge/ {
+          content_by_lua_block {
+              auto_ssl:challenge_server()
+          }
+          }   
+
+          location / {
+            default_type text/plain;
+            set_by_lua_block $vars {
+              local json = require("cjson")
+              local executableRule, proxyServerName = {}, nil
+              --return cjson.encode({
+                --executableRule = executableRule,
+                --proxyServerName = proxyServerName
+              --})
+            }
+            
+            rewrite_by_lua_file /usr/local/openresty/nginx/html/api/gateway_ack.lua;
+            access_by_lua_file /usr/local/openresty/nginx/html/api/gateway_resp.lua;
+            # this code run just before the setting the proxy pass and content phase.
+
+          # proxy_set_header proxy_http_version 1.1;
+          proxy_set_header host $proxy_host_override;
+          proxy_pass http://$upstream_server;
+        
+          }
+
+        location = /frontdoor/opsapi/sync {
+          default_type 'application/json';
+          if ($request_method = 'OPTIONS') {
+              add_header 'Access-Control-Allow-Origin' '*';
+              add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, PUT, DELETE';
+              add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, X-Requested-With';
+              add_header 'Access-Control-Max-Age' 1728000;
+              add_header 'Content-Type' 'text/plain; charset=utf-8';
+              # add_header 'Content-Length' 0;
+              return 204;
+          }
+          content_by_lua_file /usr/local/openresty/nginx/html/api/sync_data.lua;
+        }
+        location = /frontdoor/opsapi/handle-profile {
+          default_type 'application/json';
+          add_header 'Access-Control-Allow-Origin' '*';
+          add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, PUT, DELETE';
+          content_by_lua_file /usr/local/openresty/nginx/html/api/profile_handler.lua;
+        }
+
+        location = /__resolver_test__
+        {
+        default_type text/html;
+          content_by_lua_block {
+            local resolver = require "local-resolver"
+            resolver = resolver.new("/etc/hosts")
+--              local host_ip_addr = resolver:resolve("kube-dns.kube-system.svc.cluster.local") -- kube-dns did not work
+            local host_ip_addr = resolver:resolve("localhost")  -- localhost worked
+            ngx.say(host_ip_addr)
+            ngx.exit(ngx.HTTP_OK)
+          }
+        }
+
+        location /__ip_location {
+            default_type text/html;
+            content_by_lua_block {
+                local ip2location = require('ip2location')
+                local ip2loc = ip2location:new('/tmp/IP2LOCATION-LITE-DB11.IPV6.BIN')
+                local result = ip2loc:get_all('106.196.55.155')
+                ngx.say("country_short: " .. result.country_short)
+                ngx.say("country_long: " .. result.country_long)
+                ngx.say("region: " .. result.region)
+                ngx.say("city: " .. result.city)
+                ngx.say("isp: " .. result.isp)
+                ngx.say("latitude: " .. result.latitude)
+                ngx.say("longitude: " .. result.longitude)
+                ngx.say("domain: " .. result.domain)
+                ngx.say("zipcode: " .. result.zipcode)
+                ngx.say("timezone: " .. result.timezone)
+                ngx.say("netspeed: " .. result.netspeed)
+                ngx.say("iddcode: " .. result.iddcode)
+                ngx.say("areacode: " .. result.areacode)
+                ngx.say("weatherstationcode: " .. result.weatherstationcode)
+                ngx.say("weatherstationname: " .. result.weatherstationname)
+                ngx.say("mcc: " .. result.mcc)
+                ngx.say("mnc: " .. result.mnc)
+                ngx.say("mobilebrand: " .. result.mobilebrand)
+                ngx.say("elevation: " .. result.elevation)
+                ngx.say("usagetype: " .. result.usagetype)
+                ngx.say("addresstype: " .. result.addresstype)
+                ngx.say("category: " .. result.category)
+                ngx.say("district: " .. result.district)
+                ngx.say("asn: " .. result.asn)
+                ngx.say("as: " .. result.as)
+                ip2loc:close()
+            }
+        }
+
+        location /__redis_test {            
+            default_type 'application/json';
+            content_by_lua_block {
+                local redis = require "resty.redis"
+                local red = redis:new()
+
+                red:set_timeouts(1000, 1000, 1000) -- 1 sec
+
+                -- or connect to a unix domain socket file listened
+                -- by a redis server:
+                --     local ok, err = red:connect("unix:/path/to/redis.sock")
+
+                -- connect via ip address directly
+                local ok, err = red:connect("redis", 6379)
+
+                if not ok then
+                    ngx.say("failed to connect: ", err)
+                    return
+                end
+
+                ok, err = red:set("dog", "an animal")
+                if not ok then
+                    ngx.say("failed to set dog: ", err)
+                    return
+                end
+
+                ngx.say("set result: ", ok)
+
+                local res, err = red:get("dog")
+                if not res then
+                    ngx.say("failed to get dog: ", err)
+                    return
+                end
+
+                if res == ngx.null then
+                    ngx.say("dog not found.")
+                    return
+                end
+
+                ngx.say("dog: ", res)
+
+                red:init_pipeline()
+                red:set("cat", "Marry")
+                red:set("horse", "Bob")
+                red:get("cat")
+                red:get("horse")
+                local results, err = red:commit_pipeline()
+                if not results then
+                    ngx.say("failed to commit the pipelined requests: ", err)
+                    return
+                end
+
+                for i, res in ipairs(results) do
+                    if type(res) == "table" then
+                        if res[1] == false then
+                            ngx.say("failed to run command ", i, ": ", res[2])
+                        else
+                            -- process the table value
+                        end
+                    else
+                        -- process the scalar value
+                    end
+                end
+
+                -- put it into the connection pool of size 100,
+                -- with 10 seconds max idle time
+                local ok, err = red:set_keepalive(10000, 100)
+                if not ok then
+                    ngx.say("failed to set keepalive: ", err)
+                    return
+                end
+
+                -- or just close the connection right away:
+                -- local ok, err = red:close()
+                -- if not ok then
+                --     ngx.say("failed to close: ", err)
+                --     return
+                -- end
+            }
+
+        }
+
+        #comment
+        error_page  404              /404.html;
+
+        # redirect server error pages to the static page /50x.html
+        #
+        error_page   500 502 503 504  /50x.html;
+        location = /50x.html {
+            root   html;
+        }
+
+        location ~ /\.ht {
+            deny  all;
+        }
+
+    }
+
+    # another virtual host using mix of IP-, name-, and port-based configuration
+    #
+    server {
+        listen       8000;
+    #    listen       somename:8080;
+    #    server_name  somename  alias  another.alias;
+
+    #	include cdn.conf;
+
+    #    location / {
+    #        root   html;
+    #        index  index.html index.htm;
+    #    }
+    }
+
+
+    # HTTPS server
+    #
+    #server {
+    #    listen       443 ssl;
+    #    server_name  localhost;
+
+    #    ssl_certificate      cert.pem;
+    #    ssl_certificate_key  cert.key;
+
+    #    ssl_session_cache    shared:SSL:1m;
+    #    ssl_session_timeout  5m;
+
+    #    ssl_ciphers  HIGH:!aNULL:!MD5;
+    #    ssl_prefer_server_ciphers  on;
+
+    #    location / {
+    #        root   html;
+    #        index  index.html index.htm;
+    #    }
+    #}
+
+}

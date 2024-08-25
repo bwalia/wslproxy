@@ -1,0 +1,61 @@
+#!/bin/bash
+
+# For ubuntu 22 or above
+if (lsb_release -r | grep -q "22"); then
+  echo "Ubuntu 22 or above"
+  rm -f /usr/share/keyrings/openresty.gpg
+  wget -O - https://openresty.org/package/pubkey.gpg | sudo gpg --dearmor -o /usr/share/keyrings/openresty.gpg
+  echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/openresty.gpg] http://openresty.org/package/ubuntu $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/openresty.list > /dev/null
+  apt-get update
+  apt-get -y install openresty-opm openresty-resty openresty-restydoc openresty-restydoc-pdf openresty-restydoc-html openresty-restydoc-epub openresty-restydoc-md openresty-restydoc-txt openresty-rest
+fi
+
+opm get bungle/lua-resty-session
+opm get ip2location/ip2location-resty
+opm get bungle/lua-resty-template
+opm get thibaultcha/lua-resty-mlcache
+opm get 3scale/lua-resty-env
+# opm get bungle/lua-resty-prettycjson
+
+luarocks install lua-resty-jwt
+luarocks install lua-resty-session
+luarocks install lua-resty-http
+luarocks install lua-resty-openidc
+luarocks install base64
+luarocks install lua-resty-redis-connector
+luarocks install lua-resty-dns
+luarocks install lua-resty-resolver
+luarocks install luafilesystem
+luarocks install lua-resty-auto-ssl
+luarocks install pgmoon
+#luarocks install lua-cjson
+# luarocks install --tree lua_modules lua-resty-prettycjson
+
+mkdir -p /opt/nginx/data/
+chmod 777 /opt/nginx/data/
+
+mkdir -p /etc/resty-auto-ssl
+chown -R root:nobody /etc/resty-auto-ssl/
+chmod -R 775 /etc/resty-auto-ssl
+
+mkdir -p /etc/ssl/
+chown -R root:nobody /etc/ssl/
+chmod -R 775 /etc/ssl
+
+openssl req -new -newkey rsa:2048 -days 3650 -nodes -x509 \
+  -subj '/CN=sni-support-required-for-valid-ssl' \
+  -keyout /etc/ssl/resty-auto-ssl-fallback.key \
+  -out /etc/ssl/resty-auto-ssl-fallback.crt
+
+mkdir -p "/var/run/nginx/" \
+    && chmod +x "/var/run/nginx/" \
+    && chown root:root "/var/run/nginx/" \
+    && chmod 755 -R "/var/run/nginx/"
+
+
+# mc - MinIO Client is used to backup nginx openresty configuration to S3
+wget https://dl.min.io/client/mc/release/linux-amd64/mc -O /usr/local/bin/mc \
+    --tries=3 --timeout=30 && \
+    chmod +x /usr/local/bin/mc  
+
+mc --version

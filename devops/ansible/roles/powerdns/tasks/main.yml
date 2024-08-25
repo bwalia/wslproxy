@@ -1,0 +1,10 @@
+# - name: Update dns zone files using powerdns
+#   community.general.PowerDNS.pdns:
+#     zone: "{{ POWERDNS_ZONE }}"
+#     record: "{{ POWERDNS_RECORD_NAME }}"
+#     type: "{{ POWERDNS_RECORD_TYPE }}"
+#     value: "{{ POWERDNS_RECORD_VALUE }}"
+#     account_email: "{{ POWERDNS_ACCOUNT_EMAIL }}"
+#     account_api_key: "{{ POWERDNS_ACCOUNT_API_KEY }}"
+#   register: record
+#   tags: [powerdns]
