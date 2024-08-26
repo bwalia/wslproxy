@@ -1,5 +1,5 @@
-local cjson = require "cjson"
-local jwt = require "resty.jwt"
+local cjson = Cjson
+local jwt = JWT
 Base64 = require "base64"
 local configPath = os.getenv("NGINX_CONFIG_DIR") or "/opt/nginx/"
 

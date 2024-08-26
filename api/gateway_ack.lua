@@ -11,8 +11,8 @@
 -- v1 - Initial version is taken and then modified for more API GW features in gateway.lua
 -- For authentication see auth.lua
 
-local cjson = require "cjson"
-local jwt = require "resty.jwt"
+local cjson = Cjson
+local jwt = JWT
 Base64 = require "base64"
 Hostname = ngx.var.host
 local configPath = os.getenv("NGINX_CONFIG_DIR") or "/opt/nginx/"
@@ -267,8 +267,8 @@ local function gatewayHostRulesParser(rules, ruleId, priority, message, statusCo
         end
     end
 
-    local ip2location = require('ip2location')
-    local ip2loc = ip2location:new('/tmp/IP2LOCATION-LITE-DB11.IPV6.BIN')
+    local ip2locPath = settingsObj.ip2location_path or "/tmp/IP2LOCATION-LITE-DB11.IPV6.BIN"
+    local ip2loc = IP2location:new(ip2locPath)
     local result = ip2loc:get_all(req_add)
     local country = ""
     if result.country_short then

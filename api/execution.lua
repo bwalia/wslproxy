@@ -1,4 +1,4 @@
-local cjson = require("cjson")
+local cjson = Cjson
 local configPath = os.getenv("NGINX_CONFIG_DIR")
 
 local function isIpAddress(str)

@@ -1,4 +1,4 @@
-local cjson = require("cjson")
+local cjson = Cjson
 local configPath = os.getenv("NGINX_CONFIG_DIR") or "/opt/nginx/"
 local globalVars = ngx.var.vars
 Base64 = require "base64"
