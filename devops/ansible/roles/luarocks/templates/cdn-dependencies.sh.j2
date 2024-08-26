@@ -13,7 +13,7 @@ if (lsb_release -r | grep -q "22"); then
 fi
 
 if (lsb_release -r | grep -q "24"); then
-  echo "Ubuntu 22 or above"
+  echo "Ubuntu 24 or above"
   rm -f /usr/share/keyrings/openresty.gpg
   wget -O - https://openresty.org/package/pubkey.gpg | sudo gpg --dearmor -o /usr/share/keyrings/openresty.gpg
   echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/openresty.gpg] http://openresty.org/package/ubuntu $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/openresty.list > /dev/null
