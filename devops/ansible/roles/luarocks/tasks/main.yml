@@ -29,7 +29,7 @@
    ansible.builtin.file:
     path: /opt/nginx/data/
     state: directory
-    owner: "{{ openresty_user }}"
+    owner: "{{ ansible_user }}"
     group: root
     mode: 0775
    tags: [ openresty,lapis ]
@@ -39,14 +39,14 @@
     src:  /tmp/settings_brahmstra.json
     dest: /opt/nginx/data/settings.json
     mode: 0777
-   tags: [ openresty,lapis,codebase ]
+   tags: [ openresty,lapis,codeui ]
 
  - name: Copy Environment file
    template:
     src:  /tmp/.env_brahmstra
     dest: /tmp/.env
     mode: 0777
-   tags: [ openresty,lapis,codebase ]
+   tags: [ openresty,lapis,codeui ]
 
  - name: Execute the openresty.sh bootstrap script
    shell: /tmp/openresty.sh
@@ -68,53 +68,53 @@
     dest: /usr/local/openresty/nginx/html/api
    notify: Restart openresty
    register: sync_files
-   tags: [ openresty,lapis,codebase ]
+   tags: [ openresty,lapis,codeui,nginx ]
 
  - debug:
      var: sync_files.stdout_lines
-   tags: [ openresty,lapis,codebase ]
+   tags: [ openresty,lapis,codeui,nginx ]
 
  - ansible.posix.synchronize:
     src: ../../html/
     dest: /usr/local/openresty/nginx/html
    register: sync_files
-   tags: [ openresty,lapis,codebase ]
+   tags: [ openresty,lapis,codeui,html ]
 
  - debug:
      var: sync_files.stdout_lines
-   tags: [ openresty,lapis,codebase ]
+   tags: [ openresty,lapis,codeui,html ]
 
  - ansible.posix.synchronize:
     src: ../../openresty-admin/
     dest: /usr/local/openresty/nginx/html/openresty-admin
    register: sync_files
-   tags: [ openresty,lapis,codebase ]
+   tags: [ openresty,lapis,codeui ]
 
  - debug:
      var: sync_files.stdout_lines
-   tags: [ openresty,lapis,codebase ]
+   tags: [ openresty,lapis,codeui ]
 
  - name: Copy npm yarn dependencies script
    template:
     src:  install-build-npm-yarn.sh.j2
     dest: /tmp/install-build-npm-yarn.sh
     mode: 0777
-   tags: [ openresty,lapis,codebase ]
+   tags: [ openresty,lapis,codeui ]
 
  - name: Execute the install-build-npm-yarn.sh script
    shell: /tmp/install-build-npm-yarn.sh
-   tags: [ openresty,lapis,codebase ]
+   tags: [ openresty,lapis,codeui ]
 
  - name: copy nginx conf file
    template:
       src: nginx.conf.j2
       dest: /usr/local/openresty/nginx/conf/nginx.conf 
    notify: Restart openresty
-   tags: [ openresty,lapis,codebase ]
+   tags: [ openresty,lapis,codeui,nginx ]
 
  - name: Enable and start OpenResty service
    systemd:
        name: openresty
        state: started
        enabled: yes 
-   tags: [ openresty,lapis,codebase ]
+   tags: [ openresty,lapis,codeui,nginx ]
