@@ -200,6 +200,11 @@ http {
             content_by_lua_file /usr/local/openresty/nginx/html/api/api.lua; # < Points to Lua file
         }
 
+        location /swagger {
+          root   /usr/local/openresty/nginx/html/swagger;
+          index  swagger.html swagger.htm;
+        }
+
 location /ping {
     default_type 'application/json';
     add_header 'Access-Control-Allow-Origin' '*';
