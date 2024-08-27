@@ -73,3 +73,6 @@ wget https://dl.min.io/client/mc/release/linux-amd64/mc -O /usr/local/bin/mc \
     chmod +x /usr/local/bin/mc  
 
 mc --version
+
+cd /tmp/ && wget https://edgeone-public.s3.eu-west-2.amazonaws.com/src/openresty/IP2LOCATION-LITE-DB11.IPV6.BIN/IP2LOCATION-LITE-DB11.IPV6.BIN -O /tmp/IP2LOCATION-LITE-DB11.IPV6.BIN
+mv /tmp/IP2LOCATION-LITE-DB11.IPV6.BIN /usr/local/openresty/nginx/IP2LOCATION-LITE-DB11.IPV6.BIN
