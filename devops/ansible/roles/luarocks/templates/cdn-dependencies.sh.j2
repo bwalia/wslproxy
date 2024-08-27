@@ -1,36 +1,19 @@
 #!/bin/bash
 
-# For ubuntu 22 or above
-if (lsb_release -r | grep -q "22"); then
-  echo "Ubuntu 22 or above"
-  rm -f /usr/share/keyrings/openresty.gpg
-  wget -O - https://openresty.org/package/pubkey.gpg | sudo gpg --dearmor -o /usr/share/keyrings/openresty.gpg
-  echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/openresty.gpg] http://openresty.org/package/ubuntu $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/openresty.list > /dev/null
-  apt-get update
-  apt-get install ldconfig -y
-  apt-get -y install openresty-opm
-  # compile from source instead openresty package is removed
-fi
+opm remove pintsized/lua-resty-http
+opm remove ledgetech/lua-resty-http
 
-if (lsb_release -r | grep -q "24"); then
-  echo "Ubuntu 24 or above"
-  rm -f /usr/share/keyrings/openresty.gpg
-  wget -O - https://openresty.org/package/pubkey.gpg | sudo gpg --dearmor -o /usr/share/keyrings/openresty.gpg
-  echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/openresty.gpg] http://openresty.org/package/ubuntu $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/openresty.list > /dev/null
-  apt-get update
-  apt-get install ldconfig -y
-  apt-get -y install openresty-opm
-  # compile from source instead openresty package is removed
-fi
-
-
+opm get olegabr/lua-resty-ip2location
+# opm get ip2location/ip2location-resty
 opm get bungle/lua-resty-session
-opm get ip2location/ip2location-resty
 opm get bungle/lua-resty-template
 opm get thibaultcha/lua-resty-mlcache
 opm get 3scale/lua-resty-env
 # opm get bungle/lua-resty-prettycjson
 
+# luarocks install ip2location
+luarocks install ip2location
+luarocks install ip2location-resty
 luarocks install lua-resty-jwt
 luarocks install lua-resty-session
 luarocks install lua-resty-http

@@ -1,5 +1,28 @@
 #!/bin/bash
 
+# For ubuntu 22 or above
+if (lsb_release -r | grep -q "22"); then
+  echo "Ubuntu 22 or above"
+  rm -f /usr/share/keyrings/openresty.gpg
+  wget -O - https://openresty.org/package/pubkey.gpg | sudo gpg --dearmor -o /usr/share/keyrings/openresty.gpg
+  echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/openresty.gpg] http://openresty.org/package/ubuntu $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/openresty.list > /dev/null
+  apt-get update
+  apt-get install ldconfig -y
+  apt-get -y install openresty-opm
+  # compile from source instead openresty package is removed
+fi
+
+if (lsb_release -r | grep -q "24"); then
+  echo "Ubuntu 24 or above"
+  rm -f /usr/share/keyrings/openresty.gpg
+  wget -O - https://openresty.org/package/pubkey.gpg | sudo gpg --dearmor -o /usr/share/keyrings/openresty.gpg
+  echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/openresty.gpg] http://openresty.org/package/ubuntu $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/openresty.list > /dev/null
+  apt-get update
+  apt-get install ldconfig -y
+  apt-get -y install openresty-opm
+  # compile from source instead openresty package is removed
+fi
+
 # Set OpenResty source directory
 OPENRESTY_SRC_DIR=/usr/local/openresty
 
@@ -25,14 +48,15 @@ build_openresty() {
  wget  https://openresty.org/download/openresty-1.25.3.2.tar.gz
  tar -xzf openresty-1.25.3.2.tar.gz
  cd openresty-1.25.3.2
+ 
   ./configure --prefix=$OPENRESTY_SRC_DIR --with-http_ssl_module --with-http_gzip_static_module --with-http_sub_module --with-http_v2_module
-  make
-  make install
-  ln -s /usr/local/openresty/bin/openresty /usr/bin/openresty
+  gmake -j2
+  gmake install
+  ln -s /usr/local/openresty/nginx/sbin/nginx /usr/bin/openresty
 
 echo "Building OpenResty"
 }
 
 # Main script
 build_openresty
-exit 0
+# exit 0
