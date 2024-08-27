@@ -1,4 +1,4 @@
-local cjson = require("cjson")
+local cjson = Cjson
 local resty_md5 = require "resty.md5"
 
 function md5_convert(str)

@@ -1,6 +1,5 @@
 local Dns = {}
 local dns_res = require "resty.dns.resolver"
-local cjson = require "cjson"
 
 function Dns.access(selectedRule, dnsServerHost, dnsServerPort)
     local query_domain = selectedRule.rule_data.consulDomainName

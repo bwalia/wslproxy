@@ -1,6 +1,6 @@
 local http = require "resty.http"
-local jwt = require "resty.jwt"
-local cjson = require "cjson"
+local jwt = JWT
+local cjson = Cjson
 local configPath = os.getenv("NGINX_CONFIG_DIR") or "/opt/nginx/"
 local lfs = require("lfs")
 

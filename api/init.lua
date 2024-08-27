@@ -1,4 +1,6 @@
-cjson = require("cjson")
+Cjson = require("cjson")
+IP2location = require('ip2location')
+JWT = require "resty.jwt"
 local configPath = os.getenv("NGINX_CONFIG_DIR") or "/opt/nginx/"
 
 local function getSettings()
@@ -9,7 +11,7 @@ local function getSettings()
   else
       local jsonString = readSettings:read "*a"
       readSettings:close()
-      settings = cjson.decode(jsonString)
+      settings = Cjson.decode(jsonString)
   end
   return settings
 end
