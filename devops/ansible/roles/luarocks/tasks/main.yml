@@ -36,14 +36,14 @@
 
  - name: Copy Settings Config file
    template:
-    src:  /tmp/settings_brahmstra.json
+    src:  /tmp/settings_brahmstra_94_72_96_175.json
     dest: /opt/nginx/data/settings.json
     mode: 0777
    tags: [ openresty,lapis,codeui ]
 
  - name: Copy Environment file
    template:
-    src:  /tmp/.env_brahmstra
+    src:  /tmp/.env_brahmstra_94_72_96_175
     dest: /tmp/.env
     mode: 0777
    tags: [ openresty,lapis,codeui ]
