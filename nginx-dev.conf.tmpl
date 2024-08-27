@@ -116,10 +116,9 @@ http {
             add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, OPTIONS';
             add_header 'Access-Control-Allow-Headers' 'Content-Type';
             access_by_lua_block {
-                local cjson = require "cjson"
                 local path_name = ngx.var.uri:match("^/api/(.*)$")
                 if path_name ~= "user/login" then
-                    local jwt = require "resty.jwt"
+                    local jwt = JWT
                     local token = ngx.req.get_headers()["Authorization"]
                     if not token then
                         ngx.status = ngx.HTTP_UNAUTHORIZED
@@ -136,7 +135,7 @@ http {
                       else
                           local jsonString = readSettings:read "*a"
                           readSettings:close()
-                          settings = cjson.decode(jsonString)
+                          settings = Cjson.decode(jsonString)
                       end
                       return settings
                     end
@@ -144,13 +143,13 @@ http {
                     local passPhrase = settings.env_vars.JWT_SECURITY_PASSPHRASE or os.getenv("JWT_SECURITY_PASSPHRASE")
                     if not passPhrase or passPhrase == "" then
                       ngx.status = ngx.HTTP_UNAUTHORIZED
-                      ngx.say(cjson.encode({data = {message = "JWT Pass Phrase is missing"}}))
+                      ngx.say(Cjson.encode({data = {message = "JWT Pass Phrase is missing"}}))
                       return ngx.exit(ngx.HTTP_UNAUTHORIZED)
                     end
                     local verified_token = jwt:verify(passPhrase, token)
                     if verified_token.verified == false then
                         ngx.status = ngx.HTTP_UNAUTHORIZED
-                        ngx.say(cjson.encode({data = {message = verified_token.reason}}))
+                        ngx.say(Cjson.encode({data = {message = verified_token.reason}}))
                         return ngx.exit(ngx.HTTP_UNAUTHORIZED)
                     end
                 end
@@ -593,9 +592,8 @@ server {
           location / {
             default_type text/plain;
             set_by_lua_block $vars {
-              local cjson = require("cjson")
               local executableRule, proxyServerName = {}, nil
-              return cjson.encode({
+              return Cjson.encode({
                 executableRule = executableRule,
                 proxyServerName = proxyServerName
               })
@@ -717,9 +715,8 @@ server {
           location / {
             default_type text/plain;
             set_by_lua_block $vars {
-              local cjson = require("cjson")
               local executableRule, proxyServerName = {}, nil
-              return cjson.encode({
+              return Cjson.encode({
                 executableRule = executableRule,
                 proxyServerName = proxyServerName
               })
