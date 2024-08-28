@@ -127,6 +127,16 @@
    notify: Restart openresty
    tags: [ openresty,lapis,codeui,nginx ]
 
+ - name: make sure tenants nginx conf dir exits
+   ansible.builtin.file:
+    path: /opt/nginx/conf.d/
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: root
+    mode: 0775
+   notify: Restart openresty
+   tags: [ openresty,lapis,codeui,nginx ]
+
  - name: Enable and start OpenResty service
    systemd:
        name: openresty
