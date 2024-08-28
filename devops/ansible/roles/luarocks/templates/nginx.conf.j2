@@ -147,7 +147,7 @@ http {
             add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, OPTIONS';
             add_header 'Access-Control-Allow-Headers' 'Content-Type';
             access_by_lua_block {
-                local cjson = require "cjson"
+                local cjson = Cjson
                 local path_name = ngx.var.uri:match("^/api/(.*)$")
                 if path_name ~= "user/login" then
                     local jwt = require "resty.jwt"
@@ -267,7 +267,7 @@ server {
           location / {
             default_type text/plain;
             set_by_lua_block $vars {
-              local json = require("cjson")
+              local cjson = Cjson
               local executableRule, proxyServerName = {}, nil
               return cjson.encode({
                 executableRule = executableRule,
@@ -392,7 +392,7 @@ server {
             default_type text/plain;
             set_by_lua_block $vars {
 
-              local cjson = require("cjson")
+              local cjson = Cjson
               local executableRule, proxyServerName = {}, nil
               return cjson.encode({
                 executableRule = executableRule,
