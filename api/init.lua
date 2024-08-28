@@ -1,6 +1,9 @@
 Cjson = require("cjson")
 IP2location = require('ip2location')
 JWT = require "resty.jwt"
+LFS = require("lfs")
+Base64 = require "base64"
+
 local configPath = os.getenv("NGINX_CONFIG_DIR") or "/opt/nginx/"
 
 local function getSettings()
