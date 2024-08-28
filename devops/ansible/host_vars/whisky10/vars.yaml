@@ -1,0 +1,2 @@
+local_settings_file_path: "/tmp/settings_brahmstra.json"
+local_env_file_path: "/tmp/.env_brahmstra"
