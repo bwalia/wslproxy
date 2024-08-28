@@ -267,7 +267,7 @@ server {
           location / {
             default_type text/plain;
             set_by_lua_block $vars {
-              local json = require("cjson")
+              local cjson = require("cjson")
               local executableRule, proxyServerName = {}, nil
               return cjson.encode({
                 executableRule = executableRule,
