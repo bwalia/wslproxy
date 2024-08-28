@@ -48,6 +48,21 @@
     mode: 0777
    tags: [ openresty,lapis,codeui ]
 
+ - name: Copy CRON bash Script
+   template:
+    src:  nginx_restart_if_required.sh.j2
+    dest: /usr/sbin/nginx_restart_if_required.sh
+    mode: 0775
+   tags: [ openresty,lapis ]
+
+ - name: Run CRON every minute to check if nginx needs to be restarted
+   cron:
+     name: "nginx_restart"
+     user: "root"
+     minute: "*/1"
+     job: "/bin/sh /usr/sbin/nginx_restart_if_required.sh"
+   tags: [ openresty,lapis ]
+
  - name: Execute the openresty.sh bootstrap script
    shell: /tmp/openresty.sh
    tags: [ test,openresty,lapis ]

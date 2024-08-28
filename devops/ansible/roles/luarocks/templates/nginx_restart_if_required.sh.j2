@@ -1,0 +1,12 @@
+#!/bin/bash
+
+date=$(date "+%Y%m%d-%H%M%S")
+echo "${date} Checking, should Nginx be restarted?" >> /var/run/nginx/nginx-reboot.log
+
+if [ -f /var/run/nginx/nginx-reboot-required ]; then
+  echo "Nginx restart required"
+  systemctl restart openresty
+  echo "${date} Nginx restarted" >> /var/run/nginx/nginx-reboot.log
+  rm -f /var/run/nginx/nginx-reboot-required
+  exit 0
+fi
