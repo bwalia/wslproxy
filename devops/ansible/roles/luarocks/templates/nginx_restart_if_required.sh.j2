@@ -1,0 +1,33 @@
+#!/bin/bash
+
+date=$(date "+%Y%m%d-%H%M%S")
+
+FILEPATH=/var/run/nginx/nginx-reboot.log
+
+echo "${date} Checking, should Nginx be restarted?" >> $FILEPATH
+
+if [ -f /var/run/nginx/nginx-reboot-required ]; then
+  echo "Nginx restart conf change check is required"
+
+  # MAXSIZE is 5 MB
+  MAXSIZE=500000
+
+  # Get file size
+  FILESIZE=$(stat -c%s "$FILEPATH")
+  echo "Size of $FILEPATH = $FILESIZE bytes."
+
+  # Checkpoint if file size is greater than 1 MB create new log file
+  if [[ $FILESIZE > $MAXSIZE ]] ;then
+        # truncate and append if file size is more than 5 MB
+    echo "${date} Nginx restarted" > $FILEPATH
+  else
+    # append if file size is less than 5 MB
+    echo "${date} Nginx restarted" >> $FILEPATH
+  fi
+
+  rm -f /var/run/nginx/nginx-reboot-required
+
+  systemctl restart openresty
+  
+  exit 0
+fi
