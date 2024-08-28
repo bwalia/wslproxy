@@ -1,7 +1,6 @@
 local cjson = Cjson
 local configPath = os.getenv("NGINX_CONFIG_DIR") or "/opt/nginx/"
 local globalVars = ngx.var.vars
-Base64 = require "base64"
 local Dns = require("dns_access")
 
 local function isIpAddress(str)

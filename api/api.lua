@@ -1,10 +1,9 @@
 local cjson = Cjson
 local jwt = JWT
-Base64 = require "base64"
 local configPath = os.getenv("NGINX_CONFIG_DIR") or "/opt/nginx/"
-
-ngx.header["Access-Control-Allow-Origin"] = "*"
-local lfs = require("lfs")
+-- ngx.header["Access-Control-Allow-Origin"] = "*"
+local lfs = LFS
+local Conf = require("server-conf")
 
 local function getSettings()
     local readSettings, errSettings = io.open(configPath .. "data/settings.json", "rb")
@@ -108,6 +107,16 @@ local function generateToken()
         }
     })
 end
+
+local function fileExists(filePath)
+    local attr = lfs.attributes(filePath)
+    if attr then
+        return true
+    else
+        return false
+    end
+end
+
 -- Function to check if a directory exists
 local function isDirectoryExists(path)
     local attributes = lfs.attributes(path)
@@ -1248,6 +1257,9 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name, method)
     end
 
     local filePathDir = configPath .. "data/" .. folder_name .. "/" .. envProfile
+    local nginxTenantConfDir = settings.nginx.tenant_conf_path or "/opt/nginx/conf.d"
+    local rebootFilePath = settings.nginx.reboot_file_path or "/var/run/nginx/nginx-reboot-required"
+    -- HS 28/08/2024 This part of the code need to be refactor or optimise
     if settings.storage_type == "redis" then
         redis_json[uuid] = cjson.encode(json_val)
         red:hmset(key_name .. "_" .. envProfile, redis_json)
@@ -1255,12 +1267,37 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name, method)
         if key_name == "servers" then
             local configString = Base64.decode(json_val.config)
             setDataToFile(filePathDir .. "/conf/" .. json_val.server_name .. ".conf", cleanString(configString), filePathDir .. "/conf", "conf")
+            if fileExists(nginxTenantConfDir .. "/" .. json_val.server_name .. ".conf") == false then
+                Conf.saveConfFiles(nginxTenantConfDir, cleanString(configString), json_val.server_name .. ".conf")
+                Conf.CreateNginxFlag(rebootFilePath)
+            else
+                local sourceFilePath = filePathDir .. "/conf/" .. json_val.server_name .. ".conf"
+                local destinationFilePath = nginxTenantConfDir .. "/" .. json_val.server_name .. ".conf"
+                local isFilesSame = Conf.compareFiles(sourceFilePath, destinationFilePath)
+                if isFilesSame == false then
+                    Conf.saveConfFiles(nginxTenantConfDir, cleanString(configString), json_val.server_name .. ".conf")
+                    Conf.CreateNginxFlag(rebootFilePath)
+                end
+            end
         end
     else
         setDataToFile(filePathDir .. "/" .. uuid .. ".json", json_val, filePathDir)
         if key_name == "servers" then
-            local configString = Base64.decode(json_val.config)
+            local configString, doCopyConf = Base64.decode(json_val.config), false
             setDataToFile(filePathDir .. "/conf/" .. json_val.server_name .. ".conf", cleanString(configString), filePathDir .. "/conf", "conf")
+
+            if fileExists(nginxTenantConfDir .. "/" .. json_val.server_name .. ".conf") == false then
+                Conf.saveConfFiles(nginxTenantConfDir, cleanString(configString), json_val.server_name .. ".conf")
+                Conf.CreateNginxFlag(rebootFilePath)
+            else
+                local sourceFilePath = filePathDir .. "/conf/" .. json_val.server_name .. ".conf"
+                local destinationFilePath = nginxTenantConfDir .. "/" .. json_val.server_name .. ".conf"
+                local isFilesSame = Conf.compareFiles(sourceFilePath, destinationFilePath)
+                if isFilesSame == false then
+                    Conf.saveConfFiles(nginxTenantConfDir, cleanString(configString), json_val.server_name .. ".conf")
+                    Conf.CreateNginxFlag(rebootFilePath)
+                end
+            end
         end
     end
     ngx.status = ngx.HTTP_OK
