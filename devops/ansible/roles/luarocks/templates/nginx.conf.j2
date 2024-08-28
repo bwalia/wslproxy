@@ -613,6 +613,7 @@ server {
     #    }
     #}
 
-include /usr/local/openresty/nginx/conf.d/*.conf;
+    # Tenants nginx configuration files path can be updated here
+    include /usr/local/openresty/nginx/conf.d/*.conf;
 
 }
