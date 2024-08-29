@@ -3,35 +3,12 @@ local configPath = os.getenv("NGINX_CONFIG_DIR") or "/opt/nginx/"
 local globalVars = ngx.var.vars
 local Dns = require("dns_access")
 
-local function isIpAddress(str)
-    local pattern = "^%d+%.%d+%.%d+%.%d+$"
-    local match = string.match(str, pattern)
-    if match then
-        -- Further validate the IP address components
-        local a, b, c, d = string.match(str, "(%d+)%.(%d+)%.(%d+)%.(%d+)")
-        if tonumber(a) <= 255 and tonumber(b) <= 255 and tonumber(c) <= 255 and tonumber(d) <= 255 then
-            return true
-        end
-    end
-    return false
-end
+local Helper = require("helpers")
 
-local function loadGlobalSettings()
-    local readSettings, errSettings = io.open(configPath .. "data/settings.json", "rb")
-    local settings = {}
-    if readSettings == nil then
-        ngx.say("Couldn't read file: " .. errSettings)
-    else
-        local jsonString = readSettings:read "*a"
-        readSettings:close()
-        settings = cjson.decode(jsonString)
-    end
-    return settings
-end
 globalVars = cjson.decode(globalVars)
 local selectedRule = globalVars.executableRule
 local primaryNameserver = globalVars.proxyServerName
-local settings = loadGlobalSettings()
+local settings = Helper.settings()
 
 
 if selectedRule.statusCode == nil then
@@ -77,7 +54,7 @@ elseif selectedRule.statusCode == 305 then
         local dnsServerPort = settings.consul.dns_server_port
         if dnsServerHost ~= nil then
             local tIp, tPort = Dns.access(selectedRule, dnsServerHost, dnsServerPort)
-            if isIpAddress(tIp) then
+            if Helper.isIpAddress(tIp) then
                 selectedRule.redirectUri = tIp
                 extractedPort = tPort
                 continueDnsResolve = false
@@ -86,7 +63,7 @@ elseif selectedRule.statusCode == 305 then
     end
     if continueDnsResolve then
         extracted = string.match(selectedRule.redirectUri, ":(.*)")
-        if not isIpAddress(selectedRule.redirectUri) then
+        if not Helper.isIpAddress(selectedRule.redirectUri) then
             local resolver = require "resty.dns.resolver"
             local primaryNameserver = os.getenv("PRIMARY_DNS_RESOLVER")
             if (primaryNameserver == nil or primaryNameserver == "") and not (settings == nil or settings.dns_resolver == nil) then
@@ -117,12 +94,17 @@ elseif selectedRule.statusCode == 305 then
             }
             if not r then
                 ngx.say("failed to instantiate the resolver: ", err)
+                ngx.exit(ngx.HTTP_BAD_REQUEST)
                 return
             end
-            local answers, err, tries = r:query(string.gsub(selectedRule.redirectUri, ":(.*)", ""), nil, {})
-            if not answers then
-                ngx.say("failed to query the DNS server: ", err)
-                ngx.say("retry historie:\n  ", table.concat(tries, "\n  "))
+            local answers, qErr, tries = r:query(string.gsub(selectedRule.redirectUri, ":(.*)", ""), nil, {})
+            if not answers or answers.errstr ~= nil then
+                ngx.say(Cjson.encode({
+                    message = "DNS couldn't resolve the domain please check your domain or DNS configurations.",
+                    error = qErr,
+                    retry_historie = tries
+                }))
+                ngx.exit(ngx.HTTP_BAD_REQUEST)
                 return
             end
             for i, ans in ipairs(answers) do
@@ -131,6 +113,12 @@ elseif selectedRule.statusCode == 305 then
         end
     end
     local finalProxyHost = selectedRule.redirectUri
+    if not Helper.isIpAddress(finalProxyHost) then
+        ngx.say(Cjson.encode({
+            message = "DNS failed to resolve the domain please check your domain or DNS configurations.",
+        }))
+        ngx.exit(ngx.HTTP_BAD_REQUEST)
+    end
     if extracted ~= nil then
         ngx.var.proxy_port = extracted
         finalProxyHost = string.gsub(selectedRule.redirectUri, ":(.*)", "")

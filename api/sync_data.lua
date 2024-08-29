@@ -19,7 +19,7 @@ local function getSettings()
     return settings
 end
 local settings = getSettings()
-Hostname = settings.env_vars.HOSTNAME or os.getenv("HOST")
+local Hostname = settings.env_vars.HOSTNAME or os.getenv("HOST")
 local apiUrl = settings.env_vars.API_URL or os.getenv("API_URL")
 local function generateToken()
     local passPhrase = settings.env_vars.JWT_SECURITY_PASSPHRASE or os.getenv("JWT_SECURITY_PASSPHRASE")

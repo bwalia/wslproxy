@@ -14,7 +14,9 @@
 local cjson = Cjson
 local jwt = JWT
 Hostname = ngx.var.host
+
 local configPath = os.getenv("NGINX_CONFIG_DIR") or "/opt/nginx/"
+local Helper = require("helpers")
 
 local isItDTAPEnvironment = function(pHostnameStr)
     --return true
@@ -22,20 +24,7 @@ local isItDTAPEnvironment = function(pHostnameStr)
     string.find(pHostnameStr, "test")
 end
 
-local function loadGlobalSettings()
-    local readSettings, errSettings = io.open(configPath .. "data/settings.json", "rb")
-    local settings = {}
-    if readSettings == nil then
-        ngx.say("Couldn't read file: " .. errSettings)
-    else
-        local jsonString = readSettings:read "*a"
-        readSettings:close()
-        settings = cjson.decode(jsonString)
-    end
-    return settings
-end
-
-local settingsObj = loadGlobalSettings()
+local settingsObj = Helper.settings()
 local envProfile = settingsObj.env_profile == nil and "prod" or settingsObj.env_profile
 
 local function trimWhitespace(str)
@@ -335,7 +324,6 @@ local function hasAndCondition(tbl)
 end
 
 local function gatewayRequestHandler(ruleId)
-    local settings = loadGlobalSettings()
     local ruleFromRedis = nil
     ruleFromRedis = loadFileContent(configPath .. "data/rules/" .. envProfile .. "/" .. ruleId .. ".json")
     if ruleFromRedis ~= nil and type(ruleFromRedis) ~= "userdata" then
