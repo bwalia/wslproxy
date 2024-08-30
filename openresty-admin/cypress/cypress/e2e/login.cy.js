@@ -38,7 +38,7 @@ describe('Brahmstra login test Int environment', () => {
     cy.get('#name').type(`Test Rule added by Cypress ${nameString}`)
     cy.get('#profile_id').click()
     cy.get(`div.MuiPaper-root.MuiMenu-paper ul.MuiMenu-list li[data-value="${TARGET_ENV}"]`).click()
-    cy.get('.matchRulePath div input').type("/api")
+    cy.get('.matchRulePath div input').type("/")
     // cy.get('input[name="match.rules.client_ip"]').type(allowed_ip)
     cy.get('input[name="match.response.code"]').clear()
     cy.get('input[name="match.response.code"]').type('{selectall}{backspace}')
