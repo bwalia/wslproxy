@@ -1,25 +1,14 @@
 local cjson = Cjson
 local jwt = JWT
-local configPath = os.getenv("NGINX_CONFIG_DIR") or "/opt/nginx/"
--- ngx.header["Access-Control-Allow-Origin"] = "*"
 local lfs = LFS
+
+local configPath = os.getenv("NGINX_CONFIG_DIR") or "/opt/nginx/"
 local Conf = require("server-conf")
+local Helper = require("helpers")
 
-local function getSettings()
-    local readSettings, errSettings = io.open(configPath .. "data/settings.json", "rb")
-    local settings = {}
-    if readSettings == nil then
-        ngx.say("Couldn't read file: " .. errSettings)
-    else
-        local jsonString = readSettings:read "*a"
-        readSettings:close()
-        settings = cjson.decode(jsonString)
-    end
-    return settings
-end
-
-local settings = getSettings()
+local settings = Helper.settings()
 local storageTypeOverride = settings.settings or os.getenv("STORAGE_TYPE")
+
 local red = {}
 
 if settings.storage_type == "redis" then
@@ -36,48 +25,6 @@ if settings.storage_type == "redis" then
     if not ok then
         ngx.log(ngx.ERR, "failed to connect to Redis: ", err)
     end
-end
-
-local function sortAsc(field)
-    return function(a, b)
-        local aValue = a[field]
-        local bValue = b[field]
-
-        if aValue == nil and bValue == nil then
-            return false
-        elseif aValue == nil then
-            return false
-        elseif bValue == nil then
-            return true
-        end
-
-        return aValue < bValue
-    end
-end
-local function sortDesc(field)
-    return function(a, b)
-        local aValue = a[field]
-        local bValue = b[field]
-
-        if aValue == nil and bValue == nil then
-            return false
-        elseif aValue == nil then
-            return false
-        elseif bValue == nil then
-            return true
-        end
-
-        return aValue > bValue
-    end
-end
-
-local function generate_uuid()
-    local random = math.random(1000000000)                                            -- generate a random number
-    local timestamp = os.time()                                                       -- get the current time in seconds since the Unix epoch
-    local hash = ngx.md5(tostring(random) .. tostring(timestamp))                     -- create a hash of the random number and timestamp
-    local uuid = string.format("%s-%s-%s-%s-%s", string.sub(hash, 1, 8), string.sub(hash, 9, 12),
-        string.sub(hash, 13, 16), string.sub(hash, 17, 20), string.sub(hash, 21, 32)) -- format the hash as a UUID
-    return uuid
 end
 
 local function is_uuid(str)
@@ -424,7 +371,6 @@ end
 -- Authentication
 
 local function login(args)
-    local settings = getSettings()
     if settings then
         local suEmail = settings.super_user.email
         local suPassword = settings.super_user.password
@@ -467,7 +413,6 @@ local function login(args)
 end
 
 local function setStorage(body)
-    local settings = getSettings()
     local storageType = ""
     if settings then
         if type(body) == "table" then
@@ -573,7 +518,6 @@ local function listServers(args)
     -- Retrieve a page of records using HSCAN
     local cursor, totalRecords = "0", 0
     local allServers, servers = {}, {}
-    local settings = getSettings()
     if qParams.filter ~= nil then
         local filter = qParams.filter
         if filter.profile_id ~= nil then
@@ -596,9 +540,9 @@ local function listServers(args)
     end
 
     if qParams.sort ~= nil and qParams.sort.order == "DESC" then
-        table.sort(allServers, sortDesc(qParams.sort.field))
+        table.sort(allServers, Helper.sortDesc(qParams.sort.field))
     elseif qParams.sort ~= nil and qParams.sort.order == "ASC" then
-        table.sort(allServers, sortAsc(qParams.sort.field))
+        table.sort(allServers, Helper.sortAsc(qParams.sort.field))
     end
     return ngx.say(cjson.encode({
         data = allServers,
@@ -607,7 +551,6 @@ local function listServers(args)
 end
 
 local function listServer(args, id)
-    local settings = getSettings()
     local envProfile = args.envprofile ~= nil and args.envprofile or "prod"
     if settings then
         if settings.storage_type == "disk" then
@@ -676,7 +619,6 @@ local function createDeleteServer(body, uuid)
         envProfile = payloads.envProfile
     end
 
-    local settings = getSettings()
     if settings then
         if uuid ~= "" and uuid ~= nil then
             if settings.storage_type == "disk" then
@@ -770,7 +712,6 @@ local function createUserInDisk(payloads, uuid)
 end
 
 local function listUsers(args)
-    local settings = getSettings()
     local users = {}
     local keys = {}
     local params = args
@@ -808,9 +749,9 @@ local function listUsers(args)
     end
     if next(users) ~= nil then
         if qParams.sort.order == "DESC" then
-            table.sort(users, sortDesc(qParams.sort.field))
+            table.sort(users, Helper.sortDesc(qParams.sort.field))
         else
-            table.sort(users, sortAsc(qParams.sort.field))
+            table.sort(users, Helper.sortAsc(qParams.sort.field))
         end
     end
     ngx.say(cjson.encode({
@@ -821,7 +762,6 @@ local function listUsers(args)
 end
 
 local function listUser(args, uuid)
-    local settings = getSettings()
     if settings then
         if settings.storage_type == "disk" then
             local file, err = io.open(configPath .. "data/users.json", "rb")
@@ -866,7 +806,7 @@ local function createUpdateUser(body, uuid)
     local payloads = GetPayloads(body)
     local getUuid = uuid
     if not uuid then
-        getUuid = generate_uuid()
+        getUuid = Helper.generate_uuid()
         payloads.id = getUuid
         ---@diagnostic disable-next-line: param-type-mismatch
         payloads.created_at = os.time(os.date("!*t"))
@@ -955,7 +895,6 @@ local function deleteUserInDisk(uuid)
 end
 
 local function deleteUsers(args, uuid)
-    local settings = getSettings()
     local payloads = GetPayloads(args)
     local restUsers = {}
     if settings then
@@ -1006,7 +945,6 @@ end
 -- HTTP Request rules:
 local function listRules(args)
     local exist_values = {}
-    local settings = getSettings()
     local allRules, keys, totalRecords = {}, {}, 0
     local params = args
     local qParams, environment = {}, "prod"
@@ -1049,9 +987,9 @@ local function listRules(args)
         end
     end
     if qParams.sort ~= nil and qParams.sort.order == "DESC" then
-        table.sort(allRules, sortDesc(qParams.sort.field))
+        table.sort(allRules, Helper.sortDesc(qParams.sort.field))
     elseif qParams.sort ~= nil and qParams.sort.order == "ASC" then
-        table.sort(allRules, sortAsc(qParams.sort.field))
+        table.sort(allRules, Helper.sortAsc(qParams.sort.field))
     end
     ngx.say({ cjson.encode({
         data = allRules,
@@ -1061,7 +999,6 @@ end
 
 local function listRule(args, uuid)
     local envProfile = args.envprofile ~= nil and args.envprofile or "prod"
-    local settings = getSettings()
     if settings then
         if settings.storage_type == "disk" then
             local jsonData, dataErr = getDataFromFile(configPath .. "data/rules/" .. envProfile .. "/" .. uuid .. ".json")
@@ -1146,7 +1083,6 @@ local function createDeleteRules(body, uuid)
     else
         envProfile = payloads.envProfile
     end
-    local settings = getSettings()
     if uuid ~= "" and uuid ~= nil then
         if settings then
             if settings.storage_type == "disk" then
@@ -1178,7 +1114,6 @@ local function createDeleteRules(body, uuid)
 end
 
 function CreateUpdateRecord(json_val, uuid, key_name, folder_name, method)
-    local settings = getSettings()
     local formatResponse = {}
     json_val['data'] = nil
     for k, v in pairs(json_val) do
@@ -1313,7 +1248,7 @@ local function createUpdateRules(body, uuid)
     if uuid then
         response = CreateUpdateRecord(payloads, uuid, "request_rules", "rules", "update")
     else
-        payloads.id = generate_uuid()
+        payloads.id = Helper.generate_uuid()
         response = CreateUpdateRecord(payloads, payloads.id, "request_rules", "rules", "create")
     end
     ngx.say(cjson.encode({
@@ -1392,7 +1327,7 @@ local function createUpdateSettings(body, uuid)
     if not uuid then
         ---@diagnostic disable-next-line: param-type-mismatch
         body.created_at = os.time(os.date("!*t"))
-        body.id = generate_uuid()
+        body.id = Helper.generate_uuid()
         settingUUID = body.id
     end
     settingsJson[settingUUID] = cjson.encode(body)
