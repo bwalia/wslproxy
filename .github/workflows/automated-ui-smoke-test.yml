@@ -1,4 +1,4 @@
-name: Whitefalcon Admin UI Login Test
+name: Whitefalcon Admin UI Login Test using Cypress Test framework
 on:
   schedule:
     - cron: '0 0 * * *'
@@ -35,7 +35,7 @@ jobs:
 
       - name: Smoke test Login Test using Cypress Test framework on ${{ env.TARGET_ENV }}
         run: |
-            chmod +x ./bootstrap-cypress.sh && sh ./bootstrap-cypress.sh "${{ secrets.QA_LOGIN_EMAIL }}" "${{ secrets.QA_LOGIN_PASSWORD }}" "${{ env.TARGET_ENV }}"
+            chmod +x ./bootstrap-cypress.sh && sh ./bootstrap-cypress.sh "${{ secrets.CYPRESS_ENVFILE_INT }}" "${{ env.TARGET_ENV }}"
 
       - name: 'Upload screenshots and videos to Slack'
         uses: trymbill/cypress-slack-video-upload-action@v1.3.0
