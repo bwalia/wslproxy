@@ -20,7 +20,7 @@ on:
             - test
             - acc
             - prod
-            
+
       TARGET_HOST:
         type: choice
         description: 'Please choose the Target host'
@@ -52,11 +52,11 @@ jobs:
     #     run: |
     #       echo "${{ secrets.BRAHMSTRA_ENV_INT }}" | base64 -d > /tmp/.env
 
-      - name: Decrypt id_rsa pub key via Ansible Vault file
-        env:
-          VAULT_PASSWORD: ${{ secrets.ANSIBLE_VAULT_PASSWORD }}
-        run: |
-          ansible-vault decrypt .env_cypress_docker_internal --vault-password-file=<(echo $VAULT_PASSWORD)
+    #   - name: Decrypt id_rsa pub key via Ansible Vault file
+    #     env:
+    #       VAULT_PASSWORD: ${{ secrets.ANSIBLE_VAULT_PASSWORD }}
+    #     run: |
+    #       ansible-vault decrypt .env_cypress_docker_internal --vault-password-file=<(echo $VAULT_PASSWORD)
 
       - name: Decrypt id_rsa pub key via Ansible Vault file
         env:
