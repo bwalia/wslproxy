@@ -1193,7 +1193,7 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name, method)
 
     local filePathDir = configPath .. "data/" .. folder_name .. "/" .. envProfile
     local nginxTenantConfDir = settings.nginx.tenant_conf_path or "/opt/nginx/conf.d"
-    local rebootFilePath = settings.nginx.reboot_file_path or "/var/run/nginx/nginx-reboot-required"
+    local rebootFilePath = settings.nginx.reboot_file_path or "/tmp/nginx/nginx-reboot-required"
     -- HS 28/08/2024 This part of the code need to be refactor or optimise
     if settings.storage_type == "redis" then
         redis_json[uuid] = cjson.encode(json_val)
