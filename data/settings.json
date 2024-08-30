@@ -3,7 +3,7 @@
   "storage_type": "redis",
   "env_profile": "dev",
   "super_user": {
-    "email": "ejeyd@example.com",
+    "email": "brahmstra@workstation.co.uk",
     "username": "admin",
     "password": "jGl25bVBBBW96Qi9Te4V37Fnqchz/Eu4qB9vKrRIqRg="
   },

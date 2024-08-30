@@ -11,7 +11,7 @@ describe('Brahmstra login test Int environment', () => {
 
   it('Login to Whitefalcon', () => {
       cy.visit(`${BASE_PUB_URL}/#/login`)
-      let username_login = "ejeyd@example.com"
+      let username_login = "brahmstra@workstation.co.uk"
       let username_password = "admin"
       let nameString = generateRandomString();
       cy.get("#email").type(username_login)
