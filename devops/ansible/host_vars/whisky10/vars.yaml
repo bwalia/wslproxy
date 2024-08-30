@@ -1,3 +1,3 @@
 local_settings_file_path: "/tmp/settings_brahmstra.json"
 local_env_file_path: "/tmp/.env_brahmstra"
-nginx_user_password: "bwalia-whisky10"
+nginx_user_password: "bwalia-whisky10" # This is the password for the user www-data but must be encrypted using Ansible Vault
