@@ -1,0 +1,76 @@
+name: Ansible compile from source and install Openresty
+
+on:
+  push:
+    branches:
+      - main 
+  pull_request:
+    branches:
+      - main
+
+  workflow_dispatch:
+    inputs:
+      TARGET_ENV:
+        type: choice
+        description: 'Please choose the Target environment'
+        default: 'int'
+        required: true
+        options:
+            - int
+            - test
+            - acc
+            - prod
+            
+      TARGET_HOST:
+        type: choice
+        description: 'Please choose the Target host'
+        default: '94.72.96.175'
+        required: true
+        options:
+            - 94.72.96.175
+            # - whisky10
+            # - whisky08
+env:
+  TARGET_ENV: ${{ github.event.inputs.TARGET_ENV || 'int' }}
+  TARGET_HOST: ${{ github.event.inputs.TARGET_HOST || '94.72.96.175' }}
+  API_DOMAINNAME_ENDPOINT:  ${{ github.event.inputs.TARGET_ENV || 'int' }}.brahmstra.org
+    
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code from repository
+        uses: actions/checkout@v3
+      - name: Install Ansible on Ubuntu Latest
+        run: |
+          sudo apt-get install -y ansible
+          export ANSIBLE_HOST_KEY_CHECKING=False
+
+    #   - name: Save ENV variables to file
+    #     if : ${{ env.TARGET_ENV }} == "int"
+    #     run: |
+    #       echo "${{ secrets.BRAHMSTRA_ENV_INT }}" | base64 -d > /tmp/.env
+
+      - name: Decrypt id_rsa pub key via Ansible Vault file
+        env:
+          VAULT_PASSWORD: ${{ secrets.ANSIBLE_VAULT_PASSWORD }}
+        run: |
+          ansible-vault decrypt .env_cypress_docker_internal --vault-password-file=<(echo $VAULT_PASSWORD)
+
+      - name: Decrypt id_rsa pub key via Ansible Vault file
+        env:
+          VAULT_PASSWORD: ${{ secrets.ANSIBLE_VAULT_PASSWORD }}
+        run: |
+          ansible-vault decrypt id_rsa --vault-password-file=<(echo $VAULT_PASSWORD)
+
+      - name: Add SSH Host Key for hosts
+        run: |
+         mkdir -p ~/.ssh
+         ssh-keyscan -H `cat devops/ansible/hosts | grep ansible_user | awk '{print $1}'`  >> ~/.ssh/known_hosts
+
+      - name: Run Ansible Playbook
+        run: |
+          ansible-playbook devops/ansible/manage_nginx_openresty_ops.yml -i devops/ansible/hosts -l ${{ env.TARGET_HOST }}
+        env:
+          ANSIBLE_PRIVATE_KEY_FILE: id_rsa
