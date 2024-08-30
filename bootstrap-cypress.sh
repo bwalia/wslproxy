@@ -7,11 +7,11 @@ PASSWD="$2"
 TARGET_ENV="$3"
 
 if [ "$TARGET_ENV" = "int" ]; then
-    BASE_URL="https://api.int.diycdn.org"
-    FRONTEND_URL="https://front.int.diycdn.org"
+    BASE_URL="https://api-int.brahmstra.org"
+    FRONTEND_URL="https://int.brahmstra.org"
     NODEAPP_ORIGIN_HOST="10.43.140.53:3009"
-    SERVER_NAME="front.int.diycdn.org"
-    TARGET_PLATFORM="kubernetes"
+    SERVER_NAME="int.brahmstra.org"
+    TARGET_PLATFORM="DOCKER"
     ENV_FILE=".env_cypress_int"
 fi
 if [ "$TARGET_ENV" = "dockerinternal" ]; then
