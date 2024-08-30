@@ -45,24 +45,6 @@ openssl req -new -newkey rsa:2048 -days 3650 -nodes -x509 \
   -keyout /etc/ssl/resty-auto-ssl-fallback.key \
   -out /etc/ssl/resty-auto-ssl-fallback.crt
 
-mkdir -p "/var/run/nginx/" \
-    && chmod +x "/var/run/nginx/" \
-    && chown www-data:root "/var/run/nginx/" \
-    && chmod 755 -R "/var/run/nginx/"
-
-touch /var/run/nginx/nginx-reboot.log
-chmod 777 /var/run/nginx/nginx-reboot.log
-
-mkdir -p /opt/nginx/conf.d \
-    && chmod 775 /opt/nginx/conf.d \
-    && chown www-data:root /opt/nginx/conf.d
-
-chmod 775 -R /usr/local/openresty/nginx/logs/ \
-    && chown -R www-data:root /usr/local/openresty/nginx/logs/
-
-chmod 775 -R /usr/local/openresty/nginx/conf/ \
-    && chown -R www-data:root /usr/local/openresty/nginx/conf/
-
 # mc - MinIO Client is used to backup nginx openresty configuration to S3
 wget https://dl.min.io/client/mc/release/linux-amd64/mc -O /usr/local/bin/mc \
     --tries=3 --timeout=30 && \
