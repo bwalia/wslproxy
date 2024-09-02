@@ -1,9 +1,9 @@
 import React from "react";
-import { TextInput, FormDataConsumer } from "react-admin";
+import { TextInput, FormDataConsumer, BooleanInput } from "react-admin";
 import { Grid } from "@mui/material";
 import { isEmpty } from "lodash";
 
-const CreateServerText = ({source}) => {
+const CreateServerText = ({ source }) => {
   return (
     <FormDataConsumer>
       {({ formData, ...rest }) => (
@@ -15,58 +15,56 @@ const CreateServerText = ({source}) => {
             helperText="For example: server {listen       8000; listen       somename:8080; server_name  somename  alias  another.alias; location / { root   html; index  index.html index.htm; }}"
             fullWidth
             format={() => `server {
-            ${
-              formData?.listens?.length
+            ${formData?.listens?.length
                 ? formData?.listens
-                    .map((listen) => {
-                      return `listen ${listen.listen || ""};`;
-                    })
-                    .join("\n")
+                  .map((listen) => {
+                    return `listen ${listen.listen || ""};`;
+                  })
+                  .join("\n")
                 : ""
-            }  # Listen on port (HTTP)
-            server_name ${
-              formData.server_name || "example.com"
-            };  # Your domain name
+              }  # Listen on port (HTTP)
+            server_name ${formData.server_name || "example.com"
+              };  # Your domain name
             root ${formData.root || "/var/www/html"};  # Document root directory
-            index ${
-              formData.index || "index.html index.htm"
-            };  # Default index files
-            access_log ${
-              formData.access_log || "/var/log/nginx/access.log"
-            };  # Access log file location
-            error_log ${
-              formData.error_log || "/var/log/nginx/error.log"
-            };  # Error log file location
+            index ${formData.index || "index.html index.htm"
+              };  # Default index files
+            access_log ${formData.access_log || "/var/log/nginx/access.log"
+              };  # Access log file location
+            error_log ${formData.error_log || "/var/log/nginx/error.log"
+              };  # Error log file location
 
-            ${
-              formData?.locations?.length
+            ${formData?.locations?.length
                 ? formData.locations
-                    .map((location) => {
-                      return `location ${location?.location_path || "/"} {
-                      ${
-                        location?.location_vals
-                          ? Object.values(location?.location_opts)
-                              .map((idx) => {
-                                const value = location?.location_vals[idx];
-                                return idx + " " + value;
-                              })
-                              .join("\n")
-                          : "#Please select an Options"
+                  .map((location) => {
+                    return `location ${location?.location_path || "/"} {
+                      ${location?.location_vals
+                        ? Object.values(location?.location_opts)
+                          .map((idx) => {
+                            const value = location?.location_vals[idx];
+                            return idx + " " + value;
+                          })
+                          .join("\n")
+                        : "#Please select an Options"
                       }
                       }`;
-                    })
-                    .join("\n")
+                  })
+                  .join("\n")
                 : ""
-            }
-            ${
-              !isEmpty(formData?.custom_block)
+              }
+            ${!isEmpty(formData?.custom_block)
                 ? formData?.custom_block
-                    .map((block) => block.additional_block)
-                    .join("\n")
+                  .map((block) => block.additional_block)
+                  .join("\n")
                 : ""
+              }
             }
-        }
-        `}
+          `}
+          />
+          <BooleanInput
+            source="config_status"
+            label="Active"
+            fullWidth
+            defaultValue={false}
           />
         </Grid>
       )}

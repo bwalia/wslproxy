@@ -77,4 +77,28 @@ function Helper.isIpAddress(str)
     return false
 end
 
+-- Test Nginx server block
+function Helper.testNginxConfig()
+    local openrestyPath = "openresty"
+    local command = openrestyPath .. " -t 2>&1"
+
+    local handle = io.popen(command)
+    if handle then
+        local result = handle:read("*all")
+        local success, _, _ = handle:close()
+        return result, success
+    else
+        return "Failed to execute command.", false
+    end
+end
+
+-- Check String contains Messagelocal function check_nginx_syntax_ok(output)
+function Helper.isStringContains(stringPtrn, message)
+    if string.find(message, stringPtrn) then
+        return true
+    else
+        return false
+    end
+end
+
 return Helper

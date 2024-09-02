@@ -162,7 +162,7 @@ if currentDir == nil or currentDir == "/" then
     currentDir = "/usr/local/openresty/nginx/html/openresty-admin"
 end
 
-local frontFilePath = lfs.currentdir() .. "/.env"
+local frontFilePath = currentDir .. "/.env"
 local frontEnvContent = readFile(frontFilePath)
 frontEnvContent = parseEnvString(frontEnvContent)
 

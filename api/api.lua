@@ -1198,40 +1198,37 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name, method)
     if settings.storage_type == "redis" then
         redis_json[uuid] = cjson.encode(json_val)
         red:hmset(key_name .. "_" .. envProfile, redis_json)
-        setDataToFile(filePathDir .. "/" .. uuid .. ".json", json_val, filePathDir)
-        if key_name == "servers" then
-            local configString = Base64.decode(json_val.config)
-            setDataToFile(filePathDir .. "/conf/" .. json_val.server_name .. ".conf", cleanString(configString), filePathDir .. "/conf", "conf")
+    end
+    setDataToFile(filePathDir .. "/" .. uuid .. ".json", json_val, filePathDir)
+    if key_name == "servers" then
+        local configString = Base64.decode(json_val.config)
+        setDataToFile(filePathDir .. "/conf/" .. json_val.server_name .. ".conf", cleanString(configString), filePathDir .. "/conf", "conf")
+        if json_val.config_status then
             if fileExists(nginxTenantConfDir .. "/" .. json_val.server_name .. ".conf") == false then
                 Conf.saveConfFiles(nginxTenantConfDir, cleanString(configString), json_val.server_name .. ".conf")
-                Conf.CreateNginxFlag(rebootFilePath)
+                local nginxStatus, commandStatus = Helper.testNginxConfig()
+                local isSuccess = Helper.isStringContains("nginx.conf syntax is ok", nginxStatus)
+                json_val.nginx_status = nginxStatus
+                if isSuccess then
+                    Conf.CreateNginxFlag(rebootFilePath)
+                end
             else
                 local sourceFilePath = filePathDir .. "/conf/" .. json_val.server_name .. ".conf"
                 local destinationFilePath = nginxTenantConfDir .. "/" .. json_val.server_name .. ".conf"
                 local isFilesSame = Conf.compareFiles(sourceFilePath, destinationFilePath)
                 if isFilesSame == false then
                     Conf.saveConfFiles(nginxTenantConfDir, cleanString(configString), json_val.server_name .. ".conf")
-                    Conf.CreateNginxFlag(rebootFilePath)
+                    local nginxStatus, commandStatus = Helper.testNginxConfig()
+                    local isSuccess = Helper.isStringContains("nginx.conf syntax is ok", nginxStatus)
+                    json_val.nginx_status = nginxStatus
+                    if isSuccess then
+                        Conf.CreateNginxFlag(rebootFilePath)
+                    end
                 end
             end
-        end
-    else
-        setDataToFile(filePathDir .. "/" .. uuid .. ".json", json_val, filePathDir)
-        if key_name == "servers" then
-            local configString, doCopyConf = Base64.decode(json_val.config), false
-            setDataToFile(filePathDir .. "/conf/" .. json_val.server_name .. ".conf", cleanString(configString), filePathDir .. "/conf", "conf")
-
-            if fileExists(nginxTenantConfDir .. "/" .. json_val.server_name .. ".conf") == false then
-                Conf.saveConfFiles(nginxTenantConfDir, cleanString(configString), json_val.server_name .. ".conf")
-                Conf.CreateNginxFlag(rebootFilePath)
-            else
-                local sourceFilePath = filePathDir .. "/conf/" .. json_val.server_name .. ".conf"
-                local destinationFilePath = nginxTenantConfDir .. "/" .. json_val.server_name .. ".conf"
-                local isFilesSame = Conf.compareFiles(sourceFilePath, destinationFilePath)
-                if isFilesSame == false then
-                    Conf.saveConfFiles(nginxTenantConfDir, cleanString(configString), json_val.server_name .. ".conf")
-                    Conf.CreateNginxFlag(rebootFilePath)
-                end
+        else
+            if fileExists(nginxTenantConfDir .. "/" .. json_val.server_name .. ".conf") then
+                os.remove(nginxTenantConfDir .. "/" .. json_val.server_name .. ".conf")
             end
         end
     end
