@@ -106,11 +106,11 @@
     mode: 0777
   tags: [openresty, lapis, codeui]
 
-- name: Display the content of /tmp/test
-  ansible.builtin.shell: cat /tmp/test
+- name: Display the content of /tmp/.env_brahmstra_94_72_96_175
+  ansible.builtin.shell: cat /tmp/.env_brahmstra_94_72_96_175
   register: file_content
 
-- name: Print the content of /tmp/test
+- name: Print the content of /tmp/.env_brahmstra_94_72_96_175
   ansible.builtin.debug:
     var: file_content.stdout
 
