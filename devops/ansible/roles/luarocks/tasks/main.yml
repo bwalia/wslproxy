@@ -107,9 +107,8 @@
   tags: [openresty, lapis, codeui]
 
 - name: Display the content of /tmp/test
-  ansible.builtin.command:
-    cmd: cat /tmp/test
-    register: file_content
+  ansible.builtin.shell: cat /tmp/test
+  register: file_content
 
 - name: Print the content of /tmp/test
   ansible.builtin.debug:
