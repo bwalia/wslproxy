@@ -12,7 +12,7 @@
    tags: [ openresty,lapis ]
 
  - name: Adding user www-data
-   user
+   user:
       name: www-data
       group: www-data
       shell: /bin/bash
