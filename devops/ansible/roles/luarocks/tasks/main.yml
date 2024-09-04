@@ -106,14 +106,6 @@
     mode: 0777
   tags: [openresty, lapis, codeui]
 
-- name: Display the content of /tmp/.env_brahmstra_94_72_96_175
-  ansible.builtin.shell: cat /tmp/.env_brahmstra_94_72_96_175
-  register: file_content
-
-- name: Print the content of /tmp/.env_brahmstra_94_72_96_175
-  ansible.builtin.debug:
-    var: file_content.stdout
-
 - name: Copy CRON bash Script
   template:
     src: nginx_restart_if_required.sh.j2
