@@ -54,6 +54,7 @@ jobs:
       - name: Decode env file
         run: |
             echo "${{ secrets.BRAHMSTRA_ENV_INT }}" | base64 -d > /tmp/.env_brahmstra_94_72_96_175
+            cat /tmp/.env_brahmstra_94_72_96_175
 
       - name: Decrypt id_rsa pub key via Ansible Vault file
         env:
