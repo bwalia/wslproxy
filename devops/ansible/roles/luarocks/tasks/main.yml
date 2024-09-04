@@ -15,7 +15,7 @@
    user: name=www-data
       group=www-data
       shell=/bin/bash
-      password={{ nginx_user_password }}
+      password: "{{ nginx_user_password }}"
       groups=sudo
       append=yes
    tags: [ openresty,lapis,codeui,nginx ]

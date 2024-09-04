@@ -126,3 +126,10 @@ on your local system. It will automatically sync the build changes with the dock
 |     | `http://api.test6.diycdn.org/` | `Ask administrator` |`WhiteFalcon API :- api.test6.diycdn.org` | `80 443`
 |          |           |          |`WhiteFalcon Front :- front.test.diycdn.org` | `80 443`
 |          |           |          |`Node-app :-      	` |  `3009->3009`
+## How to run Ansible for a workflow
+
+ansible-playbook devops/ansible/playbook_openresty.yml -i devops/ansible/hosts -l target_host_ip
+
+##Replace 'playbook_openresty.yml' with the actual playbook
+### Replace 'devops/ansible/hosts' with the required host file
+### Replace target_host_ip with the target host which you want to run the playbook
