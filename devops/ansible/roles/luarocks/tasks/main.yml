@@ -11,8 +11,8 @@
     state: present
    tags: [ openresty,lapis ]
 
-- name: Load host variables
-  include_vars: "{{ playbook_dir }}/host_vars/{{ inventory_hostname }}/vars.yaml"
+ - name: Load host variables
+   include_vars: "{{ playbook_dir }}/host_vars/{{ inventory_hostname }}/vars.yaml"
 
  - name: Adding user www-data
    user:
