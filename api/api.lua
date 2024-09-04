@@ -1203,6 +1203,7 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name, method)
     if key_name == "servers" then
         local configString = Base64.decode(json_val.config)
         setDataToFile(filePathDir .. "/conf/" .. json_val.server_name .. ".conf", cleanString(configString), filePathDir .. "/conf", "conf")
+        json_val.nginx_status_check = "error"
         if json_val.config_status then
             if fileExists(nginxTenantConfDir .. "/" .. json_val.server_name .. ".conf") == false then
                 Conf.saveConfFiles(nginxTenantConfDir, cleanString(configString), json_val.server_name .. ".conf")
@@ -1210,6 +1211,7 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name, method)
                 local isSuccess = Helper.isStringContains("nginx.conf syntax is ok", nginxStatus)
                 json_val.nginx_status = nginxStatus
                 if isSuccess then
+                    json_val.nginx_status_check = "success"
                     Conf.CreateNginxFlag(rebootFilePath)
                 else
                     json_val.config_status = false
@@ -1226,6 +1228,7 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name, method)
                     local isSuccess = Helper.isStringContains("nginx.conf syntax is ok", nginxStatus)
                     json_val.nginx_status = nginxStatus
                     if isSuccess then
+                        json_val.nginx_status_check = "success"
                         Conf.CreateNginxFlag(rebootFilePath)
                     else
                         json_val.config_status = false
