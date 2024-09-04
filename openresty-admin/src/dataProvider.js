@@ -165,6 +165,9 @@ const dataProvider = (apiUrl, settings = {}) => {
           return Promise.reject(responseMessage?.data?.message);
         }
         const result = await response.json();
+        if (result?.data?.nginx_status) {
+          return Promise.resolve(result?.data?.nginx_status)
+        }
         setIsLoadig(false)
         return result;
       } catch (error) {
