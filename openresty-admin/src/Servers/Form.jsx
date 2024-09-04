@@ -17,6 +17,7 @@ import {
 
 import LocationInput from "./input/LocationInput";
 import CreateServerText from "./input/CreateServerText";
+import Toolbar from "./toolbar/Toolbar";
 
 const handleProfileChange = (e) => {
   localStorage.setItem('environment', e.target.value);
@@ -44,7 +45,7 @@ const Form = ({ type }) => {
     fetchData();
   }, []);
   return (
-    <TabbedForm>
+    <TabbedForm toolbar={<Toolbar />}>
       <TabbedForm.Tab label="Server details">
         <Grid container spacing={2}>
           <Grid item xs={3}>
