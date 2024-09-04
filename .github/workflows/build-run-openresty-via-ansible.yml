@@ -47,19 +47,8 @@ jobs:
           sudo apt-get install -y ansible
           export ANSIBLE_HOST_KEY_CHECKING=False
 
-    #   - name: Save ENV variables to file
-    #     if : ${{ env.TARGET_ENV }} == "int"
-    #     run: |
-    #       echo "${{ secrets.BRAHMSTRA_ENV_INT }}" | base64 -d > /tmp/.env
-
-    #   - name: Decrypt id_rsa pub key via Ansible Vault file
-    #     env:
-    #       VAULT_PASSWORD: ${{ secrets.ANSIBLE_VAULT_PASSWORD }}
-    #     run: |
-    #       ansible-vault decrypt .env_cypress_docker_internal --vault-password-file=<(echo $VAULT_PASSWORD)
-        
-        - name: Decode settings_brahmstra.json file
-          run: |
+      - name: Decode settings_brahmstra.json file
+        run: |
             echo "${{ secrets.SETTINGS_BRAHMSTRA_INT }}" | base64 -d > /tmp/settings_brahmstra_94_72_96_175.json
 
       - name: Decrypt id_rsa pub key via Ansible Vault file
