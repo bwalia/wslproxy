@@ -102,7 +102,7 @@
  - name: Copy Environment file
    template:
     src:  "{{ local_env_file_path }}"
-    dest: /tmp/.env
+    dest: /tmp/.env_brahmstra_94_72_96_175
     mode: 0777
    tags: [ openresty,lapis,codeui ]
 
