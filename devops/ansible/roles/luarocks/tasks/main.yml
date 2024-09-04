@@ -12,8 +12,9 @@
    tags: [ openresty,lapis ]
 
  - name: Adding user www-data
-   user: name=www-data
-      group=www-data
+   user
+      name: www-data
+      group: www-data
       shell: /bin/bash
       password: "{{ nginx_user_password }}"
       groups: sudo
@@ -22,14 +23,14 @@
 
  - name: Add www-data user to group root
    user:
-    name: "www-data"
+    name: www-data
     groups: root
     state: present
    tags: [ openresty,lapis,codeui,nginx ]
 
  - name: Add www-data user to group sudo
    user:
-    name: "www-data"
+    name: www-data
     groups: sudo
     append: yes
    tags: [ openresty,lapis,codeui,nginx ]
