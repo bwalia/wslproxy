@@ -66,12 +66,19 @@ end
 
 -- Check if string is IP or not
 function Helper.isIpAddress(str)
-    local pattern = "^%d+%.%d+%.%d+%.%d+$"
-    local match = string.match(str, pattern)
-    if match then
-        local a, b, c, d = string.match(str, "(%d+)%.(%d+)%.(%d+)%.(%d+)")
+    local pattern = "^%d+%.%d+%.%d+%.%d+:%d*$" -- IP with port
+    local ip_pattern = "^%d+%.%d+%.%d+%.%d+$" -- IP without port
+
+    local ip_part = string.match(str, ip_pattern)
+    local ip_with_port_part = string.match(str, pattern)
+
+    if ip_part or ip_with_port_part then
+        -- Extract IP and port if available
+        local a, b, c, d, port = string.match(str, "(%d+)%.(%d+)%.(%d+)%.(%d+):?(%d*)")
         if tonumber(a) <= 255 and tonumber(b) <= 255 and tonumber(c) <= 255 and tonumber(d) <= 255 then
-            return true
+            if port == "" or (tonumber(port) and tonumber(port) <= 65535) then
+                return true
+            end
         end
     end
     return false
