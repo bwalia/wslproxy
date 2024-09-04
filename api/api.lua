@@ -1211,6 +1211,10 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name, method)
                 json_val.nginx_status = nginxStatus
                 if isSuccess then
                     Conf.CreateNginxFlag(rebootFilePath)
+                else
+                    json_val.config_status = false
+                    setDataToFile(filePathDir .. "/" .. uuid .. ".json", json_val, filePathDir)
+                    os.remove(nginxTenantConfDir .. "/" .. json_val.server_name .. ".conf")
                 end
             else
                 local sourceFilePath = filePathDir .. "/conf/" .. json_val.server_name .. ".conf"
@@ -1223,6 +1227,10 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name, method)
                     json_val.nginx_status = nginxStatus
                     if isSuccess then
                         Conf.CreateNginxFlag(rebootFilePath)
+                    else
+                        json_val.config_status = false
+                        setDataToFile(filePathDir .. "/" .. uuid .. ".json", json_val, filePathDir)
+                        os.remove(nginxTenantConfDir .. "/" .. json_val.server_name .. ".conf")
                     end
                 end
             end
