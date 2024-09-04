@@ -1,200 +1,209 @@
- - name: Update and upgrade apt packages
-   block:
-     - name: Update apt cache
-       command: apt-get update
-       register: update_result
-       until: update_result.rc == 0
-       retries: 5
-       delay: 10
+- name: Update and upgrade apt packages
+  block:
+    - name: Update apt cache
+      command: apt-get update
+      register: update_result
+      until: update_result.rc == 0
+      retries: 5
+      delay: 10
 
-     - name: Upgrade apt packages
-       command: apt-get upgrade -y
-       register: upgrade_result
-       until: upgrade_result.rc == 0
-       retries: 5
-       delay: 10
-   tags: [ ubuntu, openresty, lapis ]
+    - name: Upgrade apt packages
+      command: apt-get upgrade -y
+      register: upgrade_result
+      until: upgrade_result.rc == 0
+      retries: 5
+      delay: 10
+  tags: [ubuntu, openresty, lapis]
 
- - name: Install luarocks
-   apt:
-    name: luarocks 
+- name: Install luarocks
+  apt:
+    name: luarocks
     state: present
-   tags: [ openresty,lapis ]
+  tags: [openresty, lapis]
 
- - name: Load host variables
-   include_vars: "{{ playbook_dir }}/host_vars/{{ inventory_hostname }}/vars.yaml"
+- name: Load host variables
+  include_vars: "{{ playbook_dir }}/host_vars/{{ inventory_hostname }}/vars.yaml"
 
- - name: Adding user www-data
-   user:
-      name: www-data
-      group: www-data
-      shell: /bin/bash
-      password: "{{ nginx_user_password }}"
-      groups: sudo
-      append: yes
-   tags: [ openresty,lapis,codeui,nginx ]
+- name: Adding user www-data
+  user:
+    name: www-data
+    group: www-data
+    shell: /bin/bash
+    password: "{{ nginx_user_password }}"
+    groups: sudo
+    append: yes
+  tags: [openresty, lapis, codeui, nginx]
 
- - name: Add www-data user to group root
-   user:
+- name: Add www-data user to group root
+  user:
     name: www-data
     groups: root
     state: present
-   tags: [ openresty,lapis,codeui,nginx ]
+  tags: [openresty, lapis, codeui, nginx]
 
- - name: Add www-data user to group sudo
-   user:
+- name: Add www-data user to group sudo
+  user:
     name: www-data
     groups: sudo
     append: yes
-   tags: [ openresty,lapis,codeui,nginx ]
+  tags: [openresty, lapis, codeui, nginx]
 
- - name: make sure tenants nginx conf dir exits
-   ansible.builtin.file:
+- name: make sure tenants nginx conf dir exits
+  ansible.builtin.file:
     path: /opt/nginx/conf.d/
     state: directory
     owner: "www-data"
     group: root
     mode: 0775
-   notify: Restart openresty
-   tags: [ openresty,lapis,codeui,nginx ]
+  notify: Restart openresty
+  tags: [openresty, lapis, codeui, nginx]
 
- - name: Add nginx configuration
-   copy:
+- name: Add nginx configuration
+  copy:
     src: ../../nginx-conf.d/
     dest: /opt/nginx/conf.d/
     owner: "www-data"
     group: root
-    mode: '0644'
-   tags: [ openresty,lapis,codeui,nginx ]
+    mode: "0644"
+  tags: [openresty, lapis, codeui, nginx]
 
- - name: Copy openresty bootstrap script
-   template:
-    src:  openresty.sh.j2 
-    dest: /tmp/openresty.sh 
+- name: Copy openresty bootstrap script
+  template:
+    src: openresty.sh.j2
+    dest: /tmp/openresty.sh
     mode: 0777
-   tags: [ openresty,lapis ] 
+  tags: [openresty, lapis]
 
- - name: Copy cdn dependencies script
-   template:
-    src:  cdn-dependencies.sh.j2
+- name: Copy cdn dependencies script
+  template:
+    src: cdn-dependencies.sh.j2
     dest: /tmp/cdn-dependencies.sh
     mode: 0777
-   tags: [ openresty,lapis ]
+  tags: [openresty, lapis]
 
- - name: Make sure the nginx data directory exists
-   ansible.builtin.file:
+- name: Make sure the nginx data directory exists
+  ansible.builtin.file:
     path: /opt/nginx/data/
     state: directory
     owner: "www-data"
     group: root
     mode: 0775
-   tags: [ openresty,lapis ]
+  tags: [openresty, lapis]
 
- - name: Copy Settings Config file
-   template:
-    src:  "{{ local_settings_file_path }}"
+- name: Copy Settings Config file
+  template:
+    src: "{{ local_settings_file_path }}"
     dest: /opt/nginx/data/settings.json
     mode: 0777
     owner: "www-data"
     group: root
-   tags: [ openresty,lapis,codeui ]
+  tags: [openresty, lapis, codeui]
 
- - name: Copy Environment file
-   template:
-    src:  "{{ local_env_file_path }}"
+- name: Copy Environment file
+  template:
+    src: "{{ local_env_file_path }}"
     dest: /tmp/.env_brahmstra_94_72_96_175
     mode: 0777
-   tags: [ openresty,lapis,codeui ]
+  tags: [openresty, lapis, codeui]
 
- - name: Copy CRON bash Script
-   template:
-    src:  nginx_restart_if_required.sh.j2
+- name: Display the content of /tmp/test
+  ansible.builtin.command:
+    cmd: cat /tmp/test
+    register: file_content
+
+- name: Print the content of /tmp/test
+  ansible.builtin.debug:
+    var: file_content.stdout
+
+- name: Copy CRON bash Script
+  template:
+    src: nginx_restart_if_required.sh.j2
     dest: /usr/sbin/nginx_restart_if_required.sh
     mode: 0775
-   tags: [ openresty,lapis,nginx ]
+  tags: [openresty, lapis, nginx]
 
- - name: Run CRON every minute to check if nginx needs to be restarted
-   cron:
-     name: "nginx_restart"
-     user: "root"
-     minute: "*/1"
-     job: "/bin/sh /usr/sbin/nginx_restart_if_required.sh"
-   tags: [ openresty,lapis,nginx ]
+- name: Run CRON every minute to check if nginx needs to be restarted
+  cron:
+    name: "nginx_restart"
+    user: "root"
+    minute: "*/1"
+    job: "/bin/sh /usr/sbin/nginx_restart_if_required.sh"
+  tags: [openresty, lapis, nginx]
 
- - name: Execute the openresty.sh bootstrap script
-   shell: /tmp/openresty.sh
-   tags: [ test,openresty,lapis ]
- 
- - name: Execute the cdn-dependencies.sh script
-   shell: /tmp/cdn-dependencies.sh
-   tags: [ openresty,lapis ]
+- name: Execute the openresty.sh bootstrap script
+  shell: /tmp/openresty.sh
+  tags: [test, openresty, lapis]
 
- - name: Deploy OpenResty systemd service file
-   template:
-      src: openresty.service.j2
-      dest: /etc/systemd/system/openresty.service
-   notify: Reload systemd
-   tags: [ openresty,lapis ]
+- name: Execute the cdn-dependencies.sh script
+  shell: /tmp/cdn-dependencies.sh
+  tags: [openresty, lapis]
 
- - ansible.posix.synchronize:
+- name: Deploy OpenResty systemd service file
+  template:
+    src: openresty.service.j2
+    dest: /etc/systemd/system/openresty.service
+  notify: Reload systemd
+  tags: [openresty, lapis]
+
+- ansible.posix.synchronize:
     src: ../../api/
     dest: /usr/local/openresty/nginx/html/api
-   notify: Restart openresty
-   register: sync_files
-   tags: [ openresty,lapis,codeui,nginx ]
+  notify: Restart openresty
+  register: sync_files
+  tags: [openresty, lapis, codeui, nginx]
 
- - debug:
-     var: sync_files.stdout_lines
-   tags: [ openresty,lapis,codeui,nginx ]
+- debug:
+    var: sync_files.stdout_lines
+  tags: [openresty, lapis, codeui, nginx]
 
- - ansible.posix.synchronize:
+- ansible.posix.synchronize:
     src: ../../html/
     dest: /usr/local/openresty/nginx/html
-   register: sync_files
-   tags: [ openresty,lapis,codeui,html ]
+  register: sync_files
+  tags: [openresty, lapis, codeui, html]
 
- - debug:
-     var: sync_files.stdout_lines
-   tags: [ openresty,lapis,codeui,html ]
+- debug:
+    var: sync_files.stdout_lines
+  tags: [openresty, lapis, codeui, html]
 
- - ansible.posix.synchronize:
+- ansible.posix.synchronize:
     src: ../../openresty-admin/
     dest: /usr/local/openresty/nginx/html/openresty-admin
-   register: sync_files
-   tags: [ openresty,lapis,codeui ]
+  register: sync_files
+  tags: [openresty, lapis, codeui]
 
- - debug:
-     var: sync_files.stdout_lines
-   tags: [ openresty,lapis,codeui ]
+- debug:
+    var: sync_files.stdout_lines
+  tags: [openresty, lapis, codeui]
 
- - name: Copy npm yarn dependencies script
-   template:
-    src:  install-build-npm-yarn.sh.j2
+- name: Copy npm yarn dependencies script
+  template:
+    src: install-build-npm-yarn.sh.j2
     dest: /tmp/install-build-npm-yarn.sh
     mode: 0777
-   tags: [ openresty,lapis,codeui ]
+  tags: [openresty, lapis, codeui]
 
- - name: Execute the install-build-npm-yarn.sh script
-   shell: /tmp/install-build-npm-yarn.sh
-   tags: [ openresty,lapis,codeui ]
+- name: Execute the install-build-npm-yarn.sh script
+  shell: /tmp/install-build-npm-yarn.sh
+  tags: [openresty, lapis, codeui]
 
- - name: copy nginx conf file
-   template:
-      src: nginx.conf.j2
-      dest: /usr/local/openresty/nginx/conf/nginx.conf 
-   notify: Restart openresty
-   tags: [ openresty,lapis,codeui,nginx ]
+- name: copy nginx conf file
+  template:
+    src: nginx.conf.j2
+    dest: /usr/local/openresty/nginx/conf/nginx.conf
+  notify: Restart openresty
+  tags: [openresty, lapis, codeui, nginx]
 
- - name: Fix nginx related dir permissions
-   template:
-    src:  fix-permissions.sh.j2
+- name: Fix nginx related dir permissions
+  template:
+    src: fix-permissions.sh.j2
     dest: /usr/sbin/fix-permissions.sh
     mode: 0775
-   tags: [ openresty,lapis,codeui, nginx, permissions ]
+  tags: [openresty, lapis, codeui, nginx, permissions]
 
- - name: Enable and start OpenResty service
-   systemd:
-       name: openresty
-       state: started
-       enabled: yes 
-   tags: [ openresty,lapis,codeui,nginx ]
+- name: Enable and start OpenResty service
+  systemd:
+    name: openresty
+    state: started
+    enabled: yes
+  tags: [openresty, lapis, codeui, nginx]

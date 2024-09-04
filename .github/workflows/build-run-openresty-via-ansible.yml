@@ -3,7 +3,7 @@ name: Ansible compile from source and install Openresty
 on:
   push:
     branches:
-      - main 
+      - main
   pull_request:
     branches:
       - main
@@ -12,29 +12,29 @@ on:
     inputs:
       TARGET_ENV:
         type: choice
-        description: 'Please choose the Target environment'
-        default: 'int'
+        description: "Please choose the Target environment"
+        default: "int"
         required: true
         options:
-            - int
-            - test
-            - acc
-            - prod
+          - int
+          - test
+          - acc
+          - prod
 
       TARGET_HOST:
         type: choice
-        description: 'Please choose the Target host'
-        default: '94.72.96.175'
+        description: "Please choose the Target host"
+        default: "94.72.96.175"
         required: true
         options:
-            - 94.72.96.175
-            # - whisky10
-            # - whisky08
+          - 94.72.96.175
+          # - whisky10
+          # - whisky08
 env:
   TARGET_ENV: ${{ github.event.inputs.TARGET_ENV || 'int' }}
   TARGET_HOST: ${{ github.event.inputs.TARGET_HOST || '94.72.96.175' }}
-  API_DOMAINNAME_ENDPOINT:  ${{ github.event.inputs.TARGET_ENV || 'int' }}.brahmstra.org
-    
+  API_DOMAINNAME_ENDPOINT: ${{ github.event.inputs.TARGET_ENV || 'int' }}.brahmstra.org
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -49,12 +49,12 @@ jobs:
 
       - name: Decode settings_brahmstra.json file
         run: |
-            echo "${{ secrets.SETTINGS_BRAHMSTRA_INT }}" | base64 -d > /tmp/settings_brahmstra_94_72_96_175.json
+          echo "${{ secrets.SETTINGS_BRAHMSTRA_INT }}" | base64 -d > /tmp/settings_brahmstra_94_72_96_175.json
 
       - name: Decode env file
         run: |
-            echo "${{ secrets.BRAHMSTRA_ENV_INT }}" | base64 -d > /tmp/.env_brahmstra_94_72_96_175
-            cat /tmp/.env_brahmstra_94_72_96_175
+          echo "${{ secrets.BRAHMSTRA_ENV_INT }}" | base64 -d > /tmp/.env_brahmstra_94_72_96_175
+          cat /tmp/.env_brahmstra_94_72_96_175
 
       - name: Decrypt id_rsa pub key via Ansible Vault file
         env:
@@ -64,8 +64,8 @@ jobs:
 
       - name: Add SSH Host Key for hosts
         run: |
-         mkdir -p ~/.ssh
-         ssh-keyscan -H `cat devops/ansible/hosts | grep ansible_user | awk '{print $1}'`  >> ~/.ssh/known_hosts
+          mkdir -p ~/.ssh
+          ssh-keyscan -H `cat devops/ansible/hosts | grep ansible_user | awk '{print $1}'`  >> ~/.ssh/known_hosts
 
       - name: Run Ansible Playbook
         run: |
