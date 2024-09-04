@@ -51,7 +51,7 @@ jobs:
         run: |
             echo "${{ secrets.SETTINGS_BRAHMSTRA_INT }}" | base64 -d > /tmp/settings_brahmstra_94_72_96_175.json
 
-        - name: Decode env file
+      - name: Decode env file
         run: |
             echo "${{ secrets.BRAHMSTRA_ENV_INT }}" | base64 -d > /tmp/.env
 
