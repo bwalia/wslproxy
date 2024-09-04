@@ -14,10 +14,10 @@
  - name: Adding user www-data
    user: name=www-data
       group=www-data
-      shell=/bin/bash
+      shell: /bin/bash
       password: "{{ nginx_user_password }}"
-      groups=sudo
-      append=yes
+      groups: sudo
+      append: yes
    tags: [ openresty,lapis,codeui,nginx ]
 
  - name: Add www-data user to group root
