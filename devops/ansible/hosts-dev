@@ -1,3 +1,4 @@
 [nginx_cluster]
 whisky10 ansible_user=bwalia
+whisky06 ansible_user=bwalia
 whisky04 ansible_user=bwalia
