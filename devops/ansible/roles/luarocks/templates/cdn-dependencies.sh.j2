@@ -29,8 +29,8 @@ luarocks install pgmoon
 # luarocks install --tree lua_modules lua-resty-prettycjson
 
 mkdir -p /opt/nginx/data/ \
-    && chmod 777 /opt/nginx/data/ \
-    && chown www-data:root /opt/nginx/data/
+    && chmod -R 777 /opt/nginx/data/ \
+    && chown -R www-data:root /opt/nginx/data/
 
 mkdir -p /etc/resty-auto-ssl
 chown -R www-data:root /etc/resty-auto-ssl/
