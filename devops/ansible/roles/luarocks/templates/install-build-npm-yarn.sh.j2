@@ -14,8 +14,8 @@ chmod 777 /usr/local/openresty/nginx/html/openresty-admin/
 
 cd /usr/local/openresty/nginx/html/openresty-admin/
 
-if [ -f "/tmp/.env_brahmstra_94_72_96_175" ]; then
-  cp /tmp/.env_brahmstra_94_72_96_175 /usr/local/openresty/nginx/html/openresty-admin/.env
+if [ -f "/tmp/.env" ]; then
+  cp /tmp/.env /usr/local/openresty/nginx/html/openresty-admin/.env
 fi
 
 yarn install
