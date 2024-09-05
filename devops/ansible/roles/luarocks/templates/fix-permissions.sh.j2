@@ -22,3 +22,6 @@ chmod 775 -R /usr/local/openresty/nginx/logs/ \
 
 chmod 775 -R /usr/local/openresty/nginx/conf/ \
     && chown -R www-data:root /usr/local/openresty/nginx/conf/
+
+chmod -R 777 /opt/nginx/data/ \
+    && chown -R www-data:root /opt/nginx/data/

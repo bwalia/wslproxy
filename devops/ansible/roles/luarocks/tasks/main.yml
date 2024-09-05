@@ -185,11 +185,15 @@
   notify: Restart openresty
   tags: [openresty, lapis, codeui, nginx]
 
-- name: Fix nginx related dir permissions
+- name: Copy nginx related dir permissions scripts
   template:
     src: fix-permissions.sh.j2
     dest: /usr/sbin/fix-permissions.sh
     mode: 0775
+  tags: [openresty, lapis, codeui, nginx, permissions]
+
+- name: Fix nginx related dir permissions
+  shell: /usr/sbin/fix-permissions.sh
   tags: [openresty, lapis, codeui, nginx, permissions]
 
 - name: Enable and start OpenResty service
