@@ -1356,6 +1356,9 @@ local function importProjects(args)
     for key, value in pairs(args.data) do
         envProfile = value.profile_id
         local pathDir = configPath .. "data/" .. args.dataType .. "/" .. value.profile_id
+        if not isDirectoryExists(pathDir) then
+            createDirectoryRecursive(pathDir)
+        end
         if settings.storage_type == "redis" then
             formattedJson[value.id] = cjson.encode(value)
             red:hmset(redisKey .. "_" .. value.profile_id, formattedJson)
