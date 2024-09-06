@@ -138,9 +138,12 @@ http {
         #    deny  all;
         #}
         location / {
-    root   /usr/local/openresty/nginx/html/openresty-admin/dist;
-    index  index.html index.htm;
-}
+          root   /usr/local/openresty/nginx/html/openresty-admin/dist;
+          index  index.html index.htm;
+        }
+
+        client_max_body_size  256M;
+        client_body_buffer_size 128k;
 
         location ~ ^/api(.*)$ {
             default_type 'text/plain';
