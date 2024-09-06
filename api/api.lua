@@ -1356,6 +1356,9 @@ local function importProjects(args)
     for key, value in pairs(args.data) do
         envProfile = value.profile_id
         local pathDir = configPath .. "data/" .. args.dataType .. "/" .. value.profile_id
+        if not isDirectoryExists(pathDir) then
+            createDirectoryRecursive(pathDir)
+        end
         if settings.storage_type == "redis" then
             formattedJson[value.id] = cjson.encode(value)
             red:hmset(redisKey .. "_" .. value.profile_id, formattedJson)
@@ -1685,7 +1688,14 @@ if ngx.req.get_method() == "GET" then
     handle_get_request(ngx.req.get_uri_args(), path_name)
 elseif ngx.req.get_method() == "POST" then
     ngx.req.read_body()
-    handle_post_request(ngx.req.get_post_args(), path_name)
+    local postBody, postErr = ngx.req.get_post_args()
+    if postErr then
+        ngx.say(cjson.encode({
+        postErr = postErr
+        }))
+        ngx.exit(ngx.HTTP_BAD_REQUEST)
+    end
+    handle_post_request(postBody, path_name)
 elseif ngx.req.get_method() == "PUT" then
     ngx.req.read_body()
     handle_put_request(ngx.req.get_post_args(), path_name)
