@@ -25,3 +25,7 @@ chmod 775 -R /usr/local/openresty/nginx/conf/ \
 
 chmod -R 777 /opt/nginx/data/ \
     && chown -R www-data:root /opt/nginx/data/
+
+if [ -f "/tmp/.env" ]; then
+  cp /tmp/.env /usr/local/openresty/nginx/html/openresty-admin/.env
+fi
