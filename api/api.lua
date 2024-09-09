@@ -1194,6 +1194,10 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name, method)
     local filePathDir = configPath .. "data/" .. folder_name .. "/" .. envProfile
     local nginxTenantConfDir = settings.nginx.tenant_conf_path or "/opt/nginx/conf.d"
     local rebootFilePath = settings.nginx.reboot_file_path or "/tmp/nginx/nginx-reboot-required"
+    local trimmed_path = string.match(rebootFilePath, "(.+)/[^/]+$")
+    if not isDirectoryExists(trimmed_path) then
+        createDirectoryRecursive(trimmed_path)
+    end
     -- HS 28/08/2024 This part of the code need to be refactor or optimise
     if settings.storage_type == "redis" then
         redis_json[uuid] = cjson.encode(json_val)
@@ -1217,6 +1221,7 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name, method)
                     json_val.config_status = false
                     setDataToFile(filePathDir .. "/" .. uuid .. ".json", json_val, filePathDir)
                     os.remove(nginxTenantConfDir .. "/" .. json_val.server_name .. ".conf")
+                    Conf.CreateNginxFlag(rebootFilePath)
                 end
             else
                 local sourceFilePath = filePathDir .. "/conf/" .. json_val.server_name .. ".conf"
@@ -1234,12 +1239,14 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name, method)
                         json_val.config_status = false
                         setDataToFile(filePathDir .. "/" .. uuid .. ".json", json_val, filePathDir)
                         os.remove(nginxTenantConfDir .. "/" .. json_val.server_name .. ".conf")
+                        Conf.CreateNginxFlag(rebootFilePath)
                     end
                 end
             end
         else
             if fileExists(nginxTenantConfDir .. "/" .. json_val.server_name .. ".conf") then
                 os.remove(nginxTenantConfDir .. "/" .. json_val.server_name .. ".conf")
+                Conf.CreateNginxFlag(rebootFilePath)
             end
         end
     end
