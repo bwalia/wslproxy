@@ -127,6 +127,9 @@ local function saveRecordsToDisk(path, keyName, type)
     })
     if serverErr == nil then
         allServers = allServers.body
+    else
+        ngx.say(serverErr)
+        ngx.exit(ngx.HTTP_BAD_REQUEST)
     end
     if allServers and allServers ~= nil and allServers ~= "" then
         local allServersData = cjson.decode(allServers)["data"]
