@@ -6,3 +6,14 @@ ubuntu_packages:
   - libssl-dev
   - rsync
   - cron
+  - git
+  - curl
+  - wget
+  - unzip
+  - zip
+  - jq
+  - net-tools
+  - iputils-ping
+  - dnsutils
+  - htop
+  
