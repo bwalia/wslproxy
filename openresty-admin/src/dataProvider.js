@@ -289,7 +289,7 @@ const dataProvider = (apiUrl, settings = {}) => {
       try {
         setIsLoadig(true);
         const environmentProfile = localStorage.getItem('environment') || "prod";
-        const url = `${FRONT_URL}/${resource}?envprofile=${environmentProfile || ''}`;
+        const url = `${FRONT_URL}/${resource}?envprofile=${environmentProfile || ''}&settings=true`;
         const response = await fetch(url, {
           method: "GET",
           headers: getHeaders(),
