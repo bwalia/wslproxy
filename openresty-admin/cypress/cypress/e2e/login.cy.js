@@ -1,12 +1,12 @@
 describe('Brahmstra login test Int environment', () => {
 
-  let BASE_PUB_URL = Cypress.env('BASE_PUB_URL') || 'http://localhost:8081'
+  let BASE_PUB_URL = Cypress.env('BASE_PUB_URL') || 'https://api-int.brahmstra.org'
   let ALLOWED_IP = Cypress.env('ALLOWED_IP') || '103.217.123.221'
   let REDIRECT_ORIGIN = Cypress.env('NODEAPP_ORIGIN_HOST') || '172.177.0.10:3009'
   let ERROR_HTML = Cypress.env('ERROR_HTML') || "ERROR 403"
-  let FRONTEND_URL = Cypress.env('FRONTEND_URL') || 'http://localhost:8000'
+  let FRONTEND_URL = Cypress.env('FRONTEND_URL') || 'http://int.brahmstra.org'
   let TARGET_PLATFORM = Cypress.env('TARGET_PLATFORM') || 'docker'
-  let SERVER_NAME = Cypress.env('SERVER_NAME') || 'localhost'
+  let SERVER_NAME = Cypress.env('SERVER_NAME') || 'int.brahmstra.org'
   let TARGET_ENV = Cypress.env('TARGET_ENV') || 'int'
   let LOGIN_EMAIL = Cypress.env('LOGIN_EMAIL') || ''
   let LOGIN_PASSWORD = Cypress.env('LOGIN_PASSWORD') || ''
@@ -65,7 +65,7 @@ describe('Brahmstra login test Int environment', () => {
     cy.get("#rules").click()
     cy.get('div[role="presentation"] div.MuiPaper-root ul.MuiAutocomplete-listbox li:contains("' + nameString + '")').click()
     cy.wait(1000)
-    cy.get('.RaToolbar-defaultToolbar > button.MuiButtonBase-root').click()
+    cy.get('form button[aria-label="Save"]').click()
     cy.wait(2000)
 
     // Select the Profile

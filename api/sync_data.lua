@@ -311,7 +311,8 @@ function SyncSettings()
 end
 
 local args = ngx.req.get_uri_args()
-
-SyncSettings()
+if args.settings == "true" then
+    SyncSettings()
+end
 SyncRulesAPI(args)
 SyncServersAPI(args)
