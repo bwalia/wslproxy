@@ -362,7 +362,18 @@ paths:
                     message:
                       type: string
                       default: Success
-          
+                      
+  /api/openresty_status:
+    get:
+      tags:
+      - Openresty Check Status
+      summary: Check the status od openresty (openresty -t)
+      responses:
+        '200':
+          description: nginx the configuration file /usr/local/openresty/nginx/conf/nginx.conf syntax is ok
+            
+      security:
+        - bearerAuth: []   
 components:
   securitySchemes:
     bearerAuth:            # arbitrary name for the security scheme
@@ -418,6 +429,9 @@ components:
         config:
           type: string
           default: "server {\n        listen 8080;  # Listen on port (HTTP)\n        server_name localhost;  # Your domain name\n        root /var/www/html;  # Document root directory\n        index index.html;  # Default index files\n        access_log /logs/access.log;  # Access log file location\n        error_log /logs/error.log;  # Error log file location\n\n        location /api {\n                  allow 127.0.0.1\ntry_files html\n                  }\n        include resolver.conf;\n    }\n    "
+        config_status:
+          type: boolean
+          default: false
     ServerResponse:
       type: object
       properties:
@@ -469,6 +483,9 @@ components:
         config:
           type: string
           default: "server {\n        listen 8080;  # Listen on port (HTTP)\n        server_name localhost;  # Your domain name\n        root /var/www/html;  # Document root directory\n        index index.html;  # Default index files\n        access_log /logs/access.log;  # Access log file location\n        error_log /logs/error.log;  # Error log file location\n\n        location /api {\n                  allow 127.0.0.1\ntry_files html\n                  }\n        include resolver.conf;\n    }\n    "
+        config_status:
+          type: boolean
+          default: false
     Rules:
       type: object
       properties:
@@ -479,10 +496,10 @@ components:
           type: string
           default: test
         version:
-          type: string
+          type: number
           default: 1
         priority:
-          type: string
+          type: number
           default: 1
         match:
           type: object
@@ -507,10 +524,10 @@ components:
           type: string
           default: ef9d2897-92ea-9a96-ce7d-268dd0cb36b7
         priority:
-          type: string
+          type: number
           default: 1
         version:
-          type: string
+          type: number
           default: 1
         created_at:
           type: number

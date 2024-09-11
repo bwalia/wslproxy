@@ -108,4 +108,36 @@ function Helper.isStringContains(stringPtrn, message)
     end
 end
 
+-- Check is Directory exists
+function Helper.directoryExists(path)
+    local attr = LFS.attributes(path)
+    return attr and attr.mode == "directory"
+end
+
+-- Delete Directory
+function Helper.removeDir(path)
+    -- Check if path exists
+    if Helper.directoryExists(path) then
+        -- Recursively delete contents of the directory
+        for file in LFS.dir(path) do
+            if file ~= "." and file ~= ".." then
+                local full_path = path .. "/" .. file
+                local attr = LFS.attributes(full_path)
+                if attr.mode == "directory" then
+                    -- Recursively remove subdirectory
+                    Helper.removeDir(full_path)
+                else
+                    -- Remove file
+                    os.remove(full_path)
+                end
+            end
+        end
+        -- Remove the now empty directory
+        LFS.rmdir(path)
+        return "Directory removed: " .. path
+    else
+        return "Directory does not exist: " .. path
+    end
+end
+
 return Helper

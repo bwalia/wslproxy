@@ -84,7 +84,12 @@ const App = () => {
           color: "#213547"
         }}
       >
-        <p><span>Version: {versionNumber}, </span><span>Build: {buildNumber}, </span><span>Deployment timestamp: {deploymentTime}</span></p>
+        <p>
+          <span>Version: {versionNumber}, </span>
+          <span>Build: {buildNumber}, </span>
+          <span>Deployment timestamp: {deploymentTime}, </span>
+          <span><a href="/swagger" target="_blank">API Endpoints</a></span>
+        </p>
       </div>
     </div>
   )
