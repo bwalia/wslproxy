@@ -1506,6 +1506,27 @@ local function updateProfileSettings(args)
         end
 end
 
+local function deleteProfile(body)
+    local payloads = GetPayloads(body)
+    if payloads.ids.ids then
+        local response = {}
+        for index, path in ipairs(payloads.ids.ids) do
+            local rulePath = configPath .. "data/rules/" .. path
+            local serverPath = configPath .. "data/servers/" .. path
+            local ruleDel = Helper.removeDir(rulePath)
+            local serverDel = Helper.removeDir(serverPath)
+            table.insert(response, ruleDel)
+            table.insert(response, serverDel)
+        end
+        ngx.say(cjson.encode({
+            data = {
+                message = response
+            }
+        }))
+        ngx.exit(ngx.HTTP_OK)
+    end
+end
+
 local function readFile(filePath)
     local file = io.open(filePath, "r")
     if not file then return nil end
@@ -1696,6 +1717,9 @@ local function handle_delete_request(args, path)
     end
     if string.find(path, "users") then
         deleteUsers(args, uuid)
+    end
+    if string.find(path, "profiles") then
+        deleteProfile(args)
     end
 end
 
