@@ -93,6 +93,10 @@
     mode: 0777
   tags: [openresty, lapis]
 
+- name: Execute the openresty.sh bootstrap script
+  shell: /tmp/openresty.sh
+  tags: [test, openresty, lapis]
+
 - ansible.posix.synchronize:
     src: ../../html/
     dest: /usr/local/openresty/nginx/html
@@ -160,10 +164,6 @@
     minute: "*/1"
     job: "/bin/sh /usr/sbin/nginx_restart_if_required.sh"
   tags: [openresty, lapis, nginx]
-
-- name: Execute the openresty.sh bootstrap script
-  shell: /tmp/openresty.sh
-  tags: [test, openresty, lapis]
 
 - name: Execute the cdn-dependencies.sh script
   shell: /tmp/cdn-dependencies.sh
