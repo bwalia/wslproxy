@@ -1587,6 +1587,18 @@ local function handle_get_request(args, path)
     if path == "conf" then
         listServerConf(args)
     end
+    if path == "openresty_status" then
+        local nginxStatus, commandStatus = Helper.testNginxConfig()
+        local apiStatus = ngx.HTTP_OK
+        if not nginxStatus then
+            nginxStatus = "Unable to get the status of nginx file"
+            apiStatus = ngx.HTTP_BAD_REQUEST
+        end
+        ngx.say(cjson.encode({
+            message = nginxStatus
+        }))
+        ngx.exit(apiStatus)
+    end
     if path == "global/settings" then
         local settingsData = settings
         settingsData.dns_resolver = nil
