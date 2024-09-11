@@ -48,6 +48,16 @@
     append: yes
   tags: [openresty, lapis, codeui, nginx]
 
+- name: make sure base nginx conf dir exits
+  ansible.builtin.file:
+    path: /opt/nginx/base.d/
+    state: directory
+    owner: "www-data"
+    group: root
+    mode: 0775
+  notify: Restart openresty
+  tags: [openresty, lapis, codeui, nginx]
+
 - name: make sure tenants nginx conf dir exits
   ansible.builtin.file:
     path: /opt/nginx/conf.d/
@@ -58,12 +68,51 @@
   notify: Restart openresty
   tags: [openresty, lapis, codeui, nginx]
 
+- name: Add nginx configuration
+  copy:
+    src: ../../nginx-conf.d/
+    dest: /opt/nginx/conf.d/
+    owner: "www-data"
+    group: root
+    mode: "0644"
+  tags: [openresty, lapis, codeui, nginx]
+
+- name: Add nginx configuration
+  copy:
+    src: ../../nginx-conf.d/
+    dest: /opt/nginx/conf.d/
+    owner: "www-data"
+    group: root
+    mode: "0644"
+  tags: [openresty, lapis, codeui, nginx]
+
 - name: Copy openresty bootstrap script
   template:
     src: openresty.sh.j2
     dest: /tmp/openresty.sh
     mode: 0777
   tags: [openresty, lapis]
+
+- ansible.posix.synchronize:
+    src: ../../html/
+    dest: /usr/local/openresty/nginx/html
+  register: sync_files
+  tags: [openresty, lapis, codeui, html]
+
+- debug:
+    var: sync_files.stdout_lines
+  tags: [openresty, lapis, codeui, html]
+
+- ansible.posix.synchronize:
+    src: ../../api/
+    dest: /usr/local/openresty/nginx/html/api
+  notify: Restart openresty
+  register: sync_files
+  tags: [openresty, lapis, codeui, nginx]
+
+- debug:
+    var: sync_files.stdout_lines
+  tags: [openresty, lapis, codeui, nginx]
 
 - name: Copy cdn dependencies script
   template:
@@ -120,46 +169,6 @@
   shell: /tmp/cdn-dependencies.sh
   tags: [openresty, lapis]
 
-- name: Add nginx configuration
-  copy:
-    src: ../../nginx-conf.d/
-    dest: /opt/nginx/conf.d/
-    owner: "www-data"
-    group: root
-    mode: "0644"
-  tags: [openresty, lapis, codeui, nginx]
-
-- ansible.posix.synchronize:
-    src: ../../html/
-    dest: /usr/local/openresty/nginx/html
-  register: sync_files
-  tags: [openresty, lapis, codeui, html]
-
-- debug:
-    var: sync_files.stdout_lines
-  tags: [openresty, lapis, codeui, html]
-
-- ansible.posix.synchronize:
-    src: ../../api/
-    dest: /usr/local/openresty/nginx/html/api
-  notify: Restart openresty
-  register: sync_files
-  tags: [openresty, lapis, codeui, nginx]
-
-- debug:
-    var: sync_files.stdout_lines
-  tags: [openresty, lapis, codeui, nginx]
-
-- ansible.posix.synchronize:
-    src: ../../openresty-admin/
-    dest: /usr/local/openresty/nginx/html/openresty-admin
-  register: sync_files
-  tags: [openresty, lapis, codeui]
-
-- debug:
-    var: sync_files.stdout_lines
-  tags: [openresty, lapis, codeui]
-
 - name: Deploy OpenResty systemd service file
   template:
     src: openresty.service.j2
@@ -195,6 +204,27 @@
 - name: Fix nginx related dir permissions
   shell: /usr/sbin/fix-permissions.sh
   tags: [openresty, lapis, codeui, nginx, permissions]
+
+- ansible.posix.synchronize:
+    src: ../../nginx-tenants.d/
+    dest: /opt/nginx/conf.d/
+  notify: Restart openresty
+  register: sync_files
+  tags: [openresty, lapis, codeui, nginx]
+
+- debug:
+    var: sync_files.stdout_lines
+  tags: [openresty, lapis, codeui, nginx]
+
+- ansible.posix.synchronize:
+    src: ../../openresty-admin/
+    dest: /usr/local/openresty/nginx/html/openresty-admin
+  register: sync_files
+  tags: [openresty, lapis, codeui]
+
+- debug:
+    var: sync_files.stdout_lines
+  tags: [openresty, lapis, codeui]
 
 - name: Enable and start OpenResty service
   systemd:
