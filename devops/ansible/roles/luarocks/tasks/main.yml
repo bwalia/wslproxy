@@ -176,6 +176,16 @@
   notify: Reload systemd
   tags: [openresty, lapis]
 
+- ansible.posix.synchronize:
+    src: ../../openresty-admin/
+    dest: /usr/local/openresty/nginx/html/openresty-admin
+  register: sync_files
+  tags: [openresty, lapis, codeui]
+
+- debug:
+    var: sync_files.stdout_lines
+  tags: [openresty, lapis, codeui]
+
 - name: Copy npm yarn dependencies script
   template:
     src: install-build-npm-yarn.sh.j2
@@ -215,16 +225,6 @@
 - debug:
     var: sync_files.stdout_lines
   tags: [openresty, lapis, codeui, nginx]
-
-- ansible.posix.synchronize:
-    src: ../../openresty-admin/
-    dest: /usr/local/openresty/nginx/html/openresty-admin
-  register: sync_files
-  tags: [openresty, lapis, codeui]
-
-- debug:
-    var: sync_files.stdout_lines
-  tags: [openresty, lapis, codeui]
 
 - name: Enable and start OpenResty service
   systemd:
