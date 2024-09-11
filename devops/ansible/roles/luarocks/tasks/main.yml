@@ -58,46 +58,6 @@
   notify: Restart openresty
   tags: [openresty, lapis, codeui, nginx]
 
-- name: Add nginx configuration
-  copy:
-    src: ../../nginx-conf.d/
-    dest: /opt/nginx/conf.d/
-    owner: "www-data"
-    group: root
-    mode: "0644"
-  tags: [openresty, lapis, codeui, nginx]
-
-- ansible.posix.synchronize:
-    src: ../../api/
-    dest: /usr/local/openresty/nginx/html/api
-  notify: Restart openresty
-  register: sync_files
-  tags: [openresty, lapis, codeui, nginx]
-
-- debug:
-    var: sync_files.stdout_lines
-  tags: [openresty, lapis, codeui, nginx]
-
-- ansible.posix.synchronize:
-    src: ../../html/
-    dest: /usr/local/openresty/nginx/html
-  register: sync_files
-  tags: [openresty, lapis, codeui, html]
-
-- debug:
-    var: sync_files.stdout_lines
-  tags: [openresty, lapis, codeui, html]
-
-- ansible.posix.synchronize:
-    src: ../../openresty-admin/
-    dest: /usr/local/openresty/nginx/html/openresty-admin
-  register: sync_files
-  tags: [openresty, lapis, codeui]
-
-- debug:
-    var: sync_files.stdout_lines
-  tags: [openresty, lapis, codeui]
-
 - name: Copy openresty bootstrap script
   template:
     src: openresty.sh.j2
@@ -160,6 +120,46 @@
   shell: /tmp/cdn-dependencies.sh
   tags: [openresty, lapis]
 
+- name: Add nginx configuration
+  copy:
+    src: ../../nginx-conf.d/
+    dest: /opt/nginx/conf.d/
+    owner: "www-data"
+    group: root
+    mode: "0644"
+  tags: [openresty, lapis, codeui, nginx]
+
+- ansible.posix.synchronize:
+    src: ../../api/
+    dest: /usr/local/openresty/nginx/html/api
+  notify: Restart openresty
+  register: sync_files
+  tags: [openresty, lapis, codeui, nginx]
+
+- debug:
+    var: sync_files.stdout_lines
+  tags: [openresty, lapis, codeui, nginx]
+
+- ansible.posix.synchronize:
+    src: ../../html/
+    dest: /usr/local/openresty/nginx/html
+  register: sync_files
+  tags: [openresty, lapis, codeui, html]
+
+- debug:
+    var: sync_files.stdout_lines
+  tags: [openresty, lapis, codeui, html]
+
+- ansible.posix.synchronize:
+    src: ../../openresty-admin/
+    dest: /usr/local/openresty/nginx/html/openresty-admin
+  register: sync_files
+  tags: [openresty, lapis, codeui]
+
+- debug:
+    var: sync_files.stdout_lines
+  tags: [openresty, lapis, codeui]
+  
 - name: Deploy OpenResty systemd service file
   template:
     src: openresty.service.j2
