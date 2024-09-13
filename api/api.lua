@@ -1528,11 +1528,11 @@ local function deleteProfile(body)
 end
 
 local function readFile(filePath)
-    local file = io.open(filePath, "r")
-    if not file then return nil end
+    local file, fileErr = io.open(filePath, "r")
+    if not file then return fileErr, ngx.HTTP_BAD_REQUEST end
     local content = file:read("*a")
     file:close()
-    return content
+    return content, ngx.HTTP_OK
 end
 
 local function listFiles(directory)
@@ -1570,6 +1570,17 @@ local function listServerConf(args)
         data = files,
         total = total
     }))
+end
+
+local function listOpenrestyLogs()
+    local logFile = "/usr/local/openresty/nginx/logs/error.log"
+    local logs, status = readFile(logFile)
+    ngx.say(cjson.encode({
+        data = {
+            logs = logs
+        }
+    }))
+    ngx.exit(status)
 end
 
 local function handle_get_request(args, path)
@@ -1615,10 +1626,22 @@ local function handle_get_request(args, path)
             nginxStatus = "Unable to get the status of nginx file"
             apiStatus = ngx.HTTP_BAD_REQUEST
         end
+        local statusRes = "error"
+        local isSuccess = Helper.isStringContains("nginx.conf syntax is ok", nginxStatus)
+        if isSuccess then
+            statusRes = "success"
+        end
         ngx.say(cjson.encode({
-            message = nginxStatus
+            data = {
+                message = nginxStatus,
+                check_status = statusRes,
+            }
         }))
         ngx.exit(apiStatus)
+    end
+
+    if path == "openresty_logs" then
+        listOpenrestyLogs()
     end
     if path == "global/settings" then
         local settingsData = settings

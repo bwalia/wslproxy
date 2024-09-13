@@ -20,10 +20,10 @@ const Toolbar = () => {
     if (id) {
       data.id = id
       const serverData = await dataProvider.update("servers", { id, data });
-      serverData?.data?.nginx_status && notify(serverData?.data?.nginx_status, {autoHideDuration: 5000, type: serverData?.data?.nginx_status_check})
+      serverData?.data?.nginx_status && notify(serverData?.data?.nginx_status, {autoHideDuration: 30000, type: serverData?.data?.nginx_status_check})
     } else {
       const serverData = await dataProvider.create("servers", { data });
-      serverData?.data?.nginx_status && notify(serverData?.data?.nginx_status, {autoHideDuration: 5000, type: serverData?.data?.nginx_status_check})
+      serverData?.data?.nginx_status && notify(serverData?.data?.nginx_status, {autoHideDuration: 30000, type: serverData?.data?.nginx_status_check})
     }
     redirect("/servers");
   };
