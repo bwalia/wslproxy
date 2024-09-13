@@ -7,8 +7,9 @@ function Helper.settings()
     local settings = {}
     if readSettings == nil then
         ngx.say(Cjson.encode(
-            "Couldn't read file: " .. errSettings
+            "Couldn't read file: data/settings.json " .. errSettings
         ))
+        ngx.status = ngx.HTTP_BAD_REQUEST
         ngx.exit(ngx.HTTP_BAD_REQUEST)
     else
         local jsonString = readSettings:read "*a"

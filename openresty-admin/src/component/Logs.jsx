@@ -25,7 +25,7 @@ const Logs = () => {
             </Typography>
             <TextareaAutosize
                 defaultValue={logData}
-                maxRows={20}
+                maxRows={40}
                 style={{
                     width: '100%',
                     padding: '15px',

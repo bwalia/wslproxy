@@ -17,14 +17,21 @@ const Toolbar = () => {
   const handleRuleSubmit = async (e) => {
     e.preventDefault();
     const { id, ...data } = getValues();
+    let serverData = {}
     if (id) {
       data.id = id
-      const serverData = await dataProvider.update("servers", { id, data });
-      serverData?.data?.nginx_status && notify(serverData?.data?.nginx_status, {autoHideDuration: 30000, type: serverData?.data?.nginx_status_check})
+      serverData = dataProvider.update("servers", { id, data });
     } else {
-      const serverData = await dataProvider.create("servers", { data });
-      serverData?.data?.nginx_status && notify(serverData?.data?.nginx_status, {autoHideDuration: 30000, type: serverData?.data?.nginx_status_check})
+      serverData = dataProvider.create("servers", { data });
     }
+    serverData.then(server => {
+      server?.data?.nginx_status && notify(server?.data?.nginx_status, {autoHideDuration: 30000, type: server?.data?.nginx_status_check})
+    });
+
+    serverData.catch(error => {
+      notify(error, {autoHideDuration: 30000, type: "error"})
+    })
+
     redirect("/servers");
   };
   return (
