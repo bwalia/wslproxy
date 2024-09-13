@@ -1,0 +1,13 @@
+.env
+openresty-admin/cypress/e2e
+openresty-admin/cypress.config.js
+openresty-admin/cypress/fixtures
+openresty-admin/cypress/support
+openresty-admin/cypress/cypress/videos
+.env.docker
+.env.nodeapp
+error.html
+.vscode
+sealed-secret*
+data
+node_modules
