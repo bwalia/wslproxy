@@ -366,11 +366,21 @@ paths:
   /api/openresty_status:
     get:
       tags:
-      - Openresty Check Status
-      summary: Check the status od openresty (openresty -t)
+      - Openresty
+      summary: Check the status of openresty (openresty -t)
       responses:
         '200':
           description: nginx the configuration file /usr/local/openresty/nginx/conf/nginx.conf syntax is ok
+          
+  /api/openresty_logs:
+    get:
+      tags:
+      - Openresty
+      summary: Get all the logs of openresty
+      responses:
+        '200':
+          description: signal process started
+              
             
       security:
         - bearerAuth: []   

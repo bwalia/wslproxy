@@ -381,6 +381,60 @@ const dataProvider = (apiUrl, settings = {}) => {
         setIsLoadig(false)
       }
     },
+
+    getLogs: async (resource, params) => {
+      try {
+        setIsLoadig(true);
+        const timestamp = Date.now();
+        const url = `${apiUrl}/${resource}?timestamp=${timestamp}`;
+        const response = await fetch(url, {
+          method: "GET",
+          headers: getHeaders(),
+        });
+        if (response.status < 200 || response.status >= 300 && response.status !== 409) {
+          localStorage.removeItem("token");
+          localStorage.removeItem("uuid_business_id");
+          window.location.href = "/#/login";
+        }
+        if (response.status === 200) {
+          setIsLoadig(false);
+          const data = await response.json();
+          return data;
+        }
+        setIsLoadig(false);
+      } catch (error) {
+        console.log(error)
+        setIsLoadig(false)
+      }
+    },
+
+    checkORStatus: async (resource, params) => {
+      try {
+        setIsLoadig(true);
+        const timestamp = Date.now();
+        const url = `${apiUrl}/${resource}?timestamp=${timestamp}`;
+        const response = await fetch(url, {
+          method: "GET",
+          headers: getHeaders(),
+        });
+        if (response.status < 200 || response.status >= 300 && response.status !== 409) {
+          localStorage.removeItem("token");
+          localStorage.removeItem("uuid_business_id");
+          window.location.href = "/#/login";
+        }
+        if (response.status === 200) {
+          setIsLoadig(false);
+          const result = await response.json();
+          if (result?.data?.message) {
+            return Promise.resolve(result?.data);
+          }
+        }
+        setIsLoadig(false);
+      } catch (error) {
+        console.log(error)
+        setIsLoadig(false)
+      }
+    },
   }
 };
 export default dataProvider;

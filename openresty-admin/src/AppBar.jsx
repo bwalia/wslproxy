@@ -5,7 +5,8 @@ import {
   Toolbar,
   useRedirect,
   useDataProvider,
-  useStore
+  useStore,
+  useNotify
 } from "react-admin";
 import SdStorageIcon from "@mui/icons-material/SdStorage";
 import { IconButton, Tooltip, Typography } from "@mui/material";
@@ -13,6 +14,7 @@ import StorageModal from "./Dashboard/StorageModal";
 import SettingsIcon from "@mui/icons-material/Settings";
 import CloudSyncIcon from '@mui/icons-material/CloudSync';
 import ProfileIcon from '@mui/icons-material/RememberMe';
+import StatusCheckIcon from '@mui/icons-material/ScreenSearchDesktop';
 import EnvProfileHandler from './component/EnvProfileHandler'
 
 const appDisplayNname = import.meta.env.VITE_APP_DISPLAY_NAME;
@@ -88,6 +90,21 @@ const SettingButton = () => {
     </Tooltip>
   );
 };
+const CheckStatus = () => {
+  const dataProvider = useDataProvider();
+  const notify = useNotify();
+  const handleSettings = async () => {
+    const opStatus = await dataProvider.checkORStatus("openresty_status", {});
+    notify(opStatus?.message, {autoHideDuration: 30000, type: opStatus?.check_status})
+  };
+  return (
+    <Tooltip title="Check Openresty Status">
+      <IconButton color="inherit" onClick={handleSettings}>
+        <StatusCheckIcon />
+      </IconButton>
+    </Tooltip>
+  );
+};
 
 const AppBar = () => {
   const [settings] = useStore('app.settings', {});
@@ -117,6 +134,7 @@ const AppBar = () => {
       {targetPlatform !== "DOCKER" && <ApiSync />}
       {settings.storage_type === "disk" && <StorageButton />}
       {/* <SettingButton /> */}
+      <CheckStatus />
       <ProfileHandler />
     </RaAppBar>
   );

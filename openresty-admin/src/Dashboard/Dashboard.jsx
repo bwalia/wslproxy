@@ -11,6 +11,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import StorageModal from "./StorageModal";
+import Logs from "../component/Logs";
 const data = [
   {
     name: "Page A",
@@ -59,7 +60,7 @@ const Dashboard = () => {
   const storageManagement = localStorage.getItem("storageManagement");
   return (
     <Grid container spacing={2}>
-      <Grid item xs={6}>
+      <Grid item xs={12}>
         <LineChart
           width={400}
           height={400}
@@ -72,6 +73,9 @@ const Dashboard = () => {
           <Line type="monotone" dataKey="uv" stroke="#ff7300" yAxisId={0} />
           <Line type="monotone" dataKey="pv" stroke="#387908" yAxisId={1} />
         </LineChart>
+      </Grid>
+      <Grid item xs={12} sx={{width: '100%'}}>
+        <Logs />
       </Grid>
       {!storageManagement && <StorageModal isOpen={true} />}
     </Grid>

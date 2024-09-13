@@ -11,3 +11,4 @@ error.html
 sealed-secret*
 data
 node_modules
+.DS_Store
