@@ -161,13 +161,11 @@ const dataProvider = (apiUrl, settings = {}) => {
           body: data,
         });
         if (response.status < 200 || response.status >= 300) {
+          setIsLoadig(false);
           const responseMessage = await response.json();
           return Promise.reject(responseMessage?.data?.message);
         }
         const result = await response.json();
-        if (result?.data?.nginx_status) {
-          return Promise.resolve(result?.data?.nginx_status)
-        }
         setIsLoadig(false)
         return result;
       } catch (error) {
@@ -197,6 +195,7 @@ const dataProvider = (apiUrl, settings = {}) => {
           headers: getHeaders(),
         });
         if (response.status < 200 || response.status >= 300) {
+          setIsLoadig(false);
           const responseMessage = await response.json();
           return Promise.reject(responseMessage?.data?.message);
         }

@@ -111,9 +111,10 @@ local function setDataToFile(path, value, dir, fileType)
             ngx.status = ngx.HTTP_BAD_REQUEST
             ngx.say(cjson.encode({
                 data = {
-                    message = "Error creating directory:", errorMsg
+                    message = errorMsg .. " while creating " .. dir
                 }
             }))
+            ngx.exit(ngx.HTTP_BAD_REQUEST)
         end
     else
         print("Directory already exists")
@@ -1196,7 +1197,16 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name, method)
     local rebootFilePath = settings.nginx.reboot_file_path or "/tmp/nginx/nginx-reboot-required"
     local trimmed_path = string.match(rebootFilePath, "(.+)/[^/]+$")
     if not isDirectoryExists(trimmed_path) then
-        createDirectoryRecursive(trimmed_path)
+        local isDirCreated, errDir = createDirectoryRecursive(trimmed_path)
+        if not isDirCreated and errDir then
+            ngx.status = ngx.HTTP_BAD_REQUEST
+            ngx.say(Cjson.encode({
+                data = {
+                    message = errDir .. " while creating " .. trimmed_path
+                }
+            }))
+            ngx.exit(ngx.HTTP_BAD_REQUEST)
+        end
     end
     -- HS 28/08/2024 This part of the code need to be refactor or optimise
     if settings.storage_type == "redis" then

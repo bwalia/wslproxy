@@ -43,9 +43,10 @@ function Conf.CreateNginxFlag(rebootFilePath)
         ngx.status = ngx.HTTP_BAD_REQUEST
         ngx.say(Cjson.encode({
             data = {
-                message = "Error creating directory:", fileErr
+                message = fileErr .. " while creating " .. rebootFilePath
             }
         }))
+        ngx.exit(ngx.HTTP_BAD_REQUEST)
     else
         file:write("nginx restart")
         file:close()
@@ -73,9 +74,10 @@ function Conf.saveConfFiles(dir, conf, fileName)
             ngx.status = ngx.HTTP_BAD_REQUEST
             ngx.say(Cjson.encode({
                 data = {
-                    message = "Error creating directory:", errorMsg
+                    message = errorMsg  .. " while creating " .. dir
                 }
             }))
+            ngx.exit(ngx.HTTP_BAD_REQUEST)
         end
     end
 
@@ -84,9 +86,10 @@ function Conf.saveConfFiles(dir, conf, fileName)
         ngx.status = ngx.HTTP_BAD_REQUEST
         ngx.say(Cjson.encode({
             data = {
-                message = "Error creating directory:", fileErr
+                message = fileErr  .. " while opening " .. file
             }
         }))
+        ngx.exit(ngx.HTTP_BAD_REQUEST)
     else
         local cleanedContent = conf:gsub('"(.-)"', function(s)
             return cleanString(s)
