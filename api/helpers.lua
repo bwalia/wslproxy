@@ -141,4 +141,16 @@ function Helper.removeDir(path)
     end
 end
 
+-- Read Log file
+function Helper.readLogFile(path)
+    local file, fileErr = io.open(path, "r")
+    if not file then return fileErr, ngx.HTTP_BAD_REQUEST end
+    
+    local max_size = 10 * 1024  -- 10KB
+    file:seek("end", -max_size)
+    local content = file:read("*a")
+    file:close()
+    return content, ngx.HTTP_OK
+end
+
 return Helper
