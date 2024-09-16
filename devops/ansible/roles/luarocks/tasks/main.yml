@@ -32,21 +32,21 @@
     password: "{{ nginx_user_password }}"
     groups: sudo
     append: yes
-  tags: [openresty, lapis, codeui, nginx]
+  tags: [openresty, lapis, dashboard, nginx]
 
 - name: Add www-data user to group root
   user:
     name: www-data
     groups: root
     state: present
-  tags: [openresty, lapis, codeui, nginx]
+  tags: [openresty, lapis, dashboard, nginx]
 
 - name: Add www-data user to group sudo
   user:
     name: www-data
     groups: sudo
     append: yes
-  tags: [openresty, lapis, codeui, nginx]
+  tags: [openresty, lapis, dashboard, nginx]
 
 - name: make sure base nginx conf dir exits
   ansible.builtin.file:
@@ -56,7 +56,7 @@
     group: root
     mode: 0775
   notify: Restart openresty
-  tags: [openresty, lapis, codeui, nginx]
+  tags: [openresty, lapis, dashboard, nginx]
 
 - name: make sure tenants nginx conf dir exits
   ansible.builtin.file:
@@ -66,7 +66,7 @@
     group: root
     mode: 0775
   notify: Restart openresty
-  tags: [openresty, lapis, codeui, nginx]
+  tags: [openresty, lapis, dashboard, nginx]
 
 - name: Add nginx configuration
   copy:
@@ -75,7 +75,7 @@
     owner: "www-data"
     group: root
     mode: "0644"
-  tags: [openresty, lapis, codeui, nginx]
+  tags: [openresty, lapis, dashboard, nginx]
 
 - name: Add nginx configuration
   copy:
@@ -84,7 +84,7 @@
     owner: "www-data"
     group: root
     mode: "0644"
-  tags: [openresty, lapis, codeui, nginx]
+  tags: [openresty, lapis, dashboard, nginx]
 
 - name: Copy openresty bootstrap script
   template:
@@ -101,22 +101,22 @@
     src: ../../html/
     dest: /usr/local/openresty/nginx/html
   register: sync_files
-  tags: [openresty, lapis, codeui, html]
+  tags: [openresty, lapis, dashboard, html]
 
 - debug:
     var: sync_files.stdout_lines
-  tags: [openresty, lapis, codeui, html]
+  tags: [openresty, lapis, dashboard, html]
 
 - ansible.posix.synchronize:
     src: ../../api/
     dest: /usr/local/openresty/nginx/html/api
   notify: Restart openresty
   register: sync_files
-  tags: [openresty, lapis, codeui, nginx]
+  tags: [openresty, lapis, dashboard, nginx]
 
 - debug:
     var: sync_files.stdout_lines
-  tags: [openresty, lapis, codeui, nginx]
+  tags: [openresty, lapis, dashboard, nginx]
 
 - name: Copy cdn dependencies script
   template:
@@ -141,14 +141,14 @@
     mode: 0777
     owner: "www-data"
     group: root
-  tags: [openresty, lapis, codeui]
+  tags: [openresty, lapis, dashboard]
 
 - name: Copy Environment file
   template:
     src: "{{ local_env_file_path }}"
     dest: "/tmp/.env"
     mode: 0777
-  tags: [openresty, lapis, codeui]
+  tags: [openresty, lapis, dashboard]
 
 - name: Copy CRON bash Script
   template:
@@ -180,55 +180,55 @@
     src: ../../openresty-admin/
     dest: /usr/local/openresty/nginx/html/openresty-admin
   register: sync_files
-  tags: [openresty, lapis, codeui]
+  tags: [openresty, lapis, dashboard]
 
 - debug:
     var: sync_files.stdout_lines
-  tags: [openresty, lapis, codeui]
+  tags: [openresty, lapis, dashboard]
 
 - name: Copy npm yarn dependencies script
   template:
     src: install-build-npm-yarn.sh.j2
     dest: /tmp/install-build-npm-yarn.sh
     mode: 0777
-  tags: [openresty, lapis, codeui]
+  tags: [openresty, lapis, dashboard]
 
 - name: Execute the install-build-npm-yarn.sh script
   shell: /tmp/install-build-npm-yarn.sh
-  tags: [openresty, lapis, codeui]
+  tags: [openresty, lapis, dashboard]
 
 - name: copy nginx conf file
   template:
     src: nginx.conf.j2
     dest: /usr/local/openresty/nginx/conf/nginx.conf
   notify: Restart openresty
-  tags: [openresty, lapis, codeui, nginx]
+  tags: [openresty, lapis, dashboard, nginx]
 
 - name: Copy nginx related dir permissions scripts
   template:
     src: fix-permissions.sh.j2
     dest: /usr/sbin/fix-permissions.sh
     mode: 0775
-  tags: [openresty, lapis, codeui, nginx, permissions]
+  tags: [openresty, lapis, dashboard, nginx, permissions]
 
 - name: Fix nginx related dir permissions
   shell: /usr/sbin/fix-permissions.sh
-  tags: [openresty, lapis, codeui, nginx, permissions]
+  tags: [openresty, lapis, dashboard, nginx, permissions]
 
 - ansible.posix.synchronize:
     src: ../../nginx-tenants.d/
     dest: /opt/nginx/conf.d/
   notify: Restart openresty
   register: sync_files
-  tags: [openresty, lapis, codeui, nginx]
+  tags: [openresty, lapis, dashboard, nginx]
 
 - debug:
     var: sync_files.stdout_lines
-  tags: [openresty, lapis, codeui, nginx]
+  tags: [openresty, lapis, dashboard, nginx]
 
 - name: Enable and start OpenResty service
   systemd:
     name: openresty
     state: started
     enabled: yes
-  tags: [openresty, lapis, codeui, nginx]
+  tags: [openresty, lapis, dashboard, nginx]
