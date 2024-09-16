@@ -1584,7 +1584,7 @@ end
 
 local function listOpenrestyLogs()
     local logFile = "/usr/local/openresty/nginx/logs/error.log"
-    local logs, status = readFile(logFile)
+    local logs, status = Helper.readLogFile(logFile)
     ngx.say(cjson.encode({
         data = {
             logs = logs
