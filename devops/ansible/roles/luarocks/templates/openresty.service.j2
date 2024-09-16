@@ -3,6 +3,8 @@ Description=The OpenResty Application Platform
 After=syslog.target network-online.target remote-fs.target nss-lookup.target
 Wants=network-online.target
 [Service]
+User=root
+Group=www-data
 Type=forking
 PIDFile=/usr/local/openresty/nginx/logs/nginx.pid
 ExecStartPre=/usr/local/openresty/nginx/sbin/nginx -t -q -g 'daemon on; master_process on;'
