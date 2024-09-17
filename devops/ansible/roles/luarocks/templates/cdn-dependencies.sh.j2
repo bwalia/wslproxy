@@ -59,5 +59,6 @@ chmod 775 /usr/local/openresty/nginx/IP2LOCATION-LITE-DB11.IPV6.BIN \
     && chown www-data:root /usr/local/openresty/nginx/IP2LOCATION-LITE-DB11.IPV6.BIN
 
 if [ -f "/tmp/.env" ]; then
+  mkdir -p /usr/local/openresty/nginx/html/openresty-admin/
   cp /tmp/.env /usr/local/openresty/nginx/html/openresty-admin/.env
 fi

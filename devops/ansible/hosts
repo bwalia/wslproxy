@@ -1,2 +1,3 @@
 [nginx_cluster]
-94.72.96.175 ansible_user=bwalia
+#94.72.96.175 ansible_user=bwalia
+3.9.40.237 ansible_user=ubuntu
