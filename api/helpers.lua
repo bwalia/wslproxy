@@ -87,7 +87,7 @@ end
 
 -- Test Nginx server block
 function Helper.testNginxConfig()
-    local openrestyPath = "openresty"
+    local openrestyPath = "sudo openresty"
     local command = openrestyPath .. " -t 2>&1"
 
     local handle = io.popen(command)
