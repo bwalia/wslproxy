@@ -4,6 +4,11 @@
    state: restarted
   tags: [ luarocks, openresty ]
 
+- name: Restart consul
+  service:
+   name: openresty
+   state: restarted
+  tags: [ consul ]
 
 - name: Reload systemd
   systemd:

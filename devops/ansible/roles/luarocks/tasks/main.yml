@@ -15,6 +15,33 @@
       delay: 10
   tags: [ubuntu, openresty, lapis]
 
+- name: make sure consul conf dir exits
+  ansible.builtin.file:
+    path: /etc/consul.d/
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: root
+    mode: 0775
+  notify: Restart consul
+  tags: [consul]
+
+- name: make sure consul home data dir exits
+  ansible.builtin.file:
+    path: /home/{{ ansible_user }}/consul-data
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: root
+    mode: 0775
+  notify: Restart consul
+  tags: [consul]
+
+# move to consul role /etc/consul.d/consul.json
+- name: Copy consul bootstrap script
+  template:
+    src: consul.json.j2
+    dest: /etc/consul.d/consul.json
+    mode: 0777
+  tags: [consul]
 - name: Install luarocks
   apt:
     name: luarocks

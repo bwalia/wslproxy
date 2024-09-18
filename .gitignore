@@ -12,3 +12,6 @@ sealed-secret*
 data
 node_modules
 .DS_Store
+devops/ansible/roles/luarocks/.DS_Store
+devops/.DS_Store
+html/.DS_Store

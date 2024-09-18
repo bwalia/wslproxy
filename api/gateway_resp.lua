@@ -127,11 +127,12 @@ elseif selectedRule.statusCode == 305 then
     end
 
     ngx.var.proxy_host = finalProxyHost
-    if proxy_server_name == nil or proxy_server_name == "" then
-        ngx.var.proxy_host_override = selectedRule.redirectUri
-    else
+    if proxy_server_name ~= nil and proxy_server_name ~= "" then
         ngx.var.proxy_host_override = proxy_server_name
+    else
+        ngx.var.proxy_host_override = selectedRule.redirectUri
     end
+
     --ngx.req.set_header("Host", ngx.var.proxy_host_override) this will never work here because balancer by lua overrides host header
     ngx.header["X-Debug-Host"] = ngx.var.proxy_host_override
     ngx.header["X-Debug-Port"] = ngx.var.proxy_port
