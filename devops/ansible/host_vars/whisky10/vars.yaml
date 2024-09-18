@@ -1,3 +1,4 @@
 local_settings_file_path: "/tmp/settings_whisky10.json"
 local_env_file_path: "/tmp/.env_whisky10"
 nginx_user_password: "!!REDACTED!!" # This is the password for the user www-data but must be encrypted using Ansible Vault
+host_lan_ip: "10.24.5.10"

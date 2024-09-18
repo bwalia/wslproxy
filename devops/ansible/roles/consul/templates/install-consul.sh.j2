@@ -51,7 +51,7 @@ cat > /tmp/consul.json <<EOF
 }
 EOF
 
-if test -f /tmp/consul.service; then
+if test -f /tmp/consul.json; then
   echo "Setup consul json"
   mkdir -p /etc/consul.d/
   chmod 777 -R /etc/consul.d/
