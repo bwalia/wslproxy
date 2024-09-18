@@ -113,15 +113,6 @@
     mode: "0644"
   tags: [openresty, lapis, dashboard, nginx]
 
-- name: Add nginx configuration
-  copy:
-    src: ../../nginx-conf.d/
-    dest: /opt/nginx/conf.d/
-    owner: "www-data"
-    group: root
-    mode: "0644"
-  tags: [openresty, lapis, dashboard, nginx]
-
 - name: Copy openresty bootstrap script
   template:
     src: openresty.sh.j2
@@ -268,3 +259,10 @@
     state: started
     enabled: yes
   tags: [openresty, lapis, dashboard, nginx]
+
+- name: Enable and start Consul service
+  systemd:
+    name: consul
+    state: started
+    enabled: yes
+  tags: [openresty, consul, nginx]

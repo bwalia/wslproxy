@@ -7,6 +7,7 @@ User=root
 Group=www-data
 Type=forking
 PIDFile=/usr/local/openresty/nginx/logs/nginx.pid
+ExecStartPre=rm -Rf /var/run/nginx/nginx.sock
 ExecStartPre=/usr/local/openresty/nginx/sbin/nginx -t -q -g 'daemon on; master_process on;'
 ExecStart=/usr/local/openresty/nginx/sbin/nginx -g 'daemon on; master_process on;'
 ExecReload=/usr/local/openresty/nginx/sbin/nginx -g 'daemon on; master_process on;' -s reload
