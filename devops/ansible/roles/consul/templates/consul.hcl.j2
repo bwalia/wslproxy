@@ -30,9 +30,9 @@ data_dir = "/opt/consul"
 # Enables the built-in web UI server and the required HTTP routes. This eliminates
 # the need to maintain the Consul web UI files separately from the binary.
 # Version 1.10 deprecated ui=true in favor of ui_config.enabled=true
-ui_config{
- enabled = true
-}
+# ui_config{
+#  enabled = true
+# }
 
 # server
 # This flag is used to control if an agent is in server or client mode. When provided,
@@ -47,7 +47,7 @@ ui_config{
 
 # Bind addr
 # You may use IPv4 or IPv6 but if you have multiple interfaces you must be explicit.
-#bind_addr = "[::]" # Listen on all IPv6
+bind_addr = "[::]" # Listen on all IPv6
 bind_addr = "0.0.0.0" # Listen on all IPv4
 #
 # Advertise addr - if you want to point clients to a different address than bind or LB.

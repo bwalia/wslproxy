@@ -7,7 +7,7 @@
     group: root
     mode: 0775
   notify: Restart consul
-  tags: [consul]
+  tags: [openresty, consul, nginx]
 
 - name: make sure consul home data dir exits
   ansible.builtin.file:
@@ -17,23 +17,23 @@
     group: root
     mode: 0775
   notify: Restart consul
-  tags: [consul]
+  tags: [openresty, consul, nginx]
 
 # move to consul role /etc/consul.d/consul.json
 - name: Copy consul bootstrap json script
   template:
     src: consul.json.j2
     dest: /etc/consul.d/consul.json
-    mode: 0777
-  tags: [consul]
+    mode: 0775
+  tags: [openresty, consul, nginx]
 
 # move to consul role /etc/consul.d/consul.json
 - name: Copy consul bootstrap hcl script
   template:
     src: consul.hcl.j2
     dest: /etc/consul.d/consul.hcl
-    mode: 0777
-  tags: [consul]
+    mode: 0775
+  tags: [openresty, consul, nginx]
 
 - name: Copy Install Consul script
   template:
@@ -76,9 +76,9 @@
     msg: "{{ result.stdout }}"
   tags: [openresty, consul, nginx]
 
-- name: Enable and start Consul service
-  systemd:
-    name: consul
-    state: started
-    enabled: yes
-  tags: [openresty, consul, nginx]
+# - name: Enable and start Consul service
+#   systemd:
+#     name: consul
+#     state: started
+#     enabled: yes
+#   tags: [openresty, consul, nginx]
