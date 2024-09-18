@@ -1,0 +1,97 @@
+#!/bin/bash
+
+set -x
+
+if [ -z "$1" ]
+  then
+    echo "No Consul host ip provided use loopback localhost"
+    CONSUL_SERVER_IP="127.0.0.1"
+else
+    echo "Consul host ip provided use: $1"
+    CONSUL_SERVER_IP="$1"
+fi
+
+if [ -z "$2" ]
+  then
+    echo "Pass ubuntu username for which consul systemd should run as"
+    CONSUL_UBUNTU_USER="{{ ansible_user }}"
+else
+    echo "Consul ubuntu username provided use: $2"
+    CONSUL_UBUNTU_USER="$2"
+fi
+
+if [ -z "$3" ]
+  then
+    echo "Pass ubuntu user group for which consul systemd should run as"
+    CONSUL_UBUNTU_GROUP="{{ ansible_user }}"
+else
+    echo "Consul ubuntu user group provided use: $3"
+    CONSUL_UBUNTU_GROUP="$3"
+fi
+
+# This bash script install consul on Ubuntu latest distro and not been tested on any other OS
+# Add/Update Hashicorp Repo
+rm -Rf /usr/share/keyrings/hashicorp-archive-keyring.gpg
+wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+
+# Update apt package dependencies and Install Hashicorp Consul
+apt update -y && apt install consul -y
+
+
+# create custom consul config file
+cat > /tmp/consul.json <<EOF
+{
+    "server": true,
+    "bootstrap_expect": 1,
+    "data_dir": "/home/{{ ansible_user }}/consul-data",
+    "ui": true,
+    "client_addr": "0.0.0.0",
+    "log_level": "INFO"
+}
+EOF
+
+if test -f /tmp/consul.service; then
+  echo "Setup consul json"
+  mkdir -p /etc/consul.d/
+  chmod 777 -R /etc/consul.d/
+  cp /tmp/consul.json /etc/consul.d/consul.json
+fi
+
+mkdir -p /usr/lib/systemd/system/
+cat > /tmp/consul.service <<EOF
+[Unit]
+Description="HashiCorp Consul - A service mesh solution"
+Documentation=https://www.consul.io/
+Requires=network-online.target
+After=network-online.target
+ConditionFileNotEmpty=/etc/consul.d/consul.hcl
+
+[Service]
+Type=notify
+EnvironmentFile=-/etc/consul.d/consul.env
+User=$CONSUL_UBUNTU_USER
+Group=$CONSUL_UBUNTU_GROUP
+ExecStart=/usr/bin/consul agent -bind=$CONSUL_SERVER_IP -config-dir=/etc/consul.d/
+#/usr/bin/consul agent -bind=$CONSUL_SERVER_IP -config-dir=/etc/consul.d/
+ExecReload=/bin/kill --signal HUP $MAINPID
+KillMode=process
+KillSignal=SIGTERM
+Restart=on-failure
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+if test -f /tmp/consul.service; then
+  echo "Setup consul systemd service"
+  rm -Rf /usr/lib/systemd/system/consul.service
+  cp /tmp/consul.service /usr/lib/systemd/system/consul.service
+  systemctl daemon-reload
+  systemctl enable consul
+  #systemctl start consul
+  systemctl restart consul &
+  systemctl status consul
+  consul -v
+fi
