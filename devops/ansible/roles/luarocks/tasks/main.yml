@@ -85,6 +85,15 @@
   notify: Restart openresty
   tags: [openresty, lapis, dashboard, nginx]
 
+- name: Add nginx base configuration
+  copy:
+    src: ../../nginx-base.d/
+    dest: /opt/nginx/base.d/
+    owner: "www-data"
+    group: root
+    mode: "0644"
+  tags: [openresty, lapis, dashboard, nginx]
+
 - name: make sure tenants nginx conf dir exits
   ansible.builtin.file:
     path: /opt/nginx/conf.d/
