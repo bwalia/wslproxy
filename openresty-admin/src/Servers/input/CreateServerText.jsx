@@ -46,17 +46,29 @@ const CreateServerText = ({ source }) => {
                           .join("\n")
                         : "#Please select an Options"
                       }
+                        ${!isEmpty(formData?.custom_location_block)
+                          ? formData?.custom_location_block
+                          .map((block) => block.additional_location_block)
+                          .join("\n")
+                          : ""
+                        }
                       }`;
                   })
                   .join("\n")
                 : ""
               }
-            ${!isEmpty(formData?.custom_block)
+              ${!isEmpty(formData?.custom_block)
                 ? formData?.custom_block
                   .map((block) => block.additional_block)
                   .join("\n")
                 : ""
               }
+            }
+            ${!isEmpty(formData?.custom_http_block)
+              ? formData?.custom_http_block
+              .map((block) => block.additional_http_block)
+              .join("\n")
+              : ""
             }
           `}
           />

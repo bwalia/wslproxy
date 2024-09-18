@@ -61,6 +61,9 @@ elseif selectedRule.statusCode == 305 then
             end
         end
     end
+    if string.sub(selectedRule.redirectUri, 1, 6) == "unix:/" then
+        continueDnsResolve = false
+    end
     if continueDnsResolve then
         extracted = string.match(selectedRule.redirectUri, ":(.*)")
         if not Helper.isIpAddress(selectedRule.redirectUri) then
@@ -113,7 +116,7 @@ elseif selectedRule.statusCode == 305 then
         end
     end
     local finalProxyHost = selectedRule.redirectUri
-    if not Helper.isIpAddress(finalProxyHost) then
+    if not Helper.isIpAddress(finalProxyHost) and not string.sub(selectedRule.redirectUri, 1, 6) == "unix:/" then
         ngx.say(Cjson.encode({
             message = "DNS failed to resolve the domain please check your domain or DNS configurations.",
         }))
