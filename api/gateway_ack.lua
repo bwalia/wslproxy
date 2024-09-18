@@ -651,12 +651,12 @@ if exist_values and exist_values ~= 0 and exist_values ~= nil and exist_values ~
             local globalVars = ngx.var.vars
             globalVars = cjson.decode(globalVars)
             globalVars.executableRule = selectedRule
-            if jsonval.server_name ~= nil and jsonval.server_name ~= "" then
+
+            globalVars.proxyServerName = jsonval.proxy_server_name or jsonval.server_name
+            if not jsonval.proxy_server_name or jsonval.proxy_server_name == "null" or jsonval.proxy_server_name == "" or jsonval.proxy_server_name == ngx.null then
                 globalVars.proxyServerName = jsonval.server_name
             end
-            if jsonval.proxy_server_name ~= nil and jsonval.proxy_server_name ~= "" then
-            globalVars.proxyServerName = jsonval.proxy_server_name
-            end
+
             ngx.var.vars = cjson.encode(globalVars)
         else
             local confMismatchHtml = settingsObj.nginx.default.conf_mismatch ~= nil and
