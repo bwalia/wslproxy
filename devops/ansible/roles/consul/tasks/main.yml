@@ -20,10 +20,18 @@
   tags: [consul]
 
 # move to consul role /etc/consul.d/consul.json
-- name: Copy consul bootstrap script
+- name: Copy consul bootstrap json script
   template:
     src: consul.json.j2
     dest: /etc/consul.d/consul.json
+    mode: 0777
+  tags: [consul]
+
+# move to consul role /etc/consul.d/consul.json
+- name: Copy consul bootstrap hcl script
+  template:
+    src: consul.hcl.j2
+    dest: /etc/consul.d/consul.hcl
     mode: 0777
   tags: [consul]
 
@@ -67,7 +75,6 @@
   debug:
     msg: "{{ result.stdout }}"
   tags: [openresty, consul, nginx]
-
 
 - name: Enable and start Consul service
   systemd:
