@@ -48,7 +48,13 @@ const handleConfigField = (data) => {
                 .join("\n")
               : "#Please select an Options"
             }
-                }`;
+            ${!isEmpty(data?.custom_location_block)
+              ? data?.custom_location_block
+              .map((block) => block.additional_location_block)
+              .join("\n")
+              : ""
+            }
+          }`;
         })
         .join("\n")
       : ""
@@ -59,6 +65,12 @@ const handleConfigField = (data) => {
         .join("\n")
       : ""
     }
+  }
+  ${!isEmpty(data?.custom_http_block)
+    ? data?.custom_http_block
+    .map((block) => block.additional_http_block)
+    .join("\n")
+    : ""
   }
   `;
   return data;
