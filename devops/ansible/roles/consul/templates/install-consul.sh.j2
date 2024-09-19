@@ -14,7 +14,7 @@ fi
 if [ -z "$2" ]
   then
     echo "Pass ubuntu username for which consul systemd should run as"
-    CONSUL_UBUNTU_USER="{{ ansible_user }}"
+    CONSUL_UBUNTU_USER="root"
 else
     echo "Consul ubuntu username provided use: $2"
     CONSUL_UBUNTU_USER="$2"
@@ -38,6 +38,8 @@ echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://
 # Update apt package dependencies and Install Hashicorp Consul
 apt update -y && apt install consul -y
 
+mkdir -p /home/{{ ansible_user }}/consul-data
+chmod 775 -R /home/{{ ansible_user }}/consul-data
 
 # create custom consul config file
 cat > /tmp/consul.json <<EOF
@@ -54,7 +56,7 @@ EOF
 if test -f /tmp/consul.json; then
   echo "Setup consul json"
   mkdir -p /etc/consul.d/
-  chmod 777 -R /etc/consul.d/
+  chmod 775 -R /etc/consul.d/
   cp /tmp/consul.json /etc/consul.d/consul.json
 fi
 
