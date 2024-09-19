@@ -2,7 +2,9 @@
   become: yes
   roles:
     - ubuntu 
+    - consul
     - luarocks 
     - powerdns
   vars:
     nginx_port: 80
+    consul_port: 8500

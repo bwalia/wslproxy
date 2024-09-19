@@ -1,0 +1,84 @@
+---
+- name: make sure consul conf dir exits
+  ansible.builtin.file:
+    path: /etc/consul.d/
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: root
+    mode: 0775
+  notify: Restart consul
+  tags: [consul]
+
+- name: make sure consul home data dir exits
+  ansible.builtin.file:
+    path: /home/{{ ansible_user }}/consul-data
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: root
+    mode: 0775
+  notify: Restart consul
+  tags: [consul]
+
+# # move to consul role /etc/consul.d/consul.json
+# - name: Copy consul bootstrap json script
+#   template:
+#     src: consul.json.j2
+#     dest: /etc/consul.d/consul.json
+#     mode: 0775
+#   tags: [consul]
+
+- name: Copy Install Consul script
+  template:
+    src: install-consul.sh.j2
+    dest: /tmp/install-consul.sh
+    owner: "{{ ansible_user }}"
+    group: root
+    mode: '0644'
+  tags: [consul]
+
+- name: Check if /tmp/install-consul.sh exists
+  stat:
+    path: /tmp/install-consul.sh
+  register: file_stat
+  tags: [consul]
+
+- name: Make sure file /tmp/install-consul.sh is executable
+  command: chmod +x /tmp/install-consul.sh
+  when: file_stat.stat.exists
+  tags: [openresty, consul, nginx]
+
+- name: Run a bash script to install consul
+  command: bash /tmp/install-consul.sh {{ host_lan_ip }}
+  register: result
+  when:
+    - file_stat.stat.exists
+  tags: [openresty, consul, nginx]
+
+# move to consul role /etc/consul.d/consul.json
+- name: Copy consul bootstrap hcl script
+  template:
+    src: consul.hcl.j2
+    dest: /etc/consul.d/consul.hcl
+    mode: 0775
+  tags: [consul]
+
+      #  - name: Exec sh script on Remote Node
+      #shell:
+      #cmd: |
+      #bash /tmp/install-consul.sh"
+      #register: result
+      #when:
+      #- ansible_os_family=="Debian"
+      #- file_stat.stat.exists
+
+- name: Show result log
+  debug:
+    msg: "{{ result.stdout }}"
+  tags: [openresty, consul, nginx]
+
+# - name: Enable and start Consul service
+#   systemd:
+#     name: consul
+#     state: started
+#     enabled: yes
+#   tags: [openresty, consul, nginx]
