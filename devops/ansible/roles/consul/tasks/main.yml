@@ -7,7 +7,7 @@
     group: root
     mode: 0775
   notify: Restart consul
-  tags: [consul]
+  tags: [openresty, consul, nginx]
 
 - name: make sure consul home data dir exits
   ansible.builtin.file:
@@ -17,7 +17,7 @@
     group: root
     mode: 0775
   notify: Restart consul
-  tags: [consul]
+  tags: [openresty, consul, nginx]
 
 # # move to consul role /etc/consul.d/consul.json
 # - name: Copy consul bootstrap json script
@@ -25,7 +25,7 @@
 #     src: consul.json.j2
 #     dest: /etc/consul.d/consul.json
 #     mode: 0775
-#   tags: [consul]
+#   tags: [openresty, consul, nginx]
 
 - name: Copy Install Consul script
   template:
@@ -34,13 +34,13 @@
     owner: "{{ ansible_user }}"
     group: root
     mode: '0644'
-  tags: [consul]
+  tags: [openresty, consul, nginx]
 
 - name: Check if /tmp/install-consul.sh exists
   stat:
     path: /tmp/install-consul.sh
   register: file_stat
-  tags: [consul]
+  tags: [openresty, consul, nginx]
 
 - name: Make sure file /tmp/install-consul.sh is executable
   command: chmod +x /tmp/install-consul.sh
@@ -60,7 +60,7 @@
     src: consul.hcl.j2
     dest: /etc/consul.d/consul.hcl
     mode: 0775
-  tags: [consul]
+  tags: [openresty, consul, nginx]
 
       #  - name: Exec sh script on Remote Node
       #shell:
