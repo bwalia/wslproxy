@@ -14,7 +14,7 @@ fi
 if [ -z "$2" ]
   then
     echo "Pass ubuntu username for which consul systemd should run as"
-    CONSUL_UBUNTU_USER="{{ ansible_user }}"
+    CONSUL_UBUNTU_USER="root"
 else
     echo "Consul ubuntu username provided use: $2"
     CONSUL_UBUNTU_USER="$2"
