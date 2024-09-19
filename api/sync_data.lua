@@ -20,7 +20,7 @@ local function getSettings()
 end
 local settings = getSettings()
 local Hostname = settings.env_vars.HOSTNAME or os.getenv("HOST")
-local apiUrl = settings.env_vars.API_URL or os.getenv("API_URL")
+local apiUrl = settings.env_vars.CONTROL_PLANE_API_URL or os.getenv("CONTROL_PLANE_API_URL")
 local function generateToken()
     local passPhrase = settings.env_vars.JWT_SECURITY_PASSPHRASE or os.getenv("JWT_SECURITY_PASSPHRASE")
     return jwt:sign(passPhrase, {

@@ -21,7 +21,7 @@ const Logs = () => {
                     marginBottom: '10px'
                 }}
             >
-                Current System Logs
+                Nginx Error Logs
             </Typography>
             <TextareaAutosize
                 defaultValue={logData}
