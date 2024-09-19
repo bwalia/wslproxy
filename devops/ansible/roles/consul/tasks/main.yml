@@ -1,4 +1,32 @@
 ---
+
+- name: Collect service facts
+  service_facts:
+  tags: [consul]
+  
+- name: Enable NetworkManager-wait-online.service
+  become: true
+  service:
+    name: NetworkManager-wait-online
+    enabled: true
+    state: started
+  when:
+    - ansible_facts.services["NetworkManager.service"] is defined
+    - ansible_facts.services["NetworkManager.service"].status == "enabled"
+  tags: [consul]
+
+- name: Enable systemd-networkd-wait-online.service
+  become: true
+  service:
+    name: systemd-networkd-wait-online
+    enabled: true
+    state: started
+  when:
+    - ansible_facts.services["systemd-networkd.service"] is defined
+    - ansible_facts.services["systemd-networkd.service"].status == "enabled"
+  tags: [consul]
+
+
 - name: make sure consul conf dir exits
   ansible.builtin.file:
     path: /etc/consul.d/
