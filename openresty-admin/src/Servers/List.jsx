@@ -4,7 +4,8 @@ import {
   List as RaList, 
   TextField,
   ReferenceInput,
-  SelectInput
+  SelectInput,
+  CloneButton
  } from "react-admin";
 import ExportJsonButton from './toolbar/ExportJsonButton';
 import ImportJsonButton from '../component/ImportJsonButton';
@@ -39,6 +40,7 @@ const List = () => {
         <TextField source="root" />
         <TextField source="access_log" />
         <TextField source='profile_id' />
+        <CloneButton />
       </Datagrid>
       <ImportJsonButton resource={"servers"} />
     </RaList>

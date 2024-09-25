@@ -8,6 +8,7 @@ import {
   ReferenceInput,
   SelectInput,
   SearchInput,
+  CloneButton
 } from 'react-admin'
 import ExportJsonButton from './toolbar/ExportJsonButton';
 import ImportJsonButton from '../component/ImportJsonButton';
@@ -43,6 +44,7 @@ const List = () => {
         <TextField source='match.rules.path' />
         <NumberField source='match.rules.client_ip' />
         <BooleanField source='match.response.allow' />
+        <CloneButton />
       </Datagrid>
       <ImportJsonButton resource={"rules"} />
     </RaList>
