@@ -26,7 +26,7 @@ local function getSettings()
     end
     return settings
 end
-local globalVars = ngx.var.vars
+local globalVars = ngx.var.frontdoor_global_vars
 globalVars = cjson.decode(globalVars)
 local selectedRule = globalVars.executableRule
 local primaryNameserver = globalVars.proxyServerName
