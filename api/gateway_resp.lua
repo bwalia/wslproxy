@@ -1,6 +1,6 @@
 local cjson = Cjson
 local configPath = os.getenv("NGINX_CONFIG_DIR") or "/opt/nginx/"
-local globalVars = ngx.var.vars
+local globalVars = ngx.var.frontdoor_global_vars
 local Dns = require("dns_access")
 
 local Helper = require("helpers")

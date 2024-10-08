@@ -648,7 +648,7 @@ if exist_values and exist_values ~= 0 and exist_values ~= nil and exist_values ~
         -- do return ngx.say(highestPriorityKey) end
         if rulePasses == true then
             local selectedRule = parse_rules[highestPriorityParentKey][highestPriorityKey]
-            local globalVars = ngx.var.vars
+            local globalVars = ngx.var.frontdoor_global_vars
             globalVars = cjson.decode(globalVars)
             globalVars.executableRule = selectedRule
 
@@ -657,7 +657,7 @@ if exist_values and exist_values ~= 0 and exist_values ~= nil and exist_values ~
                 globalVars.proxyServerName = jsonval.server_name
             end
 
-            ngx.var.vars = cjson.encode(globalVars)
+            ngx.var.frontdoor_global_vars = cjson.encode(globalVars)
         else
             local confMismatchHtml = settingsObj.nginx.default.conf_mismatch ~= nil and
             settingsObj.nginx.default.conf_mismatch or "PGgxPk5vIEhUTUwgc3VwcGxpZWQgZm9yIHRoaXMgZXJyb3I8L2gxPgo="

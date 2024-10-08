@@ -591,7 +591,7 @@ server {
 
           location / {
             default_type text/plain;
-            set_by_lua_block $vars {
+            set_by_lua_block $frontdoor_global_vars {
               local executableRule, proxyServerName = {}, nil
               return Cjson.encode({
                 executableRule = executableRule,
@@ -714,7 +714,7 @@ server {
 
           location / {
             default_type text/plain;
-            set_by_lua_block $vars {
+            set_by_lua_block $frontdoor_global_vars {
               local executableRule, proxyServerName = {}, nil
               return Cjson.encode({
                 executableRule = executableRule,

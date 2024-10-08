@@ -644,11 +644,11 @@ if exist_values and exist_values ~= 0 and exist_values ~= nil and exist_values ~
         -- do return ngx.say(highestPriorityKey) end
         if rulePasses == true then
             local selectedRule = parse_rules[highestPriorityParentKey][highestPriorityKey]
-            local globalVars = ngx.var.vars
+            local globalVars = ngx.var.frontdoor_global_vars
             globalVars = cjson.decode(globalVars)
             globalVars.executableRule = selectedRule
             globalVars.proxyServerName = jsonval.proxy_server_name
-            ngx.var.vars = cjson.encode(globalVars)
+            ngx.var.frontdoor_global_vars = cjson.encode(globalVars)
         else
             if settingsObj.nginx.default.conf_mismatch ~= nil then
                 ngx.header["Content-Type"] = settingsObj.nginx.content_type ~= nil and settingsObj.nginx.content_type or
