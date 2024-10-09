@@ -29,4 +29,4 @@ jobs:
       - name: Upload to MinIO
         run: |
           mc config host add minio ${{ env.MINIO_ENDPOINT }} ${{ secrets.MINIO_ACCESS_KEY }} ${{ secrets.MINIO_SECRET_KEY }}
-          mc cp -r ./openresty-admin/dist minio/${{ env.MINIO_BUCKET }}/dist
+          sudo mc cp -r ./openresty-admin/dist minio/${{ env.MINIO_BUCKET }}/dist
