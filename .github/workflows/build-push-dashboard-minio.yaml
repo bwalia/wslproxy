@@ -10,7 +10,7 @@ env:
 
 jobs:
   build:
-    runs-on: whisky04
+    runs-on: [self-hosted]
 
     steps:
       - name: Checkout code
