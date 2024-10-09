@@ -18,29 +18,31 @@ else
     MINIO_SECRET_KEY="$2"
 fi
 
-# Check For Minio Host
+# Check for github token
 if [ -z "$3" ]
   then
-    echo "Minio Host missing. Host should be 3rd argument. Default http://localhost:900 is set"
-    MINIO_ENDPOINT="http://localhost:900"
+    echo "Github Token missing. Github Token must be 3rd argument."
+    exit 1
 else
-    MINIO_ENDPOINT="$3"
+    GITHUB_TOKEN="$3"
 fi
+
+# Check For Minio Host
 if [ -z "$4" ]
   then
-    echo "Minio Bucket Name missing. Bucket Name should be 4th argument. Default brahmstra-dashboard is set"
-    MINIO_BUCKET="brahmstra-dashboard"
+    echo "Minio Host missing. Host should be 4th argument. Default http://localhost:900 is set"
+    MINIO_ENDPOINT="http://localhost:900"
 else
-    MINIO_BUCKET="$4"
+    MINIO_ENDPOINT="$4"
 fi
-# Check for github token
 if [ -z "$5" ]
   then
-    echo "Github Token missing. Github Token should be 5th argument. Default token is set"
-    GITHUB_TOKEN="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"
+    echo "Minio Bucket Name missing. Bucket Name should be 5th argument. Default brahmstra-dashboard is set"
+    MINIO_BUCKET="brahmstra-dashboard"
 else
-    GITHUB_TOKEN="$5"
+    MINIO_BUCKET="$5"
 fi
+
 
 # Make temporary directory to clone the project
 mkdir -p /tmp/brahmstra-dashboard
