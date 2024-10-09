@@ -1,0 +1,32 @@
+name: Build and Deploy to MinIO
+
+on:
+  push:
+    branches:
+      - main
+env:
+    MINIO_ENDPOINT: "http://localhost:9000"
+    MINIO_BUCKET: "brahmstra-dashboard"
+
+jobs:
+  build:
+    runs-on: whisky04
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: |
+          cd openresty-admin
+          yarn install
+
+      - name: Build project
+        run: |
+          cd openresty-admin
+          yarn build
+
+      - name: Upload to MinIO
+        run: |
+          mc config host add minio ${{ env.MINIO_ENDPOINT }} ${{ secrets.MINIO_ACCESS_KEY }} ${{ secrets.MINIO_SECRET_KEY }}
+          mc cp -r ./openresty-admin/dist minio/${{ env.MINIO_BUCKET }}/dist
