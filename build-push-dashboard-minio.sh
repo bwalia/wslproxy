@@ -49,6 +49,7 @@ mkdir -p /tmp/brahmstra-dashboard
 cd /tmp/brahmstra-dashboard
 
 # Clone the repo
+rm -Rf whitefalcon
 git clone https://$GITHUB_TOKEN@github.com/bwalia/whitefalcon.git whitefalcon
 cd whitefalcon
 
