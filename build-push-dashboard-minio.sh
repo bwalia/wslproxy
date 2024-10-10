@@ -31,7 +31,7 @@ fi
 if [ -z "$4" ]
   then
     echo "Minio Host missing. Host should be 4th argument. Default http://localhost:900 is set"
-    MINIO_ENDPOINT="http://localhost:900"
+    MINIO_ENDPOINT="http://localhost:9000"
 else
     MINIO_ENDPOINT="$4"
 fi
@@ -65,7 +65,12 @@ yarn build
 mc config host add minio $MINIO_ENDPOINT $MINIO_ACCESS_KEY $MINIO_SECRET_KEY
 
 # Copy dist folder to bucket
-mc cp -r /tmp/brahmstra-dashboard/whitefalcon/openresty-admin/dist minio/$MINIO_BUCKET
+if [ -d "/tmp/brahmstra-dashboard/whitefalcon/openresty-admin/dist" ]; then
+tar -czvf /tmp/openresty-admin-dist.tar.gz /tmp/brahmstra-dashboard/whitefalcon/openresty-admin/dist
+mc cp -r /tmp/openresty-admin-dist.tar.gz minio/$MINIO_BUCKET
 
+else
+echo "Dist folder not found"
+fi
 # Remove Cloned Project
 rm -rf /tmp/brahmstra-dashboard
