@@ -1,18 +1,19 @@
 - name: Update and upgrade apt packages
   block:
     - name: Update apt cache
-      command: apt-get update
+      apt:
+        update_cache: yes
       register: update_result
       until: update_result.rc == 0
       retries: 5
       delay: 10
 
-    - name: Upgrade apt packages
-      command: apt-get upgrade -y
-      register: upgrade_result
-      until: upgrade_result.rc == 0
-      retries: 5
-      delay: 10
+- name: Upgrade apt packages
+  command: apt-get upgrade -y
+  register: upgrade_result
+  until: upgrade_result.rc == 0
+  retries: 5
+  delay: 10
   tags: [ubuntu, openresty, lapis]
 
 - name: Install luarocks
