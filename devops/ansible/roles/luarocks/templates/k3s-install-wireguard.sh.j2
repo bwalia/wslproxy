@@ -1,0 +1,30 @@
+#!/bin/bash
+
+mkdir -p /etc/rancher/k3s/
+
+cat > /etc/rancher/k3s/config.yaml <<EOF
+tls-san:
+    - k3s2.edgeone.cloud
+    - 10.24.5.119
+flannel-backend: wireguard-native
+flannel-iface: wg119
+node-ip: 10.24.5.119
+node-external-ip: 10.24.5.119
+advertise-address: 10.24.5.119
+cluster-init: true
+EOF
+
+
+curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC='--flannel-backend=none --cluster-cidr=10.24.5.0/24' sh -s - \
+  --disable-agent \
+  --disable-network-policy \
+  --disable "servicelb" \
+  --disable "traefik" \
+  --disable "metrics-server" \
+  --node-external-ip 10.24.5.119 \
+  --node-ip 10.24.5.119 \
+  --tls-san k3s2.edgeone.cloud \
+  --advertise-address 10.24.5.119 \
+  --bind-address 0.0.0.0 \
+  --token k3s2bw8736c7631fa1ece8 \
+  --prefer-bundled-bin
