@@ -1332,7 +1332,7 @@ local function updateProfileSettings(args)
     local writableFile, writableErr = io.open(configPath .. "data/settings.json", "w")
         settings.env_profile = envProfile
         if writableFile == nil then
-            ngx.say("Couldn't write file: " .. writableErr)
+            Errors.throwError("Couldn't write file: " .. writableErr, ngx.HTTP_INTERNAL_SERVER_ERROR)
         else
             writableFile:write(cjson.encode(settings))
             writableFile:close()
@@ -1538,13 +1538,7 @@ local function handle_put_request(args, path)
     local pattern = ".*/(.*)"
     local uuid = string.match(path, pattern)
     if not uuid or uuid == nil or uuid == "" then
-        ngx.status = ngx.HTTP_INTERNAL_SERVER_ERROR
-        ngx.say(cjson.encode({
-            data = {
-                message = "The uuid must be present while updating the data."
-            }
-        }))
-        ngx.exit(ngx.HTTP_INTERNAL_SERVER_ERROR)
+        Errors.throwError("The uuid must be present while updating the data.", ngx.HTTP_INTERNAL_SERVER_ERROR)
         return
     end
     if string.find(path, "servers") then
@@ -1594,10 +1588,7 @@ elseif ngx.req.get_method() == "POST" then
     ngx.req.read_body()
     local postBody, postErr = ngx.req.get_post_args()
     if postErr then
-        ngx.say(cjson.encode({
-        postErr = postErr
-        }))
-        ngx.exit(ngx.HTTP_INTERNAL_SERVER_ERROR)
+        Errors.throwError(postErr, ngx.HTTP_INTERNAL_SERVER_ERROR)
     end
     handle_post_request(postBody, path_name)
 elseif ngx.req.get_method() == "PUT" then

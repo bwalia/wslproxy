@@ -1,7 +1,6 @@
 const authProvider = {
   // send username and password to the auth server and get back credentials
   login: async (params) => {
-    console.log(__API_URL__);
     const API_URL = import.meta.env.VITE_API_URL;
     const { email, password } = params;
     const request = new Request(`${API_URL}/user/login`, {
@@ -14,7 +13,6 @@ const authProvider = {
     });
     await fetch(request)
       .then((response) => {
-        console.log({ response });
         if (response.status < 200 || response.status >= 300) {
           throw new Error(response.statusText);
         }
