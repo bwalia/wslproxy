@@ -5,6 +5,7 @@ local lfs = LFS
 local configPath = os.getenv("NGINX_CONFIG_DIR") or "/opt/nginx/"
 local Conf = require("server-conf")
 local Helper = require("helpers")
+local Errors = require("errors")
 
 local settings = Helper.settings()
 local storageTypeOverride = settings.settings or os.getenv("STORAGE_TYPE")
@@ -24,115 +25,7 @@ if settings.storage_type == "redis" then
     local ok, err = red:connect(redisHost, 6379)
     if not ok then
         ngx.log(ngx.ERR, "failed to connect to Redis: ", err)
-    end
-end
-
-local function is_uuid(str)
-    local pattern = "^[%x%x%x%x%x%x%x%x%-%x%x%x%x%-%x%x%x%x%-%x%x%x%x%-%x%x%x%x%-%x%x%x%x%x%x%x%x%x%x%x%x]$"
-    return string.match(str, pattern) ~= nil
-end
-
-local function hash_password(password)
-    local resty_sha256 = require "resty.sha256"
-    local sha256 = resty_sha256:new()
-    sha256:update(password)
-    local digest = sha256:final()
-    local hash = ngx.encode_base64(digest)
-    return hash
-end
-
-local function generateToken()
-    local passPhrase = settings.env_vars.JWT_SECURITY_PASSPHRASE or os.getenv("JWT_SECURITY_PASSPHRASE")
-    return jwt:sign(passPhrase, {
-        header = {
-            typ = "JWT",
-            alg = "HS256"
-        },
-        payload = {
-            sub = "123456",
-            exp = ngx.time() + 3600
-        }
-    })
-end
-
-local function fileExists(filePath)
-    local attr = lfs.attributes(filePath)
-    if attr then
-        return true
-    else
-        return false
-    end
-end
-
--- Function to check if a directory exists
-local function isDirectoryExists(path)
-    local attributes = lfs.attributes(path)
-    return attributes and attributes.mode == "directory"
-end
-
-local function getDataFromFile(path)
-    local fileData = nil
-    local file, err = io.open(path, "rb")
-    if file ~= nil then
-        fileData = file:read "*a"
-        file:close()
-    end
-    return fileData, err
-end
-
-local function cleanString(input)
-    -- Remove double quotes from start and end
-    local output = input:match('^"(.*)"$') or input
-
-    -- Replace \n with new line
-    output = output:gsub("\\n", "\n")
-
-    return output
-end
-
-local function createDirectoryRecursive(path)
-    return lfs.mkdir(path)
-end
-
-local function isDir(path)
-    return lfs.attributes(path, "mode") == "directory"
-end
-
-local function setDataToFile(path, value, dir, fileType)
-    -- Check if the directory exists
-    if not isDirectoryExists(dir) then
-        -- Directory doesn't exist, so create it
-        local parent = dir:match("^(.*)/[^/]+/?$")
-        if parent and not isDir(parent) then
-            createDirectoryRecursive(parent)  -- Recursively create parent directories
-        end
-        local success, errorMsg = createDirectoryRecursive(dir)
-        if errorMsg ~= nil then
-            ngx.status = ngx.HTTP_BAD_REQUEST
-            ngx.say(cjson.encode({
-                data = {
-                    message = errorMsg .. " while creating " .. dir
-                }
-            }))
-            ngx.exit(ngx.HTTP_BAD_REQUEST)
-        end
-    else
-        print("Directory already exists")
-    end
-    local file, err = io.open(path, "w")
-    if file == nil then
-        ngx.say("Couldn't read file: " .. err)
-    else
-        if fileType == "conf" then
-            local cleanedContent = value:gsub('"(.-)"', function(s)
-                return cleanString(s)
-            end)
-            file:write(cleanedContent)
-            file:close()
-        else
-            file:write(cjson.encode(value))
-            file:close()
-        end
+        Errors.throwError("failed to connect to Redis: " .. err, ngx.HTTP_BAD_GATEWAY)
     end
 end
 
@@ -142,7 +35,7 @@ local function removeServerFromRule(oldRuleId, serverId, envProfile)
         if settings.storage_type == "redis" then
             loadRules = red:hget("request_rules_" .. envProfile, oldRuleId)
         else
-            loadRules = getDataFromFile(configPath .. "data/rules/" .. envProfile .. "/" .. oldRuleId .. ".json")
+            loadRules = Helper.getDataFromFile(configPath .. "data/rules/" .. envProfile .. "/" .. oldRuleId .. ".json")
         end
         if loadRules and loadRules ~= "null" and type(loadRules) == "string" then
             loadRules = cjson.decode(loadRules)
@@ -158,7 +51,7 @@ local function removeServerFromRule(oldRuleId, serverId, envProfile)
             if settings.storage_type == "redis" then
                 red:hset("request_rules_" .. envProfile, oldRuleId, cjson.encode(loadRules))
             else
-                setDataToFile(configPath .. "data/rules/" .. envProfile .. "/" .. oldRuleId .. ".json", loadRules,
+                Helper.setDataToFile(configPath .. "data/rules/" .. envProfile .. "/" .. oldRuleId .. ".json", loadRules,
                     configPath .. "data/rules")
             end
         end
@@ -170,7 +63,7 @@ local function updateServerInRules(ruleId, serverId, Rtype, envProfile)
     if settings.storage_type == "redis" then
         getRules, ruleErr = red:hget("request_rules_" .. envProfile, ruleId)
     else
-        getRules, ruleErr = getDataFromFile(configPath .. "data/rules/" .. envProfile .. "/" .. ruleId .. ".json")
+        getRules, ruleErr = Helper.getDataFromFile(configPath .. "data/rules/" .. envProfile .. "/" .. ruleId .. ".json")
     end
     if getRules and getRules ~= "null" and type(getRules) == "string" then
         getRules = cjson.decode(getRules)
@@ -178,7 +71,7 @@ local function updateServerInRules(ruleId, serverId, Rtype, envProfile)
         if settings.storage_type == "redis" then
             getServer = red:hget("servers_" .. envProfile, serverId)
         else
-            getServer = getDataFromFile(configPath .. "data/servers/" .. envProfile .. "/" .. serverId .. ".json")
+            getServer = Helper.getDataFromFile(configPath .. "data/servers/" .. envProfile .. "/" .. serverId .. ".json")
         end
         if getServer and getServer ~= "null" and type(getServer) == "string" then
             getServer = cjson.decode(getServer)
@@ -206,7 +99,7 @@ local function updateServerInRules(ruleId, serverId, Rtype, envProfile)
             if settings.storage_type == "redis" then
                 red:hset("request_rules_" .. envProfile, ruleId, cjson.encode(getRules))
             else
-                setDataToFile(configPath .. "data/rules/" .. envProfile .. "/" .. ruleId .. ".json", getRules,
+                Helper.setDataToFile(configPath .. "data/rules/" .. envProfile .. "/" .. ruleId .. ".json", getRules,
                     configPath .. "data/rules")
             end
         end
@@ -218,7 +111,7 @@ local function deleteRuleFromServer(ruleId, envProfile)
     if settings.storage_type == "redis" then
         getRule = red:hget("request_rules_" .. envProfile, ruleId)
     else
-        getRule = getDataFromFile(configPath .. "data/rules/" .. envProfile .. "/" .. ruleId .. ".json")
+        getRule = Helper.getDataFromFile(configPath .. "data/rules/" .. envProfile .. "/" .. ruleId .. ".json")
     end
     if getRule and getRule ~= "null" and type(getRule) == "string" then
         getRule = cjson.decode(getRule)
@@ -229,7 +122,7 @@ local function deleteRuleFromServer(ruleId, envProfile)
                 if settings.storage_type == "redis" then
                     getServer = red:hget("servers_" .. envProfile, server)
                 else
-                    getDataFromFile(configPath .. "data/servers/" .. envProfile .. "/" .. server .. ".json")
+                    Helper.getDataFromFile(configPath .. "data/servers/" .. envProfile .. "/" .. server .. ".json")
                 end
                 if getServer and getServer ~= "null" and type(getServer) == "string" then
                     getServer = cjson.decode(getServer)
@@ -248,7 +141,7 @@ local function deleteRuleFromServer(ruleId, envProfile)
                     if settings.storage_type == "redis" then
                         red:hset("servers_" .. envProfile, server, cjson.encode(getServer))
                     else
-                        setDataToFile(configPath .. "data/servers/" .. envProfile .. "/" .. server .. ".json", getServer,
+                        Helper.setDataToFile(configPath .. "data/servers/" .. envProfile .. "/" .. server .. ".json", getServer,
                             configPath .. "data/servers")
                     end
                 end
@@ -262,7 +155,7 @@ local function deleteServerFromRules(ruleId, serverId, envProfile)
     if settings.storage_type == "redis" then
         getRule = red:hget("request_rules_" .. envProfile, ruleId)
     else
-        getRule = getDataFromFile(configPath .. "data/rules/" .. envProfile .. "/" .. ruleId .. ".json")
+        getRule = Helper.getDataFromFile(configPath .. "data/rules/" .. envProfile .. "/" .. ruleId .. ".json")
     end
     if getRule and getRule ~= "null" and type(getRule) == "string" then
         getRule = cjson.decode(getRule)
@@ -275,7 +168,7 @@ local function deleteServerFromRules(ruleId, serverId, envProfile)
             if settings.storage_type == "redis" then
                 red:hset("request_rules_" .. envProfile, ruleId, cjson.encode(getRule))
             else
-                setDataToFile(configPath .. "data/rules/" .. envProfile .. "/" .. ruleId .. ".json", getRule,
+                Helper.setDataToFile(configPath .. "data/rules/" .. envProfile .. "/" .. ruleId .. ".json", getRule,
                     configPath .. "data/rules")
             end
         end
@@ -345,28 +238,30 @@ local function listPaginationLocal(data, pageSize, pageNumber, qParams)
         endIdx = startIdx + pageSize - 1
     end
 
-    local currentPageData, currentSearchedData = {}, {}
+    local currentPageData, totalRec = {}, #data
     for i = startIdx, math.min(endIdx, #data) do
-        if type(qParams.meta) == "table" then
-            if qParams.meta.exclude == data[i].id then
-                goto continue
+        if data[i] ~= nil and data[i] ~= ngx.null and data[i] ~= "null" then
+            if type(qParams.meta) == "table" then
+                if qParams.meta.exclude == data[i].id then
+                    goto continue
+                end
             end
-        end
-        if type(qParams.filter) == "table" and qParams.filter.q ~= nil then
-            local fieldValue = data[i].name
-            fieldValue = fieldValue:lower()
-            local pattern = qParams.filter.q
-            pattern = pattern:lower()
-            if fieldValue and fieldValue:find(pattern, 1, true) then
+            if type(qParams.filter) == "table" and qParams.filter.q ~= nil then
+                local fieldValue = data[i][qParams.type.key_name]
+                fieldValue = fieldValue:lower()
+                local pattern = qParams.filter.q
+                pattern = pattern:lower()
+                if fieldValue and fieldValue:find(pattern, 1, true) then
+                    table.insert(currentPageData, data[i])
+                end
+                totalRec = #currentPageData
+            else
                 table.insert(currentPageData, data[i])
             end
-        else
-            table.insert(currentPageData, data[i])
+            ::continue::
         end
-        ::continue::
     end
-
-    return currentPageData, #data
+    return currentPageData, totalRec
 end
 
 -- Authentication
@@ -376,39 +271,25 @@ local function login(args)
         local suEmail = settings.super_user.email
         local suPassword = settings.super_user.password
 
-        local keyset = {}
-        local n = 0
-        for k, v in pairs(args) do
-            n = n + 1
-            if type(v) == "string" then
-                table.insert(keyset, cjson.decode(k .. v))
-            else
-                table.insert(keyset, cjson.decode(k))
-            end
-        end
-        local payloads = keyset[1]
-        local password = hash_password(payloads.password)
+        local payloads = Helper.GetPayloads(args)
+        local password = Helper.hashPassword(payloads.password)
         if suEmail == payloads.email and suPassword == password then
             ngx.status = ngx.OK
             if settings.storage_type == "redis" then
                 local session = require "resty.session".new()
-                session:set_subject("OpenResty Fan")
-                session:set("quote", "The quick brown fox jumps over the lazy dog")
-                local ok, err = session:save()
+                session:set_subject("Users")
+                session:set(payloads.email, cjson.encode(payloads))
+                session:save()
             end
             ngx.say(cjson.encode({
                 data = {
                     user = payloads,
-                    accessToken = generateToken()
+                    accessToken = Helper.generateToken()
                 },
                 status = 200
             }))
         else
-            ngx.status = ngx.HTTP_UNAUTHORIZED
-            ngx.say(cjson.encode({
-                data = "Invalid credentials",
-                status = 401
-            }))
+            Errors.throwError("Invalid credentials", ngx.HTTP_UNAUTHORIZED)
         end
     end
 end
@@ -435,7 +316,7 @@ local function setStorage(body)
         local writableFile, writableErr = io.open(configPath .. "data/settings.json", "w")
         settings.storage_type = storageType
         if writableFile == nil then
-            ngx.say("Couldn't write file: " .. writableErr)
+            Errors.throwError("Couldn't write file: " .. writableErr, ngx.HTTP_INTERNAL_SERVER_ERROR)
         else
             writableFile:write(cjson.encode(settings))
             writableFile:close()
@@ -512,6 +393,10 @@ local function listServers(args)
     else
         qParams = cjson.decode(params)
     end
+    qParams["type"] = {
+        table = "servers",
+        key_name = "server_name"
+    }
     -- Set the pagination parameters
     local pageSize = qParams.pagination.perPage -- Number of records per page
     local pageNumber = qParams.pagination.page  -- Page number (starting from 1)
@@ -555,7 +440,7 @@ local function listServer(args, id)
     local envProfile = args.envprofile ~= nil and args.envprofile or "prod"
     if settings then
         if settings.storage_type == "disk" then
-            local jsonData, dataErr = getDataFromFile(configPath .. "data/servers/" .. envProfile .. "/" .. id .. ".json")
+            local jsonData, dataErr = Helper.getDataFromFile(configPath .. "data/servers/" .. envProfile .. "/" .. id .. ".json")
             if dataErr ~= nil then
                 ngx.say(cjson.encode({
                     data = {}
@@ -570,7 +455,7 @@ local function listServer(args, id)
                 }))
             end
         else
-            --     local server, dataErr = getDataFromFile(configPath .. "data/servers/" .. envProfile .. "/" .. id .. ".json")
+            --     local server, dataErr = Helper.getDataFromFile(configPath .. "data/servers/" .. envProfile .. "/" .. id .. ".json")
             --     if dataErr or dataErr ~= nil then
             local server = red:hget("servers_" .. envProfile, id)
             -- end
@@ -588,7 +473,7 @@ local function listServer(args, id)
 end
 
 local function createUpdateServer(body, uuid)
-    local payloads, response = GetPayloads(body), {}
+    local payloads, response = Helper.GetPayloads(body), {}
     if not uuid then
         ---@diagnostic disable-next-line: param-type-mismatch
         payloads.created_at = os.time(os.date("!*t"))
@@ -609,7 +494,7 @@ end
 
 local function createDeleteServer(body, uuid)
     local serverId = uuid
-    local payloads = GetPayloads(body)
+    local payloads = Helper.GetPayloads(body)
     if payloads == ngx.null or not body or type(payloads) == "nil" then
         payloads = ngx.req.get_uri_args()
     end
@@ -700,10 +585,7 @@ local function createUserInDisk(payloads, uuid)
 
         local writableFile, writableErr = io.open(configPath .. "data/users.json", "w")
         if writableFile == nil then
-            ngx.say(cjson.encode({
-                data = "Couldn't write file: " .. writableErr
-            }))
-            ngx.exit(ngx.HTTP_OK)
+            Errors.throwError("Couldn't write file: " .. writableErr, ngx.HTTP_INTERNAL_SERVER_ERROR)
         else
             writableFile:write(cjson.encode(users))
             writableFile:close()
@@ -767,10 +649,7 @@ local function listUser(args, uuid)
         if settings.storage_type == "disk" then
             local file, err = io.open(configPath .. "data/users.json", "rb")
             if file == nil then
-                ngx.say(cjson.encode({
-                    data = "Couldn't read file: " .. err
-                }))
-                ngx.exit(ngx.HTTP_OK)
+                Errors.throwError("Couldn't read file: " .. err, ngx.HTTP_INTERNAL_SERVER_ERROR)
             else
                 local jsonString = file:read "*a"
                 file:close()
@@ -794,17 +673,14 @@ local function listUser(args, uuid)
                 ngx.exit(ngx.HTTP_OK)
             end
             if err then
-                ngx.say(cjson.encode({
-                    data = err
-                }))
-                ngx.exit(ngx.HTTP_OK)
+                Errors.throwError(err, ngx.HTTP_INTERNAL_SERVER_ERROR)
             end
         end
     end
 end
 
 local function createUpdateUser(body, uuid)
-    local payloads = GetPayloads(body)
+    local payloads = Helper.GetPayloads(body)
     local getUuid = uuid
     if not uuid then
         getUuid = Helper.generate_uuid()
@@ -831,10 +707,7 @@ local function createUpdateUser(body, uuid)
                     ngx.exit(ngx.HTTP_OK)
                 end
                 if err then
-                    ngx.say(cjson.encode({
-                        data = err
-                    }))
-                    ngx.exit(ngx.HTTP_OK)
+                    Errors.throwError(err, ngx.HTTP_INTERNAL_SERVER_ERROR)
                 end
             end
         else
@@ -856,10 +729,7 @@ local function createUpdateUser(body, uuid)
                 ngx.exit(ngx.HTTP_OK)
             end
             if err then
-                ngx.say(cjson.encode({
-                    data = err
-                }))
-                ngx.exit(ngx.HTTP_OK)
+                Errors.throwError(err, ngx.HTTP_INTERNAL_SERVER_ERROR)
             end
         end
     end
@@ -868,10 +738,7 @@ end
 local function deleteUserInDisk(uuid)
     local file, err = io.open(configPath .. "data/users.json", "rb")
     if file == nil then
-        ngx.say(cjson.encode({
-            data = "Couldn't read file: " .. err
-        }))
-        ngx.exit(ngx.HTTP_OK)
+        Errors.throwError("Couldn't read file: " .. err, ngx.HTTP_INTERNAL_SERVER_ERROR)
     else
         local jsonString = file:read "*a"
         file:close()
@@ -896,7 +763,7 @@ local function deleteUserInDisk(uuid)
 end
 
 local function deleteUsers(args, uuid)
-    local payloads = GetPayloads(args)
+    local payloads = Helper.GetPayloads(args)
     local restUsers = {}
     if settings then
         if uuid ~= "" and uuid ~= nil then
@@ -908,10 +775,7 @@ local function deleteUsers(args, uuid)
                     restUsers = del
                 end
                 if err then
-                    ngx.say(cjson.encode({
-                        data = err
-                    }))
-                    ngx.exit(ngx.HTTP_OK)
+                    Errors.throwError(err, ngx.HTTP_INTERNAL_SERVER_ERROR)
                 end
             end
         elseif payloads and payloads.ids and #payloads.ids > 0 then
@@ -928,10 +792,7 @@ local function deleteUsers(args, uuid)
         if settings.storage_type == "disk" then
             local writableFile, writableErr = io.open(configPath .. "data/users.json", "w")
             if writableFile == nil then
-                ngx.say(cjson.encode({
-                    data = "Couldn't write file: " .. writableErr
-                }))
-                ngx.exit(ngx.HTTP_OK)
+                Errors.throwError("Couldn't write file: " .. writableErr, ngx.HTTP_INTERNAL_SERVER_ERROR)
             else
                 writableFile:write(cjson.encode(restUsers))
                 writableFile:close()
@@ -967,6 +828,10 @@ local function listRules(args)
     else
         qParams = cjson.decode(params)
     end
+    qParams["type"] = {
+        table = "rules",
+        key_name = "name"
+    }
     -- Set the pagination parameters
     local pageSize = qParams.pagination.perPage -- Number of records per page
     local pageNumber = qParams.pagination.page  -- Page number (starting from 1)
@@ -1002,7 +867,7 @@ local function listRule(args, uuid)
     local envProfile = args.envprofile ~= nil and args.envprofile or "prod"
     if settings then
         if settings.storage_type == "disk" then
-            local jsonData, dataErr = getDataFromFile(configPath .. "data/rules/" .. envProfile .. "/" .. uuid .. ".json")
+            local jsonData, dataErr = Helper.getDataFromFile(configPath .. "data/rules/" .. envProfile .. "/" .. uuid .. ".json")
             if dataErr == nil then
                 local resultData = cjson.decode(jsonData)
                 if resultData.match.rules.jwt_token_validation_value ~= nil and
@@ -1020,15 +885,10 @@ local function listRule(args, uuid)
                     data = resultData
                 }))
             else
-                ngx.status = ngx.HTTP_BAD_REQUEST
-                ngx.say(cjson.encode({
-                    data = {
-                        message = "Error" .. dataErr
-                    }
-                }))
+                Errors.throwError("Error" .. dataErr, ngx.HTTP_INTERNAL_SERVER_ERROR)
             end
         else
-            -- local exist_value, Rerr = getDataFromFile(configPath .. "data/rules/" .. envProfile .. "/" .. uuid .. ".json")
+            -- local exist_value, Rerr = Helper.getDataFromFile(configPath .. "data/rules/" .. envProfile .. "/" .. uuid .. ".json")
             -- if exist_value == nil or Rerr then
             local exist_value, Rerr = red:hget("request_rules_" .. envProfile, uuid)
             -- end
@@ -1057,24 +917,8 @@ local function listRule(args, uuid)
     -- end
 end
 
-function GetPayloads(body)
-    local keyset = {}
-    local n = 0
-    for k, v in pairs(body) do
-        n = n + 1
-        if type(v) == "string" then
-            if v ~= nil and v ~= "" then
-                table.insert(keyset, cjson.decode(k .. v))
-            end
-        else
-            table.insert(keyset, cjson.decode(k))
-        end
-    end
-    return keyset[1]
-end
-
 local function createDeleteRules(body, uuid)
-    local payloads = GetPayloads(body)
+    local payloads = Helper.GetPayloads(body)
     if payloads == ngx.null or not body or type(payloads) == "nil" then
         payloads = ngx.req.get_uri_args()
     end
@@ -1152,7 +996,7 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name, method)
         if settings.storage_type == "redis" then
             getDomain = red:hget(key_name .. "_" .. envProfile, json_val.id)
         else
-            getDomain = getDataFromFile(configPath .. "data/servers/" .. envProfile .. "/" .. json_val.id .. ".json")
+            getDomain = Helper.getDataFromFile(configPath .. "data/servers/" .. envProfile .. "/" .. json_val.id .. ".json")
         end
         if getDomain and getDomain ~= nil and type(getDomain) == "string" and method == "create" then
             ngx.status = ngx.HTTP_CONFLICT
@@ -1168,7 +1012,7 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name, method)
             if settings.storage_type == "redis" then
                 previousDomain = red:hget(key_name .. "_" .. envProfile, "host:" .. json_val.server_name)
             else
-                previousDomain = getDataFromFile(configPath ..
+                previousDomain = Helper.getDataFromFile(configPath ..
                     "data/servers/" .. envProfile .. "/host:" .. json_val.server_name .. ".json")
             end
             if previousDomain and previousDomain ~= nil and type(previousDomain) == "string" then
@@ -1196,16 +1040,10 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name, method)
     local nginxTenantConfDir = settings.nginx.tenant_conf_path or "/opt/nginx/conf.d"
     local rebootFilePath = settings.nginx.reboot_file_path or "/tmp/nginx/nginx-reboot-required"
     local trimmed_path = string.match(rebootFilePath, "(.+)/[^/]+$")
-    if not isDirectoryExists(trimmed_path) then
-        local isDirCreated, errDir = createDirectoryRecursive(trimmed_path)
+    if not Helper.isDirectoryExists(trimmed_path) then
+        local isDirCreated, errDir = Helper.createDirectoryRecursive(trimmed_path)
         if not isDirCreated and errDir then
-            ngx.status = ngx.HTTP_BAD_REQUEST
-            ngx.say(Cjson.encode({
-                data = {
-                    message = errDir .. " while creating " .. trimmed_path
-                }
-            }))
-            ngx.exit(ngx.HTTP_BAD_REQUEST)
+            Errors.throwError(errDir .. " while creating " .. trimmed_path, ngx.HTTP_INTERNAL_SERVER_ERROR)
         end
     end
     -- HS 28/08/2024 This part of the code need to be refactor or optimise
@@ -1213,14 +1051,14 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name, method)
         redis_json[uuid] = cjson.encode(json_val)
         red:hmset(key_name .. "_" .. envProfile, redis_json)
     end
-    setDataToFile(filePathDir .. "/" .. uuid .. ".json", json_val, filePathDir)
+    Helper.setDataToFile(filePathDir .. "/" .. uuid .. ".json", json_val, filePathDir)
     if key_name == "servers" then
         local configString = Base64.decode(json_val.config)
-        setDataToFile(filePathDir .. "/conf/" .. json_val.server_name .. ".conf", cleanString(configString), filePathDir .. "/conf", "conf")
+        Helper.setDataToFile(filePathDir .. "/conf/" .. json_val.server_name .. ".conf", Helper.cleanString(configString), filePathDir .. "/conf", "conf")
         json_val.nginx_status_check = "error"
         if json_val.config_status then
-            if fileExists(nginxTenantConfDir .. "/" .. json_val.server_name .. ".conf") == false then
-                Conf.saveConfFiles(nginxTenantConfDir, cleanString(configString), json_val.server_name .. ".conf")
+            if Helper.isFileExists(nginxTenantConfDir .. "/" .. json_val.server_name .. ".conf") == false then
+                Conf.saveConfFiles(nginxTenantConfDir, Helper.cleanString(configString), json_val.server_name .. ".conf")
                 local nginxStatus, commandStatus = Helper.testNginxConfig()
                 local isSuccess = Helper.isStringContains("nginx.conf syntax is ok", nginxStatus)
                 json_val.nginx_status = nginxStatus
@@ -1229,7 +1067,7 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name, method)
                     Conf.CreateNginxFlag(rebootFilePath)
                 else
                     json_val.config_status = false
-                    setDataToFile(filePathDir .. "/" .. uuid .. ".json", json_val, filePathDir)
+                    Helper.setDataToFile(filePathDir .. "/" .. uuid .. ".json", json_val, filePathDir)
                     os.remove(nginxTenantConfDir .. "/" .. json_val.server_name .. ".conf")
                     Conf.CreateNginxFlag(rebootFilePath)
                 end
@@ -1238,7 +1076,7 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name, method)
                 local destinationFilePath = nginxTenantConfDir .. "/" .. json_val.server_name .. ".conf"
                 local isFilesSame = Conf.compareFiles(sourceFilePath, destinationFilePath)
                 if isFilesSame == false then
-                    Conf.saveConfFiles(nginxTenantConfDir, cleanString(configString), json_val.server_name .. ".conf")
+                    Conf.saveConfFiles(nginxTenantConfDir, Helper.cleanString(configString), json_val.server_name .. ".conf")
                     local nginxStatus, commandStatus = Helper.testNginxConfig()
                     local isSuccess = Helper.isStringContains("nginx.conf syntax is ok", nginxStatus)
                     json_val.nginx_status = nginxStatus
@@ -1247,14 +1085,14 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name, method)
                         Conf.CreateNginxFlag(rebootFilePath)
                     else
                         json_val.config_status = false
-                        setDataToFile(filePathDir .. "/" .. uuid .. ".json", json_val, filePathDir)
+                        Helper.setDataToFile(filePathDir .. "/" .. uuid .. ".json", json_val, filePathDir)
                         os.remove(nginxTenantConfDir .. "/" .. json_val.server_name .. ".conf")
                         Conf.CreateNginxFlag(rebootFilePath)
                     end
                 end
             end
         else
-            if fileExists(nginxTenantConfDir .. "/" .. json_val.server_name .. ".conf") then
+            if Helper.isFileExists(nginxTenantConfDir .. "/" .. json_val.server_name .. ".conf") then
                 os.remove(nginxTenantConfDir .. "/" .. json_val.server_name .. ".conf")
                 Conf.CreateNginxFlag(rebootFilePath)
             end
@@ -1265,7 +1103,7 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name, method)
 end
 
 local function createUpdateRules(body, uuid)
-    local payloads, response = GetPayloads(body), {}
+    local payloads, response = Helper.GetPayloads(body), {}
     if not uuid then
         ---@diagnostic disable-next-line: param-type-mismatch
         payloads.created_at = os.time(os.date("!*t"))
@@ -1347,7 +1185,7 @@ local function listSettings(args, uuid)
 end
 
 local function createUpdateSettings(body, uuid)
-    body = GetPayloads(body)
+    body = Helper.GetPayloads(body)
     local settingsJson, settingUUID = {}, uuid
     if not uuid then
         ---@diagnostic disable-next-line: param-type-mismatch
@@ -1366,23 +1204,23 @@ end
 
 -- Import rules and servers from json file
 local function importProjects(args)
-    args = GetPayloads(args)
+    args = Helper.GetPayloads(args)
     local envProfile = args.envProfile ~= nil and args.envProfile or "prod"
     local response, formattedJson = nil, {}
     local redisKey = args.dataType == "rules" and "request_rules" or args.dataType
     for key, value in pairs(args.data) do
         envProfile = value.profile_id
         local pathDir = configPath .. "data/" .. args.dataType .. "/" .. value.profile_id
-        if not isDirectoryExists(pathDir) then
-            createDirectoryRecursive(pathDir)
+        if not Helper.isDirectoryExists(pathDir) then
+            Helper.createDirectoryRecursive(pathDir)
         end
         if settings.storage_type == "redis" then
             formattedJson[value.id] = cjson.encode(value)
             red:hmset(redisKey .. "_" .. value.profile_id, formattedJson)
-            response = setDataToFile(
+            response = Helper.setDataToFile(
                 pathDir .. "/" .. value.id .. ".json", value, pathDir)
         else
-            response = setDataToFile(
+            response = Helper.setDataToFile(
                 pathDir .. "/" .. value.id .. ".json", value, pathDir)
         end
     end
@@ -1398,10 +1236,10 @@ local function handleUpdateCreateProfiles(body, uuid)
     if uuid == nil then
         local folderPath = configPath .. "data/rules/" .. body.name
         local parent = folderPath:match("^(.*)/[^/]+/?$")
-        if parent and not isDir(parent) then
-            createDirectoryRecursive(parent)  -- Recursively create parent directories
+        if parent and not Helper.isDirectoryExists(parent) then
+            Helper.createDirectoryRecursive(parent)  -- Recursively create parent directories
         end
-        successCreation, errorCreation = createDirectoryRecursive(folderPath)
+        successCreation, errorCreation = Helper.createDirectoryRecursive(folderPath)
     elseif uuid ~= nil then
         local oldPath, newPath = configPath .. "data/rules/" .. uuid, configPath .. "data/rules/" .. body.name
         -- Rename the directory using the shell command
@@ -1475,7 +1313,7 @@ local function listProfile(args, uuid)
 end
 
 local function createUpdateProfiles(body, uuid)
-    body = GetPayloads(body)
+    body = Helper.GetPayloads(body)
     local successCreate, errorCreate = handleUpdateCreateProfiles(body, uuid)
     if successCreate then
         ngx.status = ngx.HTTP_OK
@@ -1487,7 +1325,7 @@ local function createUpdateProfiles(body, uuid)
         }))
         ngx.exit(ngx.HTTP_OK)
     else
-        ngx.status = ngx.HTTP_BAD_REQUEST
+        ngx.status = ngx.HTTP_INTERNAL_SERVER_ERROR
         ngx.say(cjson.encode({
             data = {
                 message = "Error:",
@@ -1499,12 +1337,12 @@ local function createUpdateProfiles(body, uuid)
 end
 
 local function updateProfileSettings(args)
-    local payloads = GetPayloads(args)
+    local payloads = Helper.GetPayloads(args)
     local envProfile = payloads.profile
     local writableFile, writableErr = io.open(configPath .. "data/settings.json", "w")
         settings.env_profile = envProfile
         if writableFile == nil then
-            ngx.say("Couldn't write file: " .. writableErr)
+            Errors.throwError("Couldn't write file: " .. writableErr, ngx.HTTP_INTERNAL_SERVER_ERROR)
         else
             writableFile:write(cjson.encode(settings))
             writableFile:close()
@@ -1517,7 +1355,7 @@ local function updateProfileSettings(args)
 end
 
 local function deleteProfile(body)
-    local payloads = GetPayloads(body)
+    local payloads = Helper.GetPayloads(body)
     if payloads.ids.ids then
         local response = {}
         for index, path in ipairs(payloads.ids.ids) do
@@ -1539,7 +1377,7 @@ end
 
 local function readFile(filePath)
     local file, fileErr = io.open(filePath, "r")
-    if not file then return fileErr, ngx.HTTP_BAD_REQUEST end
+    if not file then return fileErr, ngx.HTTP_INTERNAL_SERVER_ERROR end
     local content = file:read("*a")
     file:close()
     return content, ngx.HTTP_OK
@@ -1634,7 +1472,7 @@ local function handle_get_request(args, path)
         local apiStatus = ngx.HTTP_OK
         if not nginxStatus then
             nginxStatus = "Unable to get the status of nginx file"
-            apiStatus = ngx.HTTP_BAD_REQUEST
+            apiStatus = ngx.HTTP_INTERNAL_SERVER_ERROR
         end
         local statusRes = "error"
         local isSuccess = Helper.isStringContains("nginx.conf syntax is ok", nginxStatus)
@@ -1710,13 +1548,7 @@ local function handle_put_request(args, path)
     local pattern = ".*/(.*)"
     local uuid = string.match(path, pattern)
     if not uuid or uuid == nil or uuid == "" then
-        ngx.status = ngx.HTTP_BAD_REQUEST
-        ngx.say(cjson.encode({
-            data = {
-                message = "The uuid must be present while updating the data."
-            }
-        }))
-        ngx.exit(ngx.HTTP_BAD_REQUEST)
+        Errors.throwError("The uuid must be present while updating the data.", ngx.HTTP_INTERNAL_SERVER_ERROR)
         return
     end
     if string.find(path, "servers") then
@@ -1766,10 +1598,7 @@ elseif ngx.req.get_method() == "POST" then
     ngx.req.read_body()
     local postBody, postErr = ngx.req.get_post_args()
     if postErr then
-        ngx.say(cjson.encode({
-        postErr = postErr
-        }))
-        ngx.exit(ngx.HTTP_BAD_REQUEST)
+        Errors.throwError(postErr, ngx.HTTP_INTERNAL_SERVER_ERROR)
     end
     handle_post_request(postBody, path_name)
 elseif ngx.req.get_method() == "PUT" then

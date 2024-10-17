@@ -1,3 +1,4 @@
+local ApiErrors = require("errors")
 local configPath = os.getenv("NGINX_CONFIG_DIR") or "/opt/nginx/"
 local Helper = {}
 
@@ -6,11 +7,7 @@ function Helper.settings()
     local readSettings, errSettings = io.open(configPath .. "data/settings.json", "rb")
     local settings = {}
     if readSettings == nil then
-        ngx.say(Cjson.encode(
-            "Couldn't read file: data/settings.json " .. errSettings
-        ))
-        ngx.status = ngx.HTTP_BAD_REQUEST
-        ngx.exit(ngx.HTTP_BAD_REQUEST)
+        ApiErrors.throwError("Couldn't read file: data/settings.json " .. errSettings, ngx.HTTP_BAD_REQUEST)
     else
         local jsonString = readSettings:read "*a"
         readSettings:close()
@@ -110,7 +107,7 @@ function Helper.isStringContains(stringPtrn, message)
 end
 
 -- Check is Directory exists
-function Helper.directoryExists(path)
+function Helper.isDirectoryExists(path)
     local attr = LFS.attributes(path)
     return attr and attr.mode == "directory"
 end
@@ -118,7 +115,7 @@ end
 -- Delete Directory
 function Helper.removeDir(path)
     -- Check if path exists
-    if Helper.directoryExists(path) then
+    if Helper.isDirectoryExists(path) then
         -- Recursively delete contents of the directory
         for file in LFS.dir(path) do
             if file ~= "." and file ~= ".." then
@@ -151,6 +148,116 @@ function Helper.readLogFile(path)
     local content = file:read("*a")
     file:close()
     return content, ngx.HTTP_OK
+end
+
+-- Hash password
+function Helper.hashPassword(password)
+    local resty_sha256 = require "resty.sha256"
+    local sha256 = resty_sha256:new()
+    sha256:update(password)
+    local digest = sha256:final()
+    local hash = ngx.encode_base64(digest)
+    return hash
+end
+
+-- Generate JWT Token
+function Helper.generateToken()
+    local settings = Helper.settings()
+    local jwt = JWT
+    local passPhrase = settings.env_vars.JWT_SECURITY_PASSPHRASE or os.getenv("JWT_SECURITY_PASSPHRASE")
+    return jwt:sign(passPhrase, {
+        header = {
+            typ = "JWT",
+            alg = "HS256"
+        },
+        payload = {
+            sub = "123456",
+            exp = ngx.time() + 3600
+        }
+    })
+end
+
+-- Check if file Exists on path
+function Helper.isFileExists(filePath)
+    local attr = LFS.attributes(filePath)
+    if attr then
+        return true
+    else
+        return false
+    end
+end
+
+-- Read data from file
+function Helper.getDataFromFile(path)
+    local fileData = nil
+    local file, err = io.open(path, "rb")
+    if file ~= nil then
+        fileData = file:read "*a"
+        file:close()
+    end
+    return fileData, err
+end
+
+-- Clean the string remove double qoutes from start and end
+function Helper.cleanString(input)
+    -- Remove double quotes from start and end
+    local output = input:match('^"(.*)"$') or input
+    -- Replace \n with new line
+    output = output:gsub("\\n", "\n")
+    return output
+end
+
+-- Create Directory
+function Helper.createDirectoryRecursive(path)
+    return LFS.mkdir(path)
+end
+
+-- Save data to files
+function Helper.setDataToFile(path, value, dir, fileType)
+    -- Check if the directory exists
+    if not Helper.isDirectoryExists(dir) then
+        -- Directory doesn't exist, so create it
+        local parent = dir:match("^(.*)/[^/]+/?$")
+        if parent and not Helper.isDirectoryExists(parent) then
+            Helper.createDirectoryRecursive(parent)  -- Recursively create parent directories
+        end
+        local success, errorMsg = Helper.createDirectoryRecursive(dir)
+        if errorMsg ~= nil then
+            ApiErrors.throwError(errorMsg .. " while creating " .. dir, ngx.HTTP_BAD_REQUEST)
+        end
+    end
+    local file, err = io.open(path, "w")
+    if file == nil then
+        ApiErrors.throwError("Couldn't read file: " .. err, ngx.HTTP_BAD_REQUEST)
+    else
+        if fileType == "conf" then
+            local cleanedContent = value:gsub('"(.-)"', function(s)
+                return Helper.cleanString(s)
+            end)
+            file:write(cleanedContent)
+            file:close()
+        else
+            file:write(Cjson.encode(value))
+            file:close()
+        end
+    end
+end
+
+-- Convert payloads to Lua table
+function Helper.GetPayloads(body)
+    local keyset = {}
+    local n = 0
+    for k, v in pairs(body) do
+        n = n + 1
+        if type(v) == "string" then
+            if v ~= nil and v ~= "" then
+                table.insert(keyset, Cjson.decode(k .. v))
+            end
+        else
+            table.insert(keyset, Cjson.decode(k))
+        end
+    end
+    return keyset[1]
 end
 
 return Helper

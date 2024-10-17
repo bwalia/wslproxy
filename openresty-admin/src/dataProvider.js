@@ -402,14 +402,11 @@ const dataProvider = (apiUrl, settings = {}) => {
           method: "GET",
           headers: getHeaders(),
         });
+        const data = await response.json();
         if (response.status < 200 || response.status >= 300 && response.status !== 409) {
-          localStorage.removeItem("token");
-          localStorage.removeItem("uuid_business_id");
-          window.location.href = "/#/login";
+          return Promise.reject(data.error);
         }
         if (response.status === 200) {
-          setIsLoadig(false);
-          const data = await response.json();
           return data;
         }
         setIsLoadig(false);

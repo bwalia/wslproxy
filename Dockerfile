@@ -107,7 +107,7 @@ RUN openssl req -new -newkey rsa:2048 -days 3650 -nodes -x509 \
 #COPY nginx/test.conf /usr/local/openresty/nginx/conf/nginx.conf
 # COPY nginx/hd4dp.conf /etc/nginx/conf.d/hd4dp.conf
 # COPY nginx/sessions_demo_server.conf /etc/nginx/conf.d/sessions_demo_server.conf
-ENV NGINX_CONFIG_DIR="/src/userdata/"
+ENV NGINX_CONFIG_DIR="/opt/nginx/"
 RUN mkdir -p ${NGINX_CONFIG_DIR} && chmod 777 ${NGINX_CONFIG_DIR}
 
 ARG APP_ENV="dev"
@@ -178,13 +178,15 @@ RUN cd /usr/local/openresty/nginx/html/openresty-admin && yarn install \
 # RUN cd /usr/local/openresty/nginx/html/openresty-admin/ && yarn build
 #--dest /usr/local/openresty/nginx/html/openresty-admin/dist
 
-RUN chmod -R 777 ${NGINX_CONFIG_DIR}system && \
-    chmod -R 777 ${NGINX_CONFIG_DIR}data && \
+RUN mkdir -p "${NGINX_CONFIG_DIR}data/servers" && \
+    mkdir -p "${NGINX_CONFIG_DIR}data/rules"
+
+RUN chmod -R 777 ${NGINX_CONFIG_DIR}data && \
     chmod -R 777 ${NGINX_CONFIG_DIR}data/servers && \
     chmod -R 777 ${NGINX_CONFIG_DIR}data/rules && \
-    chmod -R 777 ${NGINX_CONFIG_DIR}data/security_rules.json && \
-    chown -R nobody:root ${NGINX_CONFIG_DIR}data/ && \
-    chmod 777 ${NGINX_CONFIG_DIR}data/sample-settings.json
+    # chmod -R 777 ${NGINX_CONFIG_DIR}data/security_rules.json && \
+    chown -R nobody:root ${NGINX_CONFIG_DIR}data/
+    # chmod 777 ${NGINX_CONFIG_DIR}data/sample-settings.json
 
 # mc - MinIO Client is used to backup nginx openresty configuration to S3
 RUN wget https://dl.min.io/client/mc/release/linux-amd64/mc -O /usr/local/bin/mc \

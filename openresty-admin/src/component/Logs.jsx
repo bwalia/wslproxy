@@ -1,16 +1,18 @@
 import React from 'react';
-import { useDataProvider } from 'react-admin';
+import { useDataProvider, useNotify } from 'react-admin';
 import TextareaAutosize from '@mui/base/TextareaAutosize';
 import { Grid, Typography } from "@mui/material";
 
 const Logs = () => {
     const dataProvider = useDataProvider();
+    const notify = useNotify();
     const [logData, setLogData] = React.useState({});
     React.useEffect(() => {
         const logs = dataProvider.getLogs("openresty_logs")
         logs.then(log => {
             setLogData(log?.data?.logs)
-        })
+        });
+        logs.catch(error => notify(error, { type: 'error' }));
     }, [])
     return (
         <Grid>
