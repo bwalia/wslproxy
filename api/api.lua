@@ -238,28 +238,30 @@ local function listPaginationLocal(data, pageSize, pageNumber, qParams)
         endIdx = startIdx + pageSize - 1
     end
 
-    local currentPageData, currentSearchedData = {}, {}
+    local currentPageData, totalRec = {}, #data
     for i = startIdx, math.min(endIdx, #data) do
-        if type(qParams.meta) == "table" then
-            if qParams.meta.exclude == data[i].id then
-                goto continue
+        if data[i] ~= nil and data[i] ~= ngx.null and data[i] ~= "null" then
+            if type(qParams.meta) == "table" then
+                if qParams.meta.exclude == data[i].id then
+                    goto continue
+                end
             end
-        end
-        if type(qParams.filter) == "table" and qParams.filter.q ~= nil then
-            local fieldValue = data[i].name
-            fieldValue = fieldValue:lower()
-            local pattern = qParams.filter.q
-            pattern = pattern:lower()
-            if fieldValue and fieldValue:find(pattern, 1, true) then
+            if type(qParams.filter) == "table" and qParams.filter.q ~= nil then
+                local fieldValue = data[i][qParams.type.key_name]
+                fieldValue = fieldValue:lower()
+                local pattern = qParams.filter.q
+                pattern = pattern:lower()
+                if fieldValue and fieldValue:find(pattern, 1, true) then
+                    table.insert(currentPageData, data[i])
+                end
+                totalRec = #currentPageData
+            else
                 table.insert(currentPageData, data[i])
             end
-        else
-            table.insert(currentPageData, data[i])
+            ::continue::
         end
-        ::continue::
     end
-
-    return currentPageData, #data
+    return currentPageData, totalRec
 end
 
 -- Authentication
@@ -391,6 +393,10 @@ local function listServers(args)
     else
         qParams = cjson.decode(params)
     end
+    qParams["type"] = {
+        table = "servers",
+        key_name = "server_name"
+    }
     -- Set the pagination parameters
     local pageSize = qParams.pagination.perPage -- Number of records per page
     local pageNumber = qParams.pagination.page  -- Page number (starting from 1)
@@ -822,6 +828,10 @@ local function listRules(args)
     else
         qParams = cjson.decode(params)
     end
+    qParams["type"] = {
+        table = "rules",
+        key_name = "name"
+    }
     -- Set the pagination parameters
     local pageSize = qParams.pagination.perPage -- Number of records per page
     local pageNumber = qParams.pagination.page  -- Page number (starting from 1)

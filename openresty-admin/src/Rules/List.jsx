@@ -1,5 +1,5 @@
 import React from 'react';
-import { 
+import {
   BooleanField,
   Datagrid,
   NumberField,
@@ -18,7 +18,7 @@ const handleProfileChange = (e) => {
   localStorage.setItem('environment', e.target.value);
 }
 const rulesFilters = [
-  <SearchInput source="q" alwaysOn />,
+  <SearchInput source="q" alwaysOn fullWidth />,
   <ReferenceInput source="profile_id" reference="profiles" alwaysOn>
     <SelectInput
       sx={{ marginTop: "0", marginBottom: "0" }}

@@ -1,12 +1,13 @@
 import React from "react";
-import { 
+import {
   Datagrid,
-  List as RaList, 
+  List as RaList,
   TextField,
   ReferenceInput,
   SelectInput,
+  SearchInput,
   CloneButton
- } from "react-admin";
+} from "react-admin";
 import ExportJsonButton from './toolbar/ExportJsonButton';
 import ImportJsonButton from '../component/ImportJsonButton';
 import Empty from '../component/Empty';
@@ -14,7 +15,8 @@ import Empty from '../component/Empty';
 const handleProfileChange = (e) => {
   localStorage.setItem('environment', e.target.value);
 }
-const rulesFilters = [
+const serverFilters = [
+  <SearchInput source="q" alwaysOn fullWidth />,
   <ReferenceInput source="profile_id" reference="profiles" alwaysOn >
     <SelectInput
       sx={{ marginTop: "0", marginBottom: "0" }}
@@ -27,12 +29,12 @@ const rulesFilters = [
 
 const List = () => {
   return (
-    <RaList 
-      title={"Servers"} 
+    <RaList
+      title={"Servers"}
       sort={{ field: 'created_at', order: 'DESC' }}
-      exporter={ExportJsonButton} 
+      exporter={ExportJsonButton}
       empty={<Empty resource={"servers"} />}
-      filters={rulesFilters}
+      filters={serverFilters}
     >
       <Datagrid rowClick="edit">
         <TextField source="listens[0].listen" label="Listen" sortable={false} />
