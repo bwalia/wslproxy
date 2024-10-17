@@ -8,6 +8,7 @@ import Users from "./Users";
 import Login from "./Login";
 import Servers from "./Servers";
 import Profiles from "./Profiles";
+import Secrets from "./Secrets";
 import Theme from "./Theme";
 import UserIcon from "@mui/icons-material/Group";
 import SessionIcon from "@mui/icons-material/HistoryToggleOff";
@@ -70,6 +71,7 @@ const App = () => {
         <Resource name="rules" {...Rules} icon={RuleIcon} />
         <Resource name="settings" {...Settings} icon={RuleIcon} />
         <Resource name="profiles" {...Profiles} icon={ProfileIcon} />
+        <Resource name="secrets" {...Secrets} icon={ProfileIcon} />
       </Admin>
       <div
         style={{

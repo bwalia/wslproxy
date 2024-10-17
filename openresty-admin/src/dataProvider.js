@@ -78,6 +78,7 @@ const handleConfigField = (data) => {
 const dataProvider = (apiUrl, settings = {}) => {
   const [isLoading, setIsLoadig] = useStore('fetch.data.loading', false);
   const [syncPopupOpen, setSyncPopupOpen] = useStore('sync.data.success', false);
+  const [secretTags, setSecretTags] = useStore('secret.data.tags', []);
   const notify = useNotify();
   return {
     get: async (resource, params) => {
@@ -138,6 +139,11 @@ const dataProvider = (apiUrl, settings = {}) => {
         window.location.href = "/#/login";
       }
       const data = await response.json();
+
+      if (resource == "secrets") { 
+        localStorage.setItem("secrets.tags", JSON.stringify(data.data.secret_tags)); 
+      }
+      
       setIsLoadig(false)
       return data;
     },

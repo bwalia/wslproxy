@@ -19,7 +19,8 @@ export const Menu = () => {
             <RaMenu.Item to="/servers" primaryText="Servers" leftIcon={<ServerIcon />}/>
             <RaMenu.Item to="/rules" primaryText="Rules" leftIcon={<RuleIcon />}/>
             {/* <RaMenu.Item to="/settings" primaryText="Settings" leftIcon={<SettingsIcon/>}/> */}
-            <RaMenu.Item to="/profiles" className='anything' primaryText="Profile" leftIcon={<ProfileIcon />}/>
+            <RaMenu.Item to="/profiles" className='profiles-menu' primaryText="Profile" leftIcon={<ProfileIcon />}/>
+            <RaMenu.Item to="/secrets" className='secrets-menu' primaryText="Secrets" leftIcon={<ProfileIcon />}/>
         </RaMenu>
     )
 };

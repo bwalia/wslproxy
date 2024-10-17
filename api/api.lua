@@ -472,6 +472,109 @@ local function listServer(args, id)
     end
 end
 
+local function listSecrets(args)
+    local counter = 0
+    local params = args
+    local qParams, environment = {}, "prod"
+    params = params.params
+    if params == nil and type(params) == "nil" then
+        qParams = {
+            pagination = {
+                page = args['pagination[page]'],
+                perPage = args['pagination[perPage]']
+            },
+            sort = {
+                field = args['sort[field]'],
+                order = args['sort[order]']
+            },
+            filter = {
+                profile_id = args['filter[profile_id]']
+            }
+        }
+    else
+        qParams = cjson.decode(params)
+    end
+    qParams["type"] = {
+        table = "secrets",
+        key_name = "secret_name"
+    }
+    -- Set the pagination parameters
+    local pageSize = qParams.pagination.perPage -- Number of records per page
+    local pageNumber = qParams.pagination.page  -- Page number (starting from 1)
+
+    -- Retrieve a page of records using HSCAN
+    local cursor, totalRecords = "0", 0
+    local allServers, servers = {}, {}
+    if qParams.filter ~= nil then
+        local filter = qParams.filter
+        if filter.profile_id ~= nil then
+            environment = filter.profile_id
+        end
+    end
+    if settings then
+        if settings.storage_type == "disk" then
+            allServers, totalRecords = listFromDisk("secrets/" .. environment, pageSize, pageNumber, qParams)
+            -- totalRecords = #allServers
+        else
+            -- allServers, totalRecords = listFromDisk("servers/" .. environment, pageSize, pageNumber, qParams)
+            -- if (allServers == nil or totalRecords == 0) then
+            local recordsKey = "secrets_" .. environment
+            local records, totalCount = listWithPagination(recordsKey, cursor, pageSize, pageNumber, qParams)
+            allServers = records
+            totalRecords = totalCount
+            -- end
+        end
+    end
+
+    if qParams.sort ~= nil and qParams.sort.order == "DESC" then
+        table.sort(allServers, Helper.sortDesc(qParams.sort.field))
+    elseif qParams.sort ~= nil and qParams.sort.order == "ASC" then
+        table.sort(allServers, Helper.sortAsc(qParams.sort.field))
+    end
+    return ngx.say(cjson.encode({
+        data = allServers,
+        total = totalRecords
+    }))
+end
+
+local function listSecret(args, id)
+    local envProfile = args.envprofile ~= nil and args.envprofile or "prod"
+    if settings then
+        if settings.storage_type == "disk" then
+            local jsonData, dataErr = Helper.getDataFromFile(configPath .. "data/secrets/" .. envProfile .. "/" .. id .. ".json")
+            if dataErr ~= nil then
+                ngx.say(cjson.encode({
+                    data = {}
+                }))
+            else
+                jsonData = cjson.decode(jsonData)
+                if jsonData.secrets then
+                    for sIdx, secret in ipairs(jsonData.secrets) do
+                        jsonData.secrets[sIdx].value = Base64.decode(jsonData.secrets[sIdx].value)
+                    end
+                end
+                ngx.say(cjson.encode({
+                    data = jsonData
+                }))
+            end
+        else
+            --     local server, dataErr = Helper.getDataFromFile(configPath .. "data/servers/" .. envProfile .. "/" .. id .. ".json")
+            --     if dataErr or dataErr ~= nil then
+            local server = red:hget("secrets_" .. envProfile, id)
+            -- end
+            if type(server) == "string" then
+                server = cjson.decode(server)
+                if server.config then
+                    server.config = Base64.decode(server.config)
+                end
+                ngx.say(cjson.encode({
+                    data = server
+                }))
+            end
+        end
+    end
+end
+
 local function createUpdateServer(body, uuid)
     local payloads, response = Helper.GetPayloads(body), {}
     if not uuid then
@@ -958,6 +1061,45 @@ local function createDeleteRules(body, uuid)
     }))
 end
 
+local function createDeleteSecrets(body, uuid)
+    local payloads = Helper.GetPayloads(body)
+    if payloads == ngx.null or not body or type(payloads) == "nil" then
+        payloads = ngx.req.get_uri_args()
+    end
+    local envProfile = "prod"
+    if payloads.ids ~= nil then
+        envProfile = payloads.ids.envProfile
+    else
+        envProfile = payloads.envProfile
+    end
+    if uuid ~= "" and uuid ~= nil then
+        if settings then
+            if settings.storage_type == "disk" then
+                os.remove(configPath .. "data/secrets/" .. envProfile .. "/" .. uuid .. ".json")
+            else
+                red:hdel("secrets_" .. envProfile, uuid)
+            end
+        end
+    elseif payloads and payloads.ids.ids and #payloads.ids.ids > 0 then
+        for value = 1, #payloads.ids.ids do
+            if settings then
+                if settings.storage_type == "redis" then
+                    red:hdel("secrets_" .. envProfile, payloads.ids.ids[value])
+                else
+                    os.remove(configPath .. "data/secrets/" .. envProfile .. "/" .. payloads.ids.ids[value] .. ".json")
+                    local command = "rm -f " ..
+                        configPath .. "data/secrets/" .. envProfile .. "/" .. payloads.ids.ids[value] .. ".json"
+                    os.execute(command)
+                end
+            end
+        end
+    end
+
+    ngx.say(cjson.encode({
+        data = payloads
+    }))
+end
+
 function CreateUpdateRecord(json_val, uuid, key_name, folder_name, method)
     local formatResponse = {}
     json_val['data'] = nil
@@ -970,6 +1112,12 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name, method)
     local envProfile = "prod"
     if json_val.profile_id ~= nil then
         envProfile = json_val.profile_id
+    end
+
+    if folder_name == "secrets" and json_val.secrets ~= nil then
+        for sIdx, secret in ipairs(json_val.secrets) do
+            json_val.secrets[sIdx].value = Base64.encode(json_val.secrets[sIdx].value)
+        end
     end
     if folder_name == "rules" and json_val.match.rules.jwt_token_validation_value ~= nil and
         json_val.match.rules.jwt_token_validation_key ~= nil then
@@ -1113,6 +1261,23 @@ local function createUpdateRules(body, uuid)
     else
         payloads.id = Helper.generate_uuid()
         response = CreateUpdateRecord(payloads, payloads.id, "request_rules", "rules", "create")
+    end
+    ngx.say(cjson.encode({
+        data = response
+    }))
+end
+
+local function createUpdateSecrets(body, uuid)
+    local payloads, response = Helper.GetPayloads(body), {}
+    if not uuid then
+        ---@diagnostic disable-next-line: param-type-mismatch
+        payloads.created_at = os.time(os.date("!*t"))
+    end
+    if uuid then
+        response = CreateUpdateRecord(payloads, uuid, "secrets", "secrets", "update")
+    else
+        payloads.id = Helper.generate_uuid()
+        response = CreateUpdateRecord(payloads, payloads.id, "secrets", "secrets", "create")
     end
     ngx.say(cjson.encode({
         data = response
@@ -1459,6 +1624,12 @@ local function handle_get_request(args, path)
         listRule(args, uuid)
     end
 
+    if path == "secrets" then
+        listSecrets(args)
+    elseif uuid and (#uuid == 36 or #uuid == 32) and subPath[1] == "secrets" then
+        listSecret(args, uuid)
+    end
+
     if path == "sessions" then
         listSessions(args)
         -- elseif uuid and (#uuid == 36 or #uuid == 32) and subPath[1] == "sessions" then
@@ -1522,6 +1693,9 @@ local function handle_post_request(args, path)
     if path == "rules" then
         createUpdateRules(args)
     end
+    if path == "secrets" then
+        createUpdateSecrets(args)
+    end
     if path == "user/login" then
         login(args)
     end
@@ -1561,6 +1735,11 @@ local function handle_put_request(args, path)
     if string.find(path, "rules") then
         createUpdateRules(args, uuid)
     end
+
+    if string.find(path, "secrets") then
+        createUpdateSecrets(args, uuid)
+    end
+
     if string.find(path, "settings") then
         createUpdateSettings(args, uuid)
     end
@@ -1576,6 +1755,9 @@ local function handle_delete_request(args, path)
     local uuid = string.match(path, pattern)
     if string.find(path, "rules") then
         createDeleteRules(args, uuid)
+    end
+    if string.find(path, "secrets") then
+        createDeleteSecrets(args, uuid)
     end
     if string.find(path, "servers") then
         createDeleteServer(args, uuid)
