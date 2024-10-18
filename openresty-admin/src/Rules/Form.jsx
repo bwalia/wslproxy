@@ -8,10 +8,11 @@ import {
   SelectInput,
   required,
   FormDataConsumer,
+  SelectArrayInput,
   ReferenceInput
 } from "react-admin";
-import { RichTextInput } from "ra-input-rich-text";
 import Toolbar from "./toolbar/Toolbar";
+import CreateTags from "../component/CreateTags";
 
 const iso_codes = {
   AF: "Afghanistan",
@@ -275,7 +276,18 @@ const objectToArray = (obj = {}) => {
   }
   return res;
 };
+
 const Form = () => {
+  const secretTags = localStorage.getItem('rules.tags') || "";
+
+  const [choices, setChoices] = React.useState([]);
+  React.useEffect(() => {
+    if (secretTags && secretTags != "undefined") {
+      const tags = JSON.parse(secretTags);
+      const prevTags = tags.map((tag) => { return { id: tag, name: tag } })
+      setChoices(prevTags);
+    }
+  }, [secretTags]);
   const handleProfileChange = (e) => {
     localStorage.setItem('environment', e.target.value);
   }
@@ -284,7 +296,7 @@ const Form = () => {
     <SimpleForm toolbar={<Toolbar />}>
       <h3>Enter the Rule below:</h3>
       <Grid container spacing={2}>
-        <Grid item xs={4}>
+        <Grid item xs={3}>
           <TextInput
             source="name"
             label="Rule Name"
@@ -292,7 +304,7 @@ const Form = () => {
             fullWidth
           />
         </Grid>
-        <Grid item xs={4}>
+        <Grid item xs={3}>
           <ReferenceInput source="profile_id" reference="profiles" >
             <SelectInput
               sx={{ marginTop: "0", marginBottom: "0" }}
@@ -302,6 +314,13 @@ const Form = () => {
               validate={[required()]}
             />
           </ReferenceInput>
+        </Grid>
+        <Grid item xs={2}>
+          <SelectArrayInput
+            source="rules_tags"
+            choices={choices}
+            create={<CreateTags choices={choices} />}
+          />
         </Grid>
         <Grid item xs={2}>
           <NumberInput source="version" defaultValue={1} fullWidth />
@@ -402,7 +421,7 @@ const Form = () => {
 
         <Grid item xs={6}>
           <FormDataConsumer>
-            {({formData, ...rest}) => (
+            {({ formData, ...rest }) => (
               <React.Fragment>
                 {formData?.match?.rules?.jwt_token_validation == "amazon_s3_signed_header_validation" ? (
                   <TextInput

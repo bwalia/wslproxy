@@ -4,7 +4,7 @@ import SessionIcon from "@mui/icons-material/HistoryToggleOff";
 import ServerIcon from "@mui/icons-material/Storage";
 import RuleIcon from "@mui/icons-material/Rule";
 import ProfileIcon from '@mui/icons-material/RecentActors';
-import SettingsIcon from '@mui/icons-material/Construction';
+import SecretIcon from '@mui/icons-material/Key';
 
 export const Menu = () => {
     const [settings] = useStore('app.settings', {});
@@ -19,7 +19,8 @@ export const Menu = () => {
             <RaMenu.Item to="/servers" primaryText="Servers" leftIcon={<ServerIcon />}/>
             <RaMenu.Item to="/rules" primaryText="Rules" leftIcon={<RuleIcon />}/>
             {/* <RaMenu.Item to="/settings" primaryText="Settings" leftIcon={<SettingsIcon/>}/> */}
-            <RaMenu.Item to="/profiles" className='anything' primaryText="Profile" leftIcon={<ProfileIcon />}/>
+            <RaMenu.Item to="/profiles" className='profiles-menu' primaryText="Profile" leftIcon={<ProfileIcon />}/>
+            <RaMenu.Item to="/secrets" className='secrets-menu' primaryText="Secrets" leftIcon={<SecretIcon />}/>
         </RaMenu>
     )
 };

@@ -78,6 +78,7 @@ const handleConfigField = (data) => {
 const dataProvider = (apiUrl, settings = {}) => {
   const [isLoading, setIsLoadig] = useStore('fetch.data.loading', false);
   const [syncPopupOpen, setSyncPopupOpen] = useStore('sync.data.success', false);
+  const [secretTags, setSecretTags] = useStore('secret.data.tags', []);
   const notify = useNotify();
   return {
     get: async (resource, params) => {
@@ -110,8 +111,12 @@ const dataProvider = (apiUrl, settings = {}) => {
           headers: getHeaders(),
         });
 
-        if (response.status < 200 || response.status >= 300 && response.status !== 409 && response.status !== 404) {
+        if (response.status < 200 && response.status !== 401) {
+          return Promise.reject(data.error);
+        }
+        if (response.status === 401) {
           localStorage.removeItem("token");
+          localStorage.removeItem("uuid_business_id");
           window.location.href = "/#/login";
         }
         const data = await response.json();
@@ -132,12 +137,18 @@ const dataProvider = (apiUrl, settings = {}) => {
         method: "GET",
         headers: getHeaders(),
       });
-      if (response.status < 200 || response.status >= 300 && response.status !== 409) {
+      if (response.status < 200 && response.status !== 401) {
+        return Promise.reject(data.error);
+      }
+      if (response.status === 401) {
         localStorage.removeItem("token");
         localStorage.removeItem("uuid_business_id");
         window.location.href = "/#/login";
       }
       const data = await response.json();
+
+      localStorage.setItem(`${resource}.tags`, JSON.stringify(data.data[`${resource}_tags`]));
+      
       setIsLoadig(false)
       return data;
     },
@@ -148,7 +159,10 @@ const dataProvider = (apiUrl, settings = {}) => {
         method: "GET",
         headers: getHeaders(),
       });
-      if (response.status < 200 || response.status >= 300 && response.status !== 409) {
+      if (response.status < 200 && response.status !== 401) {
+        return Promise.reject(data.error);
+      }
+      if (response.status === 401) {
         localStorage.removeItem("token");
         localStorage.removeItem("uuid_business_id");
         window.location.href = "/#/login";
@@ -233,7 +247,10 @@ const dataProvider = (apiUrl, settings = {}) => {
           body: JSON.stringify(params),
           headers: getHeaders(),
         });
-        if (response.status < 200 || response.status >= 300 && response.status !== 409) {
+        if (response.status < 200 && response.status !== 401) {
+          return Promise.reject(data.error);
+        }
+        if (response.status === 401) {
           localStorage.removeItem("token");
           localStorage.removeItem("uuid_business_id");
           window.location.href = "/#/login";
@@ -258,7 +275,10 @@ const dataProvider = (apiUrl, settings = {}) => {
           body: JSON.stringify({ ids: params }),
           headers: getHeaders(),
         });
-        if (response.status < 200 || response.status >= 300 && response.status !== 409) {
+        if (response.status < 200 && response.status !== 401) {
+          return Promise.reject(data.error);
+        }
+        if (response.status === 401) {
           localStorage.removeItem("token");
           localStorage.removeItem("uuid_business_id");
           window.location.href = "/#/login";
@@ -280,7 +300,10 @@ const dataProvider = (apiUrl, settings = {}) => {
           body: JSON.stringify(params),
           headers: getHeaders(),
         });
-        if (response.status < 200 || response.status >= 300 && response.status !== 409) {
+        if (response.status < 200 && response.status !== 401) {
+          return Promise.reject(data.error);
+        }
+        if (response.status === 401) {
           localStorage.removeItem("token");
           localStorage.removeItem("uuid_business_id");
           window.location.href = "/#/login";
@@ -330,7 +353,10 @@ const dataProvider = (apiUrl, settings = {}) => {
           body: JSON.stringify(params),
           headers: getHeaders(),
         });
-        if (response.status < 200 || response.status >= 300 && response.status !== 409) {
+        if (response.status < 200 && response.status !== 401) {
+          return Promise.reject(data.error);
+        }
+        if (response.status === 401) {
           localStorage.removeItem("token");
           localStorage.removeItem("uuid_business_id");
           window.location.href = "/#/login";
@@ -356,7 +382,10 @@ const dataProvider = (apiUrl, settings = {}) => {
           body: JSON.stringify(params),
           headers: getHeaders(),
         });
-        if (response.status < 200 || response.status >= 300 && response.status !== 409) {
+        if (response.status < 200 && response.status !== 401) {
+          return Promise.reject(data.error);
+        }
+        if (response.status === 401) {
           localStorage.removeItem("token");
           localStorage.removeItem("uuid_business_id");
           window.location.href = "/#/login";
@@ -403,8 +432,13 @@ const dataProvider = (apiUrl, settings = {}) => {
           headers: getHeaders(),
         });
         const data = await response.json();
-        if (response.status < 200 || response.status >= 300 && response.status !== 409) {
+        if (response.status < 200 && response.status !== 401) {
           return Promise.reject(data.error);
+        }
+        if (response.status === 401) {
+          localStorage.removeItem("token");
+          localStorage.removeItem("uuid_business_id");
+          window.location.href = "/#/login";
         }
         if (response.status === 200) {
           return data;
@@ -425,7 +459,10 @@ const dataProvider = (apiUrl, settings = {}) => {
           method: "GET",
           headers: getHeaders(),
         });
-        if (response.status < 200 || response.status >= 300 && response.status !== 409) {
+        if (response.status < 200 && response.status !== 401) {
+          return Promise.reject(data.error);
+        }
+        if (response.status === 401) {
           localStorage.removeItem("token");
           localStorage.removeItem("uuid_business_id");
           window.location.href = "/#/login";
