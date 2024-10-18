@@ -11,10 +11,11 @@ import { Grid } from "@mui/material";
 import CreateTags from '../component/CreateTags';
 
 const Form = () => {
-    const secretTags = localStorage.getItem('secrets.tags');
+    const secretTags = localStorage.getItem('secrets.tags') || "";
+    
     const [choices, setChoices] = React.useState([]);
     React.useEffect(() => {
-        if (secretTags) {
+        if (secretTags && secretTags != "undefined") {
             const tags = JSON.parse(secretTags);
             const prevTags = tags.map((tag) => { return { id: tag, name: tag } })
             setChoices(prevTags);
