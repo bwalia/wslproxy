@@ -35,7 +35,7 @@ const Form = () => {
                 </Grid>
                 <Grid item xs={12} sm={12}>
                     <SelectArrayInput
-                        source="secret_tags"
+                        source="secrets_tags"
                         choices={choices}
                         create={<CreateTags choices={choices} />}
                     />

@@ -147,9 +147,7 @@ const dataProvider = (apiUrl, settings = {}) => {
       }
       const data = await response.json();
 
-      if (resource == "secrets") { 
-        localStorage.setItem("secrets.tags", JSON.stringify(data.data.secret_tags)); 
-      }
+      localStorage.setItem(`${resource}.tags`, JSON.stringify(data.data[`${resource}_tags`]));
       
       setIsLoadig(false)
       return data;

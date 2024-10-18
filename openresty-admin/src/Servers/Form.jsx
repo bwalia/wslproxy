@@ -12,12 +12,14 @@ import {
   Menu,
   required,
   ReferenceInput,
+  SelectArrayInput,
   AutocompleteInput,
 } from "react-admin";
 
 import LocationInput from "./input/LocationInput";
 import CreateServerText from "./input/CreateServerText";
 import Toolbar from "./toolbar/Toolbar";
+import CreateTags from "../component/CreateTags";
 
 const handleProfileChange = (e) => {
   localStorage.setItem('environment', e.target.value);
@@ -44,6 +46,18 @@ const Form = ({ type }) => {
     };
     fetchData();
   }, []);
+
+  const secretTags = localStorage.getItem('servers.tags') || "";
+
+  const [choices, setChoices] = React.useState([]);
+  React.useEffect(() => {
+    if (secretTags && secretTags != "undefined") {
+      const tags = JSON.parse(secretTags);
+      const prevTags = tags.map((tag) => { return { id: tag, name: tag } })
+      setChoices(prevTags);
+    }
+  }, [secretTags]);
+
   return (
     <TabbedForm toolbar={<Toolbar />}>
       <TabbedForm.Tab label="Server details">
@@ -86,18 +100,26 @@ const Form = ({ type }) => {
               />
             </ReferenceInput>
           </Grid>
-          <Grid item xs={3}>
+          <Grid item xs={4}>
+            <SelectArrayInput
+              source="servers_tags"
+              choices={choices}
+              create={<CreateTags choices={choices} />}
+            />
+          </Grid>
+          <Grid item xs={2}>
             <TextInput source="root" defaultValue={"/var/www/html"} fullWidth label="Root path" />
           </Grid>
-          <Grid item xs={3}>
+          <Grid item xs={2}>
             <TextInput source="index" defaultValue={"index.html"} fullWidth label="Index file" />
           </Grid>
-          <Grid item xs={3}>
+          <Grid item xs={2}>
             <TextInput source="access_log" defaultValue={"logs/access.log"} fullWidth label="Access logs path" />
           </Grid>
-          <Grid item xs={3}>
+          <Grid item xs={2}>
             <TextInput source="error_log" defaultValue={"logs/error.log"} fullWidth label="Error logs path" />
           </Grid>
+
           <Grid item xs={12}>
             <LocationInput source="locations" />
           </Grid>
