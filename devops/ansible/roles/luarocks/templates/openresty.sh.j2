@@ -56,7 +56,12 @@ cd openresty-${OPENRESTY_VERSION}
   gmake install
   ln -s /usr/local/openresty/nginx/sbin/nginx /usr/bin/openresty
 
-echo "Building OpenResty"
+  # Installed OpenResty
+  # Show OpenResty version
+  mkdir -p /opt/nginx/
+  /usr/bin/openresty -v 2> /opt/nginx/VERSION
+
+echo "Building OpenResty ${OPENRESTY_VERSION} completed"
 }
 
 # Main script
