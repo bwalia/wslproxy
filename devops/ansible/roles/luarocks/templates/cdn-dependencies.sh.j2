@@ -28,6 +28,14 @@ luarocks install pgmoon
 # luarocks install lua-cjson
 # luarocks install --tree lua_modules lua-resty-prettycjson
 
+mkdir -p /data/nginx/cache
+chown -R www-data:root /data/nginx/cache
+chmod -R 775 /data/nginx/cache
+
+mkdir -p /var/log/nginx/
+chown -R www-data:root /var/log/nginx/
+chmod -R 775 /var/log/nginx/
+
 mkdir -p /opt/nginx/data/ \
     && chmod -R 777 /opt/nginx/data/ \
     && chown -R www-data:root /opt/nginx/data/
