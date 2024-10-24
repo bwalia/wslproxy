@@ -32,6 +32,19 @@ mkdir -p /data/nginx/cache
 chown -R www-data:root /data/nginx/cache
 chmod -R 775 /data/nginx/cache
 
+mkdir -p /opt/nginx/data/prod/ \
+    && chmod -R 777 /opt/nginx/data/prod/ \
+    && chown -R www-data:root /opt/nginx/data/prod/
+
+mkdir -p /opt/nginx/data/test/ \
+    && chmod -R 777 /opt/nginx/data/test/ \
+    && chown -R www-data:root /opt/nginx/data/test/
+
+mkdir -p /opt/nginx/data/acc/ \
+    && chmod -R 777 /opt/nginx/data/acc/ \
+    && chown -R www-data:root /opt/nginx/data/acc/
+
+
 mkdir -p /var/log/nginx/
 chown -R www-data:root /var/log/nginx/
 chmod -R 775 /var/log/nginx/
