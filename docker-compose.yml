@@ -11,9 +11,9 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "8081:8080"
+      - "5000:8080"
       - "8000:80"
-      - "8500:8500"
+      - "8900:8500"
     environment:
       - APP_ENV=dev
       - DNS_RESOLVER=127.0.0.11
@@ -40,7 +40,7 @@ services:
     container_name: whitefalcon-redis
     image: "redis:alpine"
     ports:
-      - "6379:6379"
+      - "6377:6379"
     networks:
       - openresty-network
     volumes:
