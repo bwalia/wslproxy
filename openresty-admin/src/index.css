@@ -75,3 +75,9 @@ textarea#custom_block\.0\.additional_block, textarea#match\.response\.message {
   height: 123px !important;
   overflow-y: scroll !important;
 }
+
+.code_area textarea {
+  width: 1600px;
+  height: 1200px !important;
+  overflow-y: scroll !important;
+}

@@ -153,7 +153,7 @@ const Form = ({ type }) => {
         {totalResults >= 1 ? (
           <>
           <Grid item xs={12}>
-                <TextInput multiline source="varnish_vcl_config" />
+                <TextInput multiline source="varnish_vcl_config" label="Generated Varnish Server Config" className="code_area" />
           </Grid>
           </>
         ) : (

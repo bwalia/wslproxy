@@ -380,6 +380,7 @@ server {
           set $proxy_port "";
           
           set $proxy_host_override "";
+          set $proxy_route_server "openresty-default-route";
           set $upstream_server "global_backend";
 
           set_by_lua $now "return ngx.cookie_time(ngx.time())";
@@ -438,6 +439,7 @@ server {
 
           chunked_transfer_encoding off;
           proxy_set_header host $proxy_host_override;
+          proxy_set_header x-route-server $proxy_route_server;
           proxy_pass http://$upstream_server;
         
           }
