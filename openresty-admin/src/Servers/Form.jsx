@@ -60,7 +60,7 @@ const Form = ({ type }) => {
 
   return (
     <TabbedForm toolbar={<Toolbar />}>
-      <TabbedForm.Tab label="Server details">
+      <TabbedForm.Tab label="Nginx Server">
         <Grid container spacing={2}>
           <Grid item xs={3}>
             <ArrayInput
@@ -149,7 +149,21 @@ const Form = ({ type }) => {
           </Grid>
         </Grid>
       </TabbedForm.Tab>
-      <TabbedForm.Tab label="Request/Security rules">
+      <TabbedForm.Tab label="Varnish Server">
+        {totalResults >= 1 ? (
+          <>
+          <Grid item xs={12}>
+                <TextInput multiline source="varnish_vcl_config" label="Generated Varnish Server Config" className="code_area" />
+          </Grid>
+          </>
+        ) : (
+          <>
+            <p>There are no rules available yet please create here!</p>
+            <Menu.Item to="/rules" primaryText="Rules" />
+          </>
+        )}
+      </TabbedForm.Tab>
+      <TabbedForm.Tab label="Server Rules">
         {totalResults >= 1 ? (
           <>
             <ReferenceArrayInput source="rules" reference="rules" perPage={1000}>

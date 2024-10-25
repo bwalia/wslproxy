@@ -90,6 +90,8 @@ data:
         cd /usr/local/openresty/nginx/html/openresty-admin/ && yarn build
         echo "Rebuilding done"
         openresty -s reload
+        mkdir -p /opt/nginx/
+        openresty -v 2> /opt/nginx/VERSION
         echo "==========================="
         echo "Openresty whitefalcon Nginx Bootstrap Script Completed"
 {{- if .Values.app.sync_data_onload -}}

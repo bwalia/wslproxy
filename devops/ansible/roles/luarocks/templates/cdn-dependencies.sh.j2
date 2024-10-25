@@ -28,6 +28,50 @@ luarocks install pgmoon
 # luarocks install lua-cjson
 # luarocks install --tree lua_modules lua-resty-prettycjson
 
+mkdir -p /data/nginx/cache
+chown -R www-data:root /data/nginx/cache
+chmod -R 775 /data/nginx/cache
+
+mkdir -p /opt/nginx/data/ \
+    && chmod -R 777 /opt/nginx/data/ \
+    && chown -R www-data:root /opt/nginx/data/
+
+mkdir -p /opt/nginx/data/rules/prod/ \
+    && chmod -R 777 /opt/nginx/data/rules/prod/ \
+    && chown -R www-data:root /opt/nginx/data/rules/prod/
+
+mkdir -p /opt/nginx/data/rules/acc/ \
+    && chmod -R 777 /opt/nginx/data/rules/acc/ \
+    && chown -R www-data:root /opt/nginx/data/rules/acc/
+
+mkdir -p /opt/nginx/data/rules/test/ \
+    && chmod -R 777 /opt/nginx/data/rules/test/ \
+    && chown -R www-data:root /opt/nginx/data/rules/test/
+
+mkdir -p /opt/nginx/data/rules/int/ \
+    && chmod -R 777 /opt/nginx/data/rules/int/ \
+    && chown -R www-data:root /opt/nginx/data/rules/int/
+
+mkdir -p /opt/nginx/data/servers/prod/ \
+    && chmod -R 777 /opt/nginx/data/servers/prod/ \
+    && chown -R www-data:root /opt/nginx/servers/rules/prod/
+
+mkdir -p /opt/nginx/data/servers/acc/ \
+    && chmod -R 777 /opt/nginx/data/servers/acc/ \
+    && chown -R www-data:root /opt/nginx/data/servers/acc/
+
+mkdir -p /opt/nginx/data/servers/test/ \
+    && chmod -R 777 /opt/nginx/data/servers/test/ \
+    && chown -R www-data:root /opt/nginx/data/servers/test/
+
+mkdir -p /opt/nginx/data/servers/int/ \
+    && chmod -R 777 /opt/nginx/data/servers/int/ \
+    && chown -R www-data:root /opt/nginx/data/servers/int/
+
+mkdir -p /var/log/nginx/
+chown -R www-data:root /var/log/nginx/
+chmod -R 775 /var/log/nginx/
+
 mkdir -p /opt/nginx/data/ \
     && chmod -R 777 /opt/nginx/data/ \
     && chown -R www-data:root /opt/nginx/data/

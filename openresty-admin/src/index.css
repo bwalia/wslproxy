@@ -14,6 +14,16 @@
   -webkit-text-size-adjust: 100%;
 }
 
+#root {
+  /* display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 0 20px; */
+  width: 100%;
+}
+
 a {
   font-weight: 500;
   color: #646cff;
@@ -73,5 +83,11 @@ textarea#config {
 }
 textarea#custom_block\.0\.additional_block, textarea#match\.response\.message {
   height: 123px !important;
+  overflow-y: scroll !important;
+}
+
+.code_area textarea {
+  width: 1600px;
+  height: 1200px !important;
   overflow-y: scroll !important;
 }

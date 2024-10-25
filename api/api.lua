@@ -450,6 +450,9 @@ local function listServer(args, id)
                 if jsonData.config then
                     jsonData.config = Base64.decode(jsonData.config)
                 end
+                if jsonData.varnish_vcl_config then
+                    jsonData.varnish_vcl_config = Base64.decode(jsonData.varnish_vcl_config)
+                end
                 ngx.say(cjson.encode({
                     data = jsonData
                 }))
@@ -1133,6 +1136,9 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name, method)
     end
     if key_name == 'servers' and json_val.config then
         json_val.config = Base64.encode(json_val.config)
+    end
+    if key_name == 'servers' and json_val.varnish_vcl_config then
+        json_val.varnish_vcl_config = Base64.encode(json_val.varnish_vcl_config)
     end
     if folder_name == 'rules' and json_val.match and json_val.match.response and json_val.match.response.message then
         json_val.match.response.message = string.gsub(json_val.match.response.message, "%%2B", "+")

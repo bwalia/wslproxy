@@ -184,6 +184,7 @@ local data = {
     redis_status = db_connect_status,
     redis_status_msg = db_status_msg,
     node_uptime = shell_exec_output("uptime -s"), -- "10:45:05 up  7:44,  0 users,  load average: 1.46, 1.18, 1.02"
+    openresty_version = shell_exec_output("cat /opt/nginx/VERSION"),
     pod_uptime = diffInDays .. " days ago",
     storage_type = storageTypeOverride,
     dns_primary_server = primaryNameserver,
