@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# Remove openresty-admin directory if it exists before installing OpenResty
+if [ -d /usr/local/openresty/nginx/html/openresty-admin ]; then
+  rm -rf /usr/local/openresty/nginx/html/openresty-admin
+fi
+
 # For ubuntu 22 or above
 if (lsb_release -r | grep -q "22"); then
   echo "Ubuntu 22 or above"

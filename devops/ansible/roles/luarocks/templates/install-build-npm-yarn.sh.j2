@@ -1,10 +1,16 @@
 #!/bin/bash
 
+# Download and install nvm
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash
+
 source ~/.bashrc
+# Set nvm environment variables
 export NVM_DIR="${HOME}/.nvm"
+
+# Load nvm
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
 
+# Install fixed version of Node v18 and Use it. Install Yarn
 nvm install 18
 nvm use 18
 npm install --global yarn
@@ -18,6 +24,7 @@ if [ -f "/tmp/.env" ]; then
   cp /tmp/.env /usr/local/openresty/nginx/html/openresty-admin/.env
 fi
 
+# Install dependencies and build the project
 yarn install
 export NODE_OPTIONS="--max_old_space_size=4096"
 yarn build

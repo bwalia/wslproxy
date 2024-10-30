@@ -34,15 +34,17 @@ elseif selectedRule.statusCode == 302 then
     ngx.exit(ngx.HTTP_MOVED_TEMPORARILY)
 elseif selectedRule.statusCode == 305 then
     local proxy_server_name = primaryNameserver
-    -- local getServer = red:hget("servers", jsonval.id)
-    -- if getServer ~= nil and type(getServer) ~= "userdata" then
-    --     getServer = cjson.decode(getServer)
-    --     getServer.proxy_pass = selectedRule.redirectUri
-    -- remove http:// from the url or https:// as it should be added in the proxy_pass
+
     if selectedRule.redirectUri == nil then
         ngx.say("Redirect url not found: ")
         ngx.exit(ngx.HTTP_INTERNAL_SERVER_ERROR)
     end
+
+    local origin_serverScheme = "http"
+    if Helper.isStringContains("https://", selectedRule.redirectUri) then
+        origin_serverScheme = "https"
+    end
+
     selectedRule.redirectUri = string.gsub(selectedRule.redirectUri, "https://", "")
     selectedRule.redirectUri = string.gsub(selectedRule.redirectUri, "http://", "")
     local extracted = nil
@@ -136,11 +138,14 @@ elseif selectedRule.statusCode == 305 then
         ngx.var.proxy_host_override = selectedRule.redirectUri
     end
 
+    ngx.var.proxy_host_scheme = origin_serverScheme
     --ngx.req.set_header("Host", ngx.var.proxy_host_override) this will never work here because balancer by lua overrides host header
-    ngx.header["X-Debug-Host"] = ngx.var.proxy_host_override
-    ngx.header["X-Debug-Port"] = ngx.var.proxy_port
+    ngx.header["X-Debug-Origin-Host"] = ngx.var.proxy_host_override
+    ngx.header["X-Debug-Origin-Port"] = ngx.var.proxy_port
+    ngx.header["X-Debug-Origin-HTTPS"] = ngx.var.proxy_host_scheme
     ngx.log(ngx.INFO, ngx.var.proxy_host)
     ngx.log(ngx.INFO, ngx.var.proxy_host_override)
+    ngx.log(ngx.INFO, ngx.var.proxy_host_scheme)
     -- do return ngx.say(ngx.var.proxy_host_override) end
     -- else
     --     ngx.log(ngx.ERR, "[ERROR]: Server not found!")

@@ -1,0 +1,54 @@
+#!/bin/bash
+set -x
+
+if [ -z "$1" ]
+  then
+    echo "No nginx sync flag supplied"
+    exit 0
+else
+    NGINX_DATA_SYNC_ENABLED="$1"
+    echo "Nginx sync flag is supplied"
+fi
+
+if [ "$NGINX_DATA_SYNC_ENABLED" == "yes" ]; then
+  echo "Nginx Data sync is enabled"
+  touch /tmp/nginx/nginx-data-sync-required
+else
+  rm -f /tmp/nginx/nginx-data-sync-required
+  echo "Nginx Data sync is disabled"
+  exit 0
+fi
+
+date=$(date "+%Y%m%d-%H%M%S")
+
+FILEPATH=/var/run/nginx/nginx-data-sync.log
+
+echo "${date} Checking, should Nginx Data sync required?" >> $FILEPATH
+
+if [ -f /tmp/nginx/nginx-data-sync-required ]; then
+  echo "Nginx Data sync is required"
+
+  # MAXSIZE is 5 MB
+  MAXSIZE=500000
+
+  # Get file size
+  FILESIZE=$(stat -c%s "$FILEPATH")
+  echo "Size of $FILEPATH = $FILESIZE bytes."
+
+  # Checkpoint if file size is greater than 1 MB create new log file
+  if [[ $FILESIZE > $MAXSIZE ]] ;then
+        # truncate and append if file size is more than 5 MB
+    echo "${date} Nginx Data sync" > $FILEPATH
+  else
+    # append if file size is less than 5 MB
+    echo "${date} Nginx Data sync" >> $FILEPATH
+  fi
+  
+  # curl -o $FILEPATH "http://{{ host_lan_ip }}/frontdoor/opsapi/sync?envprofile=prod&settings=false"
+  # curl -o $FILEPATH "http://{{ host_lan_ip }}/frontdoor/opsapi/sync?envprofile=acc&settings=false"
+
+  curl "http://{{ host_lan_ip }}/frontdoor/opsapi/sync?envprofile=prod&settings=false" >> $FILEPATH
+  curl "http://{{ host_lan_ip }}/frontdoor/opsapi/sync?envprofile=acc&settings=false" >> $FILEPATH
+
+  exit 0
+fi
