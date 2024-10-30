@@ -15,7 +15,7 @@ if [ "$TARGET_ENV" = "int" ]; then
     #ENV_FILE=".env_cypress_int"
 fi
 if [ "$TARGET_ENV" = "dockerinternal" ]; then
-    BASE_URL="http://host.docker.internal:8081"
+    BASE_URL="http://host.docker.internal:4000"
     FRONTEND_URL="http://host.docker.internal:8000"
     NODEAPP_ORIGIN_HOST="172.177.0.10:3009"
     SERVER_NAME="host.docker.internal"

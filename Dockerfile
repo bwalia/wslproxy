@@ -165,6 +165,11 @@ RUN mkdir -p "/var/run/nginx/" \
     && chown root:root "/var/run/nginx/" \
     && chmod 755 -R "/var/run/nginx/"
 
+RUN mkdir -p "/var/log/nginx/" \
+    && chmod +x "/var/log/nginx/" \
+    && chown root:root "/var/log/nginx/" \
+    && chmod 755 -R "/var/log/nginx/"
+
 # set environment file based on the argument
 
 WORKDIR /usr/local/openresty/nginx/html/openresty-admin/
