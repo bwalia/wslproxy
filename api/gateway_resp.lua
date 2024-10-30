@@ -40,7 +40,7 @@ elseif selectedRule.statusCode == 305 then
         ngx.exit(ngx.HTTP_INTERNAL_SERVER_ERROR)
     end
 
-    local origin_serverScheme =  "http"
+    local origin_serverScheme = "http"
     if Helper.isStringContains("https://", selectedRule.redirectUri) then
         origin_serverScheme = "https"
     end
