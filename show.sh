@@ -2,7 +2,7 @@
 
 set -x 
 
-HOST_ENDPOINT_UNSECURE_URL="http://localhost:8081"
+HOST_ENDPOINT_UNSECURE_URL="http://localhost:4000"
 curl -IL $HOST_ENDPOINT_UNSECURE_URL
 os_type=$(uname -s)
 
