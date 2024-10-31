@@ -1,3 +1,11 @@
 [nginx_cluster]
 #94.72.96.175 ansible_user=bwalia
 3.9.40.237 ansible_user=ubuntu
+
+whisky01 ansible_user=bwalia
+whisky03 ansible_user=bwalia
+10.24.5.3 ansible_user=bwalia
+whisky10 ansible_user=bwalia
+whisky06 ansible_user=bwalia
+whisky04 ansible_user=bwalia
+whisky08 ansible_user=bwalia
