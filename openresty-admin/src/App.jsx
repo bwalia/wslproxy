@@ -9,6 +9,7 @@ import Login from "./Login";
 import Servers from "./Servers";
 import Profiles from "./Profiles";
 import Secrets from "./Secrets";
+import Instances from "./Instances";
 import Theme from "./Theme";
 import UserIcon from "@mui/icons-material/Group";
 import SessionIcon from "@mui/icons-material/HistoryToggleOff";
@@ -16,6 +17,7 @@ import ServerIcon from "@mui/icons-material/Storage";
 import RuleIcon from "@mui/icons-material/Rule";
 import ProfileIcon from '@mui/icons-material/RecentActors';
 import SecretIcon from '@mui/icons-material/Key';
+import InstanceIcon from '@mui/icons-material/Padding';
 import Rules from "./Rules";
 import Settings from "./Settings";
 import { Puff } from 'react-loader-spinner';
@@ -73,6 +75,7 @@ const App = () => {
         <Resource name="settings" {...Settings} icon={RuleIcon} />
         <Resource name="profiles" {...Profiles} icon={ProfileIcon} />
         <Resource name="secrets" {...Secrets} icon={SecretIcon} />
+        <Resource name="instances" {...Instances} icon={InstanceIcon} />
       </Admin>
       <div
         style={{

@@ -5,6 +5,7 @@ import ServerIcon from "@mui/icons-material/Storage";
 import RuleIcon from "@mui/icons-material/Rule";
 import ProfileIcon from '@mui/icons-material/RecentActors';
 import SecretIcon from '@mui/icons-material/Key';
+import InstanceIcon from '@mui/icons-material/Padding';
 
 export const Menu = () => {
     const [settings] = useStore('app.settings', {});
@@ -21,6 +22,7 @@ export const Menu = () => {
             {/* <RaMenu.Item to="/settings" primaryText="Settings" leftIcon={<SettingsIcon/>}/> */}
             <RaMenu.Item to="/profiles" className='profiles-menu' primaryText="Profile" leftIcon={<ProfileIcon />}/>
             <RaMenu.Item to="/secrets" className='secrets-menu' primaryText="Secrets" leftIcon={<SecretIcon />}/>
+            <RaMenu.Item to="/instances" className='instance-menu' primaryText="Instances" leftIcon={<InstanceIcon />}/>
         </RaMenu>
     )
 };

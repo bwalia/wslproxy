@@ -480,6 +480,35 @@ const dataProvider = (apiUrl, settings = {}) => {
         setIsLoadig(false)
       }
     },
+
+    pushDataServers: async (resource, params) => {
+      params.timestamp = Date.now();
+      try {
+        setIsLoadig(true)
+        const url = `${apiUrl}/${resource}`;
+        const response = await fetch(url, {
+          method: "POST",
+          body: JSON.stringify(params),
+          headers: getHeaders(),
+        });
+        if (response.status < 200 && response.status !== 401) {
+          return Promise.reject(data.error);
+        }
+        if (response.status === 401) {
+          localStorage.removeItem("token");
+          localStorage.removeItem("uuid_business_id");
+          window.location.href = "/#/login";
+        }
+        const data = await response.json();
+        setIsLoadig(false);
+        window.location.reload();
+        return data;
+      } catch (error) {
+        console.log(error)
+        setSyncPopupOpen(false);
+        setIsLoadig(false)
+      }
+    },
   }
 };
 export default dataProvider;
