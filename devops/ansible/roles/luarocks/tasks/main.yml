@@ -24,6 +24,17 @@
 - name: Load host variables
   include_vars: "{{ playbook_dir }}/host_vars/{{ inventory_hostname }}/vars.yaml"
 
+- name: Copy openresty bootstrap script
+  template:
+    src: bootstrap.sh.j2
+    dest: /tmp/bootstrap.sh
+    mode: 0777
+  tags: [test, openresty]
+
+- name: Execute the bootstrap.sh openresty bootstrap script
+  shell: /tmp/bootstrap.sh
+  tags: [test, openresty]
+
 - name: Adding user www-data
   user:
     name: www-data
@@ -86,14 +97,14 @@
     mode: "0644"
   tags: [openresty, lapis, dashboard, nginx]
 
-- name: Copy openresty bootstrap script
+- name: Copy openresty compile from script
   template:
     src: openresty.sh.j2
     dest: /tmp/openresty.sh
     mode: 0777
   tags: [openresty, lapis]
 
-- name: Execute the openresty.sh bootstrap script
+- name: Execute the openresty.sh compile from source script
   shell: /tmp/openresty.sh
   tags: [test, openresty, lapis]
 
