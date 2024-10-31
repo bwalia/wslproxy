@@ -24,20 +24,20 @@ on:
       TARGET_HOST:
         type: choice
         description: "Please choose the Target host"
-        default: "94.72.96.175"
+        default: "whisky03"
         required: true
         options:
-          - 94.72.96.175
+          - whisky03
           # - whisky10
           # - whisky08
 env:
   TARGET_ENV: ${{ github.event.inputs.TARGET_ENV || 'int' }}
-  TARGET_HOST: ${{ github.event.inputs.TARGET_HOST || '94.72.96.175' }}
+  TARGET_HOST: ${{ github.event.inputs.TARGET_HOST || '10.24.5.3' }}
   API_DOMAINNAME_ENDPOINT: ${{ github.event.inputs.TARGET_ENV || 'int' }}.brahmstra.org
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, whisky03]
 
     steps:
       - name: Checkout code from repository
@@ -49,12 +49,12 @@ jobs:
 
       - name: Decode settings_brahmstra.json file
         run: |
-          echo "${{ secrets.SETTINGS_BRAHMSTRA_INT }}" | base64 -d > /tmp/settings_brahmstra_94_72_96_175.json
+          echo "${{ secrets.SETTINGS_BRAHMSTRA_INT }}" | base64 -d > /tmp/settings_brahmstra_whisky03.json
 
       - name: Decode env file
         run: |
-          echo "${{ secrets.ENV_BRAHMSTRA_INT }}" | base64 -d > /tmp/.env_brahmstra_94_72_96_175
-          cat /tmp/.env_brahmstra_94_72_96_175
+          echo "${{ secrets.ENV_BRAHMSTRA_INT }}" | base64 -d > /tmp/.env_brahmstra_whisky03
+          cat /tmp/.env_brahmstra_whisky03
 
       - name: Decrypt id_rsa pub key via Ansible Vault file
         env:
