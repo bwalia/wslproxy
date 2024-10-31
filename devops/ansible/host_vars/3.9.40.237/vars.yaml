@@ -2,3 +2,6 @@ local_settings_file_path: "/Users/balinderwalia/Documents/Work/aws_keys/settings
 local_env_file_path: "/Users/balinderwalia/Documents/Work/aws_keys/.env_3.9.40.237"
 nginx_user_password: "!!REDACTED!!" # This is the password for the user www-data but must be encrypted using Ansible Vault
 host_lan_ip: "10.24.5.1"
+nginx_web_ui_enabled: "yes"
+nginx_rest_api_server_enabled: ""
+nginx_data_sync_enabled: ""
