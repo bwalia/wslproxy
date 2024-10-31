@@ -6,6 +6,7 @@ local configPath = os.getenv("NGINX_CONFIG_DIR") or "/opt/nginx/"
 local Conf = require("server-conf")
 local Helper = require("helpers")
 local Errors = require("errors")
+local PushData = require("push-data")
 
 local settings = Helper.settings()
 local storageTypeOverride = settings.settings or os.getenv("STORAGE_TYPE")
@@ -448,10 +449,16 @@ local function listServer(args, id)
             else
                 jsonData = cjson.decode(jsonData)
                 if jsonData.config then
-                    jsonData.config = Base64.decode(jsonData.config)
+                    local configDec, decodeErr = Helper.decodeBase64(jsonData.config)
+                    if decodeErr ~= nil then
+                        jsonData.config = configDec
+                    end
                 end
                 if jsonData.varnish_vcl_config then
-                    jsonData.varnish_vcl_config = Base64.decode(jsonData.varnish_vcl_config)
+                    local vclDec, decodeErr = Helper.decodeBase64(jsonData.varnish_vcl_config)
+                    if decodeErr ~= nil then
+                        jsonData.varnish_vcl_config = vclDec
+                    end
                 end
                 ngx.say(cjson.encode({
                     data = jsonData
@@ -465,7 +472,17 @@ local function listServer(args, id)
             if type(server) == "string" then
                 server = cjson.decode(server)
                 if server.config then
-                    server.config = Base64.decode(server.config)
+                    local configDec, decodeErr = Helper.decodeBase64(server.config)
+                    if decodeErr ~= nil then
+                        server.config = configDec
+                    end
+                end
+
+                if server.varnish_vcl_config then
+                    local vclDec, decodeErr = Helper.decodeBase64(server.varnish_vcl_config)
+                    if decodeErr ~= nil then
+                        server.varnish_vcl_config = vclDec
+                    end
                 end
                 ngx.say(cjson.encode({
                     data = server
@@ -1887,6 +1904,10 @@ local function handle_post_request(args, path)
     end
     if path == "profiles" then
         createUpdateProfiles(args, nil)
+    end
+    if path == "push-data" then
+        local body = Helper.GetPayloads(args)
+        PushData.sendData(body)
     end
 end
 

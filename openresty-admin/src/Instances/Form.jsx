@@ -3,12 +3,18 @@ import {
     SimpleForm,
     TextInput,
     SelectArrayInput,
+    useDataProvider,
+    useGetRecordId,
     required
 } from 'react-admin'
 import { Grid } from "@mui/material";
 import CreateTags from '../component/CreateTags';
+import Button from "@mui/material/Button";
 
 const Form = ({ isEdit }) => {
+    const recordId = useGetRecordId();
+    const dataProvider = useDataProvider();
+
     const instanceTags = localStorage.getItem('instances.tags') || "";
 
     const [choices, setChoices] = React.useState([]);
@@ -19,6 +25,20 @@ const Form = ({ isEdit }) => {
             setChoices(prevTags);
         }
     }, [instanceTags]);
+
+    const hanlePushData = () => {
+        dataProvider.pushDataServers("push-data", { instance: recordId })
+        .then(({ data }) => {
+          const { storage } = data;
+          setOpen(false);
+          localStorage.setItem("storageManagement", storage);
+          setStorageMgmt(storage);
+          window.location.reload();
+        })
+        .catch((error) => {
+          console.log(error);
+        });
+    }
     
     return (
         <SimpleForm>
@@ -63,6 +83,7 @@ const Form = ({ isEdit }) => {
                     />
                 </Grid>
             </Grid>
+            <Button variant={"contained"} onClick={hanlePushData}>Push Data to Server</Button>
         </SimpleForm>
     )
 }
