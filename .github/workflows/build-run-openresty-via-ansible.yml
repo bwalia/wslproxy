@@ -69,6 +69,8 @@ jobs:
 
       - name: Run Ansible Playbook
         run: |
-          sudo ansible-playbook devops/ansible/manage_nginx_openresty_ops.yml -i devops/ansible/hosts -l ${{ env.TARGET_HOST }} --vault-password-file <(echo ${{ secrets.ANSIBLE_VAULT_PASSWORD }})
+           sudo ansible-playbook devops/ansible/manage_nginx_openresty_ops.yml -i devops/ansible/hosts -l ${{ env.TARGET_HOST }}
         env:
           ANSIBLE_PRIVATE_KEY_FILE: id_rsa
+
+#          sudo ansible-playbook devops/ansible/manage_nginx_openresty_ops.yml -i devops/ansible/hosts -l TARGET_HOST --vault-password-file <(echo secrets.ANSIBLE_VAULT_PASSWORD)
