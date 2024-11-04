@@ -483,6 +483,9 @@ const dataProvider = (apiUrl, settings = {}) => {
 
     pushDataServers: async (resource, params) => {
       params.timestamp = Date.now();
+      const environmentProfile = localStorage.getItem('environment') || "prod";
+      params.profile = environmentProfile;
+
       try {
         setIsLoadig(true)
         const url = `${apiUrl}/${resource}`;

@@ -1907,7 +1907,7 @@ local function handle_post_request(args, path)
     end
     if path == "push-data" then
         local body = Helper.GetPayloads(args)
-        PushData.sendData(body)
+        PushData.sendData(body, Helper, configPath, Errors)
     end
 end
 
