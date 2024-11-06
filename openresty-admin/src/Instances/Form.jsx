@@ -4,15 +4,13 @@ import {
     TextInput,
     SelectArrayInput,
     useDataProvider,
-    useGetRecordId,
     required
 } from 'react-admin'
 import { Grid } from "@mui/material";
 import CreateTags from '../component/CreateTags';
 import Button from "@mui/material/Button";
 
-const Form = ({ isEdit }) => {
-    const recordId = useGetRecordId();
+const Form = ({ isEdit, recordId }) => {
     const dataProvider = useDataProvider();
 
     const instanceTags = localStorage.getItem('instances.tags') || "";
