@@ -4,6 +4,7 @@ import {
     TextInput,
     SelectArrayInput,
     useDataProvider,
+    BooleanInput,
     required
 } from 'react-admin'
 import { Grid } from "@mui/material";
@@ -24,14 +25,13 @@ const Form = ({ isEdit, recordId }) => {
         }
     }, [instanceTags]);
 
-    const hanlePushData = () => {
-        dataProvider.pushDataServers("push-data", { instance: recordId })
+    const hanlePushData = (e) => {
+        const elementId = e.target.id;
+        const isReplace = elementId == "replace-data" ? true : false;
+
+        dataProvider.pushDataServers("push-data", { instance: recordId, replace_data: isReplace })
         .then(({ data }) => {
-          const { storage } = data;
           setOpen(false);
-          localStorage.setItem("storageManagement", storage);
-          setStorageMgmt(storage);
-          window.location.reload();
         })
         .catch((error) => {
           console.log(error);
@@ -80,8 +80,37 @@ const Form = ({ isEdit, recordId }) => {
                         create={<CreateTags choices={choices} />}
                     />
                 </Grid>
+                <Grid item xs={12} sm={12}>
+                    <BooleanInput
+                        source="instance_status"
+                        label="Active"
+                        fullWidth
+                        defaultValue={false}
+                    />
+                </Grid>
             </Grid>
-            <Button variant={"contained"} onClick={hanlePushData}>Push Data to Server</Button>
+            {isEdit && (
+                <>
+                    <Grid item md={6}>
+                        <Button 
+                            variant={"contained"}
+                            onClick={hanlePushData}
+                            id='append-data'
+                        >
+                            Append Data to Server
+                        </Button>
+                    </Grid>
+                    <Grid item md={6}>
+                        <Button
+                            variant={"contained"}
+                            onClick={hanlePushData}
+                            id='replace-data'
+                        >
+                            Push and Replace Data to Server
+                        </Button>
+                    </Grid>
+                </>
+            )}
         </SimpleForm>
     )
 }

@@ -7,6 +7,7 @@ const getHeaders = () => {
   const basicHeaders = {
     // Accept: "application/json",
     // "Content-Type": "application/json",
+    "x-platform": "react-admin"
   };
 
   if (accessToken?.accessToken) {

@@ -1,28 +1,36 @@
 local http = require("resty.http")
 local PushData = {}
 
-function PushData.sendData(instance, Helper, configPath, Errors, JWT_PP)
+function PushData.sendData(instance, Helper, configPath, Errors)
     local instanceId, profile = instance.instance or nil, instance.profile or "prod"
     local instancePath = string.format("%sdata/instances/%s/%s.json", configPath, profile, instanceId)
     if instanceId then
         local instanceData, instanceErr = Helper.getDataFromFile(instancePath)
         if instanceData and instanceData ~= nil and instanceData ~= ngx.null then
-            local instanceResult, folderPath = Cjson.decode(instanceData), string.format("%sdata/servers", configPath)
-            
+            local instanceResult, serversFolderPath = Cjson.decode(instanceData), string.format("%sdata/servers", configPath)
+            local rulesFolderPath = string.format("%sdata/rules", configPath)
+
             local token = ngx.req.get_headers()["Authorization"]
             if not token then
-                ngx.status = ngx.HTTP_UNAUTHORIZED
-                ngx.say("Missing token")
-                return ngx.exit(ngx.HTTP_UNAUTHORIZED)
+                Errors.throwError("Missing JWT Bearer token", ngx.HTTP_UNAUTHORIZED)
             end
             token = string.gsub(token, "^Bearer ", "")
 
             PushData.pushToServer(
                 instanceResult.host_ip,
                 instanceResult.host_port,
-                string.format("%s/%s", folderPath, instance.profile),
+                string.format("%s/%s", serversFolderPath, instance.profile),
                 Helper,
                 "servers",
+                Errors,
+                token
+            )
+            PushData.pushToServer(
+                instanceResult.host_ip,
+                instanceResult.host_port,
+                string.format("%s/%s", rulesFolderPath, instance.profile),
+                Helper,
+                "rules",
                 Errors,
                 token
             )
@@ -34,6 +42,7 @@ end
 
 function PushData.pushToServer(server, port, folderPath, Helper, dataType, Errors, token)
     local httpc, apiUrl = http.new(), string.format("http://%s:%s/api/%s", server, port, dataType)
+    local response = {}
     for file_name in LFS.dir(folderPath) do
         if file_name:match("%.json$") then
             local file_path = folderPath .. "/" .. file_name
@@ -56,13 +65,24 @@ function PushData.pushToServer(server, port, folderPath, Helper, dataType, Error
                 })
 
                 if not res then
-                    Errors.throwError("Failed to send request for file " .. file_name .. " " .. resErr, ngx.HTTP_INTERNAL_SERVER_ERROR)
+                    local result = {
+                        file_name = file_name,
+                        error = resErr,
+                    }
+                    table.insert(response, result)
                 else
-                    ngx.say("Response for ", file_name, ": ", res.status, " - ", res.body)
+                    local result = {
+                        file_name = file_name,
+                        status = res.status
+                    }
+                    table.insert(response, result)
                 end
             end
         end
     end
+    ngx.say(Cjson.encode({
+        data = response
+    }))
 end
 
 return PushData
