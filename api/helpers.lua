@@ -280,4 +280,22 @@ function Helper.decodeBase64(data)
     end))
 end
 
+function Helper.isUniqueField(folderPath, field, value)
+    for file_name in LFS.dir(folderPath) do
+        if file_name:match("%.json$") then
+            local filePath = folderPath .. "/" .. file_name
+            local json_content, err = Helper.getDataFromFile(filePath)
+            if err == nil then
+                if json_content then
+                    local existing_data = Cjson.decode(json_content)
+                    if existing_data and existing_data[field] == value then
+                        return false, "Name '" .. value .. "' already exists in " .. file_name
+                    end
+                end
+            end
+        end
+    end
+    return true
+end
+
 return Helper

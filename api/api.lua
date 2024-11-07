@@ -289,6 +289,7 @@ local function login(args)
                 },
                 status = 200
             }))
+            ngx.exit(ngx.HTTP_OK)
         else
             Errors.throwError("Invalid credentials", ngx.HTTP_UNAUTHORIZED)
         end
@@ -340,10 +341,12 @@ local function listFromDisk(directory, pageSize, pageNumber, qParams)
     -- Run the 'ls' command to get a list of filenames
     local output, error = io.popen("ls " .. configPath .. "data/" .. directory .. ""):read("*all")
     for filename in string.gmatch(output, "[^\r\n]+") do
-        table.insert(files, filename)
+        if filename:match("%.json$") then
+            table.insert(files, filename)
+        end
     end
 
-    local jsonData = {}
+    local jsonData, data = {}, {}
     for _, filename in ipairs(files) do
         local filePath = configPath .. "data/" .. directory .. "/" .. filename
         local fileAttr = lfs.attributes(filePath)
@@ -358,18 +361,20 @@ local function listFromDisk(directory, pageSize, pageNumber, qParams)
                 else
                     local jsonString = file:read "*a"
                     file:close()
-                    local data = nil
+
                     if jsonString and jsonString ~= "" then
                         data = cjson.decode(jsonString)
                     end
-        
-                    jsonData[_] = data
+                    if data ~= nil and data ~= ngx.null and data ~= "null" then
+                        jsonData[_] = data
+                    end
                 end
             end
         end
     end
-    local data, count = listPaginationLocal(jsonData, pageSize, pageNumber, qParams)
-    return data, count
+    
+    local diskData, count = listPaginationLocal(jsonData, pageSize, pageNumber, qParams)
+    return diskData, count
 end
 
 local function listServers(args)
@@ -1425,6 +1430,15 @@ local function createUpdateRules(body, uuid)
     if uuid then
         response = CreateUpdateRecord(payloads, uuid, "request_rules", "rules", "update")
     else
+        local envProfile = "prod"
+        if payloads.profile_id ~= nil then
+            envProfile = payloads.profile_id
+        end
+        local folderPath = string.format("%sdata/rules/%s", configPath, envProfile)
+        local isUnique, err = Helper.isUniqueField(folderPath, "name", payloads.name)
+        if not isUnique then
+            Errors.throwError(err, ngx.HTTP_CONFLICT)
+        end
         payloads.id = Helper.generate_uuid()
         response = CreateUpdateRecord(payloads, payloads.id, "request_rules", "rules", "create")
     end
@@ -1779,6 +1793,7 @@ local function listOpenrestyLogs()
     ngx.exit(status)
 end
 
+local platform = ngx.req.get_headers()["x-platform"]
 local function handle_get_request(args, path)
     -- handle GET request logic
     local delimiter = "/"
@@ -1872,42 +1887,46 @@ end
 
 local function handle_post_request(args, path)
     -- handle POST request logic
-    if path == "servers" then
-        createUpdateServer(args)
-    end
-    if path == "users" then
-        createUpdateUser(args)
-    end
-    if path == "rules" then
-        createUpdateRules(args)
-    end
-    if path == "secrets" then
-        createUpdateSecrets(args)
-    end
-    if path == "instances" then
-        createUpdateInstances(args)
-    end
     if path == "user/login" then
         login(args)
     end
-    if path == "storage/management" then
-        setStorage(args)
-    end
-    if path == "settings" then
-        createUpdateSettings(args)
-    end
-    if path == "settings/profile" then
-        updateProfileSettings(args)
-    end
-    if path == "projects/import" then
-        importProjects(args)
-    end
-    if path == "profiles" then
-        createUpdateProfiles(args, nil)
-    end
     if path == "push-data" then
         local body = Helper.GetPayloads(args)
-        PushData.sendData(body)
+        PushData.sendData(body, Helper, configPath, Errors)
+    end
+    if settings.instance_locked == "false" or platform == "react-admin" then
+        if path == "servers" then
+            createUpdateServer(args)
+        end
+        if path == "users" then
+            createUpdateUser(args)
+        end
+        if path == "rules" then
+            createUpdateRules(args)
+        end
+        if path == "secrets" then
+            createUpdateSecrets(args)
+        end
+        if path == "instances" then
+            createUpdateInstances(args)
+        end
+        if path == "storage/management" then
+            setStorage(args)
+        end
+        if path == "settings" then
+            createUpdateSettings(args)
+        end
+        if path == "settings/profile" then
+            updateProfileSettings(args)
+        end
+        if path == "projects/import" then
+            importProjects(args)
+        end
+        if path == "profiles" then
+            createUpdateProfiles(args, nil)
+        end
+    else
+        Errors.throwError("You can't create record either you can create it from UI or you need to change settings for instance lock.", ngx.HTTP_FORBIDDEN)
     end
 end
 
@@ -1920,30 +1939,34 @@ local function handle_put_request(args, path)
         Errors.throwError("The uuid must be present while updating the data.", ngx.HTTP_INTERNAL_SERVER_ERROR)
         return
     end
-    if string.find(path, "servers") then
-        createUpdateServer(args, uuid)
-    end
-    if string.find(path, "users") then
-        createUpdateUser(args, uuid)
-    end
+    if settings.instance_locked == "false" or platform == "react-admin" then
+        if string.find(path, "servers") then
+            createUpdateServer(args, uuid)
+        end
+        if string.find(path, "users") then
+            createUpdateUser(args, uuid)
+        end
 
-    if string.find(path, "rules") then
-        createUpdateRules(args, uuid)
-    end
+        if string.find(path, "rules") then
+            createUpdateRules(args, uuid)
+        end
 
-    if string.find(path, "secrets") then
-        createUpdateSecrets(args, uuid)
-    end
+        if string.find(path, "secrets") then
+            createUpdateSecrets(args, uuid)
+        end
 
-    if string.find(path, "instances") then
-        createUpdateInstances(args, uuid)
-    end
+        if string.find(path, "instances") then
+            createUpdateInstances(args, uuid)
+        end
 
-    if string.find(path, "settings") then
-        createUpdateSettings(args, uuid)
-    end
-    if string.find(path, "profiles") then
-        createUpdateProfiles(args, uuid)
+        if string.find(path, "settings") then
+            createUpdateSettings(args, uuid)
+        end
+        if string.find(path, "profiles") then
+            createUpdateProfiles(args, uuid)
+        end
+    else
+        Errors.throwError("You can't create record either you can create it from UI or you need to change settings for instance lock.", ngx.HTTP_FORBIDDEN)
     end
 end
 
@@ -1952,23 +1975,27 @@ local function handle_delete_request(args, path)
     -- handle DELETE request logic
     local pattern = ".*/(.*)"
     local uuid = string.match(path, pattern)
-    if string.find(path, "rules") then
-        createDeleteRules(args, uuid)
-    end
-    if string.find(path, "secrets") then
-        createDeleteSecrets(args, uuid)
-    end
-    if string.find(path, "instances") then
-        createDeleteInstances(args, uuid)
-    end
-    if string.find(path, "servers") then
-        createDeleteServer(args, uuid)
-    end
-    if string.find(path, "users") then
-        deleteUsers(args, uuid)
-    end
-    if string.find(path, "profiles") then
-        deleteProfile(args)
+    if settings.instance_locked == "false" or platform == "react-admin" then
+        if string.find(path, "rules") then
+            createDeleteRules(args, uuid)
+        end
+        if string.find(path, "secrets") then
+            createDeleteSecrets(args, uuid)
+        end
+        if string.find(path, "instances") then
+            createDeleteInstances(args, uuid)
+        end
+        if string.find(path, "servers") then
+            createDeleteServer(args, uuid)
+        end
+        if string.find(path, "users") then
+            deleteUsers(args, uuid)
+        end
+        if string.find(path, "profiles") then
+            deleteProfile(args)
+        end
+    else
+        Errors.throwError("You can't delete record either you can delete it from UI or you need to change settings for instance lock.", ngx.HTTP_FORBIDDEN)
     end
 end
 

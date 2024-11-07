@@ -7,6 +7,7 @@ const getHeaders = () => {
   const basicHeaders = {
     // Accept: "application/json",
     // "Content-Type": "application/json",
+    "x-platform": "react-admin"
   };
 
   if (accessToken?.accessToken) {
@@ -483,6 +484,9 @@ const dataProvider = (apiUrl, settings = {}) => {
 
     pushDataServers: async (resource, params) => {
       params.timestamp = Date.now();
+      const environmentProfile = localStorage.getItem('environment') || "prod";
+      params.profile = environmentProfile;
+
       try {
         setIsLoadig(true)
         const url = `${apiUrl}/${resource}`;
