@@ -289,6 +289,7 @@ local function login(args)
                 },
                 status = 200
             }))
+            ngx.exit(ngx.HTTP_OK)
         else
             Errors.throwError("Invalid credentials", ngx.HTTP_UNAUTHORIZED)
         end
@@ -1886,6 +1887,13 @@ end
 
 local function handle_post_request(args, path)
     -- handle POST request logic
+    if path == "user/login" then
+        login(args)
+    end
+    if path == "push-data" then
+        local body = Helper.GetPayloads(args)
+        PushData.sendData(body, Helper, configPath, Errors)
+    end
     if settings.instance_locked == "false" or platform == "react-admin" then
         if path == "servers" then
             createUpdateServer(args)
@@ -1919,13 +1927,6 @@ local function handle_post_request(args, path)
         end
     else
         Errors.throwError("You can't create record either you can create it from UI or you need to change settings for instance lock.", ngx.HTTP_FORBIDDEN)
-    end
-    if path == "user/login" then
-        login(args)
-    end
-    if path == "push-data" then
-        local body = Helper.GetPayloads(args)
-        PushData.sendData(body, Helper, configPath, Errors)
     end
 end
 

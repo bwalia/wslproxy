@@ -16,7 +16,7 @@ function PushData.sendData(instance, Helper, configPath, Errors)
             end
             token = string.gsub(token, "^Bearer ", "")
 
-            PushData.pushToServer(
+            local servers = PushData.pushToServer(
                 instanceResult.host_ip,
                 instanceResult.host_port,
                 string.format("%s/%s", serversFolderPath, instance.profile),
@@ -25,7 +25,7 @@ function PushData.sendData(instance, Helper, configPath, Errors)
                 Errors,
                 token
             )
-            PushData.pushToServer(
+            local rules = PushData.pushToServer(
                 instanceResult.host_ip,
                 instanceResult.host_port,
                 string.format("%s/%s", rulesFolderPath, instance.profile),
@@ -34,6 +34,13 @@ function PushData.sendData(instance, Helper, configPath, Errors)
                 Errors,
                 token
             )
+            ngx.say(Cjson.encode({
+                data = {
+                    servers = servers,
+                    rules = rules
+                }
+            }))
+            ngx.exit(ngx.HTTP_OK)
         else
             Errors.throwError("Couldn't read file: " .. instanceErr, ngx.HTTP_INTERNAL_SERVER_ERROR)
         end
@@ -80,9 +87,7 @@ function PushData.pushToServer(server, port, folderPath, Helper, dataType, Error
             end
         end
     end
-    ngx.say(Cjson.encode({
-        data = response
-    }))
+    return response
 end
 
 return PushData
