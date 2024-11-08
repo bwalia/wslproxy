@@ -9,7 +9,7 @@ function PushData.sendData(instance, Helper, configPath, Errors)
         if instanceData and instanceData ~= nil and instanceData ~= ngx.null then
             local instanceResult, serversFolderPath = Cjson.decode(instanceData), string.format("%sdata/servers", configPath)
             local servers, rules, message = {}, {}, {}
-            if instanceResult.instance_status == "true" then
+            if instanceResult.instance_status == true then
                 local rulesFolderPath = string.format("%sdata/rules", configPath)
     
                 local token = ngx.req.get_headers()["Authorization"]

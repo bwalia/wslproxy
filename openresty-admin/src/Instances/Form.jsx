@@ -6,14 +6,17 @@ import {
     useDataProvider,
     BooleanInput,
     FormDataConsumer,
+    useNotify,
     required
 } from 'react-admin'
 import { Grid } from "@mui/material";
+import { isEmpty } from "lodash";
 import CreateTags from '../component/CreateTags';
 import Button from "@mui/material/Button";
 
 const Form = ({ isEdit, recordId }) => {
     const dataProvider = useDataProvider();
+    const notify = useNotify();
 
     const instanceTags = localStorage.getItem('instances.tags') || "";
 
@@ -32,7 +35,11 @@ const Form = ({ isEdit, recordId }) => {
 
         dataProvider.pushDataServers("push-data", { instance: recordId, replace_data: isReplace })
             .then(({ data }) => {
-                setOpen(false);
+                if (isEmpty(data?.servers) && isEmpty(data?.rules)) {
+                    notify(data?.message.join(", "), { type: 'info' });
+                } else {
+                    notify("Data has been successfully pushed to instance.", { type: 'success' });
+                }
             })
             .catch((error) => {
                 console.log(error);
