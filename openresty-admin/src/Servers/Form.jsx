@@ -126,21 +126,21 @@ const Form = ({ type }) => {
           <Grid item xs={12}>
             <ArrayInput source="custom_block" label="Additional Server block">
               <SimpleFormIterator>
-                <TextInput multiline source="additional_block" />
+                <TextInput multiline source="additional_block" sx={{ width: "1000px" }} />
               </SimpleFormIterator>
             </ArrayInput>
           </Grid>
           <Grid item xs={12}>
             <ArrayInput source="custom_location_block" label="Additional Location block">
               <SimpleFormIterator>
-                <TextInput multiline source="additional_location_block" />
+                <TextInput multiline source="additional_location_block" sx={{ width: "1000px" }} />
               </SimpleFormIterator>
             </ArrayInput>
           </Grid>
           <Grid item xs={12}>
             <ArrayInput source="custom_http_block" label="Additional Http block">
               <SimpleFormIterator>
-                <TextInput multiline source="additional_http_block" />
+                <TextInput multiline source="additional_http_block" sx={{ width: "1000px" }} />
               </SimpleFormIterator>
             </ArrayInput>
           </Grid>
