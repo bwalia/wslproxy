@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -x
+
   mkdir -p "/var/run/nginx/" \
     && chmod +x "/var/run/nginx/" \
     && chown www-data:root "/var/run/nginx/" \
