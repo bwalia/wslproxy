@@ -384,6 +384,30 @@ paths:
           description: signal process started     
       security:
         - bearerAuth: []
+        
+  /api/push-data:
+    post:
+      tags:
+      - Syncing Data
+      summary: Login to server
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                instance:
+                  type: string
+                  default: uuid of instance
+                profile:
+                  type: string
+                  default: your profile name
+      responses:
+        '200':
+          description: signal process started     
+      security:
+        - bearerAuth: []
 
 components:
   securitySchemes:

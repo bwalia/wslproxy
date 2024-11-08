@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -x
+
 # Remove openresty-admin directory if it exists before installing OpenResty
 if [ -d /usr/local/openresty/nginx/html/openresty-admin ]; then
   rm -rf /usr/local/openresty/nginx/html/openresty-admin

@@ -5,14 +5,18 @@ import {
     SelectArrayInput,
     useDataProvider,
     BooleanInput,
+    FormDataConsumer,
+    useNotify,
     required
 } from 'react-admin'
 import { Grid } from "@mui/material";
+import { isEmpty } from "lodash";
 import CreateTags from '../component/CreateTags';
 import Button from "@mui/material/Button";
 
 const Form = ({ isEdit, recordId }) => {
     const dataProvider = useDataProvider();
+    const notify = useNotify();
 
     const instanceTags = localStorage.getItem('instances.tags') || "";
 
@@ -30,14 +34,18 @@ const Form = ({ isEdit, recordId }) => {
         const isReplace = elementId == "replace-data" ? true : false;
 
         dataProvider.pushDataServers("push-data", { instance: recordId, replace_data: isReplace })
-        .then(({ data }) => {
-          setOpen(false);
-        })
-        .catch((error) => {
-          console.log(error);
-        });
+            .then(({ data }) => {
+                if (isEmpty(data?.servers) && isEmpty(data?.rules)) {
+                    notify(data?.message.join(", "), { type: 'info' });
+                } else {
+                    notify("Data has been successfully pushed to instance.", { type: 'success' });
+                }
+            })
+            .catch((error) => {
+                console.log(error);
+            });
     }
-    
+
     return (
         <SimpleForm>
             <Grid container spacing={2}>
@@ -89,28 +97,34 @@ const Form = ({ isEdit, recordId }) => {
                     />
                 </Grid>
             </Grid>
-            {isEdit && (
-                <>
-                    <Grid item md={6}>
-                        <Button 
-                            variant={"contained"}
-                            onClick={hanlePushData}
-                            id='append-data'
-                        >
-                            Append Data to Server
-                        </Button>
-                    </Grid>
-                    <Grid item md={6}>
-                        <Button
-                            variant={"contained"}
-                            onClick={hanlePushData}
-                            id='replace-data'
-                        >
-                            Push and Replace Data to Server
-                        </Button>
-                    </Grid>
-                </>
-            )}
+            <FormDataConsumer>
+                {({ formData, ...rest }) => (
+                    <React.Fragment>
+                        {(formData.instance_status && isEdit) && (
+                            <>
+                                <Grid item md={6}>
+                                    <Button
+                                        variant={"contained"}
+                                        onClick={hanlePushData}
+                                        id='append-data'
+                                    >
+                                        Append Data to Server
+                                    </Button>
+                                </Grid>
+                                {/* <Grid item md={6}>
+                                    <Button
+                                        variant={"contained"}
+                                        onClick={hanlePushData}
+                                        id='replace-data'
+                                    >
+                                        Push and Replace Data to Server
+                                    </Button>
+                                </Grid> */}
+                            </>
+                        )}
+                    </React.Fragment>
+                )}
+            </FormDataConsumer>
         </SimpleForm>
     )
 }

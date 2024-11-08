@@ -8,36 +8,43 @@ function PushData.sendData(instance, Helper, configPath, Errors)
         local instanceData, instanceErr = Helper.getDataFromFile(instancePath)
         if instanceData and instanceData ~= nil and instanceData ~= ngx.null then
             local instanceResult, serversFolderPath = Cjson.decode(instanceData), string.format("%sdata/servers", configPath)
-            local rulesFolderPath = string.format("%sdata/rules", configPath)
-
-            local token = ngx.req.get_headers()["Authorization"]
-            if not token then
-                Errors.throwError("Missing JWT Bearer token", ngx.HTTP_UNAUTHORIZED)
+            local servers, rules, message = {}, {}, {}
+            if instanceResult.instance_status == true then
+                local rulesFolderPath = string.format("%sdata/rules", configPath)
+    
+                local token = ngx.req.get_headers()["Authorization"]
+                if not token then
+                    Errors.throwError("Missing JWT Bearer token", ngx.HTTP_UNAUTHORIZED)
+                end
+                token = string.gsub(token, "^Bearer ", "")
+    
+                servers = PushData.pushToServer(
+                    instanceResult.host_ip,
+                    instanceResult.host_port,
+                    string.format("%s/%s", serversFolderPath, instance.profile),
+                    Helper,
+                    "servers",
+                    Errors,
+                    token
+                )
+                rules = PushData.pushToServer(
+                    instanceResult.host_ip,
+                    instanceResult.host_port,
+                    string.format("%s/%s", rulesFolderPath, instance.profile),
+                    Helper,
+                    "rules",
+                    Errors,
+                    token
+                )
+                table.insert(message, string.format("servers and rules are successfully pushed to %s", instanceResult.instance_name))
+            else
+                table.insert(message, string.format("You can't push data to %s because it is not active.", instanceResult.instance_name))
             end
-            token = string.gsub(token, "^Bearer ", "")
-
-            local servers = PushData.pushToServer(
-                instanceResult.host_ip,
-                instanceResult.host_port,
-                string.format("%s/%s", serversFolderPath, instance.profile),
-                Helper,
-                "servers",
-                Errors,
-                token
-            )
-            local rules = PushData.pushToServer(
-                instanceResult.host_ip,
-                instanceResult.host_port,
-                string.format("%s/%s", rulesFolderPath, instance.profile),
-                Helper,
-                "rules",
-                Errors,
-                token
-            )
             ngx.say(Cjson.encode({
                 data = {
                     servers = servers,
-                    rules = rules
+                    rules = rules,
+                    message = message
                 }
             }))
             ngx.exit(ngx.HTTP_OK)
