@@ -5,6 +5,7 @@ import {
     SelectArrayInput,
     useDataProvider,
     BooleanInput,
+    FormDataConsumer,
     required
 } from 'react-admin'
 import { Grid } from "@mui/material";
@@ -30,14 +31,14 @@ const Form = ({ isEdit, recordId }) => {
         const isReplace = elementId == "replace-data" ? true : false;
 
         dataProvider.pushDataServers("push-data", { instance: recordId, replace_data: isReplace })
-        .then(({ data }) => {
-          setOpen(false);
-        })
-        .catch((error) => {
-          console.log(error);
-        });
+            .then(({ data }) => {
+                setOpen(false);
+            })
+            .catch((error) => {
+                console.log(error);
+            });
     }
-    
+
     return (
         <SimpleForm>
             <Grid container spacing={2}>
@@ -89,28 +90,34 @@ const Form = ({ isEdit, recordId }) => {
                     />
                 </Grid>
             </Grid>
-            {isEdit && (
-                <>
-                    <Grid item md={6}>
-                        <Button 
-                            variant={"contained"}
-                            onClick={hanlePushData}
-                            id='append-data'
-                        >
-                            Append Data to Server
-                        </Button>
-                    </Grid>
-                    <Grid item md={6}>
-                        <Button
-                            variant={"contained"}
-                            onClick={hanlePushData}
-                            id='replace-data'
-                        >
-                            Push and Replace Data to Server
-                        </Button>
-                    </Grid>
-                </>
-            )}
+            <FormDataConsumer>
+                {({ formData, ...rest }) => (
+                    <React.Fragment>
+                        {(formData.instance_status && isEdit) && (
+                            <>
+                                <Grid item md={6}>
+                                    <Button
+                                        variant={"contained"}
+                                        onClick={hanlePushData}
+                                        id='append-data'
+                                    >
+                                        Append Data to Server
+                                    </Button>
+                                </Grid>
+                                {/* <Grid item md={6}>
+                                    <Button
+                                        variant={"contained"}
+                                        onClick={hanlePushData}
+                                        id='replace-data'
+                                    >
+                                        Push and Replace Data to Server
+                                    </Button>
+                                </Grid> */}
+                            </>
+                        )}
+                    </React.Fragment>
+                )}
+            </FormDataConsumer>
         </SimpleForm>
     )
 }

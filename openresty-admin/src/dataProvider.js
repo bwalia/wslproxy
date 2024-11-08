@@ -505,7 +505,6 @@ const dataProvider = (apiUrl, settings = {}) => {
         }
         const data = await response.json();
         setIsLoadig(false);
-        window.location.reload();
         return data;
       } catch (error) {
         console.log(error)
