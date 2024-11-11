@@ -3,6 +3,22 @@ local configPath = os.getenv("NGINX_CONFIG_DIR") or "/opt/nginx/"
 local Helper = {}
 
 -- Load Global Settings
+
+
+function Helper.loadrequire(module)
+    local function requiref(module)
+        require(module)
+    end
+    res = pcall(requiref,module)
+    if not(res) then
+        return false
+        -- Do Stuff when no module
+    else
+        return true
+    end
+end
+
+
 function Helper.settings()
     local readSettings, errSettings = io.open(configPath .. "data/settings.json", "rb")
     local settings = {}
