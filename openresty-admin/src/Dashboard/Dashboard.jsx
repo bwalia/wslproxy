@@ -12,6 +12,7 @@ import {
 } from "recharts";
 import StorageModal from "./StorageModal";
 import Logs from "../component/Logs";
+import Welcome from "../component/Welcome";
 const data = [
   {
     name: "Page A",
@@ -60,6 +61,9 @@ const Dashboard = () => {
   const storageManagement = localStorage.getItem("storageManagement");
   return (
     <Grid container spacing={2}>
+      <Grid item xs={12}>
+        <Welcome />
+      </Grid>
       <Grid item xs={12}>
         <LineChart
           width={400}
