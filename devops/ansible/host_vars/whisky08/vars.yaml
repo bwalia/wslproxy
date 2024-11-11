@@ -5,3 +5,4 @@ host_lan_ip: "10.24.5.8"
 nginx_web_ui_enabled: ""
 nginx_rest_api_server_enabled: ""
 nginx_data_sync_enabled: "yes"
+node_max_old_space_size: 1024
