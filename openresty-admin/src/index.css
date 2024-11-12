@@ -24,14 +24,14 @@
   width: 100%;
 }
 
-a {
+/* a {
   font-weight: 500;
   color: #646cff;
   text-decoration: inherit;
 }
 a:hover {
   color: #535bf2;
-}
+} */
 
 body {
   margin: 0;
@@ -94,4 +94,17 @@ textarea#custom_block\.0\.additional_block, textarea#match\.response\.message {
   width: 1600px;
   height: 1200px !important;
   overflow-y: scroll !important;
+}
+
+/* Sidebar CSS */
+
+main .MuiDrawer-root.MuiDrawer-docked.RaSidebar-docked {
+  background: #f1eeee;
+  margin-top: 16px;
+}
+
+@media screen and (max-width: 600px) {
+  main {
+    margin-top: 0;
+  }
 }

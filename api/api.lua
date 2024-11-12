@@ -1792,6 +1792,16 @@ local function listOpenrestyLogs()
     }))
     ngx.exit(status)
 end
+local function listOpenrestyAccessLogs()
+    local logFile = "/usr/local/openresty/nginx/logs/access.log"
+    local logs, status = Helper.readLogFile(logFile)
+    ngx.say(cjson.encode({
+        data = {
+            logs = logs
+        }
+    }))
+    ngx.exit(status)
+end
 
 local platform = ngx.req.get_headers()["x-platform"]
 local function handle_get_request(args, path)
@@ -1862,8 +1872,11 @@ local function handle_get_request(args, path)
         ngx.exit(apiStatus)
     end
 
-    if path == "openresty_logs" then
+    if path == "openresty/error_logs" then
         listOpenrestyLogs()
+    end
+    if path == "openresty/access_logs" then
+        listOpenrestyAccessLogs()
     end
     if path == "global/settings" then
         local settingsData = settings

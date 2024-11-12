@@ -22,9 +22,9 @@ const Theme = {
       RaDatagrid: {
           styleOverrides: {
             root: {
-                backgroundColor: "Lavender",
+                backgroundColor: "#f3f3f3",
                 "& .RaDatagrid-headerCell": {
-                    backgroundColor: "MistyRose",
+                    backgroundColor: "#d7d6d6",
                 },
             }
          }
