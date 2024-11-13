@@ -62,18 +62,19 @@ const Form = ({ type }) => {
     <TabbedForm toolbar={<Toolbar />}>
       <TabbedForm.Tab label="Nginx Server">
         <Grid container spacing={2}>
-          <Grid item xs={3}>
+          <Grid item md={3} sm={6} xs={12}>
             <ArrayInput
               source="listens"
               label=""
               defaultValue={[{ listen: "" }]}
+              fullWidth
             >
               <SimpleFormIterator initialValues={initialValues}>
                 <TextInput source="listen" fullWidth className="serverListen" />
               </SimpleFormIterator>
             </ArrayInput>
           </Grid>
-          <Grid item xs={3}>
+          <Grid item md={3} sm={6} xs={12}>
             <TextInput
               source="server_name"
               fullWidth
@@ -82,14 +83,14 @@ const Form = ({ type }) => {
               disabled={type === "edit" ? true : false}
             />
           </Grid>
-          <Grid item xs={3}>
+          <Grid item md={3} sm={6} xs={12}>
             <TextInput
               source="proxy_server_name"
               fullWidth
               label="Proxy Server/Domain name"
             />
           </Grid>
-          <Grid item xs={3}>
+          <Grid item md={3} sm={6} xs={12}>
             <ReferenceInput source="profile_id" reference="profiles" >
               <SelectInput
                 sx={{ marginTop: "0", marginBottom: "0" }}
@@ -100,81 +101,88 @@ const Form = ({ type }) => {
               />
             </ReferenceInput>
           </Grid>
-          <Grid item xs={4}>
+          <Grid item md={3} sm={6} xs={12}>
             <SelectArrayInput
               source="servers_tags"
               choices={choices}
               create={<CreateTags choices={choices} />}
+              fullWidth
             />
           </Grid>
-          <Grid item xs={2}>
+          <Grid item md={3} sm={6} xs={12}>
             <TextInput source="root" defaultValue={"/var/www/html"} fullWidth label="Root path" />
           </Grid>
-          <Grid item xs={2}>
+          <Grid item md={2} sm={4} xs={12}>
             <TextInput source="index" defaultValue={"index.html"} fullWidth label="Index file" />
           </Grid>
-          <Grid item xs={2}>
+          <Grid item md={2} sm={4} xs={12}>
             <TextInput source="access_log" defaultValue={"logs/access.log"} fullWidth label="Access logs path" />
           </Grid>
-          <Grid item xs={2}>
+          <Grid item md={2} sm={4} xs={12}>
             <TextInput source="error_log" defaultValue={"logs/error.log"} fullWidth label="Error logs path" />
           </Grid>
 
-          <Grid item xs={12}>
+          <Grid item md={12} sm={12} xs={12}>
             <LocationInput source="locations" />
           </Grid>
-          <Grid item xs={12}>
-            <ArrayInput source="custom_block" label="Additional Server block">
-              <SimpleFormIterator>
-                <TextInput multiline source="additional_block" sx={{ width: "1000px" }} />
+          <Grid item md={12} sm={12} xs={12}>
+            <ArrayInput fullWidth source="custom_block" label="Additional Server block">
+              <SimpleFormIterator fullWidth>
+                <TextInput multiline fullWidth source="additional_block" className="config-block" />
               </SimpleFormIterator>
             </ArrayInput>
           </Grid>
-          <Grid item xs={12}>
-            <ArrayInput source="custom_location_block" label="Additional Location block">
-              <SimpleFormIterator>
-                <TextInput multiline source="additional_location_block" sx={{ width: "1000px" }} />
+          <Grid item md={12} sm={12} xs={12}>
+            <ArrayInput fullWidth source="custom_location_block" label="Additional Location block">
+              <SimpleFormIterator fullWidth>
+                <TextInput multiline source="additional_location_block" fullWidth className="config-block" />
               </SimpleFormIterator>
             </ArrayInput>
           </Grid>
-          <Grid item xs={12}>
-            <ArrayInput source="custom_http_block" label="Additional Http block">
-              <SimpleFormIterator>
-                <TextInput multiline source="additional_http_block" sx={{ width: "1000px" }} />
+          <Grid item md={12} sm={12} xs={12}>
+            <ArrayInput source="custom_http_block" label="Additional Http block" fullWidth>
+              <SimpleFormIterator fullWidth>
+                <TextInput multiline source="additional_http_block" fullWidth className="config-block" />
               </SimpleFormIterator>
             </ArrayInput>
           </Grid>
-          <Grid item xs={12}>
+          <Grid item md={12} sm={12} xs={12}>
             <CreateServerText source="config" />
           </Grid>
         </Grid>
       </TabbedForm.Tab>
       <TabbedForm.Tab label="Varnish Server">
         {totalResults >= 1 ? (
-          <>
-          <Grid item xs={12}>
-                <TextInput multiline source="varnish_vcl_config" label="Generated Varnish Server Config" className="code_area" />
+          <Grid container spacing={2}>
+            <Grid item md={12} sm={12} xs={12}>
+              <TextInput
+                multiline
+                fullWidth
+                source="varnish_vcl_config"
+                label="Generated Varnish Server Config"
+                className="code_area"
+              />
+            </Grid>
           </Grid>
-          </>
         ) : (
-          <>
+          <React.Fragment>
             <p>There are no rules available yet please create here!</p>
             <Menu.Item to="/rules" primaryText="Rules" />
-          </>
+          </React.Fragment>
         )}
       </TabbedForm.Tab>
       <TabbedForm.Tab label="Server Rules">
         {totalResults >= 1 ? (
-          <>
-            <ReferenceArrayInput source="rules" reference="rules" perPage={1000}>
-              <AutocompleteInput optionText="name" sx={{ minWidth: "342px" }} />
+          <React.Fragment>
+            <ReferenceArrayInput source="rules" reference="rules" perPage={1000} fullWidth>
+              <AutocompleteInput optionText="name" fullWidth />
             </ReferenceArrayInput>
             <FormDataConsumer>
               {({ formData, ...rest }) => (
                 <div>
                   {formData?.rules && totalResults > 1 && (
-                    <ArrayInput source="match_cases">
-                      <SimpleFormIterator inline>
+                    <ArrayInput source="match_cases" fullWidth>
+                      <SimpleFormIterator inline fullWidth>
                         <SelectInput
                           defaultValue={"none"}
                           source="condition"
@@ -191,6 +199,7 @@ const Form = ({ type }) => {
                           queryOptions={{ meta: { exclude: formData?.rules } }}
                           reference="rules"
                           perPage={1000}
+                          fullWidth
                         >
                           <AutocompleteInput optionText="name" fullWidth />
                         </ReferenceArrayInput>
@@ -200,12 +209,12 @@ const Form = ({ type }) => {
                 </div>
               )}
             </FormDataConsumer>
-          </>
+          </React.Fragment>
         ) : (
-          <>
+          <React.Fragment>
             <p>There are no rules available yet please create here!</p>
             <Menu.Item to="/rules" primaryText="Rules" />
-          </>
+          </React.Fragment>
         )}
       </TabbedForm.Tab>
     </TabbedForm>

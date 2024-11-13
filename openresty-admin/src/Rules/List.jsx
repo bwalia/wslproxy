@@ -13,6 +13,7 @@ import {
 import ExportJsonButton from './toolbar/ExportJsonButton';
 import ImportJsonButton from '../component/ImportJsonButton';
 import Empty from '../component/Empty';
+import ToolBar from '../component/ToolBar';
 
 const handleProfileChange = (e) => {
   localStorage.setItem('environment', e.target.value);
@@ -36,6 +37,7 @@ const List = () => {
       exporter={ExportJsonButton}
       empty={<Empty resource={"rules"} />}
       filters={rulesFilters}
+      actions={<ToolBar resource={"rules"} />}
     >
       <Datagrid rowClick="edit">
         <TextField source='name' />
@@ -46,7 +48,7 @@ const List = () => {
         <BooleanField source='match.response.allow' />
         <CloneButton />
       </Datagrid>
-      <ImportJsonButton resource={"rules"} />
+      {/* <ImportJsonButton resource={"rules"} /> */}
     </RaList>
   )
 }

@@ -2,6 +2,7 @@ import * as React from 'react';
 import { useDataProvider, useNotify, useStore } from 'react-admin';
 import { Button, Stack } from "@mui/material";
 import { isEmpty } from 'lodash';
+import ImportIcon from '@mui/icons-material/Publish';
 
 const ImportJsonButton = ({ resource }) => {
     const [ruleProfileFilter, setRuleProfileFilter] = useStore('rules.listParams', {});
@@ -48,7 +49,7 @@ const ImportJsonButton = ({ resource }) => {
 
     return (
         <Stack direction="row" alignItems="center" spacing={2} sx={{ marginTop: "20px" }}>
-            <Button variant="contained" component="label" onClick={handleProfileNotify}>
+            <Button size="small"  startIcon={<ImportIcon />} component="label" onClick={handleProfileNotify}>
                 Import
                 <input hidden type="file" accept=".json" onChange={handleFileUpload} />
             </Button>

@@ -1,5 +1,5 @@
 :root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: "Bitter", Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
 
@@ -39,6 +39,7 @@ body {
   place-items: center;
   min-width: 320px;
   min-height: 100vh;
+  font-family: "Bitter", serif
 }
 
 h1 {
@@ -85,26 +86,23 @@ textarea#config {
   height: 300px !important;
   overflow-y: scroll !important;
 }
-textarea#custom_block\.0\.additional_block, textarea#match\.response\.message {
+.config-block textarea,
+textarea#match\.response\.message {
   height: 123px !important;
   overflow-y: scroll !important;
 }
 
 .code_area textarea {
-  width: 1600px;
-  height: 1200px !important;
+  height: 100vh !important;
   overflow-y: scroll !important;
 }
 
-/* Sidebar CSS */
-
-main .MuiDrawer-root.MuiDrawer-docked.RaSidebar-docked {
-  background: #f1eeee;
-  margin-top: 16px;
-}
 
 @media screen and (max-width: 600px) {
   main {
     margin-top: 0;
+  }
+  .RaToolbar-mobileToolbar[role="toolbar"] {
+    position: relative !important;
   }
 }

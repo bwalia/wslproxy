@@ -7,6 +7,7 @@ import {
   useDataProvider,
   useStore,
   LocalesMenuButton,
+  ToggleThemeButton,
   useNotify
 } from "react-admin";
 import SdStorageIcon from "@mui/icons-material/SdStorage";
@@ -124,8 +125,8 @@ const AppBar = () => {
         <Typography
           variant="h5"
           sx={{
-            textShadow: "0 13.36px 8.896px #2c482e, 0 -2px 1px #aeffb4",
-            color: "#6fb374",
+            textShadow: "0 13.36px 8.896px #640D5F, 0 -2px 1px #EE66A6",
+            color: "#640D5F",
           }}
         >
           {appDisplayNname}
@@ -138,6 +139,7 @@ const AppBar = () => {
       <CheckStatus />
       <ProfileHandler />
       <LocalesMenuButton />
+      {/* <ToggleThemeButton /> */}
     </RaAppBar>
   );
 }

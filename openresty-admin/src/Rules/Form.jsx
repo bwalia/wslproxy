@@ -296,7 +296,7 @@ const Form = () => {
     <SimpleForm toolbar={<Toolbar />}>
       <h3>Enter the Rule below:</h3>
       <Grid container spacing={2}>
-        <Grid item xs={3}>
+        <Grid item md={3} sm={6} xs={12}>
           <TextInput
             source="name"
             label="Rule Name"
@@ -304,7 +304,7 @@ const Form = () => {
             fullWidth
           />
         </Grid>
-        <Grid item xs={3}>
+        <Grid item md={3} sm={6} xs={12}>
           <ReferenceInput source="profile_id" reference="profiles" >
             <SelectInput
               sx={{ marginTop: "0", marginBottom: "0" }}
@@ -315,21 +315,21 @@ const Form = () => {
             />
           </ReferenceInput>
         </Grid>
-        <Grid item xs={2}>
+        <Grid item md={2} sm={4} xs={12}>
           <SelectArrayInput
             source="rules_tags"
             choices={choices}
             create={<CreateTags choices={choices} />}
           />
         </Grid>
-        <Grid item xs={2}>
+        <Grid item md={2} sm={4} xs={12}>
           <NumberInput source="version" defaultValue={1} fullWidth />
         </Grid>
-        <Grid item xs={2}>
+        <Grid item md={2} sm={4} xs={12}>
           <NumberInput source="priority" defaultValue={1} fullWidth />
         </Grid>
 
-        <Grid item xs={6}>
+        <Grid item md={6} sm={12} xs={12}>
           <SelectInput
             sx={{ marginTop: "0", marginBottom: "0" }}
             defaultValue={"starts_with"}
@@ -346,7 +346,7 @@ const Form = () => {
           />
         </Grid>
 
-        <Grid item xs={6}>
+        <Grid item md={6} sm={12} xs={12}>
           <TextInput
             source="match.rules.path"
             validate={[required()]}
@@ -356,7 +356,7 @@ const Form = () => {
           />
         </Grid>
 
-        <Grid item xs={6}>
+        <Grid item md={6} sm={12} xs={12}>
           <SelectInput
             sx={{ marginTop: "0", marginBottom: "0" }}
             defaultValue={"equals"}
@@ -369,7 +369,7 @@ const Form = () => {
           />
         </Grid>
 
-        <Grid item xs={6}>
+        <Grid item md={6} sm={12} xs={12}>
           <SelectInput
             sx={{ marginTop: "0", marginBottom: "0" }}
             source="match.rules.country"
@@ -380,7 +380,7 @@ const Form = () => {
           />
         </Grid>
 
-        <Grid item xs={6}>
+        <Grid item md={6} sm={12} xs={12}>
           <SelectInput
             sx={{ marginTop: "0", marginBottom: "0" }}
             defaultValue={"equals"}
@@ -395,11 +395,11 @@ const Form = () => {
           />
         </Grid>
 
-        <Grid item xs={6}>
+        <Grid item md={6} sm={12} xs={12}>
           <TextInput source="match.rules.client_ip" className="matchRuleClientIp" label="Value" fullWidth />
         </Grid>
 
-        <Grid item xs={6}>
+        <Grid item md={6} sm={12} xs={12}>
           <SelectInput
             sx={{ marginTop: "0", marginBottom: "0" }}
             defaultValue={"equals"}
@@ -419,7 +419,7 @@ const Form = () => {
           />
         </Grid>
 
-        <Grid item xs={6}>
+        <Grid item md={6} sm={12} xs={12}>
           <FormDataConsumer>
             {({ formData, ...rest }) => (
               <React.Fragment>
@@ -443,7 +443,7 @@ const Form = () => {
           </FormDataConsumer>
         </Grid>
 
-        <Grid item xs={12}>
+        <Grid item md={12} sm={12} xs={12}>
           <FormDataConsumer>
             {({ formData, ...rest }) => (
               <React.Fragment>
@@ -468,7 +468,7 @@ const Form = () => {
               <React.Fragment>
                 {(formData?.match?.rules?.jwt_token_validation_key && formData?.match?.rules?.jwt_token_validation == "amazon_s3_signed_header_validation") && (
                   <React.Fragment>
-                    <Grid item xs={6}>
+                    <Grid item md={6} sm={12} xs={12}>
                       <TextInput
                         source="match.rules.amazon_s3_access_key"
                         fullWidth
@@ -477,7 +477,7 @@ const Form = () => {
                         type="password"
                       />
                     </Grid>
-                    <Grid item xs={6}>
+                    <Grid item md={6} sm={12} xs={12}>
                       <TextInput
                         source="match.rules.amazon_s3_secret_key"
                         fullWidth
@@ -493,7 +493,7 @@ const Form = () => {
           </FormDataConsumer>
         </React.Fragment>
 
-        <Grid item xs={2}>
+        <Grid item md={2} sm={6} xs={12}>
           <BooleanInput
             source="match.response.allow"
             label="Allow Request"
@@ -503,7 +503,7 @@ const Form = () => {
           />
         </Grid>
 
-        <Grid item xs={2}>
+        <Grid item md={2} sm={6} xs={12}>
           <NumberInput
             source="match.response.code"
             label="Response Code"
@@ -512,7 +512,7 @@ const Form = () => {
             className="matchResponseCode"
           />
         </Grid>
-        <Grid item xs={6}>
+        <Grid item md={6} sm={12} xs={12}>
           <FormDataConsumer>
             {({ formData, ...rest }) => (
               <React.Fragment>
@@ -538,7 +538,7 @@ const Form = () => {
           </FormDataConsumer>
         </Grid>
 
-        <Grid item xs={2}>
+        <Grid item md={2} sm={12} xs={12}>
           <BooleanInput
             source="match.response.is_consul"
             label="Is Consul"
@@ -548,7 +548,7 @@ const Form = () => {
           />
         </Grid>
 
-        <Grid item xs={12}>
+        <Grid item md={12} sm={12} xs={12}>
           <FormDataConsumer>
             {({ formData, ...rest }) => (
               <React.Fragment>
@@ -566,7 +566,7 @@ const Form = () => {
           </FormDataConsumer>
         </Grid>
 
-        <Grid item xs={12}>
+        <Grid item md={12} sm={12} xs={12}>
           <TextInput
             multiline
             source="match.response.message"
