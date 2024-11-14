@@ -374,7 +374,7 @@ paths:
       security:
         - bearerAuth: []   
           
-  /api/openresty_logs:
+  /api/openresty/error_logs:
     get:
       tags:
       - Openresty

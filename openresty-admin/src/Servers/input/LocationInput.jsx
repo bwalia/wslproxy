@@ -10,12 +10,13 @@ import {
 
 const LocationInput = ({source}) => {
   return (
-    <ArrayInput source={source}>
-      <SimpleFormIterator>
-        <TextInput source="location_path" />
+    <ArrayInput source={source} fullWidth>
+      <SimpleFormIterator fullWidth>
+        <TextInput source="location_path" fullWidth />
         <SelectArrayInput
           source="location_opts"
           label="Location options"
+          fullWidth
           choices={[
             { id: "proxy_pass", name: "Proxy Pass" },
             { id: "proxy_set_header", name: "Proxy set Header" },
@@ -38,6 +39,7 @@ const LocationInput = ({source}) => {
                 <TextInput
                   source={getSource(`location_vals[${option}]`)}
                   label={startCase(option)}
+                  fullWidth
                 />
               </React.Fragment>
             ));

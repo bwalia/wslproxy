@@ -6,6 +6,8 @@ import {
   useRedirect,
   useDataProvider,
   useStore,
+  LocalesMenuButton,
+  ToggleThemeButton,
   useNotify
 } from "react-admin";
 import SdStorageIcon from "@mui/icons-material/SdStorage";
@@ -95,7 +97,7 @@ const CheckStatus = () => {
   const notify = useNotify();
   const handleSettings = async () => {
     const opStatus = await dataProvider.checkORStatus("openresty_status", {});
-    notify(opStatus?.message, {autoHideDuration: 30000, type: opStatus?.check_status})
+    notify(opStatus?.message, { autoHideDuration: 30000, type: opStatus?.check_status })
   };
   return (
     <Tooltip title="Check Openresty Status">
@@ -109,7 +111,7 @@ const CheckStatus = () => {
 const AppBar = () => {
   const [settings] = useStore('app.settings', {});
   return (
-    <RaAppBar sx={{ background: "green" }}>
+    <RaAppBar>
       <Toolbar
         sx={{
           background: "transparent",
@@ -123,8 +125,8 @@ const AppBar = () => {
         <Typography
           variant="h5"
           sx={{
-            textShadow: "0 13.36px 8.896px #2c482e, 0 -2px 1px #aeffb4",
-            color: "#6fb374",
+            textShadow: "0 13.36px 8.896px #FFEB55, 0 -2px 1px #EE66A6",
+            color: "#FFEB55",
           }}
         >
           {appDisplayNname}
@@ -136,6 +138,8 @@ const AppBar = () => {
       {/* <SettingButton /> */}
       <CheckStatus />
       <ProfileHandler />
+      <LocalesMenuButton />
+      {/* <ToggleThemeButton /> */}
     </RaAppBar>
   );
 }

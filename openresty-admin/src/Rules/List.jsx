@@ -13,6 +13,7 @@ import {
 import ExportJsonButton from './toolbar/ExportJsonButton';
 import ImportJsonButton from '../component/ImportJsonButton';
 import Empty from '../component/Empty';
+import ToolBar from '../component/ToolBar';
 
 const handleProfileChange = (e) => {
   localStorage.setItem('environment', e.target.value);
@@ -21,7 +22,6 @@ const rulesFilters = [
   <SearchInput source="q" alwaysOn fullWidth />,
   <ReferenceInput source="profile_id" reference="profiles" alwaysOn>
     <SelectInput
-      sx={{ marginTop: "0", marginBottom: "0" }}
       fullWidth
       optionText="name"
       onChange={handleProfileChange}
@@ -36,6 +36,7 @@ const List = () => {
       exporter={ExportJsonButton}
       empty={<Empty resource={"rules"} />}
       filters={rulesFilters}
+      actions={<ToolBar resource={"rules"} />}
     >
       <Datagrid rowClick="edit">
         <TextField source='name' />
@@ -46,7 +47,7 @@ const List = () => {
         <BooleanField source='match.response.allow' />
         <CloneButton />
       </Datagrid>
-      <ImportJsonButton resource={"rules"} />
+      {/* <ImportJsonButton resource={"rules"} /> */}
     </RaList>
   )
 }

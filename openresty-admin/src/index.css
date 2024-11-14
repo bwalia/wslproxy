@@ -1,11 +1,10 @@
 :root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: "Bitter", Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
 
   color-scheme: light dark;
   color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -24,26 +23,22 @@
   width: 100%;
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
-}
-
 body {
   margin: 0;
   /* display: flex; */
   place-items: center;
   min-width: 320px;
   min-height: 100vh;
+  font-family: "Bitter", serif
 }
 
 h1 {
   font-size: 3.2em;
   line-height: 1.1;
+}
+
+main {
+  margin-top: 10px;
 }
 
 button {
@@ -65,6 +60,12 @@ button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
 }
 
+.login-container {
+  height: 90vh;
+  display: flex !important;
+  align-items: center;
+}
+
 @media (prefers-color-scheme: light) {
   :root {
     color: #213547;
@@ -81,13 +82,23 @@ textarea#config {
   height: 300px !important;
   overflow-y: scroll !important;
 }
-textarea#custom_block\.0\.additional_block, textarea#match\.response\.message {
+.config-block textarea,
+textarea#match\.response\.message {
   height: 123px !important;
   overflow-y: scroll !important;
 }
 
 .code_area textarea {
-  width: 1600px;
-  height: 1200px !important;
+  height: 100vh !important;
   overflow-y: scroll !important;
+}
+
+
+@media screen and (max-width: 600px) {
+  main {
+    margin-top: 0;
+  }
+  .RaToolbar-mobileToolbar[role="toolbar"] {
+    position: relative !important;
+  }
 }

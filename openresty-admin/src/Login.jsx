@@ -24,8 +24,8 @@ const Login = () => {
   const theme = createTheme();
 
   return (
-    <ThemeProvider theme={theme}>
-      <Container component="main" maxWidth="xs">
+    <ThemeProvider theme={theme} className="login-wrapper">
+      <Container component="main" maxWidth="xs" className="login-container">
         <CssBaseline />
         <Box
           sx={{
@@ -35,7 +35,7 @@ const Login = () => {
             alignItems: "center",
           }}
         >
-          <Avatar sx={{ m: 1, bgcolor: "secondary.main" }}>
+          <Avatar sx={{ m: 1, bgcolor: "#D91656" }}>
             <LockOutlinedIcon />
           </Avatar>
           <Typography component="h1" variant="h5">
@@ -76,7 +76,7 @@ const Login = () => {
               type="submit"
               fullWidth
               variant="contained"
-              sx={{ mt: 3, mb: 2 }}
+              sx={{ mt: 3, mb: 2, bgcolor: "#D91656", ":hover": { bgcolor: "#640D5F" } }}
               onClick={handleSubmit}
             >
               Sign In

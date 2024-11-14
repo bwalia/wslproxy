@@ -1,26 +1,49 @@
 import React from "react";
 import { defaultTheme } from "react-admin";
-const Theme = () => {
-  return {
-    ...defaultTheme,
-    palette: {
-      primary: indigo,
-      secondary: pink,
-      error: red,
-      contrastThreshold: 3,
-      tonalOffset: 0.2,
+import { red, teal, indigo, green } from '@mui/material/colors';
+const Theme = {
+  ...defaultTheme,
+  palette: {
+    background: {
+      main: indigo[500]
     },
-    typography: {
-      // Use the system font instead of the default Roboto font.
-      fontFamily: [
-        "-apple-system",
-        "BlinkMacSystemFont",
-        '"Segoe UI"',
-        "Arial",
-        "sans-serif",
-      ].join(","),
+    primary: {
+      main: '#640D5F',
     },
-  };
+    secondary: {
+      main: '#D91656'
+    },
+    error: red,
+    contrastThreshold: 3,
+    tonalOffset: 0.2,
+  },
+  typography: {
+    fontFamily: ["Bitter", "Inter", "system-ui", "Avenir", "Helvetica", "Arial", "sans-serif"].join(",")
+  },
+  components: {
+    ...defaultTheme.components,
+    RaDatagrid: {
+      styleOverrides: {
+        root: {
+          backgroundColor: "#f3f3f3",
+          "& .RaDatagrid-headerCell": {
+            backgroundColor: "#d7d6d6",
+            fontWeight: "bold",
+            lineHeight: '2.5em'
+          },
+        }
+      }
+    },
+    RaSidebar: {
+      styleOverrides: {
+        root: {
+          backgroundColor: "#f1eeee",
+          marginTop: "16px"
+        }
+      }
+    }
+  }
+
 };
 
 export default Theme;

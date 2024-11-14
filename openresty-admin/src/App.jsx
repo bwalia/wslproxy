@@ -1,7 +1,12 @@
 import React from "react";
-import { Admin, Resource, Layout, useStore } from "react-admin";
+import { Admin, Resource, useStore } from "react-admin";
 import dataProvider from "./dataProvider";
 import authProvider from "./authProvider";
+import { i18nProvider } from './i18nProvider';
+import Theme from "./Theme";
+import { QueryClient } from 'react-query';
+import { MyLayout } from "./Layout";
+
 import Dashboard from "./Dashboard/Dashboard";
 import Sessions from "./Sessions";
 import Users from "./Users";
@@ -10,7 +15,9 @@ import Servers from "./Servers";
 import Profiles from "./Profiles";
 import Secrets from "./Secrets";
 import Instances from "./Instances";
-import Theme from "./Theme";
+import Rules from "./Rules";
+import Settings from "./Settings";
+
 import UserIcon from "@mui/icons-material/Group";
 import SessionIcon from "@mui/icons-material/HistoryToggleOff";
 import ServerIcon from "@mui/icons-material/Storage";
@@ -18,17 +25,14 @@ import RuleIcon from "@mui/icons-material/Rule";
 import ProfileIcon from '@mui/icons-material/RecentActors';
 import SecretIcon from '@mui/icons-material/Key';
 import InstanceIcon from '@mui/icons-material/Padding';
-import Rules from "./Rules";
-import Settings from "./Settings";
+
 import { Puff } from 'react-loader-spinner';
 import CheckModal from "./component/CheckModal";
-import { QueryClient } from 'react-query';
-import { MyLayout } from "./Layout";
 
 const API_URL = import.meta.env.VITE_API_URL;
 const deploymentTime = import.meta.env.VITE_DEPLOYMENT_TIME
 const versionNumber = import.meta.env.VITE_APP_VERSION
-const buildNumber = import.meta.env.VITE_APP_BUILD_NUMBER
+const buildNumber = import.meta.env.VITE_APP_BUILD_NUMBER;
 
 const App = () => {
   const queryClient = new QueryClient({
@@ -61,6 +65,7 @@ const App = () => {
       <CheckModal open={syncPopupOpen} onClose={() => setSyncPopupOpen(false)} />
       <Admin
         loginPage={Login}
+        i18nProvider={i18nProvider}
         dataProvider={dataProvider(API_URL)}
         authProvider={authProvider}
         dashboard={Dashboard}
