@@ -4,7 +4,7 @@ import ServerIcon from "@mui/icons-material/Storage";
 import RuleIcon from "@mui/icons-material/Rule";
 import { useTranslate } from 'react-admin';
 
-import publishArticleImage from '/images/welcome_illustration.svg';
+import publishArticleImage from '/images/welcome-side.svg';
 
 const Welcome = () => {
     const translate = useTranslate();
@@ -22,11 +22,11 @@ const Welcome = () => {
             <Box display="flex">
                 <Box flex="1">
                     <Typography variant="h5" component="h2" gutterBottom>
-                        {translate('pos.dashboard.welcome.title')}
+                        {translate('brahmstra.dashboard.welcome.title')}
                     </Typography>
                     <Box maxWidth="40em">
                         <Typography variant="body1" component="p" gutterBottom>
-                            {translate('pos.dashboard.welcome.subtitle')}
+                            {translate('brahmstra.dashboard.welcome.subtitle')}
                         </Typography>
                     </Box>
                     <CardActions
@@ -45,14 +45,14 @@ const Welcome = () => {
                             href="/#/servers"
                             startIcon={<ServerIcon />}
                         >
-                            {translate('pos.dashboard.welcome.server_button')}
+                            {translate('brahmstra.dashboard.welcome.server_button')}
                         </Button>
                         <Button
                             variant="contained"
                             href="/#/rules"
                             startIcon={<RuleIcon />}
                         >
-                            {translate('pos.dashboard.welcome.rule_button')}
+                            {translate('brahmstra.dashboard.welcome.rule_button')}
                         </Button>
                     </CardActions>
                 </Box>
@@ -62,7 +62,7 @@ const Welcome = () => {
                         background: `url(${publishArticleImage}) top right / cover`,
                         marginLeft: 'auto',
                     }}
-                    width="16em"
+                    width="35em"
                     height="9em"
                     overflow="hidden"
                 />

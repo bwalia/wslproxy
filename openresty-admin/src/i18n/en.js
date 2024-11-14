@@ -2,7 +2,7 @@ import englishMessages from 'ra-language-english';
 
 const customEnglishMessages = {
     ...englishMessages,
-    pos: {
+    brahmstra: {
         search: 'Search',
         configuration: 'Configuration',
         language: 'Language',
@@ -19,6 +19,14 @@ const customEnglishMessages = {
                 server_button: 'Servers',
                 rule_button: 'Rules',
             },
+            storage: {
+                title: "Please choose a option for storage management",
+                subtitle: 
+                    "Storage Preference, You can change it by selecting any options.",
+                redis: "Redis",
+                disk: "Disk"
+
+            }
         },
         menu: {
             sales: 'Sales',

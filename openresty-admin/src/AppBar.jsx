@@ -125,8 +125,8 @@ const AppBar = () => {
         <Typography
           variant="h5"
           sx={{
-            textShadow: "0 13.36px 8.896px #640D5F, 0 -2px 1px #EE66A6",
-            color: "#640D5F",
+            textShadow: "0 13.36px 8.896px #FFEB55, 0 -2px 1px #EE66A6",
+            color: "#FFEB55",
           }}
         >
           {appDisplayNname}
