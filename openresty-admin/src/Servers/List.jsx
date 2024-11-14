@@ -20,7 +20,6 @@ const serverFilters = [
   <SearchInput source="q" alwaysOn fullWidth />,
   <ReferenceInput source="profile_id" reference="profiles" alwaysOn >
     <SelectInput
-      sx={{ marginTop: "0", marginBottom: "0" }}
       fullWidth
       optionText="name"
       onChange={handleProfileChange}

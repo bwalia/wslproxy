@@ -93,7 +93,6 @@ const Form = ({ type }) => {
           <Grid item md={3} sm={6} xs={12}>
             <ReferenceInput source="profile_id" reference="profiles" >
               <SelectInput
-                sx={{ marginTop: "0", marginBottom: "0" }}
                 fullWidth
                 optionText="name"
                 onChange={handleProfileChange}

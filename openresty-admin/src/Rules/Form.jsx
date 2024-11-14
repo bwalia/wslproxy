@@ -307,7 +307,6 @@ const Form = () => {
         <Grid item md={3} sm={6} xs={12}>
           <ReferenceInput source="profile_id" reference="profiles" >
             <SelectInput
-              sx={{ marginTop: "0", marginBottom: "0" }}
               fullWidth
               optionText="name"
               onChange={handleProfileChange}
@@ -331,7 +330,6 @@ const Form = () => {
 
         <Grid item md={6} sm={12} xs={12}>
           <SelectInput
-            sx={{ marginTop: "0", marginBottom: "0" }}
             defaultValue={"starts_with"}
             source="match.rules.path_key"
             fullWidth
@@ -358,7 +356,6 @@ const Form = () => {
 
         <Grid item md={6} sm={12} xs={12}>
           <SelectInput
-            sx={{ marginTop: "0", marginBottom: "0" }}
             defaultValue={"equals"}
             source="match.rules.country_key"
             fullWidth
@@ -371,7 +368,6 @@ const Form = () => {
 
         <Grid item md={6} sm={12} xs={12}>
           <SelectInput
-            sx={{ marginTop: "0", marginBottom: "0" }}
             source="match.rules.country"
             label="Value"
             fullWidth
@@ -382,7 +378,6 @@ const Form = () => {
 
         <Grid item md={6} sm={12} xs={12}>
           <SelectInput
-            sx={{ marginTop: "0", marginBottom: "0" }}
             defaultValue={"equals"}
             source="match.rules.client_ip_key"
             fullWidth
@@ -401,7 +396,6 @@ const Form = () => {
 
         <Grid item md={6} sm={12} xs={12}>
           <SelectInput
-            sx={{ marginTop: "0", marginBottom: "0" }}
             defaultValue={"equals"}
             source="match.rules.jwt_token_validation"
             choices={[
