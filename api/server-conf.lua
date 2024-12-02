@@ -86,7 +86,7 @@ function Conf.saveConfFiles(dir, conf, fileName)
         ngx.status = ngx.HTTP_BAD_REQUEST
         ngx.say(Cjson.encode({
             data = {
-                message = fileErr  .. " while opening " .. file
+                message = fileErr  .. " while opening " .. fileName
             }
         }))
         ngx.exit(ngx.HTTP_BAD_REQUEST)
