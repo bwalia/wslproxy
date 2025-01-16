@@ -16,4 +16,5 @@ ubuntu_packages:
   - iputils-ping
   - dnsutils
   - htop
+  - tree
   
