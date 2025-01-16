@@ -1,7 +1,7 @@
 [nginx_cluster]
 whisky01 ansible_user=bwalia
 whisky03 ansible_user=bwalia
-10.24.5.3 ansible_user=bwalia
+192.168.1.189 ansible_user=bwalia
 whisky10 ansible_user=bwalia
 whisky06 ansible_user=bwalia
 whisky04 ansible_user=bwalia
