@@ -9,7 +9,9 @@ openresty-admin/cypress/cypress/videos
 error.html
 .vscode
 sealed-secret*
-data
+data/settings.json
+data/servers
+data/rules
 node_modules
 .DS_Store
 devops/ansible/roles/luarocks/.DS_Store
