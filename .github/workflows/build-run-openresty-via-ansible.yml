@@ -32,7 +32,7 @@ on:
           # - whisky08
 env:
   TARGET_ENV: ${{ github.event.inputs.TARGET_ENV || 'int' }}
-  TARGET_HOST: ${{ github.event.inputs.TARGET_HOST || '192.168.1.189' }}
+  TARGET_HOST: ${{ github.event.inputs.TARGET_HOST || '127.0.0.1' }}
   API_DOMAINNAME_ENDPOINT: ${{ github.event.inputs.TARGET_ENV || 'int' }}.brahmstra.org
 
 jobs:
