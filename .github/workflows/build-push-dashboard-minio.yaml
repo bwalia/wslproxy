@@ -3,7 +3,7 @@ name: Build and Deploy to MinIO
 on:
   push:
     branches:
-      - main
+      - dummy
 env:
     MINIO_ENDPOINT: "http://localhost:9000"
     MINIO_BUCKET: "brahmstra-dashboard"
