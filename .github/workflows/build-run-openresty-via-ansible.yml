@@ -1,12 +1,12 @@
 name: Ansible compile from source and install Openresty
-
+# enable this again from a dedicated ansible control node
 on:
   push:
     branches:
-      - main
+      - dummy
   pull_request:
     branches:
-      - main
+      - dummy
 
   workflow_dispatch:
     inputs:
