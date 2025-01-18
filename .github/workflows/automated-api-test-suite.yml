@@ -31,7 +31,7 @@ on:
       DELETE_TEST_DATA:
         description: 'Delete Test Data After Execution'
         required: true
-        default: 'true'
+        default: true
         type: boolean
 
 env:
