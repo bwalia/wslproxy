@@ -43,7 +43,7 @@ env:
 
 jobs:
   build:
-    runs-on: [ubuntu-latest]
+    runs-on: [ ubuntu-latest ]
     steps:
       - name: Checkout code
         if: ${{ env.DEPLOYMENT_TYPE == 'build' || env.DEPLOYMENT_TYPE == 'build-and-deploy' }}
@@ -168,7 +168,7 @@ jobs:
         SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
   healthcheck:
-    runs-on: [ whisky03 ]
+    runs-on: [ ubuntu-latest ]
     needs: [ deploy ]
     steps:
       - uses: actions/checkout@v3
