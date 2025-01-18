@@ -111,20 +111,20 @@ on your local system. It will automatically sync the build changes with the dock
 | `dev` | `http://localhost:8081/` | `Ask administrator` |  `WhiteFalcon API :- localhost(127.0.0.1) `  | ` 8081->8080`
 |          |           |          |`WhiteFalcon Front :- localhost(127.0.0.1)` | `8000->80`
 |          |           |          |`Docker nodeapp :-localhost(127.0.0.1) -> host.docker.internal if using extra_hosts: - "host.docker.internal:host-gateway" in docker or docker compose` | `3009->3009`
-| `int` | `http://api.int.diycdn.org/` | `Ask administrator` |`WhiteFalcon API :- api.int.diycdn.org` | `80 443`
-|          |           |          |`WhiteFalcon Front :- front.int.diycdn.org` | `80 443`
+| `int` | `http://api-int.brahmstra.org/` | `Ask administrator` |`WhiteFalcon API :- api-int.brahmstra.org` | `80 443`
+|          |           |          |`WhiteFalcon Front :- front-int.brahmstra.org` | `80 443`
 |          |           |          |`Node-app :-     ` |  `3009->3009`
-|   | `http://api.int.diycdn.org/` | `Ask administrator` |`WhiteFalcon API :- api.int.diycdn.org` | `80 443`
-|          |           |          |`WhiteFalcon Front :- front.int6.diycdn.org` | `80 443`
+|   | `http://api-int.brahmstra.org/` | `Ask administrator` |`WhiteFalcon API :- api-int.brahmstra.org` | `80 443`
+|          |           |          |`WhiteFalcon Front :- frontdoor-int.brahmstra.org` | `80 443`
 |          |           |          |`Node-app :- 	 ` |  `3009->3009`
-|  | `http://api.int10.diycdn.org/` | `Ask administrator` |`WhiteFalcon API :- api.int10.diycdn.org` | `80 443`
-|          |           |          |`WhiteFalcon Front :- front.int10.diycdn.org` | `80 443`
+|  | `http://api-int.brahmstra.org/` | `Ask administrator` |`WhiteFalcon API :- api-int.brahmstra.org` | `80 443`
+|          |           |          |`WhiteFalcon Front :- frontdoor-int.brahmstra.org` | `80 443`
 |          |           |          |`Node-app :-     ` |  `3009->3009`
-| `test` | `http://api.test2.diycdn.org/` | `Ask administrator` |`WhiteFalcon API :- api.test2.diycdn.org` | `80 443`
-|          |           |          |`WhiteFalcon Front :- front.test2.diycdn.org` | `80 443`
+| `test` | `http://api.test2.brahmstra.org/` | `Ask administrator` |`WhiteFalcon API :- api.test2.brahmstra.org` | `80 443`
+|          |           |          |`WhiteFalcon Front :- front.test2.brahmstra.org` | `80 443`
 |          |           |          |`Node-app :-      ` |  `3009->3009`
-|     | `http://api.test6.diycdn.org/` | `Ask administrator` |`WhiteFalcon API :- api.test6.diycdn.org` | `80 443`
-|          |           |          |`WhiteFalcon Front :- front.test.diycdn.org` | `80 443`
+|     | `http://api.test6.brahmstra.org/` | `Ask administrator` |`WhiteFalcon API :- api.test6.brahmstra.org` | `80 443`
+|          |           |          |`WhiteFalcon Front :- front.brahmstra.org` | `80 443`
 |          |           |          |`Node-app :-      	` |  `3009->3009`
 ## How to run Ansible for a workflow
 

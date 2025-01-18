@@ -50,7 +50,7 @@ ingress:
     # kubernetes.io/ingress.class: nginx
     # kubernetes.io/tls-acme: "true"
   hosts:
-    - host: s3-browser-origin.diycdn.org
+    - host: s3-browser-origin.brahmstra.org
       paths:
         - path: /
           pathType: ImplementationSpecific
