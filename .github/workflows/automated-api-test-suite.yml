@@ -31,7 +31,7 @@ on:
       DELETE_TEST_DATA:
         description: 'Delete Test Data After Execution'
         required: true
-        default: 'true'
+        default: true
         type: boolean
 
 env:
@@ -69,27 +69,27 @@ jobs:
         working-directory: ./QA
         run: |  
           if [[ "${{ inputs.TARGET_ENV }}" == 'int2' ]]; then
-            export TARGET_HOST="https://api.int.diycdn.org"
-            export SERVER_NAME="front.int.diycdn.org"
-            export SERVER_ID_QA="host:front.int.diycdn.org"
+            export TARGET_HOST="https://api-int.brahmstra.org"
+            export SERVER_NAME="frontdoor-int.brahmstra.org"
+            export SERVER_ID_QA="host:frontdoor-int.brahmstra.org"
             export NODE_APP_IP="10.43.140.53:3009"  
-            export FRONT_URL="https://front.int.diycdn.org" 
+            export FRONT_URL="https://frontdoor-int.brahmstra.org" 
             export JWT_TOKEN_KEY="${{ secrets.JWT_TOKEN_KEY_INT }}"
 
           elif [[ "${{ inputs.TARGET_ENV }}" == 'int6' ]]; then
-            export TARGET_HOST="https://api.int.diycdn.org"
-            export SERVER_NAME="qa.int.diycdn.org"
-            export SERVER_ID_QA="host:qa.int.diycdn.org"  
+            export TARGET_HOST="https://api-int.brahmstra.org"
+            export SERVER_NAME="qa-int.brahmstra.org"
+            export SERVER_ID_QA="host:qa-int.brahmstra.org"  
             export NODE_APP_IP="10.43.81.65:3009" 
-            export FRONT_URL="https://qa.int.diycdn.org" 
+            export FRONT_URL="https://qa-int.brahmstra.org" 
             export JWT_TOKEN_KEY="${{ secrets.JWT_TOKEN_KEY_INT }}"
 
           elif [[ "${{ inputs.TARGET_ENV }}" == 'test' ]]; then
-            export TARGET_HOST="https://api.test6.diycdn.org"
-            export SERVER_NAME="front.test.diycdn.org"
-            export SERVER_ID_QA="host:front.test.diycdn.org"
+            export TARGET_HOST="https://api-test.brahmstra.org"
+            export SERVER_NAME="frontdoor-test.brahmstra.org"
+            export SERVER_ID_QA="host:frontdoor-test.brahmstra.org"
             export NODE_APP_IP=""  
-            export FRONT_URL="https://front.test.diycdn.org"
+            export FRONT_URL="https://frontdoor-test.brahmstra.org"
             export JWT_TOKEN_KEY="${{ secrets.JWT_TOKEN_KEY_TEST }}"
 
           elif [[ "${{ inputs.TARGET_ENV }}" == 'local' ]]; then
@@ -101,11 +101,11 @@ jobs:
             export JWT_TOKEN_KEY="${{ secrets.JWT_TOKEN_KEY_DEV }}"
 
           elif [[ "${{ inputs.TARGET_ENV }}" == '' ]]; then
-            export TARGET_HOST="https://api.int.diycdn.org"
-            export SERVER_NAME="front.int.diycdn.org"
-            export SERVER_ID_QA="host:front.int.diycdn.org"
+            export TARGET_HOST="https://api-int.brahmstra.org"
+            export SERVER_NAME="frontdoor-int.brahmstra.org"
+            export SERVER_ID_QA="host:frontdoor-int.brahmstra.org"
             export NODE_APP_IP="10.43.140.53:3009"  
-            export FRONT_URL="https://front.int.diycdn.org"
+            export FRONT_URL="https://frontdoor-int.brahmstra.org"
             export JWT_TOKEN_KEY="${{ secrets.JWT_TOKEN_KEY_INT }}"
 
           else
