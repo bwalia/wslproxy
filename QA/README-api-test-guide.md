@@ -86,14 +86,14 @@ You can trigger the test execution using GitHub Actions by following this [workf
 
 
 ### List of the available Environments
-#### `Int`: http://api.int.diycdn.org/
+#### `Int`: http://api-int.brahmstra.org/
 ##### Sub-environments of `int` are-
-- int : http://api.int.diycdn.org/
-- int2 : http://api.int2.diycdn.org/
-- int6 : http://api.int.diycdn.org/
-- int10 : http://api.int10.diycdn.org/
+- int : http://api-int.brahmstra.org/
+- int2 : http://api.int2.brahmstra.org/
+- int6 : http://api-int.brahmstra.org/
+- int10 : http://api-int.brahmstra.org/
 
-#### `test`: http://api.test.diycdn.org/
+#### `test`: http://api.brahmstra.org/
 ##### Sub-environments of `test` are-
-- test2 : http://api.test2.diycdn.org/
-- test6 : http://api.test6.diycdn.org/
+- test2 : http://api.test2.brahmstra.org/
+- test6 : http://api.test6.brahmstra.org/

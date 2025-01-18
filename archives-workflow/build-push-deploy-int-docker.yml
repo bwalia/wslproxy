@@ -59,7 +59,7 @@ jobs:
       - name: Ping verification
         working-directory: ./QA
         env:
-          API_PING_URL: http://api.int.diycdn.org/ping
+          API_PING_URL: http://api-int.brahmstra.org/ping
         run: | 
           go mod init myapp
           go test 01_healthcheck_test.go -v 
@@ -92,7 +92,7 @@ jobs:
       - name: Ping verification
         working-directory: ./QA
         env:
-          API_PING_URL: http://api.int3.diycdn.org/ping
+          API_PING_URL: http://api.int3.brahmstra.org/ping
         run: | 
           go mod init myapp
           go test 01_healthcheck_test.go -v  
@@ -124,7 +124,7 @@ jobs:
       - name: Ping verification
         working-directory: ./QA
         env:
-          API_PING_URL: http://api.int2.diycdn.org/ping
+          API_PING_URL: http://api.int2.brahmstra.org/ping
         run: | 
           go mod init myapp
           go test 01_healthcheck_test.go -v 
@@ -157,7 +157,7 @@ jobs:
       - name: Ping verification
         working-directory: ./QA
         env:
-          API_PING_URL: http://api.int10.diycdn.org/ping
+          API_PING_URL: http://api-int.brahmstra.org/ping
         run: | 
           go mod init myapp
           go test 01_healthcheck_test.go -v 

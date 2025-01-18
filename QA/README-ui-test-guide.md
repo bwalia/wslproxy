@@ -47,13 +47,13 @@ With the workflow_dispatch event trigger, we can manually trigger the workflow e
 
 
 ### List of the available Environments
-#### `Int`: http://api.int.diycdn.org/
+#### `Int`: http://api-int.brahmstra.org/
 ##### Sub-environments of `int` are-
-- int2 : http://api.int.diycdn.org/
-- int6 : http://api.int.diycdn.org/
-- int10 : http://api.int10.diycdn.org/
+- int2 : http://api-int.brahmstra.org/
+- int6 : http://api-int.brahmstra.org/
+- int10 : http://api-int.brahmstra.org/
 
-#### `test`: http://api.test.diycdn.org/
+#### `test`: http://api.brahmstra.org/
 ##### Sub-environments of `test` are-
-- int2 : http://api.test2.diycdn.org/
-- int6 : http://api.test6.diycdn.org/
+- int2 : http://api.test2.brahmstra.org/
+- int6 : http://api.test6.brahmstra.org/
