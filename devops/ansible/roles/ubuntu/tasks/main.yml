@@ -1,13 +1,97 @@
- - name: Update and upgrade apt packages
-   apt:
+- name: Update and upgrade apt packages
+  apt:
     upgrade: yes
     update_cache: yes
-    cache_valid_time: 86400 
-   tags: [ubuntu]
- - name: Install dependency packages for installing openresty
-   apt:
-     name: "{{ item }}"
-     state: present
-   with_items: "{{ ubuntu_packages }}"  
-   tags: [ubuntu]
+    cache_valid_time: 86400
+  tags: [ubuntu]
+- name: Install dependency packages for installing openresty
+  apt:
+    name: "{{ item }}"
+    state: present
+  with_items: "{{ ubuntu_packages }}"
+  tags: [ubuntu]
 
+- name: install dependencies packages
+  ansible.builtin.package:
+    name:
+      - apt-transport-https
+      - default-jre
+      - gpg
+  retries: 2
+  register: result
+  until: result is succeeded
+  tags: [logs-elk]
+
+- name: add repository key
+  ansible.builtin.apt_key:
+    url: https://artifacts.elastic.co/GPG-KEY-elasticsearch
+  retries: 2
+  register: result
+  until: result is succeeded
+  tags: [logs-elk]
+
+- name: add repository
+  ansible.builtin.apt_repository:
+    repo: "deb https://artifacts.elastic.co/packages/8.x/apt stable main"
+  tags: [logs-elk]
+
+- name: install package
+  ansible.builtin.package:
+    name:
+      - logstash
+  retries: 2
+  register: result
+  until: result is succeeded
+  tags: [logs-elk]
+
+- name: copy general config file
+  ansible.builtin.copy:
+    src: ${pwd}/whitefalcon/devops/ansible/roles/ubuntu/templates/logstash.yml
+    dest: /etc/logstash/logstash.yml
+    owner: root
+    group: root
+    mode: 0644
+  notify: Restart Logstash
+  tags: [logs-elk]
+
+- name: create patterns directory
+  ansible.builtin.file:
+    path: /etc/logstash/patterns
+    owner: root
+    group: root
+    mode: 0755
+    state: directory
+  tags: [logs-elk]
+
+- name: copy input, output and filter files
+  ansible.builtin.template:
+    src: "logstash.conf.j2"
+    dest: "/etc/logstash/conf.d/logstash.conf"
+    owner: root
+    group: root
+    mode: 0644
+    validate: /usr/share/logstash/bin/logstash -t -f %s
+  loop:
+    - input
+    - output
+    - filter
+  notify: Restart Logstash
+  tags: [logs-elk]
+
+- name: Copy logstash related dir permissions scripts
+  template:
+    src: fix-logstash-permissions.sh.j2
+    dest: /usr/sbin/fix-logstash-permissions.sh
+    mode: 0775
+  tags: [openresty, logs-elk]
+
+- name: Fix nginx related dir permissions
+  shell: /usr/sbin/fix-logstash-permissions.sh
+  tags: [openresty, logs-elk]
+
+- name: enable and start service
+  ansible.builtin.service:
+    name: logstash
+    state: started
+    enabled: true
+  tags: [logs-elk]
