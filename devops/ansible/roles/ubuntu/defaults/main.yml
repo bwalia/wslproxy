@@ -17,4 +17,9 @@ ubuntu_packages:
   - dnsutils
   - htop
   - tree
-  
+  - dmsetup
+  - nfs-common
+  - open-iscsi
+  - ansible
+  - openjdk-21-jdk
+  - default-jre
