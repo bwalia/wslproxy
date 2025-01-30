@@ -63,6 +63,18 @@
     state: directory
   tags: [logs-elk]
 
+- name: Ansible delete file conf_default_files_to_delete glob
+  find:
+    paths: /etc/logstash/conf.d/
+    patterns: "*.conf"
+  register: conf_default_files_to_delete
+
+- name: Ansible remove conf_default_files_to_delete file glob loop
+  file:
+    path: "{{ item.path }}"
+    state: absent
+  with_items: "{{ conf_default_files_to_delete.files }}"
+
 - name: copy input, output and filter files
   ansible.builtin.template:
     src: "logstash.conf.j2"
