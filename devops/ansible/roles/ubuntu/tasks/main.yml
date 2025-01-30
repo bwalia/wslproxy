@@ -46,7 +46,7 @@
 
 - name: copy general config file
   ansible.builtin.copy:
-    src: ${pwd}/whitefalcon/devops/ansible/roles/ubuntu/templates/logstash.yml
+    src: logstash.yml.j2
     dest: /etc/logstash/logstash.yml
     owner: root
     group: root
