@@ -1,0 +1,10 @@
+#!/bin/bash
+
+set -x
+
+chmod 777 -R /usr/share/logstash/
+chown www-data:root -R /usr/share/logstash/
+
+mkdir -p /usr/share/logstash/logs
+chmod 777 -R /usr/share/logstash/logs/
+chown www-data:root -R /usr/share/logstash/logs/

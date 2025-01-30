@@ -1,0 +1,4 @@
+xpack.monitoring.enabled: true
+xpack.monitoring.elasticsearch.hosts: [ "https://elasticapi.fictionally.xyz:443" ]
+xpack.monitoring.elasticsearch.username: "elastic"
+xpack.monitoring.elasticsearch.password: "CHANGE_ME"

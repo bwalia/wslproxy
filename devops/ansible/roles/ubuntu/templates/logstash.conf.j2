@@ -1,0 +1,38 @@
+input {
+  file {
+    path => ["/usr/local/openresty/nginx/logs/access.log", "/usr/local/openresty/nginx/logs/error.log"]
+    start_position => "beginning"
+    sincedb_path => "/dev/null"
+  }
+}
+
+filter {
+  grok {
+    match => {
+      "message" => "%{IP:client_ip} - %{DATA:user} \[%{HTTPDATE:timestamp}\] \"%{WORD:method} %{DATA:request} HTTP/%{NUMBER:http_version}\" %{NUMBER:status} %{NUMBER:bytes_sent} \"%{DATA:referrer}\" \"%{DATA:user_agent}\" %{NUMBER:request_time}"
+    }
+  }
+
+  # Convert request_time to a float
+  mutate {
+    convert => { "request_time" => "float" }
+  }
+    useragent {
+      source => "agent"
+      target => "user_agent"
+    }
+}
+output {
+  elasticsearch {
+    hosts => ["https://elasticapi.fictionally.xyz:443"]
+    user => "elastic"
+    password => "CHANGE_ME"
+    action => "create"
+    data_stream => false
+  }
+
+  # Debugging output to console
+  stdout {
+    codec => rubydebug
+  }
+}

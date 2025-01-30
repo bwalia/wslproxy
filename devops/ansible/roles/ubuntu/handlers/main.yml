@@ -1,2 +1,6 @@
 ---
 # handlers file for ubuntu
+- name: Restart Logstash
+  ansible.builtin.systemd:
+    name: logstash
+    state: restarted
