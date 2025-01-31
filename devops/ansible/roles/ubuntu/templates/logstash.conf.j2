@@ -1,26 +1,50 @@
 input {
   file {
-    path => ["/usr/local/openresty/nginx/logs/access.log", "/usr/local/openresty/nginx/logs/error.log"]
+    path => "/usr/local/openresty/nginx/logs/access.log"
     start_position => "beginning"
     sincedb_path => "/dev/null"
+    tags => ["access"]
+  }
+  file {
+    path => "/usr/local/openresty/nginx/logs/error.log"
+    start_position => "beginning"
+    sincedb_path => "/dev/null"
+    tags => ["error"]
   }
 }
 
 filter {
-  grok {
-    match => {
-      "message" => "%{IP:client_ip} - %{DATA:user} \[%{HTTPDATE:timestamp}\] \"%{WORD:method} %{DATA:request} HTTP/%{NUMBER:http_version}\" %{NUMBER:status} %{NUMBER:bytes_sent} \"%{DATA:referrer}\" \"%{DATA:user_agent}\" %{NUMBER:request_time}"
+  if "access" in [tags] {
+    grok {
+      match => {
+        "message" => "%{IP:client_ip} - %{DATA:user} \[%{HTTPDATE:timestamp}\] \"%{WORD:method} %{DATA:request} HTTP/%{NUMBER:http_version}\" %{NUMBER:status} %{NUMBER:bytes_sent} \"%{DATA:referrer}\" \"%{DATA:user_agent}\" %{NUMBER:request_time}"
+      }
     }
-  }
 
-  # Convert request_time to a float
-  mutate {
-    convert => { "request_time" => "float" }
-  }
-    useragent {
-      source => "agent"
-      target => "user_agent"
+    # Convert request_time to a float
+    mutate {
+      convert => { "request_time" => "float" }
     }
+    useragent {
+      source => "user_agent"
+      target => "user_agent_details"
+    }
+  } else if "error" in [tags] {
+    grok {
+      match => { 
+        "message" => "%{YEAR:year}/%{MONTHNUM:month}/%{MONTHDAY:day} %{TIME:time} \[%{LOGLEVEL:log_level}\] %{NUMBER:pid}#%{NUMBER:worker_id}: \*%{NUMBER:request_id} \[%{WORD:language}\] %{GREEDYDATA:script}: %{GREEDYDATA:error_message} - %{GREEDYDATA:additional_info}, context: %{GREEDYDATA:context}, client: %{IP:client_ip}, server: %{IPORHOST:server}"
+      }
+    }
+
+    mutate {
+      remove_field => ["year", "month", "day", "time"]
+    }
+
+    date {
+      match => [ "timestamp", "yyyy-MM-dd HH:mm:ss" ]
+      target => "@timestamp"
+    }
+  }
 }
 output {
   elasticsearch {
@@ -29,6 +53,7 @@ output {
     password => "CHANGE_ME"
     action => "create"
     data_stream => false
+    index => "whisky06-brahmstra-logs-%{+YYYY.MM.dd}"
   }
 
   # Debugging output to console
