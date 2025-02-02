@@ -23,3 +23,13 @@ ubuntu_packages:
   - ansible
   - openjdk-21-jdk
   - default-jre
+  - vim
+  - make
+  - gcc
+  - g++
+  - python3
+  - npm
+  - binutils
+  - openssh-server
+  - netcat
+  - ca-certificates
