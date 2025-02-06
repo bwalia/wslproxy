@@ -1,4 +1,4 @@
-import { Grid } from "@mui/material";
+import { Grid, Link, Stack } from "@mui/material";
 import React from "react";
 import {
   TextInput,
@@ -20,6 +20,8 @@ import LocationInput from "./input/LocationInput";
 import CreateServerText from "./input/CreateServerText";
 import Toolbar from "./toolbar/Toolbar";
 import CreateTags from "../component/CreateTags";
+import { useRecordContext } from 'ra-core';
+import get from 'lodash/get';
 
 const handleProfileChange = (e) => {
   localStorage.setItem('environment', e.target.value);
@@ -30,6 +32,9 @@ const Form = ({ type }) => {
   const [totalResults, setTotalResults] = React.useState(0);
   const initialValues = [{ quantity: 1 }];
 
+  const record = useRecordContext();
+  const serverName = get(record, "server_name");
+  
   React.useEffect(() => {
     const fetchData = async () => {
       try {
@@ -81,6 +86,12 @@ const Form = ({ type }) => {
               label="Server/Domain name"
               validate={[required()]}
               disabled={type === "edit" ? true : false}
+              helperText={
+                <Stack>
+                  <Link href={`https://${serverName}`} target="_blank">{`https://${serverName}`}</Link>
+                  <Link href={`http://${serverName}`} target="_blank">{`http://${serverName}`}</Link>
+                </Stack>
+              }
             />
           </Grid>
           <Grid item md={3} sm={6} xs={12}>
