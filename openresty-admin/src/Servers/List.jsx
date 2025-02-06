@@ -7,7 +7,8 @@ import {
   SelectInput,
   SearchInput,
   BooleanField,
-  CloneButton
+  CloneButton,
+  FunctionField,
 } from "react-admin";
 import ExportJsonButton from './toolbar/ExportJsonButton';
 import Empty from '../component/Empty';
@@ -39,7 +40,10 @@ const List = () => {
     >
       <Datagrid rowClick="edit">
         <TextField source="listens[0].listen" label="Listen" sortable={false} />
-        <TextField source="server_name" />
+        <FunctionField
+          source="server_name"
+          render={record => (<a href={`https://${record.server_name}`} target="_blank">https://{record.server_name}</a>)}
+          />
         {/* <TextField source="root" />
         <TextField source="access_log" /> */}
         <TextField source='profile_id' />
