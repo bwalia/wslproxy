@@ -1,0 +1,18 @@
+[nginx_cluster]
+
+192.168.1.189 ansible_user=bwalia
+192.168.1.96 ansible_user=bwalia
+192.168.1.137 ansible_user=bwalia
+192.168.1.112 ansible_user=bwalia
+192.168.1.122 ansible_user=bwalia
+192.168.1.64 ansible_user=bwalia
+192.168.1.67 ansible_user=bwalia 
+192.168.1.96 ansible_user=bwalia 
+192.168.1.110 ansible_user=bwalia
+192.168.1.189 ansible_user=bwalia
+192.168.1.120 ansible_user=bwalia
+192.168.1.166 ansible_user=bwalia
+192.168.1.124 ansible_user=bwalia
+192.168.1.36 ansible_user=bwalia 
+192.168.1.106 ansible_user=bwalia
+192.168.1.18 ansible_user=bwalia 

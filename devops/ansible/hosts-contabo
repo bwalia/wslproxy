@@ -1,2 +1,0 @@
-[nginx_cluster]
-k3s2.edgeone.cloud ansible_user=bwalia
