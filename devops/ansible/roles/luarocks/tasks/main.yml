@@ -15,6 +15,18 @@
       delay: 10
   tags: [ubuntu, openresty, lapis]
 
+- name: Disable swap for current session
+  command: swapoff -a
+  tags: [swapoff]
+
+- name: Disable swap permanently, persist reboots
+  replace:
+    path: /etc/fstab
+    regexp: '^(\s*)([^#\n]+\s+)(\w+\s+)swap(\s+.*)$'
+    replace: '#\1\2\3swap\4'
+    backup: yes
+  tags: [swapoff]
+
 - name: Install luarocks
   apt:
     name: luarocks

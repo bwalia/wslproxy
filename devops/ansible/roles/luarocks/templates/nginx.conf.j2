@@ -263,8 +263,8 @@ server {
           location / {
           access_log /var/log/nginx/access.log main;
           error_log  /var/log/nginx/error.log;
-          access_log  on;
-          error_log on;
+          # access_log  on;
+          # error_log on;
 
             default_type text/plain;
             set_by_lua_block $frontdoor_global_vars {
@@ -375,8 +375,8 @@ server {
         # enable 
         access_log /var/log/nginx/access.log main;
         error_log  /var/log/nginx/error.log;
-        access_log on;
-        error_log on;
+        #access_log on;
+        #error_log on;
 
         limit_req zone=req_zone burst=10 nodelay;
         limit_req zone=req_zone_wl burst=20 nodelay;
