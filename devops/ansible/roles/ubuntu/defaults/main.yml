@@ -31,5 +31,5 @@ ubuntu_packages:
   - npm
   - binutils
   - openssh-server
-  - netcat
+  - netcat-traditional
   - ca-certificates
