@@ -1,5 +1,5 @@
 [nginx_cluster]
-whisky01 ansible_user=bwalia
+# whisky01 ansible_user=bwalia do not install openresty on whisky01 because nginx ingress listening on this address.
 whisky03 ansible_user=bwalia
 whisky06 ansible_user=bwalia
 whisky04 ansible_user=bwalia
