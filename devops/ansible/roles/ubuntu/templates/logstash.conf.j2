@@ -24,6 +24,7 @@ filter {
     # Convert request_time to a float
     mutate {
       convert => { "request_time" => "float" }
+      add_field => { "host" => "%{host}" }
     }
     useragent {
       source => "user_agent"
@@ -32,14 +33,16 @@ filter {
   } else if "error" in [tags] {
     grok {
       match => { 
-        "message" => "%{YEAR:year}/%{MONTHNUM:month}/%{MONTHDAY:day} %{TIME:time} \[%{LOGLEVEL:log_level}\] %{NUMBER:pid}#%{NUMBER:worker_id}: \*%{NUMBER:request_id} \[%{WORD:language}\] %{GREEDYDATA:script}: %{GREEDYDATA:error_message} - %{GREEDYDATA:additional_info}, context: %{GREEDYDATA:context}, client: %{IP:client_ip}, server: %{IPORHOST:server}"
+        "message" => [
+          "%{YEAR:year}/%{MONTHNUM:month}/%{MONTHDAY:day} %{TIME:time} \[%{LOGLEVEL:log_level}\] %{NUMBER:pid}#%{NUMBER:worker_id}: \*%{NUMBER:request_id} \[%{WORD:module}\] %{GREEDYDATA:script}:%{NUMBER:line_number}: %{GREEDYDATA:error_message}, context: %{GREEDYDATA:context}, client: %{IP:client_ip}, server: %{IPORHOST:server}",
+          "%{YEAR:year}/%{MONTHNUM:month}/%{MONTHDAY:day} %{TIME:time} \[%{LOGLEVEL:log_level}\] %{NUMBER:pid}#%{NUMBER:worker_id}: \*%{NUMBER:request_id} \[%{WORD:module}\] %{GREEDYDATA:script}:%{NUMBER:line_number}: %{GREEDYDATA:error_message}, context: %{GREEDYDATA:context}, client: %{IP:client_ip}, server: %{IPORHOST:server}, host: %{HOSTNAME:host}"
+        ]
       }
     }
-
     mutate {
       remove_field => ["year", "month", "day", "time"]
+      add_field => { "host" => "%{host}" }
     }
-
     date {
       match => [ "timestamp", "yyyy-MM-dd HH:mm:ss" ]
       target => "@timestamp"
