@@ -238,10 +238,6 @@ local function gatewayHostRulesParser(rules, ruleId, priority, message, statusCo
         isPathPass = true
     end
     results["path"] = isPathPass
-
-    -- client IP check rules
-    local isClientIpPass = false
-    local req_add = ngx.var.remote_addr
     local testingIps = {
         BE = "104.155.127.255",
         IN = "117.245.73.99",
@@ -249,12 +245,21 @@ local function gatewayHostRulesParser(rules, ruleId, priority, message, statusCo
         GB = "103.219.168.255",
         TH = "101.109.255.255"
     }
+
+    -- client IP check rules
+    local isClientIpPass = false
+    local req_add = ngx.var.remote_addr
+    ngx.header["X-Origin-IP"] = testingIps.BE
+    if rules.client_ip_key == 'ipheader' then
+        req_add = ngx.req.get_headers()[rules.client_ip]
+    end
+
+
     if isItDTAPEnvironment(Hostname) then
         if rules.country ~= nil and rules.client_ip ~= nil then
             req_add = testingIps[rules.country]
         end
     end
-    ngx.header["X-Origin-IP"] = req_add
     local ip2locPath = settingsObj.ip2location_path or "/tmp/IP2LOCATION-LITE-DB11.IPV6.BIN"
     local ip2loc = IP2location:new(ip2locPath)
     local result = ip2loc:get_all(req_add)
@@ -262,17 +267,22 @@ local function gatewayHostRulesParser(rules, ruleId, priority, message, statusCo
     if result.country_short then
         country = result.country_short
     end
+
     local client_ip = (rules.client_ip ~= nil and type(rules.client_ip) ~= "userdata") and rules.client_ip or
         rules.client_ip
     -- user data type is null
     if client_ip and client_ip ~= nil and client_ip ~= "" and type(client_ip) ~= "userdata" then
-        if rules.client_ip_key == 'starts_with' and req_add:startswith(client_ip) == true then -- and req_add~=client_ipand  (req_add:startswith(client_ip) ~= true
-            isClientIpPass = true
-        elseif rules.client_ip_key == 'equals' and req_add == client_ip then
-            isClientIpPass = true
+        if rules.client_ip_key ~= 'ipheader' then
+            if rules.client_ip_key == 'starts_with' and req_add:startswith(client_ip) == true then -- and req_add~=client_ipand  (req_add:startswith(client_ip) ~= true
+                isClientIpPass = true
+            elseif rules.client_ip_key == 'equals' and req_add == client_ip then
+                isClientIpPass = true
+            else
+                isClientIpPass, failMessage = false, string.format(
+                    "Client IP does not match. Expected IP is %s, but your IP is %s", client_ip, req_add)
+            end
         else
-            isClientIpPass, failMessage = false, string.format(
-                "Client IP does not match. Expected IP is %s, but your IP is %s", client_ip, req_add)
+            isClientIpPass = true    
         end
     else
         isClientIpPass = true
@@ -282,7 +292,11 @@ local function gatewayHostRulesParser(rules, ruleId, priority, message, statusCo
     local isCountryPass = false
     -- check country
     if rules.country and rules.country ~= nil and rules.country ~= "" and type(rules.country) ~= "userdata" then
-        if rules.country_key == 'equals' and rules.country == country then
+        if rules.country == "EU" then
+            if Helper.isEU(country) then
+                isCountryPass = true
+            end
+        elseif rules.country_key == 'equals' and rules.country == country then
             isCountryPass = true
         else
             isCountryPass, failMessage = false, string.format(

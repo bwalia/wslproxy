@@ -264,6 +264,7 @@ const iso_codes = {
   ZM: "Zambia",
   ZW: "Zimbabwe",
   AX: "Åland Islands",
+  EU: "All European Countries",
 };
 const objectToArray = (obj = {}) => {
   const res = [];
@@ -385,6 +386,7 @@ const Form = () => {
             choices={[
               { id: "equals", name: "=" },
               { id: "starts_with", name: "Starts With" },
+              { id: "ipheader", name: "Get IP from Header" },
             ]}
             className="matchRuleClientIpKey"
           />

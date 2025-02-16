@@ -314,4 +314,17 @@ function Helper.isUniqueField(folderPath, field, value)
     return true
 end
 
+-- Is From EU countries
+function Helper.isEU(countryCode)
+    local EuCountries = {
+        AD = true, AL = true, AT = true, AX = true, BA = true, BE = true, BG = true, BY = true, CH = true,
+        CZ = true, DE = true, DK = true, EE = true, ES = true, FI = true, FO = true, FR = true, GB = true,
+        GG = true, GI = true, GR = true, HR = true, HU = true, IE = true, IM = true, IS = true, IT = true,
+        JE = true, LI = true, LT = true, LU = true, LV = true, MC = true, MD = true, ME = true, MK = true,
+        MT = true, NL = true, NO = true, PL = true, PT = true, RO = true, RS = true, RU = true, SE = true,
+        SI = true, SJ = true, SK = true, SM = true, UA = true, VA = true
+    }
+    return EuCountries[countryCode] or false
+end
+
 return Helper

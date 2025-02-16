@@ -1,6 +1,6 @@
 import React from 'react';
-import TextareaAutosize from '@mui/base/TextareaAutosize';
-import { Grid, Typography } from "@mui/material";
+// import TextareaAutosize from '@mui/base/TextareaAutosize';
+import { Grid, Typography, TextareaAutosize } from "@mui/material";
 
 const Logs = ({ data, heading }) => {
     return (
