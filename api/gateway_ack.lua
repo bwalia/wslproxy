@@ -249,7 +249,7 @@ local function gatewayHostRulesParser(rules, ruleId, priority, message, statusCo
     -- client IP check rules
     local isClientIpPass = false
     local req_add = ngx.var.remote_addr
-    ngx.header["X-Origin-IP"] = testingIps.BE
+    ngx.header["X-Origin-IP"] = req_add
     if rules.client_ip_key == 'ipheader' then
         req_add = ngx.req.get_headers()[rules.client_ip]
     end
