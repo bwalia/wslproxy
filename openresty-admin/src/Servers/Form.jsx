@@ -133,6 +133,15 @@ const Form = ({ type }) => {
           </Grid>
 
           <Grid item md={12} sm={12} xs={12}>
+            <ArrayInput fullWidth source="custom_headers" label="Headers">
+              <SimpleFormIterator fullWidth>
+                <TextInput fullWidth source="header_key" />
+                <TextInput fullWidth source="header_value" />
+              </SimpleFormIterator>
+            </ArrayInput>
+          </Grid>
+
+          <Grid item md={12} sm={12} xs={12}>
             <LocationInput source="locations" />
           </Grid>
           <Grid item md={12} sm={12} xs={12}>

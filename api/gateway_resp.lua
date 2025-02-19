@@ -8,6 +8,8 @@ local Helper = require("helpers")
 globalVars = cjson.decode(globalVars)
 local selectedRule = globalVars.executableRule
 local primaryNameserver = globalVars.proxyServerName
+local proxyServer = globalVars.proxyServer
+
 local settings = Helper.settings()
 
 
@@ -138,8 +140,15 @@ elseif selectedRule.statusCode == 305 then
         ngx.var.proxy_host_override = selectedRule.redirectUri
     end
 
+    if proxyServer.custom_headers ~= nil and type(proxyServer.custom_headers) == "table" then
+        for idx, header in ipairs(proxyServer.custom_headers) do
+            ngx.req.set_header(header.header_key, header.header_value)
+        end
+    end
+
     ngx.var.proxy_host_scheme = origin_serverScheme
     --ngx.req.set_header("Host", ngx.var.proxy_host_override) this will never work here because balancer by lua overrides host header
+    ngx.header["X-Debug-Request-ID"] = ngx.var.request_id
     ngx.header["X-Debug-Origin-Host"] = ngx.var.proxy_host_override
     ngx.header["X-Debug-Origin-Port"] = ngx.var.proxy_port
     ngx.header["X-Debug-Origin-HTTPS"] = ngx.var.proxy_host_scheme
