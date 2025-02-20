@@ -23,6 +23,10 @@ const Login = () => {
   };
   const theme = createTheme();
 
+  const secondaryColor = import.meta.env.VITE_THEME_SECONDARY_COLOR
+  const primaryColor = import.meta.env.VITE_THEME_PRIMARY_COLOR
+  const hoverColor = import.meta.env.VITE_THEME_HOVER_COLOR
+
   return (
     <ThemeProvider theme={theme} className="login-wrapper">
       <Container component="main" maxWidth="xs" className="login-container">
@@ -35,7 +39,7 @@ const Login = () => {
             alignItems: "center",
           }}
         >
-          <Avatar sx={{ m: 1, bgcolor: "#D91656" }}>
+          <Avatar sx={{ m: 1, bgcolor: `#${secondaryColor}` }}>
             <LockOutlinedIcon />
           </Avatar>
           <Typography component="h1" variant="h5">
@@ -76,7 +80,7 @@ const Login = () => {
               type="submit"
               fullWidth
               variant="contained"
-              sx={{ mt: 3, mb: 2, bgcolor: "#D91656", ":hover": { bgcolor: "#640D5F" } }}
+              sx={{ mt: 3, mb: 2, bgcolor: `#${secondaryColor}`, ":hover": { bgcolor: `#${hoverColor}` } }}
               onClick={handleSubmit}
             >
               Sign In

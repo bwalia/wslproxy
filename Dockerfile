@@ -176,8 +176,8 @@ WORKDIR /usr/local/openresty/nginx/html/openresty-admin/
 
 RUN cd /usr/local/openresty/nginx/html/openresty-admin && yarn install \
   --prefer-offline \
-  --frozen-lockfile \
   --non-interactive \
+  --network-timeout 100000 \
   --production=false
   
 # RUN cd /usr/local/openresty/nginx/html/openresty-admin/ && yarn build
