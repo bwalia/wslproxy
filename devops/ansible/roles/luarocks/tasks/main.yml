@@ -6,6 +6,7 @@
       until: update_result.rc == 0
       retries: 5
       delay: 10
+      tags: [ubuntu, lapis]
 
     - name: Upgrade apt packages
       command: apt-get upgrade -y
@@ -13,7 +14,7 @@
       until: upgrade_result.rc == 0
       retries: 5
       delay: 10
-  tags: [ubuntu, openresty, lapis]
+  tags: [ubuntu, lapis]
 
 - name: Install luarocks
   apt:
@@ -232,6 +233,13 @@
   notify: Restart openresty
   register: sync_files
   tags: [openresty, lapis, dashboard, nginx]
+
+- name: Process the nginx-tenants.d template servers-mixed-nginx.conf.j2
+  template:
+    src: servers-mixed-nginx.conf.j2
+    dest: /opt/nginx/conf.d/servers-mixed-nginx.conf
+    mode: 0777
+  tags: [openresty, lapis, nginx]
 
 - debug:
     var: sync_files.stdout_lines
