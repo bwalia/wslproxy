@@ -241,13 +241,6 @@
     mode: 0777
   tags: [openresty, lapis, nginx]
 
-- name: Process the Theme brand color template Theme.jsx.j2
-  template:
-    src: Theme.jsx.j2
-    dest: /usr/local/openresty/nginx/html/openresty-admin/src/Theme.jsx
-    mode: 0777
-  tags: [openresty, lapis, nginx]
-
 - debug:
     var: sync_files.stdout_lines
   tags: [openresty, lapis, dashboard, nginx]

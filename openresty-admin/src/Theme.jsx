@@ -1,6 +1,11 @@
 import React from "react";
 import { defaultTheme } from "react-admin";
-import { red, teal, indigo, green } from '@mui/material/colors';
+import { red, indigo } from '@mui/material/colors';
+
+const secondaryColor = import.meta.env.VITE_THEME_SECONDARY_COLOR
+const primaryColor = import.meta.env.VITE_THEME_PRIMARY_COLOR
+
+
 const Theme = {
   ...defaultTheme,
   palette: {
@@ -8,10 +13,10 @@ const Theme = {
       main: indigo[500]
     },
     primary: {
-      main: '#640D5F',
+      main: `#${primaryColor}`,
     },
     secondary: {
-      main: '#D91656'
+      main: `#${secondaryColor}`
     },
     error: red,
     contrastThreshold: 3,
