@@ -266,6 +266,8 @@ const iso_codes = {
   AX: "Åland Islands",
   EU: "All European Countries",
 };
+
+const euCountries = `Allowed countries AD AL AT AX BA BE BG BY CH CZ DE DK EE ES FI FO FR GB GG GI GR HR HU IE IM IS IT JE LI LT LU LV MC MD ME MK MT NL NO PL PT RO RS RU SE SI SJ SK SM UA VA`
 const objectToArray = (obj = {}) => {
   const res = [];
   const keys = Object.keys(obj);
@@ -375,6 +377,24 @@ const Form = () => {
             choices={mynewobj}
             className="matchRuleCountry"
           />
+          <FormDataConsumer>
+            {({ formData, ...rest }) => (
+              <React.Fragment>
+                {formData?.match?.rules?.country == "EU" && (
+                  <span 
+                    className="country-helper-text" 
+                    style={{
+                      fontSize: "12px",
+                      position: "relative",
+                      top: "-30px"
+                    }}
+                  >
+                    {euCountries}
+                  </span>
+                )}
+              </React.Fragment>
+            )}
+          </FormDataConsumer>
         </Grid>
 
         <Grid item md={6} sm={12} xs={12}>

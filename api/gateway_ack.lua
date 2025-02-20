@@ -282,7 +282,7 @@ local function gatewayHostRulesParser(rules, ruleId, priority, message, statusCo
                     "Client IP does not match. Expected IP is %s, but your IP is %s", client_ip, req_add)
             end
         else
-            isClientIpPass = true    
+            isClientIpPass = true
         end
     else
         isClientIpPass = true
@@ -669,6 +669,7 @@ if exist_values and exist_values ~= 0 and exist_values ~= nil and exist_values ~
             globalVars.proxyServerName = jsonval.proxy_server_name or jsonval.server_name
             if not jsonval.proxy_server_name or jsonval.proxy_server_name == "null" or jsonval.proxy_server_name == "" or jsonval.proxy_server_name == ngx.null then
                 globalVars.proxyServerName = jsonval.server_name
+                globalVars.proxyServer = jsonval
             end
 
             ngx.var.frontdoor_global_vars = cjson.encode(globalVars)
