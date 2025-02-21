@@ -41,7 +41,7 @@ service:
     port: 80
 ingress:
     enabled: true
-    className: traefik
+    className: nginx
     annotations: { cert-manager.io/cluster-issuer: letsencrypt-production, kubernetes.io/ingress.class: traefik }
     hosts: [{ host: front-int.brahmstra.org, paths: [{ path: /, pathType: ImplementationSpecific, serviceName: wf-front-svc-int, servicePort: 80 }] }, { host: int.brahmstra.org, paths: [{ path: /, pathType: ImplementationSpecific, serviceName: wf-front-svc-int, servicePort: 80 }] }, { host: qa.int.brahmstra.org, paths: [{ path: /, pathType: ImplementationSpecific, serviceName: wf-front-svc-int, servicePort: 80 }] }, { host: www.int.workstationcrm.com, paths: [{ path: /, pathType: ImplementationSpecific, serviceName: wf-front-svc-int, servicePort: 80 }] }, { host: int.workstation.co.uk, paths: [{ path: /, pathType: ImplementationSpecific, serviceName: wf-front-svc-int, servicePort: 80 }] }, { host: int.odincm.com, paths: [{ path: /, pathType: ImplementationSpecific, serviceName: wf-front-svc-int, servicePort: 80 }] }, { host: nodeapp.int.brahmstra.org, paths: [{ path: /, pathType: ImplementationSpecific, serviceName: wf-front-svc-int, servicePort: 80 }] }]
     tls: [{ secretName: nodeapp-int-tls-secret, hosts: [nodeapp.int.brahmstra.org] }, { secretName: odincm-int-tls-secret, hosts: [int.odincm.com] }, { secretName: wsw-int-tls-secret, hosts: [int.workstation.co.uk] }, { secretName: wsl-int-tls-secret, hosts: [www.int.workstationcrm.com] }, { secretName: wf-qa-int-tls-secret, hosts: [qa.int.brahmstra.org] }, { secretName: wf-int-tls-secret, hosts: [int.brahmstra.org] }, { secretName: wf-front-int-tls-secret, hosts: [front-int.brahmstra.org] }]
