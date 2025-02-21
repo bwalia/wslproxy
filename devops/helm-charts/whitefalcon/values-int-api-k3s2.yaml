@@ -41,7 +41,7 @@ storage:
     storageClass: ''
 ingress:
     enabled: true
-    className: traefik
+    className: nginx
     annotations: { cert-manager.io/cluster-issuer: letsencrypt-production, kubernetes.io/ingress.class: traefik }
     hosts: [{ host: api-int.brahmstra.org, paths: [{ path: /, pathType: ImplementationSpecific, serviceName: wf-api-svc-int, servicePort: 8080 }] }]
     tls: [{ secretName: api-int-tls-secret, hosts: [api-int.brahmstra.org] }]
