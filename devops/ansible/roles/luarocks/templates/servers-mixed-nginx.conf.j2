@@ -3,7 +3,7 @@
 proxy_cache_path /tmp/nginx-cache keys_zone=mynginxcache:10m loader_threshold=300 loader_files=200 max_size=200m;
 
 server {
-listen       80;
+listen       8888;
 server_name  elasticdatagenerator.fictionally.xyz;
 
        location / {
@@ -17,7 +17,7 @@ server_name  elasticdatagenerator.fictionally.xyz;
 }
  
 server {
-listen       80;
+listen       8888;
 server_name  es815.fictionally.xyz es815api.fictionally.xyz;
 
     # location ~ \.(css|js)$ {
@@ -40,7 +40,7 @@ server_name  es815.fictionally.xyz es815api.fictionally.xyz;
 }
 
 server {
-listen       80;
+listen       8888;
 server_name  {{ nginx_k3s_dashboard_server_name }};
 
     # location ~ \.(css|js)$ {
@@ -62,7 +62,7 @@ server_name  {{ nginx_k3s_dashboard_server_name }};
 }
 
 server {
-listen       80;
+listen       8888;
 server_name  elastic.fictionally.xyz elasticapi.fictionally.xyz;
 
     # location ~ \.(css|js)$ {
@@ -89,7 +89,7 @@ server_name  elastic.fictionally.xyz elasticapi.fictionally.xyz;
 
 server
 {
-        listen 80;  # Listen on port (HTTP)
+        listen 8888;  # Listen on port (HTTP)
         server_name {{ nginx_s3_server_name }} acc-{{ nginx_s3_server_name }} test-{{ nginx_s3_server_name }} int-{{ nginx_s3_server_name }};  # Your domain name
         root /var/www/html;  # Document root directory
         index index.html;  # Default index files
@@ -124,7 +124,7 @@ server
 
 server 
 {
-            listen 80;  # Listen on port (HTTP)
+            listen 8888;  # Listen on port (HTTP)
             server_name {{ nginx_s3_cli_server_name }} acc-{{ nginx_s3_cli_server_name }} test-{{ nginx_s3_cli_server_name }} int-{{ nginx_s3_cli_server_name }};  # Your domain name
             root /var/www/html;  # Document root directory
             index index.html;  # Default index files
