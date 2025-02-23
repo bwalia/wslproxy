@@ -140,7 +140,7 @@ elseif selectedRule.statusCode == 305 then
         ngx.var.proxy_host_override = selectedRule.redirectUri
     end
 
-    if proxyServer.custom_headers ~= nil and type(proxyServer.custom_headers) == "table" then
+    if proxyServer and proxyServer ~= nil and proxyServer.custom_headers ~= nil and type(proxyServer.custom_headers) == "table" then
         for idx, header in ipairs(proxyServer.custom_headers) do
             ngx.req.set_header(header.header_key, header.header_value)
         end
