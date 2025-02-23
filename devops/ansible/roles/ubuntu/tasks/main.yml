@@ -107,3 +107,22 @@
     state: started
     enabled: true
   tags: [logs-elk]
+
+# - name: rotate log
+#   ansible.builtin.copy:
+#     src: logrotate
+#     dest: /etc/logrotate.d/logstash
+#     owner: root
+#     group: root
+#     mode: 0644
+#   tags: [logs-elk]
+
+#find / -type f -size +500M
+#/var/log/syslog.1
+#/usr/local/openresty/nginx/on
+#/usr/local/openresty/nginx/logs/error.log
+
+- name: Rotate and truncate logs
+  shell: /usr/sbin/rotate-truncate-logs.sh
+  tags: [logrotate,logtruncate]
+
