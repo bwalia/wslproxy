@@ -1,5 +1,5 @@
-local_settings_file_path: "/Users/balinderwalia/Documents/Work/aws_keys/settings_whisky01.json"
-local_env_file_path: "/Users/balinderwalia/Documents/Work/aws_keys/.env_whisky01"
+local_settings_file_path: "/home/bwalia/.secrets/settings_whisky01.json"
+local_env_file_path: "/home/bwalia/.secrets/.env_whisky01"
 nginx_user_password: "!!REDACTED!!" # This is the password for the user www-data but must be encrypted using Ansible Vault
 host_lan_ip: "10.24.5.250"
 nginx_web_ui_enabled: "yes"
