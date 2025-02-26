@@ -143,17 +143,23 @@ http {
                       return settings
                     end
                     local settings = getSettings()
-                    local passPhrase = settings.env_vars.JWT_SECURITY_PASSPHRASE or os.getenv("JWT_SECURITY_PASSPHRASE")
-                    if not passPhrase or passPhrase == "" then
-                      ngx.status = ngx.HTTP_UNAUTHORIZED
-                      ngx.say(Cjson.encode({data = {message = "JWT Pass Phrase is missing"}}))
-                      return ngx.exit(ngx.HTTP_UNAUTHORIZED)
-                    end
-                    local verified_token = jwt:verify(passPhrase, token)
-                    if verified_token.verified == false then
+                    if setting and setting ~= nil then
+                      local passPhrase = settings.env_vars.JWT_SECURITY_PASSPHRASE or os.getenv("JWT_SECURITY_PASSPHRASE")
+                      if not passPhrase or passPhrase == "" then
                         ngx.status = ngx.HTTP_UNAUTHORIZED
-                        ngx.say(Cjson.encode({data = {message = verified_token.reason}}))
+                        ngx.say(Cjson.encode({data = {message = "JWT Pass Phrase is missing"}}))
                         return ngx.exit(ngx.HTTP_UNAUTHORIZED)
+                      end
+                      local verified_token = jwt:verify(passPhrase, token)
+                      if verified_token.verified == false then
+                          ngx.status = ngx.HTTP_UNAUTHORIZED
+                          ngx.say(Cjson.encode({data = {message = verified_token.reason}}))
+                          return ngx.exit(ngx.HTTP_UNAUTHORIZED)
+                      end
+                    else
+                      ngx.status = ngx.HTTP_UNAUTHORIZED
+                      ngx.say(Cjson.encode({data = {message = "Settings Json file missing, Please make sure you have correctly placed the setting json file while initlising the project."}}))
+                      return ngx.exit(ngx.HTTP_UNAUTHORIZED)
                     end
                 end
             }

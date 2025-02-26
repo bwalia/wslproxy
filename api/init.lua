@@ -20,14 +20,16 @@ local function getSettings()
   return settings
 end
 local settings = getSettings()
-local redisHost = settings.env_vars.REDIS_HOST or os.getenv("REDIS_HOST")
-local redisEndPort = settings.env_vars.REDIS_PORT or os.getenv("REDIS_PORT")
-if redisHost == nil then
-  redisHost = "localhost"
-end
-
-if redisEndPort ~= nil then
-  redisEndPort = 6379
+if settings and settings ~= nil and settings.env_vars and settings.env_vars ~= nil then
+  local redisHost = settings.env_vars.REDIS_HOST or os.getenv("REDIS_HOST")
+  local redisEndPort = settings.env_vars.REDIS_PORT or os.getenv("REDIS_PORT")
+  if redisHost == nil then
+    redisHost = "localhost"
+  end
+  
+  if redisEndPort ~= nil then
+    redisEndPort = 6379
+  end
 end
 
 require "resty.session".init({
