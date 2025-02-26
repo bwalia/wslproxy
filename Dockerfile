@@ -171,47 +171,6 @@ RUN mkdir -p "/var/log/nginx/" \
     && chmod 755 -R "/var/log/nginx/"
 
 
-RUN mkdir -p /opt/nginx/data/ \
-    && chmod -R 777 /opt/nginx/data/ \
-    && chown -R root:root /opt/nginx/data/
-
-RUN mkdir -p /opt/nginx/data/rules/prod/ \
-    && chmod -R 777 /opt/nginx/data/rules/prod/ \
-    && chown -R root:root /opt/nginx/data/rules/prod/
-
-RUN mkdir -p /opt/nginx/data/rules/acc/ \
-    && chmod -R 777 /opt/nginx/data/rules/acc/ \
-    && chown -R root:root /opt/nginx/data/rules/acc/
-
-RUN mkdir -p /opt/nginx/data/rules/test/ \
-    && chmod -R 777 /opt/nginx/data/rules/test/ \
-    && chown -R root:root /opt/nginx/data/rules/test/
-
-RUN mkdir -p /opt/nginx/data/rules/int/ \
-    && chmod -R 777 /opt/nginx/data/rules/int/ \
-    && chown -R root:root /opt/nginx/data/rules/int/
-
-RUN mkdir -p /opt/nginx/data/servers/prod/ \
-    && chmod -R 777 /opt/nginx/data/servers/prod/ \
-    && chown -R root:root /opt/nginx/servers/rules/prod/
-
-RUN mkdir -p /opt/nginx/data/servers/acc/ \
-    && chmod -R 777 /opt/nginx/data/servers/acc/ \
-    && chown -R root:root /opt/nginx/data/servers/acc/
-
-RUN mkdir -p /opt/nginx/data/servers/test/ \
-    && chmod -R 777 /opt/nginx/data/servers/test/ \
-    && chown -R root:root /opt/nginx/data/servers/test/
-
-RUN mkdir -p /opt/nginx/data/servers/int/ \
-    && chmod -R 777 /opt/nginx/data/servers/int/ \
-    && chown -R root:root /opt/nginx/data/servers/int/
-
-RUN mkdir -p /opt/nginx/conf.d/ \
-    && chmod -R 777 /opt/nginx/conf.d/ \
-    && chown -R root:root /opt/nginx/conf.d/
-
-
 # set environment file based on the argument
 
 WORKDIR /usr/local/openresty/nginx/html/openresty-admin/

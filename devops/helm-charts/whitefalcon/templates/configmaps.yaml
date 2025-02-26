@@ -44,6 +44,8 @@ data:
         # Set Timezone
         echo "Openresty whitefalcon Nginx Bootstrap Script"
         FILE=/opt/nginx/data/settings.json
+        mkdir -p /opt/nginx/data
+        mkdir -p /opt/nginx/conf.d
         if test -f "/tmp/settings/settings.json"; then
         # Copy settings.json from secrets if provided by the deployment
         cp /tmp/settings/settings.json $FILE
