@@ -25,6 +25,9 @@
 - name: add repository key
   ansible.builtin.apt_key:
     url: https://artifacts.elastic.co/GPG-KEY-elasticsearch
+    id: D88E42B4
+    state: present
+    validate_certs: yes
   retries: 2
   register: result
   until: result is succeeded
@@ -121,6 +124,12 @@
 #/var/log/syslog.1
 #/usr/local/openresty/nginx/on
 #/usr/local/openresty/nginx/logs/error.log
+
+- name: copy rotate log file
+  ansible.builtin.template:
+    src: "rotate-truncate-logs.sh.j2"
+    dest: "/usr/sbin/rotate-truncate-logs.sh"
+    mode: 0775
 
 - name: Rotate and truncate logs
   shell: /usr/sbin/rotate-truncate-logs.sh
