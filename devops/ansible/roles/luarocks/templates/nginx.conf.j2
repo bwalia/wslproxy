@@ -164,7 +164,7 @@ http {
                       return settings
                     end
                     local settings = getSettings()
-                    if setting and setting ~= nil then
+                    if settings and type(settings) == "table" then
                       local passPhrase = settings.env_vars.JWT_SECURITY_PASSPHRASE or os.getenv("JWT_SECURITY_PASSPHRASE")
                       if not passPhrase or passPhrase == "" then
                         ngx.status = ngx.HTTP_UNAUTHORIZED
