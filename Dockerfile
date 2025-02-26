@@ -207,6 +207,10 @@ RUN mkdir -p /opt/nginx/data/servers/int/ \
     && chmod -R 777 /opt/nginx/data/servers/int/ \
     && chown -R www-data:root /opt/nginx/data/servers/int/
 
+RUN mkdir -p /opt/nginx/conf.d/ \
+    && chmod -R 777 /opt/nginx/conf.d/ \
+    && chown -R www-data:root /opt/nginx/conf.d/
+
 
 # set environment file based on the argument
 
