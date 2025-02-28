@@ -338,6 +338,22 @@ function SyncSettings(args)
 end
 
 local args = ngx.req.get_uri_args()
+
+if not settings or settings.instance_hash == nil or settings.serial_number == nil then
+    ngx.status = ngx.HTTP_BAD_REQUEST
+    ngx.say(cjson.encode({error = "You don't have defined instance hash or instance serial number in your settings file. Please define the intance details and then try again."}))
+    ngx.exit(ngx.HTTP_BAD_REQUEST)
+end
+if not args or args.instance_hash == nil or args.serial_number == nil then
+    ngx.status = ngx.HTTP_BAD_REQUEST
+    ngx.say(cjson.encode({error = "Instance details are missing from request. Please try again."}))
+    ngx.exit(ngx.HTTP_BAD_REQUEST)
+end
+if args.instance_hash == settings.instance_hash and args.serial_number == settings.serial_number then
+    ngx.status = ngx.HTTP_BAD_REQUEST
+    ngx.say(cjson.encode({error = "You cannot sync from your own server."}))
+    ngx.exit(ngx.HTTP_BAD_REQUEST)
+end
 local response = {}
 if args.settings == "true" then
     response.settings = SyncSettings(args)

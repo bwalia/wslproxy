@@ -21,12 +21,14 @@ const authProvider = {
       .then(({ data }) => {
         const expiryDate = new Date();
         const { accessToken } = data
+        const { instance } = data
         expiryDate.setSeconds(expiryDate.getSeconds() + 3600);
         const token = {
           accessToken,
           expiryDate,
         };
         localStorage.setItem("token", JSON.stringify(token));
+        localStorage.setItem("instance", JSON.stringify(instance));
       });
     return Promise.resolve();
   },

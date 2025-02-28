@@ -285,7 +285,13 @@ local function login(args)
             ngx.say(cjson.encode({
                 data = {
                     user = payloads,
-                    accessToken = Helper.generateToken()
+                    accessToken = Helper.generateToken(),
+                    instance = {
+                        instance_id = settings.instance_id,
+                        instance_name = settings.instance_name,
+                        instance_hash = settings.instance_hash,
+                        serial_number = settings.serial_number,
+                    }
                 },
                 status = 200
             }))
