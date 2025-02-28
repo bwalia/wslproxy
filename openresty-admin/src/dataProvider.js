@@ -323,16 +323,21 @@ const dataProvider = (apiUrl, settings = {}) => {
       const FRONT_URL = import.meta.env.VITE_FRONT_URL;
       try {
         setIsLoadig(true);
-        const environmentProfile = localStorage.getItem('environment') || "prod";
-        const url = `${FRONT_URL}/${resource}?envprofile=${environmentProfile || ''}&settings=true`;
-        const response = await fetch(url, {
-          method: "GET",
-          headers: getHeaders(),
-          mode: "no-cors",
-        });
-        if (response.status === 200) {
-          setIsLoadig(false);
-          setSyncPopupOpen(true);
+        let instance = localStorage.getItem('instance');
+        if (instance) {
+          instance = JSON.parse(instance);
+          const environmentProfile = localStorage.getItem('environment') || "prod";
+          const url = `${FRONT_URL}/${resource}?envprofile=${environmentProfile || ''}&settings=true&instance_hash=${instance.instance_hash}&serial_number=${instance.serial_number}
+            `;
+          const response = await fetch(url, {
+            method: "GET",
+            headers: getHeaders(),
+            mode: "no-cors",
+          });
+          if (response.status === 200) {
+            setIsLoadig(false);
+            setSyncPopupOpen(true);
+          }
         }
         setIsLoadig(false);
       } catch (error) {

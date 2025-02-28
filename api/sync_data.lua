@@ -251,12 +251,10 @@ function SyncRulesAPI(args)
         until apiTotalPages >= totalPages
     end
 
-    return ngx.say(cjson.encode({
-        data = {
+    return {
             rules = totalRules,
             totalPage = totalPages,
         }
-    }))
 end
 
 function SyncServersAPI(args)
@@ -303,12 +301,10 @@ function SyncServersAPI(args)
         local script_path = settings.script_path
         runShellScript(script_path)
     end
-    return ngx.say(cjson.encode({
-        data = {
+    return {
             servers = totalServers,
             totalPage = totalPages,
         }
-    }))
 end
 
 -- function SyncSettings()
@@ -337,17 +333,32 @@ function SyncSettings(args)
         local envProfile = args.envprofile
         settings.env_profile = envProfile
         setDataToFile(configPath .. "data/settings.json", settings)
-        return ngx.say(cjson.encode({
-            data = {
-                settings = "settings are synced"
-            }
-        }))
+        return { success = "settings are synced" }
     end
 end
 
 local args = ngx.req.get_uri_args()
-if args.settings == "true" then
-    SyncSettings(args)
+
+if not settings or settings.instance_hash == nil or settings.serial_number == nil then
+    ngx.status = ngx.HTTP_BAD_REQUEST
+    ngx.say(cjson.encode({error = "You don't have defined instance hash or instance serial number in your settings file. Please define the intance details and then try again."}))
+    ngx.exit(ngx.HTTP_BAD_REQUEST)
 end
-SyncRulesAPI(args)
-SyncServersAPI(args)
+if not args or args.instance_hash == nil or args.serial_number == nil then
+    ngx.status = ngx.HTTP_BAD_REQUEST
+    ngx.say(cjson.encode({error = "Instance details are missing from request. Please try again."}))
+    ngx.exit(ngx.HTTP_BAD_REQUEST)
+end
+if args.instance_hash == settings.instance_hash and args.serial_number == settings.serial_number then
+    ngx.status = ngx.HTTP_BAD_REQUEST
+    ngx.say(cjson.encode({error = "You cannot sync from your own server."}))
+    ngx.exit(ngx.HTTP_BAD_REQUEST)
+end
+local response = {}
+if args.settings == "true" then
+    response.settings = SyncSettings(args)
+end
+response.rules = SyncRulesAPI(args)
+response.servers = SyncServersAPI(args)
+
+ngx.say(cjson.encode(response))
