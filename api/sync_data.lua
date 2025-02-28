@@ -251,12 +251,10 @@ function SyncRulesAPI(args)
         until apiTotalPages >= totalPages
     end
 
-    return ngx.say(cjson.encode({
-        data = {
+    return {
             rules = totalRules,
             totalPage = totalPages,
         }
-    }))
 end
 
 function SyncServersAPI(args)
@@ -303,12 +301,10 @@ function SyncServersAPI(args)
         local script_path = settings.script_path
         runShellScript(script_path)
     end
-    return ngx.say(cjson.encode({
-        data = {
+    return {
             servers = totalServers,
             totalPage = totalPages,
         }
-    }))
 end
 
 -- function SyncSettings()
@@ -337,17 +333,16 @@ function SyncSettings(args)
         local envProfile = args.envprofile
         settings.env_profile = envProfile
         setDataToFile(configPath .. "data/settings.json", settings)
-        return ngx.say(cjson.encode({
-            data = {
-                settings = "settings are synced"
-            }
-        }))
+        return { success = "settings are synced" }
     end
 end
 
 local args = ngx.req.get_uri_args()
+local response = {}
 if args.settings == "true" then
-    SyncSettings(args)
+    response.settings = SyncSettings(args)
 end
-SyncRulesAPI(args)
-SyncServersAPI(args)
+response.rules = SyncRulesAPI(args)
+response.servers = SyncServersAPI(args)
+
+ngx.say(cjson.encode(response))
