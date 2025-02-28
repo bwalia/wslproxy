@@ -23,7 +23,7 @@ metadata:
   name: {{ .Values.app.name }}-{{ .Values.app.target_env }}-pvc
 spec:
   accessModes:
-  - ReadWriteOnce
+  - ReadWriteMany
   resources:
     requests:
       storage: {{ .Values.storage.size }}

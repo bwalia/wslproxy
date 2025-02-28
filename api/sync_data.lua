@@ -35,6 +35,26 @@ local function generateToken()
     })
 end
 
+
+local function fileExists(filepath)
+    local file = io.open(filepath, "r")
+    if file then
+        file:close()
+        return true
+    end
+    return false
+end
+
+local function deleteFileIfExists(fileName, directory)
+    if fileName then
+        local filepath = directory .. "/" .. fileName
+        if fileExists(filepath) then
+            os.remove(filepath)
+            ngx.log(ngx.INFO, "File deleted: " .. filepath)
+        end
+    end
+end
+
 local function createDirectoryIfNotExists(directoryPath)
     if not lfs.attributes(directoryPath, "mode") then
         assert(lfs.mkdir(directoryPath))
@@ -136,8 +156,10 @@ local function saveRecordsToDisk(path, keyName, type)
         allDataTotal = cjson.decode(allServers)["total"]
         for index, server in ipairs(allServersData) do
             if type == "conf" then
+                deleteFileIfExists(server.name .. ".conf", configPath .. "data/" .. keyName)
                 setDataToLocalFile(configPath .. "data/" .. keyName .. "/" .. server.name .. ".conf", server, configPath .. "data/" .. keyName, "conf")
             else
+                deleteFileIfExists(server.id .. ".json", configPath .. "data/" .. keyName)
                 createDirectoryIfNotExists(configPath .. "data/" .. keyName)
                 setDataToFile(configPath .. "data/" .. keyName .. "/" .. server.id .. ".json", server)
             end
@@ -201,7 +223,6 @@ function SyncRulesAPI(args)
     local profileName = args.envprofile
     apiPageSize = (apiPageSize == nil or apiPageSize == "") and 100 or apiPageSize
 
-    deleteFilesInDirectory(configPath .. "data/rules/" .. profileName)
     local totalPages = 1
     local totalRules = saveRecordsToDisk(
         apiUrl ..
@@ -244,10 +265,9 @@ function SyncServersAPI(args)
     local profileName = args.envprofile
     apiPageSize = (apiPageSize == nil or apiPageSize == "") and 100 or apiPageSize
     local settings = getSettings()
-    deleteFilesInDirectory(configPath .. "data/servers/" .. profileName)
-    if settings.sync_nginx_conf_files ~= nil and settings.sync_nginx_conf_files == true then
-        deleteFilesInDirectory(configPath .. "data/servers/" .. profileName .. "/conf")
-    end
+    -- if settings.sync_nginx_conf_files ~= nil and settings.sync_nginx_conf_files == true then
+    --     deleteFilesInDirectory(configPath .. "data/servers/" .. profileName .. "/conf")
+    -- end
     local totalPages = 1
     local totalServers = saveRecordsToDisk(
         apiUrl ..
@@ -291,19 +311,31 @@ function SyncServersAPI(args)
     }))
 end
 
-function SyncSettings()
-    local httpc = http.new()
-    local allDataTotal = 0
-    local settingsObj, settingsErr = httpc:request_uri(apiUrl .. "/global/settings", {
-        method = "GET",
-        headers = httpHeaders,
-        ssl_verify = false,
-    })
-    if settingsErr == nil then
-        settingsObj = settingsObj.body
-    end
-    if settingsObj and settingsObj ~= nil and type(settingsObj) == "string" then
-        local settings = cjson.decode(settingsObj)["data"]
+-- function SyncSettings()
+--     local httpc = http.new()
+--     local allDataTotal = 0
+--     local settingsObj, settingsErr = httpc:request_uri(apiUrl .. "/global/settings", {
+--         method = "GET",
+--         headers = httpHeaders,
+--         ssl_verify = false,
+--     })
+--     if settingsErr == nil then
+--         settingsObj = settingsObj.body
+--     end
+--     if settingsObj and settingsObj ~= nil and type(settingsObj) == "string" then
+--         local settings = cjson.decode(settingsObj)["data"]
+--         setDataToFile(configPath .. "data/settings.json", settings)
+--         return ngx.say(cjson.encode({
+--             data = {
+--                 settings = "settings are synced"
+--             }
+--         }))
+--     end
+-- end
+function SyncSettings(args)
+    if args and args ~= nil and args.envprofile and args.envprofile ~= nil then
+        local envProfile = args.envprofile
+        settings.env_profile = envProfile
         setDataToFile(configPath .. "data/settings.json", settings)
         return ngx.say(cjson.encode({
             data = {
@@ -315,7 +347,7 @@ end
 
 local args = ngx.req.get_uri_args()
 if args.settings == "true" then
-    SyncSettings()
+    SyncSettings(args)
 end
 SyncRulesAPI(args)
 SyncServersAPI(args)
