@@ -62,6 +62,13 @@ jobs:
           push: true
           tags: bwalia/whitefalcon:latest
 
+      - name: Build and push HD Openresty
+        if: ${{ env.DEPLOYMENT_TYPE == 'build' || env.DEPLOYMENT_TYPE == 'build-and-deploy' }}
+        uses: docker/build-push-action@v4
+        with:
+          push: true
+          tags: bwalia/hd-openresty:latest
+
       - name: Build and push Node app
         if: ${{ env.DEPLOYMENT_TYPE == 'build' || env.DEPLOYMENT_TYPE == 'build-and-deploy' }}
         uses: docker/build-push-action@v4
