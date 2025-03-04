@@ -120,7 +120,7 @@ COPY ./openresty-admin /usr/local/openresty/nginx/html/openresty-admin
 COPY ./data ${NGINX_CONFIG_DIR}data
 #   COPY ./data/sample-settings.json ${NGINX_CONFIG_DIR}data/sample-settings.json
 COPY ./api /usr/local/openresty/nginx/html/api
-#COPY $ENV_FILE /usr/local/openresty/nginx/html/openresty-admin.env
+COPY $ENV_FILE /usr/local/openresty/nginx/html/openresty-admin.env
 COPY ./nginx-${APP_ENV}.conf.tmpl /tmp/nginx.conf.tmpl
 COPY ./resolver.conf.tmpl /tmp/resolver.conf.tmpl
 COPY ./html/swagger /usr/local/openresty/nginx/html/swagger
@@ -202,4 +202,4 @@ RUN wget https://dl.min.io/client/mc/release/linux-amd64/mc -O /usr/local/bin/mc
 RUN mc --version
 
 # Start Consul in the background and then start OpenResty
-CMD consul agent -bind=172.177.0.8 -config-dir=/etc/consul.d & /usr/local/openresty/nginx/sbin/nginx -g "daemon off;"
+CMD /usr/local/openresty/nginx/sbin/nginx -g "daemon off;"
