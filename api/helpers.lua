@@ -23,7 +23,7 @@ function Helper.settings()
     local readSettings, errSettings = io.open(configPath .. "data/settings.json", "rb")
     local settings = {}
     if readSettings == nil then
-        ApiErrors.throwError("Couldn't read file: data/settings.json " .. errSettings, ngx.HTTP_BAD_REQUEST)
+        ApiErrors.throwError("Couldn't read file: settings.json. Please make sure you have correct settings.json file placed on right place.", ngx.HTTP_BAD_REQUEST)
     else
         local jsonString = readSettings:read "*a"
         readSettings:close()

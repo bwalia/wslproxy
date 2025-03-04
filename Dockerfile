@@ -118,7 +118,7 @@ COPY ./system ${NGINX_CONFIG_DIR}system
 COPY ./html /usr/local/openresty/nginx/
 COPY ./openresty-admin /usr/local/openresty/nginx/html/openresty-admin
 COPY ./data ${NGINX_CONFIG_DIR}data
-#   COPY ./data/sample-settings.json ${NGINX_CONFIG_DIR}data/sample-settings.json
+COPY ./data/sample-settings.json ${NGINX_CONFIG_DIR}data/settings.json
 COPY ./api /usr/local/openresty/nginx/html/api
 COPY .env.dev /usr/local/openresty/nginx/html/openresty-admin/.env
 COPY ./nginx-${APP_ENV}.conf.tmpl /tmp/nginx.conf.tmpl
@@ -181,7 +181,7 @@ RUN cd /usr/local/openresty/nginx/html/openresty-admin && yarn install \
   --network-timeout 100000 \
   --production=false
   
-# RUN cd /usr/local/openresty/nginx/html/openresty-admin/ && yarn build
+RUN cd /usr/local/openresty/nginx/html/openresty-admin/ && yarn build
 #--dest /usr/local/openresty/nginx/html/openresty-admin/dist
 
 RUN mkdir -p "${NGINX_CONFIG_DIR}data/servers" && \
