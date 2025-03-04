@@ -1,0 +1,50 @@
+{
+    "serial_number": "4cadeac519161973818e1bce2acdf8e1",
+    "roles": ["release_manager", "admin", "read_only", "read_write"],
+    "instance_locked": "true",
+    "env_profile": "int",
+    "redis_port": "localhost",
+    "storage_type": "disk",
+    "nginx": {
+      "tenant_conf_path": "/opt/nginx/conf.d",
+      "default": {
+        "no_rule": "PCFET0NUWVBFIGh0bWw+CjxodG1sPgo8aGVhZD4KICA8dGl0bGU+Tm8gUnVsZXM8L3RpdGxlPgogIDxzdHlsZT4KICAgIGJvZHkgewogICAgICBmb250LWZhbWlseTogQXJpYWwsIHNhbnMtc2VyaWY7CiAgICAgIGJhY2tncm91bmQtY29sb3I6ICNmNGY0ZjQ7CiAgICAgIG1hcmdpbjogMDsKICAgICAgcGFkZGluZzogMDsKICAgICAgZGlzcGxheTogZmxleDsKICAgICAgYWxpZ24taXRlbXM6IGNlbnRlcjsKICAgICAganVzdGlmeS1jb250ZW50OiBjZW50ZXI7CiAgICAgIGhlaWdodDogMTAwdmg7CiAgICB9CiAgICAKICAgIC5jb250YWluZXIgewogICAgICBtYXgtd2lkdGg6IDQwMHB4OwogICAgICBwYWRkaW5nOiA0MHB4OwogICAgICBiYWNrZ3JvdW5kLWNvbG9yOiAjZmZmOwogICAgICBib3gtc2hhZG93OiAwIDAgMTBweCByZ2JhKDAsIDAsIDAsIDAuMSk7CiAgICAgIHRleHQtYWxpZ246IGNlbnRlcjsKICAgIH0KICAgIAogICAgaDEgewogICAgICBmb250LXNpemU6IDI0cHg7CiAgICAgIG1hcmdpbi1ib3R0b206IDIwcHg7CiAgICAgIGNvbG9yOiAjMzMzOwogICAgfQogICAgCiAgICBwIHsKICAgICAgZm9udC1zaXplOiAxOHB4OwogICAgICBjb2xvcjogIzY2NjsKICAgICAgbWFyZ2luLWJvdHRvbTogMzBweDsKICAgIH0KICAgIAogICAgLmJ0biB7CiAgICAgIGRpc3BsYXk6IGlubGluZS1ibG9jazsKICAgICAgcGFkZGluZzogMTBweCAyMHB4OwogICAgICBiYWNrZ3JvdW5kLWNvbG9yOiAjMDA3YmZmOwogICAgICBjb2xvcjogI2ZmZjsKICAgICAgZm9udC1zaXplOiAxNnB4OwogICAgICB0ZXh0LWRlY29yYXRpb246IG5vbmU7CiAgICAgIGJvcmRlci1yYWRpdXM6IDRweDsKICAgICAgdHJhbnNpdGlvbjogYmFja2dyb3VuZC1jb2xvciAwLjNzIGVhc2U7CiAgICB9CiAgICAKICAgIC5idG46aG92ZXIgewogICAgICBiYWNrZ3JvdW5kLWNvbG9yOiAjMDA1NmIzOwogICAgfQogIDwvc3R5bGU+CjwvaGVhZD4KPGJvZHk+CiAgPGRpdiBjbGFzcz0iY29udGFpbmVyIj4KICAgIDxoMT5Db25maWd1cmF0aW9uIE1pc3NpbmchPC9oMT4KICAgIDxwPlBsZWFzZSBhc2sgV2ViT3BzIHRvIENvbmZpZ3VyZSB0aGlzIEFQSSBHYXRld2F5LjwvcD4KICAgIDxhIGhyZWY9IiMiIGNsYXNzPSJidG4iPkNvbnRhY3QgQWRtaW5pc3RyYXRvcjwvYT4KICA8L2Rpdj4KPC9ib2R5Pgo8L2h0bWw+Cg==",
+        "conf_mismatch": "PCFET0NUWVBFIGh0bWw+CjxodG1sPgo8aGVhZD4KICA8dGl0bGU+Tm8gUnVsZXM8L3RpdGxlPgogIDxzdHlsZT4KICAgIGJvZHkgewogICAgICBmb250LWZhbWlseTogQXJpYWwsIHNhbnMtc2VyaWY7CiAgICAgIGJhY2tncm91bmQtY29sb3I6ICNmNGY0ZjQ7CiAgICAgIG1hcmdpbjogMDsKICAgICAgcGFkZGluZzogMDsKICAgICAgZGlzcGxheTogZmxleDsKICAgICAgYWxpZ24taXRlbXM6IGNlbnRlcjsKICAgICAganVzdGlmeS1jb250ZW50OiBjZW50ZXI7CiAgICAgIGhlaWdodDogMTAwdmg7CiAgICB9CiAgICAKICAgIC5jb250YWluZXIgewogICAgICBtYXgtd2lkdGg6IDQwMHB4OwogICAgICBwYWRkaW5nOiA0MHB4OwogICAgICBiYWNrZ3JvdW5kLWNvbG9yOiAjZmZmOwogICAgICBib3gtc2hhZG93OiAwIDAgMTBweCByZ2JhKDAsIDAsIDAsIDAuMSk7CiAgICAgIHRleHQtYWxpZ246IGNlbnRlcjsKICAgIH0KICAgIAogICAgaDEgewogICAgICBmb250LXNpemU6IDI0cHg7CiAgICAgIG1hcmdpbi1ib3R0b206IDIwcHg7CiAgICAgIGNvbG9yOiAjMzMzOwogICAgfQogICAgCiAgICBwIHsKICAgICAgZm9udC1zaXplOiAxOHB4OwogICAgICBjb2xvcjogIzY2NjsKICAgICAgbWFyZ2luLWJvdHRvbTogMzBweDsKICAgIH0KICAgIAogICAgLmJ0biB7CiAgICAgIGRpc3BsYXk6IGlubGluZS1ibG9jazsKICAgICAgcGFkZGluZzogMTBweCAyMHB4OwogICAgICBiYWNrZ3JvdW5kLWNvbG9yOiAjMDA3YmZmOwogICAgICBjb2xvcjogI2ZmZjsKICAgICAgZm9udC1zaXplOiAxNnB4OwogICAgICB0ZXh0LWRlY29yYXRpb246IG5vbmU7CiAgICAgIGJvcmRlci1yYWRpdXM6IDRweDsKICAgICAgdHJhbnNpdGlvbjogYmFja2dyb3VuZC1jb2xvciAwLjNzIGVhc2U7CiAgICB9CiAgICAKICAgIC5idG46aG92ZXIgewogICAgICBiYWNrZ3JvdW5kLWNvbG9yOiAjMDA1NmIzOwogICAgfQogIDwvc3R5bGU+CjwvaGVhZD4KPGJvZHk+CiAgPGRpdiBjbGFzcz0iY29udGFpbmVyIj4KICAgIDxoMT5Db25maWd1cmF0aW9uIG5vdCBtYXRjaCE8L2gxPgogICAgPHA+UGxlYXNlIGNoZWNrIHlvdXIgY29uZmlndXJhdGlvbnMgb3IgYXNrIFdlYk9wcyB0byBDb25maWd1cmUgaXQgcmlnaHQuPC9wPgogICAgPGEgaHJlZj0iIyIgY2xhc3M9ImJ0biI+Q29udGFjdCBBZG1pbmlzdHJhdG9yPC9hPgogIDwvZGl2Pgo8L2JvZHk+CjwvaHRtbD4K",
+        "no_server": "PCFET0NUWVBFIGh0bWw+CjxodG1sPgo8aGVhZD4KICA8dGl0bGU+Tm8gUnVsZXM8L3RpdGxlPgogIDxzdHlsZT4KICAgIGJvZHkgewogICAgICBmb250LWZhbWlseTogQXJpYWwsIHNhbnMtc2VyaWY7CiAgICAgIGJhY2tncm91bmQtY29sb3I6ICNmNGY0ZjQ7CiAgICAgIG1hcmdpbjogMDsKICAgICAgcGFkZGluZzogMDsKICAgICAgZGlzcGxheTogZmxleDsKICAgICAgYWxpZ24taXRlbXM6IGNlbnRlcjsKICAgICAganVzdGlmeS1jb250ZW50OiBjZW50ZXI7CiAgICAgIGhlaWdodDogMTAwdmg7CiAgICB9CiAgICAKICAgIC5jb250YWluZXIgewogICAgICBtYXgtd2lkdGg6IDQwMHB4OwogICAgICBwYWRkaW5nOiA0MHB4OwogICAgICBiYWNrZ3JvdW5kLWNvbG9yOiAjZmZmOwogICAgICBib3gtc2hhZG93OiAwIDAgMTBweCByZ2JhKDAsIDAsIDAsIDAuMSk7CiAgICAgIHRleHQtYWxpZ246IGNlbnRlcjsKICAgIH0KICAgIAogICAgaDEgewogICAgICBmb250LXNpemU6IDI0cHg7CiAgICAgIG1hcmdpbi1ib3R0b206IDIwcHg7CiAgICAgIGNvbG9yOiAjMzMzOwogICAgfQogICAgCiAgICBwIHsKICAgICAgZm9udC1zaXplOiAxOHB4OwogICAgICBjb2xvcjogIzY2NjsKICAgICAgbWFyZ2luLWJvdHRvbTogMzBweDsKICAgIH0KICAgIAogICAgLmJ0biB7CiAgICAgIGRpc3BsYXk6IGlubGluZS1ibG9jazsKICAgICAgcGFkZGluZzogMTBweCAyMHB4OwogICAgICBiYWNrZ3JvdW5kLWNvbG9yOiAjMDA3YmZmOwogICAgICBjb2xvcjogI2ZmZjsKICAgICAgZm9udC1zaXplOiAxNnB4OwogICAgICB0ZXh0LWRlY29yYXRpb246IG5vbmU7CiAgICAgIGJvcmRlci1yYWRpdXM6IDRweDsKICAgICAgdHJhbnNpdGlvbjogYmFja2dyb3VuZC1jb2xvciAwLjNzIGVhc2U7CiAgICB9CiAgICAKICAgIC5idG46aG92ZXIgewogICAgICBiYWNrZ3JvdW5kLWNvbG9yOiAjMDA1NmIzOwogICAgfQogIDwvc3R5bGU+CjwvaGVhZD4KPGJvZHk+CiAgPGRpdiBjbGFzcz0iY29udGFpbmVyIj4KICAgIDxoMT5ObyBOZ2lueCBTZXJ2ZXIgQ29uZmlnIGZvdW5kITwvaDE+CiAgICA8cD5QbGVhc2UgYXNrIFdlYk9wcyB0byBDb25maWd1cmUgaXQuPC9wPgogICAgPGEgaHJlZj0iIyIgY2xhc3M9ImJ0biI+Q29udGFjdCBBZG1pbmlzdHJhdG9yPC9hPgogIDwvZGl2Pgo8L2JvZHk+CjwvaHRtbD4K"
+      },
+      "reboot_file_path": "/var/run/nginx/nginx-reboot-required",
+      "content_type": "text/html"
+    },
+    "redis_host": "",
+    "ip2location_path": "/tmp/IP2LOCATION-LITE-DB11.IPV6.BIN",
+    "consul": { "dns_server_port": 8600, "dns_server_host": "127.0.0.1" },
+    "dns_resolver": {
+      "nameservers": {
+        "primary": "8.8.8.8",
+        "port": "53",
+        "secondary": "8.8.4.4"
+      }
+    },
+    "instance_id": "docker-standlone-dev",
+    "env_vars": {
+      "FRONT_URL": "http://localhost:8000",
+      "JWT_SECURITY_PASSPHRASE": "docker-standlone-dev-jwt",
+      "REDIS_PORT": 6379,
+      "APP_NAME": "Openresty",
+      "API_PAGE_SIZE": 100,
+      "STACK": "Lua 5.1",
+      "VITE_DEPLOYMENT_TIME": "20240821210059",
+      "NGINX_CONFIG_DIR": "/opt/nginx",
+      "VERSION": "1.0",
+      "REDIS_HOST": "whitefalcon-redis",
+      "HOSTNAME": "localhost"
+    },
+    "instance_name": "docker standlone dev",
+    "instance_hash": "54d21aa4592f9171cf26f704724a7b30e455dc89",
+    "super_user": {
+      "email": "admin@admin.com",
+      "password": "jGl25bVBBBW96Qi9Te4V37Fnqchz/Eu4qB9vKrRIqRg=",
+      "username": "admin"
+    }
+  }
+  
