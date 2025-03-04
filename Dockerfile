@@ -120,7 +120,7 @@ COPY ./openresty-admin /usr/local/openresty/nginx/html/openresty-admin
 COPY ./data ${NGINX_CONFIG_DIR}data
 #   COPY ./data/sample-settings.json ${NGINX_CONFIG_DIR}data/sample-settings.json
 COPY ./api /usr/local/openresty/nginx/html/api
-COPY $ENV_FILE /usr/local/openresty/nginx/html/openresty-admin.env
+COPY .env.dev /usr/local/openresty/nginx/html/openresty-admin/.env
 COPY ./nginx-${APP_ENV}.conf.tmpl /tmp/nginx.conf.tmpl
 COPY ./resolver.conf.tmpl /tmp/resolver.conf.tmpl
 COPY ./html/swagger /usr/local/openresty/nginx/html/swagger
