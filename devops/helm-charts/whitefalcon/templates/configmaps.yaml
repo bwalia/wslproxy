@@ -26,15 +26,20 @@ data:
       fi
        
       if [ -f $OPENRESTY_DUMP_FILE ]; then
-      mc config host add myminio $MINIO_ENDPOINT $MINIO_ACCESS_KEY $MINIO_SECRET_KEY
-              # Always save the latest dump file as openresty-dump-latest.rdb or tar.gz
-              mc cp $OPENRESTY_DUMP_FILE myminio/{{ .Values.app.name }}-{{ .Values.app.target_env }}-cfg-backups/hourly/$DUMP_LATEST_FILE
-              echo "$OPENRESTY_DUMP_FILE found OK and copied to minio bucket."
-              echo "Backup frequency is $BACKUP_FREQUENCY"
-              mc cp $OPENRESTY_DUMP_FILE myminio/{{ .Values.app.name }}-{{ .Values.app.target_env }}-cfg-backups/$BACKUP_FREQUENCY/$DUMP_BACKUP_FILE
-
+        mc config host add myminio $MINIO_ENDPOINT $MINIO_ACCESS_KEY $MINIO_SECRET_KEY
+        if ! mc ls myminio/{{ .Values.app.name }}-{{ .Values.app.target_env }}-cfg-backups >/dev/null 2>&1; then
+          mc mb myminio/{{ .Values.app.name }}-{{ .Values.app.target_env }}-cfg-backups
+          echo "Bucket created: {{ .Values.app.name }}-{{ .Values.app.target_env }}-cfg-backups"
+        else
+          echo "Bucket already exists: {{ .Values.app.name }}-{{ .Values.app.target_env }}-cfg-backups"
+        fi
+        # Always save the latest dump file as openresty-dump-latest.rdb or tar.gz
+        mc cp $OPENRESTY_DUMP_FILE myminio/{{ .Values.app.name }}-{{ .Values.app.target_env }}-cfg-backups/hourly/$DUMP_LATEST_FILE
+        echo "$OPENRESTY_DUMP_FILE found OK and copied to minio bucket."
+        echo "Backup frequency is $BACKUP_FREQUENCY"
+        mc cp $OPENRESTY_DUMP_FILE myminio/{{ .Values.app.name }}-{{ .Values.app.target_env }}-cfg-backups/$BACKUP_FREQUENCY/$DUMP_BACKUP_FILE
       else
-      echo "$OPENRESTY_DUMP_FILE not found backup failed."
+        echo "$OPENRESTY_DUMP_FILE not found backup failed."
       fi
     bootstrap-openresty.sh: |
         #!/bin/bash
