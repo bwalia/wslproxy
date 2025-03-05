@@ -166,6 +166,18 @@ function Helper.readLogFile(path)
     return content, ngx.HTTP_OK
 end
 
+-- Write file
+function Helper.writeFile(filePath, value)
+    local file, err = io.open(filePath, "w")
+    if file == nil then
+        return false, err
+    else
+        file:write(Cjson.encode(value))
+        file:close()
+        return true, nil
+    end
+end
+
 -- Hash password
 function Helper.hashPassword(password)
     local resty_sha256 = require "resty.sha256"
