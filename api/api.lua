@@ -1809,6 +1809,27 @@ local function listOpenrestyAccessLogs()
     ngx.exit(status)
 end
 
+-- Reset Password
+local function resetPassword(args)
+    local payloads = Helper.GetPayloads(args)
+    local oldPassword = Helper.hashPassword(payloads.oldPassword)
+    local newPassword = Helper.hashPassword(payloads.newPassword)
+    if oldPassword ~= settings.super_user.password then
+        Errors.throwError("Old Password is not correct please check the password and try again.", ngx.HTTP_FORBIDDEN)
+    end
+    if newPassword == settings.super_user.password then
+        Errors.throwError("New password should be different from old password.", ngx.HTTP_FORBIDDEN)
+    end
+    settings.super_user.password = newPassword
+    local updateSettings, msg = Helper.writeFile(configPath .. "data/settings.json", settings)
+    if not updateSettings then
+        Errors.throwError(msg, ngx.HTTP_FORBIDDEN)
+    end
+    return ngx.say(cjson.encode({
+        message = "Password has been reset successfully."
+    }))
+end
+
 local platform = ngx.req.get_headers()["x-platform"]
 local function handle_get_request(args, path)
     -- handle GET request logic
@@ -1943,6 +1964,9 @@ local function handle_post_request(args, path)
         end
         if path == "profiles" then
             createUpdateProfiles(args, nil)
+        end
+        if path == "password/reset" then
+            resetPassword(args)
         end
     else
         Errors.throwError("You can't create record either you can create it from UI or you need to change settings for instance lock.", ngx.HTTP_FORBIDDEN)

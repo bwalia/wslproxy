@@ -8,16 +8,19 @@ import {
   useStore,
   LocalesMenuButton,
   ToggleThemeButton,
-  useNotify
+  useNotify,
+  UserMenu,
+  Logout,
 } from "react-admin";
 import SdStorageIcon from "@mui/icons-material/SdStorage";
 import { IconButton, Tooltip, Typography } from "@mui/material";
 import StorageModal from "./Dashboard/StorageModal";
 import SettingsIcon from "@mui/icons-material/Settings";
-import CloudSyncIcon from '@mui/icons-material/CloudSync';
-import ProfileIcon from '@mui/icons-material/RememberMe';
-import StatusCheckIcon from '@mui/icons-material/ScreenSearchDesktop';
-import EnvProfileHandler from './component/EnvProfileHandler'
+import CloudSyncIcon from "@mui/icons-material/CloudSync";
+import ProfileIcon from "@mui/icons-material/RememberMe";
+import StatusCheckIcon from "@mui/icons-material/ScreenSearchDesktop";
+import EnvProfileHandler from "./component/EnvProfileHandler";
+import ResetPassword from "./component/ResetPassword";
 
 const appDisplayNname = import.meta.env.VITE_APP_DISPLAY_NAME;
 const targetPlatform = import.meta.env.VITE_TARGET_PLATFORM;
@@ -40,10 +43,10 @@ const StorageButton = () => {
 };
 
 const ApiSync = () => {
-  const dataProvider = useDataProvider()
+  const dataProvider = useDataProvider();
   const handleSyncAPI = () => {
-    dataProvider.syncAPI("frontdoor/opsapi/sync", {})
-  }
+    dataProvider.syncAPI("frontdoor/opsapi/sync", {});
+  };
   return (
     <React.Fragment>
       <Tooltip title="Sync API Storage">
@@ -52,8 +55,8 @@ const ApiSync = () => {
         </IconButton>
       </Tooltip>
     </React.Fragment>
-  )
-}
+  );
+};
 const ProfileHandler = () => {
   const [isProfileModalOpen, setProfileModalOpen] = React.useState(false);
 
@@ -71,13 +74,17 @@ const ProfileHandler = () => {
           <ProfileIcon />
         </IconButton>
       </Tooltip>
-      {isProfileModalOpen && <EnvProfileHandler open={isProfileModalOpen}
-        onClose={handleCloseModal}
-        title="Please select the profile for frontdoor."
-        content="This is profile modal." />}
+      {isProfileModalOpen && (
+        <EnvProfileHandler
+          open={isProfileModalOpen}
+          onClose={handleCloseModal}
+          title="Please select the profile for frontdoor."
+          content="This is profile modal."
+        />
+      )}
     </>
-  )
-}
+  );
+};
 
 const SettingButton = () => {
   const redirect = useRedirect();
@@ -97,7 +104,10 @@ const CheckStatus = () => {
   const notify = useNotify();
   const handleSettings = async () => {
     const opStatus = await dataProvider.checkORStatus("openresty_status", {});
-    notify(opStatus?.message, { autoHideDuration: 30000, type: opStatus?.check_status })
+    notify(opStatus?.message, {
+      autoHideDuration: 30000,
+      type: opStatus?.check_status,
+    });
   };
   return (
     <Tooltip title="Check Openresty Status">
@@ -109,9 +119,16 @@ const CheckStatus = () => {
 };
 
 const AppBar = () => {
-  const [settings] = useStore('app.settings', {});
+  const [settings] = useStore("app.settings", {});
   return (
-    <RaAppBar>
+    <RaAppBar
+      userMenu={
+        <UserMenu>
+          <ResetPassword />
+          <Logout />
+        </UserMenu>
+      }
+    >
       <Toolbar
         sx={{
           background: "transparent",
@@ -142,6 +159,6 @@ const AppBar = () => {
       {/* <ToggleThemeButton /> */}
     </RaAppBar>
   );
-}
+};
 
 export default AppBar;
