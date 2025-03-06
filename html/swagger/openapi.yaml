@@ -408,6 +408,30 @@ paths:
           description: signal process started     
       security:
         - bearerAuth: []
+        
+  /api/password/reset:
+    post:
+      tags:
+      - Reset Password
+      summary: Reset you password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                oldPassword:
+                  type: string
+                  default: old password
+                newPassword:
+                  type: string
+                  default: new password
+      responses:
+        '200':
+          description: Password has been successfully reset
+      security:
+        - bearerAuth: []
 
 components:
   securitySchemes:

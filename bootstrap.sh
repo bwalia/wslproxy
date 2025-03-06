@@ -57,7 +57,7 @@ DATE_GEN_VERSION=$(date +"%Y%m%d%I%M%S")
 cp ${TARGET_ENV_FILE} .env
     # replace app name in dashboard and other places to whitelabel the api gw
 echo "" >> .env
-echo "VITE_APP_VERSION: 2.0.0" >> .env
+echo "VITE_APP_VERSION=2.0.0" >> .env
 echo "VITE_DEPLOYMENT_TIME=$DATE_GEN_VERSION" >> .env
 DATE_GEN_VERSION=$(date +"%I%M%S")
 echo "VITE_APP_BUILD_NUMBER=$DATE_GEN_VERSION" >> .env
