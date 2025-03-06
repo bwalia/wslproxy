@@ -98,7 +98,7 @@ const ResetForm = () => {
               sx={{ mt: 3, mb: 2, bgcolor: `#${secondaryColor}`, ":hover": { bgcolor: `#${hoverColor}` } }}
               onClick={handleSubmit}
             >
-              Sign In
+              Reset Password
             </Button>
           </Box>
         </Box>
