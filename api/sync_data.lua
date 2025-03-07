@@ -19,6 +19,33 @@ local function getSettings()
     return settings
 end
 local settings = getSettings()
+
+local token = ngx.req.get_headers()["Authorization"]
+if not token then
+    ngx.status = ngx.HTTP_UNAUTHORIZED
+    ngx.say(Cjson.encode({data = {error = "JWT Token missing from Authorization"}}))
+    ngx.exit(ngx.HTTP_UNAUTHORIZED)
+end
+token = string.gsub(token, "^Bearer ", "")
+if settings and type(settings) == "table" then
+  local passPhrase = settings.env_vars.JWT_SECURITY_PASSPHRASE or os.getenv("JWT_SECURITY_PASSPHRASE")
+  if not passPhrase or passPhrase == "" then
+    ngx.status = ngx.HTTP_UNAUTHORIZED
+    ngx.say(Cjson.encode({data = {error = "JWT Pass Phrase is missing"}}))
+    return ngx.exit(ngx.HTTP_UNAUTHORIZED)
+  end
+  local verified_token = jwt:verify(passPhrase, token)
+  if verified_token.verified == false then
+      ngx.status = ngx.HTTP_UNAUTHORIZED
+      ngx.say(Cjson.encode({data = {error = verified_token.reason}}))
+      return ngx.exit(ngx.HTTP_UNAUTHORIZED)
+  end
+else
+  ngx.status = ngx.HTTP_UNAUTHORIZED
+  ngx.say(Cjson.encode({data = {message = "Settings Json file missing, Please make sure you have correctly placed the setting json file while initlising the project."}}))
+  return ngx.exit(ngx.HTTP_UNAUTHORIZED)
+end
+
 local Hostname = settings.env_vars.HOSTNAME or os.getenv("HOST")
 local apiUrl = settings.env_vars.CONTROL_PLANE_API_URL or os.getenv("CONTROL_PLANE_API_URL")
 local function generateToken()
