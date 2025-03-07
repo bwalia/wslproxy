@@ -1830,7 +1830,37 @@ local function resetPassword(args)
     }))
 end
 
+local function deleteAll(body)
+    local payloads = Helper.GetPayloads(body)
+    local rulesPath = configPath .. "data/rules"
+    local serversPath = configPath .. "data/servers"
+    local rulesDeleted, ruleMsg, serversDelete, serverMsg = false, "", false, ""
+    if payloads.type ~= "rules" or payloads.type ~= "servers" then
+        Errors.throwError("You can only delete either rules or servers", ngx.HTTP_FORBIDDEN)
+    end
+    if payloads.type == "rules" then
+        rulesDeleted, ruleMsg = Helper.deleteAllFiles(rulesPath)
+    end
+    if payloads.type == "servers" then
+        serversDelete, serverMsg = Helper.deleteAllFiles(serversPath)
+    end
+    local responseMsg = rulesDeleted and "All Rules has been deleted." or "All Servers has been deleted."
+    if rulesDeleted or serversDelete then
+        return ngx.say(cjson.encode({
+            message = responseMsg
+        }))
+    else
+        if ruleMsg ~= nil then
+            Errors.throwError(ruleMsg, ngx.HTTP_FORBIDDEN)
+        end
+        if serverMsg ~= nil then
+            Errors.throwError(serverMsg, ngx.HTTP_FORBIDDEN)
+        end
+    end
+end
+
 local platform = ngx.req.get_headers()["x-platform"]
+local preAction = ngx.req.get_headers()["x-special-case-pre-action"]
 local function handle_get_request(args, path)
     -- handle GET request logic
     local delimiter = "/"
@@ -2036,6 +2066,10 @@ local function handle_delete_request(args, path)
         end
         if string.find(path, "profiles") then
             deleteProfile(args)
+        end
+    elseif settings.instance_locked == "false" or preAction == "pre-release-delete-all-override" then
+        if path == "delete/all" then
+            deleteAll(args)
         end
     else
         Errors.throwError("You can't delete record either you can delete it from UI or you need to change settings for instance lock.", ngx.HTTP_FORBIDDEN)

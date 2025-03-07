@@ -1,0 +1,92 @@
+name: Add Rules and Servers to Environment
+
+on:
+  push:
+    branches:
+      - dummy
+
+  workflow_dispatch:
+    inputs:
+      API_SERVER:
+        description: "Enter the API Server where you want to push the data. For example https://api-int.brahmstra.org"
+        required: true
+        default: https://int-api-controlplane.brahmstra.org
+        type: string
+
+      BEARER_TOKEN:
+        description: "Enter the JWT Bearer Token"
+        required: true
+        type: string
+
+      SERVER_FILE_PATH:
+        description: "Enter the servers json file path. Please enter the complete file path from root"
+        required: true
+        type: string
+
+      RULES_FILE_PATH:
+        description: "Enter the rules json file path. Please enter the complete file path from root"
+        required: true
+        type: string
+
+      DELETE_EXISTS_DATA:
+        description: 'Delete existing data or append into the exisitng data.'
+        required: true
+        default: false
+        type: boolean
+
+env:
+  API_SERVER: ${{ inputs.API_SERVER }}
+  BEARER_TOKEN: ${{ inputs.BEARER_TOKEN }}
+  SERVER_FILE_PATH: ${{ inputs.SERVER_FILE_PATH }}
+  RULES_FILE_PATH: ${{ inputs.RULES_FILE_PATH }}
+  DELETE_EXISTS_DATA: ${{ inputs.DELETE_EXISTS_DATA || 'false'}}
+
+  
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Conditionally Delete Existing Servers
+        if: inputs.DELETE_EXISTS_DATA == 'true'
+        run: |
+          DELETE_BODY='{"type": "servers"}'
+          echo "Deleting existing servers..."
+          curl -X DELETE "${{ env.API_SERVER }}}/api/delete/all" \
+               -H "Authorization: Bearer ${{ env.BEARER_TOKEN }}" \
+               -H "Content-Type: application/json"
+               -H "x-special-case-pre-action: pre-release-delete-all-override"
+               -d "$DELETE_BODY"
+          echo "Existing servers deleted successfully."
+
+      - name: Conditionally Delete Existing Rules
+        if: inputs.DELETE_EXISTS_DATA == 'true'
+        run: |
+          DELETE_BODY='{"type": "rules"}'
+          echo "Deleting existing rules..."
+          curl -X DELETE "${{ env.API_SERVER }}}/api/delete/all" \
+               -H "Authorization: Bearer ${{ env.BEARER_TOKEN }}" \
+               -H "Content-Type: application/json"
+               -H "x-special-case-pre-action: pre-release-delete-all-override"
+               -d "$DELETE_BODY"
+          echo "Existing rules deleted successfully."
+
+      - name: Read Servers JSON file and send POST request
+        run: |
+          JSON_DATA=$(jq -c --arg dt "server" '{data: ., dataType: $dt}' ${{ env.SERVER_FILE_PATH }})
+          echo "Modified JSON: $JSON_DATA"
+          curl -X POST "${{ env.API_SERVER }}/api/projects/import?_format=json" \
+               -H "Content-Type: application/json" \
+               -H "Authorization: Bearer ${{ env.BEARER_TOKEN }}" \
+               -d "$JSON_DATA"
+
+      - name: Read Rules JSON file and send POST request
+        run: |
+          JSON_DATA=$(jq -c --arg dt "rules" '{data: ., dataType: $dt}' ${{ env.RULES_FILE_PATH }})
+          echo "Modified JSON: $JSON_DATA"
+          curl -X POST "${{ env.API_SERVER }}/api/projects/import?_format=json" \
+               -H "Content-Type: application/json" \
+               -H "Authorization: Bearer ${{ env.BEARER_TOKEN }}" \
+               -d "$JSON_DATA"
