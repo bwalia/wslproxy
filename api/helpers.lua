@@ -339,4 +339,22 @@ function Helper.isEU(countryCode)
     return EuCountries[countryCode] or false
 end
 
+
+-- Delete files from Directory
+function Helper.deleteAllFiles(directory)
+    local p = io.popen('find "' .. directory .. '" -type f')
+    local success, msg = true, nil
+    if not p then
+        return false, "Failed to open directory:"
+    end
+    for file in p:lines() do
+        local result, err = os.remove(file)
+        if not result then
+            success, msg = false, err
+        end
+    end
+    p:close()
+    return success, msg
+end
+
 return Helper
