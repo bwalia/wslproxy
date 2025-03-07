@@ -357,10 +357,11 @@ const dataProvider = (apiUrl, settings = {}) => {
             instance.instance_hash
           }&serial_number=${instance.serial_number}
             `;
+          let reqHeaders = getHeaders();
+          delete reqHeaders["x-platform"]
           const response = await fetch(url, {
             method: "GET",
-            headers: getHeaders(),
-            mode: "no-cors",
+            headers: reqHeaders,
           });
           if (response.status === 200) {
             setIsLoadig(false);
