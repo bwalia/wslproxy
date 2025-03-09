@@ -1,9 +1,10 @@
-# - hosts: k3s-cluster 
-#   become: yes
-#   roles:
-#     - ubuntu
-#   vars:
-#     avarname: avarvalue
+- hosts: k3s-cluster 
+  become: yes
+  # roles:
+  #   - ubuntu
+  vars:
+    k3s_version: "v1.32.2+k3s1"
+    k3s_token: "CHANGEME"
 
 - hosts: k3s-masters 
   become: yes

@@ -1,3 +1,18 @@
+
+- name: Update and upgrade apt packages
+  apt:
+    upgrade: yes
+    update_cache: yes
+    cache_valid_time: 86400
+  tags: [k3s, ubuntu]
+  
+- name: Install update ubuntu packages for k3s
+  apt:
+    name: "{{ item }}"
+    state: present
+  with_items: "{{ ubuntu_packages }}"
+  tags: [k3s, ubuntu]
+
 - name: Install k3s worker nodes
   shell: curl -sfL https://get.k3s.io | \
     K3S_URL=https://k3s0.workstation.co.uk:6443 \
