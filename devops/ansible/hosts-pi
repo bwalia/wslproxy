@@ -1,2 +1,2 @@
-[nginx_cluster]
+[openresty_native_cluster]
 raspberrypi-2 ansible_user=pi

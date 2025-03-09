@@ -4,6 +4,7 @@
     update_cache: yes
     cache_valid_time: 86400
   tags: [ubuntu]
+  
 - name: Install dependency packages for installing openresty
   apt:
     name: "{{ item }}"

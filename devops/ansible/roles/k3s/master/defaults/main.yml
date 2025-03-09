@@ -1,4 +1,7 @@
 ubuntu_packages:
+  - iputils-ping
+  - open-iscsi
+  - nfs-common
   - libpcre3
   - libpcre3-dev
   - zlib1g

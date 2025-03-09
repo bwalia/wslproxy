@@ -1,0 +1,20 @@
+# - hosts: k3s-cluster 
+#   become: yes
+#   roles:
+#     - ubuntu
+#   vars:
+#     avarname: avarvalue
+
+- hosts: k3s-masters 
+  become: yes
+  roles:
+    - k3s/master
+  vars:
+    avarname_masternode: avarvaluemasternode
+
+- hosts: k3s-workers 
+  become: yes
+  roles:
+    - k3s/worker
+  vars:
+    avarname_workernode: avarvalue_workernode
