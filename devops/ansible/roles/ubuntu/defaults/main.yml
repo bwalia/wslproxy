@@ -1,4 +1,8 @@
 ubuntu_packages:
+  - software-properties-common
+  - python3-pip
+  - virtualenv
+  - python3-setuptools
   - libpcre3
   - libpcre3-dev
   - zlib1g
