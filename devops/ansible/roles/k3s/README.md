@@ -4,7 +4,7 @@ To build the k3s cluster run
 
 To deploy all necessary kubernetes manifests and helm charts
 
-```ansible-playbook devops/ansible/playbook01.yaml -i devops/ansible/hosts-homelab --tags=manifests```
+```ansible-playbook devops/ansible/playbook01.yaml -i devops/ansible/hosts-homelab --tags=masters```
 
 To add remove master nodes and restart k3s cluster
 
