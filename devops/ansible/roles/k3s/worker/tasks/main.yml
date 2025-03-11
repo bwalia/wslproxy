@@ -1,0 +1,15 @@
+- name: Install k3s worker nodes
+  shell: curl -sfL https://get.k3s.io | \
+    K3S_URL=https://k3s0.workstation.co.uk:6443 \
+    K3S_TOKEN="{{ k3s_token }}" \
+    INSTALL_K3S_VERSION="{{ k3s_version }}" K3S_KUBECONFIG_MODE="644" \
+    sh -s - --node-label node={{ k3s_node_name }} \
+    --node-name {{ k3s_node_name }} \
+    --node-ip {{ k3s_node_ip }} \
+    --node-label workload=production \
+    --flannel-iface {{ k3s_node_iface }}
+  register: k3s_node_install_output
+  tags: [k3s, workers]
+  notify:
+    - Restart k3s
+  when: k3s_node_name is defined and k3s_node_ip is defined

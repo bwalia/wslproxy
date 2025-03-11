@@ -1,4 +1,4 @@
-[nginx_cluster]
+[openresty_native_cluster]
 whisky01 ansible_user=bwalia
 whisky03 ansible_user=bwalia
 192.168.1.189 ansible_user=bwalia

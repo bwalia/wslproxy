@@ -1,2 +1,2 @@
-[nginx_cluster]
+[openresty_native_cluster]
 k3s2.edgeone.cloud ansible_user=bwalia

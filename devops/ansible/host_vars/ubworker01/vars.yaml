@@ -1,0 +1,5 @@
+k3s_node_name: "ubworker01"
+k3s_node_ip: "192.168.1.67"
+k3s_node_lb_ip: "192.168.1.67"
+k3s_node_iface: "enp36s0"
+

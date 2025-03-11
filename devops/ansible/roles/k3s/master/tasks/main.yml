@@ -1,0 +1,103 @@
+- name: Update and upgrade apt packages
+  apt:
+    upgrade: yes
+    update_cache: yes
+    cache_valid_time: 86400
+  tags: [k3s, ubuntu]
+  
+- name: Install update ubuntu packages for k3s
+  apt:
+    name: "{{ item }}"
+    state: present
+  with_items: "{{ ubuntu_packages }}"
+  tags: [k3s, ubuntu]
+
+# - name: Remove specified repository download.docker.com
+#   ansible.builtin.apt_repository:
+#     repo: deb https://download.docker.com/linux/ubuntu/dists/jammy/InRelease hardy partner
+#     state: absent
+
+- name: Install 1st k3s master nodes
+  shell: curl -sfL https://get.k3s.io | K3S_TOKEN={{ k3s_token }} INSTALL_K3S_VERSION="{{ k3s_version }}" K3S_KUBECONFIG_MODE="644" sh -s - \
+    --write-kubeconfig-mode 644 \
+    --node-name={{ k3s_node_name }} \
+    --disable traefik \
+    --tls-san=k3s0.workstation.co.uk \
+    --node-external-ip {{ k3s_node_ip }} \
+    --advertise-address {{ k3s_node_ip }} \
+    --flannel-iface {{ k3s_node_iface }} \
+    --node-taint workload=system:NoExecute \
+    --node-label workload=system \
+    --node-label hostname={{ k3s_node_name }} \
+    --cluster-init
+  register: k3s_node_install_output
+  tags: [k3s, masters]
+  notify:
+    - Restart k3s
+  when: k3s_node_name is defined and k3s_node_ip is defined and k3s_node_name == "ubmaster00"
+
+- name: Install 2nd k3s master nodes and so on
+  shell: curl -sfL https://get.k3s.io | K3S_TOKEN= INSTALL_K3S_VERSION="{{ k3s_version }}" K3S_KUBECONFIG_MODE="644" sh -s - \
+    --write-kubeconfig-mode 644 \
+    --node-name={{ k3s_node_name }} \
+    --disable traefik \
+    --tls-san=k3s0.workstation.co.uk \
+    --node-external-ip {{ k3s_node_ip }} \
+    --advertise-address {{ k3s_node_ip }} \
+    --flannel-iface {{ k3s_node_iface }} \
+    --node-taint workload=system:NoExecute \
+    --node-label workload=system \
+    --node-label hostname={{ k3s_node_name }} \
+    --server https://k3s0.workstation.co.uk:6443
+  register: k3s_node_install_output
+  tags: [k3s, masters]
+  notify:
+    - Restart k3s
+  when: k3s_node_name is defined and k3s_node_ip is defined and k3s_node_name != "ubmaster00"
+
+- name: Apply kubectl manifests
+  shell: kubectl apply -f {{ item }}
+  with_items: "{{ kubectl_manifests }}"
+  tags: [k3s, masters, manifests]
+  when: k3s_node_name is defined and k3s_node_ip is defined and k3s_node_name == "ubmaster00"
+
+#!/bin/bash
+
+# rm -f /lib/systemd/system/nfs-common.service
+# systemctl daemon-reload
+# systemctl start nfs-common
+# systemctl enable nfs-common
+# systemctl status nfs-common
+
+# systemctl start iscsid
+# systemctl enable iscsid
+
+
+# declare -a arr=('10.72.131.11' '10.72.131.12' '10.72.131.13' '10.72.131.14' '10.72.131.15' '10.72.131.16' '10.72.131.17');
+
+# for it in "${arr[@]}"; do 
+#     echo "ssh... $it"    
+#     ssh sciensano@$it 'sudo systemctl start iscsid && sudo systemctl enable iscsid'
+#     echo ""
+# done
+
+
+
+# apt-get install open-iscsi jq -y
+
+
+# helm repo add longhorn https://charts.longhorn.io
+# helm repo update
+# kubectl create namespace longhorn-system
+# helm upgrade -i longhorn longhorn/longhorn --namespace longhorn-system
+
+
+
+# curl https://raw.githubusercontent.com/longhorn/longhorn/v1.1.2/scripts/environment_check.sh | bash
+
+# uninstall longhorn
+
+
+# kubectl -n longhorn-system patch -p '{"value": "true"}' --type=merge lhs deleting-confirmation-flag
+# helm uninstall longhorn -n longhorn-system
+# kubectl delete namespace longhorn-system

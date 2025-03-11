@@ -1,0 +1,3 @@
+ubuntu_packages:
+  - ca-certificates
+  - apt-transport-https

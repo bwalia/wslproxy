@@ -1,3 +1,4 @@
+# whisky01 is the hostname of the server and renamed to ubworker01
 local_settings_file_path: "~/.secrets/settings_whisky01.json"
 local_env_file_path: "~/.secrets/.env_whisky01"
 nginx_user_password: "!!REDACTED!!" # This is the password for the user www-data but must be encrypted using Ansible Vault

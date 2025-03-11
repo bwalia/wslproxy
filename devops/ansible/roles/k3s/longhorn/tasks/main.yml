@@ -1,0 +1,11 @@
+- name: Apply kubectl manifests
+  shell: kubectl apply -f {{ item }}
+  with_items: "{{ kubectl_manifests }}"
+  tags: [k3s, longhorn]
+  when: k3s_node_name is defined and k3s_node_ip is defined and k3s_node_name == "ubmaster00"
+
+
+# helm repo add longhorn https://charts.longhorn.io
+# helm repo update
+# helm install longhorn longhorn/longhorn --namespace longhorn-system --create-namespace --version 1.8.1
+# kubectl -n longhorn-system get pod

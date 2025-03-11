@@ -12,7 +12,21 @@ server_name  -;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_pass http://192.168.1.13;
+        proxy_pass http://192.168.1.200;
+        }
+}
+
+server {
+listen       8888;
+server_name  suworker01.fictionally.xyz;
+
+       location / {
+        more_set_headers 'Access-Control-Allow-Origin: *';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_pass http://192.168.1.23;
         }
 }
 
@@ -166,7 +180,7 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_pass http://192.168.1.13;
+        proxy_pass http://192.168.1.200;
     }
 }
 
@@ -179,7 +193,7 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_pass http://192.168.1.13;
+        proxy_pass http://192.168.1.200;
     }
 }
             

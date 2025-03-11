@@ -1,0 +1,4 @@
+k3s_node_name: "ubmaster00"
+k3s_node_ip: "192.168.1.124"
+k3s_node_lb_ip: "192.168.1.67"
+k3s_node_iface: "enp2s0"

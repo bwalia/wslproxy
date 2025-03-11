@@ -1,0 +1,8 @@
+ubuntu_packages:
+  - apt-transport-https
+  - ca-certificates
+
+kubectl_manifests:
+  - https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.0.4/deploy/static/provider/aws/deploy.yaml
+  - https://download.elastic.co/downloads/eck/2.16.1/crds.yaml
+  - https://download.elastic.co/downloads/eck/2.16.1/operator.yaml
