@@ -23,3 +23,10 @@
     avarname_workernode: avarvalue_workernode
     k3s_version: "v1.32.2+k3s1"
     k3s_token: "daf542a87af0118081015387c2e3ac53"
+
+- hosts: k3s-masters 
+  become: yes
+  roles:
+    - k3s/longhorn
+  vars:
+    avarname_masternode: avarvaluemasternode

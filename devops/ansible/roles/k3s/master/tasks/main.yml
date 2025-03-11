@@ -21,6 +21,7 @@
   shell: curl -sfL https://get.k3s.io | K3S_TOKEN={{ k3s_token }} INSTALL_K3S_VERSION="{{ k3s_version }}" K3S_KUBECONFIG_MODE="644" sh -s - \
     --write-kubeconfig-mode 644 \
     --node-name={{ k3s_node_name }} \
+    --disable traefik \
     --tls-san=k3s0.workstation.co.uk \
     --node-external-ip {{ k3s_node_ip }} \
     --advertise-address {{ k3s_node_ip }} \
@@ -39,6 +40,7 @@
   shell: curl -sfL https://get.k3s.io | K3S_TOKEN= INSTALL_K3S_VERSION="{{ k3s_version }}" K3S_KUBECONFIG_MODE="644" sh -s - \
     --write-kubeconfig-mode 644 \
     --node-name={{ k3s_node_name }} \
+    --disable traefik \
     --tls-san=k3s0.workstation.co.uk \
     --node-external-ip {{ k3s_node_ip }} \
     --advertise-address {{ k3s_node_ip }} \
