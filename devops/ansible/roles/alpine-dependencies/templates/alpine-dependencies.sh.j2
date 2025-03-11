@@ -1,0 +1,149 @@
+#!/bin/sh
+
+# Update and upgrade packages
+echo "Updating and upgrading packages..."
+apk update && apk upgrade
+
+# Install dependencies
+echo "Installing dependencies..."
+apk add --no-cache --virtual .build-deps
+apk add perl-dev
+apk add bash
+apk add git
+apk add aws-cli
+apk add build-base
+apk add curl
+apk add libintl 
+apk add linux-headers
+apk add make
+apk add musl
+apk add outils-md5
+apk add perl
+apk add unzip
+apk add wget
+apk add npm
+apk add yarn
+apk add openssl
+apk add jq
+
+# Openresty
+echo "Installing Openresty..."
+apk add pcre-dev openssl-dev zlib-dev
+wget https://openresty.org/download/openresty-1.25.3.2.tar.gz
+tar -xzf openresty-1.25.3.2.tar.gz
+cd openresty-1.25.3.2
+./configure --prefix=/usr/local/openresty --with-http_ssl_module
+make -j$(nproc)
+make install
+/usr/local/openresty/bin/openresty -v
+
+# Install LuaRocks
+echo "Installing LuaRocks..."
+
+LUAROCKS_VERSION="3.9.0"
+cd /tmp
+curl -fSL https://luarocks.github.io/luarocks/releases/luarocks-${LUAROCKS_VERSION}.tar.gz -o luarocks-${LUAROCKS_VERSION}.tar.gz
+tar xzf luarocks-${LUAROCKS_VERSION}.tar.gz
+cd luarocks-${LUAROCKS_VERSION}
+./configure --prefix=/usr/local/openresty/luajit --with-lua=/usr/local/openresty/luajit --with-lua-include=/usr/local/openresty/luajit/include/luajit-2.1
+make build
+make install
+cd /tmp
+rm -rf luarocks-${LUAROCKS_VERSION} luarocks-${LUAROCKS_VERSION}.tar.gz
+
+apk add --no-cache --virtual .gettext gettext
+mv /usr/bin/envsubst /tmp/
+apk del .build-deps .gettext
+mv /tmp/envsubst /usr/local/bin/
+
+cd /tmp/ && wget https://edgeone-public.s3.eu-west-2.amazonaws.com/src/openresty/IP2LOCATION-LITE-DB11.IPV6.BIN/IP2LOCATION-LITE-DB11.IPV6.BIN -O /tmp/IP2LOCATION-LITE-DB11.IPV6.BIN
+
+LUA_PATH="/usr/local/openresty/site/lualib/?.ljbc;/usr/local/openresty/site/lualib/?/init.ljbc;/usr/local/openresty/lualib/?.ljbc;/usr/local/openresty/lualib/?/init.ljbc;/usr/local/openresty/site/lualib/?.lua;/usr/local/openresty/site/lualib/?/init.lua;/usr/local/openresty/lualib/?.lua;/usr/local/openresty/lualib/?/init.lua;./?.lua;/usr/local/openresty/luajit/share/luajit-2.1.0-beta3/?.lua;/usr/local/share/lua/5.1/?.lua;/usr/local/share/lua/5.1/?/init.lua;/usr/local/openresty/luajit/share/lua/5.1/?.lua;/usr/local/openresty/luajit/share/lua/5.1/?/init.lua"
+LUA_CPATH="/usr/local/openresty/site/lualib/?.so;/usr/local/openresty/lualib/?.so;./?.so;/usr/local/lib/lua/5.1/?.so;/usr/local/openresty/luajit/lib/lua/5.1/?.so;/usr/local/lib/lua/5.1/loadall.so;/usr/local/openresty/luajit/lib/lua/5.1/?.so"
+
+opm get ip2location/ip2location-resty
+opm get bungle/lua-resty-template
+opm get thibaultcha/lua-resty-mlcache
+opm get 3scale/lua-resty-env
+
+# Install LuaRocks modules
+echo "Installing LuaRocks modules..."
+luarocks install lua-resty-jwt
+luarocks install lua-resty-session
+luarocks install lua-resty-http
+luarocks install lua-resty-openidc
+luarocks install base64
+luarocks install lua-resty-redis-connector
+luarocks install lua-resty-dns
+luarocks install lua-resty-resolver
+luarocks install luafilesystem
+luarocks install lua-resty-auto-ssl
+luarocks install pgmoon
+
+# Create necessary directories
+echo "Creating directories..."
+mkdir -p /etc/resty-auto-ssl
+chown -R root:nobody /etc/resty-auto-ssl/
+chmod -R 775 /etc/resty-auto-ssl
+
+# Generate SSL certificates
+echo "Generating SSL certificates..."
+openssl req -new -newkey rsa:2048 -days 3650 -nodes -x509 \
+  -subj '/CN=sni-support-required-for-valid-ssl' \
+  -keyout /etc/ssl/resty-auto-ssl-fallback.key \
+  -out /etc/ssl/resty-auto-ssl-fallback.crt
+
+# Copy configuration files
+echo "Copying configuration files..."
+mkdir -p /opt/nginx/ && chmod 777 /opt/nginx/
+cp ./system /opt/nginx/system
+cp ./html /usr/local/openresty/nginx/
+cp ./openresty-admin /usr/local/openresty/nginx/html/openresty-admin
+cp ./data /opt/nginx/data
+cp ./data/sample-settings.json /opt/nginx/data/settings.json
+cp ./api /usr/local/openresty/nginx/html/api
+cp .env.dev /usr/local/openresty/nginx/html/openresty-admin/.env
+cp ./nginx-dev.conf.tmpl /tmp/nginx.conf.tmpl
+cp ./resolver.conf.tmpl /tmp/resolver.conf.tmpl
+cp ./html/swagger /usr/local/openresty/nginx/html/swagger
+
+cp /tmp/nginx.conf.tmpl /usr/local/openresty/nginx/conf/nginx.conf
+cp /tmp/resolver.conf.tmpl /tmp/resolver.conf
+
+# Making conf directories
+echo "Making configuration files..."
+mkdir -p "/var/run/nginx/" \
+  && chmod +x "/var/run/nginx/" \
+  && chown root:root "/var/run/nginx/" \
+  && chmod 755 -R "/var/run/nginx/"
+
+mkdir -p "/var/log/nginx/" \
+  && chmod +x "/var/log/nginx/" \
+  && chown root:root "/var/log/nginx/" \
+  && chmod 755 -R "/var/log/nginx/"
+
+# Installing and Building the node packages
+echo "Installing and Building the node packages..."
+cd /usr/local/openresty/nginx/html/openresty-admin && yarn install \
+  --prefer-offline \
+  --non-interactive \
+  --network-timeout 100000 \
+  --production=false
+cd /usr/local/openresty/nginx/html/openresty-admin/ && yarn build
+
+mkdir -p "/opt/nginx/data/servers" && \
+    mkdir -p "/opt/nginx/data/rules"
+
+chmod -R 777 /opt/nginx/data && \
+    chmod -R 777 /opt/nginx/data/servers && \
+    chmod -R 777 /opt/nginx/data/rules && \
+    chown -R nobody:root /opt/nginx/data/
+
+# Install MinIO Client
+echo "Installing MinIO Client..."
+wget https://dl.min.io/client/mc/release/linux-amd64/mc -O /usr/local/bin/mc --tries=3 --timeout=30
+chmod +x /usr/local/bin/mc
+
+# Start OpenResty
+# echo "Starting OpenResty..."
+# /usr/local/openresty/nginx/sbin/nginx -g "daemon off;"
