@@ -1,0 +1,4 @@
+- hosts: alpine
+  become: true
+  roles:
+    - alpine-dependencies
