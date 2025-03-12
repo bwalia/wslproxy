@@ -6,7 +6,7 @@ nginx_web_ui_enabled: "yes"
 nginx_rest_api_server_enabled: ""
 nginx_data_sync_enabled: "yes"
 node_max_old_space_size: 1024
-nginx_s3_proxy_pass_host_ip: "192.168.1.13"
+nginx_s3_proxy_pass_host_ip: "192.168.1.200"
 nginx_s3_server_name: "s3.workstation.co.uk"
 nginx_s3_cli_server_name: "s3-cli.workstation.co.uk"
 nginx_k3s_dashboard_server_name: "k3s-dashboard.workstation.co.uk"
