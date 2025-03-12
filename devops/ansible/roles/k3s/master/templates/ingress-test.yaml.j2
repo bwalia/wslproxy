@@ -1,0 +1,23 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    kubernetes.io/tls-acme: "true"
+    nginx.ingress.kubernetes.io/backend-protocol: HTTPS
+    nginx.ingress.kubernetes.io/proxy-ssl-verify: "false"
+  name: kibana-instance-ingress
+  namespace: default
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: "elastic.fictionally.xyz"
+    http:
+      paths:
+        - pathType: Prefix
+          path: "/"
+          backend:
+            service:
+              name: quickstart-kb-http
+              port:
+                number: 5601
