@@ -362,7 +362,44 @@ paths:
                     message:
                       type: string
                       default: Success
-                      
+
+  /password/reset:
+    post:
+      tags:
+        - PasswordReset
+      summary: Password Reset API
+      operationId: resetPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                oldPassword:
+                  type: string
+                  default: abc123
+                newPassword:
+                  type: string
+                  default: abc123
+      responses:
+        '201':
+          description: Successfully resets the password
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: number
+                    default: 200
+                  message:
+                    type: string
+                    default: Success
+      security:
+        - bearerAuth: []     
+
+
   /api/openresty_status:
     get:
       tags:
