@@ -27,6 +27,8 @@ if [ -f "/tmp/.env" ]; then
 fi
 
 # Install dependencies and build the project
+yarn cache clean
+rm -Rf yarn.lock
 yarn install
     {% if node_max_old_space_size is defined %}
       export NODE_OPTIONS="--max_old_space_size={{ node_max_old_space_size }}"

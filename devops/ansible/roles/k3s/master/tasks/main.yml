@@ -61,6 +61,13 @@
   tags: [k3s, masters, manifests]
   when: k3s_node_name is defined and k3s_node_ip is defined and k3s_node_name == "ubmaster00"
 
+- name: Apply kubectl manifests yamls
+  shell: kubectl apply -f ./tmp/
+  with_items: "{{ kubectl_manifests }}"
+  tags: [k3s, longhorn]
+  when: k3s_node_name is defined and k3s_node_ip is defined and k3s_node_name == "ubmaster00"
+
+
 #!/bin/bash
 
 # rm -f /lib/systemd/system/nfs-common.service
