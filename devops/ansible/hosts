@@ -2,10 +2,10 @@
 #94.72.96.175 ansible_user=bwalia
 3.9.40.237 ansible_user=ubuntu
 
-whisky01 ansible_user=bwalia
+ubworker01 ansible_user=bwalia
 whisky03 ansible_user=bwalia
 192.168.1.189 ansible_user=bwalia
 whisky10 ansible_user=bwalia
 whisky06 ansible_user=bwalia
-whisky04 ansible_user=bwalia
+ubworker04 ansible_user=bwalia
 whisky08 ansible_user=bwalia
