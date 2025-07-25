@@ -43,7 +43,7 @@ env:
 
 jobs:
   build:
-    runs-on: [ ubuntu-latest ]
+    runs-on: [ self-hosted ]
     steps:
       - name: Checkout code
         if: ${{ env.DEPLOYMENT_TYPE == 'build' || env.DEPLOYMENT_TYPE == 'build-and-deploy' }}
