@@ -181,7 +181,7 @@ RUN cd /usr/local/openresty/nginx/html/openresty-admin && yarn install \
   --network-timeout 100000 \
   --production=false
   
-RUN cd /usr/local/openresty/nginx/html/openresty-admin/ && yarn build
+RUN cd /usr/local/openresty/nginx/html/openresty-admin/ && yarn cache clean && yarn build
 #--dest /usr/local/openresty/nginx/html/openresty-admin/dist
 
 RUN mkdir -p "${NGINX_CONFIG_DIR}data/servers" && \
