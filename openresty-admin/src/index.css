@@ -29,7 +29,7 @@ body {
   place-items: center;
   min-width: 320px;
   min-height: 100vh;
-  font-family: "Bitter", serif
+  font-family: "Bitter", serif;
 }
 
 h1 {
@@ -38,7 +38,7 @@ h1 {
 }
 
 main {
-  margin-top: 10px;
+  margin-top: 23px;
 }
 
 button {
@@ -93,6 +93,19 @@ textarea#match\.response\.message {
   overflow-y: scroll !important;
 }
 
+.login-avatar {
+  background-color: #ff004e !important;
+  margin: 1px;
+}
+
+.login-button {
+  margin-top: 3px;
+  margin-bottom: 2px;
+  background-color: #ff004e !important;
+}
+.login-button:hover {
+  background-color: #036408 !important;
+}
 
 @media screen and (max-width: 600px) {
   main {

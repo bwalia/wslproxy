@@ -134,12 +134,8 @@ const AppBar = () => {
           background: "transparent",
         }}
       >
-        <img
-          src="falcon-removebg-preview.png"
-          alt="Logo"
-          style={{ height: "50px" }}
-        />
-        <Typography
+        <img src="wslp.png" alt="Logo" style={{ height: "80px" }} />
+        {/* <Typography
           variant="h5"
           sx={{
             textShadow: "0 13.36px 8.896px #FFEB55, 0 -2px 1px #EE66A6",
@@ -147,7 +143,7 @@ const AppBar = () => {
           }}
         >
           {appDisplayNname}
-        </Typography>
+        </Typography> */}
       </Toolbar>
       <TitlePortal />
       {targetPlatform !== "DOCKER" && <ApiSync />}

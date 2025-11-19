@@ -26,34 +26,34 @@ LABEL resty_luarocks_version="${RESTY_LUAROCKS_VERSION}"
 RUN apk update && apk upgrade
 
 RUN apk add --no-cache --virtual .build-deps \
-        perl-dev \
+    perl-dev \
     && apk add --no-cache \
-        bash \
-        git \
-        aws-cli \
-        build-base \
-        curl \
-        libintl \ 
-        linux-headers \
-        make \
-        musl \
-        outils-md5 \
-        perl \
-        unzip \
-        wget \
-        npm \
-        yarn \
-        openssl \
-        jq \
+    bash \
+    git \
+    aws-cli \
+    build-base \
+    curl \
+    libintl \ 
+    linux-headers \
+    make \
+    musl \
+    outils-md5 \
+    perl \
+    unzip \
+    wget \
+    npm \
+    yarn \
+    openssl \
+    jq \
     && cd /tmp \
     && curl -fSL https://luarocks.github.io/luarocks/releases/luarocks-${RESTY_LUAROCKS_VERSION}.tar.gz -o luarocks-${RESTY_LUAROCKS_VERSION}.tar.gz \
     && tar xzf luarocks-${RESTY_LUAROCKS_VERSION}.tar.gz \
     && cd luarocks-${RESTY_LUAROCKS_VERSION} \
     && ./configure \
-        --prefix=/usr/local/openresty/luajit \
-        --with-lua=/usr/local/openresty/luajit \
-        --lua-suffix=jit-2.1.0-beta3 \
-        --with-lua-include=/usr/local/openresty/luajit/include/luajit-2.1 \
+    --prefix=/usr/local/openresty/luajit \
+    --with-lua=/usr/local/openresty/luajit \
+    --lua-suffix=jit-2.1.0-beta3 \
+    --with-lua-include=/usr/local/openresty/luajit/include/luajit-2.1 \
     && make build \
     && make install \
     && cd /tmp \
@@ -101,9 +101,9 @@ RUN chown -R root:nobody /etc/resty-auto-ssl/
 RUN chmod -R 775 /etc/resty-auto-ssl
 
 RUN openssl req -new -newkey rsa:2048 -days 3650 -nodes -x509 \
-  -subj '/CN=sni-support-required-for-valid-ssl' \
-  -keyout /etc/ssl/resty-auto-ssl-fallback.key \
-  -out /etc/ssl/resty-auto-ssl-fallback.crt
+    -subj '/CN=sni-support-required-for-valid-ssl' \
+    -keyout /etc/ssl/resty-auto-ssl-fallback.key \
+    -out /etc/ssl/resty-auto-ssl-fallback.crt
 #COPY nginx/test.conf /usr/local/openresty/nginx/conf/nginx.conf
 # COPY nginx/hd4dp.conf /etc/nginx/conf.d/hd4dp.conf
 # COPY nginx/sessions_demo_server.conf /etc/nginx/conf.d/sessions_demo_server.conf
@@ -144,8 +144,8 @@ RUN sed -i "s/resolver 127.0.0.11/resolver ${DNS_RESOLVER}/g" /tmp/resolver.conf
 
 # Install Consul
 RUN apk add --no-cache --virtual .build-deps \
-        unzip \
-        curl \
+    unzip \
+    curl \
     && curl -o /tmp/consul.zip https://releases.hashicorp.com/consul/1.19.1/consul_1.19.1_linux_amd64.zip \
     && unzip /tmp/consul.zip -d /usr/local/bin/ \
     && rm /tmp/consul.zip \
@@ -175,14 +175,15 @@ RUN mkdir -p "/var/log/nginx/" \
 
 WORKDIR /usr/local/openresty/nginx/html/openresty-admin/
 
-RUN cd /usr/local/openresty/nginx/html/openresty-admin && yarn install \
-  --prefer-offline \
-  --non-interactive \
-  --network-timeout 100000 \
-  --production=false
-  
-RUN cd /usr/local/openresty/nginx/html/openresty-admin/ && rm -Rf /usr/local/openresty/nginx/html/openresty-admin/yarn.lock && yarn cache clean && yarn build
-#--dest /usr/local/openresty/nginx/html/openresty-admin/dist
+# Install yarn dependencies
+RUN yarn install \
+    --non-interactive \
+    --frozen-lockfile \
+    --network-timeout 300000 \
+    --production=false
+
+# Build the application
+RUN yarn build
 
 RUN mkdir -p "${NGINX_CONFIG_DIR}data/servers" && \
     mkdir -p "${NGINX_CONFIG_DIR}data/rules"
@@ -192,7 +193,7 @@ RUN chmod -R 777 ${NGINX_CONFIG_DIR}data && \
     chmod -R 777 ${NGINX_CONFIG_DIR}data/rules && \
     # chmod -R 777 ${NGINX_CONFIG_DIR}data/security_rules.json && \
     chown -R nobody:root ${NGINX_CONFIG_DIR}data/
-    # chmod 777 ${NGINX_CONFIG_DIR}data/sample-settings.json
+# chmod 777 ${NGINX_CONFIG_DIR}data/sample-settings.json
 
 # mc - MinIO Client is used to backup nginx openresty configuration to S3
 RUN wget https://dl.min.io/client/mc/release/linux-amd64/mc -O /usr/local/bin/mc \

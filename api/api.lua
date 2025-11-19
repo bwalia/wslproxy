@@ -17,12 +17,12 @@ if settings.storage_type == "redis" then
     local redis = require "resty.redis"
     red = redis:new()
     red:set_timeout(1000)
-    
+
     local redisHost = settings.env_vars.REDIS_HOST or os.getenv("REDIS_HOST")
     if redisHost == nil then
         redisHost = "localhost"
     end
-    
+
     local ok, err = red:connect(redisHost, 6379)
     if not ok then
         ngx.log(ngx.ERR, "failed to connect to Redis: ", err)
@@ -142,7 +142,8 @@ local function deleteRuleFromServer(ruleId, envProfile)
                     if settings.storage_type == "redis" then
                         red:hset("servers_" .. envProfile, server, cjson.encode(getServer))
                     else
-                        Helper.setDataToFile(configPath .. "data/servers/" .. envProfile .. "/" .. server .. ".json", getServer,
+                        Helper.setDataToFile(configPath .. "data/servers/" .. envProfile .. "/" .. server .. ".json",
+                            getServer,
                             configPath .. "data/servers")
                     end
                 end
@@ -274,6 +275,7 @@ local function login(args)
 
         local payloads = Helper.GetPayloads(args)
         local password = Helper.hashPassword(payloads.password)
+
         if suEmail == payloads.email and suPassword == password then
             ngx.status = ngx.OK
             if settings.storage_type == "redis" then
@@ -378,7 +380,7 @@ local function listFromDisk(directory, pageSize, pageNumber, qParams)
             end
         end
     end
-    
+
     local diskData, count = listPaginationLocal(jsonData, pageSize, pageNumber, qParams)
     return diskData, count
 end
@@ -452,7 +454,8 @@ local function listServer(args, id)
     local envProfile = args.envprofile ~= nil and args.envprofile or "prod"
     if settings then
         if settings.storage_type == "disk" then
-            local jsonData, dataErr = Helper.getDataFromFile(configPath .. "data/servers/" .. envProfile .. "/" .. id .. ".json")
+            local jsonData, dataErr = Helper.getDataFromFile(configPath ..
+            "data/servers/" .. envProfile .. "/" .. id .. ".json")
             if dataErr ~= nil then
                 ngx.say(cjson.encode({
                     data = {}
@@ -572,7 +575,8 @@ local function listSecret(args, id)
     local envProfile = args.envprofile ~= nil and args.envprofile or "prod"
     if settings then
         if settings.storage_type == "disk" then
-            local jsonData, dataErr = Helper.getDataFromFile(configPath .. "data/secrets/" .. envProfile .. "/" .. id .. ".json")
+            local jsonData, dataErr = Helper.getDataFromFile(configPath ..
+            "data/secrets/" .. envProfile .. "/" .. id .. ".json")
             if dataErr ~= nil then
                 ngx.say(cjson.encode({
                     data = {}
@@ -676,7 +680,8 @@ local function listInstance(args, id)
     local envProfile = args.envprofile ~= nil and args.envprofile or "prod"
     if settings then
         if settings.storage_type == "disk" then
-            local jsonData, dataErr = Helper.getDataFromFile(configPath .. "data/instances/" .. envProfile .. "/" .. id .. ".json")
+            local jsonData, dataErr = Helper.getDataFromFile(configPath ..
+            "data/instances/" .. envProfile .. "/" .. id .. ".json")
             if dataErr ~= nil then
                 ngx.say(cjson.encode({
                     data = {}
@@ -810,7 +815,7 @@ local function createUserInDisk(payloads, uuid)
         file:close()
         local users = {}
         if jsonString ~= nil and jsonString ~= "" then
-           users = cjson.decode(jsonString)
+            users = cjson.decode(jsonString)
         end
         if uuid then
             for key, value in pairs(users) do
@@ -1106,19 +1111,22 @@ local function listRule(args, uuid)
     local envProfile = args.envprofile ~= nil and args.envprofile or "prod"
     if settings then
         if settings.storage_type == "disk" then
-            local jsonData, dataErr = Helper.getDataFromFile(configPath .. "data/rules/" .. envProfile .. "/" .. uuid .. ".json")
+            local jsonData, dataErr = Helper.getDataFromFile(configPath ..
+            "data/rules/" .. envProfile .. "/" .. uuid .. ".json")
             if dataErr == nil then
                 local resultData = cjson.decode(jsonData)
                 if resultData.match.rules.jwt_token_validation_value ~= nil and
                     resultData.match.rules.jwt_token_validation_key ~= nil then
                     resultData.match.rules.jwt_token_validation_key =
-                    Base64.decode(resultData.match.rules.jwt_token_validation_key)
+                        Base64.decode(resultData.match.rules.jwt_token_validation_key)
                 end
                 if resultData.match.rules.amazon_s3_access_key then
-                    resultData.match.rules.amazon_s3_access_key = Base64.decode(resultData.match.rules.amazon_s3_access_key)
+                    resultData.match.rules.amazon_s3_access_key = Base64.decode(resultData.match.rules
+                    .amazon_s3_access_key)
                 end
                 if resultData.match.rules.amazon_s3_secret_key then
-                    resultData.match.rules.amazon_s3_secret_key = Base64.decode(resultData.match.rules.amazon_s3_secret_key)
+                    resultData.match.rules.amazon_s3_secret_key = Base64.decode(resultData.match.rules
+                    .amazon_s3_secret_key)
                 end
                 ngx.say(cjson.encode({
                     data = resultData
@@ -1142,10 +1150,12 @@ local function listRule(args, uuid)
                     Base64.decode(exist_value.match.rules.jwt_token_validation_key)
             end
             if exist_value.match.rules.amazon_s3_access_key then
-                exist_value.match.rules.amazon_s3_access_key = Base64.decode(exist_value.match.rules.amazon_s3_access_key)
+                exist_value.match.rules.amazon_s3_access_key = Base64.decode(exist_value.match.rules
+                .amazon_s3_access_key)
             end
             if exist_value.match.rules.amazon_s3_secret_key then
-                exist_value.match.rules.amazon_s3_secret_key = Base64.decode(exist_value.match.rules.amazon_s3_secret_key)
+                exist_value.match.rules.amazon_s3_secret_key = Base64.decode(exist_value.match.rules
+                .amazon_s3_secret_key)
             end
 
             ngx.say({ cjson.encode({
@@ -1297,11 +1307,13 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name, method)
         json_val.match.rules.jwt_token_validation_key ~= nil then
         json_val.match.rules.jwt_token_validation_key = Base64.encode(json_val.match.rules.jwt_token_validation_key)
         if json_val.match.rules.amazon_s3_access_key then
-            json_val.match.rules.amazon_s3_access_key = string.gsub(json_val.match.rules.amazon_s3_access_key, "%%2B", "+")
+            json_val.match.rules.amazon_s3_access_key = string.gsub(json_val.match.rules.amazon_s3_access_key, "%%2B",
+                "+")
             json_val.match.rules.amazon_s3_access_key = Base64.encode(json_val.match.rules.amazon_s3_access_key)
         end
         if json_val.match.rules.amazon_s3_secret_key then
-            json_val.match.rules.amazon_s3_secret_key = string.gsub(json_val.match.rules.amazon_s3_secret_key, "%%2B", "+")
+            json_val.match.rules.amazon_s3_secret_key = string.gsub(json_val.match.rules.amazon_s3_secret_key, "%%2B",
+                "+")
             json_val.match.rules.amazon_s3_secret_key = Base64.encode(json_val.match.rules.amazon_s3_secret_key)
         end
     end
@@ -1321,7 +1333,8 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name, method)
         if settings.storage_type == "redis" then
             getDomain = red:hget(key_name .. "_" .. envProfile, json_val.id)
         else
-            getDomain = Helper.getDataFromFile(configPath .. "data/servers/" .. envProfile .. "/" .. json_val.id .. ".json")
+            getDomain = Helper.getDataFromFile(configPath ..
+            "data/servers/" .. envProfile .. "/" .. json_val.id .. ".json")
         end
         if getDomain and getDomain ~= nil and type(getDomain) == "string" and method == "create" then
             ngx.status = ngx.HTTP_CONFLICT
@@ -1379,7 +1392,8 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name, method)
     Helper.setDataToFile(filePathDir .. "/" .. uuid .. ".json", json_val, filePathDir)
     if key_name == "servers" then
         local configString = Base64.decode(json_val.config)
-        Helper.setDataToFile(filePathDir .. "/conf/" .. json_val.server_name .. ".conf", Helper.cleanString(configString), filePathDir .. "/conf", "conf")
+        Helper.setDataToFile(filePathDir .. "/conf/" .. json_val.server_name .. ".conf", Helper.cleanString(configString),
+            filePathDir .. "/conf", "conf")
         json_val.nginx_status_check = "error"
         if json_val.config_status then
             if Helper.isFileExists(nginxTenantConfDir .. "/" .. json_val.server_name .. ".conf") == false then
@@ -1401,7 +1415,8 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name, method)
                 local destinationFilePath = nginxTenantConfDir .. "/" .. json_val.server_name .. ".conf"
                 local isFilesSame = Conf.compareFiles(sourceFilePath, destinationFilePath)
                 if isFilesSame == false then
-                    Conf.saveConfFiles(nginxTenantConfDir, Helper.cleanString(configString), json_val.server_name .. ".conf")
+                    Conf.saveConfFiles(nginxTenantConfDir, Helper.cleanString(configString),
+                        json_val.server_name .. ".conf")
                     local nginxStatus, commandStatus = Helper.testNginxConfig()
                     local isSuccess = Helper.isStringContains("nginx.conf syntax is ok", nginxStatus)
                     json_val.nginx_status = nginxStatus
@@ -1494,20 +1509,20 @@ local function listSessions(args)
     local allsessions, sessions = {}, {}
     local records = {}
     if settings.storage_type == "redis" then
-    local exist_values, err = red:scan(0, "match", "session:*") -- red:keys("session:*")
-    if exist_values[2] ~= nil then
-        for key, value in pairs(exist_values[2]) do
-            -- if key % 2 == 0 then
-            table.insert(records, {
-                session_id = value,
-                id = key,
-                subject = 'Redacted',
-                timeout = 'Redacted',
-                quote = 'Redacted'
-            })
-            -- end
+        local exist_values, err = red:scan(0, "match", "session:*") -- red:keys("session:*")
+        if exist_values[2] ~= nil then
+            for key, value in pairs(exist_values[2]) do
+                -- if key % 2 == 0 then
+                table.insert(records, {
+                    session_id = value,
+                    id = key,
+                    subject = 'Redacted',
+                    timeout = 'Redacted',
+                    quote = 'Redacted'
+                })
+                -- end
+            end
         end
-    end
     end
     local getAllRecords = records
     if type(getAllRecords) == "string" then
@@ -1605,7 +1620,7 @@ local function handleUpdateCreateProfiles(body, uuid)
         local folderPath = configPath .. "data/rules/" .. body.name
         local parent = folderPath:match("^(.*)/[^/]+/?$")
         if parent and not Helper.isDirectoryExists(parent) then
-            Helper.createDirectoryRecursive(parent)  -- Recursively create parent directories
+            Helper.createDirectoryRecursive(parent) -- Recursively create parent directories
         end
         successCreation, errorCreation = Helper.createDirectoryRecursive(folderPath)
     elseif uuid ~= nil then
@@ -1625,7 +1640,7 @@ local function listDirectories(path, pageSize, pageNumber, qParams)
             if dir ~= "." and dir ~= ".." then
                 local dirPath = path .. "/" .. dir
                 local attr = lfs.attributes(dirPath)
-    
+
                 if attr and attr.mode == "directory" then
                     local createdAt = os.date("%Y-%m-%d %H:%M:%S", attr.change)
                     table.insert(directories, { id = tostring(dir), name = dir, createdAt = createdAt })
@@ -1634,7 +1649,7 @@ local function listDirectories(path, pageSize, pageNumber, qParams)
         end
         local data, count = listPaginationLocal(directories, pageSize, pageNumber, qParams)
         return data, count
-    else 
+    else
         return {}, 0
     end
 end
@@ -1708,18 +1723,18 @@ local function updateProfileSettings(args)
     local payloads = Helper.GetPayloads(args)
     local envProfile = payloads.profile
     local writableFile, writableErr = io.open(configPath .. "data/settings.json", "w")
-        settings.env_profile = envProfile
-        if writableFile == nil then
-            Errors.throwError("Couldn't write file: " .. writableErr, ngx.HTTP_INTERNAL_SERVER_ERROR)
-        else
-            writableFile:write(cjson.encode(settings))
-            writableFile:close()
-            ngx.say(cjson.encode({
-                data = {
-                    profile = settings.env_profile
-                }
-            }))
-        end
+    settings.env_profile = envProfile
+    if writableFile == nil then
+        Errors.throwError("Couldn't write file: " .. writableErr, ngx.HTTP_INTERNAL_SERVER_ERROR)
+    else
+        writableFile:write(cjson.encode(settings))
+        writableFile:close()
+        ngx.say(cjson.encode({
+            data = {
+                profile = settings.env_profile
+            }
+        }))
+    end
 end
 
 local function deleteProfile(body)
@@ -1999,7 +2014,9 @@ local function handle_post_request(args, path)
             resetPassword(args)
         end
     else
-        Errors.throwError("You can't create record either you can create it from UI or you need to change settings for instance lock.", ngx.HTTP_FORBIDDEN)
+        Errors.throwError(
+        "You can't create record either you can create it from UI or you need to change settings for instance lock.",
+            ngx.HTTP_FORBIDDEN)
     end
 end
 
@@ -2039,7 +2056,9 @@ local function handle_put_request(args, path)
             createUpdateProfiles(args, uuid)
         end
     else
-        Errors.throwError("You can't create record either you can create it from UI or you need to change settings for instance lock.", ngx.HTTP_FORBIDDEN)
+        Errors.throwError(
+        "You can't create record either you can create it from UI or you need to change settings for instance lock.",
+            ngx.HTTP_FORBIDDEN)
     end
 end
 
@@ -2072,7 +2091,9 @@ local function handle_delete_request(args, path)
             deleteAll(args)
         end
     else
-        Errors.throwError("You can't delete record either you can delete it from UI or you need to change settings for instance lock.", ngx.HTTP_FORBIDDEN)
+        Errors.throwError(
+        "You can't delete record either you can delete it from UI or you need to change settings for instance lock.",
+            ngx.HTTP_FORBIDDEN)
     end
 end
 

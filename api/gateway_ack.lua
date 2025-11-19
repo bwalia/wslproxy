@@ -21,7 +21,7 @@ local Helper = require("helpers")
 local isItDTAPEnvironment = function(pHostnameStr)
     --return true
     return string.find(pHostnameStr, "localhost") or string.find(pHostnameStr, "dev") or string.find(pHostnameStr, "int") or
-    string.find(pHostnameStr, "test")
+        string.find(pHostnameStr, "test")
 end
 
 local settingsObj = Helper.settings()
@@ -157,7 +157,7 @@ local function gatewayHostAuthenticate(rule)
 
                 local now = os.date("%a, %d %b %Y %H:%M:%S +0000")
                 local file_path = "/" ..
-                bucketName .. "/prod/category-file/1709032659/OdinSPC-TALSystematicSPFactsheet-Jan24.pdf"
+                    bucketName .. "/prod/category-file/1709032659/OdinSPC-TALSystematicSPFactsheet-Jan24.pdf"
                 -- local digest = ngx.md5(file_path)
                 -- local md5_digest = ngx.encode_base64(digest)
                 local md5_digest = ""
@@ -165,8 +165,8 @@ local function gatewayHostAuthenticate(rule)
                 local base64_aws_signature = ngx.encode_base64(ngx.hmac_sha1(s3SecretKey, aws_resource_string_to_sign))
                 local authorization_header_override = "AWS " .. s3AccessKey .. ":" .. base64_aws_signature
                 local host_header_override = "s3." ..
-                bucketregion ..
-                ".amazonaws.com"                                                   -- eu-west-1 is hardcidoded for now but it should be a variable field in the UI
+                    bucketregion ..
+                    ".amazonaws.com" -- eu-west-1 is hardcidoded for now but it should be a variable field in the UI
                 local uri = ngx.re.sub(key, "^(.*)", "/" .. bucketName .. "$1", "o")
                 ngx.req.set_uri(uri)
                 -- proxy_pass http://s3.amazonaws.com;
@@ -211,7 +211,8 @@ local function gatewayHostAuthenticate(rule)
     return isTokenVerified
 end
 
-local function gatewayHostRulesParser(rules, ruleId, priority, message, statusCode, redirectUri, isConsul, consulDomainName)
+local function gatewayHostRulesParser(rules, ruleId, priority, message, statusCode, redirectUri, isConsul,
+                                      consulDomainName)
     local chk_path = (rules.path ~= nil and type(rules.path) ~= "userdata") and trimWhitespace(rules.path) or rules.path
     local isPathPass, failMessage, isTokenPass = false, "", false
     local finalResult, results = {}, {}
@@ -240,6 +241,7 @@ local function gatewayHostRulesParser(rules, ruleId, priority, message, statusCo
     results["path"] = isPathPass
     local testingIps = {
         BE = "104.155.127.255",
+        EU = "104.155.127.255",
         IN = "117.245.73.99",
         AU = "1.44.255.255",
         GB = "103.219.168.255",
@@ -675,7 +677,7 @@ if exist_values and exist_values ~= 0 and exist_values ~= nil and exist_values ~
             ngx.var.frontdoor_global_vars = cjson.encode(globalVars)
         else
             local confMismatchHtml = settingsObj.nginx.default.conf_mismatch ~= nil and
-            settingsObj.nginx.default.conf_mismatch or "PGgxPk5vIEhUTUwgc3VwcGxpZWQgZm9yIHRoaXMgZXJyb3I8L2gxPgo="
+                settingsObj.nginx.default.conf_mismatch or "PGgxPk5vIEhUTUwgc3VwcGxpZWQgZm9yIHRoaXMgZXJyb3I8L2gxPgo="
             for rKey, ruleOne in pairs(parse_rules[1]) do
                 if ruleOne.message and ruleOne.message ~= nil and ruleOne.message ~= "" and ruleOne.message ~= "null" then
                     confMismatchHtml = ruleOne.message
