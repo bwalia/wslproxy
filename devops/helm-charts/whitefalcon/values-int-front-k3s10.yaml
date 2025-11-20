@@ -1,4 +1,4 @@
-# Default values for whitefalcon front http request handler int10 k3s
+# Default values for wslproxy front http request handler int10 k3s
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
@@ -14,8 +14,8 @@ app:
     - kubernetes
   namespace: int
   dns_resolver: "10.43.0.10"
-  primary_dns_resolver : "10.43.0.10"
-  secondary_dns_resolver : "10.43.0.10"
+  primary_dns_resolver: "10.43.0.10"
+  secondary_dns_resolver: "10.43.0.10"
   dns_resolver_port: 53
   api_url: "http://api-int.brahmstra.org/api"
   redis_host: "redis-service.int.svc.cluster.local"
@@ -27,7 +27,7 @@ app:
 secure_env_file: "AgBGrmbB/hiJfpP1IpgLsklxKaBHxW1FBKIa4WYje6XK81kBa8pli5CA6ufcTn0fnQ2W9DrUzUh9cAV3j+gRL5uIsdEvDyg5QWaqfaF9KjbdzP+1oV1kIgou1D2srEzJ6Oaq+D47kLcMAfsdDRt/vnnFq/dflrNUyv+tvo0Audj3rOXEiS4c+A4us1qgDr8VLRtsm9f5HmcetJu5cu9OTxvSxPlM6ljWbpK2rn38kSkOeD289BjltqXOSqGgikkMCBxfSE2Dckcn7Ij5yoDbS5vqNbpX7nl2bxTgN0X/nPpXhkPEBnHzDEzbgNWEJ42SaY75Dv5OldRZQnL4WxCewT5B32IrH8WRdrL/SHW6YhIdzpLkQbKF0NqHWJe0xi0N4eONfFtCfs4bcXZviUtRW5Tnaq4re9C0cyM8OaI/4Z6869qEcLaf65xg05ksFMQ5q2QRovURjyoYZpCVWfKdLAXbvpLeT8FM2Kv0LNQxlKH7i2aFWxa4Sy4MkjMMBnvJCcAt5YuR9bFcmYSC9cPlOA2iemlqZTVmKRJyVmvl4XAodNNzbOZCJHU+W3wYSZ7CrFnIHwqUkXd+hL6O/YPp/8b5Wr1BTuNizImEzeZf+u7LEJ0Mrxgy4jHy30sdd8zgc8bkEl4YK3WP6Zx1RM+sKQjWEVLENYTAR+k1wXX3DiknguwSCQ52WhTr7odb3XSd3t8P+TPgvDGMbV1fVdHXEbFRt/V7gXmgN9gMwWfz0JxON92z8puHm3eW1wgTXfRLg9VnKZHwdtVT9lm/VF3ebHeJkf/y8ST0r0DQZU2zcm4d8AJubQxUlWEbr7wPsbrUqBD9+zkvqgtrekOun3LbtvYyDhmH3FUqJDAGTFcO0LLQfgPxQPV4WJgkC2X+DCke5cw2jA2JnqsMhDbm6cS/E1toqLJi7eNMurHphXq7Cu9qrCEFwAwpRGVinrpxrVs4B7a2olXK2dlHno25Nn9guoN8zYgFppAaaA=="
 
 image:
-  repository: bwalia/whitefalcon
+  repository: bwalia/wslproxy
   pullPolicy: Always
   # Overrides the image tag whose default is the chart appVersion.
   tag: "latest"
@@ -47,10 +47,12 @@ serviceAccount:
 
 podAnnotations: {}
 
-podSecurityContext: {}
+podSecurityContext:
+  {}
   # fsGroup: 2000
 
-securityContext: {}
+securityContext:
+  {}
   # capabilities:
   #   drop:
   #   - ALL
@@ -68,11 +70,11 @@ storage:
   size: 2Gi
   storageClass: ""
 
-
 ingress:
   enabled: true
   className: "nginx"
-  annotations: {}
+  annotations:
+    {}
     # kubernetes.io/ingress.class: nginx
     # kubernetes.io/tls-acme: "true"
   hosts:
@@ -124,7 +126,8 @@ ingress:
   #    hosts:
   #      - chart-example.local
 
-resources: {}
+resources:
+  {}
   # We usually recommend not to specify default resources and to leave this as a conscious
   # choice for the user. This also increases chances charts run on environments with little
   # resources, such as Minikube. If you do want to specify resources, uncomment the following

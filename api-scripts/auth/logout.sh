@@ -1,5 +1,5 @@
 #!/bin/bash
-# Logout from WhiteFalcon (removes stored token)
+# Logout from wslproxy (removes stored token)
 # Usage: ./logout.sh
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

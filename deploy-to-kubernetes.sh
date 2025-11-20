@@ -41,14 +41,14 @@ fi
 
 echo "Deploying to k3s2 cluster"
 
-DOCKER_PUBLIC_IMAGE_NAME=bwalia/whitefalcon
+DOCKER_PUBLIC_IMAGE_NAME=bwalia/wslproxy
 VERSION=latest
 SOURCE_IMAGE=openresty_alpine
 
 docker image rm ${DOCKER_PUBLIC_IMAGE_NAME}
 docker build -t ${DOCKER_PUBLIC_IMAGE_NAME}:${VERSION} -f Dockerfile . --no-cache
 docker login -u $1 -p $2
-docker tag whitefalcon-${SOURCE_IMAGE} ${DOCKER_PUBLIC_IMAGE_NAME}:${VERSION}
+docker tag wslproxy-${SOURCE_IMAGE} ${DOCKER_PUBLIC_IMAGE_NAME}:${VERSION}
 docker push ${DOCKER_PUBLIC_IMAGE_NAME}:${VERSION}
 
 HELM_CMD="helm"
@@ -64,18 +64,18 @@ $KUBECTL_CMD rollout restart deployment/node-app
 $KUBECTL_CMD rollout history deployment/node-app
 
 if [ "$APP_TYPE" == "both" ]; then
-   $HELM_CMD upgrade -i whitefalcon-api-$4 ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-$4-api-k3s2.yaml --set TARGET_ENV=$4 --namespace $4 --create-namespace
+   $HELM_CMD upgrade -i wslproxy-api-$4 ./devops/helm-charts/wslproxy/ -f devops/helm-charts/wslproxy/values-$4-api-k3s2.yaml --set TARGET_ENV=$4 --namespace $4 --create-namespace
    $KUBECTL_CMD rollout restart deployment/wf-api-$4 -n $4
    $KUBECTL_CMD rollout history deployment/wf-api-$4 -n $4
-   $HELM_CMD upgrade -i whitefalcon-front-$4 ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-$4-front-k3s2.yaml --set TARGET_ENV=$4 --namespace $4 --create-namespace
+   $HELM_CMD upgrade -i wslproxy-front-$4 ./devops/helm-charts/wslproxy/ -f devops/helm-charts/wslproxy/values-$4-front-k3s2.yaml --set TARGET_ENV=$4 --namespace $4 --create-namespace
    $KUBECTL_CMD rollout restart deployment/wf-front-$4 -n $4
    $KUBECTL_CMD rollout history deployment/wf-front-$4 -n $4
 elif [ "$APP_TYPE" == "api" ]; then
-   $HELM_CMD upgrade -i whitefalcon-api-$4 ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-$4-api-k3s2.yaml --set TARGET_ENV=$4 --namespace $4 --create-namespace
+   $HELM_CMD upgrade -i wslproxy-api-$4 ./devops/helm-charts/wslproxy/ -f devops/helm-charts/wslproxy/values-$4-api-k3s2.yaml --set TARGET_ENV=$4 --namespace $4 --create-namespace
    $KUBECTL_CMD rollout restart deployment/wf-api-$4 -n $4
    $KUBECTL_CMD rollout history deployment/wf-api-$4 -n $4
 elif [ "$APP_TYPE" == "front" ]; then
-   $HELM_CMD upgrade -i whitefalcon-front-$4 ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-$4-front-k3s2.yaml --set TARGET_ENV=$4 --namespace $4 --create-namespace
+   $HELM_CMD upgrade -i wslproxy-front-$4 ./devops/helm-charts/wslproxy/ -f devops/helm-charts/wslproxy/values-$4-front-k3s2.yaml --set TARGET_ENV=$4 --namespace $4 --create-namespace
    $KUBECTL_CMD rollout restart deployment/wf-front-$4 -n $4
    $KUBECTL_CMD rollout history deployment/wf-front-$4 -n $4
 fi

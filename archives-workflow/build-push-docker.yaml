@@ -6,10 +6,10 @@ on:
       - dummy
 
 env:
-    IMAGE_NAME: "whitefalcon"
-    TARGET_IMAGE_TAG: "test"
-    TARGET_STACK: openresty_php
-    IMAGE_REGISTRY: ${{ secrets.WSL_DOCKER_REGISTRY }}
+  IMAGE_NAME: "wslproxy"
+  TARGET_IMAGE_TAG: "test"
+  TARGET_STACK: openresty_php
+  IMAGE_REGISTRY: ${{ secrets.WSL_DOCKER_REGISTRY }}
 
 jobs:
   build:

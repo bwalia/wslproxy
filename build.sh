@@ -23,8 +23,8 @@ fi
 
 if [ -z "$2" ]
   then
-    echo "No docker image name supplied default to whitefalcon"
-    DOCKER_CONTAINER_NAME="whitefalcon"
+    echo "No docker image name supplied default to wslproxy"
+    DOCKER_CONTAINER_NAME="wslproxy"
 else
     echo "Docker image name: $2"
     DOCKER_CONTAINER_NAME="$2"
@@ -32,7 +32,7 @@ fi
 
 if [ -z "$3" ]
   then
-    echo "No JWT token supplied default to whitefalcon"
+    echo "No JWT token supplied default to wslproxy"
 else 
     JWT_TOKEN_KEY="$3"
 fi
@@ -80,7 +80,7 @@ echo "JWT_SECRET_KEY=$JWT_TOKEN_KEY" >> $TARGET_NODE_APP_ENV_FILE
 
 echo "Building docker deployment using docker-compose up -d."
 
-DOCKER_COMPOSE_BIN=$(which docker-compose)
+DOCKER_COMPOSE_BIN=$(echo docker compose)
 
 ${DOCKER_COMPOSE_BIN} -f ${TARGET_DOCKER_COMPOSE_FILE} --env-file ${TARGET_ENV_FILE} down --remove-orphans
     sleep 5

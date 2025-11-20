@@ -1,4 +1,4 @@
-# Default values for whitefalcon.
+# Default values for wslproxy.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
@@ -14,8 +14,8 @@ app:
     - kubernetes
   namespace: dev
   dns_resolver: "10.43.0.10"
-  primary_dns_resolver : "10.43.0.10"
-  secondary_dns_resolver : "10.43.0.10"
+  primary_dns_resolver: "10.43.0.10"
+  secondary_dns_resolver: "10.43.0.10"
   dns_resolver_port: 53
   api_url: "http://wf-api-svc-dev.dev.svc.cluster.local:8080/api"
   redis_host: "redis-service.dev.svc.cluster.local"
@@ -27,7 +27,7 @@ app:
 secure_env_file: AgBKRPasRCET2UJ2xa355xJFYd624lx5gtulsk3yDbOOHjVDSgztYULmEX22Tfm7hvhzTcSFP5Gl9nSACiOu1PWBsUGjwmzQZNU1IdDYEQYSqnWT+Jje2MuifCXUkNpi21x9LTcSVDUsSg+qDdzlE5g+2AfTmqOPcGf37SHEGqIh2ALoqvgUC8OqI1eYSjKYkV+eUOa6Tpa+Cib4rh+ltMJJTuPyQqfkUdt4ZjRV8tXhLqPXvxtXxsEwGP1eRidEyQTEoBomJRL1zAwxnka4sGOGqYE8bpjvXEVp5g5egDHsmNS7WA6nScHpQ5PBSWLBrB8kZZh6pVzP1jtBQLtDfDoA34CnGqYtbbPyBLTvQjZEr0JiA3i4pIhS0Juz3zV2LTAkh42ka2j7UpPCj3sx5R0ipjmDZt9nMJLPl2hTswjMpAqqpkE6sXqi0OXQ5FMBJJV+f2/GLGQ0KJ8+y5sSfRASF75YSNcBxban8lwS2Iuk1WVKBXtczeGy/KMcc4tbwZ4MEZcLYIUWveaMDX8rH9LoWsEooKm0unW0HFZx/e00ivZwHRCJohT6ogA2xuNPnmuaJ5ipqQNB3Disjd2x+U2VtWqws9xdOb6lhNcOB02f4NPjqr2lSMAUBo9k4pPxc9XGNP5vADduqGbYxGaPchuMQfT6qUMmSUEJRDkyIjhmrAfMmv81OoJ2iV7XBbWDbZAJulYih45PJPL6hQDLbCzQ1Xp4N5BcCc107q/xZTUnPJwv7NwFtt6ksHHUF09vHAXABwV/5jKaRg7h8maq5xUBSEh5qEqDmjBgscff2EOF3ZGM0niDfXbx/uijBtBglYPsT6HS61rMH8BcHkFxlf2BC+po1YQr3rd9sUxY28omp0m9GaPXgt3N9Za0LQLHe7UeNU4z3TVuHKhzdGr2ZehzpCBf0RlHUrhKZy8U/05HwDntGKedprx8Y4P49xvZvSJkaPpYYHMBqOdcOhgZxJYGBvOE/gV1St5qQYl74spwCHLXQpCu5hdtn1EyNS4egtQ73W08UsghezFQeMoT/OlA77to2BJOOBMUSQiThqmRBA0kD7M2JnHGkg==
 
 image:
-  repository: bwalia/whitefalcon
+  repository: bwalia/wslproxy
   pullPolicy: Always
   # Overrides the image tag whose default is the chart appVersion.
   tag: "latest"
@@ -42,7 +42,6 @@ storage:
   size: 2Gi
   storageClass: ""
 
-
 serviceAccount:
   # Specifies whether a service account should be created
   create: true
@@ -54,10 +53,12 @@ serviceAccount:
 
 podAnnotations: {}
 
-podSecurityContext: {}
+podSecurityContext:
+  {}
   # fsGroup: 2000
 
-securityContext: {}
+securityContext:
+  {}
   # capabilities:
   #   drop:
   #   - ALL
@@ -72,7 +73,8 @@ service:
 ingress:
   enabled: true
   className: "traefik"
-  annotations: {}
+  annotations:
+    {}
     # kubernetes.io/ingress.class: nginx
     # kubernetes.io/tls-acme: "true"
   hosts:
@@ -87,7 +89,8 @@ ingress:
   #    hosts:
   #      - chart-example.local
 
-resources: {}
+resources:
+  {}
   # We usually recommend not to specify default resources and to leave this as a conscious
   # choice for the user. This also increases chances charts run on environments with little
   # resources, such as Minikube. If you do want to specify resources, uncomment the following

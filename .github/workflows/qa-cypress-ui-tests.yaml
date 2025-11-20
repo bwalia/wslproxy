@@ -1,24 +1,24 @@
-name: Whitefalcon QA UI Tests Suite
+name: wslproxy QA UI Tests Suite
 on:
   schedule:
-    - cron: '0 22 * * *'
-    
+    - cron: "0 22 * * *"
+
   workflow_dispatch:
     inputs:
       TARGET_ENV:
         type: choice
-        description: 'Please choose the Target Environment'
-        default: 'int'
+        description: "Please choose the Target Environment"
+        default: "int"
         required: true
         options:
           - int
           - test
           - acc
           - dockerinternal
-          
-env: 
+
+env:
   TARGET_ENV: ${{ inputs.TARGET_ENV || 'int' }}
-  
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -29,24 +29,24 @@ jobs:
         uses: ndeloof/install-compose-action@v0.0.1
         with:
           version: v2.1.0 # defaults to 'latest'
-          legacy: true    # will also install in PATH as `docker-compose`
+          legacy: true # will also install in PATH as `docker-compose`
 
       - name: Setup local environment
         if: ${{ env.TARGET_ENV == 'dockerinternal' }}
         run: |
-          echo "spin the whitefalcon server"
-          ./deploy-to-docker.sh "dockerinternal" "whitefalcon" "${{ secrets.JWT_TOKEN_KEY }}"
+          echo "spin the wslproxy server"
+          ./deploy-to-docker.sh "dockerinternal" "wslproxy" "${{ secrets.JWT_TOKEN_KEY }}"
           docker ps
 
       - name: Executing UI tests using Cypress Test framework on ${{ env.TARGET_ENV }}
         working-directory: ./QA/cypress_ui_tests
         run: |
-            chmod +x ./qa-bootstrap-cypress.sh && sh ./qa-bootstrap-cypress.sh "${{ secrets.LOGIN_EMAIL }}" "${{ secrets.LOGIN_PASSWORD }}" "${{ env.TARGET_ENV }}" "${{ secrets.JWT_TOKEN_KEY }}"
-            sudo chmod a+rwx cypress/downloads
-      - name: 'Upload screenshots and videos to Slack'
+          chmod +x ./qa-bootstrap-cypress.sh && sh ./qa-bootstrap-cypress.sh "${{ secrets.LOGIN_EMAIL }}" "${{ secrets.LOGIN_PASSWORD }}" "${{ env.TARGET_ENV }}" "${{ secrets.JWT_TOKEN_KEY }}"
+          sudo chmod a+rwx cypress/downloads
+      - name: "Upload screenshots and videos to Slack"
         uses: trymbill/cypress-slack-video-upload-action@v1.3.0
         with:
-            token: ${{ secrets.SLACK_TOKEN }}
-            channels: 'cypress-test-results'
-            workdir: QA/cypress_ui_tests/cypress
-            message-text: 'A QA Cypress UI test just finished for Whitefalcon. The screenshots and videos are available in this thread. Good luck!.'
+          token: ${{ secrets.SLACK_TOKEN }}
+          channels: "cypress-test-results"
+          workdir: QA/cypress_ui_tests/cypress
+          message-text: "A QA Cypress UI test just finished for wslproxy. The screenshots and videos are available in this thread. Good luck!."

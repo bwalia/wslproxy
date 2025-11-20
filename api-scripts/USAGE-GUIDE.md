@@ -1,6 +1,6 @@
-# WhiteFalcon API Scripts - Usage Guide
+# wslproxy API Scripts - Usage Guide
 
-This guide explains how to use the bash scripts to manage your WhiteFalcon API Gateway without the React Admin UI.
+This guide explains how to use the bash scripts to manage your wslproxy API Gateway without the React Admin UI.
 
 ## Table of Contents
 
@@ -22,6 +22,7 @@ This guide explains how to use the bash scripts to manage your WhiteFalcon API G
 
 1. **curl** - HTTP client (usually pre-installed)
 2. **jq** - JSON processor
+
    ```bash
    # macOS
    brew install jq
@@ -33,7 +34,7 @@ This guide explains how to use the bash scripts to manage your WhiteFalcon API G
    sudo yum install jq
    ```
 
-3. **WhiteFalcon Gateway** running and accessible
+3. **wslproxy Gateway** running and accessible
 
 ---
 
@@ -42,7 +43,7 @@ This guide explains how to use the bash scripts to manage your WhiteFalcon API G
 ### 1. Navigate to Scripts Directory
 
 ```bash
-cd /path/to/whitefalcon/api-scripts
+cd /path/to/wslproxy/api-scripts
 ```
 
 ### 2. Configure Your Settings
@@ -57,6 +58,7 @@ nano config.sh
 ```
 
 Update these values:
+
 ```bash
 export GATEWAY_URL="${GATEWAY_URL:-http://localhost:4000}"
 export ADMIN_EMAIL="${ADMIN_EMAIL:-your-email@example.com}"
@@ -82,19 +84,20 @@ Before using any API, you must login to get a JWT token:
 ```
 
 **Output:**
+
 ```
-Logging in to WhiteFalcon...
+Logging in to wslproxy...
 Login successful!
-Token saved to: /tmp/whitefalcon_token
+Token saved to: /tmp/wslproxy_token
 
 Instance Info:
 {
   "instance_id": "your-instance-id",
-  "instance_name": "WhiteFalcon Gateway"
+  "instance_name": "wslproxy Gateway"
 }
 ```
 
-The token is stored in `/tmp/whitefalcon_token` and automatically used by other scripts.
+The token is stored in `/tmp/wslproxy_token` and automatically used by other scripts.
 
 ### Logout
 
@@ -121,6 +124,7 @@ Rules define how traffic should be handled based on conditions like path, IP, co
 ```
 
 You'll be prompted for:
+
 - Rule name
 - Priority (1-1000, higher = checked first)
 - Path to match
@@ -131,6 +135,7 @@ You'll be prompted for:
 - IP restriction (optional)
 
 **Example Session:**
+
 ```
 === Create New Rule ===
 
@@ -188,6 +193,7 @@ EOF
 ```
 
 Then create the rule:
+
 ```bash
 ./rules/create-rule.sh my-rule.json
 ```
@@ -195,6 +201,7 @@ Then create the rule:
 ### Rule Examples
 
 #### Basic Proxy Pass
+
 ```json
 {
   "name": "Default Route",
@@ -213,6 +220,7 @@ Then create the rule:
 ```
 
 #### EU Traffic Only
+
 ```json
 {
   "name": "EU API Access",
@@ -233,6 +241,7 @@ Then create the rule:
 ```
 
 #### IP Whitelist
+
 ```json
 {
   "name": "Internal Network Only",
@@ -253,6 +262,7 @@ Then create the rule:
 ```
 
 #### Permanent Redirect (301)
+
 ```json
 {
   "name": "Old Path Redirect",
@@ -271,6 +281,7 @@ Then create the rule:
 ```
 
 #### Block with Message (403)
+
 ```json
 {
   "name": "Block Admin Access",
@@ -287,6 +298,7 @@ Then create the rule:
   }
 }
 ```
+
 > Note: `message` must be Base64 encoded HTML. Use `echo -n "<h1>Access Denied</h1>" | base64`
 
 ---
@@ -302,6 +314,7 @@ Servers represent the domains/hostnames that the gateway will handle.
 ```
 
 You'll be prompted for:
+
 - Server hostname (the domain to handle)
 - Backend host header
 - Rule ID to attach
@@ -309,6 +322,7 @@ You'll be prompted for:
 - Custom headers (optional)
 
 **Example Session:**
+
 ```
 === Create New Server ===
 
@@ -357,7 +371,7 @@ EOF
   "custom_headers": [
     {
       "header_key": "X-Gateway",
-      "header_value": "whitefalcon"
+      "header_value": "wslproxy"
     },
     {
       "header_key": "X-Request-Source",
@@ -398,6 +412,7 @@ EOF
 ```
 
 **Example:**
+
 ```bash
 ./servers/attach-rule.sh x1y2z3w4-a1b2-c3d4-e5f6-g7h8i9j0k1l2 a1b2c3d4-e5f6-7890-abcd-ef1234567890
 ```
@@ -435,8 +450,9 @@ The fastest way to get started:
 ```
 
 Follow the prompts:
+
 ```
-=== Complete WhiteFalcon Setup ===
+=== Complete wslproxy Setup ===
 
 Domain to configure (e.g., api.example.com): api.mycompany.com
 Backend server URL (e.g., https://backend.example.com:8080): https://backend.internal:8080
@@ -621,21 +637,21 @@ EOF
 
 ### Response Codes
 
-| Code | Action | Description |
-|------|--------|-------------|
-| `200` | Return content | Returns HTML content directly |
-| `301` | Permanent redirect | SEO-friendly redirect |
-| `302` | Temporary redirect | Temporary redirect |
-| `305` | Proxy pass | Reverse proxy to backend |
-| `403` | Forbidden | Block with error message |
+| Code  | Action             | Description                   |
+| ----- | ------------------ | ----------------------------- |
+| `200` | Return content     | Returns HTML content directly |
+| `301` | Permanent redirect | SEO-friendly redirect         |
+| `302` | Temporary redirect | Temporary redirect            |
+| `305` | Proxy pass         | Reverse proxy to backend      |
+| `403` | Forbidden          | Block with error message      |
 
 ### Path Match Types
 
-| Type | Description | Example |
-|------|-------------|---------|
-| `starts_with` | Path begins with | `/api` matches `/api/users` |
-| `ends_with` | Path ends with | `.json` matches `/data.json` |
-| `equals` | Exact match | `/login` matches only `/login` |
+| Type          | Description      | Example                        |
+| ------------- | ---------------- | ------------------------------ |
+| `starts_with` | Path begins with | `/api` matches `/api/users`    |
+| `ends_with`   | Path ends with   | `.json` matches `/data.json`   |
+| `equals`      | Exact match      | `/login` matches only `/login` |
 
 ### Country Codes
 
@@ -644,10 +660,10 @@ EOF
 
 ### IP Match Types
 
-| Type | Description | Example |
-|------|-------------|---------|
-| `starts_with` | IP begins with | `192.168` matches `192.168.1.100` |
-| `equals` | Exact IP match | `10.0.0.1` matches only `10.0.0.1` |
+| Type          | Description    | Example                            |
+| ------------- | -------------- | ---------------------------------- |
+| `starts_with` | IP begins with | `192.168` matches `192.168.1.100`  |
+| `equals`      | Exact IP match | `10.0.0.1` matches only `10.0.0.1` |
 
 ---
 
@@ -657,7 +673,7 @@ EOF
 
 1. Check your credentials in `config.sh`
 2. Verify gateway URL and port: `curl http://localhost:4000/ping`
-3. Ensure the container is running: `docker ps | grep whitefalcon`
+3. Ensure the container is running: `docker ps | grep wslproxy`
 
 ### "No token found"
 
@@ -672,6 +688,7 @@ Run `./auth/login.sh` first before other commands.
 ### "jq: command not found"
 
 Install jq:
+
 ```bash
 # macOS
 brew install jq
@@ -683,6 +700,7 @@ sudo apt-get install jq
 ### "Permission denied"
 
 Make scripts executable:
+
 ```bash
 chmod +x **/*.sh
 ```

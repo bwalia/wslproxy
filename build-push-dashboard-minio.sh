@@ -49,9 +49,9 @@ mkdir -p /tmp/brahmstra-dashboard
 cd /tmp/brahmstra-dashboard
 
 # Clone the repo
-rm -Rf whitefalcon
-git clone https://$GITHUB_TOKEN@github.com/bwalia/whitefalcon.git whitefalcon
-cd whitefalcon
+rm -Rf wslproxy
+git clone https://$GITHUB_TOKEN@github.com/bwalia/wslproxy.git wslproxy
+cd wslproxy
 
 # Change directory to openresty admin
 cd openresty-admin
@@ -66,8 +66,8 @@ yarn build
 mc config host add minio $MINIO_ENDPOINT $MINIO_ACCESS_KEY $MINIO_SECRET_KEY
 
 # Copy dist folder to bucket
-if [ -d "/tmp/brahmstra-dashboard/whitefalcon/openresty-admin/dist" ]; then
-tar -czvf /tmp/openresty-admin-dist.tar.gz /tmp/brahmstra-dashboard/whitefalcon/openresty-admin/dist
+if [ -d "/tmp/brahmstra-dashboard/wslproxy/openresty-admin/dist" ]; then
+tar -czvf /tmp/openresty-admin-dist.tar.gz /tmp/brahmstra-dashboard/wslproxy/openresty-admin/dist
 mc cp -r /tmp/openresty-admin-dist.tar.gz minio/$MINIO_BUCKET
 
 else

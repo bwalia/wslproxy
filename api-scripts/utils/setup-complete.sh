@@ -8,7 +8,7 @@ source "$SCRIPT_DIR/../config.sh"
 check_jq
 TOKEN=$(check_token)
 
-echo -e "${YELLOW}=== Complete WhiteFalcon Setup ===${NC}"
+echo -e "${YELLOW}=== Complete wslproxy Setup ===${NC}"
 echo ""
 
 # Get domain info

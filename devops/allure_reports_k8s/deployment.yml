@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: qa-allure-service-container
-          image: docker.workstation.co.uk/whitefalcon-qa:latest
+          image: docker.workstation.co.uk/wslproxy-qa:latest
           resources:
             limits:
               memory: "256Mi"

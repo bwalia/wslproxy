@@ -1,5 +1,5 @@
 #!/bin/bash
-# WhiteFalcon API Configuration
+# wslproxy API Configuration
 # Source this file in other scripts: source ../config.sh
 
 # Gateway URL - Change this to your gateway address
@@ -10,7 +10,7 @@ export ADMIN_EMAIL="${ADMIN_EMAIL:-docker@brahmstra.org}"
 export ADMIN_PASSWORD="${ADMIN_PASSWORD:-Admin@123}"
 
 # Token file location
-export TOKEN_FILE="/tmp/whitefalcon_token"
+export TOKEN_FILE="/tmp/wslproxy_token"
 
 # Colors for output
 export RED='\033[0;31m'

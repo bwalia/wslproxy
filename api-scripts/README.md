@@ -1,6 +1,6 @@
-# WhiteFalcon API Scripts
+# wslproxy API Scripts
 
-Bash scripts for managing WhiteFalcon API Gateway without the React Admin UI.
+Bash scripts for managing wslproxy API Gateway without the React Admin UI.
 
 ## Prerequisites
 
@@ -10,6 +10,7 @@ Bash scripts for managing WhiteFalcon API Gateway without the React Admin UI.
 ## Setup
 
 1. Edit `config.sh` with your gateway URL and credentials:
+
    ```bash
    export GATEWAY_URL="http://localhost:8080"
    export ADMIN_EMAIL="admin@example.com"
@@ -109,6 +110,7 @@ Bash scripts for managing WhiteFalcon API Gateway without the React Admin UI.
 ## Example JSON Files
 
 ### Rule (proxy pass)
+
 ```json
 {
   "name": "API Route",
@@ -127,6 +129,7 @@ Bash scripts for managing WhiteFalcon API Gateway without the React Admin UI.
 ```
 
 ### Rule (with country restriction)
+
 ```json
 {
   "name": "EU Only API",
@@ -147,6 +150,7 @@ Bash scripts for managing WhiteFalcon API Gateway without the React Admin UI.
 ```
 
 ### Rule (redirect)
+
 ```json
 {
   "name": "Old Path Redirect",
@@ -165,6 +169,7 @@ Bash scripts for managing WhiteFalcon API Gateway without the React Admin UI.
 ```
 
 ### Server
+
 ```json
 {
   "server_name": "api.example.com",
@@ -173,13 +178,14 @@ Bash scripts for managing WhiteFalcon API Gateway without the React Admin UI.
   "custom_headers": [
     {
       "header_key": "X-Gateway",
-      "header_value": "whitefalcon"
+      "header_value": "wslproxy"
     }
   ]
 }
 ```
 
 ### Server with multiple rules
+
 ```json
 {
   "server_name": "api.example.com",
@@ -217,18 +223,18 @@ Bash scripts for managing WhiteFalcon API Gateway without the React Admin UI.
 
 ## Response Codes Reference
 
-| Code | Action |
-|------|--------|
-| 200 | Return HTML content |
-| 301 | Permanent redirect |
-| 302 | Temporary redirect |
-| 305 | Proxy pass (reverse proxy) |
-| 403 | Forbidden |
+| Code | Action                     |
+| ---- | -------------------------- |
+| 200  | Return HTML content        |
+| 301  | Permanent redirect         |
+| 302  | Temporary redirect         |
+| 305  | Proxy pass (reverse proxy) |
+| 403  | Forbidden                  |
 
 ## Path Match Types
 
-| Type | Description |
-|------|-------------|
+| Type          | Description            |
+| ------------- | ---------------------- |
 | `starts_with` | Path begins with value |
-| `ends_with` | Path ends with value |
-| `equals` | Exact match |
+| `ends_with`   | Path ends with value   |
+| `equals`      | Exact match            |

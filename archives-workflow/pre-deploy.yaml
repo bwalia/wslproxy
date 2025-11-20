@@ -1,59 +1,59 @@
-name: "Build and Deploy - whitefalcon INT, TEST, ACC or PROD"
+name: "Build and Deploy - wslproxy INT, TEST, ACC or PROD"
 
 on:
   push:
-    branches: [ dummy ]
+    branches: [dummy]
   pull_request:
-    branches: [ dummy/* ]
+    branches: [dummy/*]
   workflow_dispatch:
     inputs:
       TARGET_ENV:
         type: choice
-        description: 'Please choose the Target Environment'
-        default: 'test'
+        description: "Please choose the Target Environment"
+        default: "test"
         required: true
         options:
-        - prod
-        - test
-        - int
-        - dev
+          - prod
+          - test
+          - int
+          - dev
       TARGET_TYPE:
         type: choice
-        description: 'Please choose the Target Application Type'
-        default: 'both'
+        description: "Please choose the Target Application Type"
+        default: "both"
         required: true
         options:
-        - both
-        - api
-        - front
-          
+          - both
+          - api
+          - front
+
 env:
   TARGET_CLUSTER: "k3s6"
   TARGET_ENV: ${{ github.event.inputs.TARGET_ENV }}
   TARGET_TYPE: ${{ github.event.inputs.TARGET_TYPE }}
-  IMAGE_NAME: "whitefalcon"
+  IMAGE_NAME: "wslproxy"
   IMAGE_TAG: ${{ github.ref_name }}
-  
+
 jobs:
   deploy2:
     runs-on: [int2]
     steps:
       - name: checkout the repo code
-        uses: actions/checkout@v2 
+        uses: actions/checkout@v2
         with:
           ref: "main"
-      - name: Deploy whitefalcon api gw to k3s2 onto the given env
+      - name: Deploy wslproxy api gw to k3s2 onto the given env
         run: chmod +x ./deploy-to-kubernetes.sh && ./deploy-to-kubernetes.sh "${{ secrets.DOCKER_USER }}" "${{ secrets.DOCKER_PASSWD }}" "k3s2" "${{ env.TARGET_ENV }}" "${{ env.TARGET_TYPE }}" "${{ env.IMAGE_NAME }}" "${{ env.IMAGE_TAG }}"
-  
+
   deploy3:
     runs-on: [ams01]
     needs: [deploy2]
     steps:
       - name: checkout the repo code
-        uses: actions/checkout@v2 
+        uses: actions/checkout@v2
         with:
           ref: "main"
-      - name: Deploy whitefalcon api gw to k3s3 onto the given env
+      - name: Deploy wslproxy api gw to k3s3 onto the given env
         run: chmod +x ./deploy-to-kubernetes.sh && ./deploy-to-kubernetes.sh "${{ secrets.DOCKER_USER }}" "${{ secrets.DOCKER_PASSWD }}" "k3s3" "${{ env.TARGET_ENV }}" "${{ env.TARGET_TYPE }}" "${{ env.IMAGE_NAME }}" "${{ env.IMAGE_TAG }}"
 
   deploy6:
@@ -61,20 +61,19 @@ jobs:
     needs: [deploy3]
     steps:
       - name: checkout the repo code
-        uses: actions/checkout@v2 
+        uses: actions/checkout@v2
         with:
           ref: "main"
-      - name: Deploy whitefalcon api gw to k3s6 onto the given env
-        run: chmod +x ./deploy-to-kubernetes.sh && ./deploy-to-kubernetes.sh "${{ secrets.DOCKER_USER }}" "${{ secrets.DOCKER_PASSWD }}" "k3s6" "${{ env.TARGET_ENV }}" "${{ env.TARGET_TYPE }}" "${{ env.IMAGE_NAME }}" "${{ env.IMAGE_TAG }}"        
-        
+      - name: Deploy wslproxy api gw to k3s6 onto the given env
+        run: chmod +x ./deploy-to-kubernetes.sh && ./deploy-to-kubernetes.sh "${{ secrets.DOCKER_USER }}" "${{ secrets.DOCKER_PASSWD }}" "k3s6" "${{ env.TARGET_ENV }}" "${{ env.TARGET_TYPE }}" "${{ env.IMAGE_NAME }}" "${{ env.IMAGE_TAG }}"
+
   deploy10:
     runs-on: [self-hosted-node10]
     needs: [deploy6]
     steps:
       - name: checkout the repo code
-        uses: actions/checkout@v2 
+        uses: actions/checkout@v2
         with:
           ref: "main"
-      - name: Deploy whitefalcon api gw to k3s10 onto the given env
+      - name: Deploy wslproxy api gw to k3s10 onto the given env
         run: chmod +x ./deploy-to-kubernetes.sh && ./deploy-to-kubernetes.sh "${{ secrets.DOCKER_USER }}" "${{ secrets.DOCKER_PASSWD }}" "k3s10" "${{ env.TARGET_ENV }}" "${{ env.TARGET_TYPE }}" "${{ env.IMAGE_NAME }}" "${{ env.IMAGE_TAG }}"
-

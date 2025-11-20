@@ -47,7 +47,7 @@ data:
         # Set Resolver for nginx
         cp /tmp/resolver.conf ~/resolver_backup.conf && sed -i -e 's/Docker resolver/K3S resolver/' /tmp/resolver.conf && sed -i -e 's/resolver 127.0.0.11/resolver {{ .Values.app.dns_resolver }}/' /tmp/resolver.conf
         # Set Timezone
-        echo "Openresty whitefalcon Nginx Bootstrap Script"
+        echo "Openresty wslproxy Nginx Bootstrap Script"
         FILE=/opt/nginx/data/settings.json
         mkdir -p /opt/nginx/data
         mkdir -p /opt/nginx/conf.d
@@ -82,7 +82,7 @@ data:
         FILE=/usr/local/openresty/nginx/html/openresty-admin/.env
         cp /tmp/secrets/.env $FILE
         echo "==========================="
-        echo "Openresty whitefalcon Src copy to /var/www/html Complete"
+        echo "Openresty wslproxy Src copy to /var/www/html Complete"
         DATE_GEN_VERSION=$(date +"%Y%m%d%I%M%S")
         export DATE_GEN_VERSION=$(date +"%Y%m%d%I%M%S")
         export VITE_DEPLOYMENT_TIME=$DATE_GEN_VERSION
@@ -90,7 +90,7 @@ data:
         echo "==========================="
         echo "VITE_DEPLOYMENT_TIME=$DATE_GEN_VERSION" >> $FILE
         echo "==========================="
-        echo "Update openresty config file for this whitefalcon env"
+        echo "Update openresty config file for this wslproxy env"
         echo "==========================="
         echo "Restart openresty nginx"
         echo "Rebuilding yarn"
@@ -100,7 +100,7 @@ data:
         mkdir -p /opt/nginx/
         openresty -v 2> /opt/nginx/VERSION
         echo "==========================="
-        echo "Openresty whitefalcon Nginx Bootstrap Script Completed"
+        echo "Openresty wslproxy Nginx Bootstrap Script Completed"
 {{- if .Values.app.sync_data_onload -}}
         echo "Openresty data sync"
         sleep 10
@@ -108,16 +108,16 @@ data:
         touch /tmp/opsapi/sync.log
         curl http://localhost/frontdoor/opsapi/sync >> /tmp/opsapi/sync.log
 {{- end }}
-    whitefalcon.conf: |
+    wslproxy.conf: |
 {{- range .Values.ingress.hosts }}
-        # Openresty whitefalcon Nginx Conf Openresty whitefalcon.conf src ConfigMap loaded by openresty
+        # Openresty wslproxy Nginx Conf Openresty wslproxy.conf src ConfigMap loaded by openresty
         server {
         listen         80;
         server_name {{ .host | quote }};
         root  /usr/local/openresty/nginx/html;
         index          index.html;
         location / {
-            return 200 "Openresty whitefalcon Nginx Conf Openresty whitefalcon.conf src ConfigMap loaded by openresty";
+            return 200 "Openresty wslproxy Nginx Conf Openresty wslproxy.conf src ConfigMap loaded by openresty";
         }
         location ~ /\. {
             deny all;

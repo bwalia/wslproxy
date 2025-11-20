@@ -4,12 +4,12 @@ kind: HorizontalPodAutoscaler
 metadata:
   name: {{ .Values.app.name }}-api-hpa-{{ .Values.app.target_env }}
   labels:
-    {{- include "whitefalcon.labels" . | nindent 4 }}
+    {{- include "wslproxy.labels" . | nindent 4 }}
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: {{ include "whitefalcon.fullname" . }}
+    name: {{ include "wslproxy.fullname" . }}
   minReplicas: {{ .Values.autoscaling.minReplicas }}
   maxReplicas: {{ .Values.autoscaling.maxReplicas }}
   metrics:

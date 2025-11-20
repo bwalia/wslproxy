@@ -1,5 +1,5 @@
 #!/bin/bash
-# List all servers in WhiteFalcon
+# List all servers in wslproxy
 # Usage: ./list-servers.sh
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

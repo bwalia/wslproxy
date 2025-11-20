@@ -1,16 +1,16 @@
-name: "Build and Deploy - whitefalcon Prod"
+name: "Build and Deploy - wslproxy Prod"
 
 on:
   push:
-    branches: [ prod ]
+    branches: [prod]
   pull_request:
-    branches: [ feature/* ]
+    branches: [feature/*]
   workflow_dispatch:
     inputs:
       TARGET_CLUSTER:
         type: choice
-        description: 'Please choose the environment'
-        default: 'k3s6'
+        description: "Please choose the environment"
+        default: "k3s6"
         required: true
         options:
           - k3s6
@@ -27,7 +27,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: checkout the repo code
-        uses: actions/checkout@v2 
+        uses: actions/checkout@v2
         with:
           ref: "main"
 
@@ -36,23 +36,23 @@ jobs:
 
       - name: Run bash script to perform Cluster kubeconfig mapping and resetting env vars if necessary
         run: |
-            echo "KUBE_CONFIG_DATA=${{ secrets.KUBE_CONFIG_DATA_K3S2 }}" >> $GITHUB_ENV
+          echo "KUBE_CONFIG_DATA=${{ secrets.KUBE_CONFIG_DATA_K3S2 }}" >> $GITHUB_ENV
 
       - name: Helm Deploy - Release to selected K3S cluster
         uses: koslib/helm-eks-action@master
         with:
           command: |
-            helm upgrade -i wf-api-${{ env.TARGET_ENV }} ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-${{ env.TARGET_ENV }}-api-${{ env.TARGET_CLUSTER}}.yaml --namespace ${{ env.TARGET_ENV }} --create-namespace
+            helm upgrade -i wf-api-${{ env.TARGET_ENV }} ./devops/helm-charts/wslproxy/ -f devops/helm-charts/wslproxy/values-${{ env.TARGET_ENV }}-api-${{ env.TARGET_CLUSTER}}.yaml --namespace ${{ env.TARGET_ENV }} --create-namespace
             kubectl rollout restart deployment/wf-api-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
             kubectl rollout history deployment/wf-api-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
-          
-      - name: Slack Notification for Workstation CRM release 
+
+      - name: Slack Notification for Workstation CRM release
         uses: rtCamp/action-slack-notify@v2
         env:
           SLACK_CHANNEL: general
           SLACK_COLOR: ${{ job.status }}
           SLACK_ICON: https://github.com/rtCamp.png?size=48
-          SLACK_MESSAGE: 'Post Content :rocket:'
+          SLACK_MESSAGE: "Post Content :rocket:"
           SLACK_TITLE: Post Title
           SLACK_USERNAME: rtCamp
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}

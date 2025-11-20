@@ -1,4 +1,4 @@
-# Default values for whitefalcon.
+# Default values for wslproxy.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
@@ -14,8 +14,8 @@ app:
     - kubernetes
   namespace: test
   dns_resolver: "10.43.0.10"
-  primary_dns_resolver : "10.43.0.10"
-  secondary_dns_resolver : "10.43.0.10"
+  primary_dns_resolver: "10.43.0.10"
+  secondary_dns_resolver: "10.43.0.10"
   dns_resolver_port: 53
   api_url: "https://api.test2.brahmstra.org/api"
   redis_host: "redis-service.test.svc.cluster.local"
@@ -27,7 +27,7 @@ app:
 secure_env_file: "AgBM/EA8xaAHfgPxKan1OAyZTpsDBRT822C8RHzJHU3wGUZQHFkb8jAIfm3fkKFl4dOKYGKn958TRJSTjUZZ4WoIzSOZqwj0XCFosAL5/OilQgAClhHsjDlP9//ISfyN9G/YDzVDEeXvqwxWsGUfycFyhNypCxFzyDudYLNauzuGonbv6S/++mgrI36lsbLsK3BjKQMPx+WxhnYOgk7yFaJZTJQQh/qGDHevgZ3Iv1RQnU4AeijbjioB4ZrZta68hvwabzfsBnpFXaNeuG81pRzQI4exLI3H23mR9hDkr53NtnTeiD8o3kwaBN3hoHY+R+5cykq3t7uikCP7XTL7mThPZVMnTuPJ6/dpIeaDflZbSiFhGdsPR/Wj5xRIjC4IcGbwXeQRcrgmJAqxdWdIVR1AHso8M8XGJDP7dVXRy46TzFwqxSdbNt6h504bSusu1CRGsZCDZZPA/Wh/lzMPHqPCZnej0pVZ8gLWVCFZf22W9NeejXU54sSvNRj6sv4Bz6rtm/uRvLwKe4KpcgFRHN2tcAp9b0Ix/gQ7B4GCenEQzTGjIxCC9E3IUpm5tui4H5Lim2zKZ9th6DfhXsbhU2qucPh+l9W7pnO52MYFmOoc32ki+pxmnTrF1TxRzLg6UE2sbWb6IbZEH40d8UPuzcZfkWmoC+283OvHc12yTUh8nzVE0nMB0P7Dk1Em2F4z+dQDawBn7sfS+sLG/Ru8uofl/2oIwbHEI3fW/j33kABhKZp+AL0gLwhSs/3FplOHILOQbyI6MCjnNvltRWS15z6fv0OZFR+vDdc+uI3aVsIrV9H0whBtqiR1dV+w9ZWQK6gVzitBCrZ4Dd5PUJ9gdJvQ0cjUv6/QM0LtWzRufQK+3AAEfl3iNUS9BSL7SR4yEZ+P5IHE0+NV04GuWjdiR+q+KQxI/EWB6Gij9hc9XufBU9QBs/ArcuRVarEUiTC1d+JRkyqYCxfNiuw9ySE0C1hI19GBC1DfQjJIFFtzYt30x3BxH/uaGHITeDWGiDPA+4EjcZwaUsljPzRGntAaGd5TymxSiZbr2jxUGAcxIT/YGmDfYhnaJshNu9/L8txSpYgbuYHdgZz8UBcH6cOyt/Yyu2xXrbdBPwew21XBtc7Ms2YqrxUELbVHttnvlUDsICbzYrkx12LVbLszd5R2Qy/ZgIAKxWKGM7VSdqZrm+oF/rooAvOdJTSFkfU5afZGd9Bjq/Syoy2LVOi/vDtF2Iv3csSB9/qbPtwYzCXGCQELPdtVnExJGyM0rqvRRWIE9l5Gyu4FK/SOY0VmxQLViEYOV76NwkmYkLDHBJxw2nJNL3zHheG9wRun2LeRW9UFo/YbqZrNiNSb+s0GGHKlJlqmY1Z4bI3pjyj4BWLg"
 
 image:
-  repository: bwalia/whitefalcon
+  repository: bwalia/wslproxy
   pullPolicy: Always
   # Overrides the image tag whose default is the chart appVersion.
   tag: "latest"
@@ -47,10 +47,12 @@ serviceAccount:
 
 podAnnotations: {}
 
-podSecurityContext: {}
+podSecurityContext:
+  {}
   # fsGroup: 2000
 
-securityContext: {}
+securityContext:
+  {}
   # capabilities:
   #   drop:
   #   - ALL
@@ -65,7 +67,8 @@ service:
 ingress:
   enabled: true
   className: "nginx"
-  annotations: {}
+  annotations:
+    {}
     # kubernetes.io/ingress.class: nginx
     # kubernetes.io/tls-acme: "true"
   hosts:
@@ -86,7 +89,8 @@ ingress:
   #    hosts:
   #      - chart-example.local
 
-resources: {}
+resources:
+  {}
   # We usually recommend not to specify default resources and to leave this as a conscious
   # choice for the user. This also increases chances charts run on environments with little
   # resources, such as Minikube. If you do want to specify resources, uncomment the following
