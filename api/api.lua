@@ -11,18 +11,272 @@ local PushData = require("push-data")
 local settings = Helper.settings()
 local storageTypeOverride = settings.settings or os.getenv("STORAGE_TYPE")
 
+-- Validation helper functions
+local function validateServerPayload(payloads)
+    local errors = {}
+
+    -- Required field: server_name
+    if not payloads.server_name or payloads.server_name == "" then
+        table.insert(errors, {
+            field = "server_name",
+            message = "Server name (hostname) is required"
+        })
+    elseif type(payloads.server_name) ~= "string" then
+        table.insert(errors, {
+            field = "server_name",
+            message = "Server name must be a string"
+        })
+    end
+
+    -- Required field: config
+    if not payloads.config or payloads.config == "" then
+        table.insert(errors, {
+            field = "config",
+            message = "Nginx configuration is required"
+        })
+    end
+
+    -- Required field: profile_id
+    if not payloads.profile_id or payloads.profile_id == "" then
+        table.insert(errors, {
+            field = "profile_id",
+            message = "Profile ID is required (e.g., 'dev', 'int', 'prod')"
+        })
+    end
+
+    -- Validate listens array if provided
+    if payloads.listens then
+        if type(payloads.listens) ~= "table" then
+            table.insert(errors, {
+                field = "listens",
+                message = "Listens must be an array of listen configurations"
+            })
+        elseif #payloads.listens == 0 then
+            table.insert(errors, {
+                field = "listens",
+                message = "At least one listen port configuration is required"
+            })
+        else
+            for i, listen in ipairs(payloads.listens) do
+                if not listen.listen or listen.listen == "" then
+                    table.insert(errors, {
+                        field = "listens[" .. i .. "].listen",
+                        message = "Listen port is required for each listen configuration"
+                    })
+                end
+            end
+        end
+    end
+
+    -- Validate custom_headers if provided
+    if payloads.custom_headers and type(payloads.custom_headers) == "table" then
+        for i, header in ipairs(payloads.custom_headers) do
+            if not header.header_key or header.header_key == "" then
+                table.insert(errors, {
+                    field = "custom_headers[" .. i .. "].header_key",
+                    message = "Header key is required"
+                })
+            end
+            if not header.header_value then
+                table.insert(errors, {
+                    field = "custom_headers[" .. i .. "].header_value",
+                    message = "Header value is required"
+                })
+            end
+        end
+    end
+
+    -- Validate match_cases if provided
+    if payloads.match_cases and type(payloads.match_cases) == "table" then
+        for i, matchCase in ipairs(payloads.match_cases) do
+            if not matchCase.statement or matchCase.statement == "" then
+                table.insert(errors, {
+                    field = "match_cases[" .. i .. "].statement",
+                    message = "Rule ID (statement) is required for each match case"
+                })
+            end
+            if not matchCase.condition then
+                table.insert(errors, {
+                    field = "match_cases[" .. i .. "].condition",
+                    message = "Condition is required for each match case (e.g., 'and', 'or')"
+                })
+            end
+        end
+    end
+
+    return errors
+end
+
+local function validateRulePayload(payloads)
+    local errors = {}
+
+    -- Required field: name
+    if not payloads.name or payloads.name == "" then
+        table.insert(errors, {
+            field = "name",
+            message = "Rule name is required"
+        })
+    elseif type(payloads.name) ~= "string" then
+        table.insert(errors, {
+            field = "name",
+            message = "Rule name must be a string"
+        })
+    end
+
+    -- Required field: match
+    if not payloads.match then
+        table.insert(errors, {
+            field = "match",
+            message = "Match configuration is required"
+        })
+    else
+        -- Validate match.rules
+        if not payloads.match.rules then
+            table.insert(errors, {
+                field = "match.rules",
+                message = "Match rules configuration is required"
+            })
+        else
+            -- Validate path
+            if not payloads.match.rules.path or payloads.match.rules.path == "" then
+                table.insert(errors, {
+                    field = "match.rules.path",
+                    message = "Path is required (e.g., '/', '/api')"
+                })
+            end
+
+            -- Validate path_key
+            if not payloads.match.rules.path_key or payloads.match.rules.path_key == "" then
+                table.insert(errors, {
+                    field = "match.rules.path_key",
+                    message = "Path match type is required (e.g., 'starts_with', 'ends_with', 'equals')"
+                })
+            elseif payloads.match.rules.path_key ~= "starts_with" and
+                payloads.match.rules.path_key ~= "ends_with" and
+                payloads.match.rules.path_key ~= "equals" then
+                table.insert(errors, {
+                    field = "match.rules.path_key",
+                    message = "Invalid path match type. Must be 'starts_with', 'ends_with', or 'equals'"
+                })
+            end
+
+            -- Validate country_key if country is provided
+            if payloads.match.rules.country and payloads.match.rules.country ~= "" then
+                if not payloads.match.rules.country_key or payloads.match.rules.country_key == "" then
+                    table.insert(errors, {
+                        field = "match.rules.country_key",
+                        message = "Country match type is required when country is specified"
+                    })
+                end
+            end
+
+            -- Validate client_ip_key if client_ip is provided
+            if payloads.match.rules.client_ip and payloads.match.rules.client_ip ~= "" then
+                if not payloads.match.rules.client_ip_key or payloads.match.rules.client_ip_key == "" then
+                    table.insert(errors, {
+                        field = "match.rules.client_ip_key",
+                        message = "Client IP match type is required when client IP is specified"
+                    })
+                end
+            end
+        end
+
+        -- Validate match.response
+        if not payloads.match.response then
+            table.insert(errors, {
+                field = "match.response",
+                message = "Response configuration is required"
+            })
+        else
+            -- Validate response code
+            if not payloads.match.response.code then
+                table.insert(errors, {
+                    field = "match.response.code",
+                    message = "Response code is required (e.g., 200, 301, 302, 305, 403)"
+                })
+            else
+                local code = tonumber(payloads.match.response.code)
+                if not code then
+                    table.insert(errors, {
+                        field = "match.response.code",
+                        message = "Response code must be a number"
+                    })
+                end
+
+                -- Validate redirect_uri for redirect/proxy codes
+                if code == 301 or code == 302 or code == 305 then
+                    if not payloads.match.response.redirect_uri or payloads.match.response.redirect_uri == "" then
+                        table.insert(errors, {
+                            field = "match.response.redirect_uri",
+                            message = "Redirect URI is required for response codes 301, 302, and 305 (proxy)"
+                        })
+                    end
+                end
+
+                -- Validate message for block codes
+                if code == 403 or code == 200 then
+                    if not payloads.match.response.message or payloads.match.response.message == "" then
+                        table.insert(errors, {
+                            field = "match.response.message",
+                            message = "Message (Base64 encoded HTML) is required for response codes 200 and 403"
+                        })
+                    end
+                end
+            end
+        end
+    end
+
+    -- Validate priority if provided
+    if payloads.priority then
+        local priority = tonumber(payloads.priority)
+        if not priority then
+            table.insert(errors, {
+                field = "priority",
+                message = "Priority must be a number"
+            })
+        elseif priority < 1 or priority > 10000 then
+            table.insert(errors, {
+                field = "priority",
+                message = "Priority must be between 1 and 10000"
+            })
+        end
+    end
+
+    return errors
+end
+
+local function handleValidationErrors(errors, resourceType)
+    if #errors > 0 then
+        local fieldNames = {}
+        for _, err in ipairs(errors) do
+            table.insert(fieldNames, err.field)
+        end
+
+        ---@diagnostic disable-next-line: redundant-parameter
+        Errors.throwError(
+            "Validation failed for " .. resourceType .. ": " .. table.concat(fieldNames, ", "),
+            ngx.HTTP_BAD_REQUEST,
+            {
+                validation_errors = errors,
+                resource_type = resourceType,
+                error_count = #errors
+            }
+        )
+    end
+end
+
 local red = {}
 
 if settings.storage_type == "redis" then
     local redis = require "resty.redis"
     red = redis:new()
     red:set_timeout(1000)
-    
+
     local redisHost = settings.env_vars.REDIS_HOST or os.getenv("REDIS_HOST")
     if redisHost == nil then
         redisHost = "localhost"
     end
-    
+
     local ok, err = red:connect(redisHost, 6379)
     if not ok then
         ngx.log(ngx.ERR, "failed to connect to Redis: ", err)
@@ -142,7 +396,8 @@ local function deleteRuleFromServer(ruleId, envProfile)
                     if settings.storage_type == "redis" then
                         red:hset("servers_" .. envProfile, server, cjson.encode(getServer))
                     else
-                        Helper.setDataToFile(configPath .. "data/servers/" .. envProfile .. "/" .. server .. ".json", getServer,
+                        Helper.setDataToFile(configPath .. "data/servers/" .. envProfile .. "/" .. server .. ".json",
+                            getServer,
                             configPath .. "data/servers")
                     end
                 end
@@ -274,6 +529,7 @@ local function login(args)
 
         local payloads = Helper.GetPayloads(args)
         local password = Helper.hashPassword(payloads.password)
+
         if suEmail == payloads.email and suPassword == password then
             ngx.status = ngx.OK
             if settings.storage_type == "redis" then
@@ -378,7 +634,7 @@ local function listFromDisk(directory, pageSize, pageNumber, qParams)
             end
         end
     end
-    
+
     local diskData, count = listPaginationLocal(jsonData, pageSize, pageNumber, qParams)
     return diskData, count
 end
@@ -452,7 +708,8 @@ local function listServer(args, id)
     local envProfile = args.envprofile ~= nil and args.envprofile or "prod"
     if settings then
         if settings.storage_type == "disk" then
-            local jsonData, dataErr = Helper.getDataFromFile(configPath .. "data/servers/" .. envProfile .. "/" .. id .. ".json")
+            local jsonData, dataErr = Helper.getDataFromFile(configPath ..
+                "data/servers/" .. envProfile .. "/" .. id .. ".json")
             if dataErr ~= nil then
                 ngx.say(cjson.encode({
                     data = {}
@@ -572,7 +829,8 @@ local function listSecret(args, id)
     local envProfile = args.envprofile ~= nil and args.envprofile or "prod"
     if settings then
         if settings.storage_type == "disk" then
-            local jsonData, dataErr = Helper.getDataFromFile(configPath .. "data/secrets/" .. envProfile .. "/" .. id .. ".json")
+            local jsonData, dataErr = Helper.getDataFromFile(configPath ..
+                "data/secrets/" .. envProfile .. "/" .. id .. ".json")
             if dataErr ~= nil then
                 ngx.say(cjson.encode({
                     data = {}
@@ -676,7 +934,8 @@ local function listInstance(args, id)
     local envProfile = args.envprofile ~= nil and args.envprofile or "prod"
     if settings then
         if settings.storage_type == "disk" then
-            local jsonData, dataErr = Helper.getDataFromFile(configPath .. "data/instances/" .. envProfile .. "/" .. id .. ".json")
+            local jsonData, dataErr = Helper.getDataFromFile(configPath ..
+                "data/instances/" .. envProfile .. "/" .. id .. ".json")
             if dataErr ~= nil then
                 ngx.say(cjson.encode({
                     data = {}
@@ -713,6 +972,11 @@ end
 
 local function createUpdateServer(body, uuid)
     local payloads, response = Helper.GetPayloads(body), {}
+
+    -- Validate payload
+    local validationErrors = validateServerPayload(payloads)
+    handleValidationErrors(validationErrors, "server")
+
     if not uuid then
         ---@diagnostic disable-next-line: param-type-mismatch
         payloads.created_at = os.time(os.date("!*t"))
@@ -810,7 +1074,7 @@ local function createUserInDisk(payloads, uuid)
         file:close()
         local users = {}
         if jsonString ~= nil and jsonString ~= "" then
-           users = cjson.decode(jsonString)
+            users = cjson.decode(jsonString)
         end
         if uuid then
             for key, value in pairs(users) do
@@ -1106,19 +1370,22 @@ local function listRule(args, uuid)
     local envProfile = args.envprofile ~= nil and args.envprofile or "prod"
     if settings then
         if settings.storage_type == "disk" then
-            local jsonData, dataErr = Helper.getDataFromFile(configPath .. "data/rules/" .. envProfile .. "/" .. uuid .. ".json")
+            local jsonData, dataErr = Helper.getDataFromFile(configPath ..
+                "data/rules/" .. envProfile .. "/" .. uuid .. ".json")
             if dataErr == nil then
                 local resultData = cjson.decode(jsonData)
                 if resultData.match.rules.jwt_token_validation_value ~= nil and
                     resultData.match.rules.jwt_token_validation_key ~= nil then
                     resultData.match.rules.jwt_token_validation_key =
-                    Base64.decode(resultData.match.rules.jwt_token_validation_key)
+                        Base64.decode(resultData.match.rules.jwt_token_validation_key)
                 end
                 if resultData.match.rules.amazon_s3_access_key then
-                    resultData.match.rules.amazon_s3_access_key = Base64.decode(resultData.match.rules.amazon_s3_access_key)
+                    resultData.match.rules.amazon_s3_access_key = Base64.decode(resultData.match.rules
+                        .amazon_s3_access_key)
                 end
                 if resultData.match.rules.amazon_s3_secret_key then
-                    resultData.match.rules.amazon_s3_secret_key = Base64.decode(resultData.match.rules.amazon_s3_secret_key)
+                    resultData.match.rules.amazon_s3_secret_key = Base64.decode(resultData.match.rules
+                        .amazon_s3_secret_key)
                 end
                 ngx.say(cjson.encode({
                     data = resultData
@@ -1142,10 +1409,12 @@ local function listRule(args, uuid)
                     Base64.decode(exist_value.match.rules.jwt_token_validation_key)
             end
             if exist_value.match.rules.amazon_s3_access_key then
-                exist_value.match.rules.amazon_s3_access_key = Base64.decode(exist_value.match.rules.amazon_s3_access_key)
+                exist_value.match.rules.amazon_s3_access_key = Base64.decode(exist_value.match.rules
+                    .amazon_s3_access_key)
             end
             if exist_value.match.rules.amazon_s3_secret_key then
-                exist_value.match.rules.amazon_s3_secret_key = Base64.decode(exist_value.match.rules.amazon_s3_secret_key)
+                exist_value.match.rules.amazon_s3_secret_key = Base64.decode(exist_value.match.rules
+                    .amazon_s3_secret_key)
             end
 
             ngx.say({ cjson.encode({
@@ -1297,11 +1566,13 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name, method)
         json_val.match.rules.jwt_token_validation_key ~= nil then
         json_val.match.rules.jwt_token_validation_key = Base64.encode(json_val.match.rules.jwt_token_validation_key)
         if json_val.match.rules.amazon_s3_access_key then
-            json_val.match.rules.amazon_s3_access_key = string.gsub(json_val.match.rules.amazon_s3_access_key, "%%2B", "+")
+            json_val.match.rules.amazon_s3_access_key = string.gsub(json_val.match.rules.amazon_s3_access_key, "%%2B",
+                "+")
             json_val.match.rules.amazon_s3_access_key = Base64.encode(json_val.match.rules.amazon_s3_access_key)
         end
         if json_val.match.rules.amazon_s3_secret_key then
-            json_val.match.rules.amazon_s3_secret_key = string.gsub(json_val.match.rules.amazon_s3_secret_key, "%%2B", "+")
+            json_val.match.rules.amazon_s3_secret_key = string.gsub(json_val.match.rules.amazon_s3_secret_key, "%%2B",
+                "+")
             json_val.match.rules.amazon_s3_secret_key = Base64.encode(json_val.match.rules.amazon_s3_secret_key)
         end
     end
@@ -1321,7 +1592,8 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name, method)
         if settings.storage_type == "redis" then
             getDomain = red:hget(key_name .. "_" .. envProfile, json_val.id)
         else
-            getDomain = Helper.getDataFromFile(configPath .. "data/servers/" .. envProfile .. "/" .. json_val.id .. ".json")
+            getDomain = Helper.getDataFromFile(configPath ..
+                "data/servers/" .. envProfile .. "/" .. json_val.id .. ".json")
         end
         if getDomain and getDomain ~= nil and type(getDomain) == "string" and method == "create" then
             ngx.status = ngx.HTTP_CONFLICT
@@ -1379,7 +1651,8 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name, method)
     Helper.setDataToFile(filePathDir .. "/" .. uuid .. ".json", json_val, filePathDir)
     if key_name == "servers" then
         local configString = Base64.decode(json_val.config)
-        Helper.setDataToFile(filePathDir .. "/conf/" .. json_val.server_name .. ".conf", Helper.cleanString(configString), filePathDir .. "/conf", "conf")
+        Helper.setDataToFile(filePathDir .. "/conf/" .. json_val.server_name .. ".conf", Helper.cleanString(configString),
+            filePathDir .. "/conf", "conf")
         json_val.nginx_status_check = "error"
         if json_val.config_status then
             if Helper.isFileExists(nginxTenantConfDir .. "/" .. json_val.server_name .. ".conf") == false then
@@ -1401,7 +1674,8 @@ function CreateUpdateRecord(json_val, uuid, key_name, folder_name, method)
                 local destinationFilePath = nginxTenantConfDir .. "/" .. json_val.server_name .. ".conf"
                 local isFilesSame = Conf.compareFiles(sourceFilePath, destinationFilePath)
                 if isFilesSame == false then
-                    Conf.saveConfFiles(nginxTenantConfDir, Helper.cleanString(configString), json_val.server_name .. ".conf")
+                    Conf.saveConfFiles(nginxTenantConfDir, Helper.cleanString(configString),
+                        json_val.server_name .. ".conf")
                     local nginxStatus, commandStatus = Helper.testNginxConfig()
                     local isSuccess = Helper.isStringContains("nginx.conf syntax is ok", nginxStatus)
                     json_val.nginx_status = nginxStatus
@@ -1429,6 +1703,11 @@ end
 
 local function createUpdateRules(body, uuid)
     local payloads, response = Helper.GetPayloads(body), {}
+
+    -- Validate payload
+    local validationErrors = validateRulePayload(payloads)
+    handleValidationErrors(validationErrors, "rule")
+
     if not uuid then
         ---@diagnostic disable-next-line: param-type-mismatch
         payloads.created_at = os.time(os.date("!*t"))
@@ -1443,7 +1722,7 @@ local function createUpdateRules(body, uuid)
         local folderPath = string.format("%sdata/rules/%s", configPath, envProfile)
         local isUnique, err = Helper.isUniqueField(folderPath, "name", payloads.name)
         if not isUnique then
-            Errors.throwError(err, ngx.HTTP_CONFLICT)
+            Errors.conflict(err, { name = payloads.name })
         end
         payloads.id = Helper.generate_uuid()
         response = CreateUpdateRecord(payloads, payloads.id, "request_rules", "rules", "create")
@@ -1494,20 +1773,20 @@ local function listSessions(args)
     local allsessions, sessions = {}, {}
     local records = {}
     if settings.storage_type == "redis" then
-    local exist_values, err = red:scan(0, "match", "session:*") -- red:keys("session:*")
-    if exist_values[2] ~= nil then
-        for key, value in pairs(exist_values[2]) do
-            -- if key % 2 == 0 then
-            table.insert(records, {
-                session_id = value,
-                id = key,
-                subject = 'Redacted',
-                timeout = 'Redacted',
-                quote = 'Redacted'
-            })
-            -- end
+        local exist_values, err = red:scan(0, "match", "session:*") -- red:keys("session:*")
+        if exist_values[2] ~= nil then
+            for key, value in pairs(exist_values[2]) do
+                -- if key % 2 == 0 then
+                table.insert(records, {
+                    session_id = value,
+                    id = key,
+                    subject = 'Redacted',
+                    timeout = 'Redacted',
+                    quote = 'Redacted'
+                })
+                -- end
+            end
         end
-    end
     end
     local getAllRecords = records
     if type(getAllRecords) == "string" then
@@ -1605,7 +1884,7 @@ local function handleUpdateCreateProfiles(body, uuid)
         local folderPath = configPath .. "data/rules/" .. body.name
         local parent = folderPath:match("^(.*)/[^/]+/?$")
         if parent and not Helper.isDirectoryExists(parent) then
-            Helper.createDirectoryRecursive(parent)  -- Recursively create parent directories
+            Helper.createDirectoryRecursive(parent) -- Recursively create parent directories
         end
         successCreation, errorCreation = Helper.createDirectoryRecursive(folderPath)
     elseif uuid ~= nil then
@@ -1625,7 +1904,7 @@ local function listDirectories(path, pageSize, pageNumber, qParams)
             if dir ~= "." and dir ~= ".." then
                 local dirPath = path .. "/" .. dir
                 local attr = lfs.attributes(dirPath)
-    
+
                 if attr and attr.mode == "directory" then
                     local createdAt = os.date("%Y-%m-%d %H:%M:%S", attr.change)
                     table.insert(directories, { id = tostring(dir), name = dir, createdAt = createdAt })
@@ -1634,7 +1913,7 @@ local function listDirectories(path, pageSize, pageNumber, qParams)
         end
         local data, count = listPaginationLocal(directories, pageSize, pageNumber, qParams)
         return data, count
-    else 
+    else
         return {}, 0
     end
 end
@@ -1708,18 +1987,18 @@ local function updateProfileSettings(args)
     local payloads = Helper.GetPayloads(args)
     local envProfile = payloads.profile
     local writableFile, writableErr = io.open(configPath .. "data/settings.json", "w")
-        settings.env_profile = envProfile
-        if writableFile == nil then
-            Errors.throwError("Couldn't write file: " .. writableErr, ngx.HTTP_INTERNAL_SERVER_ERROR)
-        else
-            writableFile:write(cjson.encode(settings))
-            writableFile:close()
-            ngx.say(cjson.encode({
-                data = {
-                    profile = settings.env_profile
-                }
-            }))
-        end
+    settings.env_profile = envProfile
+    if writableFile == nil then
+        Errors.throwError("Couldn't write file: " .. writableErr, ngx.HTTP_INTERNAL_SERVER_ERROR)
+    else
+        writableFile:write(cjson.encode(settings))
+        writableFile:close()
+        ngx.say(cjson.encode({
+            data = {
+                profile = settings.env_profile
+            }
+        }))
+    end
 end
 
 local function deleteProfile(body)
@@ -1999,7 +2278,9 @@ local function handle_post_request(args, path)
             resetPassword(args)
         end
     else
-        Errors.throwError("You can't create record either you can create it from UI or you need to change settings for instance lock.", ngx.HTTP_FORBIDDEN)
+        Errors.throwError(
+            "You can't create record either you can create it from UI or you need to change settings for instance lock.",
+            ngx.HTTP_FORBIDDEN)
     end
 end
 
@@ -2039,7 +2320,9 @@ local function handle_put_request(args, path)
             createUpdateProfiles(args, uuid)
         end
     else
-        Errors.throwError("You can't create record either you can create it from UI or you need to change settings for instance lock.", ngx.HTTP_FORBIDDEN)
+        Errors.throwError(
+            "You can't create record either you can create it from UI or you need to change settings for instance lock.",
+            ngx.HTTP_FORBIDDEN)
     end
 end
 
@@ -2072,7 +2355,9 @@ local function handle_delete_request(args, path)
             deleteAll(args)
         end
     else
-        Errors.throwError("You can't delete record either you can delete it from UI or you need to change settings for instance lock.", ngx.HTTP_FORBIDDEN)
+        Errors.throwError(
+            "You can't delete record either you can delete it from UI or you need to change settings for instance lock.",
+            ngx.HTTP_FORBIDDEN)
     end
 end
 

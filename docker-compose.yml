@@ -29,7 +29,7 @@ services:
       - ./openresty-admin/index.html:/usr/local/openresty/nginx/html/openresty-admin/index.html
       - ./openresty-admin/package.json:/usr/local/openresty/nginx/html/openresty-admin/package.json
       - ./openresty-admin/vite.config.js:/usr/local/openresty/nginx/html/openresty-admin/vite.config.js
-      - ./openresty-admin/yarn.lock:/usr/local/openresty/nginx/html/openresty-admin/yarn.lock
+      # Note: node_modules and dist are built in the Dockerfile, not mounted
       - ./data:/opt/nginx/data
       - ./html/swagger:/usr/local/openresty/nginx/html/swagger
       - ./api:/usr/local/openresty/nginx/html/api
