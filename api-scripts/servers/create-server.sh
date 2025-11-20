@@ -17,7 +17,20 @@ if [ -z "$1" ]; then
 {
   "server_name": "api.example.com",
   "proxy_server_name": "backend.internal.com",
+  "root": "/var/www/html",
+  "index": "index.html",
+  "access_log": "logs/access.log",
+  "error_log": "logs/error.log",
+  "config_status": false,
+  "listens": [
+    {
+      "listen": "80"
+    }
+  ],
   "rules": "rule-uuid-here",
+  "profile_id": "dev",
+  "config": "server {\n      listen 80;  # Listen on port (HTTP)\n      server_name api.example.com;  # Your domain name\n      root /var/www/html;  # Document root directory\n      index index.html;  # Default index files\n      access_log logs/access.log;  # Access log file location\n      error_log logs/error.log;  # Error log file location\n\n      \n      \n  }\n  \n  ",
+  "match_cases": [],
   "custom_headers": [
     {
       "header_key": "X-Custom",

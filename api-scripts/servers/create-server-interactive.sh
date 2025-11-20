@@ -18,6 +18,14 @@ read -p "Server hostname (e.g., api.example.com): " SERVER_NAME
 read -p "Backend host header (e.g., backend.internal.com): " PROXY_SERVER_NAME
 PROXY_SERVER_NAME="${PROXY_SERVER_NAME:-$SERVER_NAME}"
 
+# Profile ID
+read -p "Profile ID (dev/int/prod) [default: dev]: " PROFILE_ID
+PROFILE_ID="${PROFILE_ID:-dev}"
+
+# Listen port
+read -p "Listen port [default: 80]: " LISTEN_PORT
+LISTEN_PORT="${LISTEN_PORT:-80}"
+
 # List available rules
 echo ""
 echo -e "${YELLOW}Available rules:${NC}"
@@ -73,12 +81,39 @@ if [ "$ADD_HEADERS" == "y" ]; then
     CUSTOM_HEADERS="$CUSTOM_HEADERS]"
 fi
 
+# Generate nginx config block
+CONFIG="server {
+      listen $LISTEN_PORT;  # Listen on port (HTTP)
+      server_name $SERVER_NAME;  # Your domain name
+      root /var/www/html;  # Document root directory
+      index index.html;  # Default index files
+      access_log logs/access.log;  # Access log file location
+      error_log logs/error.log;  # Error log file location
+
+
+
+  }
+
+  "
+
 # Build JSON
 JSON=$(cat << EOF
 {
   "server_name": "$SERVER_NAME",
   "proxy_server_name": "$PROXY_SERVER_NAME",
+  "root": "/var/www/html",
+  "index": "index.html",
+  "access_log": "logs/access.log",
+  "error_log": "logs/error.log",
+  "config_status": false,
+  "listens": [
+    {
+      "listen": "$LISTEN_PORT"
+    }
+  ],
   "rules": "$RULE_ID",
+  "profile_id": "$PROFILE_ID",
+  "config": $(echo "$CONFIG" | jq -Rs .),
   "match_cases": $MATCH_CASES,
   "custom_headers": $CUSTOM_HEADERS
 }
