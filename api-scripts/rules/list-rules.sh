@@ -1,5 +1,5 @@
 #!/bin/bash
-# List all rules in WhiteFalcon
+# List all rules in wslproxy
 # Usage: ./list-rules.sh
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

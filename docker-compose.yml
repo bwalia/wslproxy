@@ -1,12 +1,12 @@
 version: "3.7"
 services:
-  whitefalcon-server:
-    container_name: whitefalcon
+  wslproxy-server:
+    container_name: wslproxy
     restart: always
     build:
       args:
         - APP_ENV=dev
-        - APP_NAME=whitefalcon
+        - APP_NAME=wslproxy
         - DNS_RESOLVER=127.0.0.11
       context: .
       dockerfile: Dockerfile
@@ -36,8 +36,8 @@ services:
       # - ./.env.dev:/tmp/.env
     env_file: .env.docker
 
-  whitefalcon-redis:
-    container_name: whitefalcon-redis
+  wslproxy-redis:
+    container_name: wslproxy-redis
     image: "redis:alpine"
     ports:
       - "6377:6379"
@@ -46,8 +46,8 @@ services:
     volumes:
       - redis-database:/data
 
-  whitefalcon-sample-api:
-    container_name: whitefalcon-sample-api
+  wslproxy-sample-api:
+    container_name: wslproxy-sample-api
     build:
       context: .
       dockerfile: Dockerfile_nodeapp

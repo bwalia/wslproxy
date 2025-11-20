@@ -9,7 +9,7 @@ else
    echo "Cluster is provided ok"
 fi
 
-echo "Printing $1 cluster pods, services and ingress related to whitefalcon INT, TEST and ACC environments"
+echo "Printing $1 cluster pods, services and ingress related to wslproxy INT, TEST and ACC environments"
 
 HELM_CMD="helm"
 KUBECTL_CMD="kubectl"
@@ -22,7 +22,7 @@ KUBECTL_CMD="kubectl --kubeconfig /home/bwalia/.kube/vpn-$1.yaml"
 $KUBECTL_CMD version
 $KUBECTL_CMD cluster-info
 
-$HELM_CMD ls -A | grep whitefalcon
-$KUBECTL_CMD get deploy,svc,pods,ing -A | grep whitefalcon
+$HELM_CMD ls -A | grep wslproxy
+$KUBECTL_CMD get deploy,svc,pods,ing -A | grep wslproxy
 $KUBECTL_CMD get svc -A | grep wf
 $KUBECTL_CMD get svc -A | grep node

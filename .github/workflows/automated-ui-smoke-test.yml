@@ -1,24 +1,24 @@
-name: Whitefalcon Admin UI Login Test using Cypress Test framework
+name: wslproxy Admin UI Login Test using Cypress Test framework
 on:
   schedule:
-    - cron: '0 0 * * *'
-    
+    - cron: "0 0 * * *"
+
   workflow_dispatch:
     inputs:
       TARGET_ENV:
         type: choice
-        description: 'Please choose the Target Environment'
-        default: 'int'
+        description: "Please choose the Target Environment"
+        default: "int"
         required: true
         options:
           - int
           - test
           - acc
           - local
-          
-env: 
+
+env:
   TARGET_ENV: ${{ inputs.TARGET_ENV || 'int' }}
-  
+
 jobs:
   build:
     name: Login Test using Cypress Test framework
@@ -30,28 +30,27 @@ jobs:
         uses: ndeloof/install-compose-action@v0.0.1
         with:
           version: v2.1.0 # defaults to 'latest'
-          legacy: true    # will also install in PATH as `docker-compose`
+          legacy: true # will also install in PATH as `docker-compose`
       - run: docker-compose --version
 
       - name: Smoke test Login Test using Cypress Test framework on ${{ env.TARGET_ENV }}
         run: |
-            chmod +x ./bootstrap-cypress.sh && sh ./bootstrap-cypress.sh "${{ secrets.CYPRESS_ENVFILE_INT }}" "${{ env.TARGET_ENV }}"
+          chmod +x ./bootstrap-cypress.sh && sh ./bootstrap-cypress.sh "${{ secrets.CYPRESS_ENVFILE_INT }}" "${{ env.TARGET_ENV }}"
 
-      - name: 'Upload screenshots and videos to Slack'
+      - name: "Upload screenshots and videos to Slack"
         uses: trymbill/cypress-slack-video-upload-action@v1.3.0
         with:
-            token: ${{ secrets.SLACK_TOKEN }}
-            channels: 'cypress-test-results'
-            workdir: openresty-admin/cypress/cypress
+          token: ${{ secrets.SLACK_TOKEN }}
+          channels: "cypress-test-results"
+          workdir: openresty-admin/cypress/cypress
 
-      - name: Slack Notification for Whitefalcon Admin UI Smoke Login Test 
+      - name: Slack Notification for wslproxy Admin UI Smoke Login Test
         uses: rtCamp/action-slack-notify@v2
         env:
-            SLACK_CHANNEL: general
-            SLACK_COLOR: ${{ job.status }}
-            SLACK_ICON: https://github.com/rtCamp.png?size=48
-            SLACK_MESSAGE: 'Whitefalcon Admin UI Smoke Login Test using Cypress Test framework ${{ env.TARGET_ENV }} env :rocket:'
-            SLACK_TITLE: Whitefalcon Admin UI Smoke Login Test on ${{ env.TARGET_ENV }}
-            SLACK_USERNAME: rtCamp
-            SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-  
+          SLACK_CHANNEL: general
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_ICON: https://github.com/rtCamp.png?size=48
+          SLACK_MESSAGE: "wslproxy Admin UI Smoke Login Test using Cypress Test framework ${{ env.TARGET_ENV }} env :rocket:"
+          SLACK_TITLE: wslproxy Admin UI Smoke Login Test on ${{ env.TARGET_ENV }}
+          SLACK_USERNAME: rtCamp
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}

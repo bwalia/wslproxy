@@ -26,7 +26,7 @@ if settings and settings ~= nil and settings.env_vars and settings.env_vars ~= n
   if redisHost == nil then
     redisHost = "localhost"
   end
-  
+
   if redisEndPort ~= nil then
     redisEndPort = 6379
   end
@@ -34,7 +34,7 @@ end
 
 require "resty.session".init({
   remember = true,
-  audience = "whitefalcon",
+  audience = "wslproxy",
   storage  = "redis",
   redis    = {
     host = redisHost,

@@ -1,4 +1,4 @@
-name: Build-Push-Deploy whitefalcon to INT 
+name: Build-Push-Deploy wslproxy to INT
 on:
   push:
     branches:
@@ -7,8 +7,8 @@ on:
     inputs:
       TARGET_ENV:
         type: choice
-        description: 'Please choose the environment'
-        default: 'test'
+        description: "Please choose the environment"
+        default: "test"
         required: true
         options:
           - int
@@ -17,33 +17,33 @@ on:
           - prod
 
       TARGET_BRANCH:
-        description: 'Please choose the branch to build and deploy'
-        default: 'main'
+        description: "Please choose the branch to build and deploy"
+        default: "main"
         required: true
 
       DEPLOYMENT_TYPE:
         type: choice
-        description: 'Please select the build only, deploy only or build and deploy'
-        default: 'build-and-deploy'
+        description: "Please select the build only, deploy only or build and deploy"
+        default: "build-and-deploy"
         required: true
         options:
-            - build
-            - deploy
-            - build-and-deploy
+          - build
+          - deploy
+          - build-and-deploy
 
 env:
-    IMAGE_NAME: "whitefalcon"
-    TARGET_IMAGE_TAG: "latest"
-    TARGET_STACK: openresty
-    KUBE_CONFIG_K3S: ${{ secrets.KUBE_CONFIG_DATA_K3S2 }}
-    TARGET_ENV: ${{ github.event.inputs.TARGET_ENV || 'int' }}
-    TARGET_CLUSTER: "k3s2"
-    TARGET_BRANCH: ${{ github.event.inputs.TARGET_BRANCH || 'main' }}
-    DEPLOYMENT_TYPE: ${{ github.event.inputs.DEPLOYMENT_TYPE || 'build-and-deploy' }}
+  IMAGE_NAME: "wslproxy"
+  TARGET_IMAGE_TAG: "latest"
+  TARGET_STACK: openresty
+  KUBE_CONFIG_K3S: ${{ secrets.KUBE_CONFIG_DATA_K3S2 }}
+  TARGET_ENV: ${{ github.event.inputs.TARGET_ENV || 'int' }}
+  TARGET_CLUSTER: "k3s2"
+  TARGET_BRANCH: ${{ github.event.inputs.TARGET_BRANCH || 'main' }}
+  DEPLOYMENT_TYPE: ${{ github.event.inputs.DEPLOYMENT_TYPE || 'build-and-deploy' }}
 
 jobs:
   build:
-    runs-on: [ ubuntu-latest ]
+    runs-on: [ubuntu-latest]
     steps:
       - name: Checkout code
         if: ${{ env.DEPLOYMENT_TYPE == 'build' || env.DEPLOYMENT_TYPE == 'build-and-deploy' }}
@@ -54,13 +54,13 @@ jobs:
       - name: Login to Docker Hub
         if: ${{ env.DEPLOYMENT_TYPE == 'build' || env.DEPLOYMENT_TYPE == 'build-and-deploy' }}
         run: docker login -u ${{ secrets.DOCKER_USER }} -p ${{ secrets.DOCKER_PASSWD }}
-     
+
       - name: Build and push
         if: ${{ env.DEPLOYMENT_TYPE == 'build' || env.DEPLOYMENT_TYPE == 'build-and-deploy' }}
         uses: docker/build-push-action@v4
         with:
           push: true
-          tags: bwalia/whitefalcon:latest
+          tags: bwalia/wslproxy:latest
 
       - name: Build and push HD Openresty
         if: ${{ env.DEPLOYMENT_TYPE == 'build' || env.DEPLOYMENT_TYPE == 'build-and-deploy' }}
@@ -84,99 +84,99 @@ jobs:
           file: demos-origins/s3-browser/Dockerfile
           push: true
           tags: bwalia/s3-browser-app:latest
-  
+
   # smoke_test6:
   #   runs-on: [self-hosted-node6]
   #   needs: build
 
   deploy:
     name: Deploy the build docker image to the given Environment using Helm
-    runs-on: [ self-hosted ]
-    needs: [ build ]
+    runs-on: [self-hosted]
+    needs: [build]
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v3
-    - name: Map Cluster kubeconfig for selected env
-      run: |
-        if [ "${{ env.TARGET_ENV }}" == "test" ]; then
-            echo "KUBE_CONFIG_K3S=${{ secrets.KUBE_CONFIG_DATA_K3S2 }}" >> $GITHUB_ENV
-        else
-            echo "KUBE_CONFIG_K3S is set to default env"
-        fi
-        if [ "${{ env.TARGET_ENV }}" == "acc" ]; then
-            echo "KUBE_CONFIG_K3S=${{ secrets.KUBE_CONFIG_DATA_K3S2 }}" >> $GITHUB_ENV
-        else
-            echo "KUBE_CONFIG_K3S is set to default env"
-        fi
-        if [ "${{ env.TARGET_ENV }}" == "prod" ]; then
-            echo "KUBE_CONFIG_K3S=${{ secrets.KUBE_CONFIG_DATA_K3S1 }}" >> $GITHUB_ENV
-        else
-            echo "KUBE_CONFIG_K3S is set to default env"
-        fi
-                  
-    - name: Helm Deploy - Release Whitefalcon to K3S2 Rancher
-      if: ${{ env.DEPLOYMENT_TYPE == 'deploy' || env.DEPLOYMENT_TYPE == 'build-and-deploy' }}
-      uses: koslib/helm-eks-action@master
-      env:
-        KUBE_CONFIG_DATA: ${{ env.KUBE_CONFIG_K3S }}
-      with:
-        command: |
-          helm upgrade -i whitefalcon-api-${{ env.TARGET_ENV }} ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-${{ env.TARGET_ENV }}-api-${{ env.TARGET_CLUSTER}}.yaml --set TARGET_ENV=${{ env.TARGET_ENV }} --namespace ${{ env.TARGET_ENV }} --create-namespace
-          helm upgrade -i whitefalcon-front-${{ env.TARGET_ENV }} ./devops/helm-charts/whitefalcon/ -f devops/helm-charts/whitefalcon/values-${{ env.TARGET_ENV }}-front-${{ env.TARGET_CLUSTER}}.yaml --set TARGET_ENV=${{ env.TARGET_ENV }} --namespace ${{ env.TARGET_ENV }} --create-namespace
-          helm upgrade -i whitefalcon-nodeapp ./devops/helm-charts/node-app/ -f devops/helm-charts/node-app/values-${{ env.TARGET_CLUSTER}}.yaml
-          helm upgrade -i whitefalcon-s3-browser ./devops/helm-charts/s3-browser-app/ -f devops/helm-charts/s3-browser-app/values-${{ env.TARGET_CLUSTER}}.yaml
-                
-    - name: Restart Whitefalcon API Pods using Kubectl
-      if: ${{ env.DEPLOYMENT_TYPE == 'deploy' || env.DEPLOYMENT_TYPE == 'build-and-deploy' }}
-      uses: actions-hub/kubectl@master
-      env:
-        KUBE_CONFIG: ${{ env.KUBE_CONFIG_K3S }}
-      with:
-        args: rollout restart deployment/wf-api-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}        
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+      - name: Map Cluster kubeconfig for selected env
+        run: |
+          if [ "${{ env.TARGET_ENV }}" == "test" ]; then
+              echo "KUBE_CONFIG_K3S=${{ secrets.KUBE_CONFIG_DATA_K3S2 }}" >> $GITHUB_ENV
+          else
+              echo "KUBE_CONFIG_K3S is set to default env"
+          fi
+          if [ "${{ env.TARGET_ENV }}" == "acc" ]; then
+              echo "KUBE_CONFIG_K3S=${{ secrets.KUBE_CONFIG_DATA_K3S2 }}" >> $GITHUB_ENV
+          else
+              echo "KUBE_CONFIG_K3S is set to default env"
+          fi
+          if [ "${{ env.TARGET_ENV }}" == "prod" ]; then
+              echo "KUBE_CONFIG_K3S=${{ secrets.KUBE_CONFIG_DATA_K3S1 }}" >> $GITHUB_ENV
+          else
+              echo "KUBE_CONFIG_K3S is set to default env"
+          fi
 
-    - name: Restart Whitefalcon Front Pods using Kubectl
-      if: ${{ env.DEPLOYMENT_TYPE == 'deploy' || env.DEPLOYMENT_TYPE == 'build-and-deploy' }}
-      uses: actions-hub/kubectl@master
-      env:
-        KUBE_CONFIG: ${{ env.KUBE_CONFIG_K3S }}
-      with:
-        args: rollout restart deployment/wf-front-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}        
+      - name: Helm Deploy - Release wslproxy to K3S2 Rancher
+        if: ${{ env.DEPLOYMENT_TYPE == 'deploy' || env.DEPLOYMENT_TYPE == 'build-and-deploy' }}
+        uses: koslib/helm-eks-action@master
+        env:
+          KUBE_CONFIG_DATA: ${{ env.KUBE_CONFIG_K3S }}
+        with:
+          command: |
+            helm upgrade -i wslproxy-api-${{ env.TARGET_ENV }} ./devops/helm-charts/wslproxy/ -f devops/helm-charts/wslproxy/values-${{ env.TARGET_ENV }}-api-${{ env.TARGET_CLUSTER}}.yaml --set TARGET_ENV=${{ env.TARGET_ENV }} --namespace ${{ env.TARGET_ENV }} --create-namespace
+            helm upgrade -i wslproxy-front-${{ env.TARGET_ENV }} ./devops/helm-charts/wslproxy/ -f devops/helm-charts/wslproxy/values-${{ env.TARGET_ENV }}-front-${{ env.TARGET_CLUSTER}}.yaml --set TARGET_ENV=${{ env.TARGET_ENV }} --namespace ${{ env.TARGET_ENV }} --create-namespace
+            helm upgrade -i wslproxy-nodeapp ./devops/helm-charts/node-app/ -f devops/helm-charts/node-app/values-${{ env.TARGET_CLUSTER}}.yaml
+            helm upgrade -i wslproxy-s3-browser ./devops/helm-charts/s3-browser-app/ -f devops/helm-charts/s3-browser-app/values-${{ env.TARGET_CLUSTER}}.yaml
 
-    - name: Whitefalcon API deployment history using Kubectl            
-      uses: actions-hub/kubectl@master
-      env:
-        KUBE_CONFIG: ${{ env.KUBE_CONFIG_K3S }}
-      with:
-        args: rollout history deployment/wf-api-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
+      - name: Restart wslproxy API Pods using Kubectl
+        if: ${{ env.DEPLOYMENT_TYPE == 'deploy' || env.DEPLOYMENT_TYPE == 'build-and-deploy' }}
+        uses: actions-hub/kubectl@master
+        env:
+          KUBE_CONFIG: ${{ env.KUBE_CONFIG_K3S }}
+        with:
+          args: rollout restart deployment/wf-api-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
 
-    - name: Whitefalcon Front deployment history using Kubectl            
-      uses: actions-hub/kubectl@master
-      env:
-        KUBE_CONFIG: ${{ env.KUBE_CONFIG_K3S }}
-      with:
-        args: rollout history deployment/wf-front-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
+      - name: Restart wslproxy Front Pods using Kubectl
+        if: ${{ env.DEPLOYMENT_TYPE == 'deploy' || env.DEPLOYMENT_TYPE == 'build-and-deploy' }}
+        uses: actions-hub/kubectl@master
+        env:
+          KUBE_CONFIG: ${{ env.KUBE_CONFIG_K3S }}
+        with:
+          args: rollout restart deployment/wf-front-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
 
-    - name: Print Whitefalcon Pods using Kubectl            
-      uses: actions-hub/kubectl@master
-      env:
-        KUBE_CONFIG: ${{ env.KUBE_CONFIG_K3S }}
-      with:
-        args: get pods -n ${{ env.TARGET_ENV }}     
-    
-    - name: Slack Notification for Whitefalcon release 
-      uses: rtCamp/action-slack-notify@v2
-      env:
-        SLACK_CHANNEL: general
-        SLACK_COLOR: ${{ job.status }}
-        SLACK_ICON: https://github.com/rtCamp.png?size=48
-        SLACK_MESSAGE: 'Whitefalcon deployed to ${{ env.TARGET_ENV }} https://api.${{ env.TARGET_ENV }}.brahmstra.org/ping env :rocket:'
-        SLACK_TITLE: Whitefalcon deployment status
-        SLACK_USERNAME: rtCamp
-        SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      - name: wslproxy API deployment history using Kubectl
+        uses: actions-hub/kubectl@master
+        env:
+          KUBE_CONFIG: ${{ env.KUBE_CONFIG_K3S }}
+        with:
+          args: rollout history deployment/wf-api-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
+
+      - name: wslproxy Front deployment history using Kubectl
+        uses: actions-hub/kubectl@master
+        env:
+          KUBE_CONFIG: ${{ env.KUBE_CONFIG_K3S }}
+        with:
+          args: rollout history deployment/wf-front-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
+
+      - name: Print wslproxy Pods using Kubectl
+        uses: actions-hub/kubectl@master
+        env:
+          KUBE_CONFIG: ${{ env.KUBE_CONFIG_K3S }}
+        with:
+          args: get pods -n ${{ env.TARGET_ENV }}
+
+      - name: Slack Notification for wslproxy release
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_CHANNEL: general
+          SLACK_COLOR: ${{ job.status }}
+          SLACK_ICON: https://github.com/rtCamp.png?size=48
+          SLACK_MESSAGE: "wslproxy deployed to ${{ env.TARGET_ENV }} https://api.${{ env.TARGET_ENV }}.brahmstra.org/ping env :rocket:"
+          SLACK_TITLE: wslproxy deployment status
+          SLACK_USERNAME: rtCamp
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
   healthcheck:
-    runs-on: [ ubuntu-latest ]
-    needs: [ deploy ]
+    runs-on: [ubuntu-latest]
+    needs: [deploy]
     steps:
       - uses: actions/checkout@v3
       - name: Set up Go
@@ -200,11 +200,11 @@ jobs:
 
           elif [ "${{ env.TARGET_ENV }}" == "" ]; then
             export API_PING_URL="https://api-int.brahmstra.org/ping"                       
-       
+
           else
             echo "Unsupported TARGET_ENV:${{ env.TARGET_ENV }}"
             exit 1
           fi    
 
           go mod init myapp
-          go test 01_healthcheck_test.go -v 
+          go test 01_healthcheck_test.go -v

@@ -16,7 +16,7 @@
 #             - syntest
 #             - synacc
 #             - syndev
-            
+
 # env:
 #   TARGET_CLUSTER: "vm-1"
 #   TARGET_ENV: ${{ github.event.inputs.TARGET_ENV || 'syntest'}}
@@ -25,7 +25,7 @@
 #   JWT_TOKEN_KEY_INT: ${{ secrets.JWT_TOKEN_KEY_INT }}
 #   JWT_TOKEN_KEY_ACC: ${{ secrets.JWT_TOKEN_KEY_ACC }}
 #   JWT_TOKEN_KEY: ${{ secrets.JWT_TOKEN_KEY }}
-    
+
 # jobs:
 #   build:
 #     runs-on: [syn-control-node]
@@ -49,12 +49,11 @@
 #             chmod +x build.sh && chmod +x bootstrap.sh && chmod +x ./deploy-to-docker.sh && ./deploy-to-docker.sh "${{ env.TARGET_ENV }}" "${{ env.TARGET_ENV }}-pop" "${{ env.JWT_TOKEN_KEY }}"
 #           fi
 
-            
 #       - name: Run Heathcheck and QA Tests
 #         run: |
 #           echo "Run Heathcheck and QA Tests..."
 
-#       - name: Slack Notification for WhiteFalcon - Docker Compose Deploy 
+#       - name: Slack Notification for wslproxy - Docker Compose Deploy
 #         uses: rtCamp/action-slack-notify@v2
 #         env:
 #           SLACK_CHANNEL: general

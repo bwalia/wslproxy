@@ -2,69 +2,67 @@ name: Run Selenium UI tests
 
 on:
   # schedule:
-    # - cron: '0 1 * * *'
+  # - cron: '0 1 * * *'
   workflow_dispatch:
     inputs:
       TARGET_ENV:
         type: choice
-        description: 'Please choose the Target Environment'
-        default: 'local'
+        description: "Please choose the Target Environment"
+        default: "local"
         required: true
         options:
-        - local
-        - int
-        - test
-        - acc
-        - prod
+          - local
+          - int
+          - test
+          - acc
+          - prod
       STORAGE_TYPE:
-        description: 'Please choose the Data Storage Type'
+        description: "Please choose the Data Storage Type"
         required: true
-        type: choice 
-        default: 'redis'
+        type: choice
+        default: "redis"
         options:
-        - redis
-        - disk
+          - redis
+          - disk
       DEPLOY_ALLURE_REPORT:
-        description: 'Deploy allure report to Minio bucket'
+        description: "Deploy allure report to Minio bucket"
         required: true
         default: false
         type: boolean
 
-env: 
+env:
   TARGET_ENV: ${{ inputs.TARGET_ENV || 'local' }}
   LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
   LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
   JWT_TOKEN_KEY: ${{ secrets.JWT_TOKEN_KEY }}
-  STORAGE_TYPE: ${{ github.event.inputs.STORAGE_TYPE || 'redis' }} 
+  STORAGE_TYPE: ${{ github.event.inputs.STORAGE_TYPE || 'redis' }}
   DEPLOY_ALLURE_REPORT: ${{ inputs.DEPLOY_ALLURE_REPORT }}
   MINIO_ENDPOINT: ${{ secrets.MINIO_ENDPOINT }}
   MINIO_ACCESS_KEY: ${{ secrets.MINIO_ACCESS_KEY }}
   MINIO_SECRET_KEY: ${{ secrets.MINIO_SECRET_KEY }}
 
-
-  
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - name: Checking out repo
         uses: actions/checkout@v2
-      
+
       - uses: browser-actions/setup-chrome@v1
       - run: chrome --version
-          
+
       - name: Build docker image for selenium tests
         run: |
           docker pull dixajangid/selenium-base:latest
           docker build --no-cache --build-arg MINIO_ENDPOINT=$MINIO_ENDPOINT --build-arg MINIO_ACCESS_KEY=$MINIO_ACCESS_KEY --build-arg MINIO_SECRET_KEY=$MINIO_SECRET_KEY -t selenium-tests -f QA/Dockerfile_qa .
-  
+
       - name: Setup local environment
-        run: |  
-          ./deploy-to-docker.sh "dev" "whitefalcon" "${{ secrets.JWT_TOKEN_KEY }}"
+        run: |
+          ./deploy-to-docker.sh "dev" "wslproxy" "${{ secrets.JWT_TOKEN_KEY }}"
 
       - name: Test execution
-        working-directory: ./QA  
-        run: |  
+        working-directory: ./QA
+        run: |
           if [[ "${{ github.event.inputs.TARGET_ENV }}" == 'int' ]]; then
             export TARGET_HOST="http://api-int.brahmstra.org"
             export SERVER_NAME="qa.int.brahmstra.org"
@@ -88,17 +86,16 @@ jobs:
 
           # Execute tests and generate the allure report
           pwd
-          docker run -v /home/bwalia/actions-runner/_work/whitefalcon/whitefalcon/QA/allureResults:/app/minio-allure-report -e LOGIN_EMAIL=$LOGIN_EMAIL -e LOGIN_PASSWORD=$LOGIN_PASSWORD -e JWT_TOKEN_KEY=$JWT_TOKEN_KEY -e TARGET_HOST=$TARGET_HOST -e SERVER_NAME=$SERVER_NAME -e STORAGE_TYPE=$STORAGE_TYPE selenium-tests
+          docker run -v /home/bwalia/actions-runner/_work/wslproxy/wslproxy/QA/allureResults:/app/minio-allure-report -e LOGIN_EMAIL=$LOGIN_EMAIL -e LOGIN_PASSWORD=$LOGIN_PASSWORD -e JWT_TOKEN_KEY=$JWT_TOKEN_KEY -e TARGET_HOST=$TARGET_HOST -e SERVER_NAME=$SERVER_NAME -e STORAGE_TYPE=$STORAGE_TYPE selenium-tests
           ls allureResults
-  
 
       # Upload Allure report as a GitHub artifact
       - name: Upload Allure Report
         uses: actions/upload-artifact@v3
         with:
           name: allure-report
-          path: ./QA/allureResults 
-      
+          path: ./QA/allureResults
+
       - name: Deploy report to Minio
         if: ${{ inputs.DEPLOY_ALLURE_REPORT == true }}
         uses: hkdobrev/minio-deploy-action@v1
@@ -106,11 +103,11 @@ jobs:
           endpoint: ${{ secrets.MINIO_ENDPOINT }}
           access_key: ${{ secrets.MINIO_ACCESS_KEY }}
           secret_key: ${{ secrets.MINIO_SECRET_KEY }}
-          bucket: 'allure-reports'
-  
+          bucket: "allure-reports"
+
           # Optional inputs with their defaults:
-          source_dir: './QA/allureResults'
-          target_dir: '/whitefalcon/allure-results'
+          source_dir: "./QA/allureResults"
+          target_dir: "/wslproxy/allure-results"
 
   qa_report_refresh:
     runs-on: [label-node3]
@@ -122,8 +119,4 @@ jobs:
           kubectl delete -f deployment.yml 
           kubectl apply -f deployment.yml 
           kubectl apply -f service.yml 
-          kubectl apply -f ingress.yml 
-
-        
-
-          
+          kubectl apply -f ingress.yml

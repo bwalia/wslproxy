@@ -1,13 +1,13 @@
-name: Build-Push-Deploy whitefalcon to INT 
+name: Build-Push-Deploy wslproxy to INT
 on:
   push:
     branches:
       - main
 
 env:
-    IMAGE_NAME: "whitefalcon"
-    TARGET_IMAGE_TAG: "test"
-    TARGET_STACK: openresty
+  IMAGE_NAME: "wslproxy"
+  TARGET_IMAGE_TAG: "test"
+  TARGET_STACK: openresty
 
 jobs:
   build:
@@ -18,14 +18,13 @@ jobs:
 
       - name: Login to Docker Hub
         run: docker login -u ${{ secrets.WSL_DOCKER_USER }} -p ${{ secrets.WSL_DOCKER_PASSWD }} ${{ secrets.WSL_DOCKER_REGISTRY }}
-     
+
       - name: Build and push
         uses: docker/build-push-action@v4
         with:
           push: true
-          tags: docker.workstation.co.uk/whitefalcon:latest
-      -
-        name: Build and push node app
+          tags: docker.workstation.co.uk/wslproxy:latest
+      - name: Build and push node app
         uses: docker/build-push-action@v4
         with:
           file: demos-origins/node-app/Dockerfile
@@ -41,15 +40,15 @@ jobs:
     needs: build
     steps:
       - name: checkout the repo code
-        uses: actions/checkout@v2 
+        uses: actions/checkout@v2
         with:
           ref: "main"
-      - name: Deploy whitefalcon api gw to k3s6 onto the int env
+      - name: Deploy wslproxy api gw to k3s6 onto the int env
         run: chmod +x ./deploy-to-kubernetes.sh && ./deploy-to-kubernetes.sh "${{ secrets.WSL_DOCKER_USER }}" "${{ secrets.WSL_DOCKER_PASSWD }}" "k3s6" "int" "both" "${{ env.IMAGE_NAME }}" "${{ env.IMAGE_TAG }}"
 
   healthcheck6:
     runs-on: [self-hosted-node6]
-    needs: deploy6 
+    needs: deploy6
     steps:
       - uses: actions/checkout@v3
       - name: Set up Go
@@ -60,11 +59,10 @@ jobs:
         working-directory: ./QA
         env:
           API_PING_URL: http://api-int.brahmstra.org/ping
-        run: | 
+        run: |
           go mod init myapp
-          go test 01_healthcheck_test.go -v 
-                                
- 
+          go test 01_healthcheck_test.go -v
+
   # smoke_test3:
   #   runs-on: [label-node3]
   #   needs: build
@@ -74,15 +72,15 @@ jobs:
     needs: healthcheck6
     steps:
       - name: checkout the repo code
-        uses: actions/checkout@v2 
+        uses: actions/checkout@v2
         with:
           ref: "main"
-      - name: Deploy whitefalcon api gw to k3s3 onto the int env
+      - name: Deploy wslproxy api gw to k3s3 onto the int env
         run: chmod +x ./deploy-to-kubernetes.sh && ./deploy-to-kubernetes.sh "${{ secrets.WSL_DOCKER_USER }}" "${{ secrets.WSL_DOCKER_PASSWD }}" "k3s3" "int" "both" "${{ env.IMAGE_NAME }}" "${{ env.IMAGE_TAG }}"
 
   healthcheck3:
     runs-on: [label-node3]
-    needs: deploy3 
+    needs: deploy3
     steps:
       - uses: actions/checkout@v3
       - name: Set up Go
@@ -93,11 +91,11 @@ jobs:
         working-directory: ./QA
         env:
           API_PING_URL: http://api.int3.brahmstra.org/ping
-        run: | 
+        run: |
           go mod init myapp
-          go test 01_healthcheck_test.go -v  
+          go test 01_healthcheck_test.go -v
 
- # smoke_test2:
+  # smoke_test2:
   #   runs-on: [int2]
   #   needs: build2
 
@@ -106,15 +104,15 @@ jobs:
     needs: healthcheck3
     steps:
       - name: checkout the repo code
-        uses: actions/checkout@v2 
+        uses: actions/checkout@v2
         with:
           ref: "main"
-      - name: Deploy whitefalcon api gw to k3s2 onto the int env
+      - name: Deploy wslproxy api gw to k3s2 onto the int env
         run: chmod +x ./deploy-to-kubernetes.sh && ./deploy-to-kubernetes.sh "${{ secrets.WSL_DOCKER_USER }}" "${{ secrets.WSL_DOCKER_PASSWD }}" "k3s2" "int" "both" "${{ env.IMAGE_NAME }}" "${{ env.IMAGE_TAG }}"
 
   healthcheck2:
     runs-on: [int2]
-    needs: deploy2 
+    needs: deploy2
     steps:
       - uses: actions/checkout@v3
       - name: Set up Go
@@ -125,11 +123,10 @@ jobs:
         working-directory: ./QA
         env:
           API_PING_URL: http://api.int2.brahmstra.org/ping
-        run: | 
+        run: |
           go mod init myapp
-          go test 01_healthcheck_test.go -v 
- 
-  
+          go test 01_healthcheck_test.go -v
+
   # smoke_test10:
   #   runs-on: [self-hosted-node10]
   #   needs: build
@@ -139,10 +136,10 @@ jobs:
     needs: healthcheck2
     steps:
       - name: checkout the repo code
-        uses: actions/checkout@v2 
+        uses: actions/checkout@v2
         with:
           ref: "main"
-      - name: Deploy whitefalcon api gw to k3s10 onto the int env
+      - name: Deploy wslproxy api gw to k3s10 onto the int env
         run: chmod +x ./deploy-to-kubernetes.sh && ./deploy-to-kubernetes.sh "${{ secrets.WSL_DOCKER_USER }}" "${{ secrets.WSL_DOCKER_PASSWD }}" "k3s10" "int" "both" "${{ env.IMAGE_NAME }}" "${{ env.IMAGE_TAG }}"
 
   healthcheck10:
@@ -158,17 +155,17 @@ jobs:
         working-directory: ./QA
         env:
           API_PING_URL: http://api-int.brahmstra.org/ping
-        run: | 
+        run: |
           go mod init myapp
-          go test 01_healthcheck_test.go -v 
+          go test 01_healthcheck_test.go -v
 
-      - name: Slack Notification for WhiteFalcon 
+      - name: Slack Notification for wslproxy
         uses: rtCamp/action-slack-notify@v2
         env:
           SLACK_CHANNEL: general
           SLACK_COLOR: ${{ job.status }}
           SLACK_ICON: https://github.com/rtCamp.png?size=48
-          SLACK_MESSAGE: 'Post Content :rocket:'
+          SLACK_MESSAGE: "Post Content :rocket:"
           SLACK_TITLE: Post Title
           SLACK_USERNAME: rtCamp
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}                                                                
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}

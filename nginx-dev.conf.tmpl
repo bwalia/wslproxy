@@ -84,7 +84,7 @@ http {
 #        cjson = require("cjson")
 #        require "resty.session".init({
 #          remember = true,
-#          audience = "whitefalcon",
+#          audience = "wslproxy",
 #          storage  = "redis",
 #          redis = {
 #            host = os.getenv("REDIS_HOST"),
@@ -937,7 +937,7 @@ server {
   
       server {
         listen       80;
-        server_name  sessions-api.test.whitefalcon.io;
+        server_name  sessions-api.test.wslproxy.io;
         default_type text/html;
     
         location / {

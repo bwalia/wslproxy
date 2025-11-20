@@ -28,15 +28,15 @@ fi
 
 if [ -z "$2" ]
   then
-    echo "No docker image name supplied default to whitefalcon"
-    DOCKER_CONTAINER_NAME="whitefalcon"
+    echo "No docker image name supplied default to wslproxy"
+    DOCKER_CONTAINER_NAME="wslproxy"
 else
     echo "Docker image name: $2"
     DOCKER_CONTAINER_NAME="$2"
 fi
 if [ -z "$3" ]
   then
-    echo "No JWT token supplied default to whitefalcon"
+    echo "No JWT token supplied default to wslproxy"
 else 
     JWT_TOKEN_KEY="$3"
 fi

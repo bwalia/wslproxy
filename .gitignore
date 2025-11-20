@@ -17,3 +17,4 @@ node_modules
 devops/ansible/roles/luarocks/.DS_Store
 devops/.DS_Store
 html/.DS_Store
+.qodo

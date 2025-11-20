@@ -1,5 +1,5 @@
 #!/bin/bash
-# Create a new server in WhiteFalcon
+# Create a new server in wslproxy
 # Usage: ./create-server.sh <json-file>
 # Example: ./create-server.sh server.json
 

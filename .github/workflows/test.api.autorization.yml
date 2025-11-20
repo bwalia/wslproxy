@@ -5,20 +5,20 @@ on:
     inputs:
       TARGET_ENV:
         type: choice
-        description: 'Please choose the Target Environment'
-        default: 'local'
+        description: "Please choose the Target Environment"
+        default: "local"
         required: true
-        options: 
-          - local 
+        options:
+          - local
           - int2
           - int6
           - test
           - acc
           - prod
       EXECUTE_FUNCTION:
-        description: 'Delete Rules After Execution'
+        description: "Delete Rules After Execution"
         required: true
-        default: 'true'
+        default: "true"
         type: boolean
 
 env:
@@ -29,26 +29,25 @@ env:
   EXECUTE_FUNCTION: ${{ inputs.EXECUTE_FUNCTION }}
   QA_EXPIRED_JWT_TOKEN_KEY: ${{ secrets.QA_EXPIRED_JWT_TOKEN_KEY }}
 
-  
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-      
+
       - name: Set up Go
         uses: actions/setup-go@v3
         with:
           go-version: 1.19
 
       - name: Setup local environment
-        run: |  
-          ./deploy-to-docker.sh "dev" "whitefalcon" "${{ secrets.JWT_TOKEN_KEY }}"
+        run: |
+          ./deploy-to-docker.sh "dev" "wslproxy" "${{ secrets.JWT_TOKEN_KEY }}"
 
       - name: API Test For Rules & Servers
         working-directory: ./QA
-        run: |  
+        run: |
           if [[ "${{ inputs.TARGET_ENV }}" == 'int2' ]]; then
             export TARGET_HOST="http://api-int.brahmstra.org"
             export SERVER_NAME="qa.int2.brahmstra.org"
@@ -85,4 +84,4 @@ jobs:
           fi
                      
           go mod init myapp
-          go test 11_entire_api_crud_test.go 10_token_Validation_test.go -v   
+          go test 11_entire_api_crud_test.go 10_token_Validation_test.go -v

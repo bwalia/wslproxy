@@ -1,5 +1,5 @@
 #!/bin/bash
-# Create a new rule in WhiteFalcon
+# Create a new rule in wslproxy
 # Usage: ./create-rule.sh <json-file>
 # Example: ./create-rule.sh rule.json
 

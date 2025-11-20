@@ -4,14 +4,14 @@ kind: Deployment
 metadata:
   name: {{ .Values.app.name }}-{{ .Values.app.target_env }}
   labels:
-    {{- include "whitefalcon.labels" . | nindent 4 }}
+    {{- include "wslproxy.labels" . | nindent 4 }}
 spec:
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
   {{- end }}
   selector:
     matchLabels:
-      {{- include "whitefalcon.selectorLabels" . | nindent 6 }}
+      {{- include "wslproxy.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       {{- with .Values.podAnnotations }}
@@ -19,7 +19,7 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
-        {{- include "whitefalcon.selectorLabels" . | nindent 8 }}
+        {{- include "wslproxy.selectorLabels" . | nindent 8 }}
     spec:
       volumes:
         - name: {{ .Values.app.name }}-cm-{{ .Values.app.target_env }}-vol
@@ -47,7 +47,7 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      serviceAccountName: {{ include "whitefalcon.serviceAccountName" . }}
+      serviceAccountName: {{ include "wslproxy.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:

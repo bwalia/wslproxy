@@ -1,52 +1,44 @@
-name: Build and Push WhiteFalcon Docker Image to Docker Hub
+name: Build and Push wslproxy Docker Image to Docker Hub
 
 on:
   push:
     branches:
-      - 'dummy'
+      - "dummy"
   workflow_dispatch:
     inputs:
       IMAGE_TAG:
         type: choice
-        description: 'Please choose the Docker image tag'
-        default: 'latest'
+        description: "Please choose the Docker image tag"
+        default: "latest"
         required: true
         options:
-        - latest
-        - prod
-        - test
-        - int
-        - dev
+          - latest
+          - prod
+          - test
+          - int
+          - dev
 
 jobs:
   docker:
     runs-on: ubuntu-latest
     steps:
-      -
-        name: Set up QEMU
+      - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
-      -
-        name: Set up Docker Buildx
+      - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
-      -
-        name: Login to Docker Hub
+      - name: Login to Docker Hub
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKER_USER }}
           password: ${{ secrets.DOCKER_PASSWD }}
-      -
-        name: Build and push
+      - name: Build and push
         uses: docker/build-push-action@v4
         with:
           push: true
-          tags: bwalia/whitefalcon:latest
-      -
-        name: Build and push node app
+          tags: bwalia/wslproxy:latest
+      - name: Build and push node app
         uses: docker/build-push-action@v4
         with:
           file: demos-origins/node-app/Dockerfile
           push: true
           tags: bwalia/node-app:latest
-          
-          
-          

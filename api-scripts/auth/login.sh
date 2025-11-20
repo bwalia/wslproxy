@@ -1,5 +1,5 @@
 #!/bin/bash
-# Login to WhiteFalcon and store JWT token
+# Login to wslproxy and store JWT token
 # Usage: ./login.sh [email] [password]
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -10,7 +10,7 @@ check_jq
 EMAIL="${1:-$ADMIN_EMAIL}"
 PASSWORD="${2:-$ADMIN_PASSWORD}"
 
-echo -e "${YELLOW}Logging in to WhiteFalcon...${NC}"
+echo -e "${YELLOW}Logging in to wslproxy...${NC}"
 
 RESPONSE=$(curl -s -X POST "$GATEWAY_URL/api/user/login" \
   -H "Content-Type: application/json" \
