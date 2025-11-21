@@ -8,10 +8,10 @@ TARGET_ENV=$3
 JWT_TOKEN_KEY=$4
 
 if [ "$TARGET_ENV" = "int" ]; then
-    BASE_URL="https://api-int.brahmstra.org"
-    FRONTEND_URL="https://int.brahmstra.org"
+    BASE_URL="https://api-int.wslproxy.com"
+    FRONTEND_URL="https://int.wslproxy.com"
     NODEAPP_ORIGIN_HOST="10.43.140.53:3009"
-    SERVER_NAME="int.brahmstra.org"
+    SERVER_NAME="int.wslproxy.com"
     TARGET_PLATFORM="DOCKER"
     ENV_FILE=".env_cypress_int"
 fi

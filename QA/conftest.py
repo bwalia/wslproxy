@@ -206,7 +206,7 @@ def tempDir_setup(request, tmpdir_factory):
         "download.directory_upgrade": True,
         "savefile.default_directory": str(tempDir),
         "profile.content_settings.exceptions.automatic_downloads.*.setting": 1,
-        "browser.helperApps.neverAsk.saveToDisk": "application/json", "*.json"
+        "browser.helperApps.neverAsk.saveToDisk": "application/json",
         "browser.download.manager.useWindow": False,
                 }    
     

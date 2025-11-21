@@ -18,7 +18,7 @@ on:
       EXECUTE_FUNCTION:
         description: "Delete Rules After Execution"
         required: true
-        default: "true"
+        default: true
         type: boolean
 
 env:
@@ -49,21 +49,21 @@ jobs:
         working-directory: ./QA
         run: |
           if [[ "${{ inputs.TARGET_ENV }}" == 'int2' ]]; then
-            export TARGET_HOST="http://api-int.brahmstra.org"
-            export SERVER_NAME="qa.int2.brahmstra.org"
-            export SERVER_ID_QA="host:qa.int2.brahmstra.org"
+            export TARGET_HOST="http://api-int.wslproxy.com"
+            export SERVER_NAME="qa.int2.wslproxy.com"
+            export SERVER_ID_QA="host:qa.int2.wslproxy.com"
             export NODE_APP_IP=""  
 
           elif [[ "${{ inputs.TARGET_ENV }}" == 'int6' ]]; then
-            export TARGET_HOST="http://api-int.brahmstra.org"
-            export SERVER_NAME="qa.int.brahmstra.org"
-            export SERVER_ID_QA="host:qa.int.brahmstra.org"  
+            export TARGET_HOST="http://api-int.wslproxy.com"
+            export SERVER_NAME="qa.int.wslproxy.com"
+            export SERVER_ID_QA="host:qa.int.wslproxy.com"  
             export NODE_APP_IP="10.43.81.65:3009"  
 
           elif [[ "${{ inputs.TARGET_ENV }}" == 'test' ]]; then
-            export TARGET_HOST="http://api.test6.brahmstra.org"
-            export SERVER_NAME="test6.brahmstra.org"
-            export SERVER_ID_QA="host:test6.brahmstra.org"
+            export TARGET_HOST="http://api.test6.wslproxy.com"
+            export SERVER_NAME="test6.wslproxy.com"
+            export SERVER_ID_QA="host:test6.wslproxy.com"
             export NODE_APP_IP=""  
 
           elif [[ "${{ inputs.TARGET_ENV }}" == 'local' ]]; then

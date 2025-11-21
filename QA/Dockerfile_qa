@@ -12,7 +12,7 @@ ENV secretKey $MINIO_SECRET_KEY
 
 RUN mc alias set myminio $endpoint $accessKey $secretKey && \
     mkdir -p /app/minio-allure-report && chmod -R 777 /app/minio-allure-report && \
-    mc cp --recursive myminio/allure-reports/whitefalcon/allure-results ~/app/minio-allure-report
+    mc cp --recursive myminio/allure-reports/wslproxy/allure-results ~/app/minio-allure-report
     
 # Copy the repository files to the container
 COPY . /app

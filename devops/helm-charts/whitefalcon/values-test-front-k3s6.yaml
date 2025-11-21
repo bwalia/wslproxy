@@ -17,11 +17,11 @@ app:
   primary_dns_resolver: "10.43.0.10"
   secondary_dns_resolver: "10.43.0.10"
   dns_resolver_port: 53
-  api_url: "http://api.test6.brahmstra.org/api"
+  api_url: "http://api.test6.wslproxy.com/api"
   redis_host: "redis-service.test.svc.cluster.local"
   target_env: "test"
   target_type: "front"
-  front_url: "http://test6.brahmstra.org"
+  front_url: "http://test6.wslproxy.com"
   sync_data_onload: false
 
 secure_env_file: "AgADejNbmAxUJK3R+SBxx6LP1jvbI2DYJvks6tjx2fjnQNOW/52sX44U18QOCxSIScc2eEyZZiDd44IOYSFMWvKLLnGoNyEznAUZBCAt1ZU9NTaNBrCiy0f3F+MGvBWgdKRpnZM5h0XjX5y8o3EUtsP4AKx5KatiNCd4BL7MrjHwWR8N8kHMHicjySpGGlIHObTfNNG/uvyU5EgjYKYX3V77x4wbafb92bxpRD1oQk9o8gSOerQawa4EucryrHS2pGVA6ojXfv6fJWT4ifXPSjPrTRVvFYISYMGBRnYXUX8TsJ7ITPtShGk4vjOOXhvrc06OtP+k6Jv4Ss/s8GtHjxOfsM/Rz/UzzB448E4bVUvhry+Io+Fpl+iOK//oUEbCAanPqJWQovijaMTrWrabxQCwOchFX1IG38G/l+wXB0wNBUWasoDXEHuUfqPtiZ3NJH0/G2l2abtZzMIMB5A6JLriQBP6NOZemtueQwsvWesQrRymlEZBmgPBWbSMJAOiG9bqDhwYa4VXv9rfhmgWZPCUE/rpksx3jIg93+VYae6s2IrMXJgcV5/1yt5IHNL40YNX0HewnECoB2ZoBHTSy6gz50vg32ufy5q1L67EPsVP+0lJYeyhmD76CxL+XAnGzh+DcBLf4cI1DYM7NaL91BYEfrQsr3iPIgF6keRCAq0k2t8vqy4oYJbpD9lk//45R5pJoJITJ5VNE+TS6joJWRQxdii37DP2xclvXRA1ObDTScKLW2ww66e1w16P/jyxRnpti+YPqeySMF4BNlJR3ykeUKgA3rotbl6pnjSRPwGoCijlkE/2RkBn0JH6oM4b6tWhoyioZWL2n5L5uzlYbGG5f4i+5r5gOVDVA9Dl79KOnLZ8/3OnVs6z77zI0a8WUMTxCwAn7p5EmM4PY5Gos0asKQfvzY7aDxUTRslCXBbNLzyZZ1gv/FKT3ri0CRZg608wWAUZpQqiSvMJ4bWYxj1HTiR61b0kwpAYN8z4IBCHZRHljg=="
@@ -72,25 +72,25 @@ ingress:
     # kubernetes.io/ingress.class: nginx
     # kubernetes.io/tls-acme: "true"
   hosts:
-    - host: test6.brahmstra.org
+    - host: test6.wslproxy.com
       paths:
         - path: /
           pathType: ImplementationSpecific
           serviceName: wf-front-svc-test
           servicePort: 80
-    - host: front.brahmstra.org
+    - host: front.wslproxy.com
       paths:
         - path: /
           pathType: ImplementationSpecific
           serviceName: wf-front-svc-test
           servicePort: 80
-    - host: brahmstra.org
+    - host: wslproxy.com
       paths:
         - path: /
           pathType: ImplementationSpecific
           serviceName: wf-front-svc-test
           servicePort: 80
-    - host: test-front.brahmstra.org
+    - host: test-front.wslproxy.com
       paths:
         - path: /
           pathType: ImplementationSpecific

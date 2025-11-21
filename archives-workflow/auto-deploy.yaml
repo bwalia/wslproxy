@@ -88,7 +88,7 @@ jobs:
   #     - name: Ping verification
   #       working-directory: ./QA
   #       env:
-  #         API_PING_URL: http://api-int.brahmstra.org/ping
+  #         API_PING_URL: http://api-int.wslproxy.com/ping
   #       run: |
   #         go mod init myapp
   #         go test 01_healthcheck_test.go -v
@@ -105,7 +105,7 @@ jobs:
       - name: Ping verification
         working-directory: ./QA
         env:
-          API_PING_URL: http://api.int2.brahmstra.org/ping
+          API_PING_URL: http://api.int2.wslproxy.com/ping
           API_PING_NODE: node2
         run: |
           go mod init myapp

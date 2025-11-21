@@ -169,7 +169,7 @@ jobs:
           SLACK_CHANNEL: general
           SLACK_COLOR: ${{ job.status }}
           SLACK_ICON: https://github.com/rtCamp.png?size=48
-          SLACK_MESSAGE: "wslproxy deployed to ${{ env.TARGET_ENV }} https://api.${{ env.TARGET_ENV }}.brahmstra.org/ping env :rocket:"
+          SLACK_MESSAGE: "wslproxy deployed to ${{ env.TARGET_ENV }} https://api.${{ env.TARGET_ENV }}.wslproxy.com/ping env :rocket:"
           SLACK_TITLE: wslproxy deployment status
           SLACK_USERNAME: rtCamp
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
@@ -187,19 +187,19 @@ jobs:
         working-directory: ./QA
         run: |
           if [ "${{ env.TARGET_ENV }}" == "int" ]; then
-            export API_PING_URL="https://api-int.brahmstra.org/ping"
+            export API_PING_URL="https://api-int.wslproxy.com/ping"
 
           elif [ "${{ env.TARGET_ENV }}" == "test" ]; then
-            export API_PING_URL="https://api-test.brahmstra.org/ping"
+            export API_PING_URL="https://api-test.wslproxy.com/ping"
 
           elif [ "${{ env.TARGET_ENV }}" == "acc" ]; then
-            export API_PING_URL="https://api-acc.brahmstra.org/ping"
+            export API_PING_URL="https://api-acc.wslproxy.com/ping"
 
           elif [ "${{ env.TARGET_ENV }}" == "prod" ]; then
-            export API_PING_URL="https://api-prod.brahmstra.org/ping" 
+            export API_PING_URL="https://api-prod.wslproxy.com/ping" 
 
           elif [ "${{ env.TARGET_ENV }}" == "" ]; then
-            export API_PING_URL="https://api-int.brahmstra.org/ping"                       
+            export API_PING_URL="https://api-int.wslproxy.com/ping"                       
 
           else
             echo "Unsupported TARGET_ENV:${{ env.TARGET_ENV }}"
