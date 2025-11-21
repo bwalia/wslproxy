@@ -14,6 +14,8 @@ ARG RESTY_FAT_IMAGE_TAG="alpine"
 
 FROM ${RESTY_FAT_IMAGE_BASE}:${RESTY_FAT_IMAGE_TAG}
 
+ARG RESTY_FAT_IMAGE_BASE="openresty/openresty"
+ARG RESTY_FAT_IMAGE_TAG="alpine"
 ARG RESTY_LUAROCKS_VERSION="3.12.2"
 
 LABEL maintainer="Balinder Walia <bwalia@workstation.co.uk>"
@@ -178,7 +180,6 @@ WORKDIR /usr/local/openresty/nginx/html/openresty-admin/
 # Install yarn dependencies
 RUN yarn install \
     --non-interactive \
-    --frozen-lockfile \
     --network-timeout 300000 \
     --production=false
 
@@ -203,4 +204,4 @@ RUN wget https://dl.min.io/client/mc/release/linux-amd64/mc -O /usr/local/bin/mc
 RUN mc --version
 
 # Start Consul in the background and then start OpenResty
-CMD /usr/local/openresty/nginx/sbin/nginx -g "daemon off;"
+CMD ["/usr/local/openresty/nginx/sbin/nginx", "-g", "daemon off;"]

@@ -8,34 +8,15 @@ describe('Client IP match verification', () => {
 
     it('Verifying Client IP match rule for valid, invalid and starts_with condition', () => {
         let randomString = generateRandomString();
-        cy.clearCookies()
-        cy.clearAllSessionStorage()
-        cy.visit(BASE_URL);
-        cy.get('#email').type(EMAIL);
-        cy.get('#password').type(PASSWORD);
-        cy.get('button[type="submit"]').click();
 
-        // Select Storage Type Redis
-        cy.get('.MuiDialogActions-root > .MuiButton-contained').click();
+        // Login and select storage type
+        cy.loginAndSelectStorage();
 
-        // Cleaning the rule server config from previous test if exist
-        cy.get('a[href="#/servers"]').click();
-          // Select the Profile
-        cy.get('[aria-label="Select Environment Profile"]').click();
-        cy.get("#demo-simple-select").click();
-        cy.get('div.MuiPaper-root.MuiMenu-paper ul.MuiMenu-list li[data-value="qa_test"]').click();
-        cy.wait(6000)    
+        // Clean up any existing test server from previous runs
+        cy.cleanupTestServer(SERVER_NAME, 'qa_test');
 
-        cy.get('div[id="main-content"]').then(($ele) => {
-          if ($ele.find(`.MuiTableBody-root > .MuiTableRow-root:contains('${SERVER_NAME}')`).length > 0) {
-              cy.get(`.MuiTableBody-root > .MuiTableRow-root:contains('${SERVER_NAME}') .PrivateSwitchBase-input`).click()
-                cy.scrollTo('top');
-                cy.get('button[aria-label="Delete"]').click();
-                cy.wait(4000);
-          } else {
-                cy.log("No previous config found")
-            }
-       })
+        // Clean up any leftover rules from previous test runs
+        cy.cleanupTestRules('client IP match by Cypress', 'qa_test');
 
         // Open the rules Section
         cy.get('[href="#/rules"]').click();
@@ -232,7 +213,7 @@ describe('Client IP match verification', () => {
         });
 
         // Reset the Profile back to the int
-        cy.wait  
+        cy.wait(2000);
         cy.get('[aria-label="Select Environment Profile"]').click();
         cy.get("#demo-simple-select").click();
         cy.get('div.MuiPaper-root.MuiMenu-paper ul.MuiMenu-list li[data-value="int"]').click();

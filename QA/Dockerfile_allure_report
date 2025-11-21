@@ -18,7 +18,7 @@ RUN curl -o /usr/local/bin/mc https://dl.min.io/client/mc/release/linux-amd64/mc
 
 RUN mc alias set myminio $endpoint $accessKey $secretKey && \
     mkdir -p /app/allure-report && chmod -R 777 /app/allure-report && \
-    mc cp --recursive myminio/allure-reports/whitefalcon/allure-results ~/app/allure-report
+    mc cp --recursive myminio/allure-reports/wslproxy/allure-results ~/app/allure-report
 
 # Install allure
 ADD allure_2.24.0-1_all.deb /app

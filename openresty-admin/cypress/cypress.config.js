@@ -1,6 +1,7 @@
-const { defineConfig } = require("cypress");
+import { defineConfig } from "cypress";
 
-module.exports = defineConfig({
+export default defineConfig({
+  video: true,
   e2e: {
     setupNodeEvents(on, config) {
       chromeWebSecurity: false;
