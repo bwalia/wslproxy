@@ -7,21 +7,38 @@ LOGIN_PASSWORD=$2
 TARGET_ENV=$3
 JWT_TOKEN_KEY=$4
 
-if [ "$TARGET_ENV" = "int" ]; then
+# Default to dev environment
+if [ "$TARGET_ENV" = "dev" ] || [ -z "$TARGET_ENV" ]; then
+    BASE_URL="https://dev.wslproxy.com"
+    FRONTEND_URL="https://frontdoor-dev.wslproxy.com"
+    NODEAPP_ORIGIN_HOST=""
+    SERVER_NAME="frontdoor-dev.wslproxy.com"
+    TARGET_PLATFORM="DOCKER"
+    ENV_FILE=".env_cypress_dev"
+elif [ "$TARGET_ENV" = "int" ]; then
     BASE_URL="https://api-int.wslproxy.com"
     FRONTEND_URL="https://int.wslproxy.com"
     NODEAPP_ORIGIN_HOST="10.43.140.53:3009"
     SERVER_NAME="int.wslproxy.com"
     TARGET_PLATFORM="DOCKER"
     ENV_FILE=".env_cypress_int"
-fi
-if [ "$TARGET_ENV" = "dockerinternal" ]; then
+elif [ "$TARGET_ENV" = "test" ]; then
+    BASE_URL="https://api-test.wslproxy.com"
+    FRONTEND_URL="https://frontdoor-test.wslproxy.com"
+    NODEAPP_ORIGIN_HOST=""
+    SERVER_NAME="frontdoor-test.wslproxy.com"
+    TARGET_PLATFORM="DOCKER"
+    ENV_FILE=".env_cypress_test"
+elif [ "$TARGET_ENV" = "dockerinternal" ]; then
     BASE_URL="http://host.docker.internal:4000"
     FRONTEND_URL="http://host.docker.internal:8000"
     NODEAPP_ORIGIN_HOST="172.177.0.10:3009"
     SERVER_NAME="host.docker.internal"
     TARGET_PLATFORM="docker"
     ENV_FILE=".env_cypress_docker_internal"
+else
+    echo "Unsupported TARGET_ENV: $TARGET_ENV"
+    exit 1
 fi
 rm -Rf .env
 rm -Rf /tmp/$ENV_FILE
