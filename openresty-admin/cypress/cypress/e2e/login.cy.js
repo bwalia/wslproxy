@@ -1,13 +1,13 @@
 describe("Brahmstra login test Int environment", () => {
   let BASE_PUB_URL =
-    Cypress.env("BASE_PUB_URL") || "https://api-int.brahmstra.org";
+    Cypress.env("BASE_PUB_URL") || "https://api-int.wslproxy.com";
   let ALLOWED_IP = Cypress.env("ALLOWED_IP") || "103.217.123.221";
   let REDIRECT_ORIGIN =
     Cypress.env("NODEAPP_ORIGIN_HOST") || "172.177.0.10:3009";
   let ERROR_HTML = Cypress.env("ERROR_HTML") || "ERROR 403";
-  let FRONTEND_URL = Cypress.env("FRONTEND_URL") || "http://int.brahmstra.org";
+  let FRONTEND_URL = Cypress.env("FRONTEND_URL") || "http://int.wslproxy.com";
   let TARGET_PLATFORM = Cypress.env("TARGET_PLATFORM") || "docker";
-  let SERVER_NAME = Cypress.env("SERVER_NAME") || "int.brahmstra.org";
+  let SERVER_NAME = Cypress.env("SERVER_NAME") || "int.wslproxy.com";
   let TARGET_ENV = Cypress.env("TARGET_ENV") || "int";
   let LOGIN_EMAIL = Cypress.env("LOGIN_EMAIL") || "";
   let LOGIN_PASSWORD = Cypress.env("LOGIN_PASSWORD") || "";

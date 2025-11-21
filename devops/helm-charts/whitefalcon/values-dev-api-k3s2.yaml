@@ -9,11 +9,11 @@ app:
   primary_dns_resolver: 10.43.0.10
   secondary_dns_resolver: 10.43.0.10
   dns_resolver_port: 53
-  api_url: "https://api.dev2.brahmstra.org/api"
+  api_url: "https://api.dev2.wslproxy.com/api"
   redis_host: redis-service.dev.svc.cluster.local
   target_env: dev
   target_type: api
-  front_url: "https://front.dev2.brahmstra.org"
+  front_url: "https://front.dev2.wslproxy.com"
   sync_data_onload: false
 secure_env_file: AgBlaZwGaxl3p7lnltpKZ2G7IVhK6wOC0LBqKy5WhkvHZ/Z0mLQYx7yh4HZ1QqDQchVBSaRDNk1BdksQc5X1N+h1QZPo3ChWqxJVQ6jQJZrRRs5mn7esXlzPZ03FZ3FK8Ka7CYMhkgdtydYU6/vYsjkCMyGLmoBF9UKiWEju+WQpMlquaolgwtaSYSQM+zG3Gnq1JepcfJ4HOCDYw8TRlNKu5wdOvMvOgb/OteZbi54TczoFP7qD69S5KSpw6AtAXJIJFQc3KwXDWg9W08QnER0DmF5StJr609TU02FNWxj9kX6KRiSsTL+9pKVYlk1weVDQxw607HrXoyAowQIgoIPiRhy5ACv62Wz0YTdp+LLNCjo2xxJ4e57QCIymoxnbXU6wJ+ieneVdgEtIsgppI53xQOIZtIB2EsmMJpulgof6zxMi7d5ju/76q6Zgyu4XZVmng0dBI5Fv4k1hTkP6gsnsnx30vQ8AtN1GRyEuPoaplQMZs6ARo9Q/ouLZ6rOnXr7ydW4Hl7j5StEDSm/wRA6uaNe5FdSiIxL5KE/NG/LFyMbaANHywAW6C86jBBxDrjNxLMvYc9T3069vObSxja9ROPq4uvP4tvgiGzeY6GLbRMdwp6WlTSKcNbGdaFybWPD2lVl9D/Mx6wkNVdtDfKFIV/gzikNDhzm7A4deUDqzbkO4t2H3xRwruXylZrClpIfD7K7XSPz1EfW+3Rhx1gCIoz3jpSI7lze57t20377+a41rvVKvtIejaK0mJT955GYqrw1lFoTSeTlvLIa1mh03M4UysrM7Ak9+n/X5uMedL3vU0dgWdvYdH/6CBU42N2Bs7LF1Iwx0h39Tycuiu227PVBnmkxCem/BvatDibSLSxRQHhD+ro8pFqIx7Pu+nAjFjNU4O4ME2Z+rm8l4Ln5qMt2sFQoq6Q2Gw6QC5rj/edAvMSLpgy0nx+LdWdVncRnqYpSB0YWvHtsNDC6Z/QuoUcGV9eXOAb9LGbPLAGFQDGZrLyzArnOFdhv0KoSTPlHtkBI31VAtKGwgSbLWZlLnHmCHJ4CZ5qLgpwpSAMJnqE8q+jgAcJLpL0OsRHoFePdgZtsORzezGhnEHUctSjKOXZMZMKgm1Y/eHKJAu3zjCvHyWkm3OEFs0ruGSkdGHw2pnIPpCcsZKxcTRBbLPxQTRdiSQ5YhqSRjEb8M7jwnH1v9nVkUOX8NxyPl46mimmK9Jbkmwf0KsWKR6nMeP8g9I1FiIUmFdFSL9kOUpVBfgXnP
 image:
@@ -40,7 +40,7 @@ ingress:
   hosts:
     [
       {
-        host: api.dev2.brahmstra.org,
+        host: api.dev2.wslproxy.com,
         paths:
           [
             {

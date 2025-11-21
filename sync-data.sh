@@ -12,7 +12,7 @@ fi
 
 if [ -z "$2" ]
   then
-    echo "No Host Provided default https://int.brahmstra.org is set"
+    echo "No Host Provided default https://int.wslproxy.com is set"
     FRONT_HOST="http://localhost"
 else
     echo "Supplied Host name: $2"

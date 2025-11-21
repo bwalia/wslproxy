@@ -12,7 +12,7 @@
 -- For authentication see auth.lua
 
 local cjson = require "cjson"
-local jwt = require "resty.jwt"
+local jwt = JWT
 Base64 = require "base64"
 ConfigPath = os.getenv("NGINX_CONFIG_DIR")
 Hostname = ngx.var.host
@@ -528,11 +528,11 @@ if exist_values and exist_values ~= 0 and exist_values ~= nil and exist_values ~
         -- do return ngx.say(highestPriorityKey) end
         if rulePasses == true then
             local selectedRule = parse_rules[highestPriorityParentKey][highestPriorityKey]
-            local globalVars = ngx.var.vars
+            local globalVars = ngx.var.frontdoor_global_vars
             globalVars = cjson.decode(globalVars)
             globalVars.executableRule = selectedRule
             globalVars.proxyServerName = jsonval.proxy_server_name
-            ngx.var.vars = cjson.encode(globalVars)
+            ngx.var.frontdoor_global_vars = cjson.encode(globalVars)
         else
             if settings.nginx.default.conf_mismatch ~= nil then
                 ngx.header["Content-Type"] = settings.nginx.content_type ~= nil and settings.nginx.content_type or

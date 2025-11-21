@@ -39,10 +39,10 @@ api/rules/{id}
 `http://localhost:8081/swagger/`
 
 `Test env swagger page`
-`https://brahmstra.org/swagger/`
+`https://wslproxy.com/swagger/`
 
 `Prod env swagger page`
-`https://brahmstra.org/swagger/`
+`https://wslproxy.com/swagger/`
 
 ### Server APIs
 

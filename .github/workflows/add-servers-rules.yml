@@ -8,9 +8,9 @@ on:
   workflow_dispatch:
     inputs:
       API_SERVER:
-        description: "Enter the API Server where you want to push the data. For example https://api-int.brahmstra.org"
+        description: "Enter the API Server where you want to push the data. For example https://api-int.wslproxy.com"
         required: true
-        default: https://int-api-controlplane.brahmstra.org
+        default: https://int-api-controlplane.wslproxy.com
         type: string
 
       BEARER_TOKEN:
@@ -29,7 +29,7 @@ on:
         type: string
 
       DELETE_EXISTS_DATA:
-        description: 'Delete existing data or append into the exisitng data.'
+        description: "Delete existing data or append into the exisitng data."
         required: true
         default: false
         type: boolean
@@ -41,7 +41,6 @@ env:
   RULES_FILE_PATH: ${{ inputs.RULES_FILE_PATH }}
   DELETE_EXISTS_DATA: ${{ inputs.DELETE_EXISTS_DATA || 'false'}}
 
-  
 jobs:
   build:
     runs-on: ubuntu-latest

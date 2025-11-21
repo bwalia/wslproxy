@@ -6,7 +6,7 @@
 export GATEWAY_URL="${GATEWAY_URL:-http://localhost:4000}"
 
 # Admin credentials - Change these to your credentials
-export ADMIN_EMAIL="${ADMIN_EMAIL:-docker@brahmstra.org}"
+export ADMIN_EMAIL="${ADMIN_EMAIL:-docker@wslproxy.com}"
 export ADMIN_PASSWORD="${ADMIN_PASSWORD:-Admin@123}"
 
 # Token file location

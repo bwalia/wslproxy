@@ -33,7 +33,7 @@ on:
 env:
   TARGET_ENV: ${{ github.event.inputs.TARGET_ENV || 'int' }}
   TARGET_HOST: ${{ github.event.inputs.TARGET_HOST || '127.0.0.1' }}
-  API_DOMAINNAME_ENDPOINT: ${{ github.event.inputs.TARGET_ENV || 'int' }}.brahmstra.org
+  API_DOMAINNAME_ENDPOINT: ${{ github.event.inputs.TARGET_ENV || 'int' }}.wslproxy.com
 
 jobs:
   build:
@@ -69,9 +69,8 @@ jobs:
 
       - name: Run Ansible Playbook
         run: |
-           sudo ansible-playbook devops/ansible/manage_nginx_openresty_ops.yml -i devops/ansible/hosts -l ${{ env.TARGET_HOST }} --extra-vars "nginx_user_password=THISCOMESFROMSECRETS"
+          sudo ansible-playbook devops/ansible/manage_nginx_openresty_ops.yml -i devops/ansible/hosts -l ${{ env.TARGET_HOST }} --extra-vars "nginx_user_password=THISCOMESFROMSECRETS"
         env:
           ANSIBLE_PRIVATE_KEY_FILE: id_rsa
           ANSIBLE_VAULT_PASSWORD_FILE: ${{ secrets.ANSIBLE_VAULT_PASSWORD }}
-  
 #          sudo ansible-playbook devops/ansible/manage_nginx_openresty_ops.yml -i devops/ansible/hosts -l TARGET_HOST --vault-password-file <(echo secrets.ANSIBLE_VAULT_PASSWORD)
