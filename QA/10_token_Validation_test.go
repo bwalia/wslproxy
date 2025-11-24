@@ -20,6 +20,7 @@ var jwtToken string
 var nodeAppIP string
 
 func TestCreateRuleForAccessToAll(t *testing.T) {
+	TestAuthLoginAndFetchToken(t)
 	TestCreateServer(t)
 	nodeAppIP = os.Getenv("NODE_APP_IP")
 
