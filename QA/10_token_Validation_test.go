@@ -73,7 +73,11 @@ func Test10_1_CreateRuleForAccessToAll(t *testing.T) {
 	t.Logf("Server created with ID: %s", serverId)
 
 	nodeAppIP = os.Getenv("NODE_APP_IP")
-	t.Logf("NODE_APP_IP: %s", nodeAppIP)
+	// Use a default redirect URI if NODE_APP_IP is not set (required for code 305)
+	if nodeAppIP == "" {
+		nodeAppIP = "httpbin.org"
+	}
+	t.Logf("NODE_APP_IP (redirect_uri): %s", nodeAppIP)
 
 	type Rule struct {
 		Data struct {
