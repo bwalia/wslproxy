@@ -121,4 +121,5 @@ jobs:
             exit 1
           fi
 
-          go test -v
+          # Run main test functions (excluding helper functions from 11_entire_api_crud_test.go)
+          go test -v -run "TestHealthCheck|TestLoginAccess|TestApiAccessAuth|TestHostOverRide|TestClientIP|TestURLPath|TestCheckRulePriority|TestDeleteRules|TestRedirectURI|TestRuleResponse|Test10_"

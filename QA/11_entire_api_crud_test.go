@@ -40,6 +40,10 @@ func TestAuthLoginAndFetchToken(t *testing.T) {
 	Email := os.Getenv("LOGIN_EMAIL")
 	Password := os.Getenv("LOGIN_PASSWORD")
 
+	if Email == "" || Password == "" {
+		t.Log("Warning: LOGIN_EMAIL or LOGIN_PASSWORD environment variables not set")
+	}
+
 	payload := LoginPayload{
 		Email:    Email,
 		Password: Password,
@@ -47,42 +51,45 @@ func TestAuthLoginAndFetchToken(t *testing.T) {
 
 	jsonPayload, err := json.Marshal(payload)
 	if err != nil {
-		fmt.Println(err)
-		return
+		t.Fatal("Failed to marshal login payload:", err)
 	}
 
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, strings.NewReader(string(jsonPayload)))
 
 	if err != nil {
-		fmt.Println(err)
-		return
+		t.Fatal("Failed to create request:", err)
 	}
 	req.Header.Add("Content-Type", "application/json")
 
 	res, err := client.Do(req)
 	if err != nil {
-		fmt.Println(err)
-		return
+		t.Fatal("Failed to make login request:", err)
 	}
 	defer res.Body.Close()
 
 	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
-		fmt.Println(err)
-		return
+		t.Fatal("Failed to read response body:", err)
+	}
+
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("Login failed with status %d: %s", res.StatusCode, string(body))
 	}
 
 	buff := bytes.NewBuffer(body)
-	defer res.Body.Close()
 
 	var jsonData authResponse
 	err = json.NewDecoder(buff).Decode(&jsonData)
 	if err != nil {
-		t.Error("failed to decode json", err)
-	} else {
-		tokenValue = jsonData.Data.AccessToken
+		t.Fatal("Failed to decode json:", err)
 	}
+
+	tokenValue = jsonData.Data.AccessToken
+	if tokenValue == "" {
+		t.Fatal("Received empty access token")
+	}
+	t.Log("Successfully authenticated")
 }
 
 // Calling the Server API for GET method to get all server list
