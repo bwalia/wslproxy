@@ -27,7 +27,7 @@ env:
   LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
   LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
   JWT_TOKEN_KEY: ${{ secrets.JWT_TOKEN_KEY }}
-  EXECUTE_FUNCTION: ${{ inputs.EXECUTE_FUNCTION }}
+  DELETE_TEST_DATA: ${{ inputs.EXECUTE_FUNCTION }}
   QA_EXPIRED_JWT_TOKEN_KEY: ${{ secrets.QA_EXPIRED_JWT_TOKEN_KEY }}
 
 jobs:
@@ -102,4 +102,4 @@ jobs:
             exit 1
           fi
 
-          go test -v -run "TestAuthLoginAndFetchToken|TestGetServers|TestGetRules|TestCreateServer|TestCreateRule|TestGetSingleServer|TestGetSingleRule|TestUpdateRule|TestUpdateRuleWithServer|TestHandleProfileAPI|TestDataSync|TestServerResponse|TestDeleteServer|TestDeleteRule|TestResetProfile|TestTokenValidation"
+          go test -v -run "TestCreateRuleForAccessToAll|TestCreateRuleForAccessToPathApi|TestAddRulesWithServer|TestDataAccessForAuthorizationRules|TestDeleteAccessRules"
