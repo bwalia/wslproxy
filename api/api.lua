@@ -985,8 +985,12 @@ local function createUpdateServer(body, uuid)
     -- Generate config if not provided
     if not payloads.config or payloads.config == "" then
         local listen_port = "80"
-        if payloads.listens and type(payloads.listens) == "table" and #payloads.listens > 0 then
-            listen_port = payloads.listens[1].listen or "80"
+        -- Safely access listens array - check first element directly instead of using # operator
+        if payloads.listens and type(payloads.listens) == "table" then
+            local first_listen = payloads.listens[1]
+            if first_listen and type(first_listen) == "table" and first_listen.listen then
+                listen_port = tostring(first_listen.listen)
+            end
         end
         local server_name = payloads.server_name or "localhost"
         local root = payloads.root or "/var/www/html"
