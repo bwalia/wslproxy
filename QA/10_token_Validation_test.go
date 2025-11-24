@@ -19,10 +19,25 @@ var ruleAccessApi string
 var jwtToken string
 var nodeAppIP string
 
-func TestCreateRuleForAccessToAll(t *testing.T) {
+func Test10_1_CreateRuleForAccessToAll(t *testing.T) {
+	t.Log("Starting Test10_1_CreateRuleForAccessToAll")
+	t.Logf("TARGET_HOST: %s", targetHost)
+	t.Logf("PROFILE_ID: %s", profile)
+
 	TestAuthLoginAndFetchToken(t)
+	if tokenValue == "" {
+		t.Fatal("Failed to get authentication token")
+	}
+	t.Log("Authentication successful")
+
 	TestCreateServer(t)
+	if serverId == "" {
+		t.Fatal("Failed to create server - serverId is empty")
+	}
+	t.Logf("Server created with ID: %s", serverId)
+
 	nodeAppIP = os.Getenv("NODE_APP_IP")
+	t.Logf("NODE_APP_IP: %s", nodeAppIP)
 
 	type Rule struct {
 		Data struct {
@@ -38,8 +53,7 @@ func TestCreateRuleForAccessToAll(t *testing.T) {
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, payload)
 	if err != nil {
-		fmt.Println(err)
-		return
+		t.Fatal(err)
 	}
 
 	req.Header.Add("Authorization", "Bearer "+tokenValue)
@@ -62,18 +76,26 @@ func TestCreateRuleForAccessToAll(t *testing.T) {
 		t.Error("failed to decode json", err)
 	} else {
 		ruleAccessAll = jsonData.Data.ID
-		//t.Log(ruleAccessAll)
+		t.Logf("Created ruleAccessAll with ID: %s", ruleAccessAll)
 	}
 
 	if res.StatusCode != http.StatusOK {
-		t.Error("Unexpected response status code", res.StatusCode)
+		t.Errorf("Unexpected response status code %d, body: %s", res.StatusCode, string(body))
 		return
 	}
 	if !strings.Contains(string(body), "id") {
 		t.Error("Returned unexpected body")
 	}
 }
-func TestCreateRuleForAccessToPathApi(t *testing.T) {
+
+func Test10_2_CreateRuleForAccessToPathApi(t *testing.T) {
+	// Ensure we have a valid token
+	if tokenValue == "" {
+		TestAuthLoginAndFetchToken(t)
+		if tokenValue == "" {
+			t.Fatal("Failed to get authentication token")
+		}
+	}
 
 	type Rule struct {
 		Data struct {
@@ -113,18 +135,35 @@ func TestCreateRuleForAccessToPathApi(t *testing.T) {
 		t.Error("failed to decode json", err)
 	} else {
 		ruleAccessApi = jsonData.Data.ID
-		//t.Log(ruleAccessApi)
+		t.Logf("Created ruleAccessApi with ID: %s", ruleAccessApi)
 	}
 
 	if res.StatusCode != http.StatusOK {
-		t.Error("Unexpected response status code", res.StatusCode)
+		t.Errorf("Unexpected response status code %d, body: %s", res.StatusCode, string(body))
 		return
 	}
 	if !strings.Contains(string(body), "id") {
 		t.Error("Returned unexpected body")
 	}
 }
-func TestAddRulesWithServer(t *testing.T) {
+
+func Test10_3_AddRulesWithServer(t *testing.T) {
+	// Ensure we have a valid token
+	if tokenValue == "" {
+		TestAuthLoginAndFetchToken(t)
+		if tokenValue == "" {
+			t.Fatal("Failed to get authentication token")
+		}
+	}
+
+	// Check that previous tests set up required data
+	if serverId == "" {
+		t.Fatal("serverId not set - Test10_1 may have failed")
+	}
+	if ruleAccessAll == "" || ruleAccessApi == "" {
+		t.Fatal("Rule IDs not set - previous tests may have failed")
+	}
+
 	url := targetHost + "/api/servers/" + serverId
 	method := "PUT"
 	payload := strings.NewReader(fmt.Sprintf(`{"server_name":"%s","profile_id":"%s","config":"server {\n      listen 82;  # Listen on port (HTTP)\n      server_name %s;  # Your domain name\n      root /var/www/html;  # Document root directory\n      index index.html;  # Default index files\n      access_log logs/access.log;  # Access log file location\n      error_log logs/error.log;  # Error log file location\n\n      \n      \n  }\n  ","access_log":"logs/access.log","rules":"%s","custom_block":{},"id":"%s","created_at":1694002895,"root":"/var/www/html","match_cases":[{"statement":"%s","condition":"and"}],"locations":{},"proxy_pass":"http://localhost","error_log":"logs/error.log","listens":[{"listen":"82"}],"index":"index.html"}`, serverName, profile, serverName, ruleAccessAll, serverId, ruleAccessApi))
@@ -166,7 +205,15 @@ func TestAddRulesWithServer(t *testing.T) {
 	}
 }
 
-func TestDataAccessForAuthorizationRules(t *testing.T) {
+func Test10_4_DataAccessForAuthorizationRules(t *testing.T) {
+	// Ensure frontUrl is set
+	if frontUrl == "" {
+		frontUrl = os.Getenv("FRONT_URL")
+		if frontUrl == "" {
+			t.Fatal("FRONT_URL not set")
+		}
+	}
+
 	// Accessing the data without token
 	url := frontUrl + "/api/v2/sample-data.json"
 
@@ -334,7 +381,14 @@ func TestDataAccessForAuthorizationRules(t *testing.T) {
 	}
 }
 
-func TestDeleteAccessRules(t *testing.T) {
+func Test10_5_DeleteAccessRules(t *testing.T) {
+	// Ensure we have a valid token for deletion
+	if tokenValue == "" {
+		TestAuthLoginAndFetchToken(t)
+		if tokenValue == "" {
+			t.Fatal("Failed to get authentication token")
+		}
+	}
 
 	// Deleting the AccessAll rule
 	ruleId = ruleAccessAll
