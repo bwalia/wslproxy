@@ -34,12 +34,20 @@ on:
         required: true
         default: true
         type: boolean
+      LOGIN_EMAIL:
+        description: "Login Email (leave empty to use secret)"
+        required: false
+        type: string
+      LOGIN_PASSWORD:
+        description: "Login Password (leave empty to use secret)"
+        required: false
+        type: string
 
 env:
   TARGET_ENV: ${{ inputs.TARGET_ENV || 'dev'}}
   PROFILE_ID: ${{ inputs.PROFILE_ID || 'dev'}}
-  LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
-  LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
+  LOGIN_EMAIL: ${{ inputs.LOGIN_EMAIL || secrets.LOGIN_EMAIL }}
+  LOGIN_PASSWORD: ${{ inputs.LOGIN_PASSWORD || secrets.LOGIN_PASSWORD }}
   JWT_TOKEN_KEY_DEV: ${{ secrets.JWT_TOKEN_KEY_DEV }}
   JWT_TOKEN_KEY_TEST: ${{ secrets.JWT_TOKEN_KEY_TEST }}
   JWT_TOKEN_KEY_INT: ${{ secrets.JWT_TOKEN_KEY_INT }}
