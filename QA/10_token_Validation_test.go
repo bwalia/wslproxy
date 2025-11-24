@@ -19,6 +19,42 @@ var ruleAccessApi string
 var jwtToken string
 var nodeAppIP string
 
+// TestAddRulesWithServer is a helper function called by other tests (e.g., 07_multi_rule_priority_test.go)
+// It adds rules to a server using the ruleAccessAll and ruleAccessApi variables
+func TestAddRulesWithServer(t *testing.T) {
+	url := targetHost + "/api/servers/" + serverId
+	method := "PUT"
+	payload := strings.NewReader(fmt.Sprintf(`{"server_name":"%s","profile_id":"%s","config":"server {\n      listen 82;  # Listen on port (HTTP)\n      server_name %s;  # Your domain name\n      root /var/www/html;  # Document root directory\n      index index.html;  # Default index files\n      access_log logs/access.log;  # Access log file location\n      error_log logs/error.log;  # Error log file location\n\n      \n      \n  }\n  ","access_log":"logs/access.log","rules":"%s","custom_block":{},"id":"%s","created_at":1694002895,"root":"/var/www/html","match_cases":[{"statement":"%s","condition":"and"}],"locations":{},"proxy_pass":"http://localhost","error_log":"logs/error.log","listens":[{"listen":"82"}],"index":"index.html"}`, serverName, profile, serverName, ruleAccessAll, serverId, ruleAccessApi))
+	client := &http.Client{}
+	req, err := http.NewRequest(method, url, payload)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	req.Header.Add("Authorization", "Bearer "+tokenValue)
+	req.Header.Set("Content-Type", "application/json")
+
+	res, err := client.Do(req)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	body, err := ioutil.ReadAll(res.Body)
+	if false {
+		fmt.Println(string(body))
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		t.Error("Unexpected response status code", res.StatusCode)
+	}
+	if !strings.Contains(string(body), "82") {
+		t.Error("Returned unexpected body")
+		return
+	}
+}
+
 func Test10_1_CreateRuleForAccessToAll(t *testing.T) {
 	t.Log("Starting Test10_1_CreateRuleForAccessToAll")
 	t.Logf("TARGET_HOST: %s", targetHost)
@@ -164,37 +200,8 @@ func Test10_3_AddRulesWithServer(t *testing.T) {
 		t.Fatal("Rule IDs not set - previous tests may have failed")
 	}
 
-	url := targetHost + "/api/servers/" + serverId
-	method := "PUT"
-	payload := strings.NewReader(fmt.Sprintf(`{"server_name":"%s","profile_id":"%s","config":"server {\n      listen 82;  # Listen on port (HTTP)\n      server_name %s;  # Your domain name\n      root /var/www/html;  # Document root directory\n      index index.html;  # Default index files\n      access_log logs/access.log;  # Access log file location\n      error_log logs/error.log;  # Error log file location\n\n      \n      \n  }\n  ","access_log":"logs/access.log","rules":"%s","custom_block":{},"id":"%s","created_at":1694002895,"root":"/var/www/html","match_cases":[{"statement":"%s","condition":"and"}],"locations":{},"proxy_pass":"http://localhost","error_log":"logs/error.log","listens":[{"listen":"82"}],"index":"index.html"}`, serverName, profile, serverName, ruleAccessAll, serverId, ruleAccessApi))
-	client := &http.Client{}
-	req, err := http.NewRequest(method, url, payload)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-
-	req.Header.Add("Authorization", "Bearer "+tokenValue)
-	req.Header.Set("Content-Type", "application/json")
-
-	res, err := client.Do(req)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	body, err := ioutil.ReadAll(res.Body)
-	if false {
-		fmt.Println(string(body))
-	}
-	defer res.Body.Close()
-
-	if res.StatusCode != http.StatusOK {
-		t.Error("Unexpected response status code", res.StatusCode)
-	}
-	if !strings.Contains(string(body), "82") {
-		t.Error("Returned unexpected body")
-		return
-	}
+	// Call the helper function
+	TestAddRulesWithServer(t)
 
 	// Call the handle profile API
 	TestHandleProfileAPI(t)
