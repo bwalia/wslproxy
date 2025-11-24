@@ -16,6 +16,14 @@ on:
           - test
           - acc
           - prod
+      LOGIN_EMAIL:
+        description: "Login Email (leave empty to use secret)"
+        required: false
+        type: string
+      LOGIN_PASSWORD:
+        description: "Login Password (leave empty to use secret)"
+        required: false
+        type: string
       EXECUTE_FUNCTION:
         description: "Delete Rules After Execution"
         required: true
@@ -24,8 +32,8 @@ on:
 
 env:
   TARGET_ENV: ${{ inputs.TARGET_ENV }}
-  LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
-  LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
+  LOGIN_EMAIL: ${{ inputs.LOGIN_EMAIL || secrets.LOGIN_EMAIL }}
+  LOGIN_PASSWORD: ${{ inputs.LOGIN_PASSWORD || secrets.LOGIN_PASSWORD }}
   JWT_TOKEN_KEY: ${{ secrets.JWT_TOKEN_KEY }}
   DELETE_TEST_DATA: ${{ inputs.EXECUTE_FUNCTION }}
   QA_EXPIRED_JWT_TOKEN_KEY: ${{ secrets.QA_EXPIRED_JWT_TOKEN_KEY }}
