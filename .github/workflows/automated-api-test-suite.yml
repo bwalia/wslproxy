@@ -121,5 +121,4 @@ jobs:
             exit 1
           fi
 
-          go mod init myapp
           go test -v
