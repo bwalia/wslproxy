@@ -288,8 +288,8 @@ func Test10_4_DataAccessForAuthorizationRules(t *testing.T) {
 	for {
 		Url := frontUrl + "/login"
 		method := "POST"
-		Email := os.Getenv("email")
-		Password := os.Getenv("password")
+		Email := os.Getenv("LOGIN_EMAIL")
+		Password := os.Getenv("LOGIN_PASSWORD")
 
 		payload := &bytes.Buffer{}
 		writer := multipart.NewWriter(payload)

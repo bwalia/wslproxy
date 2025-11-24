@@ -116,6 +116,14 @@ jobs:
             export FRONT_URL="http://localhost:8000"
             export JWT_TOKEN_KEY="${{ secrets.JWT_TOKEN_KEY_DEV }}"
 
+          elif [[ "${{ inputs.TARGET_ENV }}" == 'acc' ]]; then
+            export TARGET_HOST="https://api-acc.wslproxy.com"
+            export SERVER_NAME="frontdoor-acc.wslproxy.com"
+            export SERVER_ID_QA="host:frontdoor-acc.wslproxy.com"
+            export NODE_APP_IP=""
+            export FRONT_URL="https://frontdoor-acc.wslproxy.com"
+            export JWT_TOKEN_KEY="${{ secrets.JWT_TOKEN_KEY_ACC }}"
+
           elif [[ "${{ inputs.TARGET_ENV }}" == '' ]]; then
             export TARGET_HOST="https://api-dev.wslproxy.com"
             export SERVER_NAME="frontdoor-dev.wslproxy.com"

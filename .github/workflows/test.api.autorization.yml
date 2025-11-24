@@ -97,6 +97,22 @@ jobs:
             export FRONT_URL="http://localhost:8000"
             export PROFILE_ID="dev"
 
+          elif [[ "${{ inputs.TARGET_ENV }}" == 'acc' ]]; then
+            export TARGET_HOST="https://api-acc.wslproxy.com"
+            export SERVER_NAME="frontdoor-acc.wslproxy.com"
+            export SERVER_ID_QA="host:frontdoor-acc.wslproxy.com"
+            export NODE_APP_IP=""
+            export FRONT_URL="https://frontdoor-acc.wslproxy.com"
+            export PROFILE_ID="acc"
+
+          elif [[ "${{ inputs.TARGET_ENV }}" == 'prod' ]]; then
+            export TARGET_HOST="https://api-prod.wslproxy.com"
+            export SERVER_NAME="frontdoor-prod.wslproxy.com"
+            export SERVER_ID_QA="host:frontdoor-prod.wslproxy.com"
+            export NODE_APP_IP=""
+            export FRONT_URL="https://frontdoor-prod.wslproxy.com"
+            export PROFILE_ID="prod"
+
           elif [[ "${{ inputs.TARGET_ENV }}" == '' ]]; then
             export TARGET_HOST="https://api-dev.wslproxy.com"
             export SERVER_NAME="frontdoor-dev.wslproxy.com"
