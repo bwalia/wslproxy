@@ -982,6 +982,33 @@ local function createUpdateServer(body, uuid)
         payloads.created_at = os.time(os.date("!*t"))
     end
 
+    -- Generate config if not provided
+    if not payloads.config or payloads.config == "" then
+        local listen_port = "80"
+        if payloads.listens and type(payloads.listens) == "table" and #payloads.listens > 0 then
+            listen_port = payloads.listens[1].listen or "80"
+        end
+        local server_name = payloads.server_name or "localhost"
+        local root = payloads.root or "/var/www/html"
+        local index = payloads.index or "index.html"
+        local access_log = payloads.access_log or "logs/access.log"
+        local error_log = payloads.error_log or "logs/error.log"
+
+        payloads.config = string.format([[server {
+      listen %s;  # Listen on port (HTTP)
+      server_name %s;  # Your domain name
+      root %s;  # Document root directory
+      index %s;  # Default index files
+      access_log %s;  # Access log file location
+      error_log %s;  # Error log file location
+
+
+
+  }
+
+  ]], listen_port, server_name, root, index, access_log, error_log)
+    end
+
     if uuid then
         response = CreateUpdateRecord(payloads, uuid, "servers", "servers", "update")
     else
