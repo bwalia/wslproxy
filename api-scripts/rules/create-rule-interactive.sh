@@ -14,6 +14,10 @@ echo ""
 # Rule name
 read -p "Rule name: " RULE_NAME
 
+# Profile ID
+read -p "Profile ID (dev/int/prod) [default: dev]: " PROFILE_ID
+PROFILE_ID="${PROFILE_ID:-dev}"
+
 # Priority
 read -p "Priority (default: 100): " PRIORITY
 PRIORITY="${PRIORITY:-100}"
@@ -76,6 +80,7 @@ fi
 JSON=$(cat << EOF
 {
   "name": "$RULE_NAME",
+  "profile_id": "$PROFILE_ID",
   "priority": $PRIORITY,
   "match": {
     "rules": {
