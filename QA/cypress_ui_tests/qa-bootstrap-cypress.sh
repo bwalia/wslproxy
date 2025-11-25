@@ -9,10 +9,10 @@ JWT_TOKEN_KEY=$4
 
 # Default to dev environment
 if [ "$TARGET_ENV" = "dev" ] || [ -z "$TARGET_ENV" ]; then
-    BASE_URL="https://dev.wslproxy.com"
-    FRONTEND_URL="https://frontdoor-dev.wslproxy.com"
+    BASE_URL="https://dev-our.wslproxy.com"
+    FRONTEND_URL="https://dev-frontend.wslproxy.com"
     NODEAPP_ORIGIN_HOST=""
-    SERVER_NAME="frontdoor-dev.wslproxy.com"
+    SERVER_NAME="dev-frontend.wslproxy.com"
     TARGET_PLATFORM="DOCKER"
     ENV_FILE=".env_cypress_dev"
 elif [ "$TARGET_ENV" = "int" ]; then
