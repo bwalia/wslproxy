@@ -24,16 +24,28 @@ local function getSettings()
     local readSettings, errSettings = io.open(configPath .. "data/settings.json", "rb")
     local settings = {}
     if readSettings == nil then
-        ngx.say("Couldn't read file: " .. errSettings)
+        ngx.log(ngx.ERR, "Couldn't read settings file: " .. (errSettings or "unknown error"))
+        return settings, "Couldn't read settings file: " .. (errSettings or "unknown error")
     else
         local jsonString = readSettings:read "*a"
         readSettings:close()
-        settings = cjson.decode(jsonString)
+        local ok, decoded = pcall(cjson.decode, jsonString)
+        if ok then
+            settings = decoded
+        else
+            ngx.log(ngx.ERR, "Failed to parse settings JSON: " .. tostring(decoded))
+            return settings, "Failed to parse settings JSON"
+        end
     end
-    return settings
+    return settings, nil
 end
 
-local settings = getSettings()
+local settings, settingsError = getSettings()
+
+-- Initialize env_vars and dns_resolver if not present to avoid nil errors
+if not settings.env_vars then settings.env_vars = {} end
+if not settings.dns_resolver then settings.dns_resolver = { nameservers = {} } end
+if not settings.dns_resolver.nameservers then settings.dns_resolver.nameservers = {} end
 
 local redisHost = settings.env_vars.REDIS_HOST or os.getenv("REDIS_HOST")
 local redisEndPort = settings.env_vars.REDIS_PORT or os.getenv("REDIS_PORT")
@@ -89,19 +101,19 @@ if settings.storage_type == "redis" then
     if redisHost == nil then
         redisHost = "localhost"
     end
-    
+
     if redisEndPort == nil then
         redisEndPort = 6379
     end
-    
+
     local ok, err = red:connect(redisHost, redisEndPort)
     if ok then
         db_connect_status = "pong"
         db_status_msg = "OK"
     else
-        ngx.say("failed to connect to " .. redisHost .. ": ", err)
+        ngx.log(ngx.ERR, "Failed to connect to Redis " .. redisHost .. ": " .. (err or "unknown error"))
         db_connect_status = "err"
-        db_status_msg = err
+        db_status_msg = "Failed to connect: " .. (err or "unknown error")
     end
 end
 
@@ -133,6 +145,9 @@ local function parseEnvString(envString)
 end
 
 local function check_api_status(url, target)
+    if not url or url == "" then
+        return nil, "URL not configured for " .. target
+    end
     local replacedURL = string.gsub(url, "https://", "http://") -- Temporary Fixed for "unable to get local issuer certificate"
     local httpc = http.new()
     local res, apiErr = httpc:request_uri(replacedURL, {
@@ -143,18 +158,22 @@ local function check_api_status(url, target)
     })
 
     if not res then
-        ngx.say("HTTP request failed for " .. target .. " " .. url .. " ", apiErr)
-        -- ngx.exit(ngx.HTTP_SERVICE_UNAVAILABLE)
-        return
+        ngx.log(ngx.ERR, "HTTP request failed for " .. target .. " " .. url .. ": " .. (apiErr or "unknown error"))
+        return nil, "HTTP request failed for " .. target .. ": " .. (apiErr or "unknown error")
     end
-   return res
+    return res, nil
 end
 
 
-local apiResApi = check_api_status(apiUrl, "api")
-if apiResApi ~= nil and apiResApi.status >= 500 and apiResApi.status < 600 then
-    ngx.say("Server error For API_URL. Status code: " .. tostring(apiResApi.status))
-    ngx.exit(ngx.HTTP_SERVICE_UNAVAILABLE)
+local apiResApi, apiError = check_api_status(apiUrl, "api")
+local apiStatus = "OK"
+local apiStatusMsg = nil
+if apiError then
+    apiStatus = "error"
+    apiStatusMsg = apiError
+elseif apiResApi and apiResApi.status >= 500 and apiResApi.status < 600 then
+    apiStatus = "error"
+    apiStatusMsg = "Server error. Status code: " .. tostring(apiResApi.status)
 end
 
 local currentDir = lfs.currentdir()
@@ -164,14 +183,22 @@ end
 
 local frontFilePath = currentDir .. "/.env"
 local frontEnvContent = readFile(frontFilePath)
-frontEnvContent = parseEnvString(frontEnvContent)
+frontEnvContent = parseEnvString(frontEnvContent or "")
 
+local frontStatus = "OK"
+local frontStatusMsg = nil
 if frontEnvContent.VITE_TARGET_PLATFORM ~= "DOCKER" then
-    local apiResFront = check_api_status(frontUrl, "front")
-    if apiResFront ~= nil and apiResFront.status >= 500 and apiResFront.status < 600 then
-        ngx.say("Server error for FRONT_URL. Status code: " .. tostring(apiResFront.status))
-        ngx.exit(ngx.HTTP_SERVICE_UNAVAILABLE)
+    local apiResFront, frontError = check_api_status(frontUrl, "front")
+    if frontError then
+        frontStatus = "error"
+        frontStatusMsg = frontError
+    elseif apiResFront and apiResFront.status >= 500 and apiResFront.status < 600 then
+        frontStatus = "error"
+        frontStatusMsg = "Server error. Status code: " .. tostring(apiResFront.status)
     end
+else
+    frontStatus = "skipped"
+    frontStatusMsg = "DOCKER platform - frontend check skipped"
 end
 local data = {
     app = appName,
@@ -191,6 +218,12 @@ local data = {
     dns_secondary_server = secondaryNameserver,
     dns_server_port = portNameserver,
     swagger_url = ngx.var.scheme.."://".. ngx.var.http_host .. "/swagger/",
+    settings_status = settingsError and "error" or "OK",
+    settings_error = settingsError,
+    api_status = apiStatus,
+    api_status_msg = apiStatusMsg,
+    front_status = frontStatus,
+    front_status_msg = frontStatusMsg,
     mendatory_env_vars_backend = {
         NGINX_CONFIG_DIR = configPath and "Found" or "Not Found",
         JWT_SECURITY_PASSPHRASE = jwtPassPhrase and "Found" or "Not Found",
