@@ -125,11 +125,11 @@ jobs:
             export JWT_TOKEN_KEY="${{ secrets.JWT_TOKEN_KEY_ACC }}"
 
           elif [[ "${{ inputs.TARGET_ENV }}" == '' ]]; then
-            export TARGET_HOST="https://api-dev-our.wslproxy.com"
-            export SERVER_NAME="frontdoor-dev-our.wslproxy.com"
-            export SERVER_ID_QA="host:frontdoor-dev-our.wslproxy.com"
+            export TARGET_HOST="https://dev-our.wslproxy.com"
+            export SERVER_NAME="dev-frontend.wslproxy.com"
+            export SERVER_ID_QA="host:dev-frontend.wslproxy.com"
             export NODE_APP_IP=""
-            export FRONT_URL="https://frontdoor-dev-our.wslproxy.com"
+            export FRONT_URL="https://dev-frontend.wslproxy.com"
             export JWT_TOKEN_KEY="${{ secrets.JWT_TOKEN_KEY_DEV }}"
 
           else
