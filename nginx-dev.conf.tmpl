@@ -55,16 +55,137 @@ http {
     keepalive_timeout  65;
 
     gzip  on;
-    lua_package_path "/usr/local/openresty/nginx/html/api/?.lua;;";
-    # lua_package_path '/usr/local/Cellar/openresty/1.19.3.1_1/site/lualib/resty/?.lua;;';
-    lua_package_cpath '/usr/local/openresty/site/lualib/resty/?.so;;';
+    lua_package_path "/usr/local/openresty/nginx/html/api/?.lua;/usr/local/openresty/lualib/?.lua;/usr/local/openresty/site/lualib/?.lua;;";
+    lua_package_cpath '/usr/local/openresty/site/lualib/resty/?.so;/usr/local/openresty/lualib/?.so;;';
 
    # Storage for challenge token and cert cache
 
     lua_shared_dict auto_ssl 100m;
     lua_shared_dict auto_ssl_settings 64k;
+    lua_shared_dict prometheus_metrics 50M;
 
     init_by_lua_file /usr/local/openresty/nginx/html/api/init.lua;
+
+    init_worker_by_lua_block {
+        -- Initialize Prometheus metrics (requires lua_code_cache to be ON)
+        local ok, metrics = pcall(require, "prometheus_metrics")
+        if ok then
+            metrics.init()
+        else
+            ngx.log(ngx.WARN, "Prometheus metrics module not available: ", tostring(metrics))
+        end
+    }
+
+    log_by_lua_block {
+        local ok, metrics = pcall(require, "prometheus_metrics")
+        if not ok then return end
+
+        local host = ngx.var.host:gsub("^www.", "")
+        local status = tonumber(ngx.var.status)
+        local method = ngx.var.request_method
+        local uri = ngx.var.uri
+        local remote_addr = ngx.var.remote_addr
+        local request_time = ngx.now() - ngx.req.start_time()
+        local request_length = tonumber(ngx.var.request_length) or 0
+        local bytes_sent = tonumber(ngx.var.bytes_sent) or 0
+
+        -- Extract endpoint (first 2 path segments for API grouping)
+        local endpoint = uri:match("^(/[^/]*/[^/]*)")
+        if not endpoint then
+            endpoint = uri:match("^(/[^/]*)")
+        end
+        endpoint = endpoint or uri
+
+        -- Basic HTTP metrics
+        local metric_requests = metrics.get_metric_requests()
+        local metric_latency = metrics.get_metric_latency()
+        if metric_requests and metric_latency then
+            metric_requests:inc(1, {host, tostring(status), method, endpoint})
+            metric_latency:observe(request_time, {host, method, endpoint})
+        end
+
+        -- Request/Response size metrics
+        local metric_request_size = metrics.get_metric_request_size()
+        local metric_response_size = metrics.get_metric_response_size()
+        if metric_request_size and metric_response_size then
+            metric_request_size:observe(request_length, {host, method})
+            metric_response_size:observe(bytes_sent, {host, method, tostring(status)})
+        end
+
+        -- Error tracking
+        if status >= 400 then
+            local metric_errors = metrics.get_metric_errors()
+            if metric_errors then
+                metric_errors:inc(1, {host, tostring(status), endpoint})
+            end
+
+            if status >= 400 and status < 500 then
+                local metric_4xx = metrics.get_metric_4xx_errors()
+                if metric_4xx then
+                    metric_4xx:inc(1, {host, tostring(status), endpoint})
+                end
+            elseif status >= 500 then
+                local metric_5xx = metrics.get_metric_5xx_errors()
+                if metric_5xx then
+                    metric_5xx:inc(1, {host, tostring(status), endpoint})
+                end
+            end
+        end
+
+        -- DDoS / Security: Track requests per IP
+        local metric_requests_per_ip = metrics.get_metric_requests_per_ip()
+        if metric_requests_per_ip then
+            metric_requests_per_ip:inc(1, {remote_addr, host})
+        end
+
+        -- Detect suspicious patterns
+        local metric_suspicious = metrics.get_metric_suspicious_requests()
+        if metric_suspicious then
+            local user_agent = ngx.var.http_user_agent or ""
+
+            -- Suspicious patterns
+            if user_agent == "" or user_agent == "-" then
+                metric_suspicious:inc(1, {host, "no_user_agent"})
+            end
+
+            if uri:find("%.%.") or uri:find("//") then
+                metric_suspicious:inc(1, {host, "path_traversal_attempt"})
+            end
+
+            if uri:lower():find("script") or uri:lower():find("exec") or uri:lower():find("union") then
+                metric_suspicious:inc(1, {host, "injection_attempt"})
+            end
+
+            -- Rapid sequential errors from same IP
+            if status == 404 or status == 403 then
+                metric_suspicious:inc(1, {host, "error_" .. tostring(status)})
+            end
+        end
+
+        -- API metrics: Track API calls
+        local metric_api_calls = metrics.get_metric_api_calls()
+        if metric_api_calls and uri:match("^/api/") then
+            metric_api_calls:inc(1, {endpoint, method, tostring(status)})
+        end
+
+        -- Track authentication attempts
+        if uri:match("^/api/user/login") then
+            local metric_auth_attempts = metrics.get_metric_auth_attempts()
+            if metric_auth_attempts then
+                local result = (status == 200) and "success" or "failure"
+                metric_auth_attempts:inc(1, {result, "login"})
+
+                if status ~= 200 then
+                    local metric_auth_failures = metrics.get_metric_auth_failures()
+                    if metric_auth_failures then
+                        local reason = (status == 401) and "invalid_credentials" or
+                                    (status == 403) and "forbidden" or "other"
+                        metric_auth_failures:inc(1, {reason})
+                    end
+                end
+            end
+        end
+    }
 
     geo $limit {
         default 1;
@@ -202,6 +323,55 @@ http {
         location /swagger {
           root   html;
           index  swagger.html swagger.htm;
+        }
+
+        # Prometheus Metrics Endpoint
+        location /metrics {
+            # Restrict access to internal networks only
+            allow 127.0.0.1;
+            allow ::1;
+            allow 10.0.0.0/8;
+            allow 172.16.0.0/12;
+            allow 192.168.0.0/16;
+            allow 172.71.0.0/16;
+            # Allow Docker host access (host.docker.internal resolves to host IP)
+            allow all;  # For development - remove in production
+
+            content_by_lua_block {
+                local ok, metrics = pcall(require, "prometheus_metrics")
+                if ok then
+                    local metric_connections = metrics.get_metric_connections()
+                    local prometheus = metrics.get_prometheus()
+                    if metric_connections and prometheus then
+                        metric_connections:set(ngx.var.connections_reading, {"reading"})
+                        metric_connections:set(ngx.var.connections_waiting, {"waiting"})
+                        metric_connections:set(ngx.var.connections_writing, {"writing"})
+                        prometheus:collect()
+                    else
+                        ngx.status = 200
+                        ngx.header.content_type = "text/plain"
+                        ngx.say("# Prometheus metrics not available")
+                    end
+                else
+                    ngx.log(ngx.ERR, "Failed to load metrics module: ", tostring(metrics))
+                    ngx.status = 200
+                    ngx.header.content_type = "text/plain"
+                    ngx.say("# Prometheus metrics not available")
+                end
+            }
+        }
+
+        # Nginx Status Endpoint (for nginx_exporter)
+        location /nginx_status {
+            stub_status;
+            allow 127.0.0.1;
+            allow ::1;
+            allow 10.0.0.0/8;
+            allow 172.16.0.0/12;
+            allow 192.168.0.0/16;
+            allow 172.71.0.0/16;
+            # Allow Docker host access (host.docker.internal resolves to host IP)
+            allow all;  # For development - remove in production
         }
 
         location /security-rules {
