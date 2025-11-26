@@ -112,8 +112,19 @@ RUN openssl req -new -newkey rsa:2048 -days 3650 -nodes -x509 \
 ENV NGINX_CONFIG_DIR="/opt/nginx/"
 RUN mkdir -p ${NGINX_CONFIG_DIR} && chmod 777 ${NGINX_CONFIG_DIR}
 
+# mc - MinIO Client is used to backup nginx openresty configuration to S3
+# Installed early to be cached (before COPY commands that change frequently)
+RUN wget https://dl.min.io/client/mc/release/linux-amd64/mc -O /usr/local/bin/mc \
+    --tries=3 --timeout=30 && \
+    chmod +x /usr/local/bin/mc && \
+    mc --version
+
 ARG APP_ENV="dev"
 ARG ENV_FILE=".env.dev"
+
+# ==============================================================================
+# COPY commands below - cache will be invalidated when source files change
+# ==============================================================================
 
 COPY ./system ${NGINX_CONFIG_DIR}system
 
@@ -160,6 +171,15 @@ COPY ./devops/consul/consul.json /etc/consul.d/consul.json
 EXPOSE 8500
 
 RUN luarocks install lua-resty-consul
+
+# Install nginx-lua-prometheus for Prometheus metrics
+RUN cd /tmp && \
+    git clone https://github.com/knyar/nginx-lua-prometheus.git && \
+    cp /tmp/nginx-lua-prometheus/prometheus.lua /usr/local/openresty/lualib/ && \
+    cp /tmp/nginx-lua-prometheus/prometheus_keys.lua /usr/local/openresty/lualib/ && \
+    cp /tmp/nginx-lua-prometheus/prometheus_resty_counter.lua /usr/local/openresty/lualib/ && \
+    rm -rf /tmp/nginx-lua-prometheus
+
 # Unix section
 # Unix socket will be created here "/var/run/nginx/nginx.sock"
 RUN mkdir -p "/var/run/nginx/" \
@@ -195,13 +215,6 @@ RUN chmod -R 777 ${NGINX_CONFIG_DIR}data && \
     # chmod -R 777 ${NGINX_CONFIG_DIR}data/security_rules.json && \
     chown -R nobody:root ${NGINX_CONFIG_DIR}data/
 # chmod 777 ${NGINX_CONFIG_DIR}data/sample-settings.json
-
-# mc - MinIO Client is used to backup nginx openresty configuration to S3
-RUN wget https://dl.min.io/client/mc/release/linux-amd64/mc -O /usr/local/bin/mc \
-    --tries=3 --timeout=30 && \
-    chmod +x /usr/local/bin/mc  
-
-RUN mc --version
 
 # Start Consul in the background and then start OpenResty
 CMD ["/usr/local/openresty/nginx/sbin/nginx", "-g", "daemon off;"]

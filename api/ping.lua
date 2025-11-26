@@ -49,6 +49,7 @@ if not settings.dns_resolver.nameservers then settings.dns_resolver.nameservers 
 
 local redisHost = settings.env_vars.REDIS_HOST or os.getenv("REDIS_HOST")
 local redisEndPort = settings.env_vars.REDIS_PORT or os.getenv("REDIS_PORT")
+
 local developmentTime = settings.env_vars.VITE_DEPLOYMENT_TIME or os.getenv("VITE_DEPLOYMENT_TIME")
 local primaryNameserver = settings.dns_resolver.nameservers.primary or os.getenv("PRIMARY_DNS_RESOLVER")
 local secondaryNameserver = settings.dns_resolver.nameservers.secondary or os.getenv("SECONDARY_DNS_RESOLVER")
@@ -121,10 +122,10 @@ local diffInDays = calculateDateDifference(developmentTime, os.date("%Y%m%d%H%M%
 local json_str
 
 local function readFile(filePath)
-    local file = io.open(filePath, "r")  -- Open the file in read mode
+    local file = io.open(filePath, "r") -- Open the file in read mode
     if file then
-        local content = file:read("*a")  -- Read the entire content of the file
-        file:close()  -- Close the file handle
+        local content = file:read("*a") -- Read the entire content of the file
+        file:close()                    -- Close the file handle
         return content
     else
         return nil
@@ -133,7 +134,7 @@ end
 
 local function parseEnvString(envString)
     local envTable = {}
-    
+
     for line in envString:gmatch("[^\r\n]+") do
         local key, value = line:match("(%S+)%s*=%s*(.*)")
         if key and value then
@@ -217,7 +218,7 @@ local data = {
     dns_primary_server = primaryNameserver,
     dns_secondary_server = secondaryNameserver,
     dns_server_port = portNameserver,
-    swagger_url = ngx.var.scheme.."://".. ngx.var.http_host .. "/swagger/",
+    swagger_url = ngx.var.scheme .. "://" .. ngx.var.http_host .. "/swagger/",
     settings_status = settingsError and "error" or "OK",
     settings_error = settingsError,
     api_status = apiStatus,
@@ -239,8 +240,10 @@ local data = {
         VITE_FRONT_URL = frontEnvContent.VITE_FRONT_URL and frontEnvContent.VITE_FRONT_URL or "Not Found",
         VITE_NGINX_CONFIG_DIR = frontEnvContent.VITE_NGINX_CONFIG_DIR and "Found" or "Not Found",
         VITE_APP_NAME = frontEnvContent.VITE_APP_NAME and frontEnvContent.VITE_APP_NAME or "Not Found",
-        VITE_DEPLOYMENT_TIME = frontEnvContent.VITE_DEPLOYMENT_TIME and frontEnvContent.VITE_DEPLOYMENT_TIME or "Not Found",
-        VITE_APP_DISPLAY_NAME = frontEnvContent.VITE_APP_DISPLAY_NAME and frontEnvContent.VITE_APP_DISPLAY_NAME or "Not Found",
+        VITE_DEPLOYMENT_TIME = frontEnvContent.VITE_DEPLOYMENT_TIME and frontEnvContent.VITE_DEPLOYMENT_TIME or
+            "Not Found",
+        VITE_APP_DISPLAY_NAME = frontEnvContent.VITE_APP_DISPLAY_NAME and frontEnvContent.VITE_APP_DISPLAY_NAME or
+            "Not Found",
     }
 }
 -- Encode the table as a JSON string
