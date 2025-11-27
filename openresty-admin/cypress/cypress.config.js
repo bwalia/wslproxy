@@ -1,13 +1,14 @@
-import { defineConfig } from "cypress";
+const { defineConfig } = require("cypress");
 
-export default defineConfig({
+module.exports = defineConfig({
   video: true,
   e2e: {
     setupNodeEvents(on, config) {
-      chromeWebSecurity: false;
+      // chromeWebSecurity: false;
       // implement node event listeners here
       // pageLoadTimeout: 100000;
     },
+    chromeWebSecurity: false,
     supportFile: false
   },
 });
