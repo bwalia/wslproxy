@@ -6,6 +6,7 @@ LOGIN_EMAIL=$1
 LOGIN_PASSWORD=$2
 TARGET_ENV=$3
 JWT_TOKEN_KEY=$4
+BROWSER=${5:-chrome}  # Default to 'chrome' if not provided
 
 # Default to dev environment
 if [ "$TARGET_ENV" = "dev" ] || [ -z "$TARGET_ENV" ]; then
@@ -47,8 +48,10 @@ else
     echo "Unsupported TARGET_ENV: $TARGET_ENV"
     exit 1
 fi
-rm -Rf .env
-rm -Rf /tmp/$ENV_FILE
+
+# Create .env file
+rm -f .env
+rm -f /tmp/$ENV_FILE
 echo "" > /tmp/$ENV_FILE
 
 sleep 2
@@ -61,11 +64,24 @@ echo "CYPRESS_FRONTEND_URL=$FRONTEND_URL" >> /tmp/$ENV_FILE
 echo "CYPRESS_NODEAPP_ORIGIN_HOST=$NODEAPP_ORIGIN_HOST" >> /tmp/$ENV_FILE
 echo "CYPRESS_SERVER_NAME=$SERVER_NAME" >> /tmp/$ENV_FILE
 echo "CYPRESS_TARGET_PLATFORM=$TARGET_PLATFORM" >> /tmp/$ENV_FILE
-
 echo "" >> /tmp/$ENV_FILE
 
 mv /tmp/$ENV_FILE .env
 cat .env
-docker compose -f qa-docker-compose-cypress.yml up cypress-chrome
-docker compose -f qa-docker-compose-cypress.yml up cypress-firefox
-docker compose -f qa-docker-compose-cypress.yml up cypress-electron
+
+# Run tests based on browser selection
+if [ "$BROWSER" = "chrome" ]; then
+    echo "Running Cypress tests on Chrome only..."
+    docker compose -f qa-docker-compose-cypress.yml up cypress-chrome
+elif [ "$BROWSER" = "firefox" ]; then
+    echo "Running Cypress tests on Firefox only..."
+    docker compose -f qa-docker-compose-cypress.yml up cypress-firefox
+elif [ "$BROWSER" = "electron" ]; then
+    echo "Running Cypress tests on Electron only..."
+    docker compose -f qa-docker-compose-cypress.yml up cypress-electron
+else
+    echo "Running Cypress tests on all browsers (Chrome, Firefox, Electron)..."
+    docker compose -f qa-docker-compose-cypress.yml up cypress-chrome
+    docker compose -f qa-docker-compose-cypress.yml up cypress-firefox
+    docker compose -f qa-docker-compose-cypress.yml up cypress-electron
+fi
