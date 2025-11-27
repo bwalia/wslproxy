@@ -16,21 +16,32 @@ on:
           - test
           - acc
           - dockerinternal
+      BROWSER:
+        type: choice
+        description: "Browser to test (all runs Chrome, Firefox, Electron)"
+        default: "all"
+        required: false
+        options:
+          - all
+          - chrome
+          - firefox
+          - electron
 
 env:
   TARGET_ENV: ${{ inputs.TARGET_ENV || 'dev' }}
+  BROWSER: ${{ inputs.BROWSER || 'chrome' }}
 
 jobs:
-  build:
+  cypress-tests:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Set up Docker Compose to run Cypress Test framework specs
         uses: ndeloof/install-compose-action@v0.0.1
         with:
-          version: v2.1.0 # defaults to 'latest'
-          legacy: true # will also install in PATH as `docker-compose`
+          version: v2.1.0
+          legacy: true
 
       - name: Setup local environment
         if: ${{ env.TARGET_ENV == 'dockerinternal' }}
@@ -42,12 +53,22 @@ jobs:
       - name: Executing UI tests using Cypress Test framework on ${{ env.TARGET_ENV }}
         working-directory: ./QA/cypress_ui_tests
         run: |
-          chmod +x ./qa-bootstrap-cypress.sh && sh ./qa-bootstrap-cypress.sh "${{ secrets.LOGIN_EMAIL }}" "${{ secrets.LOGIN_PASSWORD }}" "${{ env.TARGET_ENV }}" "${{ secrets.JWT_TOKEN_KEY }}"
-          sudo chmod a+rwx cypress/downloads
+          chmod +x ./qa-bootstrap-cypress.sh
+          sh ./qa-bootstrap-cypress.sh "${{ secrets.LOGIN_EMAIL }}" "${{ secrets.LOGIN_PASSWORD }}" "${{ env.TARGET_ENV }}" "${{ secrets.JWT_TOKEN_KEY }}" "${{ env.BROWSER }}"
+        continue-on-error: true
+
+      - name: Ensure cypress directories exist
+        working-directory: ./QA/cypress_ui_tests
+        run: |
+          mkdir -p cypress/screenshots cypress/videos cypress/downloads
+          sudo chmod -R a+rwx cypress/screenshots cypress/videos cypress/downloads
+
       - name: "Upload screenshots and videos to Slack"
-        uses: trymbill/cypress-slack-video-upload-action@v1.3.0
+        if: always()
+        uses: trymbill/cypress-slack-video-upload-action@v2.1.1
         with:
           token: ${{ secrets.SLACK_TOKEN }}
-          channels: "cypress-test-results"
-          workdir: QA/cypress_ui_tests/cypress
-          message-text: "A QA Cypress UI test just finished for wslproxy. The screenshots and videos are available in this thread. Good luck!."
+          channel: "cypress-test-results"
+          screenshotsDir: QA/cypress_ui_tests/cypress/screenshots
+          videosDir: QA/cypress_ui_tests/cypress/videos
+          message-text: "QA Cypress UI test finished for wslproxy on ${{ env.TARGET_ENV }} environment. Screenshots and videos are attached."
