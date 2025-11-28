@@ -8,16 +8,17 @@ on:
       TARGET_ENV:
         type: choice
         description: "Please choose the Target Environment"
-        default: "int"
+        default: "dev"
         required: true
         options:
+          - dev
           - int
           - test
           - acc
           - local
 
 env:
-  TARGET_ENV: ${{ inputs.TARGET_ENV || 'int' }}
+  TARGET_ENV: ${{ inputs.TARGET_ENV || 'dev' }}
 
 jobs:
   smoke-test:
