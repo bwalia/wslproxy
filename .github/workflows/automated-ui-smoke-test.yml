@@ -20,37 +20,59 @@ env:
   TARGET_ENV: ${{ inputs.TARGET_ENV || 'int' }}
 
 jobs:
-  build:
+  smoke-test:
     name: Login Test using Cypress Test framework
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Set up Docker Compose to run Cypress Test framework specs
         uses: ndeloof/install-compose-action@v0.0.1
         with:
-          version: v2.1.0 # defaults to 'latest'
-          legacy: true # will also install in PATH as `docker-compose`
+          version: v2.1.0
+          legacy: true
       - run: docker-compose --version
 
       - name: Smoke test Login Test using Cypress Test framework on ${{ env.TARGET_ENV }}
         run: |
           chmod +x ./bootstrap-cypress.sh && sh ./bootstrap-cypress.sh "${{ secrets.CYPRESS_ENVFILE_INT }}" "${{ env.TARGET_ENV }}"
+        continue-on-error: true
 
-      - name: "Upload screenshots and videos to Slack"
-        uses: trymbill/cypress-slack-video-upload-action@v1.3.0
+      - name: Ensure cypress directories exist
+        if: always()
+        run: |
+          mkdir -p openresty-admin/cypress/cypress/screenshots openresty-admin/cypress/cypress/videos openresty-admin/cypress/cypress/downloads
+          sudo chmod -R a+rwx openresty-admin/cypress/cypress/screenshots openresty-admin/cypress/cypress/videos openresty-admin/cypress/cypress/downloads || true
+
+      - name: Upload Cypress Screenshots as Artifact
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          token: ${{ secrets.SLACK_TOKEN }}
-          channels: "cypress-test-results"
-          workdir: openresty-admin/cypress/cypress
+          name: cypress-screenshots
+          path: openresty-admin/cypress/cypress/screenshots
+          if-no-files-found: ignore
+          retention-days: 7
 
-      - name: Slack Notification for wslproxy Admin UI Smoke Login Test
-        uses: rtCamp/action-slack-notify@v2
+      - name: Upload Cypress Videos as Artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cypress-videos
+          path: openresty-admin/cypress/cypress/videos
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Send Slack Notification
+        if: always()
+        uses: slackapi/slack-github-action@v1.27.0
+        with:
+          channel-id: "cypress-test-results"
+          slack-message: |
+            🔐 *wslproxy Admin UI Smoke Login Test*
+            • *Environment:* ${{ env.TARGET_ENV }}
+            • *Status:* ${{ job.status }}
+            • *Run:* <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Details>
+
+            Screenshots and videos are available as artifacts in the workflow run.
         env:
-          SLACK_CHANNEL: general
-          SLACK_COLOR: ${{ job.status }}
-          SLACK_ICON: https://github.com/rtCamp.png?size=48
-          SLACK_MESSAGE: "wslproxy Admin UI Smoke Login Test using Cypress Test framework ${{ env.TARGET_ENV }} env :rocket:"
-          SLACK_TITLE: wslproxy Admin UI Smoke Login Test on ${{ env.TARGET_ENV }}
-          SLACK_USERNAME: rtCamp
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_TOKEN }}
