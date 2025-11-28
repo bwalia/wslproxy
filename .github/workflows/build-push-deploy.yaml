@@ -1,4 +1,4 @@
-name: Build-Push-Deploy wslproxy to INT
+name: Build-Push-Deploy wslproxy to K3S
 on:
   push:
     branches:
@@ -11,6 +11,7 @@ on:
         default: "test"
         required: true
         options:
+          - dev
           - int
           - test
           - acc
@@ -20,6 +21,17 @@ on:
         description: "Please choose the branch to build and deploy"
         default: "main"
         required: true
+
+      TARGET_CLUSTER:
+        type: choice
+        description: "Please choose the target K3S cluster"
+        default: "k3s2"
+        required: true
+        options:
+          - k3s2
+          - k3s3
+          - k3s6
+          - k3s10
 
       DEPLOYMENT_TYPE:
         type: choice
@@ -33,178 +45,390 @@ on:
 
 env:
   IMAGE_NAME: "wslproxy"
+  IMAGE_REGISTRY: "bwalia"
   TARGET_IMAGE_TAG: "latest"
   TARGET_STACK: openresty
-  KUBE_CONFIG_K3S: ${{ secrets.KUBE_CONFIG_DATA_K3S2 }}
   TARGET_ENV: ${{ github.event.inputs.TARGET_ENV || 'int' }}
-  TARGET_CLUSTER: "k3s2"
+  TARGET_CLUSTER: ${{ github.event.inputs.TARGET_CLUSTER || 'k3s2' }}
   TARGET_BRANCH: ${{ github.event.inputs.TARGET_BRANCH || 'main' }}
   DEPLOYMENT_TYPE: ${{ github.event.inputs.DEPLOYMENT_TYPE || 'build-and-deploy' }}
 
 jobs:
   build:
-    runs-on: [ubuntu-latest]
+    name: Build and Push Docker Images
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.DEPLOYMENT_TYPE != 'deploy' }}
     steps:
       - name: Checkout code
-        if: ${{ env.DEPLOYMENT_TYPE == 'build' || env.DEPLOYMENT_TYPE == 'build-and-deploy' }}
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           ref: ${{ env.TARGET_BRANCH }}
 
-      - name: Login to Docker Hub
-        if: ${{ env.DEPLOYMENT_TYPE == 'build' || env.DEPLOYMENT_TYPE == 'build-and-deploy' }}
-        run: docker login -u ${{ secrets.DOCKER_USER }} -p ${{ secrets.DOCKER_PASSWD }}
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: Build and push
-        if: ${{ env.DEPLOYMENT_TYPE == 'build' || env.DEPLOYMENT_TYPE == 'build-and-deploy' }}
-        uses: docker/build-push-action@v4
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
         with:
+          username: ${{ secrets.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_PASSWD }}
+
+      - name: Build and push wslproxy
+        uses: docker/build-push-action@v5
+        with:
+          context: .
           push: true
-          tags: bwalia/wslproxy:latest
+          tags: |
+            ${{ env.IMAGE_REGISTRY }}/wslproxy:latest
+            ${{ env.IMAGE_REGISTRY }}/wslproxy:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Build and push HD Openresty
-        if: ${{ env.DEPLOYMENT_TYPE == 'build' || env.DEPLOYMENT_TYPE == 'build-and-deploy' }}
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v5
         with:
+          context: .
           push: true
-          tags: bwalia/hd-openresty:latest
+          tags: |
+            ${{ env.IMAGE_REGISTRY }}/hd-openresty:latest
+            ${{ env.IMAGE_REGISTRY }}/hd-openresty:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Build and push Node app
-        if: ${{ env.DEPLOYMENT_TYPE == 'build' || env.DEPLOYMENT_TYPE == 'build-and-deploy' }}
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v5
         with:
+          context: .
           file: demos-origins/node-app/Dockerfile
           push: true
-          tags: bwalia/node-app:latest
+          tags: |
+            ${{ env.IMAGE_REGISTRY }}/node-app:latest
+            ${{ env.IMAGE_REGISTRY }}/node-app:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Build and push S3 Browser Node app
-        if: ${{ env.DEPLOYMENT_TYPE == 'build' || env.DEPLOYMENT_TYPE == 'build-and-deploy' }}
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v5
         with:
+          context: .
           file: demos-origins/s3-browser/Dockerfile
           push: true
-          tags: bwalia/s3-browser-app:latest
-
-  # smoke_test6:
-  #   runs-on: [self-hosted-node6]
-  #   needs: build
+          tags: |
+            ${{ env.IMAGE_REGISTRY }}/s3-browser-app:latest
+            ${{ env.IMAGE_REGISTRY }}/s3-browser-app:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   deploy:
-    name: Deploy the build docker image to the given Environment using Helm
-    runs-on: [self-hosted]
+    name: Deploy to K3S using Helm
+    runs-on: self-hosted
     needs: [build]
+    if: |
+      always() &&
+      (needs.build.result == 'success' || needs.build.result == 'skipped') &&
+      (github.event.inputs.DEPLOYMENT_TYPE != 'build')
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v3
-      - name: Map Cluster kubeconfig for selected env
+        uses: actions/checkout@v4
+
+      - name: Decode and Export Kubeconfig
         run: |
-          if [ "${{ env.TARGET_ENV }}" == "test" ]; then
-              echo "KUBE_CONFIG_K3S=${{ secrets.KUBE_CONFIG_DATA_K3S2 }}" >> $GITHUB_ENV
+          # Map kubeconfig based on environment and cluster
+          if [[ "${{ env.TARGET_ENV }}" == "prod" ]]; then
+            KUBE_CONFIG_BASE64="${{ secrets.KUBE_CONFIG_DATA_K3S1 }}"
+            echo "Using K3S1 cluster for production"
+          elif [[ "${{ env.TARGET_CLUSTER }}" == "k3s3" ]]; then
+            KUBE_CONFIG_BASE64="${{ secrets.KUBE_CONFIG_DATA_K3S3 }}"
+            echo "Using K3S3 cluster"
+          elif [[ "${{ env.TARGET_CLUSTER }}" == "k3s6" ]]; then
+            KUBE_CONFIG_BASE64="${{ secrets.KUBE_CONFIG_DATA_K3S6 }}"
+            echo "Using K3S6 cluster"
+          elif [[ "${{ env.TARGET_CLUSTER }}" == "k3s10" ]]; then
+            KUBE_CONFIG_BASE64="${{ secrets.KUBE_CONFIG_DATA_K3S10 }}"
+            echo "Using K3S10 cluster"
           else
-              echo "KUBE_CONFIG_K3S is set to default env"
-          fi
-          if [ "${{ env.TARGET_ENV }}" == "acc" ]; then
-              echo "KUBE_CONFIG_K3S=${{ secrets.KUBE_CONFIG_DATA_K3S2 }}" >> $GITHUB_ENV
-          else
-              echo "KUBE_CONFIG_K3S is set to default env"
-          fi
-          if [ "${{ env.TARGET_ENV }}" == "prod" ]; then
-              echo "KUBE_CONFIG_K3S=${{ secrets.KUBE_CONFIG_DATA_K3S1 }}" >> $GITHUB_ENV
-          else
-              echo "KUBE_CONFIG_K3S is set to default env"
+            KUBE_CONFIG_BASE64="${{ secrets.KUBE_CONFIG_DATA_K3S2 }}"
+            echo "Using K3S2 cluster (default)"
           fi
 
-      - name: Helm Deploy - Release wslproxy to K3S2 Rancher
-        if: ${{ env.DEPLOYMENT_TYPE == 'deploy' || env.DEPLOYMENT_TYPE == 'build-and-deploy' }}
-        uses: koslib/helm-eks-action@master
-        env:
-          KUBE_CONFIG_DATA: ${{ env.KUBE_CONFIG_K3S }}
-        with:
-          command: |
-            helm upgrade -i wslproxy-api-${{ env.TARGET_ENV }} ./devops/helm-charts/wslproxy/ -f devops/helm-charts/wslproxy/values-${{ env.TARGET_ENV }}-api-${{ env.TARGET_CLUSTER}}.yaml --set TARGET_ENV=${{ env.TARGET_ENV }} --namespace ${{ env.TARGET_ENV }} --create-namespace
-            helm upgrade -i wslproxy-front-${{ env.TARGET_ENV }} ./devops/helm-charts/wslproxy/ -f devops/helm-charts/wslproxy/values-${{ env.TARGET_ENV }}-front-${{ env.TARGET_CLUSTER}}.yaml --set TARGET_ENV=${{ env.TARGET_ENV }} --namespace ${{ env.TARGET_ENV }} --create-namespace
-            helm upgrade -i wslproxy-nodeapp ./devops/helm-charts/node-app/ -f devops/helm-charts/node-app/values-${{ env.TARGET_CLUSTER}}.yaml
-            helm upgrade -i wslproxy-s3-browser ./devops/helm-charts/s3-browser-app/ -f devops/helm-charts/s3-browser-app/values-${{ env.TARGET_CLUSTER}}.yaml
+          echo "${KUBE_CONFIG_BASE64}" | base64 -d > kubeconfig
+          export KUBECONFIG=$(pwd)/kubeconfig
+          echo "KUBECONFIG=$(pwd)/kubeconfig" >> $GITHUB_ENV
+          echo "Kubeconfig decoded and exported successfully"
+        shell: bash
 
-      - name: Restart wslproxy API Pods using Kubectl
-        if: ${{ env.DEPLOYMENT_TYPE == 'deploy' || env.DEPLOYMENT_TYPE == 'build-and-deploy' }}
-        uses: actions-hub/kubectl@master
-        env:
-          KUBE_CONFIG: ${{ env.KUBE_CONFIG_K3S }}
-        with:
-          args: rollout restart deployment/wf-api-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
+      - name: Check and Install kubectl
+        run: |
+          if ! command -v kubectl &> /dev/null; then
+            echo "kubectl not found. Installing kubectl..."
+            curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+            chmod +x kubectl
+            sudo mv kubectl /usr/local/bin/
+          fi
+          kubectl version --client
+        shell: bash
 
-      - name: Restart wslproxy Front Pods using Kubectl
-        if: ${{ env.DEPLOYMENT_TYPE == 'deploy' || env.DEPLOYMENT_TYPE == 'build-and-deploy' }}
-        uses: actions-hub/kubectl@master
-        env:
-          KUBE_CONFIG: ${{ env.KUBE_CONFIG_K3S }}
-        with:
-          args: rollout restart deployment/wf-front-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
+      - name: Check and Install Helm
+        run: |
+          if ! command -v helm &> /dev/null; then
+            echo "Helm not found. Installing Helm..."
+            curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+          fi
+          helm version
+        shell: bash
 
-      - name: wslproxy API deployment history using Kubectl
-        uses: actions-hub/kubectl@master
-        env:
-          KUBE_CONFIG: ${{ env.KUBE_CONFIG_K3S }}
-        with:
-          args: rollout history deployment/wf-api-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
+      - name: Kubeseal - Encrypt API secrets
+        run: |
+          chmod +x ./devops/kubeseal/kubeseal_automation.sh
 
-      - name: wslproxy Front deployment history using Kubectl
-        uses: actions-hub/kubectl@master
-        env:
-          KUBE_CONFIG: ${{ env.KUBE_CONFIG_K3S }}
-        with:
-          args: rollout history deployment/wf-front-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
+          # Select the correct secret based on environment
+          case "${{ env.TARGET_ENV }}" in
+            dev)
+              ENV_SECRET="${{ secrets.DOT_WSLPROXY_ENV_CREDS_DEV }}"
+              SETTINGS_SECRET="${{ secrets.DOT_WSLPROXY_SETTINGS_DEV }}"
+              ;;
+            int)
+              ENV_SECRET="${{ secrets.DOT_WSLPROXY_ENV_CREDS_INT }}"
+              SETTINGS_SECRET="${{ secrets.DOT_WSLPROXY_SETTINGS_INT }}"
+              ;;
+            test)
+              ENV_SECRET="${{ secrets.DOT_WSLPROXY_ENV_CREDS_TEST }}"
+              SETTINGS_SECRET="${{ secrets.DOT_WSLPROXY_SETTINGS_TEST }}"
+              ;;
+            acc)
+              ENV_SECRET="${{ secrets.DOT_WSLPROXY_ENV_CREDS_ACC }}"
+              SETTINGS_SECRET="${{ secrets.DOT_WSLPROXY_SETTINGS_ACC }}"
+              ;;
+            prod)
+              ENV_SECRET="${{ secrets.DOT_WSLPROXY_ENV_CREDS_PROD }}"
+              SETTINGS_SECRET="${{ secrets.DOT_WSLPROXY_SETTINGS_PROD }}"
+              ;;
+            *)
+              echo "Unknown environment: ${{ env.TARGET_ENV }}"
+              exit 1
+              ;;
+          esac
 
-      - name: Print wslproxy Pods using Kubectl
-        uses: actions-hub/kubectl@master
-        env:
-          KUBE_CONFIG: ${{ env.KUBE_CONFIG_K3S }}
-        with:
-          args: get pods -n ${{ env.TARGET_ENV }}
+          # Run kubeseal automation for API
+          ./devops/kubeseal/kubeseal_automation.sh \
+            "${ENV_SECRET}" \
+            "${{ env.TARGET_ENV }}" \
+            "${{ env.TARGET_ENV }}" \
+            "api" \
+            "${SETTINGS_SECRET}" \
+            "${{ env.TARGET_CLUSTER }}"
+        shell: bash
 
-      - name: Slack Notification for wslproxy release
-        uses: rtCamp/action-slack-notify@v2
+      - name: Kubeseal - Encrypt Front secrets
+        run: |
+          # Select the correct secret based on environment
+          case "${{ env.TARGET_ENV }}" in
+            dev)
+              ENV_SECRET="${{ secrets.DOT_WSLPROXY_ENV_CREDS_DEV }}"
+              SETTINGS_SECRET="${{ secrets.DOT_WSLPROXY_SETTINGS_DEV }}"
+              ;;
+            int)
+              ENV_SECRET="${{ secrets.DOT_WSLPROXY_ENV_CREDS_INT }}"
+              SETTINGS_SECRET="${{ secrets.DOT_WSLPROXY_SETTINGS_INT }}"
+              ;;
+            test)
+              ENV_SECRET="${{ secrets.DOT_WSLPROXY_ENV_CREDS_TEST }}"
+              SETTINGS_SECRET="${{ secrets.DOT_WSLPROXY_SETTINGS_TEST }}"
+              ;;
+            acc)
+              ENV_SECRET="${{ secrets.DOT_WSLPROXY_ENV_CREDS_ACC }}"
+              SETTINGS_SECRET="${{ secrets.DOT_WSLPROXY_SETTINGS_ACC }}"
+              ;;
+            prod)
+              ENV_SECRET="${{ secrets.DOT_WSLPROXY_ENV_CREDS_PROD }}"
+              SETTINGS_SECRET="${{ secrets.DOT_WSLPROXY_SETTINGS_PROD }}"
+              ;;
+            *)
+              echo "Unknown environment: ${{ env.TARGET_ENV }}"
+              exit 1
+              ;;
+          esac
+
+          # Run kubeseal automation for Front
+          ./devops/kubeseal/kubeseal_automation.sh \
+            "${ENV_SECRET}" \
+            "${{ env.TARGET_ENV }}" \
+            "${{ env.TARGET_ENV }}" \
+            "front" \
+            "${SETTINGS_SECRET}" \
+            "${{ env.TARGET_CLUSTER }}"
+        shell: bash
+
+      - name: Deploy wslproxy API using Helm
+        run: |
+          echo "Deploying wslproxy API to ${{ env.TARGET_ENV }} environment on ${{ env.TARGET_CLUSTER }}..."
+
+          helm upgrade --install wslproxy-api-${{ env.TARGET_ENV }} \
+            ./devops/helm-charts/whitefalcon/ \
+            -f ./devops/helm-charts/whitefalcon/values-${{ env.TARGET_ENV }}-api-${{ env.TARGET_CLUSTER }}.yaml \
+            --set image.repository=${{ env.IMAGE_REGISTRY }}/wslproxy \
+            --set image.tag=latest \
+            --set app.target_env=${{ env.TARGET_ENV }} \
+            --namespace ${{ env.TARGET_ENV }} \
+            --create-namespace \
+            --wait \
+            --timeout 5m
+        shell: bash
+
+      - name: Deploy wslproxy Front using Helm
+        run: |
+          echo "Deploying wslproxy Front to ${{ env.TARGET_ENV }} environment on ${{ env.TARGET_CLUSTER }}..."
+
+          helm upgrade --install wslproxy-front-${{ env.TARGET_ENV }} \
+            ./devops/helm-charts/whitefalcon/ \
+            -f ./devops/helm-charts/whitefalcon/values-${{ env.TARGET_ENV }}-front-${{ env.TARGET_CLUSTER }}.yaml \
+            --set image.repository=${{ env.IMAGE_REGISTRY }}/wslproxy \
+            --set image.tag=latest \
+            --set app.target_env=${{ env.TARGET_ENV }} \
+            --namespace ${{ env.TARGET_ENV }} \
+            --create-namespace \
+            --wait \
+            --timeout 5m
+        shell: bash
+
+      - name: Deploy Node App using Helm
+        run: |
+          echo "Deploying Node App..."
+
+          helm upgrade --install wslproxy-nodeapp \
+            ./devops/helm-charts/node-app/ \
+            -f ./devops/helm-charts/node-app/values-${{ env.TARGET_CLUSTER }}.yaml \
+            --set image.repository=${{ env.IMAGE_REGISTRY }}/node-app \
+            --set image.tag=latest \
+            --namespace ${{ env.TARGET_ENV }} \
+            --create-namespace \
+            --wait \
+            --timeout 5m
+        shell: bash
+
+      - name: Deploy S3 Browser App using Helm
+        run: |
+          echo "Deploying S3 Browser App..."
+
+          helm upgrade --install wslproxy-s3-browser \
+            ./devops/helm-charts/s3-browser-app/ \
+            -f ./devops/helm-charts/s3-browser-app/values-${{ env.TARGET_CLUSTER }}.yaml \
+            --set image.repository=${{ env.IMAGE_REGISTRY }}/s3-browser-app \
+            --set image.tag=latest \
+            --namespace ${{ env.TARGET_ENV }} \
+            --create-namespace \
+            --wait \
+            --timeout 5m
+        shell: bash
+
+      - name: Restart wslproxy API Pods
+        run: |
+          kubectl rollout restart deployment/wf-api-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
+          kubectl rollout status deployment/wf-api-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }} --timeout=3m
+        shell: bash
+
+      - name: Restart wslproxy Front Pods
+        run: |
+          kubectl rollout restart deployment/wf-front-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
+          kubectl rollout status deployment/wf-front-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }} --timeout=3m
+        shell: bash
+
+      - name: Show Deployment Status
+        if: always()
+        run: |
+          echo "=== Deployment History ==="
+          kubectl rollout history deployment/wf-api-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }} || true
+          kubectl rollout history deployment/wf-front-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }} || true
+
+          echo ""
+          echo "=== Pod Status ==="
+          kubectl get pods -n ${{ env.TARGET_ENV }} -o wide
+
+          echo ""
+          echo "=== Services ==="
+          kubectl get svc -n ${{ env.TARGET_ENV }}
+
+          echo ""
+          echo "=== Ingress ==="
+          kubectl get ingress -n ${{ env.TARGET_ENV }}
+        shell: bash
+
+      - name: Slack Notification
+        if: always()
+        uses: slackapi/slack-github-action@v1.27.0
+        with:
+          channel-id: "general"
+          slack-message: |
+            :rocket: *wslproxy Deployment*
+            • *Environment:* ${{ env.TARGET_ENV }}
+            • *Cluster:* ${{ env.TARGET_CLUSTER }}
+            • *Branch:* ${{ env.TARGET_BRANCH }}
+            • *Status:* ${{ job.status }}
+            • *Commit:* ${{ github.sha }}
+            • *API URL:* https://api-${{ env.TARGET_ENV }}.wslproxy.com/ping
+            • *Run:* <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Details>
         env:
-          SLACK_CHANNEL: general
-          SLACK_COLOR: ${{ job.status }}
-          SLACK_ICON: https://github.com/rtCamp.png?size=48
-          SLACK_MESSAGE: "wslproxy deployed to ${{ env.TARGET_ENV }} https://api.${{ env.TARGET_ENV }}.wslproxy.com/ping env :rocket:"
-          SLACK_TITLE: wslproxy deployment status
-          SLACK_USERNAME: rtCamp
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_TOKEN }}
 
   healthcheck:
-    runs-on: [ubuntu-latest]
+    name: Post-Deployment Health Check
+    runs-on: ubuntu-latest
     needs: [deploy]
+    if: always() && needs.deploy.result == 'success'
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
-          go-version: 1.19
-      - name: Healthcheck API verification
+          go-version: "1.21"
+
+      - name: Wait for deployment to stabilize
+        run: sleep 30
+
+      - name: Run Health Check
         working-directory: ./QA
         run: |
-          if [ "${{ env.TARGET_ENV }}" == "int" ]; then
-            export API_PING_URL="https://api-int.wslproxy.com/ping"
+          # Set API URL based on environment
+          case "${{ env.TARGET_ENV }}" in
+            dev)
+              export API_PING_URL="https://api-dev.wslproxy.com/ping"
+              ;;
+            int)
+              export API_PING_URL="https://api-int.wslproxy.com/ping"
+              ;;
+            test)
+              export API_PING_URL="https://api-test.wslproxy.com/ping"
+              ;;
+            acc)
+              export API_PING_URL="https://api-acc.wslproxy.com/ping"
+              ;;
+            prod)
+              export API_PING_URL="https://api-prod.wslproxy.com/ping"
+              ;;
+            *)
+              echo "Unknown environment: ${{ env.TARGET_ENV }}"
+              export API_PING_URL="https://api-int.wslproxy.com/ping"
+              ;;
+          esac
 
-          elif [ "${{ env.TARGET_ENV }}" == "test" ]; then
-            export API_PING_URL="https://api-test.wslproxy.com/ping"
-
-          elif [ "${{ env.TARGET_ENV }}" == "acc" ]; then
-            export API_PING_URL="https://api-acc.wslproxy.com/ping"
-
-          elif [ "${{ env.TARGET_ENV }}" == "prod" ]; then
-            export API_PING_URL="https://api-prod.wslproxy.com/ping" 
-
-          elif [ "${{ env.TARGET_ENV }}" == "" ]; then
-            export API_PING_URL="https://api-int.wslproxy.com/ping"                       
-
-          else
-            echo "Unsupported TARGET_ENV:${{ env.TARGET_ENV }}"
-            exit 1
-          fi    
-
-          go mod init myapp
+          echo "Running health check against: ${API_PING_URL}"
+          go mod init healthcheck 2>/dev/null || true
           go test 01_healthcheck_test.go -v
+        shell: bash
+
+      - name: Slack Notification on Health Check Failure
+        if: failure()
+        uses: slackapi/slack-github-action@v1.27.0
+        with:
+          channel-id: "general"
+          slack-message: |
+            :warning: *Health Check Failed!*
+            • *Environment:* ${{ env.TARGET_ENV }}
+            • *Cluster:* ${{ env.TARGET_CLUSTER }}
+            • *Run:* <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Details>
+
+            Please investigate immediately!
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_TOKEN }}
