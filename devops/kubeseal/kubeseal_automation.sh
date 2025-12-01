@@ -272,12 +272,16 @@ seal_secret() {
     log_info "Secret sealed successfully: ${output_file}"
 }
 
-# Extract encrypted data from sealed secret
-extract_encrypted_data() {
+# Extract encrypted data from sealed secret to a file
+# This avoids shell escaping issues with large values
+extract_encrypted_data_to_file() {
     local sealed_file="$1"
     local key="$2"
+    local output_file="$3"
 
-    yq ".spec.encryptedData.${key}" "${sealed_file}"
+    yq ".spec.encryptedData.${key}" "${sealed_file}" > "${output_file}"
+    # Remove any trailing newlines
+    printf '%s' "$(cat "${output_file}")" > "${output_file}"
 }
 
 # Get environment-specific configuration
@@ -330,11 +334,16 @@ get_env_config() {
 }
 
 # Generate Helm values file from template
+# Arguments:
+#   $1 - env_ref: Environment reference (dev, int, test, acc, prod)
+#   $2 - target_type: Deployment type (api or front)
+#   $3 - sealed_env_file: Path to file containing sealed env value
+#   $4 - sealed_settings_file: Path to file containing sealed settings value
 generate_helm_values() {
     local env_ref="$1"
     local target_type="$2"
-    local sealed_env_value="$3"
-    local sealed_settings_value="${4:-}"
+    local env_value_file="$3"
+    local settings_value_file="$4"
 
     local template_file="${HELM_CHART_DIR}/values-${target_type}-template.yaml"
     local output_file="${HELM_CHART_DIR}/values-wslproxy-${target_type}-${env_ref}.yaml"
@@ -353,20 +362,6 @@ generate_helm_values() {
 
     # Copy template to output
     cp "${template_file}" "${output_file}"
-
-    # Use empty string if settings value not provided
-    if [[ -z "${sealed_settings_value}" ]]; then
-        sealed_settings_value=""
-        log_warn "No settings secret provided, using empty value"
-    fi
-
-    # Write sealed values to temporary files to avoid shell escaping issues
-    local env_value_file="${TEMP_DIR}/sealed_env_value.txt"
-    local settings_value_file="${TEMP_DIR}/sealed_settings_value.txt"
-
-    # Use printf to safely write values without interpretation
-    printf '%s' "${sealed_env_value}" > "${env_value_file}"
-    printf '%s' "${sealed_settings_value}" > "${settings_value_file}"
 
     # Determine replica count and autoscaling settings based on environment
     local replica_count=1
@@ -395,7 +390,7 @@ generate_helm_values() {
     esac
 
     # Use Python for ALL replacements (same approach as OPSAPI)
-    # This handles sealed values correctly without yq's control character issues
+    # This handles sealed values correctly without control character issues
     python3 << PYTHON_EOF
 import sys
 import re
@@ -410,6 +405,30 @@ with open('${env_value_file}', 'r') as f:
 
 with open('${settings_value_file}', 'r') as f:
     sealed_settings = f.read().strip()
+
+# Validate sealed values - they should only contain safe characters
+# Kubeseal output is base64-like: alphanumeric, +, /, =
+def validate_sealed_value(value, name):
+    if not value:
+        return value
+    # Check for control characters (ASCII 0-31 except tab/newline, and 127)
+    for i, char in enumerate(value):
+        code = ord(char)
+        if code < 32 and code not in (9, 10, 13):  # Allow tab, newline, carriage return
+            print(f"WARNING: {name} contains control character at position {i}: code={code}")
+        elif code == 127:
+            print(f"WARNING: {name} contains DEL character at position {i}")
+    # Remove any control characters just to be safe
+    cleaned = ''.join(c for c in value if ord(c) >= 32 or ord(c) in (9, 10, 13))
+    cleaned = cleaned.replace('\n', '').replace('\r', '').replace('\t', '')
+    return cleaned
+
+sealed_env = validate_sealed_value(sealed_env, 'sealed_env')
+sealed_settings = validate_sealed_value(sealed_settings, 'sealed_settings')
+
+print(f"Sealed env length: {len(sealed_env)}")
+print(f"Sealed settings length: {len(sealed_settings)}")
+print(f"Sealed env first 50 chars: {sealed_env[:50]}...")
 
 # Replace all simple placeholders
 content = content.replace('CICD_NAMESPACE_PLACEHOLDER', '${env_ref}')
@@ -427,13 +446,13 @@ in_autoscaling = False
 for line in lines:
     stripped = line.strip()
 
-    # Handle secure_env_file
+    # Handle secure_env_file - NO QUOTES (sealed values are base64-safe)
     if stripped.startswith('secure_env_file:'):
-        new_lines.append('secure_env_file: "' + sealed_env + '"')
-    # Handle settings_sec_env_file
+        new_lines.append('secure_env_file: ' + sealed_env)
+    # Handle settings_sec_env_file - NO QUOTES (sealed values are base64-safe)
     elif stripped.startswith('settings_sec_env_file:'):
         if sealed_settings:
-            new_lines.append('settings_sec_env_file: "' + sealed_settings + '"')
+            new_lines.append('settings_sec_env_file: ' + sealed_settings)
         else:
             new_lines.append('settings_sec_env_file: ""')
     # Handle replicaCount (top level only)
@@ -468,19 +487,36 @@ PYTHON_EOF
 
     log_info "All placeholders replaced via Python"
 
+    # Validate the generated YAML file
+    log_info "Validating generated YAML file..."
+    if python3 -c "import yaml; yaml.safe_load(open('${output_file}'))" 2>/dev/null; then
+        log_info "YAML validation passed"
+    else
+        log_warn "Python yaml validation failed, trying with yq..."
+        if yq e '.' "${output_file}" > /dev/null 2>&1; then
+            log_info "yq validation passed"
+        else
+            log_error "Generated YAML file is invalid!"
+            log_error "Dumping first 100 lines of output file for debugging:"
+            head -100 "${output_file}" >&2
+            exit 1
+        fi
+    fi
+
     log_info "Helm values file generated: ${output_file}"
 }
 
-# Process and seal a secret
-process_secret() {
+# Process and seal a secret, writing the encrypted value to a file
+# Returns the path to the file containing the sealed value
+process_secret_to_file() {
     local secret_name="$1"
     local secret_base64="$2"
     local namespace="$3"
     local project_name="$4"
     local secret_key="$5"
     local base64_wrap="$6"
+    local output_value_file="$7"
 
-    local secret_template="${SCRIPT_DIR}/secret_wslproxy_env_template.yaml"
     local secret_file="${TEMP_DIR}/secret_${secret_name}.yaml"
     local sealed_file="${TEMP_DIR}/sealed_secret_${secret_name}.yaml"
 
@@ -507,8 +543,18 @@ YAML
     # Seal the secret
     seal_secret "${secret_file}" "${sealed_file}"
 
-    # Extract and return encrypted value
-    extract_encrypted_data "${sealed_file}" "${secret_key}"
+    # Extract encrypted value directly to file (avoids shell escaping issues)
+    extract_encrypted_data_to_file "${sealed_file}" "${secret_key}" "${output_value_file}"
+
+    # Verify the file is not empty
+    if [[ ! -s "${output_value_file}" ]]; then
+        log_error "Failed to extract sealed value to ${output_value_file}"
+        return 1
+    fi
+
+    local value_length
+    value_length=$(wc -c < "${output_value_file}" | tr -d ' ')
+    log_info "Extracted sealed ${secret_key} value (length: ${value_length})"
 }
 
 # Main function
@@ -558,34 +604,35 @@ main() {
     # Define project name
     local project_name="wf-${target_type}"
 
-    # Process main env file secret
-    log_step "Processing main environment secret..."
-    local sealed_env_value
-    sealed_env_value=$(process_secret "env_${target_type}_${env_ref}" "${env_file_base64}" "${namespace}" "${project_name}" "env_file" "${base64_wrap}")
+    # Define file paths for sealed values (avoids passing large values through shell)
+    local sealed_env_file="${TEMP_DIR}/sealed_env_value.txt"
+    local sealed_settings_file="${TEMP_DIR}/sealed_settings_value.txt"
 
-    if [[ -z "${sealed_env_value}" ]] || [[ "${sealed_env_value}" == "null" ]]; then
+    # Process main env file secret - writes directly to file
+    log_step "Processing main environment secret..."
+    process_secret_to_file "env_${target_type}_${env_ref}" "${env_file_base64}" "${namespace}" "${project_name}" "env_file" "${base64_wrap}" "${sealed_env_file}"
+
+    if [[ ! -s "${sealed_env_file}" ]]; then
         log_error "Failed to extract encrypted env_file value"
         exit 1
     fi
-    log_info "Extracted sealed env_file value (length: ${#sealed_env_value})"
 
-    # Process settings secret if provided
-    local sealed_settings_value=""
+    # Process settings secret if provided - writes directly to file
+    # Create empty file if no settings provided
+    : > "${sealed_settings_file}"
     if [[ -n "${settings_file_base64}" ]]; then
         log_step "Processing settings secret..."
-        sealed_settings_value=$(process_secret "settings_${target_type}_${env_ref}" "${settings_file_base64}" "${namespace}" "${project_name}" "settings_sec_env_file" "${base64_wrap}")
+        process_secret_to_file "settings_${target_type}_${env_ref}" "${settings_file_base64}" "${namespace}" "${project_name}" "settings_sec_env_file" "${base64_wrap}" "${sealed_settings_file}"
 
-        if [[ -z "${sealed_settings_value}" ]] || [[ "${sealed_settings_value}" == "null" ]]; then
+        if [[ ! -s "${sealed_settings_file}" ]]; then
             log_warn "Failed to extract encrypted settings value, continuing without it"
-            sealed_settings_value=""
-        else
-            log_info "Extracted sealed settings_sec_env_file value (length: ${#sealed_settings_value})"
+            : > "${sealed_settings_file}"
         fi
     fi
 
-    # Generate Helm values file
+    # Generate Helm values file - reads sealed values from files
     log_step "Generating Helm values file..."
-    generate_helm_values "${env_ref}" "${target_type}" "${sealed_env_value}" "${sealed_settings_value}"
+    generate_helm_values "${env_ref}" "${target_type}" "${sealed_env_file}" "${sealed_settings_file}"
 
     echo ""
     echo "=============================================="
