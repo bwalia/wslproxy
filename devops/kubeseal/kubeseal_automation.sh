@@ -3,7 +3,7 @@
 # Kubeseal Automation Script for Whitefalcon/wslproxy
 #
 # This script automates the process of sealing Kubernetes secrets using kubeseal.
-# It takes environment-specific secrets, seals them, and updates Helm values files.
+# It takes environment-specific secrets, seals them, and generates Helm values files.
 #
 # Usage: ./kubeseal_automation.sh <base64_env_file> <env_ref> <namespace> <target_type> [base64_settings_file]
 #
@@ -13,6 +13,10 @@
 #   namespace            - Kubernetes namespace (required)
 #   target_type          - Deployment type: api or front (required)
 #   base64_settings_file - Base64 encoded settings file content (optional)
+#
+# Output:
+#   - devops/helm-charts/whitefalcon/values-wslproxy-api-<env>.yaml (for api)
+#   - devops/helm-charts/whitefalcon/values-wslproxy-front-<env>.yaml (for front)
 #
 # Example:
 #   ./kubeseal_automation.sh "$ENV_FILE_BASE64" "test" "test" "api" "$SETTINGS_BASE64"
@@ -24,6 +28,7 @@ set -euo pipefail
 readonly RED='\033[0;31m'
 readonly GREEN='\033[0;32m'
 readonly YELLOW='\033[1;33m'
+readonly BLUE='\033[0;34m'
 readonly NC='\033[0m' # No Color
 
 # Script configuration
@@ -47,7 +52,7 @@ log_error() {
 }
 
 log_step() {
-    echo -e "${GREEN}[STEP]${NC} $1"
+    echo -e "${BLUE}[STEP]${NC} $1"
 }
 
 # Cleanup function for temporary files
@@ -67,6 +72,13 @@ validate_parameters() {
     if [[ -z "${1:-}" ]]; then
         log_error "Missing base64 encoded environment file content as first parameter"
         echo "Usage: $0 <base64_env_file> <env_ref> <namespace> <target_type> [base64_settings_file]"
+        echo ""
+        echo "Arguments:"
+        echo "  base64_env_file      - Base64 encoded .env file content (required)"
+        echo "  env_ref              - Environment: dev, int, test, acc, prod (required)"
+        echo "  namespace            - Kubernetes namespace (required)"
+        echo "  target_type          - Type: api or front (required)"
+        echo "  base64_settings_file - Base64 encoded settings file (optional)"
         exit 1
     fi
 
@@ -222,15 +234,6 @@ check_dependencies() {
     fi
     log_info "yq found: $(which yq)"
 
-    # Check kubectl
-    if ! command -v kubectl &> /dev/null; then
-        log_warn "kubectl not found, installing..."
-        curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-        chmod +x kubectl
-        sudo mv kubectl /usr/local/bin/
-    fi
-    log_info "kubectl found: $(which kubectl)"
-
     # Check python3
     if ! command -v python3 &> /dev/null; then
         log_error "python3 is required but not installed"
@@ -277,72 +280,181 @@ extract_encrypted_data() {
     yq ".spec.encryptedData.${key}" "${sealed_file}"
 }
 
-# Update Helm values file with sealed secrets
-update_helm_values() {
+# Get environment-specific configuration
+get_env_config() {
     local env_ref="$1"
     local target_type="$2"
-    local cluster="$3"
-    local secure_env_value="$4"
-    local settings_env_value="${5:-}"
 
-    local values_file="${HELM_CHART_DIR}/values-${env_ref}-${target_type}-${cluster}.yaml"
+    # Default values
+    local ingress_class="nginx"
+    local api_host=""
+    local front_host=""
+    local front_url=""
 
-    if [[ ! -f "${values_file}" ]]; then
-        log_warn "Values file not found: ${values_file}"
-        log_info "Creating from template..."
+    # Domain pattern based on existing values files:
+    # int: int-our.wslproxy.com (api), int-frontend.wslproxy.com (front)
+    # test: test-our.wslproxy.com (api), test-frontend.wslproxy.com (front)
+    case "${env_ref}" in
+        dev)
+            api_host="dev-our.wslproxy.com"
+            front_host="dev-frontend.wslproxy.com"
+            front_url="https://dev-frontend.wslproxy.com"
+            ;;
+        int)
+            api_host="int-our.wslproxy.com"
+            front_host="int-frontend.wslproxy.com"
+            front_url="https://int-frontend.wslproxy.com"
+            ;;
+        test)
+            api_host="test-our.wslproxy.com"
+            front_host="test-frontend.wslproxy.com"
+            front_url="https://test-frontend.wslproxy.com"
+            ;;
+        acc)
+            api_host="acc-our.wslproxy.com"
+            front_host="acc-frontend.wslproxy.com"
+            front_url="https://acc-frontend.wslproxy.com"
+            ;;
+        prod)
+            api_host="our.wslproxy.com"
+            front_host="frontend.wslproxy.com"
+            front_url="https://frontend.wslproxy.com"
+            ;;
+    esac
 
-        local template_file="${HELM_CHART_DIR}/values-${target_type}-seed-template.yaml"
-        if [[ ! -f "${template_file}" ]]; then
-            log_error "Template file not found: ${template_file}"
-            exit 1
-        fi
+    # Export variables for use in caller
+    echo "INGRESS_CLASS=${ingress_class}"
+    echo "API_HOST=${api_host}"
+    echo "FRONT_HOST=${front_host}"
+    echo "FRONT_URL=${front_url}"
+}
 
-        cp "${template_file}" "${values_file}"
+# Generate Helm values file from template
+generate_helm_values() {
+    local env_ref="$1"
+    local target_type="$2"
+    local sealed_env_value="$3"
+    local sealed_settings_value="${4:-}"
+
+    local template_file="${HELM_CHART_DIR}/values-${target_type}-template.yaml"
+    local output_file="${HELM_CHART_DIR}/values-wslproxy-${target_type}-${env_ref}.yaml"
+
+    if [[ ! -f "${template_file}" ]]; then
+        log_error "Template file not found: ${template_file}"
+        exit 1
     fi
 
-    log_info "Updating values file: ${values_file}"
+    log_info "Generating Helm values file from template..."
+    log_info "Template: ${template_file}"
+    log_info "Output: ${output_file}"
 
-    # Update secure_env_file
-    yq e ".secure_env_file = \"${secure_env_value}\"" -i "${values_file}"
-    log_info "Updated secure_env_file in values file"
+    # Get environment-specific config
+    eval "$(get_env_config "${env_ref}" "${target_type}")"
 
-    # Update settings_sec_env_file if provided
-    if [[ -n "${settings_env_value}" ]]; then
-        yq e ".settings_sec_env_file = \"${settings_env_value}\"" -i "${values_file}"
-        log_info "Updated settings_sec_env_file in values file"
+    # Copy template to output
+    cp "${template_file}" "${output_file}"
+
+    # Use empty string if settings value not provided
+    if [[ -z "${sealed_settings_value}" ]]; then
+        sealed_settings_value=""
+        log_warn "No settings secret provided, using empty value"
     fi
 
-    # Update namespace
-    yq e ".app.namespace = \"${env_ref}\"" -i "${values_file}"
-    yq e ".app.target_env = \"${env_ref}\"" -i "${values_file}"
+    # Replace placeholders using Python for reliability
+    python3 << EOF
+import sys
+
+with open('${output_file}', 'r') as f:
+    content = f.read()
+
+# Replace all placeholders
+replacements = {
+    'CICD_NAMESPACE_PLACEHOLDER': '${env_ref}',
+    'CICD_SEALED_ENV_FILE': '${sealed_env_value}',
+    'CICD_SEALED_SETTINGS_FILE': '${sealed_settings_value}',
+    'CICD_INGRESS_CLASS': '${INGRESS_CLASS}',
+    'CICD_API_HOST': '${API_HOST}',
+    'CICD_FRONT_HOST': '${FRONT_HOST}',
+    'CICD_FRONT_URL': '${FRONT_URL}',
+}
+
+for placeholder, value in replacements.items():
+    content = content.replace(placeholder, value)
+
+with open('${output_file}', 'w') as f:
+    f.write(content)
+
+print("Placeholders replaced successfully")
+EOF
 
     # Set replica count based on environment
     case "${env_ref}" in
         prod)
             log_info "Production environment - setting replicaCount to 3"
-            yq e '.replicaCount = 3' -i "${values_file}"
-            yq e '.autoscaling.enabled = true' -i "${values_file}"
-            yq e '.autoscaling.minReplicas = 3' -i "${values_file}"
+            yq e '.replicaCount = 3' -i "${output_file}"
+            yq e '.autoscaling.enabled = true' -i "${output_file}"
+            yq e '.autoscaling.minReplicas = 3' -i "${output_file}"
             ;;
         acc)
             log_info "Acceptance environment - setting replicaCount to 2"
-            yq e '.replicaCount = 2' -i "${values_file}"
-            yq e '.autoscaling.enabled = true' -i "${values_file}"
-            yq e '.autoscaling.minReplicas = 2' -i "${values_file}"
+            yq e '.replicaCount = 2' -i "${output_file}"
+            yq e '.autoscaling.enabled = true' -i "${output_file}"
+            yq e '.autoscaling.minReplicas = 2' -i "${output_file}"
             ;;
         *)
             log_info "Non-production environment - setting replicaCount to 1"
-            yq e '.replicaCount = 1' -i "${values_file}"
-            yq e '.autoscaling.enabled = false' -i "${values_file}"
+            yq e '.replicaCount = 1' -i "${output_file}"
+            yq e '.autoscaling.enabled = false' -i "${output_file}"
             ;;
     esac
 
-    log_info "Helm values file updated successfully"
+    log_info "Helm values file generated: ${output_file}"
+}
+
+# Process and seal a secret
+process_secret() {
+    local secret_name="$1"
+    local secret_base64="$2"
+    local namespace="$3"
+    local project_name="$4"
+    local secret_key="$5"
+    local base64_wrap="$6"
+
+    local secret_template="${SCRIPT_DIR}/secret_wslproxy_env_template.yaml"
+    local secret_file="${TEMP_DIR}/secret_${secret_name}.yaml"
+    local sealed_file="${TEMP_DIR}/sealed_secret_${secret_name}.yaml"
+
+    log_info "Processing ${secret_name} secret..."
+
+    # Decode and re-encode the content
+    local content
+    content=$(echo "${secret_base64}" | base64 -d)
+    local base64_value
+    base64_value=$(echo -n "${content}" | base64 ${base64_wrap})
+
+    # Create secret YAML
+    cat > "${secret_file}" << YAML
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ${project_name}-secret-${namespace}
+  namespace: ${namespace}
+type: Opaque
+data:
+  ${secret_key}: ${base64_value}
+YAML
+
+    # Seal the secret
+    seal_secret "${secret_file}" "${sealed_file}"
+
+    # Extract and return encrypted value
+    extract_encrypted_data "${sealed_file}" "${secret_key}"
 }
 
 # Main function
 main() {
-    log_step "Starting Kubeseal Automation for Whitefalcon/wslproxy"
+    echo "=============================================="
+    log_step "Kubeseal Automation for Whitefalcon/wslproxy"
     echo "=============================================="
 
     # Validate parameters
@@ -354,14 +466,13 @@ main() {
     local namespace="$3"
     local target_type="$4"
     local settings_file_base64="${5:-}"
-    local cluster="${6:-k3s2}"  # Default cluster
 
     log_info "Configuration:"
     log_info "  Environment: ${env_ref}"
     log_info "  Namespace: ${namespace}"
     log_info "  Target Type: ${target_type}"
-    log_info "  Cluster: ${cluster}"
     log_info "  Project Root: ${PROJECT_ROOT}"
+    log_info "  Settings provided: $([ -n "${settings_file_base64}" ] && echo 'yes' || echo 'no')"
 
     # Validate base64 content
     validate_base64 "${env_file_base64}" "env_file"
@@ -380,111 +491,48 @@ main() {
     TEMP_DIR=$(mktemp -d)
     log_info "Created temporary directory: ${TEMP_DIR}"
 
-    # Define file paths
-    local project_name="wf-${target_type}"
-    local env_secret_template="${SCRIPT_DIR}/secret_wslproxy_env_template.yaml"
-    local env_secret_file="${TEMP_DIR}/secret_${target_type}_${env_ref}.yaml"
-    local sealed_env_file="${TEMP_DIR}/sealed_secret_${target_type}_${env_ref}.yaml"
-
-    # Process main env file secret
-    log_step "Processing main environment secret..."
-
     # Get base64 wrap option
     local base64_wrap
     base64_wrap=$(get_base64_wrap_option)
 
-    # Create the env_file base64 content (the secret value itself should be base64 encoded)
-    local env_content
-    env_content=$(echo "${env_file_base64}" | base64 -d)
-    local env_file_base64_value
-    env_file_base64_value=$(echo -n "${env_content}" | base64 ${base64_wrap})
+    # Define project name
+    local project_name="wf-${target_type}"
 
-    # Create secret from template
-    if [[ ! -f "${env_secret_template}" ]]; then
-        log_error "Environment secret template not found: ${env_secret_template}"
-        exit 1
-    fi
-
-    # Use Python for reliable template replacement
-    python3 << EOF
-import sys
-
-with open('${env_secret_template}', 'r') as f:
-    content = f.read()
-
-content = content.replace('CICD_PROJECT_NAME', '${project_name}')
-content = content.replace('CICD_NAMESPACE_PLACEHOLDER', '${namespace}')
-content = content.replace('ENV_FILE_BASE64_PLACEHOLDER', '${env_file_base64_value}')
-
-with open('${env_secret_file}', 'w') as f:
-    f.write(content)
-
-print("Template processed successfully")
-EOF
-
-    if [[ ! -f "${env_secret_file}" ]] || [[ ! -s "${env_secret_file}" ]]; then
-        log_error "Failed to create secret file from template"
-        exit 1
-    fi
-
-    # Seal the secret
-    seal_secret "${env_secret_file}" "${sealed_env_file}"
-
-    # Extract encrypted env_file value
+    # Process main env file secret
+    log_step "Processing main environment secret..."
     local sealed_env_value
-    sealed_env_value=$(extract_encrypted_data "${sealed_env_file}" "env_file")
+    sealed_env_value=$(process_secret "env_${target_type}_${env_ref}" "${env_file_base64}" "${namespace}" "${project_name}" "env_file" "${base64_wrap}")
 
     if [[ -z "${sealed_env_value}" ]] || [[ "${sealed_env_value}" == "null" ]]; then
         log_error "Failed to extract encrypted env_file value"
         exit 1
     fi
+    log_info "Extracted sealed env_file value (length: ${#sealed_env_value})"
 
-    log_info "Extracted sealed env_file value"
-
-    # Process settings file if provided
+    # Process settings secret if provided
     local sealed_settings_value=""
     if [[ -n "${settings_file_base64}" ]]; then
         log_step "Processing settings secret..."
+        sealed_settings_value=$(process_secret "settings_${target_type}_${env_ref}" "${settings_file_base64}" "${namespace}" "${project_name}" "settings_sec_env_file" "${base64_wrap}")
 
-        local settings_secret_template="${SCRIPT_DIR}/secret_wslproxy_settings_template.yaml"
-        local settings_secret_file="${TEMP_DIR}/secret_settings_${target_type}_${env_ref}.yaml"
-        local sealed_settings_file="${TEMP_DIR}/sealed_secret_settings_${target_type}_${env_ref}.yaml"
-
-        # Create settings base64 value
-        local settings_content
-        settings_content=$(echo "${settings_file_base64}" | base64 -d)
-        local settings_base64_value
-        settings_base64_value=$(echo -n "${settings_content}" | base64 ${base64_wrap})
-
-        if [[ -f "${settings_secret_template}" ]]; then
-            python3 << EOF
-with open('${settings_secret_template}', 'r') as f:
-    content = f.read()
-
-content = content.replace('CICD_PROJECT_NAME', '${project_name}')
-content = content.replace('CICD_NAMESPACE_PLACEHOLDER', '${namespace}')
-content = content.replace('SETTINGS_FILE_BASE64_PLACEHOLDER', '${settings_base64_value}')
-
-with open('${settings_secret_file}', 'w') as f:
-    f.write(content)
-EOF
-
-            seal_secret "${settings_secret_file}" "${sealed_settings_file}"
-            sealed_settings_value=$(extract_encrypted_data "${sealed_settings_file}" "settings_sec_env_file")
-            log_info "Extracted sealed settings_sec_env_file value"
+        if [[ -z "${sealed_settings_value}" ]] || [[ "${sealed_settings_value}" == "null" ]]; then
+            log_warn "Failed to extract encrypted settings value, continuing without it"
+            sealed_settings_value=""
         else
-            log_warn "Settings secret template not found, skipping"
+            log_info "Extracted sealed settings_sec_env_file value (length: ${#sealed_settings_value})"
         fi
     fi
 
-    # Update Helm values file
-    log_step "Updating Helm values file..."
-    update_helm_values "${env_ref}" "${target_type}" "${cluster}" "${sealed_env_value}" "${sealed_settings_value}"
+    # Generate Helm values file
+    log_step "Generating Helm values file..."
+    generate_helm_values "${env_ref}" "${target_type}" "${sealed_env_value}" "${sealed_settings_value}"
 
+    echo ""
+    echo "=============================================="
     log_step "Kubeseal automation completed successfully!"
     echo "=============================================="
-    log_info "Sealed secrets have been generated and values file updated"
-    log_info "Values file: ${HELM_CHART_DIR}/values-${env_ref}-${target_type}-${cluster}.yaml"
+    log_info "Output file: ${HELM_CHART_DIR}/values-wslproxy-${target_type}-${env_ref}.yaml"
+    echo ""
 }
 
 # Run main function
