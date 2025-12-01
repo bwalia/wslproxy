@@ -2,13 +2,15 @@
 # This file is used as a template by kubeseal_automation.sh
 # Placeholders will be replaced during CI/CD pipeline execution
 #
-# Placeholders:
+# Placeholders (replaced via sed):
 #   CICD_NAMESPACE_PLACEHOLDER      - Target environment (dev, int, test, acc, prod)
-#   CICD_SEALED_ENV_FILE            - Kubeseal encrypted env file
-#   CICD_SEALED_SETTINGS_FILE       - Kubeseal encrypted settings file
 #   CICD_INGRESS_CLASS              - Ingress class (traefik or nginx)
 #   CICD_FRONT_HOST                 - Frontend hostname
 #   CICD_FRONT_URL                  - Frontend URL
+#
+# Sealed secrets (set via yq for proper YAML escaping):
+#   secure_env_file                 - Kubeseal encrypted env file
+#   settings_sec_env_file           - Kubeseal encrypted settings file
 
 replicaCount: 1
 
@@ -34,8 +36,8 @@ app:
   front_url: "CICD_FRONT_URL"
   sync_data_onload: false
 
-secure_env_file: "CICD_SEALED_ENV_FILE"
-settings_sec_env_file: "CICD_SEALED_SETTINGS_FILE"
+secure_env_file: ""
+settings_sec_env_file: ""
 
 image:
   repository: bwalia/wslproxy

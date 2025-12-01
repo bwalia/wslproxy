@@ -368,41 +368,38 @@ generate_helm_values() {
     printf '%s' "${sealed_env_value}" > "${env_value_file}"
     printf '%s' "${sealed_settings_value}" > "${settings_value_file}"
 
-    # Replace placeholders using Python for reliability
-    # Pass values via files to avoid shell escaping issues with special characters
-    python3 << PYTHON_EOF
-import sys
+    # Step 1: Replace simple placeholders using sed (faster and safer for simple replacements)
+    sed -i.bak \
+        -e "s|CICD_NAMESPACE_PLACEHOLDER|${env_ref}|g" \
+        -e "s|CICD_INGRESS_CLASS|${INGRESS_CLASS}|g" \
+        -e "s|CICD_API_HOST|${API_HOST}|g" \
+        -e "s|CICD_FRONT_HOST|${FRONT_HOST}|g" \
+        -e "s|CICD_FRONT_URL|${FRONT_URL}|g" \
+        "${output_file}"
+    rm -f "${output_file}.bak"
 
-# Read the template content
-with open('${output_file}', 'r') as f:
-    content = f.read()
+    log_info "Simple placeholders replaced successfully"
 
-# Read sealed values from files (avoids shell escaping issues)
-with open('${env_value_file}', 'r') as f:
-    sealed_env = f.read()
+    # Step 2: Use yq with environment variables to properly set the sealed secret values
+    # Using env() function ensures proper YAML escaping of special characters
+    export SEALED_ENV_VALUE="${sealed_env_value}"
+    yq e '.secure_env_file = env(SEALED_ENV_VALUE)' -i "${output_file}"
+    log_info "secure_env_file updated via yq"
 
-with open('${settings_value_file}', 'r') as f:
-    sealed_settings = f.read()
+    # Update settings_sec_env_file if provided
+    if [[ -n "${sealed_settings_value}" ]]; then
+        export SEALED_SETTINGS_VALUE="${sealed_settings_value}"
+        yq e '.settings_sec_env_file = env(SEALED_SETTINGS_VALUE)' -i "${output_file}"
+        log_info "settings_sec_env_file updated via yq"
+        unset SEALED_SETTINGS_VALUE
+    else
+        # Set to empty if no settings provided
+        yq e '.settings_sec_env_file = ""' -i "${output_file}"
+        log_info "settings_sec_env_file set to empty (no settings provided)"
+    fi
+    unset SEALED_ENV_VALUE
 
-# Replace all placeholders
-replacements = {
-    'CICD_NAMESPACE_PLACEHOLDER': '${env_ref}',
-    'CICD_SEALED_ENV_FILE': sealed_env,
-    'CICD_SEALED_SETTINGS_FILE': sealed_settings,
-    'CICD_INGRESS_CLASS': '${INGRESS_CLASS}',
-    'CICD_API_HOST': '${API_HOST}',
-    'CICD_FRONT_HOST': '${FRONT_HOST}',
-    'CICD_FRONT_URL': '${FRONT_URL}',
-}
-
-for placeholder, value in replacements.items():
-    content = content.replace(placeholder, value)
-
-with open('${output_file}', 'w') as f:
-    f.write(content)
-
-print("Placeholders replaced successfully")
-PYTHON_EOF
+    log_info "All placeholders replaced successfully"
 
     # Set replica count based on environment
     case "${env_ref}" in
