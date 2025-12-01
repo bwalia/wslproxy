@@ -368,59 +368,105 @@ generate_helm_values() {
     printf '%s' "${sealed_env_value}" > "${env_value_file}"
     printf '%s' "${sealed_settings_value}" > "${settings_value_file}"
 
-    # Step 1: Replace simple placeholders using sed (faster and safer for simple replacements)
-    sed -i.bak \
-        -e "s|CICD_NAMESPACE_PLACEHOLDER|${env_ref}|g" \
-        -e "s|CICD_INGRESS_CLASS|${INGRESS_CLASS}|g" \
-        -e "s|CICD_API_HOST|${API_HOST}|g" \
-        -e "s|CICD_FRONT_HOST|${FRONT_HOST}|g" \
-        -e "s|CICD_FRONT_URL|${FRONT_URL}|g" \
-        "${output_file}"
-    rm -f "${output_file}.bak"
+    # Determine replica count and autoscaling settings based on environment
+    local replica_count=1
+    local autoscaling_enabled="false"
+    local min_replicas=1
 
-    log_info "Simple placeholders replaced successfully"
-
-    # Step 2: Use yq with environment variables to properly set the sealed secret values
-    # Using env() function ensures proper YAML escaping of special characters
-    export SEALED_ENV_VALUE="${sealed_env_value}"
-    yq e '.secure_env_file = env(SEALED_ENV_VALUE)' -i "${output_file}"
-    log_info "secure_env_file updated via yq"
-
-    # Update settings_sec_env_file if provided
-    if [[ -n "${sealed_settings_value}" ]]; then
-        export SEALED_SETTINGS_VALUE="${sealed_settings_value}"
-        yq e '.settings_sec_env_file = env(SEALED_SETTINGS_VALUE)' -i "${output_file}"
-        log_info "settings_sec_env_file updated via yq"
-        unset SEALED_SETTINGS_VALUE
-    else
-        # Set to empty if no settings provided
-        yq e '.settings_sec_env_file = ""' -i "${output_file}"
-        log_info "settings_sec_env_file set to empty (no settings provided)"
-    fi
-    unset SEALED_ENV_VALUE
-
-    log_info "All placeholders replaced successfully"
-
-    # Set replica count based on environment
     case "${env_ref}" in
         prod)
             log_info "Production environment - setting replicaCount to 3"
-            yq e '.replicaCount = 3' -i "${output_file}"
-            yq e '.autoscaling.enabled = true' -i "${output_file}"
-            yq e '.autoscaling.minReplicas = 3' -i "${output_file}"
+            replica_count=3
+            autoscaling_enabled="true"
+            min_replicas=3
             ;;
         acc)
             log_info "Acceptance environment - setting replicaCount to 2"
-            yq e '.replicaCount = 2' -i "${output_file}"
-            yq e '.autoscaling.enabled = true' -i "${output_file}"
-            yq e '.autoscaling.minReplicas = 2' -i "${output_file}"
+            replica_count=2
+            autoscaling_enabled="true"
+            min_replicas=2
             ;;
         *)
             log_info "Non-production environment - setting replicaCount to 1"
-            yq e '.replicaCount = 1' -i "${output_file}"
-            yq e '.autoscaling.enabled = false' -i "${output_file}"
+            replica_count=1
+            autoscaling_enabled="false"
+            min_replicas=1
             ;;
     esac
+
+    # Use Python for ALL replacements (same approach as OPSAPI)
+    # This handles sealed values correctly without yq's control character issues
+    python3 << PYTHON_EOF
+import sys
+import re
+
+# Read the template content
+with open('${output_file}', 'r') as f:
+    content = f.read()
+
+# Read sealed values from files (avoids shell escaping issues)
+with open('${env_value_file}', 'r') as f:
+    sealed_env = f.read().strip()
+
+with open('${settings_value_file}', 'r') as f:
+    sealed_settings = f.read().strip()
+
+# Replace all simple placeholders
+content = content.replace('CICD_NAMESPACE_PLACEHOLDER', '${env_ref}')
+content = content.replace('CICD_INGRESS_CLASS', '${INGRESS_CLASS}')
+content = content.replace('CICD_API_HOST', '${API_HOST}')
+content = content.replace('CICD_FRONT_HOST', '${FRONT_HOST}')
+content = content.replace('CICD_FRONT_URL', '${FRONT_URL}')
+
+# Replace sealed secret values and replica settings
+# Process line by line
+lines = content.split('\n')
+new_lines = []
+in_autoscaling = False
+
+for line in lines:
+    stripped = line.strip()
+
+    # Handle secure_env_file
+    if stripped.startswith('secure_env_file:'):
+        new_lines.append('secure_env_file: "' + sealed_env + '"')
+    # Handle settings_sec_env_file
+    elif stripped.startswith('settings_sec_env_file:'):
+        if sealed_settings:
+            new_lines.append('settings_sec_env_file: "' + sealed_settings + '"')
+        else:
+            new_lines.append('settings_sec_env_file: ""')
+    # Handle replicaCount (top level only)
+    elif stripped.startswith('replicaCount:') and not in_autoscaling:
+        new_lines.append('replicaCount: ${replica_count}')
+    # Track autoscaling section
+    elif stripped.startswith('autoscaling:'):
+        in_autoscaling = True
+        new_lines.append(line)
+    # Handle autoscaling.enabled
+    elif in_autoscaling and stripped.startswith('enabled:'):
+        indent = len(line) - len(line.lstrip())
+        new_lines.append(' ' * indent + 'enabled: ${autoscaling_enabled}')
+    # Handle autoscaling.minReplicas
+    elif in_autoscaling and stripped.startswith('minReplicas:'):
+        indent = len(line) - len(line.lstrip())
+        new_lines.append(' ' * indent + 'minReplicas: ${min_replicas}')
+    # Exit autoscaling section when we see a non-indented line
+    elif in_autoscaling and line and not line.startswith(' ') and not line.startswith('\t'):
+        in_autoscaling = False
+        new_lines.append(line)
+    else:
+        new_lines.append(line)
+
+content = '\n'.join(new_lines)
+
+with open('${output_file}', 'w') as f:
+    f.write(content)
+
+print("All placeholders and settings replaced successfully via Python")
+PYTHON_EOF
+
+    log_info "All placeholders replaced via Python"
 
     log_info "Helm values file generated: ${output_file}"
 }
