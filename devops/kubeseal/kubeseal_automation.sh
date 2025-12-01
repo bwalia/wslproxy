@@ -360,18 +360,35 @@ generate_helm_values() {
         log_warn "No settings secret provided, using empty value"
     fi
 
+    # Write sealed values to temporary files to avoid shell escaping issues
+    local env_value_file="${TEMP_DIR}/sealed_env_value.txt"
+    local settings_value_file="${TEMP_DIR}/sealed_settings_value.txt"
+
+    # Use printf to safely write values without interpretation
+    printf '%s' "${sealed_env_value}" > "${env_value_file}"
+    printf '%s' "${sealed_settings_value}" > "${settings_value_file}"
+
     # Replace placeholders using Python for reliability
-    python3 << EOF
+    # Pass values via files to avoid shell escaping issues with special characters
+    python3 << PYTHON_EOF
 import sys
 
+# Read the template content
 with open('${output_file}', 'r') as f:
     content = f.read()
+
+# Read sealed values from files (avoids shell escaping issues)
+with open('${env_value_file}', 'r') as f:
+    sealed_env = f.read()
+
+with open('${settings_value_file}', 'r') as f:
+    sealed_settings = f.read()
 
 # Replace all placeholders
 replacements = {
     'CICD_NAMESPACE_PLACEHOLDER': '${env_ref}',
-    'CICD_SEALED_ENV_FILE': '${sealed_env_value}',
-    'CICD_SEALED_SETTINGS_FILE': '${sealed_settings_value}',
+    'CICD_SEALED_ENV_FILE': sealed_env,
+    'CICD_SEALED_SETTINGS_FILE': sealed_settings,
     'CICD_INGRESS_CLASS': '${INGRESS_CLASS}',
     'CICD_API_HOST': '${API_HOST}',
     'CICD_FRONT_HOST': '${FRONT_HOST}',
@@ -385,7 +402,7 @@ with open('${output_file}', 'w') as f:
     f.write(content)
 
 print("Placeholders replaced successfully")
-EOF
+PYTHON_EOF
 
     # Set replica count based on environment
     case "${env_ref}" in
