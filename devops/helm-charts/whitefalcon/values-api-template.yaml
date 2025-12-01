@@ -1,0 +1,95 @@
+# Whitefalcon API Values Template
+# This file is used as a template by kubeseal_automation.sh
+# Placeholders will be replaced during CI/CD pipeline execution
+#
+# Placeholders:
+#   CICD_NAMESPACE_PLACEHOLDER      - Target environment (dev, int, test, acc, prod)
+#   CICD_SEALED_ENV_FILE            - Kubeseal encrypted env file
+#   CICD_SEALED_SETTINGS_FILE       - Kubeseal encrypted settings file
+#   CICD_INGRESS_CLASS              - Ingress class (traefik or nginx)
+#   CICD_API_HOST                   - API hostname
+#   CICD_FRONT_URL                  - Frontend URL
+
+replicaCount: 1
+
+app:
+  name: wf-api
+  version: 0.1.1
+  description: Whitefalcon API Helm Chart
+  keywords:
+    - helm
+    - chart
+    - kubernetes
+    - whitefalcon
+    - api
+  namespace: CICD_NAMESPACE_PLACEHOLDER
+  dns_resolver: "10.43.0.10"
+  primary_dns_resolver: "10.43.0.10"
+  secondary_dns_resolver: "10.43.0.10"
+  dns_resolver_port: 53
+  api_url: "http://wf-api-svc-CICD_NAMESPACE_PLACEHOLDER.CICD_NAMESPACE_PLACEHOLDER.svc.cluster.local:8080/api"
+  redis_host: "redis-service.CICD_NAMESPACE_PLACEHOLDER.svc.cluster.local"
+  target_env: "CICD_NAMESPACE_PLACEHOLDER"
+  target_type: "api"
+  front_url: "CICD_FRONT_URL"
+  sync_data_onload: false
+
+secure_env_file: "CICD_SEALED_ENV_FILE"
+settings_sec_env_file: "CICD_SEALED_SETTINGS_FILE"
+
+image:
+  repository: bwalia/wslproxy
+  pullPolicy: Always
+  tag: "latest"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+storage:
+  enabled: false
+  accessMode: ReadWriteOnce
+  size: 2Gi
+  storageClass: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext: {}
+
+securityContext: {}
+
+service:
+  type: ClusterIP
+  port: 8080
+
+ingress:
+  enabled: true
+  className: "CICD_INGRESS_CLASS"
+  annotations: {}
+  hosts:
+    - host: CICD_API_HOST
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+          serviceName: wf-api-svc-CICD_NAMESPACE_PLACEHOLDER
+          servicePort: 8080
+  tls: []
+
+resources: {}
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 100
+  targetCPUUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}

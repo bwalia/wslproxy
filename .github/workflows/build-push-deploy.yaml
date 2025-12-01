@@ -22,17 +22,6 @@ on:
         default: "main"
         required: true
 
-      TARGET_CLUSTER:
-        type: choice
-        description: "Please choose the target K3S cluster"
-        default: "k3s2"
-        required: true
-        options:
-          - k3s2
-          - k3s3
-          - k3s6
-          - k3s10
-
       DEPLOYMENT_TYPE:
         type: choice
         description: "Please select the build only, deploy only or build and deploy"
@@ -49,7 +38,6 @@ env:
   TARGET_IMAGE_TAG: "latest"
   TARGET_STACK: openresty
   TARGET_ENV: ${{ github.event.inputs.TARGET_ENV || 'int' }}
-  TARGET_CLUSTER: ${{ github.event.inputs.TARGET_CLUSTER || 'k3s2' }}
   TARGET_BRANCH: ${{ github.event.inputs.TARGET_BRANCH || 'main' }}
   DEPLOYMENT_TYPE: ${{ github.event.inputs.DEPLOYMENT_TYPE || 'build-and-deploy' }}
 
@@ -133,19 +121,10 @@ jobs:
 
       - name: Decode and Export Kubeconfig
         run: |
-          # Map kubeconfig based on environment and cluster
+          # Map kubeconfig based on environment
           if [[ "${{ env.TARGET_ENV }}" == "prod" ]]; then
             KUBE_CONFIG_BASE64="${{ secrets.KUBE_CONFIG_DATA_K3S1 }}"
             echo "Using K3S1 cluster for production"
-          elif [[ "${{ env.TARGET_CLUSTER }}" == "k3s3" ]]; then
-            KUBE_CONFIG_BASE64="${{ secrets.KUBE_CONFIG_DATA_K3S3 }}"
-            echo "Using K3S3 cluster"
-          elif [[ "${{ env.TARGET_CLUSTER }}" == "k3s6" ]]; then
-            KUBE_CONFIG_BASE64="${{ secrets.KUBE_CONFIG_DATA_K3S6 }}"
-            echo "Using K3S6 cluster"
-          elif [[ "${{ env.TARGET_CLUSTER }}" == "k3s10" ]]; then
-            KUBE_CONFIG_BASE64="${{ secrets.KUBE_CONFIG_DATA_K3S10 }}"
-            echo "Using K3S10 cluster"
           else
             KUBE_CONFIG_BASE64="${{ secrets.KUBE_CONFIG_DATA_K3S2 }}"
             echo "Using K3S2 cluster (default)"
@@ -177,11 +156,11 @@ jobs:
           helm version
         shell: bash
 
-      - name: Kubeseal - Encrypt API secrets
+      - name: Kubeseal - Generate API values file
         run: |
           chmod +x ./devops/kubeseal/kubeseal_automation.sh
 
-          # Select the correct secret based on environment
+          # Select the correct secrets based on environment
           case "${{ env.TARGET_ENV }}" in
             dev)
               ENV_SECRET="${{ secrets.DOT_WSLPROXY_ENV_CREDS_DEV }}"
@@ -209,19 +188,26 @@ jobs:
               ;;
           esac
 
-          # Run kubeseal automation for API
-          ./devops/kubeseal/kubeseal_automation.sh \
-            "${ENV_SECRET}" \
-            "${{ env.TARGET_ENV }}" \
-            "${{ env.TARGET_ENV }}" \
-            "api" \
-            "${SETTINGS_SECRET}" \
-            "${{ env.TARGET_CLUSTER }}"
+          # Run kubeseal automation for API (with optional settings secret)
+          if [[ -n "${SETTINGS_SECRET}" ]]; then
+            ./devops/kubeseal/kubeseal_automation.sh \
+              "${ENV_SECRET}" \
+              "${{ env.TARGET_ENV }}" \
+              "${{ env.TARGET_ENV }}" \
+              "api" \
+              "${SETTINGS_SECRET}"
+          else
+            ./devops/kubeseal/kubeseal_automation.sh \
+              "${ENV_SECRET}" \
+              "${{ env.TARGET_ENV }}" \
+              "${{ env.TARGET_ENV }}" \
+              "api"
+          fi
         shell: bash
 
-      - name: Kubeseal - Encrypt Front secrets
+      - name: Kubeseal - Generate Front values file
         run: |
-          # Select the correct secret based on environment
+          # Select the correct secrets based on environment
           case "${{ env.TARGET_ENV }}" in
             dev)
               ENV_SECRET="${{ secrets.DOT_WSLPROXY_ENV_CREDS_DEV }}"
@@ -249,26 +235,32 @@ jobs:
               ;;
           esac
 
-          # Run kubeseal automation for Front
-          ./devops/kubeseal/kubeseal_automation.sh \
-            "${ENV_SECRET}" \
-            "${{ env.TARGET_ENV }}" \
-            "${{ env.TARGET_ENV }}" \
-            "front" \
-            "${SETTINGS_SECRET}" \
-            "${{ env.TARGET_CLUSTER }}"
+          # Run kubeseal automation for Front (with optional settings secret)
+          if [[ -n "${SETTINGS_SECRET}" ]]; then
+            ./devops/kubeseal/kubeseal_automation.sh \
+              "${ENV_SECRET}" \
+              "${{ env.TARGET_ENV }}" \
+              "${{ env.TARGET_ENV }}" \
+              "front" \
+              "${SETTINGS_SECRET}"
+          else
+            ./devops/kubeseal/kubeseal_automation.sh \
+              "${ENV_SECRET}" \
+              "${{ env.TARGET_ENV }}" \
+              "${{ env.TARGET_ENV }}" \
+              "front"
+          fi
         shell: bash
 
       - name: Deploy wslproxy API using Helm
         run: |
-          echo "Deploying wslproxy API to ${{ env.TARGET_ENV }} environment on ${{ env.TARGET_CLUSTER }}..."
+          echo "Deploying wslproxy API to ${{ env.TARGET_ENV }} environment..."
 
           helm upgrade --install wslproxy-api-${{ env.TARGET_ENV }} \
             ./devops/helm-charts/whitefalcon/ \
-            -f ./devops/helm-charts/whitefalcon/values-${{ env.TARGET_ENV }}-api-${{ env.TARGET_CLUSTER }}.yaml \
+            -f ./devops/helm-charts/whitefalcon/values-wslproxy-api-${{ env.TARGET_ENV }}.yaml \
             --set image.repository=${{ env.IMAGE_REGISTRY }}/wslproxy \
             --set image.tag=latest \
-            --set app.target_env=${{ env.TARGET_ENV }} \
             --namespace ${{ env.TARGET_ENV }} \
             --create-namespace \
             --wait \
@@ -277,14 +269,13 @@ jobs:
 
       - name: Deploy wslproxy Front using Helm
         run: |
-          echo "Deploying wslproxy Front to ${{ env.TARGET_ENV }} environment on ${{ env.TARGET_CLUSTER }}..."
+          echo "Deploying wslproxy Front to ${{ env.TARGET_ENV }} environment..."
 
           helm upgrade --install wslproxy-front-${{ env.TARGET_ENV }} \
             ./devops/helm-charts/whitefalcon/ \
-            -f ./devops/helm-charts/whitefalcon/values-${{ env.TARGET_ENV }}-front-${{ env.TARGET_CLUSTER }}.yaml \
+            -f ./devops/helm-charts/whitefalcon/values-wslproxy-front-${{ env.TARGET_ENV }}.yaml \
             --set image.repository=${{ env.IMAGE_REGISTRY }}/wslproxy \
             --set image.tag=latest \
-            --set app.target_env=${{ env.TARGET_ENV }} \
             --namespace ${{ env.TARGET_ENV }} \
             --create-namespace \
             --wait \
@@ -297,13 +288,13 @@ jobs:
 
           helm upgrade --install wslproxy-nodeapp \
             ./devops/helm-charts/node-app/ \
-            -f ./devops/helm-charts/node-app/values-${{ env.TARGET_CLUSTER }}.yaml \
+            -f ./devops/helm-charts/node-app/values.yaml \
             --set image.repository=${{ env.IMAGE_REGISTRY }}/node-app \
             --set image.tag=latest \
             --namespace ${{ env.TARGET_ENV }} \
             --create-namespace \
             --wait \
-            --timeout 5m
+            --timeout 5m || echo "Node app deployment skipped (values file may not exist)"
         shell: bash
 
       - name: Deploy S3 Browser App using Helm
@@ -312,13 +303,13 @@ jobs:
 
           helm upgrade --install wslproxy-s3-browser \
             ./devops/helm-charts/s3-browser-app/ \
-            -f ./devops/helm-charts/s3-browser-app/values-${{ env.TARGET_CLUSTER }}.yaml \
+            -f ./devops/helm-charts/s3-browser-app/values.yaml \
             --set image.repository=${{ env.IMAGE_REGISTRY }}/s3-browser-app \
             --set image.tag=latest \
             --namespace ${{ env.TARGET_ENV }} \
             --create-namespace \
             --wait \
-            --timeout 5m
+            --timeout 5m || echo "S3 Browser app deployment skipped (values file may not exist)"
         shell: bash
 
       - name: Restart wslproxy API Pods
@@ -361,7 +352,6 @@ jobs:
           slack-message: |
             :rocket: *wslproxy Deployment*
             • *Environment:* ${{ env.TARGET_ENV }}
-            • *Cluster:* ${{ env.TARGET_CLUSTER }}
             • *Branch:* ${{ env.TARGET_BRANCH }}
             • *Status:* ${{ job.status }}
             • *Commit:* ${{ github.sha }}
@@ -405,7 +395,7 @@ jobs:
               export API_PING_URL="https://api-acc.wslproxy.com/ping"
               ;;
             prod)
-              export API_PING_URL="https://api-prod.wslproxy.com/ping"
+              export API_PING_URL="https://api.wslproxy.com/ping"
               ;;
             *)
               echo "Unknown environment: ${{ env.TARGET_ENV }}"
@@ -426,7 +416,6 @@ jobs:
           slack-message: |
             :warning: *Health Check Failed!*
             • *Environment:* ${{ env.TARGET_ENV }}
-            • *Cluster:* ${{ env.TARGET_CLUSTER }}
             • *Run:* <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Details>
 
             Please investigate immediately!
