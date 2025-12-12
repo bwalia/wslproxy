@@ -9,3 +9,4 @@ whisky10 ansible_user=bwalia
 whisky06 ansible_user=bwalia
 ubworker04 ansible_user=bwalia
 whisky08 ansible_user=bwalia
+192.168.10.1 ansible_user=bwalia
