@@ -1,10 +1,8 @@
-ubuntu_packages:
-  - software-properties-common
+# Common packages for both Ubuntu and Debian
+common_packages:
   - python3-pip
   - virtualenv
   - python3-setuptools
-  - libpcre3
-  - libpcre3-dev
   - zlib1g
   - zlib1g-dev
   - libssl-dev
@@ -25,7 +23,6 @@ ubuntu_packages:
   - nfs-common
   - open-iscsi
   - ansible
-  - openjdk-21-jdk
   - default-jre
   - vim
   - make
@@ -34,5 +31,19 @@ ubuntu_packages:
   - python3
   - npm
   - openssh-server
-  - netcat-traditional
   - ca-certificates
+
+# Ubuntu-specific packages
+ubuntu_specific_packages:
+  - software-properties-common
+  - libpcre3
+  - libpcre3-dev
+  - openjdk-21-jdk
+  - netcat-traditional
+
+# Debian-specific packages
+debian_specific_packages:
+  - python3-apt
+  - libpcre2-dev
+  - openjdk-21-jdk
+  - netcat-openbsd

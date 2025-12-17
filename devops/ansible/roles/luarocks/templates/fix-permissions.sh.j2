@@ -25,6 +25,20 @@ chmod 775 -R /usr/local/openresty/nginx/logs/ \
 chmod 775 -R /usr/local/openresty/nginx/conf/ \
     && chown -R www-data:root /usr/local/openresty/nginx/conf/
 
+# Fix main nginx directory permissions for www-data user
+chmod 775 /usr/local/openresty/nginx/ \
+    && chown www-data:root /usr/local/openresty/nginx/
+
+# Fix sbin directory permissions so www-data can execute openresty commands
+chmod 755 -R /usr/local/openresty/nginx/sbin/ \
+    && chown -R www-data:root /usr/local/openresty/nginx/sbin/
+
+# Ensure PID file has correct permissions if it exists
+if [ -f "/usr/local/openresty/nginx/logs/nginx.pid" ]; then
+    chmod 644 /usr/local/openresty/nginx/logs/nginx.pid
+    chown www-data:root /usr/local/openresty/nginx/logs/nginx.pid
+fi
+
 chmod -R 777 /opt/nginx/data/ \
     && chown -R www-data:root /opt/nginx/data/
 
