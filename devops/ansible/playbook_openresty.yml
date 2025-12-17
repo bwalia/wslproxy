@@ -1,0 +1,7 @@
+- hosts: openresty_native_cluster
+  become: yes
+  roles:
+    - ubuntu
+    - luarocks
+  vars:
+    nginx_port: 80

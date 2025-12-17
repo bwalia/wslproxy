@@ -10,6 +10,7 @@ PIDFile=/usr/local/openresty/nginx/logs/nginx.pid
 ExecStartPre=rm -Rf /var/run/nginx/nginx.sock
 ExecStartPre=/usr/local/openresty/nginx/sbin/nginx -t -q -g 'daemon on; master_process on;'
 ExecStart=/usr/local/openresty/nginx/sbin/nginx -g 'daemon on; master_process on;'
+ExecStartPost=/bin/sh -c 'sleep 1 && chown www-data:root /usr/local/openresty/nginx/logs/nginx.pid 2>/dev/null || true'
 ExecReload=/usr/local/openresty/nginx/sbin/nginx -g 'daemon on; master_process on;' -s reload
 ExecStop=-/sbin/start-stop-daemon --quiet --stop --retry QUIT/5 --pidfile /usr/local/openresty/nginx/logs/nginx.pid
 TimeoutStopSec=5

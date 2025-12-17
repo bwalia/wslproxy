@@ -3,14 +3,30 @@
     upgrade: yes
     update_cache: yes
     cache_valid_time: 86400
-  tags: [ubuntu]
-  
-- name: Install dependency packages for installing openresty
+  tags: [ubuntu, debian]
+
+- name: Install common dependency packages for openresty
   apt:
     name: "{{ item }}"
     state: present
-  with_items: "{{ ubuntu_packages }}"
+  with_items: "{{ common_packages }}"
+  tags: [ubuntu, debian]
+
+- name: Install Ubuntu-specific packages
+  apt:
+    name: "{{ item }}"
+    state: present
+  with_items: "{{ ubuntu_specific_packages }}"
+  when: ansible_distribution == "Ubuntu"
   tags: [ubuntu]
+
+- name: Install Debian-specific packages
+  apt:
+    name: "{{ item }}"
+    state: present
+  with_items: "{{ debian_specific_packages }}"
+  when: ansible_distribution == "Debian"
+  tags: [debian]
 
 - name: install dependencies packages
   ansible.builtin.package:
