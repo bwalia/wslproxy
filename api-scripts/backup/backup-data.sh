@@ -8,8 +8,6 @@
 #   - rules_<timestamp>.json    - Array of rule objects
 #   - settings_<timestamp>.json - Settings object
 
-set -e
-
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../config.sh"
 
@@ -29,6 +27,63 @@ echo -e "${YELLOW}========================================${NC}"
 # Check jq is installed
 check_jq
 
+# Helper function to check if response is valid JSON
+is_valid_json() {
+    echo "$1" | jq empty 2>/dev/null
+    return $?
+}
+
+# Helper function to make API request with error handling
+api_request() {
+    local method="$1"
+    local endpoint="$2"
+    local token="$3"
+    local data="$4"
+    local response=""
+    local http_code=""
+
+    if [ -n "$token" ]; then
+        response=$(curl -s -w "\n%{http_code}" --connect-timeout 10 --max-time 30 \
+            -X "$method" "$GATEWAY_URL$endpoint" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $token" \
+            ${data:+-d "$data"})
+    else
+        response=$(curl -s -w "\n%{http_code}" --connect-timeout 10 --max-time 30 \
+            -X "$method" "$GATEWAY_URL$endpoint" \
+            -H "Content-Type: application/json" \
+            ${data:+-d "$data"})
+    fi
+
+    # Extract HTTP code (last line) and body (everything else)
+    http_code=$(echo "$response" | tail -n1)
+    body=$(echo "$response" | sed '$d')
+
+    # Check for connection errors (http_code will be 000)
+    if [ "$http_code" = "000" ]; then
+        echo -e "${RED}Connection failed to $GATEWAY_URL$endpoint${NC}" >&2
+        echo -e "${RED}Please check if the server is running and accessible.${NC}" >&2
+        return 1
+    fi
+
+    # Check HTTP status code
+    if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
+        echo -e "${RED}HTTP Error: $http_code${NC}" >&2
+        echo -e "${RED}Response: $body${NC}" >&2
+        return 1
+    fi
+
+    # Check if response is valid JSON
+    if ! is_valid_json "$body"; then
+        echo -e "${RED}Invalid JSON response from $endpoint${NC}" >&2
+        echo -e "${RED}Response (first 500 chars): ${body:0:500}${NC}" >&2
+        return 1
+    fi
+
+    echo "$body"
+    return 0
+}
+
 # Create backup directory if it doesn't exist
 echo -e "${YELLOW}Creating backup directory...${NC}"
 mkdir -p "$BACKUP_DIR"
@@ -38,15 +93,19 @@ echo -e "${YELLOW}Logging in to wslproxy...${NC}"
 echo -e "Gateway URL: $GATEWAY_URL"
 echo -e "Admin Email: $ADMIN_EMAIL"
 
-LOGIN_RESPONSE=$(curl -s -X POST "$GATEWAY_URL/api/user/login" \
-  -H "Content-Type: application/json" \
-  -d "{\"email\": \"$ADMIN_EMAIL\", \"password\": \"$ADMIN_PASSWORD\"}")
+LOGIN_DATA="{\"email\": \"$ADMIN_EMAIL\", \"password\": \"$ADMIN_PASSWORD\"}"
+LOGIN_RESPONSE=$(api_request "POST" "/api/user/login" "" "$LOGIN_DATA")
+
+if [ $? -ne 0 ]; then
+    echo -e "${RED}Login request failed!${NC}"
+    exit 1
+fi
 
 TOKEN=$(echo "$LOGIN_RESPONSE" | jq -r '.data.accessToken // empty')
 
 if [ -z "$TOKEN" ]; then
-    echo -e "${RED}Login failed!${NC}"
-    echo "$LOGIN_RESPONSE" | jq '.' 2>/dev/null || echo "$LOGIN_RESPONSE"
+    echo -e "${RED}Login failed! No access token received.${NC}"
+    echo -e "${RED}Response: $LOGIN_RESPONSE${NC}"
     exit 1
 fi
 
@@ -54,8 +113,12 @@ echo -e "${GREEN}Login successful!${NC}"
 
 # Backup servers - extract just the data array for easy import
 echo -e "${YELLOW}Fetching servers...${NC}"
-SERVERS_RESPONSE=$(curl -s -X GET "$GATEWAY_URL/api/servers" \
-  -H "Authorization: Bearer $TOKEN")
+SERVERS_RESPONSE=$(api_request "GET" "/api/servers" "$TOKEN")
+
+if [ $? -ne 0 ]; then
+    echo -e "${RED}Failed to fetch servers!${NC}"
+    exit 1
+fi
 
 SERVERS_FILE="$BACKUP_DIR/servers_${TIMESTAMP}.json"
 # Extract just the data array (the actual servers) for easy import
@@ -69,8 +132,12 @@ ln -sf "servers_${TIMESTAMP}.json" "$BACKUP_DIR/servers_latest.json"
 
 # Backup rules - extract just the data array for easy import
 echo -e "${YELLOW}Fetching rules...${NC}"
-RULES_RESPONSE=$(curl -s -X GET "$GATEWAY_URL/api/rules" \
-  -H "Authorization: Bearer $TOKEN")
+RULES_RESPONSE=$(api_request "GET" "/api/rules" "$TOKEN")
+
+if [ $? -ne 0 ]; then
+    echo -e "${RED}Failed to fetch rules!${NC}"
+    exit 1
+fi
 
 RULES_FILE="$BACKUP_DIR/rules_${TIMESTAMP}.json"
 # Extract just the data array (the actual rules) for easy import
@@ -84,8 +151,12 @@ ln -sf "rules_${TIMESTAMP}.json" "$BACKUP_DIR/rules_latest.json"
 
 # Backup settings
 echo -e "${YELLOW}Fetching settings...${NC}"
-SETTINGS_RESPONSE=$(curl -s -X GET "$GATEWAY_URL/api/settings" \
-  -H "Authorization: Bearer $TOKEN")
+SETTINGS_RESPONSE=$(api_request "GET" "/api/settings" "$TOKEN")
+
+if [ $? -ne 0 ]; then
+    echo -e "${RED}Failed to fetch settings!${NC}"
+    exit 1
+fi
 
 SETTINGS_FILE="$BACKUP_DIR/settings_${TIMESTAMP}.json"
 # Extract just the data object for easy import
