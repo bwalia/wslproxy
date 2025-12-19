@@ -1,0 +1,95 @@
+name: Backup WSLProxy Data
+
+on:
+  # Manual trigger with environment selection
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment to backup"
+        required: true
+        default: "prod"
+        type: choice
+        options:
+          - prod
+          - dev
+          - test
+          - acc
+
+  # Scheduled backup - runs every night at 2 AM UTC for prod
+  schedule:
+    - cron: "0 2 * * *"
+
+jobs:
+  backup:
+    name: Backup WSLProxy Data
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set environment
+        id: set-env
+        run: |
+          # Use input environment for manual trigger, default to prod for scheduled
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "ENVIRONMENT=${{ github.event.inputs.environment }}" >> $GITHUB_OUTPUT
+          else
+            echo "ENVIRONMENT=prod" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Verify credentials file exists
+        run: |
+          CREDS_FILE="/home/bwalia/.secrets/wslproxy/${{ steps.set-env.outputs.ENVIRONMENT }}/login-creds.json"
+          if [ ! -f "$CREDS_FILE" ]; then
+            echo "Error: Credentials file not found at $CREDS_FILE"
+            echo "Please create the file with the following format:"
+            echo '{"ADMIN_EMAIL": "admin@wslproxy.org", "ADMIN_PASSWORD": "ChangeMe", "GATEWAY_URL": "http://localhost:8080"}'
+            exit 1
+          fi
+          echo "Credentials file found at $CREDS_FILE"
+
+      - name: Check required tools
+        run: |
+          echo "Checking for required tools..."
+          command -v jq >/dev/null 2>&1 || { echo "jq is required but not installed. Installing..."; sudo apt-get update && sudo apt-get install -y jq; }
+          command -v curl >/dev/null 2>&1 || { echo "curl is required but not installed."; exit 1; }
+          echo "All required tools are available"
+
+      - name: Create backup directory
+        run: |
+          BACKUP_DIR="/home/bwalia/backups/wslproxy/${{ steps.set-env.outputs.ENVIRONMENT }}"
+          mkdir -p "$BACKUP_DIR"
+          echo "Backup directory created: $BACKUP_DIR"
+
+      - name: Run backup script
+        env:
+          CREDS_FILE: /home/bwalia/.secrets/wslproxy/${{ steps.set-env.outputs.ENVIRONMENT }}/login-creds.json
+          BACKUP_BASE_DIR: /home/bwalia/backups/wslproxy
+        run: |
+          chmod +x ./api-scripts/backup/backup-data.sh
+          ./api-scripts/backup/backup-data.sh "${{ steps.set-env.outputs.ENVIRONMENT }}"
+
+      - name: List backup files
+        run: |
+          BACKUP_DIR="/home/bwalia/backups/wslproxy/${{ steps.set-env.outputs.ENVIRONMENT }}"
+          echo "Backup files in $BACKUP_DIR:"
+          ls -lah "$BACKUP_DIR" | tail -20
+
+      - name: Backup summary
+        run: |
+          BACKUP_DIR="/home/bwalia/backups/wslproxy/${{ steps.set-env.outputs.ENVIRONMENT }}"
+          echo "=========================================="
+          echo "Backup Summary"
+          echo "=========================================="
+          echo "Environment: ${{ steps.set-env.outputs.ENVIRONMENT }}"
+          echo "Backup Directory: $BACKUP_DIR"
+          echo "Trigger: ${{ github.event_name }}"
+          echo "Run ID: ${{ github.run_id }}"
+          echo "Timestamp: $(date)"
+          echo ""
+          echo "Latest backup files:"
+          ls -la "$BACKUP_DIR"/*_latest.json 2>/dev/null || echo "No latest symlinks found"
+          echo ""
+          echo "Disk usage:"
+          du -sh "$BACKUP_DIR"
