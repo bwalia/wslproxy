@@ -1,4 +1,4 @@
-import { Grid } from "@mui/material";
+import { Box, Card, CardContent, Divider, Grid, Typography, Alert } from "@mui/material";
 import React from "react";
 import {
   BooleanInput,
@@ -267,18 +267,43 @@ const iso_codes = {
   EU: "All European Countries",
 };
 
-const euCountries = `Allowed countries AD AL AT AX BA BE BG BY CH CZ DE DK EE ES FI FO FR GB GG GI GR HR HU IE IM IS IT JE LI LT LU LV MC MD ME MK MT NL NO PL PT RO RS RU SE SI SJ SK SM UA VA`
+const euCountries = `AD, AL, AT, AX, BA, BE, BG, BY, CH, CZ, DE, DK, EE, ES, FI, FO, FR, GB, GG, GI, GR, HR, HU, IE, IM, IS, IT, JE, LI, LT, LU, LV, MC, MD, ME, MK, MT, NL, NO, PL, PT, RO, RS, RU, SE, SI, SJ, SK, SM, UA, VA`;
+
 const objectToArray = (obj = {}) => {
   const res = [];
-  const keys = Object.keys(obj);
   for (var key in obj) {
-    const myobj = {};
-    myobj["id"] = key;
-    myobj["name"] = obj[key] + " (" + key + ")";
-    res.push(myobj);
+    res.push({
+      id: key,
+      name: obj[key] + " (" + key + ")"
+    });
   }
   return res;
 };
+
+// Section Card component for consistent styling
+const SectionCard = ({ title, subtitle, children }) => (
+  <Card variant="outlined" sx={{ mb: 3, width: '100%' }}>
+    <CardContent>
+      <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }}>
+        {title}
+      </Typography>
+      {subtitle && (
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          {subtitle}
+        </Typography>
+      )}
+      {!subtitle && <Box sx={{ mb: 1 }} />}
+      {children}
+    </CardContent>
+  </Card>
+);
+
+// Sub-section label
+const SubSectionLabel = ({ children }) => (
+  <Typography variant="body2" sx={{ fontWeight: 500, color: 'text.secondary', mb: 1 }}>
+    {children}
+  </Typography>
+);
 
 const Form = () => {
   const secretTags = localStorage.getItem('rules.tags') || "";
@@ -287,311 +312,342 @@ const Form = () => {
   React.useEffect(() => {
     if (secretTags && secretTags != "undefined") {
       const tags = JSON.parse(secretTags);
-      const prevTags = tags.map((tag) => { return { id: tag, name: tag } })
+      const prevTags = tags.map((tag) => ({ id: tag, name: tag }));
       setChoices(prevTags);
     }
   }, [secretTags]);
+
   const handleProfileChange = (e) => {
     localStorage.setItem('environment', e.target.value);
   }
-  const mynewobj = objectToArray(iso_codes);
+
+  const countryChoices = objectToArray(iso_codes);
+
   return (
     <SimpleForm toolbar={<Toolbar />}>
-      <h3>Enter the Rule below:</h3>
-      <Grid container spacing={2}>
-        <Grid item md={3} sm={6} xs={12}>
-          <TextInput
-            source="name"
-            label="Rule Name"
-            validate={[required()]}
-            fullWidth
-          />
-        </Grid>
-        <Grid item md={3} sm={6} xs={12}>
-          <ReferenceInput source="profile_id" reference="profiles" >
-            <SelectInput
-              fullWidth
-              optionText="name"
-              onChange={handleProfileChange}
-              validate={[required()]}
-            />
-          </ReferenceInput>
-        </Grid>
-        <Grid item md={2} sm={4} xs={12}>
-          <SelectArrayInput
-            source="rules_tags"
-            choices={choices}
-            create={<CreateTags choices={choices} />}
-          />
-        </Grid>
-        <Grid item md={2} sm={4} xs={12}>
-          <NumberInput source="version" defaultValue={1} fullWidth />
-        </Grid>
-        <Grid item md={2} sm={4} xs={12}>
-          <NumberInput source="priority" defaultValue={1} fullWidth />
-        </Grid>
+      <Box sx={{ width: '100%', maxWidth: 1200, py: 1 }}>
 
-        <Grid item md={6} sm={12} xs={12}>
-          <SelectInput
-            defaultValue={"starts_with"}
-            source="match.rules.path_key"
-            fullWidth
-            label="URL Path"
-            choices={[
-              { id: "starts_with", name: "Starts With" },
-              { id: "ends_with", name: "Ends With" },
-              { id: "equals", name: "Equals" },
-            ]}
-            showEmptyOption={false}
-            className="matchRulePathKey"
-          />
-        </Grid>
+        {/* Basic Rule Information */}
+        <SectionCard title="Basic Rule Information" subtitle="Configure the rule name, profile, and metadata">
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={6} md={4}>
+              <TextInput
+                source="name"
+                label="Rule Name"
+                validate={[required()]}
+                fullWidth
+                helperText="Unique name for this rule"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={4}>
+              <ReferenceInput source="profile_id" reference="profiles">
+                <SelectInput
+                  fullWidth
+                  optionText="name"
+                  onChange={handleProfileChange}
+                  validate={[required()]}
+                  helperText="Environment profile"
+                />
+              </ReferenceInput>
+            </Grid>
+            <Grid item xs={12} sm={6} md={4}>
+              <SelectArrayInput
+                source="rules_tags"
+                choices={choices}
+                create={<CreateTags choices={choices} />}
+                fullWidth
+                helperText="Organization tags"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <NumberInput
+                source="version"
+                defaultValue={1}
+                fullWidth
+                helperText="Rule version"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <NumberInput
+                source="priority"
+                defaultValue={1}
+                fullWidth
+                helperText="Execution priority"
+              />
+            </Grid>
+          </Grid>
+        </SectionCard>
 
-        <Grid item md={6} sm={12} xs={12}>
-          <TextInput
-            source="match.rules.path"
-            validate={[required()]}
-            label="Value"
-            fullWidth
-            className="matchRulePath"
-          />
-        </Grid>
+        {/* Match Rules */}
+        <SectionCard title="Match Rules" subtitle="Define conditions for when this rule should be applied">
 
-        <Grid item md={6} sm={12} xs={12}>
-          <SelectInput
-            defaultValue={"equals"}
-            source="match.rules.country_key"
-            fullWidth
-            label="Client Country"
-            choices={[{ id: "equals", name: "=" }]}
-            showEmptyOption={false}
-            className="matchRuleCountryKey"
-          />
-        </Grid>
+          {/* URL Path Matching */}
+          <Box sx={{ mb: 3 }}>
+            <SubSectionLabel>URL Path Matching</SubSectionLabel>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={4}>
+                <SelectInput
+                  defaultValue="starts_with"
+                  source="match.rules.path_key"
+                  fullWidth
+                  label="Match Type"
+                  choices={[
+                    { id: "starts_with", name: "Starts With" },
+                    { id: "ends_with", name: "Ends With" },
+                    { id: "equals", name: "Equals" },
+                  ]}
+                  helperText="How to match the URL path"
+                />
+              </Grid>
+              <Grid item xs={12} sm={8}>
+                <TextInput
+                  source="match.rules.path"
+                  validate={[required()]}
+                  label="URL Path Value"
+                  fullWidth
+                  helperText="The path pattern to match (e.g., /api/, .php)"
+                />
+              </Grid>
+            </Grid>
+          </Box>
 
-        <Grid item md={6} sm={12} xs={12}>
-          <SelectInput
-            source="match.rules.country"
-            label="Value"
-            fullWidth
-            choices={mynewobj}
-            className="matchRuleCountry"
-          />
-          <FormDataConsumer>
-            {({ formData, ...rest }) => (
-              <React.Fragment>
-                {formData?.match?.rules?.country == "EU" && (
-                  <span 
-                    className="country-helper-text" 
-                    style={{
-                      fontSize: "12px",
-                      position: "relative",
-                      top: "-30px"
-                    }}
-                  >
-                    {euCountries}
-                  </span>
+          <Divider sx={{ my: 2 }} />
+
+          {/* Geographic Filtering */}
+          <Box sx={{ mb: 3 }}>
+            <SubSectionLabel>Geographic Filtering</SubSectionLabel>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={4}>
+                <SelectInput
+                  defaultValue="equals"
+                  source="match.rules.country_key"
+                  fullWidth
+                  label="Match Type"
+                  choices={[{ id: "equals", name: "Equals" }]}
+                  helperText="Country matching operator"
+                />
+              </Grid>
+              <Grid item xs={12} sm={8}>
+                <SelectInput
+                  source="match.rules.country"
+                  label="Country"
+                  fullWidth
+                  choices={countryChoices}
+                  helperText="Select a country to filter"
+                />
+                <FormDataConsumer>
+                  {({ formData }) => formData?.match?.rules?.country === "EU" && (
+                    <Alert severity="info" sx={{ mt: 1 }}>
+                      <Typography variant="caption">
+                        EU includes: {euCountries}
+                      </Typography>
+                    </Alert>
+                  )}
+                </FormDataConsumer>
+              </Grid>
+            </Grid>
+          </Box>
+
+          <Divider sx={{ my: 2 }} />
+
+          {/* Client IP Filtering */}
+          <Box sx={{ mb: 3 }}>
+            <SubSectionLabel>Client IP Filtering</SubSectionLabel>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={4}>
+                <SelectInput
+                  defaultValue="equals"
+                  source="match.rules.client_ip_key"
+                  fullWidth
+                  label="Match Type"
+                  choices={[
+                    { id: "equals", name: "Equals" },
+                    { id: "starts_with", name: "Starts With" },
+                    { id: "ipheader", name: "Get IP from Header" },
+                  ]}
+                  helperText="IP matching method"
+                />
+              </Grid>
+              <Grid item xs={12} sm={8}>
+                <TextInput
+                  source="match.rules.client_ip"
+                  label="Client IP Value"
+                  fullWidth
+                  helperText="IP address or pattern to match"
+                />
+              </Grid>
+            </Grid>
+          </Box>
+
+          <Divider sx={{ my: 2 }} />
+
+          {/* Token Validation */}
+          <Box>
+            <SubSectionLabel>Token Validation</SubSectionLabel>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={4}>
+                <SelectInput
+                  defaultValue="equals"
+                  source="match.rules.jwt_token_validation"
+                  choices={[
+                    { id: "equals", name: "None (=)" },
+                    { id: "cookie_jwt_token_validation", name: "Cookie JWT Token" },
+                    { id: "cookie_key_value", name: "Cookie Key Value" },
+                    { id: "header_jwt_token_validation", name: "Header JWT Token" },
+                    { id: "amazon_s3_signed_header_validation", name: "Amazon S3 Signed Header" },
+                  ]}
+                  fullWidth
+                  label="Validation Type"
+                  helperText="Token validation method"
+                />
+              </Grid>
+              <Grid item xs={12} sm={8}>
+                <FormDataConsumer>
+                  {({ formData }) => (
+                    <TextInput
+                      source="match.rules.jwt_token_validation_value"
+                      fullWidth
+                      label={formData?.match?.rules?.jwt_token_validation === "amazon_s3_signed_header_validation" ? "Bucket Name" : "Token Value"}
+                      helperText={formData?.match?.rules?.jwt_token_validation === "amazon_s3_signed_header_validation" ? "S3 bucket name" : "Token to validate"}
+                    />
+                  )}
+                </FormDataConsumer>
+              </Grid>
+
+              <FormDataConsumer>
+                {({ formData }) => formData?.match?.rules?.jwt_token_validation_value && (
+                  <Grid item xs={12}>
+                    <TextInput
+                      source="match.rules.jwt_token_validation_key"
+                      fullWidth
+                      label={formData?.match?.rules?.jwt_token_validation === "amazon_s3_signed_header_validation" ? "Bucket File Paths" : "Token Secret Key"}
+                      type={formData?.match?.rules?.jwt_token_validation === "amazon_s3_signed_header_validation" ? "text" : "password"}
+                      inputProps={{ autoComplete: "new-password" }}
+                      helperText={formData?.match?.rules?.jwt_token_validation === "amazon_s3_signed_header_validation" ? "Comma-separated file paths" : "Secret key for validation"}
+                    />
+                  </Grid>
                 )}
-              </React.Fragment>
-            )}
-          </FormDataConsumer>
-        </Grid>
+              </FormDataConsumer>
 
-        <Grid item md={6} sm={12} xs={12}>
-          <SelectInput
-            defaultValue={"equals"}
-            source="match.rules.client_ip_key"
-            fullWidth
-            label="Client IP"
-            choices={[
-              { id: "equals", name: "=" },
-              { id: "starts_with", name: "Starts With" },
-              { id: "ipheader", name: "Get IP from Header" },
-            ]}
-            className="matchRuleClientIpKey"
-          />
-        </Grid>
-
-        <Grid item md={6} sm={12} xs={12}>
-          <TextInput source="match.rules.client_ip" className="matchRuleClientIp" label="Value" fullWidth />
-        </Grid>
-
-        <Grid item md={6} sm={12} xs={12}>
-          <SelectInput
-            defaultValue={"equals"}
-            source="match.rules.jwt_token_validation"
-            choices={[
-              { id: "equals", name: "=" },
-              // { id: "basic", name: "Basic Auth" },
-              { id: "cookie_jwt_token_validation", name: "Cookie header JWT Token validation" },
-              { id: "cookie_key_value", name: "Cookie Key Value validation" },
-              // { id: "redis", name: "Redis token validation" },
-              { id: "header_jwt_token_validation", name: "Header JWT Token validation" },
-              { id: "amazon_s3_signed_header_validation", name: "Amazon S3 Signed Header validation" },
-            ]}
-            fullWidth
-            label="Token Validation"
-            className="matchRuleJwtTokenValidation"
-          />
-        </Grid>
-
-        <Grid item md={6} sm={12} xs={12}>
-          <FormDataConsumer>
-            {({ formData, ...rest }) => (
-              <React.Fragment>
-                {formData?.match?.rules?.jwt_token_validation == "amazon_s3_signed_header_validation" ? (
-                  <TextInput
-                    source="match.rules.jwt_token_validation_value"
-                    fullWidth
-                    label="Bucket Name"
-                    className="matchRuleJwtTokenValidationValue"
-                  />
-                ) : (
-                  <TextInput
-                    source="match.rules.jwt_token_validation_value"
-                    fullWidth
-                    label="Value"
-                    className="matchRuleJwtTokenValidationValue"
-                  />
-                )}
-              </React.Fragment>
-            )}
-          </FormDataConsumer>
-        </Grid>
-
-        <Grid item md={12} sm={12} xs={12}>
-          <FormDataConsumer>
-            {({ formData, ...rest }) => (
-              <React.Fragment>
-                {formData.match?.rules?.jwt_token_validation_value && (
-                  <TextInput
-                    source="match.rules.jwt_token_validation_key"
-                    fullWidth
-                    label={formData?.match?.rules?.jwt_token_validation == "amazon_s3_signed_header_validation" ? "Bucket File Paths" : "Token Secret Key"}
-                    type={formData?.match?.rules?.jwt_token_validation == "amazon_s3_signed_header_validation" ? "text" : "password"}
-                    inputProps={{ autoComplete: "new-password" }}
-                    className="matchRuleJwtTokenValidationKey"
-                  />
-                )}
-              </React.Fragment>
-            )}
-          </FormDataConsumer>
-        </Grid>
-
-        <React.Fragment>
-          <FormDataConsumer>
-            {({ formData, ...rest }) => (
-              <React.Fragment>
-                {(formData?.match?.rules?.jwt_token_validation_key && formData?.match?.rules?.jwt_token_validation == "amazon_s3_signed_header_validation") && (
-                  <React.Fragment>
-                    <Grid item md={6} sm={12} xs={12}>
+              <FormDataConsumer>
+                {({ formData }) => (
+                  formData?.match?.rules?.jwt_token_validation_key &&
+                  formData?.match?.rules?.jwt_token_validation === "amazon_s3_signed_header_validation"
+                ) && (
+                  <>
+                    <Grid item xs={12} sm={6}>
                       <TextInput
                         source="match.rules.amazon_s3_access_key"
                         fullWidth
-                        label="Amazon S3 Access key"
-                        className="matchRuleAmazonS3AccessKey"
+                        label="Amazon S3 Access Key"
                         type="password"
+                        helperText="AWS access key ID"
                       />
                     </Grid>
-                    <Grid item md={6} sm={12} xs={12}>
+                    <Grid item xs={12} sm={6}>
                       <TextInput
                         source="match.rules.amazon_s3_secret_key"
                         fullWidth
-                        label="Amazon S3 Secret key"
-                        className="matchRuleAmazonS3SecretKey"
+                        label="Amazon S3 Secret Key"
                         type="password"
+                        helperText="AWS secret access key"
                       />
                     </Grid>
-                  </React.Fragment>
+                  </>
                 )}
-              </React.Fragment>
-            )}
-          </FormDataConsumer>
-        </React.Fragment>
+              </FormDataConsumer>
+            </Grid>
+          </Box>
+        </SectionCard>
 
-        <Grid item md={2} sm={6} xs={12}>
-          <BooleanInput
-            source="match.response.allow"
-            label="Allow Request"
-            fullWidth
-            defaultValue={false}
-            className="matchResponseAllow"
-          />
-        </Grid>
-
-        <Grid item md={2} sm={6} xs={12}>
-          <NumberInput
-            source="match.response.code"
-            label="Response Code"
-            fullWidth
-            defaultValue={403}
-            className="matchResponseCode"
-          />
-        </Grid>
-        <Grid item md={6} sm={12} xs={12}>
-          <FormDataConsumer>
-            {({ formData, ...rest }) => (
-              <React.Fragment>
-                {formData?.match?.response?.code >= 301 &&
-                  formData?.match?.response?.code <= 305 ? (
+        {/* Response Configuration */}
+        <SectionCard title="Response Configuration" subtitle="Define the response behavior when this rule matches">
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={6} md={3}>
+              <BooleanInput
+                source="match.response.allow"
+                label="Allow Request"
+                defaultValue={false}
+                helperText="Allow or block the request"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <NumberInput
+                source="match.response.code"
+                label="Response Code"
+                defaultValue={403}
+                fullWidth
+                helperText="HTTP status code"
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <FormDataConsumer>
+                {({ formData }) => (
                   <TextInput
                     source="match.response.redirect_uri"
-                    label="Proxy Pass/Redirect To"
+                    label={
+                      formData?.match?.response?.code >= 301 && formData?.match?.response?.code <= 305
+                        ? "Redirect URL (Required)"
+                        : "Proxy Pass / Redirect URL"
+                    }
                     fullWidth
-                    validate={[required()]}
-                    className="matchResponseRedirectUri"
-                  />
-                ) : (
-                  <TextInput
-                    source="match.response.redirect_uri"
-                    label="Proxy Pass/Redirect To (Target)"
-                    fullWidth
-                    className="matchResponseRedirectUri"
+                    validate={
+                      formData?.match?.response?.code >= 301 && formData?.match?.response?.code <= 305
+                        ? [required()]
+                        : []
+                    }
+                    helperText="Target URL for redirect or proxy"
                   />
                 )}
-              </React.Fragment>
-            )}
-          </FormDataConsumer>
-        </Grid>
+              </FormDataConsumer>
+            </Grid>
+          </Grid>
 
-        <Grid item md={2} sm={12} xs={12}>
-          <BooleanInput
-            source="match.response.is_consul"
-            label="Is Consul"
-            fullWidth
-            defaultValue={false}
-            className="matchResponseIsConsul"
-          />
-        </Grid>
+          <Divider sx={{ my: 2 }} />
 
-        <Grid item md={12} sm={12} xs={12}>
-          <FormDataConsumer>
-            {({ formData, ...rest }) => (
-              <React.Fragment>
-                {formData?.match?.response?.is_consul && (
+          {/* Consul Configuration */}
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={6} md={3}>
+              <BooleanInput
+                source="match.response.is_consul"
+                label="Use Consul"
+                defaultValue={false}
+                helperText="Enable Consul integration"
+              />
+            </Grid>
+            <FormDataConsumer>
+              {({ formData }) => formData?.match?.response?.is_consul && (
+                <Grid item xs={12} sm={6} md={9}>
                   <TextInput
                     source="match.response.consul_domain_name"
                     label="Consul Domain Name"
                     fullWidth
                     validate={[required()]}
-                    className="matchResponseConsulDomainName"
+                    helperText="Consul service domain"
                   />
-                )}
-              </React.Fragment>
-            )}
-          </FormDataConsumer>
-        </Grid>
+                </Grid>
+              )}
+            </FormDataConsumer>
+          </Grid>
 
-        <Grid item md={12} sm={12} xs={12}>
-          <TextInput
-            multiline
-            source="match.response.message"
-            label="Response Message (Base64 Encoded)"
-            fullWidth
-            className="matchResponseMessage"
-          />
-        </Grid>
-      </Grid>
+          <Divider sx={{ my: 2 }} />
+
+          {/* Response Message */}
+          <Grid container spacing={2}>
+            <Grid item xs={12}>
+              <TextInput
+                multiline
+                source="match.response.message"
+                label="Response Message"
+                fullWidth
+                minRows={3}
+                helperText="Base64 encoded response body (optional)"
+              />
+            </Grid>
+          </Grid>
+        </SectionCard>
+
+      </Box>
     </SimpleForm>
   );
 };

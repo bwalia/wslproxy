@@ -207,11 +207,13 @@ RUN yarn install \
 RUN yarn build
 
 RUN mkdir -p "${NGINX_CONFIG_DIR}data/servers" && \
-    mkdir -p "${NGINX_CONFIG_DIR}data/rules"
+    mkdir -p "${NGINX_CONFIG_DIR}data/rules" && \
+    mkdir -p "${NGINX_CONFIG_DIR}data/ssl"
 
 RUN chmod -R 777 ${NGINX_CONFIG_DIR}data && \
     chmod -R 777 ${NGINX_CONFIG_DIR}data/servers && \
     chmod -R 777 ${NGINX_CONFIG_DIR}data/rules && \
+    chmod -R 777 ${NGINX_CONFIG_DIR}data/ssl && \
     # chmod -R 777 ${NGINX_CONFIG_DIR}data/security_rules.json && \
     chown -R nobody:root ${NGINX_CONFIG_DIR}data/
 # chmod 777 ${NGINX_CONFIG_DIR}data/sample-settings.json
