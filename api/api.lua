@@ -7,6 +7,7 @@ local Conf = require("server-conf")
 local Helper = require("helpers")
 local Errors = require("errors")
 local PushData = require("push-data")
+local SslManager = require("ssl_manager")
 
 local settings = Helper.settings()
 local storageTypeOverride = settings.settings or os.getenv("STORAGE_TYPE")
@@ -101,6 +102,43 @@ local function validateServerPayload(payloads)
                     message = "Condition is required for each match case (e.g., 'and', 'or')"
                 })
             end
+        end
+    end
+
+    -- Validate SSL certificate fields if ssl_enabled is true
+    if payloads.ssl_enabled == true then
+        -- ssl_email is required when SSL is enabled
+        if not payloads.ssl_email or payloads.ssl_email == "" then
+            table.insert(errors, {
+                field = "ssl_email",
+                message = "SSL contact email is required when SSL is enabled"
+            })
+        elseif type(payloads.ssl_email) ~= "string" then
+            table.insert(errors, {
+                field = "ssl_email",
+                message = "SSL email must be a string"
+            })
+        elseif not string.match(payloads.ssl_email, "^[%w%._%+-]+@[%w%.%-]+%.[%a]+$") then
+            table.insert(errors, {
+                field = "ssl_email",
+                message = "SSL email must be a valid email address"
+            })
+        end
+
+        -- Validate ssl_auto_renew if provided (should be boolean)
+        if payloads.ssl_auto_renew ~= nil and type(payloads.ssl_auto_renew) ~= "boolean" then
+            table.insert(errors, {
+                field = "ssl_auto_renew",
+                message = "SSL auto-renew must be a boolean value"
+            })
+        end
+
+        -- Validate ssl_force_https if provided (should be boolean)
+        if payloads.ssl_force_https ~= nil and type(payloads.ssl_force_https) ~= "boolean" then
+            table.insert(errors, {
+                field = "ssl_force_https",
+                message = "SSL force HTTPS must be a boolean value"
+            })
         end
     end
 
@@ -1019,6 +1057,31 @@ local function createUpdateServer(body, uuid)
         payloads.id = "host:" .. payloads.server_name
         payloads.proxy_pass = "http://localhost"
         response = CreateUpdateRecord(payloads, payloads.id, "servers", "servers", "create")
+    end
+
+    -- Handle SSL certificate configuration if ssl_enabled is set
+    if payloads.ssl_enabled then
+        local ssl_config = {
+            ssl_enabled = payloads.ssl_enabled,
+            ssl_email = payloads.ssl_email,
+            ssl_auto_renew = payloads.ssl_auto_renew ~= false, -- default true
+            ssl_force_https = payloads.ssl_force_https ~= false, -- default true
+            ssl_staging = payloads.ssl_staging ~= false -- default true for safety
+        }
+        local ssl_ok, ssl_err = SslManager.store_ssl_config(payloads.server_name, ssl_config)
+        if not ssl_ok then
+            ngx.log(ngx.ERR, "Failed to store SSL config for ", payloads.server_name, ": ", ssl_err)
+        else
+            ngx.log(ngx.INFO, "SSL configuration stored for domain: ", payloads.server_name)
+            -- Trigger certificate readiness check
+            SslManager.trigger_certificate_issuance(payloads.server_name)
+        end
+    else
+        -- If SSL is disabled, remove SSL config
+        local ssl_ok, ssl_err = SslManager.remove_ssl_config(payloads.server_name)
+        if not ssl_ok then
+            ngx.log(ngx.WARN, "Failed to remove SSL config for ", payloads.server_name, ": ", ssl_err)
+        end
     end
 
     ngx.say(cjson.encode({
@@ -2244,6 +2307,50 @@ local function handle_get_request(args, path)
     end
     if path == "openresty/access_logs" then
         listOpenrestyAccessLogs()
+    end
+
+    -- SSL Certificate status endpoint
+    if subPath[1] == "ssl" and subPath[2] == "status" and subPath[3] then
+        local server_name = subPath[3]
+        local ssl_status, ssl_err = SslManager.get_certificate_status(server_name)
+        if ssl_status then
+            ngx.say(cjson.encode({
+                data = {
+                    server_name = server_name,
+                    ssl_enabled = ssl_status.ssl_enabled,
+                    certificate_exists = ssl_status.certificate_exists,
+                    certificate_expiry = ssl_status.certificate_expiry,
+                    message = ssl_status.ssl_enabled and "SSL is enabled for this domain" or "SSL is not enabled for this domain"
+                }
+            }))
+        else
+            ngx.say(cjson.encode({
+                data = {
+                    server_name = server_name,
+                    ssl_enabled = false,
+                    error = ssl_err or "Failed to get SSL status"
+                }
+            }))
+        end
+        ngx.exit(ngx.HTTP_OK)
+    end
+
+    -- Get SSL configuration for a domain
+    if subPath[1] == "ssl" and subPath[2] == "config" and subPath[3] then
+        local server_name = subPath[3]
+        local ssl_config, ssl_err = SslManager.get_ssl_config(server_name)
+        if ssl_config then
+            ngx.say(cjson.encode({
+                data = ssl_config
+            }))
+        else
+            ngx.say(cjson.encode({
+                data = {
+                    error = ssl_err or "Failed to get SSL config"
+                }
+            }))
+        end
+        ngx.exit(ngx.HTTP_OK)
     end
     if path == "global/settings" then
         local settingsData = settings
