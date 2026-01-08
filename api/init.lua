@@ -43,13 +43,17 @@ local ssl_domains_cache = {}
 
 local function load_ssl_domains_from_disk()
   local ssl_dir = configPath .. "data/ssl/"
-  local ok, lfs_iter = pcall(function()
-    return LFS.dir(ssl_dir)
-  end)
 
-  if ok and lfs_iter then
-    for file in lfs_iter do
-      if file:match("%.json$") then
+  -- First check if directory exists
+  local dir_attr = LFS.attributes(ssl_dir)
+  if not dir_attr or dir_attr.mode ~= "directory" then
+    ngx.log(ngx.INFO, "SSL: SSL directory does not exist yet: ", ssl_dir)
+    return
+  end
+
+  local ok, err = pcall(function()
+    for file in LFS.dir(ssl_dir) do
+      if file ~= "." and file ~= ".." and file:match("%.json$") then
         local server_name = file:gsub("%.json$", "")
         local file_path = ssl_dir .. file
         local read_ok, content = pcall(function()
@@ -73,6 +77,10 @@ local function load_ssl_domains_from_disk()
         end
       end
     end
+  end)
+
+  if not ok then
+    ngx.log(ngx.WARN, "SSL: Error loading SSL domains from disk: ", tostring(err))
   end
 end
 
