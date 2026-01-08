@@ -1073,6 +1073,10 @@ local function createUpdateServer(body, uuid)
             ngx.log(ngx.ERR, "Failed to store SSL config for ", payloads.server_name, ": ", ssl_err)
         else
             ngx.log(ngx.INFO, "SSL configuration stored for domain: ", payloads.server_name)
+            -- Add domain to SSL cache for immediate availability
+            if AddSslDomainToCache then
+                AddSslDomainToCache(payloads.server_name)
+            end
             -- Trigger certificate readiness check
             SslManager.trigger_certificate_issuance(payloads.server_name)
         end
@@ -1081,6 +1085,10 @@ local function createUpdateServer(body, uuid)
         local ssl_ok, ssl_err = SslManager.remove_ssl_config(payloads.server_name)
         if not ssl_ok then
             ngx.log(ngx.WARN, "Failed to remove SSL config for ", payloads.server_name, ": ", ssl_err)
+        end
+        -- Remove domain from SSL cache
+        if RemoveSslDomainFromCache then
+            RemoveSslDomainFromCache(payloads.server_name)
         end
     end
 
