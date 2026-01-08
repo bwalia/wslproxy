@@ -244,13 +244,22 @@ server {
 
     http2 on;
         ssl_session_timeout  5m;
+        ssl_session_cache shared:SSL:50m;
+        ssl_session_tickets off;
+
+        # Modern SSL configuration
+        ssl_protocols TLSv1.2 TLSv1.3;
+        ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384;
+        ssl_prefer_server_ciphers off;
 
         ssl_certificate_by_lua_block {
-        auto_ssl:ssl_certificate()
+          auto_ssl:ssl_certificate()
         }
 
         ssl_certificate /etc/ssl/resty-auto-ssl-fallback.crt;
         ssl_certificate_key /etc/ssl/resty-auto-ssl-fallback.key;
+
+        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
 
         limit_req zone=req_zone burst=10 nodelay;
         limit_req zone=req_zone_wl burst=20 nodelay;
@@ -266,6 +275,13 @@ server {
           set $proxy_host_override "";
           set $proxy_route_server "openresty-default-route-443";
           set $upstream_server "global_backend";
+
+          # ACME Challenge for Let's Encrypt (lua-resty-auto-ssl)
+          location /.well-known/acme-challenge/ {
+            content_by_lua_block {
+              auto_ssl:challenge_server()
+            }
+          }
 
           location / {
           access_log /var/log/nginx/access.log main;
@@ -411,10 +427,15 @@ server {
 
           # Endpoint used for performing domain verification with Lets Encrypt.
           location /.well-known/acme-challenge/ {
-          content_by_lua_block {
-            auto_ssl:challenge_server()
-          }
+            content_by_lua_block {
+              auto_ssl:challenge_server()
+            }
           }   
+
+              # Redirect all other traffic to HTTPS
+          # location / {
+          #   return 301 https://$host$request_uri;
+          # }
 
           # Allow special characters in headers
           ignore_invalid_headers off;
