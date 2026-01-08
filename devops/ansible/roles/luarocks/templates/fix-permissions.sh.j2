@@ -42,6 +42,11 @@ fi
 chmod -R 777 /opt/nginx/data/ \
     && chown -R www-data:root /opt/nginx/data/
 
+# Create SSL config directory for Let's Encrypt certificate management
+mkdir -p /opt/nginx/data/ssl/ \
+    && chmod 775 -R /opt/nginx/data/ssl/ \
+    && chown -R www-data:root /opt/nginx/data/ssl/
+
 mkdir -p /opt/nginx/prod_cache/
 chmod 775 -R /opt/nginx/prod_cache/
 chown www-data:root -R /opt/nginx/prod_cache/
