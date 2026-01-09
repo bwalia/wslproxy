@@ -209,16 +209,31 @@ auto_ssl:set("allow_domain", function(domain)
   end
 end)
 
-auto_ssl:set("storage_adapter", "resty.auto-ssl.storage_adapters.redis")
-auto_ssl:set("redis", {
-  host = redisHost
-})
+-- Set DNS resolver FIRST - needed for all ACME operations
+-- Use Google DNS as fallback if primary resolvers are not available
+local primary_dns = os.getenv("PRIMARY_DNS_RESOLVER") or "8.8.8.8"
+local secondary_dns = os.getenv("SECONDARY_DNS_RESOLVER") or "8.8.4.4"
+auto_ssl:set("resolver", primary_dns .. " " .. secondary_dns)
+ngx.log(ngx.INFO, "SSL: Using DNS resolvers: ", primary_dns, " ", secondary_dns)
 
-auto_ssl:set("dir", "/tmp")
+-- Configure storage adapter based on settings
+if use_redis_storage then
+  auto_ssl:set("storage_adapter", "resty.auto-ssl.storage_adapters.redis")
+  auto_ssl:set("redis", {
+    host = redisHost,
+    port = redisEndPort
+  })
+  ngx.log(ngx.INFO, "SSL: Using Redis storage adapter at ", redisHost, ":", redisEndPort)
+else
+  -- Use file storage adapter for disk-based storage
+  auto_ssl:set("storage_adapter", "resty.auto-ssl.storage_adapters.file")
+  auto_ssl:set("dir", configPath .. "data/ssl-certs")
+  ngx.log(ngx.INFO, "SSL: Using file storage adapter at ", configPath, "data/ssl-certs")
+end
 
 -- Check if we should use staging mode (check settings or environment variable)
--- Default to staging for safety during testing
-local use_staging = true  -- Default to staging
+-- Default to production (false) for real certificates
+local use_staging = false  -- Default to production
 
 -- Check environment variable first (read at init time, not in callback)
 local staging_env = os.getenv("SSL_STAGING")
@@ -231,19 +246,25 @@ else
   end
 end
 
+-- Set Let's Encrypt CA based on staging mode
+local ca_url
 if use_staging then
   -- Use Let's Encrypt staging environment for testing
   -- Staging certificates are NOT trusted by browsers but have higher rate limits
-  auto_ssl:set("ca", "https://acme-staging-v02.api.letsencrypt.org/directory")
-  ngx.log(ngx.WARN, "SSL: Using Let's Encrypt STAGING environment. Certificates will NOT be trusted by browsers.")
+  ca_url = "https://acme-staging-v02.api.letsencrypt.org/directory"
+  auto_ssl:set("ca", ca_url)
+  ngx.log(ngx.WARN, "SSL: Using Let's Encrypt STAGING environment: ", ca_url)
+  ngx.log(ngx.WARN, "SSL: Staging certificates will NOT be trusted by browsers!")
 else
   -- Use Let's Encrypt production environment
   -- Production certificates ARE trusted by browsers but have lower rate limits
-  auto_ssl:set("ca", "https://acme-v02.api.letsencrypt.org/directory")
-  ngx.log(ngx.INFO, "SSL: Using Let's Encrypt PRODUCTION environment.")
+  ca_url = "https://acme-v02.api.letsencrypt.org/directory"
+  auto_ssl:set("ca", ca_url)
+  ngx.log(ngx.INFO, "SSL: Using Let's Encrypt PRODUCTION environment: ", ca_url)
 end
 
 auto_ssl:init()
+ngx.log(ngx.INFO, "SSL: lua-resty-auto-ssl initialized successfully")
 
 -- Export function to refresh SSL domains cache (can be called from API)
 function RefreshSslDomainsCache()

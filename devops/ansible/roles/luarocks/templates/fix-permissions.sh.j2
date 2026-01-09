@@ -47,6 +47,14 @@ mkdir -p /opt/nginx/data/ssl/ \
     && chmod 775 -R /opt/nginx/data/ssl/ \
     && chown -R www-data:root /opt/nginx/data/ssl/
 
+# Create SSL certificates storage directory for lua-resty-auto-ssl
+mkdir -p /opt/nginx/data/ssl-certs/ \
+    && mkdir -p /opt/nginx/data/ssl-certs/storage/file/ \
+    && mkdir -p /opt/nginx/data/ssl-certs/letsencrypt/ \
+    && mkdir -p /opt/nginx/data/ssl-certs/letsencrypt/.acme-challenges/ \
+    && chmod 777 -R /opt/nginx/data/ssl-certs/ \
+    && chown -R www-data:root /opt/nginx/data/ssl-certs/
+
 mkdir -p /opt/nginx/prod_cache/
 chmod 775 -R /opt/nginx/prod_cache/
 chown www-data:root -R /opt/nginx/prod_cache/
