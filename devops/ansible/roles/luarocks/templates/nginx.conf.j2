@@ -82,8 +82,11 @@ http {
       ''      close;
     }
 
-    limit_req_zone $limit_key zone=req_zone:10m rate=5r/s;
-    limit_req_zone $binary_remote_addr zone=req_zone_wl:10m rate=15r/s;
+    limit_req_zone $limit_key zone=req_zone:10m rate=100r/s;
+    limit_req_zone $binary_remote_addr zone=req_zone_wl:10m rate=200r/s;
+
+    # Also add burst allowance to handle initial page loads
+    limit_req zone=req_zone burst=90 nodelay;
 
     init_by_lua_file /usr/local/openresty/nginx/html/api/init.lua;
 
@@ -214,6 +217,53 @@ http {
           # add_header 'Content-Length' 0;
           content_by_lua_file /usr/local/openresty/nginx/html/api/ping.lua;
       }
+
+        # Prometheus Metrics Endpoint
+        location /metrics {
+            # Restrict access to internal networks only
+            allow 127.0.0.1;
+            allow ::1;
+            allow 10.0.0.0/8;
+            allow 172.16.0.0/12;
+            allow 192.168.0.0/16;
+            allow 172.71.0.0/16;
+            deny all;
+
+            content_by_lua_block {
+                local ok, metrics = pcall(require, "prometheus_metrics")
+                if ok then
+                    local metric_connections = metrics.get_metric_connections()
+                    local prometheus = metrics.get_prometheus()
+                    if metric_connections and prometheus then
+                        metric_connections:set(ngx.var.connections_reading, {"reading"})
+                        metric_connections:set(ngx.var.connections_waiting, {"waiting"})
+                        metric_connections:set(ngx.var.connections_writing, {"writing"})
+                        prometheus:collect()
+                    else
+                        ngx.status = 200
+                        ngx.header.content_type = "text/plain"
+                        ngx.say("# Prometheus metrics not available")
+                    end
+                else
+                    ngx.log(ngx.ERR, "Failed to load metrics module: ", tostring(metrics))
+                    ngx.status = 200
+                    ngx.header.content_type = "text/plain"
+                    ngx.say("# Prometheus metrics not available")
+                end
+            }
+        }
+
+        # Nginx Status Endpoint (for nginx_exporter)
+        location /nginx_status {
+            stub_status;
+            allow 127.0.0.1;
+            allow ::1;
+            allow 10.0.0.0/8;
+            allow 172.16.0.0/12;
+            allow 192.168.0.0/16;
+            allow 172.71.0.0/16;
+            deny all;
+        }
     }
 
     # Openresty Admin UI END
