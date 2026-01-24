@@ -1,12 +1,12 @@
 name: Ansible compile from source and install Openresty
-# enable this again from a dedicated ansible control node
+# Auto-deploys to 185.237.99.238 on push to main branch
 on:
   push:
     branches:
-      - dummy
+      - main
   pull_request:
     branches:
-      - dummy
+      - main
 
   workflow_dispatch:
     inputs:
@@ -24,16 +24,16 @@ on:
       TARGET_HOST:
         type: choice
         description: "Please choose the Target host"
-        default: "whisky03"
+        default: "185.237.99.238"
         required: true
         options:
-          - whisky03
           - 185.237.99.238
+          - whisky03
           # - whisky10
           # - whisky08
 env:
   TARGET_ENV: ${{ github.event.inputs.TARGET_ENV || 'int' }}
-  TARGET_HOST: ${{ github.event.inputs.TARGET_HOST || '127.0.0.1' }}
+  TARGET_HOST: ${{ github.event.inputs.TARGET_HOST || '185.237.99.238' }}
   API_DOMAINNAME_ENDPOINT: ${{ github.event.inputs.TARGET_ENV || 'int' }}.wslproxy.com
 
 jobs:
