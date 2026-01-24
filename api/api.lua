@@ -12,6 +12,9 @@ local SslManager = require("ssl_manager")
 local settings = Helper.settings()
 local storageTypeOverride = settings.settings or os.getenv("STORAGE_TYPE")
 
+-- Forward declaration for functions used before definition
+local CreateUpdateRecord
+
 -- Validation helper functions
 local function validateServerPayload(payloads)
     local errors = {}
@@ -1645,7 +1648,7 @@ local function createDeleteInstances(body, uuid)
     }))
 end
 
-function CreateUpdateRecord(json_val, uuid, key_name, folder_name, method)
+CreateUpdateRecord = function(json_val, uuid, key_name, folder_name, method)
     local formatResponse = {}
     json_val['data'] = nil
     for k, v in pairs(json_val) do
