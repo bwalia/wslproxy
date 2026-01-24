@@ -1,4 +1,4 @@
-// describe('Whitefalcon users test', () => {
+// describe('WSL Proxy users test', () => {
 //   let BASE_URL = Cypress.env('BASE_PUB_URL')
 //   let EMAIL = Cypress.env('LOGIN_EMAIL') 
 //   let PASSWORD = Cypress.env('LOGIN_PASSWORD') 

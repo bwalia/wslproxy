@@ -263,6 +263,35 @@ else
   ngx.log(ngx.INFO, "SSL: Using Let's Encrypt PRODUCTION environment: ", ca_url)
 end
 
+-- ============================================================
+-- OCSP Stapling Configuration
+-- OCSP stapling improves SSL handshake performance and privacy
+-- but can fail if the CA's OCSP responder is unreachable
+-- ============================================================
+local ocsp_stapling_enabled = true  -- Default enabled
+
+-- Check settings for OCSP configuration
+if settings and settings.ssl_ocsp_stapling ~= nil then
+  ocsp_stapling_enabled = settings.ssl_ocsp_stapling
+end
+
+-- Check environment variable override
+local ocsp_env = os.getenv("SSL_OCSP_STAPLING")
+if ocsp_env ~= nil then
+  ocsp_stapling_enabled = (ocsp_env == "true" or ocsp_env == "1")
+end
+
+if not ocsp_stapling_enabled then
+  -- Disable OCSP stapling to prevent errors when CA's OCSP responder is unavailable
+  auto_ssl:set("ocsp_stapling_error_level", ngx.NOTICE)
+  ngx.log(ngx.INFO, "SSL: OCSP stapling errors will be logged at NOTICE level (non-blocking)")
+else
+  -- Enable OCSP stapling with graceful degradation
+  -- Errors will be logged but won't block SSL handshakes
+  auto_ssl:set("ocsp_stapling_error_level", ngx.WARN)
+  ngx.log(ngx.INFO, "SSL: OCSP stapling enabled with graceful degradation")
+end
+
 auto_ssl:init()
 ngx.log(ngx.INFO, "SSL: lua-resty-auto-ssl initialized successfully")
 

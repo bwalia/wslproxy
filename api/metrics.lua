@@ -1,4 +1,4 @@
--- Prometheus Metrics Endpoint Handler for Whitefalcon Gateway
+-- Prometheus Metrics Endpoint Handler for WSL Proxy Gateway
 -- This file is called by nginx location /metrics
 
 local function serve_metrics()
