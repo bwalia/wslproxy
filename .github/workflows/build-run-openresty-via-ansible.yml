@@ -28,6 +28,7 @@ on:
         required: true
         options:
           - whisky03
+          - 185.237.99.238
           # - whisky10
           # - whisky08
 env:
