@@ -1,5 +1,5 @@
-local_settings_file_path: "/Users/harcharansingh/Documents/Projects/Whitefalcon/whitefalcon/pop0/settings.json"
-local_env_file_path: "/Users/harcharansingh/Documents/Projects/Whitefalcon/whitefalcon/pop0/.env"
+local_settings_file_path: "/home/bwalia/.secrets/wslproxy/prod/settings.json"
+local_env_file_path: "/home/bwalia/.secrets/wslproxy/prod/.env"
 nginx_user_password: "!!REDACTED!!" # This is the password for the user www-data but must be encrypted using Ansible Vault
 host_lan_ip: "185.237.99.238"
 nginx_web_ui_enabled: "yes"
