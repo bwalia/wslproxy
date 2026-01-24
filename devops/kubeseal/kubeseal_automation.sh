@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Kubeseal Automation Script for Whitefalcon/wslproxy
+# Kubeseal Automation Script for WSL Proxy
 #
 # This script automates the process of sealing Kubernetes secrets using kubeseal.
 # It takes environment-specific secrets, seals them, and generates Helm values files.
@@ -560,7 +560,7 @@ YAML
 # Main function
 main() {
     echo "=============================================="
-    log_step "Kubeseal Automation for Whitefalcon/wslproxy"
+    log_step "Kubeseal Automation for WSL Proxy"
     echo "=============================================="
 
     # Validate parameters

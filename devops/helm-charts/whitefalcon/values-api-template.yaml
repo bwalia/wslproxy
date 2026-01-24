@@ -1,4 +1,4 @@
-# Whitefalcon API Values Template
+# WSL Proxy API Values Template
 # This file is used as a template by kubeseal_automation.sh
 # Placeholders will be replaced during CI/CD pipeline execution
 #
@@ -17,12 +17,12 @@ replicaCount: 1
 app:
   name: wf-api
   version: 0.1.1
-  description: Whitefalcon API Helm Chart
+  description: WSL Proxy API Helm Chart
   keywords:
     - helm
     - chart
     - kubernetes
-    - whitefalcon
+    - wslproxy
     - api
   namespace: CICD_NAMESPACE_PLACEHOLDER
   dns_resolver: "10.43.0.10"

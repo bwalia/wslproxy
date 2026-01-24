@@ -62,7 +62,7 @@ function _M.init()
     package.loaded._metric_auth_attempts = prometheus:counter("api_auth_attempts_total", "Authentication attempts", {"result", "type"})
     package.loaded._metric_auth_failures = prometheus:counter("api_auth_failures_total", "Authentication failures", {"reason"})
 
-    -- Server/Route management metrics (Whitefalcon specific)
+    -- Server/Route management metrics (WSL Proxy specific)
     package.loaded._metric_server_operations = prometheus:counter("api_server_operations_total", "Server CRUD operations", {"operation", "status"})
     package.loaded._metric_rule_operations = prometheus:counter("api_rule_operations_total", "Rule CRUD operations", {"operation", "status"})
     package.loaded._metric_profile_operations = prometheus:counter("api_profile_operations_total", "Profile operations", {"operation", "status"})
@@ -71,7 +71,7 @@ function _M.init()
     package.loaded._metric_upstream_requests = prometheus:counter("nginx_upstream_requests_total", "Upstream service requests", {"upstream", "status"})
     package.loaded._metric_upstream_latency = prometheus:histogram("nginx_upstream_response_time_seconds", "Upstream response time", {"upstream"})
 
-    ngx.log(ngx.NOTICE, "Whitefalcon Prometheus metrics initialized successfully")
+    ngx.log(ngx.NOTICE, "WSL Proxy Prometheus metrics initialized successfully")
     return true
 end
 
