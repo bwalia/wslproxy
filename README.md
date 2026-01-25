@@ -237,9 +237,7 @@ on your local system. It will automatically sync the build changes with the dock
 
 ## How to run Ansible for a workflow
 
-ansible-playbook devops/ansible/playbook_openresty.yml -i devops/ansible/hosts -l target_host_ip
-
-##Replace 'playbook_openresty.yml' with the actual playbook
+ansible-playbook devops/ansible/deploy-wslproxy.yml -i devops/ansible/hosts -l target_host_ip
 
 ### Replace 'devops/ansible/hosts' with the required host file
 
