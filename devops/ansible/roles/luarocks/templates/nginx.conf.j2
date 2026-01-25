@@ -68,6 +68,9 @@ http {
     # Static content cache (WSL Proxy caching system)
     lua_shared_dict wsl_cache 100m;
     lua_shared_dict wsl_cache_keys 10m;
+    
+    # Prometheus metrics storage
+    lua_shared_dict prometheus_metrics 10m;
 
     geo $limit {
         default 1;
@@ -93,6 +96,16 @@ http {
     limit_req zone=req_zone burst=90 nodelay;
 
     init_by_lua_file /usr/local/openresty/nginx/html/api/init.lua;
+    
+    # Initialize prometheus metrics in worker process
+    init_worker_by_lua_block {
+        local ok, metrics = pcall(require, "prometheus_metrics")
+        if ok then
+            metrics.init()
+        else
+            ngx.log(ngx.ERR, "Failed to load prometheus_metrics module: ", tostring(metrics))
+        end
+    }
 
     # global_backend
     upstream global_backend {
@@ -224,13 +237,15 @@ http {
 
         # Prometheus Metrics Endpoint
         location /metrics {
-            # Restrict access to internal networks only
+            # Restrict access to internal networks and trusted IPs
             allow 127.0.0.1;
             allow ::1;
             allow 10.0.0.0/8;
             allow 172.16.0.0/12;
             allow 192.168.0.0/16;
             allow 172.71.0.0/16;
+            # Office/Trusted external IPs
+            allow 193.237.176.232;
             deny all;
 
             content_by_lua_block {
@@ -266,6 +281,8 @@ http {
             allow 172.16.0.0/12;
             allow 192.168.0.0/16;
             allow 172.71.0.0/16;
+            # Office/Trusted external IPs
+            allow 193.237.176.232;
             deny all;
         }
     }
