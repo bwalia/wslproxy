@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="WSL Proxy - Enterprise-grade reverse proxy, load balancer, and edge computing platform. Build your own CDN with multi-region failover, edge caching, and WAF protection." />
+    <meta name="keywords" content="CDN, reverse proxy, load balancer, edge computing, WAF, SSL, cache, API gateway, OpenResty, Lua, nginx" />
+    <meta name="author" content="Workstation Solutions Limited" />
+    <meta property="og:title" content="WSL Proxy - Build Your Own CDN" />
+    <meta property="og:description" content="Enterprise-grade reverse proxy, load balancer, and edge computing platform with multi-region failover, edge caching, and WAF protection." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="WSL Proxy - Build Your Own CDN" />
+    <meta name="twitter:description" content="Enterprise-grade reverse proxy and edge computing platform" />
+    <title>WSL Proxy - Build Your Own CDN | Enterprise Edge Platform</title>
+    
+    <!-- CDN Dependencies for GitHub Pages -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet" />
+    
+    <style>
+      :root {
+        --primary: #6366f1;
+        --primary-dark: #4f46e5;
+        --secondary: #0ea5e9;
+        --accent: #10b981;
+        --dark: #0f172a;
+        --dark-light: #1e293b;
+        --gray: #64748b;
+        --light: #f8fafc;
+        --white: #ffffff;
+        --gradient: linear-gradient(135deg, #6366f1 0%, #0ea5e9 50%, #10b981 100%);
+        --gradient-dark: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      }
+
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+
+      body {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        color: var(--dark);
+        line-height: 1.6;
+        overflow-x: hidden;
+      }
+
+      /* Navbar */
+      .navbar-custom {
+        background: rgba(15, 23, 42, 0.95);
+        backdrop-filter: blur(20px);
+        padding: 1rem 0;
+        position: fixed;
+        width: 100%;
+        top: 0;
+        z-index: 1000;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+        transition: all 0.3s ease;
+      }
+
+      .navbar-brand {
+        font-size: 1.5rem;
+        font-weight: 800;
+        color: var(--white) !important;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        text-decoration: none;
+      }
+
+      .navbar-brand span {
+        background: var(--gradient);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+
+      .nav-link-custom {
+        color: rgba(255,255,255,0.8) !important;
+        font-weight: 500;
+        padding: 0.5rem 1rem !important;
+        transition: all 0.3s ease;
+        text-decoration: none;
+      }
+
+      .nav-link-custom:hover { color: var(--white) !important; }
+
+      .btn-nav {
+        background: var(--gradient);
+        color: var(--white) !important;
+        padding: 0.6rem 1.5rem !important;
+        border-radius: 8px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        margin-left: 1rem;
+        border: none;
+      }
+
+      .btn-nav:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 40px rgba(99, 102, 241, 0.4);
+      }
+
+      /* Hero Section */
+      .hero {
+        min-height: 100vh;
+        background: var(--gradient-dark);
+        position: relative;
+        display: flex;
+        align-items: center;
+        overflow: hidden;
+        padding-top: 80px;
+      }
+
+      .hero::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.03)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+        pointer-events: none;
+      }
+
+      .hero-glow {
+        position: absolute;
+        width: 600px; height: 600px;
+        background: radial-gradient(circle, rgba(99, 102, 241, 0.3) 0%, transparent 70%);
+        top: -200px; right: -100px;
+        pointer-events: none;
+      }
+
+      .hero-glow-2 {
+        position: absolute;
+        width: 400px; height: 400px;
+        background: radial-gradient(circle, rgba(14, 165, 233, 0.2) 0%, transparent 70%);
+        bottom: -100px; left: -100px;
+        pointer-events: none;
+      }
+
+      .hero-content { position: relative; z-index: 2; }
+
+      .hero-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: rgba(99, 102, 241, 0.2);
+        border: 1px solid rgba(99, 102, 241, 0.3);
+        padding: 0.5rem 1rem;
+        border-radius: 50px;
+        color: var(--primary);
+        font-size: 0.875rem;
+        font-weight: 500;
+        margin-bottom: 1.5rem;
+      }
+
+      .hero h1 {
+        font-size: 3.5rem;
+        font-weight: 800;
+        color: var(--white);
+        line-height: 1.1;
+        margin-bottom: 1.5rem;
+      }
+
+      .hero h1 .gradient-text {
+        background: var(--gradient);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+
+      .hero-description {
+        font-size: 1.25rem;
+        color: rgba(255,255,255,0.7);
+        max-width: 600px;
+        margin-bottom: 2rem;
+      }
+
+      .hero-buttons { display: flex; gap: 1rem; flex-wrap: wrap; }
+
+      .btn-primary-custom {
+        background: var(--gradient);
+        color: var(--white);
+        padding: 1rem 2rem;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 1rem;
+        border: none;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .btn-primary-custom:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 20px 40px rgba(99, 102, 241, 0.4);
+        color: var(--white);
+      }
+
+      .btn-secondary-custom {
+        background: transparent;
+        color: var(--white);
+        padding: 1rem 2rem;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 1rem;
+        border: 2px solid rgba(255,255,255,0.2);
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .btn-secondary-custom:hover {
+        background: rgba(255,255,255,0.1);
+        border-color: rgba(255,255,255,0.4);
+        color: var(--white);
+      }
+
+      .hero-stats {
+        display: flex;
+        gap: 3rem;
+        margin-top: 4rem;
+        padding-top: 2rem;
+        border-top: 1px solid rgba(255,255,255,0.1);
+        flex-wrap: wrap;
+      }
+
+      .stat-item { text-align: center; }
+
+      .stat-number {
+        font-size: 2.5rem;
+        font-weight: 800;
+        background: var(--gradient);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+
+      .stat-label { color: rgba(255,255,255,0.6); font-size: 0.875rem; }
+
+      /* Terminal */
+      .terminal-window {
+        background: var(--dark);
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 40px 80px rgba(0,0,0,0.5);
+        border: 1px solid rgba(255,255,255,0.1);
+      }
+
+      .terminal-header {
+        background: var(--dark-light);
+        padding: 1rem 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .terminal-dot { width: 12px; height: 12px; border-radius: 50%; }
+      .terminal-dot.red { background: #ff5f57; }
+      .terminal-dot.yellow { background: #febc2e; }
+      .terminal-dot.green { background: #28c840; }
+
+      .terminal-body {
+        padding: 1.5rem;
+        font-family: 'Monaco', 'Menlo', monospace;
+        font-size: 0.8rem;
+        color: rgba(255,255,255,0.8);
+        min-height: 280px;
+      }
+
+      .terminal-line { margin-bottom: 0.5rem; display: flex; gap: 0.5rem; }
+      .terminal-prompt { color: var(--accent); }
+      .terminal-command { color: var(--secondary); }
+      .terminal-output { color: rgba(255,255,255,0.6); padding-left: 1rem; }
+
+      /* Features Section */
+      .features { padding: 6rem 0; background: var(--light); }
+
+      .section-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: rgba(99, 102, 241, 0.1);
+        padding: 0.5rem 1rem;
+        border-radius: 50px;
+        color: var(--primary);
+        font-size: 0.875rem;
+        font-weight: 500;
+        margin-bottom: 1rem;
+      }
+
+      .section-title {
+        font-size: 2.5rem;
+        font-weight: 800;
+        color: var(--dark);
+        margin-bottom: 1rem;
+      }
+
+      .section-description {
+        font-size: 1.125rem;
+        color: var(--gray);
+        max-width: 600px;
+        margin: 0 auto 3rem;
+      }
+
+      .feature-card {
+        background: var(--white);
+        border-radius: 20px;
+        padding: 2rem;
+        height: 100%;
+        border: 1px solid rgba(0,0,0,0.05);
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+      }
+
+      .feature-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+      }
+
+      .feature-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 1.5rem;
+        font-size: 1.5rem;
+      }
+
+      .feature-icon.blue { background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(14, 165, 233, 0.2)); color: var(--primary); }
+      .feature-icon.green { background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(5, 150, 105, 0.2)); color: var(--accent); }
+      .feature-icon.purple { background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(168, 85, 247, 0.2)); color: #8b5cf6; }
+      .feature-icon.orange { background: linear-gradient(135deg, rgba(249, 115, 22, 0.2), rgba(234, 88, 12, 0.2)); color: #f97316; }
+      .feature-icon.cyan { background: linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(8, 145, 178, 0.2)); color: #06b6d4; }
+      .feature-icon.red { background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(220, 38, 38, 0.2)); color: #ef4444; }
+      .feature-icon.pink { background: linear-gradient(135deg, rgba(236, 72, 153, 0.2), rgba(219, 39, 119, 0.2)); color: #ec4899; }
+      .feature-icon.yellow { background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(217, 119, 6, 0.2)); color: #f59e0b; }
+      .feature-icon.indigo { background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(79, 70, 229, 0.2)); color: #6366f1; }
+
+      .feature-card h4 { font-size: 1.25rem; font-weight: 700; color: var(--dark); margin-bottom: 0.75rem; }
+      .feature-card p { color: var(--gray); font-size: 0.95rem; line-height: 1.6; margin: 0; }
+
+      /* Request Flow Diagram */
+      .flow-section { padding: 5rem 0; background: var(--gradient-dark); }
+
+      .flow-diagram {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 0;
+        padding: 2rem 0;
+      }
+
+      .flow-node {
+        background: rgba(255,255,255,0.1);
+        border: 1px solid rgba(255,255,255,0.2);
+        border-radius: 12px;
+        padding: 1rem 1.5rem;
+        text-align: center;
+        backdrop-filter: blur(10px);
+        min-width: 100px;
+      }
+
+      .flow-node i { font-size: 1.5rem; margin-bottom: 0.5rem; display: block; }
+      .flow-node span { font-size: 0.75rem; color: rgba(255,255,255,0.9); font-weight: 500; }
+      .flow-node.primary { background: rgba(99, 102, 241, 0.3); border-color: var(--primary); }
+      .flow-node.primary i { color: var(--primary); }
+      .flow-node.success { background: rgba(16, 185, 129, 0.3); border-color: var(--accent); }
+      .flow-node.success i { color: var(--accent); }
+      .flow-node.warning { background: rgba(249, 115, 22, 0.3); border-color: #f97316; }
+      .flow-node.warning i { color: #f97316; }
+      .flow-node.info { background: rgba(14, 165, 233, 0.3); border-color: var(--secondary); }
+      .flow-node.info i { color: var(--secondary); }
+
+      .flow-arrow {
+        color: rgba(255,255,255,0.4);
+        font-size: 1.5rem;
+        padding: 0 0.5rem;
+      }
+
+      /* API Section */
+      .api-section { padding: 5rem 0; background: var(--light); }
+
+      .api-card {
+        background: var(--white);
+        border-radius: 12px;
+        padding: 1.5rem;
+        border: 1px solid rgba(0,0,0,0.05);
+        height: 100%;
+        transition: all 0.3s ease;
+      }
+
+      .api-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+      }
+
+      .api-method {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        margin-bottom: 0.75rem;
+      }
+
+      .api-method.get { background: rgba(16, 185, 129, 0.2); color: var(--accent); }
+      .api-method.post { background: rgba(99, 102, 241, 0.2); color: var(--primary); }
+      .api-method.put { background: rgba(249, 115, 22, 0.2); color: #f97316; }
+      .api-method.delete { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+
+      .api-endpoint { font-family: 'Monaco', monospace; font-size: 0.875rem; color: var(--dark); margin-bottom: 0.5rem; font-weight: 600; }
+      .api-desc { color: var(--gray); font-size: 0.85rem; margin: 0; }
+
+      /* CTA Section */
+      .cta-section {
+        padding: 6rem 0;
+        background: var(--gradient-dark);
+        text-align: center;
+      }
+
+      .cta-section h2 { font-size: 2.5rem; font-weight: 800; color: var(--white); margin-bottom: 1rem; }
+      .cta-section p { font-size: 1.125rem; color: rgba(255,255,255,0.7); margin-bottom: 2rem; max-width: 600px; margin-left: auto; margin-right: auto; }
+
+      /* Footer */
+      .footer {
+        background: var(--dark);
+        padding: 4rem 0 2rem;
+        color: rgba(255,255,255,0.7);
+      }
+
+      .footer h5 { color: var(--white); font-weight: 700; margin-bottom: 1.5rem; }
+      .footer ul { list-style: none; padding: 0; }
+      .footer ul li { margin-bottom: 0.75rem; }
+      .footer a { color: rgba(255,255,255,0.6); text-decoration: none; transition: color 0.3s ease; }
+      .footer a:hover { color: var(--white); }
+      .footer-bottom { border-top: 1px solid rgba(255,255,255,0.1); padding-top: 2rem; margin-top: 3rem; text-align: center; }
+      .footer-logo { font-size: 1.5rem; font-weight: 800; margin-bottom: 1rem; }
+      .footer-logo span { background: var(--gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+      .social-links { display: flex; gap: 1rem; margin-top: 1rem; }
+      .social-links a {
+        width: 40px; height: 40px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.1);
+        display: flex; align-items: center; justify-content: center;
+        color: var(--white);
+        transition: all 0.3s ease;
+      }
+      .social-links a:hover { background: var(--primary); transform: translateY(-3px); }
+
+      /* Responsive */
+      @media (max-width: 768px) {
+        .hero h1 { font-size: 2.5rem; }
+        .hero-stats { gap: 1.5rem; }
+        .stat-number { font-size: 1.75rem; }
+        .section-title { font-size: 2rem; }
+        .flow-diagram { flex-direction: column; gap: 0.5rem; }
+        .flow-arrow { transform: rotate(90deg); padding: 0.25rem 0; }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Navbar -->
+    <nav class="navbar-custom">
+      <div class="container d-flex justify-content-between align-items-center">
+        <a class="navbar-brand" href="#">
+          <i class="fas fa-cube"></i>
+          <span>WSL Proxy</span>
+        </a>
+        <div class="d-flex align-items-center">
+          <a class="nav-link-custom d-none d-md-inline" href="#features">Features</a>
+          <a class="nav-link-custom d-none d-md-inline" href="#flow">Architecture</a>
+          <a class="nav-link-custom d-none d-md-inline" href="#api">API</a>
+          <a class="nav-link-custom d-none d-md-inline" href="https://github.com/bwalia/wslproxy" target="_blank">Docs</a>
+          <a class="btn-nav" href="https://github.com/bwalia/wslproxy" target="_blank">
+            <i class="fab fa-github"></i> GitHub
+          </a>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+      <div class="hero-glow"></div>
+      <div class="hero-glow-2"></div>
+      <div class="container">
+        <div class="row align-items-center">
+          <div class="col-lg-6 hero-content">
+            <div class="hero-badge">
+              <i class="fas fa-bolt"></i>
+              <span>OpenResty + Lua Powered Edge Computing</span>
+            </div>
+            <h1>Build Your Own <span class="gradient-text">Enterprise CDN</span></h1>
+            <p class="hero-description">
+              WSL Proxy is a high-performance reverse proxy, load balancer, and edge computing platform. 
+              Deploy globally with multi-region failover, edge caching, WAF protection, and API gateway capabilities.
+            </p>
+            <div class="hero-buttons">
+              <a href="https://github.com/bwalia/wslproxy" class="btn-primary-custom" target="_blank">
+                <i class="fas fa-rocket"></i> Get Started
+              </a>
+              <a href="https://github.com/bwalia/wslproxy" class="btn-secondary-custom" target="_blank">
+                <i class="fab fa-github"></i> View on GitHub
+              </a>
+            </div>
+            <div class="hero-stats">
+              <div class="stat-item">
+                <div class="stat-number">&lt;10ms</div>
+                <div class="stat-label">Latency</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-number">99.99%</div>
+                <div class="stat-label">Uptime</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-number">100K+</div>
+                <div class="stat-label">RPS</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-number">50+</div>
+                <div class="stat-label">Edge Locations</div>
+              </div>
+            </div>
+          </div>
+          <div class="col-lg-6 d-none d-lg-block">
+            <div class="terminal-window">
+              <div class="terminal-header">
+                <span class="terminal-dot red"></span>
+                <span class="terminal-dot yellow"></span>
+                <span class="terminal-dot green"></span>
+              </div>
+              <div class="terminal-body">
+                <div class="terminal-line">
+                  <span class="terminal-prompt">$</span>
+                  <span class="terminal-command">docker pull bwalia/wslproxy:latest</span>
+                </div>
+                <div class="terminal-output">Pulling from bwalia/wslproxy...</div>
+                <div class="terminal-output">Status: Downloaded newer image</div>
+                <div class="terminal-line">
+                  <span class="terminal-prompt">$</span>
+                  <span class="terminal-command">docker-compose up -d</span>
+                </div>
+                <div class="terminal-output">Creating wslproxy_redis_1 ... done</div>
+                <div class="terminal-output">Creating wslproxy_openresty_1 ... done</div>
+                <div class="terminal-line">
+                  <span class="terminal-prompt">$</span>
+                  <span class="terminal-command">curl https://your-domain.com/api/health</span>
+                </div>
+                <div class="terminal-output" style="color: #10b981;">{"status":"healthy","version":"2.0"}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features" id="features">
+      <div class="container">
+        <div class="text-center mb-5">
+          <span class="section-badge"><i class="fas fa-sparkles"></i> Features</span>
+          <h2 class="section-title">Everything You Need for Edge Computing</h2>
+          <p class="section-description">
+            From load balancing to WAF protection, WSL Proxy provides enterprise-grade features for building your own CDN.
+          </p>
+        </div>
+        <div class="row g-4">
+          <div class="col-md-6 col-lg-4">
+            <div class="feature-card">
+              <div class="feature-icon blue"><i class="fas fa-balance-scale"></i></div>
+              <h4>Load Balancing</h4>
+              <p>Distribute traffic across multiple backends with round-robin, least connections, or IP hash algorithms.</p>
+            </div>
+          </div>
+          <div class="col-md-6 col-lg-4">
+            <div class="feature-card">
+              <div class="feature-icon green"><i class="fas fa-globe"></i></div>
+              <h4>Multi-Region Failover</h4>
+              <p>Automatic failover to healthy regions with configurable health checks and priority routing.</p>
+            </div>
+          </div>
+          <div class="col-md-6 col-lg-4">
+            <div class="feature-card">
+              <div class="feature-icon purple"><i class="fas fa-bolt"></i></div>
+              <h4>Edge Caching</h4>
+              <p>Cache responses at the edge with fine-grained TTL control and instant cache invalidation via API.</p>
+            </div>
+          </div>
+          <div class="col-md-6 col-lg-4">
+            <div class="feature-card">
+              <div class="feature-icon orange"><i class="fas fa-shield-alt"></i></div>
+              <h4>WAF Protection</h4>
+              <p>Content-based WAF rules with SQL injection mitigation, XSS protection, and custom rule sets.</p>
+            </div>
+          </div>
+          <div class="col-md-6 col-lg-4">
+            <div class="feature-card">
+              <div class="feature-icon cyan"><i class="fas fa-lock"></i></div>
+              <h4>SSL/TLS Termination</h4>
+              <p>Automatic certificate management with Let's Encrypt integration and cloud certificate pipelines.</p>
+            </div>
+          </div>
+          <div class="col-md-6 col-lg-4">
+            <div class="feature-card">
+              <div class="feature-icon red"><i class="fas fa-key"></i></div>
+              <h4>Edge Authorization</h4>
+              <p>JWT validation, API key management, and OAuth2 integration at the edge.</p>
+            </div>
+          </div>
+          <div class="col-md-6 col-lg-4">
+            <div class="feature-card">
+              <div class="feature-icon pink"><i class="fas fa-chart-line"></i></div>
+              <h4>Observability</h4>
+              <p>Prometheus metrics, structured logging, and distributed tracing for full visibility.</p>
+            </div>
+          </div>
+          <div class="col-md-6 col-lg-4">
+            <div class="feature-card">
+              <div class="feature-icon yellow"><i class="fas fa-map-marker-alt"></i></div>
+              <h4>Geo Traffic Rules</h4>
+              <p>Route traffic by country or continent with IP2Location integration.</p>
+            </div>
+          </div>
+          <div class="col-md-6 col-lg-4">
+            <div class="feature-card">
+              <div class="feature-icon indigo"><i class="fas fa-code-branch"></i></div>
+              <h4>GitOps Ready</h4>
+              <p>Declarative configuration with Helm charts and GitHub Actions CI/CD integration.</p>
+            </div>
+          </div>
+          <div class="col-md-6 col-lg-4">
+            <div class="feature-card">
+              <div class="feature-icon blue"><i class="fas fa-tachometer-alt"></i></div>
+              <h4>Monitoring Integration</h4>
+              <p>Native integration with Prometheus, Grafana, Loki, Mimir, Alertmanager, ELK Stack, Dynatrace, and Datadog.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Request Flow Section -->
+    <section class="flow-section" id="flow">
+      <div class="container">
+        <div class="text-center mb-5">
+          <span class="section-badge" style="background: rgba(255,255,255,0.1); color: var(--white);">
+            <i class="fas fa-project-diagram"></i> Architecture
+          </span>
+          <h2 class="section-title" style="color: var(--white);">Request Flow</h2>
+          <p class="section-description" style="color: rgba(255,255,255,0.7);">
+            Every request flows through our optimized edge pipeline for maximum performance and security.
+          </p>
+        </div>
+        <div class="flow-diagram">
+          <div class="flow-node info"><i class="fas fa-user"></i><span>Client</span></div>
+          <span class="flow-arrow"><i class="fas fa-arrow-right"></i></span>
+          <div class="flow-node"><i class="fas fa-network-wired"></i><span>DNS</span></div>
+          <span class="flow-arrow"><i class="fas fa-arrow-right"></i></span>
+          <div class="flow-node success"><i class="fas fa-lock"></i><span>SSL/TLS</span></div>
+          <span class="flow-arrow"><i class="fas fa-arrow-right"></i></span>
+          <div class="flow-node warning"><i class="fas fa-shield-alt"></i><span>WAF</span></div>
+          <span class="flow-arrow"><i class="fas fa-arrow-right"></i></span>
+          <div class="flow-node primary"><i class="fas fa-key"></i><span>Auth</span></div>
+          <span class="flow-arrow"><i class="fas fa-arrow-right"></i></span>
+          <div class="flow-node"><i class="fas fa-database"></i><span>Cache</span></div>
+          <span class="flow-arrow"><i class="fas fa-arrow-right"></i></span>
+          <div class="flow-node info"><i class="fas fa-balance-scale"></i><span>LB</span></div>
+          <span class="flow-arrow"><i class="fas fa-arrow-right"></i></span>
+          <div class="flow-node success"><i class="fas fa-server"></i><span>Origin</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- API Section -->
+    <section class="api-section" id="api">
+      <div class="container">
+        <div class="text-center mb-5">
+          <span class="section-badge"><i class="fas fa-code"></i> API-Driven</span>
+          <h2 class="section-title">RESTful Configuration API</h2>
+          <p class="section-description">
+            Manage your entire edge infrastructure through our comprehensive REST API.
+          </p>
+        </div>
+        <div class="row g-4">
+          <div class="col-md-6 col-lg-4">
+            <div class="api-card">
+              <span class="api-method get">GET</span>
+              <div class="api-endpoint">/api/servers</div>
+              <p class="api-desc">List all configured backend servers</p>
+            </div>
+          </div>
+          <div class="col-md-6 col-lg-4">
+            <div class="api-card">
+              <span class="api-method post">POST</span>
+              <div class="api-endpoint">/api/servers</div>
+              <p class="api-desc">Create a new server configuration</p>
+            </div>
+          </div>
+          <div class="col-md-6 col-lg-4">
+            <div class="api-card">
+              <span class="api-method get">GET</span>
+              <div class="api-endpoint">/api/rules</div>
+              <p class="api-desc">List all routing and WAF rules</p>
+            </div>
+          </div>
+          <div class="col-md-6 col-lg-4">
+            <div class="api-card">
+              <span class="api-method post">POST</span>
+              <div class="api-endpoint">/api/cache/purge</div>
+              <p class="api-desc">Purge cached content by pattern</p>
+            </div>
+          </div>
+          <div class="col-md-6 col-lg-4">
+            <div class="api-card">
+              <span class="api-method get">GET</span>
+              <div class="api-endpoint">/metrics</div>
+              <p class="api-desc">Prometheus-compatible metrics</p>
+            </div>
+          </div>
+          <div class="col-md-6 col-lg-4">
+            <div class="api-card">
+              <span class="api-method get">GET</span>
+              <div class="api-endpoint">/api/health</div>
+              <p class="api-desc">Health check endpoint</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="cta-section">
+      <div class="container">
+        <h2>Ready to Build Your Own CDN?</h2>
+        <p>Get started with WSL Proxy in minutes. Deploy on Docker, Kubernetes, or bare metal.</p>
+        <div class="d-flex justify-content-center gap-3 flex-wrap">
+          <a href="https://github.com/bwalia/wslproxy" class="btn-primary-custom" target="_blank">
+            <i class="fas fa-rocket"></i> Get Started
+          </a>
+          <a href="https://github.com/bwalia/wslproxy/issues" class="btn-secondary-custom" target="_blank">
+            <i class="fas fa-comments"></i> Join Community
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <div class="container">
+        <div class="row">
+          <div class="col-lg-4 mb-4 mb-lg-0">
+            <div class="footer-logo"><i class="fas fa-cube"></i> <span>WSL Proxy</span></div>
+            <p>Enterprise-grade reverse proxy, load balancer, and edge computing platform.</p>
+            <div class="social-links">
+              <a href="https://github.com/bwalia/wslproxy" target="_blank"><i class="fab fa-github"></i></a>
+              <a href="#"><i class="fab fa-slack"></i></a>
+              <a href="#"><i class="fab fa-twitter"></i></a>
+              <a href="#"><i class="fab fa-linkedin"></i></a>
+            </div>
+          </div>
+          <div class="col-6 col-lg-2">
+            <h5>Product</h5>
+            <ul>
+              <li><a href="#features">Features</a></li>
+              <li><a href="#flow">Architecture</a></li>
+              <li><a href="#api">API</a></li>
+              <li><a href="https://github.com/bwalia/wslproxy">Documentation</a></li>
+            </ul>
+          </div>
+          <div class="col-6 col-lg-2">
+            <h5>Resources</h5>
+            <ul>
+              <li><a href="https://github.com/bwalia/wslproxy">GitHub</a></li>
+              <li><a href="https://github.com/bwalia/wslproxy/issues">Issues</a></li>
+              <li><a href="https://github.com/bwalia/wslproxy/releases">Releases</a></li>
+              <li><a href="https://hub.docker.com/r/bwalia/wslproxy">Docker Hub</a></li>
+            </ul>
+          </div>
+          <div class="col-6 col-lg-2">
+            <h5>Company</h5>
+            <ul>
+              <li><a href="#">About</a></li>
+              <li><a href="#">Blog</a></li>
+              <li><a href="#">Careers</a></li>
+              <li><a href="#">Contact</a></li>
+            </ul>
+          </div>
+          <div class="col-6 col-lg-2">
+            <h5>Legal</h5>
+            <ul>
+              <li><a href="#">Privacy</a></li>
+              <li><a href="#">Terms</a></li>
+              <li><a href="https://github.com/bwalia/wslproxy/blob/main/LICENSE">License</a></li>
+            </ul>
+          </div>
+        </div>
+        <div class="footer-bottom">
+          <p>&copy; 2025 Workstation Solutions Limited. Open Source under MIT License.</p>
+        </div>
+      </div>
+    </footer>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  </body>
+</html>

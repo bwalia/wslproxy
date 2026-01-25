@@ -1,0 +1,226 @@
+<mxfile host="app.diagrams.net" modified="2026-01-25T10:00:00.000Z" agent="WSL Proxy" version="21.0.0" type="device">
+  <diagram id="helm-scaling" name="Helm Deployment &amp; Scaling">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        
+        <!-- Title -->
+        <mxCell id="title" value="WSL Proxy - Kubernetes Helm Deployment &amp; Auto-Scaling Architecture" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=22;fontStyle=1;fontColor=#1a1a2e;" vertex="1" parent="1">
+          <mxGeometry x="350" y="20" width="700" height="40" as="geometry"/>
+        </mxCell>
+        
+        <!-- Ingress / Load Balancer Section -->
+        <mxCell id="ingress-section" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;opacity=40;" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="320" height="200" as="geometry"/>
+        </mxCell>
+        <mxCell id="ingress-label" value="🌐 External Traffic Layer" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=14;fontStyle=1;fontColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="120" y="85" width="160" height="25" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="dns" value="🌍 DNS&#xa;wslproxy.com&#xa;(Route53/CloudFlare)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="60" y="120" width="130" height="60" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="cloud-lb" value="☁️ Cloud LB&#xa;AWS ALB / GCP LB&#xa;Azure LB" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="210" y="120" width="130" height="60" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="ingress-controller" value="📥 Ingress Controller&#xa;nginx-ingress / traefik&#xa;TLS Termination" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="60" y="195" width="280" height="50" as="geometry"/>
+        </mxCell>
+        
+        <!-- Kubernetes Cluster -->
+        <mxCell id="k8s-cluster" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;opacity=40;" vertex="1" parent="1">
+          <mxGeometry x="400" y="80" width="780" height="440" as="geometry"/>
+        </mxCell>
+        <mxCell id="k8s-label" value="☸️ Kubernetes Cluster (synprod namespace)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=16;fontStyle=1;fontColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="620" y="85" width="340" height="25" as="geometry"/>
+        </mxCell>
+        
+        <!-- Service -->
+        <mxCell id="service-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;opacity=60;" vertex="1" parent="1">
+          <mxGeometry x="420" y="120" width="200" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="service-label" value="🔗 Service: wslproxy-svc" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=12;fontStyle=1;fontColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="445" y="125" width="150" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="service-details" value="Type: ClusterIP&#xa;Port: 80, 443, 8080&#xa;Selector: app=wslproxy" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=10;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="435" y="150" width="170" height="60" as="geometry"/>
+        </mxCell>
+        
+        <!-- Deployment / ReplicaSet -->
+        <mxCell id="deployment-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;opacity=60;" vertex="1" parent="1">
+          <mxGeometry x="640" y="120" width="520" height="250" as="geometry"/>
+        </mxCell>
+        <mxCell id="deployment-label" value="📦 Deployment: wslproxy" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=14;fontStyle=1;fontColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="820" y="125" width="160" height="20" as="geometry"/>
+        </mxCell>
+        
+        <!-- Pods -->
+        <mxCell id="pod1" value="🔷 Pod 1&#xa;wslproxy-abc12&#xa;&#xa;📦 openresty:latest&#xa;💾 shared_dict: 50M&#xa;🔌 Port: 80,443,8080" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;align=left;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="660" y="155" width="150" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="pod2" value="🔷 Pod 2&#xa;wslproxy-def34&#xa;&#xa;📦 openresty:latest&#xa;💾 shared_dict: 50M&#xa;🔌 Port: 80,443,8080" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;align=left;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="825" y="155" width="150" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="pod3" value="🔷 Pod 3&#xa;wslproxy-ghi56&#xa;&#xa;📦 openresty:latest&#xa;💾 shared_dict: 50M&#xa;🔌 Port: 80,443,8080" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;align=left;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="990" y="155" width="150" height="100" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="pod-n" value="🔷 Pod N...&#xa;(Auto-scaled)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="660" y="265" width="480" height="35" as="geometry"/>
+        </mxCell>
+        
+        <!-- Resources per pod -->
+        <mxCell id="resources-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="660" y="310" width="480" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="resources-label" value="💻 Resources: requests: cpu=100m, memory=256Mi | limits: cpu=1000m, memory=1Gi" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=10;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="670" y="320" width="460" height="30" as="geometry"/>
+        </mxCell>
+        
+        <!-- HPA -->
+        <mxCell id="hpa-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;opacity=60;" vertex="1" parent="1">
+          <mxGeometry x="420" y="240" width="200" height="130" as="geometry"/>
+        </mxCell>
+        <mxCell id="hpa-label" value="📈 HPA: wslproxy-hpa" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=12;fontStyle=1;fontColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="445" y="245" width="150" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="hpa-details" value="minReplicas: 3&#xa;maxReplicas: 20&#xa;&#xa;CPU Target: 70%&#xa;Memory Target: 80%&#xa;&#xa;Scale Up: 300s&#xa;Scale Down: 600s" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;fontSize=10;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="435" y="270" width="170" height="95" as="geometry"/>
+        </mxCell>
+        
+        <!-- ConfigMap & Secret -->
+        <mxCell id="config-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="420" y="390" width="200" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="config-label" value="⚙️ Configuration" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=12;fontStyle=1;fontColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="470" y="395" width="100" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="configmap" value="📋 ConfigMap&#xa;nginx.conf.tmpl&#xa;lua scripts" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="435" y="420" width="80" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="secret" value="🔐 Secret&#xa;SSL certs&#xa;API keys" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="525" y="420" width="80" height="55" as="geometry"/>
+        </mxCell>
+        
+        <!-- PVC -->
+        <mxCell id="pvc-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="640" y="390" width="180" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="pvc-label" value="💾 Persistent Storage" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=12;fontStyle=1;fontColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="665" y="395" width="130" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="pvc-cache" value="📁 PVC: cache&#xa;Size: 10Gi&#xa;RWX mode" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="655" y="420" width="75" height="55" as="geometry"/>
+        </mxCell>
+        <mxCell id="pvc-logs" value="📁 PVC: logs&#xa;Size: 5Gi&#xa;RWX mode" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="735" y="420" width="75" height="55" as="geometry"/>
+        </mxCell>
+        
+        <!-- External Services -->
+        <mxCell id="external-section" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;opacity=40;" vertex="1" parent="1">
+          <mxGeometry x="840" y="390" width="320" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="external-label" value="🔌 External Services" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=12;fontStyle=1;fontColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="940" y="395" width="120" height="20" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="redis-cluster" value="🔴 Redis Cluster&#xa;Sessions/Cache&#xa;redis.synprod.svc" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="855" y="425" width="95" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="prometheus" value="📊 Prometheus&#xa;Metrics Scrape&#xa;/metrics:8080" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="955" y="425" width="95" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="loki" value="📝 Loki&#xa;Log Shipping&#xa;stdout/stderr" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="1055" y="425" width="95" height="60" as="geometry"/>
+        </mxCell>
+        
+        <!-- Helm Chart Structure -->
+        <mxCell id="helm-section" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;opacity=40;" vertex="1" parent="1">
+          <mxGeometry x="40" y="300" width="320" height="310" as="geometry"/>
+        </mxCell>
+        <mxCell id="helm-label" value="📊 Helm Chart: wslproxy" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=14;fontStyle=1;fontColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="120" y="305" width="160" height="25" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="helm-structure" value="wslproxy/&#xa;├── Chart.yaml&#xa;├── values.yaml&#xa;├── values-syntest.yaml&#xa;├── values-synprod.yaml&#xa;└── templates/&#xa;    ├── deployment.yaml&#xa;    ├── service.yaml&#xa;    ├── hpa.yaml&#xa;    ├── configmap.yaml&#xa;    ├── secret.yaml&#xa;    ├── ingress.yaml&#xa;    ├── pvc.yaml&#xa;    └── _helpers.tpl" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;fontSize=11;fontFamily=Monaco;fontColor=#333333;spacing=5;" vertex="1" parent="1">
+          <mxGeometry x="55" y="335" width="200" height="220" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="helm-commands" value="# Install/Upgrade&#xa;helm upgrade --install wslproxy ./chart \\&#xa;  -n synprod \\&#xa;  -f values-synprod.yaml \\&#xa;  --set image.tag=v1.2.3&#xa;&#xa;# Rollback&#xa;helm rollback wslproxy 1 -n synprod" style="text;html=1;strokeColor=none;fillColor=#ffffff;align=left;verticalAlign=top;fontSize=9;fontFamily=Monaco;fontColor=#333333;spacing=5;rounded=1;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="55" y="530" width="290" height="70" as="geometry"/>
+        </mxCell>
+        
+        <!-- Scaling Flow -->
+        <mxCell id="scale-section" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;opacity=40;" vertex="1" parent="1">
+          <mxGeometry x="40" y="630" width="1120" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="scale-label" value="🔄 Auto-Scaling Flow" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=14;fontStyle=1;fontColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="520" y="635" width="160" height="25" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="scale1" value="📈 Traffic Spike&#xa;High CPU/Memory" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="60" y="670" width="120" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="scale2" value="📊 Metrics Server&#xa;Reports to HPA" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="220" y="670" width="120" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="scale3" value="⚖️ HPA Decision&#xa;Scale Replicas" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="380" y="670" width="120" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="scale4" value="📦 New Pods&#xa;Scheduled" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="540" y="670" width="120" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="scale5" value="🔗 Service Updated&#xa;Endpoints Added" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="700" y="670" width="120" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="scale6" value="✅ Traffic Handled&#xa;Load Distributed" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="860" y="670" width="120" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="scale7" value="📉 Cool Down&#xa;Scale In" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="1020" y="670" width="120" height="60" as="geometry"/>
+        </mxCell>
+        
+        <!-- Scale arrows -->
+        <mxCell id="scale-arrow1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#b85450;" edge="1" parent="1" source="scale1" target="scale2">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="scale-arrow2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#b85450;" edge="1" parent="1" source="scale2" target="scale3">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="scale-arrow3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#b85450;" edge="1" parent="1" source="scale3" target="scale4">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="scale-arrow4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#b85450;" edge="1" parent="1" source="scale4" target="scale5">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="scale-arrow5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#b85450;" edge="1" parent="1" source="scale5" target="scale6">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="scale-arrow6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#b85450;" edge="1" parent="1" source="scale6" target="scale7">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        
+        <!-- Connection arrows -->
+        <mxCell id="dns-lb" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#9673a6;" edge="1" parent="1" source="dns" target="cloud-lb">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="lb-ingress" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#9673a6;" edge="1" parent="1" source="cloud-lb" target="ingress-controller">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="ingress-svc" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#82b366;" edge="1" parent="1" source="ingress-controller" target="service-box">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="svc-pods" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#d6b656;" edge="1" parent="1" source="service-box" target="deployment-box">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="hpa-deploy" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#b85450;dashed=1;" edge="1" parent="1" source="hpa-box" target="deployment-box">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

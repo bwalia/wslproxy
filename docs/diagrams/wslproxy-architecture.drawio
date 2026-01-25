@@ -1,0 +1,199 @@
+<mxfile host="app.diagrams.net" modified="2026-01-25T10:00:00.000Z" agent="WSL Proxy" version="21.0.0" type="device">
+  <diagram id="wslproxy-architecture" name="WSL Proxy Architecture">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1200" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        
+        <!-- Title -->
+        <mxCell id="title" value="WSL Proxy - Enterprise Edge Platform Architecture" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=24;fontStyle=1;fontColor=#1a1a2e;" vertex="1" parent="1">
+          <mxGeometry x="400" y="20" width="800" height="40" as="geometry"/>
+        </mxCell>
+        
+        <!-- Clients Section -->
+        <mxCell id="clients-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;opacity=50;" vertex="1" parent="1">
+          <mxGeometry x="40" y="100" width="200" height="300" as="geometry"/>
+        </mxCell>
+        <mxCell id="clients-label" value="Clients" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=14;fontStyle=1;fontColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="100" y="105" width="80" height="20" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="web-client" value="🌐 Web Browser" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="140" width="160" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="mobile-client" value="📱 Mobile App" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="200" width="160" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="api-client" value="🔌 API Client" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="260" width="160" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="iot-client" value="📡 IoT Device" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="320" width="160" height="40" as="geometry"/>
+        </mxCell>
+        
+        <!-- Edge Layer -->
+        <mxCell id="edge-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;opacity=50;" vertex="1" parent="1">
+          <mxGeometry x="300" y="80" width="400" height="340" as="geometry"/>
+        </mxCell>
+        <mxCell id="edge-label" value="🌍 WSL Proxy Edge Layer (OpenResty + Lua)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=14;fontStyle=1;fontColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="350" y="85" width="300" height="20" as="geometry"/>
+        </mxCell>
+        
+        <!-- WAF -->
+        <mxCell id="waf" value="🛡️ WAF&#xa;Security Rules&#xa;Rate Limiting&#xa;IP Blocking" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="320" y="120" width="120" height="80" as="geometry"/>
+        </mxCell>
+        
+        <!-- SSL/TLS -->
+        <mxCell id="ssl" value="🔒 SSL/TLS&#xa;Auto Cert&#xa;Let's Encrypt&#xa;TLS 1.3" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="460" y="120" width="120" height="80" as="geometry"/>
+        </mxCell>
+        
+        <!-- API Gateway -->
+        <mxCell id="api-gw" value="🔌 API Gateway&#xa;JWT Auth&#xa;API Keys&#xa;OpenAPI" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="320" y="220" width="120" height="80" as="geometry"/>
+        </mxCell>
+        
+        <!-- Cache -->
+        <mxCell id="cache" value="⚡ Edge Cache&#xa;Static Content&#xa;API Response&#xa;TTL Control" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="460" y="220" width="120" height="80" as="geometry"/>
+        </mxCell>
+        
+        <!-- Load Balancer -->
+        <mxCell id="lb" value="⚖️ Load Balancer&#xa;Round Robin&#xa;Weighted&#xa;Health Checks" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="320" y="320" width="120" height="80" as="geometry"/>
+        </mxCell>
+        
+        <!-- Router -->
+        <mxCell id="router" value="🔀 Router&#xa;Path Rules&#xa;Host Rules&#xa;Geo Routing" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="460" y="320" width="120" height="80" as="geometry"/>
+        </mxCell>
+        
+        <!-- Admin & Metrics -->
+        <mxCell id="admin-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;opacity=50;" vertex="1" parent="1">
+          <mxGeometry x="300" y="440" width="400" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="admin-label" value="📊 Management &amp; Observability" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=12;fontStyle=1;fontColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="400" y="445" width="200" height="20" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="admin-ui" value="🖥️ Admin UI&#xa;React Dashboard" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="320" y="475" width="100" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="rest-api" value="📡 REST API&#xa;wslproxy.com/swagger" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="440" y="475" width="120" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="metrics" value="📈 Prometheus&#xa;/metrics" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="580" y="475" width="100" height="50" as="geometry"/>
+        </mxCell>
+        
+        <!-- Data Store -->
+        <mxCell id="data-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;opacity=50;" vertex="1" parent="1">
+          <mxGeometry x="760" y="80" width="200" height="200" as="geometry"/>
+        </mxCell>
+        <mxCell id="data-label" value="💾 Data Layer" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=14;fontStyle=1;fontColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="810" y="85" width="100" height="20" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="redis" value="🔴 Redis&#xa;Sessions&#xa;Config&#xa;Rate Limits" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="780" y="120" width="80" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="shared-dict" value="📦 Shared Dict&#xa;Cache Store&#xa;Metrics&#xa;Counters" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="875" y="120" width="70" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="ssl-store" value="🔐 SSL Certs&#xa;Let's Encrypt" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="780" y="210" width="80" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="config-store" value="⚙️ Config&#xa;JSON/Lua" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="875" y="210" width="70" height="50" as="geometry"/>
+        </mxCell>
+        
+        <!-- Origins -->
+        <mxCell id="origins-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;opacity=50;" vertex="1" parent="1">
+          <mxGeometry x="760" y="300" width="200" height="240" as="geometry"/>
+        </mxCell>
+        <mxCell id="origins-label" value="🏢 Origin Servers" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=14;fontStyle=1;fontColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="800" y="305" width="120" height="20" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="origin1" value="🖥️ Origin 1&#xa;Region: US-East" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="780" y="340" width="160" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="origin2" value="🖥️ Origin 2&#xa;Region: EU-West" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="780" y="395" width="160" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="origin3" value="🖥️ Origin 3&#xa;Region: Asia-Pacific" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="780" y="450" width="160" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="origin4" value="🖥️ Origin N&#xa;Multi-Region Failover" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="780" y="505" width="160" height="30" as="geometry"/>
+        </mxCell>
+        
+        <!-- Arrows from clients to edge -->
+        <mxCell id="arrow1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#82b366;" edge="1" parent="1" source="web-client" target="waf">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="arrow2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#82b366;" edge="1" parent="1" source="mobile-client" target="waf">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="arrow3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#82b366;" edge="1" parent="1" source="api-client" target="api-gw">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="arrow4" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#82b366;" edge="1" parent="1" source="iot-client" target="api-gw">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        
+        <!-- Internal flow arrows -->
+        <mxCell id="flow1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#d6b656;dashed=1;" edge="1" parent="1" source="waf" target="ssl">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="flow2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#6c8ebf;dashed=1;" edge="1" parent="1" source="ssl" target="cache">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="flow3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#9673a6;dashed=1;" edge="1" parent="1" source="api-gw" target="lb">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="flow4" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#666666;dashed=1;" edge="1" parent="1" source="cache" target="router">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        
+        <!-- Edge to Redis -->
+        <mxCell id="redis-flow" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#b85450;dashed=1;" edge="1" parent="1" source="cache" target="redis">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        
+        <!-- Edge to Origins -->
+        <mxCell id="origin-flow1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#6c8ebf;" edge="1" parent="1" source="router" target="origin1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="origin-flow2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#6c8ebf;" edge="1" parent="1" source="lb" target="origin2">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        
+        <!-- Legend -->
+        <mxCell id="legend-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="1000" y="100" width="180" height="180" as="geometry"/>
+        </mxCell>
+        <mxCell id="legend-title" value="📋 Legend" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1050" y="105" width="80" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="legend1" value="→ Request Flow" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=10;fontColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="1020" y="130" width="140" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="legend2" value="⤏ Internal Processing" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=10;fontColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="1020" y="155" width="140" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="legend3" value="📡 API: /swagger" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=10;fontColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="1020" y="180" width="140" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="legend4" value="📈 Metrics: /metrics" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=10;fontColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="1020" y="205" width="140" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="legend5" value="🌐 wslproxy.com" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=10;fontColor=#1a1a2e;" vertex="1" parent="1">
+          <mxGeometry x="1020" y="230" width="140" height="20" as="geometry"/>
+        </mxCell>
+        
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
