@@ -1081,6 +1081,428 @@
       </div>
     </section>
 
+    <!-- Request Flow Diagram - Embedded -->
+    <section style="padding: 6rem 0; background: var(--gradient-dark); position: relative; overflow: hidden;">
+      <div class="container">
+        <div class="text-center">
+          <span class="section-badge" style="background: rgba(255,255,255,0.1); color: #fff;">
+            <i class="fa fa-random"></i> Request Flow
+          </span>
+          <h2 class="section-title" style="color: #fff;">How Requests Are Processed</h2>
+          <p class="section-subtitle" style="color: rgba(255,255,255,0.7);">
+            Every request flows through our intelligent pipeline—no restarts required. Configuration changes take effect immediately via API.
+          </p>
+        </div>
+
+        <!-- Request Flow Visual -->
+        <div class="flow-diagram fade-up" style="margin-top: 3rem; overflow-x: auto;">
+          <div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem; flex-wrap: wrap; min-width: 900px; padding: 1rem;">
+            
+            <div class="flow-step" style="background: linear-gradient(135deg, #e1d5e7, #9673a6); color: #1a1a2e; padding: 1rem; border-radius: 12px; text-align: center; min-width: 100px;">
+              <i class="fa fa-user" style="font-size: 1.5rem; display: block; margin-bottom: 0.5rem;"></i>
+              <strong style="font-size: 0.75rem;">Client</strong>
+            </div>
+            <div style="color: #10b981; font-size: 1.5rem;">→</div>
+            
+            <div class="flow-step" style="background: linear-gradient(135deg, #dae8fc, #6c8ebf); color: #1a1a2e; padding: 1rem; border-radius: 12px; text-align: center; min-width: 100px;">
+              <i class="fa fa-globe" style="font-size: 1.5rem; display: block; margin-bottom: 0.5rem;"></i>
+              <strong style="font-size: 0.75rem;">DNS</strong>
+            </div>
+            <div style="color: #10b981; font-size: 1.5rem;">→</div>
+            
+            <div class="flow-step" style="background: linear-gradient(135deg, #fff2cc, #d6b656); color: #1a1a2e; padding: 1rem; border-radius: 12px; text-align: center; min-width: 100px;">
+              <i class="fa fa-lock" style="font-size: 1.5rem; display: block; margin-bottom: 0.5rem;"></i>
+              <strong style="font-size: 0.75rem;">SSL/TLS</strong>
+            </div>
+            <div style="color: #10b981; font-size: 1.5rem;">→</div>
+            
+            <div class="flow-step" style="background: linear-gradient(135deg, #f8cecc, #b85450); color: #1a1a2e; padding: 1rem; border-radius: 12px; text-align: center; min-width: 100px;">
+              <i class="fa fa-shield" style="font-size: 1.5rem; display: block; margin-bottom: 0.5rem;"></i>
+              <strong style="font-size: 0.75rem;">WAF</strong>
+            </div>
+            <div style="color: #10b981; font-size: 1.5rem;">→</div>
+            
+            <div class="flow-step" style="background: linear-gradient(135deg, #d5e8d4, #82b366); color: #1a1a2e; padding: 1rem; border-radius: 12px; text-align: center; min-width: 100px;">
+              <i class="fa fa-key" style="font-size: 1.5rem; display: block; margin-bottom: 0.5rem;"></i>
+              <strong style="font-size: 0.75rem;">Auth</strong>
+            </div>
+            <div style="color: #10b981; font-size: 1.5rem;">→</div>
+            
+            <div class="flow-step" style="background: linear-gradient(135deg, #e1d5e7, #9673a6); color: #1a1a2e; padding: 1rem; border-radius: 12px; text-align: center; min-width: 100px;">
+              <i class="fa fa-bolt" style="font-size: 1.5rem; display: block; margin-bottom: 0.5rem;"></i>
+              <strong style="font-size: 0.75rem;">Cache</strong>
+            </div>
+            <div style="color: #10b981; font-size: 1.5rem;">→</div>
+            
+            <div class="flow-step" style="background: linear-gradient(135deg, #dae8fc, #6c8ebf); color: #1a1a2e; padding: 1rem; border-radius: 12px; text-align: center; min-width: 100px;">
+              <i class="fa fa-balance-scale" style="font-size: 1.5rem; display: block; margin-bottom: 0.5rem;"></i>
+              <strong style="font-size: 0.75rem;">Load Balancer</strong>
+            </div>
+            <div style="color: #10b981; font-size: 1.5rem;">→</div>
+            
+            <div class="flow-step" style="background: linear-gradient(135deg, #f5f5f5, #666666); color: #1a1a2e; padding: 1rem; border-radius: 12px; text-align: center; min-width: 100px;">
+              <i class="fa fa-server" style="font-size: 1.5rem; display: block; margin-bottom: 0.5rem;"></i>
+              <strong style="font-size: 0.75rem;">Origin</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- Zero Downtime Highlight -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-top: 3rem;">
+          <div class="fade-up" style="background: rgba(255,255,255,0.1); border-radius: 16px; padding: 1.5rem; border: 1px solid rgba(255,255,255,0.1);">
+            <div style="color: #10b981; font-size: 2rem; margin-bottom: 0.75rem;">🔄</div>
+            <h4 style="color: #fff; font-size: 1.1rem; margin-bottom: 0.5rem;">Zero Downtime</h4>
+            <p style="color: rgba(255,255,255,0.7); font-size: 0.9rem; margin: 0;">All configuration changes via API—no OpenResty restart needed. Changes take effect instantly.</p>
+          </div>
+          <div class="fade-up" style="background: rgba(255,255,255,0.1); border-radius: 16px; padding: 1.5rem; border: 1px solid rgba(255,255,255,0.1);">
+            <div style="color: #6366f1; font-size: 2rem; margin-bottom: 0.75rem;">⚡</div>
+            <h4 style="color: #fff; font-size: 1.1rem; margin-bottom: 0.5rem;">Hot Reload</h4>
+            <p style="color: rgba(255,255,255,0.7); font-size: 0.9rem; margin: 0;">Add servers, update routes, toggle caching—all without interrupting active connections.</p>
+          </div>
+          <div class="fade-up" style="background: rgba(255,255,255,0.1); border-radius: 16px; padding: 1.5rem; border: 1px solid rgba(255,255,255,0.1);">
+            <div style="color: #f59e0b; font-size: 2rem; margin-bottom: 0.75rem;">🌍</div>
+            <h4 style="color: #fff; font-size: 1.1rem; margin-bottom: 0.5rem;">Multi-Region Failover</h4>
+            <p style="color: rgba(255,255,255,0.7); font-size: 0.9rem; margin: 0;">Automatic failover between regions. If one origin fails, traffic routes to healthy backends instantly.</p>
+          </div>
+          <div class="fade-up" style="background: rgba(255,255,255,0.1); border-radius: 16px; padding: 1.5rem; border: 1px solid rgba(255,255,255,0.1);">
+            <div style="color: #ec4899; font-size: 2rem; margin-bottom: 0.75rem;">📡</div>
+            <h4 style="color: #fff; font-size: 1.1rem; margin-bottom: 0.5rem;">API-First</h4>
+            <p style="color: rgba(255,255,255,0.7); font-size: 0.9rem; margin: 0;">Every feature controllable via REST API. Integrate with your CI/CD, scripts, or admin dashboard.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- API-Driven Architecture -->
+    <section id="api-flow" style="padding: 6rem 0; background: var(--white);">
+      <div class="container">
+        <div class="text-center">
+          <span class="section-badge"><i class="fa fa-plug"></i> API-Driven</span>
+          <h2 class="section-title">Everything Via REST API</h2>
+          <p class="section-subtitle">
+            No restarts. No downtime. Manage your entire edge infrastructure through simple API calls.
+          </p>
+        </div>
+
+        <!-- API Endpoints Visual -->
+        <div class="fade-up" style="background: var(--dark); border-radius: 20px; padding: 2rem; margin-top: 2rem; overflow: hidden;">
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
+            
+            <!-- Servers API -->
+            <div style="background: rgba(255,255,255,0.05); border-radius: 12px; padding: 1.5rem; border-left: 4px solid #10b981;">
+              <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;">
+                <span style="background: #10b981; color: #fff; padding: 0.25rem 0.75rem; border-radius: 6px; font-size: 0.75rem; font-weight: 700;">POST</span>
+                <code style="color: #e1d5e7; font-size: 0.9rem;">/api/servers</code>
+              </div>
+              <h4 style="color: #fff; font-size: 1rem; margin-bottom: 0.5rem;">🖥️ Manage Servers</h4>
+              <p style="color: rgba(255,255,255,0.6); font-size: 0.85rem; margin-bottom: 1rem;">Add, update, or remove backend servers with load balancing and health checks.</p>
+              <pre style="background: rgba(0,0,0,0.3); padding: 0.75rem; border-radius: 8px; font-size: 0.7rem; color: #10b981; overflow-x: auto; margin: 0;"><code>{
+  "server_name": "api.example.com",
+  "upstream": "192.168.1.100:8080",
+  "ssl_enabled": true,
+  "cache_enabled": true
+}</code></pre>
+            </div>
+
+            <!-- Rules API -->
+            <div style="background: rgba(255,255,255,0.05); border-radius: 12px; padding: 1.5rem; border-left: 4px solid #f59e0b;">
+              <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;">
+                <span style="background: #f59e0b; color: #fff; padding: 0.25rem 0.75rem; border-radius: 6px; font-size: 0.75rem; font-weight: 700;">POST</span>
+                <code style="color: #e1d5e7; font-size: 0.9rem;">/api/rules</code>
+              </div>
+              <h4 style="color: #fff; font-size: 1rem; margin-bottom: 0.5rem;">🛡️ Security Rules</h4>
+              <p style="color: rgba(255,255,255,0.6); font-size: 0.85rem; margin-bottom: 1rem;">Configure WAF rules, rate limiting, IP blocking—all live without restart.</p>
+              <pre style="background: rgba(0,0,0,0.3); padding: 0.75rem; border-radius: 8px; font-size: 0.7rem; color: #f59e0b; overflow-x: auto; margin: 0;"><code>{
+  "rule_type": "rate_limit",
+  "path": "/api/*",
+  "limit": "100/minute",
+  "action": "block"
+}</code></pre>
+            </div>
+
+            <!-- Cache API -->
+            <div style="background: rgba(255,255,255,0.05); border-radius: 12px; padding: 1.5rem; border-left: 4px solid #6366f1;">
+              <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;">
+                <span style="background: #6366f1; color: #fff; padding: 0.25rem 0.75rem; border-radius: 6px; font-size: 0.75rem; font-weight: 700;">POST</span>
+                <code style="color: #e1d5e7; font-size: 0.9rem;">/api/cache/purge</code>
+              </div>
+              <h4 style="color: #fff; font-size: 1rem; margin-bottom: 0.5rem;">⚡ Cache Control</h4>
+              <p style="color: rgba(255,255,255,0.6); font-size: 0.85rem; margin-bottom: 1rem;">Purge cache, enable/disable per server, set TTL—instant effect.</p>
+              <pre style="background: rgba(0,0,0,0.3); padding: 0.75rem; border-radius: 8px; font-size: 0.7rem; color: #6366f1; overflow-x: auto; margin: 0;"><code>{
+  "server_name": "api.example.com",
+  "purge_pattern": "/static/*",
+  "action": "purge"
+}</code></pre>
+            </div>
+
+            <!-- SSL API -->
+            <div style="background: rgba(255,255,255,0.05); border-radius: 12px; padding: 1.5rem; border-left: 4px solid #ec4899;">
+              <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;">
+                <span style="background: #ec4899; color: #fff; padding: 0.25rem 0.75rem; border-radius: 6px; font-size: 0.75rem; font-weight: 700;">POST</span>
+                <code style="color: #e1d5e7; font-size: 0.9rem;">/api/ssl/provision</code>
+              </div>
+              <h4 style="color: #fff; font-size: 1rem; margin-bottom: 0.5rem;">🔒 SSL Certificates</h4>
+              <p style="color: rgba(255,255,255,0.6); font-size: 0.85rem; margin-bottom: 1rem;">Auto-provision Let's Encrypt certificates or upload custom certs.</p>
+              <pre style="background: rgba(0,0,0,0.3); padding: 0.75rem; border-radius: 8px; font-size: 0.7rem; color: #ec4899; overflow-x: auto; margin: 0;"><code>{
+  "domain": "api.example.com",
+  "provider": "letsencrypt",
+  "auto_renew": true
+}</code></pre>
+            </div>
+
+            <!-- Metrics API -->
+            <div style="background: rgba(255,255,255,0.05); border-radius: 12px; padding: 1.5rem; border-left: 4px solid #0ea5e9;">
+              <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;">
+                <span style="background: #0ea5e9; color: #fff; padding: 0.25rem 0.75rem; border-radius: 6px; font-size: 0.75rem; font-weight: 700;">GET</span>
+                <code style="color: #e1d5e7; font-size: 0.9rem;">/metrics</code>
+              </div>
+              <h4 style="color: #fff; font-size: 1rem; margin-bottom: 0.5rem;">📊 Prometheus Metrics</h4>
+              <p style="color: rgba(255,255,255,0.6); font-size: 0.85rem; margin-bottom: 1rem;">Real-time metrics for Prometheus/Grafana—requests, latency, cache stats.</p>
+              <pre style="background: rgba(0,0,0,0.3); padding: 0.75rem; border-radius: 8px; font-size: 0.7rem; color: #0ea5e9; overflow-x: auto; margin: 0;"><code>nginx_http_requests_total 2847293
+nginx_cache_hits_total 1923847
+nginx_upstream_latency_avg 8.2</code></pre>
+            </div>
+
+            <!-- Health API -->
+            <div style="background: rgba(255,255,255,0.05); border-radius: 12px; padding: 1.5rem; border-left: 4px solid #82b366;">
+              <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;">
+                <span style="background: #82b366; color: #fff; padding: 0.25rem 0.75rem; border-radius: 6px; font-size: 0.75rem; font-weight: 700;">GET</span>
+                <code style="color: #e1d5e7; font-size: 0.9rem;">/api/health</code>
+              </div>
+              <h4 style="color: #fff; font-size: 1rem; margin-bottom: 0.5rem;">💚 Health Check</h4>
+              <p style="color: rgba(255,255,255,0.6); font-size: 0.85rem; margin-bottom: 1rem;">Check proxy health, backend status, and service availability.</p>
+              <pre style="background: rgba(0,0,0,0.3); padding: 0.75rem; border-radius: 8px; font-size: 0.7rem; color: #82b366; overflow-x: auto; margin: 0;"><code>{
+  "status": "healthy",
+  "uptime": "45d 12h 30m",
+  "backends": 12,
+  "backends_healthy": 12
+}</code></pre>
+            </div>
+
+          </div>
+          
+          <div class="text-center" style="margin-top: 2rem;">
+            <a href="/swagger/swagger.html" class="btn-primary-custom">
+              <i class="fa fa-book"></i> Full API Documentation
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CI/CD Pipeline Visualization -->
+    <section style="padding: 6rem 0; background: var(--light);">
+      <div class="container">
+        <div class="text-center">
+          <span class="section-badge"><i class="fa fa-refresh"></i> CI/CD Pipeline</span>
+          <h2 class="section-title">Automated Deployment Pipeline</h2>
+          <p class="section-subtitle">
+            From code commit to production deployment—fully automated with GitHub Actions, Ansible, and Helm.
+          </p>
+        </div>
+
+        <!-- CI/CD Flow -->
+        <div class="fade-up" style="margin-top: 3rem;">
+          <!-- Pipeline Stages -->
+          <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 1rem; margin-bottom: 2rem;">
+            
+            <div style="background: #e1d5e7; border-radius: 12px; padding: 1.25rem; text-align: center; min-width: 140px; position: relative;">
+              <div style="background: #9673a6; color: #fff; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 0.75rem; font-weight: 700;">1</div>
+              <i class="fa fa-code" style="font-size: 1.5rem; color: #9673a6; display: block; margin-bottom: 0.5rem;"></i>
+              <strong style="font-size: 0.85rem; color: #1a1a2e;">Code Push</strong>
+              <p style="font-size: 0.7rem; color: #666; margin: 0.25rem 0 0;">Git commit</p>
+            </div>
+            <div style="display: flex; align-items: center; color: #9673a6; font-size: 1.5rem;">→</div>
+
+            <div style="background: #dae8fc; border-radius: 12px; padding: 1.25rem; text-align: center; min-width: 140px;">
+              <div style="background: #6c8ebf; color: #fff; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 0.75rem; font-weight: 700;">2</div>
+              <i class="fa fa-github" style="font-size: 1.5rem; color: #6c8ebf; display: block; margin-bottom: 0.5rem;"></i>
+              <strong style="font-size: 0.85rem; color: #1a1a2e;">GitHub Actions</strong>
+              <p style="font-size: 0.7rem; color: #666; margin: 0.25rem 0 0;">Lint, Test, Build</p>
+            </div>
+            <div style="display: flex; align-items: center; color: #6c8ebf; font-size: 1.5rem;">→</div>
+
+            <div style="background: #d5e8d4; border-radius: 12px; padding: 1.25rem; text-align: center; min-width: 140px;">
+              <div style="background: #82b366; color: #fff; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 0.75rem; font-weight: 700;">3</div>
+              <i class="fa fa-cube" style="font-size: 1.5rem; color: #82b366; display: block; margin-bottom: 0.5rem;"></i>
+              <strong style="font-size: 0.85rem; color: #1a1a2e;">Docker Build</strong>
+              <p style="font-size: 0.7rem; color: #666; margin: 0.25rem 0 0;">Multi-arch image</p>
+            </div>
+            <div style="display: flex; align-items: center; color: #82b366; font-size: 1.5rem;">→</div>
+
+            <div style="background: #fff2cc; border-radius: 12px; padding: 1.25rem; text-align: center; min-width: 140px;">
+              <div style="background: #d6b656; color: #fff; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 0.75rem; font-weight: 700;">4</div>
+              <i class="fa fa-cloud-upload" style="font-size: 1.5rem; color: #d6b656; display: block; margin-bottom: 0.5rem;"></i>
+              <strong style="font-size: 0.85rem; color: #1a1a2e;">Push Registry</strong>
+              <p style="font-size: 0.7rem; color: #666; margin: 0.25rem 0 0;">Docker Hub/GHCR</p>
+            </div>
+            <div style="display: flex; align-items: center; color: #d6b656; font-size: 1.5rem;">→</div>
+
+            <div style="background: #f8cecc; border-radius: 12px; padding: 1.25rem; text-align: center; min-width: 140px;">
+              <div style="background: #b85450; color: #fff; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 0.75rem; font-weight: 700;">5</div>
+              <i class="fa fa-rocket" style="font-size: 1.5rem; color: #b85450; display: block; margin-bottom: 0.5rem;"></i>
+              <strong style="font-size: 0.85rem; color: #1a1a2e;">Deploy</strong>
+              <p style="font-size: 0.7rem; color: #666; margin: 0.25rem 0 0;">Ansible / Helm</p>
+            </div>
+          </div>
+
+          <!-- Deployment Options -->
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-top: 2rem;">
+            
+            <!-- Ansible Path -->
+            <div class="feature-card fade-up" style="border-left: 4px solid #82b366;">
+              <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;">
+                <div style="background: #82b366; color: #fff; padding: 0.5rem; border-radius: 8px;">
+                  <i class="fa fa-terminal"></i>
+                </div>
+                <h4 style="margin: 0; color: var(--dark);">Ansible Deployment</h4>
+              </div>
+              <p style="color: var(--gray); font-size: 0.9rem; margin-bottom: 1rem;">For bare metal and VM deployments</p>
+              <pre style="background: var(--dark); padding: 1rem; border-radius: 8px; font-size: 0.75rem; color: #10b981; overflow-x: auto;"><code>ansible-playbook deploy.yml \
+  --tags nginx \
+  -i inventory/production</code></pre>
+              <ul class="feature-list" style="margin-top: 1rem;">
+                <li><i class="fa fa-check"></i> Zero-downtime reload</li>
+                <li><i class="fa fa-check"></i> Config templating (Jinja2)</li>
+                <li><i class="fa fa-check"></i> Vault secrets</li>
+              </ul>
+            </div>
+
+            <!-- Kubernetes/Helm Path -->
+            <div class="feature-card fade-up" style="border-left: 4px solid #6c8ebf;">
+              <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;">
+                <div style="background: #6c8ebf; color: #fff; padding: 0.5rem; border-radius: 8px;">
+                  <i class="fa fa-cloud"></i>
+                </div>
+                <h4 style="margin: 0; color: var(--dark);">Kubernetes / Helm</h4>
+              </div>
+              <p style="color: var(--gray); font-size: 0.9rem; margin-bottom: 1rem;">For cloud-native container deployments</p>
+              <pre style="background: var(--dark); padding: 1rem; border-radius: 8px; font-size: 0.75rem; color: #6c8ebf; overflow-x: auto;"><code>helm upgrade --install wslproxy \
+  ./chart -n production \
+  -f values-prod.yaml</code></pre>
+              <ul class="feature-list" style="margin-top: 1rem;">
+                <li><i class="fa fa-check"></i> Rolling updates</li>
+                <li><i class="fa fa-check"></i> HPA auto-scaling</li>
+                <li><i class="fa fa-check"></i> Multi-replica HA</li>
+              </ul>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Multi-Region Failover -->
+    <section style="padding: 6rem 0; background: var(--gradient-dark); position: relative;">
+      <div class="container">
+        <div class="text-center">
+          <span class="section-badge" style="background: rgba(255,255,255,0.1); color: #fff;">
+            <i class="fa fa-globe"></i> Multi-Region
+          </span>
+          <h2 class="section-title" style="color: #fff;">Global Multi-Region Failover</h2>
+          <p class="section-subtitle" style="color: rgba(255,255,255,0.7);">
+            Deploy across multiple regions with automatic failover. Zero downtime when origins fail.
+          </p>
+        </div>
+
+        <!-- Multi-Region Visual -->
+        <div class="fade-up" style="margin-top: 3rem;">
+          <div style="background: rgba(255,255,255,0.05); border-radius: 20px; padding: 2rem; border: 1px solid rgba(255,255,255,0.1);">
+            
+            <!-- Global Map Visualization -->
+            <div style="display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 2rem; margin-bottom: 2rem;">
+              
+              <!-- Region 1 -->
+              <div style="text-align: center;">
+                <div style="background: linear-gradient(135deg, #10b981, #059669); width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 0.75rem; box-shadow: 0 0 30px rgba(16, 185, 129, 0.5);">
+                  <span style="font-size: 2rem;">🇺🇸</span>
+                </div>
+                <strong style="color: #fff; font-size: 0.9rem;">US-East</strong>
+                <p style="color: #10b981; font-size: 0.75rem; margin: 0.25rem 0 0;">Primary</p>
+              </div>
+              
+              <div style="color: #10b981; font-size: 2rem;">⟷</div>
+              
+              <!-- Central Hub -->
+              <div style="text-align: center;">
+                <div style="background: linear-gradient(135deg, #6366f1, #8b5cf6); width: 120px; height: 120px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 0.75rem; box-shadow: 0 0 50px rgba(99, 102, 241, 0.5); flex-direction: column;">
+                  <i class="fa fa-cube" style="font-size: 2.5rem; color: #fff;"></i>
+                </div>
+                <strong style="color: #fff; font-size: 1rem;">WSL Proxy</strong>
+                <p style="color: #6366f1; font-size: 0.8rem; margin: 0.25rem 0 0;">Edge Router</p>
+              </div>
+              
+              <div style="color: #f59e0b; font-size: 2rem;">⟷</div>
+              
+              <!-- Region 2 -->
+              <div style="text-align: center;">
+                <div style="background: linear-gradient(135deg, #f59e0b, #d97706); width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 0.75rem; box-shadow: 0 0 30px rgba(245, 158, 11, 0.5);">
+                  <span style="font-size: 2rem;">🇪🇺</span>
+                </div>
+                <strong style="color: #fff; font-size: 0.9rem;">EU-West</strong>
+                <p style="color: #f59e0b; font-size: 0.75rem; margin: 0.25rem 0 0;">Secondary</p>
+              </div>
+              
+              <div style="color: #ec4899; font-size: 2rem;">⟷</div>
+              
+              <!-- Region 3 -->
+              <div style="text-align: center;">
+                <div style="background: linear-gradient(135deg, #ec4899, #be185d); width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 0.75rem; box-shadow: 0 0 30px rgba(236, 72, 153, 0.5);">
+                  <span style="font-size: 2rem;">🇯🇵</span>
+                </div>
+                <strong style="color: #fff; font-size: 0.9rem;">Asia-Pacific</strong>
+                <p style="color: #ec4899; font-size: 0.75rem; margin: 0.25rem 0 0;">Tertiary</p>
+              </div>
+            </div>
+
+            <!-- Failover Features -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 2rem;">
+              <div style="background: rgba(16, 185, 129, 0.2); border-radius: 12px; padding: 1rem; text-align: center; border: 1px solid rgba(16, 185, 129, 0.3);">
+                <i class="fa fa-heartbeat" style="font-size: 1.5rem; color: #10b981; margin-bottom: 0.5rem; display: block;"></i>
+                <strong style="color: #fff; font-size: 0.85rem;">Health Checks</strong>
+                <p style="color: rgba(255,255,255,0.6); font-size: 0.75rem; margin: 0.25rem 0 0;">Continuous monitoring of all backends</p>
+              </div>
+              <div style="background: rgba(99, 102, 241, 0.2); border-radius: 12px; padding: 1rem; text-align: center; border: 1px solid rgba(99, 102, 241, 0.3);">
+                <i class="fa fa-bolt" style="font-size: 1.5rem; color: #6366f1; margin-bottom: 0.5rem; display: block;"></i>
+                <strong style="color: #fff; font-size: 0.85rem;">Instant Failover</strong>
+                <p style="color: rgba(255,255,255,0.6); font-size: 0.75rem; margin: 0.25rem 0 0;">&lt;100ms failover time</p>
+              </div>
+              <div style="background: rgba(245, 158, 11, 0.2); border-radius: 12px; padding: 1rem; text-align: center; border: 1px solid rgba(245, 158, 11, 0.3);">
+                <i class="fa fa-balance-scale" style="font-size: 1.5rem; color: #f59e0b; margin-bottom: 0.5rem; display: block;"></i>
+                <strong style="color: #fff; font-size: 0.85rem;">Weighted Routing</strong>
+                <p style="color: rgba(255,255,255,0.6); font-size: 0.75rem; margin: 0.25rem 0 0;">Traffic distribution control</p>
+              </div>
+              <div style="background: rgba(236, 72, 153, 0.2); border-radius: 12px; padding: 1rem; text-align: center; border: 1px solid rgba(236, 72, 153, 0.3);">
+                <i class="fa fa-map-marker" style="font-size: 1.5rem; color: #ec4899; margin-bottom: 0.5rem; display: block;"></i>
+                <strong style="color: #fff; font-size: 0.85rem;">Geo Routing</strong>
+                <p style="color: rgba(255,255,255,0.6); font-size: 0.75rem; margin: 0.25rem 0 0;">Route by user location</p>
+              </div>
+            </div>
+
+            <!-- API Example for Multi-Region -->
+            <div style="margin-top: 2rem; background: rgba(0,0,0,0.3); border-radius: 12px; padding: 1.5rem;">
+              <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem;">
+                <span style="background: #10b981; color: #fff; padding: 0.25rem 0.75rem; border-radius: 6px; font-size: 0.75rem; font-weight: 700;">POST</span>
+                <code style="color: #e1d5e7; font-size: 0.9rem;">/api/servers</code>
+                <span style="color: rgba(255,255,255,0.5); font-size: 0.75rem;">— Configure multi-region backend</span>
+              </div>
+              <pre style="color: #10b981; font-size: 0.75rem; overflow-x: auto; margin: 0;"><code>{
+  "server_name": "api.example.com",
+  "upstreams": [
+    { "host": "us-east.origin.com:8080", "weight": 5, "primary": true },
+    { "host": "eu-west.origin.com:8080", "weight": 3, "backup": false },
+    { "host": "asia.origin.com:8080", "weight": 2, "backup": true }
+  ],
+  "health_check": { "interval": "5s", "timeout": "2s", "unhealthy_threshold": 3 },
+  "failover": { "enabled": true, "strategy": "round_robin" }
+}</code></pre>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section class="use-cases">
       <div class="container">
         <div class="text-center">
