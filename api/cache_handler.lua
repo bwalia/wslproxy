@@ -285,12 +285,18 @@ end
 
 -- Store response in cache (header_filter phase)
 function _M.process_response_headers()
+    -- Skip if this was already a cache HIT (headers already set in check_cache)
+    if ngx.ctx.cache_hit then
+        return
+    end
+    
     -- Always add cache status headers for debugging
     local cache_status = ngx.ctx.cache_status or "NONE"
     local cache_detail = ngx.ctx.cache_status_detail or ""
     local server_name = ngx.ctx.cache_server_name or ngx.var.host:gsub("^www%.", "")
     local ext = ngx.ctx.cache_extension or "none"
     
+    ngx.header["X-WSL-Cache"] = cache_status
     ngx.header["X-WSL-Cache-Status"] = cache_status
     ngx.header["X-WSL-Cache-Detail"] = cache_detail
     ngx.header["X-WSL-Cache-Server"] = server_name
@@ -359,21 +365,28 @@ function _M.process_response_headers()
         end
     end
     
-    -- Add cache indicator header
-    ngx.header["X-WSL-Cache"] = "MISS"
-    
     -- Initialize body collector
     ngx.ctx.cache_body_chunks = {}
 end
 
 -- Collect response body (body_filter phase)
 function _M.collect_response_body()
+    -- Skip if this was a cache HIT (already served from cache)
+    if ngx.ctx.cache_hit then
+        return
+    end
+    
     if not ngx.ctx.should_cache then
         return
     end
     
     if ngx.ctx.cache_bypass then
         return
+    end
+    
+    -- Ensure cache_body_chunks is initialized
+    if not ngx.ctx.cache_body_chunks then
+        ngx.ctx.cache_body_chunks = {}
     end
     
     local chunk = ngx.arg[1]
