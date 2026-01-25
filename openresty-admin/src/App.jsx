@@ -1,11 +1,12 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Admin, Resource, useStore, CustomRoutes } from "react-admin";
 import dataProvider from "./dataProvider";
 import authProvider from "./authProvider";
 import { i18nProvider } from './i18nProvider';
-import Theme from "./Theme";
+import { ThemeProvider, useThemeMode, createAppTheme } from "./Theme";
 import { QueryClient } from 'react-query';
 import { MyLayout } from "./Layout";
+import { Box, Typography, Link, useTheme as useMuiTheme, alpha } from "@mui/material";
 
 import Dashboard from "./Dashboard/Dashboard";
 import Sessions from "./Sessions";
@@ -18,13 +19,13 @@ import Instances from "./Instances";
 import Rules from "./Rules";
 import Settings from "./Settings";
 
-import UserIcon from "@mui/icons-material/Group";
-import SessionIcon from "@mui/icons-material/HistoryToggleOff";
-import ServerIcon from "@mui/icons-material/Storage";
-import RuleIcon from "@mui/icons-material/Rule";
-import ProfileIcon from '@mui/icons-material/RecentActors';
-import SecretIcon from '@mui/icons-material/Key';
-import InstanceIcon from '@mui/icons-material/Padding';
+import UserIcon from "@mui/icons-material/GroupRounded";
+import SessionIcon from "@mui/icons-material/HistoryToggleOffRounded";
+import ServerIcon from "@mui/icons-material/DnsRounded";
+import RuleIcon from "@mui/icons-material/RuleRounded";
+import ProfileIcon from '@mui/icons-material/RecentActorsRounded';
+import SecretIcon from '@mui/icons-material/KeyRounded';
+import InstanceIcon from '@mui/icons-material/ViewInArRounded';
 
 import { Puff } from 'react-loader-spinner';
 import CheckModal from "./component/CheckModal";
@@ -32,36 +33,103 @@ import { Route } from "react-router";
 import ResetForm from "./component/ResetForm";
 
 const API_URL = import.meta.env.VITE_API_URL;
-const deploymentTime = import.meta.env.VITE_DEPLOYMENT_TIME
-const versionNumber = import.meta.env.VITE_APP_VERSION
+const deploymentTime = import.meta.env.VITE_DEPLOYMENT_TIME;
+const versionNumber = import.meta.env.VITE_APP_VERSION;
 const buildNumber = import.meta.env.VITE_APP_BUILD_NUMBER;
 
-const App = () => {
-  const queryClient = new QueryClient({
+// Version footer component
+const VersionFooter = () => {
+  const { mode } = useThemeMode();
+  const isDark = mode === 'dark';
+  
+  return (
+    <Box
+      sx={{
+        position: 'sticky',
+        right: 0,
+        bottom: 0,
+        left: 0,
+        zIndex: 100,
+        py: 1.5,
+        px: 3,
+        backgroundColor: isDark ? '#1e293b' : '#f1f5f9',
+        borderTop: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: 1,
+      }}
+    >
+      <Typography
+        variant="caption"
+        sx={{
+          color: isDark ? '#94a3b8' : '#64748b',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 2,
+          flexWrap: 'wrap',
+        }}
+      >
+        <span>Version: <strong>{versionNumber}</strong></span>
+        <span>Build: <strong>{buildNumber}</strong></span>
+        <span>Deployed: {deploymentTime}</span>
+      </Typography>
+      <Link
+        href="/swagger/"
+        target="_blank"
+        sx={{
+          fontSize: '0.75rem',
+          color: isDark ? '#818cf8' : '#6366f1',
+          textDecoration: 'none',
+          fontWeight: 500,
+          '&:hover': {
+            textDecoration: 'underline',
+          },
+        }}
+      >
+        API Documentation →
+      </Link>
+    </Box>
+  );
+};
+
+// Main app content with theme integration
+const AppContent = () => {
+  const { mode } = useThemeMode();
+  const [isLoading] = useStore('fetch.data.loading', false);
+  const [syncPopupOpen, setSyncPopupOpen] = useStore('sync.data.success', false);
+  
+  const queryClient = useMemo(() => new QueryClient({
     defaultOptions: {
       queries: {
         staleTime: 1000,
       },
     },
-  });
-  const [isLoading] = useStore('fetch.data.loading', false)
-  const [syncPopupOpen, setSyncPopupOpen] = useStore('sync.data.success', false);
+  }), []);
+  
+  // Create theme based on current mode
+  const theme = useMemo(() => createAppTheme(mode), [mode]);
+  const isDark = mode === 'dark';
+  
   return (
-    <div style={isLoading ? { filter: "blur" } : {}}>
+    <Box sx={isLoading ? { filter: "blur(2px)", pointerEvents: 'none' } : {}}>
       <Puff
-        height="80"
-        width="80"
+        height="60"
+        width="60"
         radius={1}
-        color="#4fa94d"
+        color="#6366f1"
         ariaLabel="puff-loading"
         wrapperStyle={{
-          zIndex: "9",
+          zIndex: 9999,
           top: "50%",
-          position: "absolute",
+          position: "fixed",
           left: "50%",
-          transform: "translate(-50%, 0px)"
+          transform: "translate(-50%, -50%)",
+          backgroundColor: alpha(isDark ? '#0f172a' : '#ffffff', 0.8),
+          borderRadius: 16,
+          padding: 20,
         }}
-        wrapperClass=""
         visible={isLoading}
       />
       <CheckModal open={syncPopupOpen} onClose={() => setSyncPopupOpen(false)} />
@@ -71,7 +139,7 @@ const App = () => {
         dataProvider={dataProvider(API_URL)}
         authProvider={authProvider}
         dashboard={Dashboard}
-        theme={Theme}
+        theme={theme}
         layout={MyLayout}
         queryClient={queryClient}
       >
@@ -84,31 +152,21 @@ const App = () => {
         <Resource name="secrets" {...Secrets} icon={SecretIcon} />
         <Resource name="instances" {...Instances} icon={InstanceIcon} />
         <CustomRoutes>
-            <Route path="/password/reset" element={<ResetForm />} />
+          <Route path="/password/reset" element={<ResetForm />} />
         </CustomRoutes>
       </Admin>
-      <div
-        style={{
-          position: "sticky",
-          right: 0,
-          bottom: 0,
-          left: 0,
-          zIndex: 100,
-          padding: 6,
-          backgroundColor: "#efefef",
-          textAlign: "left",
-          color: "#213547"
-        }}
-      >
-        <p>
-          <span>Version: {versionNumber}, </span>
-          <span>Build: {buildNumber}, </span>
-          <span>Deployment timestamp: {deploymentTime}, </span>
-          <span><a href="/swagger/" target="_blank">API Endpoints</a></span>
-        </p>
-      </div>
-    </div>
-  )
+      <VersionFooter />
+    </Box>
+  );
+};
+
+// Wrap with Theme Provider
+const App = () => {
+  return (
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
+  );
 };
 
 export default App;
