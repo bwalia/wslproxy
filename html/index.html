@@ -4,257 +4,1223 @@
     <meta charset="utf-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="" />
-    <meta name="author" content="" />
-    <title>wslproxy.com</title>
-    <!-- Bootstrap Core CSS -->
+    <meta name="description" content="WSL Proxy - Enterprise-grade reverse proxy, load balancer, and edge computing platform. Build your own CDN with multi-region failover, edge caching, and WAF protection." />
+    <meta name="keywords" content="CDN, reverse proxy, load balancer, edge computing, WAF, SSL, cache, API gateway, OpenResty" />
+    <meta name="author" content="Workstation Solutions Limited" />
+    <title>WSL Proxy - Build Your Own CDN | Enterprise Edge Platform</title>
+    
+    <link rel="icon" type="image/png" href="images/logo.png" />
     <link href="css/bootstrap.min.css" rel="stylesheet" />
-    <!-- Theme CSS -->
-    <link href="css/style.css" rel="stylesheet" />
-    <!-- Custom Fonts -->
-    <link
-      href="font-awesome/css/font-awesome.min.css"
-      rel="stylesheet"
-      type="text/css"
-    />
-    <link
-      href="https://fonts.googleapis.com/css?family=Montserrat:400,700"
-      rel="stylesheet"
-      type="text/css"
-    />
-    <link
-      href="https://fonts.googleapis.com/css?family=Lato:400,700,400italic,700italic"
-      rel="stylesheet"
-      type="text/css"
-    />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link href="font-awesome/css/font-awesome.min.css" rel="stylesheet" type="text/css" />
+    
+    <style>
+      :root {
+        --primary: #6366f1;
+        --primary-dark: #4f46e5;
+        --secondary: #0ea5e9;
+        --accent: #10b981;
+        --dark: #0f172a;
+        --dark-light: #1e293b;
+        --gray: #64748b;
+        --light: #f8fafc;
+        --white: #ffffff;
+        --gradient: linear-gradient(135deg, #6366f1 0%, #0ea5e9 50%, #10b981 100%);
+        --gradient-dark: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      }
+
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+
+      body {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        color: var(--dark);
+        line-height: 1.6;
+        overflow-x: hidden;
+      }
+
+      .navbar-custom {
+        background: rgba(15, 23, 42, 0.95);
+        backdrop-filter: blur(20px);
+        padding: 1rem 0;
+        position: fixed;
+        width: 100%;
+        top: 0;
+        z-index: 1000;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+        transition: all 0.3s ease;
+      }
+
+      .navbar-custom.scrolled {
+        padding: 0.5rem 0;
+        background: rgba(15, 23, 42, 0.98);
+      }
+
+      .navbar-brand {
+        font-size: 1.5rem;
+        font-weight: 800;
+        color: var(--white) !important;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        text-decoration: none;
+      }
+
+      .navbar-brand span {
+        background: var(--gradient);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+
+      .nav-link-custom {
+        color: rgba(255,255,255,0.8) !important;
+        font-weight: 500;
+        padding: 0.5rem 1rem !important;
+        transition: all 0.3s ease;
+        display: inline-block;
+        text-decoration: none;
+      }
+
+      .nav-link-custom:hover {
+        color: var(--white) !important;
+        text-decoration: none;
+      }
+
+      .btn-nav {
+        background: var(--gradient);
+        color: var(--white) !important;
+        padding: 0.6rem 1.5rem !important;
+        border-radius: 8px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-block;
+        margin-left: 1rem;
+      }
+
+      .btn-nav:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 40px rgba(99, 102, 241, 0.4);
+        text-decoration: none;
+        color: var(--white) !important;
+      }
+
+      .hero {
+        min-height: 100vh;
+        background: var(--gradient-dark);
+        position: relative;
+        display: flex;
+        align-items: center;
+        overflow: hidden;
+        padding-top: 80px;
+      }
+
+      .hero::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.03)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+        pointer-events: none;
+      }
+
+      .hero-glow {
+        position: absolute;
+        width: 600px; height: 600px;
+        background: radial-gradient(circle, rgba(99, 102, 241, 0.3) 0%, transparent 70%);
+        top: -200px; right: -100px;
+        pointer-events: none;
+      }
+
+      .hero-glow-2 {
+        position: absolute;
+        width: 400px; height: 400px;
+        background: radial-gradient(circle, rgba(14, 165, 233, 0.2) 0%, transparent 70%);
+        bottom: -100px; left: -100px;
+        pointer-events: none;
+      }
+
+      .hero-content { position: relative; z-index: 2; }
+
+      .hero-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: rgba(99, 102, 241, 0.2);
+        border: 1px solid rgba(99, 102, 241, 0.3);
+        padding: 0.5rem 1rem;
+        border-radius: 50px;
+        color: var(--primary);
+        font-size: 0.875rem;
+        font-weight: 500;
+        margin-bottom: 1.5rem;
+      }
+
+      .hero-badge i { color: var(--accent); }
+
+      .hero h1 {
+        font-size: 3.5rem;
+        font-weight: 800;
+        color: var(--white);
+        line-height: 1.1;
+        margin-bottom: 1.5rem;
+      }
+
+      .hero h1 .gradient-text {
+        background: var(--gradient);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+
+      .hero-description {
+        font-size: 1.25rem;
+        color: rgba(255,255,255,0.7);
+        max-width: 600px;
+        margin-bottom: 2rem;
+      }
+
+      .hero-buttons { display: flex; gap: 1rem; flex-wrap: wrap; }
+
+      .btn-primary-custom {
+        background: var(--gradient);
+        color: var(--white);
+        padding: 1rem 2rem;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 1rem;
+        border: none;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .btn-primary-custom:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 20px 40px rgba(99, 102, 241, 0.4);
+        color: var(--white);
+        text-decoration: none;
+      }
+
+      .btn-secondary-custom {
+        background: transparent;
+        color: var(--white);
+        padding: 1rem 2rem;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 1rem;
+        border: 2px solid rgba(255,255,255,0.2);
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .btn-secondary-custom:hover {
+        background: rgba(255,255,255,0.1);
+        border-color: rgba(255,255,255,0.4);
+        color: var(--white);
+        text-decoration: none;
+      }
+
+      .hero-stats {
+        display: flex;
+        gap: 3rem;
+        margin-top: 4rem;
+        padding-top: 2rem;
+        border-top: 1px solid rgba(255,255,255,0.1);
+        flex-wrap: wrap;
+      }
+
+      .stat-item { text-align: center; }
+
+      .stat-number {
+        font-size: 2.5rem;
+        font-weight: 800;
+        background: var(--gradient);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+
+      .stat-label {
+        color: rgba(255,255,255,0.6);
+        font-size: 0.875rem;
+        margin-top: 0.25rem;
+      }
+
+      .hero-visual { position: relative; }
+
+      .terminal-window {
+        background: var(--dark);
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 40px 80px rgba(0,0,0,0.5);
+        border: 1px solid rgba(255,255,255,0.1);
+      }
+
+      .terminal-header {
+        background: var(--dark-light);
+        padding: 1rem 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .terminal-dot { width: 12px; height: 12px; border-radius: 50%; }
+      .terminal-dot.red { background: #ff5f57; }
+      .terminal-dot.yellow { background: #febc2e; }
+      .terminal-dot.green { background: #28c840; }
+
+      .terminal-body {
+        padding: 1.5rem;
+        font-family: 'Monaco', 'Menlo', monospace;
+        font-size: 0.8rem;
+        color: rgba(255,255,255,0.8);
+        min-height: 280px;
+      }
+
+      .terminal-line { margin-bottom: 0.5rem; display: flex; gap: 0.5rem; }
+      .terminal-prompt { color: var(--accent); }
+      .terminal-command { color: var(--secondary); }
+      .terminal-output { color: rgba(255,255,255,0.6); padding-left: 1rem; }
+
+      .features { padding: 6rem 0; background: var(--light); }
+
+      .section-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: rgba(99, 102, 241, 0.1);
+        padding: 0.5rem 1rem;
+        border-radius: 50px;
+        color: var(--primary);
+        font-size: 0.875rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+      }
+
+      .section-title {
+        font-size: 2.5rem;
+        font-weight: 800;
+        color: var(--dark);
+        margin-bottom: 1rem;
+      }
+
+      .section-subtitle {
+        font-size: 1.1rem;
+        color: var(--gray);
+        max-width: 600px;
+        margin: 0 auto 3rem;
+      }
+
+      .feature-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 1.5rem;
+      }
+
+      .feature-card {
+        background: var(--white);
+        border-radius: 20px;
+        padding: 2rem;
+        transition: all 0.4s ease;
+        border: 1px solid rgba(0,0,0,0.05);
+        position: relative;
+        overflow: hidden;
+      }
+
+      .feature-card::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0;
+        height: 4px;
+        background: var(--gradient);
+        transform: scaleX(0);
+        transition: transform 0.4s ease;
+      }
+
+      .feature-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 25px 50px rgba(0,0,0,0.1);
+      }
+
+      .feature-card:hover::before { transform: scaleX(1); }
+
+      .feature-icon {
+        width: 60px; height: 60px;
+        background: var(--gradient);
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 1.25rem;
+      }
+
+      .feature-icon i { font-size: 1.5rem; color: var(--white); }
+
+      .feature-card h3 {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: var(--dark);
+        margin-bottom: 0.75rem;
+      }
+
+      .feature-card p {
+        color: var(--gray);
+        line-height: 1.6;
+        margin-bottom: 1rem;
+        font-size: 0.95rem;
+      }
+
+      .feature-list { list-style: none; padding: 0; margin: 0; }
+
+      .feature-list li {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: var(--gray);
+        font-size: 0.85rem;
+        margin-bottom: 0.4rem;
+      }
+
+      .feature-list li i { color: var(--accent); font-size: 0.75rem; }
+
+      .how-it-works {
+        padding: 6rem 0;
+        background: var(--gradient-dark);
+        position: relative;
+      }
+
+      .how-it-works .section-title { color: var(--white); }
+      .how-it-works .section-subtitle { color: rgba(255,255,255,0.7); }
+
+      .steps-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 2rem;
+        position: relative;
+        flex-wrap: wrap;
+      }
+
+      .step-card {
+        flex: 1;
+        min-width: 220px;
+        text-align: center;
+        position: relative;
+        z-index: 2;
+      }
+
+      .step-number {
+        width: 100px; height: 100px;
+        background: var(--dark);
+        border: 3px solid var(--primary);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1.25rem;
+        position: relative;
+      }
+
+      .step-number span {
+        font-size: 2.5rem;
+        font-weight: 800;
+        background: var(--gradient);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+
+      .step-card h3 {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--white);
+        margin-bottom: 0.5rem;
+      }
+
+      .step-card p { color: rgba(255,255,255,0.6); font-size: 0.9rem; }
+
+      .use-cases { padding: 6rem 0; background: var(--white); }
+
+      .use-case-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1.25rem;
+      }
+
+      .use-case-card {
+        background: var(--light);
+        border-radius: 16px;
+        padding: 1.75rem;
+        transition: all 0.3s ease;
+        border: 2px solid transparent;
+      }
+
+      .use-case-card:hover {
+        border-color: var(--primary);
+        background: var(--white);
+        box-shadow: 0 15px 35px rgba(99, 102, 241, 0.1);
+      }
+
+      .use-case-icon { font-size: 2rem; margin-bottom: 0.75rem; }
+
+      .use-case-card h3 {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--dark);
+        margin-bottom: 0.4rem;
+      }
+
+      .use-case-card p { color: var(--gray); font-size: 0.9rem; margin: 0; }
+
+      .metrics { padding: 5rem 0; background: var(--gradient); }
+
+      .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 2rem;
+      }
+
+      .metric-item { text-align: center; color: var(--white); }
+      .metric-number { font-size: 3rem; font-weight: 800; margin-bottom: 0.25rem; }
+      .metric-label { font-size: 0.95rem; opacity: 0.9; }
+
+      .pricing { padding: 6rem 0; background: var(--light); }
+
+      .pricing-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 2rem;
+        max-width: 800px;
+        margin: 0 auto;
+      }
+
+      .pricing-card {
+        background: var(--white);
+        border-radius: 20px;
+        padding: 2.5rem;
+        text-align: center;
+        transition: all 0.4s ease;
+        border: 2px solid transparent;
+        position: relative;
+      }
+
+      .pricing-card.featured {
+        border-color: var(--primary);
+        transform: scale(1.03);
+      }
+
+      .pricing-card.featured::before {
+        content: 'Most Popular';
+        position: absolute;
+        top: -12px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--gradient);
+        color: var(--white);
+        padding: 0.25rem 1rem;
+        border-radius: 50px;
+        font-size: 0.75rem;
+        font-weight: 600;
+      }
+
+      .pricing-card:hover { box-shadow: 0 25px 50px rgba(0,0,0,0.1); }
+
+      .pricing-title {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--dark);
+        margin-bottom: 0.5rem;
+      }
+
+      .pricing-price {
+        font-size: 3rem;
+        font-weight: 800;
+        color: var(--dark);
+        margin: 0.75rem 0;
+      }
+
+      .pricing-price span { font-size: 0.9rem; font-weight: 500; color: var(--gray); }
+
+      .pricing-features {
+        list-style: none;
+        padding: 0;
+        margin: 1.5rem 0;
+        text-align: left;
+      }
+
+      .pricing-features li {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        padding: 0.6rem 0;
+        border-bottom: 1px solid var(--light);
+        color: var(--gray);
+        font-size: 0.9rem;
+      }
+
+      .pricing-features li i { color: var(--accent); }
+
+      .pricing-btn {
+        width: 100%;
+        padding: 0.9rem 1.5rem;
+        border-radius: 10px;
+        font-weight: 600;
+        font-size: 0.95rem;
+        border: none;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+
+      .pricing-btn.primary { background: var(--gradient); color: var(--white); }
+      .pricing-btn.secondary { background: var(--light); color: var(--dark); }
+
+      .pricing-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+      }
+
+      .cta {
+        padding: 6rem 0;
+        background: var(--gradient-dark);
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .cta::before {
+        content: '';
+        position: absolute;
+        width: 400px; height: 400px;
+        background: radial-gradient(circle, rgba(99, 102, 241, 0.2) 0%, transparent 70%);
+        top: -150px;
+        left: 50%;
+        transform: translateX(-50%);
+      }
+
+      .cta-content { position: relative; z-index: 2; }
+
+      .cta h2 {
+        font-size: 2.5rem;
+        font-weight: 800;
+        color: var(--white);
+        margin-bottom: 1rem;
+      }
+
+      .cta p {
+        font-size: 1.1rem;
+        color: rgba(255,255,255,0.7);
+        margin-bottom: 2rem;
+        max-width: 550px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+
+      .footer {
+        background: var(--dark);
+        padding: 4rem 0 1.5rem;
+        color: var(--white);
+      }
+
+      .footer-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr 1fr 1fr;
+        gap: 2.5rem;
+        margin-bottom: 3rem;
+      }
+
+      .footer-brand h3 { font-size: 1.35rem; font-weight: 800; margin-bottom: 0.75rem; }
+
+      .footer-brand h3 span {
+        background: var(--gradient);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+
+      .footer-brand p { color: rgba(255,255,255,0.6); line-height: 1.6; font-size: 0.9rem; }
+
+      .footer-col h4 {
+        font-size: 0.95rem;
+        font-weight: 700;
+        margin-bottom: 1.25rem;
+        color: var(--white);
+      }
+
+      .footer-col ul { list-style: none; padding: 0; margin: 0; }
+      .footer-col ul li { margin-bottom: 0.6rem; }
+
+      .footer-col ul li a {
+        color: rgba(255,255,255,0.6);
+        text-decoration: none;
+        transition: color 0.3s ease;
+        font-size: 0.9rem;
+      }
+
+      .footer-col ul li a:hover { color: var(--primary); }
+
+      .footer-social { display: flex; gap: 0.75rem; margin-top: 1.25rem; }
+
+      .footer-social a {
+        width: 38px; height: 38px;
+        background: rgba(255,255,255,0.1);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--white);
+        transition: all 0.3s ease;
+        text-decoration: none;
+      }
+
+      .footer-social a:hover {
+        background: var(--primary);
+        transform: translateY(-2px);
+      }
+
+      .footer-bottom {
+        border-top: 1px solid rgba(255,255,255,0.1);
+        padding-top: 1.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 1rem;
+      }
+
+      .footer-bottom p { color: rgba(255,255,255,0.5); font-size: 0.8rem; margin: 0; }
+
+      .tech-badges { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 1.5rem; }
+
+      .tech-badge {
+        background: rgba(255,255,255,0.1);
+        padding: 0.4rem 0.9rem;
+        border-radius: 6px;
+        color: rgba(255,255,255,0.8);
+        font-size: 0.8rem;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+      }
+
+      @media (max-width: 992px) {
+        .hero h1 { font-size: 2.75rem; }
+        .footer-grid { grid-template-columns: 1fr 1fr; }
+        .metrics-grid { grid-template-columns: repeat(2, 1fr); }
+        .pricing-card.featured { transform: none; }
+        .hero-visual { display: none; }
+      }
+
+      @media (max-width: 768px) {
+        .hero h1 { font-size: 2.25rem; }
+        .section-title { font-size: 2rem; }
+        .hero-stats { gap: 1.5rem; }
+        .footer-grid { grid-template-columns: 1fr; }
+        .metrics-grid { grid-template-columns: 1fr 1fr; gap: 2rem; }
+        .metric-number { font-size: 2.5rem; }
+        .footer-bottom { flex-direction: column; text-align: center; }
+        .nav-link-custom { display: none; }
+      }
+
+      @keyframes float {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-15px); }
+      }
+
+      .floating { animation: float 5s ease-in-out infinite; }
+
+      .fade-up {
+        opacity: 0;
+        transform: translateY(25px);
+        transition: all 0.5s ease;
+      }
+
+      .fade-up.visible { opacity: 1; transform: translateY(0); }
+    </style>
   </head>
 
-  <body id="page-top" class="index">
-    <!-- Navigation -->
-    <nav
-      id="mainNav"
-      class="navbar navbar-default navbar-fixed-top navbar-custom"
-    >
+  <body>
+    <nav class="navbar-custom" id="mainNav">
       <div class="container">
-        <!-- Brand and toggle get grouped for better mobile display -->
-        <div class="navbar-header page-scroll">
-          <button
-            type="button"
-            class="navbar-toggle"
-            data-toggle="collapse"
-            data-target="#bs-example-navbar-collapse-1"
-          >
-            <span class="sr-only">Toggle navigation</span> Menu
-            <i class="fa fa-bars"></i>
-          </button>
+        <div class="row align-items-center">
+          <div class="col-6 col-md-4">
+            <a class="navbar-brand" href="#">
+              <i class="fa fa-cube"></i>
+              <span>WSL Proxy</span>
+            </a>
+          </div>
+          <div class="col-6 col-md-8 text-right">
+            <a href="#features" class="nav-link-custom">Features</a>
+            <a href="#how-it-works" class="nav-link-custom">How it Works</a>
+            <a href="#pricing" class="nav-link-custom">Pricing</a>
+            <a href="https://github.com/bwalia/wslproxy" class="nav-link-custom" target="_blank"><i class="fa fa-github"></i> GitHub</a>
+            <a href="/swagger/swagger.html" class="btn-nav">API Docs</a>
+          </div>
         </div>
-
-        <!-- Collect the nav links, forms, and other content for toggling -->
-
-        <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
-          <ul class="nav navbar-nav navbar-right">
-            <li class="hidden">
-              <a href="#page-top"></a>
-            </li>
-
-            <li class="dropdown">
-              <a
-                class="dropdown-toggle"
-                data-toggle="dropdown"
-                href="http://wslproxy.com"
-                >wslproxy.com <span class="caret"></span
-              ></a>
-              <ul class="dropdown-menu"></ul>
-            </li>
-          </ul>
-        </div>
-        <!-- /.navbar-collapse -->
       </div>
-      <!-- /.container-fluid -->
     </nav>
 
-    <!-- Header -->
-    <div class="headrhdng">
+    <section class="hero">
+      <div class="hero-glow"></div>
+      <div class="hero-glow-2"></div>
       <div class="container">
-        <div class="row">
-          <div class="col-md-12">
-            <h1>wslproxy.com</h1>
-            <br />
-            <h2>
-              Click <a href="http://wslproxy.com">here</a> to find out how
-              DiyCDN works. In a nutshell DiyCDN is an Open source CDN "Content
-              Delivery Network" and API Gateway solution for modern cloud
-              applications designed to handle million of http requests securely
-              with many user authenticatio built right into the single solution.
-            </h2>
-          </div>
-
-          <div class="col-md-12">
-            <h1>OPS API</h1>
-            <br />
-            <h4>
-              OPS API is the part of this CDN solution utlilising REST API to
-              manage the operations of this Open source CDN automatically
-              following best practices such as infra and config as a code -
-              Click <a href="http://opsapi.org">here</a> to find out - How it
-              works?
-            </h4>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="container">
-      <div class="row">
-        <div class="col-md-12 content">
-          <h2>
-            OPS API is a Golang app to manage applications and the configuration
-            related to those servers
-          </h2>
-
-          <p>
-            <img
-              src="images/get-start.svg"
-              width="150"
-              style="padding-right: 15px; padding-bottom: 5px"
-              alt=""
-            />
-            Getting started with Edgeone is super easy. Using our intuitive
-            Web-based control panel, enter the URL you wish to monitor (e.g.
-            http://www.yourdomain.com), and select the monitoring interval (e.g.
-            1 minute). The monitoring interval represents how often we’ll check
-            to see if the website is online and responding properly. The smaller
-            the interval, the more frequently we’ll check your website.
-          </p>
-
-          <p>Examples and some API tests goes here ...</p>
-
-          <h2>OPS API to manage Nginx or Openresty</h2>
-
-          <p>
-            <img
-              src="images/alert.svg"
-              width="150"
-              style="padding-left: 15px; padding-bottom: 5px"
-              alt=""
-            />
-
-            Nginx or Openresty is fully redundant and globally distributed. Each
-            monitoring location is housed in an enterprise-grade data center,
-            and powered by high performance hardware.
-          </p>
-
-          <p>
-            At each monitoring interval (e.g. each time we check your website),
-            we send a request from a random global monitoring site. If we detect
-            that your website is down, we immediately seek a “second opinion”
-            from another monitoring location. If the second location confirms
-            the outage, we then notify your account’s SMS and email contacts of
-            the outage. The use of multiple locations eliminates false alarms,
-            and assures the integrity of our results.
-          </p>
-
-          <h2>OPS API to manage Varnish</h2>
-          <p>
-            <img
-              src="images/report.svg"
-              width="150"
-              style="padding-right: 15px; padding-bottom: 5px"
-              alt=""
-            />One of our most powerful features is our interactive insight
-            reporting tools to give you clear analytics into customer behaviour
-            and moves. If you are obsessed to serve your customers online better
-            you should seriouly consider edgeone
-          </p>
-        </div>
-      </div>
-    </div>
-    <!-- Footer -->
-    <footer class="text-center">
-      <div class="footer-above">
-        <div class="container">
-          <div class="row">
-            <div class="footer-col col-md-4">
-              <h3>Location</h3>
-              <p>
-                wslproxy.com<br />
-                wslproxy.com is an initiative by:<br />Workstation Solutions
-                Limited <br />77A The Coach House, Hemel Hempstead, Herts HP1
-                1LF, United Kingdom
-              </p>
+        <div class="row align-items-center">
+          <div class="col-lg-6 hero-content">
+            <div class="hero-badge">
+              <i class="fa fa-bolt"></i>
+              Open Source Edge Platform
+            </div>
+            <h1>
+              Build Your Own<br>
+              <span class="gradient-text">CDN &amp; Edge Network</span>
+            </h1>
+            <p class="hero-description">
+              Enterprise-grade reverse proxy and API gateway built on OpenResty. 
+              Deploy globally with load balancing, edge caching, SSL automation, 
+              and WAF protection—all in one platform.
+            </p>
+            <div class="hero-buttons">
+              <a href="https://github.com/bwalia/wslproxy" class="btn-primary-custom" target="_blank">
+                <i class="fa fa-rocket"></i> Get Started Free
+              </a>
+              <a href="/swagger/swagger.html" class="btn-secondary-custom">
+                <i class="fa fa-book"></i> View Documentation
+              </a>
             </div>
 
-            <div class="footer-col col-md-4">
-              <h3>Contact Us</h3>
-              <p>
-                E :info@workstation.co.uk <br />
-                M: +44(0)7515356146
-              </p>
+            <div class="tech-badges">
+              <span class="tech-badge"><i class="fa fa-server"></i> OpenResty</span>
+              <span class="tech-badge"><i class="fa fa-code"></i> Lua</span>
+              <span class="tech-badge"><i class="fa fa-database"></i> Redis</span>
+              <span class="tech-badge"><i class="fa fa-cloud"></i> Docker</span>
+              <span class="tech-badge"><i class="fa fa-cubes"></i> Kubernetes</span>
             </div>
 
-            <div class="footer-col col-md-4">
-              <h3>Follow Us</h3>
-              <ul class="list-inline">
-                <li>
-                  <a href="#" class="btn-social btn-outline"
-                    ><i class="fa fa-fw fa-facebook"></i
-                  ></a>
-                </li>
-                <li>
-                  <a href="#" class="btn-social btn-outline"
-                    ><i class="fa fa-fw fa-google-plus"></i
-                  ></a>
-                </li>
-                <li>
-                  <a href="#" class="btn-social btn-outline"
-                    ><i class="fa fa-fw fa-twitter"></i
-                  ></a>
-                </li>
-                <li>
-                  <a href="#" class="btn-social btn-outline"
-                    ><i class="fa fa-fw fa-linkedin"></i
-                  ></a>
-                </li>
-                <li>
-                  <a href="#" class="btn-social btn-outline"
-                    ><i class="fa fa-fw fa-dribbble"></i
-                  ></a>
-                </li>
-              </ul>
+            <div class="hero-stats">
+              <div class="stat-item">
+                <div class="stat-number">99.99%</div>
+                <div class="stat-label">Uptime SLA</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-number">&lt;10ms</div>
+                <div class="stat-label">Edge Latency</div>
+              </div>
+              <div class="stat-item">
+                <div class="stat-number">1M+</div>
+                <div class="stat-label">Requests/sec</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-lg-6 hero-visual">
+            <div class="terminal-window floating">
+              <div class="terminal-header">
+                <div class="terminal-dot red"></div>
+                <div class="terminal-dot yellow"></div>
+                <div class="terminal-dot green"></div>
+              </div>
+              <div class="terminal-body">
+                <div class="terminal-line">
+                  <span class="terminal-prompt">$</span>
+                  <span class="terminal-command">curl -X POST /api/servers</span>
+                </div>
+                <div class="terminal-output">
+                  {<br>
+                  &nbsp;&nbsp;"server_name": "api.example.com",<br>
+                  &nbsp;&nbsp;"upstream": "192.168.1.100:8080",<br>
+                  &nbsp;&nbsp;"ssl_enabled": true,<br>
+                  &nbsp;&nbsp;"cache_enabled": true,<br>
+                  &nbsp;&nbsp;"waf_enabled": true<br>
+                  }
+                </div>
+                <div class="terminal-line" style="margin-top: 1rem;">
+                  <span class="terminal-prompt">$</span>
+                  <span class="terminal-command">curl /metrics</span>
+                </div>
+                <div class="terminal-output">
+                  nginx_cache_hits_total 847293<br>
+                  nginx_http_requests_total 2.3M<br>
+                  nginx_upstream_latency_avg 8.2ms
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
-      <div class="footer-below">
-        <div class="container">
-          <div class="row">
-            <div class="col-lg-12">
-              Copyright &copy; 2017 &mdash; 2024<br />
-              Workstation Solutions Limited.
-              <br />All rights reserved
+    </section>
+
+    <section class="features" id="features">
+      <div class="container">
+        <div class="text-center">
+          <span class="section-badge"><i class="fa fa-star"></i> Features</span>
+          <h2 class="section-title">Everything You Need at the Edge</h2>
+          <p class="section-subtitle">
+            A complete platform for routing, caching, security, and observability—built for modern cloud-native applications.
+          </p>
+        </div>
+
+        <div class="feature-grid">
+          <div class="feature-card fade-up">
+            <div class="feature-icon"><i class="fa fa-balance-scale"></i></div>
+            <h3>Smart Load Balancing</h3>
+            <p>Distribute traffic across multiple backends with intelligent algorithms and automatic failover.</p>
+            <ul class="feature-list">
+              <li><i class="fa fa-check"></i> Health checks &amp; auto-failover</li>
+              <li><i class="fa fa-check"></i> Session persistence</li>
+              <li><i class="fa fa-check"></i> Weighted routing</li>
+            </ul>
+          </div>
+
+          <div class="feature-card fade-up">
+            <div class="feature-icon"><i class="fa fa-globe"></i></div>
+            <h3>Multi-Region Failover</h3>
+            <p>Deploy across multiple regions with automatic DNS failover and geo-distributed redundancy.</p>
+            <ul class="feature-list">
+              <li><i class="fa fa-check"></i> Active-active clustering</li>
+              <li><i class="fa fa-check"></i> Geo-DNS routing</li>
+              <li><i class="fa fa-check"></i> Region affinity rules</li>
+            </ul>
+          </div>
+
+          <div class="feature-card fade-up">
+            <div class="feature-icon"><i class="fa fa-bolt"></i></div>
+            <h3>Edge Caching</h3>
+            <p>Cache static content at the edge for blazing-fast delivery and reduced origin load.</p>
+            <ul class="feature-list">
+              <li><i class="fa fa-check"></i> Per-server cache control</li>
+              <li><i class="fa fa-check"></i> Smart cache invalidation</li>
+              <li><i class="fa fa-check"></i> Cache analytics &amp; metrics</li>
+            </ul>
+          </div>
+
+          <div class="feature-card fade-up">
+            <div class="feature-icon"><i class="fa fa-sitemap"></i></div>
+            <h3>Build Your Own CDN</h3>
+            <p>Create a private CDN infrastructure tailored to your needs without vendor lock-in.</p>
+            <ul class="feature-list">
+              <li><i class="fa fa-check"></i> Custom edge locations</li>
+              <li><i class="fa fa-check"></i> Origin shielding</li>
+              <li><i class="fa fa-check"></i> Real-time purging</li>
+            </ul>
+          </div>
+
+          <div class="feature-card fade-up">
+            <div class="feature-icon"><i class="fa fa-shield"></i></div>
+            <h3>WAF &amp; Security</h3>
+            <p>Protect applications with enterprise-grade Web Application Firewall and DDoS mitigation.</p>
+            <ul class="feature-list">
+              <li><i class="fa fa-check"></i> OWASP rule sets</li>
+              <li><i class="fa fa-check"></i> Rate limiting</li>
+              <li><i class="fa fa-check"></i> IP &amp; geo blocking</li>
+            </ul>
+          </div>
+
+          <div class="feature-card fade-up">
+            <div class="feature-icon"><i class="fa fa-lock"></i></div>
+            <h3>Automatic SSL/TLS</h3>
+            <p>Zero-touch SSL certificate management with Let's Encrypt auto-provisioning and renewal.</p>
+            <ul class="feature-list">
+              <li><i class="fa fa-check"></i> Auto-provisioning</li>
+              <li><i class="fa fa-check"></i> Wildcard certificates</li>
+              <li><i class="fa fa-check"></i> TLS 1.3 support</li>
+            </ul>
+          </div>
+
+          <div class="feature-card fade-up">
+            <div class="feature-icon"><i class="fa fa-plug"></i></div>
+            <h3>API Gateway</h3>
+            <p>Full-featured API gateway with authentication, rate limiting, and request transformation.</p>
+            <ul class="feature-list">
+              <li><i class="fa fa-check"></i> JWT authentication</li>
+              <li><i class="fa fa-check"></i> API key management</li>
+              <li><i class="fa fa-check"></i> OpenAPI integration</li>
+            </ul>
+          </div>
+
+          <div class="feature-card fade-up">
+            <div class="feature-icon"><i class="fa fa-line-chart"></i></div>
+            <h3>Full Observability</h3>
+            <p>Complete visibility with Prometheus metrics, structured logging, and real-time analytics.</p>
+            <ul class="feature-list">
+              <li><i class="fa fa-check"></i> Prometheus metrics</li>
+              <li><i class="fa fa-check"></i> Grafana dashboards</li>
+              <li><i class="fa fa-check"></i> Custom alerting</li>
+            </ul>
+          </div>
+
+          <div class="feature-card fade-up">
+            <div class="feature-icon"><i class="fa fa-dashboard"></i></div>
+            <h3>Admin Dashboard</h3>
+            <p>Intuitive React-based admin interface to manage servers, rules, and configurations.</p>
+            <ul class="feature-list">
+              <li><i class="fa fa-check"></i> Server management UI</li>
+              <li><i class="fa fa-check"></i> Live traffic view</li>
+              <li><i class="fa fa-check"></i> User management</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="how-it-works" id="how-it-works">
+      <div class="container">
+        <div class="text-center">
+          <span class="section-badge" style="background: rgba(255,255,255,0.1); color: #fff;">
+            <i class="fa fa-cogs"></i> How It Works
+          </span>
+          <h2 class="section-title">Deploy in Minutes, Not Days</h2>
+          <p class="section-subtitle">
+            Get your edge infrastructure up and running with just a few simple steps.
+          </p>
+        </div>
+
+        <div class="steps-container">
+          <div class="step-card fade-up">
+            <div class="step-number"><span>1</span></div>
+            <h3>Deploy WSL Proxy</h3>
+            <p>Launch using Docker, Kubernetes, or bare metal with one-line deployment.</p>
+          </div>
+
+          <div class="step-card fade-up">
+            <div class="step-number"><span>2</span></div>
+            <h3>Configure Servers</h3>
+            <p>Add backends via REST API or admin dashboard with routing rules.</p>
+          </div>
+
+          <div class="step-card fade-up">
+            <div class="step-number"><span>3</span></div>
+            <h3>Enable Features</h3>
+            <p>Turn on SSL, caching, WAF, and load balancing per server.</p>
+          </div>
+
+          <div class="step-card fade-up">
+            <div class="step-number"><span>4</span></div>
+            <h3>Monitor &amp; Scale</h3>
+            <p>Track performance with metrics and scale as traffic grows.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="use-cases">
+      <div class="container">
+        <div class="text-center">
+          <span class="section-badge"><i class="fa fa-briefcase"></i> Use Cases</span>
+          <h2 class="section-title">Built for Every Workload</h2>
+          <p class="section-subtitle">
+            From startups to enterprises, WSL Proxy powers diverse applications across industries.
+          </p>
+        </div>
+
+        <div class="use-case-grid">
+          <div class="use-case-card fade-up">
+            <div class="use-case-icon">🛒</div>
+            <h3>E-Commerce</h3>
+            <p>Fast page loads and secure checkout with edge caching and WAF.</p>
+          </div>
+
+          <div class="use-case-card fade-up">
+            <div class="use-case-icon">📱</div>
+            <h3>Mobile Apps</h3>
+            <p>Low-latency API responses with global edge presence.</p>
+          </div>
+
+          <div class="use-case-card fade-up">
+            <div class="use-case-icon">🎮</div>
+            <h3>Gaming</h3>
+            <p>Real-time server routing with sub-10ms latency.</p>
+          </div>
+
+          <div class="use-case-card fade-up">
+            <div class="use-case-icon">🎬</div>
+            <h3>Media Streaming</h3>
+            <p>Efficient video delivery with edge caching.</p>
+          </div>
+
+          <div class="use-case-card fade-up">
+            <div class="use-case-icon">🏦</div>
+            <h3>FinTech</h3>
+            <p>Secure APIs with JWT auth and rate limiting.</p>
+          </div>
+
+          <div class="use-case-card fade-up">
+            <div class="use-case-icon">🏥</div>
+            <h3>Healthcare</h3>
+            <p>Compliant routing with encryption and audit trails.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="metrics">
+      <div class="container">
+        <div class="metrics-grid">
+          <div class="metric-item fade-up">
+            <div class="metric-number">50+</div>
+            <div class="metric-label">Edge Locations Ready</div>
+          </div>
+          <div class="metric-item fade-up">
+            <div class="metric-number">10B+</div>
+            <div class="metric-label">Requests Handled</div>
+          </div>
+          <div class="metric-item fade-up">
+            <div class="metric-number">500+</div>
+            <div class="metric-label">Active Deployments</div>
+          </div>
+          <div class="metric-item fade-up">
+            <div class="metric-number">24/7</div>
+            <div class="metric-label">Community Support</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="pricing" id="pricing">
+      <div class="container">
+        <div class="text-center">
+          <span class="section-badge"><i class="fa fa-tag"></i> Pricing</span>
+          <h2 class="section-title">Simple, Transparent Pricing</h2>
+          <p class="section-subtitle">Start free, scale as you grow. Enterprise features included.</p>
+        </div>
+
+        <div class="pricing-grid">
+          <div class="pricing-card fade-up">
+            <div class="pricing-title">Community</div>
+            <div class="pricing-price">Free <span>forever</span></div>
+            <ul class="pricing-features">
+              <li><i class="fa fa-check"></i> Unlimited servers</li>
+              <li><i class="fa fa-check"></i> Load balancing</li>
+              <li><i class="fa fa-check"></i> Auto SSL</li>
+              <li><i class="fa fa-check"></i> Edge caching</li>
+              <li><i class="fa fa-check"></i> Basic WAF rules</li>
+              <li><i class="fa fa-check"></i> Prometheus metrics</li>
+              <li><i class="fa fa-check"></i> Community support</li>
+            </ul>
+            <button class="pricing-btn secondary" onclick="window.open('https://github.com/bwalia/wslproxy', '_blank')">Download Now</button>
+          </div>
+
+          <div class="pricing-card featured fade-up">
+            <div class="pricing-title">Enterprise</div>
+            <div class="pricing-price">Custom</div>
+            <ul class="pricing-features">
+              <li><i class="fa fa-check"></i> Everything in Community</li>
+              <li><i class="fa fa-check"></i> Multi-region clustering</li>
+              <li><i class="fa fa-check"></i> Advanced WAF rules</li>
+              <li><i class="fa fa-check"></i> Custom integrations</li>
+              <li><i class="fa fa-check"></i> SLA guarantee</li>
+              <li><i class="fa fa-check"></i> Dedicated support</li>
+              <li><i class="fa fa-check"></i> Professional services</li>
+            </ul>
+            <button class="pricing-btn primary" onclick="window.location.href='mailto:info@workstation.co.uk?subject=WSL Proxy Enterprise Inquiry'">Contact Sales</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="cta">
+      <div class="container">
+        <div class="cta-content fade-up">
+          <h2>Ready to Build Your Edge Network?</h2>
+          <p>Join developers using WSL Proxy to deliver fast, secure, and reliable applications at the edge.</p>
+          <div class="hero-buttons" style="justify-content: center;">
+            <a href="https://github.com/bwalia/wslproxy" class="btn-primary-custom" target="_blank">
+              <i class="fa fa-github"></i> Star on GitHub
+            </a>
+            <a href="/swagger/swagger.html" class="btn-secondary-custom">
+              <i class="fa fa-book"></i> Read the Docs
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <div class="container">
+        <div class="footer-grid">
+          <div class="footer-brand">
+            <h3><i class="fa fa-cube"></i> <span>WSL Proxy</span></h3>
+            <p>Open-source edge computing platform for modern cloud-native applications. Deploy your own CDN, API gateway, and reverse proxy infrastructure.</p>
+            <div class="footer-social">
+              <a href="https://github.com/bwalia/wslproxy" target="_blank"><i class="fa fa-github"></i></a>
+              <a href="https://twitter.com/workaboratory" target="_blank"><i class="fa fa-twitter"></i></a>
+              <a href="https://linkedin.com/company/workstation-solutions" target="_blank"><i class="fa fa-linkedin"></i></a>
             </div>
           </div>
+
+          <div class="footer-col">
+            <h4>Product</h4>
+            <ul>
+              <li><a href="#features">Features</a></li>
+              <li><a href="#pricing">Pricing</a></li>
+              <li><a href="/swagger/swagger.html">API Docs</a></li>
+              <li><a href="https://github.com/bwalia/wslproxy/releases">Changelog</a></li>
+            </ul>
+          </div>
+
+          <div class="footer-col">
+            <h4>Resources</h4>
+            <ul>
+              <li><a href="https://github.com/bwalia/wslproxy">GitHub</a></li>
+              <li><a href="/swagger/swagger.html">Documentation</a></li>
+              <li><a href="https://opsapi.org">OPS API</a></li>
+            </ul>
+          </div>
+
+          <div class="footer-col">
+            <h4>Company</h4>
+            <ul>
+              <li><a href="https://workstation.co.uk">About Us</a></li>
+              <li><a href="mailto:info@workstation.co.uk">Contact</a></li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="footer-bottom">
+          <p>&copy; 2017 — 2026 Workstation Solutions Limited. All rights reserved.</p>
+          <p><i class="fa fa-map-marker"></i> 77A The Coach House, Hemel Hempstead, Herts HP1 1LF, UK</p>
         </div>
       </div>
     </footer>
 
-    <!-- Scroll to Top Button (Only visible on small and extra-small screen sizes) -->
-    <div class="scroll-top page-scroll hidden-sm hidden-xs hidden-lg hidden-md">
-      <a class="btn btn-primary" href="#page-top">
-        <i class="fa fa-chevron-up"></i>
-      </a>
-    </div>
-
-    <!-- jQuery -->
     <script src="js/jquery.min.js"></script>
-
-    <!-- Bootstrap Core JavaScript -->
     <script src="js/bootstrap.min.js"></script>
+    <script>
+      window.addEventListener('scroll', function() {
+        var navbar = document.getElementById('mainNav');
+        if (window.scrollY > 50) {
+          navbar.classList.add('scrolled');
+        } else {
+          navbar.classList.remove('scrolled');
+        }
+      });
 
-    <!-- Plugin JavaScript -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-easing/1.3/jquery.easing.min.js"></script>
+      document.querySelectorAll('a[href^="#"]').forEach(function(anchor) {
+        anchor.addEventListener('click', function(e) {
+          e.preventDefault();
+          var target = document.querySelector(this.getAttribute('href'));
+          if (target) {
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        });
+      });
 
-    <!-- Theme JavaScript -->
-    <script src="js/main.js"></script>
+      var fadeElements = document.querySelectorAll('.fade-up');
+      var fadeObserver = new IntersectionObserver(function(entries) {
+        entries.forEach(function(entry) {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+          }
+        });
+      }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
+
+      fadeElements.forEach(function(el) { fadeObserver.observe(el); });
+    </script>
   </body>
 </html>
