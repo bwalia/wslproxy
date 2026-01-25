@@ -356,10 +356,10 @@ server {
             rewrite_by_lua_file /usr/local/openresty/nginx/html/api/gateway_ack.lua;
             access_by_lua_file /usr/local/openresty/nginx/html/api/gateway_resp.lua;    # this code run just before the setting the proxy pass and content phase.
 
-          # WSL Cache: Capture response headers for caching
+          # WSL Cache: Capture response headers for caching (always add debug headers)
           header_filter_by_lua_block {
             local ok, CacheHandler = pcall(require, "cache_handler")
-            if ok and ngx.ctx.should_cache then
+            if ok then
               CacheHandler.process_response_headers()
             end
           }
