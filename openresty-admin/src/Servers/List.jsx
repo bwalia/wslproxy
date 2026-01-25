@@ -47,6 +47,8 @@ const List = () => {
         {/* <TextField source="root" />
         <TextField source="access_log" /> */}
         <TextField source='profile_id' />
+        <BooleanField source="ssl_enabled" label="SSL" />
+        <BooleanField source="cache_enabled" label="Cache" />
         <BooleanField source="config_status" />
         <CloneButton />
       </Datagrid>

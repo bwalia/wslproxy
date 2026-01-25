@@ -18,6 +18,34 @@ Hostname = ngx.var.host
 local configPath = os.getenv("NGINX_CONFIG_DIR") or "/opt/nginx/"
 local Helper = require("helpers")
 
+-- WSL Cache: Check for cached response before processing
+local function check_and_serve_from_cache()
+    local ok, CacheManager = pcall(require, "cache_manager")
+    if not ok then return false end
+    
+    local ok2, CacheHandler = pcall(require, "cache_handler")
+    if not ok2 then return false end
+    
+    local server_name = ngx.var.host:gsub("^www%.", "")
+    local cache_config = CacheManager.get_cache_config(server_name)
+    
+    if cache_config and cache_config.cache_enabled then
+        local served = CacheHandler.check_cache(server_name, cache_config)
+        if served then
+            ngx.exit(ngx.OK)
+            return true
+        end
+    end
+    return false
+end
+
+-- Try to serve from cache first (only for GET/HEAD requests)
+if ngx.req.get_method() == "GET" or ngx.req.get_method() == "HEAD" then
+    if check_and_serve_from_cache() then
+        return
+    end
+end
+
 local isItDTAPEnvironment = function(pHostnameStr)
     --return true
     return string.find(pHostnameStr, "localhost") or string.find(pHostnameStr, "dev") or string.find(pHostnameStr, "int") or

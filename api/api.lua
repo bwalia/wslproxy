@@ -8,6 +8,7 @@ local Helper = require("helpers")
 local Errors = require("errors")
 local PushData = require("push-data")
 local SslManager = require("ssl_manager")
+local CacheManager = require("cache_manager")
 
 local settings = Helper.settings()
 local storageTypeOverride = settings.settings or os.getenv("STORAGE_TYPE")
@@ -1092,6 +1093,33 @@ local function createUpdateServer(body, uuid)
         -- Remove domain from SSL cache
         if RemoveSslDomainFromCache then
             RemoveSslDomainFromCache(payloads.server_name)
+        end
+    end
+
+    -- Handle static content caching configuration if cache_enabled is set
+    if payloads.cache_enabled ~= nil then
+        if payloads.cache_enabled then
+            local cache_options = {}
+            if payloads.cache_ttl then cache_options.cache_ttl = tonumber(payloads.cache_ttl) end
+            if payloads.cached_extensions then cache_options.cached_extensions = payloads.cached_extensions end
+            if payloads.cached_mime_types then cache_options.cached_mime_types = payloads.cached_mime_types end
+            if payloads.cache_bypass_cookie then cache_options.cache_bypass_cookie = payloads.cache_bypass_cookie end
+            if payloads.cache_bypass_header then cache_options.cache_bypass_header = payloads.cache_bypass_header end
+            
+            local cache_ok, cache_err = CacheManager.enable_cache(payloads.server_name, cache_options)
+            if not cache_ok then
+                ngx.log(ngx.ERR, "Failed to enable cache for ", payloads.server_name, ": ", cache_err)
+            else
+                ngx.log(ngx.INFO, "Cache enabled for domain: ", payloads.server_name)
+            end
+        else
+            -- If caching is disabled, update cache config
+            local cache_ok, cache_err = CacheManager.disable_cache(payloads.server_name)
+            if not cache_ok then
+                ngx.log(ngx.WARN, "Failed to disable cache for ", payloads.server_name, ": ", cache_err)
+            else
+                ngx.log(ngx.INFO, "Cache disabled for domain: ", payloads.server_name)
+            end
         end
     end
 
@@ -2363,6 +2391,86 @@ local function handle_get_request(args, path)
         end
         ngx.exit(ngx.HTTP_OK)
     end
+
+    -- Cache status endpoint - GET /api/cache/status/{server_name}
+    if subPath[1] == "cache" and subPath[2] == "status" and subPath[3] then
+        local server_name = subPath[3]
+        local cache_config = CacheManager.get_cache_config(server_name)
+        local cache_enabled = cache_config and cache_config.cache_enabled or false
+        ngx.say(cjson.encode({
+            data = {
+                server_name = server_name,
+                cache_enabled = cache_enabled,
+                cache_ttl = cache_config and cache_config.cache_ttl or 3600,
+                message = cache_enabled and "Caching is enabled for this domain" or "Caching is not enabled for this domain"
+            }
+        }))
+        ngx.exit(ngx.HTTP_OK)
+    end
+
+    -- Get cache configuration for a domain - GET /api/cache/config/{server_name}
+    if subPath[1] == "cache" and subPath[2] == "config" and subPath[3] then
+        local server_name = subPath[3]
+        local cache_config, cache_err = CacheManager.get_cache_config(server_name)
+        if cache_config then
+            ngx.say(cjson.encode({
+                data = cache_config
+            }))
+        else
+            -- Return default config if none exists
+            local default_config = CacheManager.get_default_config()
+            default_config.server_name = server_name
+            ngx.say(cjson.encode({
+                data = default_config
+            }))
+        end
+        ngx.exit(ngx.HTTP_OK)
+    end
+
+    -- List all cache configurations - GET /api/cache/configs
+    if path == "cache/configs" then
+        local configs = CacheManager.list_cache_configs()
+        ngx.say(cjson.encode({
+            data = configs
+        }))
+        ngx.exit(ngx.HTTP_OK)
+    end
+
+    -- Get cache statistics - GET /api/cache/stats
+    if path == "cache/stats" then
+        local stats, stats_err = require("cache_handler").get_cache_stats()
+        if stats then
+            ngx.say(cjson.encode({
+                data = stats
+            }))
+        else
+            ngx.say(cjson.encode({
+                data = {
+                    error = stats_err or "Failed to get cache stats"
+                }
+            }))
+        end
+        ngx.exit(ngx.HTTP_OK)
+    end
+
+    -- Get server-specific cache statistics - GET /api/cache/stats/{server_name}
+    if subPath[1] == "cache" and subPath[2] == "stats" and subPath[3] then
+        local server_name = subPath[3]
+        local stats, stats_err = require("cache_handler").get_server_cache_stats(server_name)
+        if stats then
+            ngx.say(cjson.encode({
+                data = stats
+            }))
+        else
+            ngx.say(cjson.encode({
+                data = {
+                    error = stats_err or "Failed to get cache stats"
+                }
+            }))
+        end
+        ngx.exit(ngx.HTTP_OK)
+    end
+
     if path == "global/settings" then
         local settingsData = settings
         settingsData.dns_resolver = nil
@@ -2425,6 +2533,98 @@ local function handle_post_request(args, path)
         end
         if path == "password/reset" then
             resetPassword(args)
+        end
+        -- Cache enable/disable endpoints
+        -- POST /api/cache/enable/{server_name}
+        if string.find(path, "^cache/enable/") then
+            local server_name = path:match("^cache/enable/(.+)$")
+            if not server_name or server_name == "" then
+                Errors.throwError("Server name is required", ngx.HTTP_BAD_REQUEST)
+            end
+            local payloads = Helper.GetPayloads(args)
+            local options = {}
+            if payloads.cache_ttl then options.cache_ttl = tonumber(payloads.cache_ttl) end
+            if payloads.cached_extensions then options.cached_extensions = payloads.cached_extensions end
+            if payloads.cached_mime_types then options.cached_mime_types = payloads.cached_mime_types end
+            
+            local success, err = CacheManager.enable_cache(server_name, options)
+            if success then
+                ngx.say(cjson.encode({
+                    message = "Caching enabled for " .. server_name,
+                    server_name = server_name,
+                    cache_enabled = true
+                }))
+            else
+                Errors.throwError("Failed to enable caching: " .. (err or "unknown error"), ngx.HTTP_INTERNAL_SERVER_ERROR)
+            end
+            ngx.exit(ngx.HTTP_OK)
+        end
+        -- POST /api/cache/disable/{server_name}
+        if string.find(path, "^cache/disable/") then
+            local server_name = path:match("^cache/disable/(.+)$")
+            if not server_name or server_name == "" then
+                Errors.throwError("Server name is required", ngx.HTTP_BAD_REQUEST)
+            end
+            local success, err = CacheManager.disable_cache(server_name)
+            if success then
+                ngx.say(cjson.encode({
+                    message = "Caching disabled for " .. server_name,
+                    server_name = server_name,
+                    cache_enabled = false
+                }))
+            else
+                Errors.throwError("Failed to disable caching: " .. (err or "unknown error"), ngx.HTTP_INTERNAL_SERVER_ERROR)
+            end
+            ngx.exit(ngx.HTTP_OK)
+        end
+        -- POST /api/cache/config/{server_name} - Update cache configuration
+        if string.find(path, "^cache/config/") then
+            local server_name = path:match("^cache/config/(.+)$")
+            if not server_name or server_name == "" then
+                Errors.throwError("Server name is required", ngx.HTTP_BAD_REQUEST)
+            end
+            local payloads = Helper.GetPayloads(args)
+            local success, err = CacheManager.save_cache_config(server_name, payloads)
+            if success then
+                ngx.say(cjson.encode({
+                    message = "Cache configuration updated for " .. server_name,
+                    server_name = server_name
+                }))
+            else
+                Errors.throwError("Failed to update cache config: " .. (err or "unknown error"), ngx.HTTP_INTERNAL_SERVER_ERROR)
+            end
+            ngx.exit(ngx.HTTP_OK)
+        end
+        -- POST /api/cache/clear/{server_name} - Clear cache for a domain
+        if string.find(path, "^cache/clear/") then
+            local server_name = path:match("^cache/clear/(.+)$")
+            if not server_name or server_name == "" then
+                Errors.throwError("Server name is required", ngx.HTTP_BAD_REQUEST)
+            end
+            local CacheHandler = require("cache_handler")
+            local success, msg = CacheHandler.clear_cache(server_name)
+            if success then
+                ngx.say(cjson.encode({
+                    message = msg or ("Cache cleared for " .. server_name),
+                    server_name = server_name
+                }))
+            else
+                Errors.throwError("Failed to clear cache: " .. (msg or "unknown error"), ngx.HTTP_INTERNAL_SERVER_ERROR)
+            end
+            ngx.exit(ngx.HTTP_OK)
+        end
+        -- POST /api/cache/clear-all - Clear all cache
+        if path == "cache/clear-all" then
+            local CacheHandler = require("cache_handler")
+            local success, msg = CacheHandler.clear_all_cache()
+            if success then
+                ngx.say(cjson.encode({
+                    message = msg or "All cache cleared"
+                }))
+            else
+                Errors.throwError("Failed to clear cache: " .. (msg or "unknown error"), ngx.HTTP_INTERNAL_SERVER_ERROR)
+            end
+            ngx.exit(ngx.HTTP_OK)
         end
     else
         Errors.throwError(

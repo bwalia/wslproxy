@@ -1,0 +1,42 @@
+{
+  "cache_enabled": false,
+  "cache_ttl": 3600,
+  "cache_max_size": "100m",
+  "cache_inactive": "60m",
+  "cache_valid_codes": [200, 301, 302],
+  "cache_bypass_cookie": "",
+  "cache_bypass_header": "",
+  "cached_extensions": [
+    "js", "mjs", "css",
+    "woff", "woff2", "ttf", "otf", "eot",
+    "jpg", "jpeg", "png", "gif", "ico", "svg", "webp", "avif",
+    "pdf", "doc", "docx", "xls", "xlsx",
+    "mp3", "mp4", "webm", "ogg",
+    "json", "xml", "txt", "map"
+  ],
+  "cached_mime_types": [
+    "text/css",
+    "text/javascript",
+    "application/javascript",
+    "application/x-javascript",
+    "application/json",
+    "application/xml",
+    "image/jpeg",
+    "image/png",
+    "image/gif",
+    "image/svg+xml",
+    "image/webp",
+    "image/x-icon",
+    "font/woff",
+    "font/woff2",
+    "font/ttf",
+    "font/otf",
+    "application/font-woff",
+    "application/font-woff2",
+    "application/vnd.ms-fontobject",
+    "audio/mpeg",
+    "video/mp4",
+    "video/webm"
+  ],
+  "_description": "Sample cache configuration. Copy this to /opt/nginx/data/cache/{domain}.json and enable cache_enabled to start caching static content for that domain."
+}
