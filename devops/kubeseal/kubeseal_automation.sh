@@ -214,16 +214,30 @@ check_dependencies() {
         log_warn "yq not found, installing..."
         case "${os_type}" in
             macos)
-                brew install yq
+                if command -v brew &> /dev/null; then
+                    brew install yq
+                else
+                    YQ_VERSION=$(curl -s https://api.github.com/repos/mikefarah/yq/releases/latest | grep tag_name | cut -d '"' -f 4)
+                    curl -sL "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_darwin_amd64" -o /tmp/yq
+                    chmod +x /tmp/yq
+                    sudo mv /tmp/yq /usr/local/bin/yq
+                fi
                 ;;
-            ubuntu)
-                sudo snap install yq || sudo apt-get install -y yq
-                ;;
-            linux)
+            ubuntu|linux)
+                # Direct binary download - most reliable for CI environments
                 YQ_VERSION=$(curl -s https://api.github.com/repos/mikefarah/yq/releases/latest | grep tag_name | cut -d '"' -f 4)
-                wget -q "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64" -O /tmp/yq
-                sudo install -m 755 /tmp/yq /usr/local/bin/yq
-                rm -f /tmp/yq
+                if [[ -z "${YQ_VERSION}" ]]; then
+                    YQ_VERSION="v4.40.5"  # Fallback to known working version
+                    log_warn "Could not fetch latest yq version, using ${YQ_VERSION}"
+                fi
+                log_info "Installing yq version: ${YQ_VERSION}"
+                curl -sL "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64" -o /tmp/yq
+                chmod +x /tmp/yq
+                sudo mv /tmp/yq /usr/local/bin/yq || mv /tmp/yq "${HOME}/.local/bin/yq" 2>/dev/null || {
+                    mkdir -p "${HOME}/.local/bin"
+                    mv /tmp/yq "${HOME}/.local/bin/yq"
+                    export PATH="${HOME}/.local/bin:${PATH}"
+                }
                 ;;
         esac
     fi
