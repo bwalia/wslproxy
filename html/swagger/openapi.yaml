@@ -7,7 +7,9 @@ tags:
   - name: Servers  
     description: Create and Manage servers aka HTTP hosts
   - name: Rules
-    description: Create and Manage host specific Security Rules and HTTP Routes  
+    description: Create and Manage host specific Security Rules and HTTP Routes
+  - name: Cache
+    description: Enable and Manage static content caching per server  
 paths:
   /api/rules:
     get:
@@ -470,6 +472,290 @@ paths:
       security:
         - bearerAuth: []
 
+  /api/cache/status/{server_name}:
+    get:
+      tags:
+        - Cache
+      summary: Get cache status for a server
+      operationId: getCacheStatus
+      parameters:
+        - name: server_name
+          in: path
+          description: The server domain name (e.g., example.com)
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Cache status retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      server_name:
+                        type: string
+                      cache_enabled:
+                        type: boolean
+                      cache_ttl:
+                        type: number
+                      message:
+                        type: string
+      security:
+        - bearerAuth: []
+
+  /api/cache/config/{server_name}:
+    get:
+      tags:
+        - Cache
+      summary: Get cache configuration for a server
+      operationId: getCacheConfig
+      parameters:
+        - name: server_name
+          in: path
+          description: The server domain name
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Cache configuration retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CacheConfig'
+      security:
+        - bearerAuth: []
+    post:
+      tags:
+        - Cache
+      summary: Update cache configuration for a server
+      operationId: updateCacheConfig
+      parameters:
+        - name: server_name
+          in: path
+          description: The server domain name
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CacheConfig'
+      responses:
+        '200':
+          description: Cache configuration updated successfully
+      security:
+        - bearerAuth: []
+
+  /api/cache/configs:
+    get:
+      tags:
+        - Cache
+      summary: List all cache configurations
+      operationId: listCacheConfigs
+      responses:
+        '200':
+          description: List of all cache configurations
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CacheConfig'
+      security:
+        - bearerAuth: []
+
+  /api/cache/stats:
+    get:
+      tags:
+        - Cache
+      summary: Get global cache statistics
+      operationId: getCacheStats
+      responses:
+        '200':
+          description: Cache statistics retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      capacity:
+                        type: number
+                      free_space:
+                        type: number
+                      keys_count:
+                        type: number
+      security:
+        - bearerAuth: []
+
+  /api/cache/stats/{server_name}:
+    get:
+      tags:
+        - Cache
+      summary: Get cache statistics for a specific server
+      operationId: getServerCacheStats
+      parameters:
+        - name: server_name
+          in: path
+          description: The server domain name
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Server cache statistics retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      server_name:
+                        type: string
+                      cached_items:
+                        type: number
+                      total_size_bytes:
+                        type: number
+      security:
+        - bearerAuth: []
+
+  /api/cache/enable/{server_name}:
+    post:
+      tags:
+        - Cache
+      summary: Enable caching for a server
+      operationId: enableCache
+      parameters:
+        - name: server_name
+          in: path
+          description: The server domain name
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                cache_ttl:
+                  type: number
+                  description: Cache TTL in seconds
+                  default: 3600
+                cached_extensions:
+                  type: array
+                  items:
+                    type: string
+                  description: File extensions to cache
+      responses:
+        '200':
+          description: Caching enabled successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  server_name:
+                    type: string
+                  cache_enabled:
+                    type: boolean
+      security:
+        - bearerAuth: []
+
+  /api/cache/disable/{server_name}:
+    post:
+      tags:
+        - Cache
+      summary: Disable caching for a server
+      operationId: disableCache
+      parameters:
+        - name: server_name
+          in: path
+          description: The server domain name
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Caching disabled successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  server_name:
+                    type: string
+                  cache_enabled:
+                    type: boolean
+      security:
+        - bearerAuth: []
+
+  /api/cache/clear/{server_name}:
+    post:
+      tags:
+        - Cache
+      summary: Clear cache for a specific server
+      operationId: clearServerCache
+      parameters:
+        - name: server_name
+          in: path
+          description: The server domain name
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Cache cleared successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  server_name:
+                    type: string
+      security:
+        - bearerAuth: []
+
+  /api/cache/clear-all:
+    post:
+      tags:
+        - Cache
+      summary: Clear all cached content
+      operationId: clearAllCache
+      responses:
+        '200':
+          description: All cache cleared successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+      security:
+        - bearerAuth: []
+
 components:
   securitySchemes:
     bearerAuth:            # arbitrary name for the security scheme
@@ -636,5 +922,55 @@ components:
           type: object
           default:
             {"allow":false,"code":403,"message":"SGVsbG8gd29ybGQh"}
-  
-       
+
+    CacheConfig:
+      type: object
+      properties:
+        server_name:
+          type: string
+          description: The domain name of the server
+        cache_enabled:
+          type: boolean
+          description: Whether caching is enabled for this server
+          default: false
+        cache_ttl:
+          type: number
+          description: Cache time-to-live in seconds
+          default: 3600
+        cache_max_size:
+          type: string
+          description: Maximum cache size
+          default: "100m"
+        cache_inactive:
+          type: string
+          description: Time after which inactive items are removed
+          default: "60m"
+        cache_valid_codes:
+          type: array
+          items:
+            type: number
+          description: HTTP status codes to cache
+          default: [200, 301, 302]
+        cache_bypass_cookie:
+          type: string
+          description: Cookie name that will bypass cache
+          default: ""
+        cache_bypass_header:
+          type: string
+          description: Header name that will bypass cache
+          default: ""
+        cached_extensions:
+          type: array
+          items:
+            type: string
+          description: File extensions to cache
+          default: ["js", "css", "woff", "woff2", "jpg", "png", "gif", "svg", "ico"]
+        cached_mime_types:
+          type: array
+          items:
+            type: string
+          description: MIME types to cache
+          default: ["text/css", "application/javascript", "image/jpeg", "image/png", "font/woff2"]
+        updated_at:
+          type: number
+          description: Timestamp when config was last updated

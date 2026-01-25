@@ -269,6 +269,58 @@ const Form = ({ type }) => {
             </Grid>
           </SectionCard>
 
+          {/* Static Content Caching Section */}
+          <SectionCard title="Static Content Caching" subtitle="Cache static files (JS, CSS, images, fonts) in memory for faster delivery">
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6} md={3}>
+                <BooleanInput
+                  source="cache_enabled"
+                  label="Enable Caching"
+                  defaultValue={false}
+                  helperText="Cache static content in memory"
+                />
+              </Grid>
+              <FormDataConsumer>
+                {({ formData }) => formData?.cache_enabled && (
+                  <>
+                    <Grid item xs={12} sm={6} md={3}>
+                      <TextInput
+                        source="cache_ttl"
+                        label="Cache TTL (seconds)"
+                        fullWidth
+                        defaultValue="3600"
+                        helperText="Time to keep in cache"
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                      <BooleanInput
+                        source="cache_bypass_auth"
+                        label="Bypass for Authenticated"
+                        defaultValue={true}
+                        helperText="Skip cache if Authorization header present"
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                      <TextInput
+                        source="cache_bypass_cookie"
+                        label="Bypass Cookie Name"
+                        fullWidth
+                        helperText="Cookie that bypasses cache"
+                      />
+                    </Grid>
+                    <Grid item xs={12}>
+                      <Alert severity="info" sx={{ mt: 1 }}>
+                        <strong>Cached file types:</strong> JavaScript (.js), CSS (.css), Images (.jpg, .png, .gif, .svg, .webp, .ico), 
+                        Fonts (.woff, .woff2, .ttf, .otf), Documents (.pdf), and other static assets.
+                        Only GET/HEAD requests with 200/301/302 responses are cached.
+                      </Alert>
+                    </Grid>
+                  </>
+                )}
+              </FormDataConsumer>
+            </Grid>
+          </SectionCard>
+
           {/* Custom Headers */}
           <SectionCard title="Custom Headers" subtitle="Add custom HTTP headers to responses">
             <ArrayInput source="custom_headers" label="">

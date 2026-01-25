@@ -64,6 +64,10 @@ http {
     lua_shared_dict auto_ssl 100m;
     lua_shared_dict auto_ssl_settings 64k;
     lua_shared_dict prometheus_metrics 50M;
+    
+    # Static content cache (WSL Proxy caching system)
+    lua_shared_dict wsl_cache 100m;
+    lua_shared_dict wsl_cache_keys 10m;
 
     init_by_lua_file /usr/local/openresty/nginx/html/api/init.lua;
 
@@ -792,6 +796,22 @@ server {
             
             rewrite_by_lua_file /usr/local/openresty/nginx/html/api/gateway_ack.lua;
             access_by_lua_file /usr/local/openresty/nginx/html/api/gateway_resp.lua;    # this code run just before the setting the proxy pass and content phase.
+
+          # WSL Cache: Capture response headers for caching
+          header_filter_by_lua_block {
+            local ok, CacheHandler = pcall(require, "cache_handler")
+            if ok and ngx.ctx.should_cache then
+              CacheHandler.process_response_headers()
+            end
+          }
+
+          # WSL Cache: Capture response body for caching
+          body_filter_by_lua_block {
+            local ok, CacheHandler = pcall(require, "cache_handler")
+            if ok and ngx.ctx.should_cache then
+              CacheHandler.collect_response_body()
+            end
+          }
 
           # echo $proxy_host:$proxy_port;
           # echo $upstream_server;

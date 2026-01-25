@@ -71,6 +71,14 @@ function _M.init()
     package.loaded._metric_upstream_requests = prometheus:counter("nginx_upstream_requests_total", "Upstream service requests", {"upstream", "status"})
     package.loaded._metric_upstream_latency = prometheus:histogram("nginx_upstream_response_time_seconds", "Upstream response time", {"upstream"})
 
+    -- Cache metrics (WSL Proxy caching system)
+    package.loaded._metric_cache_enabled = prometheus:gauge("nginx_cache_enabled", "Whether caching is enabled for a server (1=enabled, 0=disabled)", {"host"})
+    package.loaded._metric_cache_hits = prometheus:counter("nginx_cache_hits_total", "Number of cache hits", {"host", "extension"})
+    package.loaded._metric_cache_misses = prometheus:counter("nginx_cache_misses_total", "Number of cache misses", {"host", "extension"})
+    package.loaded._metric_cache_bypasses = prometheus:counter("nginx_cache_bypasses_total", "Number of cache bypasses", {"host", "reason"})
+    package.loaded._metric_cache_stores = prometheus:counter("nginx_cache_stores_total", "Number of responses stored in cache", {"host", "extension", "content_type"})
+    package.loaded._metric_cache_size = prometheus:gauge("nginx_cache_size_bytes", "Current cache size in bytes", {"host"})
+
     ngx.log(ngx.NOTICE, "WSL Proxy Prometheus metrics initialized successfully")
     return true
 end
@@ -176,6 +184,31 @@ end
 
 function _M.get_metric_upstream_latency()
     return package.loaded._metric_upstream_latency
+end
+
+-- Cache metrics getters
+function _M.get_metric_cache_enabled()
+    return package.loaded._metric_cache_enabled
+end
+
+function _M.get_metric_cache_hits()
+    return package.loaded._metric_cache_hits
+end
+
+function _M.get_metric_cache_misses()
+    return package.loaded._metric_cache_misses
+end
+
+function _M.get_metric_cache_bypasses()
+    return package.loaded._metric_cache_bypasses
+end
+
+function _M.get_metric_cache_stores()
+    return package.loaded._metric_cache_stores
+end
+
+function _M.get_metric_cache_size()
+    return package.loaded._metric_cache_size
 end
 
 function _M.is_initialized()
