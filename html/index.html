@@ -758,6 +758,7 @@
           </div>
           <div class="col-6 col-md-8 text-right">
             <a href="#features" class="nav-link-custom">Features</a>
+            <a href="#architecture" class="nav-link-custom">Architecture</a>
             <a href="#how-it-works" class="nav-link-custom">How it Works</a>
             <a href="#pricing" class="nav-link-custom">Pricing</a>
             <a href="https://github.com/bwalia/wslproxy" class="nav-link-custom" target="_blank"><i class="fa fa-github"></i> GitHub</a>
@@ -1005,6 +1006,77 @@
             <h3>Monitor &amp; Scale</h3>
             <p>Track performance with metrics and scale as traffic grows.</p>
           </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="architecture" id="architecture" style="padding: 6rem 0; background: var(--light);">
+      <div class="container">
+        <div class="text-center">
+          <span class="section-badge"><i class="fa fa-sitemap"></i> Architecture</span>
+          <h2 class="section-title">Explore the Architecture</h2>
+          <p class="section-subtitle">
+            Deep dive into WSL Proxy's architecture with interactive diagrams. View CI/CD pipelines, Kubernetes deployment, and request flow.
+          </p>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem;">
+          <a href="https://github.com/bwalia/wslproxy/blob/main/docs/diagrams/wslproxy-architecture.drawio" target="_blank" class="feature-card fade-up" style="text-decoration: none; cursor: pointer;">
+            <div class="feature-icon" style="background: linear-gradient(135deg, #6366f1, #8b5cf6);"><i class="fa fa-cubes"></i></div>
+            <h3>Platform Architecture</h3>
+            <p>Complete overview of WSL Proxy components: WAF, SSL, Cache, Load Balancer, Router, and integrations with Redis and origin servers.</p>
+            <ul class="feature-list">
+              <li><i class="fa fa-check"></i> Edge layer components</li>
+              <li><i class="fa fa-check"></i> Data flow visualization</li>
+              <li><i class="fa fa-check"></i> Multi-region setup</li>
+            </ul>
+            <span style="color: var(--primary); font-weight: 600; font-size: 0.9rem;"><i class="fa fa-external-link"></i> View Diagram</span>
+          </a>
+
+          <a href="https://github.com/bwalia/wslproxy/blob/main/docs/diagrams/cicd-pipeline.drawio" target="_blank" class="feature-card fade-up" style="text-decoration: none; cursor: pointer;">
+            <div class="feature-icon" style="background: linear-gradient(135deg, #10b981, #059669);"><i class="fa fa-refresh"></i></div>
+            <h3>CI/CD Pipeline</h3>
+            <p>Full CI/CD integration with GitHub Actions, Ansible playbooks, and Kubernetes Helm deployments across environments.</p>
+            <ul class="feature-list">
+              <li><i class="fa fa-check"></i> GitHub Actions workflow</li>
+              <li><i class="fa fa-check"></i> Ansible deployment</li>
+              <li><i class="fa fa-check"></i> Multi-environment support</li>
+            </ul>
+            <span style="color: var(--primary); font-weight: 600; font-size: 0.9rem;"><i class="fa fa-external-link"></i> View Diagram</span>
+          </a>
+
+          <a href="https://github.com/bwalia/wslproxy/blob/main/docs/diagrams/helm-deployment-scaling.drawio" target="_blank" class="feature-card fade-up" style="text-decoration: none; cursor: pointer;">
+            <div class="feature-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706);"><i class="fa fa-cloud"></i></div>
+            <h3>Kubernetes &amp; Scaling</h3>
+            <p>Helm chart structure, HPA auto-scaling, pod deployment, and service configuration for production workloads.</p>
+            <ul class="feature-list">
+              <li><i class="fa fa-check"></i> Helm chart templates</li>
+              <li><i class="fa fa-check"></i> HPA auto-scaling</li>
+              <li><i class="fa fa-check"></i> Rolling deployments</li>
+            </ul>
+            <span style="color: var(--primary); font-weight: 600; font-size: 0.9rem;"><i class="fa fa-external-link"></i> View Diagram</span>
+          </a>
+
+          <a href="https://github.com/bwalia/wslproxy/blob/main/docs/diagrams/request-flow.drawio" target="_blank" class="feature-card fade-up" style="text-decoration: none; cursor: pointer;">
+            <div class="feature-icon" style="background: linear-gradient(135deg, #ec4899, #be185d);"><i class="fa fa-random"></i></div>
+            <h3>Request Flow</h3>
+            <p>Step-by-step request processing: DNS → SSL → WAF → Auth → Cache → Load Balancer → Origin → Response.</p>
+            <ul class="feature-list">
+              <li><i class="fa fa-check"></i> 13-step flow diagram</li>
+              <li><i class="fa fa-check"></i> Cache hit/miss paths</li>
+              <li><i class="fa fa-check"></i> Lua module mapping</li>
+            </ul>
+            <span style="color: var(--primary); font-weight: 600; font-size: 0.9rem;"><i class="fa fa-external-link"></i> View Diagram</span>
+          </a>
+        </div>
+
+        <div class="text-center" style="margin-top: 3rem;">
+          <a href="/swagger/swagger.html" class="btn-primary-custom" style="margin-right: 1rem;">
+            <i class="fa fa-book"></i> API Documentation
+          </a>
+          <a href="https://github.com/bwalia/wslproxy/tree/main/docs/diagrams" target="_blank" class="btn-secondary-custom" style="border-color: var(--primary); color: var(--primary);">
+            <i class="fa fa-github"></i> All Diagrams on GitHub
+          </a>
         </div>
       </div>
     </section>

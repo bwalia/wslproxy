@@ -1,0 +1,244 @@
+<mxfile host="app.diagrams.net" modified="2026-01-25T10:00:00.000Z" agent="WSL Proxy" version="21.0.0" type="device">
+  <diagram id="cicd-pipeline" name="CI/CD Pipeline">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1800" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        
+        <!-- Title -->
+        <mxCell id="title" value="WSL Proxy - CI/CD Pipeline with Ansible &amp; Kubernetes" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=24;fontStyle=1;fontColor=#1a1a2e;" vertex="1" parent="1">
+          <mxGeometry x="450" y="20" width="600" height="40" as="geometry"/>
+        </mxCell>
+        
+        <!-- Developer Section -->
+        <mxCell id="dev-section" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;opacity=40;" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="180" height="160" as="geometry"/>
+        </mxCell>
+        <mxCell id="dev-label" value="👨‍💻 Developer" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=14;fontStyle=1;fontColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="80" y="85" width="100" height="25" as="geometry"/>
+        </mxCell>
+        <mxCell id="dev-code" value="📝 Code Changes&#xa;Lua / Config / Docs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="60" y="120" width="140" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="dev-push" value="⬆️ Git Push&#xa;Feature Branch" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="60" y="180" width="140" height="50" as="geometry"/>
+        </mxCell>
+        
+        <!-- GitHub Section -->
+        <mxCell id="github-section" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;opacity=40;" vertex="1" parent="1">
+          <mxGeometry x="260" y="80" width="200" height="260" as="geometry"/>
+        </mxCell>
+        <mxCell id="github-label" value="🐙 GitHub" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=14;fontStyle=1;fontColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="320" y="85" width="80" height="25" as="geometry"/>
+        </mxCell>
+        <mxCell id="github-pr" value="🔀 Pull Request&#xa;Code Review" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="280" y="120" width="160" height="45" as="geometry"/>
+        </mxCell>
+        <mxCell id="github-actions" value="⚡ GitHub Actions&#xa;Trigger Workflows" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="280" y="175" width="160" height="45" as="geometry"/>
+        </mxCell>
+        <mxCell id="github-merge" value="✅ Merge to Main&#xa;Tag Release" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="280" y="230" width="160" height="45" as="geometry"/>
+        </mxCell>
+        <mxCell id="github-webhook" value="🔔 Webhook&#xa;Trigger Deploy" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="280" y="285" width="160" height="45" as="geometry"/>
+        </mxCell>
+        
+        <!-- CI Pipeline -->
+        <mxCell id="ci-section" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;opacity=40;" vertex="1" parent="1">
+          <mxGeometry x="500" y="80" width="320" height="260" as="geometry"/>
+        </mxCell>
+        <mxCell id="ci-label" value="🔨 CI Pipeline (GitHub Actions)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=14;fontStyle=1;fontColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="550" y="85" width="220" height="25" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="ci-lint" value="🔍 Lint&#xa;Lua Check" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="520" y="120" width="80" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="ci-test" value="🧪 Test&#xa;Unit Tests" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="615" y="120" width="80" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="ci-sec" value="🛡️ Security&#xa;SAST Scan" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="710" y="120" width="80" height="50" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="ci-build" value="🏗️ Docker Build&#xa;Multi-arch (amd64/arm64)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="520" y="185" width="270" height="45" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="ci-push" value="📦 Push to Registry&#xa;Docker Hub / GHCR / Nexus" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="520" y="245" width="270" height="45" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="ci-scan" value="🔬 Image Scan&#xa;Trivy / Snyk" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="520" y="300" width="130" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="ci-sign" value="✍️ Sign Image&#xa;Cosign" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="660" y="300" width="130" height="35" as="geometry"/>
+        </mxCell>
+        
+        <!-- CD Pipeline - Ansible -->
+        <mxCell id="cd-ansible-section" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;opacity=40;" vertex="1" parent="1">
+          <mxGeometry x="860" y="80" width="250" height="260" as="geometry"/>
+        </mxCell>
+        <mxCell id="cd-ansible-label" value="🚀 CD - Ansible Pipeline" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=14;fontStyle=1;fontColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="905" y="85" width="160" height="25" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="ansible-inv" value="📋 Inventory&#xa;hosts.yml" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="880" y="120" width="100" height="45" as="geometry"/>
+        </mxCell>
+        <mxCell id="ansible-vault" value="🔐 Vault&#xa;Secrets" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="990" y="120" width="100" height="45" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="ansible-roles" value="📁 Ansible Roles&#xa;• luarocks - OpenResty config&#xa;• nginx - Templates&#xa;• redis - Session store&#xa;• ssl - Certificates" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;align=left;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="880" y="175" width="210" height="80" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="ansible-play" value="▶️ ansible-playbook&#xa;deploy.yml --tags nginx" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="880" y="265" width="210" height="40" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="ansible-validate" value="✅ Validate &amp; Reload&#xa;nginx -t &amp; systemctl reload" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="880" y="315" width="210" height="35" as="geometry"/>
+        </mxCell>
+        
+        <!-- CD Pipeline - Kubernetes -->
+        <mxCell id="cd-k8s-section" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;opacity=40;" vertex="1" parent="1">
+          <mxGeometry x="1150" y="80" width="270" height="260" as="geometry"/>
+        </mxCell>
+        <mxCell id="cd-k8s-label" value="☸️ CD - Kubernetes / Helm" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=14;fontStyle=1;fontColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="1195" y="85" width="180" height="25" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="helm-chart" value="📊 Helm Chart&#xa;wslproxy/chart" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="1170" y="120" width="110" height="45" as="geometry"/>
+        </mxCell>
+        <mxCell id="helm-values" value="⚙️ Values&#xa;values.yaml" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="1290" y="120" width="110" height="45" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="k8s-resources" value="📦 K8s Resources&#xa;• Deployment (replicas)&#xa;• Service (LoadBalancer)&#xa;• ConfigMap / Secret&#xa;• HPA (autoscaling)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;align=left;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="1170" y="175" width="230" height="85" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="helm-upgrade" value="⬆️ helm upgrade --install&#xa;wslproxy ./chart -n prod" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="1170" y="270" width="230" height="40" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="k8s-rollout" value="🔄 Rollout Status&#xa;kubectl rollout status" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="1170" y="315" width="230" height="35" as="geometry"/>
+        </mxCell>
+        
+        <!-- Environments Section -->
+        <mxCell id="env-section" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;opacity=40;" vertex="1" parent="1">
+          <mxGeometry x="40" y="380" width="1380" height="180" as="geometry"/>
+        </mxCell>
+        <mxCell id="env-label" value="🌍 Target Environments" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=16;fontStyle=1;fontColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="640" y="385" width="200" height="25" as="geometry"/>
+        </mxCell>
+        
+        <!-- Dev Environment -->
+        <mxCell id="env-dev" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="60" y="420" width="200" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="env-dev-label" value="🔧 Development" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=12;fontStyle=1;fontColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="110" y="425" width="100" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="env-dev-details" value="• Docker Compose&#xa;• Local Redis&#xa;• Self-signed SSL&#xa;• Hot reload enabled" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;fontSize=10;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="75" y="450" width="170" height="80" as="geometry"/>
+        </mxCell>
+        
+        <!-- Staging Environment -->
+        <mxCell id="env-staging" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="280" y="420" width="200" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="env-staging-label" value="🧪 Staging" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=12;fontStyle=1;fontColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="340" y="425" width="80" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="env-staging-details" value="• Kubernetes (syntest)&#xa;• Redis Cluster&#xa;• Let's Encrypt Staging&#xa;• Integration tests" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;fontSize=10;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="295" y="450" width="170" height="80" as="geometry"/>
+        </mxCell>
+        
+        <!-- Production Environment -->
+        <mxCell id="env-prod" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="500" y="420" width="200" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="env-prod-label" value="🚀 Production" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=12;fontStyle=1;fontColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="555" y="425" width="90" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="env-prod-details" value="• Kubernetes (synprod)&#xa;• Redis HA&#xa;• Let's Encrypt Prod&#xa;• Multi-replica (HPA)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;fontSize=10;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="515" y="450" width="170" height="80" as="geometry"/>
+        </mxCell>
+        
+        <!-- Bare Metal via Ansible -->
+        <mxCell id="env-baremetal" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="720" y="420" width="200" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="env-baremetal-label" value="🖥️ Bare Metal (Ansible)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=12;fontStyle=1;fontColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="750" y="425" width="140" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="env-baremetal-details" value="• 185.237.99.238&#xa;• OpenResty native&#xa;• Systemd managed&#xa;• Ansible playbooks" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;fontSize=10;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="735" y="450" width="170" height="80" as="geometry"/>
+        </mxCell>
+        
+        <!-- Multi-Region -->
+        <mxCell id="env-multiregion" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="940" y="420" width="240" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="env-multiregion-label" value="🌐 Multi-Region (HA)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=12;fontStyle=1;fontColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="1000" y="425" width="120" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="env-multiregion-details" value="• US-East + EU-West + Asia&#xa;• Geo DNS (Route53/CF)&#xa;• Active-Active clustering&#xa;• Redis replication" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;fontSize=10;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="955" y="450" width="210" height="80" as="geometry"/>
+        </mxCell>
+        
+        <!-- Monitoring -->
+        <mxCell id="monitoring-section" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="1200" y="420" width="200" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="monitoring-label" value="📊 Monitoring Stack" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=12;fontStyle=1;fontColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="1240" y="425" width="120" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="monitoring-details" value="• Prometheus /metrics&#xa;• Grafana dashboards&#xa;• AlertManager&#xa;• Loki logs" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;fontSize=10;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="1215" y="450" width="170" height="80" as="geometry"/>
+        </mxCell>
+        
+        <!-- Arrows -->
+        <mxCell id="flow-dev-github" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#9673a6;" edge="1" parent="1" source="dev-push" target="github-pr">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="flow-github-ci" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#6c8ebf;" edge="1" parent="1" source="github-actions" target="ci-lint">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="flow-ci-ansible" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#82b366;" edge="1" parent="1" source="ci-push" target="ansible-inv">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="flow-ci-k8s" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#d6b656;" edge="1" parent="1" source="ci-push" target="helm-chart">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        
+        <!-- Deploy arrows -->
+        <mxCell id="flow-ansible-baremetal" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#6c8ebf;dashed=1;" edge="1" parent="1" source="ansible-validate" target="env-baremetal">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="flow-helm-staging" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#d6b656;dashed=1;" edge="1" parent="1" source="k8s-rollout" target="env-staging">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="flow-helm-prod" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#b85450;dashed=1;" edge="1" parent="1" source="k8s-rollout" target="env-prod">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        
+        <!-- URLs Box -->
+        <mxCell id="urls-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="40" y="580" width="1380" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="urls-content" value="📡 API Endpoints: wslproxy.com/swagger | wslproxy.com/api/servers | wslproxy.com/metrics | 📚 GitHub: github.com/bwalia/wslproxy | 📖 Docs: wslproxy.com/swagger/swagger.html" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=12;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="60" y="590" width="1340" height="40" as="geometry"/>
+        </mxCell>
+        
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
