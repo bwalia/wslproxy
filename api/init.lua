@@ -37,12 +37,14 @@ end
 -- Determine storage type at init time (not in callback)
 local use_redis_storage = settings and settings.storage_type == "redis"
 
--- Pre-load SSL domains from disk into memory at init time
--- This is used as fallback when Redis is not available or for disk storage mode
-local ssl_domains_cache = {}
+-- Use shared dictionary for SSL domains cache
+-- This ensures the cache is shared across all nginx worker processes
+-- IMPORTANT: The shared dict "ssl_domains" must be defined in nginx.conf
+local ssl_domains_shd = ngx.shared.ssl_domains
 
 local function load_ssl_domains_from_disk()
   local ssl_dir = configPath .. "data/ssl/"
+  ngx.log(ngx.INFO, "SSL: Loading SSL domains from disk directory: ", ssl_dir)
 
   -- First check if directory exists
   local dir_attr = LFS.attributes(ssl_dir)
@@ -51,11 +53,14 @@ local function load_ssl_domains_from_disk()
     return
   end
 
+  local domains_loaded = 0
   local ok, err = pcall(function()
     for file in LFS.dir(ssl_dir) do
       if file ~= "." and file ~= ".." and file:match("%.json$") then
         local server_name = file:gsub("%.json$", "")
         local file_path = ssl_dir .. file
+        ngx.log(ngx.DEBUG, "SSL: Reading SSL config file: ", file_path)
+
         local read_ok, content = pcall(function()
           local f = io.open(file_path, "rb")
           if f then
@@ -70,10 +75,23 @@ local function load_ssl_domains_from_disk()
           local parse_ok, config = pcall(function()
             return Cjson.decode(content)
           end)
-          if parse_ok and config and config.ssl_enabled == true then
-            ssl_domains_cache[server_name] = true
-            ngx.log(ngx.INFO, "SSL: Pre-loaded domain from disk: ", server_name)
+          if parse_ok and config then
+            ngx.log(ngx.INFO, "SSL: Found config for domain: ", server_name,
+                    ", ssl_enabled=", tostring(config.ssl_enabled))
+            if config.ssl_enabled == true then
+              if ssl_domains_shd then
+                ssl_domains_shd:set(server_name, true)
+                domains_loaded = domains_loaded + 1
+                ngx.log(ngx.INFO, "SSL: Pre-loaded domain to shared dict: ", server_name)
+              else
+                ngx.log(ngx.WARN, "SSL: Shared dict not available, cannot cache domain: ", server_name)
+              end
+            end
+          else
+            ngx.log(ngx.WARN, "SSL: Failed to parse config for: ", file_path)
           end
+        else
+          ngx.log(ngx.WARN, "SSL: Failed to read config file: ", file_path)
         end
       end
     end
@@ -81,6 +99,8 @@ local function load_ssl_domains_from_disk()
 
   if not ok then
     ngx.log(ngx.WARN, "SSL: Error loading SSL domains from disk: ", tostring(err))
+  else
+    ngx.log(ngx.INFO, "SSL: Loaded ", domains_loaded, " SSL-enabled domains from disk")
   end
 end
 
@@ -144,17 +164,21 @@ auto_ssl:set("allow_domain", function(domain)
     return false
   end
 
-  -- First check the pre-loaded cache (for disk storage mode)
-  if ssl_domains_cache[domain] then
-    return true
+  -- First check the shared dictionary cache (works across all workers)
+  local shd = ngx.shared.ssl_domains
+  if shd then
+    local cached = shd:get(domain)
+    if cached then
+      return true
+    end
   end
 
   -- If using Redis storage, check Redis
   if use_redis_storage then
     local redis_ok, redis = pcall(require, "resty.redis")
     if not redis_ok then
-      -- Redis module not available, use cache only
-      return ssl_domains_cache[domain] == true
+      -- Redis module not available, use shared dict cache only
+      return shd and shd:get(domain) == true
     end
 
     local red = redis:new()
@@ -162,8 +186,8 @@ auto_ssl:set("allow_domain", function(domain)
 
     local ok, err = red:connect(redisHost, redisEndPort)
     if not ok then
-      -- Redis connection failed, use cache
-      return ssl_domains_cache[domain] == true
+      -- Redis connection failed, use shared dict cache
+      return shd and shd:get(domain) == true
     end
 
     -- Check for ssl_enabled key in Redis
@@ -173,9 +197,9 @@ auto_ssl:set("allow_domain", function(domain)
     if ssl_enabled and ssl_enabled ~= ngx.null then
       red:set_keepalive(10000, 100)
       local is_enabled = (ssl_enabled == "true" or ssl_enabled == "1")
-      -- Update cache for future requests
-      if is_enabled then
-        ssl_domains_cache[domain] = true
+      -- Update shared dict cache for future requests (across all workers)
+      if is_enabled and shd then
+        shd:set(domain, true)
       end
       return is_enabled
     end
@@ -197,15 +221,17 @@ auto_ssl:set("allow_domain", function(domain)
     end)
 
     if parse_ok and server_config and server_config.ssl_enabled == true then
-      -- Update cache
-      ssl_domains_cache[domain] = true
+      -- Update shared dict cache
+      if shd then
+        shd:set(domain, true)
+      end
       return true
     end
 
     return false
   else
-    -- Disk storage mode - rely on pre-loaded cache
-    return ssl_domains_cache[domain] == true
+    -- Disk storage mode - rely on shared dict cache
+    return shd and shd:get(domain) == true
   end
 end)
 
@@ -297,16 +323,32 @@ ngx.log(ngx.INFO, "SSL: lua-resty-auto-ssl initialized successfully")
 
 -- Export function to refresh SSL domains cache (can be called from API)
 function RefreshSslDomainsCache()
-  ssl_domains_cache = {}
+  local shd = ngx.shared.ssl_domains
+  if shd then
+    shd:flush_all()
+  end
   load_ssl_domains_from_disk()
   return true
 end
 
 -- Export function to add domain to SSL cache (called when SSL is enabled via API)
+-- Uses shared dictionary so it's immediately available across all workers
 function AddSslDomainToCache(domain)
   if domain and domain ~= "" then
-    ssl_domains_cache[domain] = true
-    return true
+    local shd = ngx.shared.ssl_domains
+    if shd then
+      local ok, err = shd:set(domain, true)
+      if ok then
+        ngx.log(ngx.INFO, "SSL: Added domain to shared cache: ", domain)
+        return true
+      else
+        ngx.log(ngx.ERR, "SSL: Failed to add domain to shared cache: ", domain, " - ", tostring(err))
+        return false
+      end
+    else
+      ngx.log(ngx.ERR, "SSL: Shared dict 'ssl_domains' not available")
+      return false
+    end
   end
   return false
 end
@@ -314,8 +356,12 @@ end
 -- Export function to remove domain from SSL cache (called when SSL is disabled via API)
 function RemoveSslDomainFromCache(domain)
   if domain and domain ~= "" then
-    ssl_domains_cache[domain] = nil
-    return true
+    local shd = ngx.shared.ssl_domains
+    if shd then
+      shd:delete(domain)
+      ngx.log(ngx.INFO, "SSL: Removed domain from shared cache: ", domain)
+      return true
+    end
   end
   return false
 end

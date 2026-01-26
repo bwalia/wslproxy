@@ -59,15 +59,22 @@ http {
     lua_package_path "/usr/local/openresty/nginx/html/api/?.lua;/usr/local/openresty/lualib/?.lua;/usr/local/openresty/site/lualib/?.lua;;";
     lua_package_cpath '/usr/local/openresty/site/lualib/resty/?.so;/usr/local/openresty/lualib/?.so;;';
 
+    # Include dynamic upstream configurations
+    include /opt/nginx/data/upstreams/*/upstreams.conf;
+
    # Storage for challenge token and cert cache
 
     lua_shared_dict auto_ssl 100m;
     lua_shared_dict auto_ssl_settings 64k;
     lua_shared_dict prometheus_metrics 50M;
-    
+
+    # SSL domains cache - shared across all workers for allow_domain callback
+    lua_shared_dict ssl_domains 1m;
+
     # Static content cache (WSL Proxy caching system)
     lua_shared_dict wsl_cache 100m;
     lua_shared_dict wsl_cache_keys 10m;
+    lua_shared_dict healthcheck 1m;
 
     init_by_lua_file /usr/local/openresty/nginx/html/api/init.lua;
 
@@ -78,6 +85,22 @@ http {
             metrics.init()
         else
             ngx.log(ngx.WARN, "Prometheus metrics module not available: ", tostring(metrics))
+        end
+
+        -- Initialize upstream health checks
+        local hc_init_ok, hc_init = pcall(require, "healthcheck_init")
+        if hc_init_ok then
+            hc_init.init()
+        else
+            ngx.log(ngx.WARN, "healthcheck_init module not available: ", tostring(hc_init))
+        end
+
+        -- Initialize SSL domains cache from Redis (cosockets work in init_worker context)
+        local ssl_init_ok, ssl_init = pcall(require, "ssl_init")
+        if ssl_init_ok then
+            ssl_init.init()
+        else
+            ngx.log(ngx.WARN, "ssl_init module not available: ", tostring(ssl_init))
         end
     }
 
@@ -342,6 +365,7 @@ http {
             allow 172.16.0.0/12;
             allow 192.168.0.0/16;
             allow 172.71.0.0/16;
+            allow 193.237.176.232;
             # Allow Docker host access (host.docker.internal resolves to host IP)
             allow all;  # For development - remove in production
 
@@ -356,15 +380,22 @@ http {
                         metric_connections:set(ngx.var.connections_writing, {"writing"})
                         prometheus:collect()
                     else
-                        ngx.status = 200
+                        ngx.status = 503
                         ngx.header.content_type = "text/plain"
-                        ngx.say("# Prometheus metrics not available")
+                        ngx.say("# ERROR: Prometheus metrics not initialized")
+                        ngx.say("# Possible causes:")
+                        ngx.say("#   - metrics.init() was not called in init_worker_by_lua_block")
+                        ngx.say("#   - lua_shared_dict prometheus_metrics is not configured")
                     end
                 else
-                    ngx.log(ngx.ERR, "Failed to load metrics module: ", tostring(metrics))
-                    ngx.status = 200
+                    ngx.log(ngx.ERR, "Failed to load prometheus_metrics module: ", tostring(metrics))
+                    ngx.status = 503
                     ngx.header.content_type = "text/plain"
-                    ngx.say("# Prometheus metrics not available")
+                    ngx.say("# ERROR: Failed to load prometheus_metrics module")
+                    ngx.say("# Reason: " .. tostring(metrics))
+                    ngx.say("# Possible causes:")
+                    ngx.say("#   - prometheus_metrics.lua file is missing from api/ directory")
+                    ngx.say("#   - lua_package_path does not include the api directory")
                 end
             }
         }
@@ -380,6 +411,25 @@ http {
             allow 172.71.0.0/16;
             # Allow Docker host access (host.docker.internal resolves to host IP)
             allow all;  # For development - remove in production
+        }
+
+        # Upstream Health Check Status Endpoint
+        location /upstream_status {
+            allow 127.0.0.1;
+            allow ::1;
+            allow 10.0.0.0/8;
+            allow 172.16.0.0/12;
+            allow 192.168.0.0/16;
+            allow 172.71.0.0/16;
+            allow all;  # For development - remove in production
+
+            default_type text/plain;
+            content_by_lua_block {
+                local hc = require "resty.upstream.healthcheck"
+                ngx.say("Upstream Health Check Status")
+                ngx.say("============================")
+                ngx.print(hc.status_page())
+            }
         }
 
         location /security-rules {

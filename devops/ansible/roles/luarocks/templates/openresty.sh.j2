@@ -2,10 +2,16 @@
 
 set -x
 
+{% if target_env != 'prod' %}
 # Remove openresty-admin directory if it exists before installing OpenResty
+# This only runs in non-production environments (current: {{ target_env }})
 if [ -d /usr/local/openresty/nginx/html/openresty-admin ]; then
   rm -rf /usr/local/openresty/nginx/html/openresty-admin
 fi
+{% else %}
+# Skipping openresty-admin removal in production environment
+echo "Production environment detected - preserving openresty-admin directory"
+{% endif %}
 
 # For ubuntu 22 or above
 if (lsb_release -r | grep -q "22"); then

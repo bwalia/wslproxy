@@ -93,7 +93,7 @@ jobs:
       - name: Run Ansible Playbook
         run: |
           echo "Running OpenResty/Nginx playbook for ${{ env.TARGET_HOST }} (env: ${{ env.TARGET_ENV }})"
-          ansible-playbook devops/ansible/manage_nginx_openresty_ops.yml -i devops/ansible/hosts -l ${{ env.TARGET_HOST }} --extra-vars "nginx_user_password=THISCOMESFROMSECRETS"
+          ansible-playbook devops/ansible/manage_nginx_openresty_ops.yml -i devops/ansible/hosts -l ${{ env.TARGET_HOST }} --extra-vars "nginx_user_password=THISCOMESFROMSECRETS target_env=${{ env.TARGET_ENV }}"
         env:
           ANSIBLE_PRIVATE_KEY_FILE: ~/.ssh/id_rsa
 
