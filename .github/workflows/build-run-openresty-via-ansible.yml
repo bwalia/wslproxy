@@ -92,10 +92,13 @@ if group in hosts and h in hosts.split(group)[1]:
 else:
   print(f'::error::Host {h} not found in group {group}'); sys.exit(1)"
           ansible-playbook devops/ansible/deploy-configs.yml -i devops/ansible/hosts -e "target_env=${{ env.TARGET_ENV }}" -l ${{ env.TARGET_HOST }} -v
-              - name: Workflow Summary
-                run: |
-                  echo "=================================="
-                  echo "Workflow completed for host: ${{ env.TARGET_HOST }} (env: ${{ env.TARGET_ENV }})"
-                  echo "=================================="
+        env:
+          ANSIBLE_PRIVATE_KEY_FILE: id_rsa
+
+      - name: Workflow Summary
+        run: |
+          echo "=================================="
+          echo "Workflow completed for host: ${{ env.TARGET_HOST }} (env: ${{ env.TARGET_ENV }})"
+          echo "=================================="
         env:
           ANSIBLE_PRIVATE_KEY_FILE: id_rsa
