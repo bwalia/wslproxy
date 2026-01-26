@@ -180,6 +180,13 @@ RUN cd /tmp && \
     cp /tmp/nginx-lua-prometheus/prometheus_resty_counter.lua /usr/local/openresty/lualib/ && \
     rm -rf /tmp/nginx-lua-prometheus
 
+# Install lua-resty-upstream-healthcheck for active health checks on upstreams
+RUN cd /tmp && \
+    git clone https://github.com/openresty/lua-resty-upstream-healthcheck.git && \
+    mkdir -p /usr/local/openresty/lualib/resty/upstream && \
+    cp /tmp/lua-resty-upstream-healthcheck/lib/resty/upstream/healthcheck.lua /usr/local/openresty/lualib/resty/upstream/ && \
+    rm -rf /tmp/lua-resty-upstream-healthcheck
+
 # Unix section
 # Unix socket will be created here "/var/run/nginx/nginx.sock"
 RUN mkdir -p "/var/run/nginx/" \
@@ -208,12 +215,15 @@ RUN yarn build
 
 RUN mkdir -p "${NGINX_CONFIG_DIR}data/servers" && \
     mkdir -p "${NGINX_CONFIG_DIR}data/rules" && \
-    mkdir -p "${NGINX_CONFIG_DIR}data/ssl"
+    mkdir -p "${NGINX_CONFIG_DIR}data/ssl" && \
+    mkdir -p "${NGINX_CONFIG_DIR}data/upstreams/prod" && \
+    touch "${NGINX_CONFIG_DIR}data/upstreams/prod/upstreams.conf"
 
 RUN chmod -R 777 ${NGINX_CONFIG_DIR}data && \
     chmod -R 777 ${NGINX_CONFIG_DIR}data/servers && \
     chmod -R 777 ${NGINX_CONFIG_DIR}data/rules && \
     chmod -R 777 ${NGINX_CONFIG_DIR}data/ssl && \
+    chmod -R 777 ${NGINX_CONFIG_DIR}data/upstreams && \
     # chmod -R 777 ${NGINX_CONFIG_DIR}data/security_rules.json && \
     chown -R nobody:root ${NGINX_CONFIG_DIR}data/
 # chmod 777 ${NGINX_CONFIG_DIR}data/sample-settings.json

@@ -2,11 +2,17 @@ import React, { useMemo } from "react";
 import { Admin, Resource, useStore, CustomRoutes } from "react-admin";
 import dataProvider from "./dataProvider";
 import authProvider from "./authProvider";
-import { i18nProvider } from './i18nProvider';
+import { i18nProvider } from "./i18nProvider";
 import { ThemeProvider, useThemeMode, createAppTheme } from "./Theme";
-import { QueryClient } from 'react-query';
+import { QueryClient } from "react-query";
 import { MyLayout } from "./Layout";
-import { Box, Typography, Link, useTheme as useMuiTheme, alpha } from "@mui/material";
+import {
+  Box,
+  Typography,
+  Link,
+  useTheme as useMuiTheme,
+  alpha,
+} from "@mui/material";
 
 import Dashboard from "./Dashboard/Dashboard";
 import Sessions from "./Sessions";
@@ -18,16 +24,18 @@ import Secrets from "./Secrets";
 import Instances from "./Instances";
 import Rules from "./Rules";
 import Settings from "./Settings";
+import Upstreams from "./Upstreams";
 
 import UserIcon from "@mui/icons-material/GroupRounded";
 import SessionIcon from "@mui/icons-material/HistoryToggleOffRounded";
 import ServerIcon from "@mui/icons-material/DnsRounded";
 import RuleIcon from "@mui/icons-material/RuleRounded";
-import ProfileIcon from '@mui/icons-material/RecentActorsRounded';
-import SecretIcon from '@mui/icons-material/KeyRounded';
-import InstanceIcon from '@mui/icons-material/ViewInArRounded';
+import ProfileIcon from "@mui/icons-material/RecentActorsRounded";
+import SecretIcon from "@mui/icons-material/KeyRounded";
+import InstanceIcon from "@mui/icons-material/ViewInArRounded";
+import UpstreamIcon from "@mui/icons-material/AccountTree";
 
-import { Puff } from 'react-loader-spinner';
+import { Puff } from "react-loader-spinner";
 import CheckModal from "./component/CheckModal";
 import { Route } from "react-router";
 import ResetForm from "./component/ResetForm";
@@ -40,51 +48,55 @@ const buildNumber = import.meta.env.VITE_APP_BUILD_NUMBER;
 // Version footer component
 const VersionFooter = () => {
   const { mode } = useThemeMode();
-  const isDark = mode === 'dark';
-  
+  const isDark = mode === "dark";
+
   return (
     <Box
       sx={{
-        position: 'sticky',
+        position: "sticky",
         right: 0,
         bottom: 0,
         left: 0,
         zIndex: 100,
         py: 1.5,
         px: 3,
-        backgroundColor: isDark ? '#1e293b' : '#f1f5f9',
-        borderTop: `1px solid ${isDark ? '#334155' : '#e2e8f0'}`,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
+        backgroundColor: isDark ? "#1e293b" : "#f1f5f9",
+        borderTop: `1px solid ${isDark ? "#334155" : "#e2e8f0"}`,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        flexWrap: "wrap",
         gap: 1,
       }}
     >
       <Typography
         variant="caption"
         sx={{
-          color: isDark ? '#94a3b8' : '#64748b',
-          display: 'flex',
-          alignItems: 'center',
+          color: isDark ? "#94a3b8" : "#64748b",
+          display: "flex",
+          alignItems: "center",
           gap: 2,
-          flexWrap: 'wrap',
+          flexWrap: "wrap",
         }}
       >
-        <span>Version: <strong>{versionNumber}</strong></span>
-        <span>Build: <strong>{buildNumber}</strong></span>
+        <span>
+          Version: <strong>{versionNumber}</strong>
+        </span>
+        <span>
+          Build: <strong>{buildNumber}</strong>
+        </span>
         <span>Deployed: {deploymentTime}</span>
       </Typography>
       <Link
         href="/swagger/"
         target="_blank"
         sx={{
-          fontSize: '0.75rem',
-          color: isDark ? '#818cf8' : '#6366f1',
-          textDecoration: 'none',
+          fontSize: "0.75rem",
+          color: isDark ? "#818cf8" : "#6366f1",
+          textDecoration: "none",
           fontWeight: 500,
-          '&:hover': {
-            textDecoration: 'underline',
+          "&:hover": {
+            textDecoration: "underline",
           },
         }}
       >
@@ -97,23 +109,30 @@ const VersionFooter = () => {
 // Main app content with theme integration
 const AppContent = () => {
   const { mode } = useThemeMode();
-  const [isLoading] = useStore('fetch.data.loading', false);
-  const [syncPopupOpen, setSyncPopupOpen] = useStore('sync.data.success', false);
-  
-  const queryClient = useMemo(() => new QueryClient({
-    defaultOptions: {
-      queries: {
-        staleTime: 1000,
-      },
-    },
-  }), []);
-  
+  const [isLoading] = useStore("fetch.data.loading", false);
+  const [syncPopupOpen, setSyncPopupOpen] = useStore(
+    "sync.data.success",
+    false,
+  );
+
+  const queryClient = useMemo(
+    () =>
+      new QueryClient({
+        defaultOptions: {
+          queries: {
+            staleTime: 1000,
+          },
+        },
+      }),
+    [],
+  );
+
   // Create theme based on current mode
   const theme = useMemo(() => createAppTheme(mode), [mode]);
-  const isDark = mode === 'dark';
-  
+  const isDark = mode === "dark";
+
   return (
-    <Box sx={isLoading ? { filter: "blur(2px)", pointerEvents: 'none' } : {}}>
+    <Box sx={isLoading ? { filter: "blur(2px)", pointerEvents: "none" } : {}}>
       <Puff
         height="60"
         width="60"
@@ -126,13 +145,16 @@ const AppContent = () => {
           position: "fixed",
           left: "50%",
           transform: "translate(-50%, -50%)",
-          backgroundColor: alpha(isDark ? '#0f172a' : '#ffffff', 0.8),
+          backgroundColor: alpha(isDark ? "#0f172a" : "#ffffff", 0.8),
           borderRadius: 16,
           padding: 20,
         }}
         visible={isLoading}
       />
-      <CheckModal open={syncPopupOpen} onClose={() => setSyncPopupOpen(false)} />
+      <CheckModal
+        open={syncPopupOpen}
+        onClose={() => setSyncPopupOpen(false)}
+      />
       <Admin
         loginPage={Login}
         i18nProvider={i18nProvider}
@@ -146,6 +168,7 @@ const AppContent = () => {
         <Resource name="users" {...Users} icon={UserIcon} />
         <Resource name="sessions" {...Sessions} icon={SessionIcon} />
         <Resource name="servers" {...Servers} icon={ServerIcon} />
+        <Resource name="upstreams" {...Upstreams} icon={UpstreamIcon} />
         <Resource name="rules" {...Rules} icon={RuleIcon} />
         <Resource name="settings" {...Settings} icon={RuleIcon} />
         <Resource name="profiles" {...Profiles} icon={ProfileIcon} />

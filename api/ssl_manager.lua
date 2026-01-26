@@ -162,16 +162,21 @@ end
 -- Store SSL configuration on disk
 local function store_ssl_config_disk(server_name, ssl_config)
     local ssl_dir = get_ssl_config_dir()
+    ngx.log(ngx.INFO, "SSL Manager: Storing SSL config for domain: ", server_name)
+    ngx.log(ngx.INFO, "SSL Manager: SSL directory: ", ssl_dir)
 
     -- Create SSL directory if it doesn't exist
     if not is_directory_exists(ssl_dir) then
+        ngx.log(ngx.INFO, "SSL Manager: Creating SSL directory: ", ssl_dir)
         local dir_ok, dir_err = create_directory(ssl_dir)
         if not dir_ok then
+            ngx.log(ngx.ERR, "SSL Manager: Failed to create directory: ", ssl_dir, " - ", tostring(dir_err))
             return nil, "Failed to create SSL config directory: " .. tostring(dir_err)
         end
     end
 
     local file_path = get_ssl_config_path(server_name)
+    ngx.log(ngx.INFO, "SSL Manager: Writing SSL config to: ", file_path)
 
     local config_data = {
         server_name = server_name,
@@ -183,17 +188,22 @@ local function store_ssl_config_disk(server_name, ssl_config)
         updated_at = os.time()
     }
 
+    ngx.log(ngx.INFO, "SSL Manager: Config data: ssl_enabled=", tostring(config_data.ssl_enabled),
+            ", ssl_staging=", tostring(config_data.ssl_staging))
+
     local ok, write_err = pcall(function()
         local file = io.open(file_path, "w")
         if file then
             file:write(cjson.encode(config_data))
             file:close()
+            ngx.log(ngx.INFO, "SSL Manager: Successfully wrote SSL config to: ", file_path)
         else
-            error("Could not open file for writing")
+            error("Could not open file for writing: " .. file_path)
         end
     end)
 
     if not ok then
+        ngx.log(ngx.ERR, "SSL Manager: Failed to write SSL config: ", tostring(write_err))
         return nil, "Failed to write SSL config to disk: " .. tostring(write_err)
     end
 

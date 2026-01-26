@@ -357,4 +357,53 @@ function Helper.deleteAllFiles(directory)
     return success, msg
 end
 
+-- Get all files in a directory
+function Helper.getFilesInDirectory(directory)
+    -- Check if directory exists first
+    if not Helper.isDirectoryExists(directory) then
+        return nil, "Directory does not exist: " .. directory
+    end
+
+    local files = {}
+    local iter, dir_obj = LFS.dir(directory)
+    if not iter then
+        return nil, "Failed to read directory: " .. directory
+    end
+
+    for file in iter, dir_obj do
+        if file ~= "." and file ~= ".." then
+            table.insert(files, file)
+        end
+    end
+
+    return files, nil
+end
+
+-- Create directory with parents (like mkdir -p)
+function Helper.createDirectoryWithParents(path)
+    -- Split path into parts
+    local parts = {}
+    for part in string.gmatch(path, "[^/]+") do
+        table.insert(parts, part)
+    end
+
+    -- Build and create each directory level
+    local currentPath = ""
+    if path:sub(1, 1) == "/" then
+        currentPath = "/"
+    end
+
+    for _, part in ipairs(parts) do
+        currentPath = currentPath .. part .. "/"
+        if not Helper.isDirectoryExists(currentPath) then
+            local success, err = LFS.mkdir(currentPath)
+            if not success and not Helper.isDirectoryExists(currentPath) then
+                return false, "Failed to create directory: " .. currentPath .. " - " .. (err or "unknown error")
+            end
+        end
+    end
+
+    return true, nil
+end
+
 return Helper

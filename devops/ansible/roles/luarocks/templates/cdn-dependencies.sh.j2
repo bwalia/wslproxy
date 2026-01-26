@@ -31,8 +31,26 @@ luarocks install lua-resty-resolver
 luarocks install luafilesystem
 luarocks install lua-resty-auto-ssl
 luarocks install pgmoon
+luarocks install lua-resty-consul
 # luarocks install lua-cjson
 # luarocks install --tree lua_modules lua-resty-prettycjson
+
+# Install nginx-lua-prometheus for Prometheus metrics
+cd /tmp && \
+    rm -rf nginx-lua-prometheus && \
+    git clone https://github.com/knyar/nginx-lua-prometheus.git && \
+    cp /tmp/nginx-lua-prometheus/prometheus.lua /usr/local/openresty/lualib/ && \
+    cp /tmp/nginx-lua-prometheus/prometheus_keys.lua /usr/local/openresty/lualib/ && \
+    cp /tmp/nginx-lua-prometheus/prometheus_resty_counter.lua /usr/local/openresty/lualib/ && \
+    rm -rf /tmp/nginx-lua-prometheus
+
+# Install lua-resty-upstream-healthcheck for active health checks on upstreams
+cd /tmp && \
+    rm -rf lua-resty-upstream-healthcheck && \
+    git clone https://github.com/openresty/lua-resty-upstream-healthcheck.git && \
+    mkdir -p /usr/local/openresty/lualib/resty/upstream && \
+    cp /tmp/lua-resty-upstream-healthcheck/lib/resty/upstream/healthcheck.lua /usr/local/openresty/lualib/resty/upstream/ && \
+    rm -rf /tmp/lua-resty-upstream-healthcheck
 
 mkdir -p /data/nginx/cache
 chown -R www-data:root /data/nginx/cache
@@ -77,6 +95,27 @@ mkdir -p /opt/nginx/data/servers/test/ \
 mkdir -p /opt/nginx/data/servers/int/ \
     && chmod -R 777 /opt/nginx/data/servers/int/ \
     && chown -R www-data:root /opt/nginx/data/servers/int/
+
+# Create upstreams directories for all environments
+mkdir -p /opt/nginx/data/upstreams/prod/ \
+    && chmod -R 777 /opt/nginx/data/upstreams/prod/ \
+    && chown -R www-data:root /opt/nginx/data/upstreams/prod/ \
+    && touch /opt/nginx/data/upstreams/prod/upstreams.conf
+
+mkdir -p /opt/nginx/data/upstreams/acc/ \
+    && chmod -R 777 /opt/nginx/data/upstreams/acc/ \
+    && chown -R www-data:root /opt/nginx/data/upstreams/acc/ \
+    && touch /opt/nginx/data/upstreams/acc/upstreams.conf
+
+mkdir -p /opt/nginx/data/upstreams/test/ \
+    && chmod -R 777 /opt/nginx/data/upstreams/test/ \
+    && chown -R www-data:root /opt/nginx/data/upstreams/test/ \
+    && touch /opt/nginx/data/upstreams/test/upstreams.conf
+
+mkdir -p /opt/nginx/data/upstreams/int/ \
+    && chmod -R 777 /opt/nginx/data/upstreams/int/ \
+    && chown -R www-data:root /opt/nginx/data/upstreams/int/ \
+    && touch /opt/nginx/data/upstreams/int/upstreams.conf
 
 mkdir -p /etc/resty-auto-ssl
 chown -R www-data:root /etc/resty-auto-ssl/

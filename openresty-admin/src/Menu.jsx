@@ -1,60 +1,60 @@
-import { Menu as RaMenu, useStore, useSidebarState } from 'react-admin';
-import { Box, Typography, Divider, useTheme, alpha } from '@mui/material';
+import { Menu as RaMenu, useStore, useSidebarState } from "react-admin";
+import { Box, Typography, Divider, useTheme, alpha } from "@mui/material";
 import DashboardIcon from "@mui/icons-material/DashboardRounded";
 import UserIcon from "@mui/icons-material/GroupRounded";
 import SessionIcon from "@mui/icons-material/HistoryToggleOffRounded";
 import ServerIcon from "@mui/icons-material/DnsRounded";
 import RuleIcon from "@mui/icons-material/RuleRounded";
-import ProfileIcon from '@mui/icons-material/RecentActorsRounded';
-import SecretIcon from '@mui/icons-material/KeyRounded';
-import InstanceIcon from '@mui/icons-material/ViewInArRounded';
-import Logo from './component/Logo';
-import { useThemeMode } from './Theme';
+import ProfileIcon from "@mui/icons-material/RecentActorsRounded";
+import SecretIcon from "@mui/icons-material/KeyRounded";
+import InstanceIcon from "@mui/icons-material/ViewInArRounded";
+import Logo from "./component/Logo";
+import { useThemeMode } from "./Theme";
 
 // Custom styled menu item component
 const StyledMenuItem = ({ to, primaryText, leftIcon, ...props }) => {
   const theme = useTheme();
-  
+
   return (
-    <RaMenu.Item 
-      to={to} 
-      primaryText={primaryText} 
+    <RaMenu.Item
+      to={to}
+      primaryText={primaryText}
       leftIcon={leftIcon}
       sx={{
         borderRadius: 2,
         mx: 1,
         my: 0.5,
-        transition: 'all 0.2s ease',
-        '&:hover': {
+        transition: "all 0.2s ease",
+        "&:hover": {
           backgroundColor: alpha(theme.palette.primary.main, 0.08),
-          transform: 'translateX(4px)',
+          transform: "translateX(4px)",
         },
-        '&.RaMenuItemLink-active': {
+        "&.RaMenuItemLink-active": {
           backgroundColor: alpha(theme.palette.primary.main, 0.12),
           color: theme.palette.primary.main,
           fontWeight: 600,
-          '& .MuiSvgIcon-root': {
+          "& .MuiSvgIcon-root": {
             color: theme.palette.primary.main,
           },
-          '&::before': {
+          "&::before": {
             content: '""',
-            position: 'absolute',
+            position: "absolute",
             left: 0,
-            top: '50%',
-            transform: 'translateY(-50%)',
+            top: "50%",
+            transform: "translateY(-50%)",
             width: 4,
-            height: '60%',
+            height: "60%",
             backgroundColor: theme.palette.primary.main,
-            borderRadius: '0 4px 4px 0',
+            borderRadius: "0 4px 4px 0",
           },
         },
-        '& .MuiSvgIcon-root': {
-          fontSize: '1.25rem',
+        "& .MuiSvgIcon-root": {
+          fontSize: "1.25rem",
           color: theme.palette.text.secondary,
-          transition: 'color 0.2s ease',
+          transition: "color 0.2s ease",
         },
-        '& .MuiTypography-root': {
-          fontSize: '0.875rem',
+        "& .MuiTypography-root": {
+          fontSize: "0.875rem",
           fontWeight: 500,
         },
       }}
@@ -64,17 +64,17 @@ const StyledMenuItem = ({ to, primaryText, leftIcon, ...props }) => {
 };
 
 export const Menu = () => {
-  const [settings] = useStore('app.settings', {});
+  const [settings] = useStore("app.settings", {});
   const [open] = useSidebarState();
   const theme = useTheme();
   const { mode } = useThemeMode();
-  
+
   return (
     <RaMenu
       sx={{
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
         pt: 2,
         pb: 2,
         backgroundColor: theme.palette.background.paper,
@@ -84,8 +84,8 @@ export const Menu = () => {
       {!open && (
         <Box
           sx={{
-            display: 'flex',
-            justifyContent: 'center',
+            display: "flex",
+            justifyContent: "center",
             mb: 2,
             px: 1,
           }}
@@ -93,7 +93,7 @@ export const Menu = () => {
           <Logo variant="icon" height={36} theme={mode} />
         </Box>
       )}
-      
+
       {/* Main Navigation Section */}
       <Box sx={{ px: 1 }}>
         {open && (
@@ -103,37 +103,37 @@ export const Menu = () => {
               px: 2,
               py: 1,
               color: theme.palette.text.secondary,
-              fontSize: '0.65rem',
+              fontSize: "0.65rem",
               fontWeight: 700,
-              letterSpacing: '0.1em',
-              display: 'block',
+              letterSpacing: "0.1em",
+              display: "block",
             }}
           >
             Navigation
           </Typography>
         )}
-        
-        <StyledMenuItem 
-          to="/" 
-          primaryText="Dashboard" 
+
+        <StyledMenuItem
+          to="/"
+          primaryText="Dashboard"
           leftIcon={<DashboardIcon />}
         />
-        <StyledMenuItem 
-          to="/users" 
-          primaryText="Users" 
+        <StyledMenuItem
+          to="/users"
+          primaryText="Users"
           leftIcon={<UserIcon />}
         />
         {settings.storage_type === "redis" && (
-          <StyledMenuItem 
-            to="/sessions" 
-            primaryText="Sessions" 
+          <StyledMenuItem
+            to="/sessions"
+            primaryText="Sessions"
             leftIcon={<SessionIcon />}
           />
         )}
       </Box>
 
       <Divider sx={{ my: 2, mx: 2, borderColor: theme.palette.divider }} />
-      
+
       {/* Configuration Section */}
       <Box sx={{ px: 1, flex: 1 }}>
         {open && (
@@ -143,39 +143,39 @@ export const Menu = () => {
               px: 2,
               py: 1,
               color: theme.palette.text.secondary,
-              fontSize: '0.65rem',
+              fontSize: "0.65rem",
               fontWeight: 700,
-              letterSpacing: '0.1em',
-              display: 'block',
+              letterSpacing: "0.1em",
+              display: "block",
             }}
           >
             Configuration
           </Typography>
         )}
-        
-        <StyledMenuItem 
-          to="/servers" 
-          primaryText="Servers" 
+
+        <StyledMenuItem
+          to="/servers"
+          primaryText="Servers"
           leftIcon={<ServerIcon />}
         />
-        <StyledMenuItem 
-          to="/rules" 
-          primaryText="Rules" 
+        <StyledMenuItem
+          to="/rules"
+          primaryText="Rules"
           leftIcon={<RuleIcon />}
         />
-        <StyledMenuItem 
-          to="/profiles" 
-          primaryText="Profiles" 
+        <StyledMenuItem
+          to="/profiles"
+          primaryText="Profiles"
           leftIcon={<ProfileIcon />}
         />
-        <StyledMenuItem 
-          to="/secrets" 
-          primaryText="Secrets" 
+        <StyledMenuItem
+          to="/secrets"
+          primaryText="Secrets"
           leftIcon={<SecretIcon />}
         />
-        <StyledMenuItem 
-          to="/instances" 
-          primaryText="Instances" 
+        <StyledMenuItem
+          to="/instances"
+          primaryText="Instances"
           leftIcon={<InstanceIcon />}
         />
       </Box>
@@ -186,7 +186,7 @@ export const Menu = () => {
           sx={{
             px: 2,
             py: 2,
-            mt: 'auto',
+            mt: "auto",
             borderTop: `1px solid ${theme.palette.divider}`,
           }}
         >
@@ -194,8 +194,8 @@ export const Menu = () => {
             variant="caption"
             sx={{
               color: theme.palette.text.disabled,
-              display: 'block',
-              textAlign: 'center',
+              display: "block",
+              textAlign: "center",
             }}
           >
             WSL Proxy Admin v1.0

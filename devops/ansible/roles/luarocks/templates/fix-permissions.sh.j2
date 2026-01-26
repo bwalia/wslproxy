@@ -55,6 +55,16 @@ mkdir -p /opt/nginx/data/ssl-certs/ \
     && chmod 777 -R /opt/nginx/data/ssl-certs/ \
     && chown -R www-data:root /opt/nginx/data/ssl-certs/
 
+# Create upstreams directory for dynamic upstream configurations
+mkdir -p /opt/nginx/data/upstreams/prod/ \
+    && chmod 775 -R /opt/nginx/data/upstreams/ \
+    && chown -R www-data:root /opt/nginx/data/upstreams/
+
+# Create empty upstreams.conf if it doesn't exist to prevent nginx include errors
+touch /opt/nginx/data/upstreams/prod/upstreams.conf \
+    && chmod 664 /opt/nginx/data/upstreams/prod/upstreams.conf \
+    && chown www-data:root /opt/nginx/data/upstreams/prod/upstreams.conf
+
 mkdir -p /opt/nginx/prod_cache/
 chmod 775 -R /opt/nginx/prod_cache/
 chown www-data:root -R /opt/nginx/prod_cache/
