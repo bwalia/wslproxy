@@ -16,11 +16,20 @@ on:
         default: "prod"
         required: true
         options:
-          - dev
+          - prod
           - int
           - test
           - acc
-          - prod
+          - dev
+
+      TARGET_HOST:
+        type: choice
+        description: "Target host to deploy configs to"
+        default: "185.237.99.238"
+        required: true
+        options:
+          - 185.237.99.238
+          - whisky03
 
       DRY_RUN:
         type: boolean
@@ -29,6 +38,7 @@ on:
 
 env:
   TARGET_ENV: ${{ github.event.inputs.TARGET_ENV || 'prod' }}
+  TARGET_HOST: ${{ github.event.inputs.TARGET_HOST || '185.237.99.238' }}
   DRY_RUN: ${{ github.event.inputs.DRY_RUN || 'false' }}
 
 jobs:
@@ -101,21 +111,79 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup SSH key
+      - name: Install Ansible
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ansible
+
+      - name: Decrypt id_rsa private key via Ansible Vault
+        env:
+          VAULT_PASSWORD: ${{ secrets.ANSIBLE_VAULT_PASSWORD }}
+        run: |
+          echo "Decrypting SSH private key..."
+          if [[ -z "$VAULT_PASSWORD" ]]; then
+            echo "::error::ANSIBLE_VAULT_PASSWORD secret is not set!"
+            exit 1
+          fi
+          
+          if ! ansible-vault decrypt id_rsa --vault-password-file=<(echo "$VAULT_PASSWORD"); then
+            echo "::error::Failed to decrypt id_rsa - check ANSIBLE_VAULT_PASSWORD secret"
+            exit 1
+          fi
+          
+          # Validate the decrypted key
+          if ! head -1 id_rsa | grep -q "BEGIN"; then
+            echo "::error::Decrypted id_rsa does not appear to be a valid SSH key"
+            exit 1
+          fi
+          
+          chmod 600 id_rsa
+          echo "✅ SSH key decrypted and validated successfully"
+
+      - name: Setup SSH and test connectivity
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          # Add known hosts from inventory
-          ssh-keyscan -f devops/ansible/hosts 2>/dev/null >> ~/.ssh/known_hosts || true
+          chmod 700 ~/.ssh
+          
+          # Add host keys to known_hosts
+          ssh-keyscan -H ${{ env.TARGET_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
+          
+          # Test SSH connectivity
+          echo "Testing SSH connection to ${{ env.TARGET_HOST }}..."
+          if ssh -i id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@${{ env.TARGET_HOST }} "echo 'SSH connection successful'" 2>&1; then
+            echo "✅ SSH connection test passed"
+          else
+            echo "::error::SSH connection test failed to root@${{ env.TARGET_HOST }}"
+            exit 1
+          fi
+
+      - name: Validate host is in correct environment group
+        run: |
+          python3 -c "
+          import sys
+          h='${{ env.TARGET_HOST }}'
+          e='${{ env.TARGET_ENV }}'
+          hosts = open('devops/ansible/hosts').read()
+          group = f'[openresty_{e}]'
+          found = group in hosts and h in hosts.split(group)[1]
+          if found:
+              print(f'✅ Host {h} found in group {group}')
+          else:
+              print(f'::error::Host {h} not found in group {group}')
+              sys.exit(1)
+          "
 
       - name: Deploy configs via Ansible
         run: |
-          cd devops/ansible
-          ansible-playbook deploy-configs.yml \
-            -i hosts \
+          echo "Deploying configs for environment: ${{ env.TARGET_ENV }} to host: ${{ env.TARGET_HOST }}"
+          ansible-playbook devops/ansible/deploy-configs.yml \
+            -i devops/ansible/hosts \
             -e "target_env=${{ env.TARGET_ENV }}" \
-            -e "local_data_dir=${{ github.workspace }}/data"
+            -e "local_data_dir=${{ github.workspace }}/data" \
+            -l ${{ env.TARGET_HOST }} \
+            -v
+        env:
+          ANSIBLE_PRIVATE_KEY_FILE: id_rsa
 
   deploy-summary:
     name: Deployment Summary
@@ -129,6 +197,7 @@ jobs:
           echo "Deployment Summary"
           echo "=================================="
           echo "Environment: ${{ env.TARGET_ENV }}"
+          echo "Target Host: ${{ env.TARGET_HOST }}"
           echo "Dry Run: ${{ env.DRY_RUN }}"
           echo "=================================="
           echo ""
