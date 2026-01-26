@@ -13,13 +13,13 @@ on:
       TARGET_ENV:
         type: choice
         description: "Please choose the Target environment"
-        default: "int"
+        default: "prod"
         required: true
         options:
+          - prod
           - int
           - test
           - acc
-          - prod
 
       TARGET_HOST:
         type: choice
