@@ -1,0 +1,42 @@
+---
+# Playbook for managing nginx/openresty operations on native hosts
+# Usage: ansible-playbook manage_nginx_openresty_ops.yml -i hosts -l <target_host> --extra-vars "nginx_user_password=<password>"
+
+- name: Manage OpenResty/Nginx Operations
+  hosts: openresty_native_cluster
+  become: yes
+  gather_facts: yes
+  
+  vars:
+    nginx_port: 80
+    nginx_ssl_port: 443
+    openresty_prefix: /usr/local/openresty
+    nginx_config_dir: /opt/nginx
+    
+  roles:
+    - ubuntu
+    - luarocks
+
+  post_tasks:
+    - name: Verify OpenResty is running
+      command: systemctl status openresty
+      register: openresty_status
+      changed_when: false
+      failed_when: false
+      tags: [verify]
+
+    - name: Display OpenResty status
+      debug:
+        var: openresty_status.stdout_lines
+      tags: [verify]
+
+    - name: Test nginx configuration
+      command: /usr/local/openresty/bin/openresty -t
+      register: nginx_test
+      changed_when: false
+      tags: [verify]
+
+    - name: Display nginx config test result
+      debug:
+        var: nginx_test.stderr_lines
+      tags: [verify]
