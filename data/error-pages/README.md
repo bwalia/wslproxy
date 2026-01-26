@@ -1,26 +1,49 @@
 # WSL Proxy Error Pages
 
-This directory contains the default HTML error pages for WSL Proxy. These pages are served when specific error conditions occur.
+This directory contains custom HTML error pages for WSL Proxy. The default behavior is to **redirect to the main homepage** at `https://wslproxy.com/index.html`.
 
-## Error Pages
+## Default Behavior
 
-| File | Purpose | Error Code |
+By default, all error pages simply redirect to the main WSL Proxy homepage. This is achieved with a simple meta refresh tag:
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="refresh" content="0;url=https://wslproxy.com/index.html">
+  <title>Redirecting...</title>
+</head>
+<body>
+  <p>Redirecting to <a href="https://wslproxy.com/index.html">WSL Proxy</a>...</p>
+</body>
+</html>
+```
+
+**Base64 encoded:**
+```
+PCFET0NUWVBFIGh0bWw+PGh0bWw+PGhlYWQ+PG1ldGEgaHR0cC1lcXVpdj0icmVmcmVzaCIgY29udGVudD0iMDt1cmw9aHR0cHM6Ly93c2xwcm94eS5jb20vaW5kZXguaHRtbCI+PHRpdGxlPlJlZGlyZWN0aW5nLi4uPC90aXRsZT48L2hlYWQ+PGJvZHk+PHA+UmVkaXJlY3RpbmcgdG8gPGEgaHJlZj0iaHR0cHM6Ly93c2xwcm94eS5jb20vaW5kZXguaHRtbCI+V1NMIFByb3h5PC9hPi4uLjwvcD48L2JvZHk+PC9odG1sPg==
+```
+
+## Error Page Types
+
+| Type | Purpose | Error Code |
 |------|---------|------------|
-| `no_rule.html` | Displayed when no routing rules are configured | NO_RULE_CONFIGURED |
-| `conf_mismatch.html` | Displayed when configuration doesn't match expected format | CONF_MISMATCH |
-| `no_server.html` | Displayed when no server configuration is found for the domain | NO_SERVER_CONFIG |
+| `no_rule` | No routing rules configured | NO_RULE_CONFIGURED |
+| `conf_mismatch` | Configuration format mismatch | CONF_MISMATCH |
+| `no_server` | No server config for domain | NO_SERVER_CONFIG |
 
 ## Pipeline Override
 
-These error pages are stored as **base64-encoded HTML** in `sample-settings.json` under `nginx.default.*`. 
+These error pages can be overridden via `sample-settings.json` under `nginx.default.*`. 
 
 ### Default Values (Built-in)
 
-The Lua code contains hardcoded fallback defaults that will be used if no value is provided in settings:
+The Lua code contains hardcoded fallback defaults (simple redirects) that will be used if no value is provided in settings:
 
 ```lua
--- Default error pages are embedded in gateway_ack.lua
--- These can be overridden via settings.json at deployment time
+-- Default error pages are embedded in gateway_ack.lua and temp.lua
+-- These redirect to https://wslproxy.com/index.html
+-- Can be overridden via settings.json at deployment time
 ```
 
 ### Environment-Specific Overrides
@@ -41,19 +64,25 @@ During deployment, the CI/CD pipeline can override these values per environment:
    Hardcoded Default → sample-settings.json → Environment Secret → Runtime Config
    ```
 
-## Generating Base64 Values
+## Custom Error Pages
 
-To update an error page:
+To use custom error pages instead of redirects:
 
 ```bash
-# Edit the HTML file
-vim data/error-pages/no_rule.html
+# Create a custom HTML file
+cat > custom-error.html << 'EOF'
+<!DOCTYPE html>
+<html>
+<head><title>Error</title></head>
+<body><h1>Custom Error Page</h1></body>
+</html>
+EOF
 
 # Generate base64 (macOS)
-base64 -i data/error-pages/no_rule.html
+base64 -i custom-error.html
 
 # Generate base64 (Linux)
-base64 -w 0 data/error-pages/no_rule.html
+base64 -w 0 custom-error.html
 
 # Update the corresponding value in settings.json
 ```

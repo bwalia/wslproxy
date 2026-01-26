@@ -31,10 +31,13 @@ on:
           - whisky03
           # - whisky10
           # - whisky08
+
+# Auto-map TARGET_ENV from TARGET_HOST if not set, and ensure consistency
 env:
-  TARGET_ENV: ${{ github.event.inputs.TARGET_ENV || 'int' }}
   TARGET_HOST: ${{ github.event.inputs.TARGET_HOST || '185.237.99.238' }}
-  API_DOMAINNAME_ENDPOINT: ${{ github.event.inputs.TARGET_ENV || 'int' }}.wslproxy.com
+  # Map host to env (add more as needed)
+  TARGET_ENV: ${{ github.event.inputs.TARGET_ENV || (github.event.inputs.TARGET_HOST == '185.237.99.238' && 'prod' || github.event.inputs.TARGET_HOST == 'whisky03' && 'int' || 'int') }}
+  API_DOMAINNAME_ENDPOINT: ${{ github.event.inputs.TARGET_ENV || (github.event.inputs.TARGET_HOST == '185.237.99.238' && 'prod' || github.event.inputs.TARGET_HOST == 'whisky03' && 'int' || 'int') }}.wslproxy.com
 
 jobs:
   build:
@@ -70,8 +73,29 @@ jobs:
 
       - name: Run Ansible Playbook
         run: |
+          echo "Running OpenResty/Nginx playbook for ${{ env.TARGET_HOST }} (env: ${{ env.TARGET_ENV }})"
           sudo ansible-playbook devops/ansible/manage_nginx_openresty_ops.yml -i devops/ansible/hosts -l ${{ env.TARGET_HOST }} --extra-vars "nginx_user_password=THISCOMESFROMSECRETS"
         env:
           ANSIBLE_PRIVATE_KEY_FILE: id_rsa
           ANSIBLE_VAULT_PASSWORD_FILE: ${{ secrets.ANSIBLE_VAULT_PASSWORD }}
 #          sudo ansible-playbook devops/ansible/manage_nginx_openresty_ops.yml -i devops/ansible/hosts -l TARGET_HOST --vault-password-file <(echo secrets.ANSIBLE_VAULT_PASSWORD)
+
+      - name: Deploy server and rule configs
+        run: |
+          echo "Deploying configs for environment: ${{ env.TARGET_ENV }} to host: ${{ env.TARGET_HOST }}"
+          # Validate host is in correct group for env
+          python3 -c "import sys; h='${{ env.TARGET_HOST }}'; e='${{ env.TARGET_ENV }}';
+hosts = open('devops/ansible/hosts').read();
+group = f'[openresty_{e}]';
+if group in hosts and h in hosts.split(group)[1]:
+  print(f'Host {h} found in group {group}')
+else:
+  print(f'::error::Host {h} not found in group {group}'); sys.exit(1)"
+          ansible-playbook devops/ansible/deploy-configs.yml -i devops/ansible/hosts -e "target_env=${{ env.TARGET_ENV }}" -l ${{ env.TARGET_HOST }} -v
+              - name: Workflow Summary
+                run: |
+                  echo "=================================="
+                  echo "Workflow completed for host: ${{ env.TARGET_HOST }} (env: ${{ env.TARGET_ENV }})"
+                  echo "=================================="
+        env:
+          ANSIBLE_PRIVATE_KEY_FILE: id_rsa

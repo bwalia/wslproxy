@@ -1,0 +1,85 @@
+{{- if .Values.configSync }}
+{{- if .Values.configSync.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.app.name }}-configs-{{ .Values.app.target_env }}
+  namespace: {{ .Values.app.namespace }}
+  labels:
+    {{- include "wslproxy.labels" . | nindent 4 }}
+    app.kubernetes.io/component: config
+data:
+  {{- range $key, $value := .Values.configSync.servers }}
+  {{ $key | quote }}: |
+    {{ $value | toJson | nindent 4 }}
+  {{- end }}
+  {{- range $key, $value := .Values.configSync.rules }}
+  {{ $key | quote }}: |
+    {{ $value | toJson | nindent 4 }}
+  {{- end }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Values.app.name }}-config-sync-{{ .Values.app.target_env }}-{{ now | unixEpoch }}
+  namespace: {{ .Values.app.namespace }}
+  labels:
+    {{- include "wslproxy.labels" . | nindent 4 }}
+    app.kubernetes.io/component: config-sync
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "5"
+    "helm.sh/hook-delete-policy": hook-succeeded,before-hook-creation
+spec:
+  ttlSecondsAfterFinished: 600
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: config-sync
+          image: alpine:latest
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+              echo "Starting config sync for environment: {{ .Values.app.target_env }}"
+              
+              # Install required tools
+              apk add --no-cache jq curl
+              
+              CONFIG_DIR="/opt/nginx/data"
+              SERVERS_DIR="${CONFIG_DIR}/servers/{{ .Values.app.target_env }}"
+              RULES_DIR="${CONFIG_DIR}/rules/{{ .Values.app.target_env }}"
+              
+              # Create directories
+              mkdir -p "${SERVERS_DIR}" "${RULES_DIR}"
+              
+              # Copy server configs from ConfigMap
+              echo "Syncing server configs..."
+              {{- range $key, $value := .Values.configSync.servers }}
+              echo '{{ $value | toJson }}' | jq '.' > "${SERVERS_DIR}/{{ $key }}"
+              echo "  → {{ $key }}"
+              {{- end }}
+              
+              # Copy rule configs from ConfigMap
+              echo "Syncing rule configs..."
+              {{- range $key, $value := .Values.configSync.rules }}
+              echo '{{ $value | toJson }}' | jq '.' > "${RULES_DIR}/{{ $key }}"
+              echo "  → {{ $key }}"
+              {{- end }}
+              
+              echo "Config sync complete!"
+              ls -la "${SERVERS_DIR}/" || true
+              ls -la "${RULES_DIR}/" || true
+          volumeMounts:
+            - name: data-volume
+              mountPath: /opt/nginx
+      volumes:
+        - name: data-volume
+          persistentVolumeClaim:
+            claimName: {{ .Values.app.name }}-{{ .Values.app.target_env }}-pvc
+{{- end }}
+{{- end }}

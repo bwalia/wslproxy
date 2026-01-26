@@ -1,0 +1,26 @@
+<svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366f1" />
+      <stop offset="100%" stop-color="#8b5cf6" />
+    </linearGradient>
+  </defs>
+  <!-- Shield background -->
+  <path
+    d="M24 4L6 12v12c0 11 8 21 18 24 10-3 18-13 18-24V12L24 4z"
+    fill="url(#logoGradient)"
+  />
+  <!-- Network nodes -->
+  <circle cx="24" cy="18" r="3" fill="white" />
+  <circle cx="16" cy="28" r="2.5" fill="white" opacity="0.9" />
+  <circle cx="32" cy="28" r="2.5" fill="white" opacity="0.9" />
+  <circle cx="24" cy="36" r="2" fill="white" opacity="0.8" />
+  <!-- Connection lines -->
+  <path
+    d="M24 21v5M18 27l4-4M30 27l-4-4M24 33v-3"
+    stroke="white"
+    stroke-width="1.5"
+    stroke-linecap="round"
+    opacity="0.7"
+  />
+</svg>

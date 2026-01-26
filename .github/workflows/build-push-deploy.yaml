@@ -312,6 +312,65 @@ jobs:
             --timeout 5m || echo "S3 Browser app deployment skipped (values file may not exist)"
         shell: bash
 
+      - name: Deploy Server Configs and Rules to K8s
+        run: |
+          echo "Deploying server configs and rules for ${{ env.TARGET_ENV }}..."
+          
+          # Check if configs exist for this environment
+          SERVER_COUNT=$(ls -1 data/servers/${{ env.TARGET_ENV }}/*.json 2>/dev/null | wc -l || echo "0")
+          RULE_COUNT=$(ls -1 data/rules/${{ env.TARGET_ENV }}/*.json 2>/dev/null | wc -l || echo "0")
+          
+          if [[ "$SERVER_COUNT" -eq 0 ]] && [[ "$RULE_COUNT" -eq 0 ]]; then
+            echo "No configs found for environment: ${{ env.TARGET_ENV }}"
+            echo "Skipping config deployment..."
+            exit 0
+          fi
+          
+          echo "Found $SERVER_COUNT server configs and $RULE_COUNT rule configs"
+          
+          # Get the API pod name
+          API_POD=$(kubectl get pods -n ${{ env.TARGET_ENV }} -l app.kubernetes.io/name=wslproxy -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
+          
+          if [[ -z "$API_POD" ]]; then
+            echo "⚠️ No wslproxy pod found in namespace ${{ env.TARGET_ENV }}"
+            echo "Configs will be deployed on next pod restart via PVC"
+            exit 0
+          fi
+          
+          echo "Found pod: $API_POD"
+          
+          # Create directories
+          kubectl exec -n ${{ env.TARGET_ENV }} $API_POD -- mkdir -p /opt/nginx/data/servers/${{ env.TARGET_ENV }} /opt/nginx/data/rules/${{ env.TARGET_ENV }} 2>/dev/null || true
+          
+          # Copy server configs
+          echo "📦 Deploying server configs..."
+          for file in data/servers/${{ env.TARGET_ENV }}/*.json; do
+            if [[ -f "$file" ]]; then
+              filename=$(basename "$file")
+              echo "  → $filename"
+              kubectl cp "$file" ${{ env.TARGET_ENV }}/$API_POD:/opt/nginx/data/servers/${{ env.TARGET_ENV }}/"$filename"
+            fi
+          done
+          
+          # Copy rule configs
+          echo "📦 Deploying rule configs..."
+          for file in data/rules/${{ env.TARGET_ENV }}/*.json; do
+            if [[ -f "$file" ]]; then
+              filename=$(basename "$file")
+              echo "  → $filename"
+              kubectl cp "$file" ${{ env.TARGET_ENV }}/$API_POD:/opt/nginx/data/rules/${{ env.TARGET_ENV }}/"$filename"
+            fi
+          done
+          
+          echo "✅ Config deployment complete!"
+          
+          # Verify
+          echo ""
+          echo "=== Deployed Configs ==="
+          kubectl exec -n ${{ env.TARGET_ENV }} $API_POD -- ls -la /opt/nginx/data/servers/${{ env.TARGET_ENV }}/ 2>/dev/null || true
+          kubectl exec -n ${{ env.TARGET_ENV }} $API_POD -- ls -la /opt/nginx/data/rules/${{ env.TARGET_ENV }}/ 2>/dev/null || true
+        shell: bash
+
       - name: Restart wslproxy API Pods
         run: |
           kubectl rollout restart deployment/wf-api-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}

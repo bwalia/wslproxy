@@ -1,0 +1,203 @@
+---
+# deploy-configs.yml - Ansible playbook to deploy server configs and rules
+# Usage: ansible-playbook -i hosts deploy-configs.yml -e "target_env=prod"
+#
+# This playbook deploys server configurations and routing rules from the
+# repository to target OpenResty/nginx servers.
+#
+# Host groups are defined in the inventory file:
+#   - openresty_prod: Production servers
+#   - openresty_int: Integration servers
+#   - openresty_test: Test servers
+#   - openresty_dev: Development servers
+#   - openresty_acc: Acceptance servers
+
+- name: Deploy WSLProxy Server Configs and Rules
+  hosts: "openresty_{{ target_env | default('int') }}"
+  become: yes
+  gather_facts: yes
+
+  vars:
+    # Remote data directory
+    remote_data_dir: "/opt/nginx/data"
+    
+    # Local data directory (relative to playbook)
+    local_data_dir: "{{ playbook_dir }}/../../data"
+    
+    # Backup settings
+    backup_enabled: true
+    backup_dir: "/opt/nginx/backups"
+    backup_retention_days: 7
+    
+    # Validation settings
+    validate_json: true
+    
+    # Nginx reload settings
+    reload_nginx: false
+    nginx_service: "openresty"
+
+  tasks:
+    - name: Display deployment information
+      debug:
+        msg: |
+          ==========================================
+          WSLProxy Config Deployment
+          ==========================================
+          Target Environment: {{ target_env }}
+          Target Host: {{ inventory_hostname }}
+          Remote Data Dir: {{ remote_data_dir }}
+          ==========================================
+
+    - name: Validate target environment
+      assert:
+        that:
+          - target_env in ['dev', 'int', 'test', 'acc', 'prod']
+        fail_msg: "Invalid target_env: {{ target_env }}. Must be one of: dev, int, test, acc, prod"
+        success_msg: "Target environment validated: {{ target_env }}"
+
+    - name: Ensure remote directories exist
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+        owner: root
+        group: root
+      loop:
+        - "{{ remote_data_dir }}"
+        - "{{ remote_data_dir }}/servers"
+        - "{{ remote_data_dir }}/servers/{{ target_env }}"
+        - "{{ remote_data_dir }}/rules"
+        - "{{ remote_data_dir }}/rules/{{ target_env }}"
+
+    - name: Ensure backup directory exists
+      file:
+        path: "{{ backup_dir }}"
+        state: directory
+        mode: '0755'
+      when: backup_enabled
+
+    - name: Create backup of existing configs
+      archive:
+        path:
+          - "{{ remote_data_dir }}/servers/{{ target_env }}"
+          - "{{ remote_data_dir }}/rules/{{ target_env }}"
+        dest: "{{ backup_dir }}/configs-{{ target_env }}-{{ ansible_date_time.epoch }}.tar.gz"
+        format: gz
+      when: backup_enabled
+      ignore_errors: yes
+      register: backup_result
+
+    - name: Display backup status
+      debug:
+        msg: "Backup created: {{ backup_result.dest | default('N/A') }}"
+      when: backup_enabled and backup_result is succeeded
+
+    - name: Clean up old backups
+      shell: |
+        find {{ backup_dir }} -name "configs-{{ target_env }}-*.tar.gz" -mtime +{{ backup_retention_days }} -delete
+      when: backup_enabled
+      ignore_errors: yes
+
+    - name: Find local server config files
+      find:
+        paths: "{{ local_data_dir }}/servers/{{ target_env }}"
+        patterns: "*.json"
+      delegate_to: localhost
+      become: no
+      register: server_config_files
+
+    - name: Find local rule config files
+      find:
+        paths: "{{ local_data_dir }}/rules/{{ target_env }}"
+        patterns: "*.json"
+      delegate_to: localhost
+      become: no
+      register: rule_config_files
+
+    - name: Display files to be deployed
+      debug:
+        msg: |
+          Server configs: {{ server_config_files.files | map(attribute='path') | list }}
+          Rule configs: {{ rule_config_files.files | map(attribute='path') | list }}
+
+    - name: Validate server config JSON syntax
+      shell: "jq empty {{ item.path }}"
+      delegate_to: localhost
+      become: no
+      loop: "{{ server_config_files.files }}"
+      when: validate_json
+      register: server_validation
+      changed_when: false
+
+    - name: Validate rule config JSON syntax
+      shell: "jq empty {{ item.path }}"
+      delegate_to: localhost
+      become: no
+      loop: "{{ rule_config_files.files }}"
+      when: validate_json
+      register: rule_validation
+      changed_when: false
+
+    - name: Copy server config files
+      copy:
+        src: "{{ item.path }}"
+        dest: "{{ remote_data_dir }}/servers/{{ target_env }}/{{ item.path | basename }}"
+        mode: '0644'
+        owner: root
+        group: root
+        backup: yes
+      loop: "{{ server_config_files.files }}"
+      register: server_copy_result
+
+    - name: Copy rule config files
+      copy:
+        src: "{{ item.path }}"
+        dest: "{{ remote_data_dir }}/rules/{{ target_env }}/{{ item.path | basename }}"
+        mode: '0644'
+        owner: root
+        group: root
+        backup: yes
+      loop: "{{ rule_config_files.files }}"
+      register: rule_copy_result
+
+    - name: Display deployment summary
+      debug:
+        msg: |
+          ==========================================
+          Deployment Summary
+          ==========================================
+          Server configs deployed: {{ server_config_files.files | length }}
+          Rule configs deployed: {{ rule_config_files.files | length }}
+          ==========================================
+
+    - name: List deployed server configs
+      command: "ls -la {{ remote_data_dir }}/servers/{{ target_env }}/"
+      register: deployed_servers
+      changed_when: false
+
+    - name: List deployed rule configs
+      command: "ls -la {{ remote_data_dir }}/rules/{{ target_env }}/"
+      register: deployed_rules
+      changed_when: false
+
+    - name: Display deployed files
+      debug:
+        msg: |
+          === Deployed Server Configs ===
+          {{ deployed_servers.stdout }}
+          
+          === Deployed Rule Configs ===
+          {{ deployed_rules.stdout }}
+
+    - name: Reload nginx/openresty
+      service:
+        name: "{{ nginx_service }}"
+        state: reloaded
+      when: reload_nginx
+      ignore_errors: yes
+
+  handlers:
+    - name: Reload nginx
+      service:
+        name: "{{ nginx_service }}"
+        state: reloaded
