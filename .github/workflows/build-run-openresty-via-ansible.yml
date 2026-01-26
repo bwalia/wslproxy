@@ -36,8 +36,8 @@ on:
 env:
   TARGET_HOST: ${{ github.event.inputs.TARGET_HOST || '185.237.99.238' }}
   # Map host to env (add more as needed)
-  TARGET_ENV: ${{ github.event.inputs.TARGET_ENV || (github.event.inputs.TARGET_HOST == '185.237.99.238' && 'prod' || github.event.inputs.TARGET_HOST == 'whisky03' && 'int' || 'int') }}
-  API_DOMAINNAME_ENDPOINT: ${{ github.event.inputs.TARGET_ENV || (github.event.inputs.TARGET_HOST == '185.237.99.238' && 'prod' || github.event.inputs.TARGET_HOST == 'whisky03' && 'int' || 'int') }}.wslproxy.com
+  TARGET_ENV: ${{ github.event.inputs.TARGET_ENV || (github.event.inputs.TARGET_HOST == '185.237.99.238' && 'prod' || github.event.inputs.TARGET_HOST == 'whisky03' && 'int' || 'prod') }}
+  API_DOMAINNAME_ENDPOINT: ${{ github.event.inputs.TARGET_ENV || (github.event.inputs.TARGET_HOST == '185.237.99.238' && 'prod' || github.event.inputs.TARGET_HOST == 'whisky03' && 'int' || 'prod') }}.wslproxy.com
 
 jobs:
   build:
