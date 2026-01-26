@@ -75,3 +75,10 @@ jobs:
           ANSIBLE_PRIVATE_KEY_FILE: id_rsa
           ANSIBLE_VAULT_PASSWORD_FILE: ${{ secrets.ANSIBLE_VAULT_PASSWORD }}
 #          sudo ansible-playbook devops/ansible/manage_nginx_openresty_ops.yml -i devops/ansible/hosts -l TARGET_HOST --vault-password-file <(echo secrets.ANSIBLE_VAULT_PASSWORD)
+
+      - name: Deploy server and rule configs
+        run: |
+          echo "Deploying configs for environment: ${{ env.TARGET_ENV }}"
+          ansible-playbook devops/ansible/deploy-configs.yml -i devops/ansible/hosts -e "target_env=${{ env.TARGET_ENV }}" -l ${{ env.TARGET_HOST }} -v
+        env:
+          ANSIBLE_PRIVATE_KEY_FILE: id_rsa

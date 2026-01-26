@@ -201,6 +201,21 @@ textarea#match\.response\.message {
   }
 }
 
+/* React-Admin Layout Fixes - prevent AppBar overlap */
+.RaLayout-content {
+  margin-top: 64px !important; /* Standard MUI AppBar height */
+  padding-top: 24px !important;
+}
+
+.RaLayout-contentWithSidebar {
+  margin-top: 64px !important;
+}
+
+/* Ensure main content area doesn't get hidden under fixed header */
+main.RaLayout-content {
+  min-height: calc(100vh - 64px);
+}
+
 /* Print styles */
 @media print {
   body {
