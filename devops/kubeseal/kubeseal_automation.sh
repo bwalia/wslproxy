@@ -212,39 +212,51 @@ check_dependencies() {
     # Check yq
     if ! command -v yq &> /dev/null; then
         log_warn "yq not found, installing..."
+        
+        # Use a known stable version to avoid GitHub API rate limits
+        local YQ_VERSION="v4.44.1"
+        
         case "${os_type}" in
             macos)
                 if command -v brew &> /dev/null; then
                     brew install yq
                 else
-                    YQ_VERSION=$(curl -s https://api.github.com/repos/mikefarah/yq/releases/latest | grep tag_name | cut -d '"' -f 4)
+                    log_info "Installing yq version: ${YQ_VERSION}"
                     curl -sL "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_darwin_amd64" -o /tmp/yq
                     chmod +x /tmp/yq
                     sudo mv /tmp/yq /usr/local/bin/yq
                 fi
                 ;;
             ubuntu|linux)
-                # Direct binary download - most reliable for CI environments
-                YQ_VERSION=$(curl -s https://api.github.com/repos/mikefarah/yq/releases/latest | grep tag_name | cut -d '"' -f 4)
-                if [[ -z "${YQ_VERSION}" ]]; then
-                    YQ_VERSION="v4.40.5"  # Fallback to known working version
-                    log_warn "Could not fetch latest yq version, using ${YQ_VERSION}"
-                fi
                 log_info "Installing yq version: ${YQ_VERSION}"
                 curl -sL "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64" -o /tmp/yq
                 chmod +x /tmp/yq
-                sudo mv /tmp/yq /usr/local/bin/yq || mv /tmp/yq "${HOME}/.local/bin/yq" 2>/dev/null || {
+                
+                # Try sudo install first, fall back to user local bin
+                if sudo mv /tmp/yq /usr/local/bin/yq 2>/dev/null; then
+                    log_info "yq installed to /usr/local/bin/yq"
+                else
+                    log_warn "Cannot install to /usr/local/bin, installing to user directory..."
                     mkdir -p "${HOME}/.local/bin"
                     mv /tmp/yq "${HOME}/.local/bin/yq"
                     export PATH="${HOME}/.local/bin:${PATH}"
-                }
+                    log_info "yq installed to ${HOME}/.local/bin/yq"
+                fi
                 ;;
         esac
     fi
 
+    # Re-check with updated PATH
     if ! command -v yq &> /dev/null; then
-        log_error "yq is required but could not be installed"
-        exit 1
+        # Last resort: check common locations directly
+        if [[ -x "${HOME}/.local/bin/yq" ]]; then
+            export PATH="${HOME}/.local/bin:${PATH}"
+        elif [[ -x "/usr/local/bin/yq" ]]; then
+            export PATH="/usr/local/bin:${PATH}"
+        else
+            log_error "yq is required but could not be installed"
+            exit 1
+        fi
     fi
     log_info "yq found: $(which yq)"
 
