@@ -84,13 +84,7 @@ jobs:
         run: |
           echo "Deploying configs for environment: ${{ env.TARGET_ENV }} to host: ${{ env.TARGET_HOST }}"
           # Validate host is in correct group for env
-          python3 -c "import sys; h='${{ env.TARGET_HOST }}'; e='${{ env.TARGET_ENV }}';
-hosts = open('devops/ansible/hosts').read();
-group = f'[openresty_{e}]';
-if group in hosts and h in hosts.split(group)[1]:
-  print(f'Host {h} found in group {group}')
-else:
-  print(f'::error::Host {h} not found in group {group}'); sys.exit(1)"
+          python3 -c "import sys; h='${{ env.TARGET_HOST }}'; e='${{ env.TARGET_ENV }}'; hosts = open('devops/ansible/hosts').read(); group = f'[openresty_{e}]'; found = group in hosts and h in hosts.split(group)[1]; print(f'Host {h} found in group {group}') if found else (print(f'::error::Host {h} not found in group {group}'), sys.exit(1))"
           ansible-playbook devops/ansible/deploy-configs.yml -i devops/ansible/hosts -e "target_env=${{ env.TARGET_ENV }}" -l ${{ env.TARGET_HOST }} -v
         env:
           ANSIBLE_PRIVATE_KEY_FILE: id_rsa
