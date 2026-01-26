@@ -60,16 +60,52 @@ jobs:
           echo "${{ secrets.ENV_BRAHMSTRA_INT }}" | base64 -d > /tmp/.env_brahmstra_whisky03
           cat /tmp/.env_brahmstra_whisky03
 
-      - name: Decrypt id_rsa pub key via Ansible Vault file
+      - name: Decrypt id_rsa private key via Ansible Vault
         env:
           VAULT_PASSWORD: ${{ secrets.ANSIBLE_VAULT_PASSWORD }}
         run: |
-          ansible-vault decrypt id_rsa --vault-password-file=<(echo $VAULT_PASSWORD)
+          echo "Decrypting SSH private key..."
+          if [[ -z "$VAULT_PASSWORD" ]]; then
+            echo "::error::ANSIBLE_VAULT_PASSWORD secret is not set!"
+            exit 1
+          fi
+          
+          if ! ansible-vault decrypt id_rsa --vault-password-file=<(echo "$VAULT_PASSWORD"); then
+            echo "::error::Failed to decrypt id_rsa - check ANSIBLE_VAULT_PASSWORD secret"
+            exit 1
+          fi
+          
+          # Validate the decrypted key
+          if ! head -1 id_rsa | grep -q "BEGIN"; then
+            echo "::error::Decrypted id_rsa does not appear to be a valid SSH key"
+            echo "First line of file: $(head -1 id_rsa)"
+            exit 1
+          fi
+          
+          chmod 600 id_rsa
+          echo "✅ SSH key decrypted and validated successfully"
 
-      - name: Add SSH Host Key for hosts
+      - name: Setup SSH and test connectivity
         run: |
           mkdir -p ~/.ssh
-          ssh-keyscan -H `cat devops/ansible/hosts | grep ansible_user | awk '{print $1}'`  >> ~/.ssh/known_hosts
+          chmod 700 ~/.ssh
+          
+          # Add host keys to known_hosts
+          echo "Adding SSH host keys..."
+          ssh-keyscan -H ${{ env.TARGET_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
+          
+          # Test SSH connectivity
+          echo "Testing SSH connection to ${{ env.TARGET_HOST }}..."
+          if ssh -i id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@${{ env.TARGET_HOST }} "echo 'SSH connection successful'" 2>&1; then
+            echo "✅ SSH connection test passed"
+          else
+            echo "::error::SSH connection test failed to root@${{ env.TARGET_HOST }}"
+            echo "Possible causes:"
+            echo "  1. The public key is not in /root/.ssh/authorized_keys on the target server"
+            echo "  2. The ANSIBLE_VAULT_PASSWORD is incorrect"
+            echo "  3. The server is not reachable or SSH is not running"
+            exit 1
+          fi
 
       - name: Run Ansible Playbook
         run: |
@@ -78,21 +114,13 @@ jobs:
         env:
           ANSIBLE_PRIVATE_KEY_FILE: id_rsa
           ANSIBLE_VAULT_PASSWORD_FILE: ${{ secrets.ANSIBLE_VAULT_PASSWORD }}
-#          sudo ansible-playbook devops/ansible/manage_nginx_openresty_ops.yml -i devops/ansible/hosts -l TARGET_HOST --vault-password-file <(echo secrets.ANSIBLE_VAULT_PASSWORD)
-
-      - name: Deploy server and rule configs
-        run: |
-          echo "Deploying configs for environment: ${{ env.TARGET_ENV }} to host: ${{ env.TARGET_HOST }}"
-          # Validate host is in correct group for env
-          python3 -c "import sys; h='${{ env.TARGET_HOST }}'; e='${{ env.TARGET_ENV }}'; hosts = open('devops/ansible/hosts').read(); group = f'[openresty_{e}]'; found = group in hosts and h in hosts.split(group)[1]; print(f'Host {h} found in group {group}') if found else (print(f'::error::Host {h} not found in group {group}'), sys.exit(1))"
-          ansible-playbook devops/ansible/deploy-configs.yml -i devops/ansible/hosts -e "target_env=${{ env.TARGET_ENV }}" -l ${{ env.TARGET_HOST }} -v
-        env:
-          ANSIBLE_PRIVATE_KEY_FILE: id_rsa
 
       - name: Workflow Summary
         run: |
           echo "=================================="
-          echo "Workflow completed for host: ${{ env.TARGET_HOST }} (env: ${{ env.TARGET_ENV }})"
+          echo "OpenResty installation completed for host: ${{ env.TARGET_HOST }} (env: ${{ env.TARGET_ENV }})"
           echo "=================================="
+          echo ""
+          echo "To deploy configs, run the 'Deploy Server Configs and Rules' workflow separately."
         env:
           ANSIBLE_PRIVATE_KEY_FILE: id_rsa
