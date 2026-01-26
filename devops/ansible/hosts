@@ -18,8 +18,7 @@ whisky08 ansible_user=bwalia
 192.168.1.77 ansible_user=bwalia
 
 [openresty_int]
-# Add integration servers here
-# int-server.wslproxy.com ansible_user=root
+whisky03 ansible_user=bwalia
 
 [openresty_test]
 # Add test servers here
