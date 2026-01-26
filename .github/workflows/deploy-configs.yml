@@ -13,7 +13,7 @@ on:
       TARGET_ENV:
         type: choice
         description: "Target environment to deploy configs"
-        default: "int"
+        default: "prod"
         required: true
         options:
           - dev
@@ -28,7 +28,7 @@ on:
         default: false
 
 env:
-  TARGET_ENV: ${{ github.event.inputs.TARGET_ENV || 'int' }}
+  TARGET_ENV: ${{ github.event.inputs.TARGET_ENV || 'prod' }}
   DRY_RUN: ${{ github.event.inputs.DRY_RUN || 'false' }}
 
 jobs:
