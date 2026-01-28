@@ -563,6 +563,70 @@ const dataProvider = (apiUrl, settings = {}) => {
       }
     },
 
+    getTrafficStats: async () => {
+      try {
+        setIsLoadig(true);
+        const timestamp = Date.now();
+        const url = `${apiUrl}/traffic/stats?timestamp=${timestamp}`;
+        const response = await fetch(url, {
+          method: "GET",
+          headers: getHeaders(),
+        });
+        const data = await response.json();
+        if (response.status < 200 && response.status !== 401) {
+          setIsLoadig(false);
+          return Promise.reject(data.error);
+        }
+        if (response.status === 401) {
+          setIsLoadig(false);
+          localStorage.removeItem("token");
+          localStorage.removeItem("uuid_business_id");
+          window.location.href = "/#/login";
+        }
+        if (response.status === 200) {
+          setIsLoadig(false);
+          return data;
+        }
+        setIsLoadig(false);
+      } catch (error) {
+        console.log(error);
+        setIsLoadig(false);
+        return { data: { chart_data: [], summary: {} } };
+      }
+    },
+
+    getErrorDetails: async (statusCode) => {
+      try {
+        setIsLoadig(true);
+        const timestamp = Date.now();
+        const url = `${apiUrl}/traffic/errors/${statusCode}?timestamp=${timestamp}`;
+        const response = await fetch(url, {
+          method: "GET",
+          headers: getHeaders(),
+        });
+        const data = await response.json();
+        if (response.status < 200 && response.status !== 401) {
+          setIsLoadig(false);
+          return Promise.reject(data.error);
+        }
+        if (response.status === 401) {
+          setIsLoadig(false);
+          localStorage.removeItem("token");
+          localStorage.removeItem("uuid_business_id");
+          window.location.href = "/#/login";
+        }
+        if (response.status === 200) {
+          setIsLoadig(false);
+          return data;
+        }
+        setIsLoadig(false);
+      } catch (error) {
+        console.log(error);
+        setIsLoadig(false);
+        return { data: { status_code: statusCode, errors: [] } };
+      }
+    },
+
     checkORStatus: async (resource, params) => {
       try {
         setIsLoadig(true);
