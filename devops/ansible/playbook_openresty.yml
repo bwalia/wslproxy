@@ -12,7 +12,8 @@
     nginx_ssl_port: 443
     openresty_prefix: /usr/local/openresty
     nginx_config_dir: /opt/nginx
-    target_env: "{{ target_env | default('prod') }}"
+    # target_env must be passed via command line: -e "target_env=prod"
+    # Defaults to 'prod' if not specified (set in group_vars/all.yml)
     
   roles:
     - ubuntu

@@ -3011,6 +3011,99 @@ local function handle_get_request(args, path)
         ngx.exit(ngx.HTTP_OK)
     end
 
+    -- Get comprehensive dashboard statistics - GET /api/traffic/stats
+    if path == "traffic/stats" then
+        local traffic_ok, traffic_stats = pcall(require, "traffic_stats")
+        if traffic_ok and traffic_stats then
+            local dashboard_data = traffic_stats.get_dashboard_data()
+            ngx.say(cjson.encode({
+                data = dashboard_data
+            }))
+        else
+            ngx.say(cjson.encode({
+                data = {
+                    error = "Traffic stats module not available",
+                    chart_data = {},
+                    summary = {},
+                    top_domains = {},
+                    error_codes = {},
+                    error_timeline = {},
+                    latency = {},
+                    methods = {},
+                    current_hour = {}
+                }
+            }))
+        end
+        ngx.exit(ngx.HTTP_OK)
+    end
+
+    -- Get error details by status code - GET /api/traffic/errors/:code
+    if path:match("^traffic/errors/%d+$") then
+        local status_code = path:match("^traffic/errors/(%d+)$")
+        local traffic_ok, traffic_stats = pcall(require, "traffic_stats")
+        if traffic_ok and traffic_stats and status_code then
+            local error_details = traffic_stats.get_error_details(status_code)
+            ngx.say(cjson.encode({
+                data = {
+                    status_code = tonumber(status_code),
+                    errors = error_details or {}
+                }
+            }))
+        else
+            ngx.say(cjson.encode({
+                data = {
+                    status_code = tonumber(status_code),
+                    errors = {},
+                    error = traffic_ok and "status_code not provided" or "traffic_stats module not available"
+                }
+            }))
+        end
+        ngx.exit(ngx.HTTP_OK)
+    end
+
+    -- Get all error details - GET /api/traffic/errors
+    if path == "traffic/errors" then
+        local traffic_ok, traffic_stats = pcall(require, "traffic_stats")
+        if traffic_ok and traffic_stats then
+            local all_error_details = traffic_stats.get_all_error_details()
+            ngx.say(cjson.encode({
+                data = {
+                    errors = all_error_details or {}
+                }
+            }))
+        else
+            ngx.say(cjson.encode({
+                data = {
+                    errors = {},
+                    error = "traffic_stats module not available"
+                }
+            }))
+        end
+        ngx.exit(ngx.HTTP_OK)
+    end
+
+    -- Debug endpoint to check shared dict keys - GET /api/traffic/debug
+    if path == "traffic/debug" then
+        local traffic_ok, traffic_stats = pcall(require, "traffic_stats")
+        if traffic_ok and traffic_stats and traffic_stats.debug_keys then
+            local debug_info = traffic_stats.debug_keys()
+            ngx.say(cjson.encode({
+                data = {
+                    keys = debug_info,
+                    message = "Debug info for traffic_stats shared dict"
+                }
+            }))
+        else
+            ngx.say(cjson.encode({
+                data = {
+                    keys = {},
+                    error = "traffic_stats module not available or debug_keys function missing"
+                }
+            }))
+        end
+        ngx.exit(ngx.HTTP_OK)
+    end
+
     if path == "global/settings" then
         local settingsData = settings
         settingsData.dns_resolver = nil

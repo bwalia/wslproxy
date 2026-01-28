@@ -1,0 +1,6 @@
+---
+# Default variables for all hosts
+# These can be overridden via command line: -e "target_env=int"
+
+# Default target environment
+target_env: prod

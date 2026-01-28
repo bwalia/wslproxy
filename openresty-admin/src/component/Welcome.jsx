@@ -18,7 +18,10 @@ const Welcome = () => {
             sx={{
                 position: 'relative',
                 overflow: 'hidden',
-                background: isDark 
+                width: '100%',
+                boxSizing: 'border-box',
+                borderRadius: 3,
+                background: isDark
                     ? `linear-gradient(135deg, ${alpha('#6366f1', 0.15)} 0%, ${alpha('#8b5cf6', 0.1)} 50%, ${alpha('#10b981', 0.1)} 100%)`
                     : `linear-gradient(135deg, ${alpha('#6366f1', 0.08)} 0%, ${alpha('#8b5cf6', 0.05)} 50%, ${alpha('#10b981', 0.05)} 100%)`,
                 border: `1px solid ${isDark ? alpha('#6366f1', 0.2) : alpha('#6366f1', 0.15)}`,
