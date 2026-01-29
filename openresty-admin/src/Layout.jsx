@@ -27,21 +27,33 @@ export const MyLayout = (props) => {
         backgroundColor: muiTheme.palette.background.default,
       }}
     >
-      <Layout 
-        {...props} 
-        appBar={AppBar} 
+      <Layout
+        {...props}
+        appBar={AppBar}
         menu={Menu}
         sx={{
           '& .RaLayout-content': {
             padding: 3,
             paddingTop: '80px', // Add top padding to account for fixed AppBar
             backgroundColor: muiTheme.palette.background.default,
+            maxWidth: '100% !important', // Override react-admin default max-width
+            width: '100%',
           },
           '& .RaLayout-appFrame': {
             marginTop: 0,
           },
           '& .RaLayout-contentWithSidebar': {
             marginTop: '64px', // Standard AppBar height
+          },
+          // Ensure full width for all content containers
+          '& .MuiContainer-root': {
+            maxWidth: '100% !important',
+            paddingLeft: 0,
+            paddingRight: 0,
+          },
+          '& main': {
+            maxWidth: '100% !important',
+            width: '100%',
           },
         }}
       />

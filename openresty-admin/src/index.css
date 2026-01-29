@@ -250,7 +250,6 @@ textarea#match\.response\.message {
 
 /* React-Admin Layout Fixes - prevent AppBar overlap */
 .RaLayout-content {
-  margin-top: 64px !important; /* Standard MUI AppBar height */
   padding-top: 24px !important;
 }
 

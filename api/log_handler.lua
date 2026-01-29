@@ -4,6 +4,62 @@
 
 local _M = {}
 
+-- Cache IP2Location instance for performance (per-worker)
+local ip2loc_instance = nil
+local ip2loc_init_attempted = false
+
+-- Initialize IP2Location (lazy loading)
+-- Uses global IP2LocationPath set in init.lua from settings.json
+local function get_ip2location()
+    if ip2loc_instance then
+        return ip2loc_instance
+    end
+
+    if ip2loc_init_attempted then
+        return nil
+    end
+
+    ip2loc_init_attempted = true
+
+    -- Use global IP2LocationPath from init.lua (loaded from settings.json)
+    local path = IP2LocationPath
+    if not path or path == "" then
+        ngx.log(ngx.WARN, "log_handler: IP2LocationPath not set in init.lua")
+        return nil
+    end
+
+    local ok, err = pcall(function()
+        if IP2location then
+            ip2loc_instance = IP2location:new(path)
+            ngx.log(ngx.INFO, "log_handler: IP2Location initialized from settings: ", path)
+        end
+    end)
+
+    if not ok then
+        ngx.log(ngx.WARN, "log_handler: Failed to init IP2Location from ", path, ": ", tostring(err))
+    end
+
+    return ip2loc_instance
+end
+
+-- Lookup country code from IP address
+local function get_country_code(ip_address)
+    local ip2loc = get_ip2location()
+    if not ip2loc then
+        return ""
+    end
+
+    local ok, result = pcall(function()
+        return ip2loc:get_all(ip_address)
+    end)
+
+    if ok and result and result.country_short and result.country_short ~= "-" then
+        return result.country_short
+    end
+
+    return ""
+end
+
 function _M.log_request()
     -- Get request variables
     local host = ngx.var.host:gsub("^www.", "")
@@ -14,6 +70,9 @@ function _M.log_request()
     local request_time = ngx.now() - ngx.req.start_time()
     local request_length = tonumber(ngx.var.request_length) or 0
     local bytes_sent = tonumber(ngx.var.bytes_sent) or 0
+
+    -- Get country code from IP address for geographic tracking
+    local country_code = get_country_code(remote_addr)
 
     -- Extract endpoint (first 2 path segments for API grouping)
     local endpoint = uri:match("^(/[^/]*/[^/]*)")
@@ -125,7 +184,8 @@ function _M.log_request()
             host = host,
             method = method,
             request_time = request_time,
-            uri = uri
+            uri = uri,
+            country_code = country_code
         })
     end
 end

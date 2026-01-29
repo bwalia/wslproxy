@@ -21,6 +21,7 @@ local MAX_DOMAINS = 50    -- Max domains to track
 local MAX_ERROR_CODES = 20 -- Max error codes to track
 local MAX_ERROR_DETAILS = 50 -- Max error details per status code
 local ERROR_DETAILS_TTL = 86400 -- 24 hours TTL for error details
+local MAX_COUNTRIES = 250 -- Max countries to track (world has ~195)
 
 -- Get the shared dictionary
 local function get_dict()
@@ -228,6 +229,23 @@ function _M.record_request(params)
     -- Track request methods
     local method_key = "method:" .. method
     dict:incr(method_key, 1, 0)
+
+    -- Track geographic data by country (if country_code is provided)
+    local country_code = tostring(params.country_code or ""):sub(1, 10)
+    if country_code ~= "" and country_code ~= "-" then
+        -- Track total requests per country (session lifetime, resets on restart)
+        local geo_total_key = "geo:" .. country_code
+        local existing_geo = dict:get(geo_total_key)
+        local geo_count = dict:get("geo_count") or 0
+
+        -- Limit number of countries tracked to prevent memory exhaustion
+        if existing_geo or geo_count < MAX_COUNTRIES then
+            dict:incr(geo_total_key, 1, 0)
+            if not existing_geo then
+                dict:incr("geo_count", 1, 0)
+            end
+        end
+    end
 
     return true
 end
@@ -641,6 +659,37 @@ function _M.get_all_error_details()
     return all_details
 end
 
+-- Get geographic traffic data (requests by country)
+function _M.get_geo_data()
+    local dict = get_dict()
+    if not dict then
+        return {}, "traffic_stats shared dict not available"
+    end
+
+    local countries = {}
+    local keys = dict:get_keys(1000)
+
+    for _, key in ipairs(keys) do
+        local country = key:match("^geo:([A-Z][A-Z])$")
+        if country then
+            local count = dict:get(key) or 0
+            if count > 0 then
+                table.insert(countries, {
+                    country_code = country,
+                    requests = count
+                })
+            end
+        end
+    end
+
+    -- Sort by request count descending
+    table.sort(countries, function(a, b)
+        return a.requests > b.requests
+    end)
+
+    return countries
+end
+
 -- Debug function to check what keys exist in the shared dict
 function _M.debug_keys()
     local dict = get_dict()
@@ -669,7 +718,8 @@ function _M.get_dashboard_data()
         error_timeline = _M.get_error_timeline(),
         latency = _M.get_latency_distribution(),
         methods = _M.get_methods_distribution(),
-        current_hour = _M.get_current_hour_stats()
+        current_hour = _M.get_current_hour_stats(),
+        geo_data = _M.get_geo_data()
     }
 end
 

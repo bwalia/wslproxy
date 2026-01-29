@@ -14,8 +14,11 @@ const Transition = React.forwardRef(function Transition(props, ref) {
 
 const StorageModal = ({ isOpen }) => {
   const dataProvider = useDataProvider();
-  const [storageMgmt, setStorageMgmt] = useStore('storageManagement.type', 'redis');
-  const [sModalOpen, setSModalOpen] = useStore('storage.modal', false);
+  const [storageMgmt, setStorageMgmt] = useStore(
+    "storageManagement.type",
+    "redis",
+  );
+  const [sModalOpen, setSModalOpen] = useStore("storage.modal", false);
   const [open, setOpen] = React.useState(isOpen);
   const storageType = localStorage.getItem("storageManagement");
   const translate = useTranslate();
@@ -44,7 +47,7 @@ const StorageModal = ({ isOpen }) => {
 
   const handleClose = () => {
     setOpen(false);
-    setSModalOpen(false)
+    setSModalOpen(false);
   };
 
   return (
@@ -57,25 +60,25 @@ const StorageModal = ({ isOpen }) => {
         aria-describedby="alert-dialog-slide-description"
       >
         <DialogTitle>
-          {translate('brahmstra.dashboard.storage.title')}
+          {translate("brahmstra.dashboard.storage.title")}
         </DialogTitle>
         <DialogContent>
           <DialogContentText id="alert-dialog-slide-description">
-            {translate('brahmstra.dashboard.storage.subtitle')}
+            {translate("brahmstra.dashboard.storage.subtitle")}
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button 
-            variant={storageMgmt == "redis" ? "contained" : "outlined"} 
+          <Button
+            variant={storageMgmt == "redis" ? "contained" : "outlined"}
             onClick={handleRedis}
           >
-            {translate('brahmstra.dashboard.storage.redis')}
+            {translate("brahmstra.dashboard.storage.redis")}
           </Button>
-          <Button 
+          <Button
             variant={storageMgmt == "disk" ? "contained" : "outlined"}
             onClick={HandleDisk}
           >
-            {translate('brahmstra.dashboard.storage.disk')}
+            {translate("brahmstra.dashboard.storage.disk")}
           </Button>
         </DialogActions>
       </Dialog>

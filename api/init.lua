@@ -37,6 +37,11 @@ end
 -- Determine storage type at init time (not in callback)
 local use_redis_storage = settings and settings.storage_type == "redis"
 
+-- Export IP2Location path as global variable for use in log_handler
+-- This is loaded at init time when file I/O is allowed
+IP2LocationPath = settings and settings.ip2location_path or "/tmp/IP2LOCATION-LITE-DB11.IPV6.BIN"
+ngx.log(ngx.INFO, "IP2Location: Using database path: ", IP2LocationPath)
+
 -- Use shared dictionary for SSL domains cache
 -- This ensures the cache is shared across all nginx worker processes
 -- IMPORTANT: The shared dict "ssl_domains" must be defined in nginx.conf
