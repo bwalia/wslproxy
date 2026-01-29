@@ -1,42 +1,141 @@
+/* WSL Proxy Admin - App Styles */
+
+/* Override Vite default - allow full width */
 #root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  text-align: left;
+  min-height: 100vh;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+/* React-Admin Layout Full Width Overrides */
+/* These ensure the dashboard and content areas use full available width */
+
+/* Main layout container */
+.RaLayout-root {
+  width: 100% !important;
+  max-width: 100% !important;
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
+.RaLayout-appFrame {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+/* Content area with sidebar */
+.RaLayout-contentWithSidebar {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+/* Main content area */
+.RaLayout-content {
+  width: 100% !important;
+  max-width: 100% !important;
+  padding-left: 24px !important;
+  padding-right: 24px !important;
+}
+
+/* MUI Container overrides - prevent max-width constraints */
+.MuiContainer-root {
+  max-width: 100% !important;
+  width: 100% !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+/* Dashboard specific - ensure full width */
+.RaLayout-content > div {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+/* MUI Grid container - ensure proper spacing */
+.MuiGrid-container {
+  width: 100% !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+/* Ensure Grid items don't have extra constraints */
+.MuiGrid-item {
+  max-width: none;
+}
+
+/* Fix for Grid items on large screens - proper flex basis */
+@media (min-width: 1200px) {
+  .MuiGrid-grid-lg-3 {
+    flex-basis: 25% !important;
+    max-width: 25% !important;
   }
-  to {
-    transform: rotate(360deg);
+
+  .MuiGrid-grid-lg-6 {
+    flex-basis: 50% !important;
+    max-width: 50% !important;
+  }
+
+  .MuiGrid-grid-lg-12 {
+    flex-basis: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .MuiGrid-grid-lg-2 {
+    flex-basis: 16.666667% !important;
+    max-width: 16.666667% !important;
   }
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
+/* Medium screens */
+@media (min-width: 900px) and (max-width: 1199px) {
+  .MuiGrid-grid-md-3 {
+    flex-basis: 25% !important;
+    max-width: 25% !important;
+  }
+
+  .MuiGrid-grid-md-4 {
+    flex-basis: 33.333333% !important;
+    max-width: 33.333333% !important;
+  }
+
+  .MuiGrid-grid-md-6 {
+    flex-basis: 50% !important;
+    max-width: 50% !important;
   }
 }
 
-.card {
-  padding: 2em;
+/* Small screens */
+@media (min-width: 600px) and (max-width: 899px) {
+  .MuiGrid-grid-sm-6 {
+    flex-basis: 50% !important;
+    max-width: 50% !important;
+  }
 }
 
-.read-the-docs {
-  color: #888;
+/* Card components - ensure they fill their grid cells */
+.MuiCard-root {
+  width: 100%;
+  height: 100%;
+}
+
+/* Box components in dashboard */
+.MuiBox-root {
+  box-sizing: border-box;
+}
+
+/* Ensure flexbox containers work properly */
+.MuiBox-root[style*="display: flex"],
+.MuiBox-root[style*="display:flex"] {
+  width: 100% !important;
+}
+
+/* Dashboard specific full-width fixes */
+.RaLayout-content .MuiBox-root {
+  max-width: 100%;
+}
+
+/* Force chart cards container to use full width */
+.RaLayout-content > div > .MuiBox-root {
+  width: 100% !important;
 }

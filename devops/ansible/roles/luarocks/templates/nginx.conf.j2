@@ -46,6 +46,13 @@ http {
                              '"$request" $status $body_bytes_sent '
                              '"$http_referer" "$http_user_agent" '
                              '$request_time $host';
+
+    # Log format with geographic country code
+    log_format  main_geo  '$remote_addr ($geo_country) - $remote_user [$time_local] '
+                             '"$request" $status $body_bytes_sent '
+                             '"$http_referer" "$http_user_agent" '
+                             '$request_time $host';
+
     access_log /usr/local/openresty/nginx/logs/access.log main;
     error_log /usr/local/openresty/nginx/logs/error.log notice;
 
@@ -405,6 +412,16 @@ server {
           set $proxy_route_server "openresty-default-route-443";
           set $upstream_server "global_backend";
 
+          # Geo country code variable for logging
+          set $geo_country "-";
+          set_by_lua_block $geo_country {
+            local ok, geo = pcall(require, "geo_lookup")
+            if ok then
+              return geo.get_country(ngx.var.remote_addr)
+            end
+            return "-"
+          }
+
           # ACME Challenge for Let's Encrypt (lua-resty-auto-ssl)
           location /.well-known/acme-challenge/ {
             content_by_lua_block {
@@ -413,7 +430,7 @@ server {
           }
 
           location / {
-          access_log /var/log/nginx/access.log main;
+          access_log /var/log/nginx/access.log main_geo;
           error_log  /var/log/nginx/error.log;
           # access_log  on;
           # error_log on;
@@ -540,8 +557,8 @@ server {
         listen       80 default_server;
         server_name _;
 
-        # enable 
-        access_log /var/log/nginx/access.log main;
+        # enable
+        access_log /var/log/nginx/access.log main_geo;
         error_log  /var/log/nginx/error.log;
         access_log on;
         error_log on;
@@ -560,6 +577,16 @@ server {
           set $proxy_host_override "";
           set $proxy_route_server "openresty-default-route-80";
           set $upstream_server "global_backend";
+
+          # Geo country code variable for logging
+          set $geo_country "-";
+          set_by_lua_block $geo_country {
+            local ok, geo = pcall(require, "geo_lookup")
+            if ok then
+              return geo.get_country(ngx.var.remote_addr)
+            end
+            return "-"
+          }
 
           set_by_lua $now "return ngx.cookie_time(ngx.time())";
           set $aws_signature "";
