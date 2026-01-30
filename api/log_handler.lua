@@ -61,8 +61,8 @@ local function get_country_code(ip_address)
 end
 
 function _M.log_request()
-    -- Get request variables
-    local host = ngx.var.host:gsub("^www.", "")
+    -- Get request variables - with nil safety checks
+    local host = ngx.var.host
     local status = tonumber(ngx.var.status)
     local method = ngx.var.request_method
     local uri = ngx.var.uri
@@ -71,8 +71,16 @@ function _M.log_request()
     local request_length = tonumber(ngx.var.request_length) or 0
     local bytes_sent = tonumber(ngx.var.bytes_sent) or 0
 
+    -- Skip logging for malformed requests (nil uri, host, or method)
+    if not host or not method or not uri then
+        return
+    end
+
+    -- Sanitize host (remove www prefix)
+    host = host:gsub("^www.", "")
+
     -- Get country code from IP address for geographic tracking
-    local country_code = get_country_code(remote_addr)
+    local country_code = get_country_code(remote_addr or "")
 
     -- Extract endpoint (first 2 path segments for API grouping)
     local endpoint = uri:match("^(/[^/]*/[^/]*)")
@@ -128,7 +136,7 @@ function _M.log_request()
 
         -- Detect suspicious patterns
         local metric_suspicious = metrics.get_metric_suspicious_requests()
-        if metric_suspicious then
+        if metric_suspicious and uri then
             local user_agent = ngx.var.http_user_agent or ""
 
             -- Suspicious patterns
@@ -136,11 +144,13 @@ function _M.log_request()
                 metric_suspicious:inc(1, {host, "no_user_agent"})
             end
 
+            -- Safe pattern matching with nil checks
             if uri:find("%.%.") or uri:find("//") then
                 metric_suspicious:inc(1, {host, "path_traversal_attempt"})
             end
 
-            if uri:lower():find("script") or uri:lower():find("exec") or uri:lower():find("union") then
+            local uri_lower = uri:lower()
+            if uri_lower:find("script") or uri_lower:find("exec") or uri_lower:find("union") then
                 metric_suspicious:inc(1, {host, "injection_attempt"})
             end
 
@@ -152,12 +162,12 @@ function _M.log_request()
 
         -- API metrics: Track API calls
         local metric_api_calls = metrics.get_metric_api_calls()
-        if metric_api_calls and uri:match("^/api/") then
+        if metric_api_calls and uri and uri:match("^/api/") then
             metric_api_calls:inc(1, {endpoint, method, tostring(status)})
         end
 
         -- Track authentication attempts
-        if uri:match("^/api/user/login") then
+        if uri and uri:match("^/api/user/login") then
             local metric_auth_attempts = metrics.get_metric_auth_attempts()
             if metric_auth_attempts then
                 local result = (status == 200) and "success" or "failure"
@@ -176,17 +186,22 @@ function _M.log_request()
     end
 
     -- Record traffic stats for dashboard chart
-    local traffic_ok, traffic_stats = pcall(require, "traffic_stats")
-    if traffic_ok and traffic_stats then
-        traffic_stats.record_request({
-            status = status,
-            bytes_sent = bytes_sent,
-            host = host,
-            method = method,
-            request_time = request_time,
-            uri = uri,
-            country_code = country_code
-        })
+    local traffic_ok, traffic_stats_module = pcall(require, "traffic_stats")
+    if traffic_ok and traffic_stats_module and traffic_stats_module.record_request then
+        local stats_ok, stats_err = pcall(function()
+            traffic_stats_module.record_request({
+                status = status,
+                bytes_sent = bytes_sent,
+                host = host,
+                method = method,
+                request_time = request_time,
+                uri = uri or "",
+                country_code = country_code
+            })
+        end)
+        if not stats_ok then
+            ngx.log(ngx.WARN, "log_handler: Failed to record traffic stats: ", tostring(stats_err))
+        end
     end
 end
 
