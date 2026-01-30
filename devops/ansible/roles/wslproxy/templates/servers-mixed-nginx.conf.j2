@@ -1,4 +1,4 @@
-    # default server elasticdatagenerator.fictionally.xyz configuration goes here
+    # default server elasticdatagenerator.fictionally.org configuration goes here
     #
 proxy_cache_path /tmp/nginx-cache keys_zone=mynginxcache:10m loader_threshold=300 loader_files=200 max_size=200m;
 
@@ -18,7 +18,7 @@ server_name  -;
 
 server {
 listen       8888;
-server_name  suworker01.fictionally.xyz;
+server_name  suworker01.fictionally.org;
 
        location / {
         more_set_headers 'Access-Control-Allow-Origin: *';
@@ -32,7 +32,7 @@ server_name  suworker01.fictionally.xyz;
 
 server {
 listen       8888;
-server_name  elasticdatagenerator.fictionally.xyz;
+server_name  elasticdatagenerator.fictionally.org;
 
        location / {
         more_set_headers 'Access-Control-Allow-Origin: *';
@@ -46,7 +46,7 @@ server_name  elasticdatagenerator.fictionally.xyz;
  
 server {
 listen       8888;
-server_name  es815.fictionally.xyz es815api.fictionally.xyz;
+server_name  es815.fictionally.org es815api.fictionally.org;
 
     # location ~ \.(css|js)$ {
     #     proxy_pass http://{{ nginx_s3_proxy_pass_host_ip }};
@@ -91,7 +91,7 @@ server_name  {{ nginx_k3s_dashboard_server_name }};
 
 server {
 listen       8888;
-server_name  elastic.fictionally.xyz elasticapi.fictionally.xyz;
+server_name  elastic.fictionally.org elasticapi.fictionally.org;
 
     # location ~ \.(css|js)$ {
     #     proxy_pass http://{{ nginx_s3_proxy_pass_host_ip }};
@@ -186,7 +186,7 @@ server {
 
 server {
     listen       8888;
-    server_name  acc-wslproxy-api-controlplane.fictionally.xyz;
+    server_name  acc-wslproxy-api-controlplane.fictionally.org;
     location / {
         more_set_headers 'Access-Control-Allow-Origin: *';
         proxy_set_header Host $host;
