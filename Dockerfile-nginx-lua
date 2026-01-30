@@ -1,2 +1,0 @@
-FROM fabiocicerchia/nginx-lua
-COPY html /usr/share/nginx/html

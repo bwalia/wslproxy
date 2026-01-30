@@ -146,19 +146,21 @@
   tags: [openresty, lapis]
 
 - name: Copy Settings Config file
-  template:
+  copy:
     src: "{{ local_settings_file_path }}"
     dest: /opt/nginx/data/settings.json
     mode: 0777
     owner: "www-data"
     group: root
+    remote_src: no
   tags: [openresty, lapis, dashboard]
 
 - name: Copy Environment file
-  template:
+  copy:
     src: "{{ local_env_file_path }}"
     dest: "/tmp/.env"
     mode: 0777
+    remote_src: no
   tags: [openresty, lapis, dashboard]
 
 - name: Copy Nginx Data Sync CRON bash

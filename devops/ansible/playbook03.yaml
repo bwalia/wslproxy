@@ -1,8 +1,8 @@
 - hosts: openresty_native_cluster 
   become: yes
   roles:
-    - ubuntu 
-    - luarocks 
+    - ubuntu
+    - wslproxy
     - powerdns
     - consul
     - k3s
