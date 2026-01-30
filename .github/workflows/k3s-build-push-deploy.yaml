@@ -40,6 +40,8 @@ env:
   TARGET_ENV: ${{ github.event.inputs.TARGET_ENV || 'int' }}
   TARGET_BRANCH: ${{ github.event.inputs.TARGET_BRANCH || 'main' }}
   DEPLOYMENT_TYPE: ${{ github.event.inputs.DEPLOYMENT_TYPE || 'build-and-deploy' }}
+  # Docker Hub configuration
+  DOCKER_HUB_PUSH_ENABLED: true
 
 jobs:
   build:
@@ -55,6 +57,18 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Generate Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_REGISTRY }}/wslproxy
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
@@ -65,10 +79,19 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          push: true
+          push: ${{ env.DOCKER_HUB_PUSH_ENABLED == 'true' }}
+          platforms: linux/amd64,linux/arm64
           tags: |
             ${{ env.IMAGE_REGISTRY }}/wslproxy:latest
             ${{ env.IMAGE_REGISTRY }}/wslproxy:${{ github.sha }}
+            ${{ env.IMAGE_REGISTRY }}/wslproxy:${{ github.ref_name }}
+          labels: |
+            org.opencontainers.image.title=WSLProxy
+            org.opencontainers.image.description=OpenResty-based API Gateway and Reverse Proxy with Auto SSL
+            org.opencontainers.image.url=https://github.com/wslproxy/wslproxy
+            org.opencontainers.image.source=https://github.com/wslproxy/wslproxy
+            org.opencontainers.image.version=${{ github.sha }}
+            org.opencontainers.image.revision=${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -76,10 +99,16 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          push: true
+          push: ${{ env.DOCKER_HUB_PUSH_ENABLED == 'true' }}
+          platforms: linux/amd64,linux/arm64
           tags: |
             ${{ env.IMAGE_REGISTRY }}/hd-openresty:latest
             ${{ env.IMAGE_REGISTRY }}/hd-openresty:${{ github.sha }}
+            ${{ env.IMAGE_REGISTRY }}/hd-openresty:${{ github.ref_name }}
+          labels: |
+            org.opencontainers.image.title=HD OpenResty
+            org.opencontainers.image.description=OpenResty High-Definition variant
+            org.opencontainers.image.version=${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -88,10 +117,16 @@ jobs:
         with:
           context: .
           file: demos-origins/node-app/Dockerfile
-          push: true
+          push: ${{ env.DOCKER_HUB_PUSH_ENABLED == 'true' }}
+          platforms: linux/amd64,linux/arm64
           tags: |
             ${{ env.IMAGE_REGISTRY }}/node-app:latest
             ${{ env.IMAGE_REGISTRY }}/node-app:${{ github.sha }}
+            ${{ env.IMAGE_REGISTRY }}/node-app:${{ github.ref_name }}
+          labels: |
+            org.opencontainers.image.title=WSLProxy Node App
+            org.opencontainers.image.description=Sample Node.js backend application for WSLProxy
+            org.opencontainers.image.version=${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -100,12 +135,28 @@ jobs:
         with:
           context: .
           file: demos-origins/s3-browser/Dockerfile
-          push: true
+          push: ${{ env.DOCKER_HUB_PUSH_ENABLED == 'true' }}
+          platforms: linux/amd64,linux/arm64
           tags: |
             ${{ env.IMAGE_REGISTRY }}/s3-browser-app:latest
             ${{ env.IMAGE_REGISTRY }}/s3-browser-app:${{ github.sha }}
+            ${{ env.IMAGE_REGISTRY }}/s3-browser-app:${{ github.ref_name }}
+          labels: |
+            org.opencontainers.image.title=S3 Browser App
+            org.opencontainers.image.description=S3-compatible browser application
+            org.opencontainers.image.version=${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Update Docker Hub README (wslproxy)
+        if: env.DOCKER_HUB_PUSH_ENABLED == 'true'
+        uses: peter-evans/dockerhub-description@v3
+        with:
+          username: ${{ secrets.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_PASSWD }}
+          repository: ${{ env.IMAGE_REGISTRY }}/wslproxy
+          short-description: "OpenResty-based API Gateway with Auto SSL, Reverse Proxy, and Admin Dashboard"
+          readme-filepath: ./DOCKER.md
 
   deploy:
     name: Deploy to K3S using Helm

@@ -1,0 +1,105 @@
+version: '3.8'
+
+# Development Docker Compose Configuration
+# Features: Hot-reload, Volume mounts for live editing, Redis for sessions
+# Start with: docker-compose -f docker-compose-dev.yml up -d
+
+services:
+  wslproxy:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        APP_ENV: dev
+        DNS_RESOLVER: 127.0.0.11
+    container_name: wslproxy-dev
+    restart: unless-stopped
+
+    ports:
+      # HTTP
+      - "80:80"
+      # HTTPS
+      - "443:443"
+      # Admin Dashboard & Metrics
+      - "8080:8080"
+      # Consul API
+      - "8500:8500"
+
+    volumes:
+      # Hot-reload Lua API files
+      - ./api:/usr/local/openresty/nginx/html/api
+
+      # Hot-reload HTML/static files
+      - ./html:/usr/local/openresty/nginx/html
+
+      # Hot-reload Admin dashboard source
+      - ./openresty-admin/src:/usr/local/openresty/nginx/html/openresty-admin/src
+      - ./openresty-admin/public:/usr/local/openresty/nginx/html/openresty-admin/public
+      - ./openresty-admin/package.json:/usr/local/openresty/nginx/html/openresty-admin/package.json
+      - ./openresty-admin/vite.config.js:/usr/local/openresty/nginx/html/openresty-admin/vite.config.js
+
+      # Configuration files
+      - ./data:/opt/nginx/data
+      - ./nginx-dev.conf.tmpl:/usr/local/openresty/nginx/conf/nginx.conf
+
+      # SSL certificates (persistent across restarts)
+      - wslproxy-certs-dev:/etc/resty-auto-ssl
+
+      # Swagger documentation
+      - ./html/swagger:/usr/local/openresty/nginx/html/swagger
+
+    environment:
+      NGINX_CONFIG_DIR: /opt/nginx
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      DNS_RESOLVER: 127.0.0.11
+      # Enable debug logging in development
+      LUA_LOG_LEVEL: debug
+      # Use Let's Encrypt staging for development (higher rate limits)
+      SSL_STAGING: "true"
+
+    depends_on:
+      - redis
+
+    networks:
+      - wslproxy-network
+
+    # Allow running as root in dev for easier file permissions
+    user: root
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  redis:
+    image: redis:7-alpine
+    container_name: wslproxy-redis-dev
+    restart: unless-stopped
+
+    ports:
+      - "6379:6379"
+
+    volumes:
+      - redis-data-dev:/data
+
+    command: redis-server --appendonly yes --loglevel debug
+
+    networks:
+      - wslproxy-network
+
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  wslproxy-network:
+    driver: bridge
+
+volumes:
+  wslproxy-certs-dev:
+  redis-data-dev:
