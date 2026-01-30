@@ -55,21 +55,55 @@ jobs:
         if: ${{ env.TARGET_HOST == 'whisky03' }}
         run: |
           echo "${{ secrets.DOT_WSLPROXY_SETTINGS_INT }}" | base64 -d > /tmp/settings_brahmstra_whisky03.json
+          # Verify file was created and is not empty
+          if [ ! -s /tmp/settings_brahmstra_whisky03.json ]; then
+            echo "::error::Settings file is empty or failed to decode"
+            exit 1
+          fi
+          # Validate JSON syntax
+          if ! python3 -m json.tool /tmp/settings_brahmstra_whisky03.json > /dev/null 2>&1; then
+            echo "::error::Settings file contains invalid JSON"
+            exit 1
+          fi
+          echo "✅ Settings file validated successfully"
 
       - name: Decode env file (INT environment)
         if: ${{ env.TARGET_HOST == 'whisky03' }}
         run: |
           echo "${{ secrets.DOT_WSLPROXY_ENV_CREDS_INT }}" | base64 -d > /tmp/.env_brahmstra_whisky03
+          # Verify file was created and is not empty
+          if [ ! -s /tmp/.env_brahmstra_whisky03 ]; then
+            echo "::warning::Env file is empty (this may be expected)"
+          else
+            echo "✅ Env file decoded successfully"
+          fi
 
       - name: Decode settings file (PROD environment)
         if: ${{ env.TARGET_HOST == '185.237.99.238' }}
         run: |
           echo "${{ secrets.DOT_WSLPROXY_SETTINGS_PROD }}" | base64 -d > /tmp/settings_brahmstra_prod.json
+          # Verify file was created and is not empty
+          if [ ! -s /tmp/settings_brahmstra_prod.json ]; then
+            echo "::error::Settings file is empty or failed to decode"
+            exit 1
+          fi
+          # Validate JSON syntax
+          if ! python3 -m json.tool /tmp/settings_brahmstra_prod.json > /dev/null 2>&1; then
+            echo "::error::Settings file contains invalid JSON"
+            exit 1
+          fi
+          echo "✅ Settings file validated successfully"
 
       - name: Decode env file (PROD environment)
         if: ${{ env.TARGET_HOST == '185.237.99.238' }}
         run: |
           echo "${{ secrets.DOT_WSLPROXY_ENV_CREDS_PROD }}" | base64 -d > /tmp/.env_brahmstra_prod
+          # Verify file was created and is not empty
+          if [ ! -s /tmp/.env_brahmstra_prod ]; then
+            echo "::warning::Env file is empty (this may be expected)"
+          else
+            echo "✅ Env file decoded successfully"
+          fi
 
       - name: Setup SSH and test connectivity
         run: |
