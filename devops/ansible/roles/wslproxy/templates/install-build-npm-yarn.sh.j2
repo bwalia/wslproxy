@@ -22,8 +22,25 @@ chmod 777 /usr/local/openresty/nginx/html/openresty-admin/
 
 cd /usr/local/openresty/nginx/html/openresty-admin/
 
+# Create proper .env file for Vite build with VITE_ prefixed variables
+# Extract API URLs from settings.json if available
+if [ -f "/opt/nginx/data/settings.json" ]; then
+  CONTROL_PLANE_API_URL=$(python3 -c "import json; data=json.load(open('/opt/nginx/data/settings.json')); print(data.get('env_vars', {}).get('CONTROL_PLANE_API_URL', 'https://localhost/api'))" 2>/dev/null || echo "https://localhost/api")
+  FRONT_URL=$(python3 -c "import json; data=json.load(open('/opt/nginx/data/settings.json')); print(data.get('env_vars', {}).get('FRONT_URL', 'https://localhost'))" 2>/dev/null || echo "https://localhost")
+else
+  CONTROL_PLANE_API_URL="https://localhost/api"
+  FRONT_URL="https://localhost"
+fi
+
+# Create .env file with Vite convention (VITE_ prefix)
+cat > /usr/local/openresty/nginx/html/openresty-admin/.env << EOF
+VITE_API_URL=${CONTROL_PLANE_API_URL}
+VITE_FRONT_URL=${FRONT_URL}
+EOF
+
+# Also copy original .env if it exists for reference
 if [ -f "/tmp/.env" ]; then
-  cp /tmp/.env /usr/local/openresty/nginx/html/openresty-admin/.env
+  cat /tmp/.env >> /usr/local/openresty/nginx/html/openresty-admin/.env
 fi
 
 # Install dependencies and build the project
@@ -35,4 +52,9 @@ yarn install
     {% else %}
       export NODE_OPTIONS="--max_old_space_size=1024"
     {% endif %}
+
+# Export variables for the build process
+export VITE_API_URL="${CONTROL_PLANE_API_URL}"
+export VITE_FRONT_URL="${FRONT_URL}"
+
 yarn build
