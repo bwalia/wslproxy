@@ -26,7 +26,7 @@ docker run -d \
 | Image | Purpose | Tags |
 |-------|---------|------|
 | `bwalia/wslproxy` | Full WSLProxy OpenResty application | `latest`, `<commit-sha>` |
-| `bwalia/hd-openresty` | HD OpenResty variant | `latest`, `<commit-sha>` |
+| `bwalia/wslproxy-alternate` | WSLProxy alternate build variant | `latest`, `<commit-sha>` |
 | `bwalia/node-app` | Node.js sample backend API | `latest`, `<commit-sha>` |
 | `bwalia/s3-browser-app` | S3 browser application | `latest`, `<commit-sha>` |
 
