@@ -1,0 +1,30 @@
+{{- if .Values.openresty.autoscaling.enabled }}
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "wslproxy.fullname" . }}-openresty
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "wslproxy.labels" . | nindent 4 }}
+    app.kubernetes.io/component: proxy
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ include "wslproxy.fullname" . }}-openresty
+  minReplicas: {{ .Values.openresty.autoscaling.minReplicas }}
+  maxReplicas: {{ .Values.openresty.autoscaling.maxReplicas }}
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: {{ .Values.openresty.autoscaling.targetCPUUtilizationPercentage }}
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: {{ .Values.openresty.autoscaling.targetMemoryUtilizationPercentage }}
+{{- end }}
