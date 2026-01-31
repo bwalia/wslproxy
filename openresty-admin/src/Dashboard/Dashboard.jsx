@@ -1544,6 +1544,308 @@ const Dashboard = () => {
         </ChartCard>
       </Box>
 
+      {/* SSL Error Tracking - Full Width */}
+      <Box sx={{ mb: 3, width: "100%" }}>
+        <ChartCard
+          title="SSL/TLS Error Tracking"
+          subtitle="Auto-SSL certificate and OCSP errors monitored via nginx_log_errors_total{component='ssl'}"
+          onRefresh={fetchLogMetrics}
+          height={320}
+          accentColor="#ef4444"
+        >
+          {logMetrics.available ? (
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 2.5,
+                py: 2,
+              }}
+            >
+              {/* SSL Error Categories */}
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: {
+                    xs: "1fr",
+                    sm: "1fr 1fr",
+                    md: "1fr 1fr 1fr",
+                  },
+                  gap: 2,
+                }}
+              >
+                {[
+                  {
+                    title: "SNI Detection Failures",
+                    metric: "nginx_log_warnings_total",
+                    component: "ssl",
+                    pattern: "could not determine domain for request (SNI not supported?)",
+                    level: "WARN",
+                    color: theme.palette.warning.main,
+                    icon: SecurityIcon,
+                  },
+                  {
+                    title: "OCSP Stapling Failures",
+                    metric: "nginx_log_warnings_total",
+                    component: "ssl",
+                    pattern: "failed to set ocsp stapling - failed to get OCSP responder",
+                    level: "WARN",
+                    color: theme.palette.warning.main,
+                    icon: SecurityIcon,
+                  },
+                  {
+                    title: "Domain Not Allowed",
+                    metric: "nginx_log_notices_total",
+                    component: "ssl",
+                    pattern: "auto-ssl: domain not allowed - using fallback",
+                    level: "NOTICE",
+                    color: theme.palette.info.main,
+                    icon: SecurityIcon,
+                  },
+                ].map((item, index) => (
+                  <Box
+                    key={index}
+                    sx={{
+                      p: 2.5,
+                      borderRadius: 2,
+                      border: `1px solid ${alpha(item.color, 0.3)}`,
+                      backgroundColor: alpha(item.color, 0.05),
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 1.5,
+                      transition: "all 0.2s",
+                      "&:hover": {
+                        backgroundColor: alpha(item.color, 0.08),
+                        transform: "translateY(-2px)",
+                        boxShadow: `0 4px 16px ${alpha(item.color, 0.2)}`,
+                      },
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1.5,
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          width: 42,
+                          height: 42,
+                          borderRadius: 2,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          backgroundColor: alpha(item.color, 0.15),
+                        }}
+                      >
+                        <item.icon sx={{ fontSize: 22, color: item.color }} />
+                      </Box>
+                      <Box sx={{ flex: 1 }}>
+                        <Typography
+                          variant="subtitle2"
+                          sx={{
+                            fontWeight: 700,
+                            color: theme.palette.text.primary,
+                            fontSize: "0.95rem",
+                            mb: 0.25,
+                          }}
+                        >
+                          {item.title}
+                        </Typography>
+                        <Chip
+                          label={item.level}
+                          size="small"
+                          sx={{
+                            height: 20,
+                            fontSize: "0.65rem",
+                            fontWeight: 700,
+                            backgroundColor: alpha(item.color, 0.15),
+                            color: item.color,
+                            "& .MuiChip-label": { px: 1 },
+                          }}
+                        />
+                      </Box>
+                    </Box>
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        color: theme.palette.text.secondary,
+                        fontSize: "0.7rem",
+                        fontFamily: "monospace",
+                        lineHeight: 1.4,
+                        p: 1,
+                        borderRadius: 1,
+                        backgroundColor: alpha(
+                          theme.palette.background.default,
+                          0.5,
+                        ),
+                      }}
+                    >
+                      {item.pattern}
+                    </Typography>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        pt: 0.5,
+                      }}
+                    >
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          color: theme.palette.text.disabled,
+                          fontSize: "0.65rem",
+                          fontWeight: 600,
+                        }}
+                      >
+                        Metric: {item.metric}
+                      </Typography>
+                      <Chip
+                        label={`component="${item.component}"`}
+                        size="small"
+                        variant="outlined"
+                        sx={{
+                          height: 18,
+                          fontSize: "0.6rem",
+                          borderColor: alpha(item.color, 0.3),
+                          color: theme.palette.text.secondary,
+                          "& .MuiChip-label": { px: 0.75 },
+                        }}
+                      />
+                    </Box>
+                  </Box>
+                ))}
+              </Box>
+
+              {/* Info Banner */}
+              <Box
+                sx={{
+                  p: 2.5,
+                  borderRadius: 2,
+                  background: `linear-gradient(135deg, ${alpha(theme.palette.error.main, 0.08)} 0%, ${alpha(theme.palette.warning.main, 0.08)} 100%)`,
+                  border: `1px solid ${alpha(theme.palette.error.main, 0.2)}`,
+                  display: "flex",
+                  gap: 2,
+                }}
+              >
+                <Box
+                  sx={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 2,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: alpha(theme.palette.error.main, 0.15),
+                    flexShrink: 0,
+                  }}
+                >
+                  <SecurityIcon
+                    sx={{ fontSize: 22, color: theme.palette.error.main }}
+                  />
+                </Box>
+                <Box sx={{ flex: 1 }}>
+                  <Typography
+                    variant="body2"
+                    fontWeight={700}
+                    color="text.primary"
+                    sx={{ mb: 1 }}
+                  >
+                    SSL Error Monitoring Active
+                  </Typography>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ display: "block", mb: 1, lineHeight: 1.5 }}
+                  >
+                    All SSL/TLS certificate errors from lua-resty-auto-ssl are
+                    automatically tracked and available in Prometheus. These
+                    include SNI detection failures, OCSP stapling issues, and
+                    domain validation errors.
+                  </Typography>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      gap: 1,
+                      flexWrap: "wrap",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        fontWeight: 600,
+                        color: theme.palette.text.secondary,
+                        fontSize: "0.7rem",
+                      }}
+                    >
+                      Prometheus Query:
+                    </Typography>
+                    <Box
+                      sx={{
+                        fontFamily: "monospace",
+                        fontSize: "0.7rem",
+                        px: 1.5,
+                        py: 0.5,
+                        borderRadius: 1,
+                        backgroundColor: alpha(
+                          theme.palette.background.paper,
+                          0.8,
+                        ),
+                        border: `1px solid ${alpha(theme.palette.divider, 0.5)}`,
+                        color: theme.palette.error.main,
+                        fontWeight: 600,
+                      }}
+                    >
+                      rate(nginx_log_errors_total&#123;component="ssl"&#125;[5m])
+                    </Box>
+                  </Box>
+                </Box>
+              </Box>
+            </Box>
+          ) : (
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                height: 200,
+                gap: 1.5,
+              }}
+            >
+              <Box
+                sx={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: "50%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backgroundColor: alpha(theme.palette.warning.main, 0.1),
+                }}
+              >
+                <SecurityIcon
+                  sx={{ fontSize: 32, color: theme.palette.warning.main }}
+                />
+              </Box>
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                fontWeight={500}
+              >
+                SSL metrics not available
+              </Typography>
+              <Typography variant="caption" color="text.disabled">
+                Ensure log interceptor is initialized
+              </Typography>
+            </Box>
+          )}
+        </ChartCard>
+      </Box>
+
       {/* Log Level Metrics - Full Width */}
       <Box sx={{ mb: 3, width: "100%" }}>
         <ChartCard
