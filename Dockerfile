@@ -1,24 +1,42 @@
-# Dockerfile - alpine-fat
-# https://github.com/openresty/docker-openresty
+# ============================================================================
+# WSLProxy Docker Image - OpenResty-based API Gateway
+# ============================================================================
 #
-# This builds upon the base OpenResty alpine image that adds
-# some build-related packages, has perl installed for opm,
-# and includes luarocks and envsubst.
+# This Dockerfile builds a production-ready OpenResty image with:
+# - Lua API Gateway functionality
+# - Automatic SSL/TLS certificate management (Let's Encrypt)
+# - Reverse proxy and load balancing
+# - Admin dashboard (React)
+# - Prometheus metrics
+# - Traffic analytics
+# - Redis session storage
+# - Consul integration
 #
-# NOTE: For envsubst, we install gettext (envsubst's source package),
-#       copy it out, then uninstall gettext (to save some space as envsubst is very small)
-#       libintl and musl are dependencies of envsubst, so those are installed as well
+# GitHub: https://github.com/wslproxy/wslproxy
+# Docker Hub: https://hub.docker.com/r/bwalia/wslproxy
+#
+# Maintainer: Balinder Walia <bwalia@workstation.co.uk>
+# ============================================================================
 
 ARG RESTY_FAT_IMAGE_BASE="openresty/openresty"
 ARG RESTY_FAT_IMAGE_TAG="alpine"
 
-FROM ${RESTY_FAT_IMAGE_BASE}:${RESTY_FAT_IMAGE_TAG}
+FROM ${RESTY_FAT_IMAGE_BASE}:${RESTY_FAT_IMAGE_TAG} as builder
 
 ARG RESTY_FAT_IMAGE_BASE="openresty/openresty"
 ARG RESTY_FAT_IMAGE_TAG="alpine"
 ARG RESTY_LUAROCKS_VERSION="3.12.2"
 
-LABEL maintainer="Balinder Walia <bwalia@workstation.co.uk>"
+# OpenContainers Image Specification labels
+LABEL org.opencontainers.image.title="WSLProxy"
+LABEL org.opencontainers.image.description="OpenResty-based API Gateway with Auto SSL, Reverse Proxy, and Admin Dashboard"
+LABEL org.opencontainers.image.url="https://github.com/wslproxy/wslproxy"
+LABEL org.opencontainers.image.source="https://github.com/wslproxy/wslproxy"
+LABEL org.opencontainers.image.vendor="WSLProxy"
+LABEL org.opencontainers.image.authors="Balinder Walia <bwalia@workstation.co.uk>"
+LABEL org.opencontainers.image.documentation="https://github.com/wslproxy/wslproxy#docker"
+
+# Build information
 LABEL resty_fat_image_base="${RESTY_FAT_IMAGE_BASE}"
 LABEL resty_fat_image_tag="${RESTY_FAT_IMAGE_TAG}"
 LABEL resty_luarocks_version="${RESTY_LUAROCKS_VERSION}"
@@ -155,7 +173,12 @@ RUN cp /tmp/resolver.conf.tmpl /tmp/resolver.conf
 
 RUN sed -i "s/resolver 127.0.0.11/resolver ${DNS_RESOLVER}/g" /tmp/resolver.conf
 
-# Install Consul
+# ============================================================================
+# Service Integration: Consul
+# ============================================================================
+# Install Consul for service discovery and configuration management
+# Optional: Can be disabled by removing this section if not needed
+
 RUN apk add --no-cache --virtual .build-deps \
     unzip \
     curl \
@@ -167,7 +190,16 @@ RUN apk add --no-cache --virtual .build-deps \
 # Add a basic Consul configuration file
 COPY ./devops/consul/consul.json /etc/consul.d/consul.json
 
-# Expose Consul port
+# ============================================================================
+# Port Definitions
+# ============================================================================
+# HTTP traffic
+EXPOSE 80
+# HTTPS traffic
+EXPOSE 443
+# Admin Dashboard & Prometheus Metrics
+EXPOSE 8080
+# Consul API (Service Discovery)
 EXPOSE 8500
 
 RUN luarocks install lua-resty-consul
@@ -228,5 +260,37 @@ RUN chmod -R 777 ${NGINX_CONFIG_DIR}data && \
     chown -R nobody:root ${NGINX_CONFIG_DIR}data/
 # chmod 777 ${NGINX_CONFIG_DIR}data/sample-settings.json
 
-# Start Consul in the background and then start OpenResty
+# ============================================================================
+# Health Check
+# ============================================================================
+# Container health check to ensure OpenResty is responding properly
+# The health check probes the admin dashboard endpoint on port 8080
+#
+# States:
+# - healthy: Container is working and responding to requests
+# - unhealthy: Container failed multiple health checks (will be restarted)
+# - starting: Container is still initializing
+
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=40s \
+    CMD curl -f http://localhost:8080/health || exit 1
+
+# ============================================================================
+# Container Entry Point
+# ============================================================================
+# Starts OpenResty Nginx in foreground mode (required for proper Docker operation)
+# This allows container to receive signals and manage the process correctly
+#
+# The Nginx process will:
+# 1. Load configuration from NGINX_CONFIG_DIR (default: /opt/nginx)
+# 2. Initialize auto-SSL with Let's Encrypt
+# 3. Load all Lua modules and API handlers
+# 4. Start Admin Dashboard on port 8080
+# 5. Listen for HTTP (80) and HTTPS (443) traffic
+#
+# Signals:
+# - SIGTERM: Graceful shutdown
+# - SIGHUP: Reload configuration
+# - SIGUSR1: Reopen log files
+# - SIGUSR2: Upgrade binary (hot reload)
+
 CMD ["/usr/local/openresty/nginx/sbin/nginx", "-g", "daemon off;"]

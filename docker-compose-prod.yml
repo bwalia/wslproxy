@@ -1,0 +1,159 @@
+version: '3.8'
+
+# Production Docker Compose Configuration
+# Features: Optimized for stability and performance, persistent volumes, health checks
+# Start with: docker-compose -f docker-compose-prod.yml up -d
+
+services:
+  wslproxy:
+    image: bwalia/wslproxy:latest
+    container_name: wslproxy-prod
+    restart: always
+
+    # Security: run as non-root user (www-data)
+    user: www-data
+
+    ports:
+      # HTTP
+      - "80:80"
+      # HTTPS
+      - "443:443"
+      # Admin Dashboard & Prometheus metrics
+      - "8080:8080"
+
+    volumes:
+      # Configuration and data persistence
+      - wslproxy-data:/opt/nginx/data
+
+      # SSL certificates (auto-managed by Let's Encrypt)
+      - wslproxy-certs:/etc/resty-auto-ssl
+
+      # Optional: Mount custom nginx config (if needed)
+      # - ./nginx.conf:/usr/local/openresty/nginx/conf/nginx.conf:ro
+
+      # Optional: Mount custom Lua scripts
+      # - ./api:/usr/local/openresty/nginx/html/api:ro
+
+    environment:
+      # Core configuration
+      NGINX_CONFIG_DIR: /opt/nginx
+
+      # Redis configuration
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+
+      # DNS configuration
+      DNS_RESOLVER: 127.0.0.11
+      PRIMARY_DNS_RESOLVER: 8.8.8.8
+      SECONDARY_DNS_RESOLVER: 8.8.4.4
+
+      # SSL configuration (production uses real certificates)
+      SSL_STAGING: "false"
+      SSL_OCSP_STAPLING: "true"
+
+      # Performance optimization
+      WORKER_PROCESSES: "auto"
+      WORKER_CONNECTIONS: "2048"
+
+    depends_on:
+      redis:
+        condition: service_healthy
+
+    networks:
+      - wslproxy-network
+
+    # Health check - ensures container is working properly
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-s", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    # Resource limits to prevent runaway processes
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 512M
+
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "10"
+        labels: "service=wslproxy"
+
+  redis:
+    image: redis:7-alpine
+    container_name: wslproxy-redis
+    restart: always
+
+    ports:
+      - "6379:6379"
+
+    volumes:
+      # Persist Redis data
+      - redis-data:/data
+
+    command: >
+      redis-server
+      --appendonly yes
+      --appendfsync everysec
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+
+    networks:
+      - wslproxy-network
+
+    # Security: run as non-root
+    user: redis
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+        labels: "service=redis"
+
+networks:
+  wslproxy-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  # Main configuration and data
+  wslproxy-data:
+    driver: local
+
+  # SSL certificates
+  wslproxy-certs:
+    driver: local
+
+  # Redis persistence
+  redis-data:
+    driver: local

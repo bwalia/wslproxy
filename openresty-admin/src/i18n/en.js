@@ -15,7 +15,7 @@ const customEnglishMessages = {
       welcome: {
         title: "Welcome to the WSL Proxy",
         subtitle:
-          "This is CDN to protect the website. You can add a new Server and attach the required rule to it.",
+          "Strengthen your website's defenses with this comprehensive CDN security platform. Effortlessly provision new servers and assign tailored security rules to build a robust, multi-layered protection strategy.",
         server_button: "Servers",
         rule_button: "Rules",
       },

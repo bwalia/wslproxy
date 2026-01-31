@@ -1,6 +1,6 @@
 ---
 # Playbook for managing nginx/openresty operations on native hosts
-# Usage: ansible-playbook manage_nginx_openresty_ops.yml -i hosts -l <target_host> --extra-vars "nginx_user_password=<password>"
+# Usage: ansible-playbook wslproxy-ops.yml -i hosts -l <target_host> --extra-vars "nginx_user_password=<password>"
 
 - name: Manage OpenResty/Nginx Operations
   hosts: openresty_native_cluster
@@ -17,7 +17,7 @@
     
   roles:
     - ubuntu
-    - luarocks
+    - wslproxy
 
   post_tasks:
     - name: Verify OpenResty is running

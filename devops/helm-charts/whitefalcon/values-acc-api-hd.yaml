@@ -9,7 +9,7 @@ app:
   primary_dns_resolver: 10.43.0.10
   secondary_dns_resolver: 10.43.0.10
   dns_resolver_port: 53
-  api_url: "https://acc-hd-openresty-api-controlplane.fictionally.xyz/api"
+  api_url: "https://acc-wslproxy-api-controlplane.fictionally.org/api"
   redis_host: redis-service.int.svc.cluster.local
   target_env: hd
   target_type: api
@@ -50,7 +50,7 @@ ingress:
   hosts:
     [
       {
-        host: acc-hd-openresty-api-controlplane.fictionally.xyz,
+        host: acc-wslproxy-api-controlplane.fictionally.org,
         paths:
           [
             {
