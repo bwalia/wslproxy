@@ -19,6 +19,7 @@ RUN apk add --no-cache \
     curl \
     ca-certificates \
     tzdata \
+    perl \
     && /usr/local/openresty/bin/opm get ledgetech/lua-resty-http \
     && /usr/local/openresty/bin/opm get openresty/lua-resty-balancer \
     && /usr/local/openresty/bin/opm get bungle/lua-resty-session \
