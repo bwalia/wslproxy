@@ -124,7 +124,7 @@ jobs:
           context: ./ingress-controller
           file: ./ingress-controller/Dockerfile.controller
           platforms: linux/amd64,linux/arm64
-          push: ${{ github.event_name != 'pull_request' || inputs.push_images }}
+          push: false
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
@@ -175,7 +175,7 @@ jobs:
           context: ./ingress-controller
           file: ./ingress-controller/Dockerfile.openresty
           platforms: linux/amd64,linux/arm64
-          push: ${{ github.event_name != 'pull_request' || inputs.push_images }}
+          push: false
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha

@@ -19,13 +19,23 @@ RUN apk add --no-cache \
     curl \
     ca-certificates \
     tzdata \
-    perl \
+    git \
     && rm -rf /var/cache/apk/*
 
-# Install Lua modules using opm
-RUN /usr/local/openresty/bin/opm get ledgetech/lua-resty-http \
-    && /usr/local/openresty/bin/opm get openresty/lua-resty-balancer \
-    && /usr/local/openresty/bin/opm get bungle/lua-resty-session
+# Install Lua modules manually from GitHub (more reliable than opm)
+RUN mkdir -p /tmp/lua-modules && cd /tmp/lua-modules \
+    # lua-resty-http
+    && curl -L https://github.com/ledgetech/lua-resty-http/archive/refs/tags/v0.17.1.tar.gz | tar xz \
+    && cp -r lua-resty-http-0.17.1/lib/resty/* /usr/local/openresty/lualib/resty/ \
+    # lua-resty-balancer
+    && curl -L https://github.com/openresty/lua-resty-balancer/archive/refs/tags/v0.05.tar.gz | tar xz \
+    && cp -r lua-resty-balancer-0.05/lib/resty/* /usr/local/openresty/lualib/resty/ \
+    # lua-resty-session
+    && curl -L https://github.com/bungle/lua-resty-session/archive/refs/tags/v4.0.5.tar.gz | tar xz \
+    && cp -r lua-resty-session-4.0.5/lib/resty/* /usr/local/openresty/lualib/resty/ \
+    # Cleanup
+    && cd / && rm -rf /tmp/lua-modules \
+    && apk del git
 
 # Create necessary directories
 RUN mkdir -p \
