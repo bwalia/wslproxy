@@ -3037,6 +3037,43 @@ local function handle_get_request(args, path)
         ngx.exit(ngx.HTTP_OK)
     end
 
+    -- Get nginx log level metrics - GET /api/log/metrics
+    if path == "log/metrics" then
+        local metrics_ok, metrics = pcall(require, "prometheus_metrics")
+        if metrics_ok and metrics.is_initialized() then
+            -- Get log level metric counters
+            local log_levels = metrics.get_metric_log_levels()
+            local log_errors = metrics.get_metric_log_errors()
+            local log_warnings = metrics.get_metric_log_warnings()
+            local log_notices = metrics.get_metric_log_notices()
+
+            -- Extract current values from metrics
+            -- Note: These are counters, so values are cumulative
+            ngx.say(cjson.encode({
+                data = {
+                    available = true,
+                    message = "Log metrics are being tracked. View detailed metrics at /metrics endpoint.",
+                    metrics = {
+                        log_errors_total = "nginx_log_errors_total",
+                        log_warnings_total = "nginx_log_warnings_total",
+                        log_notices_total = "nginx_log_notices_total",
+                        log_messages_total = "nginx_log_messages_total"
+                    },
+                    note = "These are Prometheus counter metrics. Use rate() function in PromQL for meaningful graphs."
+                }
+            }))
+        else
+            ngx.say(cjson.encode({
+                data = {
+                    available = false,
+                    error = "Prometheus metrics not initialized",
+                    metrics = {}
+                }
+            }))
+        end
+        ngx.exit(ngx.HTTP_OK)
+    end
+
     -- Get error details by status code - GET /api/traffic/errors/:code
     if path:match("^traffic/errors/%d+$") then
         local status_code = path:match("^traffic/errors/(%d+)$")
