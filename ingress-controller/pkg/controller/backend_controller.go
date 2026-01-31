@@ -36,18 +36,18 @@ type ConfigUpdater interface {
 
 // BackendConfig represents the config sent to Lua
 type BackendConfig struct {
-	Upstreams      []UpstreamConfig `json:"upstreams"`
-	LoadBalancing  string           `json:"load_balancing"`
-	HealthCheck    *HealthCheckConfig `json:"health_check,omitempty"`
+	Upstreams      []UpstreamConfig      `json:"upstreams"`
+	LoadBalancing  string                `json:"load_balancing"`
+	HealthCheck    *HealthCheckConfig    `json:"health_check,omitempty"`
 	CircuitBreaker *CircuitBreakerConfig `json:"circuit_breaker,omitempty"`
 }
 
 type UpstreamConfig struct {
-	Host         string `json:"host"`
-	Port         int    `json:"port"`
-	Weight       int    `json:"weight,omitempty"`
-	MaxFails     int    `json:"max_fails,omitempty"`
-	FailTimeout  int    `json:"fail_timeout,omitempty"`
+	Host        string `json:"host"`
+	Port        int    `json:"port"`
+	Weight      int    `json:"weight,omitempty"`
+	MaxFails    int    `json:"max_fails,omitempty"`
+	FailTimeout int    `json:"fail_timeout,omitempty"`
 }
 
 type HealthCheckConfig struct {
