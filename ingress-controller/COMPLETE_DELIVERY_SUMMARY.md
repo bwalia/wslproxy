@@ -306,8 +306,8 @@ make status
 ### Required Setup (One-Time)
 
 1. **Add GitHub Secrets**:
-   - `DOCKERHUB_USERNAME` - Your Docker Hub username
-   - `DOCKERHUB_TOKEN` - Docker Hub access token
+   - `DOCKER_USER` - Your Docker Hub username
+   - `DOCKER_PASSWD` - Docker Hub access token
 
 2. **Push to trigger workflow**:
    ```bash
@@ -414,7 +414,7 @@ Every aspect is documented:
 
 ### To Start Using
 
-1. Add GitHub secrets (DOCKERHUB_USERNAME, DOCKERHUB_TOKEN)
+1. Add GitHub secrets (DOCKER_USER, DOCKER_PASSWD)
 2. Push to main branch or create a tag
 3. Watch the magic happen in GitHub Actions!
 

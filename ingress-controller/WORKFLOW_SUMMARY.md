@@ -279,10 +279,10 @@ Same as Job 4 but for OpenResty image.
 
 Set these in: **Repository Settings → Secrets and variables → Actions**
 
-### DOCKERHUB_USERNAME
+### DOCKER_USER
 Your Docker Hub username (e.g., `bwalia`)
 
-### DOCKERHUB_TOKEN
+### DOCKER_PASSWD
 Docker Hub access token:
 1. Login to Docker Hub
 2. Account Settings → Security → New Access Token
@@ -436,7 +436,7 @@ gh run view --log-failed
 ```
 
 **Common issues**:
-1. Missing secrets → Add `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`
+1. Missing secrets → Add `DOCKER_USER` and `DOCKER_PASSWD`
 2. Permission denied → Check Docker Hub token permissions
 3. Out of disk space → GitHub provides 14GB, should be enough
 
@@ -555,7 +555,7 @@ make docker-build
 ## ✅ Checklist for First Release
 
 - [ ] Update CHANGELOG.md
-- [ ] Set GitHub secrets (DOCKERHUB_USERNAME, DOCKERHUB_TOKEN)
+- [ ] Set GitHub secrets (DOCKER_USER, DOCKER_PASSWD)
 - [ ] Test workflow on develop branch
 - [ ] Create release tag: `git tag ingress-v1.0.0`
 - [ ] Push tag: `git push origin ingress-v1.0.0`

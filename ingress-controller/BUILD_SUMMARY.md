@@ -139,8 +139,8 @@ All components have been successfully implemented and are ready for deployment.
   - Lint Helm chart
   - Create GitHub releases with Helm package
 - **Secrets Required**:
-  - `DOCKERHUB_USERNAME`
-  - `DOCKERHUB_TOKEN`
+  - `DOCKER_USER`
+  - `DOCKER_PASSWD`
 
 ### 6. **Documentation** ✅
 

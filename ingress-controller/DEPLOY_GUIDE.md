@@ -482,8 +482,8 @@ curl http://localhost:9090/metrics
 Go to GitHub repository settings → Secrets and variables → Actions:
 
 Add secrets:
-- `DOCKERHUB_USERNAME` - Your Docker Hub username
-- `DOCKERHUB_TOKEN` - Docker Hub access token
+- `DOCKER_USER` - Your Docker Hub username
+- `DOCKER_PASSWD` - Docker Hub access token
 
 #### Step 2: Enable Workflow
 

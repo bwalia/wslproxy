@@ -133,8 +133,8 @@ The project uses GitHub Actions for CI/CD. See `.github/workflows/build-publish-
 
 **Secrets Required:**
 
-- `DOCKERHUB_USERNAME` - Docker Hub username
-- `DOCKERHUB_TOKEN` - Docker Hub access token
+- `DOCKER_USER` - Docker Hub username
+- `DOCKER_PASSWD` - Docker Hub access token
 
 **What it does:**
 
