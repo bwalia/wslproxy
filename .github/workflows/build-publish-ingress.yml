@@ -102,7 +102,7 @@ jobs:
         with:
           version: latest
           working-directory: ingress-controller
-          args: --timeout=5m
+          args: --timeout=5m --verbose
 
   # Job 3: Build Go binary
   build-binary:
