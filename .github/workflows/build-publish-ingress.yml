@@ -152,7 +152,7 @@ jobs:
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4
         with:
-          name: binaries
+          name: binaries-${{ matrix.os }}-${{ matrix.arch }}
           path: ingress-controller/bin/controller-${{ matrix.os }}-${{ matrix.arch }}
 
   # Job 4: Build and push Controller Docker image
