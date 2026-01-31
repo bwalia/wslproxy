@@ -1,0 +1,71 @@
+# WSLProxy Ingress Controller - OpenResty Image
+# This image includes:
+# - OpenResty with Lua support
+# - Dynamic upstream management Lua scripts
+# - HTTP API for controller integration
+# - Health check endpoints
+# - Prometheus metrics
+
+FROM openresty/openresty:1.21.4.3-alpine
+
+LABEL org.opencontainers.image.title="WSLProxy OpenResty" \
+      org.opencontainers.image.description="OpenResty proxy for WSLProxy Ingress Controller with dynamic Lua upstream management" \
+      org.opencontainers.image.vendor="WSLProxy" \
+      org.opencontainers.image.source="https://github.com/wslproxy/wslproxy" \
+      org.opencontainers.image.licenses="Apache-2.0"
+
+# Install required packages
+RUN apk add --no-cache \
+    curl \
+    ca-certificates \
+    tzdata \
+    git \
+    && rm -rf /var/cache/apk/*
+
+# Install Lua modules manually from GitHub (more reliable than opm)
+RUN mkdir -p /tmp/lua-modules && cd /tmp/lua-modules \
+    # lua-resty-http
+    && curl -L https://github.com/ledgetech/lua-resty-http/archive/refs/tags/v0.17.1.tar.gz | tar xz \
+    && cp -r lua-resty-http-0.17.1/lib/resty/* /usr/local/openresty/lualib/resty/ \
+    # lua-resty-balancer
+    && curl -L https://github.com/openresty/lua-resty-balancer/archive/refs/tags/v0.05.tar.gz | tar xz \
+    && cp -r lua-resty-balancer-0.05/lib/resty/* /usr/local/openresty/lualib/resty/ \
+    # lua-resty-session
+    && curl -L https://github.com/bungle/lua-resty-session/archive/refs/tags/v4.0.5.tar.gz | tar xz \
+    && cp -r lua-resty-session-4.0.5/lib/resty/* /usr/local/openresty/lualib/resty/ \
+    # Cleanup
+    && cd / && rm -rf /tmp/lua-modules \
+    && apk del git
+
+# Create necessary directories
+RUN mkdir -p \
+    /usr/local/openresty/nginx/lua/upstream \
+    /usr/local/openresty/nginx/lua/api \
+    /usr/local/openresty/nginx/lua/metrics \
+    /var/cache/nginx \
+    /var/run/nginx \
+    && chown -R nobody:nobody \
+    /usr/local/openresty/nginx/lua \
+    /var/cache/nginx \
+    /var/run/nginx
+
+# Copy Lua scripts
+COPY lua/upstream/dynamic_upstream.lua /usr/local/openresty/nginx/lua/upstream/
+COPY lua/api/ /usr/local/openresty/nginx/lua/api/
+COPY lua/metrics/ /usr/local/openresty/nginx/lua/metrics/
+
+# Copy nginx configuration
+COPY deploy/openresty/nginx.conf /usr/local/openresty/nginx/conf/nginx.conf
+
+# Expose ports
+EXPOSE 80 443 8080
+
+# Health check
+HEALTHCHECK --interval=10s --timeout=3s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:8080/healthz || exit 1
+
+# Run as nobody user
+USER nobody:nobody
+
+# Start OpenResty
+CMD ["/usr/local/openresty/bin/openresty", "-g", "daemon off;"]

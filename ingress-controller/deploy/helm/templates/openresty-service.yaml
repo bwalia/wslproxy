@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "wslproxy.fullname" . }}-openresty
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "wslproxy.labels" . | nindent 4 }}
+    app.kubernetes.io/component: proxy
+  {{- with .Values.openresty.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.openresty.service.type }}
+  {{- if .Values.openresty.service.externalTrafficPolicy }}
+  externalTrafficPolicy: {{ .Values.openresty.service.externalTrafficPolicy }}
+  {{- end }}
+  ports:
+  - name: http
+    port: {{ .Values.openresty.service.ports.http }}
+    targetPort: http
+    protocol: TCP
+  - name: https
+    port: {{ .Values.openresty.service.ports.https }}
+    targetPort: https
+    protocol: TCP
+  - name: api
+    port: 8080
+    targetPort: api
+    protocol: TCP
+  selector:
+    {{- include "wslproxy.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: proxy

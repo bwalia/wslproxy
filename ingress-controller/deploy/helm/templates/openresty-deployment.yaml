@@ -1,0 +1,96 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "wslproxy.fullname" . }}-openresty
+  labels:
+    {{- include "wslproxy.labels" . | nindent 4 }}
+    app.kubernetes.io/component: proxy
+spec:
+  replicas: {{ .Values.openresty.replicas }}
+  selector:
+    matchLabels:
+      {{- include "wslproxy.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: proxy
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/openresty-configmap.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "wslproxy.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: proxy
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: openresty
+        image: "{{ .Values.openresty.image.repository }}:{{ .Values.openresty.image.tag }}"
+        imagePullPolicy: {{ .Values.openresty.image.pullPolicy }}
+        ports:
+        - name: http
+          containerPort: 80
+          protocol: TCP
+        - name: https
+          containerPort: 443
+          protocol: TCP
+        - name: api
+          containerPort: 8080
+          protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        resources:
+          {{- toYaml .Values.openresty.resources | nindent 10 }}
+        securityContext:
+          {{- toYaml .Values.openresty.securityContext | nindent 10 }}
+        volumeMounts:
+        - name: nginx-config
+          mountPath: /usr/local/openresty/nginx/conf/nginx.conf
+          subPath: nginx.conf
+          readOnly: true
+        - name: lua-scripts
+          mountPath: /usr/local/openresty/nginx/lua
+          readOnly: true
+        - name: cache
+          mountPath: /var/cache/nginx
+        - name: run
+          mountPath: /var/run
+      volumes:
+      - name: nginx-config
+        configMap:
+          name: {{ include "wslproxy.fullname" . }}-openresty-config
+      - name: lua-scripts
+        configMap:
+          name: {{ include "wslproxy.fullname" . }}-lua-scripts
+      - name: cache
+        emptyDir: {}
+      - name: run
+        emptyDir: {}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

@@ -1,0 +1,129 @@
+{{- if .Values.rbac.create -}}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "wslproxy.fullname" . }}
+  labels:
+    {{- include "wslproxy.labels" . | nindent 4 }}
+rules:
+# Watch WSLProxy CRDs
+- apiGroups:
+  - wslproxy.io
+  resources:
+  - wslproxybackends
+  - wslproxyroutes
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - wslproxy.io
+  resources:
+  - wslproxybackends/status
+  - wslproxyroutes/status
+  verbs:
+  - get
+  - update
+  - patch
+- apiGroups:
+  - wslproxy.io
+  resources:
+  - wslproxybackends/finalizers
+  - wslproxyroutes/finalizers
+  verbs:
+  - update
+# Watch standard Ingress resources
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - ingresses
+  - ingressclasses
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - ingresses/status
+  verbs:
+  - update
+# Watch Services and Endpoints
+- apiGroups:
+  - ""
+  resources:
+  - services
+  - endpoints
+  verbs:
+  - get
+  - list
+  - watch
+# Watch EndpointSlices
+- apiGroups:
+  - discovery.k8s.io
+  resources:
+  - endpointslices
+  verbs:
+  - get
+  - list
+  - watch
+# Watch Secrets (for TLS)
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+  - list
+  - watch
+# Watch cert-manager Certificates
+- apiGroups:
+  - cert-manager.io
+  resources:
+  - certificates
+  verbs:
+  - get
+  - list
+  - watch
+# Create events
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+# Leader election
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "wslproxy.fullname" . }}
+  labels:
+    {{- include "wslproxy.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "wslproxy.fullname" . }}
+subjects:
+- kind: ServiceAccount
+  name: {{ include "wslproxy.serviceAccountName" . }}
+  namespace: {{ .Release.Namespace }}
+{{- end }}

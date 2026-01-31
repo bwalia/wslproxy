@@ -1,0 +1,40 @@
+{{- if and .Values.observability.prometheus.enabled .Values.observability.prometheus.serviceMonitor.enabled }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "wslproxy.fullname" . }}-controller
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "wslproxy.labels" . | nindent 4 }}
+    app.kubernetes.io/component: controller
+spec:
+  selector:
+    matchLabels:
+      {{- include "wslproxy.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: controller
+  endpoints:
+  - port: metrics
+    interval: {{ .Values.observability.prometheus.serviceMonitor.interval }}
+    scrapeTimeout: {{ .Values.observability.prometheus.serviceMonitor.scrapeTimeout }}
+    path: /metrics
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "wslproxy.fullname" . }}-openresty
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "wslproxy.labels" . | nindent 4 }}
+    app.kubernetes.io/component: proxy
+spec:
+  selector:
+    matchLabels:
+      {{- include "wslproxy.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: proxy
+  endpoints:
+  - port: api
+    interval: {{ .Values.observability.prometheus.serviceMonitor.interval }}
+    scrapeTimeout: {{ .Values.observability.prometheus.serviceMonitor.scrapeTimeout }}
+    path: /metrics
+{{- end }}
