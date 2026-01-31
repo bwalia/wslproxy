@@ -122,6 +122,14 @@ http {
             ngx.log(ngx.WARN, "Prometheus metrics module not available: ", tostring(metrics))
         end
 
+        -- Initialize log interceptor for tracking log level metrics
+        local log_int_ok, log_interceptor = pcall(require, "log_interceptor")
+        if log_int_ok then
+            log_interceptor.init()
+        else
+            ngx.log(ngx.WARN, "log_interceptor module not available: ", tostring(log_interceptor))
+        end
+
         -- Initialize upstream health checks
         local hc_init_ok, hc_init = pcall(require, "healthcheck_init")
         if hc_init_ok then
