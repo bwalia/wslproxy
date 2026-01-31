@@ -72,6 +72,92 @@ WSLProxy Ingress Controller is a high-performance, production-ready Kubernetes I
 └─────────────────────────────────────────────────────────────┘
 ```
 
+### Why Two Docker Images?
+
+The WSLProxy Ingress Controller uses a **two-component architecture** that separates the control plane from the data plane:
+
+#### 1. Controller Image: `bwalia/wslproxy-ingress-controller`
+**Role:** Kubernetes Control Plane (Brain)
+
+This is a **Go-based Kubernetes controller** that:
+- Watches Kubernetes API for changes to CRDs (WSLProxyBackend, WSLProxyRoute, Ingress)
+- Reconciles desired state with actual state
+- Translates Kubernetes resources into OpenResty configuration
+- Pushes configuration updates to OpenResty pods via HTTP API
+- Manages leader election for high availability
+- Reports status back to Kubernetes
+
+**When it runs:** Continuously as a Kubernetes Deployment
+**Handles:** Configuration management and Kubernetes integration
+**Does NOT handle:** Actual HTTP traffic
+
+#### 2. OpenResty Image: `bwalia/wslproxy-openresty-ingress`
+**Role:** Data Plane (Traffic Handler)
+
+This is an **OpenResty (NGINX + Lua) proxy** that:
+- Handles all incoming HTTP/HTTPS traffic
+- Implements dynamic load balancing with Lua scripts
+- Performs health checks on upstream servers
+- Routes requests based on configuration from the Controller
+- Exposes HTTP API for dynamic configuration updates (no restarts needed)
+- Collects and exports Prometheus metrics
+
+**When it runs:** As a DaemonSet or Deployment with LoadBalancer/NodePort Service
+**Handles:** All production traffic
+**Does NOT handle:** Kubernetes API interaction
+
+### Benefits of This Architecture
+
+✅ **Separation of Concerns**
+- Controller can be updated without affecting traffic handling
+- OpenResty can be scaled independently based on traffic load
+- Different resource requirements (Controller: CPU for reconciliation, OpenResty: Memory for connections)
+
+✅ **Zero-Downtime Updates**
+- Configuration changes don't require OpenResty restarts
+- Controller updates don't impact traffic
+- Lua-based dynamic upstream management keeps connections alive
+
+✅ **Production Best Practices**
+- Follows Kubernetes operator pattern
+- Matches industry-standard ingress controller design (similar to NGINX Ingress, Kong, etc.)
+- Clear failure domains and troubleshooting boundaries
+
+✅ **Scalability**
+- Run 1 Controller replica (or 3 for HA)
+- Scale OpenResty replicas to 10+ based on traffic
+- Efficient resource utilization
+
+### Deployment Model
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  Controller Pod (1-3 replicas)                          │
+│  Image: bwalia/wslproxy-ingress-controller:1.0.0        │
+│  Resources: ~200Mi memory, ~100m CPU                    │
+│  Role: Configuration Management                         │
+└────────────────────┬────────────────────────────────────┘
+                     │ HTTP API
+                     │ (config updates)
+                     ▼
+┌─────────────────────────────────────────────────────────┐
+│  OpenResty Pods (N replicas)                            │
+│  Image: bwalia/wslproxy-openresty-ingress:1.0.0         │
+│  Resources: ~512Mi memory, ~500m CPU per replica        │
+│  Role: Traffic Handling                                 │
+│  Service: LoadBalancer (receives external traffic)      │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Quick Image Summary
+
+| Image | Purpose | Contains | Typical Replicas |
+|-------|---------|----------|------------------|
+| `bwalia/wslproxy-ingress-controller` | Control Plane | Go binary, Kubernetes client libraries | 1-3 (HA) |
+| `bwalia/wslproxy-openresty-ingress` | Data Plane | OpenResty, Lua scripts, HTTP API | 2-10+ (traffic-based) |
+
+Both images are required for a functioning ingress controller setup.
+
 ## Quick Start
 
 ### Prerequisites
