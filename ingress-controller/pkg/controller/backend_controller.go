@@ -15,7 +15,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	wslproxyv1alpha1 "wslproxy/ingress-controller/pkg/apis/wslproxy/v1alpha1"
+	wslproxyv1alpha1 "github.com/wslproxy/wslproxy/ingress-controller/pkg/apis/wslproxy/v1alpha1"
 )
 
 // WSLProxyBackendReconciler reconciles a WSLProxyBackend object

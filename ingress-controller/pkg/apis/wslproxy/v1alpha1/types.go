@@ -5,6 +5,7 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 // WSLProxyBackendSpec defines the desired state of WSLProxyBackend
@@ -335,6 +336,269 @@ type WSLProxyRouteList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []WSLProxyRoute `json:"items"`
+}
+
+// DeepCopyObject implements runtime.Object interface for WSLProxyBackend
+func (in *WSLProxyBackend) DeepCopyObject() runtime.Object {
+	if c := in.DeepCopy(); c != nil {
+		return c
+	}
+	return nil
+}
+
+// DeepCopy creates a deep copy of WSLProxyBackend
+func (in *WSLProxyBackend) DeepCopy() *WSLProxyBackend {
+	if in == nil {
+		return nil
+	}
+	out := new(WSLProxyBackend)
+	in.DeepCopyInto(out)
+	return out
+}
+
+// DeepCopyInto copies all properties of this object into another object of the same type
+func (in *WSLProxyBackend) DeepCopyInto(out *WSLProxyBackend) {
+	*out = *in
+	out.TypeMeta = in.TypeMeta
+	in.ObjectMeta.DeepCopyInto(&out.ObjectMeta)
+	in.Spec.DeepCopyInto(&out.Spec)
+	in.Status.DeepCopyInto(&out.Status)
+}
+
+// DeepCopyObject implements runtime.Object interface for WSLProxyBackendList
+func (in *WSLProxyBackendList) DeepCopyObject() runtime.Object {
+	if c := in.DeepCopy(); c != nil {
+		return c
+	}
+	return nil
+}
+
+// DeepCopy creates a deep copy of WSLProxyBackendList
+func (in *WSLProxyBackendList) DeepCopy() *WSLProxyBackendList {
+	if in == nil {
+		return nil
+	}
+	out := new(WSLProxyBackendList)
+	in.DeepCopyInto(out)
+	return out
+}
+
+// DeepCopyInto copies all properties of this object into another object of the same type
+func (in *WSLProxyBackendList) DeepCopyInto(out *WSLProxyBackendList) {
+	*out = *in
+	out.TypeMeta = in.TypeMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
+	if in.Items != nil {
+		in, out := &in.Items, &out.Items
+		*out = make([]WSLProxyBackend, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
+}
+
+// DeepCopyObject implements runtime.Object interface for WSLProxyRoute
+func (in *WSLProxyRoute) DeepCopyObject() runtime.Object {
+	if c := in.DeepCopy(); c != nil {
+		return c
+	}
+	return nil
+}
+
+// DeepCopy creates a deep copy of WSLProxyRoute
+func (in *WSLProxyRoute) DeepCopy() *WSLProxyRoute {
+	if in == nil {
+		return nil
+	}
+	out := new(WSLProxyRoute)
+	in.DeepCopyInto(out)
+	return out
+}
+
+// DeepCopyInto copies all properties of this object into another object of the same type
+func (in *WSLProxyRoute) DeepCopyInto(out *WSLProxyRoute) {
+	*out = *in
+	out.TypeMeta = in.TypeMeta
+	in.ObjectMeta.DeepCopyInto(&out.ObjectMeta)
+	in.Spec.DeepCopyInto(&out.Spec)
+	in.Status.DeepCopyInto(&out.Status)
+}
+
+// DeepCopyObject implements runtime.Object interface for WSLProxyRouteList
+func (in *WSLProxyRouteList) DeepCopyObject() runtime.Object {
+	if c := in.DeepCopy(); c != nil {
+		return c
+	}
+	return nil
+}
+
+// DeepCopy creates a deep copy of WSLProxyRouteList
+func (in *WSLProxyRouteList) DeepCopy() *WSLProxyRouteList {
+	if in == nil {
+		return nil
+	}
+	out := new(WSLProxyRouteList)
+	in.DeepCopyInto(out)
+	return out
+}
+
+// DeepCopyInto copies all properties of this object into another object of the same type
+func (in *WSLProxyRouteList) DeepCopyInto(out *WSLProxyRouteList) {
+	*out = *in
+	out.TypeMeta = in.TypeMeta
+	in.ListMeta.DeepCopyInto(&out.ListMeta)
+	if in.Items != nil {
+		in, out := &in.Items, &out.Items
+		*out = make([]WSLProxyRoute, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
+}
+
+// DeepCopyInto for WSLProxyBackendSpec
+func (in *WSLProxyBackendSpec) DeepCopyInto(out *WSLProxyBackendSpec) {
+	*out = *in
+	if in.Upstreams != nil {
+		in, out := &in.Upstreams, &out.Upstreams
+		*out = make([]Upstream, len(*in))
+		copy(*out, *in)
+	}
+	if in.HealthCheck != nil {
+		in, out := &in.HealthCheck, &out.HealthCheck
+		*out = new(HealthCheck)
+		**out = **in
+	}
+	if in.CircuitBreaker != nil {
+		in, out := &in.CircuitBreaker, &out.CircuitBreaker
+		*out = new(CircuitBreaker)
+		**out = **in
+	}
+	if in.Timeout != nil {
+		in, out := &in.Timeout, &out.Timeout
+		*out = new(Timeout)
+		**out = **in
+	}
+	if in.Retries != nil {
+		in, out := &in.Retries, &out.Retries
+		*out = new(RetryPolicy)
+		**out = **in
+	}
+}
+
+// DeepCopyInto for WSLProxyBackendStatus
+func (in *WSLProxyBackendStatus) DeepCopyInto(out *WSLProxyBackendStatus) {
+	*out = *in
+	in.LastUpdated.DeepCopyInto(&out.LastUpdated)
+	if in.Conditions != nil {
+		in, out := &in.Conditions, &out.Conditions
+		*out = make([]metav1.Condition, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
+}
+
+// DeepCopyInto for WSLProxyRouteSpec
+func (in *WSLProxyRouteSpec) DeepCopyInto(out *WSLProxyRouteSpec) {
+	*out = *in
+	if in.Paths != nil {
+		in, out := &in.Paths, &out.Paths
+		*out = make([]PathRule, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
+	if in.TLS != nil {
+		in, out := &in.TLS, &out.TLS
+		*out = new(TLSConfig)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.Headers != nil {
+		in, out := &in.Headers, &out.Headers
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
+	if in.TrafficSplit != nil {
+		in, out := &in.TrafficSplit, &out.TrafficSplit
+		*out = new(TrafficSplit)
+		**out = **in
+	}
+	if in.RateLimit != nil {
+		in, out := &in.RateLimit, &out.RateLimit
+		*out = new(RateLimit)
+		(*in).DeepCopyInto(*out)
+	}
+	if in.CORS != nil {
+		in, out := &in.CORS, &out.CORS
+		*out = new(CORS)
+		(*in).DeepCopyInto(*out)
+	}
+}
+
+// DeepCopyInto for PathRule
+func (in *PathRule) DeepCopyInto(out *PathRule) {
+	*out = *in
+	if in.Rewrite != nil {
+		in, out := &in.Rewrite, &out.Rewrite
+		*out = new(Rewrite)
+		**out = **in
+	}
+}
+
+// DeepCopyInto for TLSConfig
+func (in *TLSConfig) DeepCopyInto(out *TLSConfig) {
+	*out = *in
+	if in.CipherSuites != nil {
+		in, out := &in.CipherSuites, &out.CipherSuites
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
+}
+
+// DeepCopyInto for RateLimit
+func (in *RateLimit) DeepCopyInto(out *RateLimit) {
+	*out = *in
+}
+
+// DeepCopyInto for CORS
+func (in *CORS) DeepCopyInto(out *CORS) {
+	*out = *in
+	if in.AllowOrigins != nil {
+		in, out := &in.AllowOrigins, &out.AllowOrigins
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
+	if in.AllowMethods != nil {
+		in, out := &in.AllowMethods, &out.AllowMethods
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
+	if in.AllowHeaders != nil {
+		in, out := &in.AllowHeaders, &out.AllowHeaders
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
+	if in.ExposeHeaders != nil {
+		in, out := &in.ExposeHeaders, &out.ExposeHeaders
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
+}
+
+// DeepCopyInto for WSLProxyRouteStatus
+func (in *WSLProxyRouteStatus) DeepCopyInto(out *WSLProxyRouteStatus) {
+	*out = *in
+	in.LastUpdated.DeepCopyInto(&out.LastUpdated)
+	if in.Conditions != nil {
+		in, out := &in.Conditions, &out.Conditions
+		*out = make([]metav1.Condition, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
 }
 
 func init() {

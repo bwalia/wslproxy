@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"os"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -14,8 +13,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
-	wslproxyv1alpha1 "wslproxy/ingress-controller/pkg/apis/wslproxy/v1alpha1"
-	"wslproxy/ingress-controller/pkg/controller"
+	wslproxyv1alpha1 "github.com/wslproxy/wslproxy/ingress-controller/pkg/apis/wslproxy/v1alpha1"
+	"github.com/wslproxy/wslproxy/ingress-controller/pkg/controller"
 )
 
 var (
