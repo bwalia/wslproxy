@@ -1,1 +1,11 @@
+# Build artifacts
 controller
+bin/
+dist/
+*.test
+*.out
+coverage.html
+
+# IDE
+.vscode/
+.idea/
