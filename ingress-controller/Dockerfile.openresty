@@ -14,16 +14,18 @@ LABEL org.opencontainers.image.title="WSLProxy OpenResty" \
       org.opencontainers.image.source="https://github.com/wslproxy/wslproxy" \
       org.opencontainers.image.licenses="Apache-2.0"
 
-# Install required packages and Lua modules
+# Install required packages
 RUN apk add --no-cache \
     curl \
     ca-certificates \
     tzdata \
     perl \
-    && /usr/local/openresty/bin/opm get ledgetech/lua-resty-http \
-    && /usr/local/openresty/bin/opm get openresty/lua-resty-balancer \
-    && /usr/local/openresty/bin/opm get bungle/lua-resty-session \
     && rm -rf /var/cache/apk/*
+
+# Install Lua modules using opm
+RUN /usr/local/openresty/bin/opm get ledgetech/lua-resty-http \
+    && /usr/local/openresty/bin/opm get openresty/lua-resty-balancer \
+    && /usr/local/openresty/bin/opm get bungle/lua-resty-session
 
 # Create necessary directories
 RUN mkdir -p \
