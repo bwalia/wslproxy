@@ -19,9 +19,9 @@ RUN apk add --no-cache \
     curl \
     ca-certificates \
     tzdata \
-    && opm get ledgetech/lua-resty-http \
-    && opm get openresty/lua-resty-balancer \
-    && opm get bungle/lua-resty-session \
+    && /usr/local/openresty/bin/opm get ledgetech/lua-resty-http \
+    && /usr/local/openresty/bin/opm get openresty/lua-resty-balancer \
+    && /usr/local/openresty/bin/opm get bungle/lua-resty-session \
     && rm -rf /var/cache/apk/*
 
 # Create necessary directories
