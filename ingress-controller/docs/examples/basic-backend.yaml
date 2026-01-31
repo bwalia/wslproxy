@@ -1,0 +1,35 @@
+# Example: Basic WSLProxyBackend with round-robin load balancing
+apiVersion: wslproxy.io/v1alpha1
+kind: WSLProxyBackend
+metadata:
+  name: my-api-backend
+  namespace: default
+spec:
+  # Define upstream servers
+  upstreams:
+    - host: api-server-1.default.svc.cluster.local
+      port: 8080
+      weight: 1
+    - host: api-server-2.default.svc.cluster.local
+      port: 8080
+      weight: 1
+    - host: api-server-3.default.svc.cluster.local
+      port: 8080
+      weight: 1
+
+  # Load balancing strategy
+  loadBalancing: round-robin
+
+  # Health check configuration
+  healthCheck:
+    enabled: true
+    interval: 5
+    timeout: 3
+    path: /health
+    expectedStatus: 200
+
+  # Circuit breaker
+  circuitBreaker:
+    enabled: true
+    threshold: 5
+    timeout: 30
