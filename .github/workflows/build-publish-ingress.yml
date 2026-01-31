@@ -208,9 +208,9 @@ jobs:
           tags: |
             type=ref,event=branch
             type=ref,event=pr
-            type=semver,pattern={{version}},enable=${{ startsWith(github.ref, 'refs/tags/') }}
-            type=semver,pattern={{major}}.{{minor}},enable=${{ startsWith(github.ref, 'refs/tags/') }}
-            type=semver,pattern={{major}},enable=${{ startsWith(github.ref, 'refs/tags/') }}
+            type=match,pattern=ingress-v(.*),group=1,enable=${{ startsWith(github.ref, 'refs/tags/ingress-v') }}
+            type=match,pattern=ingress-v(\d+\.\d+),group=1,enable=${{ startsWith(github.ref, 'refs/tags/ingress-v') }}
+            type=match,pattern=ingress-v(\d+),group=1,enable=${{ startsWith(github.ref, 'refs/tags/ingress-v') }}
             type=sha,format=short
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
           labels: |
@@ -225,7 +225,7 @@ jobs:
           context: ./ingress-controller
           file: ./ingress-controller/Dockerfile.controller
           platforms: ${{ env.PLATFORMS }}
-          push: false
+          push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=controller
@@ -239,7 +239,7 @@ jobs:
         if: github.event_name != 'pull_request'
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ env.CONTROLLER_IMAGE }}:${{ steps.version.outputs.version }}
+          image-ref: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
           format: 'sarif'
           output: 'trivy-controller-results.sarif'
 
@@ -299,9 +299,9 @@ jobs:
           tags: |
             type=ref,event=branch
             type=ref,event=pr
-            type=semver,pattern={{version}},enable=${{ startsWith(github.ref, 'refs/tags/') }}
-            type=semver,pattern={{major}}.{{minor}},enable=${{ startsWith(github.ref, 'refs/tags/') }}
-            type=semver,pattern={{major}},enable=${{ startsWith(github.ref, 'refs/tags/') }}
+            type=match,pattern=ingress-v(.*),group=1,enable=${{ startsWith(github.ref, 'refs/tags/ingress-v') }}
+            type=match,pattern=ingress-v(\d+\.\d+),group=1,enable=${{ startsWith(github.ref, 'refs/tags/ingress-v') }}
+            type=match,pattern=ingress-v(\d+),group=1,enable=${{ startsWith(github.ref, 'refs/tags/ingress-v') }}
             type=sha,format=short
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
           labels: |
@@ -316,7 +316,7 @@ jobs:
           context: ./ingress-controller
           file: ./ingress-controller/Dockerfile.openresty
           platforms: ${{ env.PLATFORMS }}
-          push: false
+          push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=openresty
@@ -326,7 +326,7 @@ jobs:
         if: github.event_name != 'pull_request'
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ env.OPENRESTY_IMAGE }}:${{ steps.version.outputs.version }}
+          image-ref: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
           format: 'sarif'
           output: 'trivy-openresty-results.sarif'
 
