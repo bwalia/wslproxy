@@ -2,7 +2,7 @@
     # Hostname: {{ nginx_default_server_hostname }}
     #
     server {
-        listen       80 default_server;
+        listen       80;
         server_name  {{ nginx_default_server_hostname }};
 
        location / {
