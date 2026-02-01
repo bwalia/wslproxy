@@ -60,6 +60,7 @@ spec:
         securityContext:
           {{- toYaml .Values.openresty.securityContext | nindent 10 }}
         volumeMounts:
+        {{- if not .Values.openresty.useBuiltinConfig }}
         - name: nginx-config
           mountPath: /usr/local/openresty/nginx/conf/nginx.conf
           subPath: nginx.conf
@@ -67,21 +68,59 @@ spec:
         - name: lua-scripts
           mountPath: /usr/local/openresty/nginx/lua
           readOnly: true
+        {{- end }}
         - name: cache
           mountPath: /var/cache/nginx
         - name: run
-          mountPath: /var/run
+          mountPath: /var/run/nginx
+        - name: nginx-temp
+          mountPath: /usr/local/openresty/nginx/client_body_temp
+        - name: nginx-proxy-temp
+          mountPath: /usr/local/openresty/nginx/proxy_temp
+        - name: nginx-fastcgi-temp
+          mountPath: /usr/local/openresty/nginx/fastcgi_temp
+        - name: nginx-uwsgi-temp
+          mountPath: /usr/local/openresty/nginx/uwsgi_temp
+        - name: nginx-scgi-temp
+          mountPath: /usr/local/openresty/nginx/scgi_temp
+        {{- if not .Values.certManager.enabled }}
+        - name: default-tls
+          mountPath: /etc/nginx/ssl
+          readOnly: true
+        {{- end }}
       volumes:
+      {{- if not .Values.openresty.useBuiltinConfig }}
       - name: nginx-config
         configMap:
           name: {{ include "wslproxy.fullname" . }}-openresty-config
       - name: lua-scripts
         configMap:
           name: {{ include "wslproxy.fullname" . }}-lua-scripts
+      {{- end }}
       - name: cache
         emptyDir: {}
       - name: run
         emptyDir: {}
+      - name: nginx-temp
+        emptyDir: {}
+      - name: nginx-proxy-temp
+        emptyDir: {}
+      - name: nginx-fastcgi-temp
+        emptyDir: {}
+      - name: nginx-uwsgi-temp
+        emptyDir: {}
+      - name: nginx-scgi-temp
+        emptyDir: {}
+      {{- if not .Values.certManager.enabled }}
+      - name: default-tls
+        secret:
+          secretName: {{ include "wslproxy.fullname" . }}-default-tls
+          items:
+          - key: tls.crt
+            path: default.crt
+          - key: tls.key
+            path: default.key
+      {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
