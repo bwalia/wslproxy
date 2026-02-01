@@ -28,6 +28,8 @@ import {
   AreaChart,
   Area,
   Legend,
+  BarChart,
+  Bar,
 } from "recharts";
 import { useDataProvider, useNotify } from "react-admin";
 import ServerIcon from "@mui/icons-material/DnsRounded";
