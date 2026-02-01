@@ -133,14 +133,18 @@ const InstanceInfo = () => {
 
         {/* System Resources */}
         <Grid item xs={12} md={6}>
-          <InfoCard title="System Resources" icon={MemoryIcon} isDark={isDark}>
+          <InfoCard title="CPU & Memory" icon={MemoryIcon} isDark={isDark}>
             <Table size="small">
               <TableBody>
                 <InfoRow label="OS" value={instanceInfo.os} />
                 <InfoRow label="Kernel" value={instanceInfo.kernel} mono />
                 <InfoRow label="CPU Model" value={instanceInfo.cpu?.model} />
                 <InfoRow label="CPU Cores" value={instanceInfo.cpu?.cores} />
-                <InfoRow label="Total Memory" value={instanceInfo.memory?.total} />
+                <InfoRow label="CPU Usage" value={`${instanceInfo.cpu?.usage_percent || '0'}%`} />
+                <InfoRow label="Memory Total" value={instanceInfo.memory?.total} />
+                <InfoRow label="Memory Used" value={instanceInfo.memory?.used} />
+                <InfoRow label="Memory Available" value={instanceInfo.memory?.available} />
+                <InfoRow label="Memory Free" value={instanceInfo.memory?.free} />
               </TableBody>
             </Table>
           </InfoCard>
@@ -151,8 +155,10 @@ const InstanceInfo = () => {
           <InfoCard title="Storage" icon={StorageIcon} isDark={isDark}>
             <Table size="small">
               <TableBody>
-                <InfoRow label="Disk Total" value={instanceInfo.memory?.disk_total} />
-                <InfoRow label="Disk Used" value={instanceInfo.memory?.disk_used} />
+                <InfoRow label="Disk Total" value={instanceInfo.disk?.total} />
+                <InfoRow label="Disk Used" value={instanceInfo.disk?.used} />
+                <InfoRow label="Disk Available" value={instanceInfo.disk?.available} />
+                <InfoRow label="Disk Usage" value={instanceInfo.disk?.percent} />
               </TableBody>
             </Table>
           </InfoCard>
