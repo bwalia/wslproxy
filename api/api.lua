@@ -3074,6 +3074,92 @@ local function handle_get_request(args, path)
         ngx.exit(ngx.HTTP_OK)
     end
 
+    -- Get cache statistics - GET /api/cache/stats
+    if path == "cache/stats" then
+        local cache_dict = ngx.shared.wsl_cache
+        local cache_keys_dict = ngx.shared.wsl_cache_keys
+
+        if not cache_dict then
+            ngx.say(cjson.encode({
+                data = {
+                    available = false,
+                    error = "Cache shared dictionary not configured"
+                }
+            }))
+            ngx.exit(ngx.HTTP_OK)
+        end
+
+        -- Get all cache keys and calculate stats
+        local keys = cache_dict:get_keys(0)  -- Get all keys
+        local total_entries = #keys
+        local total_size = 0
+        local entries_by_host = {}
+        local entries_by_extension = {}
+        local top_urls = {}
+
+        for _, key in ipairs(keys) do
+            local value = cache_dict:get(key)
+            if value then
+                -- Calculate size
+                total_size = total_size + #value
+
+                -- Parse key to extract host and URL
+                local host, url = key:match("^([^:]+):(.+)$")
+                if host and url then
+                    -- Count by host
+                    entries_by_host[host] = (entries_by_host[host] or 0) + 1
+
+                    -- Extract extension
+                    local ext = url:match("%.([%w]+)$")
+                    if ext then
+                        entries_by_extension[ext] = (entries_by_extension[ext] or 0) + 1
+                    end
+
+                    -- Add to top URLs list (limit to 50)
+                    if #top_urls < 50 then
+                        table.insert(top_urls, {
+                            url = url,
+                            host = host,
+                            size = #value,
+                            key = key
+                        })
+                    end
+                end
+            end
+        end
+
+        -- Convert to arrays for JSON
+        local hosts_array = {}
+        for host, count in pairs(entries_by_host) do
+            table.insert(hosts_array, {host = host, count = count})
+        end
+        table.sort(hosts_array, function(a, b) return a.count > b.count end)
+
+        local extensions_array = {}
+        for ext, count in pairs(entries_by_extension) do
+            table.insert(extensions_array, {extension = ext, count = count})
+        end
+        table.sort(extensions_array, function(a, b) return a.count > b.count end)
+
+        -- Sort top URLs by size
+        table.sort(top_urls, function(a, b) return a.size > b.size end)
+
+        ngx.say(cjson.encode({
+            data = {
+                available = true,
+                total_entries = total_entries,
+                total_size_bytes = total_size,
+                total_size_mb = math.floor(total_size / 1024 / 1024 * 100) / 100,
+                entries_by_host = hosts_array,
+                entries_by_extension = extensions_array,
+                top_urls = top_urls,
+                cache_dict_capacity = cache_dict:capacity(),
+                cache_dict_free_space = cache_dict:free_space()
+            }
+        }))
+        ngx.exit(ngx.HTTP_OK)
+    end
+
     -- Get error details by status code - GET /api/traffic/errors/:code
     if path:match("^traffic/errors/%d+$") then
         local status_code = path:match("^traffic/errors/(%d+)$")
