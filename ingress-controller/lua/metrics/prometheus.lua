@@ -6,7 +6,10 @@ local _M = { _VERSION = '1.0.0' }
 
 local metrics_dict = ngx.shared.prometheus_metrics
 
--- Create a new Prometheus instance
+-- Initialize metrics table at module level (singleton pattern)
+_M.metrics = {}
+
+-- Create a new Prometheus instance (optional, module can be used directly)
 function _M:new()
     local instance = {
         metrics = {}
