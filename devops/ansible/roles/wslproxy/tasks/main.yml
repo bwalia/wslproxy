@@ -105,7 +105,7 @@
     group: root
     mode: "0644"
   notify: Restart openresty
-  tags: [openresty, lapis, dashboard, nginx]
+  tags: [openresty, lapis, dashboard, nginx, default-server]
 
 - name: Copy openresty bootstrap script
   template:
