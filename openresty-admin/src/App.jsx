@@ -128,6 +128,9 @@ const AppContent = () => {
     [],
   );
 
+  // Memoize dataProvider to prevent recreation on every render
+  const memoizedDataProvider = useMemo(() => dataProvider(API_URL), []);
+
   // Create theme based on current mode
   const theme = useMemo(() => createAppTheme(mode), [mode]);
   const isDark = mode === "dark";
@@ -159,7 +162,7 @@ const AppContent = () => {
       <Admin
         loginPage={Login}
         i18nProvider={i18nProvider}
-        dataProvider={dataProvider(API_URL)}
+        dataProvider={memoizedDataProvider}
         authProvider={authProvider}
         dashboard={Dashboard}
         theme={theme}

@@ -37,17 +37,24 @@ RUN mkdir -p /tmp/lua-modules && cd /tmp/lua-modules \
     && cd / && rm -rf /tmp/lua-modules \
     && apk del git
 
-# Create necessary directories
+# Create necessary directories including nginx temp directories
 RUN mkdir -p \
     /usr/local/openresty/nginx/lua/upstream \
     /usr/local/openresty/nginx/lua/api \
     /usr/local/openresty/nginx/lua/metrics \
+    /usr/local/openresty/nginx/client_body_temp \
+    /usr/local/openresty/nginx/proxy_temp \
+    /usr/local/openresty/nginx/fastcgi_temp \
+    /usr/local/openresty/nginx/uwsgi_temp \
+    /usr/local/openresty/nginx/scgi_temp \
     /var/cache/nginx \
     /var/run/nginx \
+    /etc/nginx/ssl \
     && chown -R nobody:nobody \
-    /usr/local/openresty/nginx/lua \
+    /usr/local/openresty/nginx \
     /var/cache/nginx \
-    /var/run/nginx
+    /var/run/nginx \
+    /etc/nginx
 
 # Copy Lua scripts
 COPY lua/upstream/dynamic_upstream.lua /usr/local/openresty/nginx/lua/upstream/
