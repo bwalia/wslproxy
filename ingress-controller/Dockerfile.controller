@@ -15,13 +15,16 @@ COPY cmd/ cmd/
 COPY pkg/ pkg/
 
 # Build the controller binary
-# CGO_ENABLED=0 for static binary
+# CGO_ENABLED=0 for static binary (pure Go, no C dependencies)
 # -ldflags for stripping debug info and setting version
 ARG VERSION=dev
 ARG COMMIT=unknown
 ARG BUILD_DATE=unknown
 
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+# Use TARGETARCH from docker buildx for multi-arch builds
+ARG TARGETARCH
+
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH:-amd64} go build \
     -a \
     -installsuffix cgo \
     -ldflags="-w -s -X main.Version=${VERSION} -X main.Commit=${COMMIT} -X main.BuildDate=${BUILD_DATE}" \
