@@ -2976,24 +2976,8 @@ local function handle_get_request(args, path)
         ngx.exit(ngx.HTTP_OK)
     end
 
-    -- Get cache statistics - GET /api/cache/stats
-    if path == "cache/stats" then
-        local stats, stats_err = require("cache_handler").get_cache_stats()
-        if stats then
-            ngx.say(cjson.encode({
-                data = stats
-            }))
-        else
-            ngx.say(cjson.encode({
-                data = {
-                    error = stats_err or "Failed to get cache stats"
-                }
-            }))
-        end
-        ngx.exit(ngx.HTTP_OK)
-    end
-
     -- Get server-specific cache statistics - GET /api/cache/stats/{server_name}
+    -- Note: General /api/cache/stats is handled later with comprehensive stats
     if subPath[1] == "cache" and subPath[2] == "stats" and subPath[3] then
         local server_name = subPath[3]
         local stats, stats_err = require("cache_handler").get_server_cache_stats(server_name)
