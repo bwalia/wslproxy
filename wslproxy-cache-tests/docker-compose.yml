@@ -1,0 +1,11 @@
+version: '3.8'
+
+services:
+  cache-test-origin:
+    build: .
+    container_name: wslproxy-cache-test-origin
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+    restart: unless-stopped
