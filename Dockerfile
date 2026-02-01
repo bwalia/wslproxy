@@ -132,7 +132,10 @@ RUN mkdir -p ${NGINX_CONFIG_DIR} && chmod 777 ${NGINX_CONFIG_DIR}
 
 # mc - MinIO Client is used to backup nginx openresty configuration to S3
 # Installed early to be cached (before COPY commands that change frequently)
-RUN wget https://dl.min.io/client/mc/release/linux-amd64/mc -O /usr/local/bin/mc \
+# TARGETARCH is automatically provided by Docker for multi-platform builds (amd64, arm64, etc.)
+ARG TARGETARCH
+RUN ARCH="${TARGETARCH:-amd64}" && \
+    wget https://dl.min.io/client/mc/release/linux-${ARCH}/mc -O /usr/local/bin/mc \
     --tries=3 --timeout=30 && \
     chmod +x /usr/local/bin/mc && \
     mc --version
