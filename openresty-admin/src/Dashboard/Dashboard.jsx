@@ -43,6 +43,8 @@ import SpeedIcon from "@mui/icons-material/SpeedRounded";
 import StorageIcon from "@mui/icons-material/StorageRounded";
 import LanguageIcon from "@mui/icons-material/LanguageRounded";
 import DataUsageIcon from "@mui/icons-material/DataUsageRounded";
+import MemoryIcon from "@mui/icons-material/MemoryRounded";
+import InsertDriveFileIcon from "@mui/icons-material/InsertDriveFileRounded";
 
 import StorageModal from "./StorageModal";
 import Logs from "../component/Logs";
@@ -436,6 +438,16 @@ const Dashboard = () => {
     uptime: "Loading...",
   });
 
+  // Cache stats state
+  const [cacheStats, setCacheStats] = React.useState({
+    available: false,
+    total_entries: 0,
+    total_size_bytes: 0,
+    entries_by_host: [],
+    entries_by_extension: [],
+    top_urls: [],
+  });
+
   const fetchErrorLogs = React.useCallback(() => {
     const logs = dataProvider.getLogs("openresty/error_logs");
     logs.then((log) => {
@@ -523,6 +535,26 @@ const Dashboard = () => {
       });
   }, [dataProvider]);
 
+  const fetchCacheStats = React.useCallback(() => {
+    dataProvider
+      .getCacheStats()
+      .then((response) => {
+        const data = response?.data || {};
+        setCacheStats({
+          available: data.available !== false,
+          total_entries: data.total_entries || 0,
+          total_size_bytes: data.total_size_bytes || 0,
+          entries_by_host: data.entries_by_host || [],
+          entries_by_extension: data.entries_by_extension || [],
+          top_urls: data.top_urls || [],
+        });
+      })
+      .catch((error) => {
+        console.log("Failed to fetch cache stats:", error);
+        setCacheStats({ available: false, total_entries: 0, total_size_bytes: 0 });
+      });
+  }, [dataProvider]);
+
   // Fetch error details when clicking on an error code
   const handleErrorCodeClick = React.useCallback(
     (errorCode) => {
@@ -558,6 +590,7 @@ const Dashboard = () => {
     fetchTrafficStats();
     fetchLogMetrics();
     fetchInstanceInfo();
+    fetchCacheStats();
 
     // Fetch entity counts
     Promise.all([
@@ -2085,6 +2118,228 @@ const Dashboard = () => {
               </Typography>
               <Typography variant="caption" color="text.disabled">
                 Ensure Prometheus metrics are initialized
+              </Typography>
+            </Box>
+          )}
+        </ChartCard>
+      </Box>
+
+      {/* Cache Statistics - Full Width */}
+      <Box sx={{ mb: 3, width: "100%" }}>
+        <ChartCard
+          title="Cache Statistics"
+          subtitle="Static content caching metrics and hit ratios"
+          onRefresh={fetchCacheStats}
+        >
+          {cacheStats.available && cacheStats.total_entries > 0 ? (
+            <Box>
+              {/* Summary Stats */}
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: {
+                    xs: "1fr",
+                    sm: "repeat(2, 1fr)",
+                    md: "repeat(4, 1fr)",
+                  },
+                  gap: 2,
+                  mb: 3,
+                }}
+              >
+                <StatCard
+                  title="Total Cached Items"
+                  value={formatNumber(cacheStats.total_entries)}
+                  icon={StorageIcon}
+                  color="#10b981"
+                  subtitle="Entries in cache"
+                />
+                <StatCard
+                  title="Cache Size"
+                  value={formatBytes(cacheStats.total_size_bytes)}
+                  icon={MemoryIcon}
+                  color="#6366f1"
+                  subtitle="Total cached data"
+                />
+                <StatCard
+                  title="Hosts Cached"
+                  value={formatNumber(cacheStats.entries_by_host?.length || 0)}
+                  icon={ServerIcon}
+                  color="#f59e0b"
+                  subtitle="Unique domains"
+                />
+                <StatCard
+                  title="File Types"
+                  value={formatNumber(cacheStats.entries_by_extension?.length || 0)}
+                  icon={InsertDriveFileIcon}
+                  color="#8b5cf6"
+                  subtitle="Content types"
+                />
+              </Box>
+
+              {/* Cache by Host Chart */}
+              {cacheStats.entries_by_host && cacheStats.entries_by_host.length > 0 && (
+                <Box sx={{ mb: 3 }}>
+                  <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
+                    Cached Entries by Host
+                  </Typography>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={cacheStats.entries_by_host.slice(0, 10)}>
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        stroke={theme.palette.divider}
+                      />
+                      <XAxis
+                        dataKey="host"
+                        stroke={theme.palette.text.secondary}
+                        tick={{ fontSize: 12 }}
+                        angle={-45}
+                        textAnchor="end"
+                        height={80}
+                      />
+                      <YAxis stroke={theme.palette.text.secondary} />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: theme.palette.background.paper,
+                          border: `1px solid ${theme.palette.divider}`,
+                          borderRadius: 8,
+                        }}
+                      />
+                      <Bar dataKey="count" fill="#10b981" radius={[8, 8, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </Box>
+              )}
+
+              {/* Cache by File Extension Chart */}
+              {cacheStats.entries_by_extension && cacheStats.entries_by_extension.length > 0 && (
+                <Box sx={{ mb: 3 }}>
+                  <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
+                    Cached Entries by File Type
+                  </Typography>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={cacheStats.entries_by_extension.slice(0, 10)}>
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        stroke={theme.palette.divider}
+                      />
+                      <XAxis
+                        dataKey="extension"
+                        stroke={theme.palette.text.secondary}
+                        tick={{ fontSize: 12 }}
+                      />
+                      <YAxis stroke={theme.palette.text.secondary} />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: theme.palette.background.paper,
+                          border: `1px solid ${theme.palette.divider}`,
+                          borderRadius: 8,
+                        }}
+                      />
+                      <Bar dataKey="count" fill="#6366f1" radius={[8, 8, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </Box>
+              )}
+
+              {/* Top Cached URLs */}
+              {cacheStats.top_urls && cacheStats.top_urls.length > 0 && (
+                <Box>
+                  <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
+                    Top Cached URLs
+                  </Typography>
+                  <Box
+                    sx={{
+                      maxHeight: 300,
+                      overflowY: "auto",
+                      borderRadius: 2,
+                      backgroundColor: alpha(theme.palette.background.default, 0.5),
+                      p: 2,
+                    }}
+                  >
+                    {cacheStats.top_urls.slice(0, 20).map((item, index) => (
+                      <Box
+                        key={index}
+                        sx={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          p: 1.5,
+                          mb: 1,
+                          borderRadius: 1,
+                          backgroundColor: theme.palette.background.paper,
+                          border: `1px solid ${theme.palette.divider}`,
+                        }}
+                      >
+                        <Box sx={{ flex: 1, mr: 2 }}>
+                          <Typography
+                            variant="body2"
+                            fontWeight={500}
+                            sx={{
+                              fontFamily: "JetBrains Mono, monospace",
+                              fontSize: "0.8rem",
+                            }}
+                          >
+                            {item.host}
+                          </Typography>
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{
+                              fontFamily: "JetBrains Mono, monospace",
+                              fontSize: "0.7rem",
+                            }}
+                          >
+                            {item.url}
+                          </Typography>
+                        </Box>
+                        <Typography
+                          variant="body2"
+                          fontWeight={600}
+                          color="primary"
+                        >
+                          {formatBytes(item.size)}
+                        </Typography>
+                      </Box>
+                    ))}
+                  </Box>
+                </Box>
+              )}
+            </Box>
+          ) : (
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                py: 6,
+                gap: 2,
+              }}
+            >
+              <Box
+                sx={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: 2,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backgroundColor: alpha(theme.palette.info.main, 0.1),
+                }}
+              >
+                <StorageIcon
+                  sx={{ fontSize: 32, color: theme.palette.info.main }}
+                />
+              </Box>
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                fontWeight={500}
+              >
+                No cached items yet
+              </Typography>
+              <Typography variant="caption" color="text.disabled">
+                Cache will populate as static content is served
               </Typography>
             </Box>
           )}
