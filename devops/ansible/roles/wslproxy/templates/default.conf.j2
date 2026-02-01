@@ -1,0 +1,12 @@
+    # Default server configuration
+    # Hostname: {{ nginx_default_server_hostname }}
+    #
+    server {
+        listen       80 default_server;
+        server_name  {{ nginx_default_server_hostname }};
+
+       location / {
+           root   html;
+           index  index.html index.htm;
+       }
+    }
