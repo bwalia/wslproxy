@@ -1,5 +1,9 @@
 nginx_port: 80
 
+# Default server hostname for nginx
+# Override this in host_vars or group_vars for each environment
+nginx_default_server_hostname: "_"
+
 # Dashboard version and build information
 # These values are used by the React dashboard footer
 # Source of truth: system/app.json

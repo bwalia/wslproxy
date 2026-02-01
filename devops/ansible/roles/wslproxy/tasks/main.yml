@@ -97,6 +97,16 @@
     mode: "0644"
   tags: [openresty, lapis, dashboard, nginx]
 
+- name: Template default server configuration
+  template:
+    src: default.conf.j2
+    dest: /opt/nginx/conf.d/default.conf
+    owner: "www-data"
+    group: root
+    mode: "0644"
+  notify: Restart openresty
+  tags: [openresty, lapis, dashboard, nginx, default-server]
+
 - name: Copy openresty bootstrap script
   template:
     src: openresty.sh.j2
