@@ -165,6 +165,7 @@ jobs:
       contents: read
       packages: write
       id-token: write
+      security-events: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -245,6 +246,7 @@ jobs:
 
       - name: Upload Trivy results to GitHub Security
         if: github.event_name != 'pull_request'
+        continue-on-error: true
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: 'trivy-controller-results.sarif'
@@ -258,6 +260,7 @@ jobs:
       contents: read
       packages: write
       id-token: write
+      security-events: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -332,6 +335,7 @@ jobs:
 
       - name: Upload Trivy results to GitHub Security
         if: github.event_name != 'pull_request'
+        continue-on-error: true
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: 'trivy-openresty-results.sarif'
