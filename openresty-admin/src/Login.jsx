@@ -327,7 +327,23 @@ const Login = () => {
         }}
       >
         <Typography variant="caption" sx={{ color: colors.textSecondary }}>
-          © 2024 WSL Proxy. All rights reserved.
+          © {new Date().getFullYear()}{' '}
+          <Link
+            href="https://wslproxy.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            sx={{
+              color: colors.textSecondary,
+              textDecoration: 'none',
+              '&:hover': {
+                color: colors.primary,
+                textDecoration: 'underline',
+              },
+            }}
+          >
+            WSL Proxy
+          </Link>
+          . All rights reserved.
         </Typography>
       </Box>
       
