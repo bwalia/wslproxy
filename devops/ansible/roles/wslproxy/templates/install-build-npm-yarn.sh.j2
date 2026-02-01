@@ -36,6 +36,9 @@ fi
 cat > /usr/local/openresty/nginx/html/openresty-admin/.env << EOF
 VITE_API_URL=${CONTROL_PLANE_API_URL}
 VITE_FRONT_URL=${FRONT_URL}
+VITE_APP_VERSION={{ wslproxy_version | default('1.0.0') }}
+VITE_APP_BUILD_NUMBER={{ wslproxy_build_number | default('unknown') }}
+VITE_DEPLOYMENT_TIME={{ wslproxy_deployment_time | default(ansible_date_time.iso8601) }}
 EOF
 
 # Also copy original .env if it exists for reference
@@ -56,5 +59,10 @@ yarn install
 # Export variables for the build process
 export VITE_API_URL="${CONTROL_PLANE_API_URL}"
 export VITE_FRONT_URL="${FRONT_URL}"
+
+# Export version, build, and deployment time for dashboard footer
+export VITE_APP_VERSION="{{ wslproxy_version | default('1.0.0') }}"
+export VITE_APP_BUILD_NUMBER="{{ wslproxy_build_number | default('unknown') }}"
+export VITE_DEPLOYMENT_TIME="{{ wslproxy_deployment_time | default(ansible_date_time.iso8601) }}"
 
 yarn build

@@ -1,1 +1,8 @@
 nginx_port: 80
+
+# Dashboard version and build information
+# These values are used by the React dashboard footer
+# Override these in host_vars or group_vars as needed
+wslproxy_version: "{{ lookup('pipe', 'cd ' + playbook_dir + '/../.. && git describe --tags --always 2>/dev/null || echo \"1.0.0\"') }}"
+wslproxy_build_number: "{{ lookup('pipe', 'cd ' + playbook_dir + '/../.. && git rev-parse --short HEAD 2>/dev/null || echo \"unknown\"') }}"
+wslproxy_deployment_time: "{{ ansible_date_time.iso8601 }}"
