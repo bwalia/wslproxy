@@ -691,6 +691,38 @@ const dataProvider = (apiUrl, settings = {}) => {
       }
     },
 
+    getInstanceInfo: async () => {
+      try {
+        setIsLoadig(true);
+        const timestamp = Date.now();
+        const url = `${apiUrl}/instance/info?timestamp=${timestamp}`;
+        const response = await fetch(url, {
+          method: "GET",
+          headers: getHeaders(),
+        });
+        const data = await response.json();
+        if (response.status < 200 && response.status !== 401) {
+          setIsLoadig(false);
+          return Promise.reject(data.error);
+        }
+        if (response.status === 401) {
+          setIsLoadig(false);
+          localStorage.removeItem("token");
+          localStorage.removeItem("uuid_business_id");
+          window.location.href = "/#/login";
+        }
+        if (response.status === 200) {
+          setIsLoadig(false);
+          return data;
+        }
+        setIsLoadig(false);
+      } catch (error) {
+        console.log(error);
+        setIsLoadig(false);
+        return { data: { hostname: "unknown", ip_addresses: [], os: "unknown" } };
+      }
+    },
+
     checkORStatus: async (resource, params) => {
       try {
         setIsLoadig(true);

@@ -39,6 +39,7 @@ import { Puff } from "react-loader-spinner";
 import CheckModal from "./component/CheckModal";
 import { Route } from "react-router";
 import ResetForm from "./component/ResetForm";
+import InstanceInfo from "./Instances/InstanceInfo";
 
 const API_URL = import.meta.env.VITE_API_URL;
 const deploymentTime = import.meta.env.VITE_DEPLOYMENT_TIME;
@@ -176,6 +177,7 @@ const AppContent = () => {
         <Resource name="instances" {...Instances} icon={InstanceIcon} />
         <CustomRoutes>
           <Route path="/password/reset" element={<ResetForm />} />
+          <Route path="/instance-info" element={<InstanceInfo />} />
         </CustomRoutes>
       </Admin>
       <VersionFooter />

@@ -3011,6 +3011,90 @@ local function handle_get_request(args, path)
         ngx.exit(ngx.HTTP_OK)
     end
 
+    -- Get instance/server information - GET /api/instance/info
+    if path == "instance/info" then
+        local function execute_command(cmd)
+            local handle = io.popen(cmd)
+            if not handle then return nil end
+            local result = handle:read("*a")
+            handle:close()
+            return result
+        end
+
+        local function get_ip_addresses()
+            local ips = {}
+            local ip_cmd = execute_command("hostname -I 2>/dev/null || ip addr show 2>/dev/null | grep 'inet ' | awk '{print $2}' | cut -d/ -f1")
+            if ip_cmd then
+                for ip in ip_cmd:gmatch("%S+") do
+                    table.insert(ips, ip)
+                end
+            end
+            return ips
+        end
+
+        local function get_network_interfaces()
+            local interfaces = {}
+            local if_cmd = execute_command("ip -brief addr show 2>/dev/null || ifconfig -a 2>/dev/null")
+            if if_cmd then
+                for line in if_cmd:gmatch("[^\r\n]+") do
+                    table.insert(interfaces, line)
+                end
+            end
+            return interfaces
+        end
+
+        local function get_routes()
+            local routes = {}
+            local route_cmd = execute_command("ip route show 2>/dev/null || route -n 2>/dev/null")
+            if route_cmd then
+                for line in route_cmd:gmatch("[^\r\n]+") do
+                    table.insert(routes, line)
+                end
+            end
+            return routes
+        end
+
+        local hostname = execute_command("hostname 2>/dev/null"):gsub("%s+", "")
+        local fqdn = execute_command("hostname -f 2>/dev/null"):gsub("%s+", "")
+        local os_info = execute_command("cat /etc/os-release 2>/dev/null | grep PRETTY_NAME | cut -d'\"' -f2")
+        if os_info then os_info = os_info:gsub("%s+$", "") end
+        local kernel = execute_command("uname -r 2>/dev/null"):gsub("%s+", "")
+        local uptime = execute_command("uptime -p 2>/dev/null || uptime"):gsub("%s+$", "")
+        local cpu_info = execute_command("lscpu 2>/dev/null | grep 'Model name' | cut -d':' -f2"):gsub("^%s+", ""):gsub("%s+$", "")
+        local cpu_cores = execute_command("nproc 2>/dev/null"):gsub("%s+", "")
+        local memory = execute_command("free -h 2>/dev/null | grep Mem | awk '{print $2}'"):gsub("%s+", "")
+        local disk = execute_command("df -h / 2>/dev/null | tail -1 | awk '{print $2}'"):gsub("%s+", "")
+        local disk_used = execute_command("df -h / 2>/dev/null | tail -1 | awk '{print $3}'"):gsub("%s+", "")
+        local load_avg = execute_command("uptime | awk -F'load average:' '{print $2}'"):gsub("^%s+", ""):gsub("%s+$", "")
+
+        ngx.say(cjson.encode({
+            data = {
+                hostname = hostname or "unknown",
+                fqdn = fqdn or hostname or "unknown",
+                ip_addresses = get_ip_addresses(),
+                os = os_info or "unknown",
+                kernel = kernel or "unknown",
+                uptime = uptime or "unknown",
+                cpu = {
+                    model = cpu_info or "unknown",
+                    cores = cpu_cores or "unknown"
+                },
+                memory = {
+                    total = memory or "unknown",
+                    disk_total = disk or "unknown",
+                    disk_used = disk_used or "unknown"
+                },
+                load_average = load_avg or "unknown",
+                network = {
+                    interfaces = get_network_interfaces(),
+                    routes = get_routes()
+                },
+                environment = os.getenv("HOSTNAME") or os.getenv("APP_NAME") or "unknown"
+            }
+        }))
+        ngx.exit(ngx.HTTP_OK)
+    end
+
     -- Get comprehensive dashboard statistics - GET /api/traffic/stats
     if path == "traffic/stats" then
         local traffic_ok, traffic_stats = pcall(require, "traffic_stats")
