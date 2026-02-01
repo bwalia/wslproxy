@@ -84,6 +84,9 @@ function _M.init()
     package.loaded._metric_cache_bypasses = prometheus:counter("nginx_cache_bypasses_total", "Number of cache bypasses", {"host", "reason"})
     package.loaded._metric_cache_stores = prometheus:counter("nginx_cache_stores_total", "Number of responses stored in cache", {"host", "extension", "content_type"})
     package.loaded._metric_cache_size = prometheus:gauge("nginx_cache_size_bytes", "Current cache size in bytes", {"host"})
+    package.loaded._metric_cache_entries = prometheus:gauge("nginx_cache_entries_total", "Total number of cached entries", {"host"})
+    package.loaded._metric_cache_evictions = prometheus:counter("nginx_cache_evictions_total", "Number of cache evictions", {"host", "reason"})
+    package.loaded._metric_cache_hit_ratio = prometheus:gauge("nginx_cache_hit_ratio", "Cache hit ratio (hits / (hits + misses))", {"host"})
 
     ngx.log(ngx.NOTICE, "WSL Proxy Prometheus metrics initialized successfully")
     return true
@@ -232,6 +235,18 @@ end
 
 function _M.get_metric_cache_size()
     return package.loaded._metric_cache_size
+end
+
+function _M.get_metric_cache_entries()
+    return package.loaded._metric_cache_entries
+end
+
+function _M.get_metric_cache_evictions()
+    return package.loaded._metric_cache_evictions
+end
+
+function _M.get_metric_cache_hit_ratio()
+    return package.loaded._metric_cache_hit_ratio
 end
 
 function _M.is_initialized()

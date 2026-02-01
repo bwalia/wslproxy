@@ -425,6 +425,16 @@ const Dashboard = () => {
   const [errorDetails, setErrorDetails] = React.useState([]);
   const [loadingErrorDetails, setLoadingErrorDetails] = React.useState(false);
 
+  // Instance info state
+  const [instanceInfo, setInstanceInfo] = React.useState({
+    hostname: "Loading...",
+    ip_addresses: [],
+    os: "Loading...",
+    cpu: { model: "Loading...", cores: "Loading..." },
+    memory: { total: "Loading..." },
+    uptime: "Loading...",
+  });
+
   const fetchErrorLogs = React.useCallback(() => {
     const logs = dataProvider.getLogs("openresty/error_logs");
     logs.then((log) => {
@@ -500,6 +510,18 @@ const Dashboard = () => {
       });
   }, [dataProvider]);
 
+  const fetchInstanceInfo = React.useCallback(() => {
+    dataProvider
+      .getInstanceInfo()
+      .then((response) => {
+        const data = response?.data || {};
+        setInstanceInfo(data);
+      })
+      .catch((error) => {
+        console.log("Failed to fetch instance info:", error);
+      });
+  }, [dataProvider]);
+
   // Fetch error details when clicking on an error code
   const handleErrorCodeClick = React.useCallback(
     (errorCode) => {
@@ -534,6 +556,7 @@ const Dashboard = () => {
     fetchAccessLogs();
     fetchTrafficStats();
     fetchLogMetrics();
+    fetchInstanceInfo();
 
     // Fetch entity counts
     Promise.all([
@@ -626,7 +649,7 @@ const Dashboard = () => {
     >
       {/* Welcome Section */}
       <Box sx={{ mb: 2, width: "100%" }}>
-        <Welcome />
+        <Welcome instanceInfo={instanceInfo} />
       </Box>
 
       {/* Traffic Stats Cards - Large prominent cards */}

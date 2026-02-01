@@ -9,7 +9,10 @@ import {
   ArrayField,
   SingleFieldList,
   ChipField,
+  TopToolbar,
+  Button,
 } from "react-admin";
+import InfoIcon from '@mui/icons-material/Info';
 import Empty from '../component/Empty';
 
 const handleProfileChange = (e) => {
@@ -26,6 +29,18 @@ const secretFilters = [
   </ReferenceInput>,
 ];
 
+const ListActions = () => (
+  <TopToolbar>
+    <Button
+      href="/#/instance-info"
+      label="Server Instance Info"
+      startIcon={<InfoIcon />}
+      variant="contained"
+      sx={{ fontWeight: 600 }}
+    />
+  </TopToolbar>
+);
+
 const List = () => {
   return (
     <RaList
@@ -33,6 +48,7 @@ const List = () => {
       sort={{ field: 'created_at', order: 'DESC' }}
       empty={<Empty resource={"instances"} />}
       filters={secretFilters}
+      actions={<ListActions />}
     >
       <Datagrid rowClick="edit">
         <TextField source="instance_name" />
