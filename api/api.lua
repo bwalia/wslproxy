@@ -3062,9 +3062,20 @@ local function handle_get_request(args, path)
         local uptime = execute_command("uptime -p 2>/dev/null || uptime"):gsub("%s+$", "")
         local cpu_info = execute_command("lscpu 2>/dev/null | grep 'Model name' | cut -d':' -f2"):gsub("^%s+", ""):gsub("%s+$", "")
         local cpu_cores = execute_command("nproc 2>/dev/null"):gsub("%s+", "")
-        local memory = execute_command("free -h 2>/dev/null | grep Mem | awk '{print $2}'"):gsub("%s+", "")
+        local cpu_usage = execute_command("top -bn1 2>/dev/null | grep 'Cpu(s)' | awk '{print $2}' | cut -d'%' -f1"):gsub("%s+", "")
+
+        -- Memory information (total, used, available, free)
+        local memory_total = execute_command("free -h 2>/dev/null | grep Mem | awk '{print $2}'"):gsub("%s+", "")
+        local memory_used = execute_command("free -h 2>/dev/null | grep Mem | awk '{print $3}'"):gsub("%s+", "")
+        local memory_available = execute_command("free -h 2>/dev/null | grep Mem | awk '{print $7}'"):gsub("%s+", "")
+        local memory_free = execute_command("free -h 2>/dev/null | grep Mem | awk '{print $4}'"):gsub("%s+", "")
+
+        -- Disk information
         local disk = execute_command("df -h / 2>/dev/null | tail -1 | awk '{print $2}'"):gsub("%s+", "")
         local disk_used = execute_command("df -h / 2>/dev/null | tail -1 | awk '{print $3}'"):gsub("%s+", "")
+        local disk_available = execute_command("df -h / 2>/dev/null | tail -1 | awk '{print $4}'"):gsub("%s+", "")
+        local disk_percent = execute_command("df -h / 2>/dev/null | tail -1 | awk '{print $5}'"):gsub("%s+", "")
+
         local load_avg = execute_command("uptime | awk -F'load average:' '{print $2}'"):gsub("^%s+", ""):gsub("%s+$", "")
 
         ngx.say(cjson.encode({
@@ -3077,12 +3088,20 @@ local function handle_get_request(args, path)
                 uptime = uptime or "unknown",
                 cpu = {
                     model = cpu_info or "unknown",
-                    cores = cpu_cores or "unknown"
+                    cores = cpu_cores or "unknown",
+                    usage_percent = cpu_usage or "0"
                 },
                 memory = {
-                    total = memory or "unknown",
-                    disk_total = disk or "unknown",
-                    disk_used = disk_used or "unknown"
+                    total = memory_total or "unknown",
+                    used = memory_used or "unknown",
+                    available = memory_available or "unknown",
+                    free = memory_free or "unknown"
+                },
+                disk = {
+                    total = disk or "unknown",
+                    used = disk_used or "unknown",
+                    available = disk_available or "unknown",
+                    percent = disk_percent or "0%"
                 },
                 load_average = load_avg or "unknown",
                 network = {

@@ -193,19 +193,28 @@ const Welcome = ({ instanceInfo = {} }) => {
 
                         <Box sx={{ mb: 1.5 }}>
                             <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontSize: '0.7rem' }}>
-                                OS
+                                CPU Cores
                             </Typography>
                             <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.75rem' }}>
-                                {instanceInfo.os || 'Loading...'}
+                                {instanceInfo.cpu?.cores || '?'} cores
+                            </Typography>
+                        </Box>
+
+                        <Box sx={{ mb: 1.5 }}>
+                            <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontSize: '0.7rem' }}>
+                                Memory Available
+                            </Typography>
+                            <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.75rem' }}>
+                                {instanceInfo.memory?.available || 'Loading...'} / {instanceInfo.memory?.total || '?'}
                             </Typography>
                         </Box>
 
                         <Box>
                             <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontSize: '0.7rem' }}>
-                                CPU
+                                Storage Available
                             </Typography>
                             <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.75rem' }}>
-                                {instanceInfo.cpu?.cores || '?'} cores
+                                {instanceInfo.disk?.available || 'Loading...'} / {instanceInfo.disk?.total || '?'}
                             </Typography>
                         </Box>
                     </Box>

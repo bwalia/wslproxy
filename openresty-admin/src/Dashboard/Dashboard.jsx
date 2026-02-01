@@ -430,8 +430,9 @@ const Dashboard = () => {
     hostname: "Loading...",
     ip_addresses: [],
     os: "Loading...",
-    cpu: { model: "Loading...", cores: "Loading..." },
-    memory: { total: "Loading..." },
+    cpu: { model: "Loading...", cores: "Loading...", usage_percent: "0" },
+    memory: { total: "Loading...", used: "Loading...", available: "Loading...", free: "Loading..." },
+    disk: { total: "Loading...", used: "Loading...", available: "Loading...", percent: "0%" },
     uptime: "Loading...",
   });
 
