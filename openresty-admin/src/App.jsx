@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useRef } from "react";
 import { Admin, Resource, useStore, CustomRoutes } from "react-admin";
 import dataProvider from "./dataProvider";
 import authProvider from "./authProvider";
@@ -128,8 +128,13 @@ const AppContent = () => {
     [],
   );
 
-  // Memoize dataProvider to prevent recreation on every render
-  const memoizedDataProvider = useMemo(() => dataProvider(API_URL), []);
+  // dataProvider uses hooks internally, so it must be called during render
+  // useRef stores the instance to provide stable reference to react-admin
+  const dataProviderRef = useRef(null);
+  const currentDataProvider = dataProvider(API_URL);
+  if (!dataProviderRef.current) {
+    dataProviderRef.current = currentDataProvider;
+  }
 
   // Create theme based on current mode
   const theme = useMemo(() => createAppTheme(mode), [mode]);
@@ -162,7 +167,7 @@ const AppContent = () => {
       <Admin
         loginPage={Login}
         i18nProvider={i18nProvider}
-        dataProvider={memoizedDataProvider}
+        dataProvider={dataProviderRef.current}
         authProvider={authProvider}
         dashboard={Dashboard}
         theme={theme}
