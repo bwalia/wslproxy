@@ -1,9 +1,9 @@
 name: Build and Deploy WSLProxy
-# Auto-deploys to 185.237.99.238 on push to main branch
+  # Auto-deploys to 185.237.99.238 on push to main branch
 on:
   push:
     branches:
-      - dummy-branch-for-wslproxy-deploy
+      - main
   pull_request:
     branches:
       - dummy-branch-for-wslproxy-deploy
