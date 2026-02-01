@@ -3,7 +3,7 @@ name: Build and Deploy WSLProxy
 on:
   push:
     branches:
-      - dummy-branch-for-wslproxy-deploy
+      - main
   pull_request:
     branches:
       - dummy-branch-for-wslproxy-deploy
