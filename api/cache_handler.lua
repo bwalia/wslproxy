@@ -10,6 +10,37 @@ local cjson = require("cjson")
 local cache_dict_name = "wsl_cache"
 local cache_keys_dict_name = "wsl_cache_keys"
 
+-- Default MIME types to cache (used when config doesn't specify)
+local DEFAULT_CACHED_MIME_TYPES = {
+    "text/css",
+    "text/javascript",
+    "application/javascript",
+    "application/x-javascript",
+    "application/json",
+    "application/xml",
+    "text/xml",
+    "text/plain",
+    "image/jpeg",
+    "image/png",
+    "image/gif",
+    "image/webp",
+    "image/svg+xml",
+    "image/x-icon",
+    "image/vnd.microsoft.icon",
+    "font/woff",
+    "font/woff2",
+    "application/font-woff",
+    "application/font-woff2",
+    "font/ttf",
+    "font/otf",
+    "application/x-font-ttf",
+    "application/x-font-otf",
+    "application/pdf",
+    "audio/mpeg",
+    "video/mp4",
+    "video/webm",
+}
+
 -- Get Prometheus metrics module (may not be available)
 local function get_metrics()
     local ok, metrics = pcall(require, "prometheus_metrics")
@@ -333,7 +364,11 @@ function _M.process_response_headers()
     -- Check Content-Type
     local content_type = ngx.header["Content-Type"]
     if content_type then
-        local cached_mime_types = config.cached_mime_types or {}
+        local cached_mime_types = config.cached_mime_types
+        -- Use defaults if config doesn't specify MIME types
+        if not cached_mime_types or #cached_mime_types == 0 then
+            cached_mime_types = DEFAULT_CACHED_MIME_TYPES
+        end
         local mime_cacheable = false
         
         for _, mt in ipairs(cached_mime_types) do
