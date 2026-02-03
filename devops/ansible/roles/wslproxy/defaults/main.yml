@@ -7,7 +7,7 @@ nginx_default_server_hostname: "_"
 # Dashboard version and build information
 # These values are used by the React dashboard footer
 # Source of truth: system/app.json
-# Override these in host_vars or group_vars as needed
-wslproxy_version: "{{ lookup('pipe', 'cd ' + playbook_dir + '/../.. && python3 -c \"import json; print(json.load(open(\\'system/app.json\\'))[\\'version\\'][\\'version\\'])\" 2>/dev/null || echo \"1.0.0\"') }}"
-wslproxy_build_number: "{{ lookup('pipe', 'cd ' + playbook_dir + '/../.. && python3 -c \"import json; print(json.load(open(\\'system/app.json\\'))[\\'version\\'][\\'build\\'])\" 2>/dev/null || echo \"unknown\"') }}"
+# Note: Using Ansible's file lookup with from_json filter for clean JSON parsing
+wslproxy_version: "{{ (lookup('file', playbook_dir + '/../../system/app.json') | from_json).version.version | default('1.0.0') }}"
+wslproxy_build_number: "{{ (lookup('file', playbook_dir + '/../../system/app.json') | from_json).version.build | default('unknown') }}"
 wslproxy_deployment_time: "{{ ansible_date_time.iso8601 }}"
