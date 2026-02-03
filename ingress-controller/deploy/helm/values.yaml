@@ -1,0 +1,192 @@
+# Default values for wslproxy-ingress-controller
+
+# Controller configuration
+controller:
+  # Number of controller replicas
+  replicas: 2
+
+  # Container image
+  image:
+    repository: bwalia/wslproxy-ingress-controller
+    tag: "1.0.0"
+    pullPolicy: IfNotPresent
+
+  # Resource limits and requests
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+  # Security context
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 65534
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop:
+        - ALL
+
+  # Leader election
+  leaderElection:
+    enabled: true
+
+  # Logging
+  logging:
+    level: info
+    format: json
+
+  # Metrics
+  metrics:
+    enabled: true
+    port: 8080
+
+  # Health probes
+  healthProbe:
+    port: 8081
+
+# OpenResty proxy configuration
+openresty:
+  # Number of proxy replicas
+  replicas: 3
+
+  # Container image
+  image:
+    repository: bwalia/wslproxy
+    tag: "latest"
+    pullPolicy: IfNotPresent
+
+  # Resource limits and requests
+  resources:
+    limits:
+      cpu: "2"
+      memory: 2Gi
+    requests:
+      cpu: "1"
+      memory: 512Mi
+
+  # Security context
+  securityContext:
+    runAsUser: 101  # nginx user
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+      add:
+        - NET_BIND_SERVICE
+
+  # Service configuration
+  service:
+    type: LoadBalancer
+    annotations: {}
+    externalTrafficPolicy: Local
+    ports:
+      http: 80
+      https: 443
+
+  # HorizontalPodAutoscaler
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+
+  # PodDisruptionBudget
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 2
+
+  # Shared dictionaries for Lua
+  sharedDicts:
+    upstreams: "10m"
+    upstream_health: "10m"
+    rate_limit: "10m"
+    cache: "50m"
+
+  # nginx.conf configuration
+  config:
+    workerProcesses: auto
+    workerConnections: 10240
+    keepaliveTimeout: 65
+    clientMaxBodySize: "10m"
+
+# IngressClass configuration
+ingressClass:
+  name: wslproxy
+  isDefaultClass: false
+  parameters: {}
+
+# cert-manager integration
+certManager:
+  enabled: true
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+
+# Observability
+observability:
+  # Prometheus metrics
+  prometheus:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+      interval: 30s
+      scrapeTimeout: 10s
+
+  # Structured logging
+  logging:
+    format: json
+    level: info
+
+  # OpenTelemetry (optional)
+  opentelemetry:
+    enabled: false
+    endpoint: ""
+
+# RBAC configuration
+rbac:
+  create: true
+
+# ServiceAccount configuration
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+# Pod annotations
+podAnnotations: {}
+
+# Pod labels
+podLabels: {}
+
+# Node selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - wslproxy-ingress-controller
+          topologyKey: kubernetes.io/hostname
+
+# Network policies
+networkPolicy:
+  enabled: false
+
+# Pod security policy
+podSecurityPolicy:
+  enabled: false

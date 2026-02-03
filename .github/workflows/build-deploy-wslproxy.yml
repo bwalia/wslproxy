@@ -1,0 +1,160 @@
+name: Build and Deploy WSLProxy
+  # Auto-deploys to 185.237.99.238 on push to main branch
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - dummy-branch-for-wslproxy-deploy
+
+  workflow_dispatch:
+    inputs:
+      TARGET_ENV:
+        type: choice
+        description: "Please choose the Target environment"
+        default: "prod"
+        required: true
+        options:
+          - prod
+          - int
+          - test
+          - acc
+
+      TARGET_HOST:
+        type: choice
+        description: "Please choose the Target host"
+        default: "185.237.99.238"
+        required: true
+        options:
+          - 185.237.99.238
+          - whisky03
+          # - whisky10
+          # - whisky08
+
+# Auto-map TARGET_ENV from TARGET_HOST if not set, and ensure consistency
+env:
+  TARGET_HOST: ${{ github.event.inputs.TARGET_HOST || '185.237.99.238' }}
+  # Map host to env (add more as needed)
+  TARGET_ENV: ${{ github.event.inputs.TARGET_ENV || (github.event.inputs.TARGET_HOST == '185.237.99.238' && 'prod' || github.event.inputs.TARGET_HOST == 'whisky03' && 'int' || 'prod') }}
+  API_DOMAINNAME_ENDPOINT: ${{ github.event.inputs.TARGET_ENV || (github.event.inputs.TARGET_HOST == '185.237.99.238' && 'prod' || github.event.inputs.TARGET_HOST == 'whisky03' && 'int' || 'prod') }}.wslproxy.com
+
+jobs:
+  build:
+    runs-on: [self-hosted]
+
+    steps:
+      - name: Checkout code from repository
+        uses: actions/checkout@v3
+      - name: Install Ansible on Ubuntu Latest
+        run: |
+          sudo apt-get install -y ansible
+          export ANSIBLE_HOST_KEY_CHECKING=False
+
+      - name: Decode settings file (INT environment)
+        if: ${{ env.TARGET_HOST == 'whisky03' }}
+        run: |
+          echo "${{ secrets.DOT_WSLPROXY_SETTINGS_INT }}" | base64 -d > /tmp/settings_brahmstra_whisky03.json
+          # Verify file was created and is not empty
+          if [ ! -s /tmp/settings_brahmstra_whisky03.json ]; then
+            echo "::error::Settings file is empty or failed to decode"
+            exit 1
+          fi
+          # Validate JSON syntax
+          if ! python3 -m json.tool /tmp/settings_brahmstra_whisky03.json > /dev/null 2>&1; then
+            echo "::error::Settings file contains invalid JSON"
+            exit 1
+          fi
+          echo "✅ Settings file validated successfully"
+
+      - name: Decode env file (INT environment)
+        if: ${{ env.TARGET_HOST == 'whisky03' }}
+        run: |
+          echo "${{ secrets.DOT_WSLPROXY_ENV_CREDS_INT }}" | base64 -d > /tmp/.env_brahmstra_whisky03
+          # Verify file was created and is not empty
+          if [ ! -s /tmp/.env_brahmstra_whisky03 ]; then
+            echo "::warning::Env file is empty (this may be expected)"
+          else
+            echo "✅ Env file decoded successfully"
+          fi
+
+      - name: Decode settings file (PROD environment)
+        if: ${{ env.TARGET_HOST == '185.237.99.238' }}
+        run: |
+          echo "${{ secrets.DOT_WSLPROXY_SETTINGS_PROD }}" | base64 -d > /tmp/settings_brahmstra_prod.json
+          # Verify file was created and is not empty
+          if [ ! -s /tmp/settings_brahmstra_prod.json ]; then
+            echo "::error::Settings file is empty or failed to decode"
+            exit 1
+          fi
+          # Validate JSON syntax
+          if ! python3 -m json.tool /tmp/settings_brahmstra_prod.json > /dev/null 2>&1; then
+            echo "::error::Settings file contains invalid JSON"
+            exit 1
+          fi
+          echo "✅ Settings file validated successfully"
+
+      - name: Decode env file (PROD environment)
+        if: ${{ env.TARGET_HOST == '185.237.99.238' }}
+        run: |
+          echo "${{ secrets.DOT_WSLPROXY_ENV_CREDS_PROD }}" | base64 -d > /tmp/.env_brahmstra_prod
+          # Verify file was created and is not empty
+          if [ ! -s /tmp/.env_brahmstra_prod ]; then
+            echo "::warning::Env file is empty (this may be expected)"
+          else
+            echo "✅ Env file decoded successfully"
+          fi
+
+      - name: Setup SSH and test connectivity
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          
+          # Check if SSH key exists on self-hosted runner
+          if [[ -f ~/.ssh/id_rsa ]]; then
+            echo "✅ Using existing SSH key at ~/.ssh/id_rsa"
+          else
+            echo "::error::SSH key not found at ~/.ssh/id_rsa on self-hosted runner"
+            exit 1
+          fi
+          
+          # Add host keys to known_hosts
+          echo "Adding SSH host keys..."
+          ssh-keyscan -H ${{ env.TARGET_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
+          
+          # Test SSH connectivity
+          echo "Testing SSH connection to ${{ env.TARGET_HOST }}..."
+          if ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@${{ env.TARGET_HOST }} "echo 'SSH connection successful'" 2>&1; then
+            echo "✅ SSH connection test passed"
+          else
+            echo "::error::SSH connection test failed to root@${{ env.TARGET_HOST }}"
+            echo "Possible causes:"
+            echo "  1. The public key is not in /root/.ssh/authorized_keys on the target server"
+            echo "  2. The SSH key on this runner doesn't match"
+            echo "  3. The server is not reachable or SSH is not running"
+            exit 1
+          fi
+
+      - name: Run Ansible Playbook (INT)
+        if: ${{ env.TARGET_HOST == 'whisky03' }}
+        run: |
+          echo "Running OpenResty/Nginx playbook for ${{ env.TARGET_HOST }} (env: ${{ env.TARGET_ENV }})"
+          ansible-playbook devops/ansible/wslproxy-ops.yml -i devops/ansible/hosts -l ${{ env.TARGET_HOST }} --extra-vars "nginx_user_password=THISCOMESFROMSECRETS target_env=${{ env.TARGET_ENV }} local_settings_file_path=/tmp/settings_brahmstra_whisky03.json local_env_file_path=/tmp/.env_brahmstra_whisky03"
+        env:
+          ANSIBLE_PRIVATE_KEY_FILE: ~/.ssh/id_rsa
+
+      - name: Run Ansible Playbook (PROD)
+        if: ${{ env.TARGET_HOST == '185.237.99.238' }}
+        run: |
+          echo "Running OpenResty/Nginx playbook for ${{ env.TARGET_HOST }} (env: ${{ env.TARGET_ENV }})"
+          ansible-playbook devops/ansible/wslproxy-ops.yml -i devops/ansible/hosts -l ${{ env.TARGET_HOST }} --extra-vars "nginx_user_password=THISCOMESFROMSECRETS target_env=${{ env.TARGET_ENV }} local_settings_file_path=/tmp/settings_brahmstra_prod.json local_env_file_path=/tmp/.env_brahmstra_prod"
+        env:
+          ANSIBLE_PRIVATE_KEY_FILE: ~/.ssh/id_rsa
+
+      - name: Workflow Summary
+        run: |
+          echo "=================================="
+          echo "OpenResty installation completed for host: ${{ env.TARGET_HOST }} (env: ${{ env.TARGET_ENV }})"
+          echo "=================================="
+          echo ""
+          echo "To deploy configs, run the 'Deploy Server Configs and Rules' workflow separately."

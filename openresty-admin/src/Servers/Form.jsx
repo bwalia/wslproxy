@@ -365,12 +365,49 @@ const Form = ({ type }) => {
                         />
                       </Grid>
                       <Grid item xs={12}>
+                        <SelectArrayInput
+                          source="cached_mime_types"
+                          label="Cached MIME Types (Optional Override)"
+                          fullWidth
+                          helperText="Leave empty to use defaults, or select specific MIME types to cache"
+                          choices={[
+                            { id: "text/css", name: "CSS (text/css)" },
+                            { id: "text/javascript", name: "JavaScript (text/javascript)" },
+                            { id: "application/javascript", name: "JavaScript (application/javascript)" },
+                            { id: "application/json", name: "JSON (application/json)" },
+                            { id: "application/xml", name: "XML (application/xml)" },
+                            { id: "text/xml", name: "XML (text/xml)" },
+                            { id: "text/plain", name: "Plain Text (text/plain)" },
+                            { id: "text/html", name: "HTML (text/html)" },
+                            { id: "image/jpeg", name: "JPEG (image/jpeg)" },
+                            { id: "image/png", name: "PNG (image/png)" },
+                            { id: "image/gif", name: "GIF (image/gif)" },
+                            { id: "image/webp", name: "WebP (image/webp)" },
+                            { id: "image/svg+xml", name: "SVG (image/svg+xml)" },
+                            { id: "image/x-icon", name: "ICO (image/x-icon)" },
+                            { id: "font/woff", name: "WOFF (font/woff)" },
+                            { id: "font/woff2", name: "WOFF2 (font/woff2)" },
+                            { id: "font/ttf", name: "TTF (font/ttf)" },
+                            { id: "font/otf", name: "OTF (font/otf)" },
+                            { id: "application/font-woff", name: "WOFF (application/font-woff)" },
+                            { id: "application/font-woff2", name: "WOFF2 (application/font-woff2)" },
+                            { id: "application/pdf", name: "PDF (application/pdf)" },
+                            { id: "audio/mpeg", name: "MP3 (audio/mpeg)" },
+                            { id: "video/mp4", name: "MP4 (video/mp4)" },
+                            { id: "video/webm", name: "WebM (video/webm)" },
+                          ]}
+                        />
+                      </Grid>
+                      <Grid item xs={12}>
                         <Alert severity="info" sx={{ mt: 1 }}>
-                          <strong>Cached file types:</strong> JavaScript (.js),
+                          <strong>Default cached types:</strong> JavaScript (.js),
                           CSS (.css), Images (.jpg, .png, .gif, .svg, .webp,
                           .ico), Fonts (.woff, .woff2, .ttf, .otf), Documents
                           (.pdf), and other static assets. Only GET/HEAD
                           requests with 200/301/302 responses are cached.
+                          <br />
+                          <strong>Note:</strong> If you specify custom MIME types above,
+                          only those types will be cached (defaults will not apply).
                         </Alert>
                       </Grid>
                     </>

@@ -46,6 +46,12 @@ function _M.init()
     package.loaded._metric_4xx_errors = prometheus:counter("nginx_http_4xx_errors_total", "Number of 4xx client errors", {"host", "status", "endpoint"})
     package.loaded._metric_5xx_errors = prometheus:counter("nginx_http_5xx_errors_total", "Number of 5xx server errors", {"host", "status", "endpoint"})
 
+    -- NGINX Error Log Level Tracking
+    package.loaded._metric_log_levels = prometheus:counter("nginx_log_messages_total", "Count of nginx log messages by level", {"level", "component"})
+    package.loaded._metric_log_errors = prometheus:counter("nginx_log_errors_total", "Count of ERROR level log messages", {"component"})
+    package.loaded._metric_log_warnings = prometheus:counter("nginx_log_warnings_total", "Count of WARN level log messages", {"component"})
+    package.loaded._metric_log_notices = prometheus:counter("nginx_log_notices_total", "Count of NOTICE level log messages", {"component"})
+
     -- DDoS / Security metrics
     package.loaded._metric_requests_per_ip = prometheus:counter("nginx_http_requests_by_ip_total", "Requests per IP address", {"ip", "host"})
     package.loaded._metric_suspicious_requests = prometheus:counter("nginx_http_suspicious_requests_total", "Suspicious request patterns", {"host", "reason"})
@@ -78,6 +84,9 @@ function _M.init()
     package.loaded._metric_cache_bypasses = prometheus:counter("nginx_cache_bypasses_total", "Number of cache bypasses", {"host", "reason"})
     package.loaded._metric_cache_stores = prometheus:counter("nginx_cache_stores_total", "Number of responses stored in cache", {"host", "extension", "content_type"})
     package.loaded._metric_cache_size = prometheus:gauge("nginx_cache_size_bytes", "Current cache size in bytes", {"host"})
+    package.loaded._metric_cache_entries = prometheus:gauge("nginx_cache_entries_total", "Total number of cached entries", {"host"})
+    package.loaded._metric_cache_evictions = prometheus:counter("nginx_cache_evictions_total", "Number of cache evictions", {"host", "reason"})
+    package.loaded._metric_cache_hit_ratio = prometheus:gauge("nginx_cache_hit_ratio", "Cache hit ratio (hits / (hits + misses))", {"host"})
 
     ngx.log(ngx.NOTICE, "WSL Proxy Prometheus metrics initialized successfully")
     return true
@@ -119,6 +128,23 @@ end
 
 function _M.get_metric_5xx_errors()
     return package.loaded._metric_5xx_errors
+end
+
+-- Log level metrics
+function _M.get_metric_log_levels()
+    return package.loaded._metric_log_levels
+end
+
+function _M.get_metric_log_errors()
+    return package.loaded._metric_log_errors
+end
+
+function _M.get_metric_log_warnings()
+    return package.loaded._metric_log_warnings
+end
+
+function _M.get_metric_log_notices()
+    return package.loaded._metric_log_notices
 end
 
 -- Security / DDoS metrics
@@ -209,6 +235,18 @@ end
 
 function _M.get_metric_cache_size()
     return package.loaded._metric_cache_size
+end
+
+function _M.get_metric_cache_entries()
+    return package.loaded._metric_cache_entries
+end
+
+function _M.get_metric_cache_evictions()
+    return package.loaded._metric_cache_evictions
+end
+
+function _M.get_metric_cache_hit_ratio()
+    return package.loaded._metric_cache_hit_ratio
 end
 
 function _M.is_initialized()

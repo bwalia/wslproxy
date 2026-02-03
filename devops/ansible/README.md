@@ -1,21 +1,21 @@
 Role Name
 =========
 
-A hd-openresty builds nginx from source with lua dynamic scripts to allow it to be integrated with Consul and other service mesh solutions for HA
+WSLProxy builds nginx (OpenResty) from source with lua dynamic scripts to allow it to be integrated with Consul and other service mesh solutions for HA
 
 Requirements
 ------------
 
 - Ubuntu >= 22.04
-- Openresty source
-- lua
-- lua modules to interact with DNS, SSL. IP TO COUNTRY DATABASE etc.
+- OpenResty source
+- Lua
+- Lua modules to interact with DNS, SSL, IP2Location database, etc.
 
 
 Role Variables
 --------------
 
-A hd-openresty rely on various ENV variables in Ansible preset to work
+WSLProxy relies on various environment variables in the Ansible playbook to work properly
 A description of the settable variables for this role should go here, including any variables that are in defaults/main.yml, vars/main.yml, and any variables that can/should be set via parameters to the role. Any variables that are read from other roles and/or the global scope (ie. hostvars, group vars, etc.) should be mentioned here as well.
 
 Dependencies

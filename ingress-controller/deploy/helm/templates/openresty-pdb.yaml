@@ -1,0 +1,16 @@
+{{- if .Values.openresty.podDisruptionBudget.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "wslproxy.fullname" . }}-openresty
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "wslproxy.labels" . | nindent 4 }}
+    app.kubernetes.io/component: proxy
+spec:
+  minAvailable: {{ .Values.openresty.podDisruptionBudget.minAvailable }}
+  selector:
+    matchLabels:
+      {{- include "wslproxy.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: proxy
+{{- end }}

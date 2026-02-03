@@ -2,6 +2,27 @@
 
 set -x
 
+# Update build timestamp in system/app.json before building
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SYSTEM_APP_JSON="${SCRIPT_DIR}/system/app.json"
+
+if [ -f "$SYSTEM_APP_JSON" ]; then
+    BUILD_TIMESTAMP=$(date +%Y%m%d%H%M%S)
+    echo "Updating build timestamp to: $BUILD_TIMESTAMP"
+
+    # Update build timestamp using python3 (more reliable for JSON)
+    python3 -c "
+import json
+with open('$SYSTEM_APP_JSON', 'r') as f:
+    data = json.load(f)
+data['version']['build'] = '$BUILD_TIMESTAMP'
+data['version']['deployment_timestamp'] = '$(date -u +%Y-%m-%dT%H:%M:%SZ)'
+with open('$SYSTEM_APP_JSON', 'w') as f:
+    json.dump(data, f, indent=2)
+print('Updated system/app.json with build: $BUILD_TIMESTAMP')
+"
+fi
+
 TARGET_ENV_FILE=".env.dev"
 
 if [ -z "$1" ]

@@ -1,0 +1,37 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Build artifacts
+bin/
+dist/
+coverage.out
+coverage.html
+
+# Documentation
+*.md
+docs/
+examples/
+
+# CI/CD
+.github/
+
+# Kubernetes
+deploy/helm/
+deploy/crds/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test files
+*_test.go
+testdata/

@@ -28,6 +28,8 @@ import {
   AreaChart,
   Area,
   Legend,
+  BarChart,
+  Bar,
 } from "recharts";
 import { useDataProvider, useNotify } from "react-admin";
 import ServerIcon from "@mui/icons-material/DnsRounded";
@@ -43,6 +45,8 @@ import SpeedIcon from "@mui/icons-material/SpeedRounded";
 import StorageIcon from "@mui/icons-material/StorageRounded";
 import LanguageIcon from "@mui/icons-material/LanguageRounded";
 import DataUsageIcon from "@mui/icons-material/DataUsageRounded";
+import MemoryIcon from "@mui/icons-material/MemoryRounded";
+import InsertDriveFileIcon from "@mui/icons-material/InsertDriveFileRounded";
 
 import StorageModal from "./StorageModal";
 import Logs from "../component/Logs";
@@ -408,6 +412,10 @@ const Dashboard = () => {
   const [latencyData, setLatencyData] = React.useState({});
   const [methodsData, setMethodsData] = React.useState({});
   const [geoData, setGeoData] = React.useState([]);
+  const [logMetrics, setLogMetrics] = React.useState({
+    available: false,
+    metrics: {},
+  });
   const [stats, setStats] = React.useState({
     servers: 0,
     rules: 0,
@@ -420,6 +428,37 @@ const Dashboard = () => {
   const [selectedErrorCode, setSelectedErrorCode] = React.useState(null);
   const [errorDetails, setErrorDetails] = React.useState([]);
   const [loadingErrorDetails, setLoadingErrorDetails] = React.useState(false);
+
+  // Instance info state
+  const [instanceInfo, setInstanceInfo] = React.useState({
+    hostname: "Loading...",
+    ip_addresses: [],
+    os: "Loading...",
+    cpu: { model: "Loading...", cores: "Loading...", usage_percent: "0" },
+    memory: {
+      total: "Loading...",
+      used: "Loading...",
+      available: "Loading...",
+      free: "Loading...",
+    },
+    disk: {
+      total: "Loading...",
+      used: "Loading...",
+      available: "Loading...",
+      percent: "0%",
+    },
+    uptime: "Loading...",
+  });
+
+  // Cache stats state
+  const [cacheStats, setCacheStats] = React.useState({
+    available: false,
+    total_entries: 0,
+    total_size_bytes: 0,
+    entries_by_host: [],
+    entries_by_extension: [],
+    top_urls: [],
+  });
 
   const fetchErrorLogs = React.useCallback(() => {
     const logs = dataProvider.getLogs("openresty/error_logs");
@@ -479,6 +518,59 @@ const Dashboard = () => {
       });
   }, [dataProvider]);
 
+  const fetchLogMetrics = React.useCallback(() => {
+    dataProvider
+      .getLogMetrics()
+      .then((response) => {
+        const data = response?.data || {};
+        setLogMetrics({
+          available: data.available || false,
+          metrics: data.metrics || {},
+          message: data.message || "",
+        });
+      })
+      .catch((error) => {
+        console.log("Failed to fetch log metrics:", error);
+        setLogMetrics({ available: false, metrics: {} });
+      });
+  }, [dataProvider]);
+
+  const fetchInstanceInfo = React.useCallback(() => {
+    dataProvider
+      .getInstanceInfo()
+      .then((response) => {
+        const data = response?.data || {};
+        setInstanceInfo(data);
+      })
+      .catch((error) => {
+        console.log("Failed to fetch instance info:", error);
+      });
+  }, [dataProvider]);
+
+  const fetchCacheStats = React.useCallback(() => {
+    dataProvider
+      .getCacheStats()
+      .then((response) => {
+        const data = response?.data || {};
+        setCacheStats({
+          available: data.available !== false,
+          total_entries: data.total_entries || 0,
+          total_size_bytes: data.total_size_bytes || 0,
+          entries_by_host: data.entries_by_host || [],
+          entries_by_extension: data.entries_by_extension || [],
+          top_urls: data.top_urls || [],
+        });
+      })
+      .catch((error) => {
+        console.log("Failed to fetch cache stats:", error);
+        setCacheStats({
+          available: false,
+          total_entries: 0,
+          total_size_bytes: 0,
+        });
+      });
+  }, [dataProvider]);
+
   // Fetch error details when clicking on an error code
   const handleErrorCodeClick = React.useCallback(
     (errorCode) => {
@@ -512,6 +604,9 @@ const Dashboard = () => {
     fetchErrorLogs();
     fetchAccessLogs();
     fetchTrafficStats();
+    fetchLogMetrics();
+    fetchInstanceInfo();
+    fetchCacheStats();
 
     // Fetch entity counts
     Promise.all([
@@ -604,7 +699,7 @@ const Dashboard = () => {
     >
       {/* Welcome Section */}
       <Box sx={{ mb: 2, width: "100%" }}>
-        <Welcome />
+        <Welcome instanceInfo={instanceInfo} />
       </Box>
 
       {/* Traffic Stats Cards - Large prominent cards */}
@@ -1519,6 +1614,770 @@ const Dashboard = () => {
               </AreaChart>
             </ResponsiveContainer>
           </Box>
+        </ChartCard>
+      </Box>
+
+      {/* SSL Error Tracking - Full Width */}
+      <Box sx={{ mb: 3, width: "100%" }}>
+        <ChartCard
+          title="SSL/TLS Error Tracking"
+          subtitle="Auto-SSL certificate and OCSP errors monitored via nginx_log_errors_total{component='ssl'}"
+          onRefresh={fetchLogMetrics}
+          height={320}
+          accentColor="#ef4444"
+        >
+          {logMetrics.available ? (
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 2.5,
+                py: 2,
+              }}
+            >
+              {/* SSL Error Categories */}
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: {
+                    xs: "1fr",
+                    sm: "1fr 1fr",
+                    md: "1fr 1fr 1fr",
+                  },
+                  gap: 2,
+                }}
+              >
+                {[
+                  {
+                    title: "SNI Detection Failures",
+                    metric: "nginx_log_warnings_total",
+                    component: "ssl",
+                    pattern:
+                      "could not determine domain for request (SNI not supported?)",
+                    level: "WARN",
+                    color: theme.palette.warning.main,
+                    icon: SecurityIcon,
+                  },
+                  {
+                    title: "OCSP Stapling Failures",
+                    metric: "nginx_log_warnings_total",
+                    component: "ssl",
+                    pattern:
+                      "failed to set ocsp stapling - failed to get OCSP responder",
+                    level: "WARN",
+                    color: theme.palette.warning.main,
+                    icon: SecurityIcon,
+                  },
+                  {
+                    title: "Domain Not Allowed",
+                    metric: "nginx_log_notices_total",
+                    component: "ssl",
+                    pattern: "auto-ssl: domain not allowed - using fallback",
+                    level: "NOTICE",
+                    color: theme.palette.info.main,
+                    icon: SecurityIcon,
+                  },
+                ].map((item, index) => (
+                  <Box
+                    key={index}
+                    sx={{
+                      p: 2.5,
+                      borderRadius: 2,
+                      border: `1px solid ${alpha(item.color, 0.3)}`,
+                      backgroundColor: alpha(item.color, 0.05),
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 1.5,
+                      transition: "all 0.2s",
+                      "&:hover": {
+                        backgroundColor: alpha(item.color, 0.08),
+                        transform: "translateY(-2px)",
+                        boxShadow: `0 4px 16px ${alpha(item.color, 0.2)}`,
+                      },
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1.5,
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          width: 42,
+                          height: 42,
+                          borderRadius: 2,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          backgroundColor: alpha(item.color, 0.15),
+                        }}
+                      >
+                        <item.icon sx={{ fontSize: 22, color: item.color }} />
+                      </Box>
+                      <Box sx={{ flex: 1 }}>
+                        <Typography
+                          variant="subtitle2"
+                          sx={{
+                            fontWeight: 700,
+                            color: theme.palette.text.primary,
+                            fontSize: "0.95rem",
+                            mb: 0.25,
+                          }}
+                        >
+                          {item.title}
+                        </Typography>
+                        <Chip
+                          label={item.level}
+                          size="small"
+                          sx={{
+                            height: 20,
+                            fontSize: "0.65rem",
+                            fontWeight: 700,
+                            backgroundColor: alpha(item.color, 0.15),
+                            color: item.color,
+                            "& .MuiChip-label": { px: 1 },
+                          }}
+                        />
+                      </Box>
+                    </Box>
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        color: theme.palette.text.secondary,
+                        fontSize: "0.7rem",
+                        fontFamily: "monospace",
+                        lineHeight: 1.4,
+                        p: 1,
+                        borderRadius: 1,
+                        backgroundColor: alpha(
+                          theme.palette.background.default,
+                          0.5,
+                        ),
+                      }}
+                    >
+                      {item.pattern}
+                    </Typography>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        pt: 0.5,
+                      }}
+                    >
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          color: theme.palette.text.disabled,
+                          fontSize: "0.65rem",
+                          fontWeight: 600,
+                        }}
+                      >
+                        Metric: {item.metric}
+                      </Typography>
+                      <Chip
+                        label={`component="${item.component}"`}
+                        size="small"
+                        variant="outlined"
+                        sx={{
+                          height: 18,
+                          fontSize: "0.6rem",
+                          borderColor: alpha(item.color, 0.3),
+                          color: theme.palette.text.secondary,
+                          "& .MuiChip-label": { px: 0.75 },
+                        }}
+                      />
+                    </Box>
+                  </Box>
+                ))}
+              </Box>
+
+              {/* Info Banner */}
+              <Box
+                sx={{
+                  p: 2.5,
+                  borderRadius: 2,
+                  background: `linear-gradient(135deg, ${alpha(theme.palette.error.main, 0.08)} 0%, ${alpha(theme.palette.warning.main, 0.08)} 100%)`,
+                  border: `1px solid ${alpha(theme.palette.error.main, 0.2)}`,
+                  display: "flex",
+                  gap: 2,
+                }}
+              >
+                <Box
+                  sx={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 2,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: alpha(theme.palette.error.main, 0.15),
+                    flexShrink: 0,
+                  }}
+                >
+                  <SecurityIcon
+                    sx={{ fontSize: 22, color: theme.palette.error.main }}
+                  />
+                </Box>
+                <Box sx={{ flex: 1 }}>
+                  <Typography
+                    variant="body2"
+                    fontWeight={700}
+                    color="text.primary"
+                    sx={{ mb: 1 }}
+                  >
+                    SSL Error Monitoring Active
+                  </Typography>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ display: "block", mb: 1, lineHeight: 1.5 }}
+                  >
+                    All SSL/TLS certificate errors from lua-resty-auto-ssl are
+                    automatically tracked and available in Prometheus. These
+                    include SNI detection failures, OCSP stapling issues, and
+                    domain validation errors.
+                  </Typography>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      gap: 1,
+                      flexWrap: "wrap",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        fontWeight: 600,
+                        color: theme.palette.text.secondary,
+                        fontSize: "0.7rem",
+                      }}
+                    >
+                      Prometheus Query:
+                    </Typography>
+                    <Box
+                      sx={{
+                        fontFamily: "monospace",
+                        fontSize: "0.7rem",
+                        px: 1.5,
+                        py: 0.5,
+                        borderRadius: 1,
+                        backgroundColor: alpha(
+                          theme.palette.background.paper,
+                          0.8,
+                        ),
+                        border: `1px solid ${alpha(theme.palette.divider, 0.5)}`,
+                        color: theme.palette.error.main,
+                        fontWeight: 600,
+                      }}
+                    >
+                      rate(nginx_log_errors_total&#123;component="ssl"&#125;[5m])
+                    </Box>
+                  </Box>
+                </Box>
+              </Box>
+            </Box>
+          ) : (
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                height: 200,
+                gap: 1.5,
+              }}
+            >
+              <Box
+                sx={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: "50%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backgroundColor: alpha(theme.palette.warning.main, 0.1),
+                }}
+              >
+                <SecurityIcon
+                  sx={{ fontSize: 32, color: theme.palette.warning.main }}
+                />
+              </Box>
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                fontWeight={500}
+              >
+                SSL metrics not available
+              </Typography>
+              <Typography variant="caption" color="text.disabled">
+                Ensure log interceptor is initialized
+              </Typography>
+            </Box>
+          )}
+        </ChartCard>
+      </Box>
+
+      {/* Log Level Metrics - Full Width */}
+      <Box sx={{ mb: 3, width: "100%" }}>
+        <ChartCard
+          title="Nginx Log Level Tracking"
+          subtitle="Real-time nginx log monitoring via Prometheus"
+          onRefresh={fetchLogMetrics}
+          height={280}
+          accentColor="#f59e0b"
+        >
+          {logMetrics.available ? (
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 3,
+                py: 2,
+              }}
+            >
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-around",
+                  flexWrap: "wrap",
+                  gap: 2,
+                }}
+              >
+                {[
+                  {
+                    name: "Error Logs",
+                    metric: "nginx_log_errors_total",
+                    icon: ErrorIcon,
+                    color: theme.palette.error.main,
+                  },
+                  {
+                    name: "Warning Logs",
+                    metric: "nginx_log_warnings_total",
+                    icon: ErrorIcon,
+                    color: theme.palette.warning.main,
+                  },
+                  {
+                    name: "Notice Logs",
+                    metric: "nginx_log_notices_total",
+                    icon: ErrorIcon,
+                    color: theme.palette.info.main,
+                  },
+                  {
+                    name: "All Levels",
+                    metric: "nginx_log_messages_total",
+                    icon: DataUsageIcon,
+                    color: theme.palette.success.main,
+                  },
+                ].map((item, index) => (
+                  <Box
+                    key={index}
+                    sx={{
+                      flex: "1 1 calc(25% - 12px)",
+                      minWidth: 200,
+                      p: 2.5,
+                      borderRadius: 2,
+                      border: `1px solid ${alpha(item.color, 0.2)}`,
+                      backgroundColor: alpha(item.color, 0.05),
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 1.5,
+                      transition: "all 0.2s",
+                      "&:hover": {
+                        backgroundColor: alpha(item.color, 0.08),
+                        transform: "translateY(-2px)",
+                        boxShadow: `0 4px 12px ${alpha(item.color, 0.15)}`,
+                      },
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1.5,
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          width: 40,
+                          height: 40,
+                          borderRadius: 2,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          backgroundColor: alpha(item.color, 0.15),
+                        }}
+                      >
+                        <item.icon sx={{ fontSize: 20, color: item.color }} />
+                      </Box>
+                      <Box>
+                        <Typography
+                          variant="h6"
+                          sx={{
+                            fontWeight: 700,
+                            color: item.color,
+                            fontSize: "1.1rem",
+                          }}
+                        >
+                          {item.name}
+                        </Typography>
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            color: theme.palette.text.secondary,
+                            fontFamily: "monospace",
+                            fontSize: "0.65rem",
+                          }}
+                        >
+                          {item.metric}
+                        </Typography>
+                      </Box>
+                    </Box>
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        color: theme.palette.text.secondary,
+                        fontSize: "0.7rem",
+                      }}
+                    >
+                      Tracked by component: ssl, auth, upstream, cache, nginx
+                    </Typography>
+                  </Box>
+                ))}
+              </Box>
+              <Box
+                sx={{
+                  p: 2,
+                  borderRadius: 2,
+                  backgroundColor: alpha(theme.palette.info.main, 0.08),
+                  border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 2,
+                }}
+              >
+                <Box
+                  sx={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 1.5,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: alpha(theme.palette.info.main, 0.15),
+                  }}
+                >
+                  <DataUsageIcon
+                    sx={{ fontSize: 20, color: theme.palette.info.main }}
+                  />
+                </Box>
+                <Box sx={{ flex: 1 }}>
+                  <Typography
+                    variant="body2"
+                    fontWeight={600}
+                    color="text.primary"
+                    sx={{ mb: 0.5 }}
+                  >
+                    {logMetrics.message || "Log metrics are being tracked"}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    All nginx log messages (ERROR, WARN, NOTICE, INFO, DEBUG)
+                    are automatically captured and exposed at the{" "}
+                    <Box
+                      component="span"
+                      sx={{
+                        fontFamily: "monospace",
+                        fontWeight: 600,
+                        color: theme.palette.info.main,
+                      }}
+                    >
+                      /metrics
+                    </Box>{" "}
+                    endpoint
+                  </Typography>
+                </Box>
+              </Box>
+            </Box>
+          ) : (
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                height: 200,
+                gap: 1.5,
+              }}
+            >
+              <Box
+                sx={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: "50%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backgroundColor: alpha(theme.palette.warning.main, 0.1),
+                }}
+              >
+                <ErrorIcon
+                  sx={{ fontSize: 32, color: theme.palette.warning.main }}
+                />
+              </Box>
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                fontWeight={500}
+              >
+                Log metrics not available
+              </Typography>
+              <Typography variant="caption" color="text.disabled">
+                Ensure Prometheus metrics are initialized
+              </Typography>
+            </Box>
+          )}
+        </ChartCard>
+      </Box>
+
+      {/* Cache Statistics - Full Width */}
+      <Box sx={{ mb: 3, width: "100%" }}>
+        <ChartCard
+          title="Cache Statistics"
+          subtitle="Static content caching metrics and hit ratios"
+          onRefresh={fetchCacheStats}
+        >
+          {cacheStats.available && cacheStats.total_entries > 0 ? (
+            <Box>
+              {/* Summary Stats */}
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: {
+                    xs: "1fr",
+                    sm: "repeat(2, 1fr)",
+                    md: "repeat(4, 1fr)",
+                  },
+                  gap: 2,
+                  mb: 3,
+                }}
+              >
+                <StatCard
+                  title="Total Cached Items"
+                  value={formatNumber(cacheStats.total_entries)}
+                  icon={StorageIcon}
+                  color="#10b981"
+                  subtitle="Entries in cache"
+                />
+                <StatCard
+                  title="Cache Size"
+                  value={formatBytes(cacheStats.total_size_bytes)}
+                  icon={MemoryIcon}
+                  color="#6366f1"
+                  subtitle="Total cached data"
+                />
+                <StatCard
+                  title="Hosts Cached"
+                  value={formatNumber(cacheStats.entries_by_host?.length || 0)}
+                  icon={ServerIcon}
+                  color="#f59e0b"
+                  subtitle="Unique domains"
+                />
+                <StatCard
+                  title="File Types"
+                  value={formatNumber(
+                    cacheStats.entries_by_extension?.length || 0,
+                  )}
+                  icon={InsertDriveFileIcon}
+                  color="#8b5cf6"
+                  subtitle="Content types"
+                />
+              </Box>
+
+              {/* Cache by Host Chart */}
+              {cacheStats.entries_by_host &&
+                cacheStats.entries_by_host.length > 0 && (
+                  <Box sx={{ mb: 3 }}>
+                    <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
+                      Cached Entries by Host
+                    </Typography>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <BarChart data={cacheStats.entries_by_host.slice(0, 10)}>
+                        <CartesianGrid
+                          strokeDasharray="3 3"
+                          stroke={theme.palette.divider}
+                        />
+                        <XAxis
+                          dataKey="host"
+                          stroke={theme.palette.text.secondary}
+                          tick={{ fontSize: 12 }}
+                          angle={-45}
+                          textAnchor="end"
+                          height={80}
+                        />
+                        <YAxis stroke={theme.palette.text.secondary} />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: theme.palette.background.paper,
+                            border: `1px solid ${theme.palette.divider}`,
+                            borderRadius: 8,
+                          }}
+                        />
+                        <Bar
+                          dataKey="count"
+                          fill="#10b981"
+                          radius={[8, 8, 0, 0]}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </Box>
+                )}
+
+              {/* Cache by File Extension Chart */}
+              {cacheStats.entries_by_extension &&
+                cacheStats.entries_by_extension.length > 0 && (
+                  <Box sx={{ mb: 3 }}>
+                    <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
+                      Cached Entries by File Type
+                    </Typography>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <BarChart
+                        data={cacheStats.entries_by_extension.slice(0, 10)}
+                      >
+                        <CartesianGrid
+                          strokeDasharray="3 3"
+                          stroke={theme.palette.divider}
+                        />
+                        <XAxis
+                          dataKey="extension"
+                          stroke={theme.palette.text.secondary}
+                          tick={{ fontSize: 12 }}
+                        />
+                        <YAxis stroke={theme.palette.text.secondary} />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: theme.palette.background.paper,
+                            border: `1px solid ${theme.palette.divider}`,
+                            borderRadius: 8,
+                          }}
+                        />
+                        <Bar
+                          dataKey="count"
+                          fill="#6366f1"
+                          radius={[8, 8, 0, 0]}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </Box>
+                )}
+
+              {/* Top Cached URLs */}
+              {cacheStats.top_urls && cacheStats.top_urls.length > 0 && (
+                <Box>
+                  <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
+                    Top Cached URLs
+                  </Typography>
+                  <Box
+                    sx={{
+                      maxHeight: 300,
+                      overflowY: "auto",
+                      borderRadius: 2,
+                      backgroundColor: alpha(
+                        theme.palette.background.default,
+                        0.5,
+                      ),
+                      p: 2,
+                    }}
+                  >
+                    {cacheStats.top_urls.slice(0, 20).map((item, index) => (
+                      <Box
+                        key={index}
+                        sx={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          p: 1.5,
+                          mb: 1,
+                          borderRadius: 1,
+                          backgroundColor: theme.palette.background.paper,
+                          border: `1px solid ${theme.palette.divider}`,
+                        }}
+                      >
+                        <Box sx={{ flex: 1, mr: 2 }}>
+                          <Typography
+                            variant="body2"
+                            fontWeight={500}
+                            sx={{
+                              fontFamily: "JetBrains Mono, monospace",
+                              fontSize: "0.8rem",
+                            }}
+                          >
+                            {item.host}
+                          </Typography>
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{
+                              fontFamily: "JetBrains Mono, monospace",
+                              fontSize: "0.7rem",
+                            }}
+                          >
+                            {item.url}
+                          </Typography>
+                        </Box>
+                        <Typography
+                          variant="body2"
+                          fontWeight={600}
+                          color="primary"
+                        >
+                          {formatBytes(item.size)}
+                        </Typography>
+                      </Box>
+                    ))}
+                  </Box>
+                </Box>
+              )}
+            </Box>
+          ) : (
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                py: 6,
+                gap: 2,
+              }}
+            >
+              <Box
+                sx={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: 2,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backgroundColor: alpha(theme.palette.info.main, 0.1),
+                }}
+              >
+                <StorageIcon
+                  sx={{ fontSize: 32, color: theme.palette.info.main }}
+                />
+              </Box>
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                fontWeight={500}
+              >
+                No cached items yet
+              </Typography>
+              <Typography variant="caption" color="text.disabled">
+                Cache will populate as static content is served
+              </Typography>
+            </Box>
+          )}
         </ChartCard>
       </Box>
 

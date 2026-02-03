@@ -11,11 +11,21 @@ local function getSettings()
   local settings = {}
   if readSettings == nil then
     ngx.log(ngx.ERR, "Couldn't read file: " .. errSettings)
-    return "Couldn't read file: " .. errSettings
+    return settings
   else
     local jsonString = readSettings:read "*a"
     readSettings:close()
-    settings = Cjson.decode(jsonString)
+    if jsonString == nil or jsonString == "" then
+      ngx.log(ngx.ERR, "Settings file is empty at: " .. configPath .. "data/settings.json")
+      return settings
+    end
+    local ok, result = pcall(Cjson.decode, jsonString)
+    if ok then
+      settings = result
+    else
+      ngx.log(ngx.ERR, "Failed to decode settings JSON: " .. tostring(result))
+      return settings
+    end
   end
   return settings
 end

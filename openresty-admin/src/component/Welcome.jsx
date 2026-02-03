@@ -7,7 +7,7 @@ import { useTranslate } from 'react-admin';
 import Logo from './Logo';
 import { useThemeMode } from '../Theme';
 
-const Welcome = () => {
+const Welcome = ({ instanceInfo = {} }) => {
     const translate = useTranslate();
     const theme = useTheme();
     const { mode } = useThemeMode();
@@ -143,17 +143,99 @@ const Welcome = () => {
                     </CardActions>
                 </Box>
                 
-                {/* Right side decorative logo */}
+                {/* Right side instance info */}
                 <Box
                     display={{ xs: 'none', md: 'flex' }}
-                    alignItems="center"
-                    justifyContent="center"
+                    flexDirection="column"
                     sx={{
                         ml: 4,
-                        opacity: 0.15,
+                        minWidth: '280px',
+                        gap: 1.5,
                     }}
                 >
-                    <Logo variant="icon" height={150} theme={mode} />
+                    <Typography
+                        variant="overline"
+                        sx={{
+                            color: theme.palette.text.secondary,
+                            fontWeight: 600,
+                            fontSize: '0.7rem',
+                            letterSpacing: '0.1em',
+                        }}
+                    >
+                        Instance Info
+                    </Typography>
+
+                    <Box sx={{
+                        backgroundColor: isDark ? alpha('#0f172a', 0.6) : alpha('#fff', 0.7),
+                        borderRadius: 2,
+                        p: 2,
+                        border: `1px solid ${isDark ? alpha('#334155', 0.5) : alpha('#cbd5e1', 0.5)}`,
+                    }}>
+                        <Box sx={{ mb: 1.5 }}>
+                            <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontSize: '0.7rem' }}>
+                                Hostname
+                            </Typography>
+                            <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.85rem', fontFamily: 'JetBrains Mono, monospace' }}>
+                                {instanceInfo.hostname || 'Loading...'}
+                            </Typography>
+                        </Box>
+
+                        <Box sx={{ mb: 1.5 }}>
+                            <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontSize: '0.7rem' }}>
+                                IP Address
+                            </Typography>
+                            <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.85rem', fontFamily: 'JetBrains Mono, monospace' }}>
+                                {instanceInfo.ip_addresses && instanceInfo.ip_addresses.length > 0
+                                    ? instanceInfo.ip_addresses[0]
+                                    : 'Loading...'}
+                            </Typography>
+                        </Box>
+
+                        <Box sx={{ mb: 1.5 }}>
+                            <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontSize: '0.7rem' }}>
+                                CPU Cores
+                            </Typography>
+                            <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.75rem' }}>
+                                {instanceInfo.cpu?.cores || '?'} cores
+                            </Typography>
+                        </Box>
+
+                        <Box sx={{ mb: 1.5 }}>
+                            <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontSize: '0.7rem' }}>
+                                Memory Available
+                            </Typography>
+                            <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.75rem' }}>
+                                {instanceInfo.memory?.available || 'Loading...'} / {instanceInfo.memory?.total || '?'}
+                            </Typography>
+                        </Box>
+
+                        <Box>
+                            <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontSize: '0.7rem' }}>
+                                Storage Available
+                            </Typography>
+                            <Typography variant="body2" sx={{ fontWeight: 500, fontSize: '0.75rem' }}>
+                                {instanceInfo.disk?.available || 'Loading...'} / {instanceInfo.disk?.total || '?'}
+                            </Typography>
+                        </Box>
+                    </Box>
+
+                    <Button
+                        variant="text"
+                        href="/#/instances"
+                        size="small"
+                        sx={{
+                            fontSize: '0.7rem',
+                            fontWeight: 600,
+                            color: theme.palette.primary.main,
+                            textAlign: 'right',
+                            justifyContent: 'flex-end',
+                            '&:hover': {
+                                backgroundColor: alpha(theme.palette.primary.main, 0.08),
+                            },
+                        }}
+                    >
+                        View Details →
+                    </Button>
                 </Box>
             </Box>
         </Card>

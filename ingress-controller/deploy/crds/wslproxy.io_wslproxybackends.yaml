@@ -1,0 +1,171 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: wslproxybackends.wslproxy.io
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.13.0
+spec:
+  group: wslproxy.io
+  names:
+    kind: WSLProxyBackend
+    listKind: WSLProxyBackendList
+    plural: wslproxybackends
+    singular: wslproxybackend
+    shortNames:
+      - wsbe
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+        description: WSLProxyBackend is the Schema for the wslproxybackends API
+        type: object
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: WSLProxyBackendSpec defines the desired state of WSLProxyBackend
+            type: object
+            required:
+              - upstreams
+            properties:
+              upstreams:
+                description: Upstreams defines the backend servers
+                type: array
+                items:
+                  type: object
+                  required:
+                    - host
+                    - port
+                  properties:
+                    host:
+                      description: Host is the upstream server hostname or IP
+                      type: string
+                    port:
+                      description: Port is the upstream server port
+                      type: integer
+                      minimum: 1
+                      maximum: 65535
+                    weight:
+                      description: Weight for weighted load balancing
+                      type: integer
+                      minimum: 0
+                      maximum: 100
+                      default: 1
+                    maxFails:
+                      description: MaxFails before marking upstream as down
+                      type: integer
+                      minimum: 0
+                      default: 1
+                    failTimeout:
+                      description: FailTimeout in seconds
+                      type: integer
+                      minimum: 1
+                      default: 10
+              loadBalancing:
+                description: LoadBalancing defines the load balancing policy
+                type: string
+                enum:
+                  - round-robin
+                  - least-connections
+                  - ip-hash
+                  - weighted-round-robin
+                default: round-robin
+              healthCheck:
+                description: HealthCheck defines health check configuration
+                type: object
+                required:
+                  - enabled
+                properties:
+                  enabled:
+                    type: boolean
+                  interval:
+                    description: Interval between health checks in seconds
+                    type: integer
+                    minimum: 1
+                    default: 5
+                  timeout:
+                    description: Timeout for health check in seconds
+                    type: integer
+                    minimum: 1
+                    default: 3
+                  path:
+                    description: Path for HTTP health check
+                    type: string
+                    default: /health
+                  expectedStatus:
+                    description: ExpectedStatus for successful health check
+                    type: integer
+                    default: 200
+              circuitBreaker:
+                description: CircuitBreaker defines circuit breaking configuration
+                type: object
+                required:
+                  - enabled
+                properties:
+                  enabled:
+                    type: boolean
+                  threshold:
+                    description: Threshold for consecutive failures before opening circuit
+                    type: integer
+                    minimum: 1
+                    default: 5
+                  timeout:
+                    description: Timeout before attempting to close circuit in seconds
+                    type: integer
+                    minimum: 1
+                    default: 30
+          status:
+            description: WSLProxyBackendStatus defines the observed state
+            type: object
+            properties:
+              conditions:
+                description: Conditions represent the latest available observations
+                type: array
+                items:
+                  type: object
+                  properties:
+                    type:
+                      type: string
+                    status:
+                      type: string
+                    reason:
+                      type: string
+                    message:
+                      type: string
+                    lastTransitionTime:
+                      type: string
+                      format: date-time
+              activeUpstreams:
+                description: ActiveUpstreams count of healthy upstreams
+                type: integer
+              totalUpstreams:
+                description: TotalUpstreams count of total upstreams
+                type: integer
+              lastUpdated:
+                description: LastUpdated timestamp
+                type: string
+                format: date-time
+    additionalPrinterColumns:
+    - name: Load Balancing
+      type: string
+      jsonPath: .spec.loadBalancing
+    - name: Active
+      type: integer
+      jsonPath: .status.activeUpstreams
+    - name: Total
+      type: integer
+      jsonPath: .status.totalUpstreams
+    - name: Age
+      type: date
+      jsonPath: .metadata.creationTimestamp
+    subresources:
+      status: {}

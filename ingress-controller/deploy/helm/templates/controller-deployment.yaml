@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "wslproxy.fullname" . }}-controller
+  labels:
+    {{- include "wslproxy.labels" . | nindent 4 }}
+    app.kubernetes.io/component: controller
+spec:
+  replicas: {{ .Values.controller.replicas }}
+  selector:
+    matchLabels:
+      {{- include "wslproxy.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: controller
+  template:
+    metadata:
+      annotations:
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "wslproxy.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: controller
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- if .Values.serviceAccount.create }}
+      serviceAccountName: {{ include "wslproxy.serviceAccountName" . }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: controller
+        image: "{{ .Values.controller.image.repository }}:{{ .Values.controller.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.controller.image.pullPolicy }}
+        args:
+        - --metrics-bind-address=:{{ .Values.controller.metrics.port }}
+        - --health-probe-bind-address=:{{ .Values.controller.healthProbe.port }}
+        {{- if .Values.controller.leaderElection.enabled }}
+        - --leader-elect=true
+        {{- end }}
+        - --openresty-api-url=http://{{ include "wslproxy.fullname" . }}-openresty:8080/api/internal
+        ports:
+        - name: metrics
+          containerPort: {{ .Values.controller.metrics.port }}
+          protocol: TCP
+        - name: health
+          containerPort: {{ .Values.controller.healthProbe.port }}
+          protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: health
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: health
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          {{- toYaml .Values.controller.resources | nindent 10 }}
+        securityContext:
+          {{- toYaml .Values.controller.securityContext | nindent 10 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6366f1"/>
+      <stop offset="100%" style="stop-color:#8b5cf6"/>
+    </linearGradient>
+  </defs>
+  <rect width="200" height="200" rx="20" fill="url(#grad)"/>
+  <text x="50%" y="45%" text-anchor="middle" fill="white" font-size="48" font-weight="bold" font-family="sans-serif">WSL</text>
+  <text x="50%" y="70%" text-anchor="middle" fill="white" font-size="24" font-family="sans-serif">Proxy</text>
+  <text x="50%" y="88%" text-anchor="middle" fill="rgba(255,255,255,0.7)" font-size="12" font-family="sans-serif">Cache Test</text>
+</svg>

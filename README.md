@@ -1,49 +1,139 @@
-# wslproxy
+# WSLProxy
 
-wslproxy is an API Gateway and a CDN, and it fully powered itself via API so that it can be fully configured automatically via pipelines and release mangement.
+**Enterprise-Grade API Gateway & Reverse Proxy with Automated Management**
 
-## Dev environment Rquirements
+WSLProxy is a high-performance, cloud-native API gateway and reverse proxy built on OpenResty (Nginx with Lua scripting). Designed for modern DevOps workflows, it provides automatic SSL/TLS management, dynamic routing configuration, and comprehensive monitoring capabilities—all fully API-driven for seamless CI/CD integration.
 
-Bash
+## Key Features
 
-Docker
+- **🔒 Automatic SSL/TLS Management** - Let's Encrypt integration with zero-downtime certificate renewal
+- **⚙️ API-First Architecture** - Configure everything via REST API, perfect for infrastructure-as-code and pipelines
+- **🚀 High Performance** - OpenResty-based with Lua scripting for custom logic without proxy limitations
+- **📊 Built-in Monitoring** - Prometheus metrics, traffic analytics, and admin dashboard out of the box
+- **🔄 Dynamic Routing** - Hot-reload configuration without restarting the proxy
+- **🏗️ Multi-Deployment Ready** - Docker, Kubernetes, Docker Swarm, and bare metal support
+- **🔌 Service Mesh Ready** - Consul integration for service discovery and health checks
+- **📦 Zero Dependencies** - Lightweight container (~150MB) with everything included
 
-node > 16
+## Quick Start (Choose Your Deployment)
 
-yarn
+### Option 1: Docker (Fastest Way)
 
-## Installation using Docker
+```bash
+# Pull latest image
+docker pull bwalia/wslproxy:latest
 
-# Run the docker example: to build dev environment
+# Run with default config
+docker run -d \
+  --name wslproxy \
+  -p 80:80 \
+  -p 443:443 \
+  -p 8080:8080 \
+  bwalia/wslproxy:latest
 
+# Access admin dashboard
+open http://localhost:8080
 ```
+
+### Option 2: Docker Compose (Development)
+
+```bash
+# Clone and start
+git clone https://github.com/wslproxy/wslproxy.git && cd wslproxy
+docker-compose -f docker-compose-dev.yml up
+
+# Access dashboard
+open http://localhost:8080
+
+# Hot-reload changes to Lua API files instantly
+```
+
+### Option 3: Kubernetes Helm (Production)
+
+```bash
+# Deploy to K8s cluster
+helm install wslproxy ./devops/helm-charts/wslproxy \
+  -n wslproxy \
+  --create-namespace \
+  -f values-prod.yaml
+
+# Monitor deployment
+kubectl -n wslproxy get pods -w
+```
+
+## Documentation
+
+- **[Docker Deployment Guide](./DOCKER-DEPLOYMENT.md)** - Step-by-step deployment for all scenarios
+- **[Docker Reference](./DOCKER.md)** - Configuration, monitoring, troubleshooting
+- **[Kubernetes Helm Charts](./devops/helm-charts/wslproxy/)** - K8s deployment manifests
+
+## Use Cases
+
+### API Gateway for Microservices
+Route, authenticate, and monitor traffic to multiple backend services with automatic certificate management and request/response transformation.
+
+### CDN & Reverse Proxy
+Cache static content, optimize images, and serve from edge locations with dynamic routing rules and traffic analytics.
+
+### Service Mesh Ingress
+Integrate with Consul for automatic service discovery, health checks, and dynamic upstream configuration.
+
+### Multi-Tenant Platform
+Isolate and manage multiple tenants with per-tenant SSL certificates, rate limiting, and traffic rules.
+
+## Development Environment Requirements
+
+- **Bash** - For deployment scripts
+- **Docker** - For containerized deployment
+- **Node.js** - Version 16+ (for admin dashboard development)
+- **Yarn** - For package management
+
+## Advanced Deployment
+
+### Docker - Full Automation Script
+
+For complete automated setup with environment configuration:
+
+```bash
+# Development environment
 sudo ./deploy-to-docker.sh "dev" "wslproxy" "$JWT_TOKEN" && ./show.sh
+
+# Production environment
+sudo ./deploy-to-docker.sh "prod" "wslproxy" "$JWT_TOKEN"
 ```
 
-# Run the docker example on windows: to build dev environment (make sure you have git bash installed)
+**Windows Users** (with Git Bash):
 
-```
+```bash
 bash ./deploy-to-docker-windows.sh "dev" "wslproxy" "$JWT_TOKEN"
 ```
 
-# To purely build docker image and run locally
+### Docker - Build Locally
 
-```
+To build the Docker image from source:
+
+```bash
 ./build.sh "dev" "wslproxy" "$JWT_TOKEN"
 ```
 
-# To bootstrap the docker deployment
+### Docker - Bootstrap Deployment
 
-```
+For fresh deployments with automatic configuration:
+
+```bash
 ./bootstrap.sh "dev" "wslproxy" "$JWT_TOKEN" "DOCKER"
-
 ```
 
-# Deployment onto to the Kubernates
+### Kubernetes Deployment
 
-NOTE: MAKE SURE YOU HAVE KUBESEAL IN YOUR SYSTEM
+**Prerequisites:**
+- Kubernetes cluster 1.20+ running
+- Helm 3+ installed
+- KubeSeal installed for secret management (optional but recommended)
 
-1. Create a .env file with following details:
+**Step 1: Create environment configuration**
+
+Create a `.env` file with your deployment details:
 
 ```
 VITE_API_URL=https://YOUR-DOMAIN/api
@@ -61,8 +151,18 @@ MINIO_ACCESS_KEY=<MINIO_ACCESS_KEY>
 MINIO_SECRET_KEY=<MINIO_SECRET_KEY>
 ```
 
-2. After creating .env you need to encode this file to base64.
-3. Create a new file with name api-secrets.yaml with following details:
+**Step 2: Create Kubernetes secrets**
+
+Encode and create the secret manifests:
+
+```bash
+# Encode the .env file
+cat .env | base64 > env.b64
+```
+
+**Step 3: Create secret manifests**
+
+Create `api-secrets.yaml`:
 
 ```
 apiVersion: v1
@@ -74,7 +174,7 @@ data:
   env_file: <BASE64 ENCODED ENV FILE>
 ```
 
-4. Create one more secret file for front door with name front-secrets.yaml and add this:
+Also create `front-secrets.yaml` for the admin dashboard:
 
 ```
 apiVersion: v1
@@ -86,46 +186,39 @@ data:
   env_file: <BASE64 ENCODED ENV FILE>
 ```
 
-5. Now, Run this command to generate the sealed-secrets
+**Step 4: Seal secrets (optional, for enhanced security)**
 
-```
+```bash
 kubeseal --format=yaml < api-secrets.yaml > api-sealed-secret.yaml
 kubeseal --format=yaml < front-secrets.yaml > front-sealed-secret.yaml
+# Use the sealed secrets in your Helm values instead
 ```
 
-6. Open the api-sealed-secret.yaml and front-sealed-secret.yaml files copy the env_file: encrypted data.
-7. Put that encrypted data into the k3s values files under the 'secure_env_file:'.
-8. Along with .env you will also need to add a settings.json file for backend variables. Here is the sample of settings.json:
+**Step 5: Create settings.json for backend configuration**
 
-```
+The WSLProxy backend requires a `settings.json` file for initialization. Here's a minimal working example:
+
+```json
 {
-  "instance_id": "your-intance-id",
-  "instance_name": "Name for Intance",
-  "instance_hash": "intstance hash (Sh1)",
-  "serial_number": "serial number for the intance",
-    "roles": [
-      "release_manager",
-      "admin",
-      "read_only",
-      "read_write"
-    ],
-    "env_vars": {
-      "FRONT_URL": "https://YOUR-FRONT-DOMAIN",
-      "JWT_SECURITY_PASSPHRASE": "<YOUR-JWT-TOKEN>",
-      "REDIS_HOST": "<REDIS_HOST>",
-      "HOSTNAME": "<HOST_NAME>",
-      "STACK": "Lua 5.1",
-      "APP_NAME": "<APP_NAME>",
-      "NGINX_CONFIG_DIR": "<Config directory where you want to save your configurations>",
-      "REDIS_PORT": <Redis Port>,
-      "API_PAGE_SIZE": 100,
-      "VITE_DEPLOYMENT_TIME": "<ADD TIMESTAMP>",
-      "CONTROL_PLANE_API_URL": "<Controlplane URL from where you want to pull the data>",
-      "VERSION": "1.0",
-      "API_URL": "<API_URL>"
-    },
-    "env_profile": "prod",
-    "instance_locked": "true",
+  "instance_id": "prod-wslproxy-01",
+  "instance_name": "Production WSLProxy",
+  "env_profile": "prod",
+  "redis_host": "redis-service.svc.cluster.local",
+  "redis_port": 6379,
+  "roles": [
+    "release_manager",
+    "admin",
+    "read_only",
+    "read_write"
+  ],
+  "env_vars": {
+    "FRONT_URL": "https://your-domain.com",
+    "CONTROL_PLANE_API_URL": "https://api.your-domain.com",
+    "JWT_SECURITY_PASSPHRASE": "your-jwt-token",
+    "APP_NAME": "WSLProxy"
+  },
+  "storage_type": "disk",
+  "instance_locked": false,
     "ip2location_path": "<ADD IP2LOCATION-LITE-DB11.IPV6.BIN file Path>",
     "dns_resolver": {
       "nameservers": {

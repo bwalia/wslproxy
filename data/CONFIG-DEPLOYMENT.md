@@ -126,7 +126,7 @@ Rules define how requests are routed/processed.
 
 Configs are automatically deployed when changes are pushed to the `main` branch:
 
-1. **Kubernetes (Helm)**: The `build-push-deploy.yaml` workflow copies configs directly to pods
+1. **Kubernetes (Helm)**: The `k3s-build-push-deploy.yaml` workflow copies configs directly to pods
 2. **Docker/Native**: The `deploy-configs.yml` workflow uses Ansible to sync configs
 
 ### Manual Deployment

@@ -2976,24 +2976,8 @@ local function handle_get_request(args, path)
         ngx.exit(ngx.HTTP_OK)
     end
 
-    -- Get cache statistics - GET /api/cache/stats
-    if path == "cache/stats" then
-        local stats, stats_err = require("cache_handler").get_cache_stats()
-        if stats then
-            ngx.say(cjson.encode({
-                data = stats
-            }))
-        else
-            ngx.say(cjson.encode({
-                data = {
-                    error = stats_err or "Failed to get cache stats"
-                }
-            }))
-        end
-        ngx.exit(ngx.HTTP_OK)
-    end
-
     -- Get server-specific cache statistics - GET /api/cache/stats/{server_name}
+    -- Note: General /api/cache/stats is handled later with comprehensive stats
     if subPath[1] == "cache" and subPath[2] == "stats" and subPath[3] then
         local server_name = subPath[3]
         local stats, stats_err = require("cache_handler").get_server_cache_stats(server_name)
@@ -3008,6 +2992,109 @@ local function handle_get_request(args, path)
                 }
             }))
         end
+        ngx.exit(ngx.HTTP_OK)
+    end
+
+    -- Get instance/server information - GET /api/instance/info
+    if path == "instance/info" then
+        local function execute_command(cmd)
+            local handle = io.popen(cmd)
+            if not handle then return nil end
+            local result = handle:read("*a")
+            handle:close()
+            return result
+        end
+
+        local function get_ip_addresses()
+            local ips = {}
+            local ip_cmd = execute_command("hostname -I 2>/dev/null || ip addr show 2>/dev/null | grep 'inet ' | awk '{print $2}' | cut -d/ -f1")
+            if ip_cmd then
+                for ip in ip_cmd:gmatch("%S+") do
+                    table.insert(ips, ip)
+                end
+            end
+            return ips
+        end
+
+        local function get_network_interfaces()
+            local interfaces = {}
+            local if_cmd = execute_command("ip -brief addr show 2>/dev/null || ifconfig -a 2>/dev/null")
+            if if_cmd then
+                for line in if_cmd:gmatch("[^\r\n]+") do
+                    table.insert(interfaces, line)
+                end
+            end
+            return interfaces
+        end
+
+        local function get_routes()
+            local routes = {}
+            local route_cmd = execute_command("ip route show 2>/dev/null || route -n 2>/dev/null")
+            if route_cmd then
+                for line in route_cmd:gmatch("[^\r\n]+") do
+                    table.insert(routes, line)
+                end
+            end
+            return routes
+        end
+
+        local hostname = execute_command("hostname 2>/dev/null"):gsub("%s+", "")
+        local fqdn = execute_command("hostname -f 2>/dev/null"):gsub("%s+", "")
+        local os_info = execute_command("cat /etc/os-release 2>/dev/null | grep PRETTY_NAME | cut -d'\"' -f2")
+        if os_info then os_info = os_info:gsub("%s+$", "") end
+        local kernel = execute_command("uname -r 2>/dev/null"):gsub("%s+", "")
+        local uptime = execute_command("uptime -p 2>/dev/null || uptime"):gsub("%s+$", "")
+        local cpu_info = execute_command("lscpu 2>/dev/null | grep 'Model name' | cut -d':' -f2"):gsub("^%s+", ""):gsub("%s+$", "")
+        local cpu_cores = execute_command("nproc 2>/dev/null"):gsub("%s+", "")
+        local cpu_usage = execute_command("top -bn1 2>/dev/null | grep 'Cpu(s)' | awk '{print $2}' | cut -d'%' -f1"):gsub("%s+", "")
+
+        -- Memory information (total, used, available, free)
+        local memory_total = execute_command("free -h 2>/dev/null | grep Mem | awk '{print $2}'"):gsub("%s+", "")
+        local memory_used = execute_command("free -h 2>/dev/null | grep Mem | awk '{print $3}'"):gsub("%s+", "")
+        local memory_available = execute_command("free -h 2>/dev/null | grep Mem | awk '{print $7}'"):gsub("%s+", "")
+        local memory_free = execute_command("free -h 2>/dev/null | grep Mem | awk '{print $4}'"):gsub("%s+", "")
+
+        -- Disk information
+        local disk = execute_command("df -h / 2>/dev/null | tail -1 | awk '{print $2}'"):gsub("%s+", "")
+        local disk_used = execute_command("df -h / 2>/dev/null | tail -1 | awk '{print $3}'"):gsub("%s+", "")
+        local disk_available = execute_command("df -h / 2>/dev/null | tail -1 | awk '{print $4}'"):gsub("%s+", "")
+        local disk_percent = execute_command("df -h / 2>/dev/null | tail -1 | awk '{print $5}'"):gsub("%s+", "")
+
+        local load_avg = execute_command("uptime | awk -F'load average:' '{print $2}'"):gsub("^%s+", ""):gsub("%s+$", "")
+
+        ngx.say(cjson.encode({
+            data = {
+                hostname = hostname or "unknown",
+                fqdn = fqdn or hostname or "unknown",
+                ip_addresses = get_ip_addresses(),
+                os = os_info or "unknown",
+                kernel = kernel or "unknown",
+                uptime = uptime or "unknown",
+                cpu = {
+                    model = cpu_info or "unknown",
+                    cores = cpu_cores or "unknown",
+                    usage_percent = cpu_usage or "0"
+                },
+                memory = {
+                    total = memory_total or "unknown",
+                    used = memory_used or "unknown",
+                    available = memory_available or "unknown",
+                    free = memory_free or "unknown"
+                },
+                disk = {
+                    total = disk or "unknown",
+                    used = disk_used or "unknown",
+                    available = disk_available or "unknown",
+                    percent = disk_percent or "0%"
+                },
+                load_average = load_avg or "unknown",
+                network = {
+                    interfaces = get_network_interfaces(),
+                    routes = get_routes()
+                },
+                environment = os.getenv("HOSTNAME") or os.getenv("APP_NAME") or "unknown"
+            }
+        }))
         ngx.exit(ngx.HTTP_OK)
     end
 
@@ -3034,6 +3121,129 @@ local function handle_get_request(args, path)
                 }
             }))
         end
+        ngx.exit(ngx.HTTP_OK)
+    end
+
+    -- Get nginx log level metrics - GET /api/log/metrics
+    if path == "log/metrics" then
+        local metrics_ok, metrics = pcall(require, "prometheus_metrics")
+        if metrics_ok and metrics.is_initialized() then
+            -- Get log level metric counters
+            local log_levels = metrics.get_metric_log_levels()
+            local log_errors = metrics.get_metric_log_errors()
+            local log_warnings = metrics.get_metric_log_warnings()
+            local log_notices = metrics.get_metric_log_notices()
+
+            -- Extract current values from metrics
+            -- Note: These are counters, so values are cumulative
+            ngx.say(cjson.encode({
+                data = {
+                    available = true,
+                    message = "Log metrics are being tracked. View detailed metrics at /metrics endpoint.",
+                    metrics = {
+                        log_errors_total = "nginx_log_errors_total",
+                        log_warnings_total = "nginx_log_warnings_total",
+                        log_notices_total = "nginx_log_notices_total",
+                        log_messages_total = "nginx_log_messages_total"
+                    },
+                    note = "These are Prometheus counter metrics. Use rate() function in PromQL for meaningful graphs."
+                }
+            }))
+        else
+            ngx.say(cjson.encode({
+                data = {
+                    available = false,
+                    error = "Prometheus metrics not initialized",
+                    metrics = {}
+                }
+            }))
+        end
+        ngx.exit(ngx.HTTP_OK)
+    end
+
+    -- Get cache statistics - GET /api/cache/stats
+    if path == "cache/stats" then
+        local cache_dict = ngx.shared.wsl_cache
+        local cache_keys_dict = ngx.shared.wsl_cache_keys
+
+        if not cache_dict then
+            ngx.say(cjson.encode({
+                data = {
+                    available = false,
+                    error = "Cache shared dictionary not configured"
+                }
+            }))
+            ngx.exit(ngx.HTTP_OK)
+        end
+
+        -- Get all cache keys and calculate stats
+        local keys = cache_dict:get_keys(0)  -- Get all keys
+        local total_entries = #keys
+        local total_size = 0
+        local entries_by_host = {}
+        local entries_by_extension = {}
+        local top_urls = {}
+
+        for _, key in ipairs(keys) do
+            local value = cache_dict:get(key)
+            if value then
+                -- Calculate size
+                total_size = total_size + #value
+
+                -- Parse key to extract host and URL
+                local host, url = key:match("^([^:]+):(.+)$")
+                if host and url then
+                    -- Count by host
+                    entries_by_host[host] = (entries_by_host[host] or 0) + 1
+
+                    -- Extract extension
+                    local ext = url:match("%.([%w]+)$")
+                    if ext then
+                        entries_by_extension[ext] = (entries_by_extension[ext] or 0) + 1
+                    end
+
+                    -- Add to top URLs list (limit to 50)
+                    if #top_urls < 50 then
+                        table.insert(top_urls, {
+                            url = url,
+                            host = host,
+                            size = #value,
+                            key = key
+                        })
+                    end
+                end
+            end
+        end
+
+        -- Convert to arrays for JSON
+        local hosts_array = {}
+        for host, count in pairs(entries_by_host) do
+            table.insert(hosts_array, {host = host, count = count})
+        end
+        table.sort(hosts_array, function(a, b) return a.count > b.count end)
+
+        local extensions_array = {}
+        for ext, count in pairs(entries_by_extension) do
+            table.insert(extensions_array, {extension = ext, count = count})
+        end
+        table.sort(extensions_array, function(a, b) return a.count > b.count end)
+
+        -- Sort top URLs by size
+        table.sort(top_urls, function(a, b) return a.size > b.size end)
+
+        ngx.say(cjson.encode({
+            data = {
+                available = true,
+                total_entries = total_entries,
+                total_size_bytes = total_size,
+                total_size_mb = math.floor(total_size / 1024 / 1024 * 100) / 100,
+                entries_by_host = hosts_array,
+                entries_by_extension = extensions_array,
+                top_urls = top_urls,
+                cache_dict_capacity = cache_dict:capacity(),
+                cache_dict_free_space = cache_dict:free_space()
+            }
+        }))
         ngx.exit(ngx.HTTP_OK)
     end
 

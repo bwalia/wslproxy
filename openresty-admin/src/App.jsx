@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useRef } from "react";
 import { Admin, Resource, useStore, CustomRoutes } from "react-admin";
 import dataProvider from "./dataProvider";
 import authProvider from "./authProvider";
@@ -39,6 +39,7 @@ import { Puff } from "react-loader-spinner";
 import CheckModal from "./component/CheckModal";
 import { Route } from "react-router";
 import ResetForm from "./component/ResetForm";
+import InstanceInfo from "./Instances/InstanceInfo";
 
 const API_URL = import.meta.env.VITE_API_URL;
 const deploymentTime = import.meta.env.VITE_DEPLOYMENT_TIME;
@@ -127,6 +128,14 @@ const AppContent = () => {
     [],
   );
 
+  // dataProvider uses hooks internally, so it must be called during render
+  // useRef stores the instance to provide stable reference to react-admin
+  const dataProviderRef = useRef(null);
+  const currentDataProvider = dataProvider(API_URL);
+  if (!dataProviderRef.current) {
+    dataProviderRef.current = currentDataProvider;
+  }
+
   // Create theme based on current mode
   const theme = useMemo(() => createAppTheme(mode), [mode]);
   const isDark = mode === "dark";
@@ -158,7 +167,7 @@ const AppContent = () => {
       <Admin
         loginPage={Login}
         i18nProvider={i18nProvider}
-        dataProvider={dataProvider(API_URL)}
+        dataProvider={dataProviderRef.current}
         authProvider={authProvider}
         dashboard={Dashboard}
         theme={theme}
@@ -176,6 +185,7 @@ const AppContent = () => {
         <Resource name="instances" {...Instances} icon={InstanceIcon} />
         <CustomRoutes>
           <Route path="/password/reset" element={<ResetForm />} />
+          <Route path="/instance-info" element={<InstanceInfo />} />
         </CustomRoutes>
       </Admin>
       <VersionFooter />

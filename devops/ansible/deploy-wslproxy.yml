@@ -2,6 +2,6 @@
   become: yes
   roles:
     - ubuntu
-    - luarocks
+    - wslproxy
   vars:
     nginx_port: 80

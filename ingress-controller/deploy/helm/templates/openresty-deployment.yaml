@@ -1,0 +1,135 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "wslproxy.fullname" . }}-openresty
+  labels:
+    {{- include "wslproxy.labels" . | nindent 4 }}
+    app.kubernetes.io/component: proxy
+spec:
+  replicas: {{ .Values.openresty.replicas }}
+  selector:
+    matchLabels:
+      {{- include "wslproxy.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: proxy
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/openresty-configmap.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "wslproxy.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: proxy
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: openresty
+        image: "{{ .Values.openresty.image.repository }}:{{ .Values.openresty.image.tag }}"
+        imagePullPolicy: {{ .Values.openresty.image.pullPolicy }}
+        ports:
+        - name: http
+          containerPort: 80
+          protocol: TCP
+        - name: https
+          containerPort: 443
+          protocol: TCP
+        - name: api
+          containerPort: 8080
+          protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        resources:
+          {{- toYaml .Values.openresty.resources | nindent 10 }}
+        securityContext:
+          {{- toYaml .Values.openresty.securityContext | nindent 10 }}
+        volumeMounts:
+        {{- if not .Values.openresty.useBuiltinConfig }}
+        - name: nginx-config
+          mountPath: /usr/local/openresty/nginx/conf/nginx.conf
+          subPath: nginx.conf
+          readOnly: true
+        - name: lua-scripts
+          mountPath: /usr/local/openresty/nginx/lua
+          readOnly: true
+        {{- end }}
+        - name: cache
+          mountPath: /var/cache/nginx
+        - name: run
+          mountPath: /var/run/nginx
+        - name: nginx-temp
+          mountPath: /usr/local/openresty/nginx/client_body_temp
+        - name: nginx-proxy-temp
+          mountPath: /usr/local/openresty/nginx/proxy_temp
+        - name: nginx-fastcgi-temp
+          mountPath: /usr/local/openresty/nginx/fastcgi_temp
+        - name: nginx-uwsgi-temp
+          mountPath: /usr/local/openresty/nginx/uwsgi_temp
+        - name: nginx-scgi-temp
+          mountPath: /usr/local/openresty/nginx/scgi_temp
+        {{- if not .Values.certManager.enabled }}
+        - name: default-tls
+          mountPath: /etc/nginx/ssl
+          readOnly: true
+        {{- end }}
+      volumes:
+      {{- if not .Values.openresty.useBuiltinConfig }}
+      - name: nginx-config
+        configMap:
+          name: {{ include "wslproxy.fullname" . }}-openresty-config
+      - name: lua-scripts
+        configMap:
+          name: {{ include "wslproxy.fullname" . }}-lua-scripts
+      {{- end }}
+      - name: cache
+        emptyDir: {}
+      - name: run
+        emptyDir: {}
+      - name: nginx-temp
+        emptyDir: {}
+      - name: nginx-proxy-temp
+        emptyDir: {}
+      - name: nginx-fastcgi-temp
+        emptyDir: {}
+      - name: nginx-uwsgi-temp
+        emptyDir: {}
+      - name: nginx-scgi-temp
+        emptyDir: {}
+      {{- if not .Values.certManager.enabled }}
+      - name: default-tls
+        secret:
+          secretName: {{ include "wslproxy.fullname" . }}-default-tls
+          items:
+          - key: tls.crt
+            path: default.crt
+          - key: tls.key
+            path: default.key
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

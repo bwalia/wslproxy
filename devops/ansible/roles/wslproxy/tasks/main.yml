@@ -1,0 +1,394 @@
+- name: Update and upgrade apt packages
+  block:
+    - name: Update apt cache
+      command: apt-get update
+      register: update_result
+      until: update_result.rc == 0
+      retries: 5
+      delay: 10
+
+    - name: Upgrade apt packages
+      command: apt-get upgrade -y
+      register: upgrade_result
+      until: upgrade_result.rc == 0
+      retries: 5
+      delay: 10
+  tags: [ubuntu, openresty, lapis]
+
+- name: Install luarocks
+  apt:
+    name: luarocks
+    state: present
+  tags: [openresty, lapis]
+
+- name: Load host variables
+  include_vars: "{{ playbook_dir }}/host_vars/{{ inventory_hostname }}/vars.yaml"
+
+- name: Copy openresty bootstrap script
+  template:
+    src: bootstrap.sh.j2
+    dest: /tmp/bootstrap.sh
+    mode: 0777
+  tags: [test, openresty]
+
+- name: Execute the bootstrap.sh openresty bootstrap script
+  shell: /tmp/bootstrap.sh
+  tags: [test, openresty]
+
+- name: Adding user www-data
+  user:
+    name: www-data
+    group: www-data
+    shell: /bin/bash
+    password: "{{ nginx_user_password }}"
+    groups: sudo
+    append: yes
+  tags: [openresty, lapis, dashboard, nginx]
+
+- name: Add www-data user to group root
+  user:
+    name: www-data
+    groups: root
+    state: present
+  tags: [openresty, lapis, dashboard, nginx]
+
+- name: Add www-data user to group sudo
+  user:
+    name: www-data
+    groups: sudo
+    append: yes
+  tags: [openresty, lapis, dashboard, nginx]
+
+- name: make sure base nginx conf dir exits
+  ansible.builtin.file:
+    path: /opt/nginx/base.d/
+    state: directory
+    owner: "www-data"
+    group: root
+    mode: 0775
+  notify: Restart openresty
+  tags: [openresty, lapis, dashboard, nginx]
+
+- name: Add nginx base configuration
+  copy:
+    src: ../../nginx-base.d/
+    dest: /opt/nginx/base.d/
+    owner: "www-data"
+    group: root
+    mode: "0644"
+  tags: [openresty, lapis, dashboard, nginx]
+
+- name: make sure tenants nginx conf dir exits
+  ansible.builtin.file:
+    path: /opt/nginx/conf.d/
+    state: directory
+    owner: "www-data"
+    group: root
+    mode: 0775
+  notify: Restart openresty
+  tags: [openresty, lapis, dashboard, nginx]
+
+- name: Add nginx configuration
+  copy:
+    src: ../../nginx-conf.d/
+    dest: /opt/nginx/conf.d/
+    owner: "www-data"
+    group: root
+    mode: "0644"
+  tags: [openresty, lapis, dashboard, nginx]
+
+- name: Template default server configuration
+  template:
+    src: default.conf.j2
+    dest: /opt/nginx/conf.d/default.conf
+    owner: "www-data"
+    group: root
+    mode: "0644"
+  notify: Restart openresty
+  tags: [openresty, lapis, dashboard, nginx, default-server]
+
+- name: Copy openresty bootstrap script
+  template:
+    src: openresty.sh.j2
+    dest: /tmp/openresty.sh
+    mode: 0777
+  tags: [openresty, lapis]
+
+- name: Execute the openresty.sh bootstrap script
+  shell: /tmp/openresty.sh
+  tags: [test, openresty, lapis]
+
+- ansible.posix.synchronize:
+    src: ../../html/
+    dest: /usr/local/openresty/nginx/html
+  register: sync_files
+  tags: [openresty, lapis, dashboard, html]
+
+- debug:
+    var: sync_files.stdout_lines
+  tags: [openresty, lapis, dashboard, html]
+
+- ansible.posix.synchronize:
+    src: ../../api/
+    dest: /usr/local/openresty/nginx/html/api
+  notify: Restart openresty
+  register: sync_files
+  tags: [openresty, lapis, dashboard, nginx]
+
+- debug:
+    var: sync_files.stdout_lines
+  tags: [openresty, lapis, dashboard, nginx]
+
+- name: Copy cdn dependencies script
+  template:
+    src: cdn-dependencies.sh.j2
+    dest: /tmp/cdn-dependencies.sh
+    mode: 0777
+  tags: [openresty, lapis]
+
+- name: Make sure the nginx data directory exists
+  ansible.builtin.file:
+    path: /opt/nginx/data/
+    state: directory
+    owner: "www-data"
+    group: root
+    mode: 0775
+  tags: [openresty, lapis]
+
+- name: Copy Settings Config file
+  copy:
+    src: "{{ local_settings_file_path }}"
+    dest: /opt/nginx/data/settings.json
+    mode: 0777
+    owner: "www-data"
+    group: root
+    remote_src: no
+  tags: [openresty, lapis, dashboard]
+
+- name: Copy Environment file
+  copy:
+    src: "{{ local_env_file_path }}"
+    dest: "/tmp/.env"
+    mode: 0777
+    remote_src: no
+  tags: [openresty, lapis, dashboard]
+
+- name: Copy Nginx Data Sync CRON bash
+  template:
+    src: nginx-data-sync-required.sh.j2
+    dest: /usr/sbin/nginx-data-sync-required.sh
+    mode: 0775
+  tags: [openresty, nginx]
+
+# - debug:
+#     msg: "hdopenresty_api_user_email: {{ hdopenresty_api_user_email }}"
+#   tags: [openresty, nginx]
+
+- name: Run Nginx Data Sync CRON bash Script every minute sync if required
+  cron:
+    name: "nginx_data_sync"
+    user: "root"
+    minute: "*/1"
+    job: '/bin/bash /usr/sbin/nginx-data-sync-required.sh "{{ nginx_data_sync_enabled | default("no") }}" "{{ hdopenresty_api_user_email | default("") }}" "{{ hdopenresty_api_user_passwd | default("") }}" "{{ hdopenresty_api_target_hash | default("") }}" "{{ hdopenresty_api_target_serial | default("") }}"'
+  tags: [openresty, nginx]
+  no_log: true
+  when: nginx_data_sync_enabled is defined and nginx_data_sync_enabled == "yes"
+
+- name: Copy Nginx Restart CRON bash Script
+  template:
+    src: nginx_restart_if_required.sh.j2
+    dest: /usr/sbin/nginx_restart_if_required.sh
+    mode: 0775
+  tags: [openresty, lapis, nginx]
+
+- name: Run Nginx Restart CRON bash Script every minute restart nginx if required
+  cron:
+    name: "nginx_restart"
+    user: "root"
+    minute: "*/1"
+    job: "/bin/bash /usr/sbin/nginx_restart_if_required.sh"
+  tags: [openresty, lapis, nginx]
+
+- name: Execute the cdn-dependencies.sh script
+  shell: /tmp/cdn-dependencies.sh
+  tags: [openresty, lapis]
+
+- name: Deploy OpenResty systemd service file
+  template:
+    src: openresty.service.j2
+    dest: /etc/systemd/system/openresty.service
+  notify: Reload systemd
+  tags: [openresty, lapis]
+
+# ============================================================
+# Systemd service-level limits override (drop-in)
+# This ensures limits are applied even if base service file changes
+# ============================================================
+- name: Create systemd drop-in directory for OpenResty
+  ansible.builtin.file:
+    path: /etc/systemd/system/openresty.service.d
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  tags: [openresty, lapis, nginx, limits]
+
+- name: Deploy OpenResty systemd service limits override
+  copy:
+    dest: /etc/systemd/system/openresty.service.d/limits.conf
+    content: |
+      # Ansible managed - OpenResty service-level file descriptor limits
+      # This drop-in override ensures high limits for nginx workers
+      [Service]
+      LimitNOFILE=1048576
+      LimitNPROC=65535
+      LimitCORE=infinity
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Reload systemd
+  tags: [openresty, lapis, nginx, limits]
+
+# ============================================================
+# File descriptor limits - Prevents "Too many open files" errors
+# ============================================================
+- name: Configure system-wide file descriptor limits
+  blockinfile:
+    path: /etc/security/limits.conf
+    marker: "# {mark} ANSIBLE MANAGED - OpenResty file descriptor limits"
+    block: |
+      # OpenResty/Nginx file descriptor limits for high-traffic servers
+      root            soft    nofile          1048576
+      root            hard    nofile          1048576
+      www-data        soft    nofile          1048576
+      www-data        hard    nofile          1048576
+      *               soft    nofile          1048576
+      *               hard    nofile          1048576
+    create: yes
+    backup: yes
+  tags: [openresty, lapis, nginx, limits]
+
+- name: Configure PAM to use limits.conf
+  lineinfile:
+    path: /etc/pam.d/common-session
+    line: "session required pam_limits.so"
+    state: present
+  tags: [openresty, lapis, nginx, limits]
+
+- name: Configure PAM noninteractive to use limits.conf
+  lineinfile:
+    path: /etc/pam.d/common-session-noninteractive
+    line: "session required pam_limits.so"
+    state: present
+  ignore_errors: yes
+  tags: [openresty, lapis, nginx, limits]
+
+- name: Set kernel-level max file descriptors (fs.file-max)
+  sysctl:
+    name: fs.file-max
+    value: "2097152"
+    state: present
+    reload: yes
+    sysctl_file: /etc/sysctl.d/99-openresty.conf
+  tags: [openresty, lapis, nginx, limits]
+
+- name: Set kernel-level max file descriptors per process (fs.nr_open)
+  sysctl:
+    name: fs.nr_open
+    value: "1048576"
+    state: present
+    reload: yes
+    sysctl_file: /etc/sysctl.d/99-openresty.conf
+  tags: [openresty, lapis, nginx, limits]
+
+- ansible.posix.synchronize:
+    src: ../../openresty-admin/
+    dest: /usr/local/openresty/nginx/html/openresty-admin
+  register: sync_files
+  tags: [openresty, lapis, dashboard]
+  when: (nginx_web_ui_enabled == "yes")
+
+- debug:
+    var: sync_files.stdout_lines
+  tags: [openresty, lapis, dashboard]
+
+- name: Copy npm yarn dependencies script
+  template:
+    src: install-build-npm-yarn.sh.j2
+    dest: /tmp/install-build-npm-yarn.sh
+    mode: 0777
+  tags: [openresty, lapis, dashboard]
+  when: (nginx_web_ui_enabled == "yes")
+
+- name: Execute the install-build-npm-yarn.sh script
+  shell: /tmp/install-build-npm-yarn.sh
+  tags: [openresty, lapis, dashboard]
+  when: (nginx_web_ui_enabled == "yes")
+
+- name: copy nginx conf file
+  template:
+    src: nginx.conf.j2
+    dest: /usr/local/openresty/nginx/conf/nginx.conf
+  notify: Restart openresty
+  tags: [openresty, lapis, dashboard, nginx]
+
+- name: Copy nginx related dir permissions scripts
+  template:
+    src: fix-permissions.sh.j2
+    dest: /usr/sbin/fix-permissions.sh
+    mode: 0775
+  tags: [openresty, lapis, dashboard, nginx, permissions]
+
+- name: Fix nginx related dir permissions
+  shell: /usr/sbin/fix-permissions.sh
+  tags: [openresty, lapis, dashboard, nginx, permissions]
+
+- ansible.posix.synchronize:
+    src: ../../nginx-tenants.d/
+    dest: /opt/nginx/conf.d/
+  notify: Restart openresty
+  register: sync_files
+  tags: [openresty, lapis, dashboard, nginx]
+
+- name: Process the nginx-tenants.d template servers-mixed-nginx.conf.j2
+  template:
+    src: servers-mixed-nginx.conf.j2
+    dest: /opt/nginx/conf.d/servers-mixed-nginx.conf
+    mode: 0777
+  tags: [openresty, lapis, nginx]
+
+- debug:
+    var: sync_files.stdout_lines
+  tags: [openresty, lapis, dashboard, nginx]
+
+- name: Enable and start OpenResty service
+  systemd:
+    name: openresty
+    state: started
+    enabled: yes
+  tags: [openresty, lapis, dashboard, nginx]
+
+- name: Verify Nginx config
+  command: openresty -t
+  changed_when: false
+  tags: [openresty, lapis, dashboard, nginx]
+
+# ============================================================
+# Verify file descriptor limits are properly applied
+# ============================================================
+- name: Verify OpenResty file descriptor limits
+  shell: |
+    NGINX_PID=$(pgrep -o nginx || pgrep -o openresty || echo "")
+    if [ -n "$NGINX_PID" ]; then
+      cat /proc/$NGINX_PID/limits | grep "open files"
+    else
+      echo "Nginx not running - limits will be applied on next start"
+    fi
+  register: fd_limits_check
+  changed_when: false
+  tags: [openresty, lapis, nginx, limits, verify]
+
+- name: Display current file descriptor limits
+  debug:
+    msg: "{{ fd_limits_check.stdout_lines }}"
+  tags: [openresty, lapis, nginx, limits, verify]
