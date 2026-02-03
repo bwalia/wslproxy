@@ -82,12 +82,39 @@ function _M.log_request()
     -- Get country code from IP address for geographic tracking
     local country_code = get_country_code(remote_addr or "")
 
-    -- Extract endpoint (first 2 path segments for API grouping)
-    local endpoint = uri:match("^(/[^/]*/[^/]*)")
-    if not endpoint then
-        endpoint = uri:match("^(/[^/]*)")
+    -- Extract and normalize endpoint to reduce metric cardinality
+    -- Security scanners probe random paths, so we need to limit unique values
+    local endpoint = "/"
+
+    -- Known safe API paths - track these specifically
+    if uri:match("^/api/") then
+        -- For API paths, extract first 2 segments (e.g., /api/servers, /api/rules)
+        endpoint = uri:match("^(/api/[^/]*)") or "/api"
+    elseif uri:match("^/metrics") then
+        endpoint = "/metrics"
+    elseif uri:match("^/ping") then
+        endpoint = "/ping"
+    elseif uri:match("^/health") then
+        endpoint = "/health"
+    elseif uri:match("^/swagger") then
+        endpoint = "/swagger"
+    elseif uri:match("^/%.well%-known/") then
+        endpoint = "/.well-known"
+    elseif uri:match("^/frontdoor/") then
+        endpoint = "/frontdoor"
+    elseif uri == "/" then
+        endpoint = "/"
+    else
+        -- For all other paths (including security probes), categorize by status
+        -- This prevents cardinality explosion from scanners probing random paths
+        if status >= 400 and status < 500 then
+            endpoint = "/other_4xx"
+        elseif status >= 500 then
+            endpoint = "/other_5xx"
+        else
+            endpoint = "/other"
+        end
     end
-    endpoint = endpoint or uri
 
     -- Load Prometheus metrics module
     local metrics_ok, metrics = pcall(require, "prometheus_metrics")

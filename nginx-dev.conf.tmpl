@@ -66,7 +66,8 @@ http {
 
     lua_shared_dict auto_ssl 100m;
     lua_shared_dict auto_ssl_settings 64k;
-    lua_shared_dict prometheus_metrics 50M;
+    # Increased from 50M to handle high-cardinality metrics from security probes
+    lua_shared_dict prometheus_metrics 150M;
 
     # SSL domains cache - shared across all workers for allow_domain callback
     lua_shared_dict ssl_domains 1m;

@@ -81,8 +81,8 @@ http {
     lua_shared_dict wsl_cache 100m;
     lua_shared_dict wsl_cache_keys 10m;
 
-    # Prometheus metrics storage
-    lua_shared_dict prometheus_metrics 50M;
+    # Prometheus metrics storage (increased from 50M to handle high-cardinality metrics)
+    lua_shared_dict prometheus_metrics 150M;
     lua_shared_dict healthcheck 1m;
 
     # Traffic stats for dashboard (stores hourly request/response counts)
