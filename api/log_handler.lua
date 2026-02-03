@@ -82,12 +82,39 @@ function _M.log_request()
     -- Get country code from IP address for geographic tracking
     local country_code = get_country_code(remote_addr or "")
 
-    -- Extract endpoint (first 2 path segments for API grouping)
-    local endpoint = uri:match("^(/[^/]*/[^/]*)")
-    if not endpoint then
-        endpoint = uri:match("^(/[^/]*)")
+    -- Extract and normalize endpoint to reduce metric cardinality
+    -- Security scanners probe random paths, so we need to limit unique values
+    local endpoint = "/"
+
+    -- Known safe API paths - track these specifically
+    if uri:match("^/api/") then
+        -- For API paths, extract first 2 segments (e.g., /api/servers, /api/rules)
+        endpoint = uri:match("^(/api/[^/]*)") or "/api"
+    elseif uri:match("^/metrics") then
+        endpoint = "/metrics"
+    elseif uri:match("^/ping") then
+        endpoint = "/ping"
+    elseif uri:match("^/health") then
+        endpoint = "/health"
+    elseif uri:match("^/swagger") then
+        endpoint = "/swagger"
+    elseif uri:match("^/%.well%-known/") then
+        endpoint = "/.well-known"
+    elseif uri:match("^/frontdoor/") then
+        endpoint = "/frontdoor"
+    elseif uri == "/" then
+        endpoint = "/"
+    else
+        -- For all other paths (including security probes), categorize by status
+        -- This prevents cardinality explosion from scanners probing random paths
+        if status >= 400 and status < 500 then
+            endpoint = "/other_4xx"
+        elseif status >= 500 then
+            endpoint = "/other_5xx"
+        else
+            endpoint = "/other"
+        end
     end
-    endpoint = endpoint or uri
 
     -- Load Prometheus metrics module
     local metrics_ok, metrics = pcall(require, "prometheus_metrics")
@@ -96,34 +123,34 @@ function _M.log_request()
         local metric_requests = metrics.get_metric_requests()
         local metric_latency = metrics.get_metric_latency()
         if metric_requests and metric_latency then
-            metric_requests:inc(1, {host, tostring(status), method, endpoint})
-            metric_latency:observe(request_time, {host, method, endpoint})
+            metric_requests:inc(1, { host, tostring(status), method, endpoint })
+            metric_latency:observe(request_time, { host, method, endpoint })
         end
 
         -- Request/Response size metrics
         local metric_request_size = metrics.get_metric_request_size()
         local metric_response_size = metrics.get_metric_response_size()
         if metric_request_size and metric_response_size then
-            metric_request_size:observe(request_length, {host, method})
-            metric_response_size:observe(bytes_sent, {host, method, tostring(status)})
+            metric_request_size:observe(request_length, { host, method })
+            metric_response_size:observe(bytes_sent, { host, method, tostring(status) })
         end
 
         -- Error tracking
         if status >= 400 then
             local metric_errors = metrics.get_metric_errors()
             if metric_errors then
-                metric_errors:inc(1, {host, tostring(status), endpoint})
+                metric_errors:inc(1, { host, tostring(status), endpoint })
             end
 
             if status >= 400 and status < 500 then
                 local metric_4xx = metrics.get_metric_4xx_errors()
                 if metric_4xx then
-                    metric_4xx:inc(1, {host, tostring(status), endpoint})
+                    metric_4xx:inc(1, { host, tostring(status), endpoint })
                 end
             elseif status >= 500 then
                 local metric_5xx = metrics.get_metric_5xx_errors()
                 if metric_5xx then
-                    metric_5xx:inc(1, {host, tostring(status), endpoint})
+                    metric_5xx:inc(1, { host, tostring(status), endpoint })
                 end
             end
         end
@@ -131,7 +158,7 @@ function _M.log_request()
         -- DDoS / Security: Track requests per IP
         local metric_requests_per_ip = metrics.get_metric_requests_per_ip()
         if metric_requests_per_ip then
-            metric_requests_per_ip:inc(1, {remote_addr, host})
+            metric_requests_per_ip:inc(1, { remote_addr, host })
         end
 
         -- Detect suspicious patterns
@@ -141,29 +168,29 @@ function _M.log_request()
 
             -- Suspicious patterns
             if user_agent == "" or user_agent == "-" then
-                metric_suspicious:inc(1, {host, "no_user_agent"})
+                metric_suspicious:inc(1, { host, "no_user_agent" })
             end
 
             -- Safe pattern matching with nil checks
             if uri:find("%.%.") or uri:find("//") then
-                metric_suspicious:inc(1, {host, "path_traversal_attempt"})
+                metric_suspicious:inc(1, { host, "path_traversal_attempt" })
             end
 
             local uri_lower = uri:lower()
             if uri_lower:find("script") or uri_lower:find("exec") or uri_lower:find("union") then
-                metric_suspicious:inc(1, {host, "injection_attempt"})
+                metric_suspicious:inc(1, { host, "injection_attempt" })
             end
 
             -- Rapid sequential errors from same IP
             if status == 404 or status == 403 then
-                metric_suspicious:inc(1, {host, "error_" .. tostring(status)})
+                metric_suspicious:inc(1, { host, "error_" .. tostring(status) })
             end
         end
 
         -- API metrics: Track API calls
         local metric_api_calls = metrics.get_metric_api_calls()
         if metric_api_calls and uri and uri:match("^/api/") then
-            metric_api_calls:inc(1, {endpoint, method, tostring(status)})
+            metric_api_calls:inc(1, { endpoint, method, tostring(status) })
         end
 
         -- Track authentication attempts
@@ -171,14 +198,14 @@ function _M.log_request()
             local metric_auth_attempts = metrics.get_metric_auth_attempts()
             if metric_auth_attempts then
                 local result = (status == 200) and "success" or "failure"
-                metric_auth_attempts:inc(1, {result, "login"})
+                metric_auth_attempts:inc(1, { result, "login" })
 
                 if status ~= 200 then
                     local metric_auth_failures = metrics.get_metric_auth_failures()
                     if metric_auth_failures then
                         local reason = (status == 401) and "invalid_credentials" or
-                                    (status == 403) and "forbidden" or "other"
-                        metric_auth_failures:inc(1, {reason})
+                            (status == 403) and "forbidden" or "other"
+                        metric_auth_failures:inc(1, { reason })
                     end
                 end
             end

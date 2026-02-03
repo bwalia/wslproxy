@@ -435,8 +435,18 @@ const Dashboard = () => {
     ip_addresses: [],
     os: "Loading...",
     cpu: { model: "Loading...", cores: "Loading...", usage_percent: "0" },
-    memory: { total: "Loading...", used: "Loading...", available: "Loading...", free: "Loading..." },
-    disk: { total: "Loading...", used: "Loading...", available: "Loading...", percent: "0%" },
+    memory: {
+      total: "Loading...",
+      used: "Loading...",
+      available: "Loading...",
+      free: "Loading...",
+    },
+    disk: {
+      total: "Loading...",
+      used: "Loading...",
+      available: "Loading...",
+      percent: "0%",
+    },
     uptime: "Loading...",
   });
 
@@ -553,7 +563,11 @@ const Dashboard = () => {
       })
       .catch((error) => {
         console.log("Failed to fetch cache stats:", error);
-        setCacheStats({ available: false, total_entries: 0, total_size_bytes: 0 });
+        setCacheStats({
+          available: false,
+          total_entries: 0,
+          total_size_bytes: 0,
+        });
       });
   }, [dataProvider]);
 
@@ -1638,7 +1652,8 @@ const Dashboard = () => {
                     title: "SNI Detection Failures",
                     metric: "nginx_log_warnings_total",
                     component: "ssl",
-                    pattern: "could not determine domain for request (SNI not supported?)",
+                    pattern:
+                      "could not determine domain for request (SNI not supported?)",
                     level: "WARN",
                     color: theme.palette.warning.main,
                     icon: SecurityIcon,
@@ -1647,7 +1662,8 @@ const Dashboard = () => {
                     title: "OCSP Stapling Failures",
                     metric: "nginx_log_warnings_total",
                     component: "ssl",
-                    pattern: "failed to set ocsp stapling - failed to get OCSP responder",
+                    pattern:
+                      "failed to set ocsp stapling - failed to get OCSP responder",
                     level: "WARN",
                     color: theme.palette.warning.main,
                     icon: SecurityIcon,
@@ -2068,8 +2084,8 @@ const Dashboard = () => {
                     {logMetrics.message || "Log metrics are being tracked"}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    All nginx log messages (ERROR, WARN, NOTICE, INFO, DEBUG) are
-                    automatically captured and exposed at the{" "}
+                    All nginx log messages (ERROR, WARN, NOTICE, INFO, DEBUG)
+                    are automatically captured and exposed at the{" "}
                     <Box
                       component="span"
                       sx={{
@@ -2171,7 +2187,9 @@ const Dashboard = () => {
                 />
                 <StatCard
                   title="File Types"
-                  value={formatNumber(cacheStats.entries_by_extension?.length || 0)}
+                  value={formatNumber(
+                    cacheStats.entries_by_extension?.length || 0,
+                  )}
                   icon={InsertDriveFileIcon}
                   color="#8b5cf6"
                   subtitle="Content types"
@@ -2179,69 +2197,81 @@ const Dashboard = () => {
               </Box>
 
               {/* Cache by Host Chart */}
-              {cacheStats.entries_by_host && cacheStats.entries_by_host.length > 0 && (
-                <Box sx={{ mb: 3 }}>
-                  <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
-                    Cached Entries by Host
-                  </Typography>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={cacheStats.entries_by_host.slice(0, 10)}>
-                      <CartesianGrid
-                        strokeDasharray="3 3"
-                        stroke={theme.palette.divider}
-                      />
-                      <XAxis
-                        dataKey="host"
-                        stroke={theme.palette.text.secondary}
-                        tick={{ fontSize: 12 }}
-                        angle={-45}
-                        textAnchor="end"
-                        height={80}
-                      />
-                      <YAxis stroke={theme.palette.text.secondary} />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: theme.palette.background.paper,
-                          border: `1px solid ${theme.palette.divider}`,
-                          borderRadius: 8,
-                        }}
-                      />
-                      <Bar dataKey="count" fill="#10b981" radius={[8, 8, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </Box>
-              )}
+              {cacheStats.entries_by_host &&
+                cacheStats.entries_by_host.length > 0 && (
+                  <Box sx={{ mb: 3 }}>
+                    <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
+                      Cached Entries by Host
+                    </Typography>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <BarChart data={cacheStats.entries_by_host.slice(0, 10)}>
+                        <CartesianGrid
+                          strokeDasharray="3 3"
+                          stroke={theme.palette.divider}
+                        />
+                        <XAxis
+                          dataKey="host"
+                          stroke={theme.palette.text.secondary}
+                          tick={{ fontSize: 12 }}
+                          angle={-45}
+                          textAnchor="end"
+                          height={80}
+                        />
+                        <YAxis stroke={theme.palette.text.secondary} />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: theme.palette.background.paper,
+                            border: `1px solid ${theme.palette.divider}`,
+                            borderRadius: 8,
+                          }}
+                        />
+                        <Bar
+                          dataKey="count"
+                          fill="#10b981"
+                          radius={[8, 8, 0, 0]}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </Box>
+                )}
 
               {/* Cache by File Extension Chart */}
-              {cacheStats.entries_by_extension && cacheStats.entries_by_extension.length > 0 && (
-                <Box sx={{ mb: 3 }}>
-                  <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
-                    Cached Entries by File Type
-                  </Typography>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={cacheStats.entries_by_extension.slice(0, 10)}>
-                      <CartesianGrid
-                        strokeDasharray="3 3"
-                        stroke={theme.palette.divider}
-                      />
-                      <XAxis
-                        dataKey="extension"
-                        stroke={theme.palette.text.secondary}
-                        tick={{ fontSize: 12 }}
-                      />
-                      <YAxis stroke={theme.palette.text.secondary} />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: theme.palette.background.paper,
-                          border: `1px solid ${theme.palette.divider}`,
-                          borderRadius: 8,
-                        }}
-                      />
-                      <Bar dataKey="count" fill="#6366f1" radius={[8, 8, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </Box>
-              )}
+              {cacheStats.entries_by_extension &&
+                cacheStats.entries_by_extension.length > 0 && (
+                  <Box sx={{ mb: 3 }}>
+                    <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
+                      Cached Entries by File Type
+                    </Typography>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <BarChart
+                        data={cacheStats.entries_by_extension.slice(0, 10)}
+                      >
+                        <CartesianGrid
+                          strokeDasharray="3 3"
+                          stroke={theme.palette.divider}
+                        />
+                        <XAxis
+                          dataKey="extension"
+                          stroke={theme.palette.text.secondary}
+                          tick={{ fontSize: 12 }}
+                        />
+                        <YAxis stroke={theme.palette.text.secondary} />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: theme.palette.background.paper,
+                            border: `1px solid ${theme.palette.divider}`,
+                            borderRadius: 8,
+                          }}
+                        />
+                        <Bar
+                          dataKey="count"
+                          fill="#6366f1"
+                          radius={[8, 8, 0, 0]}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </Box>
+                )}
 
               {/* Top Cached URLs */}
               {cacheStats.top_urls && cacheStats.top_urls.length > 0 && (
@@ -2254,7 +2284,10 @@ const Dashboard = () => {
                       maxHeight: 300,
                       overflowY: "auto",
                       borderRadius: 2,
-                      backgroundColor: alpha(theme.palette.background.default, 0.5),
+                      backgroundColor: alpha(
+                        theme.palette.background.default,
+                        0.5,
+                      ),
                       p: 2,
                     }}
                   >
