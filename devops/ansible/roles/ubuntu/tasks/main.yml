@@ -10,6 +10,21 @@
     backup: yes
   tags: [ubuntu, debian]
 
+- name: Find stale Ubuntu source files on Debian systems
+  when: ansible_distribution == "Debian"
+  shell: grep -rl 'ubuntu.com' /etc/apt/sources.list.d/ 2>/dev/null || true
+  register: ubuntu_source_files
+  changed_when: false
+  tags: [ubuntu, debian]
+
+- name: Remove stale Ubuntu source files on Debian systems
+  when: ansible_distribution == "Debian" and ubuntu_source_files.stdout_lines | length > 0
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop: "{{ ubuntu_source_files.stdout_lines }}"
+  tags: [ubuntu, debian]
+
 - name: Update and upgrade apt packages
   apt:
     upgrade: yes
