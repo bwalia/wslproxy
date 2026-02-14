@@ -857,7 +857,7 @@
             <p>You have come to this page because the link you are visiting is not found.</p>
           </div>
         </div>
-        <button class="notification-404-close" onclick="closeNotification()">
+        <button class="notification-404-close">
           <i class="fa fa-times"></i>
         </button>
       </div>
@@ -1977,16 +1977,20 @@ nginx_upstream_latency_avg 8.2</code></pre>
       fadeElements.forEach(function(el) { fadeObserver.observe(el); });
 
       // 404 Notification Handler
+      // Constants for notification timing
+      var NOTIFICATION_AUTO_HIDE_DELAY = 10000; // 10 seconds
+      var NOTIFICATION_FADE_DURATION = 1000;    // 1 second (matches CSS transition)
+
       function show404Notification() {
         var notification = document.getElementById('notification-404');
         if (notification) {
           notification.classList.add('show');
           document.body.classList.add('notification-active');
           
-          // Auto-hide after 10 seconds
+          // Auto-hide after configured delay
           setTimeout(function() {
             hide404Notification();
-          }, 10000);
+          }, NOTIFICATION_AUTO_HIDE_DELAY);
         }
       }
 
@@ -1999,12 +2003,8 @@ nginx_upstream_latency_avg 8.2</code></pre>
           // Remove from DOM after animation completes
           setTimeout(function() {
             notification.style.display = 'none';
-          }, 1000);
+          }, NOTIFICATION_FADE_DURATION);
         }
-      }
-
-      function closeNotification() {
-        hide404Notification();
       }
 
       // Check URL hash on page load
@@ -2012,6 +2012,12 @@ nginx_upstream_latency_avg 8.2</code></pre>
         var hash = window.location.hash;
         if (hash === '#default') {
           show404Notification();
+        }
+
+        // Attach close button event listener
+        var closeButton = document.querySelector('.notification-404-close');
+        if (closeButton) {
+          closeButton.addEventListener('click', hide404Notification);
         }
       });
 
