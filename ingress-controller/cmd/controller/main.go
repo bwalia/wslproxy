@@ -32,6 +32,7 @@ func main() {
 	var enableLeaderElection bool
 	var probeAddr string
 	var openrestyAPIURL string
+	var ingressClass string
 
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
@@ -40,6 +41,9 @@ func main() {
 			"Enabling this will ensure there is only one active controller manager.")
 	flag.StringVar(&openrestyAPIURL, "openresty-api-url", "http://localhost:8080/api/internal",
 		"The base URL for OpenResty internal API")
+	flag.StringVar(&ingressClass, "ingress-class", "wslproxy",
+		"The ingress class this controller handles. Only resources with a matching "+
+			"ingressClassName will be reconciled.")
 	opts := zap.Options{
 		Development: true,
 	}
@@ -71,6 +75,7 @@ func main() {
 		Client:           mgr.GetClient(),
 		Scheme:           mgr.GetScheme(),
 		Recorder:         mgr.GetEventRecorderFor("wslproxy-backend-controller"),
+		IngressClass:     ingressClass,
 		LuaConfigUpdater: configUpdater,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "WSLProxyBackend")
@@ -90,6 +95,7 @@ func main() {
 	setupLog.Info("starting manager",
 		"version", "v1.0.0",
 		"openresty-api-url", openrestyAPIURL,
+		"ingress-class", ingressClass,
 		"leader-election", enableLeaderElection,
 	)
 
