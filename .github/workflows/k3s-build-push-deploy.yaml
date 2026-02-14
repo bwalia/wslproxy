@@ -208,6 +208,24 @@ jobs:
           helm version
         shell: bash
 
+      - name: Check and Install yq
+        run: |
+          if ! command -v yq &> /dev/null; then
+            echo "yq not found. Installing yq..."
+            YQ_VERSION="v4.44.1"
+            if [[ "$OSTYPE" == "darwin"* ]]; then
+              echo "Detected macOS, installing yq for Darwin..."
+              curl -sL "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_darwin_amd64" -o /tmp/yq
+            else
+              echo "Detected Linux, installing yq for Linux..."
+              curl -sL "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64" -o /tmp/yq
+            fi
+            chmod +x /tmp/yq
+            sudo mv /tmp/yq /usr/local/bin/yq
+          fi
+          yq --version
+        shell: bash
+
       - name: Kubeseal - Generate API values file
         run: |
           chmod +x ./devops/kubeseal/kubeseal_automation.sh
