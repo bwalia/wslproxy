@@ -62,7 +62,7 @@ http {
     # WebSocket support: map Upgrade header to Connection header value
     map $http_upgrade $connection_upgrade {
         default upgrade;
-        ''      close;
+        ''      '';
     }
 
     # Include dynamic upstream configurations
