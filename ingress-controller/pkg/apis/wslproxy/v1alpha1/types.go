@@ -10,6 +10,11 @@ import (
 
 // WSLProxyBackendSpec defines the desired state of WSLProxyBackend
 type WSLProxyBackendSpec struct {
+	// IngressClassName specifies which ingress controller should handle this backend.
+	// If not set, the backend will be handled by any controller.
+	// +optional
+	IngressClassName *string `json:"ingressClassName,omitempty"`
+
 	// Upstreams defines the backend servers
 	Upstreams []Upstream `json:"upstreams"`
 
@@ -178,6 +183,11 @@ type WSLProxyBackendList struct {
 
 // WSLProxyRouteSpec defines the desired state of WSLProxyRoute
 type WSLProxyRouteSpec struct {
+	// IngressClassName specifies which ingress controller should handle this route.
+	// If not set, the route will be handled by any controller.
+	// +optional
+	IngressClassName *string `json:"ingressClassName,omitempty"`
+
 	// Host is the hostname for this route
 	Host string `json:"host"`
 
@@ -459,6 +469,11 @@ func (in *WSLProxyRouteList) DeepCopyInto(out *WSLProxyRouteList) {
 // DeepCopyInto for WSLProxyBackendSpec
 func (in *WSLProxyBackendSpec) DeepCopyInto(out *WSLProxyBackendSpec) {
 	*out = *in
+	if in.IngressClassName != nil {
+		in, out := &in.IngressClassName, &out.IngressClassName
+		*out = new(string)
+		**out = **in
+	}
 	if in.Upstreams != nil {
 		in, out := &in.Upstreams, &out.Upstreams
 		*out = make([]Upstream, len(*in))
@@ -502,6 +517,11 @@ func (in *WSLProxyBackendStatus) DeepCopyInto(out *WSLProxyBackendStatus) {
 // DeepCopyInto for WSLProxyRouteSpec
 func (in *WSLProxyRouteSpec) DeepCopyInto(out *WSLProxyRouteSpec) {
 	*out = *in
+	if in.IngressClassName != nil {
+		in, out := &in.IngressClassName, &out.IngressClassName
+		*out = new(string)
+		**out = **in
+	}
 	if in.Paths != nil {
 		in, out := &in.Paths, &out.Paths
 		*out = make([]PathRule, len(*in))
