@@ -90,7 +90,7 @@ openresty:
   service:
     type: LoadBalancer
     annotations: {}
-    externalTrafficPolicy: Local
+    externalTrafficPolicy: Cluster
     ports:
       http: 80
       https: 443

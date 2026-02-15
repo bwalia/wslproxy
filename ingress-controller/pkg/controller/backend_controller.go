@@ -39,6 +39,20 @@ type WSLProxyBackendReconciler struct {
 type ConfigUpdater interface {
 	UpdateBackend(ctx context.Context, name string, config BackendConfig) error
 	DeleteBackend(ctx context.Context, name string) error
+	UpdateRoute(ctx context.Context, host string, route RouteConfig) error
+	DeleteRoute(ctx context.Context, host string) error
+}
+
+// RouteConfig represents the route mapping sent to the Lua API
+type RouteConfig struct {
+	Paths []RoutePath `json:"paths"`
+}
+
+// RoutePath maps a URI path to a backend name
+type RoutePath struct {
+	Path     string `json:"path"`
+	Backend  string `json:"backend"`
+	PathType string `json:"path_type"`
 }
 
 // BackendConfig represents the config sent to Lua
@@ -311,6 +325,62 @@ func (u *HTTPConfigUpdater) DeleteBackend(ctx context.Context, name string) erro
 	if resp.StatusCode >= 300 {
 		body, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("OpenResty API returned %d for DELETE %s: %s", resp.StatusCode, url, string(body))
+	}
+
+	return nil
+}
+
+// UpdateRoute sends route config to OpenResty via HTTP POST
+// POST /api/internal/routes/{host}
+func (u *HTTPConfigUpdater) UpdateRoute(ctx context.Context, host string, route RouteConfig) error {
+	routeJSON, err := json.Marshal(route)
+	if err != nil {
+		return fmt.Errorf("failed to marshal route config: %w", err)
+	}
+
+	url := fmt.Sprintf("%s/routes/%s", u.BaseURL, host)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(routeJSON))
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := u.HTTPClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to call OpenResty route API at %s: %w", url, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("OpenResty route API returned %d for %s: %s", resp.StatusCode, url, string(body))
+	}
+
+	return nil
+}
+
+// DeleteRoute removes route from OpenResty via HTTP DELETE
+// DELETE /api/internal/routes/{host}
+func (u *HTTPConfigUpdater) DeleteRoute(ctx context.Context, host string) error {
+	url := fmt.Sprintf("%s/routes/%s", u.BaseURL, host)
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, url, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	resp, err := u.HTTPClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to call OpenResty route API at %s: %w", url, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil
+	}
+
+	if resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("OpenResty route API returned %d for DELETE %s: %s", resp.StatusCode, url, string(body))
 	}
 
 	return nil

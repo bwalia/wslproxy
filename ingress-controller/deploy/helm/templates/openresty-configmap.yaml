@@ -22,6 +22,8 @@ metadata:
 data:
   dynamic_upstream.lua: |
 {{ .Files.Get "files/lua/upstream/dynamic_upstream.lua" | indent 4 }}
+  route_lookup.lua: |
+{{ .Files.Get "files/lua/upstream/route_lookup.lua" | indent 4 }}
   update_backend.lua: |
 {{ .Files.Get "files/lua/api/update_backend.lua" | indent 4 }}
   delete_backend.lua: |
@@ -30,6 +32,12 @@ data:
 {{ .Files.Get "files/lua/api/get_backend.lua" | indent 4 }}
   list_backends.lua: |
 {{ .Files.Get "files/lua/api/list_backends.lua" | indent 4 }}
+  update_route.lua: |
+{{ .Files.Get "files/lua/api/update_route.lua" | indent 4 }}
+  delete_route.lua: |
+{{ .Files.Get "files/lua/api/delete_route.lua" | indent 4 }}
+  list_routes.lua: |
+{{ .Files.Get "files/lua/api/list_routes.lua" | indent 4 }}
   prometheus.lua: |
 {{ .Files.Get "files/lua/metrics/prometheus.lua" | indent 4 }}
 {{- end }}

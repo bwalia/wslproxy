@@ -30,6 +30,26 @@ spec:
         # The master process drops to nobody (65534) after initialization.
         seccompProfile:
           type: RuntimeDefault
+      {{- if not .Values.certManager.enabled }}
+      initContainers:
+      - name: generate-default-cert
+        image: "{{ .Values.openresty.image.repository }}:{{ .Values.openresty.image.tag }}"
+        command:
+        - /bin/sh
+        - -c
+        - |
+          if [ ! -f /etc/nginx/ssl/default.crt ]; then
+            openssl req -x509 -newkey rsa:2048 -keyout /etc/nginx/ssl/default.key \
+              -out /etc/nginx/ssl/default.crt -days 3650 -nodes \
+              -subj "/CN=wslproxy-ingress-default/O=WSLProxy"
+            echo "Generated default self-signed certificate"
+          fi
+        volumeMounts:
+        - name: default-tls
+          mountPath: /etc/nginx/ssl
+        securityContext:
+          runAsUser: 0
+      {{- end }}
       containers:
       - name: openresty
         image: "{{ .Values.openresty.image.repository }}:{{ .Values.openresty.image.tag }}"
@@ -66,8 +86,46 @@ spec:
           mountPath: /usr/local/openresty/nginx/conf/nginx.conf
           subPath: nginx.conf
           readOnly: true
+        # Mount Lua scripts into correct subdirectories using subPath
         - name: lua-scripts
-          mountPath: /usr/local/openresty/nginx/lua
+          mountPath: /usr/local/openresty/nginx/lua/upstream/dynamic_upstream.lua
+          subPath: dynamic_upstream.lua
+          readOnly: true
+        - name: lua-scripts
+          mountPath: /usr/local/openresty/nginx/lua/upstream/route_lookup.lua
+          subPath: route_lookup.lua
+          readOnly: true
+        - name: lua-scripts
+          mountPath: /usr/local/openresty/nginx/lua/api/update_backend.lua
+          subPath: update_backend.lua
+          readOnly: true
+        - name: lua-scripts
+          mountPath: /usr/local/openresty/nginx/lua/api/delete_backend.lua
+          subPath: delete_backend.lua
+          readOnly: true
+        - name: lua-scripts
+          mountPath: /usr/local/openresty/nginx/lua/api/get_backend.lua
+          subPath: get_backend.lua
+          readOnly: true
+        - name: lua-scripts
+          mountPath: /usr/local/openresty/nginx/lua/api/list_backends.lua
+          subPath: list_backends.lua
+          readOnly: true
+        - name: lua-scripts
+          mountPath: /usr/local/openresty/nginx/lua/api/update_route.lua
+          subPath: update_route.lua
+          readOnly: true
+        - name: lua-scripts
+          mountPath: /usr/local/openresty/nginx/lua/api/delete_route.lua
+          subPath: delete_route.lua
+          readOnly: true
+        - name: lua-scripts
+          mountPath: /usr/local/openresty/nginx/lua/api/list_routes.lua
+          subPath: list_routes.lua
+          readOnly: true
+        - name: lua-scripts
+          mountPath: /usr/local/openresty/nginx/lua/metrics/prometheus.lua
+          subPath: prometheus.lua
           readOnly: true
         {{- end }}
         - name: cache
@@ -114,13 +172,7 @@ spec:
         emptyDir: {}
       {{- if not .Values.certManager.enabled }}
       - name: default-tls
-        secret:
-          secretName: {{ include "wslproxy.fullname" . }}-default-tls
-          items:
-          - key: tls.crt
-            path: default.crt
-          - key: tls.key
-            path: default.key
+        emptyDir: {}
       {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:

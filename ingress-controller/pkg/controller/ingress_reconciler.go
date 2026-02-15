@@ -80,8 +80,11 @@ func (r *IngressReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 		"hosts", r.getHosts(ingress),
 	)
 
-	// Process each rule in the Ingress
+	// Process each rule in the Ingress: register backends and routes
 	allOK := true
+	// Collect route paths per host so we can register routes after backends
+	hostRoutes := make(map[string][]RoutePath)
+
 	for _, rule := range ingress.Spec.Rules {
 		if rule.HTTP == nil {
 			continue
@@ -103,7 +106,7 @@ func (r *IngressReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 				continue
 			}
 
-			// Push to OpenResty
+			// Push backend to OpenResty
 			if err := r.LuaConfigUpdater.UpdateBackend(ctx, backendName, config); err != nil {
 				logger.Error(err, "Failed to push backend to OpenResty", "backend", backendName)
 				r.Recorder.Eventf(ingress, corev1.EventTypeWarning, "ConfigUpdateFailed",
@@ -118,6 +121,33 @@ func (r *IngressReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 				"path", path.Path,
 				"upstreams", len(config.Upstreams),
 			)
+
+			// Collect route path for this host
+			pathType := "Prefix"
+			if path.PathType != nil && *path.PathType == networkingv1.PathTypeExact {
+				pathType = "Exact"
+			}
+			routePath := RoutePath{
+				Path:     path.Path,
+				Backend:  backendName,
+				PathType: pathType,
+			}
+			if rule.Host != "" {
+				hostRoutes[rule.Host] = append(hostRoutes[rule.Host], routePath)
+			}
+		}
+	}
+
+	// Register routes for each host
+	for host, paths := range hostRoutes {
+		routeConfig := RouteConfig{Paths: paths}
+		if err := r.LuaConfigUpdater.UpdateRoute(ctx, host, routeConfig); err != nil {
+			logger.Error(err, "Failed to push route to OpenResty", "host", host)
+			r.Recorder.Eventf(ingress, corev1.EventTypeWarning, "RouteUpdateFailed",
+				"Failed to update OpenResty routes for %s: %v", host, err)
+			allOK = false
+		} else {
+			logger.Info("Route synced to OpenResty", "host", host, "paths", len(paths))
 		}
 	}
 
