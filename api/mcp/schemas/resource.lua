@@ -1,0 +1,322 @@
+-- MCP Resource Schemas
+-- Defines the structure of MCP resources and resource list responses
+-- Each WSLProxy domain object maps to a typed MCP resource
+
+local _M = {
+    type = "wslproxy.mcp.resource",
+    version = "1.0.0",
+    description = "MCP resource response containing structured gateway data"
+}
+
+-- Resource response envelope (returned by /mcp/resources/{id})
+_M.properties = {
+    jsonrpc = {
+        type = "string",
+        required = true,
+        enum = {"2.0"}
+    },
+    result = {
+        type = "object",
+        required = true,
+        properties = {
+            contents = {
+                type = "array",
+                required = true,
+                description = "Resource content items",
+                items = {
+                    type = "object",
+                    properties = {
+                        uri = { type = "string", required = true, description = "Resource URI" },
+                        mimeType = { type = "string", required = true, description = "Content MIME type" },
+                        data = { type = "object", required = true, description = "Resource data payload" }
+                    }
+                }
+            }
+        }
+    }
+}
+
+-- Resource list schema (returned by /mcp/resources)
+_M.list_schema = {
+    type = "wslproxy.mcp.resource_list",
+    version = "1.0.0",
+    description = "List of all available MCP resources",
+    properties = {
+        jsonrpc = { type = "string", required = true, enum = {"2.0"} },
+        result = {
+            type = "object",
+            required = true,
+            properties = {
+                resources = {
+                    type = "array",
+                    required = true,
+                    items = {
+                        type = "object",
+                        properties = {
+                            uri = { type = "string", required = true },
+                            name = { type = "string", required = true },
+                            description = { type = "string", required = true },
+                            mimeType = { type = "string", required = true },
+                            metadata = { type = "object", required = false }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+-----------------------------------------------------------
+-- Typed resource schemas for each WSLProxy domain object
+-----------------------------------------------------------
+
+-- wslproxy.server resource schema
+_M.server = {
+    type = "wslproxy.server",
+    version = "1.0.0",
+    description = "HTTP virtual host / server configuration",
+    properties = {
+        id = { type = "string", required = true, description = "Unique server identifier (UUID)" },
+        server_name = { type = "string", required = true, description = "Server hostname / domain" },
+        profile_id = { type = "string", required = true, description = "Environment profile (dev/staging/prod)" },
+        listens = { type = "array", required = false, description = "Listen directives (port and protocol)" },
+        ssl_enabled = { type = "boolean", required = false, description = "Whether SSL/TLS is enabled" },
+        config_status = { type = "boolean", required = false, description = "Whether NGINX config is generated" },
+        created_at = { type = "number", required = false, description = "Creation timestamp (epoch)" },
+        updated_at = { type = "number", required = false, description = "Last update timestamp (epoch)" },
+        custom_headers = { type = "object", required = false, description = "Custom HTTP response headers" },
+        cache_enabled = { type = "boolean", required = false, description = "Whether caching is enabled" }
+    },
+    relationships = {
+        rules = { type = "wslproxy.rule", cardinality = "many", description = "Security rules applied to this server" },
+        ssl = { type = "wslproxy.ssl", cardinality = "one", description = "SSL configuration for this server" },
+        cache = { type = "wslproxy.cache", cardinality = "one", description = "Cache configuration" }
+    }
+}
+
+-- wslproxy.rule resource schema
+_M.rule = {
+    type = "wslproxy.rule",
+    version = "1.0.0",
+    description = "Security rule or HTTP routing policy",
+    properties = {
+        id = { type = "string", required = true, description = "Unique rule identifier (UUID)" },
+        name = { type = "string", required = true, description = "Rule name" },
+        profile_id = { type = "string", required = true, description = "Environment profile" },
+        priority = { type = "number", required = false, description = "Rule evaluation priority (lower = first)" },
+        version = { type = "number", required = false, description = "Rule version number" },
+        match = {
+            type = "object",
+            required = false,
+            description = "Match conditions (path, country, client IP, JWT)",
+            properties = {
+                rules = {
+                    type = "object",
+                    properties = {
+                        path_key = { type = "string", description = "Path match operator (starts_with, equals, regex)" },
+                        path = { type = "string", description = "URL path to match" },
+                        country_key = { type = "string", description = "Country match operator" },
+                        country = { type = "string", description = "ISO country code" },
+                        client_ip_key = { type = "string", description = "IP match operator" },
+                        client_ip = { type = "string", description = "Client IP or CIDR" }
+                    }
+                }
+            }
+        },
+        response = {
+            type = "object",
+            required = false,
+            description = "Response action when rule matches",
+            properties = {
+                allow = { type = "boolean", description = "Whether to allow or deny" },
+                code = { type = "number", description = "HTTP status code" },
+                message = { type = "string", description = "Response body (base64 encoded)" }
+            }
+        },
+        created_at = { type = "number", required = false, description = "Creation timestamp" },
+        updated_at = { type = "number", required = false, description = "Last update timestamp" }
+    },
+    relationships = {
+        server = { type = "wslproxy.server", cardinality = "many", description = "Servers referencing this rule" }
+    }
+}
+
+-- wslproxy.upstream resource schema
+_M.upstream = {
+    type = "wslproxy.upstream",
+    version = "1.0.0",
+    description = "Backend upstream server pool",
+    properties = {
+        id = { type = "string", required = true, description = "Upstream identifier" },
+        name = { type = "string", required = false, description = "Upstream name" },
+        profile = { type = "string", required = false, description = "Environment profile" },
+        servers = {
+            type = "array",
+            required = false,
+            description = "Backend server addresses",
+            items = {
+                type = "object",
+                properties = {
+                    address = { type = "string", description = "Server address (host:port)" },
+                    weight = { type = "number", description = "Load balancing weight" }
+                }
+            }
+        },
+        algorithm = {
+            type = "string",
+            required = false,
+            description = "Load balancing algorithm",
+            enum = {"round-robin", "least-connections", "ip-hash", "random"}
+        },
+        health_check = { type = "object", required = false, description = "Health check configuration" }
+    },
+    relationships = {
+        servers = { type = "wslproxy.server", cardinality = "many", description = "Servers using this upstream" }
+    }
+}
+
+-- wslproxy.profile resource schema
+_M.profile = {
+    type = "wslproxy.profile",
+    version = "1.0.0",
+    description = "Deployment environment profile",
+    properties = {
+        id = { type = "string", required = true, description = "Profile identifier (e.g., prod, dev, staging)" },
+        name = { type = "string", required = true, description = "Profile display name" },
+        server_count = { type = "number", required = true, description = "Number of servers in this profile" }
+    },
+    relationships = {
+        servers = { type = "wslproxy.server", cardinality = "many", description = "Servers in this profile" },
+        rules = { type = "wslproxy.rule", cardinality = "many", description = "Rules in this profile" }
+    }
+}
+
+-- wslproxy.ssl resource schema
+_M.ssl = {
+    type = "wslproxy.ssl",
+    version = "1.0.0",
+    description = "SSL/TLS certificate configuration",
+    properties = {
+        domain = { type = "string", required = true, description = "Domain name" },
+        ssl_enabled = { type = "boolean", required = false, description = "SSL enabled flag" },
+        ssl_auto_renew = { type = "boolean", required = false, description = "Auto-renewal via Let's Encrypt" },
+        ssl_force_https = { type = "boolean", required = false, description = "Force HTTPS redirect" },
+        ssl_email = { type = "string", required = false, description = "Contact email for certificate" },
+        created_at = { type = "number", required = false, description = "Creation timestamp" }
+    },
+    relationships = {
+        server = { type = "wslproxy.server", cardinality = "one", description = "Server this SSL config belongs to" }
+    }
+}
+
+-- wslproxy.cache resource schema
+_M.cache = {
+    type = "wslproxy.cache",
+    version = "1.0.0",
+    description = "Static content cache configuration",
+    properties = {
+        server_name = { type = "string", required = true, description = "Server domain name" },
+        cache_enabled = { type = "boolean", required = false, description = "Whether caching is active" },
+        cache_ttl = { type = "number", required = false, description = "Cache TTL in seconds" },
+        cached_extensions = { type = "array", required = false, description = "File extensions to cache" },
+        updated_at = { type = "number", required = false, description = "Last update timestamp" }
+    },
+    relationships = {
+        server = { type = "wslproxy.server", cardinality = "one", description = "Server this cache config belongs to" }
+    }
+}
+
+-- wslproxy.health resource schema
+_M.health = {
+    type = "wslproxy.health",
+    version = "1.0.0",
+    description = "Gateway health status and diagnostics",
+    properties = {
+        status = {
+            type = "string",
+            required = true,
+            description = "Overall health status",
+            enum = {"healthy", "degraded", "unhealthy"}
+        },
+        timestamp = { type = "number", required = true, description = "Check timestamp (epoch)" },
+        datetime = { type = "string", required = true, description = "ISO 8601 datetime" },
+        openresty = {
+            type = "object",
+            required = true,
+            description = "OpenResty worker information",
+            properties = {
+                worker_pid = { type = "number", description = "Current worker PID" },
+                worker_count = { type = "number", description = "Total worker count" }
+            }
+        },
+        mcp = {
+            type = "object",
+            required = true,
+            description = "MCP server status",
+            properties = {
+                enabled = { type = "boolean" },
+                mode = { type = "string", enum = {"read-only", "read-write"} },
+                version = { type = "string" }
+            }
+        },
+        shared_dicts = {
+            type = "object",
+            required = false,
+            description = "NGINX shared dictionary status"
+        }
+    }
+}
+
+-- wslproxy.metrics resource schema
+_M.metrics = {
+    type = "wslproxy.metrics",
+    version = "1.0.0",
+    description = "Aggregated traffic metrics (non-PII, non-secret)",
+    properties = {
+        timestamp = { type = "number", required = true, description = "Metrics timestamp (epoch)" },
+        datetime = { type = "string", required = true, description = "ISO 8601 datetime" },
+        traffic = {
+            type = "object",
+            required = false,
+            description = "Traffic statistics",
+            properties = {
+                total_requests_24h = { type = "number" },
+                total_success_24h = { type = "number" },
+                total_errors_24h = { type = "number" },
+                success_rate = { type = "number" },
+                avg_requests_per_hour = { type = "number" }
+            }
+        },
+        connections = {
+            type = "object",
+            required = true,
+            description = "Active NGINX connections",
+            properties = {
+                reading = { type = "number" },
+                writing = { type = "number" },
+                waiting = { type = "number" },
+                active = { type = "number" }
+            }
+        },
+        latency = { type = "object", required = false, description = "Latency distribution" },
+        request_methods = { type = "object", required = false, description = "Request method distribution" },
+        top_domains = { type = "array", required = false, description = "Top domains by request count" },
+        error_codes = { type = "object", required = false, description = "Error code breakdown" }
+    }
+}
+
+-- wslproxy.settings resource schema
+_M.settings = {
+    type = "wslproxy.settings",
+    version = "1.0.0",
+    description = "Non-sensitive gateway configuration settings",
+    properties = {
+        storage_type = { type = "string", required = false, description = "Data storage type" },
+        ssl_staging = { type = "boolean", required = false, description = "SSL staging mode flag" },
+        ssl_ocsp_stapling = { type = "boolean", required = false, description = "OCSP stapling enabled" },
+        dns_resolver = { type = "string", required = false, description = "DNS resolver address" },
+        mcp = { type = "object", required = false, description = "MCP configuration (secrets redacted)" }
+    }
+}
+
+return _M

@@ -1,6 +1,6 @@
 -- MCP Handler (Router) for WSLProxy
 -- Main entry point for all /mcp/* requests
--- Implements MCP protocol endpoints: manifest, capabilities, resources, tools
+-- Implements MCP protocol endpoints: manifest, capabilities, resources, tools, schemas
 -- Follows JSON-RPC over HTTP pattern with REST-friendly endpoints
 
 local _M = {}
@@ -10,6 +10,8 @@ local McpConfig = require("mcp.config")
 local McpAuth = require("mcp.auth")
 local McpResources = require("mcp.resources")
 local McpTools = require("mcp.tools")
+local McpSchemas = require("mcp.schemas")
+local McpMappers = require("mcp.mappers")
 
 -- Standard MCP JSON response helper
 local function json_response(data, status_code)
@@ -18,6 +20,7 @@ local function json_response(data, status_code)
     ngx.header.content_type = "application/json"
     ngx.header["X-MCP-Server"] = "wslproxy"
     ngx.header["X-MCP-Version"] = "2025-03-26"
+    ngx.header["X-MCP-Schema-Version"] = McpSchemas.VERSION
     ngx.header["Cache-Control"] = "no-store"
     ngx.say(cjson.encode(data))
 end
@@ -60,7 +63,7 @@ function _M.manifest()
                     listChanged = false
                 } or nil
             },
-            instructions = "This MCP server exposes WSLProxy gateway configuration and status as read-only resources. Use /mcp/resources to discover available data, and /mcp/resources/{id} to fetch specific resources. Tools (validate_config, get_error_logs, reload_config) are available when tools_enabled is true."
+            instructions = "This MCP server exposes WSLProxy gateway configuration and status as read-only resources. Use /mcp/resources to discover available data, and /mcp/resources/{id} to fetch specific resources. Tools (validate_config, get_error_logs, reload_config) are available when tools_enabled is true. Use /mcp/schemas to inspect typed resource schemas."
         }
     })
 end
@@ -74,6 +77,7 @@ function _M.capabilities()
 
     local resource_types = {}
     for _, res in ipairs(McpResources.RESOURCE_REGISTRY) do
+        local schema = McpMappers.get_resource_schema(res.id)
         table.insert(resource_types, {
             id = res.id,
             name = res.name,
@@ -81,7 +85,9 @@ function _M.capabilities()
             uri = res.uri,
             mimeType = res.mimeType,
             category = res.category,
-            read_only = res.read_only
+            read_only = res.read_only,
+            resource_type = McpMappers.get_resource_type(res.id),
+            schema_available = schema ~= nil
         })
     end
 
@@ -102,6 +108,7 @@ function _M.capabilities()
         version = config.server_version,
         protocol_version = config.version,
         mode = config.mode,
+        schema_version = McpSchemas.VERSION,
         capabilities = {
             resources = resource_types,
             tools = #tool_types > 0 and tool_types or nil,
@@ -131,8 +138,6 @@ end
 -- Lists all available MCP resources
 -----------------------------------------------------------
 function _M.list_resources()
-    local config = McpConfig.load()
-
     local resources = {}
     for _, res in ipairs(McpResources.RESOURCE_REGISTRY) do
         table.insert(resources, {
@@ -143,6 +148,7 @@ function _M.list_resources()
             metadata = {
                 category = res.category,
                 read_only = res.read_only,
+                resource_type = McpMappers.get_resource_type(res.id),
                 ["x-ai-agent"] = true
             }
         })
@@ -158,7 +164,7 @@ end
 
 -----------------------------------------------------------
 -- GET /mcp/resources/{id}
--- Fetches a specific resource by ID
+-- Fetches a specific resource by ID with typed mapping
 -----------------------------------------------------------
 function _M.get_resource(resource_id)
     local config = McpConfig.load()
@@ -174,12 +180,15 @@ function _M.get_resource(resource_id)
         profile_id = args.profile_id or args.profile or "prod"
     }
 
-    -- Fetch the resource
+    -- Fetch the raw resource data
     local data, err = McpResources.get_resource(resource_id, config, params)
     if err then
         error_response(err, ngx.HTTP_NOT_FOUND, "resource_not_found")
         return
     end
+
+    -- Apply typed mapper
+    local typed_data = McpMappers.to_mcp_resource(resource_id, data)
 
     -- Find resource metadata
     local resource_meta = nil
@@ -197,7 +206,7 @@ function _M.get_resource(resource_id)
                 {
                     uri = resource_meta and resource_meta.uri or ("wslproxy://resources/" .. resource_id),
                     mimeType = "application/json",
-                    data = data
+                    data = typed_data
                 }
             }
         }
@@ -245,18 +254,9 @@ end
 -- Execute a specific tool
 -----------------------------------------------------------
 function _M.execute_tool(tool_name)
-    local config = McpConfig.load()
-
     if not tool_name or tool_name == "" then
         error_response("Tool name is required", ngx.HTTP_BAD_REQUEST)
         return
-    end
-
-    -- Check write mode for non-readonly tools
-    local ok, err_msg, status_code = McpAuth.check_mode(true)
-    if not ok and tool_name == "reload_config" then
-        -- reload_config in non-dry-run mode requires write permission
-        -- but we allow it in dry_run mode even in read-only
     end
 
     -- Parse request body for tool parameters
@@ -280,6 +280,53 @@ function _M.execute_tool(tool_name)
     json_response({
         jsonrpc = "2.0",
         result = result
+    })
+end
+
+-----------------------------------------------------------
+-- GET /mcp/schemas
+-- Lists all available MCP schemas
+-----------------------------------------------------------
+function _M.list_schemas()
+    local schemas = McpSchemas.list_schemas()
+
+    json_response({
+        jsonrpc = "2.0",
+        result = {
+            schema_version = McpSchemas.VERSION,
+            schemas = schemas
+        }
+    })
+end
+
+-----------------------------------------------------------
+-- GET /mcp/schemas/{name}
+-- Returns a specific schema definition
+-----------------------------------------------------------
+function _M.get_schema(schema_name)
+    if not schema_name or schema_name == "" then
+        error_response("Schema name is required", ngx.HTTP_BAD_REQUEST)
+        return
+    end
+
+    local schema, err = McpSchemas.get_schema(schema_name)
+    if err then
+        -- Try resource-specific schema
+        local mapper = McpMappers.registry[schema_name]
+        if mapper and mapper.schema then
+            schema = mapper.schema
+        else
+            error_response(err, ngx.HTTP_NOT_FOUND, "not_found")
+            return
+        end
+    end
+
+    json_response({
+        jsonrpc = "2.0",
+        result = {
+            name = schema_name,
+            schema = schema
+        }
     })
 end
 
@@ -352,12 +399,14 @@ function _M.jsonrpc()
                 if fetch_err then
                     rpc_err = { code = -32002, message = fetch_err }
                 else
+                    -- Apply typed mapper
+                    local typed_data = McpMappers.to_mcp_resource(resource_id, data)
                     result = {
                         contents = {
                             {
                                 uri = uri,
                                 mimeType = "application/json",
-                                text = cjson.encode(data)
+                                text = cjson.encode(typed_data)
                             }
                         }
                     }
@@ -458,6 +507,13 @@ function _M.route()
     elseif mcp_path:match("^tools/(.+)$") and method == "POST" then
         local tool_name = mcp_path:match("^tools/(.+)$")
         _M.execute_tool(tool_name)
+
+    elseif mcp_path == "schemas" and method == "GET" then
+        _M.list_schemas()
+
+    elseif mcp_path:match("^schemas/(.+)$") and method == "GET" then
+        local schema_name = mcp_path:match("^schemas/(.+)$")
+        _M.get_schema(schema_name)
 
     elseif mcp_path == "jsonrpc" and method == "POST" then
         _M.jsonrpc()

@@ -1,8 +1,8 @@
 openapi: 3.0.0
 info:
   title: WSLProxy OpsAPI Gateway & MCP Server Documentation
-  description: API endpoints reference for performing CRUD operations for Servers, Security Rules and HTTP Routes. Includes MCP (Model Context Protocol) endpoints for AI agent integration.
-  version: 1.1.0
+  description: API endpoints reference for performing CRUD operations for Servers, Security Rules and HTTP Routes. Includes MCP (Model Context Protocol) endpoints for AI agent integration with typed resource schemas, Swagger-to-MCP mappers, and JSON-RPC 2.0 support.
+  version: 1.2.0
 tags:
   - name: Servers  
     description: Create and Manage servers aka HTTP hosts
@@ -13,7 +13,10 @@ tags:
   - name: MCP
     description: |
       Model Context Protocol (MCP) server endpoints for AI agent integration.
-      Provides structured, read-only access to WSLProxy configuration and status.
+      Provides structured, read-only access to WSLProxy configuration and status
+      with typed resource schemas (wslproxy.server, wslproxy.rule, etc.) and
+      Swagger-to-MCP resource mappers. Responses include typed envelopes with
+      explicit relationships between resources.
       Compatible with Claude MCP client, OpenAI Agents, and Cursor IDE.
     x-ai-agent: true
 paths:
@@ -927,6 +930,91 @@ paths:
                 $ref: '#/components/schemas/McpToolResult'
         '400':
           description: Tool error or tools disabled
+      security:
+        - mcpApiKey: []
+        - bearerAuth: []
+
+  /mcp/schemas:
+    get:
+      tags:
+        - MCP
+      summary: List available MCP schemas
+      description: Returns a list of all typed MCP schemas including resource schemas (wslproxy.server, wslproxy.rule, etc.), protocol schemas (manifest, capabilities), and error schemas. Use these schemas to understand the structure of MCP responses.
+      operationId: mcpListSchemas
+      x-ai-agent: true
+      responses:
+        '200':
+          description: Schema list returned successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jsonrpc:
+                    type: string
+                    default: "2.0"
+                  result:
+                    type: object
+                    properties:
+                      schema_version:
+                        type: string
+                        description: Schema registry version
+                      schemas:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            name:
+                              type: string
+                              description: Schema identifier
+                            type:
+                              type: string
+                              description: Schema type (e.g., wslproxy.mcp.manifest)
+                            version:
+                              type: string
+                              description: Schema version
+                            description:
+                              type: string
+      security:
+        - mcpApiKey: []
+        - bearerAuth: []
+
+  /mcp/schemas/{schemaName}:
+    get:
+      tags:
+        - MCP
+      summary: Get a specific MCP schema
+      description: Returns the full schema definition for a specific schema type. Includes property definitions, types, constraints, relationships, and examples. Useful for AI agents to understand response structures.
+      operationId: mcpGetSchema
+      x-ai-agent: true
+      parameters:
+        - name: schemaName
+          in: path
+          required: true
+          description: "Schema name. Core schemas: manifest, capabilities, resource, resource_list, tool, tool_result, error. Resource schemas: servers, rules, upstreams, profiles, ssl, cache, health, metrics, settings"
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Schema returned successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jsonrpc:
+                    type: string
+                    default: "2.0"
+                  result:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      schema:
+                        type: object
+                        description: Full schema definition with properties, types, and constraints
+        '404':
+          description: Schema not found
       security:
         - mcpApiKey: []
         - bearerAuth: []
