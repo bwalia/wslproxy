@@ -7,7 +7,7 @@ metadata:
     {{- include "wslproxy.labels" . | nindent 4 }}
     app.kubernetes.io/component: controller
 spec:
-  type: ClusterIP
+  type: LoadBalancer
   ports:
   - name: metrics
     port: {{ .Values.controller.metrics.port }}

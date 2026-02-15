@@ -41,7 +41,7 @@ securityContext:
   # runAsUser: 1000
 
 service:
-  type: ClusterIP
+  type: LoadBalancer
   clusterIP: 10.43.140.53
   port: 3009
 

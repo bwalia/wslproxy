@@ -32,7 +32,7 @@ podAnnotations: {}
 podSecurityContext: {}
 securityContext: {}
 service:
-  type: ClusterIP
+  type: LoadBalancer
   port: 8080
 storage:
   enabled: false
