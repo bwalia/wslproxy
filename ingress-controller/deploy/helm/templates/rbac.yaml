@@ -52,7 +52,9 @@ rules:
   resources:
   - ingresses/status
   verbs:
+  - get
   - update
+  - patch
 # Watch Services and Endpoints
 - apiGroups:
   - ""

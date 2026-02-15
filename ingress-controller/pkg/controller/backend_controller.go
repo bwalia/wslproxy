@@ -1,9 +1,12 @@
 package controller
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -236,28 +239,79 @@ func (r *WSLProxyBackendReconciler) matchesIngressClass(resourceClassName *strin
 	return *resourceClassName == r.IngressClass
 }
 
-// HTTPConfigUpdater implements ConfigUpdater via HTTP API to OpenResty
+// HTTPConfigUpdater implements ConfigUpdater via HTTP API to OpenResty.
+// It sends backend configurations to the OpenResty Lua API which manages
+// upstream pools dynamically without requiring NGINX reloads.
 type HTTPConfigUpdater struct {
-	BaseURL string
+	BaseURL    string
+	HTTPClient *http.Client
 }
 
-// UpdateBackend sends backend config to OpenResty via HTTP
-func (u *HTTPConfigUpdater) UpdateBackend(ctx context.Context, name string, config BackendConfig) error {
-	// This would call the Lua HTTP API endpoint
-	// POST /api/internal/backends/{name}
-	// Body: JSON-encoded config
+// NewHTTPConfigUpdater creates a new HTTPConfigUpdater with sensible defaults
+func NewHTTPConfigUpdater(baseURL string) *HTTPConfigUpdater {
+	return &HTTPConfigUpdater{
+		BaseURL: baseURL,
+		HTTPClient: &http.Client{
+			Timeout: 5 * time.Second,
+		},
+	}
+}
 
-	// For now, just log
-	configJSON, _ := json.MarshalIndent(config, "", "  ")
-	fmt.Printf("UpdateBackend: %s\n%s\n", name, string(configJSON))
+// UpdateBackend sends backend config to OpenResty via HTTP POST
+// POST /api/internal/backends/{name}
+func (u *HTTPConfigUpdater) UpdateBackend(ctx context.Context, name string, config BackendConfig) error {
+	configJSON, err := json.Marshal(config)
+	if err != nil {
+		return fmt.Errorf("failed to marshal backend config: %w", err)
+	}
+
+	url := fmt.Sprintf("%s/backends/%s", u.BaseURL, name)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(configJSON))
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := u.HTTPClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to call OpenResty API at %s: %w", url, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("OpenResty API returned %d for %s: %s", resp.StatusCode, url, string(body))
+	}
+
 	return nil
 }
 
-// DeleteBackend removes backend from OpenResty
+// DeleteBackend removes backend from OpenResty via HTTP DELETE
+// DELETE /api/internal/backends/{name}
 func (u *HTTPConfigUpdater) DeleteBackend(ctx context.Context, name string) error {
-	// This would call the Lua HTTP API endpoint
-	// DELETE /api/internal/backends/{name}
+	url := fmt.Sprintf("%s/backends/%s", u.BaseURL, name)
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, url, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
 
-	fmt.Printf("DeleteBackend: %s\n", name)
+	resp, err := u.HTTPClient.Do(req)
+	if err != nil {
+		// If OpenResty is not reachable, log but don't fail hard
+		// (the backend may already be gone)
+		return fmt.Errorf("failed to call OpenResty API at %s: %w", url, err)
+	}
+	defer resp.Body.Close()
+
+	// 404 is acceptable — backend was already removed
+	if resp.StatusCode == http.StatusNotFound {
+		return nil
+	}
+
+	if resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("OpenResty API returned %d for DELETE %s: %s", resp.StatusCode, url, string(body))
+	}
+
 	return nil
 }

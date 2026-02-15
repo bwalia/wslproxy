@@ -2,9 +2,12 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
 
+	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
@@ -25,6 +28,8 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(wslproxyv1alpha1.AddToScheme(scheme))
+	// Register networking.k8s.io/v1 for Ingress resources
+	utilruntime.Must(networkingv1.AddToScheme(scheme))
 }
 
 func main() {
@@ -33,6 +38,8 @@ func main() {
 	var probeAddr string
 	var openrestyAPIURL string
 	var ingressClass string
+	var openrestyServiceName string
+	var openrestyServiceNamespace string
 
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
@@ -42,8 +49,12 @@ func main() {
 	flag.StringVar(&openrestyAPIURL, "openresty-api-url", "http://localhost:8080/api/internal",
 		"The base URL for OpenResty internal API")
 	flag.StringVar(&ingressClass, "ingress-class", "wslproxy",
-		"The ingress class this controller handles. Only resources with a matching "+
+		"The ingress class this controller handles. Only Ingress resources with a matching "+
 			"ingressClassName will be reconciled.")
+	flag.StringVar(&openrestyServiceName, "openresty-service-name", "",
+		"Name of the OpenResty LoadBalancer Service (for Ingress status updates)")
+	flag.StringVar(&openrestyServiceNamespace, "openresty-service-namespace", "",
+		"Namespace of the OpenResty LoadBalancer Service")
 	opts := zap.Options{
 		Development: true,
 	}
@@ -51,6 +62,14 @@ func main() {
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+
+	// Auto-detect OpenResty service namespace from pod namespace if not specified
+	if openrestyServiceNamespace == "" {
+		openrestyServiceNamespace = os.Getenv("POD_NAMESPACE")
+		if openrestyServiceNamespace == "" {
+			openrestyServiceNamespace = "wslproxy-system"
+		}
+	}
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme: scheme,
@@ -66,11 +85,10 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Setup reconcilers
-	configUpdater := &controller.HTTPConfigUpdater{
-		BaseURL: openrestyAPIURL,
-	}
+	// Create the shared config updater (real HTTP calls to OpenResty Lua API)
+	configUpdater := controller.NewHTTPConfigUpdater(openrestyAPIURL)
 
+	// Setup WSLProxyBackend CRD reconciler
 	if err = (&controller.WSLProxyBackendReconciler{
 		Client:           mgr.GetClient(),
 		Scheme:           mgr.GetScheme(),
@@ -79,6 +97,33 @@ func main() {
 		LuaConfigUpdater: configUpdater,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "WSLProxyBackend")
+		os.Exit(1)
+	}
+
+	// Determine OpenResty Service name for Ingress status updates
+	openrestySvcNN := types.NamespacedName{
+		Name:      openrestyServiceName,
+		Namespace: openrestyServiceNamespace,
+	}
+	if openrestySvcNN.Name == "" {
+		// Auto-detect: use Helm release naming convention
+		openrestySvcNN.Name = fmt.Sprintf("%s-openresty", os.Getenv("CONTROLLER_NAME"))
+		if openrestySvcNN.Name == "-openresty" || openrestySvcNN.Name == "" {
+			// Fallback: list services in namespace matching the component label
+			openrestySvcNN.Name = "wslproxy-ingress-wslproxy-ingress-controller-openresty"
+		}
+	}
+
+	// Setup Ingress reconciler (watches networking.k8s.io/v1 Ingress)
+	if err = (&controller.IngressReconciler{
+		Client:               mgr.GetClient(),
+		Scheme:               mgr.GetScheme(),
+		Recorder:             mgr.GetEventRecorderFor("wslproxy-ingress-controller"),
+		IngressClass:         ingressClass,
+		LuaConfigUpdater:     configUpdater,
+		OpenRestyServiceName: openrestySvcNN,
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Ingress")
 		os.Exit(1)
 	}
 
@@ -93,9 +138,10 @@ func main() {
 	}
 
 	setupLog.Info("starting manager",
-		"version", "v1.0.0",
+		"version", "v1.1.0",
 		"openresty-api-url", openrestyAPIURL,
 		"ingress-class", ingressClass,
+		"openresty-service", openrestySvcNN.String(),
 		"leader-election", enableLeaderElection,
 	)
 

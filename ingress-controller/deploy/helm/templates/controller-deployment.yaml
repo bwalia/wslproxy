@@ -43,6 +43,15 @@ spec:
         {{- end }}
         - --openresty-api-url=http://{{ include "wslproxy.fullname" . }}-openresty:8080/api/internal
         - --ingress-class={{ .Values.ingressClass.name }}
+        - --openresty-service-name={{ include "wslproxy.fullname" . }}-openresty
+        - --openresty-service-namespace={{ .Release.Namespace }}
+        env:
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: CONTROLLER_NAME
+          value: {{ include "wslproxy.fullname" . }}
         ports:
         - name: metrics
           containerPort: {{ .Values.controller.metrics.port }}
