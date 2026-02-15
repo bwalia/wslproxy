@@ -26,7 +26,8 @@ spec:
         {{- end }}
     spec:
       securityContext:
-        runAsNonRoot: true
+        # OpenResty needs to start as root to bind to ports 80/443 and chown temp dirs.
+        # The master process drops to nobody (65534) after initialization.
         seccompProfile:
           type: RuntimeDefault
       containers:
