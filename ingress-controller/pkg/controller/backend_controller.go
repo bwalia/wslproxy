@@ -24,6 +24,10 @@ type WSLProxyBackendReconciler struct {
 	Scheme   *runtime.Scheme
 	Recorder record.EventRecorder
 
+	// IngressClass is the ingress class this controller handles.
+	// If empty, all WSLProxyBackend resources are processed.
+	IngressClass string
+
 	// LuaConfigUpdater handles pushing config to OpenResty
 	LuaConfigUpdater ConfigUpdater
 }
@@ -90,6 +94,16 @@ func (r *WSLProxyBackendReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		}
 		logger.Error(err, "Failed to get WSLProxyBackend")
 		return ctrl.Result{}, err
+	}
+
+	// Check if this backend matches our ingress class
+	if !r.matchesIngressClass(backend.Spec.IngressClassName) {
+		logger.Info("Skipping WSLProxyBackend, ingress class does not match",
+			"name", req.Name,
+			"controllerIngressClass", r.IngressClass,
+			"resourceIngressClassName", backend.Spec.IngressClassName,
+		)
+		return ctrl.Result{}, nil
 	}
 
 	// Check if the backend is being deleted
@@ -205,6 +219,21 @@ func (r *WSLProxyBackendReconciler) SetupWithManager(mgr ctrl.Manager) error {
 			MaxConcurrentReconciles: 3,
 		}).
 		Complete(r)
+}
+
+// matchesIngressClass returns true if the resource should be handled by this controller.
+// A resource matches if:
+//   - the controller has no ingress class configured (handles everything), or
+//   - the resource has no ingressClassName set (handled by any controller), or
+//   - the resource's ingressClassName matches the controller's ingress class.
+func (r *WSLProxyBackendReconciler) matchesIngressClass(resourceClassName *string) bool {
+	if r.IngressClass == "" {
+		return true
+	}
+	if resourceClassName == nil || *resourceClassName == "" {
+		return true
+	}
+	return *resourceClassName == r.IngressClass
 }
 
 // HTTPConfigUpdater implements ConfigUpdater via HTTP API to OpenResty

@@ -1,15 +1,24 @@
 openapi: 3.0.0
 info:
-  title: WSLProxy OpsAPI Gateway Consumer Documentation
-  description: API endpoints reference for performing CRUD operations for Servers, Security Rules and HTTP Routes
-  version: 1.0.0
+  title: WSLProxy OpsAPI Gateway & MCP Server Documentation
+  description: API endpoints reference for performing CRUD operations for Servers, Security Rules and HTTP Routes. Includes MCP (Model Context Protocol) endpoints for AI agent integration with typed resource schemas, Swagger-to-MCP mappers, and JSON-RPC 2.0 support.
+  version: 1.2.0
 tags:
   - name: Servers  
     description: Create and Manage servers aka HTTP hosts
   - name: Rules
     description: Create and Manage host specific Security Rules and HTTP Routes
   - name: Cache
-    description: Enable and Manage static content caching per server  
+    description: Enable and Manage static content caching per server
+  - name: MCP
+    description: |
+      Model Context Protocol (MCP) server endpoints for AI agent integration.
+      Provides structured, read-only access to WSLProxy configuration and status
+      with typed resource schemas (wslproxy.server, wslproxy.rule, etc.) and
+      Swagger-to-MCP resource mappers. Responses include typed envelopes with
+      explicit relationships between resources.
+      Compatible with Claude MCP client, OpenAI Agents, and Cursor IDE.
+    x-ai-agent: true
 paths:
   /api/rules:
     get:
@@ -756,12 +765,322 @@ paths:
       security:
         - bearerAuth: []
 
+  /mcp/manifest:
+    get:
+      tags:
+        - MCP
+      summary: Get MCP server manifest
+      description: Returns the MCP server manifest describing protocol version, server info, and capabilities. This is the primary discovery endpoint for AI agents.
+      operationId: mcpManifest
+      x-ai-agent: true
+      responses:
+        '200':
+          description: MCP manifest returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpManifest'
+              example:
+                jsonrpc: "2.0"
+                result:
+                  protocolVersion: "2025-03-26"
+                  serverInfo:
+                    name: "wslproxy-mcp"
+                    version: "1.0.0"
+                    description: "WSLProxy MCP Server"
+                  capabilities:
+                    resources:
+                      subscribe: false
+                      listChanged: false
+      security:
+        - mcpApiKey: []
+        - bearerAuth: []
+
+  /mcp/capabilities:
+    get:
+      tags:
+        - MCP
+      summary: Get detailed MCP capabilities
+      description: Returns detailed capability information including available resources, tools, authentication requirements, and rate limiting configuration.
+      operationId: mcpCapabilities
+      x-ai-agent: true
+      responses:
+        '200':
+          description: Capabilities returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpCapabilities'
+      security:
+        - mcpApiKey: []
+        - bearerAuth: []
+
+  /mcp/resources:
+    get:
+      tags:
+        - MCP
+      summary: List available MCP resources
+      description: Returns a list of all available MCP resources that can be read by AI agents. Resources include servers, rules, upstreams, SSL configs, cache configs, health status, and metrics.
+      operationId: mcpListResources
+      x-ai-agent: true
+      responses:
+        '200':
+          description: Resource list returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpResourceList'
+      security:
+        - mcpApiKey: []
+        - bearerAuth: []
+
+  /mcp/resources/{resourceId}:
+    get:
+      tags:
+        - MCP
+      summary: Read a specific MCP resource
+      description: Fetches the data for a specific resource by ID. Available resources are servers, rules, upstreams, profiles, ssl, cache, health, metrics, and settings. Secrets are automatically redacted.
+      operationId: mcpReadResource
+      x-ai-agent: true
+      parameters:
+        - name: resourceId
+          in: path
+          required: true
+          description: "Resource identifier. One of: servers, rules, upstreams, profiles, ssl, cache, health, metrics, settings"
+          schema:
+            type: string
+            enum: [servers, rules, upstreams, profiles, ssl, cache, health, metrics, settings]
+        - name: profile_id
+          in: query
+          required: false
+          description: Environment profile filter (e.g., prod, dev, staging)
+          schema:
+            type: string
+            default: prod
+      responses:
+        '200':
+          description: Resource data returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpResourceResponse'
+        '404':
+          description: Resource not found
+      security:
+        - mcpApiKey: []
+        - bearerAuth: []
+
+  /mcp/tools:
+    get:
+      tags:
+        - MCP
+      summary: List available MCP tools
+      description: Returns a list of available MCP tools. Tools are feature-flagged and must be explicitly enabled via mcp.tools_enabled configuration.
+      operationId: mcpListTools
+      x-ai-agent: true
+      responses:
+        '200':
+          description: Tool list returned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolList'
+      security:
+        - mcpApiKey: []
+        - bearerAuth: []
+
+  /mcp/tools/{toolName}:
+    post:
+      tags:
+        - MCP
+      summary: Execute an MCP tool
+      description: Executes a specific MCP tool. Available tools are validate_config, get_error_logs, and reload_config. Tools must be enabled and appropriate mode must be set.
+      operationId: mcpExecuteTool
+      x-ai-agent: true
+      parameters:
+        - name: toolName
+          in: path
+          required: true
+          description: "Tool name. One of: validate_config, get_error_logs, reload_config"
+          schema:
+            type: string
+            enum: [validate_config, get_error_logs, reload_config]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Tool-specific parameters
+              properties:
+                dry_run:
+                  type: boolean
+                  description: "For reload_config: if true, only validates without reloading"
+                  default: true
+                lines:
+                  type: number
+                  description: "For get_error_logs: maximum lines to return"
+                  default: 100
+      responses:
+        '200':
+          description: Tool executed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpToolResult'
+        '400':
+          description: Tool error or tools disabled
+      security:
+        - mcpApiKey: []
+        - bearerAuth: []
+
+  /mcp/schemas:
+    get:
+      tags:
+        - MCP
+      summary: List available MCP schemas
+      description: Returns a list of all typed MCP schemas including resource schemas (wslproxy.server, wslproxy.rule, etc.), protocol schemas (manifest, capabilities), and error schemas. Use these schemas to understand the structure of MCP responses.
+      operationId: mcpListSchemas
+      x-ai-agent: true
+      responses:
+        '200':
+          description: Schema list returned successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jsonrpc:
+                    type: string
+                    default: "2.0"
+                  result:
+                    type: object
+                    properties:
+                      schema_version:
+                        type: string
+                        description: Schema registry version
+                      schemas:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            name:
+                              type: string
+                              description: Schema identifier
+                            type:
+                              type: string
+                              description: Schema type (e.g., wslproxy.mcp.manifest)
+                            version:
+                              type: string
+                              description: Schema version
+                            description:
+                              type: string
+      security:
+        - mcpApiKey: []
+        - bearerAuth: []
+
+  /mcp/schemas/{schemaName}:
+    get:
+      tags:
+        - MCP
+      summary: Get a specific MCP schema
+      description: Returns the full schema definition for a specific schema type. Includes property definitions, types, constraints, relationships, and examples. Useful for AI agents to understand response structures.
+      operationId: mcpGetSchema
+      x-ai-agent: true
+      parameters:
+        - name: schemaName
+          in: path
+          required: true
+          description: "Schema name. Core schemas: manifest, capabilities, resource, resource_list, tool, tool_result, error. Resource schemas: servers, rules, upstreams, profiles, ssl, cache, health, metrics, settings"
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Schema returned successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jsonrpc:
+                    type: string
+                    default: "2.0"
+                  result:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      schema:
+                        type: object
+                        description: Full schema definition with properties, types, and constraints
+        '404':
+          description: Schema not found
+      security:
+        - mcpApiKey: []
+        - bearerAuth: []
+
+  /mcp/jsonrpc:
+    post:
+      tags:
+        - MCP
+      summary: JSON-RPC 2.0 endpoint
+      description: Full MCP protocol JSON-RPC 2.0 endpoint. Supports methods initialize, resources/list, resources/read, tools/list, tools/call, and ping.
+      operationId: mcpJsonRpc
+      x-ai-agent: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/McpJsonRpcRequest'
+            examples:
+              initialize:
+                summary: Initialize MCP session
+                value:
+                  jsonrpc: "2.0"
+                  id: 1
+                  method: "initialize"
+                  params:
+                    protocolVersion: "2025-03-26"
+                    clientInfo:
+                      name: "my-agent"
+                      version: "1.0.0"
+              list_resources:
+                summary: List available resources
+                value:
+                  jsonrpc: "2.0"
+                  id: 2
+                  method: "resources/list"
+              read_resource:
+                summary: Read a resource
+                value:
+                  jsonrpc: "2.0"
+                  id: 3
+                  method: "resources/read"
+                  params:
+                    uri: "wslproxy://resources/health"
+      responses:
+        '200':
+          description: JSON-RPC response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpJsonRpcResponse'
+      security:
+        - mcpApiKey: []
+        - bearerAuth: []
+
 components:
   securitySchemes:
     bearerAuth:            # arbitrary name for the security scheme
       type: http
       scheme: bearer
-      bearerFormat: JWT 
+      bearerFormat: JWT
+    mcpApiKey:
+      type: apiKey
+      in: header
+      name: X-MCP-API-Key
+      description: API key for MCP endpoint authentication
   schemas:
     Servers:
       type: object
@@ -974,3 +1293,249 @@ components:
         updated_at:
           type: number
           description: Timestamp when config was last updated
+
+    McpManifest:
+      type: object
+      description: MCP server manifest following the Model Context Protocol specification
+      properties:
+        jsonrpc:
+          type: string
+          default: "2.0"
+        result:
+          type: object
+          properties:
+            protocolVersion:
+              type: string
+              description: MCP protocol version
+              default: "2025-03-26"
+            serverInfo:
+              type: object
+              properties:
+                name:
+                  type: string
+                  default: "wslproxy-mcp"
+                version:
+                  type: string
+                  default: "1.0.0"
+                description:
+                  type: string
+                vendor:
+                  type: string
+                  default: "WSLProxy"
+                homepage:
+                  type: string
+                  default: "https://www.wslproxy.com/"
+            capabilities:
+              type: object
+              properties:
+                resources:
+                  type: object
+                  properties:
+                    subscribe:
+                      type: boolean
+                      default: false
+                    listChanged:
+                      type: boolean
+                      default: false
+                tools:
+                  type: object
+                  nullable: true
+            instructions:
+              type: string
+
+    McpCapabilities:
+      type: object
+      description: Detailed MCP server capabilities for agent discovery
+      properties:
+        server:
+          type: string
+        version:
+          type: string
+        protocol_version:
+          type: string
+        mode:
+          type: string
+          enum: [read-only, read-write]
+        capabilities:
+          type: object
+          properties:
+            resources:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  name:
+                    type: string
+                  description:
+                    type: string
+                  uri:
+                    type: string
+                  mimeType:
+                    type: string
+                  category:
+                    type: string
+                  read_only:
+                    type: boolean
+            tools:
+              type: array
+              nullable: true
+              items:
+                type: object
+                properties:
+                  name:
+                    type: string
+                  description:
+                    type: string
+                  inputSchema:
+                    type: object
+            authentication:
+              type: object
+              properties:
+                type:
+                  type: string
+                header:
+                  type: string
+                description:
+                  type: string
+        metadata:
+          type: object
+          properties:
+            x-ai-agent:
+              type: boolean
+            x-mcp-compatible:
+              type: boolean
+            platform:
+              type: string
+            gateway_type:
+              type: string
+
+    McpResourceList:
+      type: object
+      properties:
+        jsonrpc:
+          type: string
+          default: "2.0"
+        result:
+          type: object
+          properties:
+            resources:
+              type: array
+              items:
+                type: object
+                properties:
+                  uri:
+                    type: string
+                    description: Resource URI (e.g., wslproxy://resources/servers)
+                  name:
+                    type: string
+                  description:
+                    type: string
+                  mimeType:
+                    type: string
+                    default: "application/json"
+                  metadata:
+                    type: object
+
+    McpResourceResponse:
+      type: object
+      properties:
+        jsonrpc:
+          type: string
+          default: "2.0"
+        result:
+          type: object
+          properties:
+            contents:
+              type: array
+              items:
+                type: object
+                properties:
+                  uri:
+                    type: string
+                  mimeType:
+                    type: string
+                  data:
+                    type: object
+                    description: The resource data (structure varies by resource type)
+
+    McpToolList:
+      type: object
+      properties:
+        jsonrpc:
+          type: string
+          default: "2.0"
+        result:
+          type: object
+          properties:
+            tools:
+              type: array
+              items:
+                type: object
+                properties:
+                  name:
+                    type: string
+                  description:
+                    type: string
+                  inputSchema:
+                    type: object
+                  annotations:
+                    type: object
+
+    McpToolResult:
+      type: object
+      properties:
+        jsonrpc:
+          type: string
+          default: "2.0"
+        result:
+          type: object
+          properties:
+            tool:
+              type: string
+            result:
+              type: object
+            isError:
+              type: boolean
+
+    McpJsonRpcRequest:
+      type: object
+      required: [jsonrpc, method]
+      properties:
+        jsonrpc:
+          type: string
+          default: "2.0"
+        id:
+          oneOf:
+            - type: string
+            - type: number
+        method:
+          type: string
+          description: "MCP method: initialize, resources/list, resources/read, tools/list, tools/call, ping"
+          enum: ["initialize", "resources/list", "resources/read", "tools/list", "tools/call", "ping"]
+        params:
+          type: object
+          description: Method-specific parameters
+
+    McpJsonRpcResponse:
+      type: object
+      properties:
+        jsonrpc:
+          type: string
+          default: "2.0"
+        id:
+          oneOf:
+            - type: string
+            - type: number
+        result:
+          type: object
+          description: Successful result (present if no error)
+        error:
+          type: object
+          description: Error object (present if request failed)
+          properties:
+            code:
+              type: number
+            message:
+              type: string

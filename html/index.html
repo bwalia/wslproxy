@@ -743,10 +743,126 @@
       }
 
       .fade-up.visible { opacity: 1; transform: translateY(0); }
+
+      /* 404 Notification Banner Styles */
+      .notification-404 {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        color: white;
+        padding: 1rem 0;
+        z-index: 2000;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        animation: slideDown 0.5s ease-out;
+        transition: opacity 1s ease-out, transform 1s ease-out;
+      }
+
+      .notification-404.show {
+        display: block;
+      }
+
+      .notification-404.fade-out {
+        opacity: 0;
+        transform: translateY(-100%);
+      }
+
+      .notification-404 .container {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .notification-404-content {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+      }
+
+      .notification-404-icon {
+        font-size: 2rem;
+        animation: pulse 2s infinite;
+      }
+
+      .notification-404-text h4 {
+        margin: 0;
+        font-size: 1.1rem;
+        font-weight: 700;
+      }
+
+      .notification-404-text p {
+        margin: 0;
+        font-size: 0.9rem;
+        opacity: 0.9;
+      }
+
+      .notification-404-close {
+        background: rgba(255, 255, 255, 0.2);
+        border: none;
+        color: white;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        cursor: pointer;
+        font-size: 1.2rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.3s ease;
+      }
+
+      .notification-404-close:hover {
+        background: rgba(255, 255, 255, 0.3);
+      }
+
+      @keyframes slideDown {
+        from {
+          transform: translateY(-100%);
+          opacity: 0;
+        }
+        to {
+          transform: translateY(0);
+          opacity: 1;
+        }
+      }
+
+      @keyframes pulse {
+        0%, 100% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.1);
+        }
+      }
+
+      /* Adjust navbar when notification is visible */
+      body.notification-active .navbar-custom {
+        top: 80px;
+      }
     </style>
   </head>
 
   <body>
+    <!-- 404 Notification Banner -->
+    <div id="notification-404" class="notification-404">
+      <div class="container">
+        <div class="notification-404-content">
+          <div class="notification-404-icon">
+            <i class="fa fa-exclamation-triangle"></i>
+          </div>
+          <div class="notification-404-text">
+            <h4>404 - Page Not Found</h4>
+            <p>You have come to this page because the link you are visiting is not found.</p>
+          </div>
+        </div>
+        <button class="notification-404-close">
+          <i class="fa fa-times"></i>
+        </button>
+      </div>
+    </div>
+
     <nav class="navbar-custom" id="mainNav">
       <div class="container">
         <div class="row align-items-center">
@@ -1068,12 +1184,13 @@
 
           <div class="feature-card fade-up">
             <div class="feature-icon" style="background: linear-gradient(135deg, #3b82f6, #2563eb);"><i class="fa fa-robot"></i></div>
-            <h3>AI Agent &amp; MCP</h3>
-            <p>Built-in AI agent integration with Model Context Protocol (MCP) servers for intelligent automation.</p>
+            <h3>AI Agent &amp; MCP Server</h3>
+            <p>Built-in Model Context Protocol (MCP) server enabling AI agents like Claude, GPT, and Cursor to securely discover and interact with gateway configuration and status.</p>
             <ul class="feature-list">
-              <li><i class="fa fa-check"></i> MCP server support</li>
-              <li><i class="fa fa-check"></i> AI-powered analytics</li>
-              <li><i class="fa fa-check"></i> Intelligent traffic routing</li>
+              <li><i class="fa fa-check"></i> MCP JSON-RPC 2.0 &amp; REST endpoints</li>
+              <li><i class="fa fa-check"></i> Read-only resources with secret redaction</li>
+              <li><i class="fa fa-check"></i> Feature-flagged tools (config validation, logs)</li>
+              <li><i class="fa fa-check"></i> API key auth &amp; read-only mode by default</li>
             </ul>
           </div>
 
@@ -1859,6 +1976,65 @@ nginx_upstream_latency_avg 8.2</code></pre>
       }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
 
       fadeElements.forEach(function(el) { fadeObserver.observe(el); });
+
+      // 404 Notification Handler
+      // Constants for notification timing
+      var NOTIFICATION_AUTO_HIDE_DELAY = 10000; // 10 seconds
+      var NOTIFICATION_FADE_DURATION = 1000;    // 1 second (matches CSS transition)
+
+      function show404Notification() {
+        var notification = document.getElementById('notification-404');
+        if (notification) {
+          notification.classList.add('show');
+          document.body.classList.add('notification-active');
+          
+          // Auto-hide after configured delay
+          setTimeout(function() {
+            hide404Notification();
+          }, NOTIFICATION_AUTO_HIDE_DELAY);
+        }
+      }
+
+      function hide404Notification() {
+        var notification = document.getElementById('notification-404');
+        if (notification) {
+          notification.classList.add('fade-out');
+          document.body.classList.remove('notification-active');
+          
+          // Remove from DOM after animation completes
+          setTimeout(function() {
+            notification.style.display = 'none';
+          }, NOTIFICATION_FADE_DURATION);
+        }
+      }
+
+      // Check URL hash on page load
+      window.addEventListener('DOMContentLoaded', function() {
+        var hash = window.location.hash;
+        if (hash === '#default') {
+          show404Notification();
+        }
+
+        // Attach close button event listener
+        var closeButton = document.querySelector('.notification-404-close');
+        if (closeButton) {
+          closeButton.addEventListener('click', hide404Notification);
+        }
+      });
+
+      // Also check when hash changes
+      window.addEventListener('hashchange', function() {
+        var hash = window.location.hash;
+        if (hash === '#default') {
+          var notification = document.getElementById('notification-404');
+          if (notification && !notification.classList.contains('show')) {
+            // Reset notification state
+            notification.classList.remove('fade-out');
+            notification.style.display = '';
+            show404Notification();
+          }
+        }
+      });
     </script>
   </body>
 </html>
