@@ -276,7 +276,7 @@ func (u *HTTPConfigUpdater) UpdateBackend(ctx context.Context, name string, conf
 	if err != nil {
 		return fmt.Errorf("failed to call OpenResty API at %s: %w", url, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode >= 300 {
 		body, _ := io.ReadAll(resp.Body)
@@ -301,7 +301,7 @@ func (u *HTTPConfigUpdater) DeleteBackend(ctx context.Context, name string) erro
 		// (the backend may already be gone)
 		return fmt.Errorf("failed to call OpenResty API at %s: %w", url, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// 404 is acceptable — backend was already removed
 	if resp.StatusCode == http.StatusNotFound {
