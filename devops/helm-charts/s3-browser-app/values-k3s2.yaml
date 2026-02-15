@@ -41,7 +41,7 @@ securityContext:
   # runAsUser: 1000
 
 service:
-  type: LoadBalancer
+  type: ClusterIP
   clusterIP: 10.43.140.55
   port: 3000
 

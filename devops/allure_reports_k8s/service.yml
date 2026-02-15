@@ -3,7 +3,7 @@ kind: Service
 metadata:
   name: qa-allure-service
 spec:
-  type: LoadBalancer
+  type: ClusterIP
   selector:
     app: qa-allure-service-pod
   ports:
