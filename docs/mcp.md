@@ -10,6 +10,7 @@ MCP is an open standard that enables AI assistants (Claude, GPT, Cursor, custom 
 
 - **AI-Native Operations**: Enable AI agents to understand your proxy configuration, diagnose issues, and suggest optimizations
 - **Structured Discovery**: Agents can discover available data through standardized endpoints rather than parsing documentation
+- **Typed Resources**: Every resource has an explicit schema (`wslproxy.server`, `wslproxy.rule`, etc.) with strong typing
 - **Enterprise Security**: Token-based auth, read-only mode by default, automatic secret redaction
 - **Observability Integration**: Expose traffic metrics, error rates, and health status to AI monitoring agents
 
@@ -27,7 +28,23 @@ AI Agent (Claude/GPT/Cursor)
        ├── mcp/auth.lua (API key validation)
        ├── mcp/config.lua (Configuration loader)
        ├── mcp/resources.lua (Data providers)
-       └── mcp/tools.lua (Feature-flagged actions)
+       ├── mcp/tools.lua (Feature-flagged actions)
+       ├── mcp/schemas/ (Typed JSON schemas)
+       │     ├── manifest.lua
+       │     ├── capabilities.lua
+       │     ├── resource.lua (per-domain schemas)
+       │     ├── tool.lua
+       │     └── error.lua
+       └── mcp/mappers/ (Swagger → MCP resource mappers)
+             ├── server.lua   (Swagger /api/servers → wslproxy.server)
+             ├── rule.lua     (Swagger /api/rules → wslproxy.rule)
+             ├── upstream.lua (Internal → wslproxy.upstream)
+             ├── profile.lua  (Swagger /api/profiles → wslproxy.profile)
+             ├── ssl.lua      (Internal → wslproxy.ssl)
+             ├── cache.lua    (Swagger /api/cache → wslproxy.cache)
+             ├── health.lua   (Internal → wslproxy.health)
+             ├── metrics.lua  (Internal → wslproxy.metrics)
+             └── settings.lua (Internal → wslproxy.settings)
 ```
 
 All MCP code lives in `api/mcp/` and integrates with existing WSLProxy modules without duplicating business logic.
@@ -39,26 +56,55 @@ All MCP code lives in `api/mcp/` and integrates with existing WSLProxy modules w
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/mcp/manifest` | GET | MCP server manifest (discovery) |
-| `/mcp/capabilities` | GET | Detailed capability listing |
+| `/mcp/capabilities` | GET | Detailed capability listing with typed resources |
 | `/mcp/resources` | GET | List all available resources |
-| `/mcp/resources/{id}` | GET | Fetch a specific resource |
+| `/mcp/resources/{id}` | GET | Fetch a typed resource by ID |
 | `/mcp/tools` | GET | List available tools |
 | `/mcp/tools/{name}` | POST | Execute a tool |
+| `/mcp/schemas` | GET | List all typed MCP schemas |
+| `/mcp/schemas/{name}` | GET | Get a specific schema definition |
 | `/mcp/jsonrpc` | POST | Full JSON-RPC 2.0 endpoint |
 
-### Available Resources
+### Available Resources (Typed)
 
-| Resource ID | Description | Category |
-|-------------|-------------|----------|
-| `servers` | Virtual host / server configurations | Configuration |
-| `rules` | Security rules and HTTP routing policies | Configuration |
-| `upstreams` | Backend upstream server pools | Configuration |
-| `profiles` | Environment profiles (dev/staging/prod) | Configuration |
-| `ssl` | SSL/TLS certificate configurations | Security |
-| `cache` | Static content cache configurations | Performance |
-| `health` | Gateway health status and worker info | Observability |
-| `metrics` | Traffic metrics, latency, error rates | Observability |
-| `settings` | Non-sensitive gateway settings | Configuration |
+| Resource ID | MCP Type | Swagger Source | Category |
+|-------------|----------|----------------|----------|
+| `servers` | `wslproxy.server` | `GET /api/servers` | Configuration |
+| `rules` | `wslproxy.rule` | `GET /api/rules` | Configuration |
+| `upstreams` | `wslproxy.upstream` | Internal | Configuration |
+| `profiles` | `wslproxy.profile` | `GET /api/profiles` | Configuration |
+| `ssl` | `wslproxy.ssl` | Internal | Security |
+| `cache` | `wslproxy.cache` | `GET /api/cache/configs` | Performance |
+| `health` | `wslproxy.health` | `GET /api/openresty_status` | Observability |
+| `metrics` | `wslproxy.metrics` | Internal | Observability |
+| `settings` | `wslproxy.settings` | Internal | Configuration |
+
+### Typed Resource Envelope
+
+All resources are returned with typed envelopes:
+
+```json
+{
+  "type": "wslproxy.server",
+  "id": "srv-abc-123",
+  "attributes": {
+    "server_name": "api.example.com",
+    "profile_id": "prod",
+    "ssl_enabled": true,
+    "config_status": true
+  },
+  "relationships": {
+    "profile": {
+      "type": "wslproxy.profile",
+      "id": "prod"
+    },
+    "rules": {
+      "type": "wslproxy.rule",
+      "id": "rule-uuid"
+    }
+  }
+}
+```
 
 ### Available Tools (Feature-Flagged)
 
@@ -67,6 +113,56 @@ All MCP code lives in `api/mcp/` and integrates with existing WSLProxy modules w
 | `validate_config` | Run `openresty -t` syntax check | Yes |
 | `get_error_logs` | Fetch recent error logs (redacted) | Yes |
 | `reload_config` | Reload NGINX config (dry-run first) | No (requires read-write mode) |
+
+## Swagger → MCP Resource Mapping
+
+The MCP server maps existing Swagger API domain objects to typed MCP resources:
+
+| Swagger Endpoint | MCP Resource Type | Mapping |
+|-----------------|-------------------|---------|
+| `GET /api/servers` | `wslproxy.server.list` | Server configs → typed server resources |
+| `GET /api/servers/{id}` | `wslproxy.server` | Single server with relationships |
+| `GET /api/rules` | `wslproxy.rule.list` | Security rules → typed rule resources |
+| `GET /api/rules/{id}` | `wslproxy.rule` | Single rule with match/response details |
+| `GET /api/profiles` | `wslproxy.profile.list` | Profiles with server counts |
+| `GET /api/cache/configs` | `wslproxy.cache.list` | Cache configs per server |
+| `GET /api/openresty_status` | `wslproxy.health` | Health + worker info |
+
+**Mapping Rules:**
+- One Swagger domain object → one MCP resource type
+- No invented business concepts
+- Relationships link resources (server ↔ rule, server ↔ SSL)
+- Sensitive fields are automatically redacted
+
+## MCP Schemas
+
+All schemas are defined in `api/mcp/schemas/` and accessible via `/mcp/schemas`:
+
+### Core Protocol Schemas
+
+| Schema | Description |
+|--------|-------------|
+| `manifest` | MCP server manifest (JSON-RPC 2.0 envelope) |
+| `capabilities` | Server capabilities with resource/tool declarations |
+| `resource` | Resource response envelope |
+| `resource_list` | Resource list response |
+| `tool` | Tool definition with input schema and annotations |
+| `tool_result` | Tool execution result envelope |
+| `error` | Standardized error response |
+
+### Domain Resource Schemas
+
+| Schema | Type | Fields |
+|--------|------|--------|
+| `server` | `wslproxy.server` | id, server_name, profile_id, listens, ssl_enabled, config_status |
+| `rule` | `wslproxy.rule` | id, name, priority, match, response |
+| `upstream` | `wslproxy.upstream` | id, name, servers, algorithm, health_check |
+| `profile` | `wslproxy.profile` | id, name, server_count |
+| `ssl` | `wslproxy.ssl` | domain, ssl_enabled, ssl_auto_renew, ssl_force_https |
+| `cache` | `wslproxy.cache` | server_name, cache_enabled, cache_ttl, cached_extensions |
+| `health` | `wslproxy.health` | status, openresty, mcp, shared_dicts |
+| `metrics` | `wslproxy.metrics` | traffic, connections, latency, request_methods |
+| `settings` | `wslproxy.settings` | storage_type, ssl_staging, dns_resolver, mcp |
 
 ## Configuration
 
@@ -162,34 +258,25 @@ curl -H "X-MCP-API-Key: your-key" \
   https://your-wslproxy:8080/mcp/resources
 ```
 
-**Read server configurations:**
+**Read typed server resources:**
 
 ```bash
 curl -H "X-MCP-API-Key: your-key" \
   https://your-wslproxy:8080/mcp/resources/servers?profile_id=prod
 ```
 
-**Read health status:**
+**List available schemas:**
 
 ```bash
 curl -H "X-MCP-API-Key: your-key" \
-  https://your-wslproxy:8080/mcp/resources/health
+  https://your-wslproxy:8080/mcp/schemas
 ```
 
-**Read traffic metrics:**
+**Get a specific schema:**
 
 ```bash
 curl -H "X-MCP-API-Key: your-key" \
-  https://your-wslproxy:8080/mcp/resources/metrics
-```
-
-**Validate configuration (tool):**
-
-```bash
-curl -X POST \
-  -H "X-MCP-API-Key: your-key" \
-  -H "Content-Type: application/json" \
-  https://your-wslproxy:8080/mcp/tools/validate_config
+  https://your-wslproxy:8080/mcp/schemas/servers
 ```
 
 **JSON-RPC endpoint:**
@@ -246,7 +333,8 @@ Once connected, AI agents can ask questions like:
 - "List all SSL-enabled domains"
 - "What security rules are applied to incoming requests?"
 - "Check if the NGINX configuration is valid"
-- "Show recent error log entries"
+- "Show me the typed schema for server resources"
+- "What relationships exist between servers and rules?"
 
 ## AI Agent Compatibility
 
@@ -263,11 +351,50 @@ The MCP implementation is compatible with:
 
 All MCP responses follow these principles for optimal AI agent consumption:
 
-1. **Deterministic**: Same input always produces same output structure
-2. **Explicit Schemas**: Every response uses well-defined JSON schemas
-3. **Structured Data Only**: No free-form text where structured data is expected
-4. **Self-Describing**: Resources include URIs, MIME types, and metadata
-5. **Safe by Default**: Secrets redacted, read-only mode, rate-limited
+1. **Typed Resources**: Every resource has an explicit `type` field (e.g., `wslproxy.server`)
+2. **Deterministic**: Same input always produces same output structure
+3. **Explicit Schemas**: Every response uses well-defined JSON schemas accessible via `/mcp/schemas`
+4. **Structured Data Only**: No free-form text where structured data is expected
+5. **Relationship-Aware**: Resources include typed references to related resources
+6. **Self-Describing**: Resources include URIs, MIME types, and metadata
+7. **Safe by Default**: Secrets redacted, read-only mode, rate-limited
+
+## Agent Examples
+
+Working agent examples are available in `examples/agents/`:
+
+- **`claude-agent.md`**: Full Claude Desktop integration with discovery flow, resource reading, and prompt examples
+- **`gpt-agent.md`**: OpenAI function calling setup, Python implementation, and multi-resource analysis
+
+## Write-Enabled Roadmap
+
+See `docs/mcp-write-roadmap.md` for the phased plan to enable write operations:
+
+1. **Phase 1** (Current): Read-only
+2. **Phase 2**: Dry-run tools
+3. **Phase 3**: Human-approved writes
+4. **Phase 4**: Policy-controlled autonomous writes
+
+## Operational Considerations
+
+### Performance
+
+- MCP endpoints add no overhead to normal proxy traffic (separate location block)
+- Resource reads are backed by file I/O (same as admin API)
+- Shared dictionary queries are non-blocking
+- No database connections required
+
+### Monitoring
+
+- MCP requests are logged in the NGINX access log
+- Failed authentication attempts are logged at `WARN` level
+- Tool executions are logged at `INFO` level
+
+### Scaling
+
+- MCP endpoints scale with OpenResty workers
+- No external dependencies (no Redis, no database for MCP itself)
+- Stateless — every request is independent
 
 ## Troubleshooting
 
@@ -286,6 +413,10 @@ Set `"tools_enabled": true` in the MCP config and ensure `mode` is `"read-write"
 ### Resources return empty arrays
 
 Ensure the `NGINX_CONFIG_DIR` environment variable points to the correct data directory and that the profile directory (e.g., `data/servers/prod/`) contains JSON configuration files.
+
+### Schemas show unexpected structure
+
+Use `/mcp/schemas/{name}` to inspect the exact schema for any resource type. Schema version is returned in the `X-MCP-Schema-Version` response header.
 
 ## API Reference
 
