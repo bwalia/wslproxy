@@ -605,8 +605,16 @@ const Form = () => {
 
           <Divider sx={{ my: 2 }} />
 
-          {/* Consul Configuration */}
+          {/* Proxy Options */}
           <Grid container spacing={2}>
+            <Grid item xs={12} sm={6} md={3}>
+              <BooleanInput
+                source="match.response.strip_path"
+                label="Strip Path Prefix"
+                defaultValue={false}
+                helperText="Remove matched path prefix before proxying"
+              />
+            </Grid>
             <Grid item xs={12} sm={6} md={3}>
               <BooleanInput
                 source="match.response.is_consul"

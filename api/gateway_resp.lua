@@ -42,6 +42,20 @@ elseif selectedRule.statusCode == 305 then
         ngx.exit(ngx.HTTP_INTERNAL_SERVER_ERROR)
     end
 
+    -- Strip matched path prefix from URI before proxying (like K8s Ingress rewrite-target)
+    if selectedRule.rule_data.strip_path
+        and selectedRule.rule_data.path
+        and selectedRule.rule_data.path ~= "/"
+        and type(selectedRule.rule_data.path) ~= "userdata" then
+        local matched_path = selectedRule.rule_data.path
+        local current_uri = ngx.var.uri
+        if current_uri:sub(1, #matched_path) == matched_path then
+            local new_uri = current_uri:sub(#matched_path + 1)
+            if new_uri == "" then new_uri = "/" end
+            ngx.req.set_uri(new_uri)
+        end
+    end
+
     local origin_serverScheme = "http"
     if Helper.isStringContains("https://", selectedRule.redirectUri) then
         origin_serverScheme = "https"
