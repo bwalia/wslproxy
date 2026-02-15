@@ -1,6 +1,6 @@
 openapi: 3.0.0
 info:
-  title: WSLProxy OpsAPI Gateway Consumer Documentation
+  title: WSLProxy OpsAPI Gateway & MCP Server Documentation
   description: API endpoints reference for performing CRUD operations for Servers, Security Rules and HTTP Routes. Includes MCP (Model Context Protocol) endpoints for AI agent integration.
   version: 1.1.0
 tags:
