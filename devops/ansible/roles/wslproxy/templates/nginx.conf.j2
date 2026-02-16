@@ -189,14 +189,13 @@ http {
         #charset koi8-r;
 
         #access_log  logs/host.access.log  main;
-        #error_page  404              /404.html;
+        error_page  403              /403.html;
+        error_page  404              /404.html;
+        error_page  500 502 503 504  /50x.html;
 
-        # redirect server error pages to the static page /50x.html
-        #
-        error_page   500 502 503 504  /50x.html;
-        location = /50x.html {
-            root   html;
-        }
+        location = /403.html { root html; internal; }
+        location = /404.html { root html; internal; }
+        location = /50x.html { root html; internal; }
 
         location / {
           root   /usr/local/openresty/nginx/html/openresty-admin/dist;
@@ -589,14 +588,13 @@ server {
             }
         }
 
+        error_page  403              /403.html;
         error_page  404              /404.html;
+        error_page  500 502 503 504  /50x.html;
 
-        # redirect server error pages to the static page /50x.html
-        #
-        error_page   500 502 503 504  /50x.html;
-        location = /50x.html {
-            root   html;
-        }
+        location = /403.html { root html; internal; }
+        location = /404.html { root html; internal; }
+        location = /50x.html { root html; internal; }
 
         location ~ /\.ht {
             deny  all;
@@ -865,15 +863,13 @@ server {
 
         }
 
-        #comment
+        error_page  403              /403.html;
         error_page  404              /404.html;
+        error_page  500 502 503 504  /50x.html;
 
-        # redirect server error pages to the static page /50x.html
-        #
-        error_page   500 502 503 504  /50x.html;
-        location = /50x.html {
-            root   html;
-        }
+        location = /403.html { root html; internal; }
+        location = /404.html { root html; internal; }
+        location = /50x.html { root html; internal; }
 
         location ~ /\.ht {
             deny  all;

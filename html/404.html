@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>404 - Page Not Found | WSL Proxy</title>
+    <link rel="icon" type="image/png" href="images/logo.png" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet" />
+    <style>
+      :root {
+        --primary: #6366f1;
+        --secondary: #0ea5e9;
+        --accent: #10b981;
+        --dark: #0f172a;
+        --dark-light: #1e293b;
+        --gray: #64748b;
+        --white: #ffffff;
+        --gradient: linear-gradient(135deg, #6366f1 0%, #0ea5e9 50%, #10b981 100%);
+        --gradient-dark: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      }
+
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+
+      body {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        background: var(--gradient-dark);
+        color: var(--white);
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        overflow-x: hidden;
+      }
+
+      body::before {
+        content: '';
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.03)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      .glow {
+        position: fixed;
+        width: 600px; height: 600px;
+        background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, transparent 70%);
+        top: -200px; right: -100px;
+        pointer-events: none;
+      }
+
+      .glow-2 {
+        position: fixed;
+        width: 400px; height: 400px;
+        background: radial-gradient(circle, rgba(14, 165, 233, 0.1) 0%, transparent 70%);
+        bottom: -100px; left: -100px;
+        pointer-events: none;
+      }
+
+      .navbar {
+        background: rgba(15, 23, 42, 0.95);
+        backdrop-filter: blur(20px);
+        padding: 1rem 2rem;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+        position: relative;
+        z-index: 10;
+      }
+
+      .navbar-brand {
+        font-size: 1.5rem;
+        font-weight: 800;
+        color: var(--white);
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .navbar-brand span {
+        background: var(--gradient);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+
+      .content {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        z-index: 1;
+        padding: 2rem;
+      }
+
+      .error-container {
+        text-align: center;
+        max-width: 600px;
+      }
+
+      .error-code {
+        font-size: 8rem;
+        font-weight: 800;
+        background: var(--gradient);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        line-height: 1;
+        margin-bottom: 1rem;
+      }
+
+      .error-title {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--white);
+        margin-bottom: 1rem;
+      }
+
+      .error-description {
+        font-size: 1.125rem;
+        color: rgba(255,255,255,0.6);
+        line-height: 1.7;
+        margin-bottom: 2.5rem;
+      }
+
+      .btn-home {
+        background: var(--gradient);
+        color: var(--white);
+        padding: 0.875rem 2rem;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 1rem;
+        border: none;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .btn-home:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 20px 40px rgba(99, 102, 241, 0.4);
+      }
+
+      .divider {
+        width: 80px;
+        height: 4px;
+        background: var(--gradient);
+        border-radius: 2px;
+        margin: 0 auto 2rem;
+      }
+
+      .footer {
+        text-align: center;
+        padding: 1.5rem;
+        color: rgba(255,255,255,0.3);
+        font-size: 0.875rem;
+        position: relative;
+        z-index: 1;
+        border-top: 1px solid rgba(255,255,255,0.05);
+      }
+
+      @media (max-width: 768px) {
+        .error-code { font-size: 5rem; }
+        .error-title { font-size: 1.5rem; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="glow"></div>
+    <div class="glow-2"></div>
+
+    <nav class="navbar">
+      <a href="/" class="navbar-brand">
+        <span>WSL Proxy</span>
+      </a>
+    </nav>
+
+    <div class="content">
+      <div class="error-container">
+        <div class="error-code">404</div>
+        <div class="divider"></div>
+        <h1 class="error-title">Page Not Found</h1>
+        <p class="error-description">
+          The page you are looking for doesn't exist or has been moved.
+          Please check the URL or navigate back to the homepage.
+        </p>
+        <a href="/" class="btn-home">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          Back to Homepage
+        </a>
+      </div>
+    </div>
+
+    <div class="footer">
+      &copy; WSL Proxy &mdash; Workstation Solutions Limited
+    </div>
+  </body>
+</html>

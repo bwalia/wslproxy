@@ -515,15 +515,13 @@ http {
 
         }
 
-        #comment
+        error_page  403              /403.html;
         error_page  404              /404.html;
+        error_page  500 502 503 504  /50x.html;
 
-        # redirect server error pages to the static page /50x.html
-        #
-        error_page   500 502 503 504  /50x.html;
-        location = /50x.html {
-            root   html;
-        }
+        location = /403.html { root html; internal; }
+        location = /404.html { root html; internal; }
+        location = /50x.html { root html; internal; }
 
         # proxy the PHP scripts to Apache listening on 127.0.0.1:80
         #
@@ -887,14 +885,13 @@ server {
             }
         }
 
+        error_page  403              /403.html;
         error_page  404              /404.html;
+        error_page  500 502 503 504  /50x.html;
 
-        # redirect server error pages to the static page /50x.html
-        #
-        error_page   500 502 503 504  /50x.html;
-        location = /50x.html {
-            root   html;
-        }
+        location = /403.html { root html; internal; }
+        location = /404.html { root html; internal; }
+        location = /50x.html { root html; internal; }
 
         location ~ /\.ht {
             deny  all;
@@ -1128,15 +1125,13 @@ server {
 
         }
 
-        #comment
+        error_page  403              /403.html;
         error_page  404              /404.html;
+        error_page  500 502 503 504  /50x.html;
 
-        # redirect server error pages to the static page /50x.html
-        #
-        error_page   500 502 503 504  /50x.html;
-        location = /50x.html {
-            root   html;
-        }
+        location = /403.html { root html; internal; }
+        location = /404.html { root html; internal; }
+        location = /50x.html { root html; internal; }
 
         location ~ /\.ht {
             deny  all;
@@ -1144,132 +1139,13 @@ server {
 
     }
   
-      server {
-        listen       80;
-        server_name  sessions-api.test.wslproxy.io;
-        default_type text/html;
-    
-        location / {
-          content_by_lua_block {
-            ngx.say([[
-              <html>
-              <body>
-                <button><a href=/start>Start the test</a></button>
-              </body>
-              </html>
-            ]])
-          }
-        }
-    
-        location /start {
-          content_by_lua_block {
-            local session = require "resty.session".new()
-            session:set_subject("OpenResty Fan")
-            session:set("quote", "The quick brown fox jumps over the lazy dog")
-            local ok, err = session:save()
-           
-            ngx.say(string.format([[
-              <html>
-              <body>
-                <p>Session started (%s)</p>
-                <p><button><a href=/started>Check if it really was</a></button></p>
-              </body>
-              </html>
-            ]], err or "no error"))
-          }
-        }
-    
-        location /started {
-          content_by_lua_block {
-            local session, err = require "resty.session".start()
-            
-            ngx.say(string.format([[
-              <html>
-              <body>
-                <p>Session was started by %s (%s)</p>
-                <p><blockquote>%s</blockquote></p>
-                <p><button><a href=/modify>Modify the session</a></button></p>
-              </body>
-              </html>
-            ]],
-              session:get_subject() or "Anonymous",
-              err or "no error",
-              session:get("quote") or "no quote"
-            ))
-          }
-        }
-        
-        location /modify {
-          content_by_lua_block {
-            local session, err = require "resty.session".start()
-            session:set_subject("Lua Fan")
-            session:set("quote", "Lorem ipsum dolor sit amet")
-            local _, err_save = session:save()
-            
-            ngx.say(string.format([[
-              <html>
-              <body>
-                <p>Session was modified (%s)</p>
-                <p><a href=/modified>Check if it is modified</a></p>
-              </body>
-              </html>
-            ]], err or err_save or "no error"))
-          }
-        }
-        
-        location /modified {
-          content_by_lua_block {
-            local session, err = require "resty.session".start()
-    
-            ngx.say(string.format([[
-              <html>
-              <body>
-                <p>Session was started by %s (%s)</p>
-                <p><blockquote>%s</blockquote></p>
-                <p><button><a href=/destroy>Destroy the session</a></button></p>
-              </body>
-              </html>
-            ]],
-              session:get_subject() or "Anonymous",
-              err or "no error",
-              session:get("quote")  or "no quote"
-            ))
-          }
-        }
-        
-        location /destroy {
-          content_by_lua_block {
-            local ok, err = require "resty.session".destroy()
-    
-            ngx.say(string.format([[
-              <html>
-              <body>
-                <p>Session was destroyed (%s)</p>
-                <p><button><a href=/destroyed>Check that it really was?</a></button></p>
-              </body>
-              </html>
-            ]], err or "no error"))
-          }
-        }
-        
-        location /destroyed {
-          content_by_lua_block {
-            local session, err = require "resty.session".open()
-    
-            ngx.say(string.format([[
-              <html>
-              <body>
-                <p>Session was really destroyed, you are known as %s (%s)</p>
-                <p><button><a href=/>Start again</a></button></p>
-              </body>
-              </html>
-            ]],
-              session:get_subject() or "Anonymous",
-              err or "no error"
-            ))
-          }
-        }    
-      }
+    # Sessions test server (disabled - same endpoints available on port 8080 at /start, /started, etc.)
+    # To re-enable, uncomment and move to a separate include file if Lua parser limit is hit
+    # server {
+    #     listen       80;
+    #     server_name  sessions-api.test.wslproxy.io;
+    #     ...
+    # }
 
   include /opt/nginx/conf.d/*.conf;
 }
