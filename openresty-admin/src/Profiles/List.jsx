@@ -3,7 +3,7 @@ import { List as RaList, Datagrid, TextField } from 'react-admin';
 
 const List = () => {
   return (
-    <RaList>
+    <RaList perPage={1000}>
       <Datagrid
         rowClick="edit"
       >
