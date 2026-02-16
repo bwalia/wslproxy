@@ -1,0 +1,155 @@
+version: '3.8'
+
+# Local Development Docker Compose Configuration
+# Uses unique ports to avoid conflicts with common local services
+# Includes proper volume mounts for hot-reload development
+#
+# Start with: ./dev.sh start
+# Or directly: docker compose -f docker-compose-local.yml up -d --build
+
+services:
+  wslproxy:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        APP_ENV: dev
+        DNS_RESOLVER: 127.0.0.11
+    container_name: wslproxy-local
+    restart: unless-stopped
+
+    ports:
+      # HTTP proxy (default 80 → 8180 to avoid conflicts)
+      - "8180:80"
+      # HTTPS proxy (default 443 → 8443 to avoid conflicts)
+      - "8443:443"
+      # Admin Dashboard & API (default 8080 → 8280 to avoid conflicts)
+      - "8280:8080"
+
+    volumes:
+      # Hot-reload Lua API files (changes reflect per-request, no restart needed)
+      - ./api:/usr/local/openresty/nginx/html/api
+
+      # Hot-reload HTML/static files
+      - ./html:/usr/local/openresty/nginx/html
+
+      # Admin dashboard build output (fixes 404 on dashboard)
+      # The ./html mount overrides the container's html dir, so we need
+      # to explicitly mount the locally-built dist back in
+      - ./openresty-admin/dist:/usr/local/openresty/nginx/html/openresty-admin/dist
+
+      # Hot-reload Admin dashboard source (for in-container rebuilds)
+      - ./openresty-admin/src:/usr/local/openresty/nginx/html/openresty-admin/src
+      - ./openresty-admin/public:/usr/local/openresty/nginx/html/openresty-admin/public
+      - ./openresty-admin/package.json:/usr/local/openresty/nginx/html/openresty-admin/package.json
+      - ./openresty-admin/vite.config.js:/usr/local/openresty/nginx/html/openresty-admin/vite.config.js
+
+      # Configuration files
+      - ./data:/opt/nginx/data
+      - ./nginx-dev.conf.tmpl:/usr/local/openresty/nginx/conf/nginx.conf
+
+      # SSL certificates (persistent across restarts)
+      - wslproxy-certs-local:/etc/resty-auto-ssl
+
+      # Swagger documentation
+      - ./html/swagger:/usr/local/openresty/nginx/html/swagger
+
+    environment:
+      NGINX_CONFIG_DIR: /opt/nginx/
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      DNS_RESOLVER: 127.0.0.11
+      LUA_LOG_LEVEL: debug
+      SSL_STAGING: "true"
+
+    depends_on:
+      redis:
+        condition: service_healthy
+      demo-node-app:
+        condition: service_healthy
+
+    networks:
+      wslproxy-local-network:
+        ipv4_address: 172.177.0.2
+
+    # Run as root in dev for easier file permissions
+    user: root
+
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  redis:
+    image: redis:7-alpine
+    container_name: wslproxy-redis-local
+    restart: unless-stopped
+
+    ports:
+      # Redis (default 6379 → 6479 to avoid conflicts)
+      - "6479:6379"
+
+    volumes:
+      - redis-data-local:/data
+
+    command: redis-server --appendonly yes --loglevel debug
+
+    networks:
+      wslproxy-local-network:
+        ipv4_address: 172.177.0.3
+
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Demo Node.js origin server (backend for proxy testing)
+  # The WSLProxy gateway rule for "localhost" proxies to this app on port 3009
+  demo-node-app:
+    build:
+      context: .
+      dockerfile: demos-origins/node-app/Dockerfile
+    container_name: demo-node-app-local
+    restart: unless-stopped
+
+    ports:
+      # Node app (direct access for debugging)
+      - "3009:3009"
+
+    volumes:
+      # Hot-reload: nodemon watches for file changes automatically
+      - ./demos-origins/node-app/server.js:/app/server.js
+      - ./demos-origins/node-app/login.html:/app/login.html
+      - ./demos-origins/node-app/success.html:/app/success.html
+      - ./demos-origins/node-app/jwt.js:/app/jwt.js
+      - ./demos-origins/node-app/verifyToken.js:/app/verifyToken.js
+
+    environment:
+      NODE_ENV: development
+      JWT_SECRET_KEY: HCsKpxQ4hU97V5us5TCwvLnAVBgLqNd1dP2R-4Uywg7946J3zAqT9EOA5hdWRCQn
+
+    networks:
+      wslproxy-local-network:
+        ipv4_address: 172.177.0.10
+
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3009/"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+networks:
+  wslproxy-local-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.177.0.0/16
+          gateway: 172.177.0.1
+
+volumes:
+  wslproxy-certs-local:
+  redis-data-local:

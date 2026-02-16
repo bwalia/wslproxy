@@ -49,7 +49,7 @@ services:
       - ./html/swagger:/usr/local/openresty/nginx/html/swagger
 
     environment:
-      NGINX_CONFIG_DIR: /opt/nginx
+      NGINX_CONFIG_DIR: /opt/nginx/
       REDIS_HOST: redis
       REDIS_PORT: 6379
       DNS_RESOLVER: 127.0.0.11
