@@ -606,7 +606,7 @@ server {
 # server any host http port 80
 server {
         listen       80 default_server;
-        server_name _;
+        server_name {{ nginx_default_server_hostname }};
 
         # enable
         access_log /var/log/nginx/access.log main_geo;
