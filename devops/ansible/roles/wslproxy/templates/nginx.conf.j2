@@ -67,7 +67,7 @@ http {
     keepalive_timeout  65;
 
     gzip  on;
-    lua_package_path "/usr/local/openresty/nginx/html/api/?.lua;/usr/local/openresty/lualib/?.lua;/usr/local/openresty/site/lualib/?.lua;;";
+    lua_package_path "/usr/local/openresty/nginx/html/api/?.lua;/usr/local/openresty/nginx/html/api/?/init.lua;/usr/local/openresty/lualib/?.lua;/usr/local/openresty/site/lualib/?.lua;;";
     lua_package_cpath '/usr/local/openresty/site/lualib/resty/?.so;/usr/local/openresty/lualib/?.so;;';
 
     # Include dynamic upstream configurations
