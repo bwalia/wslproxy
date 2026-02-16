@@ -1,0 +1,47 @@
+{{define "routes.html"}}{{template "layout" .}}{{end}}
+{{define "content"}}
+{{if and (not .ReadOnly) (or (eq .User.Role "operator") (eq .User.Role "admin"))}}
+<div style="margin-bottom:1rem">
+  <button class="btn btn-primary btn-sm" onclick="document.getElementById('add-form').style.display=document.getElementById('add-form').style.display==='none'?'block':'none'">+ Add Route</button>
+</div>
+
+<div id="add-form" class="card" style="display:none">
+  <div class="card-header">New Route (creates change request)</div>
+  <form method="POST" action="/routes/add">
+    <div class="form-inline" style="margin-bottom:.75rem">
+      <div class="form-group" style="flex:1">
+        <label>Server Name</label>
+        <input type="text" name="server_name" placeholder="example.com" required>
+      </div>
+      <div class="form-group" style="flex:1">
+        <label>Listen Port</label>
+        <input type="text" name="listen" placeholder="80" required>
+      </div>
+      <div class="form-group" style="flex:1">
+        <label>Upstream</label>
+        <input type="text" name="upstream" placeholder="http://backend:8080" required>
+      </div>
+      <div class="form-group">
+        <button type="submit" class="btn btn-success">Submit</button>
+      </div>
+    </div>
+  </form>
+</div>
+{{end}}
+
+<div class="card">
+  <div class="card-header">Server Routes</div>
+  {{if .Content}}
+  <table>
+    <thead><tr><th>Attribute</th><th>Value</th></tr></thead>
+    <tbody>
+    {{range $k, $v := .Content.Attributes}}
+    <tr><td style="font-weight:500">{{$k}}</td><td><code>{{$v}}</code></td></tr>
+    {{end}}
+    </tbody>
+  </table>
+  {{else}}
+  <p style="color:#6b7280;padding:.5rem 0">No route data available.</p>
+  {{end}}
+</div>
+{{end}}

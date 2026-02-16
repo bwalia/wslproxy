@@ -1,0 +1,33 @@
+{{define "workflows.html"}}{{template "layout" .}}{{end}}
+{{define "content"}}
+<div class="card">
+  <div class="card-header">Change Requests</div>
+  {{if .Content}}
+  <table>
+    <thead><tr><th>ID</th><th>Title</th><th>Status</th><th>Created By</th><th>Created At</th><th></th></tr></thead>
+    <tbody>
+    {{range .Content}}
+    <tr>
+      <td><code style="font-size:.8rem">{{.ID}}</code></td>
+      <td>{{.Title}}</td>
+      <td>
+        {{if eq (printf "%s" .Status) "pending"}}<span class="badge badge-pending">Pending</span>
+        {{else if eq (printf "%s" .Status) "approved"}}<span class="badge badge-approved">Approved</span>
+        {{else if eq (printf "%s" .Status) "applied"}}<span class="badge badge-applied">Applied</span>
+        {{else if eq (printf "%s" .Status) "rejected"}}<span class="badge badge-rejected">Rejected</span>
+        {{else if eq (printf "%s" .Status) "failed"}}<span class="badge badge-failed">Failed</span>
+        {{else}}<span class="badge badge-unknown">{{.Status}}</span>
+        {{end}}
+      </td>
+      <td>{{.CreatedBy}}</td>
+      <td style="white-space:nowrap">{{.CreatedAt.Format "2006-01-02 15:04"}}</td>
+      <td><a href="/workflows/{{.ID}}" class="btn btn-secondary btn-sm">View</a></td>
+    </tr>
+    {{end}}
+    </tbody>
+  </table>
+  {{else}}
+  <p style="color:#6b7280;padding:.5rem 0">No change requests yet.</p>
+  {{end}}
+</div>
+{{end}}

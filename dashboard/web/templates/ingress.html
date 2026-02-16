@@ -1,0 +1,55 @@
+{{define "ingress.html"}}{{template "layout" .}}{{end}}
+{{define "content"}}
+{{$c := .Content}}
+<div class="card-grid" style="margin-bottom:1rem">
+  <div class="card">
+    <div class="card-header">Cluster Status</div>
+    {{if $c.Status}}
+    <div style="padding:.25rem 0">
+      {{if $c.Status.Available}}
+        <span class="badge badge-healthy">Available</span>
+      {{else}}
+        <span class="badge badge-unhealthy">Unavailable</span>
+      {{end}}
+      {{if $c.Status.Version}}<div style="margin-top:.4rem;font-size:.85rem">Version: {{$c.Status.Version}}</div>{{end}}
+      <div style="font-size:.85rem;color:#6b7280">Nodes: {{$c.Status.NodeCount}}</div>
+      <div style="font-size:.85rem;color:#6b7280">Ingress Ready:
+        {{if $c.Status.IngressReady}}<span style="color:#059669">Yes</span>{{else}}<span style="color:#dc2626">No</span>{{end}}
+      </div>
+    </div>
+    {{else}}
+    <p style="color:#6b7280;font-size:.85rem">Cluster status unavailable.</p>
+    {{end}}
+  </div>
+</div>
+
+{{if and (eq .User.Role "admin") (not .ReadOnly)}}
+<div style="margin-bottom:1rem">
+  <form method="POST" action="/workflows" style="display:inline">
+    <button type="button" class="btn btn-primary btn-sm" disabled title="Create via workflow">Install Ingress Controller</button>
+  </form>
+</div>
+{{end}}
+
+<div class="card">
+  <div class="card-header">Ingress Rules</div>
+  {{if $c.Rules}}
+  <table>
+    <thead><tr><th>Host</th><th>Path</th><th>Service</th><th>Port</th><th>TLS</th></tr></thead>
+    <tbody>
+    {{range $c.Rules}}
+    <tr>
+      <td>{{.Host}}</td>
+      <td>{{.Path}}</td>
+      <td>{{.ServiceName}}</td>
+      <td>{{.ServicePort}}</td>
+      <td>{{if .TLS}}<span class="badge badge-healthy">Yes</span>{{else}}<span class="badge badge-unknown">No</span>{{end}}</td>
+    </tr>
+    {{end}}
+    </tbody>
+  </table>
+  {{else}}
+  <p style="color:#6b7280;padding:.5rem 0">No ingress rules configured.</p>
+  {{end}}
+</div>
+{{end}}

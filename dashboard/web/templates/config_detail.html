@@ -1,0 +1,24 @@
+{{define "config_detail.html"}}{{template "layout" .}}{{end}}
+{{define "content"}}
+{{$c := .Content}}
+<div style="margin-bottom:1rem">
+  <a href="/config" class="btn btn-secondary btn-sm">← Back to Config</a>
+</div>
+
+<div class="card">
+  <div class="card-header">Resource: {{$c.ResourceID}}</div>
+  {{if $c.Resource}}
+  <pre><code>Type: {{$c.Resource.Type}}
+ID:   {{$c.Resource.ID}}
+
+Attributes:
+{{range $k, $v := $c.Resource.Attributes}}  {{$k}}: {{$v}}
+{{end}}{{if $c.Resource.Relationships}}
+Relationships:
+{{range $k, $v := $c.Resource.Relationships}}  {{$k}}: {{$v}}
+{{end}}{{end}}</code></pre>
+  {{else}}
+  <p style="color:#6b7280">Resource data not available.</p>
+  {{end}}
+</div>
+{{end}}

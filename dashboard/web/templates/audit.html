@@ -1,0 +1,24 @@
+{{define "audit.html"}}{{template "layout" .}}{{end}}
+{{define "content"}}
+<div class="card">
+  <div class="card-header">Audit Log</div>
+  {{if .Content}}
+  <table>
+    <thead><tr><th>Timestamp</th><th>Who</th><th>Action</th><th>Details</th><th>Request ID</th></tr></thead>
+    <tbody>
+    {{range .Content}}
+    <tr>
+      <td style="white-space:nowrap">{{.Timestamp.Format "2006-01-02 15:04:05"}}</td>
+      <td>{{.Who}}</td>
+      <td><code>{{.What}}</code></td>
+      <td style="font-size:.8rem;color:#6b7280">{{.Details}}</td>
+      <td>{{if .RequestID}}<a href="/workflows/{{.RequestID}}"><code style="font-size:.75rem">{{.RequestID}}</code></a>{{end}}</td>
+    </tr>
+    {{end}}
+    </tbody>
+  </table>
+  {{else}}
+  <p style="color:#6b7280;padding:.5rem 0">No audit entries yet.</p>
+  {{end}}
+</div>
+{{end}}

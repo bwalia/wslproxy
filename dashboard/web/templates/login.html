@@ -1,0 +1,42 @@
+{{define "content"}}{{end}}
+{{define "login.html"}}<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Login — WSLProxy Dashboard</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{min-height:100vh;display:flex;align-items:center;justify-content:center;background:#1a1a2e;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+.login-card{background:#fff;border-radius:12px;padding:2.5rem;width:100%;max-width:380px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.login-brand{text-align:center;font-size:1.5rem;font-weight:700;color:#1a1a2e;margin-bottom:.25rem}
+.login-brand span{color:#e94560}
+.login-sub{text-align:center;font-size:.85rem;color:#6b7280;margin-bottom:1.5rem}
+.form-group{margin-bottom:1rem}
+.form-group label{display:block;font-size:.85rem;font-weight:500;color:#374151;margin-bottom:.3rem}
+.form-group input{width:100%;padding:.6rem .75rem;border:1px solid #e5e7eb;border-radius:6px;font-size:.9rem}
+.form-group input:focus{outline:none;border-color:#2563eb;box-shadow:0 0 0 2px rgba(37,99,235,.15)}
+.btn-login{width:100%;padding:.7rem;background:#e94560;color:#fff;border:none;border-radius:6px;font-size:.9rem;font-weight:600;cursor:pointer;margin-top:.5rem}
+.btn-login:hover{background:#d63851}
+.flash-error{background:#fef2f2;color:#dc2626;border:1px solid #fecaca;padding:.6rem .75rem;border-radius:6px;font-size:.85rem;margin-bottom:1rem;text-align:center}
+</style>
+</head>
+<body>
+<div class="login-card">
+  <div class="login-brand">WSL<span>Proxy</span></div>
+  <div class="login-sub">Dashboard Login</div>
+  {{if .Error}}<div class="flash-error">{{.Error}}</div>{{end}}
+  <form method="POST" action="/login">
+    <div class="form-group">
+      <label for="username">Username</label>
+      <input type="text" id="username" name="username" required autofocus>
+    </div>
+    <div class="form-group">
+      <label for="password">Password</label>
+      <input type="password" id="password" name="password" required>
+    </div>
+    <button type="submit" class="btn-login">Sign In</button>
+  </form>
+</div>
+</body>
+</html>{{end}}
