@@ -183,6 +183,7 @@ const List = () => {
 
       <RaList
         title={" "}
+        perPage={1000}
         sort={{ field: 'created_at', order: 'DESC' }}
         exporter={ExportJsonButton}
         empty={<Empty resource={"servers"} />}
