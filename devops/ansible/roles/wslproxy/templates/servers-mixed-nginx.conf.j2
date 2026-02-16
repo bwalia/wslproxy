@@ -142,7 +142,7 @@ server
         # To support websocket
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
+        proxy_set_header Connection $connection_upgrade;
         client_max_body_size 300M;
 
         chunked_transfer_encoding off;
@@ -165,7 +165,7 @@ server
             proxy_http_version 1.1;
             proxy_set_header Host $host;
             proxy_set_header Upgrade $http_upgrade;
-            proxy_set_header Connection "upgrade";
+            proxy_set_header Connection $connection_upgrade;
         client_max_body_size  2G;
         client_body_buffer_size 128k;
                       }
