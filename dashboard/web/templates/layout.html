@@ -1,0 +1,122 @@
+{{define "layout"}}<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.Title}} — WSLProxy Dashboard</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--sidebar-bg:#1a1a2e;--sidebar-hover:#16213e;--sidebar-active:#0f3460;--accent:#e94560;--accent-light:#ff6b81;--bg:#f0f2f5;--card:#fff;--text:#1a1a2e;--text-muted:#6b7280;--border:#e5e7eb;--success:#059669;--warning:#d97706;--danger:#dc2626;--info:#2563eb}
+html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--text);background:var(--bg)}
+a{color:var(--info);text-decoration:none}a:hover{text-decoration:underline}
+.app{display:flex;height:100vh}
+/* Sidebar */
+.sidebar{width:240px;background:var(--sidebar-bg);color:#fff;display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto}
+.sidebar-brand{padding:1.25rem 1rem;font-size:1.1rem;font-weight:700;letter-spacing:.5px;border-bottom:1px solid rgba(255,255,255,.08)}
+.sidebar-brand span{color:var(--accent)}
+.sidebar-nav{flex:1;padding:.5rem 0}
+.sidebar-nav a{display:flex;align-items:center;padding:.65rem 1rem;color:rgba(255,255,255,.7);font-size:.875rem;transition:background .15s,color .15s}
+.sidebar-nav a:hover{background:var(--sidebar-hover);color:#fff;text-decoration:none}
+.sidebar-nav a.active{background:var(--sidebar-active);color:#fff;border-left:3px solid var(--accent)}
+.sidebar-section{padding:.5rem 1rem .25rem;font-size:.7rem;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,.35);margin-top:.5rem}
+/* Status bar */
+.sidebar-footer{padding:.75rem 1rem;border-top:1px solid rgba(255,255,255,.08);font-size:.8rem;color:rgba(255,255,255,.5)}
+.sidebar-footer strong{color:#fff}
+.role-badge{display:inline-block;padding:.1rem .4rem;border-radius:3px;font-size:.7rem;font-weight:600;text-transform:uppercase;margin-left:.25rem}
+.role-admin{background:var(--accent);color:#fff}
+.role-operator{background:var(--info);color:#fff}
+.role-viewer{background:var(--text-muted);color:#fff}
+/* Main */
+.main{flex:1;display:flex;flex-direction:column;overflow-y:auto}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:.75rem 1.5rem;background:var(--card);border-bottom:1px solid var(--border)}
+.topbar h1{font-size:1.15rem;font-weight:600}
+.topbar-actions a{margin-left:1rem;font-size:.85rem}
+.content{padding:1.5rem;flex:1}
+/* Flash messages */
+.flash{padding:.75rem 1rem;border-radius:6px;margin-bottom:1rem;font-size:.875rem}
+.flash-error{background:#fef2f2;color:var(--danger);border:1px solid #fecaca}
+.flash-success{background:#f0fdf4;color:var(--success);border:1px solid #bbf7d0}
+/* Cards */
+.card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:1.25rem;margin-bottom:1rem}
+.card-header{font-size:.95rem;font-weight:600;margin-bottom:.75rem;padding-bottom:.5rem;border-bottom:1px solid var(--border)}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem}
+/* Tables */
+table{width:100%;border-collapse:collapse;font-size:.875rem}
+th,td{text-align:left;padding:.6rem .75rem;border-bottom:1px solid var(--border)}
+th{font-weight:600;color:var(--text-muted);font-size:.8rem;text-transform:uppercase;letter-spacing:.5px}
+tr:hover td{background:#f9fafb}
+/* Badges */
+.badge{display:inline-block;padding:.15rem .5rem;border-radius:4px;font-size:.75rem;font-weight:600}
+.badge-healthy,.badge-applied,.badge-success{background:#d1fae5;color:#065f46}
+.badge-unhealthy,.badge-failed,.badge-danger{background:#fee2e2;color:#991b1b}
+.badge-pending,.badge-warning{background:#fef3c7;color:#92400e}
+.badge-approved,.badge-info{background:#dbeafe;color:#1e40af}
+.badge-rejected{background:#fee2e2;color:#991b1b}
+.badge-unknown{background:#f3f4f6;color:#6b7280}
+/* Buttons */
+.btn{display:inline-block;padding:.5rem 1rem;border-radius:6px;font-size:.85rem;font-weight:500;border:none;cursor:pointer;text-align:center;transition:opacity .15s}
+.btn:hover{opacity:.85;text-decoration:none}
+.btn-primary{background:var(--info);color:#fff}
+.btn-success{background:var(--success);color:#fff}
+.btn-danger{background:var(--danger);color:#fff}
+.btn-secondary{background:var(--text-muted);color:#fff}
+.btn-sm{padding:.3rem .65rem;font-size:.8rem}
+/* Forms */
+.form-group{margin-bottom:.75rem}
+.form-group label{display:block;font-size:.85rem;font-weight:500;margin-bottom:.25rem;color:var(--text-muted)}
+.form-group input,.form-group textarea,.form-group select{width:100%;padding:.5rem .75rem;border:1px solid var(--border);border-radius:6px;font-size:.875rem}
+.form-group input:focus,.form-group textarea:focus{outline:none;border-color:var(--info);box-shadow:0 0 0 2px rgba(37,99,235,.15)}
+.form-inline{display:flex;gap:.5rem;align-items:flex-end;flex-wrap:wrap}
+.form-inline .form-group{margin-bottom:0}
+/* Pre/code */
+pre{background:#1e293b;color:#e2e8f0;padding:1rem;border-radius:6px;overflow-x:auto;font-size:.8rem;line-height:1.5}
+code{font-family:"SF Mono",Monaco,Consolas,"Liberation Mono",monospace}
+/* Metric cards */
+.metric-card{text-align:center;padding:1.25rem}
+.metric-value{font-size:1.75rem;font-weight:700;color:var(--text)}
+.metric-label{font-size:.8rem;color:var(--text-muted);margin-top:.25rem}
+/* Responsive */
+@media(max-width:768px){.sidebar{width:60px}.sidebar-brand span,.sidebar-nav a span,.sidebar-section,.sidebar-footer span{display:none}.sidebar-nav a{justify-content:center;padding:.75rem}.content{padding:1rem}.card-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="app">
+{{if .User}}
+<nav class="sidebar">
+  <div class="sidebar-brand">WSL<span>Proxy</span></div>
+  <div class="sidebar-nav">
+    <div class="sidebar-section">Overview</div>
+    <a href="/"><span>Dashboard</span></a>
+    <a href="/metrics"><span>Metrics</span></a>
+    <a href="/logs"><span>Logs</span></a>
+    <div class="sidebar-section">Configuration</div>
+    <a href="/config"><span>Config</span></a>
+    <a href="/routes"><span>Routes</span></a>
+    <a href="/ingress"><span>Ingress</span></a>
+    <div class="sidebar-section">Operations</div>
+    <a href="/workflows"><span>Workflows</span></a>
+    <a href="/audit"><span>Audit Log</span></a>
+  </div>
+  <div class="sidebar-footer">
+    <strong>{{.User.Username}}</strong>
+    <span class="role-badge role-{{.User.Role}}">{{.User.Role}}</span>
+    {{if .ReadOnly}}<br><span style="color:var(--warning)">Read-Only Mode</span>{{end}}
+  </div>
+</nav>
+{{end}}
+<div class="main">
+{{if .User}}
+<div class="topbar">
+  <h1>{{.Title}}</h1>
+  <div class="topbar-actions"><a href="/logout">Logout</a></div>
+</div>
+{{end}}
+<div class="content">
+  {{if .Error}}<div class="flash flash-error">{{.Error}}</div>{{end}}
+  {{if .Success}}<div class="flash flash-success">{{.Success}}</div>{{end}}
+  {{template "content" .}}
+</div>
+</div>
+</div>
+</body>
+</html>{{end}}

@@ -1,0 +1,68 @@
+{{define "dashboard.html"}}{{template "layout" .}}{{end}}
+{{define "content"}}
+{{$c := .Content}}
+<div class="card-grid" style="margin-bottom:1.5rem">
+  <div class="card">
+    <div class="card-header">Health Status</div>
+    {{if $c.Health}}
+    <div style="text-align:center;padding:.5rem 0">
+      {{if eq $c.Health.Status "healthy"}}
+        <span class="badge badge-healthy" style="font-size:1rem;padding:.3rem .8rem">● Healthy</span>
+      {{else if eq $c.Health.Status "unknown"}}
+        <span class="badge badge-unknown" style="font-size:1rem;padding:.3rem .8rem">? Unknown</span>
+      {{else}}
+        <span class="badge badge-unhealthy" style="font-size:1rem;padding:.3rem .8rem">● Unhealthy</span>
+      {{end}}
+      {{if $c.Health.Uptime}}<div style="margin-top:.5rem;font-size:.85rem;color:#6b7280">Uptime: {{$c.Health.Uptime}}</div>{{end}}
+      {{if $c.Health.Workers}}<div style="font-size:.85rem;color:#6b7280">Workers: {{$c.Health.Workers}}</div>{{end}}
+    </div>
+    {{else}}
+    <p style="color:#6b7280;font-size:.85rem">No health data available</p>
+    {{end}}
+  </div>
+
+  {{if $c.Metrics}}
+  <div class="card metric-card">
+    <div class="metric-value">{{$c.Metrics.TotalRequests}}</div>
+    <div class="metric-label">Total Requests</div>
+  </div>
+  <div class="card metric-card">
+    <div class="metric-value">{{$c.Metrics.ActiveConns}}</div>
+    <div class="metric-label">Active Connections</div>
+  </div>
+  <div class="card metric-card">
+    <div class="metric-value">{{printf "%.2f" $c.Metrics.ErrorRate}}%</div>
+    <div class="metric-label">Error Rate</div>
+  </div>
+  <div class="card metric-card">
+    <div class="metric-value">{{printf "%.1f" $c.Metrics.AvgLatencyMs}}ms</div>
+    <div class="metric-label">Avg Latency</div>
+  </div>
+  {{end}}
+</div>
+
+<div class="card-grid">
+  <div class="card"><a href="/config" style="font-weight:600">Configuration →</a><p style="font-size:.85rem;color:#6b7280;margin-top:.25rem">Manage resources and settings</p></div>
+  <div class="card"><a href="/routes" style="font-weight:600">Routes →</a><p style="font-size:.85rem;color:#6b7280;margin-top:.25rem">Server routing rules</p></div>
+  <div class="card"><a href="/metrics" style="font-weight:600">Metrics →</a><p style="font-size:.85rem;color:#6b7280;margin-top:.25rem">Traffic and performance data</p></div>
+</div>
+
+{{if $c.Audit}}
+<div class="card" style="margin-top:1rem">
+  <div class="card-header">Recent Audit Activity</div>
+  <table>
+    <thead><tr><th>Time</th><th>Who</th><th>Action</th><th>Details</th></tr></thead>
+    <tbody>
+    {{range $c.Audit}}
+    <tr>
+      <td style="white-space:nowrap">{{.Timestamp.Format "2006-01-02 15:04:05"}}</td>
+      <td>{{.Who}}</td>
+      <td>{{.What}}</td>
+      <td style="font-size:.8rem;color:#6b7280">{{.Details}}</td>
+    </tr>
+    {{end}}
+    </tbody>
+  </table>
+</div>
+{{end}}
+{{end}}
