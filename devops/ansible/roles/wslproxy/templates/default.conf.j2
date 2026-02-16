@@ -6,7 +6,6 @@
         server_name  {{ nginx_default_server_hostname }};
 
        location / {
-           root   html;
-           index  index.html index.htm;
+           return 301 https://$host$request_uri;
        }
     }
