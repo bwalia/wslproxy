@@ -1,11 +1,4 @@
     # Default server configuration
-    # Hostname: {{ nginx_default_server_hostname }}
-    #
-    server {
-        listen       80;
-        server_name  {{ nginx_default_server_hostname }};
-
-       location / {
-           return 301 https://$host$request_uri;
-       }
-    }
+    # server_name is configured in the main nginx.conf.j2 template
+    # using the nginx_default_server_hostname variable
+    # Current value: {{ nginx_default_server_hostname }}
