@@ -10,8 +10,6 @@ error.html
 .vscode
 sealed-secret*
 data/settings.json
-data/servers
-data/rules
 data/ssl
 node_modules
 .DS_Store
