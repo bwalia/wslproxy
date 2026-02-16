@@ -1,4 +1,12 @@
     # Default server configuration
-    # server_name is configured in the main nginx.conf.j2 template
-    # using the nginx_default_server_hostname variable
-    # Current value: {{ nginx_default_server_hostname }}
+    # Hostname: {{ nginx_default_server_hostname }}
+    #
+    server {
+        listen       80;
+        server_name  {{ nginx_default_server_hostname }};
+
+       location / {
+           root   html;
+           index  index.html index.htm;
+       }
+    }
