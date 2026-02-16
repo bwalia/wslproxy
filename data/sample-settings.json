@@ -45,5 +45,14 @@
     "email": "admin@admin.com",
     "password": "jGl25bVBBBW96Qi9Te4V37Fnqchz/Eu4qB9vKrRIqRg=",
     "username": "admin"
+  },
+  "mcp": {
+    "enabled": true,
+    "mode": "read-only",
+    "tools_enabled": false,
+    "api_key": "",
+    "api_key_header": "X-MCP-API-Key",
+    "rate_limit": 100,
+    "redact_secrets": true
   }
 }
