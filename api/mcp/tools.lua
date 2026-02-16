@@ -4,7 +4,7 @@
 
 local _M = {}
 
-local cjson = Cjson
+local cjson = Cjson or require("cjson")
 local McpConfig = require("mcp.config")
 
 -- Tool definitions (schemas for AI agents)

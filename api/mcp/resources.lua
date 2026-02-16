@@ -4,8 +4,8 @@
 
 local _M = {}
 
-local cjson = Cjson
-local lfs = LFS
+local cjson = Cjson or require("cjson")
+local lfs = LFS or require("lfs")
 local configPath = os.getenv("NGINX_CONFIG_DIR") or "/opt/nginx/"
 local McpConfig = require("mcp.config")
 

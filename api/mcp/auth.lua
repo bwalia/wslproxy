@@ -83,7 +83,8 @@ function _M.enforce()
     if not ok then
         ngx.status = status_code
         ngx.header.content_type = "application/json"
-        ngx.say(Cjson.encode({
+        local cjson = Cjson or require("cjson")
+        ngx.say(cjson.encode({
             error = {
                 code = status_code,
                 message = err_msg,
