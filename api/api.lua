@@ -1063,9 +1063,9 @@ local function createUpdateServer(body, uuid)
         local ssl_config = {
             ssl_enabled = payloads.ssl_enabled,
             ssl_email = payloads.ssl_email,
-            ssl_auto_renew = payloads.ssl_auto_renew ~= false, -- default true
+            ssl_auto_renew = payloads.ssl_auto_renew ~= false,   -- default true
             ssl_force_https = payloads.ssl_force_https ~= false, -- default true
-            ssl_staging = payloads.ssl_staging ~= false -- default true for safety
+            ssl_staging = payloads.ssl_staging ~= false          -- default true for safety
         }
         local ssl_ok, ssl_err = SslManager.store_ssl_config(payloads.server_name, ssl_config)
         if not ssl_ok then
@@ -1100,7 +1100,7 @@ local function createUpdateServer(body, uuid)
             if payloads.cached_mime_types then cache_options.cached_mime_types = payloads.cached_mime_types end
             if payloads.cache_bypass_cookie then cache_options.cache_bypass_cookie = payloads.cache_bypass_cookie end
             if payloads.cache_bypass_header then cache_options.cache_bypass_header = payloads.cache_bypass_header end
-            
+
             local cache_ok, cache_err = CacheManager.enable_cache(payloads.server_name, cache_options)
             if not cache_ok then
                 ngx.log(ngx.ERR, "Failed to enable cache for ", payloads.server_name, ": ", cache_err)
@@ -2068,7 +2068,7 @@ local function generateHealthCheckLua(upstream)
         return nil
     end
 
-    local interval = upstream.health_check_interval or "5000"  -- default 5s
+    local interval = upstream.health_check_interval or "5000" -- default 5s
     -- Convert interval string like "5s" to milliseconds
     local intervalMs = interval
     if type(interval) == "string" then
@@ -2082,7 +2082,7 @@ local function generateHealthCheckLua(upstream)
             elseif unit == "m" then
                 intervalMs = num * 60 * 1000
             else
-                intervalMs = num * 1000  -- default to seconds
+                intervalMs = num * 1000 -- default to seconds
             end
         end
     end
@@ -2210,7 +2210,8 @@ local function writeUpstreamConfigFile(envProfile)
     if file then
         file:write(configContent)
         file:close()
-        ngx.log(ngx.INFO, "Upstream config written successfully: ", upstreamConfigFile, " (", #allUpstreams, " upstreams)")
+        ngx.log(ngx.INFO, "Upstream config written successfully: ", upstreamConfigFile, " (", #allUpstreams,
+            " upstreams)")
     else
         ngx.log(ngx.ERR, "Failed to write upstream config file: ", upstreamConfigFile, " - ", err or "unknown error")
         return false, "Failed to write upstream config: " .. (err or "unknown error")
@@ -2826,18 +2827,18 @@ local function handle_get_request(args, path)
 
     if path == "rules" then
         listRules(args)
-    elseif uuid and (#uuid == 36 or #uuid == 32) and subPath[1] == "rules" then
+    elseif uuid and #uuid > 0 and subPath[1] == "rules" then
         listRule(args, uuid)
     end
 
     if path == "secrets" then
         listSecrets(args)
-    elseif uuid and (#uuid == 36 or #uuid == 32) and subPath[1] == "secrets" then
+    elseif uuid and #uuid > 0 and subPath[1] == "secrets" then
         listSecret(args, uuid)
     end
     if path == "instances" then
         listInstances(args)
-    elseif uuid and (#uuid == 36 or #uuid == 32) and subPath[1] == "instances" then
+    elseif uuid and #uuid > 0 and subPath[1] == "instances" then
         listInstance(args, uuid)
     end
 
@@ -2894,7 +2895,8 @@ local function handle_get_request(args, path)
                     ssl_enabled = ssl_status.ssl_enabled,
                     certificate_exists = ssl_status.certificate_exists,
                     certificate_expiry = ssl_status.certificate_expiry,
-                    message = ssl_status.ssl_enabled and "SSL is enabled for this domain" or "SSL is not enabled for this domain"
+                    message = ssl_status.ssl_enabled and "SSL is enabled for this domain" or
+                    "SSL is not enabled for this domain"
                 }
             }))
         else
@@ -2937,7 +2939,8 @@ local function handle_get_request(args, path)
                 server_name = server_name,
                 cache_enabled = cache_enabled,
                 cache_ttl = cache_config and cache_config.cache_ttl or 3600,
-                message = cache_enabled and "Caching is enabled for this domain" or "Caching is not enabled for this domain"
+                message = cache_enabled and "Caching is enabled for this domain" or
+                "Caching is not enabled for this domain"
             }
         }))
         ngx.exit(ngx.HTTP_OK)
@@ -3002,7 +3005,8 @@ local function handle_get_request(args, path)
 
         local function get_ip_addresses()
             local ips = {}
-            local ip_cmd = execute_command("hostname -I 2>/dev/null || ip addr show 2>/dev/null | grep 'inet ' | awk '{print $2}' | cut -d/ -f1")
+            local ip_cmd = execute_command(
+            "hostname -I 2>/dev/null || ip addr show 2>/dev/null | grep 'inet ' | awk '{print $2}' | cut -d/ -f1")
             if ip_cmd then
                 for ip in ip_cmd:gmatch("%S+") do
                     table.insert(ips, ip)
@@ -3039,9 +3043,11 @@ local function handle_get_request(args, path)
         if os_info then os_info = os_info:gsub("%s+$", "") end
         local kernel = execute_command("uname -r 2>/dev/null"):gsub("%s+", "")
         local uptime = execute_command("uptime -p 2>/dev/null || uptime"):gsub("%s+$", "")
-        local cpu_info = execute_command("lscpu 2>/dev/null | grep 'Model name' | cut -d':' -f2"):gsub("^%s+", ""):gsub("%s+$", "")
+        local cpu_info = execute_command("lscpu 2>/dev/null | grep 'Model name' | cut -d':' -f2"):gsub("^%s+", ""):gsub(
+        "%s+$", "")
         local cpu_cores = execute_command("nproc 2>/dev/null"):gsub("%s+", "")
-        local cpu_usage = execute_command("top -bn1 2>/dev/null | grep 'Cpu(s)' | awk '{print $2}' | cut -d'%' -f1"):gsub("%s+", "")
+        local cpu_usage = execute_command("top -bn1 2>/dev/null | grep 'Cpu(s)' | awk '{print $2}' | cut -d'%' -f1")
+        :gsub("%s+", "")
 
         -- Memory information (total, used, available, free)
         local memory_total = execute_command("free -h 2>/dev/null | grep Mem | awk '{print $2}'"):gsub("%s+", "")
@@ -3172,7 +3178,7 @@ local function handle_get_request(args, path)
         end
 
         -- Get all cache keys and calculate stats
-        local keys = cache_dict:get_keys(0)  -- Get all keys
+        local keys = cache_dict:get_keys(0) -- Get all keys
         local total_entries = #keys
         local total_size = 0
         local entries_by_host = {}
@@ -3213,13 +3219,13 @@ local function handle_get_request(args, path)
         -- Convert to arrays for JSON
         local hosts_array = {}
         for host, count in pairs(entries_by_host) do
-            table.insert(hosts_array, {host = host, count = count})
+            table.insert(hosts_array, { host = host, count = count })
         end
         table.sort(hosts_array, function(a, b) return a.count > b.count end)
 
         local extensions_array = {}
         for ext, count in pairs(entries_by_extension) do
-            table.insert(extensions_array, {extension = ext, count = count})
+            table.insert(extensions_array, { extension = ext, count = count })
         end
         table.sort(extensions_array, function(a, b) return a.count > b.count end)
 
@@ -3387,7 +3393,7 @@ local function handle_post_request(args, path)
             if payloads.cache_ttl then options.cache_ttl = tonumber(payloads.cache_ttl) end
             if payloads.cached_extensions then options.cached_extensions = payloads.cached_extensions end
             if payloads.cached_mime_types then options.cached_mime_types = payloads.cached_mime_types end
-            
+
             local success, err = CacheManager.enable_cache(server_name, options)
             if success then
                 ngx.say(cjson.encode({
@@ -3396,7 +3402,8 @@ local function handle_post_request(args, path)
                     cache_enabled = true
                 }))
             else
-                Errors.throwError("Failed to enable caching: " .. (err or "unknown error"), ngx.HTTP_INTERNAL_SERVER_ERROR)
+                Errors.throwError("Failed to enable caching: " .. (err or "unknown error"),
+                    ngx.HTTP_INTERNAL_SERVER_ERROR)
             end
             ngx.exit(ngx.HTTP_OK)
         end
@@ -3414,7 +3421,8 @@ local function handle_post_request(args, path)
                     cache_enabled = false
                 }))
             else
-                Errors.throwError("Failed to disable caching: " .. (err or "unknown error"), ngx.HTTP_INTERNAL_SERVER_ERROR)
+                Errors.throwError("Failed to disable caching: " .. (err or "unknown error"),
+                    ngx.HTTP_INTERNAL_SERVER_ERROR)
             end
             ngx.exit(ngx.HTTP_OK)
         end
@@ -3432,7 +3440,8 @@ local function handle_post_request(args, path)
                     server_name = server_name
                 }))
             else
-                Errors.throwError("Failed to update cache config: " .. (err or "unknown error"), ngx.HTTP_INTERNAL_SERVER_ERROR)
+                Errors.throwError("Failed to update cache config: " .. (err or "unknown error"),
+                    ngx.HTTP_INTERNAL_SERVER_ERROR)
             end
             ngx.exit(ngx.HTTP_OK)
         end
@@ -3574,7 +3583,7 @@ local function handle_delete_request(args, path)
                     message = "Upstream ID is required for deletion. For bulk delete, send IDs in request body."
                 }))
                 ngx.exit(ngx.HTTP_BAD_REQUEST)
-            -- Single delete - validate that uuid is an upstream ID (should start with "upstream:")
+                -- Single delete - validate that uuid is an upstream ID (should start with "upstream:")
             elseif uuid and string.match(uuid, "^upstream:") then
                 deleteUpstream(args, uuid)
             else
