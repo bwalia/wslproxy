@@ -13,6 +13,7 @@ NC='\033[0m' # No Color
 # ============================================
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 COMPOSE_FILE="$SCRIPT_DIR/docker-compose-local.yml"
+ENV_LOCAL_FILE="$SCRIPT_DIR/.env.local"
 ADMIN_DIR="$SCRIPT_DIR/openresty-admin"
 CONTAINER_NAME="wslproxy-local"
 
@@ -243,7 +244,58 @@ echo -e "${GREEN}[+] All prerequisites met${NC}"
 echo ""
 
 # ============================================
-# Step 2: Git Operations
+# Step 2: Load/Set Environment Secrets
+# ============================================
+# Docker Compose reads .env.local automatically for variable substitution.
+# JWT_SECRET_KEY is required by the demo-node-app service.
+#
+# Priority: 1. Already exported in environment  2. .env.local file  3. Prompt user
+
+if [ -z "$JWT_SECRET_KEY" ] && [ -f "$ENV_LOCAL_FILE" ]; then
+    # Source .env.local to pick up JWT_SECRET_KEY if defined
+    set -a
+    source "$ENV_LOCAL_FILE"
+    set +a
+fi
+
+if [ -z "$JWT_SECRET_KEY" ]; then
+    echo -e "${YELLOW}[!] JWT_SECRET_KEY is not set${NC}"
+    echo -e "${BLUE}[i] This key is used by the demo-node-app for JWT token signing/validation${NC}"
+    echo ""
+    echo "  Options:"
+    echo "    1. Create .env.local with:  JWT_SECRET_KEY=your-secret-here"
+    echo "    2. Pass via environment:    JWT_SECRET_KEY=your-secret ./dev.sh"
+    echo "    3. Enter it now (will be saved to .env.local for next time)"
+    echo ""
+    read -p "Enter JWT_SECRET_KEY (or press Enter to generate a random one): " USER_JWT_KEY
+
+    if [ -z "$USER_JWT_KEY" ]; then
+        # Generate a random 64-char key
+        USER_JWT_KEY=$(openssl rand -base64 48 | tr -d '/+=' | head -c 64)
+        echo -e "${GREEN}[+] Generated random JWT secret${NC}"
+    fi
+
+    export JWT_SECRET_KEY="$USER_JWT_KEY"
+
+    # Save to .env.local for future runs
+    if [ -f "$ENV_LOCAL_FILE" ]; then
+        # Append if file exists but doesn't have JWT_SECRET_KEY
+        if ! grep -q "^JWT_SECRET_KEY=" "$ENV_LOCAL_FILE" 2>/dev/null; then
+            echo "JWT_SECRET_KEY=$JWT_SECRET_KEY" >> "$ENV_LOCAL_FILE"
+        fi
+    else
+        echo "JWT_SECRET_KEY=$JWT_SECRET_KEY" > "$ENV_LOCAL_FILE"
+    fi
+    echo -e "${GREEN}[+] JWT_SECRET_KEY saved to .env.local${NC}"
+else
+    echo -e "${GREEN}[+] JWT_SECRET_KEY loaded${NC}"
+fi
+
+export JWT_SECRET_KEY
+echo ""
+
+# ============================================
+# Step 3: Git Operations
 # ============================================
 if [[ -n $(git status --porcelain 2>/dev/null) ]]; then
     echo -e "${YELLOW}[!] You have uncommitted changes:${NC}"
@@ -305,15 +357,10 @@ fi
 echo ""
 
 # ============================================
-# Step 3: Build Admin Dashboard
+# Step 4: Build Admin Dashboard
 # ============================================
 if $SKIP_BUILD; then
     echo -e "${YELLOW}[+] Skipping admin dashboard build (--skip-build)${NC}"
-
-    if [ ! -d "$ADMIN_DIR/dist" ]; then
-        echo -e "${RED}[!] No dist/ folder found. Cannot skip build on first run.${NC}"
-        SKIP_BUILD=false
-    fi
 fi
 
 if ! $SKIP_BUILD; then
@@ -332,12 +379,14 @@ if ! $SKIP_BUILD; then
         fi
     fi
 
-    # Build admin dashboard
+    # Build admin dashboard to /tmp (avoids Docker root-owned file issues)
     # .env.local is auto-loaded by Vite on top of .env (overrides API URL to localhost:8280)
+    ADMIN_BUILD_DIR="/tmp/wslproxy-admin-build"
+    rm -rf "$ADMIN_BUILD_DIR"
     if $USE_NPM; then
-        npx vite build
+        npx vite build --outDir "$ADMIN_BUILD_DIR"
     else
-        yarn build
+        yarn build --outDir "$ADMIN_BUILD_DIR"
     fi
 
     cd "$SCRIPT_DIR"
@@ -347,7 +396,7 @@ fi
 echo ""
 
 # ============================================
-# Step 4: Create Required Directories & Files
+# Step 5: Create Required Directories & Files
 # ============================================
 echo -e "${GREEN}[+] Setting up data directories and permissions...${NC}"
 
@@ -388,7 +437,7 @@ echo -e "${GREEN}[+] Data directories and permissions ready${NC}"
 echo ""
 
 # ============================================
-# Step 5: Stop Existing Containers
+# Step 6: Stop Existing Containers
 # ============================================
 if $RESET; then
     echo -e "${YELLOW}[!] Resetting environment - removing volumes...${NC}"
@@ -401,17 +450,21 @@ fi
 echo ""
 
 # ============================================
-# Step 6: Start Containers
+# Step 7: Start Containers
 # ============================================
 echo -e "${GREEN}[+] Building and starting containers...${NC}"
 echo ""
 
-docker compose -f "$COMPOSE_FILE" up --build -d
+ENV_FILE_ARG=""
+if [ -f "$ENV_LOCAL_FILE" ]; then
+    ENV_FILE_ARG="--env-file $ENV_LOCAL_FILE"
+fi
+docker compose -f "$COMPOSE_FILE" $ENV_FILE_ARG up --build -d
 
 echo ""
 
 # ============================================
-# Step 7: Wait for Services
+# Step 8: Wait for Services
 # ============================================
 echo -e "${GREEN}[+] Waiting for services to be healthy...${NC}"
 
@@ -435,28 +488,70 @@ fi
 echo ""
 
 # ============================================
-# Step 8: Start Admin Watch Mode (if requested)
+# Step 9: Deploy Admin Dashboard Build
+# ============================================
+ADMIN_BUILD_DIR="/tmp/wslproxy-admin-build"
+if [ -d "$ADMIN_BUILD_DIR" ]; then
+    echo -e "${GREEN}[+] Deploying admin dashboard build to container...${NC}"
+    docker cp "$ADMIN_BUILD_DIR/." "$CONTAINER_NAME:/usr/local/openresty/nginx/html/openresty-admin/dist/"
+    echo -e "${GREEN}[+] Admin dashboard deployed${NC}"
+else
+    echo -e "${BLUE}[i] Using admin dashboard from Docker image (no local build)${NC}"
+fi
+
+echo ""
+
+# ============================================
+# Step 10: Fix Container Permissions
+# ============================================
+echo -e "${GREEN}[+] Fixing container permissions (logs, data)...${NC}"
+
+# The Docker image symlinks nginx/logs/access.log → /dev/stdout and error.log → /dev/stderr
+# The dashboard Lua API reads from these paths but can't read /dev/stderr as a file.
+# Fix: replace symlinks to point to the actual log files in /var/log/nginx/
+docker exec "$CONTAINER_NAME" sh -c "\
+  rm -f /usr/local/openresty/nginx/logs/access.log /usr/local/openresty/nginx/logs/error.log && \
+  ln -sf /var/log/nginx/access.log /usr/local/openresty/nginx/logs/access.log && \
+  ln -sf /var/log/nginx/error.log /usr/local/openresty/nginx/logs/error.log && \
+  chmod 666 /var/log/nginx/access.log /var/log/nginx/error.log && \
+  chmod 755 /var/log/nginx/" 2>/dev/null
+
+# Reload nginx so it writes to the real log files instead of /dev/stderr
+docker exec "$CONTAINER_NAME" /usr/local/openresty/nginx/sbin/nginx -s reload 2>/dev/null
+
+echo -e "${GREEN}[+] Container permissions set${NC}"
+echo ""
+
+# ============================================
+# Step 11: Start Admin Watch Mode (if requested)
 # ============================================
 WATCH_PID=""
+
 if $WATCH_ADMIN; then
     echo -e "${GREEN}[+] Starting admin dashboard watch mode (auto-rebuild on changes)...${NC}"
+    echo -e "${BLUE}[i] Watch mode builds to /tmp then deploys to container via docker cp${NC}"
 
-    cd "$ADMIN_DIR"
-    if $USE_NPM; then
-        npx vite build --watch &
-    else
-        yarn build --watch &
-    fi
+    # Watch mode: build to tmp, then copy into container
+    (
+        cd "$ADMIN_DIR"
+        if $USE_NPM; then
+            npx vite build --outDir /tmp/wslproxy-admin-build --watch &
+        else
+            yarn build --outDir /tmp/wslproxy-admin-build --watch &
+        fi
+        VITE_PID=$!
+        # When vite rebuilds, it prints "built in Xs" - watch for that and re-deploy
+        wait $VITE_PID
+    ) &
     WATCH_PID=$!
-    cd "$SCRIPT_DIR"
 
     echo -e "${GREEN}[+] Watch mode running (PID: $WATCH_PID)${NC}"
-    echo -e "${BLUE}[i] Admin dashboard will auto-rebuild when you edit files in openresty-admin/src/${NC}"
+    echo -e "${BLUE}[i] After saving changes, run: docker cp /tmp/wslproxy-admin-build/. $CONTAINER_NAME:/usr/local/openresty/nginx/html/openresty-admin/dist/${NC}"
     echo ""
 fi
 
 # ============================================
-# Step 9: Print URLs and Attach to Logs
+# Step 12: Print URLs and Attach to Logs
 # ============================================
 echo -e "${CYAN}========================================${NC}"
 echo -e "${CYAN}   WSLProxy is running!                ${NC}"
