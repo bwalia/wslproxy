@@ -52,64 +52,108 @@
   max-width: 100% !important;
 }
 
-/* MUI Grid container - ensure proper spacing */
+/* ============================================
+   MUI Grid - Static CSS Fallbacks
+   Covers BOTH Grid v1 (MUI v5: flex-basis/max-width)
+   and Grid v2 (MUI v6/v7: width with CSS variables + gap)
+   Ensures layout works regardless of MUI version or
+   Emotion CSS-in-JS injection order
+   ============================================ */
+
+/* Grid container base — works for both v1 and v2 */
 .MuiGrid-container {
+  display: flex !important;
+  flex-wrap: wrap !important;
   width: 100% !important;
-  margin-left: 0 !important;
-  margin-right: 0 !important;
+  box-sizing: border-box !important;
 }
 
-/* Ensure Grid items don't have extra constraints */
+/* Grid item base */
 .MuiGrid-item {
-  max-width: none;
+  box-sizing: border-box !important;
+  flex-grow: 0 !important;
+  min-width: 0 !important;
 }
 
-/* Fix for Grid items on large screens - proper flex basis */
-@media (min-width: 1200px) {
-  .MuiGrid-grid-lg-3 {
-    flex-basis: 25% !important;
-    max-width: 25% !important;
+/* ---- xs breakpoint (base, no media query) ---- */
+.MuiGrid-grid-xs-12 {
+  flex-basis: 100% !important;
+  max-width: 100% !important;
+  width: 100% !important;
+}
+
+/* ---- sm breakpoint (≥ 600px) ---- */
+@media (min-width: 600px) {
+  .MuiGrid-grid-sm-4 {
+    flex-basis: 33.333333% !important;
+    max-width: 33.333333% !important;
+    width: 33.333333% !important;
   }
 
-  .MuiGrid-grid-lg-6 {
+  .MuiGrid-grid-sm-6 {
     flex-basis: 50% !important;
     max-width: 50% !important;
+    width: 50% !important;
   }
 
-  .MuiGrid-grid-lg-12 {
-    flex-basis: 100% !important;
-    max-width: 100% !important;
-  }
-
-  .MuiGrid-grid-lg-2 {
-    flex-basis: 16.666667% !important;
-    max-width: 16.666667% !important;
+  .MuiGrid-grid-sm-8 {
+    flex-basis: 66.666667% !important;
+    max-width: 66.666667% !important;
+    width: 66.666667% !important;
   }
 }
 
-/* Medium screens */
-@media (min-width: 900px) and (max-width: 1199px) {
+/* ---- md breakpoint (≥ 900px) ---- */
+@media (min-width: 900px) {
   .MuiGrid-grid-md-3 {
     flex-basis: 25% !important;
     max-width: 25% !important;
+    width: 25% !important;
   }
 
   .MuiGrid-grid-md-4 {
     flex-basis: 33.333333% !important;
     max-width: 33.333333% !important;
+    width: 33.333333% !important;
   }
 
   .MuiGrid-grid-md-6 {
     flex-basis: 50% !important;
     max-width: 50% !important;
+    width: 50% !important;
+  }
+
+  .MuiGrid-grid-md-9 {
+    flex-basis: 75% !important;
+    max-width: 75% !important;
+    width: 75% !important;
   }
 }
 
-/* Small screens */
-@media (min-width: 600px) and (max-width: 899px) {
-  .MuiGrid-grid-sm-6 {
+/* ---- lg breakpoint (≥ 1200px) ---- */
+@media (min-width: 1200px) {
+  .MuiGrid-grid-lg-2 {
+    flex-basis: 16.666667% !important;
+    max-width: 16.666667% !important;
+    width: 16.666667% !important;
+  }
+
+  .MuiGrid-grid-lg-3 {
+    flex-basis: 25% !important;
+    max-width: 25% !important;
+    width: 25% !important;
+  }
+
+  .MuiGrid-grid-lg-6 {
     flex-basis: 50% !important;
     max-width: 50% !important;
+    width: 50% !important;
+  }
+
+  .MuiGrid-grid-lg-12 {
+    flex-basis: 100% !important;
+    max-width: 100% !important;
+    width: 100% !important;
   }
 }
 
