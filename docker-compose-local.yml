@@ -33,10 +33,14 @@ services:
       # Hot-reload HTML/static files
       - ./html:/usr/local/openresty/nginx/html
 
-      # Admin dashboard build output (fixes 404 on dashboard)
+      # Admin dashboard build output (uses named volume to avoid
+      # macOS Docker root-owned file permission issues with bind mounts)
       # The ./html mount overrides the container's html dir, so we need
-      # to explicitly mount the locally-built dist back in
-      - ./openresty-admin/dist:/usr/local/openresty/nginx/html/openresty-admin/dist
+      # to explicitly mount the built dist back in
+      - admin-dist-local:/usr/local/openresty/nginx/html/openresty-admin/dist
+
+      # Admin dashboard index.html (needed for in-volume builds)
+      - ./openresty-admin/index.html:/usr/local/openresty/nginx/html/openresty-admin/index.html
 
       # Hot-reload Admin dashboard source (for in-container rebuilds)
       - ./openresty-admin/src:/usr/local/openresty/nginx/html/openresty-admin/src
@@ -129,7 +133,7 @@ services:
 
     environment:
       NODE_ENV: development
-      JWT_SECRET_KEY: HCsKpxQ4hU97V5us5TCwvLnAVBgLqNd1dP2R-4Uywg7946J3zAqT9EOA5hdWRCQn
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?JWT_SECRET_KEY is required - pass via environment or .env.local file}
 
     networks:
       wslproxy-local-network:
@@ -153,3 +157,4 @@ networks:
 volumes:
   wslproxy-certs-local:
   redis-data-local:
+  admin-dist-local:

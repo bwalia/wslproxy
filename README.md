@@ -61,6 +61,69 @@ helm install wslproxy ./devops/helm-charts/wslproxy \
 kubectl -n wslproxy get pods -w
 ```
 
+## Local Development
+
+Single command to start the entire development environment with hot-reload and unique ports (no conflicts with common local services).
+
+### Prerequisites
+
+- Docker (with Docker Compose)
+- Node.js 16+
+- Yarn (`npm install -g yarn`)
+
+### Quick Start
+
+```bash
+# Start everything - builds admin, starts containers, attaches to logs
+./dev.sh
+
+# With auto git stash + pull (no prompts)
+./dev.sh -a
+
+# Skip git prompts entirely
+./dev.sh -n
+
+# With admin dashboard auto-rebuild on file save
+./dev.sh -w
+
+# Press Ctrl+C to stop everything
+```
+
+### Access URLs
+
+| Service | URL |
+|---------|-----|
+| Admin Dashboard | http://localhost:8280 |
+| API | http://localhost:8280/api |
+| HTTP Proxy | http://localhost:8180 |
+| HTTPS Proxy | https://localhost:8443 |
+| Prometheus Metrics | http://localhost:8280/metrics |
+| Redis | localhost:6479 |
+
+### Options
+
+| Flag | Description |
+|------|-------------|
+| `-n, --no-git` | Skip git stash/pull prompts |
+| `-a, --auto` | Auto mode: stash + pull without prompts |
+| `-w, --watch` | Auto-rebuild admin dashboard on file changes |
+| `-s, --skip-build` | Skip admin build (use existing dist) |
+| `-r, --reset` | Fresh start - remove all volumes/data |
+| `-d, --detach` | Run in background (don't attach to logs) |
+| `--stop` | Stop all running services |
+| `--reload` | Reload nginx config without restart |
+| `--status` | Show running services |
+| `--clean` | Stop and remove all volumes |
+
+### Hot-Reload (No Restart Needed)
+
+| Component | How it syncs |
+|-----------|-------------|
+| Lua API files (`./api/`) | Volume-mounted, OpenResty re-reads per request |
+| Static HTML (`./html/`) | Volume-mounted, changes reflect immediately |
+| Nginx config | Volume-mounted, run `./dev.sh --reload` to apply |
+| Admin dashboard | Use `-w` flag for auto-rebuild on save |
+
 ## Documentation
 
 - **[Docker Deployment Guide](./DOCKER-DEPLOYMENT.md)** - Step-by-step deployment for all scenarios
