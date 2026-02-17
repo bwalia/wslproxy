@@ -4,8 +4,8 @@
 
 local _M = {}
 
-local cjson = Cjson
-local lfs = LFS
+local cjson = Cjson or require("cjson")
+local lfs = LFS or require("lfs")
 local configPath = os.getenv("NGINX_CONFIG_DIR") or "/opt/nginx/"
 local McpConfig = require("mcp.config")
 
@@ -327,7 +327,7 @@ function _M.get_health(config)
             health.shared_dicts[dict_name] = {
                 available = true,
                 free_space = dict:free_space(),
-                capacity = dict:capacity and dict:capacity() or "unknown"
+                capacity = (dict.capacity and dict:capacity()) or "unknown"
             }
         else
             health.shared_dicts[dict_name] = { available = false }

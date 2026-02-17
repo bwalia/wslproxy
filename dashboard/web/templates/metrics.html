@@ -1,0 +1,58 @@
+{{define "metrics.html"}}{{template "layout" .}}{{end}}
+{{define "content"}}
+{{$m := .Content}}
+{{if $m}}
+<div class="card-grid" style="margin-bottom:1.5rem">
+  <div class="card metric-card">
+    <div class="metric-value">{{$m.TotalRequests}}</div>
+    <div class="metric-label">Total Requests</div>
+  </div>
+  <div class="card metric-card">
+    <div class="metric-value">{{$m.ActiveConns}}</div>
+    <div class="metric-label">Active Connections</div>
+  </div>
+  <div class="card metric-card">
+    <div class="metric-value">{{printf "%.2f" $m.ErrorRate}}%</div>
+    <div class="metric-label">Error Rate</div>
+  </div>
+  <div class="card metric-card">
+    <div class="metric-value">{{printf "%.1f" $m.AvgLatencyMs}}ms</div>
+    <div class="metric-label">Avg Latency</div>
+  </div>
+</div>
+
+<div class="card-grid">
+  {{if $m.RequestMethods}}
+  <div class="card">
+    <div class="card-header">Request Methods</div>
+    <table>
+      <thead><tr><th>Method</th><th>Count</th></tr></thead>
+      <tbody>
+      {{range $method, $count := $m.RequestMethods}}
+      <tr><td><code>{{$method}}</code></td><td>{{$count}}</td></tr>
+      {{end}}
+      </tbody>
+    </table>
+  </div>
+  {{end}}
+
+  {{if $m.StatusCodes}}
+  <div class="card">
+    <div class="card-header">Status Codes</div>
+    <table>
+      <thead><tr><th>Code</th><th>Count</th></tr></thead>
+      <tbody>
+      {{range $code, $count := $m.StatusCodes}}
+      <tr><td><code>{{$code}}</code></td><td>{{$count}}</td></tr>
+      {{end}}
+      </tbody>
+    </table>
+  </div>
+  {{end}}
+</div>
+
+<div style="margin-top:.5rem;font-size:.8rem;color:#6b7280">Collected at: {{$m.CollectedAt.Format "2006-01-02 15:04:05 UTC"}}</div>
+{{else}}
+<div class="card"><p style="color:#6b7280">No metrics data available.</p></div>
+{{end}}
+{{end}}

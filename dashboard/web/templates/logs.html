@@ -1,0 +1,29 @@
+{{define "logs.html"}}{{template "layout" .}}{{end}}
+{{define "content"}}
+<div class="card">
+  <div class="card-header">Log Entries</div>
+  {{if .Content}}
+  <table>
+    <thead><tr><th>Timestamp</th><th>Level</th><th>Message</th><th>Source</th></tr></thead>
+    <tbody>
+    {{range .Content}}
+    <tr>
+      <td style="white-space:nowrap">{{.Timestamp.Format "2006-01-02 15:04:05"}}</td>
+      <td>
+        {{if eq .Level "error"}}<span class="badge badge-danger">ERROR</span>
+        {{else if eq .Level "warn"}}<span class="badge badge-warning">WARN</span>
+        {{else if eq .Level "info"}}<span class="badge badge-info">INFO</span>
+        {{else}}<span class="badge badge-unknown">{{.Level}}</span>
+        {{end}}
+      </td>
+      <td>{{.Message}}</td>
+      <td style="font-size:.8rem;color:#6b7280">{{.Source}}</td>
+    </tr>
+    {{end}}
+    </tbody>
+  </table>
+  {{else}}
+  <p style="color:#6b7280;padding:.5rem 0">No log entries found.</p>
+  {{end}}
+</div>
+{{end}}

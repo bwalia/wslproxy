@@ -1,0 +1,85 @@
+{{define "workflow_detail.html"}}{{template "layout" .}}{{end}}
+{{define "content"}}
+{{$cr := .Content}}
+<div style="margin-bottom:1rem">
+  <a href="/workflows" class="btn btn-secondary btn-sm">← Back to Workflows</a>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    {{$cr.Title}}
+    {{if eq (printf "%s" $cr.Status) "pending"}}<span class="badge badge-pending" style="margin-left:.5rem">Pending</span>
+    {{else if eq (printf "%s" $cr.Status) "approved"}}<span class="badge badge-approved" style="margin-left:.5rem">Approved</span>
+    {{else if eq (printf "%s" $cr.Status) "applied"}}<span class="badge badge-applied" style="margin-left:.5rem">Applied</span>
+    {{else if eq (printf "%s" $cr.Status) "rejected"}}<span class="badge badge-rejected" style="margin-left:.5rem">Rejected</span>
+    {{else if eq (printf "%s" $cr.Status) "failed"}}<span class="badge badge-failed" style="margin-left:.5rem">Failed</span>
+    {{end}}
+  </div>
+
+  <table style="margin-bottom:1rem">
+    <tr><td style="font-weight:500;width:140px">ID</td><td><code>{{$cr.ID}}</code></td></tr>
+    <tr><td style="font-weight:500">Description</td><td>{{$cr.Description}}</td></tr>
+    <tr><td style="font-weight:500">Tool</td><td><code>{{$cr.ToolName}}</code></td></tr>
+    <tr><td style="font-weight:500">Created By</td><td>{{$cr.CreatedBy}}</td></tr>
+    <tr><td style="font-weight:500">Created At</td><td>{{$cr.CreatedAt.Format "2006-01-02 15:04:05"}}</td></tr>
+    {{if $cr.ApprovedBy}}<tr><td style="font-weight:500">Approved By</td><td>{{$cr.ApprovedBy}}</td></tr>{{end}}
+    {{if $cr.ApprovedAt}}<tr><td style="font-weight:500">Approved At</td><td>{{$cr.ApprovedAt.Format "2006-01-02 15:04:05"}}</td></tr>{{end}}
+    {{if $cr.AppliedAt}}<tr><td style="font-weight:500">Applied At</td><td>{{$cr.AppliedAt.Format "2006-01-02 15:04:05"}}</td></tr>{{end}}
+    {{if $cr.Reason}}<tr><td style="font-weight:500">Reason</td><td>{{$cr.Reason}}</td></tr>{{end}}
+  </table>
+</div>
+
+{{if $cr.Input}}
+<div class="card">
+  <div class="card-header">Input Parameters</div>
+  <pre><code>{{range $k, $v := $cr.Input}}{{$k}}: {{$v}}
+{{end}}</code></pre>
+</div>
+{{end}}
+
+{{if $cr.DryRunResult}}
+<div class="card">
+  <div class="card-header">Dry-Run Result</div>
+  <pre><code>Success: {{$cr.DryRunResult.Success}}
+{{if $cr.DryRunResult.Error}}Error: {{$cr.DryRunResult.Error}}{{end}}
+{{range $k, $v := $cr.DryRunResult.Output}}{{$k}}: {{$v}}
+{{end}}</code></pre>
+</div>
+{{end}}
+
+{{if $cr.ApplyResult}}
+<div class="card">
+  <div class="card-header">Apply Result</div>
+  <pre><code>Success: {{$cr.ApplyResult.Success}}
+{{if $cr.ApplyResult.Error}}Error: {{$cr.ApplyResult.Error}}{{end}}
+{{range $k, $v := $cr.ApplyResult.Output}}{{$k}}: {{$v}}
+{{end}}</code></pre>
+</div>
+{{end}}
+
+{{if and (eq .User.Role "admin") (eq (printf "%s" $cr.Status) "pending")}}
+<div class="card">
+  <div class="card-header">Actions</div>
+  <div style="display:flex;gap:1rem;flex-wrap:wrap">
+    <form method="POST" action="/workflows/{{$cr.ID}}/approve" style="display:flex;gap:.5rem;align-items:flex-end">
+      <div class="form-group"><label>Reason</label><input type="text" name="reason" placeholder="Approval reason"></div>
+      <button type="submit" class="btn btn-success btn-sm">Approve</button>
+    </form>
+    <form method="POST" action="/workflows/{{$cr.ID}}/reject" style="display:flex;gap:.5rem;align-items:flex-end">
+      <div class="form-group"><label>Reason</label><input type="text" name="reason" placeholder="Rejection reason"></div>
+      <button type="submit" class="btn btn-danger btn-sm">Reject</button>
+    </form>
+  </div>
+</div>
+{{end}}
+
+{{if eq (printf "%s" $cr.Status) "approved"}}
+<div class="card">
+  <div class="card-header">Apply Change</div>
+  <form method="POST" action="/workflows/{{$cr.ID}}/apply">
+    <p style="font-size:.85rem;color:#6b7280;margin-bottom:.75rem">This will execute the tool <code>{{$cr.ToolName}}</code> against the live configuration.</p>
+    <button type="submit" class="btn btn-primary">Apply Now</button>
+  </form>
+</div>
+{{end}}
+{{end}}

@@ -59,8 +59,8 @@
       file:
         path: "{{ item }}"
         state: directory
-        mode: '0755'
-        owner: root
+        mode: '0775'
+        owner: www-data
         group: root
       loop:
         - "{{ remote_data_dir }}"
@@ -142,8 +142,8 @@
       copy:
         src: "{{ item.path }}"
         dest: "{{ remote_data_dir }}/servers/{{ target_env }}/{{ item.path | basename }}"
-        mode: '0644'
-        owner: root
+        mode: '0664'
+        owner: www-data
         group: root
         backup: yes
       loop: "{{ server_config_files.files }}"
@@ -153,12 +153,17 @@
       copy:
         src: "{{ item.path }}"
         dest: "{{ remote_data_dir }}/rules/{{ target_env }}/{{ item.path | basename }}"
-        mode: '0644'
-        owner: root
+        mode: '0664'
+        owner: www-data
         group: root
         backup: yes
       loop: "{{ rule_config_files.files }}"
       register: rule_copy_result
+
+    - name: Run fix-permissions to ensure nginx worker can access all files
+      command: /usr/sbin/fix-permissions.sh
+      when: server_copy_result.changed or rule_copy_result.changed
+      ignore_errors: yes
 
     - name: Display deployment summary
       debug:

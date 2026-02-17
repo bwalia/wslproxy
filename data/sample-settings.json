@@ -31,7 +31,7 @@
     "JWT_SECURITY_PASSPHRASE": "docker-standlone-dev-jwt",
     "REDIS_PORT": 6379,
     "APP_NAME": "Openresty",
-    "API_PAGE_SIZE": 100,
+    "API_PAGE_SIZE": 1000,
     "STACK": "Lua 5.1",
     "VITE_DEPLOYMENT_TIME": "20240821210059",
     "NGINX_CONFIG_DIR": "/opt/nginx",
@@ -45,5 +45,14 @@
     "email": "admin@admin.com",
     "password": "jGl25bVBBBW96Qi9Te4V37Fnqchz/Eu4qB9vKrRIqRg=",
     "username": "admin"
+  },
+  "mcp": {
+    "enabled": true,
+    "mode": "read-only",
+    "tools_enabled": false,
+    "api_key": "",
+    "api_key_header": "X-MCP-API-Key",
+    "rate_limit": 100,
+    "redact_secrets": true
   }
 }

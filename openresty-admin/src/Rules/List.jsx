@@ -33,6 +33,7 @@ const List = () => {
   return (
     <RaList
       title={"Rules"}
+      perPage={1000}
       exporter={ExportJsonButton}
       empty={<Empty resource={"rules"} />}
       filters={rulesFilters}

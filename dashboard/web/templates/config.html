@@ -1,0 +1,16 @@
+{{define "config.html"}}{{template "layout" .}}{{end}}
+{{define "content"}}
+<div class="card-grid">
+{{range .Content}}
+<a href="/config/{{.ID}}" style="text-decoration:none;color:inherit">
+  <div class="card" style="cursor:pointer;transition:box-shadow .15s">
+    <div style="font-weight:600;font-size:.95rem;margin-bottom:.35rem">{{.ID}}</div>
+    <div style="font-size:.8rem;color:#6b7280">Type: {{.Type}}</div>
+    {{if .Category}}<div style="font-size:.8rem;color:#6b7280">Category: {{.Category}}</div>{{end}}
+  </div>
+</a>
+{{else}}
+<div class="card"><p style="color:#6b7280">No resources found.</p></div>
+{{end}}
+</div>
+{{end}}

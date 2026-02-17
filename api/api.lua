@@ -33,13 +33,8 @@ local function validateServerPayload(payloads)
         })
     end
 
-    -- Required field: config
-    if not payloads.config or payloads.config == "" then
-        table.insert(errors, {
-            field = "config",
-            message = "Nginx configuration is required"
-        })
-    end
+    -- Optional field: config (auto-generated if not provided)
+    -- Config is generated during server creation/update, so it's not required in the payload
 
     -- Required field: profile_id
     if not payloads.profile_id or payloads.profile_id == "" then

@@ -10,8 +10,6 @@ error.html
 .vscode
 sealed-secret*
 data/settings.json
-data/servers
-data/rules
 data/ssl
 node_modules
 .DS_Store
@@ -19,3 +17,6 @@ devops/ansible/roles/luarocks/.DS_Store
 devops/.DS_Store
 html/.DS_Store
 .qodo
+
+# Dashboard build artifacts
+dashboard/bin/
