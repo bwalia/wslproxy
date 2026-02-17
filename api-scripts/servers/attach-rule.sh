@@ -23,24 +23,21 @@ CURRENT=$(curl -s -X GET "$GATEWAY_URL/api/servers/$SERVER_ID" \
   -H "Authorization: Bearer $TOKEN")
 
 SERVER_NAME=$(echo "$CURRENT" | jq -r '.data.server_name')
-PROXY_SERVER_NAME=$(echo "$CURRENT" | jq -r '.data.proxy_server_name')
 
-if [ "$SERVER_NAME" == "null" ]; then
+if [ "$SERVER_NAME" == "null" ] || [ -z "$SERVER_NAME" ]; then
     echo -e "${RED}Server not found: $SERVER_ID${NC}"
     exit 1
 fi
 
 echo -e "${YELLOW}Attaching rule $RULE_ID to server $SERVER_NAME...${NC}"
 
-# Update server with new rule
+# Preserve all existing server fields and only update the rules field
+UPDATED_JSON=$(echo "$CURRENT" | jq --arg rule_id "$RULE_ID" '.data | .rules = $rule_id')
+
+# Update server with new rule (preserving all other settings)
 RESPONSE=$(curl -s -X PUT "$GATEWAY_URL/api/servers/$SERVER_ID" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d "{
-    \"id\": \"$SERVER_ID\",
-    \"server_name\": \"$SERVER_NAME\",
-    \"proxy_server_name\": \"$PROXY_SERVER_NAME\",
-    \"rules\": \"$RULE_ID\"
-  }")
+  -d "$UPDATED_JSON")
 
 print_response "$RESPONSE" "Rule attached successfully!"

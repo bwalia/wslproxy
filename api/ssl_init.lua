@@ -1,14 +1,28 @@
 -- ssl_init.lua
--- Initialize SSL domains cache from Redis at worker startup
+-- Initialize SSL domains cache at worker startup
 -- Called from init_worker_by_lua_block in nginx.conf
 -- This is needed because init_by_lua cannot use cosockets (Redis)
+--
+-- For disk storage: reconciles server configs with SSL config files.
+-- If a server has ssl_enabled=true but no SSL config file exists,
+-- the missing file is created and the domain is added to the shared dict.
 
 local _M = {}
 
 local cjson = require("cjson")
+local lfs = LFS
+
+local function get_config_path()
+    local configPath = os.getenv("NGINX_CONFIG_DIR") or "/opt/nginx/"
+    -- Ensure trailing slash
+    if configPath:sub(-1) ~= "/" then
+        configPath = configPath .. "/"
+    end
+    return configPath
+end
 
 local function get_settings()
-    local configPath = os.getenv("NGINX_CONFIG_DIR") or "/opt/nginx/"
+    local configPath = get_config_path()
     local settings = {}
     local ok, err = pcall(function()
         local readSettings = io.open(configPath .. "data/settings.json", "rb")
@@ -43,6 +57,122 @@ local function get_redis_config()
     return redisHost, redisPort
 end
 
+-- Reconcile server configs with SSL config files (disk storage mode)
+-- Scans all server config files for ssl_enabled=true and ensures
+-- a corresponding SSL config file exists in data/ssl/
+local function reconcile_disk_ssl_configs(shd)
+    local configPath = get_config_path()
+    local servers_dir = configPath .. "data/servers/"
+    local ssl_dir = configPath .. "data/ssl/"
+
+    -- Check if servers directory exists
+    local dir_ok, dir_attr = pcall(function()
+        return lfs.attributes(servers_dir)
+    end)
+    if not dir_ok or not dir_attr or dir_attr.mode ~= "directory" then
+        ngx.log(ngx.INFO, "ssl_init: Servers directory not found: ", servers_dir)
+        return 0
+    end
+
+    -- Ensure SSL directory exists
+    local ssl_dir_ok, ssl_dir_attr = pcall(function()
+        return lfs.attributes(ssl_dir)
+    end)
+    if not ssl_dir_ok or not ssl_dir_attr then
+        local mkdir_ok = pcall(function() lfs.mkdir(ssl_dir) end)
+        if not mkdir_ok then
+            ngx.log(ngx.WARN, "ssl_init: Could not create SSL directory: ", ssl_dir)
+            return 0
+        end
+    end
+
+    local domains_reconciled = 0
+
+    -- Iterate through profile directories (e.g., prod, staging)
+    local profile_ok, profile_err = pcall(function()
+        for profile_dir in lfs.dir(servers_dir) do
+            if profile_dir ~= "." and profile_dir ~= ".." then
+                local profile_path = servers_dir .. profile_dir
+                local prof_attr = lfs.attributes(profile_path)
+                if prof_attr and prof_attr.mode == "directory" then
+                    -- Scan server config files in this profile
+                    for server_file in lfs.dir(profile_path) do
+                        if server_file:match("^host:.*%.json$") then
+                            local file_path = profile_path .. "/" .. server_file
+                            local read_ok, content = pcall(function()
+                                local f = io.open(file_path, "rb")
+                                if f then
+                                    local c = f:read("*a")
+                                    f:close()
+                                    return c
+                                end
+                                return nil
+                            end)
+
+                            if read_ok and content and content ~= "" then
+                                local parse_ok, server_config = pcall(cjson.decode, content)
+                                if parse_ok and server_config and server_config.ssl_enabled == true then
+                                    local server_name = server_config.server_name
+                                    if server_name and server_name ~= "" then
+                                        -- Check if SSL config file exists
+                                        local ssl_file_path = ssl_dir .. server_name .. ".json"
+                                        local ssl_file_attr = lfs.attributes(ssl_file_path)
+
+                                        if not ssl_file_attr then
+                                            -- SSL config file missing - create it
+                                            ngx.log(ngx.WARN, "ssl_init: Missing SSL config for domain with ssl_enabled=true: ", server_name, " - creating it now")
+                                            local ssl_config = {
+                                                server_name = server_name,
+                                                ssl_enabled = true,
+                                                ssl_email = server_config.ssl_email or "",
+                                                ssl_auto_renew = server_config.ssl_auto_renew ~= false,
+                                                ssl_force_https = server_config.ssl_force_https ~= false,
+                                                ssl_staging = server_config.ssl_staging ~= false,
+                                                updated_at = os.time()
+                                            }
+                                            local write_ok, write_err = pcall(function()
+                                                local f = io.open(ssl_file_path, "w")
+                                                if f then
+                                                    f:write(cjson.encode(ssl_config))
+                                                    f:close()
+                                                else
+                                                    error("Could not open file: " .. ssl_file_path)
+                                                end
+                                            end)
+                                            if write_ok then
+                                                ngx.log(ngx.INFO, "ssl_init: Created missing SSL config: ", ssl_file_path)
+                                            else
+                                                ngx.log(ngx.ERR, "ssl_init: Failed to create SSL config: ", ssl_file_path, " - ", tostring(write_err))
+                                            end
+                                        end
+
+                                        -- Ensure domain is in the shared dict cache
+                                        if shd and not shd:get(server_name) then
+                                            local set_ok, set_err = shd:set(server_name, true)
+                                            if set_ok then
+                                                domains_reconciled = domains_reconciled + 1
+                                                ngx.log(ngx.INFO, "ssl_init: Reconciled SSL domain to cache: ", server_name)
+                                            else
+                                                ngx.log(ngx.WARN, "ssl_init: Failed to add reconciled domain: ", server_name, " - ", tostring(set_err))
+                                            end
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end)
+
+    if not profile_ok then
+        ngx.log(ngx.WARN, "ssl_init: Error during SSL reconciliation: ", tostring(profile_err))
+    end
+
+    return domains_reconciled
+end
+
 function _M.init()
     local settings = get_settings()
 
@@ -75,13 +205,21 @@ function _M.init()
         end
     end
 
-    -- Only proceed with Redis loading if using Redis storage
+    -- For disk storage mode: reconcile server configs with SSL config files
+    -- This catches cases where a server has ssl_enabled=true but the SSL
+    -- config file was never created (e.g., created before SSL code was deployed)
     if not settings or settings.storage_type ~= "redis" then
-        ngx.log(ngx.INFO, "ssl_init: Not using Redis storage, skipping Redis SSL domain loading")
+        ngx.log(ngx.INFO, "ssl_init: Disk storage mode - running SSL config reconciliation")
+        local reconciled = reconcile_disk_ssl_configs(shd)
+        if reconciled > 0 then
+            ngx.log(ngx.WARN, "ssl_init: Reconciled ", reconciled, " SSL domains from server configs (missing SSL config files were created)")
+        else
+            ngx.log(ngx.INFO, "ssl_init: SSL reconciliation complete - no missing configs found")
+        end
         return
     end
 
-    -- Connect to Redis
+    -- Connect to Redis (for Redis storage mode)
     local redis_ok, redis = pcall(require, "resty.redis")
     if not redis_ok then
         ngx.log(ngx.WARN, "ssl_init: Redis module not available")

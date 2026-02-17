@@ -9,6 +9,7 @@ This guide explains how to use the bash scripts to manage your wslproxy API Gate
 - [Authentication](#authentication)
 - [Creating Rules](#creating-rules)
 - [Creating Servers](#creating-servers)
+- [SSL Certificates (Let's Encrypt)](#ssl-certificates-lets-encrypt)
 - [Attaching Rules to Servers](#attaching-rules-to-servers)
 - [Complete Workflow Examples](#complete-workflow-examples)
 - [Managing Existing Resources](#managing-existing-resources)
@@ -117,6 +118,28 @@ The token is stored in `/tmp/wslproxy_token` and automatically used by other scr
 
 Rules define how traffic should be handled based on conditions like path, IP, country, etc.
 
+### Rule Fields Reference
+
+| Field | Type | Required | Description |
+| ----- | ---- | -------- | ----------- |
+| `name` | string | Yes | Rule name |
+| `profile_id` | string | No | Environment profile (dev/int/prod, default: dev) |
+| `priority` | number | No | 1-10000, higher = checked first (default: 1) |
+| `rules_tags` | array | No | Tags for organizing rules (e.g., `["api", "v2"]`) |
+| `match.rules.path` | string | Yes | Path pattern to match |
+| `match.rules.path_key` | string | Yes | `starts_with`, `ends_with`, or `equals` |
+| `match.rules.country` | string | No | Country code (e.g., `US`, `GB`) or `EU` |
+| `match.rules.country_key` | string | No* | `equals` (required if country is set) |
+| `match.rules.client_ip` | string | No | IP address or pattern |
+| `match.rules.client_ip_key` | string | No* | `starts_with` or `equals` (required if client_ip is set) |
+| `match.response.code` | number | Yes | `305` (proxy), `301`/`302` (redirect), `403` (block), `200` (content) |
+| `match.response.redirect_uri` | string | Yes** | Target URL for proxy/redirect |
+| `match.response.message` | string | Yes*** | Base64-encoded HTML for block/content |
+| `match.response.strip_path` | boolean | No | Strip matched path prefix before proxying (default: false) |
+
+\** Required when `code` is 305, 301, or 302
+\*** Required when `code` is 403 or 200
+
 ### Method 1: Interactive Mode (Easiest)
 
 ```bash
@@ -126,11 +149,13 @@ Rules define how traffic should be handled based on conditions like path, IP, co
 You'll be prompted for:
 
 - Rule name
-- Priority (1-1000, higher = checked first)
-- Path to match
-- Match type (starts_with, ends_with, equals)
-- Action (proxy, redirect, block)
+- Profile ID (dev/int/prod)
+- Priority (1-10000, higher = checked first)
+- Tags (optional, comma-separated)
+- Path to match and match type
+- Action (proxy, redirect, block, content)
 - Target URL or message
+- Strip path option (for proxy pass)
 - Country restriction (optional)
 - IP restriction (optional)
 
@@ -140,7 +165,9 @@ You'll be prompted for:
 === Create New Rule ===
 
 Rule name: My API Route
-Priority (default: 100): 200
+Profile ID (dev/int/prod) [default: dev]: prod
+Priority (1-10000, higher = checked first) [default: 100]: 200
+Tags (comma-separated, or leave empty): api, v1
 Path to match (e.g., /api): /api/v1
 Path match type:
   1) starts_with
@@ -156,6 +183,12 @@ Response action:
   5) 200 - Return HTML content
 Select (1-5): 1
 Target URL (e.g., https://backend.example.com): https://api-backend.internal:8080
+
+Strip path: Remove the matched path prefix before proxying
+  Example: path=/api, strip=yes → /api/users proxies as /users
+Strip matched path prefix? (y/n) [default: n]: y
+
+--- Optional Restrictions ---
 Country restriction (leave empty for none, EU for Europe, or country code like US):
 IP restriction (leave empty for none, e.g., 192.168.1):
 
@@ -177,7 +210,9 @@ Create a JSON file with your rule configuration:
 cat > my-rule.json << 'EOF'
 {
   "name": "API v1 Route",
+  "profile_id": "prod",
   "priority": 200,
+  "rules_tags": ["api", "v1"],
   "match": {
     "rules": {
       "path": "/api/v1",
@@ -185,7 +220,8 @@ cat > my-rule.json << 'EOF'
     },
     "response": {
       "code": 305,
-      "redirect_uri": "https://api-backend.internal:8080"
+      "redirect_uri": "https://api-backend.internal:8080",
+      "strip_path": true
     }
   }
 }
@@ -205,6 +241,7 @@ Then create the rule:
 ```json
 {
   "name": "Default Route",
+  "profile_id": "prod",
   "priority": 100,
   "match": {
     "rules": {
@@ -219,11 +256,37 @@ Then create the rule:
 }
 ```
 
+#### Proxy with Path Stripping
+
+When `strip_path` is `true`, the matched path prefix is removed before proxying.
+For example, a request to `/api/v1/users` with path `/api/v1` will be proxied as `/users`.
+
+```json
+{
+  "name": "API v1 with Strip",
+  "profile_id": "prod",
+  "priority": 200,
+  "rules_tags": ["api"],
+  "match": {
+    "rules": {
+      "path": "/api/v1",
+      "path_key": "starts_with"
+    },
+    "response": {
+      "code": 305,
+      "redirect_uri": "https://api-backend.internal:8080",
+      "strip_path": true
+    }
+  }
+}
+```
+
 #### EU Traffic Only
 
 ```json
 {
   "name": "EU API Access",
+  "profile_id": "prod",
   "priority": 200,
   "match": {
     "rules": {
@@ -245,6 +308,7 @@ Then create the rule:
 ```json
 {
   "name": "Internal Network Only",
+  "profile_id": "prod",
   "priority": 300,
   "match": {
     "rules": {
@@ -266,6 +330,7 @@ Then create the rule:
 ```json
 {
   "name": "Old Path Redirect",
+  "profile_id": "prod",
   "priority": 100,
   "match": {
     "rules": {
@@ -285,6 +350,7 @@ Then create the rule:
 ```json
 {
   "name": "Block Admin Access",
+  "profile_id": "prod",
   "priority": 500,
   "match": {
     "rules": {
@@ -320,6 +386,7 @@ You'll be prompted for:
 - Rule ID to attach
 - Additional rules (optional)
 - Custom headers (optional)
+- SSL certificate (optional - Let's Encrypt)
 
 **Example Session:**
 
@@ -400,6 +467,137 @@ EOF
   ]
 }
 ```
+
+### Server with SSL (Let's Encrypt)
+
+```json
+{
+  "server_name": "api.example.com",
+  "proxy_server_name": "backend.internal.com",
+  "rules": "rule-uuid-here",
+  "ssl_enabled": true,
+  "ssl_email": "admin@example.com",
+  "ssl_force_https": true,
+  "ssl_auto_renew": true,
+  "ssl_staging": false
+}
+```
+
+> **Important:** Ensure the domain's DNS A record points to your gateway server's IP before enabling SSL. Let's Encrypt validates domain ownership via HTTP challenge.
+
+---
+
+## SSL Certificates (Let's Encrypt)
+
+wslproxy supports automatic SSL certificate provisioning via Let's Encrypt. Certificates are issued on the first HTTPS request to the domain and auto-renewed before expiry.
+
+### SSL Fields
+
+| Field              | Type    | Required | Default | Description                                      |
+| ------------------ | ------- | -------- | ------- | ------------------------------------------------ |
+| `ssl_enabled`      | boolean | Yes      | -       | Enable/disable SSL for this domain               |
+| `ssl_email`        | string  | Yes*     | -       | Contact email for Let's Encrypt notifications    |
+| `ssl_force_https`  | boolean | No       | `true`  | Redirect all HTTP traffic to HTTPS               |
+| `ssl_auto_renew`   | boolean | No       | `true`  | Automatically renew before certificate expires    |
+| `ssl_staging`      | boolean | No       | `false` | Use Let's Encrypt staging (test) environment     |
+
+*Required when `ssl_enabled` is `true`
+
+### Enable SSL on a New Server (Interactive)
+
+```bash
+./servers/create-server-interactive.sh
+```
+
+When prompted for SSL:
+
+```
+--- SSL Certificate (Let's Encrypt) ---
+Enable SSL certificate? (y/n) [default: n]: y
+SSL contact email (required): admin@example.com
+Force HTTPS redirect? (y/n) [default: y]: y
+Auto-renew certificate? (y/n) [default: y]: y
+Use staging (test) certificates? (y/n) [default: n]: n
+  Production certificates will be issued by Let's Encrypt
+```
+
+### Enable SSL on a New Server (JSON)
+
+```bash
+cat > ssl-server.json << 'EOF'
+{
+  "server_name": "secure.example.com",
+  "proxy_server_name": "backend.internal.com",
+  "rules": "rule-uuid-here",
+  "ssl_enabled": true,
+  "ssl_email": "admin@example.com",
+  "ssl_force_https": true,
+  "ssl_auto_renew": true,
+  "ssl_staging": false
+}
+EOF
+
+./servers/create-server.sh ssl-server.json
+```
+
+### Enable SSL on an Existing Server
+
+```bash
+# Get current server config
+./servers/get-server.sh <server-id>
+
+# Add SSL fields to the JSON and update
+cat > update-ssl.json << 'EOF'
+{
+  "id": "host:example.com",
+  "server_name": "example.com",
+  "proxy_server_name": "example.com",
+  "rules": "existing-rule-id",
+  "ssl_enabled": true,
+  "ssl_email": "admin@example.com",
+  "ssl_force_https": true,
+  "ssl_auto_renew": true,
+  "ssl_staging": false
+}
+EOF
+
+./servers/update-server.sh <server-id> update-ssl.json
+```
+
+### Quick Setup with SSL
+
+```bash
+./utils/setup-complete.sh
+```
+
+The quick setup wizard now prompts for SSL configuration.
+
+### Staging vs Production
+
+| Mode       | Trusted by Browsers | Rate Limits | Use Case           |
+| ---------- | ------------------- | ----------- | ------------------ |
+| Staging    | No (warnings)       | Higher      | Testing/dev        |
+| Production | Yes                 | 50/week     | Live domains       |
+
+> **Tip:** Use staging mode (`"ssl_staging": true`) when testing to avoid hitting Let's Encrypt rate limits. Switch to production once everything works.
+
+### Prerequisites for SSL
+
+1. **DNS configured** - Domain A record must point to the gateway server IP
+2. **Port 80 open** - Let's Encrypt validates via HTTP challenge on port 80
+3. **Port 443 open** - HTTPS traffic needs port 443
+
+### Troubleshooting SSL
+
+**Certificate not issued (fallback certificate shown):**
+1. Check DNS: `dig +short your-domain.com` should show your server IP
+2. Check port 80 is accessible: `curl http://your-domain.com/.well-known/acme-challenge/test`
+3. Check logs: `tail -f /usr/local/openresty/nginx/logs/error.log | grep ssl`
+4. Reload nginx after enabling SSL: `./utils/reload.sh`
+
+**"domain not allowed" in logs:**
+- The SSL config file may be missing. Re-save the server config via the API to regenerate it
+- Or reload nginx to trigger the reconciliation: `./utils/reload.sh`
 
 ---
 
@@ -637,13 +835,21 @@ EOF
 
 ### Response Codes
 
-| Code  | Action             | Description                   |
-| ----- | ------------------ | ----------------------------- |
-| `200` | Return content     | Returns HTML content directly |
-| `301` | Permanent redirect | SEO-friendly redirect         |
-| `302` | Temporary redirect | Temporary redirect            |
-| `305` | Proxy pass         | Reverse proxy to backend      |
-| `403` | Forbidden          | Block with error message      |
+| Code  | Action             | Description                   | Required Fields    |
+| ----- | ------------------ | ----------------------------- | ------------------ |
+| `200` | Return content     | Returns HTML content directly | `message`          |
+| `301` | Permanent redirect | SEO-friendly redirect         | `redirect_uri`     |
+| `302` | Temporary redirect | Temporary redirect            | `redirect_uri`     |
+| `305` | Proxy pass         | Reverse proxy to backend      | `redirect_uri`     |
+| `403` | Forbidden          | Block with error message      | `message`          |
+
+### Response Options
+
+| Field          | Type    | Description                                              |
+| -------------- | ------- | -------------------------------------------------------- |
+| `redirect_uri` | string  | Target URL for proxy/redirect (required for 305/301/302) |
+| `message`      | string  | Base64-encoded HTML body (required for 403/200)          |
+| `strip_path`   | boolean | Strip matched path prefix before proxying (default: false) |
 
 ### Path Match Types
 

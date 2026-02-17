@@ -70,6 +70,7 @@
 
 input#root {
   min-height: auto;
+  padding: 8.5px 14px;
 }
 
 body {
@@ -248,18 +249,99 @@ textarea#match\.response\.message {
   }
 }
 
-/* React-Admin Layout Fixes - prevent AppBar overlap */
-.RaLayout-content {
-  padding-top: 24px !important;
-}
-
-.RaLayout-contentWithSidebar {
-  margin-top: 64px !important;
-}
-
-/* Ensure main content area doesn't get hidden under fixed header */
+/* React-Admin Layout Fixes */
 main.RaLayout-content {
-  min-height: calc(100vh - 64px);
+  min-height: calc(100vh - 48px);
+}
+
+/* ============================================
+   Server Form - Inline Form Iterator Fixes
+   ============================================ */
+
+/* Make inline form iterator rows fill full width */
+.server-form-inline .RaSimpleFormIterator-line {
+  width: 100%;
+}
+
+.server-form-inline .RaSimpleFormIterator-line .RaSimpleFormIterator-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  width: 100%;
+  align-items: flex-start;
+}
+
+/* Match Conditions: Condition select (fixed) + Rule autocomplete (flexible) */
+.server-match-conditions .RaSimpleFormIterator-line .RaSimpleFormIterator-form {
+  flex-wrap: nowrap;
+  width: 100%;
+}
+
+.server-match-conditions
+  .RaSimpleFormIterator-line
+  .RaSimpleFormIterator-form
+  > :first-child {
+  flex: 0 0 160px;
+  min-width: 120px;
+}
+
+.server-match-conditions
+  .RaSimpleFormIterator-line
+  .RaSimpleFormIterator-form
+  > :nth-child(2) {
+  flex: 1 1 0;
+  min-width: 200px;
+}
+
+/* Custom Headers: Both inputs fill equal width */
+.server-custom-headers
+  .RaSimpleFormIterator-line
+  .RaSimpleFormIterator-form
+  > * {
+  flex: 1 1 0;
+  min-width: 150px;
+}
+
+/* Listen Ports: Single input, reasonable width */
+.server-listen-ports .RaSimpleFormIterator-line .RaSimpleFormIterator-form > * {
+  flex: 0 0 180px;
+}
+
+/* Config blocks: Fill full width */
+.server-config-blocks
+  .RaSimpleFormIterator-line
+  .RaSimpleFormIterator-form
+  > * {
+  flex: 1 1 100%;
+}
+
+/* Responsive: Stack inline items vertically on small screens */
+@media screen and (max-width: 600px) {
+  .server-match-conditions
+    .RaSimpleFormIterator-line
+    .RaSimpleFormIterator-form {
+    flex-wrap: wrap;
+  }
+
+  .server-match-conditions
+    .RaSimpleFormIterator-line
+    .RaSimpleFormIterator-form
+    > :first-child,
+  .server-match-conditions
+    .RaSimpleFormIterator-line
+    .RaSimpleFormIterator-form
+    > :nth-child(2) {
+    flex: 1 1 100%;
+    min-width: 100%;
+  }
+
+  .server-custom-headers
+    .RaSimpleFormIterator-line
+    .RaSimpleFormIterator-form
+    > * {
+    flex: 1 1 100%;
+    min-width: 100%;
+  }
 }
 
 /* Print styles */

@@ -5,6 +5,10 @@ LFS = require("lfs")
 Base64 = require "base64"
 
 local configPath = os.getenv("NGINX_CONFIG_DIR") or "/opt/nginx/"
+-- Ensure trailing slash for path concatenation
+if configPath:sub(-1) ~= "/" then
+  configPath = configPath .. "/"
+end
 
 local function getSettings()
   local readSettings, errSettings = io.open(configPath .. "data/settings.json", "rb")

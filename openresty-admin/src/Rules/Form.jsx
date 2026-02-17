@@ -1,4 +1,4 @@
-import { Box, Card, CardContent, Divider, Grid, Typography, Alert } from "@mui/material";
+import { Card, CardContent, Divider, Grid, Typography, Alert } from "@mui/material";
 import React from "react";
 import {
   BooleanInput,
@@ -13,6 +13,7 @@ import {
 } from "react-admin";
 import Toolbar from "./toolbar/Toolbar";
 import CreateTags from "../component/CreateTags";
+import "../styles/forms.css";
 
 const iso_codes = {
   AF: "Afghanistan",
@@ -282,17 +283,17 @@ const objectToArray = (obj = {}) => {
 
 // Section Card component for consistent styling
 const SectionCard = ({ title, subtitle, children }) => (
-  <Card variant="outlined" sx={{ mb: 3, width: '100%' }}>
+  <Card variant="outlined" className="section-card">
     <CardContent>
-      <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 0.5 }}>
+      <Typography variant="subtitle1" className="section-card__title">
         {title}
       </Typography>
       {subtitle && (
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        <Typography variant="body2" color="text.secondary" className="section-card__subtitle">
           {subtitle}
         </Typography>
       )}
-      {!subtitle && <Box sx={{ mb: 1 }} />}
+      {!subtitle && <div className="section-card__spacer" />}
       {children}
     </CardContent>
   </Card>
@@ -300,7 +301,7 @@ const SectionCard = ({ title, subtitle, children }) => (
 
 // Sub-section label
 const SubSectionLabel = ({ children }) => (
-  <Typography variant="body2" sx={{ fontWeight: 500, color: 'text.secondary', mb: 1 }}>
+  <Typography variant="body2" color="text.secondary" className="sub-section-label">
     {children}
   </Typography>
 );
@@ -325,7 +326,7 @@ const Form = () => {
 
   return (
     <SimpleForm toolbar={<Toolbar />}>
-      <Box sx={{ width: '100%', maxWidth: 1200, py: 1 }}>
+      <div className="form-container">
 
         {/* Basic Rule Information */}
         <SectionCard title="Basic Rule Information" subtitle="Configure the rule name, profile, and metadata">
@@ -382,7 +383,7 @@ const Form = () => {
         <SectionCard title="Match Rules" subtitle="Define conditions for when this rule should be applied">
 
           {/* URL Path Matching */}
-          <Box sx={{ mb: 3 }}>
+          <div className="match-subsection">
             <SubSectionLabel>URL Path Matching</SubSectionLabel>
             <Grid container spacing={2}>
               <Grid item xs={12} sm={4}>
@@ -409,12 +410,12 @@ const Form = () => {
                 />
               </Grid>
             </Grid>
-          </Box>
+          </div>
 
-          <Divider sx={{ my: 2 }} />
+          <Divider className="form-divider" />
 
           {/* Geographic Filtering */}
-          <Box sx={{ mb: 3 }}>
+          <div className="match-subsection">
             <SubSectionLabel>Geographic Filtering</SubSectionLabel>
             <Grid container spacing={2}>
               <Grid item xs={12} sm={4}>
@@ -437,7 +438,7 @@ const Form = () => {
                 />
                 <FormDataConsumer>
                   {({ formData }) => formData?.match?.rules?.country === "EU" && (
-                    <Alert severity="info" sx={{ mt: 1 }}>
+                    <Alert severity="info" className="form-alert">
                       <Typography variant="caption">
                         EU includes: {euCountries}
                       </Typography>
@@ -446,12 +447,12 @@ const Form = () => {
                 </FormDataConsumer>
               </Grid>
             </Grid>
-          </Box>
+          </div>
 
-          <Divider sx={{ my: 2 }} />
+          <Divider className="form-divider" />
 
           {/* Client IP Filtering */}
-          <Box sx={{ mb: 3 }}>
+          <div className="match-subsection">
             <SubSectionLabel>Client IP Filtering</SubSectionLabel>
             <Grid container spacing={2}>
               <Grid item xs={12} sm={4}>
@@ -477,12 +478,12 @@ const Form = () => {
                 />
               </Grid>
             </Grid>
-          </Box>
+          </div>
 
-          <Divider sx={{ my: 2 }} />
+          <Divider className="form-divider" />
 
           {/* Token Validation */}
-          <Box>
+          <div>
             <SubSectionLabel>Token Validation</SubSectionLabel>
             <Grid container spacing={2}>
               <Grid item xs={12} sm={4}>
@@ -557,7 +558,7 @@ const Form = () => {
                 )}
               </FormDataConsumer>
             </Grid>
-          </Box>
+          </div>
         </SectionCard>
 
         {/* Response Configuration */}
@@ -603,7 +604,7 @@ const Form = () => {
             </Grid>
           </Grid>
 
-          <Divider sx={{ my: 2 }} />
+          <Divider className="form-divider" />
 
           {/* Proxy Options */}
           <Grid container spacing={2}>
@@ -638,7 +639,7 @@ const Form = () => {
             </FormDataConsumer>
           </Grid>
 
-          <Divider sx={{ my: 2 }} />
+          <Divider className="form-divider" />
 
           {/* Response Message */}
           <Grid container spacing={2}>
@@ -655,7 +656,7 @@ const Form = () => {
           </Grid>
         </SectionCard>
 
-      </Box>
+      </div>
     </SimpleForm>
   );
 };
