@@ -8,6 +8,7 @@ import {
   SelectInput,
 } from "react-admin";
 import Empty from '../component/Empty';
+import { MyPagination } from '../component/MyPagination';
 
 const handleProfileChange = (e) => {
     localStorage.setItem('environment', e.target.value);
@@ -28,6 +29,7 @@ const List = () => {
     <RaList
       title={"Secrets"}
       perPage={1000}
+      pagination={<MyPagination />}
       sort={{ field: 'created_at', order: 'DESC' }}
       empty={<Empty resource={"secrets"} />}
       filters={secretFilters}

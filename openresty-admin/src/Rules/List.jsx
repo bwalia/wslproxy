@@ -14,6 +14,7 @@ import ExportJsonButton from './toolbar/ExportJsonButton';
 import ImportJsonButton from '../component/ImportJsonButton';
 import Empty from '../component/Empty';
 import ToolBar from '../component/ToolBar';
+import { MyPagination } from '../component/MyPagination';
 
 const handleProfileChange = (e) => {
   localStorage.setItem('environment', e.target.value);
@@ -34,6 +35,7 @@ const List = () => {
     <RaList
       title={"Rules"}
       perPage={1000}
+      pagination={<MyPagination />}
       exporter={ExportJsonButton}
       empty={<Empty resource={"rules"} />}
       filters={rulesFilters}

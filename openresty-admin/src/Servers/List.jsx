@@ -19,6 +19,7 @@ import CachedIcon from "@mui/icons-material/CachedRounded";
 import ExportJsonButton from './toolbar/ExportJsonButton';
 import Empty from '../component/Empty';
 import ToolBar from "../component/ToolBar";
+import { MyPagination } from '../component/MyPagination';
 
 const handleProfileChange = (e) => {
   localStorage.setItem('environment', e.target.value);
@@ -184,6 +185,7 @@ const List = () => {
       <RaList
         title={" "}
         perPage={1000}
+        pagination={<MyPagination />}
         sort={{ field: 'created_at', order: 'DESC' }}
         exporter={ExportJsonButton}
         empty={<Empty resource={"servers"} />}
