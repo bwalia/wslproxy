@@ -27,6 +27,7 @@ const List = () => {
   return (
     <RaList
       title={"Secrets"}
+      perPage={1000}
       sort={{ field: 'created_at', order: 'DESC' }}
       empty={<Empty resource={"secrets"} />}
       filters={secretFilters}

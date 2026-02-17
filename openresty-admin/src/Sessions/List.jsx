@@ -3,7 +3,7 @@ import { Datagrid, DateField, EmailField, List as RaList, TextField } from 'reac
 
 const List = () => {
   return (
-    <RaList title={"Sessions"}>
+    <RaList title={"Sessions"} perPage={1000}>
       <Datagrid>
         <TextField source='id' />
         <TextField source='session_id' />

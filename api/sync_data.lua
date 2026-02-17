@@ -248,7 +248,7 @@ function SyncRulesAPI(args)
     local apiPageSize = settings.env_vars.API_PAGE_SIZE or os.getenv("API_PAGE_SIZE")
     local apiTotalPages = 1
     local profileName = args.envprofile
-    apiPageSize = (apiPageSize == nil or apiPageSize == "") and 100 or apiPageSize
+    apiPageSize = (apiPageSize == nil or apiPageSize == "") and 1000 or apiPageSize
 
     local totalPages = 1
     local totalRules = saveRecordsToDisk(
@@ -288,7 +288,7 @@ function SyncServersAPI(args)
     local apiPageSize = settings.env_vars.API_PAGE_SIZE or os.getenv("API_PAGE_SIZE")
     local apiTotalPages = 1
     local profileName = args.envprofile
-    apiPageSize = (apiPageSize == nil or apiPageSize == "") and 100 or apiPageSize
+    apiPageSize = (apiPageSize == nil or apiPageSize == "") and 1000 or apiPageSize
     local settings = getSettings()
     -- if settings.sync_nginx_conf_files ~= nil and settings.sync_nginx_conf_files == true then
     --     deleteFilesInDirectory(configPath .. "data/servers/" .. profileName .. "/conf")
