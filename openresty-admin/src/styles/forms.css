@@ -1,0 +1,125 @@
+/* ============================================
+   Shared Form Styles
+   Used by Servers/Form.jsx and Rules/Form.jsx
+   ============================================ */
+
+/* ---- Form Container ---- */
+/* Constrains form content width and provides vertical padding */
+.form-container {
+  width: 100%;
+  max-width: 1200px;
+  padding: 16px 0;
+}
+
+/* ---- Section Card ---- */
+/* Outlined card sections that group related form fields */
+.section-card {
+  margin-bottom: 24px;
+  width: 100%;
+}
+
+/* Override MUI CardContent last-child extra padding (default: 24px → 16px) */
+.section-card > .MuiCardContent-root:last-child {
+  padding-bottom: 16px;
+}
+
+/* Variant: no bottom padding (used for sections like LocationInput) */
+.section-card--no-padding > .MuiCardContent-root,
+.section-card--no-padding > .MuiCardContent-root:last-child {
+  padding-bottom: 0;
+}
+
+/* Section card title */
+.section-card__title {
+  font-weight: 600 !important;
+  margin-bottom: 4px !important;
+}
+
+/* Section card subtitle (description text) */
+.section-card__subtitle {
+  margin-bottom: 16px !important;
+}
+
+/* Spacer when no subtitle is present */
+.section-card__spacer {
+  margin-bottom: 8px;
+}
+
+/* ---- Sub-section Label ---- */
+/* Used for labels within a section card (e.g., "Listen Ports", "URL Path Matching") */
+.sub-section-label {
+  font-weight: 500 !important;
+  margin-bottom: 8px !important;
+}
+
+/* ---- Form Divider ---- */
+/* Horizontal dividers between form subsections */
+.form-divider {
+  margin-top: 16px !important;
+  margin-bottom: 16px !important;
+}
+
+/* ---- Form Alert ---- */
+/* Alert boxes within forms (info, warning) */
+.form-alert {
+  margin-top: 8px;
+}
+
+/* ---- Match Rule Subsections ---- */
+/* Wrapper for match rule groups (URL path, geo, IP, token) in Rule Form */
+.match-subsection {
+  margin-bottom: 24px;
+}
+
+/* ---- Server Domain Links ---- */
+/* Small helper text links showing server URLs */
+.server-link {
+  font-size: 0.75rem;
+}
+
+/* ---- Empty State Card ---- */
+/* Shown when no rules are available */
+.empty-state > .MuiCardContent-root,
+.empty-state > .MuiCardContent-root:last-child {
+  text-align: center;
+  padding-top: 32px;
+  padding-bottom: 32px;
+}
+
+.empty-state__message {
+  margin-bottom: 16px !important;
+}
+
+/* ============================================
+   Responsive Layout
+   ============================================ */
+
+/* Tablet: allow form to fill available width */
+@media screen and (max-width: 899px) {
+  .form-container {
+    max-width: 100%;
+  }
+}
+
+/* Mobile: tighten spacing */
+@media screen and (max-width: 600px) {
+  .form-container {
+    padding: 8px 0;
+  }
+
+  .section-card {
+    margin-bottom: 16px;
+  }
+
+  .section-card > .MuiCardContent-root {
+    padding: 12px;
+  }
+
+  .section-card > .MuiCardContent-root:last-child {
+    padding-bottom: 12px;
+  }
+
+  .match-subsection {
+    margin-bottom: 16px;
+  }
+}

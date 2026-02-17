@@ -9,6 +9,10 @@ local cjson = require("cjson")
 local lfs = LFS
 
 local configPath = os.getenv("NGINX_CONFIG_DIR") or "/opt/nginx/"
+-- Ensure trailing slash for path concatenation
+if configPath:sub(-1) ~= "/" then
+    configPath = configPath .. "/"
+end
 
 -- Get settings from settings.json
 local function get_settings()

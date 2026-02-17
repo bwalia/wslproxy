@@ -81,20 +81,44 @@ if [ "$ADD_HEADERS" == "y" ]; then
     CUSTOM_HEADERS="$CUSTOM_HEADERS]"
 fi
 
-# Generate nginx config block
-CONFIG="server {
-      listen $LISTEN_PORT;  # Listen on port (HTTP)
-      server_name $SERVER_NAME;  # Your domain name
-      root /var/www/html;  # Document root directory
-      index index.html;  # Default index files
-      access_log logs/access.log;  # Access log file location
-      error_log logs/error.log;  # Error log file location
+# SSL Certificate Configuration
+echo ""
+echo -e "${YELLOW}--- SSL Certificate (Let's Encrypt) ---${NC}"
+read -p "Enable SSL certificate? (y/n) [default: n]: " ENABLE_SSL
+ENABLE_SSL="${ENABLE_SSL:-n}"
 
+SSL_FIELDS=""
+if [ "$ENABLE_SSL" == "y" ]; then
+    read -p "SSL contact email (required): " SSL_EMAIL
+    if [ -z "$SSL_EMAIL" ]; then
+        echo -e "${RED}Error: SSL email is required when SSL is enabled${NC}"
+        exit 1
+    fi
 
+    read -p "Force HTTPS redirect? (y/n) [default: y]: " SSL_FORCE_HTTPS
+    SSL_FORCE_HTTPS="${SSL_FORCE_HTTPS:-y}"
 
-  }
+    read -p "Auto-renew certificate? (y/n) [default: y]: " SSL_AUTO_RENEW
+    SSL_AUTO_RENEW="${SSL_AUTO_RENEW:-y}"
 
-  "
+    read -p "Use staging (test) certificates? (y/n) [default: n]: " SSL_STAGING
+    SSL_STAGING="${SSL_STAGING:-n}"
+
+    if [ "$SSL_STAGING" == "y" ]; then
+        echo -e "${YELLOW}  Note: Staging certificates are NOT trusted by browsers (for testing only)${NC}"
+    else
+        echo -e "${GREEN}  Production certificates will be issued by Let's Encrypt${NC}"
+    fi
+
+    SSL_FIELDS=$(cat << SSLEOF
+  "ssl_enabled": true,
+  "ssl_email": "$SSL_EMAIL",
+  "ssl_force_https": $([ "$SSL_FORCE_HTTPS" == "y" ] && echo "true" || echo "false"),
+  "ssl_auto_renew": $([ "$SSL_AUTO_RENEW" == "y" ] && echo "true" || echo "false"),
+  "ssl_staging": $([ "$SSL_STAGING" == "y" ] && echo "true" || echo "false"),
+SSLEOF
+)
+fi
 
 # Build JSON
 JSON=$(cat << EOF
@@ -113,7 +137,7 @@ JSON=$(cat << EOF
   ],
   "rules": "$RULE_ID",
   "profile_id": "$PROFILE_ID",
-  "config": $(echo "$CONFIG" | jq -Rs .),
+  $SSL_FIELDS
   "match_cases": $MATCH_CASES,
   "custom_headers": $CUSTOM_HEADERS
 }
@@ -143,6 +167,15 @@ if [ "$SERVER_ID" != "null" ] && [ -n "$SERVER_ID" ]; then
     echo "Server ID: $SERVER_ID"
     echo ""
     echo "Your domain $SERVER_NAME is now configured!"
+    if [ "$ENABLE_SSL" == "y" ]; then
+        echo ""
+        echo -e "${GREEN}SSL is enabled!${NC}"
+        echo "Certificate will be issued on the first HTTPS request to https://$SERVER_NAME"
+        echo "Make sure DNS for $SERVER_NAME points to your gateway server."
+        if [ "$SSL_STAGING" == "y" ]; then
+            echo -e "${YELLOW}Warning: Using staging certificates (not trusted by browsers)${NC}"
+        fi
+    fi
 else
     echo -e "${RED}Failed to create server${NC}"
     echo "$RESPONSE" | jq '.' 2>/dev/null || echo "$RESPONSE"

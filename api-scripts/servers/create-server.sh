@@ -29,16 +29,27 @@ if [ -z "$1" ]; then
   ],
   "rules": "rule-uuid-here",
   "profile_id": "dev",
-  "config": "server {\n      listen 80;  # Listen on port (HTTP)\n      server_name api.example.com;  # Your domain name\n      root /var/www/html;  # Document root directory\n      index index.html;  # Default index files\n      access_log logs/access.log;  # Access log file location\n      error_log logs/error.log;  # Error log file location\n\n      \n      \n  }\n  \n  ",
   "match_cases": [],
   "custom_headers": [
     {
       "header_key": "X-Custom",
       "header_value": "value"
     }
-  ]
+  ],
+  "ssl_enabled": true,
+  "ssl_email": "admin@example.com",
+  "ssl_force_https": true,
+  "ssl_auto_renew": true,
+  "ssl_staging": false
 }
 EOF
+    echo ""
+    echo "SSL fields (optional):"
+    echo "  ssl_enabled      - Enable Let's Encrypt SSL (true/false)"
+    echo "  ssl_email        - Contact email (required if ssl_enabled)"
+    echo "  ssl_force_https  - Redirect HTTP to HTTPS (default: true)"
+    echo "  ssl_auto_renew   - Auto-renew certificates (default: true)"
+    echo "  ssl_staging      - Use staging/test certs (default: false)"
     exit 1
 fi
 

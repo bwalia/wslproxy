@@ -1,4 +1,5 @@
 .env
+.env.local
 openresty-admin/cypress/e2e
 openresty-admin/cypress.config.js
 openresty-admin/cypress/fixtures

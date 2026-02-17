@@ -19,8 +19,11 @@ read -p "Profile ID (dev/int/prod) [default: dev]: " PROFILE_ID
 PROFILE_ID="${PROFILE_ID:-dev}"
 
 # Priority
-read -p "Priority (default: 100): " PRIORITY
+read -p "Priority (1-10000, higher = checked first) [default: 100]: " PRIORITY
 PRIORITY="${PRIORITY:-100}"
+
+# Tags
+read -p "Tags (comma-separated, or leave empty): " TAGS_INPUT
 
 # Path configuration
 read -p "Path to match (e.g., /api): " PATH_VALUE
@@ -56,24 +59,59 @@ case $ACTION_NUM in
     *) RESPONSE_CODE=305 ;;
 esac
 
-# Get redirect URI or message
+# Get redirect URI or message based on response code
+REDIRECT_URI=""
+MESSAGE=""
+STRIP_PATH="false"
+
 if [ "$RESPONSE_CODE" -eq 305 ] || [ "$RESPONSE_CODE" -eq 301 ] || [ "$RESPONSE_CODE" -eq 302 ]; then
     read -p "Target URL (e.g., https://backend.example.com): " REDIRECT_URI
-    MESSAGE=""
+
+    # Strip path option (relevant for proxy pass and redirects)
+    if [ "$RESPONSE_CODE" -eq 305 ]; then
+        echo ""
+        echo -e "${YELLOW}Strip path:${NC} Remove the matched path prefix before proxying"
+        echo "  Example: path=/api, strip=yes → /api/users proxies as /users"
+        read -p "Strip matched path prefix? (y/n) [default: n]: " STRIP_PATH_INPUT
+        if [ "$STRIP_PATH_INPUT" == "y" ]; then
+            STRIP_PATH="true"
+        fi
+    fi
 elif [ "$RESPONSE_CODE" -eq 403 ] || [ "$RESPONSE_CODE" -eq 200 ]; then
     read -p "HTML message (will be base64 encoded): " HTML_MESSAGE
     MESSAGE=$(echo -n "$HTML_MESSAGE" | base64)
-    REDIRECT_URI=""
 fi
 
 # Country restriction
+echo ""
+echo -e "${YELLOW}--- Optional Restrictions ---${NC}"
 read -p "Country restriction (leave empty for none, EU for Europe, or country code like US): " COUNTRY
 
 # IP restriction
 read -p "IP restriction (leave empty for none, e.g., 192.168.1): " CLIENT_IP
 if [ -n "$CLIENT_IP" ]; then
-    read -p "IP match type (starts_with/equals): " CLIENT_IP_KEY
+    read -p "IP match type (starts_with/equals) [default: starts_with]: " CLIENT_IP_KEY
     CLIENT_IP_KEY="${CLIENT_IP_KEY:-starts_with}"
+fi
+
+# Build tags JSON array
+TAGS_JSON="[]"
+if [ -n "$TAGS_INPUT" ]; then
+    TAGS_JSON="["
+    FIRST_TAG=true
+    IFS=',' read -ra TAG_ARRAY <<< "$TAGS_INPUT"
+    for tag in "${TAG_ARRAY[@]}"; do
+        tag=$(echo "$tag" | xargs)  # trim whitespace
+        if [ -n "$tag" ]; then
+            if [ "$FIRST_TAG" == "true" ]; then
+                FIRST_TAG=false
+            else
+                TAGS_JSON="$TAGS_JSON,"
+            fi
+            TAGS_JSON="$TAGS_JSON\"$tag\""
+        fi
+    done
+    TAGS_JSON="$TAGS_JSON]"
 fi
 
 # Build JSON
@@ -82,6 +120,7 @@ JSON=$(cat << EOF
   "name": "$RULE_NAME",
   "profile_id": "$PROFILE_ID",
   "priority": $PRIORITY,
+  "rules_tags": $TAGS_JSON,
   "match": {
     "rules": {
       "path": "$PATH_VALUE",
@@ -114,6 +153,11 @@ fi
 if [ -n "$MESSAGE" ]; then
     JSON="$JSON,
       \"message\": \"$MESSAGE\""
+fi
+
+if [ "$STRIP_PATH" == "true" ]; then
+    JSON="$JSON,
+      \"strip_path\": true"
 fi
 
 JSON="$JSON
