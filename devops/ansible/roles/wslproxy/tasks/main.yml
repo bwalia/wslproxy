@@ -343,6 +343,15 @@
   shell: /usr/sbin/fix-permissions.sh
   tags: [openresty, lapis, dashboard, nginx, permissions]
 
+- name: Deploy Let's Encrypt contact email configuration
+  template:
+    src: letsencrypt-contact.sh.j2
+    dest: /opt/nginx/data/ssl-certs/letsencrypt/conf.d/contact.sh
+    owner: "www-data"
+    group: root
+    mode: "0644"
+  tags: [openresty, lapis, nginx, ssl, default-server]
+
 - ansible.posix.synchronize:
     src: ../../nginx-tenants.d/
     dest: /opt/nginx/conf.d/

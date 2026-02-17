@@ -52,6 +52,7 @@ mkdir -p /opt/nginx/data/ssl-certs/ \
     && mkdir -p /opt/nginx/data/ssl-certs/storage/file/ \
     && mkdir -p /opt/nginx/data/ssl-certs/letsencrypt/ \
     && mkdir -p /opt/nginx/data/ssl-certs/letsencrypt/.acme-challenges/ \
+    && mkdir -p /opt/nginx/data/ssl-certs/letsencrypt/conf.d/ \
     && chmod 777 -R /opt/nginx/data/ssl-certs/ \
     && chown -R www-data:root /opt/nginx/data/ssl-certs/
 
