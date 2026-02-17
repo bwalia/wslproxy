@@ -91,6 +91,36 @@
 }
 
 /* ============================================
+   Form Input Width - Static CSS Fallbacks
+   Ensures fullWidth prop works when Emotion
+   CSS-in-JS doesn't inject in correct order
+   ============================================ */
+
+/* Force form inputs inside form containers to fill their grid cells */
+.form-container .MuiFormControl-root,
+.form-container .MuiFormControl-fullWidth,
+.form-container .MuiAutocomplete-root,
+.form-container .MuiTextField-root {
+  width: 100% !important;
+}
+
+/* Ensure React Admin input wrappers fill width */
+.form-container .RaAutocompleteInput-root,
+.form-container .RaSelectInput-root,
+.form-container .RaTextInput-root,
+.form-container .RaBooleanInput-root,
+.form-container .RaSelectArrayInput-root,
+.form-container .RaReferenceArrayInput-root,
+.form-container .RaReferenceInput-root {
+  width: 100%;
+}
+
+/* MUI Autocomplete input container */
+.form-container .MuiAutocomplete-root .MuiOutlinedInput-root {
+  width: 100% !important;
+}
+
+/* ============================================
    Responsive Layout
    ============================================ */
 
