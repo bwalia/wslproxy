@@ -15,6 +15,7 @@ import {
 } from "react-admin";
 import Empty from '../component/Empty';
 import ToolBar from "../component/ToolBar";
+import { MyPagination } from '../component/MyPagination';
 
 const upstreamFilters = [
   <SearchInput source="q" alwaysOn fullWidth />,
@@ -25,6 +26,7 @@ const List = () => {
     <RaList
       title={"Upstreams"}
       perPage={1000}
+      pagination={<MyPagination />}
       sort={{ field: 'created_at', order: 'DESC' }}
       empty={<Empty resource={"upstreams"} />}
       filters={upstreamFilters}
