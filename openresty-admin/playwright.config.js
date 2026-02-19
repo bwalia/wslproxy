@@ -1,4 +1,4 @@
-import { defineConfig, devices } from '@playwright/test';
+import { defineConfig, devices } from "@playwright/test";
 
 /**
  * Playwright E2E test configuration for WSL Proxy Admin.
@@ -7,8 +7,8 @@ import { defineConfig, devices } from '@playwright/test';
  * environment. Defaults to https://prod-our.wslproxy.com.
  */
 export default defineConfig({
-  testDir: './e2e',
-  outputDir: './test-results',
+  testDir: "./e2e",
+  outputDir: "./test-results",
 
   /* Fail the build on CI if test.only was left in source */
   forbidOnly: !!process.env.CI,
@@ -23,21 +23,24 @@ export default defineConfig({
   timeout: 30000,
 
   reporter: process.env.CI
-    ? [['line'], ['html', { open: 'never', outputFolder: './playwright-report' }]]
-    : [['html', { open: 'on-failure', outputFolder: './playwright-report' }]],
+    ? [
+        ["line"],
+        ["html", { open: "never", outputFolder: "./playwright-report" }],
+      ]
+    : [["html", { open: "on-failure", outputFolder: "./playwright-report" }]],
 
   use: {
-    baseURL: process.env.E2E_BASE_URL || 'https://prod-our.wslproxy.com',
+    baseURL: process.env.E2E_BASE_URL || "https://prod-our.wslproxy.com",
     ignoreHTTPSErrors: true,
-    trace: 'on-first-retry',
-    screenshot: 'only-on-failure',
-    video: 'on-first-retry',
+    trace: "on-first-retry",
+    screenshot: "only-on-failure",
+    video: "on-first-retry",
   },
 
   projects: [
     {
-      name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      name: "chromium",
+      use: { ...devices["Desktop Chrome"] },
     },
   ],
 });
