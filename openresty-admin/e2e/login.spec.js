@@ -51,7 +51,7 @@ test.describe('Login Page', () => {
 
     // Verify we reached the dashboard — check for main app content
     // Use generic selectors that work regardless of MUI version
-    await expect(page.locator('nav, aside, [class*="Layout"], [class*="Sidebar"], header')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('#main-content')).toBeVisible({ timeout: 10000 });
 
     // Verify auth token was stored in localStorage
     const authToken = await page.evaluate(() => localStorage.getItem('token') || localStorage.getItem('auth'));
@@ -111,7 +111,7 @@ test.describe('Login Page', () => {
     );
 
     // Verify we reached the dashboard
-    await expect(page.locator('nav, aside, [class*="Layout"], [class*="Sidebar"], header')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('#main-content')).toBeVisible({ timeout: 10000 });
   });
 
   test('empty form submission does not navigate away', async ({ page }) => {
