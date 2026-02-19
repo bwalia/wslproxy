@@ -60,11 +60,11 @@ jobs:
         run: |
           if [ ! -f "$TEST_CREDS_FILE" ]; then
             echo "::error::Test credentials file not found at $TEST_CREDS_FILE"
-            echo "Create it with: echo '{\"email\":\"...\",\"password\":\"...\"}' > $TEST_CREDS_FILE"
+            echo "Create it with: echo '{\"ADMIN_EMAIL\":\"...\",\"ADMIN_PASSWORD\":\"...\",\"GATEWAY_URL\":\"...\"}' > $TEST_CREDS_FILE"
             exit 1
           fi
-          if ! python3 -c "import json; d=json.load(open('$TEST_CREDS_FILE')); assert 'email' in d and 'password' in d" 2>/dev/null; then
-            echo "::error::Test credentials file is missing 'email' or 'password' keys"
+          if ! python3 -c "import json; d=json.load(open('$TEST_CREDS_FILE')); assert 'ADMIN_EMAIL' in d and 'ADMIN_PASSWORD' in d and 'GATEWAY_URL' in d" 2>/dev/null; then
+            echo "::error::Test credentials file is missing required keys (ADMIN_EMAIL, ADMIN_PASSWORD, GATEWAY_URL)"
             exit 1
           fi
           echo "Test credentials validated."
@@ -73,19 +73,24 @@ jobs:
         id: creds
         working-directory: .
         run: |
-          EMAIL=$(python3 -c "import json; print(json.load(open('$TEST_CREDS_FILE'))['email'])")
-          PASSWORD=$(python3 -c "import json; print(json.load(open('$TEST_CREDS_FILE'))['password'])")
+          EMAIL=$(python3 -c "import json; print(json.load(open('$TEST_CREDS_FILE'))['ADMIN_EMAIL'])")
+          PASSWORD=$(python3 -c "import json; print(json.load(open('$TEST_CREDS_FILE'))['ADMIN_PASSWORD'])")
+          GATEWAY_URL=$(python3 -c "import json; print(json.load(open('$TEST_CREDS_FILE'))['GATEWAY_URL'])")
           echo "::add-mask::$EMAIL"
           echo "::add-mask::$PASSWORD"
           echo "email=$EMAIL" >> "$GITHUB_OUTPUT"
           echo "password=$PASSWORD" >> "$GITHUB_OUTPUT"
+          echo "gateway_url=$GATEWAY_URL" >> "$GITHUB_OUTPUT"
+          echo "Using gateway URL: $GATEWAY_URL"
 
       - name: Wait for frontend to be reachable
         working-directory: .
+        env:
+          TARGET_URL: ${{ steps.creds.outputs.gateway_url || env.E2E_BASE_URL }}
         run: |
-          echo "Checking frontend at $E2E_BASE_URL ..."
+          echo "Checking frontend at $TARGET_URL ..."
           for i in $(seq 1 12); do
-            STATUS=$(curl -sf -o /dev/null -w "%{http_code}" "$E2E_BASE_URL" 2>/dev/null || echo "000")
+            STATUS=$(curl -sf -o /dev/null -w "%{http_code}" "$TARGET_URL" 2>/dev/null || echo "000")
             if [ "$STATUS" = "200" ] || [ "$STATUS" = "301" ] || [ "$STATUS" = "302" ]; then
               echo "Frontend is reachable (HTTP $STATUS)."
               exit 0
@@ -93,7 +98,7 @@ jobs:
             echo "Attempt $i: HTTP $STATUS — waiting 5s..."
             sleep 5
           done
-          echo "::error::Frontend not reachable at $E2E_BASE_URL after 60s"
+          echo "::error::Frontend not reachable at $TARGET_URL after 60s"
           exit 1
 
       - name: Run Playwright tests
@@ -101,7 +106,7 @@ jobs:
         env:
           E2E_TEST_EMAIL: ${{ steps.creds.outputs.email }}
           E2E_TEST_PASSWORD: ${{ steps.creds.outputs.password }}
-          E2E_BASE_URL: ${{ env.E2E_BASE_URL }}
+          E2E_BASE_URL: ${{ steps.creds.outputs.gateway_url || env.E2E_BASE_URL }}
           CI: "true"
         run: npx playwright test 2>&1 | tee playwright-output.txt || true
 
