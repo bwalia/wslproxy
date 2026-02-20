@@ -46,9 +46,16 @@ jobs:
     steps:
       - name: Checkout code from repository
         uses: actions/checkout@v3
-      - name: Install Ansible on Ubuntu Latest
+      - name: Install Ansible
         run: |
-          sudo apt-get install -y ansible
+          if command -v zypper &> /dev/null; then
+            sudo zypper install -y ansible
+          elif command -v apt-get &> /dev/null; then
+            sudo apt-get install -y ansible
+          else
+            echo "::error::No supported package manager found (zypper or apt-get)"
+            exit 1
+          fi
           export ANSIBLE_HOST_KEY_CHECKING=False
 
       - name: Decode settings file (INT environment)
