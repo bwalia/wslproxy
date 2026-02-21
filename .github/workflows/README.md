@@ -31,7 +31,7 @@ Fully automated 5-stage deployment pipeline with fail-fast behavior and Slack no
                             │ pass
                             ▼
  ┌──────────────────────────────────────────────────────────────────────┐
- │  STAGE 2: Smoke Test (Docker Compose)             [slworker00]      │
+ │  STAGE 2: Smoke Test (Docker Compose)             [self-hosted]     │
  │                                                                      │
  │  - docker compose -f docker-compose-prod.yml up -d                  │
  │  - Wait for /health endpoint (20 retries × 5s)                     │
@@ -45,7 +45,7 @@ Fully automated 5-stage deployment pipeline with fail-fast behavior and Slack no
                             │ pass
                             ▼
  ┌──────────────────────────────────────────────────────────────────────┐
- │  STAGE 3: Deploy Int (Ansible native)             [slworker00]      │
+ │  STAGE 3: Deploy Int (Ansible native)             [self-hosted]     │
  │                                                                      │
  │  - Decode INT settings + env from GitHub Secrets                    │
  │  - ansible-playbook wslproxy-ops.yml -l slworker00 (env: int)      │
@@ -59,7 +59,7 @@ Fully automated 5-stage deployment pipeline with fail-fast behavior and Slack no
                             │ pass
                             ▼
  ┌──────────────────────────────────────────────────────────────────────┐
- │  STAGE 4: Test Environment                        [slworker00]      │
+ │  STAGE 4: Test Environment                        [self-hosted]     │
  │                                                                      │
  │  - Go health check tests (QA/01_healthcheck_test.go)                │
  │  - API endpoint verification: /ping, /health, /api/servers,         │
@@ -105,7 +105,7 @@ Fully automated 5-stage deployment pipeline with fail-fast behavior and Slack no
 
 | Environment | Host | Runner | Ansible user | Deploy method |
 |-------------|------|--------|-------------|---------------|
-| int | slworker00 | `[self-hosted, slworker00]` | bwalia | Ansible native (local) |
+| int | slworker00 | `[self-hosted, Linux]` | bwalia | Ansible native (local) |
 | prod | 185.237.99.238 | `[self-hosted]` | root | Ansible native (SSH) |
 
 ### Secrets Required
