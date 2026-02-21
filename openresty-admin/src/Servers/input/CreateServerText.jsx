@@ -85,7 +85,7 @@ const CreateServerText = ({ source }) => {
             multiline
             source={source}
             label="Generated Nginx Server Config"
-            helperText="For example: server {listen       8000; listen       somename:8080; server_name  somename  alias  another.alias; location / { root   html; index  index.html index.htm; }}"
+            helperText="For example: server {listen       8069; listen       somename:8080; server_name  somename  alias  another.alias; location / { root   html; index  index.html index.htm; }}"
             fullWidth
             format={() => `${generateHttpsRedirectBlock(formData)}server {
             ${formData?.listens?.length

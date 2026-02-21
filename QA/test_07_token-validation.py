@@ -131,7 +131,7 @@ class TestClass(TestBaseClass):
         driver.delete_all_cookies()
 
         if server_name == "localhost":
-            frontUrl = "localhost:8000"
+            frontUrl = "localhost:8069"
         else: 
             frontUrl = server_name
             
