@@ -63,11 +63,11 @@ TARGET_DOCKER_COMPOSE_FILE="docker-compose.yml"
 if [ "$TARGET_ENV_NAME" == "dev" ]; then
     TARGET_DOCKER_COMPOSE_FILE="docker-compose.yml"
     API_URL="http://localhost:8080/api"
-    FRONT_URL="http://localhost:8000"
+    FRONT_URL="http://localhost:8069"
 elif [ "$TARGET_ENV_NAME" == "syndev" ]; then
     TARGET_DOCKER_COMPOSE_FILE="docker-compose-${TARGET_ENV_NAME}.yml"
     API_URL="http://localhost:8080/api"
-    FRONT_URL="http://localhost:8000"
+    FRONT_URL="http://localhost:8069"
 elif [ "$TARGET_ENV_NAME" == "syntest" ]; then
     TARGET_DOCKER_COMPOSE_FILE="docker-compose-${TARGET_ENV_NAME}.yml"
     API_URL="http://localhost:8088/api"
@@ -83,7 +83,7 @@ elif [ "$TARGET_ENV_NAME" == "synprod" ]; then
 elif [ "$TARGET_ENV_NAME" == "dockerinternal" ]; then
     TARGET_DOCKER_COMPOSE_FILE="docker-compose.yml"
     API_URL="http://host.docker.internal:8080/api"
-    FRONT_URL="http://host.docker.internal:8000"
+    FRONT_URL="http://host.docker.internal:8069"
 fi
 
 TARGET_ENV_FILE=".env.docker"
