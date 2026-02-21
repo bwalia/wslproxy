@@ -1,0 +1,17 @@
+{
+  "id": "waf-rule-sqli-006",
+  "name": "SQL Injection - Comment Sequences",
+  "description": "Detects SQL comment sequences (--,  /* */) commonly used to terminate or obfuscate injected SQL statements.",
+  "category": "sqli",
+  "severity": "medium",
+  "enabled": true,
+  "target": "url",
+  "pattern": "(?:--\\s*$|;\\s*--|/\\*|\\*/)",
+  "pattern_type": "regex",
+  "action": "monitor",
+  "score": 4,
+  "tags": ["owasp-top10", "sqli", "a03"],
+  "profile_id": "prod",
+  "created_at": 1740000000,
+  "updated_at": 1740000000
+}

@@ -1,0 +1,17 @@
+{
+  "id": "waf-rule-proto-002",
+  "name": "Protocol Violation - CRLF Injection",
+  "description": "Detects CRLF injection attempts (%0d%0a) used for HTTP response splitting and header injection attacks.",
+  "category": "protocol",
+  "severity": "high",
+  "enabled": true,
+  "target": "url",
+  "pattern": "%0d%0a",
+  "pattern_type": "string",
+  "action": "block",
+  "score": 8,
+  "tags": ["protocol", "response-splitting"],
+  "profile_id": "prod",
+  "created_at": 1740000000,
+  "updated_at": 1740000000
+}

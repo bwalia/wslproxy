@@ -319,4 +319,73 @@ _M.settings = {
     }
 }
 
+-- wslproxy.waf_rule resource schema
+_M.waf_rule = {
+    type = "wslproxy.waf_rule",
+    version = "1.0.0",
+    description = "WAF detection rule with regex/string pattern matching",
+    properties = {
+        id = { type = "string", required = true, description = "Unique WAF rule identifier" },
+        name = { type = "string", required = true, description = "Rule display name" },
+        description = { type = "string", required = false, description = "Rule description" },
+        category = { type = "string", required = true, description = "Attack category (sqli, xss, cmdi, lfi, rfi, protocol, custom)" },
+        severity = { type = "string", required = false, description = "Severity level (critical, high, medium, low, info)" },
+        enabled = { type = "boolean", required = false, description = "Whether this rule is active" },
+        target = { type = "string", required = true, description = "Request component to inspect (url, headers, body, args, cookies, user_agent, all)" },
+        pattern = { type = "string", required = true, description = "Detection pattern (regex or string)" },
+        pattern_type = { type = "string", required = false, description = "Pattern matching type (regex or string)" },
+        action = { type = "string", required = true, description = "Action when pattern matches (block, monitor, allow)" },
+        score = { type = "number", required = false, description = "Anomaly score contribution" },
+        tags = { type = "array", required = false, description = "Classification tags" },
+        profile_id = { type = "string", required = false, description = "Environment profile" },
+        created_at = { type = "number", required = false, description = "Creation timestamp" },
+        updated_at = { type = "number", required = false, description = "Last update timestamp" }
+    }
+}
+
+-- wslproxy.waf_policy resource schema
+_M.waf_policy = {
+    type = "wslproxy.waf_policy",
+    version = "1.0.0",
+    description = "WAF policy grouping rules with mode and threshold settings",
+    properties = {
+        id = { type = "string", required = true, description = "Unique WAF policy identifier" },
+        name = { type = "string", required = true, description = "Policy display name" },
+        description = { type = "string", required = false, description = "Policy description" },
+        mode = { type = "string", required = true, description = "Enforcement mode (block or monitor)" },
+        enabled = { type = "boolean", required = false, description = "Whether this policy is active" },
+        waf_rules = { type = "array", required = false, description = "List of WAF rule IDs" },
+        anomaly_threshold = { type = "number", required = false, description = "Score threshold for blocking" },
+        paranoia_level = { type = "number", required = false, description = "Detection sensitivity (1-4)" },
+        body_inspection = { type = "boolean", required = false, description = "Whether to inspect request bodies" },
+        max_body_size = { type = "number", required = false, description = "Max body size to inspect (bytes)" },
+        whitelist = { type = "object", required = false, description = "Whitelisted IPs, paths, user-agents" },
+        profile_id = { type = "string", required = false, description = "Environment profile" },
+        created_at = { type = "number", required = false, description = "Creation timestamp" },
+        updated_at = { type = "number", required = false, description = "Last update timestamp" }
+    }
+}
+
+-- wslproxy.waf_event resource schema
+_M.waf_event = {
+    type = "wslproxy.waf_event",
+    version = "1.0.0",
+    description = "WAF inspection event (blocked or monitored request)",
+    properties = {
+        id = { type = "string", required = true, description = "Event identifier" },
+        timestamp = { type = "number", required = true, description = "Event timestamp (epoch)" },
+        type = { type = "string", required = true, description = "Event type (blocked, monitored, error)" },
+        host = { type = "string", required = false, description = "Request host" },
+        rule_id = { type = "string", required = false, description = "Matching WAF rule ID" },
+        rule_name = { type = "string", required = false, description = "Matching WAF rule name" },
+        category = { type = "string", required = false, description = "Attack category" },
+        severity = { type = "string", required = false, description = "Rule severity" },
+        client_ip = { type = "string", required = false, description = "Client IP address" },
+        uri = { type = "string", required = false, description = "Request URI" },
+        method = { type = "string", required = false, description = "HTTP method" },
+        score = { type = "number", required = false, description = "Anomaly score" },
+        matched_data = { type = "string", required = false, description = "Matched pattern snippet" }
+    }
+}
+
 return _M

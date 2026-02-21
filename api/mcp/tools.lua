@@ -66,6 +66,35 @@ _M.TOOL_REGISTRY = {
             idempotentHint = true,
             openWorldHint = false
         }
+    },
+    {
+        name = "test_waf_rule",
+        description = "Test a WAF rule pattern against sample input. Validates the regex pattern and checks if it matches the provided test string. Read-only, safe for AI agents.",
+        inputSchema = {
+            type = "object",
+            properties = {
+                pattern = {
+                    type = "string",
+                    description = "The regex or string pattern to test"
+                },
+                test_input = {
+                    type = "string",
+                    description = "The sample input string to test against"
+                },
+                pattern_type = {
+                    type = "string",
+                    description = "Pattern type: 'regex' (default) or 'string'"
+                }
+            },
+            required = {"pattern", "test_input"}
+        },
+        annotations = {
+            title = "Test WAF Rule Pattern",
+            readOnlyHint = true,
+            destructiveHint = false,
+            idempotentHint = true,
+            openWorldHint = false
+        }
     }
 }
 
@@ -206,6 +235,74 @@ function _M.reload_config(params)
     }
 end
 
+-- Tool: Test WAF rule pattern (read-only)
+function _M.test_waf_rule(params)
+    local pattern = params.pattern
+    local test_input = params.test_input
+    local pattern_type = params.pattern_type or "regex"
+
+    if not pattern or pattern == "" then
+        return {
+            tool = "test_waf_rule",
+            result = { error = "Pattern is required" },
+            isError = true
+        }
+    end
+    if not test_input then
+        return {
+            tool = "test_waf_rule",
+            result = { error = "Test input is required" },
+            isError = true
+        }
+    end
+
+    local matched = false
+    local match_pos = nil
+    local compile_error = nil
+
+    if pattern_type == "string" then
+        local pos = string.find(test_input, pattern, 1, true)
+        matched = pos ~= nil
+        match_pos = pos
+    else
+        local ok, compiled = pcall(ngx.re.compile, pattern, "ijo")
+        if not ok then
+            return {
+                tool = "test_waf_rule",
+                result = {
+                    valid_pattern = false,
+                    compile_error = tostring(compiled),
+                    pattern = pattern,
+                    pattern_type = pattern_type
+                },
+                isError = true
+            }
+        end
+
+        local from, to, err = ngx.re.find(test_input, pattern, "ijo")
+        if err then
+            compile_error = err
+        end
+        matched = from ~= nil
+        match_pos = from
+    end
+
+    return {
+        tool = "test_waf_rule",
+        result = {
+            valid_pattern = true,
+            matched = matched,
+            match_position = match_pos,
+            pattern = pattern,
+            pattern_type = pattern_type,
+            test_input_length = #test_input,
+            compile_error = compile_error,
+            timestamp = os.date("%Y-%m-%dT%H:%M:%SZ", ngx.time())
+        },
+        isError = false
+    }
+end
+
 -- Execute a tool by name
 function _M.execute(tool_name, params)
     local config = McpConfig.load()
@@ -220,7 +317,8 @@ function _M.execute(tool_name, params)
     local tool_handlers = {
         validate_config = function() return _M.validate_config() end,
         get_error_logs = function() return _M.get_error_logs(params) end,
-        reload_config = function() return _M.reload_config(params) end
+        reload_config = function() return _M.reload_config(params) end,
+        test_waf_rule = function() return _M.test_waf_rule(params) end
     }
 
     local handler = tool_handlers[tool_name]

@@ -25,6 +25,9 @@ import Instances from "./Instances";
 import Rules from "./Rules";
 import Settings from "./Settings";
 import Upstreams from "./Upstreams";
+import WafRules from "./WafRules";
+import WafPolicies from "./WafPolicies";
+import WafEvents from "./WafEvents";
 
 import UserIcon from "@mui/icons-material/GroupRounded";
 import SessionIcon from "@mui/icons-material/HistoryToggleOffRounded";
@@ -34,6 +37,9 @@ import ProfileIcon from "@mui/icons-material/RecentActorsRounded";
 import SecretIcon from "@mui/icons-material/KeyRounded";
 import InstanceIcon from "@mui/icons-material/ViewInArRounded";
 import UpstreamIcon from "@mui/icons-material/AccountTree";
+import WafRuleIcon from "@mui/icons-material/ShieldRounded";
+import WafPolicyIcon from "@mui/icons-material/VerifiedUserRounded";
+import WafEventIcon from "@mui/icons-material/NotificationsActiveRounded";
 
 import { Puff } from "react-loader-spinner";
 import CheckModal from "./component/CheckModal";
@@ -183,6 +189,9 @@ const AppContent = () => {
         <Resource name="profiles" {...Profiles} icon={ProfileIcon} />
         <Resource name="secrets" {...Secrets} icon={SecretIcon} />
         <Resource name="instances" {...Instances} icon={InstanceIcon} />
+        <Resource name="waf_rules" {...WafRules} icon={WafRuleIcon} />
+        <Resource name="waf_policies" {...WafPolicies} icon={WafPolicyIcon} />
+        <Resource name="waf_events" {...WafEvents} icon={WafEventIcon} />
         <CustomRoutes>
           <Route path="/password/reset" element={<ResetForm />} />
           <Route path="/instance-info" element={<InstanceInfo />} />

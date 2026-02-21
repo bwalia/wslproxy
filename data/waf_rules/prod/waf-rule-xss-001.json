@@ -1,0 +1,17 @@
+{
+  "id": "waf-rule-xss-001",
+  "name": "XSS - Script Tag Injection",
+  "description": "Detects cross-site scripting attempts using script tag injection to execute arbitrary JavaScript in the browser.",
+  "category": "xss",
+  "severity": "critical",
+  "enabled": true,
+  "target": "url",
+  "pattern": "(?i)<\\s*script[\\s>]",
+  "pattern_type": "regex",
+  "action": "block",
+  "score": 10,
+  "tags": ["owasp-top10", "xss", "a07"],
+  "profile_id": "prod",
+  "created_at": 1740000000,
+  "updated_at": 1740000000
+}

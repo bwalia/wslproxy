@@ -92,6 +92,9 @@ http {
     # Traffic stats for dashboard (stores hourly request/response counts)
     lua_shared_dict traffic_stats 5m;
 
+    # WAF event log storage (stores recent WAF events for dashboard and API)
+    lua_shared_dict waf_events 10m;
+
     geo $limit {
         default 1;
         10.0.0.0/8 0;
