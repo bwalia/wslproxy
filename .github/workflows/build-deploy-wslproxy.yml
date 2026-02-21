@@ -120,7 +120,7 @@ jobs:
   # ──────────────────────────────────────────────────────
   smoke-test:
     name: "Stage 2: Smoke Test (Docker Compose)"
-    runs-on: [self-hosted, slworker00]
+    runs-on: [self-hosted, Linux]
     needs: [build-validate]
     timeout-minutes: 10
 
@@ -208,7 +208,7 @@ jobs:
   # ──────────────────────────────────────────────────────
   deploy-int:
     name: "Stage 3: Deploy Int (Ansible to slworker00)"
-    runs-on: [self-hosted, slworker00]
+    runs-on: [self-hosted, Linux]
     needs: [smoke-test]
     timeout-minutes: 30
 
@@ -304,7 +304,7 @@ jobs:
   # ──────────────────────────────────────────────────────
   test-environment:
     name: "Stage 4: Test Environment"
-    runs-on: [self-hosted, slworker00]
+    runs-on: [self-hosted, Linux]
     needs: [deploy-int]
     timeout-minutes: 15
 
