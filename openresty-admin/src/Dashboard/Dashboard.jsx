@@ -47,6 +47,10 @@ import LanguageIcon from "@mui/icons-material/LanguageRounded";
 import DataUsageIcon from "@mui/icons-material/DataUsageRounded";
 import MemoryIcon from "@mui/icons-material/MemoryRounded";
 import InsertDriveFileIcon from "@mui/icons-material/InsertDriveFileRounded";
+import ShieldIcon from "@mui/icons-material/ShieldRounded";
+import VerifiedUserIcon from "@mui/icons-material/VerifiedUserRounded";
+import NotificationsActiveIcon from "@mui/icons-material/NotificationsActiveRounded";
+import BlockIcon from "@mui/icons-material/BlockRounded";
 
 import StorageModal from "./StorageModal";
 import Logs from "../component/Logs";
@@ -460,6 +464,14 @@ const Dashboard = () => {
     top_urls: [],
   });
 
+  // WAF stats state
+  const [wafStats, setWafStats] = React.useState({
+    totalRules: 0,
+    totalPolicies: 0,
+    recentEvents: 0,
+    blockedEvents: 0,
+  });
+
   const fetchErrorLogs = React.useCallback(() => {
     const logs = dataProvider.getLogs("openresty/error_logs");
     logs.then((log) => {
@@ -637,6 +649,39 @@ const Dashboard = () => {
           rules: rules?.total || 0,
           users: users?.total || 0,
           profiles: profiles?.total || 0,
+        });
+      })
+      .catch(() => {});
+
+    // Fetch WAF stats
+    Promise.all([
+      dataProvider.getList("waf_rules", {
+        pagination: { page: 1, perPage: 1 },
+        sort: { field: "id", order: "ASC" },
+        filter: {},
+      }),
+      dataProvider.getList("waf_policies", {
+        pagination: { page: 1, perPage: 1 },
+        sort: { field: "id", order: "ASC" },
+        filter: {},
+      }),
+      dataProvider.getList("waf_events", {
+        pagination: { page: 1, perPage: 1 },
+        sort: { field: "id", order: "ASC" },
+        filter: {},
+      }),
+      dataProvider.getList("waf_events", {
+        pagination: { page: 1, perPage: 1 },
+        sort: { field: "id", order: "ASC" },
+        filter: { type: "blocked" },
+      }),
+    ])
+      .then(([wafRules, wafPolicies, wafEvents, blockedEvents]) => {
+        setWafStats({
+          totalRules: wafRules?.total || 0,
+          totalPolicies: wafPolicies?.total || 0,
+          recentEvents: wafEvents?.total || 0,
+          blockedEvents: blockedEvents?.total || 0,
         });
       })
       .catch(() => {});
@@ -2378,6 +2423,57 @@ const Dashboard = () => {
               </Typography>
             </Box>
           )}
+        </ChartCard>
+      </Box>
+
+      {/* WAF Security Panel */}
+      <Box sx={{ mb: 4, width: "100%" }}>
+        <ChartCard
+          title="WAF Security Overview"
+          subtitle="Web Application Firewall status and recent activity"
+          height="auto"
+          accentColor="#10b981"
+        >
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "1fr",
+                sm: "repeat(2, 1fr)",
+                md: "repeat(4, 1fr)",
+              },
+              gap: 2,
+            }}
+          >
+            <StatCard
+              title="WAF Rules"
+              value={wafStats.totalRules}
+              icon={ShieldIcon}
+              color="#6366f1"
+              subtitle="Active detection rules"
+            />
+            <StatCard
+              title="WAF Policies"
+              value={wafStats.totalPolicies}
+              icon={VerifiedUserIcon}
+              color="#10b981"
+              subtitle="Configured policies"
+            />
+            <StatCard
+              title="Total Events"
+              value={formatNumber(wafStats.recentEvents)}
+              icon={NotificationsActiveIcon}
+              color="#f59e0b"
+              subtitle="WAF events recorded"
+            />
+            <StatCard
+              title="Blocked Threats"
+              value={formatNumber(wafStats.blockedEvents)}
+              icon={BlockIcon}
+              color="#ef4444"
+              subtitle="Requests blocked"
+            />
+          </Box>
         </ChartCard>
       </Box>
 

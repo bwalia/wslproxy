@@ -1,0 +1,17 @@
+{
+  "id": "waf-rule-sqli-004",
+  "name": "SQL Injection - DROP/ALTER/TRUNCATE",
+  "description": "Detects SQL injection attempts using DDL statements (DROP, ALTER, TRUNCATE) to destroy or modify database schema.",
+  "category": "sqli",
+  "severity": "critical",
+  "enabled": true,
+  "target": "url",
+  "pattern": "(?i)(?:(?:drop|alter|truncate)\\s+(?:table|database|column|index))",
+  "pattern_type": "regex",
+  "action": "block",
+  "score": 10,
+  "tags": ["owasp-top10", "sqli", "a03"],
+  "profile_id": "prod",
+  "created_at": 1740000000,
+  "updated_at": 1740000000
+}

@@ -638,6 +638,45 @@ const Form = ({ type }) => {
           )}
         </div>
       </TabbedForm.Tab>
+
+      <TabbedForm.Tab label="WAF Protection">
+        <div className="form-container">
+          <SectionCard
+            title="WAF Protection"
+            subtitle="Enable and configure Web Application Firewall protection for this server"
+          >
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6} md={4}>
+                <BooleanInput
+                  source="waf_enabled"
+                  label="Enable WAF"
+                  defaultValue={false}
+                  helperText="Enable Web Application Firewall protection"
+                />
+              </Grid>
+              <FormDataConsumer>
+                {({ formData }) =>
+                  formData?.waf_enabled && (
+                    <Grid item xs={12} sm={6} md={8}>
+                      <ReferenceInput
+                        source="waf_policy_id"
+                        reference="waf_policies"
+                      >
+                        <SelectInput
+                          fullWidth
+                          optionText="name"
+                          label="WAF Policy"
+                          helperText="Select a WAF policy to apply to this server"
+                        />
+                      </ReferenceInput>
+                    </Grid>
+                  )
+                }
+              </FormDataConsumer>
+            </Grid>
+          </SectionCard>
+        </div>
+      </TabbedForm.Tab>
     </TabbedForm>
   );
 };
