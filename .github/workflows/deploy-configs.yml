@@ -29,7 +29,7 @@ on:
         required: true
         options:
           - 185.237.99.238
-          - whisky03
+          - slworker00
 
       DRY_RUN:
         type: boolean
