@@ -66,6 +66,15 @@ touch /opt/nginx/data/upstreams/prod/upstreams.conf \
     && chmod 664 /opt/nginx/data/upstreams/prod/upstreams.conf \
     && chown www-data:root /opt/nginx/data/upstreams/prod/upstreams.conf
 
+# Create WAF rules and policies directories
+mkdir -p /opt/nginx/data/waf_rules/prod/ \
+    && chmod 775 -R /opt/nginx/data/waf_rules/ \
+    && chown -R www-data:root /opt/nginx/data/waf_rules/
+
+mkdir -p /opt/nginx/data/waf_policies/prod/ \
+    && chmod 775 -R /opt/nginx/data/waf_policies/ \
+    && chown -R www-data:root /opt/nginx/data/waf_policies/
+
 mkdir -p /opt/nginx/prod_cache/
 chmod 775 -R /opt/nginx/prod_cache/
 chown www-data:root -R /opt/nginx/prod_cache/

@@ -302,6 +302,81 @@ local function handleValidationErrors(errors, resourceType)
     end
 end
 
+-- =====================================================
+-- WAF Rule Validation
+-- =====================================================
+local function validateWafRulePayload(payloads)
+    local errors = {}
+
+    if not payloads.name or payloads.name == "" then
+        table.insert(errors, { field = "name", message = "WAF rule name is required" })
+    elseif type(payloads.name) ~= "string" then
+        table.insert(errors, { field = "name", message = "WAF rule name must be a string" })
+    end
+
+    if not payloads.category or payloads.category == "" then
+        table.insert(errors, { field = "category", message = "WAF rule category is required" })
+    else
+        local valid_categories = { sqli = true, xss = true, cmdi = true, lfi = true, rfi = true, protocol = true, custom = true }
+        if not valid_categories[payloads.category] then
+            table.insert(errors, { field = "category", message = "Invalid category. Must be one of: sqli, xss, cmdi, lfi, rfi, protocol, custom" })
+        end
+    end
+
+    if not payloads.pattern or payloads.pattern == "" then
+        table.insert(errors, { field = "pattern", message = "WAF rule pattern is required" })
+    elseif payloads.pattern_type ~= "string" then
+        local ok, compile_err = pcall(ngx.re.compile, payloads.pattern, "ijo")
+        if not ok then
+            table.insert(errors, { field = "pattern", message = "Invalid regex pattern: " .. tostring(compile_err) })
+        end
+    end
+
+    if not payloads.target or payloads.target == "" then
+        table.insert(errors, { field = "target", message = "WAF rule target is required" })
+    else
+        local valid_targets = { url = true, headers = true, body = true, args = true, cookies = true, user_agent = true, all = true }
+        if not valid_targets[payloads.target] then
+            table.insert(errors, { field = "target", message = "Invalid target. Must be one of: url, headers, body, args, cookies, user_agent, all" })
+        end
+    end
+
+    if not payloads.action or payloads.action == "" then
+        table.insert(errors, { field = "action", message = "WAF rule action is required" })
+    else
+        local valid_actions = { block = true, monitor = true, allow = true }
+        if not valid_actions[payloads.action] then
+            table.insert(errors, { field = "action", message = "Invalid action. Must be one of: block, monitor, allow" })
+        end
+    end
+
+    return errors
+end
+
+-- =====================================================
+-- WAF Policy Validation
+-- =====================================================
+local function validateWafPolicyPayload(payloads)
+    local errors = {}
+
+    if not payloads.name or payloads.name == "" then
+        table.insert(errors, { field = "name", message = "WAF policy name is required" })
+    elseif type(payloads.name) ~= "string" then
+        table.insert(errors, { field = "name", message = "WAF policy name must be a string" })
+    end
+
+    if not payloads.mode or payloads.mode == "" then
+        table.insert(errors, { field = "mode", message = "WAF policy mode is required" })
+    else
+        local valid_modes = { block = true, monitor = true }
+        if not valid_modes[payloads.mode] then
+            table.insert(errors, { field = "mode", message = "Invalid mode. Must be one of: block, monitor" })
+        end
+    end
+
+    return errors
+end
+
 local red = {}
 
 if settings.storage_type == "redis" then
@@ -1895,6 +1970,355 @@ local function createUpdateInstances(body, uuid)
 end
 
 -- =====================================================
+-- WAF Rules API Functions
+-- =====================================================
+local function listWafRules(args)
+    local allRules, totalRecords = {}, 0
+    local params = args
+    local qParams, environment = {}, "prod"
+    params = params.params
+    if params == nil and type(params) == "nil" then
+        qParams = {
+            pagination = {
+                page = args['pagination[page]'],
+                perPage = args['pagination[perPage]']
+            },
+            sort = {
+                field = args['sort[field]'],
+                order = args['sort[order]']
+            },
+            filter = {
+                profile_id = args['filter[profile_id]']
+            }
+        }
+    else
+        qParams = cjson.decode(params)
+    end
+    qParams["type"] = {
+        table = "waf_rules",
+        key_name = "name"
+    }
+    local pageSize = qParams.pagination.perPage
+    local pageNumber = qParams.pagination.page
+    if qParams.filter ~= nil and qParams.filter.profile_id ~= nil then
+        environment = qParams.filter.profile_id
+    end
+    allRules, totalRecords = listFromDisk("waf_rules/" .. environment, pageSize, pageNumber, qParams)
+    if qParams.sort ~= nil and qParams.sort.order == "DESC" then
+        table.sort(allRules, Helper.sortDesc(qParams.sort.field))
+    elseif qParams.sort ~= nil and qParams.sort.order == "ASC" then
+        table.sort(allRules, Helper.sortAsc(qParams.sort.field))
+    end
+    ngx.say(cjson.encode({
+        data = allRules,
+        total = totalRecords
+    }))
+end
+
+local function listWafRule(args, uuid)
+    local envProfile = args.envprofile ~= nil and args.envprofile or "prod"
+    local jsonData, dataErr = Helper.getDataFromFile(configPath ..
+        "data/waf_rules/" .. envProfile .. "/" .. uuid .. ".json")
+    if dataErr == nil then
+        local resultData = cjson.decode(jsonData)
+        ngx.say(cjson.encode({
+            data = resultData
+        }))
+    else
+        Errors.throwError("WAF rule not found: " .. tostring(dataErr), ngx.HTTP_NOT_FOUND)
+    end
+end
+
+local function createUpdateWafRules(body, uuid)
+    local payloads, response = Helper.GetPayloads(body), {}
+
+    local validationErrors = validateWafRulePayload(payloads)
+    handleValidationErrors(validationErrors, "waf_rule")
+
+    if not uuid then
+        ---@diagnostic disable-next-line: param-type-mismatch
+        payloads.created_at = os.time(os.date("!*t"))
+    end
+    ---@diagnostic disable-next-line: param-type-mismatch
+    payloads.updated_at = os.time(os.date("!*t"))
+
+    if uuid then
+        response = CreateUpdateRecord(payloads, uuid, "waf_rules", "waf_rules", "update")
+    else
+        local envProfile = payloads.profile_id or "prod"
+        local folderPath = string.format("%sdata/waf_rules/%s", configPath, envProfile)
+        local isUnique, err = Helper.isUniqueField(folderPath, "name", payloads.name)
+        if not isUnique then
+            Errors.conflict(err, { name = payloads.name })
+        end
+        payloads.id = Helper.generate_uuid()
+        response = CreateUpdateRecord(payloads, payloads.id, "waf_rules", "waf_rules", "create")
+    end
+    ngx.say(cjson.encode({
+        data = response
+    }))
+end
+
+local function createDeleteWafRules(body, uuid)
+    local payloads = Helper.GetPayloads(body)
+    if payloads == ngx.null or not body or type(payloads) == "nil" then
+        payloads = ngx.req.get_uri_args()
+    end
+    local envProfile = "prod"
+    if payloads.ids ~= nil then
+        envProfile = payloads.ids.envProfile or "prod"
+    elseif payloads.envProfile then
+        envProfile = payloads.envProfile
+    end
+    if uuid ~= "" and uuid ~= nil then
+        os.remove(configPath .. "data/waf_rules/" .. envProfile .. "/" .. uuid .. ".json")
+    elseif payloads and payloads.ids and payloads.ids.ids and #payloads.ids.ids > 0 then
+        for value = 1, #payloads.ids.ids do
+            os.remove(configPath .. "data/waf_rules/" .. envProfile .. "/" .. payloads.ids.ids[value] .. ".json")
+        end
+    end
+    ngx.say(cjson.encode({
+        data = payloads
+    }))
+end
+
+-- =====================================================
+-- WAF Policies API Functions
+-- =====================================================
+local function listWafPolicies(args)
+    local allPolicies, totalRecords = {}, 0
+    local params = args
+    local qParams, environment = {}, "prod"
+    params = params.params
+    if params == nil and type(params) == "nil" then
+        qParams = {
+            pagination = {
+                page = args['pagination[page]'],
+                perPage = args['pagination[perPage]']
+            },
+            sort = {
+                field = args['sort[field]'],
+                order = args['sort[order]']
+            },
+            filter = {
+                profile_id = args['filter[profile_id]']
+            }
+        }
+    else
+        qParams = cjson.decode(params)
+    end
+    qParams["type"] = {
+        table = "waf_policies",
+        key_name = "name"
+    }
+    local pageSize = qParams.pagination.perPage
+    local pageNumber = qParams.pagination.page
+    if qParams.filter ~= nil and qParams.filter.profile_id ~= nil then
+        environment = qParams.filter.profile_id
+    end
+    allPolicies, totalRecords = listFromDisk("waf_policies/" .. environment, pageSize, pageNumber, qParams)
+    if qParams.sort ~= nil and qParams.sort.order == "DESC" then
+        table.sort(allPolicies, Helper.sortDesc(qParams.sort.field))
+    elseif qParams.sort ~= nil and qParams.sort.order == "ASC" then
+        table.sort(allPolicies, Helper.sortAsc(qParams.sort.field))
+    end
+    ngx.say(cjson.encode({
+        data = allPolicies,
+        total = totalRecords
+    }))
+end
+
+local function listWafPolicy(args, uuid)
+    local envProfile = args.envprofile ~= nil and args.envprofile or "prod"
+    local jsonData, dataErr = Helper.getDataFromFile(configPath ..
+        "data/waf_policies/" .. envProfile .. "/" .. uuid .. ".json")
+    if dataErr == nil then
+        local resultData = cjson.decode(jsonData)
+        ngx.say(cjson.encode({
+            data = resultData
+        }))
+    else
+        Errors.throwError("WAF policy not found: " .. tostring(dataErr), ngx.HTTP_NOT_FOUND)
+    end
+end
+
+local function createUpdateWafPolicies(body, uuid)
+    local payloads, response = Helper.GetPayloads(body), {}
+
+    local validationErrors = validateWafPolicyPayload(payloads)
+    handleValidationErrors(validationErrors, "waf_policy")
+
+    if not uuid then
+        ---@diagnostic disable-next-line: param-type-mismatch
+        payloads.created_at = os.time(os.date("!*t"))
+    end
+    ---@diagnostic disable-next-line: param-type-mismatch
+    payloads.updated_at = os.time(os.date("!*t"))
+
+    if uuid then
+        response = CreateUpdateRecord(payloads, uuid, "waf_policies", "waf_policies", "update")
+    else
+        local envProfile = payloads.profile_id or "prod"
+        local folderPath = string.format("%sdata/waf_policies/%s", configPath, envProfile)
+        local isUnique, err = Helper.isUniqueField(folderPath, "name", payloads.name)
+        if not isUnique then
+            Errors.conflict(err, { name = payloads.name })
+        end
+        payloads.id = Helper.generate_uuid()
+        response = CreateUpdateRecord(payloads, payloads.id, "waf_policies", "waf_policies", "create")
+    end
+    ngx.say(cjson.encode({
+        data = response
+    }))
+end
+
+local function createDeleteWafPolicies(body, uuid)
+    local payloads = Helper.GetPayloads(body)
+    if payloads == ngx.null or not body or type(payloads) == "nil" then
+        payloads = ngx.req.get_uri_args()
+    end
+    local envProfile = "prod"
+    if payloads.ids ~= nil then
+        envProfile = payloads.ids.envProfile or "prod"
+    elseif payloads.envProfile then
+        envProfile = payloads.envProfile
+    end
+    if uuid ~= "" and uuid ~= nil then
+        os.remove(configPath .. "data/waf_policies/" .. envProfile .. "/" .. uuid .. ".json")
+    elseif payloads and payloads.ids and payloads.ids.ids and #payloads.ids.ids > 0 then
+        for value = 1, #payloads.ids.ids do
+            os.remove(configPath .. "data/waf_policies/" .. envProfile .. "/" .. payloads.ids.ids[value] .. ".json")
+        end
+    end
+    ngx.say(cjson.encode({
+        data = payloads
+    }))
+end
+
+-- =====================================================
+-- WAF Events API Functions (read-only)
+-- =====================================================
+local function listWafEvents(args)
+    local events = {}
+    local waf_dict = ngx.shared.waf_events
+    if not waf_dict then
+        ngx.say(cjson.encode({
+            data = events,
+            total = 0,
+            message = "WAF events shared dict not available"
+        }))
+        return
+    end
+
+    local keys = waf_dict:get_keys(1000)
+    for _, key in ipairs(keys) do
+        local val = waf_dict:get(key)
+        if val then
+            local ok, event = pcall(cjson.decode, val)
+            if ok and event then
+                table.insert(events, event)
+            end
+        end
+    end
+
+    -- Sort by timestamp descending (newest first)
+    table.sort(events, function(a, b)
+        return (a.timestamp or 0) > (b.timestamp or 0)
+    end)
+
+    -- Apply pagination from args
+    local params = args
+    local qParams = {}
+    params = params.params
+    if params == nil and type(params) == "nil" then
+        qParams = {
+            pagination = {
+                page = tonumber(args['pagination[page]']) or 1,
+                perPage = tonumber(args['pagination[perPage]']) or 50
+            }
+        }
+    else
+        qParams = cjson.decode(params)
+    end
+
+    local pageSize = tonumber(qParams.pagination.perPage) or 50
+    local pageNumber = tonumber(qParams.pagination.page) or 1
+    local totalRecords = #events
+    local startIdx = (pageNumber - 1) * pageSize + 1
+    local endIdx = math.min(startIdx + pageSize - 1, totalRecords)
+    local paginatedEvents = {}
+    for i = startIdx, endIdx do
+        if events[i] then
+            table.insert(paginatedEvents, events[i])
+        end
+    end
+
+    ngx.say(cjson.encode({
+        data = paginatedEvents,
+        total = totalRecords
+    }))
+end
+
+-- =====================================================
+-- WAF Seed Function
+-- =====================================================
+local function seedWafRules(args)
+    local ok, WafDefaults = pcall(require, "waf_default_rules")
+    if not ok then
+        Errors.throwError("Failed to load WAF default rules module: " .. tostring(WafDefaults),
+            ngx.HTTP_INTERNAL_SERVER_ERROR)
+        return
+    end
+
+    local payloads = Helper.GetPayloads(args)
+    local envProfile = "prod"
+    if payloads and payloads.profile_id then
+        envProfile = payloads.profile_id
+    end
+
+    local seed_data = WafDefaults.get_seed_data(envProfile)
+    local rulesDir = configPath .. "data/waf_rules/" .. envProfile
+    local policiesDir = configPath .. "data/waf_policies/" .. envProfile
+
+    -- Create directories if needed
+    if not Helper.isDirectoryExists(rulesDir) then
+        Helper.createDirectoryRecursive(rulesDir)
+    end
+    if not Helper.isDirectoryExists(policiesDir) then
+        Helper.createDirectoryRecursive(policiesDir)
+    end
+
+    -- Write seed rules
+    local rulesWritten = 0
+    for _, rule in ipairs(seed_data.rules) do
+        local filePath = rulesDir .. "/" .. rule.id .. ".json"
+        -- Only write if file doesn't exist (don't overwrite customizations)
+        if not Helper.isFileExists(filePath) then
+            Helper.setDataToFile(filePath, rule, rulesDir)
+            rulesWritten = rulesWritten + 1
+        end
+    end
+
+    -- Write default policy
+    local policiesWritten = 0
+    local policyPath = policiesDir .. "/" .. seed_data.policy.id .. ".json"
+    if not Helper.isFileExists(policyPath) then
+        Helper.setDataToFile(policyPath, seed_data.policy, policiesDir)
+        policiesWritten = 1
+    end
+
+    ngx.say(cjson.encode({
+        data = {
+            message = "WAF seed data deployed",
+            profile_id = envProfile,
+            rules_written = rulesWritten,
+            rules_skipped = #seed_data.rules - rulesWritten,
+            policies_written = policiesWritten
+        }
+    }))
+end
+
+-- =====================================================
 -- Upstreams API Functions
 -- =====================================================
 
@@ -3333,6 +3757,21 @@ local function handle_get_request(args, path)
     elseif uuid and subPath[1] == "profiles" then
         listProfile(args, uuid)
     end
+
+    -- WAF endpoints
+    if path == "waf_rules" then
+        listWafRules(args)
+    elseif uuid and #uuid > 0 and subPath[1] == "waf_rules" then
+        listWafRule(args, uuid)
+    end
+    if path == "waf_policies" then
+        listWafPolicies(args)
+    elseif uuid and #uuid > 0 and subPath[1] == "waf_policies" then
+        listWafPolicy(args, uuid)
+    end
+    if path == "waf_events" then
+        listWafEvents(args)
+    end
 end
 
 local function handle_post_request(args, path)
@@ -3377,6 +3816,15 @@ local function handle_post_request(args, path)
         end
         if path == "profiles" then
             createUpdateProfiles(args, nil)
+        end
+        if path == "waf_rules" then
+            createUpdateWafRules(args)
+        end
+        if path == "waf_policies" then
+            createUpdateWafPolicies(args)
+        end
+        if path == "waf_rules/seed" then
+            seedWafRules(args)
         end
         if path == "password/reset" then
             resetPassword(args)
@@ -3500,7 +3948,11 @@ local function handle_put_request(args, path)
             createUpdateUser(args, uuid)
         end
 
-        if string.find(path, "rules") then
+        if string.find(path, "waf_rules") then
+            createUpdateWafRules(args, uuid)
+        elseif string.find(path, "waf_policies") then
+            createUpdateWafPolicies(args, uuid)
+        elseif string.find(path, "rules") then
             createUpdateRules(args, uuid)
         end
 
@@ -3535,7 +3987,11 @@ local function handle_delete_request(args, path)
     local pattern = ".*/(.*)"
     local uuid = string.match(path, pattern)
     if settings.instance_locked == "false" or platform == "react-admin" then
-        if string.find(path, "rules") then
+        if string.find(path, "waf_rules") then
+            createDeleteWafRules(args, uuid)
+        elseif string.find(path, "waf_policies") then
+            createDeleteWafPolicies(args, uuid)
+        elseif string.find(path, "rules") then
             createDeleteRules(args, uuid)
         end
         if string.find(path, "secrets") then

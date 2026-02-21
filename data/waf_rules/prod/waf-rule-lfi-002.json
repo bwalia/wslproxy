@@ -1,0 +1,17 @@
+{
+  "id": "waf-rule-lfi-002",
+  "name": "Path Traversal - Sensitive File Access",
+  "description": "Detects attempts to access sensitive system files such as /etc/passwd, /etc/shadow, /proc/self/environ, and other critical OS files.",
+  "category": "lfi",
+  "severity": "critical",
+  "enabled": true,
+  "target": "url",
+  "pattern": "(?i)(?:etc/(?:passwd|shadow|hosts|group)|proc/self/(?:environ|cmdline|maps))",
+  "pattern_type": "regex",
+  "action": "block",
+  "score": 10,
+  "tags": ["owasp-top10", "lfi", "a01"],
+  "profile_id": "prod",
+  "created_at": 1740000000,
+  "updated_at": 1740000000
+}

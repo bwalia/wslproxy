@@ -718,6 +718,18 @@ if exist_values and exist_values ~= 0 and exist_values ~= nil and exist_values ~
         -- do return ngx.say(highestPriorityKey) end
         if rulePasses == true then
             local selectedRule = parse_rules[highestPriorityParentKey][highestPriorityKey]
+
+            -- WAF Inspection (fail-open: if WAF module errors, request continues)
+            local waf_ok, WafEngine = pcall(require, "waf_engine")
+            if waf_ok and WafEngine then
+                local waf_result = WafEngine.inspect(jsonval, envProfile)
+                if waf_result and waf_result.action == "block" then
+                    local policy = WafEngine.load_policy(jsonval, envProfile)
+                    WafEngine.block_request(policy, waf_result)
+                    return
+                end
+            end
+
             local globalVars = ngx.var.frontdoor_global_vars
             globalVars = cjson.decode(globalVars)
             globalVars.executableRule = selectedRule
