@@ -21,3 +21,5 @@ os_build_deps:
   - unzip
   - tar
   - gzip
+  - lua51
+  - lua51-devel

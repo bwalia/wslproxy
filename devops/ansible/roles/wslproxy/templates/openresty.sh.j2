@@ -80,36 +80,73 @@ cd openresty-${OPENRESTY_VERSION}
 echo "Building OpenResty ${OPENRESTY_VERSION} completed"
 }
 
-# Install luarocks from source if not available via package manager
+# Install luarocks from source using standard Lua 5.1 (not LuaJIT)
+# LuaJIT has a 65536 constant limit that prevents parsing large luarocks manifests.
+# Building luarocks with standard Lua avoids this limitation while still installing
+# rocks to the OpenResty/LuaJIT paths where nginx can find them.
 install_luarocks() {
-  # Ensure OpenResty binaries are in PATH
   export PATH="/usr/local/openresty/luajit/bin:/usr/local/openresty/bin:/usr/local/bin:$PATH"
 
-  if command -v luarocks &> /dev/null; then
-    echo "luarocks already installed: $(luarocks --version)"
-    return 0
+  # Force rebuild to use standard Lua instead of LuaJIT
+  # Remove old LuaJIT-based luarocks if it exists
+  if [ -f /usr/local/openresty/luajit/bin/luarocks ]; then
+    echo "Removing old LuaJIT-based luarocks..."
+    rm -f /usr/local/openresty/luajit/bin/luarocks
+    rm -f /usr/local/bin/luarocks
   fi
 
-  echo "Installing luarocks from source..."
+  # Clear luarocks manifest cache to avoid stale data
+  rm -rf /var/cache/luarocks/ 2>/dev/null || true
+
+  echo "Installing luarocks from source with standard Lua 5.1..."
   LUAROCKS_VERSION="3.11.1"
 
-  # Verify LuaJIT is available from the OpenResty build
-  if [ ! -f /usr/local/openresty/luajit/bin/luajit ]; then
-    echo "ERROR: LuaJIT not found at /usr/local/openresty/luajit/bin/luajit"
-    ls -la /usr/local/openresty/luajit/bin/ 2>/dev/null || echo "Directory does not exist"
-    return 1
+  # Find system Lua 5.1
+{% if ansible_os_family == "Suse" %}
+  LUA_BIN=$(which lua5.1 2>/dev/null || which lua51 2>/dev/null || which lua 2>/dev/null)
+  LUA_INCDIR="/usr/include/lua5.1"
+  if [ ! -d "$LUA_INCDIR" ]; then
+    LUA_INCDIR=$(find /usr/include -name "lua.h" -path "*/lua5.1/*" -exec dirname {} \; 2>/dev/null | head -1)
   fi
-  echo "Found LuaJIT: $(/usr/local/openresty/luajit/bin/luajit -v)"
+  if [ -z "$LUA_INCDIR" ]; then
+    LUA_INCDIR=$(find /usr/include -name "lua.h" -exec dirname {} \; 2>/dev/null | head -1)
+  fi
+{% elif ansible_os_family == "RedHat" %}
+  LUA_BIN=$(which lua 2>/dev/null)
+  LUA_INCDIR="/usr/include"
+{% else %}
+  LUA_BIN=$(which lua5.1 2>/dev/null || which lua 2>/dev/null)
+  LUA_INCDIR="/usr/include/lua5.1"
+{% endif %}
 
-  # Verify include directory exists
-  if [ ! -d /usr/local/openresty/luajit/include/luajit-2.1 ]; then
-    echo "ERROR: LuaJIT include directory not found"
-    ls -la /usr/local/openresty/luajit/include/ 2>/dev/null || echo "Include directory does not exist"
+  if [ -z "$LUA_BIN" ]; then
+    echo "ERROR: Standard Lua 5.1 not found. Falling back to LuaJIT..."
+    LUA_BIN="/usr/local/openresty/luajit/bin/luajit"
+    LUA_INCDIR="/usr/local/openresty/luajit/include/luajit-2.1"
+    LUA_SUFFIX="jit"
+  else
+    echo "Using standard Lua: $LUA_BIN ($($LUA_BIN -v 2>&1))"
+    LUA_DIR=$(dirname $(dirname $LUA_BIN))
+    LUA_SUFFIX=""
+    # Determine lua suffix from binary name
+    LUA_BASENAME=$(basename $LUA_BIN)
+    if [ "$LUA_BASENAME" = "lua5.1" ]; then
+      LUA_SUFFIX="5.1"
+    elif [ "$LUA_BASENAME" = "lua51" ]; then
+      LUA_SUFFIX="51"
+    fi
+  fi
+  echo "Lua include dir: $LUA_INCDIR"
+
+  if [ ! -d "$LUA_INCDIR" ] || [ ! -f "$LUA_INCDIR/lua.h" ]; then
+    echo "ERROR: Lua include directory not found or missing lua.h at $LUA_INCDIR"
+    ls -la "$LUA_INCDIR" 2>/dev/null || echo "Directory does not exist"
     return 1
   fi
 
   cd /tmp
   rm -f luarocks-${LUAROCKS_VERSION}.tar.gz
+  rm -rf luarocks-${LUAROCKS_VERSION}
   echo "Downloading luarocks ${LUAROCKS_VERSION}..."
   wget https://luarocks.github.io/luarocks/releases/luarocks-${LUAROCKS_VERSION}.tar.gz
   if [ $? -ne 0 ] || [ ! -f luarocks-${LUAROCKS_VERSION}.tar.gz ]; then
@@ -117,15 +154,20 @@ install_luarocks() {
     return 1
   fi
 
-  rm -rf luarocks-${LUAROCKS_VERSION}
   tar xzf luarocks-${LUAROCKS_VERSION}.tar.gz
   cd luarocks-${LUAROCKS_VERSION}
 
-  echo "Configuring luarocks..."
-  ./configure --prefix=/usr/local/openresty/luajit \
-    --with-lua=/usr/local/openresty/luajit \
-    --lua-suffix=jit \
-    --with-lua-include=/usr/local/openresty/luajit/include/luajit-2.1
+  # Build luarocks using standard Lua, but install rocks to OpenResty tree
+  echo "Configuring luarocks with standard Lua..."
+  CONFIGURE_ARGS="--prefix=/usr/local --with-lua-include=$LUA_INCDIR"
+  if [ -n "$LUA_SUFFIX" ]; then
+    CONFIGURE_ARGS="$CONFIGURE_ARGS --lua-suffix=$LUA_SUFFIX"
+  fi
+  if [ -n "$LUA_DIR" ]; then
+    CONFIGURE_ARGS="$CONFIGURE_ARGS --with-lua=$LUA_DIR"
+  fi
+  echo "Configure args: $CONFIGURE_ARGS"
+  ./configure $CONFIGURE_ARGS
   if [ $? -ne 0 ]; then
     echo "ERROR: luarocks configure failed"
     return 1
@@ -145,18 +187,16 @@ install_luarocks() {
     return 1
   fi
 
-  # Create symlink so luarocks is in standard PATH
-  ln -sf /usr/local/openresty/luajit/bin/luarocks /usr/local/bin/luarocks
-
   cd /tmp
   rm -rf luarocks-${LUAROCKS_VERSION} luarocks-${LUAROCKS_VERSION}.tar.gz
 
   # Verify installation
   if command -v luarocks &> /dev/null; then
     echo "luarocks installed successfully: $(luarocks --version 2>&1 | head -1)"
+    echo "luarocks binary: $(which luarocks)"
   else
     echo "ERROR: luarocks not found after installation"
-    ls -la /usr/local/openresty/luajit/bin/luarocks 2>/dev/null || echo "Binary not at expected path"
+    ls -la /usr/local/bin/luarocks 2>/dev/null || echo "Binary not at expected path"
     return 1
   fi
 }

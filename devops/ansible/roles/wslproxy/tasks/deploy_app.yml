@@ -61,32 +61,36 @@
 - name: Install Lua modules via luarocks
   shell: |
     export PATH="/usr/local/openresty/luajit/bin:/usr/local/openresty/bin:/usr/local/bin:$PATH"
-    echo "luarocks binary: $(which luarocks)"
+    LUAROCKS_BIN=$(which luarocks 2>/dev/null)
+    echo "luarocks binary: $LUAROCKS_BIN"
     echo "luarocks version: $(luarocks --version 2>&1 | head -1)"
-    echo "luarocks deploy dir: $(luarocks config deploy_lua_dir 2>/dev/null)"
-    echo "unzip available: $(which unzip 2>/dev/null || echo 'NOT FOUND')"
+    echo "default deploy dir: $(luarocks config deploy_lua_dir 2>/dev/null)"
+    echo "unzip: $(which unzip 2>/dev/null || echo 'NOT FOUND')"
     echo ""
+
+    # Install rocks to OpenResty tree so nginx can find them
+    TREE="/usr/local/openresty/luajit"
     FAILED=0
     for rock in lua-resty-jwt lua-resty-session lua-resty-http lua-resty-openidc base64 lua-resty-redis-connector lua-resty-dns lua-resty-resolver luafilesystem lua-resty-auto-ssl pgmoon lua-resty-consul; do
       echo "=== Installing $rock ==="
-      if luarocks install "$rock" 2>&1; then
+      if luarocks install --tree="$TREE" "$rock" 2>&1; then
         echo "+++ $rock OK"
       else
-        echo "--- $rock FAILED (exit code: $?)"
+        echo "--- $rock FAILED"
         FAILED=1
       fi
-      echo ""
     done
-    echo "=== Installation complete ==="
-    echo "Installed rocks:"
-    luarocks list 2>&1
+
+    echo ""
+    echo "=== Installation summary ==="
+    echo "Rocks in tree $TREE:"
+    luarocks list --tree="$TREE" 2>&1 | head -40
     echo ""
     echo "Looking for jwt.lua:"
-    find /usr/local/openresty /usr/local/share /usr/local/lib -name "jwt.lua" 2>/dev/null || echo "jwt.lua NOT FOUND"
-    if [ $FAILED -ne 0 ]; then
-      echo "WARNING: Some rocks failed to install"
-    fi
+    find "$TREE" /usr/local/share -name "jwt.lua" 2>/dev/null || echo "jwt.lua NOT FOUND"
+    exit $FAILED
   register: luarocks_install_result
+  ignore_errors: true
   tags: [openresty, lapis]
 
 - name: Show luarocks install output

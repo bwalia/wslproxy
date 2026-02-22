@@ -19,3 +19,5 @@ os_build_deps:
   - wget
   - zlib-devel
   - unzip
+  - lua
+  - lua-devel

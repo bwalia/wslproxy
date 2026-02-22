@@ -21,3 +21,5 @@ os_build_deps:
   - wget
   - gcc
   - unzip
+  - lua5.1
+  - liblua5.1-0-dev
