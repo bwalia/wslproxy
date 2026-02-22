@@ -58,31 +58,50 @@
     remote_src: no
   tags: [openresty, lapis, dashboard]
 
+- name: Install Lua modules via luarocks
+  shell: |
+    export PATH="/usr/local/openresty/luajit/bin:/usr/local/openresty/bin:/usr/local/bin:$PATH"
+    echo "luarocks binary: $(which luarocks)"
+    echo "luarocks version: $(luarocks --version 2>&1 | head -1)"
+    echo "luarocks deploy dir: $(luarocks config deploy_lua_dir 2>/dev/null)"
+    echo "unzip available: $(which unzip 2>/dev/null || echo 'NOT FOUND')"
+    echo ""
+    FAILED=0
+    for rock in lua-resty-jwt lua-resty-session lua-resty-http lua-resty-openidc base64 lua-resty-redis-connector lua-resty-dns lua-resty-resolver luafilesystem lua-resty-auto-ssl pgmoon lua-resty-consul; do
+      echo "=== Installing $rock ==="
+      if luarocks install "$rock" 2>&1; then
+        echo "+++ $rock OK"
+      else
+        echo "--- $rock FAILED (exit code: $?)"
+        FAILED=1
+      fi
+      echo ""
+    done
+    echo "=== Installation complete ==="
+    echo "Installed rocks:"
+    luarocks list 2>&1
+    echo ""
+    echo "Looking for jwt.lua:"
+    find /usr/local/openresty /usr/local/share /usr/local/lib -name "jwt.lua" 2>/dev/null || echo "jwt.lua NOT FOUND"
+    if [ $FAILED -ne 0 ]; then
+      echo "WARNING: Some rocks failed to install"
+    fi
+  register: luarocks_install_result
+  tags: [openresty, lapis]
+
+- name: Show luarocks install output
+  debug:
+    msg: "{{ luarocks_install_result.stdout_lines }}"
+  when: luarocks_install_result is defined
+  tags: [openresty, lapis]
+
 - name: Execute the cdn-dependencies.sh script
   shell: /tmp/cdn-dependencies.sh 2>&1
   register: cdn_deps_result
   tags: [openresty, lapis]
 
-- name: Show cdn-dependencies output (last 60 lines)
+- name: Show cdn-dependencies output (last 40 lines)
   debug:
-    msg: "{{ cdn_deps_result.stdout_lines[-60:] }}"
+    msg: "{{ cdn_deps_result.stdout_lines[-40:] }}"
   when: cdn_deps_result is defined
-  tags: [openresty, lapis]
-
-- name: Verify critical Lua modules are installed
-  shell: |
-    export PATH="/usr/local/openresty/luajit/bin:/usr/local/openresty/bin:/usr/local/bin:$PATH"
-    echo "=== Checking lua-resty-jwt installation ==="
-    find /usr/local/openresty /usr/local/share /usr/local/lib -name "jwt.lua" -path "*/resty/*" 2>/dev/null || echo "jwt.lua NOT FOUND anywhere"
-    echo "=== Luarocks config ==="
-    luarocks config deploy_lua_dir 2>/dev/null || echo "luarocks config failed"
-    echo "=== Luarocks list ==="
-    luarocks list 2>/dev/null | head -30 || echo "luarocks list failed"
-  register: lua_module_check
-  changed_when: false
-  tags: [openresty, lapis]
-
-- name: Show Lua module verification
-  debug:
-    msg: "{{ lua_module_check.stdout_lines }}"
   tags: [openresty, lapis]
