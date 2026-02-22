@@ -15,7 +15,6 @@ whisky08 ansible_user=bwalia
 # Environment-based server groups for config deployment
 [openresty_prod]
 185.237.99.238 ansible_user=root
-192.168.1.77 ansible_user=bwalia
 
 [openresty_int]
 slworker00 ansible_user=bwalia
@@ -29,8 +28,7 @@ slworker00 ansible_user=bwalia
 # dev-server.wslproxy.com ansible_user=root
 
 [openresty_acc]
-# Add acceptance servers here
-# acc-server.wslproxy.com ansible_user=root
+192.168.1.77 ansible_user=bwalia
 
 # Group all openresty servers
 [openresty_servers:children]
