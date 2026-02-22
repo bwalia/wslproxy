@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { clearAppState } from './helpers.js';
 
 /**
  * WSL Proxy Admin — Login E2E tests.
@@ -13,11 +14,14 @@ import { test, expect } from '@playwright/test';
 const EMAIL = process.env.E2E_TEST_EMAIL;
 const PASSWORD = process.env.E2E_TEST_PASSWORD;
 
-test.describe('Login Page', () => {
-  test.beforeEach(async () => {
+test.describe('Login Page', { tag: '@regression' }, () => {
+  test.beforeEach(async ({ page }) => {
     if (!EMAIL || !PASSWORD) {
       test.skip(true, 'E2E_TEST_EMAIL and E2E_TEST_PASSWORD must be set');
     }
+    // Clear any leftover auth state to ensure clean login tests
+    await page.goto('/#/login');
+    await clearAppState(page);
   });
 
   test('login page loads correctly', async ({ page }) => {
@@ -35,25 +39,17 @@ test.describe('Login Page', () => {
   test('login with valid credentials redirects to dashboard', async ({ page }) => {
     await page.goto('/#/login');
 
-    // Fill in credentials
     await page.locator('#email').fill(EMAIL);
     await page.locator('#password').fill(PASSWORD);
-
-    // Submit the form
     await page.getByRole('button', { name: 'Sign In' }).click();
 
-    // Wait for navigation away from login page (hash-based routing)
-    // React Admin redirects to /#/ (dashboard) on successful login
     await page.waitForFunction(
       () => !window.location.hash.includes('/login'),
       { timeout: 15000 }
     );
 
-    // Verify we reached the dashboard — check for main app content
-    // Use generic selectors that work regardless of MUI version
     await expect(page.locator('#main-content')).toBeVisible({ timeout: 10000 });
 
-    // Verify auth token was stored in localStorage
     const authToken = await page.evaluate(() => localStorage.getItem('token') || localStorage.getItem('auth'));
     expect(authToken).toBeTruthy();
   });
@@ -61,21 +57,14 @@ test.describe('Login Page', () => {
   test('login with invalid credentials shows error notification', async ({ page }) => {
     await page.goto('/#/login');
 
-    // Enter wrong credentials
     await page.locator('#email').fill('invalid@example.com');
     await page.locator('#password').fill('WrongPassword123');
-
-    // Submit the form
     await page.getByRole('button', { name: 'Sign In' }).click();
 
-    // React Admin shows a snackbar notification on login failure
-    // Use getByText for the exact error message to avoid strict mode violation
-    // (MUI renders nested wrapper + content elements for Snackbar)
     await expect(
       page.getByText('Invalid email or password').first()
     ).toBeVisible({ timeout: 10000 });
 
-    // Should still be on the login page
     expect(page.url()).toContain('#/login');
   });
 
@@ -83,70 +72,51 @@ test.describe('Login Page', () => {
     await page.goto('/#/login');
 
     const passwordInput = page.locator('#password');
-
-    // Password field should initially be type="password"
     await expect(passwordInput).toHaveAttribute('type', 'password');
 
-    // Click the visibility toggle button
-    await page.locator('#password').locator('..').locator('..').locator('button').click();
+    // Find the visibility toggle button near the password field
+    const toggleButton = page.locator('button[aria-label*="isibility"], #password ~ button, #password + div button').first();
+    await toggleButton.click();
 
-    // Password field should now be type="text"
     await expect(passwordInput).toHaveAttribute('type', 'text');
   });
 
   test('login form submits on Enter key', async ({ page }) => {
     await page.goto('/#/login');
 
-    // Fill in credentials
     await page.locator('#email').fill(EMAIL);
     await page.locator('#password').fill(PASSWORD);
-
-    // Press Enter instead of clicking button
     await page.locator('#password').press('Enter');
 
-    // Wait for navigation away from login page
     await page.waitForFunction(
       () => !window.location.hash.includes('/login'),
       { timeout: 15000 }
     );
 
-    // Verify we reached the dashboard
     await expect(page.locator('#main-content')).toBeVisible({ timeout: 10000 });
   });
 
   test('empty form submission does not navigate away', async ({ page }) => {
     await page.goto('/#/login');
 
-    // Click Sign In without filling anything
     await page.getByRole('button', { name: 'Sign In' }).click();
-
-    // Wait a moment for any potential navigation
     await page.waitForTimeout(2000);
 
-    // Should still be on the login page
     expect(page.url()).toContain('#/login');
   });
 });
 
-test.describe('Login Page - UI', () => {
+test.describe('Login Page - UI', { tag: '@regression' }, () => {
   test('theme toggle switches between light and dark mode', async ({ page }) => {
     await page.goto('/#/login');
 
-    // The page starts in dark mode by default
-    // Find and click the theme toggle button (the icon button in top-right)
     const themeToggle = page.locator('button').filter({ has: page.locator('[data-testid="LightModeRoundedIcon"], [data-testid="DarkModeRoundedIcon"]') });
     await expect(themeToggle).toBeVisible();
 
-    // Click to toggle theme
     await themeToggle.click();
-
-    // Wait for transition
     await page.waitForTimeout(500);
-
-    // Click again to toggle back
     await themeToggle.click();
 
-    // Verify the toggle is still functional (no crash)
     await expect(themeToggle).toBeVisible();
   });
 });
