@@ -85,12 +85,18 @@ _M.server = {
         created_at = { type = "number", required = false, description = "Creation timestamp (epoch)" },
         updated_at = { type = "number", required = false, description = "Last update timestamp (epoch)" },
         custom_headers = { type = "object", required = false, description = "Custom HTTP response headers" },
-        cache_enabled = { type = "boolean", required = false, description = "Whether caching is enabled" }
+        cache_enabled = { type = "boolean", required = false, description = "Whether caching is enabled" },
+        waf_enabled = { type = "boolean", required = false, description = "Whether WAF inspection is enabled" },
+        waf_policy_id = { type = "string", required = false, description = "Bound WAF policy identifier" },
+        waf_mode_override = { type = "string", required = false, description = "Per-server WAF mode override (block/monitor)", enum = {"block", "monitor"} },
+        rate_limit_enabled = { type = "boolean", required = false, description = "Whether rate limiting is enabled" },
+        rate_limit = { type = "object", required = false, description = "Rate limit settings (requests_per_second, burst)" }
     },
     relationships = {
         rules = { type = "wslproxy.rule", cardinality = "many", description = "Security rules applied to this server" },
         ssl = { type = "wslproxy.ssl", cardinality = "one", description = "SSL configuration for this server" },
-        cache = { type = "wslproxy.cache", cardinality = "one", description = "Cache configuration" }
+        cache = { type = "wslproxy.cache", cardinality = "one", description = "Cache configuration" },
+        waf_policy = { type = "wslproxy.waf_policy", cardinality = "one", description = "Bound WAF policy" }
     }
 }
 
@@ -363,6 +369,29 @@ _M.waf_policy = {
         profile_id = { type = "string", required = false, description = "Environment profile" },
         created_at = { type = "number", required = false, description = "Creation timestamp" },
         updated_at = { type = "number", required = false, description = "Last update timestamp" }
+    }
+}
+
+-- wslproxy.gateway_config resource schema (composite view of server gateway settings)
+_M.gateway_config = {
+    type = "wslproxy.gateway_config",
+    version = "1.0.0",
+    description = "Virtual Server gateway configuration: WAF binding, rate limiting, security posture",
+    properties = {
+        id = { type = "string", required = true, description = "Server identifier" },
+        server_name = { type = "string", required = true, description = "Server hostname" },
+        profile_id = { type = "string", required = true, description = "Environment profile" },
+        waf_enabled = { type = "boolean", required = true, description = "Whether WAF inspection is active" },
+        waf_policy_id = { type = "string", required = false, description = "Bound WAF policy identifier" },
+        waf_mode_override = { type = "string", required = false, description = "Per-server WAF mode override", enum = {"block", "monitor"} },
+        rate_limit_enabled = { type = "boolean", required = true, description = "Whether rate limiting is active" },
+        rate_limit = { type = "object", required = false, description = "Rate limit settings (requests_per_second, burst)" },
+        ssl_enabled = { type = "boolean", required = false, description = "Whether SSL/TLS is enabled" },
+        cache_enabled = { type = "boolean", required = false, description = "Whether caching is enabled" }
+    },
+    relationships = {
+        waf_policy = { type = "wslproxy.waf_policy", cardinality = "one", description = "Bound WAF policy" },
+        profile = { type = "wslproxy.profile", cardinality = "one", description = "Environment profile" }
     }
 }
 

@@ -104,6 +104,43 @@ local function validateServerPayload(payloads)
         end
     end
 
+    -- Validate WAF fields
+    if payloads.waf_enabled == true then
+        if not payloads.waf_policy_id or payloads.waf_policy_id == "" then
+            table.insert(errors, {
+                field = "waf_policy_id",
+                message = "WAF policy ID is required when WAF is enabled"
+            })
+        end
+    end
+    if payloads.waf_mode_override ~= nil and payloads.waf_mode_override ~= "" then
+        local valid_modes = { block = true, monitor = true }
+        if not valid_modes[payloads.waf_mode_override] then
+            table.insert(errors, {
+                field = "waf_mode_override",
+                message = "WAF mode override must be 'block' or 'monitor'"
+            })
+        end
+    end
+
+    -- Validate rate limit fields
+    if payloads.rate_limit_enabled == true then
+        if payloads.rate_limit and type(payloads.rate_limit) == "table" then
+            if payloads.rate_limit.requests_per_second and type(payloads.rate_limit.requests_per_second) ~= "number" then
+                table.insert(errors, {
+                    field = "rate_limit.requests_per_second",
+                    message = "Requests per second must be a number"
+                })
+            end
+            if payloads.rate_limit.burst and type(payloads.rate_limit.burst) ~= "number" then
+                table.insert(errors, {
+                    field = "rate_limit.burst",
+                    message = "Burst must be a number"
+                })
+            end
+        end
+    end
+
     -- Validate SSL certificate fields if ssl_enabled is true
     if payloads.ssl_enabled == true then
         -- ssl_email is required when SSL is enabled
@@ -2219,6 +2256,30 @@ local function listWafEvents(args)
                 table.insert(events, event)
             end
         end
+    end
+
+    -- Filter by host if provided
+    local filter_host = args["filter[host]"] or args["host"]
+    if filter_host and filter_host ~= "" then
+        local filtered = {}
+        for _, event in ipairs(events) do
+            if event.host == filter_host then
+                table.insert(filtered, event)
+            end
+        end
+        events = filtered
+    end
+
+    -- Filter by type if provided
+    local filter_type = args["filter[type]"] or args["type"]
+    if filter_type and filter_type ~= "" then
+        local filtered = {}
+        for _, event in ipairs(events) do
+            if event.type == filter_type then
+                table.insert(filtered, event)
+            end
+        end
+        events = filtered
     end
 
     -- Sort by timestamp descending (newest first)
