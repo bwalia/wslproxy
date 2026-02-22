@@ -63,20 +63,21 @@
   register: cdn_deps_result
   tags: [openresty, lapis]
 
-- name: Show cdn-dependencies output
+- name: Show cdn-dependencies output (last 60 lines)
   debug:
-    msg: "{{ cdn_deps_result.stdout_lines[-30:] }}"
+    msg: "{{ cdn_deps_result.stdout_lines[-60:] }}"
   when: cdn_deps_result is defined
   tags: [openresty, lapis]
 
 - name: Verify critical Lua modules are installed
   shell: |
+    export PATH="/usr/local/openresty/luajit/bin:/usr/local/openresty/bin:/usr/local/bin:$PATH"
     echo "=== Checking lua-resty-jwt installation ==="
     find /usr/local/openresty /usr/local/share /usr/local/lib -name "jwt.lua" -path "*/resty/*" 2>/dev/null || echo "jwt.lua NOT FOUND anywhere"
     echo "=== Luarocks config ==="
-    luarocks config 2>/dev/null || echo "luarocks not available"
+    luarocks config deploy_lua_dir 2>/dev/null || echo "luarocks config failed"
     echo "=== Luarocks list ==="
-    luarocks list 2>/dev/null | head -20 || echo "luarocks list failed"
+    luarocks list 2>/dev/null | head -30 || echo "luarocks list failed"
   register: lua_module_check
   changed_when: false
   tags: [openresty, lapis]

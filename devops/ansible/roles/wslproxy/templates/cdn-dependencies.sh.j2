@@ -13,6 +13,7 @@ if ! command -v luarocks &> /dev/null; then
 fi
 echo "Using luarocks: $(which luarocks)"
 echo "Luarocks version: $(luarocks --version 2>&1 | head -1)"
+echo "Luarocks default tree: $(luarocks config deploy_lua_dir 2>/dev/null || echo 'unknown')"
 
 opm remove pintsized/lua-resty-http || true
 opm remove ledgetech/lua-resty-http || true
@@ -25,24 +26,42 @@ opm get thibaultcha/lua-resty-mlcache || true
 opm get 3scale/lua-resty-env || true
 
 # Install Lua modules via luarocks
-luarocks install lua-resty-jwt
-luarocks install lua-resty-session
-luarocks install lua-resty-http
-luarocks install lua-resty-openidc
-luarocks install base64
-luarocks install lua-resty-redis-connector
-luarocks install lua-resty-dns
-luarocks install lua-resty-resolver
-luarocks install luafilesystem
-luarocks install lua-resty-auto-ssl
-luarocks install pgmoon
-luarocks install lua-resty-consul
+# Use explicit tree to ensure modules land where nginx can find them
+LUAROCKS_FAILED=0
+install_rock() {
+  echo ">>> Installing $1 ..."
+  if luarocks install "$1" 2>&1; then
+    echo ">>> $1 installed successfully"
+  else
+    echo ">>> FAILED to install $1"
+    LUAROCKS_FAILED=1
+  fi
+}
+
+install_rock lua-resty-jwt
+install_rock lua-resty-session
+install_rock lua-resty-http
+install_rock lua-resty-openidc
+install_rock base64
+install_rock lua-resty-redis-connector
+install_rock lua-resty-dns
+install_rock lua-resty-resolver
+install_rock luafilesystem
+install_rock lua-resty-auto-ssl
+install_rock pgmoon
+install_rock lua-resty-consul
 
 # Show where modules were installed
-echo "Luarocks tree:"
-luarocks list 2>&1 | head -20
-echo "Lua paths:"
+echo "=== Luarocks installation summary ==="
+echo "Installed rocks:"
+luarocks list 2>&1
+echo "Lua paths configured by luarocks:"
 luarocks path 2>&1
+echo "Looking for jwt.lua:"
+find /usr/local/openresty /usr/local/share /usr/local/lib -name "jwt.lua" -path "*/resty/*" 2>/dev/null || echo "jwt.lua NOT FOUND"
+if [ $LUAROCKS_FAILED -ne 0 ]; then
+  echo "WARNING: Some luarocks packages failed to install"
+fi
 
 # Install nginx-lua-prometheus for Prometheus metrics
 cd /tmp && \
