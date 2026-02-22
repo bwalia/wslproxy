@@ -3,7 +3,7 @@ import Form from './Form';
 import { Create as RaCreate } from 'react-admin';
 const Create = () => {
   return (
-    <RaCreate title={"Server"} redirect="list">
+    <RaCreate title={"Virtual Server"} redirect="list">
         <Form type="create" />
     </RaCreate>
   )

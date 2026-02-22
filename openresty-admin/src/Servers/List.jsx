@@ -175,10 +175,10 @@ const List = () => {
         </Box>
         <Box>
           <Typography variant="h5" fontWeight={700} color="text.primary">
-            Servers
+            Virtual Servers
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Manage your proxy server configurations
+            Configure your virtual servers
           </Typography>
         </Box>
       </Box>
