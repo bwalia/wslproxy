@@ -192,11 +192,60 @@ http {
       location /ping {
           default_type 'application/json';
           add_header 'Access-Control-Allow-Origin' '*';
-          add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, PUT, DELETE';
-          add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, X-Requested-With';
-          add_header 'Access-Control-Max-Age' 1728069;
-          add_header 'Content-Type' 'text/plain; charset=utf-8';
-          content_by_lua_file /usr/local/openresty/nginx/html/api/ping.lua;
+          content_by_lua_block {
+              local cjson = require("cjson")
+              local configPath = os.getenv("NGINX_CONFIG_DIR") or "/opt/nginx/"
+
+              -- Read settings.json for storage_type and env vars
+              local settings = {}
+              local settingsFile = io.open(configPath .. "data/settings.json", "rb")
+              if settingsFile then
+                  local ok, decoded = pcall(cjson.decode, settingsFile:read("*a"))
+                  settingsFile:close()
+                  if ok then settings = decoded end
+              end
+              if not settings.env_vars then settings.env_vars = {} end
+
+              local storageType = settings.storage_type or os.getenv("STORAGE_TYPE") or "disk"
+              local dbStatusMsg = "No Database Selected"
+              if storageType == "redis" then
+                  local ok, redis = pcall(require, "resty.redis")
+                  if ok then
+                      local red = redis:new()
+                      red:set_timeouts(1000, 1000, 1000)
+                      local host = settings.env_vars.REDIS_HOST or os.getenv("REDIS_HOST") or "localhost"
+                      local port = settings.env_vars.REDIS_PORT or os.getenv("REDIS_PORT") or 6379
+                      local conn_ok = red:connect(host, port)
+                      dbStatusMsg = conn_ok and "OK" or "Failed to connect"
+                  end
+              end
+
+              -- Read OpenResty version
+              local versionFile = io.open("/opt/nginx/VERSION", "r")
+              local version = versionFile and versionFile:read("*a") or "unknown"
+              if versionFile then versionFile:close() end
+
+              local data = {
+                  response = "pong",
+                  app = settings.env_vars.APP_NAME or os.getenv("APP_NAME") or "wslproxy",
+                  version = settings.env_vars.VERSION or os.getenv("VERSION") or "unknown",
+                  hostname = settings.env_vars.HOSTNAME or os.getenv("HOSTNAME") or "unknown",
+                  openresty_version = version,
+                  redis_status_msg = dbStatusMsg,
+                  storage_type = storageType,
+                  node_uptime = os.date("%Y-%m-%d %H:%M:%S"),
+                  pod_uptime = "0 days",
+                  mendatory_env_vars_backend = {
+                      NGINX_CONFIG_DIR = configPath and "Found" or "Not Found",
+                      JWT_SECURITY_PASSPHRASE = (settings.env_vars.JWT_SECURITY_PASSPHRASE or os.getenv("JWT_SECURITY_PASSPHRASE")) and "Found" or "Not Found",
+                      PRIMARY_DNS_RESOLVER = (settings.env_vars.PRIMARY_DNS_RESOLVER or os.getenv("PRIMARY_DNS_RESOLVER")) and "Found" or "Not Found",
+                      SECONDARY_DNS_RESOLVER = (settings.env_vars.SECONDARY_DNS_RESOLVER or os.getenv("SECONDARY_DNS_RESOLVER")) and "Found" or "Not Found",
+                      DNS_RESOLVER_PORT = (settings.env_vars.DNS_RESOLVER_PORT or os.getenv("DNS_RESOLVER_PORT")) and "Found" or "Not Found",
+                  }
+              }
+              ngx.header.content_type = "application/json"
+              ngx.say(cjson.encode(data))
+          }
       }
 
 {% if nginx_web_ui_enabled is defined and nginx_web_ui_enabled == "yes" %}
