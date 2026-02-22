@@ -13,46 +13,34 @@ fi
 echo "Production environment detected - preserving openresty-admin directory"
 {% endif %}
 
-# Detect OS family
-if command -v zypper &> /dev/null; then
-  OS_FAMILY="suse"
-elif command -v apt-get &> /dev/null; then
-  OS_FAMILY="debian"
-else
-  echo "Unsupported OS"
-  exit 1
-fi
+# OS family detected by Ansible: {{ ansible_os_family }}
 
 # Install build dependencies based on OS
 install_build_deps() {
-  if [ "$OS_FAMILY" = "suse" ]; then
-    zypper --non-interactive install pcre-devel libopenssl-devel perl make gcc wget zlib-devel || true
-  else
-    # For ubuntu 22 or above
-    if (lsb_release -r | grep -q "22"); then
-      echo "Ubuntu 22 or above"
-      rm -f /usr/share/keyrings/openresty.gpg
-      wget -O - https://openresty.org/package/pubkey.gpg | sudo gpg --dearmor -o /usr/share/keyrings/openresty.gpg
-      echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/openresty.gpg] http://openresty.org/package/ubuntu $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/openresty.list > /dev/null
-      apt-get update
-      apt-get install ldconfig -y
-      apt-get -y install openresty-opm
-    fi
-
-    if (lsb_release -r | grep -q "24"); then
-      echo "Ubuntu 24 or above"
-      rm -f /usr/share/keyrings/openresty.gpg
-      wget -O - https://openresty.org/package/pubkey.gpg | sudo gpg --dearmor -o /usr/share/keyrings/openresty.gpg
-      echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/openresty.gpg] http://openresty.org/package/ubuntu $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/openresty.list > /dev/null
-      apt-get update
-      apt-get install ldconfig -y
-      apt-get -y install openresty-opm
-    fi
-
-    apt-get install libpcre3-dev \
-        libssl-dev perl make build-essential curl zlib1g-dev -y
-    apt-get install make gcc wget -y
+{% if ansible_os_family == "Suse" %}
+  zypper --non-interactive install {{ os_build_deps | join(' ') }} || true
+{% elif ansible_os_family == "RedHat" %}
+  dnf install -y {{ os_build_deps | join(' ') }}
+  # Add OpenResty yum repo for opm
+  wget https://openresty.org/package/centos/openresty.repo -O /etc/yum.repos.d/openresty.repo || true
+  dnf install -y openresty-opm || true
+{% else %}
+  # Debian/Ubuntu
+{% if ansible_distribution == "Ubuntu" %}
+  # Setup OpenResty apt repo for Ubuntu
+  UBUNTU_VERSION=$(lsb_release -rs | cut -d. -f1)
+  if [ "$UBUNTU_VERSION" -ge 22 ]; then
+    echo "Ubuntu ${UBUNTU_VERSION} detected"
+    rm -f /usr/share/keyrings/openresty.gpg
+    wget -O - https://openresty.org/package/pubkey.gpg | sudo gpg --dearmor -o /usr/share/keyrings/openresty.gpg
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/openresty.gpg] http://openresty.org/package/ubuntu $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/openresty.list > /dev/null
+    apt-get update
+    apt-get install ldconfig -y
+    apt-get -y install openresty-opm
   fi
+{% endif %}
+  apt-get install {{ os_build_deps | join(' ') }} -y
+{% endif %}
 }
 
 # Set OpenResty source directory
@@ -74,7 +62,6 @@ build_openresty() {
  cd /tmp
  git clone https://github.com/ffutop/ngx_http_env_module.git || true
 
-# OPENRESTY_VERSION="1.25.3.2"
 OPENRESTY_VERSION="1.27.1.2"
 wget https://openresty.org/download/openresty-${OPENRESTY_VERSION}.tar.gz
 tar -xzf openresty-${OPENRESTY_VERSION}.tar.gz
@@ -93,6 +80,29 @@ cd openresty-${OPENRESTY_VERSION}
 echo "Building OpenResty ${OPENRESTY_VERSION} completed"
 }
 
+# Install luarocks from source if not available via package manager
+install_luarocks() {
+  if command -v luarocks &> /dev/null; then
+    echo "luarocks already installed: $(luarocks --version)"
+    return 0
+  fi
+
+  echo "Installing luarocks from source..."
+  LUAROCKS_VERSION="3.11.1"
+  cd /tmp
+  wget -q https://luarocks.github.io/luarocks/releases/luarocks-${LUAROCKS_VERSION}.tar.gz
+  tar xzf luarocks-${LUAROCKS_VERSION}.tar.gz
+  cd luarocks-${LUAROCKS_VERSION}
+  ./configure --with-lua=/usr/local/openresty/luajit \
+    --lua-suffix=jit \
+    --with-lua-include=/usr/local/openresty/luajit/include/luajit-2.1
+  make
+  make install
+  cd /tmp
+  rm -rf luarocks-${LUAROCKS_VERSION} luarocks-${LUAROCKS_VERSION}.tar.gz
+  echo "luarocks installed: $(luarocks --version)"
+}
+
 # Main script
 build_openresty
-# exit 0
+install_luarocks

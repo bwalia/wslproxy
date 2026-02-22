@@ -1,0 +1,24 @@
+---
+# Bootstrap and OpenResty compilation from source
+
+- name: Copy openresty bootstrap script
+  template:
+    src: bootstrap.sh.j2
+    dest: /tmp/bootstrap.sh
+    mode: 0777
+  tags: [test, openresty]
+
+- name: Execute the bootstrap.sh openresty bootstrap script
+  shell: /tmp/bootstrap.sh
+  tags: [test, openresty]
+
+- name: Copy openresty build script
+  template:
+    src: openresty.sh.j2
+    dest: /tmp/openresty.sh
+    mode: 0777
+  tags: [openresty, lapis]
+
+- name: Execute the openresty.sh build script
+  shell: /tmp/openresty.sh
+  tags: [test, openresty, lapis]

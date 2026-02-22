@@ -1,0 +1,63 @@
+---
+# Deploy application files: HTML, API, settings, environment, CDN dependencies
+
+- name: Sync HTML files
+  ansible.posix.synchronize:
+    src: ../../html/
+    dest: /usr/local/openresty/nginx/html
+  register: sync_html
+  tags: [openresty, lapis, dashboard, html]
+
+- debug:
+    var: sync_html.stdout_lines
+  tags: [openresty, lapis, dashboard, html]
+
+- name: Sync API files
+  ansible.posix.synchronize:
+    src: ../../api/
+    dest: /usr/local/openresty/nginx/html/api
+  notify: Restart openresty
+  register: sync_api
+  tags: [openresty, lapis, dashboard, nginx]
+
+- debug:
+    var: sync_api.stdout_lines
+  tags: [openresty, lapis, dashboard, nginx]
+
+- name: Copy CDN dependencies script
+  template:
+    src: cdn-dependencies.sh.j2
+    dest: /tmp/cdn-dependencies.sh
+    mode: 0777
+  tags: [openresty, lapis]
+
+- name: Ensure nginx data directory exists
+  ansible.builtin.file:
+    path: /opt/nginx/data/
+    state: directory
+    owner: "www-data"
+    group: root
+    mode: 0775
+  tags: [openresty, lapis]
+
+- name: Copy Settings Config file
+  copy:
+    src: "{{ local_settings_file_path }}"
+    dest: /opt/nginx/data/settings.json
+    mode: 0777
+    owner: "www-data"
+    group: root
+    remote_src: no
+  tags: [openresty, lapis, dashboard]
+
+- name: Copy Environment file
+  copy:
+    src: "{{ local_env_file_path }}"
+    dest: "/tmp/.env"
+    mode: 0777
+    remote_src: no
+  tags: [openresty, lapis, dashboard]
+
+- name: Execute the cdn-dependencies.sh script
+  shell: /tmp/cdn-dependencies.sh
+  tags: [openresty, lapis]

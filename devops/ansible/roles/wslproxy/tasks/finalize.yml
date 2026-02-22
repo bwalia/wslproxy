@@ -1,0 +1,114 @@
+---
+# Final deployment steps: nginx.conf, permissions, SSL, tenants, service start, verification
+
+- name: Template nginx.conf
+  template:
+    src: nginx.conf.j2
+    dest: /usr/local/openresty/nginx/conf/nginx.conf
+  notify: Restart openresty
+  tags: [openresty, lapis, dashboard, nginx]
+
+- name: Copy fix-permissions script
+  template:
+    src: fix-permissions.sh.j2
+    dest: /usr/sbin/fix-permissions.sh
+    mode: 0775
+  tags: [openresty, lapis, dashboard, nginx, permissions]
+
+- name: Fix nginx related directory permissions
+  shell: /usr/sbin/fix-permissions.sh
+  tags: [openresty, lapis, dashboard, nginx, permissions]
+
+- name: Deploy Let's Encrypt contact email configuration
+  template:
+    src: letsencrypt-contact.sh.j2
+    dest: /opt/nginx/data/ssl-certs/letsencrypt/conf.d/contact.sh
+    owner: "www-data"
+    group: root
+    mode: "0644"
+  tags: [openresty, lapis, nginx, ssl, default-server]
+
+- name: Sync tenant configurations
+  ansible.posix.synchronize:
+    src: ../../nginx-tenants.d/
+    dest: /opt/nginx/conf.d/
+  notify: Restart openresty
+  register: sync_tenants
+  tags: [openresty, lapis, dashboard, nginx]
+
+- name: Template servers-mixed-nginx.conf
+  template:
+    src: servers-mixed-nginx.conf.j2
+    dest: /opt/nginx/conf.d/servers-mixed-nginx.conf
+    mode: 0777
+  tags: [openresty, lapis, nginx]
+
+- debug:
+    var: sync_tenants.stdout_lines
+  tags: [openresty, lapis, dashboard, nginx]
+
+- name: Pre-flight nginx config test
+  command: /usr/local/openresty/nginx/sbin/nginx -t
+  register: nginx_preflight
+  changed_when: false
+  ignore_errors: true
+  tags: [openresty, lapis, dashboard, nginx]
+
+- name: Show pre-flight config test result
+  debug:
+    msg: "{{ nginx_preflight.stderr_lines | default(nginx_preflight.stdout_lines) }}"
+  when: nginx_preflight is defined
+  tags: [openresty, lapis, dashboard, nginx]
+
+- name: Enable and start OpenResty service
+  systemd:
+    name: openresty
+    state: started
+    enabled: yes
+  register: openresty_start
+  ignore_errors: true
+  tags: [openresty, lapis, dashboard, nginx]
+
+- name: Capture OpenResty service status on failure
+  shell: |
+    echo "=== systemctl status ==="
+    systemctl status openresty.service --no-pager -l 2>&1 || true
+    echo "=== journalctl last 30 lines ==="
+    journalctl -u openresty.service --no-pager -n 30 2>&1 || true
+  register: service_debug
+  when: openresty_start is failed
+  tags: [openresty, lapis, dashboard, nginx]
+
+- name: Show OpenResty service failure details
+  debug:
+    msg: "{{ service_debug.stdout_lines }}"
+  when: openresty_start is failed and service_debug is defined
+  tags: [openresty, lapis, dashboard, nginx]
+
+- name: Fail if OpenResty service did not start
+  fail:
+    msg: "OpenResty service failed to start. See diagnostic output above."
+  when: openresty_start is failed
+  tags: [openresty, lapis, dashboard, nginx]
+
+- name: Verify Nginx config
+  command: openresty -t
+  changed_when: false
+  tags: [openresty, lapis, dashboard, nginx]
+
+- name: Verify OpenResty file descriptor limits
+  shell: |
+    NGINX_PID=$(pgrep -o nginx || pgrep -o openresty || echo "")
+    if [ -n "$NGINX_PID" ]; then
+      cat /proc/$NGINX_PID/limits | grep "open files"
+    else
+      echo "Nginx not running - limits will be applied on next start"
+    fi
+  register: fd_limits_check
+  changed_when: false
+  tags: [openresty, lapis, nginx, limits, verify]
+
+- name: Display current file descriptor limits
+  debug:
+    msg: "{{ fd_limits_check.stdout_lines }}"
+  tags: [openresty, lapis, nginx, limits, verify]

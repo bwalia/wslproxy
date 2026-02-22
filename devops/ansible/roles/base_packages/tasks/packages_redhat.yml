@@ -1,0 +1,20 @@
+---
+# RHEL/Rocky/AlmaLinux package management
+
+- name: Install EPEL repository
+  dnf:
+    name: epel-release
+    state: present
+  ignore_errors: true
+  tags: [base_packages, redhat]
+
+- name: Update dnf cache
+  dnf:
+    update_cache: yes
+  tags: [base_packages, redhat]
+
+- name: Install RHEL packages
+  dnf:
+    name: "{{ _os_packages.RedHat.common }}"
+    state: present
+  tags: [base_packages, redhat]
