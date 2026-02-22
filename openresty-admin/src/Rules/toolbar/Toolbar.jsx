@@ -22,8 +22,11 @@ const Toolbar = () => {
     //   notify(`Something went wrong! Please check all required fields`, { type: 'error' });
     //   return false;
     // }
-    const encodeData = encodeURIComponent(data.match.response.message);
-    data.match.response.message = encodeData;
+    // Base64-encode the HTML response body (UTF-8 safe)
+    const message = data.match.response.message;
+    data.match.response.message = message
+      ? btoa(unescape(encodeURIComponent(message)))
+      : "";
 
     if (id) {
       data.id = id
