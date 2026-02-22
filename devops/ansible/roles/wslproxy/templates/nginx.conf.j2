@@ -36,7 +36,10 @@ env MCP_MODE;
 env MCP_API_KEY;
 env MCP_TOOLS_ENABLED;
 
+{% if target_env == 'prod' %}
+# TCP stream proxy configs (only on production proxy hosts)
 include /opt/nginx/base.d/*.conf;
+{% endif %}
 
 http {
 
