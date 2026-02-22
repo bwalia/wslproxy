@@ -7,6 +7,7 @@ import {
   Typography,
   FormHelperText,
   Paper,
+  useTheme,
 } from "@mui/material";
 import CodeMirror from "@uiw/react-codemirror";
 import { html } from "@codemirror/lang-html";
@@ -37,6 +38,9 @@ function tryDecodeBase64(value) {
 }
 
 const HtmlEditorInput = ({ source, label, ...rest }) => {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
+
   const {
     field,
     fieldState: { error },
@@ -65,20 +69,41 @@ const HtmlEditorInput = ({ source, label, ...rest }) => {
 
   return (
     <Box sx={{ width: "100%" }}>
-      <Typography variant="caption" color="textSecondary" sx={{ mb: 0.5 }}>
+      <Typography
+        variant="caption"
+        sx={{ mb: 0.5, color: "text.secondary" }}
+      >
         {label || "Response Body (HTML)"}
       </Typography>
 
-      <Paper variant="outlined" sx={{ overflow: "hidden" }}>
+      <Paper
+        variant="outlined"
+        sx={{
+          overflow: "hidden",
+          borderColor: isDark ? "#334155" : theme.palette.divider,
+          bgcolor: "background.paper",
+        }}
+      >
         <Tabs
           value={activeTab}
           onChange={(_, v) => setActiveTab(v)}
           sx={{
             minHeight: 36,
             borderBottom: 1,
-            borderColor: "divider",
-            bgcolor: "grey.50",
-            "& .MuiTab-root": { minHeight: 36, textTransform: "none", fontSize: "0.8125rem" },
+            borderColor: isDark ? "#334155" : "divider",
+            bgcolor: isDark ? "rgba(15, 23, 42, 0.5)" : "grey.50",
+            "& .MuiTab-root": {
+              minHeight: 36,
+              textTransform: "none",
+              fontSize: "0.8125rem",
+              color: "text.secondary",
+              "&.Mui-selected": {
+                color: "primary.main",
+              },
+            },
+            "& .MuiTabs-indicator": {
+              backgroundColor: "primary.main",
+            },
           }}
         >
           <Tab label="HTML Editor" />
@@ -90,6 +115,7 @@ const HtmlEditorInput = ({ source, label, ...rest }) => {
           <CodeMirror
             value={htmlValue}
             height="300px"
+            theme={isDark ? "dark" : "light"}
             extensions={[html()]}
             onChange={handleChange}
             basicSetup={{
@@ -99,21 +125,36 @@ const HtmlEditorInput = ({ source, label, ...rest }) => {
               closeBrackets: true,
               autocompletion: true,
             }}
+            style={{
+              fontSize: "0.875rem",
+            }}
           />
         )}
 
         {/* Preview Tab */}
         {activeTab === 1 && (
-          <Box sx={{ minHeight: 300, p: 0 }}>
+          <Box sx={{ minHeight: 300, p: 0, bgcolor: "background.paper" }}>
             {htmlValue ? (
               <iframe
                 title="HTML Preview"
-                srcDoc={htmlValue}
+                srcDoc={`<!DOCTYPE html>
+<html>
+<head><style>
+  body {
+    font-family: ${theme.typography.fontFamily};
+    margin: 12px;
+    color: ${theme.palette.text.primary};
+    background: ${theme.palette.background.paper};
+  }
+</style></head>
+<body>${htmlValue}</body>
+</html>`}
                 sandbox="allow-same-origin"
                 style={{
                   width: "100%",
                   height: 300,
                   border: "none",
+                  display: "block",
                 }}
               />
             ) : (
@@ -126,16 +167,18 @@ const HtmlEditorInput = ({ source, label, ...rest }) => {
                   color: "text.disabled",
                 }}
               >
-                <Typography variant="body2">No HTML content to preview</Typography>
+                <Typography variant="body2">
+                  No HTML content to preview
+                </Typography>
               </Box>
             )}
           </Box>
         )}
       </Paper>
 
-      <FormHelperText error={!!error}>
+      <FormHelperText error={!!error} sx={{ color: "text.secondary" }}>
         {error?.message ||
-          "Write HTML directly — it will be automatically Base64-encoded when saved"}
+          "Write HTML directly \u2014 it will be automatically Base64-encoded when saved"}
       </FormHelperText>
     </Box>
   );
