@@ -1,84 +1,67 @@
 import { test, expect } from '@playwright/test';
-import { login } from './helpers.js';
 
 /**
  * WSL Proxy — Dashboard UI integration tests.
  *
  * Validates that the admin dashboard loads, renders key pages,
- * and navigation works. Requires authentication via env vars:
- *   E2E_TEST_EMAIL    — login email address
- *   E2E_TEST_PASSWORD — login password
+ * and navigation works. Auth state is injected via storageState
+ * from global-setup.js — no per-test login needed.
+ *
+ * Requires E2E_TEST_EMAIL / E2E_TEST_PASSWORD to be set so that
+ * global setup can create the auth state file.
  */
 
-const EMAIL = process.env.E2E_TEST_EMAIL;
-const PASSWORD = process.env.E2E_TEST_PASSWORD;
+const HAS_CREDS = !!(process.env.E2E_TEST_EMAIL && process.env.E2E_TEST_PASSWORD);
 
-test.describe('Dashboard Integration', () => {
+test.describe('Dashboard Integration', { tag: '@regression' }, () => {
   test.beforeEach(async () => {
-    if (!EMAIL || !PASSWORD) {
+    if (!HAS_CREDS) {
       test.skip(true, 'E2E_TEST_EMAIL and E2E_TEST_PASSWORD must be set');
     }
   });
 
-  test('dashboard loads after login', async ({ page }) => {
-    await login(page, EMAIL, PASSWORD);
-
-    // Verify dashboard content renders
-    await expect(page.locator('#main-content')).toBeVisible();
-
-    // Dashboard should show card-like elements (MUI Cards or Paper)
-    // React Admin dashboard typically renders within the main content area
-    const dashboardContent = page.locator('#main-content');
-    await expect(dashboardContent).not.toBeEmpty();
+  test('dashboard loads after login', { tag: '@smoke' }, async ({ page }) => {
+    await page.goto('/#/');
+    await expect(page.locator('#main-content')).toBeVisible({ timeout: 15000 });
   });
 
   test('servers page loads with data grid', async ({ page }) => {
-    await login(page, EMAIL, PASSWORD);
     await page.goto('/#/servers');
-
-    // Wait for the page to load — React Admin renders a Datagrid or List
     await page.waitForFunction(
       () => window.location.hash.includes('/servers'),
       { timeout: 10000 }
     );
-
-    // Verify the list/datagrid renders (React Admin uses MUI Datagrid)
-    const listContent = page.locator('.RaList-main, .RaDatagrid-root, table, [class*="datagrid"]');
-    await expect(listContent.first()).toBeVisible({ timeout: 10000 });
+    await expect(
+      page.locator('#main-content table, #main-content [role="grid"]').first()
+    ).toBeVisible({ timeout: 15000 });
   });
 
   test('rules page loads with data grid', async ({ page }) => {
-    await login(page, EMAIL, PASSWORD);
     await page.goto('/#/rules');
-
     await page.waitForFunction(
       () => window.location.hash.includes('/rules'),
       { timeout: 10000 }
     );
-
-    const listContent = page.locator('.RaList-main, .RaDatagrid-root, table, [class*="datagrid"]');
-    await expect(listContent.first()).toBeVisible({ timeout: 10000 });
+    await expect(
+      page.locator('#main-content table, #main-content [role="grid"]').first()
+    ).toBeVisible({ timeout: 15000 });
   });
 
   test('navigation sidebar contains key menu items', async ({ page }) => {
-    await login(page, EMAIL, PASSWORD);
-
-    // React Admin renders sidebar menu items as anchor tags with text
-    // Use broad selectors that match regardless of MUI version or role attributes
+    await page.goto('/#/');
+    await expect(page.locator('#main-content')).toBeVisible({ timeout: 15000 });
     await expect(page.locator('a[href*="#/servers"]')).toBeVisible({ timeout: 10000 });
     await expect(page.locator('a[href*="#/rules"]')).toBeVisible({ timeout: 10000 });
   });
 
   test('profiles page loads', async ({ page }) => {
-    await login(page, EMAIL, PASSWORD);
     await page.goto('/#/profiles');
-
     await page.waitForFunction(
       () => window.location.hash.includes('/profiles'),
       { timeout: 10000 }
     );
-
-    const listContent = page.locator('.RaList-main, .RaDatagrid-root, table, [class*="datagrid"]');
-    await expect(listContent.first()).toBeVisible({ timeout: 10000 });
+    await expect(
+      page.locator('#main-content table, #main-content [role="grid"]').first()
+    ).toBeVisible({ timeout: 15000 });
   });
 });

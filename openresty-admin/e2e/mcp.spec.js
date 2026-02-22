@@ -10,8 +10,7 @@ import { test, expect } from '@playwright/test';
  * Tests gracefully skip if MCP is not deployed (503 response).
  */
 
-test.describe('MCP Protocol', () => {
-  /** Probe /mcp/manifest to check if MCP is available on this environment. */
+test.describe('MCP Protocol', { tag: '@regression' }, () => {
   let mcpAvailable = false;
 
   test.beforeAll(async ({ request }) => {

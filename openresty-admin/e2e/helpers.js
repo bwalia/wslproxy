@@ -26,3 +26,18 @@ export async function login(page, email, password) {
   );
   await page.locator('#main-content').waitFor({ state: 'visible', timeout: 10000 });
 }
+
+/**
+ * Clear browser storage to ensure test isolation.
+ *
+ * Removes localStorage and sessionStorage so tests start from
+ * a clean state without leftover auth tokens or cached data.
+ *
+ * @param {import('@playwright/test').Page} page - Playwright page instance
+ */
+export async function clearAppState(page) {
+  await page.evaluate(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+  });
+}
