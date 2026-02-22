@@ -286,14 +286,14 @@ jobs:
   # ──────────────────────────────────────────────────────
   # Stage 4: Deploy Production (185.237.99.238 / pop0)
   # Fully automated — no manual approval gate
-  # Only from release branch push or manual dispatch targeting prod
+  # From main/release branch push or manual dispatch targeting prod
   # ──────────────────────────────────────────────────────
   deploy-production:
     name: "Stage 4: Deploy Production (pop0)"
     runs-on: [self-hosted]
     needs: [test-environment]
     if: >
-      (github.event_name == 'push' && github.ref == 'refs/heads/release') ||
+      (github.event_name == 'push' && (github.ref == 'refs/heads/release' || github.ref == 'refs/heads/main')) ||
       (github.event_name == 'workflow_dispatch' && github.event.inputs.TARGET_HOST == '185.237.99.238')
     timeout-minutes: 30
 
