@@ -40,16 +40,12 @@
 - name: Load host variables
   include_vars: "{{ playbook_dir }}/host_vars/{{ inventory_hostname }}/vars.yaml"
 
-- name: Copy openresty bootstrap script
-  template:
-    src: bootstrap.sh.j2
-    dest: /tmp/bootstrap.sh
-    mode: 0777
-  tags: [test, openresty]
-
-- name: Execute the bootstrap.sh openresty bootstrap script
-  shell: /tmp/bootstrap.sh
-  tags: [test, openresty]
+# Create www-data user/group BEFORE bootstrap (bootstrap chowns to www-data)
+- name: Ensure www-data group exists
+  group:
+    name: www-data
+    state: present
+  tags: [openresty, lapis, dashboard, nginx]
 
 - name: Adding user www-data
   user:
@@ -74,6 +70,17 @@
     groups: "{{ 'wheel' if ansible_os_family == 'Suse' else 'sudo' }}"
     append: yes
   tags: [openresty, lapis, dashboard, nginx]
+
+- name: Copy openresty bootstrap script
+  template:
+    src: bootstrap.sh.j2
+    dest: /tmp/bootstrap.sh
+    mode: 0777
+  tags: [test, openresty]
+
+- name: Execute the bootstrap.sh openresty bootstrap script
+  shell: /tmp/bootstrap.sh
+  tags: [test, openresty]
 
 - name: make sure base nginx conf dir exits
   ansible.builtin.file:
