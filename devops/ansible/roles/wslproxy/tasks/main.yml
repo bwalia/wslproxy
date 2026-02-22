@@ -1,4 +1,5 @@
 - name: Update and upgrade apt packages
+  when: ansible_os_family != "Suse"
   block:
     - name: Update apt cache
       command: apt-get update
@@ -15,11 +16,26 @@
       delay: 10
   tags: [ubuntu, openresty, lapis]
 
-- name: Install luarocks
+- name: Refresh zypper repos (SUSE)
+  when: ansible_os_family == "Suse"
+  command: zypper --non-interactive refresh
+  changed_when: false
+  tags: [suse, openresty, lapis]
+
+- name: Install luarocks (apt)
+  when: ansible_os_family != "Suse"
   apt:
     name: luarocks
     state: present
   tags: [openresty, lapis]
+
+- name: Install luarocks (zypper)
+  when: ansible_os_family == "Suse"
+  zypper:
+    name: luarocks
+    state: present
+  ignore_errors: true
+  tags: [suse, openresty, lapis]
 
 - name: Load host variables
   include_vars: "{{ playbook_dir }}/host_vars/{{ inventory_hostname }}/vars.yaml"
@@ -41,7 +57,7 @@
     group: www-data
     shell: /bin/bash
     password: "{{ nginx_user_password }}"
-    groups: sudo
+    groups: "{{ 'wheel' if ansible_os_family == 'Suse' else 'sudo' }}"
     append: yes
   tags: [openresty, lapis, dashboard, nginx]
 
@@ -52,10 +68,10 @@
     state: present
   tags: [openresty, lapis, dashboard, nginx]
 
-- name: Add www-data user to group sudo
+- name: Add www-data user to group sudo/wheel
   user:
     name: www-data
-    groups: sudo
+    groups: "{{ 'wheel' if ansible_os_family == 'Suse' else 'sudo' }}"
     append: yes
   tags: [openresty, lapis, dashboard, nginx]
 

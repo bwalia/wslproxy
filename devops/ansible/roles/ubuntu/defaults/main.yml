@@ -47,3 +47,38 @@ debian_specific_packages:
   - libpcre2-dev
   - openjdk-21-jdk
   - netcat-openbsd
+
+# SUSE/openSUSE packages (zypper equivalents)
+suse_packages:
+  - python3-pip
+  - python3-setuptools
+  - libz1
+  - zlib-devel
+  - libopenssl-devel
+  - rsync
+  - cron
+  - git
+  - curl
+  - wget
+  - unzip
+  - zip
+  - jq
+  - net-tools
+  - iputils
+  - bind-utils
+  - htop
+  - tree
+  - device-mapper
+  - nfs-client
+  - open-iscsi
+  - ansible
+  - vim
+  - make
+  - gcc
+  - gcc-c++
+  - python3
+  - npm20
+  - openssh
+  - ca-certificates
+  - pcre-devel
+  - luarocks
