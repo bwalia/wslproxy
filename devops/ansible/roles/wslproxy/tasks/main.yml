@@ -296,6 +296,7 @@
     path: /etc/pam.d/common-session
     line: "session required pam_limits.so"
     state: present
+  when: ansible_os_family != "Suse"
   tags: [openresty, lapis, nginx, limits]
 
 - name: Configure PAM noninteractive to use limits.conf
@@ -303,8 +304,19 @@
     path: /etc/pam.d/common-session-noninteractive
     line: "session required pam_limits.so"
     state: present
-  ignore_errors: yes
+  ignore_errors: true
+  when: ansible_os_family != "Suse"
   tags: [openresty, lapis, nginx, limits]
+
+- name: Configure PAM to use limits.conf (SUSE)
+  lineinfile:
+    path: /etc/pam.d/common-session
+    line: "session required pam_limits.so"
+    state: present
+    create: true
+  ignore_errors: true
+  when: ansible_os_family == "Suse"
+  tags: [suse, openresty, lapis, nginx, limits]
 
 - name: Set kernel-level max file descriptors (fs.file-max)
   sysctl:
