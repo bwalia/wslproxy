@@ -1,6 +1,6 @@
 name: Build and Deploy WSLProxy
-# Fully automated 5-stage pipeline — no human in loop
-# Validate → Smoke Test (Docker Compose) → Deploy Int (Ansible) → Test → Deploy Prod (Ansible)
+# Fully automated 4-stage pipeline — no human in loop
+# Validate → Deploy Int (Ansible) → Test (Integration) → Deploy Prod (Ansible)
 # Fail-fast: any stage failure stops the pipeline and sends Slack notification immediately
 
 on:
@@ -116,100 +116,12 @@ jobs:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
   # ──────────────────────────────────────────────────────
-  # Stage 2: Smoke Test (Docker Compose on slworker00)
-  # ──────────────────────────────────────────────────────
-  smoke-test:
-    name: "Stage 2: Smoke Test (Docker Compose)"
-    runs-on: [self-hosted, Linux]
-    needs: [build-validate]
-    timeout-minutes: 10
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Clean up previous containers
-        run: |
-          docker compose -f docker-compose-prod.yml down -v 2>/dev/null || true
-          docker rm -f wslproxy-prod wslproxy-redis 2>/dev/null || true
-
-      - name: Pull latest images
-        run: docker compose -f docker-compose-prod.yml pull
-
-      - name: Start services
-        run: docker compose -f docker-compose-prod.yml up -d
-
-      - name: Wait for health check
-        run: |
-          MAX_ATTEMPTS=20
-          INTERVAL=5
-          for i in $(seq 1 $MAX_ATTEMPTS); do
-            STATUS=$(curl -sf -o /dev/null -w "%{http_code}" http://localhost:8080/health 2>/dev/null || echo "000")
-            if [ "$STATUS" = "200" ]; then
-              echo "WSLProxy healthy (attempt $i/$MAX_ATTEMPTS)"
-              exit 0
-            fi
-            echo "Attempt $i/$MAX_ATTEMPTS: HTTP $STATUS — waiting ${INTERVAL}s..."
-            sleep $INTERVAL
-          done
-          echo "::error::WSLProxy not healthy after $((MAX_ATTEMPTS * INTERVAL))s"
-          docker compose -f docker-compose-prod.yml logs --tail=50 wslproxy
-          exit 1
-
-      - name: Verify /ping
-        run: |
-          RESPONSE=$(curl -sf http://localhost:8080/ping 2>&1)
-          echo "$RESPONSE" | grep -q "pong" || { echo "::error::Ping check failed: $RESPONSE"; exit 1; }
-          echo "Ping OK"
-
-      - name: API smoke tests
-        run: |
-          FAILED=0
-          for ENDPOINT in /api/servers /api/rules /api/waf_rules /api/waf_policies; do
-            STATUS=$(curl -sf -o /dev/null -w "%{http_code}" "http://localhost:8080${ENDPOINT}" 2>/dev/null || echo "000")
-            if [ "$STATUS" = "200" ]; then
-              printf "  GET %-25s OK (%s)\n" "$ENDPOINT" "$STATUS"
-            else
-              printf "  GET %-25s FAIL (%s)\n" "$ENDPOINT" "$STATUS"
-              FAILED=$((FAILED+1))
-            fi
-          done
-          if [ $FAILED -gt 0 ]; then
-            echo "::error::$FAILED smoke test(s) failed"
-            exit 1
-          fi
-          echo "All smoke tests passed"
-
-      - name: Cleanup
-        if: always()
-        run: |
-          docker compose -f docker-compose-prod.yml down -v 2>/dev/null || true
-          docker rm -f wslproxy-prod wslproxy-redis 2>/dev/null || true
-
-      - name: Slack notify - Smoke test failed
-        if: failure()
-        uses: rtCamp/action-slack-notify@v2
-        env:
-          SLACK_CHANNEL: github-updates
-          SLACK_COLOR: danger
-          SLACK_ICON: https://github.com/rtCamp.png?size=48
-          SLACK_MESSAGE: |
-            :x: *Stage 2 FAILED: Docker Compose Smoke Test*
-            Container health check or API tests failed on slworker00 — pipeline stopped.
-            *Branch:* ${{ github.ref_name }} | *Commit:* `${{ github.sha }}`
-            *Triggered by:* ${{ github.actor }} (${{ github.event_name }})
-            *Logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          SLACK_TITLE: "WSLProxy Pipeline Failed — Stage 2"
-          SLACK_USERNAME: GitHub Actions
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-
-  # ──────────────────────────────────────────────────────
-  # Stage 3: Deploy Int Environment (Ansible native to slworker00)
+  # Stage 2: Deploy Int Environment (Ansible native to slworker00)
   # ──────────────────────────────────────────────────────
   deploy-int:
-    name: "Stage 3: Deploy Int (Ansible to slworker00)"
+    name: "Stage 2: Deploy Int (Ansible to slworker00)"
     runs-on: [self-hosted, Linux]
-    needs: [smoke-test]
+    needs: [build-validate]
     timeout-minutes: 30
 
     steps:
@@ -250,7 +162,7 @@ jobs:
       - name: Run Ansible Playbook (slworker00 / int)
         run: |
           echo "Deploying natively to slworker00 (env: int)"
-          ansible-playbook devops/ansible/wslproxy-ops.yml \
+          sudo ansible-playbook devops/ansible/wslproxy-ops.yml \
             -i devops/ansible/hosts \
             -l slworker00 \
             --extra-vars "nginx_user_password=THISCOMESFROMSECRETS target_env=int local_settings_file_path=/tmp/settings_brahmstra_slworker00.json local_env_file_path=/tmp/.env_brahmstra_slworker00"
@@ -289,21 +201,21 @@ jobs:
           SLACK_COLOR: danger
           SLACK_ICON: https://github.com/rtCamp.png?size=48
           SLACK_MESSAGE: |
-            :x: *Stage 3 FAILED: Ansible Deploy to slworker00 (int)*
+            :x: *Stage 2 FAILED: Ansible Deploy to slworker00 (int)*
             Native OpenResty deployment or post-deploy health check failed — pipeline stopped.
             *Branch:* ${{ github.ref_name }} | *Commit:* `${{ github.sha }}`
             *Triggered by:* ${{ github.actor }} (${{ github.event_name }})
             *Logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          SLACK_TITLE: "WSLProxy Pipeline Failed — Stage 3"
+          SLACK_TITLE: "WSLProxy Pipeline Failed — Stage 2"
           SLACK_USERNAME: GitHub Actions
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
   # ──────────────────────────────────────────────────────
-  # Stage 4: Test Environment
+  # Stage 3: Test Environment
   # Runs integration tests against natively deployed slworker00
   # ──────────────────────────────────────────────────────
   test-environment:
-    name: "Stage 4: Test Environment"
+    name: "Stage 3: Test Environment"
     runs-on: [self-hosted, Linux]
     needs: [deploy-int]
     timeout-minutes: 15
@@ -355,22 +267,22 @@ jobs:
           SLACK_COLOR: danger
           SLACK_ICON: https://github.com/rtCamp.png?size=48
           SLACK_MESSAGE: |
-            :x: *Stage 4 FAILED: Integration Tests on slworker00*
+            :x: *Stage 3 FAILED: Integration Tests on slworker00*
             Health check or API endpoint tests failed — pipeline stopped before production.
             *Branch:* ${{ github.ref_name }} | *Commit:* `${{ github.sha }}`
             *Triggered by:* ${{ github.actor }} (${{ github.event_name }})
             *Logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          SLACK_TITLE: "WSLProxy Pipeline Failed — Stage 4"
+          SLACK_TITLE: "WSLProxy Pipeline Failed — Stage 3"
           SLACK_USERNAME: GitHub Actions
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
   # ──────────────────────────────────────────────────────
-  # Stage 5: Deploy Production (185.237.99.238 / pop0)
+  # Stage 4: Deploy Production (185.237.99.238 / pop0)
   # Fully automated — no manual approval gate
   # Only from release branch push or manual dispatch targeting prod
   # ──────────────────────────────────────────────────────
   deploy-production:
-    name: "Stage 5: Deploy Production (pop0)"
+    name: "Stage 4: Deploy Production (pop0)"
     runs-on: [self-hosted]
     needs: [test-environment]
     if: >
@@ -475,7 +387,7 @@ jobs:
           SLACK_ICON: https://github.com/rtCamp.png?size=48
           SLACK_MESSAGE: |
             :white_check_mark: *WSLProxy deployed to production*
-            All 5 pipeline stages passed. Zero-downtime deployment complete.
+            All 4 pipeline stages passed. Zero-downtime deployment complete.
             *Host:* 185.237.99.238 (pop0)
             *Branch:* ${{ github.ref_name }} | *Commit:* `${{ github.sha }}`
             *Triggered by:* ${{ github.actor }} (${{ github.event_name }})
@@ -491,7 +403,7 @@ jobs:
           SLACK_COLOR: danger
           SLACK_ICON: https://github.com/rtCamp.png?size=48
           SLACK_MESSAGE: |
-            :rotating_light: *Stage 5 FAILED: Production Deployment*
+            :rotating_light: *Stage 4 FAILED: Production Deployment*
             Ansible deploy or post-deploy health check failed on 185.237.99.238.
             *Branch:* ${{ github.ref_name }} | *Commit:* `${{ github.sha }}`
             *Triggered by:* ${{ github.actor }} (${{ github.event_name }})
@@ -502,12 +414,12 @@ jobs:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
   # ──────────────────────────────────────────────────────
-  # Pipeline Summary (always runs — final Slack report)
+  # Pipeline Summary (always runs — final report)
   # ──────────────────────────────────────────────────────
   pipeline-summary:
     name: Pipeline Summary
     runs-on: ubuntu-latest
-    needs: [build-validate, smoke-test, deploy-int, test-environment, deploy-production]
+    needs: [build-validate, deploy-int, test-environment, deploy-production]
     if: always()
     steps:
       - name: Pipeline Summary
@@ -517,10 +429,9 @@ jobs:
           echo "============================================"
           echo ""
           echo "  Stage 1 — Build & Validate:      ${{ needs.build-validate.result }}"
-          echo "  Stage 2 — Smoke Test (Docker):    ${{ needs.smoke-test.result }}"
-          echo "  Stage 3 — Deploy Int (Ansible):   ${{ needs.deploy-int.result }}"
-          echo "  Stage 4 — Test Environment:       ${{ needs.test-environment.result }}"
-          echo "  Stage 5 — Deploy Production:      ${{ needs.deploy-production.result }}"
+          echo "  Stage 2 — Deploy Int (Ansible):   ${{ needs.deploy-int.result }}"
+          echo "  Stage 3 — Test Environment:       ${{ needs.test-environment.result }}"
+          echo "  Stage 4 — Deploy Production:      ${{ needs.deploy-production.result }}"
           echo ""
           echo "  Commit:  ${{ github.sha }}"
           echo "  Branch:  ${{ github.ref_name }}"
@@ -529,7 +440,6 @@ jobs:
 
           # Fail this job if any required stage failed (makes the overall workflow status red)
           if [[ "${{ needs.build-validate.result }}" == "failure" ]] || \
-             [[ "${{ needs.smoke-test.result }}" == "failure" ]] || \
              [[ "${{ needs.deploy-int.result }}" == "failure" ]] || \
              [[ "${{ needs.test-environment.result }}" == "failure" ]] || \
              [[ "${{ needs.deploy-production.result }}" == "failure" ]]; then

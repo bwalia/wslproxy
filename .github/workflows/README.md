@@ -2,14 +2,14 @@
 
 ## Build & Deploy Pipeline (`build-deploy-wslproxy.yml`)
 
-Fully automated 5-stage deployment pipeline with fail-fast behavior and Slack notifications at every gate. No human approval required — the pipeline promotes code from validation through integration testing to production automatically.
+Fully automated 4-stage deployment pipeline with fail-fast behavior and Slack notifications at every gate. No human approval required — the pipeline promotes code from validation through integration testing to production automatically.
 
 ### Triggers
 
 | Trigger | Branches | Behavior |
 |---------|----------|----------|
-| Push | `main` | Runs stages 1–4 (int deploy + test only) |
-| Push | `release` | Runs all 5 stages (through to production) |
+| Push | `main` | Runs stages 1–3 (int deploy + test only) |
+| Push | `release` | Runs all 4 stages (through to production) |
 | Manual (`workflow_dispatch`) | any | Choose target host and environment |
 
 ### Pipeline Stages
@@ -31,21 +31,7 @@ Fully automated 5-stage deployment pipeline with fail-fast behavior and Slack no
                             │ pass
                             ▼
  ┌──────────────────────────────────────────────────────────────────────┐
- │  STAGE 2: Smoke Test (Docker Compose)             [self-hosted]     │
- │                                                                      │
- │  - docker compose -f docker-compose-prod.yml up -d                  │
- │  - Wait for /health endpoint (20 retries × 5s)                     │
- │  - Verify /ping returns "pong"                                      │
- │  - API smoke tests: /api/servers, /api/rules,                       │
- │    /api/waf_rules, /api/waf_policies                                │
- │  - docker compose down -v (always, even on failure)                 │
- │                                                                      │
- │  ✗ Failure → Slack alert → pipeline stops                           │
- └──────────────────────────┬───────────────────────────────────────────┘
-                            │ pass
-                            ▼
- ┌──────────────────────────────────────────────────────────────────────┐
- │  STAGE 3: Deploy Int (Ansible native)             [self-hosted]     │
+ │  STAGE 2: Deploy Int (Ansible native)             [self-hosted]     │
  │                                                                      │
  │  - Decode INT settings + env from GitHub Secrets                    │
  │  - ansible-playbook wslproxy-ops.yml -l slworker00 (env: int)      │
@@ -59,7 +45,7 @@ Fully automated 5-stage deployment pipeline with fail-fast behavior and Slack no
                             │ pass
                             ▼
  ┌──────────────────────────────────────────────────────────────────────┐
- │  STAGE 4: Test Environment                        [self-hosted]     │
+ │  STAGE 3: Test Environment                        [self-hosted]     │
  │                                                                      │
  │  - Go health check tests (QA/01_healthcheck_test.go)                │
  │  - API endpoint verification: /ping, /health, /api/servers,         │
@@ -76,7 +62,7 @@ Fully automated 5-stage deployment pipeline with fail-fast behavior and Slack no
                             │
                             ▼
  ┌──────────────────────────────────────────────────────────────────────┐
- │  STAGE 5: Deploy Production                       [self-hosted]     │
+ │  STAGE 4: Deploy Production                       [self-hosted]     │
  │                                                                      │
  │  Target: 185.237.99.238 (pop0)                                      │
  │                                                                      │
@@ -96,7 +82,7 @@ Fully automated 5-stage deployment pipeline with fail-fast behavior and Slack no
  ┌──────────────────────────────────────────────────────────────────────┐
  │  PIPELINE SUMMARY (always runs)                   [ubuntu-latest]   │
  │                                                                      │
- │  Reports pass/fail for all 5 stages.                                │
+ │  Reports pass/fail for all 4 stages.                                │
  │  Exits with error if any stage failed.                              │
  └──────────────────────────────────────────────────────────────────────┘
 ```
@@ -112,10 +98,10 @@ Fully automated 5-stage deployment pipeline with fail-fast behavior and Slack no
 
 | Secret | Used by | Description |
 |--------|---------|-------------|
-| `DOT_WSLPROXY_SETTINGS_INT` | Stage 3 | Base64-encoded settings.json for int |
-| `DOT_WSLPROXY_ENV_CREDS_INT` | Stage 3 | Base64-encoded .env for int |
-| `DOT_WSLPROXY_SETTINGS_PROD` | Stage 5 | Base64-encoded settings.json for prod |
-| `DOT_WSLPROXY_ENV_CREDS_PROD` | Stage 5 | Base64-encoded .env for prod |
+| `DOT_WSLPROXY_SETTINGS_INT` | Stage 2 | Base64-encoded settings.json for int |
+| `DOT_WSLPROXY_ENV_CREDS_INT` | Stage 2 | Base64-encoded .env for int |
+| `DOT_WSLPROXY_SETTINGS_PROD` | Stage 4 | Base64-encoded settings.json for prod |
+| `DOT_WSLPROXY_ENV_CREDS_PROD` | Stage 4 | Base64-encoded .env for prod |
 | `SLACK_WEBHOOK` | All stages | Slack incoming webhook URL |
 
 ### Fail-Fast Behavior
@@ -124,16 +110,15 @@ Every stage sends a Slack notification on failure and stops the pipeline immedia
 
 ```
 Stage 1 fails → "Stage 1 FAILED: Build & Validate"      → pipeline stops
-Stage 2 fails → "Stage 2 FAILED: Docker Compose Smoke"   → pipeline stops
-Stage 3 fails → "Stage 3 FAILED: Ansible Deploy to int"  → pipeline stops
-Stage 4 fails → "Stage 4 FAILED: Integration Tests"      → pipeline stops (before prod)
-Stage 5 fails → "Stage 5 FAILED: Production Deployment"  → alert + manual rollback needed
+Stage 2 fails → "Stage 2 FAILED: Ansible Deploy to int"  → pipeline stops
+Stage 3 fails → "Stage 3 FAILED: Integration Tests"      → pipeline stops (before prod)
+Stage 4 fails → "Stage 4 FAILED: Production Deployment"  → alert + manual rollback needed
 ```
 
 ### Rollback
 
-- **Stages 1–4 failure**: Production is never touched. Fix the issue and push again.
-- **Stage 5 failure**: Re-run the workflow from a previous known-good commit on the `release` branch, or use `workflow_dispatch` to target a specific commit.
+- **Stages 1–3 failure**: Production is never touched. Fix the issue and push again.
+- **Stage 4 failure**: Re-run the workflow from a previous known-good commit on the `release` branch, or use `workflow_dispatch` to target a specific commit.
 
 ### Concurrency
 
@@ -151,6 +136,7 @@ Only one deployment per branch at a time. In-progress deployments are **not** ca
 
 | Workflow | File | Purpose |
 |----------|------|---------|
+| Docker Compose Smoke Test | *(planned)* | Docker Compose smoke tests (to be added as separate workflow) |
 | Deploy Configs | `deploy-configs.yml` | Deploy server/rule JSON configs via Ansible |
 | E2E Tests | `e2e-tests.yml` | Playwright browser tests against deployed frontend |
 | API Test Suite | `automated-api-test-suite.yml` | Go-based API integration tests |
