@@ -93,11 +93,14 @@ install_luarocks() {
   wget -q https://luarocks.github.io/luarocks/releases/luarocks-${LUAROCKS_VERSION}.tar.gz
   tar xzf luarocks-${LUAROCKS_VERSION}.tar.gz
   cd luarocks-${LUAROCKS_VERSION}
-  ./configure --with-lua=/usr/local/openresty/luajit \
+  ./configure --prefix=/usr/local/openresty/luajit \
+    --with-lua=/usr/local/openresty/luajit \
     --lua-suffix=jit \
     --with-lua-include=/usr/local/openresty/luajit/include/luajit-2.1
   make
   make install
+  # Ensure luarocks is in PATH
+  ln -sf /usr/local/openresty/luajit/bin/luarocks /usr/local/bin/luarocks
   cd /tmp
   rm -rf luarocks-${LUAROCKS_VERSION} luarocks-${LUAROCKS_VERSION}.tar.gz
   echo "luarocks installed: $(luarocks --version)"
