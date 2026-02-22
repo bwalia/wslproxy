@@ -18,3 +18,4 @@ os_build_deps:
   - gcc
   - wget
   - zlib-devel
+  - unzip
