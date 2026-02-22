@@ -203,6 +203,11 @@ http {
         location = /404.html { root html; internal; }
         location = /50x.html { root html; internal; }
 
+        location = /ping {
+            access_log off;
+            return 200 "pong\n";
+        }
+
         location / {
           root   /usr/local/openresty/nginx/html/openresty-admin/dist;
           index  index.html index.htm;
