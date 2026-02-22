@@ -138,8 +138,6 @@ jobs:
             echo "::error::No supported package manager found (zypper or apt-get)"
             exit 1
           fi
-          export ANSIBLE_HOST_KEY_CHECKING=False
-
       - name: Decode settings file (INT)
         run: |
           echo "${{ secrets.DOT_WSLPROXY_SETTINGS_INT }}" | base64 -d > /tmp/settings_brahmstra_slworker00.json
@@ -161,13 +159,12 @@ jobs:
 
       - name: Run Ansible Playbook (slworker00 / int)
         run: |
-          echo "Deploying natively to slworker00 (env: int)"
+          echo "Deploying natively to slworker00 (env: int) via local connection"
           sudo ansible-playbook devops/ansible/wslproxy-ops.yml \
             -i devops/ansible/hosts \
             -l slworker00 \
+            --connection=local \
             --extra-vars "nginx_user_password=THISCOMESFROMSECRETS target_env=int local_settings_file_path=/tmp/settings_brahmstra_slworker00.json local_env_file_path=/tmp/.env_brahmstra_slworker00"
-        env:
-          ANSIBLE_PRIVATE_KEY_FILE: ~/.ssh/id_rsa
 
       - name: Post-deploy health gate
         run: |
