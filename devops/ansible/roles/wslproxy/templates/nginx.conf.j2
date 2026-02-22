@@ -184,17 +184,18 @@ http {
     }
     # global_backend ends
 
-    {% if nginx_web_ui_enabled is defined and nginx_web_ui_enabled == "yes" %}
-
-    # Openresty Admin UI BEGIN
-
+    # Health check server - always available
     server {
         listen       8080;
         server_name  localhost;
 
-        #charset koi8-r;
+        location = /ping {
+            access_log off;
+            return 200 "pong\n";
+        }
 
-        #access_log  logs/host.access.log  main;
+{% if nginx_web_ui_enabled is defined and nginx_web_ui_enabled == "yes" %}
+        # Openresty Admin UI
         error_page  403              /403.html;
         error_page  404              /404.html;
         error_page  500 502 503 504  /50x.html;
@@ -202,11 +203,6 @@ http {
         location = /403.html { root html; internal; }
         location = /404.html { root html; internal; }
         location = /50x.html { root html; internal; }
-
-        location = /ping {
-            access_log off;
-            return 200 "pong\n";
-        }
 
         location / {
           root   /usr/local/openresty/nginx/html/openresty-admin/dist;
@@ -408,10 +404,8 @@ http {
                 ngx.print(hc.status_page())
             }
         }
+{% endif %}
     }
-
-    # Openresty Admin UI END
-    {% endif %}
 
 
   # Internal server running on port 8999 for handling certificate tasks.
