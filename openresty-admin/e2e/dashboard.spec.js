@@ -50,8 +50,8 @@ test.describe('Dashboard Integration', { tag: '@regression' }, () => {
   test('navigation sidebar contains key menu items', async ({ page }) => {
     await page.goto('/#/');
     await expect(page.locator('#main-content')).toBeVisible({ timeout: 15000 });
-    await expect(page.locator('a[href*="#/servers"]')).toBeVisible({ timeout: 10000 });
-    await expect(page.locator('a[href*="#/rules"]')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('a[role="menuitem"][href*="#/servers"]')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('a[role="menuitem"][href*="#/rules"]')).toBeVisible({ timeout: 10000 });
   });
 
   test('profiles page loads', async ({ page }) => {
