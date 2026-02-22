@@ -225,6 +225,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.19'
+          cache: false
 
       - name: Run health check tests (Go)
         working-directory: QA
