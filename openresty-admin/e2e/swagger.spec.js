@@ -39,6 +39,6 @@ test.describe('Swagger & OpenAPI', () => {
 
     expect(body).toContain('/api/servers');
     expect(body).toContain('/api/rules');
-    expect(body).toContain('/ping');
+    expect(body).toContain('/api/user/login');
   });
 });

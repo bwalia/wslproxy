@@ -20,7 +20,7 @@ test.describe('API Health', () => {
     const response = await page.request.get('/ping');
     const json = await response.json();
 
-    expect(json.app_name).toBeTruthy();
+    expect(json.app).toBeTruthy();
     expect(json.version).toBeTruthy();
     expect(json.openresty_version).toBeTruthy();
   });

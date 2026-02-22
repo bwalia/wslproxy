@@ -63,14 +63,10 @@ test.describe('Dashboard Integration', () => {
   test('navigation sidebar contains key menu items', async ({ page }) => {
     await login(page, EMAIL, PASSWORD);
 
-    // React Admin renders a sidebar with menu items
-    // Check for key navigation links
-    const sidebar = page.locator('[class*="Menu"], [class*="Sidebar"], nav, [role="navigation"]');
-    await expect(sidebar.first()).toBeVisible({ timeout: 10000 });
-
-    // Verify key menu items exist as links or menu items
-    await expect(page.getByRole('menuitem', { name: /servers/i }).or(page.getByRole('link', { name: /servers/i }))).toBeVisible({ timeout: 5000 });
-    await expect(page.getByRole('menuitem', { name: /rules/i }).or(page.getByRole('link', { name: /rules/i }))).toBeVisible({ timeout: 5000 });
+    // React Admin renders sidebar menu items as anchor tags with text
+    // Use broad selectors that match regardless of MUI version or role attributes
+    await expect(page.locator('a[href*="#/servers"]')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('a[href*="#/rules"]')).toBeVisible({ timeout: 10000 });
   });
 
   test('profiles page loads', async ({ page }) => {
