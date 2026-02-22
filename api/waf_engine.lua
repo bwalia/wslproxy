@@ -350,6 +350,12 @@ function _M._inspect_impl(server_config, profile_id)
         return nil
     end
 
+    -- Apply per-Virtual Server mode override (does not mutate cached policy)
+    local effective_mode = policy.mode
+    if server_config.waf_mode_override and server_config.waf_mode_override ~= "" then
+        effective_mode = server_config.waf_mode_override
+    end
+
     local request_data = get_request_data()
 
     if is_whitelisted(policy, request_data) then
@@ -386,8 +392,8 @@ function _M._inspect_impl(server_config, profile_id)
                         detail = detail
                     })
 
-                    -- Immediate block for "block" action rules in "block" mode
-                    if rule.action == "block" and policy.mode == "block" then
+                    -- Immediate block for "block" action rules in "block" effective mode
+                    if rule.action == "block" and effective_mode == "block" then
                         _M.record_event("blocked", rule, server_config, request_data)
                         return {
                             action = "block",
@@ -403,7 +409,7 @@ function _M._inspect_impl(server_config, profile_id)
     end
 
     -- Anomaly score threshold check
-    if #matched_rules > 0 and total_score >= (policy.anomaly_threshold or 5) and policy.mode == "block" then
+    if #matched_rules > 0 and total_score >= (policy.anomaly_threshold or 5) and effective_mode == "block" then
         _M.record_event("blocked_anomaly", matched_rules[1], server_config, request_data)
         return {
             action = "block",

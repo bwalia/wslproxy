@@ -68,6 +68,64 @@ _M.TOOL_REGISTRY = {
         }
     },
     {
+        name = "bind_waf_policy",
+        description = "Bind a WAF policy to a Virtual Server. Sets waf_enabled=true and associates the specified WAF policy. Optionally override enforcement mode per-server. Idempotent: calling again with same args is a no-op.",
+        inputSchema = {
+            type = "object",
+            properties = {
+                server_id = {
+                    type = "string",
+                    description = "Server config filename (e.g., 'host:example.com.json')"
+                },
+                waf_policy_id = {
+                    type = "string",
+                    description = "WAF policy filename (e.g., 'owasp-standard.json')"
+                },
+                mode_override = {
+                    type = "string",
+                    description = "Optional per-server mode override: 'block' or 'monitor'. Null = use policy default."
+                },
+                profile_id = {
+                    type = "string",
+                    description = "Environment profile (default: 'prod')"
+                }
+            },
+            required = {"server_id", "waf_policy_id"}
+        },
+        annotations = {
+            title = "Bind WAF Policy to Server",
+            readOnlyHint = false,
+            destructiveHint = false,
+            idempotentHint = true,
+            openWorldHint = false
+        }
+    },
+    {
+        name = "unbind_waf_policy",
+        description = "Remove WAF policy binding from a Virtual Server. Sets waf_enabled=false and clears WAF policy ID and mode override. Idempotent: calling on a server with no WAF binding is a no-op.",
+        inputSchema = {
+            type = "object",
+            properties = {
+                server_id = {
+                    type = "string",
+                    description = "Server config filename (e.g., 'host:example.com.json')"
+                },
+                profile_id = {
+                    type = "string",
+                    description = "Environment profile (default: 'prod')"
+                }
+            },
+            required = {"server_id"}
+        },
+        annotations = {
+            title = "Unbind WAF Policy from Server",
+            readOnlyHint = false,
+            destructiveHint = false,
+            idempotentHint = true,
+            openWorldHint = false
+        }
+    },
+    {
         name = "test_waf_rule",
         description = "Test a WAF rule pattern against sample input. Validates the regex pattern and checks if it matches the provided test string. Read-only, safe for AI agents.",
         inputSchema = {
@@ -303,6 +361,134 @@ function _M.test_waf_rule(params)
     }
 end
 
+-- Tool: Bind WAF policy to a server
+function _M.bind_waf_policy(params)
+    local server_id = params.server_id
+    local waf_policy_id = params.waf_policy_id
+    local mode_override = params.mode_override
+    local profile_id = params.profile_id or "prod"
+    local configPath = os.getenv("NGINX_CONFIG_DIR") or "/opt/nginx/"
+
+    if not server_id or server_id == "" then
+        return { tool = "bind_waf_policy", result = { error = "server_id is required" }, isError = true }
+    end
+    if not waf_policy_id or waf_policy_id == "" then
+        return { tool = "bind_waf_policy", result = { error = "waf_policy_id is required" }, isError = true }
+    end
+    if mode_override and mode_override ~= "" then
+        local valid = { block = true, monitor = true }
+        if not valid[mode_override] then
+            return { tool = "bind_waf_policy", result = { error = "mode_override must be 'block' or 'monitor'" }, isError = true }
+        end
+    end
+
+    -- Verify server exists
+    local server_path = configPath .. "data/servers/" .. profile_id .. "/" .. server_id
+    if not server_path:match("%.json$") then server_path = server_path .. ".json" end
+    local f = io.open(server_path, "rb")
+    if not f then
+        return { tool = "bind_waf_policy", result = { error = "Server not found: " .. server_id }, isError = true }
+    end
+    local content = f:read("*a")
+    f:close()
+
+    local ok, server = pcall(cjson.decode, content)
+    if not ok then
+        return { tool = "bind_waf_policy", result = { error = "Failed to parse server config" }, isError = true }
+    end
+
+    -- Verify WAF policy exists
+    local policy_path = configPath .. "data/waf_policies/" .. profile_id .. "/" .. waf_policy_id
+    if not policy_path:match("%.json$") then policy_path = policy_path .. ".json" end
+    local pf = io.open(policy_path, "rb")
+    if not pf then
+        return { tool = "bind_waf_policy", result = { error = "WAF policy not found: " .. waf_policy_id }, isError = true }
+    end
+    pf:close()
+
+    -- Update server config
+    server.waf_enabled = true
+    server.waf_policy_id = waf_policy_id:gsub("%.json$", "")
+    server.waf_mode_override = (mode_override and mode_override ~= "") and mode_override or nil
+
+    -- Write back
+    local wf = io.open(server_path, "wb")
+    if not wf then
+        return { tool = "bind_waf_policy", result = { error = "Failed to write server config" }, isError = true }
+    end
+    wf:write(cjson.encode(server))
+    wf:close()
+
+    ngx.log(ngx.INFO, "MCP: WAF policy '", waf_policy_id, "' bound to server '", server_id, "' by ", ngx.var.remote_addr)
+
+    return {
+        tool = "bind_waf_policy",
+        result = {
+            success = true,
+            server_id = server_id,
+            waf_policy_id = server.waf_policy_id,
+            waf_enabled = true,
+            waf_mode_override = server.waf_mode_override,
+            message = "WAF policy bound successfully",
+            timestamp = os.date("%Y-%m-%dT%H:%M:%SZ", ngx.time())
+        },
+        isError = false
+    }
+end
+
+-- Tool: Unbind WAF policy from a server
+function _M.unbind_waf_policy(params)
+    local server_id = params.server_id
+    local profile_id = params.profile_id or "prod"
+    local configPath = os.getenv("NGINX_CONFIG_DIR") or "/opt/nginx/"
+
+    if not server_id or server_id == "" then
+        return { tool = "unbind_waf_policy", result = { error = "server_id is required" }, isError = true }
+    end
+
+    -- Read server config
+    local server_path = configPath .. "data/servers/" .. profile_id .. "/" .. server_id
+    if not server_path:match("%.json$") then server_path = server_path .. ".json" end
+    local f = io.open(server_path, "rb")
+    if not f then
+        return { tool = "unbind_waf_policy", result = { error = "Server not found: " .. server_id }, isError = true }
+    end
+    local content = f:read("*a")
+    f:close()
+
+    local ok, server = pcall(cjson.decode, content)
+    if not ok then
+        return { tool = "unbind_waf_policy", result = { error = "Failed to parse server config" }, isError = true }
+    end
+
+    -- Clear WAF binding
+    server.waf_enabled = false
+    server.waf_policy_id = nil
+    server.waf_mode_override = nil
+
+    -- Write back
+    local wf = io.open(server_path, "wb")
+    if not wf then
+        return { tool = "unbind_waf_policy", result = { error = "Failed to write server config" }, isError = true }
+    end
+    wf:write(cjson.encode(server))
+    wf:close()
+
+    ngx.log(ngx.INFO, "MCP: WAF policy unbound from server '", server_id, "' by ", ngx.var.remote_addr)
+
+    return {
+        tool = "unbind_waf_policy",
+        result = {
+            success = true,
+            server_id = server_id,
+            waf_enabled = false,
+            message = "WAF policy unbound successfully",
+            timestamp = os.date("%Y-%m-%dT%H:%M:%SZ", ngx.time())
+        },
+        isError = false
+    }
+end
+
 -- Execute a tool by name
 function _M.execute(tool_name, params)
     local config = McpConfig.load()
@@ -318,7 +504,9 @@ function _M.execute(tool_name, params)
         validate_config = function() return _M.validate_config() end,
         get_error_logs = function() return _M.get_error_logs(params) end,
         reload_config = function() return _M.reload_config(params) end,
-        test_waf_rule = function() return _M.test_waf_rule(params) end
+        test_waf_rule = function() return _M.test_waf_rule(params) end,
+        bind_waf_policy = function() return _M.bind_waf_policy(params) end,
+        unbind_waf_policy = function() return _M.unbind_waf_policy(params) end
     }
 
     local handler = tool_handlers[tool_name]
@@ -327,8 +515,11 @@ function _M.execute(tool_name, params)
     end
 
     -- Check write permission for non-readonly tools
-    if tool_name == "reload_config" and not params.dry_run then
-        if McpConfig.is_read_only(config) then
+    local write_tools = { reload_config = true, bind_waf_policy = true, unbind_waf_policy = true }
+    if write_tools[tool_name] then
+        if tool_name == "reload_config" and params.dry_run ~= false then
+            -- dry_run reload is read-only, allow it
+        elseif McpConfig.is_read_only(config) then
             return nil, "Tool '" .. tool_name .. "' requires write mode. MCP is currently in read-only mode."
         end
     end

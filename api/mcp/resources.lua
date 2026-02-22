@@ -523,6 +523,15 @@ _M.RESOURCE_REGISTRY = {
         mimeType = "application/json",
         category = "security",
         read_only = true
+    },
+    {
+        id = "gateway_config",
+        name = "Gateway Config",
+        description = "Per-Virtual Server gateway settings: WAF binding, rate limiting, security posture",
+        uri = "wslproxy://resources/gateway_config",
+        mimeType = "application/json",
+        category = "security",
+        read_only = true
     }
 }
 
@@ -601,6 +610,36 @@ function _M.get_waf_events(config)
     return events
 end
 
+-----------------------------------------------------------
+-- Resource: Gateway Config (composite view of server gateway settings)
+-----------------------------------------------------------
+function _M.get_gateway_config(config, profile_id)
+    profile_id = profile_id or "prod"
+    local dir = configPath .. "data/servers/" .. profile_id
+    local servers, err = read_json_directory(dir)
+    if err then
+        ngx.log(ngx.WARN, "MCP: Failed to read servers for gateway config, profile ", profile_id, ": ", err)
+    end
+
+    local result = {}
+    for _, server in ipairs(servers) do
+        table.insert(result, {
+            id = server.id,
+            server_name = server.server_name,
+            profile_id = server.profile_id or profile_id,
+            waf_enabled = server.waf_enabled or false,
+            waf_policy_id = server.waf_policy_id,
+            waf_mode_override = server.waf_mode_override,
+            rate_limit_enabled = server.rate_limit_enabled or false,
+            rate_limit = server.rate_limit,
+            ssl_enabled = server.ssl_enabled,
+            cache_enabled = server.cache_enabled
+        })
+    end
+
+    return result
+end
+
 -- Get a specific resource by ID
 function _M.get_resource(resource_id, config, params)
     local profile_id = params and params.profile_id or "prod"
@@ -617,7 +656,8 @@ function _M.get_resource(resource_id, config, params)
         settings = function() return _M.get_settings_safe(config) end,
         waf_rules = function() return _M.get_waf_rules(config, profile_id), nil end,
         waf_policies = function() return _M.get_waf_policies(config, profile_id), nil end,
-        waf_events = function() return _M.get_waf_events(config), nil end
+        waf_events = function() return _M.get_waf_events(config), nil end,
+        gateway_config = function() return _M.get_gateway_config(config, profile_id), nil end
     }
 
     local handler = handlers[resource_id]

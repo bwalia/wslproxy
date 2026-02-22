@@ -472,6 +472,9 @@ const Dashboard = () => {
     blockedEvents: 0,
   });
 
+  // Per-server WAF activity state
+  const [wafServerActivity, setWafServerActivity] = React.useState([]);
+
   const fetchErrorLogs = React.useCallback(() => {
     const logs = dataProvider.getLogs("openresty/error_logs");
     logs.then((log) => {
@@ -683,6 +686,65 @@ const Dashboard = () => {
           recentEvents: wafEvents?.total || 0,
           blockedEvents: blockedEvents?.total || 0,
         });
+      })
+      .catch(() => {});
+
+    // Fetch per-server WAF activity
+    Promise.all([
+      dataProvider.getList("servers", {
+        pagination: { page: 1, perPage: 1000 },
+        sort: { field: "id", order: "ASC" },
+        filter: {},
+      }),
+      dataProvider.getList("waf_events", {
+        pagination: { page: 1, perPage: 1000 },
+        sort: { field: "timestamp", order: "DESC" },
+        filter: {},
+      }),
+      dataProvider.getList("waf_policies", {
+        pagination: { page: 1, perPage: 1000 },
+        sort: { field: "id", order: "ASC" },
+        filter: {},
+      }),
+    ])
+      .then(([serversRes, eventsRes, policiesRes]) => {
+        const servers = serversRes?.data || [];
+        const events = eventsRes?.data || [];
+        const policies = policiesRes?.data || [];
+        const policyMap = {};
+        policies.forEach((p) => { policyMap[p.id] = p; });
+
+        // Group events by host
+        const eventsByHost = {};
+        events.forEach((evt) => {
+          const host = evt.host || "unknown";
+          if (!eventsByHost[host]) {
+            eventsByHost[host] = { inspected: 0, blocked: 0, monitored: 0 };
+          }
+          eventsByHost[host].inspected++;
+          if (evt.type === "blocked") eventsByHost[host].blocked++;
+          if (evt.type === "monitored") eventsByHost[host].monitored++;
+        });
+
+        // Build per-server activity rows
+        const activity = servers
+          .filter((s) => s.waf_enabled)
+          .map((s) => {
+            const hostEvents = eventsByHost[s.server_name] || { inspected: 0, blocked: 0, monitored: 0 };
+            const policy = s.waf_policy_id ? policyMap[s.waf_policy_id] : null;
+            return {
+              id: s.id,
+              server_name: s.server_name,
+              waf_enabled: true,
+              policy_name: policy?.name || s.waf_policy_id || "N/A",
+              mode: s.waf_mode_override || policy?.mode || "N/A",
+              inspected: hostEvents.inspected,
+              blocked: hostEvents.blocked,
+              monitored: hostEvents.monitored,
+            };
+          });
+
+        setWafServerActivity(activity);
       })
       .catch(() => {});
 
@@ -2476,6 +2538,77 @@ const Dashboard = () => {
           </Box>
         </ChartCard>
       </Box>
+
+      {/* WAF Activity by Server Table */}
+      {wafServerActivity.length > 0 && (
+        <Box sx={{ mb: 4, width: "100%" }}>
+          <ChartCard
+            title="WAF Activity by Server"
+            subtitle="Per-server WAF binding status and event counts"
+            height="auto"
+            accentColor="#6366f1"
+          >
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell sx={{ fontWeight: 600 }}>Server</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Policy</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Mode</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }} align="right">Inspected</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }} align="right">Blocked</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }} align="right">Monitored</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {wafServerActivity.map((row) => (
+                  <TableRow key={row.id}>
+                    <TableCell>{row.server_name}</TableCell>
+                    <TableCell>
+                      <Chip
+                        label="Active"
+                        size="small"
+                        sx={{
+                          backgroundColor: alpha(theme.palette.success.main, 0.12),
+                          color: theme.palette.success.main,
+                          fontWeight: 500,
+                          fontSize: "0.75rem",
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell>{row.policy_name}</TableCell>
+                    <TableCell>
+                      <Chip
+                        label={row.mode === "block" ? "Block" : row.mode === "monitor" ? "Monitor" : row.mode}
+                        size="small"
+                        sx={{
+                          backgroundColor:
+                            row.mode === "block"
+                              ? alpha(theme.palette.error.main, 0.12)
+                              : alpha(theme.palette.warning.main, 0.12),
+                          color:
+                            row.mode === "block"
+                              ? theme.palette.error.main
+                              : theme.palette.warning.main,
+                          fontWeight: 500,
+                          fontSize: "0.75rem",
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell align="right">{row.inspected}</TableCell>
+                    <TableCell align="right" sx={{ color: row.blocked > 0 ? theme.palette.error.main : "inherit", fontWeight: row.blocked > 0 ? 600 : 400 }}>
+                      {row.blocked}
+                    </TableCell>
+                    <TableCell align="right" sx={{ color: row.monitored > 0 ? theme.palette.warning.main : "inherit" }}>
+                      {row.monitored}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </ChartCard>
+        </Box>
+      )}
 
       {/* Entity Stats Cards - Smaller secondary cards */}
       <Box
