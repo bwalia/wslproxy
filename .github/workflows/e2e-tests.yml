@@ -18,19 +18,33 @@ on:
           - prod
           - int
 
-concurrency:
-  group: e2e-tests-${{ github.ref }}-${{ matrix.environment || 'prod' }}
-  cancel-in-progress: true
-
 jobs:
+  setup:
+    name: "Setup test matrix"
+    runs-on: [self-hosted]
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Determine environments to test
+        id: set-matrix
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo 'matrix={"environment":["${{ inputs.TARGET_ENV }}"]}' >> "$GITHUB_OUTPUT"
+          else
+            echo 'matrix={"environment":["prod","int"]}' >> "$GITHUB_OUTPUT"
+          fi
+
   e2e:
     name: "E2E Tests (${{ matrix.environment }})"
+    needs: setup
     runs-on: [self-hosted]
     timeout-minutes: 10
+    concurrency:
+      group: e2e-tests-${{ github.ref }}-${{ matrix.environment }}
+      cancel-in-progress: true
     strategy:
       fail-fast: false
-      matrix:
-        environment: ${{ github.event_name == 'workflow_dispatch' && fromJSON(format('["{0}"]', inputs.TARGET_ENV)) || fromJSON('["prod", "int"]') }}
+      matrix: ${{ fromJSON(needs.setup.outputs.matrix) }}
     defaults:
       run:
         shell: bash
