@@ -13,6 +13,7 @@ import {
 } from "react-admin";
 import Toolbar from "./toolbar/Toolbar";
 import CreateTags from "../component/CreateTags";
+import HtmlEditorInput from "../component/HtmlEditorInput";
 import "../styles/forms.css";
 
 const iso_codes = {
@@ -644,13 +645,9 @@ const Form = () => {
           {/* Response Message */}
           <Grid container spacing={2}>
             <Grid item xs={12}>
-              <TextInput
-                multiline
+              <HtmlEditorInput
                 source="match.response.message"
-                label="Response Message"
-                fullWidth
-                minRows={3}
-                helperText="Base64 encoded response body (optional)"
+                label="Response Body (HTML)"
               />
             </Grid>
           </Grid>
