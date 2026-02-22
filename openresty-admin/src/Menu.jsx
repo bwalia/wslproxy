@@ -158,12 +158,12 @@ export const Menu = () => {
 
         <StyledMenuItem
           to="/servers"
-          primaryText="Servers"
+          primaryText="Virtual Servers"
           leftIcon={<ServerIcon />}
         />
         <StyledMenuItem
           to="/rules"
-          primaryText="Rules"
+          primaryText="Server Rules"
           leftIcon={<RuleIcon />}
         />
         <StyledMenuItem
