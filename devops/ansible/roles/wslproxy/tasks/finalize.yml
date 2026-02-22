@@ -60,11 +60,24 @@
   when: nginx_preflight is defined
   tags: [openresty, lapis, dashboard, nginx]
 
+- name: Stop any running nginx/openresty processes before service start
+  shell: |
+    # Stop existing openresty service if running
+    systemctl stop openresty.service 2>/dev/null || true
+    # Kill any stale nginx processes not managed by systemd
+    pkill -f "nginx: master" 2>/dev/null || true
+    sleep 1
+    # Verify ports are free
+    ss -tlnp | grep -E ':80 |:443 |:6443 ' || echo "Ports 80/443/6443 are free"
+  changed_when: false
+  tags: [openresty, lapis, dashboard, nginx]
+
 - name: Enable and start OpenResty service
   systemd:
     name: openresty
-    state: started
+    state: restarted
     enabled: yes
+    daemon_reload: yes
   register: openresty_start
   ignore_errors: true
   tags: [openresty, lapis, dashboard, nginx]
