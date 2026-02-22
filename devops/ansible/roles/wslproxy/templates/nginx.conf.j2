@@ -189,10 +189,15 @@ http {
         listen       8080;
         server_name  localhost;
 
-        location = /ping {
-            access_log off;
-            return 200 "pong\n";
-        }
+      location /ping {
+          default_type 'application/json';
+          add_header 'Access-Control-Allow-Origin' '*';
+          add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, PUT, DELETE';
+          add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, X-Requested-With';
+          add_header 'Access-Control-Max-Age' 1728069;
+          add_header 'Content-Type' 'text/plain; charset=utf-8';
+          content_by_lua_file /usr/local/openresty/nginx/html/api/ping.lua;
+      }
 
 {% if nginx_web_ui_enabled is defined and nginx_web_ui_enabled == "yes" %}
         # Openresty Admin UI
@@ -316,17 +321,6 @@ http {
                 end
             }
         }
-
-      location /ping {
-          default_type 'application/json';
-          add_header 'Access-Control-Allow-Origin' '*';
-          add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, PUT, DELETE';
-          add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, X-Requested-With';
-          add_header 'Access-Control-Max-Age' 1728069;
-          add_header 'Content-Type' 'text/plain; charset=utf-8';
-          # add_header 'Content-Length' 0;
-          content_by_lua_file /usr/local/openresty/nginx/html/api/ping.lua;
-      }
 
         # Prometheus Metrics Endpoint
         location /metrics {
