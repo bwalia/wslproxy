@@ -63,6 +63,9 @@ http {
     access_log /usr/local/openresty/nginx/logs/access.log main;
     error_log /usr/local/openresty/nginx/logs/error.log notice;
 
+    server_tokens off;
+    more_set_headers 'Server: wslproxy/1.0.1';
+
     sendfile        on;
     #tcp_nopush     on;
 
