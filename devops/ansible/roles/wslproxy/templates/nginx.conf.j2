@@ -194,7 +194,7 @@ http {
 
       location /ping {
           default_type 'application/json';
-          add_header 'Access-Control-Allow-Origin' '*';
+          more_set_headers 'Access-Control-Allow-Origin: *';
           content_by_lua_block {
               local cjson = require("cjson")
               local configPath = os.getenv("NGINX_CONFIG_DIR") or "/opt/nginx/"
@@ -271,8 +271,8 @@ http {
 
         location ~ ^/api(.*)$ {
             default_type 'text/plain';
-            add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, OPTIONS';
-            add_header 'Access-Control-Allow-Headers' 'Content-Type';
+            more_set_headers 'Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS';
+            more_set_headers 'Access-Control-Allow-Headers: Content-Type';
             access_by_lua_block {
                 local cjson = Cjson
                 local path_name = ngx.var.uri:match("^/api/(.*)$")
@@ -321,12 +321,11 @@ http {
             }
             
             if ($request_method = 'OPTIONS') {
-                add_header 'Access-Control-Allow-Origin' '*';
-                add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, PUT, DELETE';
-                add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, X-Requested-With';
-                add_header 'Access-Control-Max-Age' 1728069;
-                add_header 'Content-Type' 'text/plain; charset=utf-8';
-                # add_header 'Content-Length' 0;
+                more_set_headers 'Access-Control-Allow-Origin: *';
+                more_set_headers 'Access-Control-Allow-Methods: GET, POST, OPTIONS, PUT, DELETE';
+                more_set_headers 'Access-Control-Allow-Headers: Authorization, Content-Type, X-Requested-With';
+                more_set_headers 'Access-Control-Max-Age: 1728069';
+                more_set_headers 'Content-Type: text/plain; charset=utf-8';
                 return 204;
             }
 
@@ -342,17 +341,17 @@ http {
         # Provides AI-agent accessible interface to WSLProxy configuration and status
         location ~ ^/mcp(/.*)?$ {
             default_type 'application/json';
-            add_header 'Access-Control-Allow-Origin' '*';
-            add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS';
-            add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, X-MCP-API-Key';
-            add_header 'Access-Control-Max-Age' 1728069;
+            more_set_headers 'Access-Control-Allow-Origin: *';
+            more_set_headers 'Access-Control-Allow-Methods: GET, POST, OPTIONS';
+            more_set_headers 'Access-Control-Allow-Headers: Authorization, Content-Type, X-MCP-API-Key';
+            more_set_headers 'Access-Control-Max-Age: 1728069';
 
             if ($request_method = 'OPTIONS') {
-                add_header 'Access-Control-Allow-Origin' '*';
-                add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS';
-                add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, X-MCP-API-Key';
-                add_header 'Access-Control-Max-Age' 1728069;
-                add_header 'Content-Type' 'text/plain; charset=utf-8';
+                more_set_headers 'Access-Control-Allow-Origin: *';
+                more_set_headers 'Access-Control-Allow-Methods: GET, POST, OPTIONS';
+                more_set_headers 'Access-Control-Allow-Headers: Authorization, Content-Type, X-MCP-API-Key';
+                more_set_headers 'Access-Control-Max-Age: 1728069';
+                more_set_headers 'Content-Type: text/plain; charset=utf-8';
                 return 204;
             }
 
@@ -493,7 +492,7 @@ server {
         ssl_certificate /etc/ssl/resty-auto-ssl-fallback.crt;
         ssl_certificate_key /etc/ssl/resty-auto-ssl-fallback.key;
 
-        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+        more_set_headers 'Strict-Transport-Security: max-age=31536000; includeSubDomains';
 
         limit_req zone=req_zone burst=10 nodelay;
         limit_req zone=req_zone_wl burst=20 nodelay;
@@ -598,20 +597,19 @@ server {
         location = /frontdoor/opsapi/sync {
           default_type 'application/json';
           if ($request_method = 'OPTIONS') {
-              add_header 'Access-Control-Allow-Origin' '*';
-              add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, PUT, DELETE';
-              add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, X-Requested-With';
-              add_header 'Access-Control-Max-Age' 1728069;
-              add_header 'Content-Type' 'text/plain; charset=utf-8';
-              # add_header 'Content-Length' 0;
+              more_set_headers 'Access-Control-Allow-Origin: *';
+              more_set_headers 'Access-Control-Allow-Methods: GET, POST, OPTIONS, PUT, DELETE';
+              more_set_headers 'Access-Control-Allow-Headers: Authorization, Content-Type, X-Requested-With';
+              more_set_headers 'Access-Control-Max-Age: 1728069';
+              more_set_headers 'Content-Type: text/plain; charset=utf-8';
               return 204;
           }
           content_by_lua_file /usr/local/openresty/nginx/html/api/sync_data.lua;
         }
         location = /frontdoor/opsapi/handle-profile {
           default_type 'application/json';
-          add_header 'Access-Control-Allow-Origin' '*';
-          add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, PUT, DELETE';
+          more_set_headers 'Access-Control-Allow-Origin: *';
+          more_set_headers 'Access-Control-Allow-Methods: GET, POST, OPTIONS, PUT, DELETE';
           content_by_lua_file /usr/local/openresty/nginx/html/api/profile_handler.lua;
         }
 
@@ -790,20 +788,19 @@ server {
         location = /frontdoor/opsapi/sync {
           default_type 'application/json';
           if ($request_method = 'OPTIONS') {
-              add_header 'Access-Control-Allow-Origin' '*';
-              add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, PUT, DELETE';
-              add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, X-Requested-With';
-              add_header 'Access-Control-Max-Age' 1728069;
-              add_header 'Content-Type' 'text/plain; charset=utf-8';
-              # add_header 'Content-Length' 0;
+              more_set_headers 'Access-Control-Allow-Origin: *';
+              more_set_headers 'Access-Control-Allow-Methods: GET, POST, OPTIONS, PUT, DELETE';
+              more_set_headers 'Access-Control-Allow-Headers: Authorization, Content-Type, X-Requested-With';
+              more_set_headers 'Access-Control-Max-Age: 1728069';
+              more_set_headers 'Content-Type: text/plain; charset=utf-8';
               return 204;
           }
           content_by_lua_file /usr/local/openresty/nginx/html/api/sync_data.lua;
         }
         location = /frontdoor/opsapi/handle-profile {
           default_type 'application/json';
-          add_header 'Access-Control-Allow-Origin' '*';
-          add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, PUT, DELETE';
+          more_set_headers 'Access-Control-Allow-Origin: *';
+          more_set_headers 'Access-Control-Allow-Methods: GET, POST, OPTIONS, PUT, DELETE';
           content_by_lua_file /usr/local/openresty/nginx/html/api/profile_handler.lua;
         }
 
