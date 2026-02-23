@@ -517,12 +517,35 @@ const Form = ({ type }) => {
             </Grid>
           </SectionCard>
 
-          {/* Custom Headers */}
+          {/* Upstream Backend Request Headers */}
           <SectionCard
-            title="Custom Headers"
-            subtitle="Add custom HTTP headers to responses"
+            title="Upstream Backend Request Headers"
+            subtitle="Headers appended to requests sent to upstream backend servers"
           >
             <ArrayInput source="custom_headers" label="">
+              <SimpleFormIterator
+                inline
+                disableReordering
+                className="server-custom-headers"
+              >
+                <TextInput
+                  source="header_key"
+                  label="Header Name"
+                />
+                <TextInput
+                  source="header_value"
+                  label="Header Value"
+                />
+              </SimpleFormIterator>
+            </ArrayInput>
+          </SectionCard>
+
+          {/* Client Response Headers */}
+          <SectionCard
+            title="Client Response Headers"
+            subtitle="Headers returned to the browser (e.g. CORS, Content-Security-Policy, security headers)"
+          >
+            <ArrayInput source="custom_response_headers" label="">
               <SimpleFormIterator
                 inline
                 disableReordering

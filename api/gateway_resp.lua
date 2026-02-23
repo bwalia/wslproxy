@@ -154,10 +154,16 @@ elseif selectedRule.statusCode == 305 then
         ngx.var.proxy_host_override = selectedRule.redirectUri
     end
 
-    if proxyServer and proxyServer ~= nil and proxyServer.custom_headers ~= nil and type(proxyServer.custom_headers) == "table" then
+    -- Upstream backend request headers (forwarded to the backend server)
+    if proxyServer and proxyServer.custom_headers ~= nil and type(proxyServer.custom_headers) == "table" then
         for idx, header in ipairs(proxyServer.custom_headers) do
             ngx.req.set_header(header.header_key, header.header_value)
         end
+    end
+
+    -- Client response headers (sent back to the browser via header_filter phase)
+    if proxyServer and proxyServer.custom_response_headers ~= nil and type(proxyServer.custom_response_headers) == "table" then
+        ngx.ctx.custom_response_headers = proxyServer.custom_response_headers
     end
 
     ngx.var.proxy_host_scheme = origin_serverScheme
