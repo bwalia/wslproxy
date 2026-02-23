@@ -29,6 +29,7 @@ function _M.map_one(server)
             created_at = server.created_at,
             updated_at = server.updated_at,
             custom_headers = server.custom_headers,
+            custom_response_headers = server.custom_response_headers,
             cache_enabled = server.cache_enabled,
             waf_enabled = server.waf_enabled or false,
             waf_policy_id = server.waf_policy_id,

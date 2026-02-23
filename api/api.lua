@@ -68,7 +68,7 @@ local function validateServerPayload(payloads)
         end
     end
 
-    -- Validate custom_headers if provided
+    -- Validate custom_headers (upstream backend request headers) if provided
     if payloads.custom_headers and type(payloads.custom_headers) == "table" then
         for i, header in ipairs(payloads.custom_headers) do
             if not header.header_key or header.header_key == "" then
@@ -80,6 +80,24 @@ local function validateServerPayload(payloads)
             if not header.header_value then
                 table.insert(errors, {
                     field = "custom_headers[" .. i .. "].header_value",
+                    message = "Header value is required"
+                })
+            end
+        end
+    end
+
+    -- Validate custom_response_headers (client response headers) if provided
+    if payloads.custom_response_headers and type(payloads.custom_response_headers) == "table" then
+        for i, header in ipairs(payloads.custom_response_headers) do
+            if not header.header_key or header.header_key == "" then
+                table.insert(errors, {
+                    field = "custom_response_headers[" .. i .. "].header_key",
+                    message = "Header key is required"
+                })
+            end
+            if not header.header_value then
+                table.insert(errors, {
+                    field = "custom_response_headers[" .. i .. "].header_value",
                     message = "Header value is required"
                 })
             end
