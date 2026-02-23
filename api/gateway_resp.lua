@@ -154,10 +154,12 @@ elseif selectedRule.statusCode == 305 then
         ngx.var.proxy_host_override = selectedRule.redirectUri
     end
 
-    if proxyServer and proxyServer ~= nil and proxyServer.custom_headers ~= nil and type(proxyServer.custom_headers) == "table" then
-        for idx, header in ipairs(proxyServer.custom_headers) do
-            ngx.req.set_header(header.header_key, header.header_value)
-        end
+    -- Store custom headers in ngx.ctx so they can be applied in the
+    -- header_filter phase (after upstream responds). Setting them here
+    -- via ngx.req.set_header only forwarded them to the backend; they
+    -- were never returned to the client.
+    if proxyServer and proxyServer.custom_headers ~= nil and type(proxyServer.custom_headers) == "table" then
+        ngx.ctx.custom_response_headers = proxyServer.custom_headers
     end
 
     ngx.var.proxy_host_scheme = origin_serverScheme

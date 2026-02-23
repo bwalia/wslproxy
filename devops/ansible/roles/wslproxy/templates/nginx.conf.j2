@@ -544,10 +544,21 @@ server {
             access_by_lua_file /usr/local/openresty/nginx/html/api/gateway_resp.lua;    # this code run just before the setting the proxy pass and content phase.
 
           # WSL Cache: Capture response headers for caching (always add debug headers)
+          # Also apply custom response headers stored by gateway_resp.lua
           header_filter_by_lua_block {
             local ok, CacheHandler = pcall(require, "cache_handler")
             if ok then
               CacheHandler.process_response_headers()
+            end
+
+            -- Apply custom response headers (set by gateway_resp.lua in access phase)
+            local custom_headers = ngx.ctx.custom_response_headers
+            if custom_headers and type(custom_headers) == "table" then
+              for _, header in ipairs(custom_headers) do
+                if header.header_key and header.header_key ~= "" then
+                  ngx.header[header.header_key] = header.header_value
+                end
+              end
             end
           }
 
@@ -732,6 +743,18 @@ server {
             rewrite_by_lua_file /usr/local/openresty/nginx/html/api/gateway_ack.lua;
             access_by_lua_file /usr/local/openresty/nginx/html/api/gateway_resp.lua;
             # this code run just before the setting the proxy pass and content phase.
+
+          # Apply custom response headers stored by gateway_resp.lua
+          header_filter_by_lua_block {
+            local custom_headers = ngx.ctx.custom_response_headers
+            if custom_headers and type(custom_headers) == "table" then
+              for _, header in ipairs(custom_headers) do
+                if header.header_key and header.header_key ~= "" then
+                  ngx.header[header.header_key] = header.header_value
+                end
+              end
+            end
+          }
 
           proxy_connect_timeout 300;
           # WebSocket support
