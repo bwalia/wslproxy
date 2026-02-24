@@ -11,6 +11,7 @@ ubworker04 ansible_user=bwalia
 whisky08 ansible_user=bwalia
 192.168.10.1 ansible_user=bwalia
 185.237.99.238 ansible_user=root
+187.77.179.206 ansible_user=root
 
 # Environment-based server groups for config deployment
 [openresty_prod]
@@ -37,4 +38,8 @@ openresty_int
 openresty_test
 openresty_dev
 openresty_acc
+
+# Docker-enabled servers
+[docker_servers]
+187.77.179.206 ansible_user=root
 
