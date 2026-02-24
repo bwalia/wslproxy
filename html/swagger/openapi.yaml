@@ -2331,7 +2331,7 @@ components:
         mode:
           type: string
           description: Routing algorithm
-          enum: [weighted, round_robin, header, cookie]
+          enum: [weighted, round_robin, header, cookie, least_conn]
           default: weighted
         header_name:
           type: string

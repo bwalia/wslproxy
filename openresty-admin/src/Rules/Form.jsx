@@ -675,6 +675,7 @@ const Form = () => {
                         { id: "round_robin", name: "Round Robin" },
                         { id: "header", name: "Header Match" },
                         { id: "cookie", name: "Cookie / Sticky" },
+                        { id: "least_conn", name: "Least Busy" },
                       ]}
                       helperText="How traffic is distributed across backends"
                     />

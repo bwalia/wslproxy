@@ -1,6 +1,6 @@
 -- Traffic Router Module
 -- Provides multi-backend weighted routing, header-based routing, cookie stickiness,
--- round-robin selection, and per-backend stat recording.
+-- round-robin selection, least-connections selection, and per-backend stat recording.
 -- Designed to be fail-open: any error returns nil, caller falls back to redirect_uri.
 
 local cjson = require("cjson.safe")
@@ -97,6 +97,36 @@ local function header_select(backends, routing, request_ctx)
     end
 end
 
+-- Least-connections (least busy) selection: picks the backend with fewest total requests
+-- @param rule_id string: identifier for stats lookup
+-- @param backends table: array of { address, weight, label }
+-- @return backend table or nil
+local function least_conn_select(rule_id, backends)
+    if #backends == 0 then return nil end
+
+    local min_reqs = nil
+    local min_backend = nil
+    local min_index = nil
+
+    for i, b in ipairs(backends) do
+        local label = b.label or ("backend_" .. i)
+        local req_key = "stats:" .. rule_id .. ":" .. label .. ":req"
+        local reqs = router_dict:get(req_key) or 0
+
+        if min_reqs == nil or reqs < min_reqs then
+            min_reqs = reqs
+            min_backend = b
+            min_index = i
+        end
+    end
+
+    if not min_backend then
+        return nil
+    end
+
+    return { address = min_backend.address, label = min_backend.label or ("backend_" .. min_index), backend_index = min_index }
+end
+
 -- Cookie-based routing with optional stickiness
 -- @param backends table: array of backends
 -- @param routing table: routing config with cookie_name, sticky
@@ -189,6 +219,9 @@ function _M.select_backend(rule_response, request_ctx, opts)
     elseif mode == "round_robin" then
         local rule_id = rule_response.rule_id or "default"
         selected = round_robin_select(rule_id, active_backends)
+    elseif mode == "least_conn" then
+        local rule_id = rule_response.rule_id or "default"
+        selected = least_conn_select(rule_id, active_backends)
     else
         -- Default: weighted random
         selected = weighted_select(active_backends)
