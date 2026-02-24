@@ -24,6 +24,7 @@ on:
           - int
           - test
           - acc
+          - diytaxreturn
 
       TARGET_HOST:
         type: choice
@@ -32,6 +33,7 @@ on:
         required: true
         options:
           - 185.237.99.238
+          - 187.77.179.206
           - slworker00
 
 # Prevent concurrent deployments to same ref (but don't cancel in-progress)

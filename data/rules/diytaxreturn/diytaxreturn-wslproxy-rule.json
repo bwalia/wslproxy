@@ -2,7 +2,7 @@
   "id": "diytaxreturn-wslproxy-rule",
   "created_at": 1769388395,
   "name": "diytaxreturn-wslproxy-local",
-  "profile_id": "prod",
+  "profile_id": "diytaxreturn",
   "priority": 1,
   "match": {
     "rules": {
