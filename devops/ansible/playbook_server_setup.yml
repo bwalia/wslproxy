@@ -1,0 +1,22 @@
+---
+# Playbook for initial server setup: OS packages + Docker CE
+# Usage: ansible-playbook playbook_server_setup.yml -i hosts -l 187.77.179.206
+
+- name: Server Setup - OS Packages and Docker
+  hosts: docker_servers
+  become: yes
+  gather_facts: yes
+
+  roles:
+    - ubuntu
+    - docker
+
+  post_tasks:
+    - name: Display server setup summary
+      debug:
+        msg:
+          - "Server setup completed for {{ inventory_hostname }}"
+          - "OS: {{ ansible_distribution }} {{ ansible_distribution_version }} ({{ ansible_distribution_release }})"
+          - "Kernel: {{ ansible_kernel }}"
+          - "Docker: {{ docker_version.stdout | default('not checked') }}"
+      tags: [verify]

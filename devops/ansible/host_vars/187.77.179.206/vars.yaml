@@ -1,0 +1,5 @@
+---
+host_lan_ip: "187.77.179.206"
+nginx_web_ui_enabled: "no"
+nginx_rest_api_server_enabled: ""
+nginx_data_sync_enabled: ""
