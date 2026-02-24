@@ -42,6 +42,33 @@ elseif selectedRule.statusCode == 305 then
         ngx.exit(ngx.HTTP_INTERNAL_SERVER_ERROR)
     end
 
+    -- Traffic Router: multi-backend weighted routing (fail-open)
+    local tr_ok, TrafficRouter = pcall(require, "traffic_router")
+    if tr_ok and TrafficRouter and selectedRule.rule_data then
+        local response = selectedRule.rule_data.response or selectedRule.rule_data
+        if response and response.backends and type(response.backends) == "table" and #response.backends > 0 then
+            local ctx = {
+                remote_addr = ngx.var.remote_addr,
+                headers = ngx.req.get_headers(),
+            }
+            -- Attach rule_id for round-robin counter
+            response.rule_id = selectedRule.rule_data.id or selectedRule.rule_data.rule_id
+            local backend = TrafficRouter.select_backend(response, ctx)
+            if backend then
+                selectedRule.redirectUri = backend.address
+                ngx.ctx.selected_backend_label = backend.label
+                ngx.ctx.selected_backend_rule_id = response.rule_id
+                -- Cache for potential retry in balancer_by_lua
+                ngx.ctx._router_response_cache = response
+                ngx.ctx._router_ctx_cache = ctx
+            end
+            -- Set sticky cookie if traffic router requested it
+            if ngx.ctx._traffic_router_set_cookie then
+                ngx.header["Set-Cookie"] = ngx.ctx._traffic_router_set_cookie
+            end
+        end
+    end
+
     -- Strip matched path prefix from URI before proxying (like K8s Ingress rewrite-target)
     if selectedRule.rule_data.strip_path
         and selectedRule.rule_data.path

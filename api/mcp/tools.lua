@@ -153,6 +153,103 @@ _M.TOOL_REGISTRY = {
             idempotentHint = true,
             openWorldHint = false
         }
+    },
+    {
+        name = "update_traffic_split",
+        description = "Update traffic weight distribution for a rule's backends. Adjusts the percentage of traffic routed to each backend (e.g., 90% stable / 10% canary). Weights are normalized to sum to 100%. Changes take effect immediately without nginx reload.",
+        inputSchema = {
+            type = "object",
+            properties = {
+                rule_id = {
+                    type = "string",
+                    description = "The rule ID to update traffic weights for"
+                },
+                profile_id = {
+                    type = "string",
+                    description = "Environment profile (default: 'prod')"
+                },
+                backends = {
+                    type = "array",
+                    description = "Array of backend weight updates",
+                    items = {
+                        type = "object",
+                        properties = {
+                            label = {
+                                type = "string",
+                                description = "Backend label (e.g., 'stable', 'canary')"
+                            },
+                            weight = {
+                                type = "number",
+                                description = "New weight percentage (0-100)"
+                            }
+                        },
+                        required = {"label", "weight"}
+                    }
+                }
+            },
+            required = {"rule_id", "backends"}
+        },
+        annotations = {
+            title = "Update Traffic Split Weights",
+            readOnlyHint = false,
+            destructiveHint = false,
+            idempotentHint = true,
+            openWorldHint = false
+        }
+    },
+    {
+        name = "promote_backend",
+        description = "Promote a backend to receive 100% of traffic for a rule. Used to complete a canary deployment by shifting all traffic to the canary backend. All other backends are set to 0% weight. The rule's redirect_uri is updated to point to the promoted backend.",
+        inputSchema = {
+            type = "object",
+            properties = {
+                rule_id = {
+                    type = "string",
+                    description = "The rule ID containing the backend to promote"
+                },
+                promote_label = {
+                    type = "string",
+                    description = "Label of the backend to promote (e.g., 'canary')"
+                },
+                profile_id = {
+                    type = "string",
+                    description = "Environment profile (default: 'prod')"
+                }
+            },
+            required = {"rule_id", "promote_label"}
+        },
+        annotations = {
+            title = "Promote Backend to 100%",
+            readOnlyHint = false,
+            destructiveHint = false,
+            idempotentHint = true,
+            openWorldHint = false
+        }
+    },
+    {
+        name = "rollback_backend",
+        description = "Rollback a rule to single-backend routing by removing the backends array and routing configuration. Restores the rule to use only its redirect_uri for routing. Use this to undo a canary or A/B test deployment.",
+        inputSchema = {
+            type = "object",
+            properties = {
+                rule_id = {
+                    type = "string",
+                    description = "The rule ID to rollback to single-backend routing"
+                },
+                profile_id = {
+                    type = "string",
+                    description = "Environment profile (default: 'prod')"
+                }
+            },
+            required = {"rule_id"}
+        },
+        annotations = {
+            title = "Rollback to Single Backend",
+            readOnlyHint = false,
+            destructiveHint = false,
+            idempotentHint = true,
+            openWorldHint = false
+        }
     }
 }
 
@@ -489,6 +586,83 @@ function _M.unbind_waf_policy(params)
     }
 end
 
+-- Tool: Update traffic split weights
+function _M.update_traffic_split(params)
+    local TrafficMgmt = require("traffic_mgmt")
+    local result = TrafficMgmt.update_weights({
+        rule_id = params.rule_id,
+        profile_id = params.profile_id,
+        backends = params.backends
+    })
+
+    if result.status and result.status >= 400 then
+        return {
+            tool = "update_traffic_split",
+            result = { error = result.message },
+            isError = true
+        }
+    end
+
+    ngx.log(ngx.INFO, "MCP: Traffic split updated for rule '", params.rule_id, "' by ", ngx.var.remote_addr)
+
+    return {
+        tool = "update_traffic_split",
+        result = result.data,
+        isError = false
+    }
+end
+
+-- Tool: Promote backend to 100% traffic
+function _M.promote_backend(params)
+    local TrafficMgmt = require("traffic_mgmt")
+    local result = TrafficMgmt.promote_backend({
+        rule_id = params.rule_id,
+        profile_id = params.profile_id,
+        promote_label = params.promote_label
+    })
+
+    if result.status and result.status >= 400 then
+        return {
+            tool = "promote_backend",
+            result = { error = result.message },
+            isError = true
+        }
+    end
+
+    ngx.log(ngx.INFO, "MCP: Backend '", params.promote_label, "' promoted for rule '", params.rule_id, "' by ", ngx.var.remote_addr)
+
+    return {
+        tool = "promote_backend",
+        result = result.data,
+        isError = false
+    }
+end
+
+-- Tool: Rollback to single-backend routing
+function _M.rollback_backend(params)
+    local TrafficMgmt = require("traffic_mgmt")
+    local result = TrafficMgmt.rollback_to_primary({
+        rule_id = params.rule_id,
+        profile_id = params.profile_id
+    })
+
+    if result.status and result.status >= 400 then
+        return {
+            tool = "rollback_backend",
+            result = { error = result.message },
+            isError = true
+        }
+    end
+
+    ngx.log(ngx.INFO, "MCP: Backend rollback for rule '", params.rule_id, "' by ", ngx.var.remote_addr)
+
+    return {
+        tool = "rollback_backend",
+        result = result.data,
+        isError = false
+    }
+end
+
 -- Execute a tool by name
 function _M.execute(tool_name, params)
     local config = McpConfig.load()
@@ -506,7 +680,10 @@ function _M.execute(tool_name, params)
         reload_config = function() return _M.reload_config(params) end,
         test_waf_rule = function() return _M.test_waf_rule(params) end,
         bind_waf_policy = function() return _M.bind_waf_policy(params) end,
-        unbind_waf_policy = function() return _M.unbind_waf_policy(params) end
+        unbind_waf_policy = function() return _M.unbind_waf_policy(params) end,
+        update_traffic_split = function() return _M.update_traffic_split(params) end,
+        promote_backend = function() return _M.promote_backend(params) end,
+        rollback_backend = function() return _M.rollback_backend(params) end
     }
 
     local handler = tool_handlers[tool_name]
@@ -515,7 +692,10 @@ function _M.execute(tool_name, params)
     end
 
     -- Check write permission for non-readonly tools
-    local write_tools = { reload_config = true, bind_waf_policy = true, unbind_waf_policy = true }
+    local write_tools = {
+        reload_config = true, bind_waf_policy = true, unbind_waf_policy = true,
+        update_traffic_split = true, promote_backend = true, rollback_backend = true
+    }
     if write_tools[tool_name] then
         if tool_name == "reload_config" and params.dry_run ~= false then
             -- dry_run reload is read-only, allow it

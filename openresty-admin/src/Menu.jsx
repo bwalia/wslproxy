@@ -11,6 +11,7 @@ import InstanceIcon from "@mui/icons-material/ViewInArRounded";
 import WafRuleIcon from "@mui/icons-material/ShieldRounded";
 import WafPolicyIcon from "@mui/icons-material/VerifiedUserRounded";
 import WafEventIcon from "@mui/icons-material/NotificationsActiveRounded";
+import IngressIcon from "@mui/icons-material/AccountTree";
 import Logo from "./component/Logo";
 import { useThemeMode } from "./Theme";
 
@@ -180,6 +181,11 @@ export const Menu = () => {
           to="/instances"
           primaryText="Instances"
           leftIcon={<InstanceIcon />}
+        />
+        <StyledMenuItem
+          to="/ingress"
+          primaryText="Ingress Overview"
+          leftIcon={<IngressIcon />}
         />
       </Box>
 
