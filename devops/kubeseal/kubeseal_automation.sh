@@ -554,12 +554,23 @@ process_secret_to_file() {
     local base64_value
     base64_value=$(echo -n "${content}" | base64 ${base64_wrap})
 
+    # Determine the actual secret name to use for sealing
+    # This must match the name used in the Helm templates
+    local actual_secret_name
+    if [[ "${secret_key}" == "env_file" ]]; then
+        actual_secret_name="${project_name}-secret-${namespace}"
+    else
+        actual_secret_name="${project_name}-settings-${namespace}"
+    fi
+
+    log_info "Sealing secret as: ${actual_secret_name}"
+
     # Create secret YAML
     cat > "${secret_file}" << YAML
 apiVersion: v1
 kind: Secret
 metadata:
-  name: ${project_name}-secret-${namespace}
+  name: ${actual_secret_name}
   namespace: ${namespace}
 type: Opaque
 data:
@@ -568,6 +579,7 @@ YAML
 
     # Seal the secret
     seal_secret "${secret_file}" "${sealed_file}"
+
 
     # Extract encrypted value directly to file (avoids shell escaping issues)
     extract_encrypted_data_to_file "${sealed_file}" "${secret_key}" "${output_value_file}"
