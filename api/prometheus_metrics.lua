@@ -88,6 +88,19 @@ function _M.init()
     package.loaded._metric_cache_evictions = prometheus:counter("nginx_cache_evictions_total", "Number of cache evictions", {"host", "reason"})
     package.loaded._metric_cache_hit_ratio = prometheus:gauge("nginx_cache_hit_ratio", "Cache hit ratio (hits / (hits + misses))", {"host"})
 
+    -- Traffic Router / Backend metrics (multi-backend weighted routing)
+    package.loaded._metric_backend_requests = prometheus:counter("wslproxy_backend_requests_total", "Requests routed to each backend", {"rule_id", "backend_label", "status"})
+    package.loaded._metric_backend_latency = prometheus:histogram("wslproxy_backend_response_seconds", "Backend response latency", {"rule_id", "backend_label"}, {0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5})
+    package.loaded._metric_backend_health = prometheus:gauge("wslproxy_backend_healthy", "Backend health status (1=healthy, 0=unhealthy)", {"rule_id", "backend_label", "address"})
+    package.loaded._metric_traffic_weight = prometheus:gauge("wslproxy_traffic_weight_percent", "Current configured traffic weight for backend", {"rule_id", "backend_label"})
+
+    -- WAF (Web Application Firewall) metrics
+    package.loaded._metric_waf_inspections = prometheus:counter("nginx_waf_inspections_total", "Total WAF inspection count", {"host"})
+    package.loaded._metric_waf_blocked = prometheus:counter("nginx_waf_blocked_total", "Requests blocked by WAF", {"host", "category", "severity"})
+    package.loaded._metric_waf_monitored = prometheus:counter("nginx_waf_monitored_total", "Requests flagged by WAF in monitor mode", {"host", "category", "severity"})
+    package.loaded._metric_waf_errors = prometheus:counter("nginx_waf_errors_total", "WAF engine errors (fail-open events)", {"host", "error_type"})
+    package.loaded._metric_waf_latency = prometheus:histogram("nginx_waf_inspection_duration_seconds", "WAF inspection duration", {"host"}, {0.0001, 0.0005, 0.001, 0.005, 0.01, 0.05, 0.1})
+
     ngx.log(ngx.NOTICE, "WSL Proxy Prometheus metrics initialized successfully")
     return true
 end
@@ -247,6 +260,44 @@ end
 
 function _M.get_metric_cache_hit_ratio()
     return package.loaded._metric_cache_hit_ratio
+end
+
+-- Traffic Router / Backend metrics getters
+function _M.get_metric_backend_requests()
+    return package.loaded._metric_backend_requests
+end
+
+function _M.get_metric_backend_latency()
+    return package.loaded._metric_backend_latency
+end
+
+function _M.get_metric_backend_health()
+    return package.loaded._metric_backend_health
+end
+
+function _M.get_metric_traffic_weight()
+    return package.loaded._metric_traffic_weight
+end
+
+-- WAF metrics getters
+function _M.get_metric_waf_inspections()
+    return package.loaded._metric_waf_inspections
+end
+
+function _M.get_metric_waf_blocked()
+    return package.loaded._metric_waf_blocked
+end
+
+function _M.get_metric_waf_monitored()
+    return package.loaded._metric_waf_monitored
+end
+
+function _M.get_metric_waf_errors()
+    return package.loaded._metric_waf_errors
+end
+
+function _M.get_metric_waf_latency()
+    return package.loaded._metric_waf_latency
 end
 
 function _M.is_initialized()

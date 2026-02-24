@@ -27,7 +27,7 @@
   },
   "instance_id": "docker-standlone-dev",
   "env_vars": {
-    "FRONT_URL": "http://localhost:8000",
+    "FRONT_URL": "http://localhost:8069",
     "JWT_SECURITY_PASSPHRASE": "docker-standlone-dev-jwt",
     "REDIS_PORT": 6379,
     "APP_NAME": "Openresty",
@@ -54,5 +54,11 @@
     "api_key_header": "X-MCP-API-Key",
     "rate_limit": 100,
     "redact_secrets": true
+  },
+  "waf": {
+    "enabled": true,
+    "default_policy": "waf-policy-default",
+    "body_inspection": true,
+    "max_body_size": 1048576
   }
 }

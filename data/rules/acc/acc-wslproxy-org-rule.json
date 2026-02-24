@@ -1,0 +1,27 @@
+{
+  "id": "acc-wslproxy-org-rule",
+  "created_at": 1769388395,
+  "name": "acc-wslproxy-org-local",
+  "profile_id": "acc",
+  "priority": 1,
+  "match": {
+    "rules": {
+      "path": "/",
+      "path_key": "starts_with",
+      "client_ip_key": "equals",
+      "country_key": "equals",
+      "jwt_token_validation": "equals"
+    },
+    "response": {
+      "code": 305,
+      "redirect_uri": "127.0.0.1",
+      "allow": false,
+      "message": "undefined",
+      "is_consul": false
+    }
+  },
+  "version": 1,
+  "servers": [
+    "host:acc.wslproxy.org"
+  ]
+}

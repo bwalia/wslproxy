@@ -1,0 +1,25 @@
+---
+# OS-specific variables for SUSE/openSUSE
+
+os_sudo_group: wheel
+os_luarocks_package: luarocks
+
+# PAM configuration paths
+os_pam_session_file: /etc/pam.d/common-session
+os_pam_noninteractive_file: ""
+os_pam_create_file: true
+
+# OpenResty build dependencies
+os_build_deps:
+  - pcre-devel
+  - libopenssl-devel
+  - perl
+  - make
+  - gcc
+  - wget
+  - zlib-devel
+  - unzip
+  - tar
+  - gzip
+  - lua51
+  - lua51-devel

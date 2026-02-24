@@ -1,4 +1,4 @@
-name: E2E Tests
+name: WSL Proxy Dashboard E2E Tests
 
 on:
   push:
@@ -18,21 +18,33 @@ on:
           - prod
           - int
 
-concurrency:
-  group: e2e-tests-${{ github.ref }}
-  cancel-in-progress: true
-
-env:
-  # Credentials file on the self-hosted runner: { "email": "...", "password": "..." }
-  TEST_CREDS_FILE: /home/bwalia/.secrets/wslproxy/prod/login-creds.json
-  # Default deployed frontend URL to test against
-  E2E_BASE_URL: https://prod-our.wslproxy.com
-
 jobs:
+  setup:
+    name: "Setup test matrix"
+    runs-on: [self-hosted]
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Determine environments to test
+        id: set-matrix
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo 'matrix={"environment":["${{ inputs.TARGET_ENV }}"]}' >> "$GITHUB_OUTPUT"
+          else
+            echo 'matrix={"environment":["prod","int"]}' >> "$GITHUB_OUTPUT"
+          fi
+
   e2e:
-    name: Playwright E2E Tests
+    name: "E2E Tests (${{ matrix.environment }})"
+    needs: setup
     runs-on: [self-hosted]
     timeout-minutes: 10
+    concurrency:
+      group: e2e-tests-${{ github.ref }}-${{ matrix.environment }}
+      cancel-in-progress: true
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.setup.outputs.matrix) }}
     defaults:
       run:
         shell: bash
@@ -41,6 +53,19 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Set environment config
+        id: env_config
+        working-directory: .
+        run: |
+          if [ "${{ matrix.environment }}" = "int" ]; then
+            echo "base_url=https://int-our.wslproxy.com" >> "$GITHUB_OUTPUT"
+            echo "creds_file=/home/bwalia/.secrets/wslproxy/int/login-creds.json" >> "$GITHUB_OUTPUT"
+          else
+            echo "base_url=https://prod-our.wslproxy.com" >> "$GITHUB_OUTPUT"
+            echo "creds_file=/home/bwalia/.secrets/wslproxy/prod/login-creds.json" >> "$GITHUB_OUTPUT"
+          fi
+          echo "Environment: ${{ matrix.environment }}"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -57,6 +82,8 @@ jobs:
 
       - name: Validate test credentials
         working-directory: .
+        env:
+          TEST_CREDS_FILE: ${{ steps.env_config.outputs.creds_file }}
         run: |
           if [ ! -f "$TEST_CREDS_FILE" ]; then
             echo "::error::Test credentials file not found at $TEST_CREDS_FILE"
@@ -67,11 +94,13 @@ jobs:
             echo "::error::Test credentials file is missing required keys (ADMIN_EMAIL, ADMIN_PASSWORD, GATEWAY_URL)"
             exit 1
           fi
-          echo "Test credentials validated."
+          echo "Test credentials validated for ${{ matrix.environment }}."
 
       - name: Load test credentials
         id: creds
         working-directory: .
+        env:
+          TEST_CREDS_FILE: ${{ steps.env_config.outputs.creds_file }}
         run: |
           EMAIL=$(python3 -c "import json; print(json.load(open('$TEST_CREDS_FILE'))['ADMIN_EMAIL'])")
           PASSWORD=$(python3 -c "import json; print(json.load(open('$TEST_CREDS_FILE'))['ADMIN_PASSWORD'])")
@@ -86,9 +115,9 @@ jobs:
       - name: Wait for frontend to be reachable
         working-directory: .
         env:
-          TARGET_URL: ${{ steps.creds.outputs.gateway_url || env.E2E_BASE_URL }}
+          TARGET_URL: ${{ steps.creds.outputs.gateway_url || steps.env_config.outputs.base_url }}
         run: |
-          echo "Checking frontend at $TARGET_URL ..."
+          echo "Checking frontend at $TARGET_URL (${{ matrix.environment }}) ..."
           for i in $(seq 1 12); do
             STATUS=$(curl -sf -o /dev/null -w "%{http_code}" "$TARGET_URL" 2>/dev/null || echo "000")
             if [ "$STATUS" = "200" ] || [ "$STATUS" = "301" ] || [ "$STATUS" = "302" ]; then
@@ -106,7 +135,7 @@ jobs:
         env:
           E2E_TEST_EMAIL: ${{ steps.creds.outputs.email }}
           E2E_TEST_PASSWORD: ${{ steps.creds.outputs.password }}
-          E2E_BASE_URL: ${{ steps.creds.outputs.gateway_url || env.E2E_BASE_URL }}
+          E2E_BASE_URL: ${{ steps.creds.outputs.gateway_url || steps.env_config.outputs.base_url }}
           CI: "true"
         run: npx playwright test 2>&1 | tee playwright-output.txt || true
 
@@ -115,12 +144,14 @@ jobs:
         if: always()
         run: |
           OUTPUT=$(cat playwright-output.txt 2>/dev/null || echo "No output")
-          # Extract pass/fail counts from Playwright output
+          # Extract pass/fail/skip counts from Playwright output
           PASSED=$(echo "$OUTPUT" | grep -oP '\d+ passed' | grep -oP '\d+' || echo "0")
           FAILED=$(echo "$OUTPUT" | grep -oP '\d+ failed' | grep -oP '\d+' || echo "0")
+          SKIPPED=$(echo "$OUTPUT" | grep -oP '\d+ skipped' | grep -oP '\d+' || echo "0")
           TOTAL=$((PASSED + FAILED))
           echo "passed=$PASSED" >> "$GITHUB_OUTPUT"
           echo "failed=$FAILED" >> "$GITHUB_OUTPUT"
+          echo "skipped=$SKIPPED" >> "$GITHUB_OUTPUT"
           echo "total=$TOTAL" >> "$GITHUB_OUTPUT"
           # Set overall status
           if [ "$FAILED" -gt 0 ]; then
@@ -134,7 +165,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.environment }}
           path: openresty-admin/playwright-report/
           retention-days: 14
 
@@ -142,7 +173,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: playwright-traces
+          name: playwright-traces-${{ matrix.environment }}
           path: openresty-admin/test-results/
           retention-days: 7
 
@@ -155,12 +186,13 @@ jobs:
           SLACK_ICON: https://github.com/rtCamp.png?size=48
           SLACK_MESSAGE: |
             WSL Proxy E2E Tests passed :white_check_mark:
-            *Tests:* ${{ steps.results.outputs.passed }}/${{ steps.results.outputs.total }} passed
-            *Target:* ${{ env.E2E_BASE_URL }}
+            *Environment:* ${{ matrix.environment }}
+            *Tests:* ${{ steps.results.outputs.passed }}/${{ steps.results.outputs.total }} passed (${{ steps.results.outputs.skipped }} skipped)
+            *Target:* ${{ steps.creds.outputs.gateway_url || steps.env_config.outputs.base_url }}
             *Branch:* ${{ github.ref_name }}
             *Commit:* `${{ github.sha }}`
             *Triggered by:* ${{ github.event_name }} (${{ github.actor }})
-          SLACK_TITLE: WSL Proxy E2E Tests - All Passed
+          SLACK_TITLE: "WSL Proxy E2E Tests - All Passed (${{ matrix.environment }})"
           SLACK_USERNAME: GitHub Actions
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
@@ -173,14 +205,15 @@ jobs:
           SLACK_ICON: https://github.com/rtCamp.png?size=48
           SLACK_MESSAGE: |
             WSL Proxy E2E Tests FAILED :x:
-            *Tests:* ${{ steps.results.outputs.failed }} failed, ${{ steps.results.outputs.passed }} passed out of ${{ steps.results.outputs.total }}
-            *Target:* ${{ env.E2E_BASE_URL }}
+            *Environment:* ${{ matrix.environment }}
+            *Tests:* ${{ steps.results.outputs.failed }} failed, ${{ steps.results.outputs.passed }} passed out of ${{ steps.results.outputs.total }} (${{ steps.results.outputs.skipped }} skipped)
+            *Target:* ${{ steps.creds.outputs.gateway_url || steps.env_config.outputs.base_url }}
             *Branch:* ${{ github.ref_name }}
             *Commit:* `${{ github.sha }}`
             *Triggered by:* ${{ github.event_name }} (${{ github.actor }})
             *Screenshots & Traces:* Download from workflow artifacts
             *Workflow logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          SLACK_TITLE: WSL Proxy E2E Tests - Failed
+          SLACK_TITLE: "WSL Proxy E2E Tests - Failed (${{ matrix.environment }})"
           SLACK_USERNAME: GitHub Actions
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
@@ -196,7 +229,7 @@ jobs:
             echo "Uploading screenshot: $SCREENSHOT"
             curl -s -F "file=@$SCREENSHOT" \
               -F "channels=github-updates" \
-              -F "initial_comment=WSL Proxy E2E test failure screenshot — ${{ github.ref_name }} (${{ github.sha }})" \
+              -F "initial_comment=WSL Proxy E2E test failure screenshot (${{ matrix.environment }}) — ${{ github.ref_name }} (${{ github.sha }})" \
               -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
               https://slack.com/api/files.upload
           else

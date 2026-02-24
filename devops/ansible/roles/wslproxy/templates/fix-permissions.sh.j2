@@ -66,6 +66,30 @@ touch /opt/nginx/data/upstreams/prod/upstreams.conf \
     && chmod 664 /opt/nginx/data/upstreams/prod/upstreams.conf \
     && chown www-data:root /opt/nginx/data/upstreams/prod/upstreams.conf
 
+# Create WAF rules and policies directories
+mkdir -p /opt/nginx/data/waf_rules/prod/ \
+    && chmod 775 -R /opt/nginx/data/waf_rules/ \
+    && chown -R www-data:root /opt/nginx/data/waf_rules/
+
+mkdir -p /opt/nginx/data/waf_policies/prod/ \
+    && chmod 775 -R /opt/nginx/data/waf_policies/ \
+    && chown -R www-data:root /opt/nginx/data/waf_policies/
+
+# Create /var/log/nginx directory for access/error logs
+mkdir -p /var/log/nginx/ \
+    && chmod 775 -R /var/log/nginx/ \
+    && chown -R www-data:root /var/log/nginx/
+
+# Generate self-signed fallback SSL certs if they don't exist (required for nginx startup)
+if [ ! -f /etc/ssl/resty-auto-ssl-fallback.crt ]; then
+    openssl req -new -newkey rsa:2048 -days 3650 -nodes -x509 \
+        -subj '/CN=sni-support-required-for-valid-ssl' \
+        -keyout /etc/ssl/resty-auto-ssl-fallback.key \
+        -out /etc/ssl/resty-auto-ssl-fallback.crt 2>/dev/null
+    chmod 644 /etc/ssl/resty-auto-ssl-fallback.crt
+    chmod 600 /etc/ssl/resty-auto-ssl-fallback.key
+fi
+
 mkdir -p /opt/nginx/prod_cache/
 chmod 775 -R /opt/nginx/prod_cache/
 chown www-data:root -R /opt/nginx/prod_cache/

@@ -36,7 +36,10 @@ env MCP_MODE;
 env MCP_API_KEY;
 env MCP_TOOLS_ENABLED;
 
+{% if target_env == 'prod' %}
+# TCP stream proxy configs (only on production proxy hosts)
 include /opt/nginx/base.d/*.conf;
+{% endif %}
 
 http {
 
@@ -60,6 +63,9 @@ http {
     access_log /usr/local/openresty/nginx/logs/access.log main;
     error_log /usr/local/openresty/nginx/logs/error.log notice;
 
+    server_tokens off;
+    more_set_headers 'Server: wslproxy/1.0.1';
+
     sendfile        on;
     #tcp_nopush     on;
 
@@ -67,8 +73,8 @@ http {
     keepalive_timeout  65;
 
     gzip  on;
-    lua_package_path "/usr/local/openresty/nginx/html/api/?.lua;/usr/local/openresty/nginx/html/api/?/init.lua;/usr/local/openresty/lualib/?.lua;/usr/local/openresty/site/lualib/?.lua;;";
-    lua_package_cpath '/usr/local/openresty/site/lualib/resty/?.so;/usr/local/openresty/lualib/?.so;;';
+    lua_package_path "/usr/local/openresty/nginx/html/api/?.lua;/usr/local/openresty/nginx/html/api/?/init.lua;/usr/local/openresty/lualib/?.lua;/usr/local/openresty/site/lualib/?.lua;/usr/local/openresty/luajit/share/lua/5.1/?.lua;/usr/local/openresty/luajit/share/lua/5.1/?/init.lua;/usr/local/share/lua/5.1/?.lua;/usr/local/share/lua/5.1/?/init.lua;;";
+    lua_package_cpath '/usr/local/openresty/site/lualib/resty/?.so;/usr/local/openresty/lualib/?.so;/usr/local/openresty/luajit/lib/lua/5.1/?.so;/usr/local/lib/lua/5.1/?.so;;';
 
     # Include dynamic upstream configurations
     include /opt/nginx/data/upstreams/*/upstreams.conf;
@@ -91,6 +97,12 @@ http {
 
     # Traffic stats for dashboard (stores hourly request/response counts)
     lua_shared_dict traffic_stats 5m;
+
+    # WAF event log storage (stores recent WAF events for dashboard and API)
+    lua_shared_dict waf_events 10m;
+
+    # Traffic router state (backend health, round-robin counters, sticky sessions, per-backend stats)
+    lua_shared_dict router_state 5m;
 
     geo $limit {
         default 1;
@@ -142,6 +154,14 @@ http {
             ngx.log(ngx.WARN, "healthcheck_init module not available: ", tostring(hc_init))
         end
 
+        -- Initialize traffic router health checks
+        local tr_ok, tr = pcall(require, "traffic_router")
+        if tr_ok and tr.start_health_checks then
+            tr.start_health_checks()
+        else
+            ngx.log(ngx.WARN, "traffic_router module not available: ", tostring(tr))
+        end
+
         -- Initialize SSL domains cache from Redis (cosockets work in init_worker context)
         local ssl_init_ok, ssl_init = pcall(require, "ssl_init")
         if ssl_init_ok then
@@ -178,17 +198,72 @@ http {
     }
     # global_backend ends
 
-    {% if nginx_web_ui_enabled is defined and nginx_web_ui_enabled == "yes" %}
-
-    # Openresty Admin UI BEGIN
-
+    # Health check server - always available
     server {
         listen       8080;
         server_name  localhost;
 
-        #charset koi8-r;
+      location /ping {
+          default_type 'application/json';
+          more_set_headers 'Access-Control-Allow-Origin: *';
+          content_by_lua_block {
+              local cjson = require("cjson")
+              local configPath = os.getenv("NGINX_CONFIG_DIR") or "/opt/nginx/"
 
-        #access_log  logs/host.access.log  main;
+              -- Read settings.json for storage_type and env vars
+              local settings = {}
+              local settingsFile = io.open(configPath .. "data/settings.json", "rb")
+              if settingsFile then
+                  local ok, decoded = pcall(cjson.decode, settingsFile:read("*a"))
+                  settingsFile:close()
+                  if ok then settings = decoded end
+              end
+              if not settings.env_vars then settings.env_vars = {} end
+
+              local storageType = settings.storage_type or os.getenv("STORAGE_TYPE") or "disk"
+              local dbStatusMsg = "No Database Selected"
+              if storageType == "redis" then
+                  local ok, redis = pcall(require, "resty.redis")
+                  if ok then
+                      local red = redis:new()
+                      red:set_timeouts(1000, 1000, 1000)
+                      local host = settings.env_vars.REDIS_HOST or os.getenv("REDIS_HOST") or "localhost"
+                      local port = settings.env_vars.REDIS_PORT or os.getenv("REDIS_PORT") or 6379
+                      local conn_ok = red:connect(host, port)
+                      dbStatusMsg = conn_ok and "OK" or "Failed to connect"
+                  end
+              end
+
+              -- Read OpenResty version
+              local versionFile = io.open("/opt/nginx/VERSION", "r")
+              local version = versionFile and versionFile:read("*a") or "unknown"
+              if versionFile then versionFile:close() end
+
+              local data = {
+                  response = "pong",
+                  app = settings.env_vars.APP_NAME or os.getenv("APP_NAME") or "wslproxy",
+                  version = settings.env_vars.VERSION or os.getenv("VERSION") or "unknown",
+                  hostname = settings.env_vars.HOSTNAME or os.getenv("HOSTNAME") or "unknown",
+                  openresty_version = version,
+                  redis_status_msg = dbStatusMsg,
+                  storage_type = storageType,
+                  node_uptime = os.date("%Y-%m-%d %H:%M:%S"),
+                  pod_uptime = "0 days",
+                  mendatory_env_vars_backend = {
+                      NGINX_CONFIG_DIR = configPath and "Found" or "Not Found",
+                      JWT_SECURITY_PASSPHRASE = (settings.env_vars.JWT_SECURITY_PASSPHRASE or os.getenv("JWT_SECURITY_PASSPHRASE")) and "Found" or "Not Found",
+                      PRIMARY_DNS_RESOLVER = (settings.env_vars.PRIMARY_DNS_RESOLVER or os.getenv("PRIMARY_DNS_RESOLVER")) and "Found" or "Not Found",
+                      SECONDARY_DNS_RESOLVER = (settings.env_vars.SECONDARY_DNS_RESOLVER or os.getenv("SECONDARY_DNS_RESOLVER")) and "Found" or "Not Found",
+                      DNS_RESOLVER_PORT = (settings.env_vars.DNS_RESOLVER_PORT or os.getenv("DNS_RESOLVER_PORT")) and "Found" or "Not Found",
+                  }
+              }
+              ngx.header.content_type = "application/json"
+              ngx.say(cjson.encode(data))
+          }
+      }
+
+{% if nginx_web_ui_enabled is defined and nginx_web_ui_enabled == "yes" %}
+        # Openresty Admin UI
         error_page  403              /403.html;
         error_page  404              /404.html;
         error_page  500 502 503 504  /50x.html;
@@ -207,8 +282,8 @@ http {
 
         location ~ ^/api(.*)$ {
             default_type 'text/plain';
-            add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, OPTIONS';
-            add_header 'Access-Control-Allow-Headers' 'Content-Type';
+            more_set_headers 'Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS';
+            more_set_headers 'Access-Control-Allow-Headers: Content-Type';
             access_by_lua_block {
                 local cjson = Cjson
                 local path_name = ngx.var.uri:match("^/api/(.*)$")
@@ -257,12 +332,11 @@ http {
             }
             
             if ($request_method = 'OPTIONS') {
-                add_header 'Access-Control-Allow-Origin' '*';
-                add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, PUT, DELETE';
-                add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, X-Requested-With';
-                add_header 'Access-Control-Max-Age' 1728000;
-                add_header 'Content-Type' 'text/plain; charset=utf-8';
-                # add_header 'Content-Length' 0;
+                more_set_headers 'Access-Control-Allow-Origin: *';
+                more_set_headers 'Access-Control-Allow-Methods: GET, POST, OPTIONS, PUT, DELETE';
+                more_set_headers 'Access-Control-Allow-Headers: Authorization, Content-Type, X-Requested-With';
+                more_set_headers 'Access-Control-Max-Age: 1728069';
+                more_set_headers 'Content-Type: text/plain; charset=utf-8';
                 return 204;
             }
 
@@ -278,17 +352,17 @@ http {
         # Provides AI-agent accessible interface to WSLProxy configuration and status
         location ~ ^/mcp(/.*)?$ {
             default_type 'application/json';
-            add_header 'Access-Control-Allow-Origin' '*';
-            add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS';
-            add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, X-MCP-API-Key';
-            add_header 'Access-Control-Max-Age' 1728000;
+            more_set_headers 'Access-Control-Allow-Origin: *';
+            more_set_headers 'Access-Control-Allow-Methods: GET, POST, OPTIONS';
+            more_set_headers 'Access-Control-Allow-Headers: Authorization, Content-Type, X-MCP-API-Key';
+            more_set_headers 'Access-Control-Max-Age: 1728069';
 
             if ($request_method = 'OPTIONS') {
-                add_header 'Access-Control-Allow-Origin' '*';
-                add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS';
-                add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, X-MCP-API-Key';
-                add_header 'Access-Control-Max-Age' 1728000;
-                add_header 'Content-Type' 'text/plain; charset=utf-8';
+                more_set_headers 'Access-Control-Allow-Origin: *';
+                more_set_headers 'Access-Control-Allow-Methods: GET, POST, OPTIONS';
+                more_set_headers 'Access-Control-Allow-Headers: Authorization, Content-Type, X-MCP-API-Key';
+                more_set_headers 'Access-Control-Max-Age: 1728069';
+                more_set_headers 'Content-Type: text/plain; charset=utf-8';
                 return 204;
             }
 
@@ -309,17 +383,6 @@ http {
                 end
             }
         }
-
-      location /ping {
-          default_type 'application/json';
-          add_header 'Access-Control-Allow-Origin' '*';
-          add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, PUT, DELETE';
-          add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, X-Requested-With';
-          add_header 'Access-Control-Max-Age' 1728000;
-          add_header 'Content-Type' 'text/plain; charset=utf-8';
-          # add_header 'Content-Length' 0;
-          content_by_lua_file /usr/local/openresty/nginx/html/api/ping.lua;
-      }
 
         # Prometheus Metrics Endpoint
         location /metrics {
@@ -397,10 +460,8 @@ http {
                 ngx.print(hc.status_page())
             }
         }
+{% endif %}
     }
-
-    # Openresty Admin UI END
-    {% endif %}
 
 
   # Internal server running on port 8999 for handling certificate tasks.
@@ -442,7 +503,7 @@ server {
         ssl_certificate /etc/ssl/resty-auto-ssl-fallback.crt;
         ssl_certificate_key /etc/ssl/resty-auto-ssl-fallback.key;
 
-        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+        more_set_headers 'Strict-Transport-Security: max-age=31536000; includeSubDomains';
 
         limit_req zone=req_zone burst=10 nodelay;
         limit_req zone=req_zone_wl burst=20 nodelay;
@@ -496,10 +557,21 @@ server {
             access_by_lua_file /usr/local/openresty/nginx/html/api/gateway_resp.lua;    # this code run just before the setting the proxy pass and content phase.
 
           # WSL Cache: Capture response headers for caching (always add debug headers)
+          # Also apply custom response headers stored by gateway_resp.lua
           header_filter_by_lua_block {
             local ok, CacheHandler = pcall(require, "cache_handler")
             if ok then
               CacheHandler.process_response_headers()
+            end
+
+            -- Apply custom response headers (set by gateway_resp.lua in access phase)
+            local custom_headers = ngx.ctx.custom_response_headers
+            if custom_headers and type(custom_headers) == "table" then
+              for _, header in ipairs(custom_headers) do
+                if header.header_key and header.header_key ~= "" then
+                  ngx.header[header.header_key] = header.header_value
+                end
+              end
             end
           }
 
@@ -536,20 +608,19 @@ server {
         location = /frontdoor/opsapi/sync {
           default_type 'application/json';
           if ($request_method = 'OPTIONS') {
-              add_header 'Access-Control-Allow-Origin' '*';
-              add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, PUT, DELETE';
-              add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, X-Requested-With';
-              add_header 'Access-Control-Max-Age' 1728000;
-              add_header 'Content-Type' 'text/plain; charset=utf-8';
-              # add_header 'Content-Length' 0;
+              more_set_headers 'Access-Control-Allow-Origin: *';
+              more_set_headers 'Access-Control-Allow-Methods: GET, POST, OPTIONS, PUT, DELETE';
+              more_set_headers 'Access-Control-Allow-Headers: Authorization, Content-Type, X-Requested-With';
+              more_set_headers 'Access-Control-Max-Age: 1728069';
+              more_set_headers 'Content-Type: text/plain; charset=utf-8';
               return 204;
           }
           content_by_lua_file /usr/local/openresty/nginx/html/api/sync_data.lua;
         }
         location = /frontdoor/opsapi/handle-profile {
           default_type 'application/json';
-          add_header 'Access-Control-Allow-Origin' '*';
-          add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, PUT, DELETE';
+          more_set_headers 'Access-Control-Allow-Origin: *';
+          more_set_headers 'Access-Control-Allow-Methods: GET, POST, OPTIONS, PUT, DELETE';
           content_by_lua_file /usr/local/openresty/nginx/html/api/profile_handler.lua;
         }
 
@@ -685,6 +756,18 @@ server {
             access_by_lua_file /usr/local/openresty/nginx/html/api/gateway_resp.lua;
             # this code run just before the setting the proxy pass and content phase.
 
+          # Apply custom response headers stored by gateway_resp.lua
+          header_filter_by_lua_block {
+            local custom_headers = ngx.ctx.custom_response_headers
+            if custom_headers and type(custom_headers) == "table" then
+              for _, header in ipairs(custom_headers) do
+                if header.header_key and header.header_key ~= "" then
+                  ngx.header[header.header_key] = header.header_value
+                end
+              end
+            end
+          }
+
           proxy_connect_timeout 300;
           # WebSocket support
           proxy_http_version 1.1;
@@ -716,20 +799,19 @@ server {
         location = /frontdoor/opsapi/sync {
           default_type 'application/json';
           if ($request_method = 'OPTIONS') {
-              add_header 'Access-Control-Allow-Origin' '*';
-              add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, PUT, DELETE';
-              add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, X-Requested-With';
-              add_header 'Access-Control-Max-Age' 1728000;
-              add_header 'Content-Type' 'text/plain; charset=utf-8';
-              # add_header 'Content-Length' 0;
+              more_set_headers 'Access-Control-Allow-Origin: *';
+              more_set_headers 'Access-Control-Allow-Methods: GET, POST, OPTIONS, PUT, DELETE';
+              more_set_headers 'Access-Control-Allow-Headers: Authorization, Content-Type, X-Requested-With';
+              more_set_headers 'Access-Control-Max-Age: 1728069';
+              more_set_headers 'Content-Type: text/plain; charset=utf-8';
               return 204;
           }
           content_by_lua_file /usr/local/openresty/nginx/html/api/sync_data.lua;
         }
         location = /frontdoor/opsapi/handle-profile {
           default_type 'application/json';
-          add_header 'Access-Control-Allow-Origin' '*';
-          add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, PUT, DELETE';
+          more_set_headers 'Access-Control-Allow-Origin: *';
+          more_set_headers 'Access-Control-Allow-Methods: GET, POST, OPTIONS, PUT, DELETE';
           content_by_lua_file /usr/local/openresty/nginx/html/api/profile_handler.lua;
         }
 
@@ -880,7 +962,7 @@ server {
     # another virtual host using mix of IP-, name-, and port-based configuration
     #
     server {
-        listen       8000;
+        listen       8069;
     #    listen       somename:8080;
     #    server_name  somename  alias  another.alias;
 

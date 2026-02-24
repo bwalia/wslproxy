@@ -425,12 +425,127 @@ const Form = ({ type }) => {
             </Grid>
           </SectionCard>
 
-          {/* Custom Headers */}
+          {/* Web Application Firewall */}
           <SectionCard
-            title="Custom Headers"
-            subtitle="Add custom HTTP headers to responses"
+            title="Web Application Firewall"
+            subtitle="Attach a WAF policy to protect this virtual server"
+          >
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6} md={3}>
+                <BooleanInput
+                  source="waf_enabled"
+                  label="Enable WAF"
+                  defaultValue={false}
+                  helperText="Enable WAF inspection for this server"
+                />
+              </Grid>
+              <FormDataConsumer>
+                {({ formData }) =>
+                  formData?.waf_enabled && (
+                    <>
+                      <Grid item xs={12} sm={6} md={4}>
+                        <ReferenceInput source="waf_policy_id" reference="waf_policies">
+                          <AutocompleteInput
+                            optionText="name"
+                            fullWidth
+                            label="WAF Policy"
+                            validate={[required()]}
+                            helperText="Select a WAF policy to apply"
+                          />
+                        </ReferenceInput>
+                      </Grid>
+                      <Grid item xs={12} sm={6} md={3}>
+                        <SelectInput
+                          source="waf_mode_override"
+                          label="Mode Override"
+                          fullWidth
+                          choices={[
+                            { id: '', name: 'Use Policy Default' },
+                            { id: 'block', name: 'Block' },
+                            { id: 'monitor', name: 'Monitor' },
+                          ]}
+                          helperText="Override the policy's enforcement mode for this server"
+                        />
+                      </Grid>
+                    </>
+                  )
+                }
+              </FormDataConsumer>
+            </Grid>
+          </SectionCard>
+
+          {/* Rate Limiting */}
+          <SectionCard
+            title="Rate Limiting"
+            subtitle="Per-server request rate limiting"
+          >
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6} md={3}>
+                <BooleanInput
+                  source="rate_limit_enabled"
+                  label="Enable Rate Limiting"
+                  defaultValue={false}
+                  helperText="Limit requests per IP address"
+                />
+              </Grid>
+              <FormDataConsumer>
+                {({ formData }) =>
+                  formData?.rate_limit_enabled && (
+                    <>
+                      <Grid item xs={12} sm={6} md={3}>
+                        <TextInput
+                          source="rate_limit.requests_per_second"
+                          label="Requests/Second"
+                          fullWidth
+                          defaultValue={100}
+                          helperText="Max requests per second per IP"
+                        />
+                      </Grid>
+                      <Grid item xs={12} sm={6} md={3}>
+                        <TextInput
+                          source="rate_limit.burst"
+                          label="Burst"
+                          fullWidth
+                          defaultValue={50}
+                          helperText="Extra burst capacity above the limit"
+                        />
+                      </Grid>
+                    </>
+                  )
+                }
+              </FormDataConsumer>
+            </Grid>
+          </SectionCard>
+
+          {/* Upstream Backend Request Headers */}
+          <SectionCard
+            title="Upstream Backend Request Headers"
+            subtitle="Headers appended to requests sent to upstream backend servers"
           >
             <ArrayInput source="custom_headers" label="">
+              <SimpleFormIterator
+                inline
+                disableReordering
+                className="server-custom-headers"
+              >
+                <TextInput
+                  source="header_key"
+                  label="Header Name"
+                />
+                <TextInput
+                  source="header_value"
+                  label="Header Value"
+                />
+              </SimpleFormIterator>
+            </ArrayInput>
+          </SectionCard>
+
+          {/* Client Response Headers */}
+          <SectionCard
+            title="Client Response Headers"
+            subtitle="Headers returned to the browser (e.g. CORS, Content-Security-Policy, security headers)"
+          >
+            <ArrayInput source="custom_response_headers" label="">
               <SimpleFormIterator
                 inline
                 disableReordering
@@ -636,6 +751,45 @@ const Form = ({ type }) => {
               </CardContent>
             </Card>
           )}
+        </div>
+      </TabbedForm.Tab>
+
+      <TabbedForm.Tab label="WAF Protection">
+        <div className="form-container">
+          <SectionCard
+            title="WAF Protection"
+            subtitle="Enable and configure Web Application Firewall protection for this server"
+          >
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6} md={4}>
+                <BooleanInput
+                  source="waf_enabled"
+                  label="Enable WAF"
+                  defaultValue={false}
+                  helperText="Enable Web Application Firewall protection"
+                />
+              </Grid>
+              <FormDataConsumer>
+                {({ formData }) =>
+                  formData?.waf_enabled && (
+                    <Grid item xs={12} sm={6} md={8}>
+                      <ReferenceInput
+                        source="waf_policy_id"
+                        reference="waf_policies"
+                      >
+                        <SelectInput
+                          fullWidth
+                          optionText="name"
+                          label="WAF Policy"
+                          helperText="Select a WAF policy to apply to this server"
+                        />
+                      </ReferenceInput>
+                    </Grid>
+                  )
+                }
+              </FormDataConsumer>
+            </Grid>
+          </SectionCard>
         </div>
       </TabbedForm.Tab>
     </TabbedForm>

@@ -8,6 +8,10 @@ import RuleIcon from "@mui/icons-material/RuleRounded";
 import ProfileIcon from "@mui/icons-material/RecentActorsRounded";
 import SecretIcon from "@mui/icons-material/KeyRounded";
 import InstanceIcon from "@mui/icons-material/ViewInArRounded";
+import WafRuleIcon from "@mui/icons-material/ShieldRounded";
+import WafPolicyIcon from "@mui/icons-material/VerifiedUserRounded";
+import WafEventIcon from "@mui/icons-material/NotificationsActiveRounded";
+import IngressIcon from "@mui/icons-material/AccountTree";
 import Logo from "./component/Logo";
 import { useThemeMode } from "./Theme";
 
@@ -135,7 +139,7 @@ export const Menu = () => {
       <Divider sx={{ my: 2, mx: 2, borderColor: theme.palette.divider }} />
 
       {/* Configuration Section */}
-      <Box sx={{ px: 1, flex: 1 }}>
+      <Box sx={{ px: 1 }}>
         {open && (
           <Typography
             variant="overline"
@@ -155,12 +159,12 @@ export const Menu = () => {
 
         <StyledMenuItem
           to="/servers"
-          primaryText="Servers"
+          primaryText="Virtual Servers"
           leftIcon={<ServerIcon />}
         />
         <StyledMenuItem
           to="/rules"
-          primaryText="Rules"
+          primaryText="Server Rules"
           leftIcon={<RuleIcon />}
         />
         <StyledMenuItem
@@ -177,6 +181,49 @@ export const Menu = () => {
           to="/instances"
           primaryText="Instances"
           leftIcon={<InstanceIcon />}
+        />
+        <StyledMenuItem
+          to="/ingress"
+          primaryText="Ingress Overview"
+          leftIcon={<IngressIcon />}
+        />
+      </Box>
+
+      <Divider sx={{ my: 2, mx: 2, borderColor: theme.palette.divider }} />
+
+      {/* Security Section */}
+      <Box sx={{ px: 1, flex: 1 }}>
+        {open && (
+          <Typography
+            variant="overline"
+            sx={{
+              px: 2,
+              py: 1,
+              color: theme.palette.text.secondary,
+              fontSize: "0.65rem",
+              fontWeight: 700,
+              letterSpacing: "0.1em",
+              display: "block",
+            }}
+          >
+            Security
+          </Typography>
+        )}
+
+        <StyledMenuItem
+          to="/waf_rules"
+          primaryText="WAF Rules"
+          leftIcon={<WafRuleIcon />}
+        />
+        <StyledMenuItem
+          to="/waf_policies"
+          primaryText="WAF Policies"
+          leftIcon={<WafPolicyIcon />}
+        />
+        <StyledMenuItem
+          to="/waf_events"
+          primaryText="WAF Events"
+          leftIcon={<WafEventIcon />}
         />
       </Box>
 

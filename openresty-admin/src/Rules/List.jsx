@@ -33,7 +33,7 @@ const rulesFilters = [
 const List = () => {
   return (
     <RaList
-      title={"Rules"}
+      title={"Server Rules"}
       perPage={1000}
       pagination={<MyPagination />}
       exporter={ExportJsonButton}

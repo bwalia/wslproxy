@@ -136,7 +136,7 @@ class TestClass(TestBaseClass):
         time.sleep(4)
 
         if server_name == "localhost":
-            frontUrl = "localhost:8000"
+            frontUrl = "localhost:8069"
         else: 
             frontUrl = server_name
             

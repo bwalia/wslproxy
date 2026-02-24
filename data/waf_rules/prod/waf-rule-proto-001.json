@@ -1,0 +1,17 @@
+{
+  "id": "waf-rule-proto-001",
+  "name": "Protocol Violation - Null Byte Injection",
+  "description": "Detects null byte injection attempts (%00) used to bypass file extension checks and terminate strings prematurely.",
+  "category": "protocol",
+  "severity": "high",
+  "enabled": true,
+  "target": "url",
+  "pattern": "%00",
+  "pattern_type": "string",
+  "action": "block",
+  "score": 8,
+  "tags": ["protocol", "bypass"],
+  "profile_id": "prod",
+  "created_at": 1740000000,
+  "updated_at": 1740000000
+}

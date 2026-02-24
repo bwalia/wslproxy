@@ -718,6 +718,14 @@ if exist_values and exist_values ~= 0 and exist_values ~= nil and exist_values ~
         -- do return ngx.say(highestPriorityKey) end
         if rulePasses == true then
             local selectedRule = parse_rules[highestPriorityParentKey][highestPriorityKey]
+
+            -- Gateway Pipeline: rate_limit -> WAF -> transforms (fail-open)
+            local pipeline_ok, GatewayPipeline = pcall(require, "gateway_pipeline")
+            if pipeline_ok and GatewayPipeline then
+                local handled = GatewayPipeline.execute(jsonval, selectedRule, envProfile)
+                if handled then return end
+            end
+
             local globalVars = ngx.var.frontdoor_global_vars
             globalVars = cjson.decode(globalVars)
             globalVars.executableRule = selectedRule
@@ -725,8 +733,8 @@ if exist_values and exist_values ~= 0 and exist_values ~= nil and exist_values ~
             globalVars.proxyServerName = jsonval.proxy_server_name or jsonval.server_name
             if not jsonval.proxy_server_name or jsonval.proxy_server_name == "null" or jsonval.proxy_server_name == "" or jsonval.proxy_server_name == ngx.null then
                 globalVars.proxyServerName = jsonval.server_name
-                globalVars.proxyServer = jsonval
             end
+            globalVars.proxyServer = jsonval
 
             ngx.var.frontdoor_global_vars = cjson.encode(globalVars)
         else

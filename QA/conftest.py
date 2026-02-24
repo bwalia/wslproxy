@@ -52,7 +52,7 @@ def setup(request):
     def handle_profile_api():
         # Calling the handle profile API
         if server_name == "localhost":
-            frontUrl = "localhost:8000"
+            frontUrl = "localhost:8069"
         else: 
             frontUrl = server_name
         url = "http://"+frontUrl+"/frontdoor/opsapi/handle-profile"

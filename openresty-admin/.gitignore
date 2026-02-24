@@ -30,3 +30,4 @@ dist-ssr
 test-results/
 playwright-report/
 playwright-output.txt
+e2e/.auth/

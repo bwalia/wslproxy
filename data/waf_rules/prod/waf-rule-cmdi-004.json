@@ -1,0 +1,17 @@
+{
+  "id": "waf-rule-cmdi-004",
+  "name": "Command Injection - Subshell Execution",
+  "description": "Detects OS command injection attempts using $() subshell syntax to execute commands within another command context.",
+  "category": "cmdi",
+  "severity": "critical",
+  "enabled": true,
+  "target": "url",
+  "pattern": "\\$\\([^)]+\\)",
+  "pattern_type": "regex",
+  "action": "block",
+  "score": 10,
+  "tags": ["owasp-top10", "cmdi", "a03"],
+  "profile_id": "prod",
+  "created_at": 1740000000,
+  "updated_at": 1740000000
+}

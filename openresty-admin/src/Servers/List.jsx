@@ -16,6 +16,7 @@ import CheckCircleIcon from "@mui/icons-material/CheckCircleRounded";
 import CancelIcon from "@mui/icons-material/CancelRounded";
 import LockIcon from "@mui/icons-material/LockRounded";
 import CachedIcon from "@mui/icons-material/CachedRounded";
+import ShieldIcon from "@mui/icons-material/ShieldRounded";
 import ExportJsonButton from './toolbar/ExportJsonButton';
 import Empty from '../component/Empty';
 import ToolBar from "../component/ToolBar";
@@ -174,10 +175,10 @@ const List = () => {
         </Box>
         <Box>
           <Typography variant="h5" fontWeight={700} color="text.primary">
-            Servers
+            Virtual Servers
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Manage your proxy server configurations
+            Configure your virtual servers
           </Typography>
         </Box>
       </Box>
@@ -276,6 +277,31 @@ const List = () => {
                     : alpha(theme.palette.grey[500], 0.12),
                   color: record.cache_enabled 
                     ? theme.palette.info.main
+                    : theme.palette.text.secondary,
+                  fontWeight: 500,
+                  fontSize: '0.75rem',
+                  '& .MuiChip-icon': {
+                    fontSize: 14,
+                    color: 'inherit',
+                  },
+                }}
+              />
+            )}
+          />
+          <FunctionField
+            source="waf_enabled"
+            label="WAF"
+            render={record => (
+              <Chip
+                icon={<ShieldIcon />}
+                label={record.waf_enabled ? "Protected" : "Off"}
+                size="small"
+                sx={{
+                  backgroundColor: record.waf_enabled
+                    ? alpha(theme.palette.warning.main, 0.12)
+                    : alpha(theme.palette.grey[500], 0.12),
+                  color: record.waf_enabled
+                    ? theme.palette.warning.main
                     : theme.palette.text.secondary,
                   fontWeight: 500,
                   fontSize: '0.75rem',
