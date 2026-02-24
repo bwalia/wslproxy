@@ -400,7 +400,7 @@ jobs:
             if [[ -f "$file" ]]; then
               filename=$(basename "$file")
               echo "  → $filename"
-              kubectl cp "$file" ${{ env.TARGET_ENV }}/$API_POD:/opt/nginx/data/servers/${{ env.TARGET_ENV }}/"$filename"
+              cat "$file" | kubectl exec -i -n ${{ env.TARGET_ENV }} $API_POD -- sh -c "cat > /opt/nginx/data/servers/${{ env.TARGET_ENV }}/\"$filename\""
             fi
           done
           
@@ -410,7 +410,7 @@ jobs:
             if [[ -f "$file" ]]; then
               filename=$(basename "$file")
               echo "  → $filename"
-              kubectl cp "$file" ${{ env.TARGET_ENV }}/$API_POD:/opt/nginx/data/rules/${{ env.TARGET_ENV }}/"$filename"
+              cat "$file" | kubectl exec -i -n ${{ env.TARGET_ENV }} $API_POD -- sh -c "cat > /opt/nginx/data/rules/${{ env.TARGET_ENV }}/\"$filename\""
             fi
           done
           
