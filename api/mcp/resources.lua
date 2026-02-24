@@ -532,6 +532,15 @@ _M.RESOURCE_REGISTRY = {
         mimeType = "application/json",
         category = "security",
         read_only = true
+    },
+    {
+        id = "traffic_splits",
+        name = "Traffic Splits",
+        description = "Current weighted routing configuration per rule, including canary percentages, backend health, and per-backend request stats",
+        uri = "wslproxy://resources/traffic_splits",
+        mimeType = "application/json",
+        category = "traffic",
+        read_only = true
     }
 }
 
@@ -640,6 +649,51 @@ function _M.get_gateway_config(config, profile_id)
     return result
 end
 
+-----------------------------------------------------------
+-- Resource: Traffic Splits (multi-backend routing config per rule)
+-----------------------------------------------------------
+function _M.get_traffic_splits(config, profile_id)
+    profile_id = profile_id or "prod"
+    local dir = configPath .. "data/rules/" .. profile_id
+    local rules, err = read_json_directory(dir)
+    if err then
+        ngx.log(ngx.WARN, "MCP: Failed to read rules for traffic splits, profile ", profile_id, ": ", err)
+    end
+
+    local splits = {}
+    local TrafficRouter
+    local tr_ok, tr = pcall(require, "traffic_router")
+    if tr_ok then TrafficRouter = tr end
+
+    for _, rule in ipairs(rules) do
+        local response = rule.match and rule.match.response
+        if response and response.backends and type(response.backends) == "table" and #response.backends > 0 then
+            local backend_info = {}
+            for _, b in ipairs(response.backends) do
+                local label = b.label or b.address
+                local stats = TrafficRouter and TrafficRouter.get_backend_stats(rule.id, label) or {}
+                local healthy = TrafficRouter and TrafficRouter.is_backend_healthy(rule.id, b.address) or true
+                table.insert(backend_info, {
+                    address = b.address,
+                    label = label,
+                    weight = b.weight or 1,
+                    healthy = healthy,
+                    stats = stats
+                })
+            end
+            table.insert(splits, {
+                rule_id = rule.id,
+                rule_name = rule.name,
+                routing = response.routing or { mode = "weighted" },
+                redirect_uri = response.redirect_uri,
+                backends = backend_info
+            })
+        end
+    end
+
+    return splits
+end
+
 -- Get a specific resource by ID
 function _M.get_resource(resource_id, config, params)
     local profile_id = params and params.profile_id or "prod"
@@ -657,7 +711,8 @@ function _M.get_resource(resource_id, config, params)
         waf_rules = function() return _M.get_waf_rules(config, profile_id), nil end,
         waf_policies = function() return _M.get_waf_policies(config, profile_id), nil end,
         waf_events = function() return _M.get_waf_events(config), nil end,
-        gateway_config = function() return _M.get_gateway_config(config, profile_id), nil end
+        gateway_config = function() return _M.get_gateway_config(config, profile_id), nil end,
+        traffic_splits = function() return _M.get_traffic_splits(config, profile_id), nil end
     }
 
     local handler = handlers[resource_id]

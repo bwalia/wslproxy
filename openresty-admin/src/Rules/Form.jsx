@@ -9,7 +9,9 @@ import {
   required,
   FormDataConsumer,
   SelectArrayInput,
-  ReferenceInput
+  ReferenceInput,
+  ArrayInput,
+  SimpleFormIterator,
 } from "react-admin";
 import Toolbar from "./toolbar/Toolbar";
 import CreateTags from "../component/CreateTags";
@@ -652,6 +654,124 @@ const Form = () => {
             </Grid>
           </Grid>
         </SectionCard>
+
+        {/* Traffic Splitting — only shown when response code is 305 (proxy) */}
+        <FormDataConsumer>
+          {({ formData }) =>
+            formData?.match?.response?.code === 305 && (
+              <SectionCard
+                title="Traffic Splitting"
+                subtitle="Configure multi-backend routing for canary releases, A/B testing, or weighted load balancing"
+              >
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={6} md={4}>
+                    <SelectInput
+                      source="match.response.routing.mode"
+                      label="Routing Mode"
+                      fullWidth
+                      defaultValue="weighted"
+                      choices={[
+                        { id: "weighted", name: "Weighted Random" },
+                        { id: "round_robin", name: "Round Robin" },
+                        { id: "header", name: "Header Match" },
+                        { id: "cookie", name: "Cookie / Sticky" },
+                        { id: "least_conn", name: "Least Busy" },
+                      ]}
+                      helperText="How traffic is distributed across backends"
+                    />
+                  </Grid>
+                  <FormDataConsumer>
+                    {({ formData: fd }) =>
+                      fd?.match?.response?.routing?.mode === "header" && (
+                        <>
+                          <Grid item xs={12} sm={6} md={4}>
+                            <TextInput
+                              source="match.response.routing.header_name"
+                              label="Header Name"
+                              fullWidth
+                              defaultValue="X-Canary"
+                              helperText="Header to match for canary routing"
+                            />
+                          </Grid>
+                          <Grid item xs={12} sm={6} md={4}>
+                            <TextInput
+                              source="match.response.routing.header_value"
+                              label="Header Value"
+                              fullWidth
+                              defaultValue="true"
+                              helperText="Value that routes to canary backend"
+                            />
+                          </Grid>
+                        </>
+                      )
+                    }
+                  </FormDataConsumer>
+                  <FormDataConsumer>
+                    {({ formData: fd }) =>
+                      fd?.match?.response?.routing?.mode === "cookie" && (
+                        <>
+                          <Grid item xs={12} sm={6} md={4}>
+                            <TextInput
+                              source="match.response.routing.cookie_name"
+                              label="Cookie Name"
+                              fullWidth
+                              defaultValue="canary_session"
+                              helperText="Cookie for sticky session routing"
+                            />
+                          </Grid>
+                          <Grid item xs={12} sm={6} md={4}>
+                            <BooleanInput
+                              source="match.response.routing.sticky"
+                              label="Sticky Sessions"
+                              defaultValue={false}
+                              helperText="Pin clients to first selected backend"
+                            />
+                          </Grid>
+                        </>
+                      )
+                    }
+                  </FormDataConsumer>
+                </Grid>
+
+                <Divider className="form-divider" />
+
+                <Typography variant="body2" color="text.secondary" className="sub-section-label">
+                  Backends
+                </Typography>
+                <Alert severity="info" className="form-alert" sx={{ mb: 2 }}>
+                  <Typography variant="caption">
+                    Weights should sum to 100. Each backend needs an address (host:port), weight (0-100), and a label.
+                  </Typography>
+                </Alert>
+                <ArrayInput source="match.response.backends" label="">
+                  <SimpleFormIterator inline disableReordering>
+                    <TextInput
+                      source="address"
+                      label="Address (host:port)"
+                      helperText="e.g., 10.0.0.1:8080"
+                      validate={[required()]}
+                    />
+                    <NumberInput
+                      source="weight"
+                      label="Weight %"
+                      defaultValue={50}
+                      min={0}
+                      max={100}
+                      helperText="0-100"
+                    />
+                    <TextInput
+                      source="label"
+                      label="Label"
+                      defaultValue="stable"
+                      helperText="e.g., stable, canary"
+                      validate={[required()]}
+                    />
+                  </SimpleFormIterator>
+                </ArrayInput>
+              </SectionCard>
+            )
+          }
+        </FormDataConsumer>
 
       </div>
     </SimpleForm>

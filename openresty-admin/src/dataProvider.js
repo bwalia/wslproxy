@@ -723,6 +723,132 @@ const dataProvider = (apiUrl, settings = {}) => {
       }
     },
 
+    getTrafficTopology: async () => {
+      try {
+        setIsLoadig(true);
+        const timestamp = Date.now();
+        const url = `${apiUrl}/traffic/topology?timestamp=${timestamp}`;
+        const response = await fetch(url, {
+          method: "GET",
+          headers: getHeaders(),
+        });
+        const data = await response.json();
+        setIsLoadig(false);
+        if (response.status === 200) return data;
+        return { data: { servers: [], rules_with_backends: [], connections: [] } };
+      } catch (error) {
+        console.log(error);
+        setIsLoadig(false);
+        return { data: { servers: [], rules_with_backends: [], connections: [] } };
+      }
+    },
+
+    getTrafficBackendStats: async (ruleId) => {
+      try {
+        setIsLoadig(true);
+        const timestamp = Date.now();
+        const url = `${apiUrl}/traffic/backends?rule_id=${encodeURIComponent(ruleId)}&timestamp=${timestamp}`;
+        const response = await fetch(url, {
+          method: "GET",
+          headers: getHeaders(),
+        });
+        const data = await response.json();
+        setIsLoadig(false);
+        if (response.status === 200) return data;
+        return { data: { rule_id: ruleId, backends: [] } };
+      } catch (error) {
+        console.log(error);
+        setIsLoadig(false);
+        return { data: { rule_id: ruleId, backends: [] } };
+      }
+    },
+
+    getTrafficHealth: async () => {
+      try {
+        setIsLoadig(true);
+        const timestamp = Date.now();
+        const url = `${apiUrl}/traffic/health?timestamp=${timestamp}`;
+        const response = await fetch(url, {
+          method: "GET",
+          headers: getHeaders(),
+        });
+        const data = await response.json();
+        setIsLoadig(false);
+        if (response.status === 200) return data;
+        return { data: [] };
+      } catch (error) {
+        console.log(error);
+        setIsLoadig(false);
+        return { data: [] };
+      }
+    },
+
+    updateTrafficWeights: async (params) => {
+      try {
+        setIsLoadig(true);
+        const url = `${apiUrl}/traffic/backends/weights`;
+        const response = await fetch(url, {
+          method: "POST",
+          body: JSON.stringify(params),
+          headers: getHeaders(),
+        });
+        const data = await response.json();
+        setIsLoadig(false);
+        if (response.status >= 400) {
+          return Promise.reject(data?.data?.message || "Failed to update weights");
+        }
+        return data;
+      } catch (error) {
+        console.log(error);
+        setIsLoadig(false);
+        return Promise.reject(error);
+      }
+    },
+
+    promoteBackend: async (params) => {
+      try {
+        setIsLoadig(true);
+        const url = `${apiUrl}/traffic/backends/promote`;
+        const response = await fetch(url, {
+          method: "POST",
+          body: JSON.stringify(params),
+          headers: getHeaders(),
+        });
+        const data = await response.json();
+        setIsLoadig(false);
+        if (response.status >= 400) {
+          return Promise.reject(data?.data?.message || "Failed to promote backend");
+        }
+        return data;
+      } catch (error) {
+        console.log(error);
+        setIsLoadig(false);
+        return Promise.reject(error);
+      }
+    },
+
+    rollbackBackend: async (params) => {
+      try {
+        setIsLoadig(true);
+        const url = `${apiUrl}/traffic/backends/rollback`;
+        const response = await fetch(url, {
+          method: "POST",
+          body: JSON.stringify(params),
+          headers: getHeaders(),
+        });
+        const data = await response.json();
+        setIsLoadig(false);
+        if (response.status >= 400) {
+          return Promise.reject(data?.data?.message || "Failed to rollback");
+        }
+        return data;
+      } catch (error) {
+        console.log(error);
+        setIsLoadig(false);
+        return Promise.reject(error);
+      }
+    },
+
     checkORStatus: async (resource, params) => {
       try {
         setIsLoadig(true);

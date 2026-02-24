@@ -101,6 +101,9 @@ http {
     # WAF event log storage (stores recent WAF events for dashboard and API)
     lua_shared_dict waf_events 10m;
 
+    # Traffic router state (backend health, round-robin counters, sticky sessions, per-backend stats)
+    lua_shared_dict router_state 5m;
+
     geo $limit {
         default 1;
         10.0.0.0/8 0;
@@ -149,6 +152,14 @@ http {
             hc_init.init()
         else
             ngx.log(ngx.WARN, "healthcheck_init module not available: ", tostring(hc_init))
+        end
+
+        -- Initialize traffic router health checks
+        local tr_ok, tr = pcall(require, "traffic_router")
+        if tr_ok and tr.start_health_checks then
+            tr.start_health_checks()
+        else
+            ngx.log(ngx.WARN, "traffic_router module not available: ", tostring(tr))
         end
 
         -- Initialize SSL domains cache from Redis (cosockets work in init_worker context)

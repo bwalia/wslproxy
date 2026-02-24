@@ -2,7 +2,7 @@ openapi: 3.0.0
 info:
   title: WSLProxy OpsAPI Gateway & MCP Server Documentation
   description: API endpoints reference for performing CRUD operations for Servers, Security Rules and HTTP Routes. Includes MCP (Model Context Protocol) endpoints for AI agent integration with typed resource schemas, Swagger-to-MCP mappers, and JSON-RPC 2.0 support.
-  version: 1.3.0
+  version: 1.4.0
 tags:
   - name: Servers  
     description: Create and Manage servers aka HTTP hosts
@@ -16,6 +16,8 @@ tags:
     description: Create and manage WAF policies that group rules with anomaly scoring, whitelisting, and blocking configuration
   - name: WAF Events
     description: View real-time WAF security events (blocked and monitored requests)
+  - name: Traffic
+    description: Traffic management APIs for multi-backend routing, canary releases, A/B testing, and weighted load balancing
   - name: MCP
     description: |
       Model Context Protocol (MCP) server endpoints for AI agent integration.
@@ -771,6 +773,249 @@ paths:
       security:
         - bearerAuth: []
 
+  /api/traffic/topology:
+    get:
+      tags:
+        - Traffic
+      summary: Get traffic routing topology
+      description: Returns the complete servers-to-rules-to-backends graph for the ingress overview. Includes server nodes, rules with multi-backend routing, backend stats, and connection mappings with weight percentages.
+      operationId: getTrafficTopology
+      parameters:
+        - name: profile_id
+          in: query
+          description: Environment profile
+          required: false
+          schema:
+            type: string
+            default: prod
+      responses:
+        '200':
+          description: Traffic topology retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/TrafficTopology'
+      security:
+        - bearerAuth: []
+
+  /api/traffic/backends:
+    get:
+      tags:
+        - Traffic
+      summary: Get backend stats for a rule
+      description: Returns per-backend statistics including request count, error count, average latency, health status, and current weight for all backends of a specific rule.
+      operationId: getTrafficBackendStats
+      parameters:
+        - name: rule_id
+          in: query
+          description: The rule ID to get backend stats for
+          required: true
+          schema:
+            type: string
+        - name: profile_id
+          in: query
+          description: Environment profile
+          required: false
+          schema:
+            type: string
+            default: prod
+      responses:
+        '200':
+          description: Backend stats retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/TrafficBackendStats'
+        '400':
+          description: Missing rule_id parameter
+        '404':
+          description: Rule not found
+      security:
+        - bearerAuth: []
+
+  /api/traffic/backends/weights:
+    post:
+      tags:
+        - Traffic
+      summary: Update backend traffic weights
+      description: Update the weight distribution for a rule's backends. Weights are normalized to sum to 100%. Changes take effect immediately without nginx reload (gateway reads from disk per-request).
+      operationId: updateTrafficWeights
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrafficWeightUpdate'
+      responses:
+        '200':
+          description: Weights updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      rule_id:
+                        type: string
+                      backends:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/TrafficBackend'
+                      effective_immediately:
+                        type: boolean
+                        default: true
+                      timestamp:
+                        type: string
+        '400':
+          description: Validation error (missing rule_id, invalid backends)
+        '404':
+          description: Rule not found
+      security:
+        - bearerAuth: []
+
+  /api/traffic/backends/promote:
+    post:
+      tags:
+        - Traffic
+      summary: Promote a backend to 100% traffic
+      description: Promote a specific backend to receive 100% of traffic. All other backends are set to 0% weight. The rule's redirect_uri is updated to point to the promoted backend. Used to complete a canary deployment.
+      operationId: promoteBackend
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rule_id, promote_label]
+              properties:
+                rule_id:
+                  type: string
+                  description: The rule ID containing the backend to promote
+                promote_label:
+                  type: string
+                  description: Label of the backend to promote (e.g., 'canary')
+                profile_id:
+                  type: string
+                  description: Environment profile
+                  default: prod
+      responses:
+        '200':
+          description: Backend promoted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      rule_id:
+                        type: string
+                      promoted_label:
+                        type: string
+                      promoted_address:
+                        type: string
+                      backends:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/TrafficBackend'
+                      timestamp:
+                        type: string
+        '400':
+          description: Validation error
+        '404':
+          description: Rule or backend not found
+      security:
+        - bearerAuth: []
+
+  /api/traffic/backends/rollback:
+    post:
+      tags:
+        - Traffic
+      summary: Rollback to single-backend routing
+      description: Remove the backends array and routing configuration from a rule, restoring single-backend routing via redirect_uri. Use this to undo a canary or A/B test deployment.
+      operationId: rollbackBackend
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rule_id]
+              properties:
+                rule_id:
+                  type: string
+                  description: The rule ID to rollback
+                profile_id:
+                  type: string
+                  description: Environment profile
+                  default: prod
+      responses:
+        '200':
+          description: Rollback completed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      rule_id:
+                        type: string
+                      redirect_uri:
+                        type: string
+                      removed_backends:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/TrafficBackend'
+                      timestamp:
+                        type: string
+        '400':
+          description: Validation error
+        '404':
+          description: Rule not found
+      security:
+        - bearerAuth: []
+
+  /api/traffic/health:
+    get:
+      tags:
+        - Traffic
+      summary: Get backend health status
+      description: Returns health status of all backends across all rules that have multi-backend routing configured. Health is determined by active health checks (if configured) or defaults to healthy.
+      operationId: getTrafficHealth
+      parameters:
+        - name: profile_id
+          in: query
+          description: Environment profile
+          required: false
+          schema:
+            type: string
+            default: prod
+      responses:
+        '200':
+          description: Backend health retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TrafficRuleHealth'
+      security:
+        - bearerAuth: []
+
   /api/waf_rules:
     get:
       tags:
@@ -1286,10 +1531,10 @@ paths:
         - name: resourceId
           in: path
           required: true
-          description: "Resource identifier. One of: servers, rules, upstreams, profiles, ssl, cache, health, metrics, settings, waf_rules, waf_policies, waf_events, gateway_config"
+          description: "Resource identifier. One of: servers, rules, upstreams, profiles, ssl, cache, health, metrics, settings, waf_rules, waf_policies, waf_events, gateway_config, traffic_splits"
           schema:
             type: string
-            enum: [servers, rules, upstreams, profiles, ssl, cache, health, metrics, settings, waf_rules, waf_policies, waf_events, gateway_config]
+            enum: [servers, rules, upstreams, profiles, ssl, cache, health, metrics, settings, waf_rules, waf_policies, waf_events, gateway_config, traffic_splits]
         - name: profile_id
           in: query
           required: false
@@ -1342,16 +1587,19 @@ paths:
         - **test_waf_rule**: Test a WAF regex pattern against sample input (read-only)
         - **bind_waf_policy**: Bind a WAF policy to a server (requires read-write mode)
         - **unbind_waf_policy**: Remove WAF policy binding from a server (requires read-write mode)
+        - **update_traffic_split**: Update backend traffic weight distribution (requires read-write mode)
+        - **promote_backend**: Promote a backend to 100% traffic (requires read-write mode)
+        - **rollback_backend**: Rollback to single-backend routing (requires read-write mode)
       operationId: mcpExecuteTool
       x-ai-agent: true
       parameters:
         - name: toolName
           in: path
           required: true
-          description: "Tool name. One of: validate_config, get_error_logs, reload_config, test_waf_rule, bind_waf_policy, unbind_waf_policy"
+          description: "Tool name. One of: validate_config, get_error_logs, reload_config, test_waf_rule, bind_waf_policy, unbind_waf_policy, update_traffic_split, promote_backend, rollback_backend"
           schema:
             type: string
-            enum: [validate_config, get_error_logs, reload_config, test_waf_rule, bind_waf_policy, unbind_waf_policy]
+            enum: [validate_config, get_error_logs, reload_config, test_waf_rule, bind_waf_policy, unbind_waf_policy, update_traffic_split, promote_backend, rollback_backend]
       requestBody:
         required: false
         content:
@@ -2060,6 +2308,182 @@ components:
         matched_data:
           type: string
           description: The input data that matched the pattern
+
+    TrafficBackend:
+      type: object
+      properties:
+        address:
+          type: string
+          description: Backend address (host:port)
+          default: "10.0.0.1:8080"
+        weight:
+          type: number
+          description: Traffic weight percentage (0-100)
+          default: 50
+        label:
+          type: string
+          description: Human-readable backend label
+          default: stable
+
+    TrafficRouting:
+      type: object
+      properties:
+        mode:
+          type: string
+          description: Routing algorithm
+          enum: [weighted, round_robin, header, cookie, least_conn]
+          default: weighted
+        header_name:
+          type: string
+          description: Header name for header-based routing
+          default: "X-Canary"
+        header_value:
+          type: string
+          description: Header value that routes to canary backend
+          default: "true"
+        cookie_name:
+          type: string
+          description: Cookie name for sticky session routing
+          default: "canary_session"
+        sticky:
+          type: boolean
+          description: Enable sticky sessions (pin client to first selected backend)
+          default: false
+
+    TrafficTopology:
+      type: object
+      properties:
+        servers:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              server_name:
+                type: string
+              ssl_enabled:
+                type: boolean
+              waf_enabled:
+                type: boolean
+              rule_ids:
+                type: array
+                items:
+                  type: string
+        rules_with_backends:
+          type: array
+          items:
+            type: object
+            properties:
+              rule_id:
+                type: string
+              rule_name:
+                type: string
+              server_name:
+                type: string
+              path:
+                type: string
+              routing:
+                $ref: '#/components/schemas/TrafficRouting'
+              backends:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TrafficBackend'
+              backend_stats:
+                type: array
+                items:
+                  type: object
+        connections:
+          type: array
+          items:
+            type: object
+            properties:
+              from:
+                type: string
+                description: Server name
+              to:
+                type: string
+                description: Backend address
+              label:
+                type: string
+              weight:
+                type: number
+
+    TrafficBackendStats:
+      type: object
+      properties:
+        rule_id:
+          type: string
+        routing:
+          $ref: '#/components/schemas/TrafficRouting'
+        backends:
+          type: array
+          items:
+            type: object
+            properties:
+              address:
+                type: string
+              label:
+                type: string
+              weight:
+                type: number
+              healthy:
+                type: boolean
+              stats:
+                type: object
+                properties:
+                  total_requests:
+                    type: number
+                  total_errors:
+                    type: number
+                  avg_latency_ms:
+                    type: number
+
+    TrafficWeightUpdate:
+      type: object
+      required: [rule_id, backends]
+      properties:
+        rule_id:
+          type: string
+          description: Rule ID to update weights for
+        profile_id:
+          type: string
+          description: Environment profile
+          default: prod
+        backends:
+          type: array
+          description: Backend weight updates
+          items:
+            type: object
+            required: [label, weight]
+            properties:
+              label:
+                type: string
+                description: Backend label
+              weight:
+                type: number
+                description: New weight percentage (0-100)
+
+    TrafficRuleHealth:
+      type: object
+      properties:
+        rule_id:
+          type: string
+        rule_name:
+          type: string
+        backends:
+          type: array
+          items:
+            type: object
+            properties:
+              address:
+                type: string
+              label:
+                type: string
+              weight:
+                type: number
+              healthy:
+                type: boolean
 
     McpManifest:
       type: object

@@ -3851,6 +3851,33 @@ local function handle_get_request(args, path)
     if path == "waf_events" then
         listWafEvents(args)
     end
+
+    -- Traffic management endpoints
+    if path == "traffic/topology" then
+        local ok, TrafficMgmt = pcall(require, "traffic_mgmt")
+        if ok then
+            local result = TrafficMgmt.get_topology(args)
+            ngx.say(cjson.encode(result))
+            ngx.exit(ngx.HTTP_OK)
+        end
+    end
+    if path == "traffic/backends" then
+        local ok, TrafficMgmt = pcall(require, "traffic_mgmt")
+        if ok then
+            local result = TrafficMgmt.get_backend_stats(args)
+            ngx.status = result.status or 200
+            ngx.say(cjson.encode(result))
+            ngx.exit(ngx.HTTP_OK)
+        end
+    end
+    if path == "traffic/health" then
+        local ok, TrafficMgmt = pcall(require, "traffic_mgmt")
+        if ok then
+            local result = TrafficMgmt.get_backend_health(args)
+            ngx.say(cjson.encode(result))
+            ngx.exit(ngx.HTTP_OK)
+        end
+    end
 end
 
 local function handle_post_request(args, path)
@@ -3904,6 +3931,37 @@ local function handle_post_request(args, path)
         end
         if path == "waf_rules/seed" then
             seedWafRules(args)
+        end
+        -- Traffic management POST endpoints
+        if path == "traffic/backends/weights" then
+            local ok, TrafficMgmt = pcall(require, "traffic_mgmt")
+            if ok then
+                local body = Helper.GetPayloads(args)
+                local result = TrafficMgmt.update_weights(body)
+                ngx.status = result.status or 200
+                ngx.say(cjson.encode(result))
+                ngx.exit(ngx.HTTP_OK)
+            end
+        end
+        if path == "traffic/backends/promote" then
+            local ok, TrafficMgmt = pcall(require, "traffic_mgmt")
+            if ok then
+                local body = Helper.GetPayloads(args)
+                local result = TrafficMgmt.promote_backend(body)
+                ngx.status = result.status or 200
+                ngx.say(cjson.encode(result))
+                ngx.exit(ngx.HTTP_OK)
+            end
+        end
+        if path == "traffic/backends/rollback" then
+            local ok, TrafficMgmt = pcall(require, "traffic_mgmt")
+            if ok then
+                local body = Helper.GetPayloads(args)
+                local result = TrafficMgmt.rollback_to_primary(body)
+                ngx.status = result.status or 200
+                ngx.say(cjson.encode(result))
+                ngx.exit(ngx.HTTP_OK)
+            end
         end
         if path == "password/reset" then
             resetPassword(args)
