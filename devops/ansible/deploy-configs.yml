@@ -13,25 +13,33 @@
 #   - openresty_acc: Acceptance servers
 
 - name: Deploy WSLProxy Server Configs and Rules
-  hosts: "openresty_{{ target_env | default('int') }}"
+  hosts: "{{ host_group | default('openresty_' + (target_env | default('int'))) }}"
   become: yes
   gather_facts: yes
 
   vars:
     # Remote data directory
     remote_data_dir: "/opt/nginx/data"
-    
+
     # Local data directory (relative to playbook)
     local_data_dir: "{{ playbook_dir }}/../../data"
-    
+
+    # Project code for source directory (e.g. "diytaxreturn")
+    # When set, reads from data/servers/<project_code>/ instead of data/servers/<target_env>/
+    # Files are always deployed to the remote servers/<target_env>/ directory
+    project_code: ""
+
+    # Resolved source directory - uses project_code if set, otherwise target_env
+    source_subdir: "{{ project_code if project_code else target_env }}"
+
     # Backup settings
     backup_enabled: true
     backup_dir: "/opt/nginx/backups"
     backup_retention_days: 7
-    
+
     # Validation settings
     validate_json: true
-    
+
     # Nginx reload settings
     reload_nginx: false
     nginx_service: "openresty"
@@ -44,6 +52,8 @@
           WSLProxy Config Deployment
           ==========================================
           Target Environment: {{ target_env }}
+          Project Code: {{ project_code | default('(none)') }}
+          Source Subdir: {{ source_subdir }}
           Target Host: {{ inventory_hostname }}
           Remote Data Dir: {{ remote_data_dir }}
           ==========================================
@@ -100,7 +110,7 @@
 
     - name: Find local server config files
       find:
-        paths: "{{ local_data_dir }}/servers/{{ target_env }}"
+        paths: "{{ local_data_dir }}/servers/{{ source_subdir }}"
         patterns: "*.json"
       delegate_to: localhost
       become: no
@@ -108,7 +118,7 @@
 
     - name: Find local rule config files
       find:
-        paths: "{{ local_data_dir }}/rules/{{ target_env }}"
+        paths: "{{ local_data_dir }}/rules/{{ source_subdir }}"
         patterns: "*.json"
       delegate_to: localhost
       become: no
