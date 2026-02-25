@@ -1,12 +1,21 @@
 .env
 .env.local
+.env.docker
+.env.nodeapp
+
+# Allow committed env files in openresty-admin (Vite mode templates)
+!openresty-admin/.env
+!openresty-admin/.env.example
+!openresty-admin/.env.int
+!openresty-admin/.env.prod
+!openresty-admin/.env.diytaxreturn
+!openresty-admin/.env.lan
+
 openresty-admin/cypress/e2e
 openresty-admin/cypress.config.js
 openresty-admin/cypress/fixtures
 openresty-admin/cypress/support
 openresty-admin/cypress/cypress/videos
-.env.docker
-.env.nodeapp
 error.html
 .vscode
 sealed-secret*
