@@ -161,9 +161,9 @@ jobs:
           python3 -c "
           import sys
           h='${{ env.TARGET_HOST }}'
-          e='${{ env.TARGET_ENV }}'
+          p='${{ env.PROJECT_CODE }}'
           hosts = open('devops/ansible/hosts').read()
-          group = f'[openresty_{e}]'
+          group = f'[openresty_{p}]'
           found = group in hosts and h in hosts.split(group)[1]
           if found:
               print(f'✅ Host {h} found in group {group}')
@@ -175,9 +175,12 @@ jobs:
       - name: Deploy configs via Ansible
         run: |
           echo "Deploying configs for environment: ${{ env.TARGET_ENV }} to host: ${{ env.TARGET_HOST }}"
+          echo "Source: data/servers/${{ env.PROJECT_CODE }}/ → remote servers/${{ env.TARGET_ENV }}/"
           ansible-playbook devops/ansible/deploy-configs.yml \
             -i devops/ansible/hosts \
             -e "target_env=${{ env.TARGET_ENV }}" \
+            -e "project_code=${{ env.PROJECT_CODE }}" \
+            -e "host_group=openresty_${{ env.PROJECT_CODE }}" \
             -e "local_data_dir=${{ github.workspace }}/data" \
             -l ${{ env.TARGET_HOST }} \
             -v
