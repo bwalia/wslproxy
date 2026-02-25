@@ -484,13 +484,12 @@ jobs:
       - name: Run Ansible Playbook (DIYTaxReturn)
         run: |
           echo "Deploying to DIYTaxReturn: 187.77.179.206 (env: diytaxreturn)"
-          sudo ansible-playbook devops/ansible/wslproxy-ops.yml \
+          export ANSIBLE_HOST_KEY_CHECKING=False
+          ansible-playbook devops/ansible/wslproxy-ops.yml \
             -i devops/ansible/hosts \
             -l 187.77.179.206 \
+            --private-key /home/bwalia/.ssh/id_rsa \
             --extra-vars "nginx_user_password=THISCOMESFROMSECRETS target_env=diytaxreturn local_settings_file_path=/home/bwalia/.secrets/wslproxy/diytaxreturn/settings.json local_env_file_path=/home/bwalia/.secrets/wslproxy/diytaxreturn/.env"
-        env:
-          ANSIBLE_HOST_KEY_CHECKING: "False"
-          ANSIBLE_PRIVATE_KEY_FILE: ~/.ssh/id_rsa
 
       - name: Post-deploy health gate
         run: |
