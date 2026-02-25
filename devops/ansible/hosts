@@ -47,7 +47,3 @@ openresty_diytaxreturn
 [docker_servers]
 187.77.179.206 ansible_user=root
 
-# Docker-enabled servers
-[docker_servers]
-187.77.179.206 ansible_user=root
-
