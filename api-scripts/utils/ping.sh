@@ -7,7 +7,7 @@ source "$SCRIPT_DIR/../config.sh"
 
 echo -e "${YELLOW}Pinging gateway...${NC}"
 
-RESPONSE=$(curl -s -X GET "$GATEWAY_URL/ping")
+RESPONSE=$(curl -s -X GET "$GATEWAY_URL/health")
 
 if [ -n "$RESPONSE" ]; then
     echo -e "${GREEN}Gateway is running!${NC}"

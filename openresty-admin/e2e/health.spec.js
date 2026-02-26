@@ -8,21 +8,34 @@ import { test, expect } from '@playwright/test';
  */
 
 test.describe('API Health', { tag: '@smoke' }, () => {
-  test('/ping returns 200 with pong', async ({ request }) => {
+  test('/health returns 200 with healthy status', async ({ request }) => {
+    const response = await request.get('/health');
+    expect(response.status()).toBe(200);
+
+    const json = await response.json();
+    expect(json.response).toBe('pong');
+    expect(json.status).toBe('healthy');
+  });
+
+  test('/health?detailed=true returns full diagnostics', async ({ request }) => {
+    const response = await request.get('/health?detailed=true');
+    const json = await response.json();
+
+    expect(json.status).toBeTruthy();
+    expect(json.services).toBeTruthy();
+    expect(json.data_directories).toBeTruthy();
+    expect(json.settings).toBeTruthy();
+    expect(json.frontend_env).toBeTruthy();
+    expect(json.system).toBeTruthy();
+    expect(json.system.openresty_version).toBeTruthy();
+  });
+
+  test('/ping still works (backward compat)', async ({ request }) => {
     const response = await request.get('/ping');
     expect(response.status()).toBe(200);
 
     const json = await response.json();
     expect(json.response).toBe('pong');
-  });
-
-  test('/ping contains version info', async ({ request }) => {
-    const response = await request.get('/ping');
-    const json = await response.json();
-
-    expect(json.app).toBeTruthy();
-    expect(json.version).toBeTruthy();
-    expect(json.openresty_version).toBeTruthy();
   });
 
   test('API rejects unauthenticated requests', async ({ request }) => {
