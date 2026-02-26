@@ -181,7 +181,7 @@ jobs:
           }
 
           for i in $(seq 1 12); do
-            STATUS=$(curl -sf -o /dev/null -w "%{http_code}" http://localhost:8080/ping 2>/dev/null || echo "000")
+            STATUS=$(curl -sf -o /dev/null -w "%{http_code}" http://localhost:8080/health 2>/dev/null || echo "000")
             if [ "$STATUS" = "200" ]; then
               echo "OpenResty responding (HTTP $STATUS)"
               exit 0
@@ -245,7 +245,7 @@ jobs:
         run: |
           FAILED=0
           # Core health check on port 8080 (always available)
-          for ENDPOINT in /ping; do
+          for ENDPOINT in /health; do
             STATUS=$(curl -sf -o /dev/null -w "%{http_code}" "http://localhost:8080${ENDPOINT}" 2>/dev/null || echo "000")
             if [ "$STATUS" = "200" ]; then
               printf "  GET :8080%-20s OK (%s)\n" "$ENDPOINT" "$STATUS"
@@ -375,7 +375,7 @@ jobs:
           }
 
           for i in $(seq 1 10); do
-            STATUS=$(curl -sf -o /dev/null -w "%{http_code}" "https://prod-our.wslproxy.com/ping" 2>/dev/null || echo "000")
+            STATUS=$(curl -sf -o /dev/null -w "%{http_code}" "https://prod-our.wslproxy.com/health" 2>/dev/null || echo "000")
             if [ "$STATUS" = "200" ]; then
               echo "Production endpoint healthy (HTTP $STATUS)"
               exit 0
@@ -507,7 +507,7 @@ jobs:
 
           for i in $(seq 1 12); do
             STATUS=$(ssh -i ~/.ssh/id_rsa -o BatchMode=yes root@187.77.179.206 \
-              "curl -sf -o /dev/null -w '%{http_code}' http://localhost:8080/ping 2>/dev/null" || echo "000")
+              "curl -sf -o /dev/null -w '%{http_code}' http://localhost:8080/health 2>/dev/null" || echo "000")
             if [ "$STATUS" = "200" ]; then
               echo "DIYTaxReturn endpoint healthy (HTTP $STATUS)"
               exit 0
