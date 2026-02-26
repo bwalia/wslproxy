@@ -21,7 +21,5 @@
     }
   },
   "version": 1,
-  "servers": [
-    "host:wslproxy.diytaxreturn.co.uk"
-  ]
+  "servers": ["host:wsl.diytaxreturn.co.uk"]
 }
