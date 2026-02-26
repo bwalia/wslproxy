@@ -1,7 +1,7 @@
 {
   "id": "host:wslproxy.diytaxreturn.co.uk",
-  "server_name": "pop.diytaxreturn.co.uk",
-  "proxy_server_name": "pop.diytaxreturn.co.uk",
+  "server_name": "wslproxy.diytaxreturn.co.uk",
+  "proxy_server_name": "wslproxy.diytaxreturn.co.uk",
   "root": "/var/www/html",
   "index": "index.html",
   "access_log": "logs/access.log",
