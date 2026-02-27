@@ -1,275 +1,585 @@
 #!/bin/bash
-# =============================================================================
-# WSLProxy Admin UI - Multi-Environment Dev Launcher
-# =============================================================================
-# Interactive script for starting the admin UI dev server against different
-# API backends. Modeled after the diy-tax-return-uk project pattern.
-#
-# Usage:
-#   ./start.sh                     # Interactive menu
-#   ./start.sh --env=local         # Local dev (Docker API on localhost:8280)
-#   ./start.sh --env=lan           # LAN dev (auto-detect IP, bind 0.0.0.0)
-#   ./start.sh --env=int           # Point at int.wslproxy.com
-#   ./start.sh --env=prod          # Point at wslproxy.com (production!)
-#   ./start.sh --env=diytaxreturn  # Point at wslproxy.diytaxreturn.co.uk
-#   ./start.sh --ci --env=int      # CI mode (no prompts, no color)
-#   ./start.sh --help              # Show help
-# =============================================================================
 
-set -e
-
+# Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
 CYAN='\033[0;36m'
-BOLD='\033[1m'
-NC='\033[0m'
+NC='\033[0m' # No Color
 
+# ============================================
+# Configuration
+# ============================================
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+COMPOSE_FILE="$SCRIPT_DIR/docker-compose-local.yml"
+ENV_LOCAL_FILE="$SCRIPT_DIR/.env.local"
 ADMIN_DIR="$SCRIPT_DIR/openresty-admin"
-CI_MODE=false
-ENV_MODE=""
+CONTAINER_NAME="wslproxy-local"
 
+# Ports
+HTTP_PORT=8180
+HTTPS_PORT=8443
+ADMIN_PORT=8280
+REDIS_PORT=6479
+NODE_APP_PORT=3009
+
+# ============================================
+# Usage and Help
+# ============================================
 show_help() {
-    echo -e "${GREEN}${BOLD}WSLProxy Admin UI - Multi-Environment Dev Launcher${NC}"
+    echo -e "${GREEN}WSLProxy Local Development Environment${NC}"
     echo ""
-    echo -e "${CYAN}Usage:${NC}"
-    echo "  ./start.sh [OPTIONS]"
+    echo -e "${BLUE}Usage:${NC}"
+    echo "  ./dev.sh [OPTIONS]"
     echo ""
-    echo -e "${CYAN}Options:${NC}"
-    echo "  --env=ENV       Set environment mode directly"
-    echo "  --ci            CI mode (no prompts, no color output)"
-    echo "  --help, -h      Show this help message"
+    echo -e "${BLUE}Options:${NC}"
+    echo "  -s, --skip-build      Skip admin dashboard build (use existing dist)"
+    echo "  -r, --reset           Reset environment (removes volumes and wipes data)"
+    echo "  -d, --detach          Run in detached mode (don't attach to logs)"
+    echo "  -w, --watch           Enable admin dashboard watch mode (auto-rebuild on changes)"
+    echo "  -n, --no-git          Skip all git operations (stash=n, pull=n)"
+    echo "  -a, --auto            Auto mode: stash=y, pull=y (no prompts)"
+    echo "  -j, --jwt-secret KEY  Set JWT secret key (skips interactive prompt)"
+    echo "  --stop                Stop all running services and exit"
+    echo "  --clean               Stop services, remove volumes, and exit"
+    echo "  --status              Show service status and exit"
+    echo "  --reload              Reload nginx config and exit"
+    echo "  -h, --help            Show this help message"
     echo ""
-    echo -e "${CYAN}Environment Modes:${NC}"
-    echo "  local           Local dev against Docker API (localhost:8280)"
-    echo "  lan             LAN dev with auto-detected IP (0.0.0.0 binding)"
-    echo "  int             Integration (int.wslproxy.com)"
-    echo "  prod            Production (wslproxy.com) - use with caution!"
-    echo "  diytaxreturn    DIY Tax Return (wslproxy.diytaxreturn.co.uk)"
+    echo -e "${BLUE}Examples:${NC}"
+    echo "  ./dev.sh                        # Start everything (interactive)"
+    echo "  ./dev.sh -n                     # Start without git operations"
+    echo "  ./dev.sh -a                     # Auto mode (stash + pull + start)"
+    echo "  ./dev.sh -w                     # Start with admin watch mode"
+    echo "  ./dev.sh -s                     # Start without rebuilding admin"
+    echo "  ./dev.sh -r                     # Fresh start (reset volumes)"
+    echo "  ./dev.sh -d                     # Start detached (background)"
+    echo "  ./dev.sh --stop                 # Stop everything"
+    echo "  ./dev.sh --clean                # Stop + remove all data"
     echo ""
-    echo -e "${CYAN}Examples:${NC}"
-    echo "  ./start.sh                          # Interactive menu"
-    echo "  ./start.sh --env=local              # Quick start local dev"
-    echo "  ./start.sh --env=lan                # LAN testing (mobile, etc.)"
-    echo "  ./start.sh --env=int                # Develop against int API"
-    echo "  ./start.sh --ci --env=int           # CI mode, no prompts"
+    echo -e "${BLUE}Access URLs:${NC}"
+    echo "  Admin Dashboard:  http://localhost:$ADMIN_PORT"
+    echo "  API:              http://localhost:$ADMIN_PORT/api"
+    echo "  HTTP Proxy:       http://localhost:$HTTP_PORT"
+    echo "  HTTPS Proxy:      https://localhost:$HTTPS_PORT"
+    echo "  Demo Node App:    http://localhost:$NODE_APP_PORT (origin backend)"
+    echo "  Redis:            localhost:$REDIS_PORT"
     echo ""
-    echo -e "${CYAN}Equivalent npm commands (from openresty-admin/):${NC}"
-    echo "  npm run dev                         # Same as --env=local"
-    echo "  npm run dev:lan                     # Same as --env=lan"
-    echo "  npm run dev:int                     # Same as --env=int"
-    echo "  npm run dev:prod                    # Same as --env=prod"
-    echo "  npm run dev:diytaxreturn            # Same as --env=diytaxreturn"
-    echo ""
-    echo -e "${CYAN}Notes:${NC}"
-    echo "  - For Docker-based full-stack dev, use ./dev.sh instead"
-    echo "  - Env files: openresty-admin/.env.* (see .env.example for docs)"
-    echo "  - Local overrides: create .env.local or .env.<mode>.local (gitignored)"
+    echo -e "${BLUE}Hot-Reload (no restart needed):${NC}"
+    echo "  Lua API files (./api/)      Changes reflect per-request automatically"
+    echo "  Static HTML (./html/)       Changes reflect immediately"
+    echo "  Admin dashboard             Use -w flag for auto-rebuild on save"
+    echo "  Nginx config                Run ./dev.sh --reload"
     echo ""
 }
 
-log_info() {
-    if $CI_MODE; then echo "[INFO] $1"; else echo -e "${GREEN}[+]${NC} $1"; fi
-}
+# ============================================
+# Parse Arguments
+# ============================================
+SKIP_BUILD=false
+RESET=false
+DETACH=false
+WATCH_ADMIN=false
+STASH_ARG=""
+PULL_ARG=""
+JWT_ARG=""
+ACTION=""
 
-log_warn() {
-    if $CI_MODE; then echo "[WARN] $1"; else echo -e "${YELLOW}[!]${NC} $1"; fi
-}
-
-log_error() {
-    if $CI_MODE; then echo "[ERROR] $1" >&2; else echo -e "${RED}[!]${NC} $1" >&2; fi
-}
-
-detect_lan_ip() {
-    local ip=""
-    # macOS
-    if command -v ipconfig &>/dev/null; then
-        ip=$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || true)
-    fi
-    # Linux fallback
-    if [ -z "$ip" ] && command -v hostname &>/dev/null; then
-        ip=$(hostname -I 2>/dev/null | awk '{print $1}' || true)
-    fi
-    # ip command fallback
-    if [ -z "$ip" ] && command -v ip &>/dev/null; then
-        ip=$(ip route get 1.1.1.1 2>/dev/null | awk '{print $7; exit}' || true)
-    fi
-    echo "$ip"
-}
-
-setup_lan_env() {
-    local lan_ip
-    lan_ip=$(detect_lan_ip)
-
-    if [ -z "$lan_ip" ]; then
-        log_error "Could not auto-detect LAN IP address."
-        echo "  Please create openresty-admin/.env.lan.local manually:"
-        echo "    VITE_API_URL=http://YOUR_IP:8280/api"
-        echo "    VITE_FRONT_URL=http://YOUR_IP:8280"
-        exit 1
-    fi
-
-    log_info "Detected LAN IP: ${lan_ip}"
-
-    cat > "$ADMIN_DIR/.env.lan.local" << EOF
-# Auto-generated by start.sh on $(date '+%Y-%m-%d %H:%M:%S')
-# LAN IP: ${lan_ip}
-VITE_API_URL=http://${lan_ip}:8280/api
-VITE_FRONT_URL=http://${lan_ip}:8280
-EOF
-
-    log_info "Generated openresty-admin/.env.lan.local"
-    echo ""
-    echo -e "  ${CYAN}Access from other devices:${NC}"
-    echo -e "  Admin UI:  ${GREEN}http://${lan_ip}:5173${NC}"
-    echo -e "  API:       ${GREEN}http://${lan_ip}:8280/api${NC}"
-    echo ""
-    echo -e "  ${YELLOW}Note: Docker dev environment (./dev.sh) must be running for the API.${NC}"
-}
-
-show_menu() {
-    echo ""
-    echo -e "${CYAN}${BOLD}WSLProxy Admin UI - Environment Selection${NC}"
-    echo -e "${CYAN}===========================================${NC}"
-    echo ""
-    echo -e "  ${BOLD}1)${NC} local          Local dev against Docker API (localhost:8280)"
-    echo -e "  ${BOLD}2)${NC} lan            LAN testing with auto-detected IP"
-    echo -e "  ${BOLD}3)${NC} int            Integration API (int.wslproxy.com)"
-    echo -e "  ${BOLD}4)${NC} prod           Production API (wslproxy.com) ${RED}[caution]${NC}"
-    echo -e "  ${BOLD}5)${NC} diytaxreturn   DIY Tax Return API (wslproxy.diytaxreturn.co.uk)"
-    echo ""
-    echo -e "  ${BOLD}h)${NC} help           Show detailed help"
-    echo -e "  ${BOLD}q)${NC} quit           Exit"
-    echo ""
-
-    local choice
-    read -p "Select environment [1-5, h, q]: " choice
-
-    case "$choice" in
-        1|local)        ENV_MODE="local" ;;
-        2|lan)          ENV_MODE="lan" ;;
-        3|int)          ENV_MODE="int" ;;
-        4|prod)         ENV_MODE="prod" ;;
-        5|diytaxreturn) ENV_MODE="diytaxreturn" ;;
-        h|help)         show_help; exit 0 ;;
-        q|quit)         echo "Goodbye."; exit 0 ;;
-        *)
-            log_error "Invalid choice: $choice"
-            show_menu
-            return
-            ;;
-    esac
-}
-
-# ── Parse Arguments ──────────────────────────────────────────────────────────
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --env=*)   ENV_MODE="${1#--env=}"; shift ;;
-        --ci)      CI_MODE=true; shift ;;
-        -h|--help) show_help; exit 0 ;;
-        *)         log_error "Unknown option: $1"; show_help; exit 1 ;;
+        -s|--skip-build)
+            SKIP_BUILD=true
+            shift
+            ;;
+        -r|--reset)
+            RESET=true
+            shift
+            ;;
+        -d|--detach)
+            DETACH=true
+            shift
+            ;;
+        -w|--watch)
+            WATCH_ADMIN=true
+            shift
+            ;;
+        -a|--auto)
+            STASH_ARG="y"
+            PULL_ARG="y"
+            shift
+            ;;
+        -n|--no-git)
+            STASH_ARG="n"
+            PULL_ARG="n"
+            shift
+            ;;
+        -j|--jwt-secret)
+            JWT_ARG="$2"
+            shift 2
+            ;;
+        --stop)
+            ACTION="stop"
+            shift
+            ;;
+        --clean)
+            ACTION="clean"
+            shift
+            ;;
+        --status)
+            ACTION="status"
+            shift
+            ;;
+        --reload)
+            ACTION="reload"
+            shift
+            ;;
+        -h|--help)
+            show_help
+            exit 0
+            ;;
+        *)
+            echo -e "${RED}Unknown option: $1${NC}"
+            show_help
+            exit 1
+            ;;
     esac
 done
 
-# ── Interactive Menu ─────────────────────────────────────────────────────────
-if [ -z "$ENV_MODE" ]; then
-    if $CI_MODE; then
-        log_error "CI mode requires --env flag (e.g., --ci --env=int)"
-        exit 1
-    fi
-    show_menu
+# ============================================
+# Quick Actions (exit after)
+# ============================================
+if [[ "$ACTION" == "stop" ]]; then
+    echo -e "${GREEN}[+] Stopping WSLProxy services...${NC}"
+    docker compose -f "$COMPOSE_FILE" down
+    echo -e "${GREEN}[+] Services stopped${NC}"
+    exit 0
 fi
 
-# ── Validate Environment ─────────────────────────────────────────────────────
-case "$ENV_MODE" in
-    local|lan|int|prod|diytaxreturn) ;;
-    *)
-        log_error "Unknown environment: $ENV_MODE"
-        log_error "Valid options: local, lan, int, prod, diytaxreturn"
-        exit 1
-        ;;
-esac
-
-# ── Pre-flight Checks ───────────────────────────────────────────────────────
-log_info "Environment: $ENV_MODE"
-
-if [ ! -d "$ADMIN_DIR" ]; then
-    log_error "Admin directory not found: $ADMIN_DIR"
-    exit 1
+if [[ "$ACTION" == "clean" ]]; then
+    echo -e "${YELLOW}[!] Stopping services and removing all volumes...${NC}"
+    docker compose -f "$COMPOSE_FILE" down -v
+    echo -e "${GREEN}[+] Services stopped and volumes removed${NC}"
+    exit 0
 fi
 
-if ! command -v node &>/dev/null; then
-    log_error "Node.js is not installed. Install from https://nodejs.org/"
-    exit 1
-fi
-
-# Check node_modules
-if [ ! -d "$ADMIN_DIR/node_modules" ]; then
-    log_warn "node_modules not found. Installing dependencies..."
-    cd "$ADMIN_DIR"
-    if command -v yarn &>/dev/null; then
-        yarn install --network-timeout 300000
+if [[ "$ACTION" == "status" ]]; then
+    echo ""
+    docker compose -f "$COMPOSE_FILE" ps
+    echo ""
+    if curl -sf "http://localhost:$ADMIN_PORT/health" > /dev/null 2>&1; then
+        echo -e "${GREEN}[+] WSLProxy is running and healthy${NC}"
     else
-        npm install
+        echo -e "${YELLOW}[!] WSLProxy is not responding on port $ADMIN_PORT${NC}"
     fi
-    cd "$SCRIPT_DIR"
+    exit 0
 fi
 
-# ── Production Warning ───────────────────────────────────────────────────────
-if [ "$ENV_MODE" = "prod" ] && ! $CI_MODE; then
-    echo ""
-    echo -e "  ${RED}${BOLD}WARNING: You are about to connect to the PRODUCTION API!${NC}"
-    echo -e "  ${RED}API: https://wslproxy.com/api${NC}"
-    echo ""
-    read -p "  Are you sure? [y/N]: " confirm
-    case "$confirm" in
-        [yY]|[yY][eE][sS]) ;;
-        *) echo "Aborted."; exit 0 ;;
+if [[ "$ACTION" == "reload" ]]; then
+    echo -e "${GREEN}[+] Reloading nginx configuration...${NC}"
+    docker exec "$CONTAINER_NAME" /usr/local/openresty/nginx/sbin/nginx -s reload
+    echo -e "${GREEN}[+] Nginx configuration reloaded${NC}"
+    exit 0
+fi
+
+# ============================================
+# Main Development Flow
+# ============================================
+echo -e "${GREEN}========================================${NC}"
+echo -e "${GREEN}   WSLProxy Development Environment    ${NC}"
+echo -e "${GREEN}========================================${NC}"
+echo ""
+
+# ============================================
+# Functions
+# ============================================
+prompt_yes_no() {
+    local prompt="$1"
+    local response
+    while true; do
+        read -p "$prompt [y/n]: " response
+        case "$response" in
+            [yY]|[yY][eE][sS]) return 0 ;;
+            [nN]|[nN][oO]) return 1 ;;
+            *) echo -e "${YELLOW}Please answer y or n.${NC}" ;;
+        esac
+    done
+}
+
+is_yes() {
+    case "$1" in
+        [yY]|[yY][eE][sS]) return 0 ;;
+        *) return 1 ;;
     esac
+}
+
+# ============================================
+# Step 1: Check Prerequisites
+# ============================================
+echo -e "${GREEN}[+] Checking prerequisites...${NC}"
+
+missing=0
+
+if ! command -v docker &> /dev/null; then
+    echo -e "${RED}[!] Docker is not installed. Install from https://docs.docker.com/get-docker/${NC}"
+    missing=1
 fi
 
-# ── LAN Mode Setup ──────────────────────────────────────────────────────────
-if [ "$ENV_MODE" = "lan" ]; then
-    setup_lan_env
+if ! command -v node &> /dev/null; then
+    echo -e "${RED}[!] Node.js is not installed. Install Node.js 16+ from https://nodejs.org/${NC}"
+    missing=1
 fi
 
-# ── Determine Vite Mode ─────────────────────────────────────────────────────
-if [ "$ENV_MODE" = "local" ]; then
-    VITE_MODE_FLAG=""
-    log_info "Using default mode (loads .env + .env.local)"
+if ! command -v yarn &> /dev/null; then
+    echo -e "${YELLOW}[!] Yarn not found, will use npm instead${NC}"
+    USE_NPM=true
 else
-    VITE_MODE_FLAG="--mode $ENV_MODE"
-    log_info "Using mode: $ENV_MODE (loads .env + .env.$ENV_MODE)"
+    USE_NPM=false
 fi
 
-# ── Show Environment Info ────────────────────────────────────────────────────
-echo ""
-ENV_FILE="$ADMIN_DIR/.env"
-if [ "$ENV_MODE" != "local" ] && [ -f "$ADMIN_DIR/.env.$ENV_MODE" ]; then
-    ENV_FILE="$ADMIN_DIR/.env.$ENV_MODE"
+if ! docker info &> /dev/null 2>&1; then
+    echo -e "${RED}[!] Docker daemon is not running. Start Docker Desktop or the Docker service.${NC}"
+    missing=1
 fi
-API_URL=$(grep "^VITE_API_URL=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2- || echo "unknown")
-FRONT_URL=$(grep "^VITE_FRONT_URL=" "$ENV_FILE" 2>/dev/null | cut -d'=' -f2- || echo "unknown")
 
-echo -e "  ${CYAN}Configuration:${NC}"
-echo -e "  API URL:    ${GREEN}$API_URL${NC}"
-echo -e "  Front URL:  ${GREEN}$FRONT_URL${NC}"
-echo -e "  Dev server: ${GREEN}http://localhost:5173${NC}"
-if [ "$ENV_MODE" = "lan" ]; then
-    LAN_IP=$(detect_lan_ip)
-    echo -e "  LAN access: ${GREEN}http://${LAN_IP}:5173${NC}"
+if [ $missing -eq 1 ]; then
+    exit 1
 fi
+
+echo -e "${GREEN}[+] All prerequisites met${NC}"
 echo ""
 
-# ── Launch Vite Dev Server ───────────────────────────────────────────────────
-log_info "Starting Vite dev server..."
-echo ""
+# ============================================
+# Step 2: Load/Set JWT Secret
+# ============================================
+# JWT_SECRET_KEY is required by the demo-node-app and injected into openresty-admin/.env
+# for Vite builds (VITE_JWT_SECURITY_PASSPHRASE).
+#
+# If passed via --jwt-secret, use it directly. Otherwise always prompt the user.
 
-cd "$ADMIN_DIR"
-
-if command -v npx &>/dev/null; then
-    exec npx vite $VITE_MODE_FLAG
+if [[ -n "$JWT_ARG" ]]; then
+    JWT_SECRET_KEY="$JWT_ARG"
+    echo -e "${GREEN}[+] JWT_SECRET_KEY set from --jwt-secret argument${NC}"
 else
-    exec ./node_modules/.bin/vite $VITE_MODE_FLAG
+    echo -e "${YELLOW}[?] JWT Secret Key${NC}"
+    echo -e "${BLUE}[i] Required for JWT token signing/validation${NC}"
+    echo -e "${BLUE}[i] You can skip this prompt with: ./start.sh --jwt-secret YOUR_KEY${NC}"
+    echo ""
+    read -p "Enter JWT secret key (or press Enter to generate a random one): " USER_JWT_KEY
+
+    if [ -z "$USER_JWT_KEY" ]; then
+        JWT_SECRET_KEY=$(openssl rand -base64 48 | tr -d '/+=' | head -c 64)
+        echo -e "${GREEN}[+] Generated random JWT secret${NC}"
+    else
+        JWT_SECRET_KEY="$USER_JWT_KEY"
+        echo -e "${GREEN}[+] JWT_SECRET_KEY set${NC}"
+    fi
 fi
+
+export JWT_SECRET_KEY
+
+# Inject JWT secret into openresty-admin/.env for Vite build
+ADMIN_ENV_FILE="$ADMIN_DIR/.env"
+if [ -f "$ADMIN_ENV_FILE" ]; then
+    if grep -q "^VITE_JWT_SECURITY_PASSPHRASE=" "$ADMIN_ENV_FILE" 2>/dev/null; then
+        # Update existing line
+        sed -i.bak "s|^VITE_JWT_SECURITY_PASSPHRASE=.*|VITE_JWT_SECURITY_PASSPHRASE=$JWT_SECRET_KEY|" "$ADMIN_ENV_FILE"
+        rm -f "${ADMIN_ENV_FILE}.bak"
+    else
+        # Append if not present
+        echo "VITE_JWT_SECURITY_PASSPHRASE=$JWT_SECRET_KEY" >> "$ADMIN_ENV_FILE"
+    fi
+    echo -e "${GREEN}[+] JWT secret injected into openresty-admin/.env${NC}"
+fi
+echo ""
+
+# ============================================
+# Step 3: Git Operations
+# ============================================
+if [[ -n $(git status --porcelain 2>/dev/null) ]]; then
+    echo -e "${YELLOW}[!] You have uncommitted changes:${NC}"
+    git status --short
+    echo ""
+
+    do_stash=false
+    if [[ -n "$STASH_ARG" ]]; then
+        if is_yes "$STASH_ARG"; then
+            do_stash=true
+            echo -e "${BLUE}[i] Stash option: yes (from argument)${NC}"
+        else
+            echo -e "${BLUE}[i] Stash option: no (from argument)${NC}"
+        fi
+    else
+        if prompt_yes_no "Do you want to stash your changes before pulling?"; then
+            do_stash=true
+        fi
+    fi
+
+    if $do_stash; then
+        echo -e "${GREEN}[+] Stashing changes...${NC}"
+        git stash push -m "Auto-stash before dev run $(date '+%Y-%m-%d %H:%M:%S')"
+        echo -e "${GREEN}[+] Changes stashed${NC}"
+    fi
+else
+    echo -e "${GREEN}[+] Working directory clean${NC}"
+fi
+
+echo ""
+
+do_pull=false
+if [[ -n "$PULL_ARG" ]]; then
+    if is_yes "$PULL_ARG"; then
+        do_pull=true
+        echo -e "${BLUE}[i] Pull option: yes (from argument)${NC}"
+    else
+        echo -e "${BLUE}[i] Pull option: no (from argument)${NC}"
+    fi
+else
+    if prompt_yes_no "Do you want to pull the latest changes from git?"; then
+        do_pull=true
+    fi
+fi
+
+if $do_pull; then
+    echo -e "${GREEN}[+] Pulling latest changes...${NC}"
+    git pull origin main
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}[+] Git pull completed${NC}"
+    else
+        echo -e "${RED}[!] Git pull failed. Resolve conflicts and try again.${NC}"
+        exit 1
+    fi
+else
+    echo -e "${YELLOW}[+] Skipping git pull${NC}"
+fi
+
+echo ""
+
+# ============================================
+# Step 4: Build Admin Dashboard (deferred to after container start)
+# ============================================
+if $SKIP_BUILD; then
+    echo -e "${YELLOW}[+] Skipping admin dashboard build (--skip-build)${NC}"
+else
+    echo -e "${GREEN}[+] Admin dashboard will be built inside the container after startup${NC}"
+    echo -e "${BLUE}[i] Source files are bind-mounted, .env is bind-mounted${NC}"
+fi
+
+echo ""
+
+# ============================================
+# Step 5: Create Required Directories & Files
+# ============================================
+echo -e "${GREEN}[+] Setting up data directories and permissions...${NC}"
+
+DATA_DIR="$SCRIPT_DIR/data"
+
+# Create all required directories
+mkdir -p "$DATA_DIR/servers/dev"
+mkdir -p "$DATA_DIR/servers/prod"
+mkdir -p "$DATA_DIR/rules"
+mkdir -p "$DATA_DIR/ssl"
+mkdir -p "$DATA_DIR/ssl-certs/storage/file"
+mkdir -p "$DATA_DIR/ssl-certs/letsencrypt/.acme-challenges"
+mkdir -p "$DATA_DIR/upstreams/prod"
+mkdir -p "$DATA_DIR/instances"
+mkdir -p "$DATA_DIR/profiles"
+mkdir -p "$DATA_DIR/secrets"
+mkdir -p "$DATA_DIR/error-pages"
+
+# Ensure upstreams.conf exists (nginx include will fail without it)
+touch "$DATA_DIR/upstreams/prod/upstreams.conf"
+
+# Create settings.json from sample if it doesn't exist
+if [ ! -f "$DATA_DIR/settings.json" ]; then
+    if [ -f "$DATA_DIR/sample-settings.json" ]; then
+        echo -e "${YELLOW}[!] No settings.json found - creating from sample-settings.json${NC}"
+        cp "$DATA_DIR/sample-settings.json" "$DATA_DIR/settings.json"
+    else
+        echo -e "${RED}[!] No settings.json or sample-settings.json found in data/${NC}"
+        echo -e "${RED}[!] The application requires data/settings.json to run.${NC}"
+        exit 1
+    fi
+fi
+
+# Set permissions on entire data directory (must be writable by container)
+chmod -R 777 "$DATA_DIR"
+
+echo -e "${GREEN}[+] Data directories and permissions ready${NC}"
+echo ""
+
+# ============================================
+# Step 6: Stop Existing Containers
+# ============================================
+if $RESET; then
+    echo -e "${YELLOW}[!] Resetting environment - removing volumes...${NC}"
+    docker compose -f "$COMPOSE_FILE" down --volumes 2>/dev/null
+else
+    echo -e "${GREEN}[+] Stopping existing containers (preserving data)...${NC}"
+    docker compose -f "$COMPOSE_FILE" down 2>/dev/null
+fi
+
+echo ""
+
+# ============================================
+# Step 7: Start Containers
+# ============================================
+echo -e "${GREEN}[+] Building and starting containers...${NC}"
+echo ""
+
+ENV_FILE_ARG=""
+if [ -f "$ENV_LOCAL_FILE" ]; then
+    ENV_FILE_ARG="--env-file $ENV_LOCAL_FILE"
+fi
+docker compose -f "$COMPOSE_FILE" $ENV_FILE_ARG up --build -d
+
+echo ""
+
+# ============================================
+# Step 8: Wait for Services
+# ============================================
+echo -e "${GREEN}[+] Waiting for services to be healthy...${NC}"
+
+max_attempts=30
+attempt=0
+while [ $attempt -lt $max_attempts ]; do
+    if curl -sf "http://localhost:$ADMIN_PORT/health" > /dev/null 2>&1; then
+        echo -e "${GREEN}[+] Services are healthy!${NC}"
+        break
+    fi
+    attempt=$((attempt + 1))
+    printf "."
+    sleep 2
+done
+echo ""
+
+if [ $attempt -eq $max_attempts ]; then
+    echo -e "${YELLOW}[!] Services may not be fully ready yet${NC}"
+fi
+
+echo ""
+
+# ============================================
+# Step 9: Build Admin Dashboard Inside Container
+# ============================================
+if ! $SKIP_BUILD; then
+    echo -e "${GREEN}[+] Installing dependencies and building admin dashboard inside container...${NC}"
+    echo -e "${BLUE}[i] This uses the container's Node/Yarn with bind-mounted source and .env${NC}"
+
+    docker exec "$CONTAINER_NAME" sh -c "\
+        cd /usr/local/openresty/nginx/html/openresty-admin && \
+        yarn install --network-timeout 300000 && \
+        yarn build" 2>&1
+
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}[+] Admin dashboard built successfully inside container${NC}"
+    else
+        echo -e "${RED}[!] Admin dashboard build failed. You can retry manually:${NC}"
+        echo -e "${YELLOW}    docker exec $CONTAINER_NAME sh -c 'cd /usr/local/openresty/nginx/html/openresty-admin && yarn build'${NC}"
+    fi
+else
+    echo -e "${BLUE}[i] Skipped admin build (--skip-build)${NC}"
+fi
+
+echo ""
+
+# ============================================
+# Step 10: Fix Container Permissions
+# ============================================
+echo -e "${GREEN}[+] Fixing container permissions (logs, data)...${NC}"
+
+# The Docker image symlinks nginx/logs/access.log → /dev/stdout and error.log → /dev/stderr
+# The dashboard Lua API reads from these paths but can't read /dev/stderr as a file.
+# Fix: replace symlinks to point to the actual log files in /var/log/nginx/
+docker exec "$CONTAINER_NAME" sh -c "\
+  rm -f /usr/local/openresty/nginx/logs/access.log /usr/local/openresty/nginx/logs/error.log && \
+  ln -sf /var/log/nginx/access.log /usr/local/openresty/nginx/logs/access.log && \
+  ln -sf /var/log/nginx/error.log /usr/local/openresty/nginx/logs/error.log && \
+  chmod 666 /var/log/nginx/access.log /var/log/nginx/error.log && \
+  chmod 755 /var/log/nginx/" 2>/dev/null
+
+# Reload nginx so it writes to the real log files instead of /dev/stderr
+docker exec "$CONTAINER_NAME" /usr/local/openresty/nginx/sbin/nginx -s reload 2>/dev/null
+
+echo -e "${GREEN}[+] Container permissions set${NC}"
+echo ""
+
+# ============================================
+# Step 11: Start Admin Watch Mode (if requested)
+# ============================================
+WATCH_PID=""
+
+if $WATCH_ADMIN; then
+    echo -e "${GREEN}[+] Starting admin dashboard watch mode inside container (auto-rebuild on changes)...${NC}"
+    echo -e "${BLUE}[i] Source files are bind-mounted — saves on your Mac trigger rebuilds in the container${NC}"
+
+    docker exec -d "$CONTAINER_NAME" sh -c "\
+        cd /usr/local/openresty/nginx/html/openresty-admin && \
+        npx vite build --watch"
+
+    echo -e "${GREEN}[+] Watch mode running inside container${NC}"
+    echo ""
+fi
+
+# ============================================
+# Step 12: Print URLs and Attach to Logs
+# ============================================
+echo -e "${CYAN}========================================${NC}"
+echo -e "${CYAN}   WSLProxy is running!                ${NC}"
+echo -e "${CYAN}========================================${NC}"
+echo ""
+echo -e "  Admin Dashboard:  ${GREEN}http://localhost:$ADMIN_PORT${NC}"
+echo -e "  API:              ${GREEN}http://localhost:$ADMIN_PORT/api${NC}"
+echo -e "  HTTP Proxy:       ${GREEN}http://localhost:$HTTP_PORT${NC}"
+echo -e "  HTTPS Proxy:      ${GREEN}https://localhost:$HTTPS_PORT${NC}"
+echo -e "  Demo Node App:    ${GREEN}http://localhost:$NODE_APP_PORT${NC}  (origin backend at 172.177.0.10)"
+echo -e "  Prometheus:       ${GREEN}http://localhost:$ADMIN_PORT/metrics${NC}"
+echo -e "  Redis:            ${GREEN}localhost:$REDIS_PORT${NC}"
+echo ""
+echo -e "${CYAN}  Hot-Reload (no restart needed):${NC}"
+echo -e "  Lua API files (./api/)      → changes reflect per-request"
+echo -e "  Static HTML (./html/)       → changes reflect immediately"
+if $WATCH_ADMIN; then
+echo -e "  Admin dashboard (src/)      → ${GREEN}watch mode active, auto-rebuilds on save${NC}"
+else
+echo -e "  Admin dashboard             → restart with ${YELLOW}-w${NC} flag for auto-rebuild"
+fi
+echo -e "  Demo Node App (server.js)   → nodemon auto-restarts on file changes"
+echo -e "  Nginx config                → run ${YELLOW}./dev.sh --reload${NC} to apply"
+echo ""
+echo -e "${CYAN}  Quick Commands:${NC}"
+echo -e "  Stop:     ${YELLOW}./dev.sh --stop${NC}"
+echo -e "  Reload:   ${YELLOW}./dev.sh --reload${NC}"
+echo -e "  Status:   ${YELLOW}./dev.sh --status${NC}"
+echo -e "  Clean:    ${YELLOW}./dev.sh --clean${NC}"
+echo ""
+echo -e "${CYAN}========================================${NC}"
+echo ""
+
+# Cleanup function for watch mode
+cleanup() {
+    echo ""
+    echo -e "${GREEN}[+] Shutting down...${NC}"
+    if [[ -n "$WATCH_PID" ]] && kill -0 "$WATCH_PID" 2>/dev/null; then
+        echo -e "${GREEN}[+] Stopping admin watch mode...${NC}"
+        kill "$WATCH_PID" 2>/dev/null
+        wait "$WATCH_PID" 2>/dev/null
+    fi
+    echo -e "${GREEN}[+] Stopping containers...${NC}"
+    docker compose -f "$COMPOSE_FILE" down
+    echo -e "${GREEN}[+] Done. Goodbye!${NC}"
+    exit 0
+}
+
+if $DETACH; then
+    echo -e "${GREEN}[+] Running in detached mode. Use ./dev.sh --stop to stop.${NC}"
+    exit 0
+fi
+
+# Attach to logs (Ctrl+C to stop everything)
+trap cleanup SIGINT SIGTERM
+
+echo -e "${BLUE}[i] Attaching to container logs... Press Ctrl+C to stop everything.${NC}"
+echo ""
+
+docker compose -f "$COMPOSE_FILE" logs -f --tail=100
