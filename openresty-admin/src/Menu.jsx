@@ -182,11 +182,13 @@ export const Menu = () => {
           primaryText="Instances"
           leftIcon={<InstanceIcon />}
         />
-        <StyledMenuItem
-          to="/ingress"
-          primaryText="Ingress Overview"
-          leftIcon={<IngressIcon />}
-        />
+        {import.meta.env.VITE_TARGET_PLATFORM === 'KUBERNETES' && (
+          <StyledMenuItem
+            to="/ingress"
+            primaryText="Ingress Overview"
+            leftIcon={<IngressIcon />}
+          />
+        )}
       </Box>
 
       <Divider sx={{ my: 2, mx: 2, borderColor: theme.palette.divider }} />
