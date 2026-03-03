@@ -71,7 +71,18 @@
     # Install rocks to OpenResty tree so nginx can find them
     TREE="/usr/local/openresty/luajit"
     FAILED=0
-    for rock in lua-resty-jwt lua-resty-session lua-resty-http lua-resty-openidc base64 lua-resty-redis-connector lua-resty-dns lua-resty-resolver luafilesystem lua-resty-auto-ssl pgmoon lua-resty-consul; do
+
+    # Pin lua-resty-jwt to 0.2.3 — version 0.3.1 requires resty.utils which
+    # is not available, causing OpenResty to fail on startup
+    echo "=== Installing lua-resty-jwt 0.2.3 (pinned) ==="
+    if luarocks install --tree="$TREE" lua-resty-jwt 0.2.3 2>&1; then
+      echo "+++ lua-resty-jwt 0.2.3 OK"
+    else
+      echo "--- lua-resty-jwt 0.2.3 FAILED"
+      FAILED=1
+    fi
+
+    for rock in lua-resty-session lua-resty-http lua-resty-openidc base64 lua-resty-redis-connector lua-resty-dns lua-resty-resolver luafilesystem lua-resty-auto-ssl pgmoon lua-resty-consul; do
       echo "=== Installing $rock ==="
       if luarocks install --tree="$TREE" "$rock" 2>&1; then
         echo "+++ $rock OK"
