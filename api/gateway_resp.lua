@@ -175,6 +175,24 @@ elseif selectedRule.statusCode == 305 then
         ngx.var.proxy_port = extractedPort
     end
 
+    -- Varnish interception: route through local Varnish if enabled for this server
+    local v_ok, VarnishMgr = pcall(require, "varnish_manager")
+    if v_ok and proxyServer and proxyServer.server_name then
+        local varnish_enabled = VarnishMgr.is_varnish_enabled(proxyServer.server_name)
+        if varnish_enabled then
+            local vc = VarnishMgr.get_varnish_config(proxyServer.server_name)
+            if vc and vc.varnish_enabled then
+                -- Store original backend info in debug headers
+                ngx.header["X-Debug-Varnish-Enabled"] = "true"
+                ngx.header["X-Debug-Origin-Backend"] = finalProxyHost .. ":" .. ngx.var.proxy_port
+                -- Route to local Varnish instead of origin
+                finalProxyHost = vc.listen_address or "127.0.0.1"
+                ngx.var.proxy_port = tostring(vc.listen_port or 6081)
+                origin_serverScheme = "http"
+            end
+        end
+    end
+
     ngx.var.proxy_host = finalProxyHost
     if proxy_server_name ~= nil and proxy_server_name ~= "" then
         ngx.var.proxy_host_override = proxy_server_name

@@ -35,6 +35,7 @@ env MCP_ENABLED;
 env MCP_MODE;
 env MCP_API_KEY;
 env MCP_TOOLS_ENABLED;
+env VARNISH_ENABLED;
 
 {% if target_env == 'prod' %}
 # TCP stream proxy configs (only on production proxy hosts)
@@ -103,6 +104,9 @@ http {
 
     # Traffic router state (backend health, round-robin counters, sticky sessions, per-backend stats)
     lua_shared_dict router_state 5m;
+
+    # Varnish deployment state (deploy status, VCL labels per server)
+    lua_shared_dict varnish_state 2m;
 
     geo $limit {
         default 1;

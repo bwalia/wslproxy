@@ -90,13 +90,15 @@ _M.server = {
         waf_policy_id = { type = "string", required = false, description = "Bound WAF policy identifier" },
         waf_mode_override = { type = "string", required = false, description = "Per-server WAF mode override (block/monitor)", enum = {"block", "monitor"} },
         rate_limit_enabled = { type = "boolean", required = false, description = "Whether rate limiting is enabled" },
-        rate_limit = { type = "object", required = false, description = "Rate limit settings (requests_per_second, burst)" }
+        rate_limit = { type = "object", required = false, description = "Rate limit settings (requests_per_second, burst)" },
+        varnish_enabled = { type = "boolean", required = false, description = "Whether Varnish reverse proxy/cache is enabled" }
     },
     relationships = {
         rules = { type = "wslproxy.rule", cardinality = "many", description = "Security rules applied to this server" },
         ssl = { type = "wslproxy.ssl", cardinality = "one", description = "SSL configuration for this server" },
         cache = { type = "wslproxy.cache", cardinality = "one", description = "Cache configuration" },
-        waf_policy = { type = "wslproxy.waf_policy", cardinality = "one", description = "Bound WAF policy" }
+        waf_policy = { type = "wslproxy.waf_policy", cardinality = "one", description = "Bound WAF policy" },
+        varnish = { type = "wslproxy.varnish", cardinality = "one", description = "Varnish proxy/cache configuration" }
     }
 }
 
@@ -414,6 +416,29 @@ _M.waf_event = {
         method = { type = "string", required = false, description = "HTTP method" },
         score = { type = "number", required = false, description = "Anomaly score" },
         matched_data = { type = "string", required = false, description = "Matched pattern snippet" }
+    }
+}
+
+-- wslproxy.varnish resource schema
+_M.varnish = {
+    type = "wslproxy.varnish",
+    version = "1.0.0",
+    description = "Varnish reverse proxy/cache configuration per server",
+    properties = {
+        server_name = { type = "string", required = true, description = "Server domain name" },
+        varnish_enabled = { type = "boolean", required = false, description = "Whether Varnish is active" },
+        listen_port = { type = "number", required = false, description = "Varnish listen port" },
+        listen_address = { type = "string", required = false, description = "Varnish listen address" },
+        cache_ttl_default = { type = "number", required = false, description = "Default cache TTL in seconds" },
+        cache_grace = { type = "number", required = false, description = "Grace period in seconds" },
+        cache_size = { type = "string", required = false, description = "Cache storage size" },
+        health_check_enabled = { type = "boolean", required = false, description = "Backend health check enabled" },
+        snippet_count = { type = "number", required = false, description = "Number of VCL snippets" },
+        deploy_status = { type = "object", required = false, description = "Last deployment status" },
+        updated_at = { type = "number", required = false, description = "Last update timestamp" }
+    },
+    relationships = {
+        server = { type = "wslproxy.server", cardinality = "one", description = "Server this Varnish config belongs to" }
     }
 }
 

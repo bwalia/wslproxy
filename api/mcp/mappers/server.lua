@@ -35,7 +35,8 @@ function _M.map_one(server)
             waf_policy_id = server.waf_policy_id,
             waf_mode_override = server.waf_mode_override,
             rate_limit_enabled = server.rate_limit_enabled or false,
-            rate_limit = server.rate_limit
+            rate_limit = server.rate_limit,
+            varnish_enabled = server.varnish_enabled or false
         },
         relationships = {
             rules = server.rules and {
@@ -49,6 +50,10 @@ function _M.map_one(server)
             waf_policy = server.waf_policy_id and {
                 type = "wslproxy.waf_policy",
                 id = server.waf_policy_id
+            } or nil,
+            varnish = server.varnish_enabled and {
+                type = "wslproxy.varnish",
+                id = server.server_name
             } or nil
         }
     }
