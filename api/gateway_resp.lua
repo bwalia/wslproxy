@@ -37,12 +37,8 @@ elseif selectedRule.statusCode == 302 then
 elseif selectedRule.statusCode == 305 then
     local proxy_server_name = primaryNameserver
 
-    if selectedRule.redirectUri == nil then
-        ngx.say("Redirect url not found: ")
-        ngx.exit(ngx.HTTP_INTERNAL_SERVER_ERROR)
-    end
-
     -- Traffic Router: multi-backend weighted routing (fail-open)
+    -- Must run BEFORE the redirectUri nil check so backends can populate redirectUri
     local tr_ok, TrafficRouter = pcall(require, "traffic_router")
     if tr_ok and TrafficRouter and selectedRule.rule_data then
         local response = selectedRule.rule_data.response or selectedRule.rule_data
@@ -67,6 +63,11 @@ elseif selectedRule.statusCode == 305 then
                 ngx.header["Set-Cookie"] = ngx.ctx._traffic_router_set_cookie
             end
         end
+    end
+
+    if selectedRule.redirectUri == nil then
+        ngx.say("Redirect url not found: ")
+        ngx.exit(ngx.HTTP_INTERNAL_SERVER_ERROR)
     end
 
     -- Strip matched path prefix from URI before proxying (like K8s Ingress rewrite-target)
