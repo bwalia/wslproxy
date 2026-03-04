@@ -251,6 +251,64 @@ _M.TOOL_REGISTRY = {
             openWorldHint = false
         }
     }
+    {
+        name = "deploy_varnish",
+        description = "Deploy Varnish VCL configuration for a server. Generates VCL from config + snippets, validates syntax, loads into Varnish, and updates nginx routing. Supports dry_run for validation only. Rolls back on failure.",
+        inputSchema = {
+            type = "object",
+            properties = {
+                server_id = {
+                    type = "string",
+                    description = "Server config filename (e.g., 'host:example.com')"
+                },
+                profile_id = {
+                    type = "string",
+                    description = "Environment profile (default: 'prod')"
+                },
+                dry_run = {
+                    type = "boolean",
+                    description = "If true, generate and validate VCL without deploying (default: true)"
+                }
+            },
+            required = {"server_id"}
+        },
+        annotations = {
+            title = "Deploy Varnish Configuration",
+            readOnlyHint = false,
+            destructiveHint = false,
+            idempotentHint = true,
+            openWorldHint = false
+        }
+    },
+    {
+        name = "purge_varnish",
+        description = "Purge cached content from Varnish for a server. Supports URL pattern purging or full cache ban.",
+        inputSchema = {
+            type = "object",
+            properties = {
+                server_id = {
+                    type = "string",
+                    description = "Server config filename (e.g., 'host:example.com')"
+                },
+                url_pattern = {
+                    type = "string",
+                    description = "URL regex pattern to purge (default: '.*' for full purge)"
+                },
+                profile_id = {
+                    type = "string",
+                    description = "Environment profile (default: 'prod')"
+                }
+            },
+            required = {"server_id"}
+        },
+        annotations = {
+            title = "Purge Varnish Cache",
+            readOnlyHint = false,
+            destructiveHint = false,
+            idempotentHint = true,
+            openWorldHint = false
+        }
+    }
 }
 
 -- Tool: Validate NGINX configuration
@@ -663,6 +721,147 @@ function _M.rollback_backend(params)
     }
 end
 
+-- Tool: Deploy Varnish VCL configuration
+function _M.deploy_varnish(params)
+    local VarnishManager = require("varnish_manager")
+    local VarnishVcl = require("varnish_vcl")
+
+    local server_id = params.server_id
+    local profile_id = params.profile_id or "prod"
+    local dry_run = params.dry_run ~= false  -- default true
+    local configPath = os.getenv("NGINX_CONFIG_DIR") or "/opt/nginx/"
+
+    if not server_id or server_id == "" then
+        return { tool = "deploy_varnish", result = { error = "server_id is required" }, isError = true }
+    end
+
+    -- Extract server_name from server_id (e.g., "host:example.com" -> "example.com")
+    local server_name = server_id:match("^host:(.+)$") or server_id:gsub("%.json$", "")
+
+    -- Get Varnish config
+    local config = VarnishManager.get_varnish_config(server_name)
+    if not config then
+        return { tool = "deploy_varnish", result = { error = "No Varnish config found for: " .. server_name }, isError = true }
+    end
+
+    if not config.varnish_enabled then
+        return { tool = "deploy_varnish", result = { error = "Varnish is not enabled for: " .. server_name }, isError = true }
+    end
+
+    local snippets = config.snippets or {}
+
+    -- Step 1: Generate VCL
+    local vcl, vcl_err = VarnishVcl.assemble(server_name, config, snippets)
+    if not vcl then
+        return { tool = "deploy_varnish", result = { error = "VCL generation failed: " .. (vcl_err or "unknown") }, isError = true }
+    end
+
+    -- Step 2: Validate VCL
+    local valid, validate_output = VarnishVcl.validate_vcl(vcl)
+
+    if dry_run then
+        return {
+            tool = "deploy_varnish",
+            result = {
+                server_name = server_name,
+                dry_run = true,
+                valid = valid,
+                validation_output = validate_output,
+                snippet_count = #snippets,
+                message = valid and "VCL is valid. Set dry_run=false to deploy." or "VCL validation failed.",
+                timestamp = os.date("%Y-%m-%dT%H:%M:%SZ", ngx.time())
+            },
+            isError = not valid
+        }
+    end
+
+    if not valid then
+        VarnishManager.set_deploy_status(server_name, {
+            state = "failed",
+            last_deployed_at = os.time(),
+            last_error = validate_output
+        })
+        return { tool = "deploy_varnish", result = { error = "VCL validation failed: " .. validate_output }, isError = true }
+    end
+
+    -- Step 3: Save VCL to disk
+    local save_ok, vcl_path = VarnishManager.save_generated_vcl(server_name, vcl)
+    if not save_ok then
+        return { tool = "deploy_varnish", result = { error = "Failed to save VCL: " .. tostring(vcl_path) }, isError = true }
+    end
+
+    -- Step 4: Load and activate VCL
+    local admin_addr = (config.admin_listen_address or "127.0.0.1") .. ":" .. (config.admin_listen_port or 6082)
+    local label = VarnishVcl.generate_vcl_label(server_name)
+    local deploy_ok, deploy_output, deployed_label = VarnishVcl.deploy_vcl(vcl_path, admin_addr, label)
+
+    if deploy_ok then
+        VarnishManager.set_deploy_status(server_name, {
+            state = "deployed",
+            last_deployed_at = os.time(),
+            last_vcl_label = deployed_label,
+            last_error = nil
+        })
+        ngx.log(ngx.INFO, "MCP: Varnish VCL deployed for '", server_name, "' label '", deployed_label, "' by ", ngx.var.remote_addr)
+    else
+        VarnishManager.set_deploy_status(server_name, {
+            state = "failed",
+            last_deployed_at = os.time(),
+            last_vcl_label = deployed_label,
+            last_error = deploy_output
+        })
+    end
+
+    return {
+        tool = "deploy_varnish",
+        result = {
+            success = deploy_ok,
+            server_name = server_name,
+            vcl_label = deployed_label,
+            message = deploy_ok and "VCL deployed and activated" or ("Deploy failed: " .. deploy_output),
+            timestamp = os.date("%Y-%m-%dT%H:%M:%SZ", ngx.time())
+        },
+        isError = not deploy_ok
+    }
+end
+
+-- Tool: Purge Varnish cache
+function _M.purge_varnish(params)
+    local VarnishManager = require("varnish_manager")
+    local VarnishVcl = require("varnish_vcl")
+
+    local server_id = params.server_id
+    local url_pattern = params.url_pattern or ".*"
+
+    if not server_id or server_id == "" then
+        return { tool = "purge_varnish", result = { error = "server_id is required" }, isError = true }
+    end
+
+    local server_name = server_id:match("^host:(.+)$") or server_id:gsub("%.json$", "")
+
+    local config = VarnishManager.get_varnish_config(server_name)
+    if not config then
+        return { tool = "purge_varnish", result = { error = "No Varnish config found for: " .. server_name }, isError = true }
+    end
+
+    local admin_addr = (config.admin_listen_address or "127.0.0.1") .. ":" .. (config.admin_listen_port or 6082)
+    local success, output = VarnishVcl.purge_cache(admin_addr, url_pattern)
+
+    ngx.log(ngx.INFO, "MCP: Varnish cache purge for '", server_name, "' pattern '", url_pattern, "' by ", ngx.var.remote_addr)
+
+    return {
+        tool = "purge_varnish",
+        result = {
+            success = success,
+            server_name = server_name,
+            url_pattern = url_pattern,
+            output = output,
+            timestamp = os.date("%Y-%m-%dT%H:%M:%SZ", ngx.time())
+        },
+        isError = not success
+    }
+end
+
 -- Execute a tool by name
 function _M.execute(tool_name, params)
     local config = McpConfig.load()
@@ -683,7 +882,9 @@ function _M.execute(tool_name, params)
         unbind_waf_policy = function() return _M.unbind_waf_policy(params) end,
         update_traffic_split = function() return _M.update_traffic_split(params) end,
         promote_backend = function() return _M.promote_backend(params) end,
-        rollback_backend = function() return _M.rollback_backend(params) end
+        rollback_backend = function() return _M.rollback_backend(params) end,
+        deploy_varnish = function() return _M.deploy_varnish(params) end,
+        purge_varnish = function() return _M.purge_varnish(params) end
     }
 
     local handler = tool_handlers[tool_name]
@@ -694,7 +895,8 @@ function _M.execute(tool_name, params)
     -- Check write permission for non-readonly tools
     local write_tools = {
         reload_config = true, bind_waf_policy = true, unbind_waf_policy = true,
-        update_traffic_split = true, promote_backend = true, rollback_backend = true
+        update_traffic_split = true, promote_backend = true, rollback_backend = true,
+        deploy_varnish = true, purge_varnish = true
     }
     if write_tools[tool_name] then
         if tool_name == "reload_config" and params.dry_run ~= false then

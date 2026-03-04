@@ -40,6 +40,12 @@
   include_tasks: deploy_app.yml
   tags: [openresty, lapis, dashboard]
 
+# Step 6.5: Install and configure Varnish Cache (conditional)
+- name: Setup Varnish Cache
+  include_tasks: varnish_setup.yml
+  when: varnish_enabled is defined and varnish_enabled | bool
+  tags: [openresty, varnish]
+
 # Step 7: Cron jobs for data sync and nginx restart
 - name: Setup cron jobs
   include_tasks: cron_setup.yml

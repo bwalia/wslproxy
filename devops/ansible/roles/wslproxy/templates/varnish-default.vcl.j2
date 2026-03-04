@@ -1,0 +1,37 @@
+vcl 4.1;
+
+# Default bootstrap VCL for WSLProxy Varnish
+# This is overridden per-server by the Varnish Manager API
+# Managed by Ansible - do not edit manually
+
+import std;
+
+backend default {
+    .host = "{{ varnish_backend_host | default('127.0.0.1') }}";
+    .port = "{{ varnish_backend_port | default('8080') }}";
+    .connect_timeout = {{ varnish_connect_timeout | default('5s') }};
+    .first_byte_timeout = {{ varnish_first_byte_timeout | default('30s') }};
+    .between_bytes_timeout = {{ varnish_between_bytes_timeout | default('5s') }};
+}
+
+sub vcl_recv {
+    # Default: pass non-cacheable methods
+    if (req.method != "GET" && req.method != "HEAD") {
+        return (pass);
+    }
+}
+
+sub vcl_backend_response {
+    set beresp.ttl = {{ varnish_default_ttl | default('120') }}s;
+    set beresp.grace = {{ varnish_default_grace | default('3600') }}s;
+}
+
+sub vcl_deliver {
+    if (obj.hits > 0) {
+        set resp.http.X-Cache = "HIT";
+    } else {
+        set resp.http.X-Cache = "MISS";
+    }
+    set resp.http.X-Cache-Hits = obj.hits;
+    set resp.http.X-Served-By = "WSLProxy-Varnish";
+}
