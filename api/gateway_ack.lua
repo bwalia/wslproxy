@@ -479,10 +479,24 @@ local exist_values = nil
 
 local file, err = io.open(configPath .. "data/servers/" .. envProfile .. "/host:" .. Hostname .. ".json", "rb")
 if file == nil then
-    -- Use default error page (can be overridden via settings.json or environment secrets at deployment)
     local errorPageB64 = getErrorPage(settingsObj, "no_server")
-    ngx.header["Content-Type"] = settingsObj.nginx.content_type ~= nil and settingsObj.nginx.content_type or "text/html"
-    do return ngx.say(Base64.decode(errorPageB64)) end
+    ngx.log(ngx.ERR, "[wslproxy] no server configuration found for hostname '", Hostname,
+        "' (profile: ", envProfile, "). Create a server entry in the admin panel.")
+    if errorPageB64 and errorPageB64 ~= DEFAULT_ERROR_PAGES.no_server then
+        ngx.header["Content-Type"] = settingsObj.nginx.content_type ~= nil and settingsObj.nginx.content_type or "text/html"
+        ngx.status = ngx.HTTP_SERVICE_UNAVAILABLE
+        do return ngx.say(Base64.decode(errorPageB64)) end
+    else
+        ngx.header["Content-Type"] = "application/json"
+        ngx.status = ngx.HTTP_SERVICE_UNAVAILABLE
+        do return ngx.say(cjson.encode({
+            error = "server_not_configured",
+            message = "No configuration found for this virtual server.",
+            hint = "Create a server entry for '" .. Hostname .. "' in the admin panel (profile: " .. envProfile .. ").",
+            server = Hostname,
+            profile = envProfile,
+        })) end
+    end
 else
     exist_values = file:read "*a"
 end
