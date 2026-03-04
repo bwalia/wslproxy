@@ -266,7 +266,7 @@ local function gatewayHostAuthenticate(rule)
 end
 
 local function gatewayHostRulesParser(rules, ruleId, priority, message, statusCode, redirectUri, isConsul,
-                                      consulDomainName, stripPath)
+                                      consulDomainName, stripPath, ruleResponse)
     local chk_path = (rules.path ~= nil and type(rules.path) ~= "userdata") and trimWhitespace(rules.path) or rules.path
     local isPathPass, failMessage, isTokenPass = false, "", false
     local finalResult, results = {}, {}
@@ -364,6 +364,10 @@ local function gatewayHostRulesParser(rules, ruleId, priority, message, statusCo
     rules.isConsul = isConsul
     rules.consulDomainName = consulDomainName
     rules.strip_path = stripPath
+    rules.id = ruleId
+    if ruleResponse then
+        rules.response = ruleResponse
+    end
     results["country"] = isCountryPass
     results["priority"] = priority
     results["message"] = message
@@ -404,7 +408,8 @@ local function gatewayRequestHandler(ruleId)
             local results = gatewayHostRulesParser(ruleFromRedis.match.rules, ruleFromRedis.id, ruleFromRedis.priority,
                 ruleFromRedis.match.response.message, ruleFromRedis.match.response.code,
                 ruleFromRedis.match.response.redirect_uri, ruleFromRedis.match.response.is_consul,
-                ruleFromRedis.match.response.consul_domain_name, ruleFromRedis.match.response.strip_path)
+                ruleFromRedis.match.response.consul_domain_name, ruleFromRedis.match.response.strip_path,
+                ruleFromRedis.match.response)
             return results
         end
     end
