@@ -56,6 +56,7 @@ import StorageModal from "./StorageModal";
 import Logs from "../component/Logs";
 import Welcome from "../component/Welcome";
 import GeoTrafficMap from "./GeoTrafficMap";
+import BackendHealth from "./BackendHealth";
 import { useThemeMode } from "../Theme";
 import PublicIcon from "@mui/icons-material/PublicRounded";
 
@@ -475,6 +476,10 @@ const Dashboard = () => {
   // Per-server WAF activity state
   const [wafServerActivity, setWafServerActivity] = React.useState([]);
 
+  // Backend health & topology state
+  const [backendHealthData, setBackendHealthData] = React.useState([]);
+  const [topologyData, setTopologyData] = React.useState(null);
+
   const fetchErrorLogs = React.useCallback(() => {
     const logs = dataProvider.getLogs("openresty/error_logs");
     logs.then((log) => {
@@ -615,6 +620,20 @@ const Dashboard = () => {
     setErrorDetails([]);
   };
 
+  const fetchBackendHealth = React.useCallback(() => {
+    Promise.all([
+      dataProvider.getTrafficHealth(),
+      dataProvider.getTrafficTopology(),
+    ])
+      .then(([healthRes, topoRes]) => {
+        setBackendHealthData(healthRes?.data?.rules || []);
+        setTopologyData(topoRes?.data || null);
+      })
+      .catch((error) => {
+        console.log("Failed to fetch backend health:", error);
+      });
+  }, [dataProvider]);
+
   React.useEffect(() => {
     fetchErrorLogs();
     fetchAccessLogs();
@@ -622,6 +641,7 @@ const Dashboard = () => {
     fetchLogMetrics();
     fetchInstanceInfo();
     fetchCacheStats();
+    fetchBackendHealth();
 
     // Fetch entity counts
     Promise.all([
@@ -749,7 +769,10 @@ const Dashboard = () => {
       .catch(() => {});
 
     // Auto-refresh traffic data every 60 seconds
-    const trafficInterval = setInterval(fetchTrafficStats, 60000);
+    const trafficInterval = setInterval(() => {
+      fetchTrafficStats();
+      fetchBackendHealth();
+    }, 60000);
     return () => clearInterval(trafficInterval);
   }, []);
 
@@ -2609,6 +2632,17 @@ const Dashboard = () => {
           </ChartCard>
         </Box>
       )}
+
+      {/* Backend Health & Traffic */}
+      <Box sx={{ mb: 4, width: "100%" }}>
+        <BackendHealth
+          healthData={backendHealthData}
+          topologyData={topologyData}
+          onRefresh={fetchBackendHealth}
+          formatNumber={formatNumber}
+          formatBytes={formatBytes}
+        />
+      </Box>
 
       {/* Entity Stats Cards - Smaller secondary cards */}
       <Box
