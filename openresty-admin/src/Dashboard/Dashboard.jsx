@@ -953,6 +953,9 @@ const Dashboard = () => {
         >
           <Tab icon={<DashboardIcon sx={{ fontSize: 20 }} />} iconPosition="start" label="Overview" />
           <Tab icon={<DnsIcon sx={{ fontSize: 20 }} />} iconPosition="start" label="Backend Health & Traffic" />
+          <Tab icon={<SecurityIcon sx={{ fontSize: 20 }} />} iconPosition="start" label="SSL/TLS" />
+          <Tab icon={<StorageIcon sx={{ fontSize: 20 }} />} iconPosition="start" label="Cache" />
+          <Tab icon={<ShieldIcon sx={{ fontSize: 20 }} />} iconPosition="start" label="WAF" />
         </Tabs>
       </Box>
 
@@ -1781,6 +1784,10 @@ const Dashboard = () => {
         </ChartCard>
       </Box>
 
+      </>)}
+
+      {/* Tab: SSL/TLS */}
+      {activeTab === 2 && (<>
       {/* SSL Error Tracking - Full Width */}
       <Box sx={{ mb: 3, width: "100%" }}>
         <ChartCard
@@ -2306,6 +2313,10 @@ const Dashboard = () => {
         </ChartCard>
       </Box>
 
+      </>)}
+
+      {/* Tab: Cache */}
+      {activeTab === 3 && (<>
       {/* Cache Statistics - Full Width */}
       <Box sx={{ mb: 3, width: "100%" }}>
         <ChartCard
@@ -2545,6 +2556,10 @@ const Dashboard = () => {
         </ChartCard>
       </Box>
 
+      </>)}
+
+      {/* Tab: WAF */}
+      {activeTab === 4 && (<>
       {/* WAF Security Panel */}
       <Box sx={{ mb: 4, width: "100%" }}>
         <ChartCard
