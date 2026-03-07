@@ -300,14 +300,35 @@ const Health = () => {
         <Grid item xs={12} md={6}>
           <SectionCard title="API Health" icon={DnsIcon} accentColor="#10b981">
             <InfoRow
+              label="API URL"
+              value={health?._api_url || "N/A"}
+              mono
+            />
+            <InfoRow
+              label="HTTP Status"
+              value={health?._http_status ? `${health._http_status}` : "N/A"}
+              status={health?._http_status === 200 ? "ok" : health?._http_status ? "error" : undefined}
+            />
+            <InfoRow
+              label="Authenticated"
+              value={health?._authenticated ? "Yes" : "No"}
+              status={health?._authenticated ? "ok" : "error"}
+            />
+            <InfoRow
               label="API Status"
               value={health?.status === "unreachable" ? "Unreachable" : "Responsive"}
               status={health?.status === "unreachable" ? "error" : "ok"}
             />
             <InfoRow
               label="Response Time"
-              value={apiLatency !== null ? `${apiLatency}ms` : "N/A"}
-              status={apiLatency !== null ? (apiLatency < 1000 ? "ok" : apiLatency < 3000 ? "warning" : "error") : undefined}
+              value={health?._latency != null ? `${health._latency}ms` : (apiLatency !== null ? `${apiLatency}ms` : "N/A")}
+              status={(() => {
+                const lat = health?._latency ?? apiLatency;
+                if (lat == null) return undefined;
+                if (lat < 1000) return "ok";
+                if (lat < 3000) return "warning";
+                return "error";
+              })()}
             />
             <InfoRow
               label="Storage Type"

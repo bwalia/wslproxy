@@ -4,20 +4,48 @@ import CircleIcon from "@mui/icons-material/CircleRounded";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
-// Health states: "checking" | "healthy" | "degraded" | "down"
-const STATUS_CONFIG = {
-  checking: { color: "#f59e0b", label: "Checking API...", bg: "#f59e0b" },
-  healthy: { color: "#10b981", label: "API Online", bg: "#10b981" },
-  degraded: { color: "#f59e0b", label: "API Slow", bg: "#f59e0b" },
-  down: { color: "#ef4444", label: "API Unreachable", bg: "#ef4444" },
-};
-
 const SLOW_THRESHOLD_MS = 3000;
 const POLL_INTERVAL_MS = 30000;
 
-const useApiHealth = () => {
+// Status configs for authenticated context (AppBar)
+const AUTH_STATUS_CONFIG = {
+  checking: { color: "#f59e0b", label: "Checking API...", bg: "#f59e0b" },
+  healthy: { color: "#10b981", label: "API Online (200)", bg: "#10b981" },
+  degraded: { color: "#f59e0b", label: "API Slow", bg: "#f59e0b" },
+  down: { color: "#ef4444", label: "API Unreachable", bg: "#ef4444" },
+  error: { color: "#ef4444", label: "API Error", bg: "#ef4444" },
+};
+
+// Status configs for unauthenticated context (Login page)
+const UNAUTH_STATUS_CONFIG = {
+  checking: { color: "#f59e0b", label: "Checking API...", bg: "#f59e0b" },
+  reachable: { color: "#10b981", label: "API Reachable", bg: "#10b981" },
+  auth_required: { color: "#06b6d4", label: "API Reachable (401 - Unauthenticated)", bg: "#06b6d4" },
+  down: { color: "#ef4444", label: "API Unreachable", bg: "#ef4444" },
+};
+
+const getAuthHeaders = () => {
+  try {
+    const token = localStorage.getItem("token");
+    if (token) {
+      const parsed = JSON.parse(token);
+      if (parsed?.accessToken) {
+        return {
+          "x-platform": "react-admin",
+          Authorization: `Bearer ${parsed.accessToken}`,
+        };
+      }
+    }
+  } catch {}
+  return { "x-platform": "react-admin" };
+};
+
+// authenticated = true: sends token, expects 200
+// authenticated = false: no token, 401 means API is reachable
+const useApiHealth = (authenticated = false) => {
   const [status, setStatus] = useState("checking");
   const [latency, setLatency] = useState(null);
+  const [httpStatus, setHttpStatus] = useState(null);
 
   const checkHealth = useCallback(async () => {
     if (!API_URL) {
@@ -28,24 +56,41 @@ const useApiHealth = () => {
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 8000);
+      const headers = authenticated ? getAuthHeaders() : { "x-platform": "react-admin" };
       const res = await fetch(`${API_URL}/ping?timestamp=${Date.now()}`, {
         method: "GET",
         signal: controller.signal,
-        headers: { "x-platform": "react-admin" },
+        headers,
       });
       clearTimeout(timeout);
       const elapsed = Date.now() - start;
       setLatency(elapsed);
-      if (res.ok) {
-        setStatus(elapsed > SLOW_THRESHOLD_MS ? "degraded" : "healthy");
+      setHttpStatus(res.status);
+
+      if (authenticated) {
+        // Logged-in context: 200 = healthy, anything else = problem
+        if (res.ok) {
+          setStatus(elapsed > SLOW_THRESHOLD_MS ? "degraded" : "healthy");
+        } else {
+          setStatus("error");
+        }
       } else {
-        setStatus("down");
+        // Login page context: any HTTP response means API is reachable
+        if (res.status === 401 || res.status === 403) {
+          setStatus("auth_required");
+        } else if (res.ok) {
+          setStatus("reachable");
+        } else {
+          // API responded but with unexpected error — still reachable
+          setStatus("reachable");
+        }
       }
     } catch {
       setLatency(null);
+      setHttpStatus(null);
       setStatus("down");
     }
-  }, []);
+  }, [authenticated]);
 
   useEffect(() => {
     checkHealth();
@@ -53,13 +98,13 @@ const useApiHealth = () => {
     return () => clearInterval(interval);
   }, [checkHealth]);
 
-  return { status, latency, refresh: checkHealth };
+  return { status, latency, httpStatus, refresh: checkHealth };
 };
 
-// Full-width banner for the login page
+// Full-width banner for the login page (unauthenticated)
 export const ApiHealthBanner = () => {
-  const { status, latency } = useApiHealth();
-  const config = STATUS_CONFIG[status];
+  const { status, latency, httpStatus } = useApiHealth(false);
+  const config = UNAUTH_STATUS_CONFIG[status] || UNAUTH_STATUS_CONFIG.down;
 
   return (
     <Box
@@ -106,10 +151,13 @@ export const ApiHealthBanner = () => {
   );
 };
 
-// Compact indicator for the AppBar
+// Compact indicator for the AppBar (authenticated)
 export const ApiHealthIndicator = () => {
-  const { status, latency } = useApiHealth();
-  const config = STATUS_CONFIG[status];
+  const { status, latency, httpStatus } = useApiHealth(true);
+  const config = AUTH_STATUS_CONFIG[status] || AUTH_STATUS_CONFIG.down;
+  const displayLabel = httpStatus && status !== "checking"
+    ? `${config.label}`
+    : config.label;
 
   return (
     <Box
@@ -124,7 +172,11 @@ export const ApiHealthIndicator = () => {
         border: `1px solid ${alpha(config.bg, 0.25)}`,
         cursor: "default",
       }}
-      title={latency !== null ? `API response: ${latency}ms` : config.label}
+      title={
+        latency !== null
+          ? `API: ${API_URL} | HTTP ${httpStatus} | ${latency}ms`
+          : config.label
+      }
     >
       <CircleIcon
         sx={{
@@ -147,7 +199,7 @@ export const ApiHealthIndicator = () => {
           whiteSpace: "nowrap",
         }}
       >
-        {config.label}
+        {displayLabel}
       </Typography>
       {latency !== null && status !== "checking" && (
         <Typography

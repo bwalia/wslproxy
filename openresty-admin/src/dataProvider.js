@@ -854,10 +854,12 @@ const dataProvider = (apiUrl, settings = {}) => {
         setIsLoadig(true);
         const timestamp = Date.now();
         const url = `${apiUrl}/ping?detailed=true&timestamp=${timestamp}`;
+        const start = Date.now();
         const response = await fetch(url, {
           method: "GET",
           headers: getHeaders(),
         });
+        const latency = Date.now() - start;
         const data = await response.json();
         setIsLoadig(false);
         if (response.status === 401) {
@@ -865,12 +867,28 @@ const dataProvider = (apiUrl, settings = {}) => {
           window.location.href = "/#/login";
           return { data: {} };
         }
-        if (response.status === 200) return { data };
-        return { data: {} };
+        return {
+          data: {
+            ...data,
+            _api_url: apiUrl,
+            _http_status: response.status,
+            _latency: latency,
+            _authenticated: true,
+          },
+        };
       } catch (error) {
         console.log(error);
         setIsLoadig(false);
-        return { data: { status: "unreachable", error: error.message } };
+        return {
+          data: {
+            status: "unreachable",
+            error: error.message,
+            _api_url: apiUrl,
+            _http_status: null,
+            _latency: null,
+            _authenticated: false,
+          },
+        };
       }
     },
 
