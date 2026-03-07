@@ -952,7 +952,7 @@ const Dashboard = () => {
           }}
         >
           <Tab icon={<DashboardIcon sx={{ fontSize: 20 }} />} iconPosition="start" label="Overview" />
-          <Tab icon={<DnsIcon sx={{ fontSize: 20 }} />} iconPosition="start" label="Backend Metrics" />
+          <Tab icon={<DnsIcon sx={{ fontSize: 20 }} />} iconPosition="start" label="Backend Health & Traffic" />
         </Tabs>
       </Box>
 
