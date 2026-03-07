@@ -849,6 +849,31 @@ const dataProvider = (apiUrl, settings = {}) => {
       }
     },
 
+    getDetailedHealth: async () => {
+      try {
+        setIsLoadig(true);
+        const timestamp = Date.now();
+        const url = `${apiUrl}/ping?detailed=true&timestamp=${timestamp}`;
+        const response = await fetch(url, {
+          method: "GET",
+          headers: getHeaders(),
+        });
+        const data = await response.json();
+        setIsLoadig(false);
+        if (response.status === 401) {
+          localStorage.removeItem("token");
+          window.location.href = "/#/login";
+          return { data: {} };
+        }
+        if (response.status === 200) return { data };
+        return { data: {} };
+      } catch (error) {
+        console.log(error);
+        setIsLoadig(false);
+        return { data: { status: "unreachable", error: error.message } };
+      }
+    },
+
     checkORStatus: async (resource, params) => {
       try {
         setIsLoadig(true);

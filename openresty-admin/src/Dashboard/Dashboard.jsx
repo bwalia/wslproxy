@@ -17,6 +17,8 @@ import {
   TableCell,
   TableHead,
   TableRow,
+  Tabs,
+  Tab,
 } from "@mui/material";
 import React from "react";
 import {
@@ -59,6 +61,8 @@ import GeoTrafficMap from "./GeoTrafficMap";
 import BackendHealth from "./BackendHealth";
 import { useThemeMode } from "../Theme";
 import PublicIcon from "@mui/icons-material/PublicRounded";
+import DashboardIcon from "@mui/icons-material/DashboardRounded";
+import DnsIcon from "@mui/icons-material/DnsRounded";
 
 // Format bytes to human readable
 const formatBytes = (bytes, decimals = 2) => {
@@ -479,6 +483,9 @@ const Dashboard = () => {
   // Backend health & topology state
   const [backendHealthData, setBackendHealthData] = React.useState([]);
   const [topologyData, setTopologyData] = React.useState(null);
+
+  // Tab state for RHS content area
+  const [activeTab, setActiveTab] = React.useState(0);
 
   const fetchErrorLogs = React.useCallback(() => {
     const logs = dataProvider.getLogs("openresty/error_logs");
@@ -924,6 +931,33 @@ const Dashboard = () => {
         </Box>
       </Box>
 
+      {/* Content Tabs */}
+      <Box sx={{ mb: 3, width: "100%" }}>
+        <Tabs
+          value={activeTab}
+          onChange={(_, v) => setActiveTab(v)}
+          sx={{
+            borderBottom: `1px solid ${theme.palette.divider}`,
+            "& .MuiTab-root": {
+              textTransform: "none",
+              fontWeight: 600,
+              fontSize: "0.9rem",
+              minHeight: 48,
+              gap: 1,
+            },
+            "& .MuiTabs-indicator": {
+              height: 3,
+              borderRadius: "3px 3px 0 0",
+            },
+          }}
+        >
+          <Tab icon={<DashboardIcon sx={{ fontSize: 20 }} />} iconPosition="start" label="Overview" />
+          <Tab icon={<DnsIcon sx={{ fontSize: 20 }} />} iconPosition="start" label="Backend Metrics" />
+        </Tabs>
+      </Box>
+
+      {/* Tab: Overview */}
+      {activeTab === 0 && (<>
       {/* Geographic Traffic Map - Full Width */}
       <Box sx={{ mb: 4, width: "100%" }}>
         <ChartCard
@@ -2633,7 +2667,10 @@ const Dashboard = () => {
         </Box>
       )}
 
-      {/* Backend Health & Traffic */}
+      </>)}
+
+      {/* Tab: Backend Metrics */}
+      {activeTab === 1 && (
       <Box sx={{ mb: 4, width: "100%" }}>
         <BackendHealth
           healthData={backendHealthData}
@@ -2643,6 +2680,7 @@ const Dashboard = () => {
           formatBytes={formatBytes}
         />
       </Box>
+      )}
 
       {/* Entity Stats Cards - Smaller secondary cards */}
       <Box

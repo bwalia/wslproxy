@@ -29,6 +29,7 @@ import WafRules from "./WafRules";
 import WafPolicies from "./WafPolicies";
 import WafEvents from "./WafEvents";
 import IngressOverview from "./IngressOverview/IngressOverview";
+import Health from "./Health/Health";
 
 import UserIcon from "@mui/icons-material/GroupRounded";
 import SessionIcon from "@mui/icons-material/HistoryToggleOffRounded";
@@ -197,6 +198,7 @@ const AppContent = () => {
           <Route path="/password/reset" element={<ResetForm />} />
           <Route path="/instance-info" element={<InstanceInfo />} />
           <Route path="/ingress" element={<IngressOverview />} />
+          <Route path="/health" element={<Health />} />
         </CustomRoutes>
       </Admin>
       <VersionFooter />
