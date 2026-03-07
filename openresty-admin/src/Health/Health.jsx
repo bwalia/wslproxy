@@ -61,7 +61,7 @@ const getStatusColor = (status) => {
 };
 
 // Overall status banner
-const OverallBanner = ({ status, timestamp }) => {
+const OverallBanner = ({ status, timestamp, httpStatus, authenticated, apiUrl }) => {
   const color = getStatusColor(status);
   const labels = {
     healthy: "All Systems Operational",
@@ -69,6 +69,11 @@ const OverallBanner = ({ status, timestamp }) => {
     unhealthy: "Critical Issues Detected",
     unreachable: "API Unreachable",
   };
+  const subtitle = httpStatus
+    ? `HTTP ${httpStatus} ${authenticated ? "(Authenticated)" : "(Unauthenticated)"} — ${apiUrl || ""}`
+    : apiUrl
+      ? `${apiUrl} — No response`
+      : undefined;
 
   return (
     <Box
@@ -91,6 +96,11 @@ const OverallBanner = ({ status, timestamp }) => {
           <Typography variant="h5" fontWeight={700} sx={{ color }}>
             {labels[status] || status}
           </Typography>
+          {subtitle && (
+            <Typography variant="caption" color="text.secondary" sx={{ display: "block", fontFamily: "monospace", fontSize: "0.7rem" }}>
+              {subtitle}
+            </Typography>
+          )}
           {timestamp && (
             <Typography variant="caption" color="text.secondary">
               Last checked: {new Date(timestamp).toLocaleString()}
@@ -205,22 +215,38 @@ const Health = () => {
   const fetchAll = useCallback(async () => {
     setLoading(true);
     const start = Date.now();
-    try {
-      const [healthRes, instanceRes, cacheRes] = await Promise.all([
-        dataProvider.getDetailedHealth(),
-        dataProvider.getInstanceInfo(),
-        dataProvider.getCacheStats(),
-      ]);
-      setApiLatency(Date.now() - start);
-      setHealth(healthRes?.data || {});
-      setInstanceInfo(instanceRes?.data || {});
-      setCacheStats(cacheRes?.data || {});
-    } catch (err) {
-      notify("Failed to fetch health data", { type: "error" });
-      setHealth({ status: "unreachable", error: err.message });
+
+    // Fetch all data in parallel; each call handles its own errors
+    const [healthRes, instanceRes, cacheRes] = await Promise.allSettled([
+      dataProvider.getDetailedHealth(),
+      dataProvider.getInstanceInfo(),
+      dataProvider.getCacheStats(),
+    ]);
+
+    setApiLatency(Date.now() - start);
+
+    if (healthRes.status === "fulfilled") {
+      setHealth(healthRes.value?.data || {});
+    } else {
+      setHealth({
+        status: "unreachable",
+        error: healthRes.reason?.message || "Failed to reach API",
+        _api_url: import.meta.env.VITE_API_URL,
+        _http_status: null,
+        _latency: null,
+        _authenticated: false,
+      });
     }
+
+    if (instanceRes.status === "fulfilled") {
+      setInstanceInfo(instanceRes.value?.data || {});
+    }
+    if (cacheRes.status === "fulfilled") {
+      setCacheStats(cacheRes.value?.data || {});
+    }
+
     setLoading(false);
-  }, [dataProvider, notify]);
+  }, [dataProvider]);
 
   useEffect(() => {
     fetchAll();
@@ -264,7 +290,15 @@ const Health = () => {
       {loading && <LinearProgress sx={{ mb: 2, borderRadius: 1 }} />}
 
       {/* Overall Status Banner */}
-      {health && <OverallBanner status={health.status} timestamp={health.timestamp} />}
+      {health && (
+        <OverallBanner
+          status={health.status}
+          timestamp={health.timestamp}
+          httpStatus={health._http_status}
+          authenticated={health._authenticated}
+          apiUrl={health._api_url}
+        />
+      )}
 
       {/* Row 1: Services + API Responsiveness */}
       <Grid container spacing={2.5} sx={{ mb: 2.5 }}>

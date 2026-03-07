@@ -855,25 +855,29 @@ const dataProvider = (apiUrl, settings = {}) => {
         const timestamp = Date.now();
         const url = `${apiUrl}/ping?detailed=true&timestamp=${timestamp}`;
         const start = Date.now();
+        const headers = getHeaders();
+        const hasToken = !!headers.Authorization;
         const response = await fetch(url, {
           method: "GET",
-          headers: getHeaders(),
+          headers,
         });
         const latency = Date.now() - start;
-        const data = await response.json();
-        setIsLoadig(false);
-        if (response.status === 401) {
-          localStorage.removeItem("token");
-          window.location.href = "/#/login";
-          return { data: {} };
+        const httpStatus = response.status;
+        const isAuthenticated = hasToken && httpStatus !== 401 && httpStatus !== 403;
+        let data = {};
+        try {
+          data = await response.json();
+        } catch {
+          data = { status: httpStatus >= 200 && httpStatus < 300 ? "healthy" : "error" };
         }
+        setIsLoadig(false);
         return {
           data: {
             ...data,
             _api_url: apiUrl,
-            _http_status: response.status,
+            _http_status: httpStatus,
             _latency: latency,
-            _authenticated: true,
+            _authenticated: isAuthenticated,
           },
         };
       } catch (error) {
