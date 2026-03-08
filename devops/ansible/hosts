@@ -35,7 +35,7 @@ slworker00 ansible_user=bwalia
 [openresty_diytaxreturn]
 187.77.179.206 ansible_user=root
 
-[openresty_wsl1]
+[openresty_diytaxreturn_wsl1]
 187.124.112.155 ansible_user=root
 
 # Group all openresty servers
@@ -46,7 +46,7 @@ openresty_test
 openresty_dev
 openresty_acc
 openresty_diytaxreturn
-openresty_wsl1
+openresty_diytaxreturn_wsl1
 
 # Docker-enabled servers
 [docker_servers]
