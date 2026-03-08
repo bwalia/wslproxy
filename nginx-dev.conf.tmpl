@@ -276,6 +276,13 @@ http {
             content_by_lua_file /usr/local/openresty/nginx/html/api/ping.lua;
         }
 
+        location /ready {
+            default_type 'application/json';
+            add_header 'Access-Control-Allow-Origin' '*';
+            add_header 'Access-Control-Allow-Methods' 'GET';
+            content_by_lua_file /usr/local/openresty/nginx/html/api/ready.lua;
+        }
+
         location /swagger {
           root   html;
           index  swagger.html swagger.htm;
