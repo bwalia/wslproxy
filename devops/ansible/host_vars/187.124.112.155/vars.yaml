@@ -1,0 +1,15 @@
+---
+host_lan_ip: "187.124.112.155"
+nginx_rest_api_server_enabled: ""
+nginx_data_sync_enabled: ""
+local_settings_file_path: "/home/bwalia/.secrets/wslproxy/wsl1/settings.json"
+local_env_file_path: "/home/bwalia/.secrets/wslproxy/wsl1/.env"
+nginx_user_password: "!!REDACTED!!" # This is the password for the user www-data but must be encrypted using Ansible Vault
+nginx_web_ui_enabled: "yes"
+nginx_s3_proxy_pass_host_ip: "127.0.0.1"
+nginx_s3_server_name: "dummy-s3.workstation.co.uk"
+nginx_s3_cli_server_name: "dummy-s3-cli.workstation.co.uk"
+nginx_k3s_dashboard_server_name: "k3s-dashboard.workstation.co.uk"
+nginx_default_server_hostname: "wsl1.diytaxreturn.co.uk"
+letsencrypt_email: "balinder.walia@gmail.com"
+openresty_admin_secondary_color: "#D91656"
