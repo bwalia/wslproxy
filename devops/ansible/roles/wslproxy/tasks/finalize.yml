@@ -62,6 +62,32 @@
     group: root
   tags: [openresty, nginx, ssl]
 
+- name: Generate SSL domain files for default server frontend/backend domains
+  shell: |
+    CREATED=0
+    for domain in {{ nginx_default_server_frontend | default('') }} {{ nginx_default_server_backend | default('') }}; do
+      [ -z "$domain" ] && continue
+      ssl_file="/opt/nginx/data/ssl/${domain}.json"
+      if [ ! -f "$ssl_file" ]; then
+        echo "{\"ssl_enabled\": true, \"server_name\": \"${domain}\"}" > "$ssl_file"
+        chown www-data:root "$ssl_file"
+        chmod 664 "$ssl_file"
+        echo "Created: $ssl_file"
+        CREATED=$((CREATED+1))
+      fi
+    done
+    echo "Default server SSL domain files created: $CREATED"
+  register: default_ssl_gen
+  changed_when: "'Created:' in default_ssl_gen.stdout"
+  when: nginx_default_server_static | default(false) | bool
+  tags: [openresty, nginx, ssl, default-server]
+
+- name: Show default server SSL domain generation
+  debug:
+    msg: "{{ default_ssl_gen.stdout_lines }}"
+  when: default_ssl_gen is defined and default_ssl_gen.stdout_lines | length > 0
+  tags: [openresty, nginx, ssl, default-server]
+
 - name: Generate SSL domain files from server configs
   shell: |
     CREATED=0
