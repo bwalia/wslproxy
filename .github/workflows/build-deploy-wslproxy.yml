@@ -1,6 +1,6 @@
 name: Build and Deploy WSLProxy
-# Fully automated 4-stage pipeline — no human in loop
-# Validate → Deploy Int (Ansible) → Test (Integration) → Deploy Prod (Ansible)
+# Pipeline: Validate → Deploy Int → Test → Deploy WSL1 (auto on push)
+# Prod & DIYTaxReturn deploy manually or via "all" target
 # Fail-fast: any stage failure stops the pipeline and sends Slack notification immediately
 
 on:
@@ -37,6 +37,7 @@ on:
           - 187.77.179.206
           - 187.124.112.155
           - slworker00
+          - all
 
 # Prevent concurrent deployments to same ref (but don't cancel in-progress)
 concurrency:
@@ -299,8 +300,8 @@ jobs:
     runs-on: [self-hosted]
     needs: [test-environment]
     if: >
-      (github.event_name == 'push' && (github.ref == 'refs/heads/release' || github.ref == 'refs/heads/main')) ||
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.TARGET_HOST == '185.237.99.238')
+      github.event_name == 'workflow_dispatch' &&
+      (github.event.inputs.TARGET_HOST == '185.237.99.238' || github.event.inputs.TARGET_HOST == 'all')
     timeout-minutes: 30
 
     steps:
@@ -430,15 +431,15 @@ jobs:
 
   # ──────────────────────────────────────────────────────
   # Stage 5: Deploy DIYTaxReturn (187.77.179.206)
-  # Auto-deploy on push to main/release, or manual dispatch
+  # Manual dispatch only (or "all")
   # ──────────────────────────────────────────────────────
   deploy-diytaxreturn:
     name: "Stage 5: Deploy DIYTaxReturn (187.77.179.206)"
     runs-on: [self-hosted, Linux]
     needs: [build-validate]
     if: >
-      (github.event_name == 'push' && (github.ref == 'refs/heads/release' || github.ref == 'refs/heads/main')) ||
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.TARGET_HOST == '187.77.179.206')
+      github.event_name == 'workflow_dispatch' &&
+      (github.event.inputs.TARGET_HOST == '187.77.179.206' || github.event.inputs.TARGET_HOST == 'all')
     timeout-minutes: 30
 
     steps:
@@ -562,15 +563,16 @@ jobs:
 
   # ──────────────────────────────────────────────────────
   # Stage 6: Deploy WSL1 (187.124.112.155 / wsl1.diytaxreturn.co.uk)
-  # Auto-deploy on push to main/release, or manual dispatch
+  # Auto-deploy on push to main/release, or manual dispatch (or "all")
   # ──────────────────────────────────────────────────────
   deploy-diytaxreturn-wsl1:
     name: "Stage 6: Deploy DIYTaxReturn WSL1 (187.124.112.155)"
     runs-on: [self-hosted, Linux]
-    needs: [build-validate]
+    needs: [test-environment]
     if: >
       (github.event_name == 'push' && (github.ref == 'refs/heads/release' || github.ref == 'refs/heads/main')) ||
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.TARGET_HOST == '187.124.112.155')
+      (github.event_name == 'workflow_dispatch' &&
+      (github.event.inputs.TARGET_HOST == '187.124.112.155' || github.event.inputs.TARGET_HOST == 'all'))
     timeout-minutes: 30
 
     steps:
