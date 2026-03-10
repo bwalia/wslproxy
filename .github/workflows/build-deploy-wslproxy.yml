@@ -162,6 +162,7 @@ jobs:
           fi
 
       - name: Run Ansible Playbook (slworker00 / int)
+        timeout-minutes: 25
         run: |
           echo "Deploying natively to slworker00 (env: int) via local connection"
           sudo ansible-playbook devops/ansible/wslproxy-ops.yml \
@@ -353,11 +354,13 @@ jobs:
           }
 
       - name: Run Ansible Playbook (PROD)
+        timeout-minutes: 25
         run: |
           echo "Deploying to production: 185.237.99.238 (env: prod)"
           ansible-playbook devops/ansible/wslproxy-ops.yml \
             -i devops/ansible/hosts \
             -l 185.237.99.238 \
+            --timeout 30 \
             --extra-vars "nginx_user_password=THISCOMESFROMSECRETS target_env=prod local_settings_file_path=/tmp/settings_brahmstra_prod.json local_env_file_path=/tmp/.env_brahmstra_prod"
         env:
           ANSIBLE_PRIVATE_KEY_FILE: ~/.ssh/id_rsa
@@ -366,12 +369,12 @@ jobs:
         run: |
           echo "Verifying production deployment..."
 
-          ssh -i ~/.ssh/id_rsa -o BatchMode=yes root@185.237.99.238 \
+          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@185.237.99.238 \
             "/usr/local/openresty/bin/openresty -t" 2>&1 || {
             echo "::error::Nginx config test failed on production"; exit 1;
           }
 
-          ssh -i ~/.ssh/id_rsa -o BatchMode=yes root@185.237.99.238 \
+          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@185.237.99.238 \
             "systemctl is-active openresty" 2>&1 || {
             echo "::error::OpenResty not running on production"; exit 1;
           }
@@ -427,14 +430,15 @@ jobs:
 
   # ──────────────────────────────────────────────────────
   # Stage 5: Deploy DIYTaxReturn (187.77.179.206)
-  # Manual dispatch only — secrets on runner filesystem
+  # Auto-deploy on push to main/release, or manual dispatch
   # ──────────────────────────────────────────────────────
   deploy-diytaxreturn:
     name: "Stage 5: Deploy DIYTaxReturn (187.77.179.206)"
     runs-on: [self-hosted, Linux]
     needs: [build-validate]
     if: >
-      github.event_name == 'workflow_dispatch' && github.event.inputs.TARGET_HOST == '187.77.179.206'
+      (github.event_name == 'push' && (github.ref == 'refs/heads/release' || github.ref == 'refs/heads/main')) ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.TARGET_HOST == '187.77.179.206')
     timeout-minutes: 30
 
     steps:
@@ -484,6 +488,7 @@ jobs:
           }
 
       - name: Run Ansible Playbook (DIYTaxReturn)
+        timeout-minutes: 25
         run: |
           echo "Deploying to DIYTaxReturn: 187.77.179.206 (env: diytaxreturn)"
           export ANSIBLE_HOST_KEY_CHECKING=False
@@ -491,24 +496,25 @@ jobs:
             -i devops/ansible/hosts \
             -l 187.77.179.206 \
             --private-key /home/bwalia/.ssh/id_rsa \
+            --timeout 30 \
             --extra-vars "nginx_user_password=THISCOMESFROMSECRETS target_env=diytaxreturn local_settings_file_path=/home/bwalia/.secrets/wslproxy/diytaxreturn/settings.json local_env_file_path=/home/bwalia/.secrets/wslproxy/diytaxreturn/.env"
 
       - name: Post-deploy health gate
         run: |
           echo "Verifying DIYTaxReturn deployment on 187.77.179.206..."
 
-          ssh -i ~/.ssh/id_rsa -o BatchMode=yes root@187.77.179.206 \
+          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@187.77.179.206 \
             "/usr/local/openresty/bin/openresty -t" 2>&1 || {
             echo "::error::Nginx config test failed on 187.77.179.206"; exit 1;
           }
 
-          ssh -i ~/.ssh/id_rsa -o BatchMode=yes root@187.77.179.206 \
+          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@187.77.179.206 \
             "systemctl is-active openresty" 2>&1 || {
             echo "::error::OpenResty not running on 187.77.179.206"; exit 1;
           }
 
           for i in $(seq 1 12); do
-            STATUS=$(ssh -i ~/.ssh/id_rsa -o BatchMode=yes root@187.77.179.206 \
+            STATUS=$(ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@187.77.179.206 \
               "curl -sf -o /dev/null -w '%{http_code}' http://localhost:8080/health 2>/dev/null" || echo "000")
             if [ "$STATUS" = "200" ]; then
               echo "DIYTaxReturn endpoint healthy (HTTP $STATUS)"
@@ -556,14 +562,15 @@ jobs:
 
   # ──────────────────────────────────────────────────────
   # Stage 6: Deploy WSL1 (187.124.112.155 / wsl1.diytaxreturn.co.uk)
-  # Manual dispatch only — secrets on runner filesystem
+  # Auto-deploy on push to main/release, or manual dispatch
   # ──────────────────────────────────────────────────────
   deploy-diytaxreturn-wsl1:
     name: "Stage 6: Deploy DIYTaxReturn WSL1 (187.124.112.155)"
     runs-on: [self-hosted, Linux]
     needs: [build-validate]
     if: >
-      github.event_name == 'workflow_dispatch' && github.event.inputs.TARGET_HOST == '187.124.112.155'
+      (github.event_name == 'push' && (github.ref == 'refs/heads/release' || github.ref == 'refs/heads/main')) ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.TARGET_HOST == '187.124.112.155')
     timeout-minutes: 30
 
     steps:
@@ -613,6 +620,7 @@ jobs:
           }
 
       - name: Run Ansible Playbook (WSL1)
+        timeout-minutes: 25
         run: |
           echo "Deploying to WSL1: 187.124.112.155 (env: wsl1)"
           export ANSIBLE_HOST_KEY_CHECKING=False
@@ -620,24 +628,25 @@ jobs:
             -i devops/ansible/hosts \
             -l 187.124.112.155 \
             --private-key /home/bwalia/.ssh/id_rsa \
+            --timeout 30 \
             --extra-vars "nginx_user_password=THISCOMESFROMSECRETS target_env=wsl1 local_settings_file_path=/home/bwalia/.secrets/wslproxy/wsl1/settings.json local_env_file_path=/home/bwalia/.secrets/wslproxy/wsl1/.env"
 
       - name: Post-deploy health gate
         run: |
           echo "Verifying WSL1 deployment on 187.124.112.155..."
 
-          ssh -i ~/.ssh/id_rsa -o BatchMode=yes root@187.124.112.155 \
+          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@187.124.112.155 \
             "/usr/local/openresty/bin/openresty -t" 2>&1 || {
             echo "::error::Nginx config test failed on 187.124.112.155"; exit 1;
           }
 
-          ssh -i ~/.ssh/id_rsa -o BatchMode=yes root@187.124.112.155 \
+          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@187.124.112.155 \
             "systemctl is-active openresty" 2>&1 || {
             echo "::error::OpenResty not running on 187.124.112.155"; exit 1;
           }
 
           for i in $(seq 1 12); do
-            STATUS=$(ssh -i ~/.ssh/id_rsa -o BatchMode=yes root@187.124.112.155 \
+            STATUS=$(ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@187.124.112.155 \
               "curl -sf -o /dev/null -w '%{http_code}' http://localhost:8080/health 2>/dev/null" || echo "000")
             if [ "$STATUS" = "200" ]; then
               echo "WSL1 endpoint healthy (HTTP $STATUS)"
