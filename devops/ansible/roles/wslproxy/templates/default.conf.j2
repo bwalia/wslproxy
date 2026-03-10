@@ -3,9 +3,10 @@
     # Let's Encrypt Email: {{ letsencrypt_email }}
     #
     # HTTP server block (port 80)
+    # Serves landing page for the default hostname and direct IP access
     server {
         listen       80;
-        server_name  {{ nginx_default_server_hostname }};
+        server_name  {{ nginx_default_server_hostname }} {{ host_lan_ip | default('') }};
 
         # ACME Challenge for Let's Encrypt certificate validation
         location /.well-known/acme-challenge/ {
