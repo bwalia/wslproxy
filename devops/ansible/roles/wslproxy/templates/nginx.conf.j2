@@ -204,8 +204,8 @@ http {
 
     # Health check server - always available
     server {
-        listen       8080;
-        server_name  localhost;
+        listen       {{ nginx_default_server_backend_port }};
+        server_name  127.0.0.1;
 
       location /ping {
           default_type 'application/json';
@@ -501,7 +501,8 @@ http {
 server {
     listen *:443 ssl;
     listen [::]:443 ssl;
-
+    server_name _; # catch-all server block for HTTPS
+    server_tokens off;
     http2 on;
         ssl_session_timeout  5m;
         ssl_session_cache shared:SSL:50m;
@@ -693,8 +694,8 @@ server {
 # server any host http port 80
 server {
         listen       80{% if (nginx_default_server_frontend | default('') | length == 0) %} default_server{% endif %};
-        server_name _;
-
+        server_name _; # catch-all server block for HTTP requests (redirect to HTTPS or serve ACME challenges)
+        server_tokens off;
         # enable
         access_log /var/log/nginx/access.log main_geo;
         error_log  /var/log/nginx/error.log;
