@@ -10,5 +10,6 @@ nginx_s3_server_name: "dummy-s3.workstation.co.uk"
 nginx_s3_cli_server_name: "dummy-s3-cli.workstation.co.uk"
 nginx_k3s_dashboard_server_name: "k3s-dashboard.workstation.co.uk"
 nginx_default_server_hostname: "wslproxy.com www.wslproxy.com wslproxy.org www.wslproxy.org"
+nginx_default_server_static: true
 letsencrypt_email: "balinder.walia@gmail.com"
 openresty_admin_secondary_color: "#D91656"

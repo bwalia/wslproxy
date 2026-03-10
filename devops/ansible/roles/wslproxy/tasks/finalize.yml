@@ -36,10 +36,21 @@
   register: sync_tenants
   tags: [openresty, lapis, dashboard, nginx]
 
-- name: Remove default.conf to avoid intercepting gateway traffic
+- name: Deploy default.conf for static landing page sites
+  template:
+    src: default.conf.j2
+    dest: /opt/nginx/conf.d/default.conf
+    mode: 0664
+    owner: www-data
+    group: root
+  when: nginx_default_server_static | default(false) | bool
+  tags: [openresty, lapis, nginx, default-server]
+
+- name: Remove default.conf when gateway handles all routing
   file:
     path: /opt/nginx/conf.d/default.conf
     state: absent
+  when: not (nginx_default_server_static | default(false) | bool)
   tags: [openresty, lapis, nginx, default-server]
 
 - name: Ensure SSL domain directory exists
