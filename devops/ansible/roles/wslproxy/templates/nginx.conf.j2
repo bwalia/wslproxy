@@ -499,8 +499,8 @@ http {
 
 # server any host 443 ssl and http2 port, http below this server block will be redirected to https
 server {
-    listen *:443 ssl;
-    listen [::]:443 ssl;
+    listen *:443 ssl default_server;
+    listen [::]:443 ssl default_server;
     server_name _; # catch-all server block for HTTPS
     server_tokens off;
     http2 on;
@@ -693,7 +693,7 @@ server {
 
 # server any host http port 80
 server {
-        listen       80{% if (nginx_default_server_frontend | default('') | length == 0) %} default_server{% endif %};
+        listen       80 default_server;
         server_name _; # catch-all server block for HTTP requests (redirect to HTTPS or serve ACME challenges)
         server_tokens off;
         # enable
