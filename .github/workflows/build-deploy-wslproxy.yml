@@ -172,6 +172,16 @@ jobs:
             --connection=local \
             --extra-vars "nginx_user_password=THISCOMESFROMSECRETS target_env=int local_settings_file_path=/tmp/settings_brahmstra_slworker00.json local_env_file_path=/tmp/.env_brahmstra_slworker00"
 
+      - name: Deploy server configs and rules (int)
+        timeout-minutes: 5
+        run: |
+          echo "Deploying server configs for env: int to slworker00"
+          sudo ansible-playbook devops/ansible/deploy-configs.yml \
+            -i devops/ansible/hosts \
+            -l slworker00 \
+            --connection=local \
+            -e "target_env=int local_data_dir=${{ github.workspace }}/data"
+
       - name: Post-deploy health gate
         run: |
           echo "Verifying int deployment on slworker00..."
@@ -367,6 +377,17 @@ jobs:
         env:
           ANSIBLE_PRIVATE_KEY_FILE: ~/.ssh/id_rsa
 
+      - name: Deploy server configs and rules (prod)
+        timeout-minutes: 5
+        run: |
+          echo "Deploying server configs for env: prod to 185.237.99.238"
+          ansible-playbook devops/ansible/deploy-configs.yml \
+            -i devops/ansible/hosts \
+            -e "target_env=prod local_data_dir=${{ github.workspace }}/data" \
+            -l 185.237.99.238
+        env:
+          ANSIBLE_PRIVATE_KEY_FILE: ~/.ssh/id_rsa
+
       - name: Post-deploy health gate
         run: |
           echo "Verifying production deployment..."
@@ -501,6 +522,17 @@ jobs:
             --timeout 30 \
             --extra-vars "nginx_user_password=THISCOMESFROMSECRETS target_env=diytaxreturn local_settings_file_path=/home/bwalia/.secrets/wslproxy/diytaxreturn/settings.json local_env_file_path=/home/bwalia/.secrets/wslproxy/diytaxreturn/.env"
 
+      - name: Deploy server configs and rules (diytaxreturn)
+        timeout-minutes: 5
+        run: |
+          echo "Deploying server configs for env: diytaxreturn to 187.77.179.206"
+          export ANSIBLE_HOST_KEY_CHECKING=False
+          ansible-playbook devops/ansible/deploy-configs.yml \
+            -i devops/ansible/hosts \
+            -e "target_env=diytaxreturn local_data_dir=${{ github.workspace }}/data" \
+            -l 187.77.179.206 \
+            --private-key /home/bwalia/.ssh/id_rsa
+
       - name: Post-deploy health gate
         run: |
           echo "Verifying DIYTaxReturn deployment on 187.77.179.206..."
@@ -563,7 +595,7 @@ jobs:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
   # ──────────────────────────────────────────────────────
-  # Stage 6: Deploy WSL1 (187.124.112.155 / wsl1.diytaxreturn.co.uk)
+  # Stage 6: Deploy DIYTaxReturn WSL1 (187.124.112.155 / wsl1.diytaxreturn.co.uk)
   # Manual dispatch only (or "all")
   # ──────────────────────────────────────────────────────
   deploy-diytaxreturn-wsl1:
@@ -621,7 +653,7 @@ jobs:
             echo "::error::SSH connection failed to root@187.124.112.155"; exit 1;
           }
 
-      - name: Run Ansible Playbook (WSL1)
+      - name: Run Ansible Playbook (DIYTaxReturn WSL1)
         timeout-minutes: 25
         run: |
           echo "Deploying to WSL1: 187.124.112.155 (env: wsl1)"
@@ -633,9 +665,20 @@ jobs:
             --timeout 30 \
             --extra-vars "nginx_user_password=THISCOMESFROMSECRETS target_env=wsl1 local_settings_file_path=/home/bwalia/.secrets/wslproxy/wsl1/settings.json local_env_file_path=/home/bwalia/.secrets/wslproxy/wsl1/.env"
 
+      - name: Deploy server configs and rules (diytaxreturn_wsl1)
+        timeout-minutes: 5
+        run: |
+          echo "Deploying server configs for env: diytaxreturn_wsl1 to 187.124.112.155"
+          export ANSIBLE_HOST_KEY_CHECKING=False
+          ansible-playbook devops/ansible/deploy-configs.yml \
+            -i devops/ansible/hosts \
+            -e "target_env=diytaxreturn_wsl1 local_data_dir=${{ github.workspace }}/data" \
+            -l 187.124.112.155 \
+            --private-key /home/bwalia/.ssh/id_rsa
+
       - name: Post-deploy health gate
         run: |
-          echo "Verifying WSL1 deployment on 187.124.112.155..."
+          echo "Verifying DIYTaxReturn WSL1 deployment on 187.124.112.155..."
 
           ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@187.124.112.155 \
             "/usr/local/openresty/bin/openresty -t" 2>&1 || {
@@ -651,16 +694,16 @@ jobs:
             STATUS=$(ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@187.124.112.155 \
               "curl -sf -o /dev/null -w '%{http_code}' http://localhost:8080/health 2>/dev/null" || echo "000")
             if [ "$STATUS" = "200" ]; then
-              echo "WSL1 endpoint healthy (HTTP $STATUS)"
+              echo "DIYTaxReturn WSL1 endpoint healthy (HTTP $STATUS)"
               exit 0
             fi
             echo "Attempt $i/12: HTTP $STATUS — waiting 5s..."
             sleep 5
           done
-          echo "::error::WSL1 not responding on 187.124.112.155 after 60s"
+          echo "::error::DIYTaxReturn WSL1 not responding on 187.124.112.155 after 60s"
           exit 1
 
-      - name: Slack notify - WSL1 deployed
+      - name: Slack notify - DIYTaxReturn WSL1 deployed
         if: success()
         uses: rtCamp/action-slack-notify@v2
         env:
@@ -677,7 +720,7 @@ jobs:
           SLACK_USERNAME: GitHub Actions
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
-      - name: Slack notify - WSL1 deploy failed
+      - name: Slack notify - DIYTaxReturn WSL1 deploy failed
         if: failure()
         uses: rtCamp/action-slack-notify@v2
         env:
@@ -685,7 +728,7 @@ jobs:
           SLACK_COLOR: danger
           SLACK_ICON: https://github.com/rtCamp.png?size=48
           SLACK_MESSAGE: |
-            :rotating_light: *Stage 6 FAILED: WSL1 Deployment*
+            :rotating_light: *Stage 6 FAILED: DIYTaxReturn WSL1 Deployment*
             Ansible deploy or health check failed on 187.124.112.155.
             *Branch:* ${{ github.ref_name }} | *Commit:* `${{ github.sha }}`
             *Triggered by:* ${{ github.actor }} (${{ github.event_name }})

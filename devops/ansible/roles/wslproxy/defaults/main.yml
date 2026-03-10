@@ -1,8 +1,12 @@
 nginx_port: 80
 
-# Default server hostname for nginx
-# Override this in host_vars or group_vars for each environment
-nginx_default_server_hostname: "_"
+# Default server frontend/backend hostnames for nginx
+# Override these in host_vars or group_vars for each environment
+# Frontend: public landing page (static HTML)
+# Backend: admin UI proxy to localhost:8080
+nginx_default_server_frontend: ""
+nginx_default_server_backend: ""
+nginx_default_server_backend_port: 8080
 
 # Dashboard version and build information
 # These values are used by the React dashboard footer

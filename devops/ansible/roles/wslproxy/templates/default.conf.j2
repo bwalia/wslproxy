@@ -10,7 +10,7 @@
 
     # HTTP (port 80) — serves landing page + ACME challenge
     server {
-        listen       80 default_server;
+        listen       80;
         server_name  {{ nginx_default_server_frontend }} {{ host_lan_ip | default('') }};
 
         location /.well-known/acme-challenge/ {
@@ -64,7 +64,7 @@
 
 {% if nginx_default_server_backend | default('') | length > 0 %}
     # ──────────────────────────────────────────────────────
-    # BACKEND — Admin UI (proxy to localhost:8080)
+    # BACKEND — Admin UI (proxy to 127.0.0.1:{{ nginx_default_server_backend_port }})
     # Works even when Lua gateway is down
     # ──────────────────────────────────────────────────────
 
@@ -115,7 +115,7 @@
         }
 
         location / {
-            proxy_pass http://127.0.0.1:8080;
+            proxy_pass http://127.0.0.1:{{ nginx_default_server_backend_port }};
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
