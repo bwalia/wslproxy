@@ -12,4 +12,5 @@ nginx_s3_cli_server_name: "dummy-s3-cli.workstation.co.uk"
 nginx_k3s_dashboard_server_name: "k3s-dashboard.workstation.co.uk"
 nginx_default_server_hostname: "pop.diytaxreturn.co.uk"
 letsencrypt_email: "balinder.walia@gmail.com"
+nginx_default_server_static: true
 openresty_admin_secondary_color: "#D91656"
