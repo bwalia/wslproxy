@@ -12,6 +12,5 @@ nginx_k3s_dashboard_server_name: "k3s-dashboard.workstation.co.uk"
 nginx_default_server_hostname: "wslproxy.com www.wslproxy.com wslproxy.org www.wslproxy.org"
 nginx_default_server_frontend: "wslproxy.com www.wslproxy.com wslproxy.org www.wslproxy.org"
 nginx_default_server_backend: "prod-our.wslproxy.com"
-nginx_default_server_static: true
 letsencrypt_email: "balinder.walia@gmail.com"
 openresty_admin_secondary_color: "#D91656"

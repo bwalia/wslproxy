@@ -692,7 +692,7 @@ server {
 
 # server any host http port 80
 server {
-        listen       80{% if not (nginx_default_server_static | default(false) | bool) %} default_server{% endif %};
+        listen       80{% if (nginx_default_server_frontend | default('') | length == 0) %} default_server{% endif %};
         server_name _;
 
         # enable

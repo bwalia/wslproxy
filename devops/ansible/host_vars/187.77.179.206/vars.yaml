@@ -14,5 +14,4 @@ nginx_default_server_hostname: "pop.diytaxreturn.co.uk"
 nginx_default_server_frontend: ""
 nginx_default_server_backend: "wsl.diytaxreturn.co.uk"
 letsencrypt_email: "balinder.walia@gmail.com"
-nginx_default_server_static: false
 openresty_admin_secondary_color: "#D91656"
