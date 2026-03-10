@@ -13,6 +13,23 @@ local proxyServer = globalVars.proxyServer
 local settings = Helper.settings()
 
 
+-- CAPTCHA rule (306): verify human before proxying to backend
+-- Rule matching (path, IP, country) already handled by gateway_ack.lua
+-- If CAPTCHA cookie is valid, treat as 305 (proxy). If not, serve challenge page.
+if selectedRule.statusCode == 306 then
+    local captcha_ok, Captcha = pcall(require, "captcha")
+    if captcha_ok and Captcha then
+        local handled = Captcha.check(settings)
+        if handled then
+            return -- challenge page served or verification processed
+        end
+    else
+        ngx.log(ngx.ERR, "captcha module not available, falling through to proxy")
+    end
+    -- CAPTCHA passed or module unavailable — continue as proxy (305)
+    selectedRule.statusCode = 305
+end
+
 if selectedRule.statusCode == nil then
     ngx.say("Status code not found: ")
     ngx.exit(ngx.HTTP_INTERNAL_SERVER_ERROR)

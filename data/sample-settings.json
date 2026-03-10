@@ -55,6 +55,13 @@
     "rate_limit": 100,
     "redact_secrets": true
   },
+  "captcha": {
+    "provider": "turnstile",
+    "site_key": "",
+    "secret_key": "",
+    "theme": "dark",
+    "cookie_ttl": 3600
+  },
   "waf": {
     "enabled": true,
     "default_policy": "waf-policy-default",
