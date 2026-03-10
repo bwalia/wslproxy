@@ -2,7 +2,7 @@ name: Build-Push-Deploy wslproxy to K3S
 on:
   push:
     branches:
-      - main
+      - release
   workflow_dispatch:
     inputs:
       TARGET_ENV:
