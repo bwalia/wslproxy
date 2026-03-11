@@ -13,6 +13,7 @@ import WafPolicyIcon from "@mui/icons-material/VerifiedUserRounded";
 import WafEventIcon from "@mui/icons-material/NotificationsActiveRounded";
 import IngressIcon from "@mui/icons-material/AccountTree";
 import HealthIcon from "@mui/icons-material/MonitorHeartRounded";
+import BookmarkIcon from "@mui/icons-material/BookmarkRounded";
 import Logo from "./component/Logo";
 import { useThemeMode } from "./Theme";
 
@@ -139,6 +140,11 @@ export const Menu = () => {
           to="/health"
           primaryText="System Health"
           leftIcon={<HealthIcon />}
+        />
+        <StyledMenuItem
+          to="/bookmarks"
+          primaryText="Bookmarks"
+          leftIcon={<BookmarkIcon />}
         />
       </Box>
 

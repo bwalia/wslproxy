@@ -63,6 +63,10 @@ import { useThemeMode } from "../Theme";
 import PublicIcon from "@mui/icons-material/PublicRounded";
 import DashboardIcon from "@mui/icons-material/DashboardRounded";
 import DnsIcon from "@mui/icons-material/DnsRounded";
+import BookmarkIcon from "@mui/icons-material/BookmarkRounded";
+import BookmarkBorderIcon from "@mui/icons-material/BookmarkBorderRounded";
+import LaunchIcon from "@mui/icons-material/LaunchRounded";
+import LockIcon from "@mui/icons-material/LockRounded";
 
 // Format bytes to human readable
 const formatBytes = (bytes, decimals = 2) => {
@@ -487,6 +491,22 @@ const Dashboard = () => {
   // Tab state for RHS content area
   const [activeTab, setActiveTab] = React.useState(0);
 
+  // Bookmarks state
+  const [recentBookmarks, setRecentBookmarks] = React.useState([]);
+
+  const fetchBookmarks = React.useCallback(() => {
+    dataProvider
+      .getList("bookmarks", {
+        pagination: { page: 1, perPage: 8 },
+        sort: { field: "auto_generated", order: "ASC" },
+        filter: {},
+      })
+      .then((response) => {
+        setRecentBookmarks(response?.data || []);
+      })
+      .catch(() => {});
+  }, [dataProvider]);
+
   const fetchErrorLogs = React.useCallback(() => {
     const logs = dataProvider.getLogs("openresty/error_logs");
     logs.then((log) => {
@@ -649,6 +669,7 @@ const Dashboard = () => {
     fetchInstanceInfo();
     fetchCacheStats();
     fetchBackendHealth();
+    fetchBookmarks();
 
     // Fetch entity counts
     Promise.all([
@@ -2761,6 +2782,115 @@ const Dashboard = () => {
           />
         </Box>
       </Box>
+
+      {/* Recent Bookmarks */}
+      {recentBookmarks.length > 0 && (
+        <Box sx={{ mb: 4, width: "100%" }}>
+          <ChartCard
+            title="Recent Bookmarks"
+            subtitle="Your saved and auto-discovered virtual servers"
+            onRefresh={fetchBookmarks}
+            accentColor="#8b5cf6"
+          >
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+              {recentBookmarks.map((bm) => (
+                <Box
+                  key={bm.id}
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1.5,
+                    px: 2,
+                    py: 1.25,
+                    borderRadius: 2,
+                    backgroundColor: bm.auto_generated
+                      ? "transparent"
+                      : alpha("#8b5cf6", 0.04),
+                    border: `1px solid ${bm.auto_generated ? alpha(theme.palette.divider, 0.5) : alpha("#8b5cf6", 0.15)}`,
+                    transition: "all 0.2s ease",
+                    "&:hover": {
+                      backgroundColor: alpha("#8b5cf6", 0.08),
+                      borderColor: alpha("#8b5cf6", 0.3),
+                    },
+                  }}
+                >
+                  {bm.auto_generated ? (
+                    <BookmarkBorderIcon
+                      sx={{ fontSize: 18, color: theme.palette.text.disabled }}
+                    />
+                  ) : (
+                    <BookmarkIcon
+                      sx={{ fontSize: 18, color: "#8b5cf6" }}
+                    />
+                  )}
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        fontWeight: bm.auto_generated ? 400 : 600,
+                        color: theme.palette.text.primary,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {bm.title || bm.host}
+                    </Typography>
+                    {bm.description && (
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                          display: "block",
+                        }}
+                      >
+                        {bm.description}
+                      </Typography>
+                    )}
+                  </Box>
+                  {bm.ssl_enabled && (
+                    <LockIcon
+                      sx={{
+                        fontSize: 14,
+                        color: theme.palette.success.main,
+                      }}
+                    />
+                  )}
+                  {bm.category && (
+                    <Chip
+                      label={bm.category}
+                      size="small"
+                      sx={{
+                        fontSize: "0.65rem",
+                        height: 20,
+                        backgroundColor: alpha(theme.palette.info.main, 0.1),
+                        color: theme.palette.info.main,
+                      }}
+                    />
+                  )}
+                  <Tooltip title={`Open ${bm.host}`}>
+                    <IconButton
+                      size="small"
+                      href={bm.url || `https://${bm.host}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      sx={{
+                        opacity: 0.5,
+                        "&:hover": { opacity: 1, color: "#8b5cf6" },
+                      }}
+                    >
+                      <LaunchIcon sx={{ fontSize: 14 }} />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+              ))}
+            </Box>
+          </ChartCard>
+        </Box>
+      )}
 
       {/* Logs Section - Two columns */}
       <Grid container spacing={2}>
