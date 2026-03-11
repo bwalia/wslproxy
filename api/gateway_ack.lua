@@ -79,6 +79,17 @@ local isItDTAPEnvironment = function(pHostnameStr)
 end
 
 local settingsObj = Helper.settings()
+
+-- Handle CAPTCHA verification POST early (before rule matching)
+-- This endpoint must be reachable regardless of which rule matches the path
+if ngx.var.uri == "/__captcha/verify" and ngx.req.get_method() == "POST" then
+    local captcha_ok, Captcha = pcall(require, "captcha")
+    if captcha_ok and Captcha then
+        Captcha.handle_verify(settingsObj)
+        return
+    end
+end
+
 local envProfile = settingsObj.env_profile == nil and "prod" or settingsObj.env_profile
 
 local function trimWhitespace(str)
@@ -348,7 +359,18 @@ local function gatewayHostRulesParser(rules, ruleId, priority, message, statusCo
     local isCountryPass = false
     -- check country
     if rules.country and rules.country ~= nil and rules.country ~= "" and type(rules.country) ~= "userdata" then
-        if rules.country == "EU" then
+        if rules.country_key == 'not_equals' then
+            -- Inverse match: pass if country does NOT match (or NOT in EU)
+            if rules.country == "EU" then
+                isCountryPass = not Helper.isEU(country)
+            else
+                isCountryPass = (rules.country ~= country)
+            end
+            if not isCountryPass then
+                failMessage = string.format(
+                    "Country exclusion matched. country=%s is excluded by not_equals rule", country)
+            end
+        elseif rules.country == "EU" then
             if Helper.isEU(country) then
                 isCountryPass = true
             end
@@ -479,24 +501,10 @@ local exist_values = nil
 
 local file, err = io.open(configPath .. "data/servers/" .. envProfile .. "/host:" .. Hostname .. ".json", "rb")
 if file == nil then
+    -- Use default error page (can be overridden via settings.json or environment secrets at deployment)
     local errorPageB64 = getErrorPage(settingsObj, "no_server")
-    ngx.log(ngx.ERR, "[wslproxy] no server configuration found for hostname '", Hostname,
-        "' (profile: ", envProfile, "). Create a server entry in the admin panel.")
-    if errorPageB64 and errorPageB64 ~= DEFAULT_ERROR_PAGES.no_server then
-        ngx.header["Content-Type"] = settingsObj.nginx.content_type ~= nil and settingsObj.nginx.content_type or "text/html"
-        ngx.status = ngx.HTTP_SERVICE_UNAVAILABLE
-        do return ngx.say(Base64.decode(errorPageB64)) end
-    else
-        ngx.header["Content-Type"] = "application/json"
-        ngx.status = ngx.HTTP_SERVICE_UNAVAILABLE
-        do return ngx.say(cjson.encode({
-            error = "server_not_configured",
-            message = "No configuration found for this virtual server.",
-            hint = "Create a server entry for '" .. Hostname .. "' in the admin panel (profile: " .. envProfile .. ").",
-            server = Hostname,
-            profile = envProfile,
-        })) end
-    end
+    ngx.header["Content-Type"] = settingsObj.nginx.content_type ~= nil and settingsObj.nginx.content_type or "text/html"
+    do return ngx.say(Base64.decode(errorPageB64)) end
 else
     exist_values = file:read "*a"
 end
@@ -757,78 +765,37 @@ if exist_values and exist_values ~= 0 and exist_values ~= nil and exist_values ~
 
             ngx.var.frontdoor_global_vars = cjson.encode(globalVars)
         else
-            -- Rule attached but none matched this request (path/IP/country/token mismatch)
+            -- Use default error page (can be overridden via settings.json or environment secrets at deployment)
             local confMismatchHtml = getErrorPage(settingsObj, "conf_mismatch")
-            local customMessage = nil
             for rKey, ruleOne in pairs(parse_rules[1]) do
                 if ruleOne.message and ruleOne.message ~= nil and ruleOne.message ~= "" and ruleOne.message ~= "null" then
-                    customMessage = ruleOne.message
+                    confMismatchHtml = ruleOne.message
                     break
                 end
             end
-            ngx.log(ngx.WARN, "[wslproxy] no matching rule for request '", ngx.var.request_uri,
-                "' on virtual server '", Hostname, "'. Check rule conditions (path, IP, country, token).")
-            if customMessage then
-                ngx.header["Content-Type"] = settingsObj.nginx.content_type ~= nil and settingsObj.nginx.content_type or "text/html"
-                ngx.status = ngx.HTTP_FORBIDDEN
-                ngx.say(Base64.decode(customMessage))
-            elseif confMismatchHtml and confMismatchHtml ~= DEFAULT_ERROR_PAGES.conf_mismatch then
-                ngx.header["Content-Type"] = settingsObj.nginx.content_type ~= nil and settingsObj.nginx.content_type or "text/html"
-                ngx.status = ngx.HTTP_FORBIDDEN
+            ngx.header["Content-Type"] = settingsObj.nginx.content_type ~= nil and settingsObj.nginx.content_type or
+                "text/html"
+            ngx.status = ngx.HTTP_FORBIDDEN
+            if confMismatchHtml ~= nil and confMismatchHtml ~= 'undefined' then
                 ngx.say(Base64.decode(confMismatchHtml))
             else
-                ngx.header["Content-Type"] = "application/json"
-                ngx.status = ngx.HTTP_FORBIDDEN
-                ngx.say(cjson.encode({
-                    error = "no_matching_rule",
-                    message = "No routing rule matched this request.",
-                    hint = "Check the rule conditions (path, client IP, country, JWT token) for virtual server '" .. Hostname .. "'.",
-                    server = Hostname,
-                    request_uri = ngx.var.request_uri,
-                }))
+                ngx.say("Rule HTML Message not defined")
             end
         end
     else
-        -- No rule attached to this virtual server
+        -- Use default error page (can be overridden via settings.json or environment secrets at deployment)
         local noRuleHtml = getErrorPage(settingsObj, "no_rule")
-        ngx.log(ngx.ERR, "[wslproxy] configuration error: no routing rule is assigned to virtual server '",
-            Hostname, "'. Attach a rule in the admin panel.")
-        if noRuleHtml and noRuleHtml ~= DEFAULT_ERROR_PAGES.no_rule then
-            -- Custom error page configured
-            ngx.header["Content-Type"] = settingsObj.nginx.content_type ~= nil and settingsObj.nginx.content_type or "text/html"
-            ngx.status = ngx.HTTP_SERVICE_UNAVAILABLE
-            ngx.say(Base64.decode(noRuleHtml))
-        else
-            ngx.header["Content-Type"] = "application/json"
-            ngx.status = ngx.HTTP_SERVICE_UNAVAILABLE
-            ngx.say(cjson.encode({
-                error = "no_rule_configured",
-                message = "No routing rule is assigned to this virtual server.",
-                hint = "Go to the admin panel and attach a rule to the virtual server '" .. Hostname .. "'.",
-                server = Hostname,
-            }))
-        end
+        ngx.header["Content-Type"] = settingsObj.nginx.content_type ~= nil and settingsObj.nginx.content_type or
+            "text/html"
+        ngx.say(Base64.decode(noRuleHtml))
     end
 else
-    -- No server configuration found for this hostname
+    -- Use default error page (can be overridden via settings.json or environment secrets at deployment)
     local noServerHtml = getErrorPage(settingsObj, "no_server")
-    ngx.log(ngx.ERR, "[wslproxy] configuration error: no server configuration found for hostname '", Hostname, "'.")
-    if noServerHtml and noServerHtml ~= DEFAULT_ERROR_PAGES.no_server then
-        -- Custom error page configured
-        ngx.header["Content-Type"] = settingsObj.nginx.content_type ~= nil and settingsObj.nginx.content_type or "text/html"
-        ngx.status = ngx.HTTP_SERVICE_UNAVAILABLE
-        ngx.say(Base64.decode(noServerHtml))
-    else
-        ngx.header["Content-Type"] = "application/json"
-        ngx.status = ngx.HTTP_SERVICE_UNAVAILABLE
-        ngx.say(cjson.encode({
-            error = "server_not_configured",
-            message = "No configuration found for this virtual server.",
-            hint = "Create a server entry for '" .. Hostname .. "' in the admin panel.",
-            server = Hostname,
-        }))
-    end
-    ngx.exit(ngx.HTTP_SERVICE_UNAVAILABLE)
+    ngx.header["Content-Type"] = settingsObj.nginx.content_type ~= nil and settingsObj.nginx.content_type or
+        "text/html"
+    ngx.say(Base64.decode(noServerHtml))
+    ngx.exit(ngx.HTTP_OK)
 end
 -- ngx.var.proxy_host_override = 'test313.yourdomain.com'
 -- this will replace the need for server block for each website. It will parse JSON and match host header and route to the backend server all in lua

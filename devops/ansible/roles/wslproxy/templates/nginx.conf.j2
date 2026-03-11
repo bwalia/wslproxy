@@ -35,6 +35,7 @@ env MCP_ENABLED;
 env MCP_MODE;
 env MCP_API_KEY;
 env MCP_TOOLS_ENABLED;
+env VARNISH_ENABLED;
 
 {% if target_env == 'prod' %}
 # TCP stream proxy configs (only on production proxy hosts)
@@ -103,6 +104,9 @@ http {
 
     # Traffic router state (backend health, round-robin counters, sticky sessions, per-backend stats)
     lua_shared_dict router_state 5m;
+
+    # Varnish deployment state (deploy status, VCL labels per server)
+    lua_shared_dict varnish_state 2m;
 
     geo $limit {
         default 1;
@@ -200,8 +204,8 @@ http {
 
     # Health check server - always available
     server {
-        listen       8080;
-        server_name  localhost;
+        listen       {{ nginx_default_server_backend_port }};
+        server_name  127.0.0.1;
 
       location /ping {
           default_type 'application/json';
@@ -266,6 +270,12 @@ http {
           default_type 'application/json';
           more_set_headers 'Access-Control-Allow-Origin: *';
           content_by_lua_file /usr/local/openresty/nginx/html/api/ping.lua;
+      }
+
+      location /ready {
+          default_type 'application/json';
+          more_set_headers 'Access-Control-Allow-Origin: *';
+          content_by_lua_file /usr/local/openresty/nginx/html/api/ready.lua;
       }
 
 {% if nginx_web_ui_enabled is defined and nginx_web_ui_enabled == "yes" %}
@@ -489,9 +499,10 @@ http {
 
 # server any host 443 ssl and http2 port, http below this server block will be redirected to https
 server {
-    listen *:443 ssl;
-    listen [::]:443 ssl;
-
+    listen *:443 ssl default_server;
+    listen [::]:443 ssl default_server;
+    server_name _; # catch-all server block for HTTPS
+    server_tokens off;
     http2 on;
         ssl_session_timeout  5m;
         ssl_session_cache shared:SSL:50m;
@@ -683,8 +694,8 @@ server {
 # server any host http port 80
 server {
         listen       80 default_server;
-        server_name _;
-
+        server_name _; # catch-all server block for HTTP requests (redirect to HTTPS or serve ACME challenges)
+        server_tokens off;
         # enable
         access_log /var/log/nginx/access.log main_geo;
         error_log  /var/log/nginx/error.log;

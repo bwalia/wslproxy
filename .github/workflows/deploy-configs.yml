@@ -21,6 +21,8 @@ on:
           - test
           - acc
           - dev
+          - diytaxreturn
+          - diytaxreturn_wsl1
 
       TARGET_HOST:
         type: choice
@@ -29,6 +31,8 @@ on:
         required: true
         options:
           - 185.237.99.238
+          - 187.77.179.206
+          - 187.124.112.155
           - slworker00
 
       DRY_RUN:

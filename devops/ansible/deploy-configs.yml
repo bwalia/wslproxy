@@ -61,8 +61,8 @@
     - name: Validate target environment
       assert:
         that:
-          - target_env in ['dev', 'int', 'test', 'acc', 'prod']
-        fail_msg: "Invalid target_env: {{ target_env }}. Must be one of: dev, int, test, acc, prod"
+          - target_env in ['dev', 'int', 'test', 'acc', 'prod', 'diytaxreturn', 'diytaxreturn_wsl1']
+        fail_msg: "Invalid target_env: {{ target_env }}. Must be one of: dev, int, test, acc, prod, diytaxreturn, diytaxreturn_wsl1"
         success_msg: "Target environment validated: {{ target_env }}"
 
     - name: Ensure remote directories exist
@@ -170,6 +170,36 @@
       loop: "{{ rule_config_files.files }}"
       register: rule_copy_result
 
+    - name: Ensure SSL domain directory exists
+      file:
+        path: "{{ remote_data_dir }}/ssl"
+        state: directory
+        mode: '0775'
+        owner: www-data
+        group: root
+
+    - name: Generate SSL domain files from server configs with ssl_enabled
+      shell: |
+        for config_file in {{ remote_data_dir }}/servers/{{ target_env }}/*.json; do
+          [ -f "$config_file" ] || continue
+          ssl_enabled=$(jq -r '.ssl_enabled // false' "$config_file" 2>/dev/null)
+          server_name=$(jq -r '.server_name // empty' "$config_file" 2>/dev/null)
+          if [ "$ssl_enabled" = "true" ] && [ -n "$server_name" ]; then
+            ssl_file="{{ remote_data_dir }}/ssl/${server_name}.json"
+            echo "{\"ssl_enabled\": true, \"server_name\": \"${server_name}\"}" > "$ssl_file"
+            chown www-data:root "$ssl_file"
+            chmod 664 "$ssl_file"
+            echo "Created SSL domain file: $ssl_file"
+          fi
+        done
+      register: ssl_domain_result
+      changed_when: "'Created SSL domain file' in ssl_domain_result.stdout"
+
+    - name: Display SSL domain files created
+      debug:
+        msg: "{{ ssl_domain_result.stdout_lines | default([]) }}"
+      when: ssl_domain_result.stdout_lines | default([]) | length > 0
+
     - name: Run fix-permissions to ensure nginx worker can access all files
       command: /usr/sbin/fix-permissions.sh
       when: server_copy_result.changed or rule_copy_result.changed
@@ -204,11 +234,11 @@
           === Deployed Rule Configs ===
           {{ deployed_rules.stdout }}
 
-    - name: Reload nginx/openresty
+    - name: Reload nginx/openresty to pick up new SSL domains
       service:
         name: "{{ nginx_service }}"
         state: reloaded
-      when: reload_nginx
+      when: server_copy_result.changed or ssl_domain_result.changed
       ignore_errors: yes
 
   handlers:

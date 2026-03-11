@@ -17,6 +17,8 @@ import {
   TableCell,
   TableHead,
   TableRow,
+  Tabs,
+  Tab,
 } from "@mui/material";
 import React from "react";
 import {
@@ -56,8 +58,11 @@ import StorageModal from "./StorageModal";
 import Logs from "../component/Logs";
 import Welcome from "../component/Welcome";
 import GeoTrafficMap from "./GeoTrafficMap";
+import BackendHealth from "./BackendHealth";
 import { useThemeMode } from "../Theme";
 import PublicIcon from "@mui/icons-material/PublicRounded";
+import DashboardIcon from "@mui/icons-material/DashboardRounded";
+import DnsIcon from "@mui/icons-material/DnsRounded";
 
 // Format bytes to human readable
 const formatBytes = (bytes, decimals = 2) => {
@@ -475,6 +480,13 @@ const Dashboard = () => {
   // Per-server WAF activity state
   const [wafServerActivity, setWafServerActivity] = React.useState([]);
 
+  // Backend health & topology state
+  const [backendHealthData, setBackendHealthData] = React.useState([]);
+  const [topologyData, setTopologyData] = React.useState(null);
+
+  // Tab state for RHS content area
+  const [activeTab, setActiveTab] = React.useState(0);
+
   const fetchErrorLogs = React.useCallback(() => {
     const logs = dataProvider.getLogs("openresty/error_logs");
     logs.then((log) => {
@@ -615,6 +627,20 @@ const Dashboard = () => {
     setErrorDetails([]);
   };
 
+  const fetchBackendHealth = React.useCallback(() => {
+    Promise.all([
+      dataProvider.getTrafficHealth(),
+      dataProvider.getTrafficTopology(),
+    ])
+      .then(([healthRes, topoRes]) => {
+        setBackendHealthData(healthRes?.data?.rules || []);
+        setTopologyData(topoRes?.data || null);
+      })
+      .catch((error) => {
+        console.log("Failed to fetch backend health:", error);
+      });
+  }, [dataProvider]);
+
   React.useEffect(() => {
     fetchErrorLogs();
     fetchAccessLogs();
@@ -622,6 +648,7 @@ const Dashboard = () => {
     fetchLogMetrics();
     fetchInstanceInfo();
     fetchCacheStats();
+    fetchBackendHealth();
 
     // Fetch entity counts
     Promise.all([
@@ -749,7 +776,10 @@ const Dashboard = () => {
       .catch(() => {});
 
     // Auto-refresh traffic data every 60 seconds
-    const trafficInterval = setInterval(fetchTrafficStats, 60000);
+    const trafficInterval = setInterval(() => {
+      fetchTrafficStats();
+      fetchBackendHealth();
+    }, 60000);
     return () => clearInterval(trafficInterval);
   }, []);
 
@@ -901,6 +931,36 @@ const Dashboard = () => {
         </Box>
       </Box>
 
+      {/* Content Tabs */}
+      <Box sx={{ mb: 3, width: "100%" }}>
+        <Tabs
+          value={activeTab}
+          onChange={(_, v) => setActiveTab(v)}
+          sx={{
+            borderBottom: `1px solid ${theme.palette.divider}`,
+            "& .MuiTab-root": {
+              textTransform: "none",
+              fontWeight: 600,
+              fontSize: "0.9rem",
+              minHeight: 48,
+              gap: 1,
+            },
+            "& .MuiTabs-indicator": {
+              height: 3,
+              borderRadius: "3px 3px 0 0",
+            },
+          }}
+        >
+          <Tab icon={<DashboardIcon sx={{ fontSize: 20 }} />} iconPosition="start" label="Overview" />
+          <Tab icon={<DnsIcon sx={{ fontSize: 20 }} />} iconPosition="start" label="Backend Health & Traffic" />
+          <Tab icon={<SecurityIcon sx={{ fontSize: 20 }} />} iconPosition="start" label="SSL/TLS" />
+          <Tab icon={<StorageIcon sx={{ fontSize: 20 }} />} iconPosition="start" label="Cache" />
+          <Tab icon={<ShieldIcon sx={{ fontSize: 20 }} />} iconPosition="start" label="WAF" />
+        </Tabs>
+      </Box>
+
+      {/* Tab: Overview */}
+      {activeTab === 0 && (<>
       {/* Geographic Traffic Map - Full Width */}
       <Box sx={{ mb: 4, width: "100%" }}>
         <ChartCard
@@ -1724,6 +1784,10 @@ const Dashboard = () => {
         </ChartCard>
       </Box>
 
+      </>)}
+
+      {/* Tab: SSL/TLS */}
+      {activeTab === 2 && (<>
       {/* SSL Error Tracking - Full Width */}
       <Box sx={{ mb: 3, width: "100%" }}>
         <ChartCard
@@ -2249,6 +2313,10 @@ const Dashboard = () => {
         </ChartCard>
       </Box>
 
+      </>)}
+
+      {/* Tab: Cache */}
+      {activeTab === 3 && (<>
       {/* Cache Statistics - Full Width */}
       <Box sx={{ mb: 3, width: "100%" }}>
         <ChartCard
@@ -2488,6 +2556,10 @@ const Dashboard = () => {
         </ChartCard>
       </Box>
 
+      </>)}
+
+      {/* Tab: WAF */}
+      {activeTab === 4 && (<>
       {/* WAF Security Panel */}
       <Box sx={{ mb: 4, width: "100%" }}>
         <ChartCard
@@ -2608,6 +2680,21 @@ const Dashboard = () => {
             </Table>
           </ChartCard>
         </Box>
+      )}
+
+      </>)}
+
+      {/* Tab: Backend Metrics */}
+      {activeTab === 1 && (
+      <Box sx={{ mb: 4, width: "100%" }}>
+        <BackendHealth
+          healthData={backendHealthData}
+          topologyData={topologyData}
+          onRefresh={fetchBackendHealth}
+          formatNumber={formatNumber}
+          formatBytes={formatBytes}
+        />
+      </Box>
       )}
 
       {/* Entity Stats Cards - Smaller secondary cards */}

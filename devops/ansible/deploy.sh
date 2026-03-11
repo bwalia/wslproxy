@@ -50,7 +50,7 @@ show_usage() {
                 local ip=$(basename "$dir")
                 local hostname=""
                 if [ -f "${dir}vars.yaml" ]; then
-                    hostname=$(get_yaml_value "${dir}vars.yaml" "nginx_default_server_hostname")
+                    hostname=$(get_yaml_value "${dir}vars.yaml" "nginx_default_server_backend")
                 fi
                 if [ -n "$hostname" ]; then
                     echo "  $ip  ($hostname)"
@@ -137,7 +137,7 @@ echo -e "${GREEN}========================================${NC}"
 echo ""
 
 # Parse vars file
-HOSTNAME=$(get_yaml_value "$VARS_FILE" "nginx_default_server_hostname")
+HOSTNAME=$(get_yaml_value "$VARS_FILE" "nginx_default_server_backend")
 SETTINGS_PATH=$(get_yaml_value "$VARS_FILE" "local_settings_file_path")
 ENV_PATH=$(get_yaml_value "$VARS_FILE" "local_env_file_path")
 WEB_UI=$(get_yaml_value "$VARS_FILE" "nginx_web_ui_enabled")

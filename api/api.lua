@@ -9,6 +9,7 @@ local Errors = require("errors")
 local PushData = require("push-data")
 local SslManager = require("ssl_manager")
 local CacheManager = require("cache_manager")
+local VarnishManager = require("varnish_manager")
 
 local settings = Helper.settings()
 local storageTypeOverride = settings.settings or os.getenv("STORAGE_TYPE")
@@ -193,6 +194,61 @@ local function validateServerPayload(payloads)
                 field = "ssl_force_https",
                 message = "SSL force HTTPS must be a boolean value"
             })
+        end
+    end
+
+    -- Validate Varnish config fields
+    if payloads.varnish_config and type(payloads.varnish_config) == "table" then
+        local vc = payloads.varnish_config
+        if vc.listen_port then
+            local port = tonumber(vc.listen_port)
+            if not port or port < 1 or port > 65535 then
+                table.insert(errors, {
+                    field = "varnish_config.listen_port",
+                    message = "Varnish listen port must be between 1 and 65535"
+                })
+            end
+        end
+        if vc.admin_listen_port then
+            local port = tonumber(vc.admin_listen_port)
+            if not port or port < 1 or port > 65535 then
+                table.insert(errors, {
+                    field = "varnish_config.admin_listen_port",
+                    message = "Varnish admin listen port must be between 1 and 65535"
+                })
+            end
+        end
+        if vc.cache_ttl_default then
+            local ttl = tonumber(vc.cache_ttl_default)
+            if not ttl or ttl < 0 then
+                table.insert(errors, {
+                    field = "varnish_config.cache_ttl_default",
+                    message = "Cache TTL must be a non-negative number"
+                })
+            end
+        end
+    end
+
+    -- Validate Varnish snippets
+    if payloads.varnish_snippets and type(payloads.varnish_snippets) == "table" then
+        local valid_hooks = {
+            vcl_init = true, vcl_recv = true, vcl_hash = true, vcl_hit = true,
+            vcl_miss = true, vcl_backend_fetch = true, vcl_backend_response = true,
+            vcl_deliver = true, vcl_synth = true
+        }
+        for i, snippet in ipairs(payloads.varnish_snippets) do
+            if snippet.hook_point and not valid_hooks[snippet.hook_point] then
+                table.insert(errors, {
+                    field = "varnish_snippets[" .. i .. "].hook_point",
+                    message = "Invalid VCL hook point. Valid: vcl_init, vcl_recv, vcl_hash, vcl_hit, vcl_miss, vcl_backend_fetch, vcl_backend_response, vcl_deliver, vcl_synth"
+                })
+            end
+            if snippet.content ~= nil and type(snippet.content) ~= "string" then
+                table.insert(errors, {
+                    field = "varnish_snippets[" .. i .. "].content",
+                    message = "Snippet content must be a string"
+                })
+            end
         end
     end
 
@@ -1245,6 +1301,47 @@ local function createUpdateServer(body, uuid)
             else
                 ngx.log(ngx.INFO, "Cache disabled for domain: ", payloads.server_name)
             end
+        end
+    end
+
+    -- Handle Varnish configuration if varnish_enabled is set
+    if payloads.varnish_enabled ~= nil then
+        if payloads.varnish_enabled then
+            local varnish_options = {}
+            if payloads.varnish_config and type(payloads.varnish_config) == "table" then
+                varnish_options = payloads.varnish_config
+            end
+            -- Carry over snippets if provided
+            if payloads.varnish_snippets and type(payloads.varnish_snippets) == "table" then
+                varnish_options.snippets = payloads.varnish_snippets
+            end
+            local varnish_ok, varnish_err = VarnishManager.enable_varnish(payloads.server_name, varnish_options)
+            if not varnish_ok then
+                ngx.log(ngx.ERR, "Failed to enable Varnish for ", payloads.server_name, ": ", varnish_err)
+            else
+                ngx.log(ngx.INFO, "Varnish enabled for domain: ", payloads.server_name)
+            end
+        else
+            local varnish_ok, varnish_err = VarnishManager.disable_varnish(payloads.server_name)
+            if not varnish_ok then
+                ngx.log(ngx.WARN, "Failed to disable Varnish for ", payloads.server_name, ": ", varnish_err)
+            else
+                ngx.log(ngx.INFO, "Varnish disabled for domain: ", payloads.server_name)
+            end
+        end
+    elseif payloads.varnish_config or payloads.varnish_snippets then
+        -- Update config/snippets even if varnish_enabled not explicitly set
+        local existing = VarnishManager.get_varnish_config(payloads.server_name)
+        if existing then
+            if payloads.varnish_config and type(payloads.varnish_config) == "table" then
+                for k, v in pairs(payloads.varnish_config) do
+                    existing[k] = v
+                end
+            end
+            if payloads.varnish_snippets and type(payloads.varnish_snippets) == "table" then
+                existing.snippets = payloads.varnish_snippets
+            end
+            VarnishManager.save_varnish_config(payloads.server_name, existing)
         end
     end
 
@@ -3496,6 +3593,91 @@ local function handle_get_request(args, path)
         ngx.exit(ngx.HTTP_OK)
     end
 
+    -- ============================================================
+    -- Varnish GET endpoints
+    -- ============================================================
+
+    -- GET /api/varnish/config/{server_name} - Get Varnish config + snippets
+    if subPath[1] == "varnish" and subPath[2] == "config" and subPath[3] then
+        local server_name = subPath[3]
+        local varnish_config, varnish_err = VarnishManager.get_varnish_config(server_name)
+        if varnish_config then
+            ngx.say(cjson.encode({ data = varnish_config }))
+        else
+            local default_config = VarnishManager.get_default_config()
+            default_config.server_name = server_name
+            ngx.say(cjson.encode({ data = default_config }))
+        end
+        ngx.exit(ngx.HTTP_OK)
+    end
+
+    -- GET /api/varnish/configs - List all Varnish configurations
+    if path == "varnish/configs" then
+        local configs = VarnishManager.list_varnish_configs()
+        ngx.say(cjson.encode({ data = configs }))
+        ngx.exit(ngx.HTTP_OK)
+    end
+
+    -- GET /api/varnish/status/{server_name} - Get deploy status
+    if subPath[1] == "varnish" and subPath[2] == "status" and subPath[3] then
+        local server_name = subPath[3]
+        local status = VarnishManager.get_deploy_status(server_name)
+        ngx.say(cjson.encode({
+            data = {
+                server_name = server_name,
+                deploy_status = status,
+                varnish_enabled = VarnishManager.is_varnish_enabled(server_name)
+            }
+        }))
+        ngx.exit(ngx.HTTP_OK)
+    end
+
+    -- GET /api/varnish/snippets/{server_name} - List snippets
+    if subPath[1] == "varnish" and subPath[2] == "snippets" and subPath[3] then
+        local server_name = subPath[3]
+        local snippets = VarnishManager.get_snippets(server_name)
+        ngx.say(cjson.encode({ data = snippets }))
+        ngx.exit(ngx.HTTP_OK)
+    end
+
+    -- GET /api/varnish/vcl/{server_name} - Get last generated VCL
+    if subPath[1] == "varnish" and subPath[2] == "vcl" and subPath[3] and subPath[3] ~= "preview" then
+        local server_name = subPath[3]
+        local vcl_content = VarnishManager.get_generated_vcl(server_name)
+        ngx.say(cjson.encode({
+            data = {
+                server_name = server_name,
+                vcl = vcl_content or ""
+            }
+        }))
+        ngx.exit(ngx.HTTP_OK)
+    end
+
+    -- GET /api/varnish/vcl/preview/{server_name} - Generate VCL preview without deploying
+    if subPath[1] == "varnish" and subPath[2] == "vcl" and subPath[3] == "preview" and subPath[4] then
+        local server_name = subPath[4]
+        local VarnishVcl = require("varnish_vcl")
+        local config = VarnishManager.get_varnish_config(server_name) or VarnishManager.get_default_config()
+        local snippets = config.snippets or {}
+        local vcl, vcl_err = VarnishVcl.assemble(server_name, config, snippets)
+        if vcl then
+            ngx.say(cjson.encode({
+                data = {
+                    server_name = server_name,
+                    vcl = vcl,
+                    snippet_count = #snippets
+                }
+            }))
+        else
+            ngx.say(cjson.encode({
+                data = {
+                    error = vcl_err or "Failed to generate VCL"
+                }
+            }))
+        end
+        ngx.exit(ngx.HTTP_OK)
+    end
+
     -- Get instance/server information - GET /api/instance/info
     if path == "instance/info" then
         local function execute_command(cmd)
@@ -4048,6 +4230,215 @@ local function handle_post_request(args, path)
             end
             ngx.exit(ngx.HTTP_OK)
         end
+        -- ============================================================
+        -- Varnish POST endpoints
+        -- ============================================================
+
+        -- POST /api/varnish/config/{server_name} - Save Varnish config
+        if string.find(path, "^varnish/config/") then
+            local server_name = path:match("^varnish/config/(.+)$")
+            if not server_name or server_name == "" then
+                Errors.throwError("Server name is required", ngx.HTTP_BAD_REQUEST)
+            end
+            local payloads = Helper.GetPayloads(args)
+            local success, err = VarnishManager.save_varnish_config(server_name, payloads)
+            if success then
+                ngx.say(cjson.encode({
+                    message = "Varnish configuration updated for " .. server_name,
+                    server_name = server_name
+                }))
+            else
+                Errors.throwError("Failed to update Varnish config: " .. (err or "unknown error"),
+                    ngx.HTTP_INTERNAL_SERVER_ERROR)
+            end
+            ngx.exit(ngx.HTTP_OK)
+        end
+
+        -- POST /api/varnish/snippets/{server_name} - Create snippet
+        if string.find(path, "^varnish/snippets/") then
+            local server_name = path:match("^varnish/snippets/(.+)$")
+            if not server_name or server_name == "" then
+                Errors.throwError("Server name is required", ngx.HTTP_BAD_REQUEST)
+            end
+            local payloads = Helper.GetPayloads(args)
+            local success, err = VarnishManager.save_snippet(server_name, payloads)
+            if success then
+                local snippets = VarnishManager.get_snippets(server_name)
+                ngx.say(cjson.encode({
+                    message = "Snippet created for " .. server_name,
+                    server_name = server_name,
+                    snippets = snippets
+                }))
+            else
+                Errors.throwError("Failed to create snippet: " .. (err or "unknown error"),
+                    ngx.HTTP_BAD_REQUEST)
+            end
+            ngx.exit(ngx.HTTP_OK)
+        end
+
+        -- POST /api/varnish/deploy/{server_name} - Deploy VCL
+        if string.find(path, "^varnish/deploy/") then
+            local server_name = path:match("^varnish/deploy/(.+)$")
+            if not server_name or server_name == "" then
+                Errors.throwError("Server name is required", ngx.HTTP_BAD_REQUEST)
+            end
+            local payloads = Helper.GetPayloads(args) or {}
+            local dry_run = payloads.dry_run ~= false  -- default to dry_run=true
+
+            local VarnishVcl = require("varnish_vcl")
+            local config = VarnishManager.get_varnish_config(server_name)
+            if not config then
+                Errors.throwError("No Varnish config found for " .. server_name, ngx.HTTP_NOT_FOUND)
+                ngx.exit(ngx.HTTP_NOT_FOUND)
+            end
+
+            local snippets = config.snippets or {}
+
+            -- Step 1: Generate VCL
+            local vcl, vcl_err = VarnishVcl.assemble(server_name, config, snippets)
+            if not vcl then
+                Errors.throwError("Failed to generate VCL: " .. (vcl_err or "unknown"), ngx.HTTP_INTERNAL_SERVER_ERROR)
+                ngx.exit(ngx.HTTP_INTERNAL_SERVER_ERROR)
+            end
+
+            -- Step 2: Validate VCL
+            local valid, validate_output = VarnishVcl.validate_vcl(vcl)
+
+            if dry_run then
+                ngx.say(cjson.encode({
+                    data = {
+                        server_name = server_name,
+                        dry_run = true,
+                        valid = valid,
+                        validation_output = validate_output,
+                        vcl_preview = vcl,
+                        snippet_count = #snippets
+                    }
+                }))
+                ngx.exit(ngx.HTTP_OK)
+            end
+
+            if not valid then
+                VarnishManager.set_deploy_status(server_name, {
+                    state = "failed",
+                    last_deployed_at = os.time(),
+                    last_error = validate_output
+                })
+                Errors.throwError("VCL validation failed: " .. validate_output, ngx.HTTP_BAD_REQUEST)
+                ngx.exit(ngx.HTTP_BAD_REQUEST)
+            end
+
+            -- Step 3: Save VCL to disk
+            local save_ok, vcl_path = VarnishManager.save_generated_vcl(server_name, vcl)
+            if not save_ok then
+                Errors.throwError("Failed to save VCL: " .. tostring(vcl_path), ngx.HTTP_INTERNAL_SERVER_ERROR)
+                ngx.exit(ngx.HTTP_INTERNAL_SERVER_ERROR)
+            end
+
+            -- Step 4: Deploy VCL to Varnish
+            local admin_addr = (config.admin_listen_address or "127.0.0.1") .. ":" .. (config.admin_listen_port or 6082)
+            local label = VarnishVcl.generate_vcl_label(server_name)
+            local deploy_ok, deploy_output, deployed_label = VarnishVcl.deploy_vcl(vcl_path, admin_addr, label)
+
+            if deploy_ok then
+                VarnishManager.set_deploy_status(server_name, {
+                    state = "deployed",
+                    last_deployed_at = os.time(),
+                    last_vcl_label = deployed_label,
+                    last_error = nil
+                })
+                ngx.say(cjson.encode({
+                    data = {
+                        server_name = server_name,
+                        deployed = true,
+                        vcl_label = deployed_label,
+                        message = deploy_output
+                    }
+                }))
+            else
+                VarnishManager.set_deploy_status(server_name, {
+                    state = "failed",
+                    last_deployed_at = os.time(),
+                    last_vcl_label = deployed_label,
+                    last_error = deploy_output
+                })
+                ngx.say(cjson.encode({
+                    data = {
+                        server_name = server_name,
+                        deployed = false,
+                        error = deploy_output
+                    }
+                }))
+            end
+            ngx.exit(ngx.HTTP_OK)
+        end
+
+        -- POST /api/varnish/enable/{server_name} - Enable Varnish
+        if string.find(path, "^varnish/enable/") then
+            local server_name = path:match("^varnish/enable/(.+)$")
+            if not server_name or server_name == "" then
+                Errors.throwError("Server name is required", ngx.HTTP_BAD_REQUEST)
+            end
+            local payloads = Helper.GetPayloads(args) or {}
+            local success, err = VarnishManager.enable_varnish(server_name, payloads)
+            if success then
+                ngx.say(cjson.encode({
+                    message = "Varnish enabled for " .. server_name,
+                    server_name = server_name,
+                    varnish_enabled = true
+                }))
+            else
+                Errors.throwError("Failed to enable Varnish: " .. (err or "unknown error"),
+                    ngx.HTTP_INTERNAL_SERVER_ERROR)
+            end
+            ngx.exit(ngx.HTTP_OK)
+        end
+
+        -- POST /api/varnish/disable/{server_name} - Disable Varnish
+        if string.find(path, "^varnish/disable/") then
+            local server_name = path:match("^varnish/disable/(.+)$")
+            if not server_name or server_name == "" then
+                Errors.throwError("Server name is required", ngx.HTTP_BAD_REQUEST)
+            end
+            local success, err = VarnishManager.disable_varnish(server_name)
+            if success then
+                ngx.say(cjson.encode({
+                    message = "Varnish disabled for " .. server_name,
+                    server_name = server_name,
+                    varnish_enabled = false
+                }))
+            else
+                Errors.throwError("Failed to disable Varnish: " .. (err or "unknown error"),
+                    ngx.HTTP_INTERNAL_SERVER_ERROR)
+            end
+            ngx.exit(ngx.HTTP_OK)
+        end
+
+        -- POST /api/varnish/purge/{server_name} - Purge Varnish cache
+        if string.find(path, "^varnish/purge/") then
+            local server_name = path:match("^varnish/purge/(.+)$")
+            if not server_name or server_name == "" then
+                Errors.throwError("Server name is required", ngx.HTTP_BAD_REQUEST)
+            end
+            local payloads = Helper.GetPayloads(args) or {}
+            local config = VarnishManager.get_varnish_config(server_name)
+            if not config then
+                Errors.throwError("No Varnish config found for " .. server_name, ngx.HTTP_NOT_FOUND)
+                ngx.exit(ngx.HTTP_NOT_FOUND)
+            end
+            local admin_addr = (config.admin_listen_address or "127.0.0.1") .. ":" .. (config.admin_listen_port or 6082)
+            local VarnishVcl = require("varnish_vcl")
+            local success, output = VarnishVcl.purge_cache(admin_addr, payloads.url_pattern)
+            ngx.say(cjson.encode({
+                data = {
+                    server_name = server_name,
+                    purged = success,
+                    output = output
+                }
+            }))
+            ngx.exit(ngx.HTTP_OK)
+        end
+
         -- POST /api/cache/clear-all - Clear all cache
         if path == "cache/clear-all" then
             local CacheHandler = require("cache_handler")
@@ -4111,6 +4502,46 @@ local function handle_put_request(args, path)
         if string.find(path, "profiles") then
             createUpdateProfiles(args, uuid)
         end
+
+        -- PUT /api/varnish/config/{server_name} - Update Varnish config
+        if string.find(path, "^varnish/config/") then
+            local server_name = path:match("^varnish/config/(.+)$")
+            if server_name and server_name ~= "" then
+                local payloads = Helper.GetPayloads(args)
+                local success, err = VarnishManager.save_varnish_config(server_name, payloads)
+                if success then
+                    ngx.say(cjson.encode({
+                        message = "Varnish configuration updated for " .. server_name,
+                        server_name = server_name
+                    }))
+                else
+                    Errors.throwError("Failed to update Varnish config: " .. (err or "unknown error"),
+                        ngx.HTTP_INTERNAL_SERVER_ERROR)
+                end
+                ngx.exit(ngx.HTTP_OK)
+            end
+        end
+
+        -- PUT /api/varnish/snippets/{server_name}/{snippet_id} - Update snippet
+        if string.find(path, "^varnish/snippets/") then
+            local server_name, snippet_id = path:match("^varnish/snippets/([^/]+)/(.+)$")
+            if server_name and snippet_id then
+                local payloads = Helper.GetPayloads(args)
+                payloads.id = snippet_id
+                local success, err = VarnishManager.save_snippet(server_name, payloads)
+                if success then
+                    ngx.say(cjson.encode({
+                        message = "Snippet updated",
+                        server_name = server_name,
+                        snippet_id = snippet_id
+                    }))
+                else
+                    Errors.throwError("Failed to update snippet: " .. (err or "unknown error"),
+                        ngx.HTTP_BAD_REQUEST)
+                end
+                ngx.exit(ngx.HTTP_OK)
+            end
+        end
     else
         Errors.throwError(
             "You can't create record either you can create it from UI or you need to change settings for instance lock.",
@@ -4124,6 +4555,43 @@ local function handle_delete_request(args, path)
     local pattern = ".*/(.*)"
     local uuid = string.match(path, pattern)
     if settings.instance_locked == "false" or platform == "react-admin" then
+        -- DELETE /api/varnish/snippets/{server_name}/{snippet_id}
+        if string.find(path, "^varnish/snippets/") then
+            local server_name, snippet_id = path:match("^varnish/snippets/([^/]+)/(.+)$")
+            if server_name and snippet_id then
+                local success, err = VarnishManager.delete_snippet(server_name, snippet_id)
+                if success then
+                    ngx.say(cjson.encode({
+                        message = "Snippet deleted",
+                        server_name = server_name,
+                        snippet_id = snippet_id
+                    }))
+                else
+                    Errors.throwError("Failed to delete snippet: " .. (err or "unknown error"),
+                        ngx.HTTP_BAD_REQUEST)
+                end
+                ngx.exit(ngx.HTTP_OK)
+            end
+        end
+
+        -- DELETE /api/varnish/config/{server_name}
+        if string.find(path, "^varnish/config/") then
+            local server_name = path:match("^varnish/config/(.+)$")
+            if server_name and server_name ~= "" then
+                local success, err = VarnishManager.delete_varnish_config(server_name)
+                if success then
+                    ngx.say(cjson.encode({
+                        message = "Varnish config deleted for " .. server_name,
+                        server_name = server_name
+                    }))
+                else
+                    Errors.throwError("Failed to delete Varnish config: " .. (err or "unknown error"),
+                        ngx.HTTP_INTERNAL_SERVER_ERROR)
+                end
+                ngx.exit(ngx.HTTP_OK)
+            end
+        end
+
         if string.find(path, "waf_rules") then
             createDeleteWafRules(args, uuid)
         elseif string.find(path, "waf_policies") then

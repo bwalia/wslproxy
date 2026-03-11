@@ -1,0 +1,28 @@
+{
+  "id": "host:wsl1.diytaxreturn.co.uk",
+  "server_name": "wsl1.diytaxreturn.co.uk",
+  "proxy_server_name": "wsl1.diytaxreturn.co.uk",
+  "root": "/var/www/html",
+  "index": "index.html",
+  "access_log": "logs/access.log",
+  "error_log": "logs/error.log",
+  "config_status": false,
+  "profile_id": "wsl1",
+  "proxy_pass": "http://localhost:8080",
+  "rules": "wsl1-diytaxreturn-wslproxy-rule",
+  "created_at": 1769388403,
+  "listens": [
+    {
+      "listen": "80"
+    }
+  ],
+  "ssl_enabled": true,
+  "ssl_force_https": true,
+  "ssl_staging": false,
+  "ssl_auto_renew": true,
+  "ssl_email": "balinder.walia@gmail.com",
+  "cache_enabled": false,
+  "cache_bypass_auth": false,
+  "match_cases": {},
+  "custom_headers": []
+}

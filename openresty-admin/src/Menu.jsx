@@ -12,6 +12,7 @@ import WafRuleIcon from "@mui/icons-material/ShieldRounded";
 import WafPolicyIcon from "@mui/icons-material/VerifiedUserRounded";
 import WafEventIcon from "@mui/icons-material/NotificationsActiveRounded";
 import IngressIcon from "@mui/icons-material/AccountTree";
+import HealthIcon from "@mui/icons-material/MonitorHeartRounded";
 import Logo from "./component/Logo";
 import { useThemeMode } from "./Theme";
 
@@ -134,6 +135,11 @@ export const Menu = () => {
             leftIcon={<SessionIcon />}
           />
         )}
+        <StyledMenuItem
+          to="/health"
+          primaryText="System Health"
+          leftIcon={<HealthIcon />}
+        />
       </Box>
 
       <Divider sx={{ my: 2, mx: 2, borderColor: theme.palette.divider }} />

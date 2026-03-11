@@ -36,6 +36,90 @@
   register: sync_tenants
   tags: [openresty, lapis, dashboard, nginx]
 
+- name: Deploy default.conf when frontend or backend is configured
+  template:
+    src: default.conf.j2
+    dest: /opt/nginx/conf.d/default.conf
+    mode: 0664
+    owner: www-data
+    group: root
+  when: (nginx_default_server_frontend | default('') | length > 0) or (nginx_default_server_backend | default('') | length > 0)
+  tags: [openresty, lapis, nginx, default-server]
+
+- name: Remove default.conf when no frontend/backend configured
+  file:
+    path: /opt/nginx/conf.d/default.conf
+    state: absent
+  when: (nginx_default_server_frontend | default('') | length == 0) and (nginx_default_server_backend | default('') | length == 0)
+  tags: [openresty, lapis, nginx, default-server]
+
+- name: Ensure SSL domain directory exists
+  file:
+    path: /opt/nginx/data/ssl
+    state: directory
+    mode: '0775'
+    owner: www-data
+    group: root
+  tags: [openresty, nginx, ssl]
+
+- name: Generate SSL domain files for default server frontend/backend domains
+  shell: |
+    CREATED=0
+    for domain in {{ nginx_default_server_frontend | default('') }} {{ nginx_default_server_backend | default('') }}; do
+      [ -z "$domain" ] && continue
+      ssl_file="/opt/nginx/data/ssl/${domain}.json"
+      if [ ! -f "$ssl_file" ]; then
+        echo "{\"ssl_enabled\": true, \"server_name\": \"${domain}\"}" > "$ssl_file"
+        chown www-data:root "$ssl_file"
+        chmod 664 "$ssl_file"
+        echo "Created: $ssl_file"
+        CREATED=$((CREATED+1))
+      fi
+    done
+    echo "Default server SSL domain files created: $CREATED"
+  register: default_ssl_gen
+  changed_when: "'Created:' in default_ssl_gen.stdout"
+  when: (nginx_default_server_frontend | default('') | length > 0) or (nginx_default_server_backend | default('') | length > 0)
+  tags: [openresty, nginx, ssl, default-server]
+
+- name: Show default server SSL domain generation
+  debug:
+    msg: "{{ default_ssl_gen.stdout_lines }}"
+  when: default_ssl_gen is defined and default_ssl_gen.stdout_lines | length > 0
+  tags: [openresty, nginx, ssl, default-server]
+
+- name: Generate SSL domain files from server configs
+  shell: |
+    CREATED=0
+    for env_dir in /opt/nginx/data/servers/*/; do
+      [ -d "$env_dir" ] || continue
+      for config_file in "$env_dir"*.json; do
+        [ -f "$config_file" ] || continue
+        ssl_enabled=$(jq -r '.ssl_enabled // false' "$config_file" 2>/dev/null)
+        server_name=$(jq -r '.server_name // empty' "$config_file" 2>/dev/null)
+        if [ "$ssl_enabled" = "true" ] && [ -n "$server_name" ]; then
+          ssl_file="/opt/nginx/data/ssl/${server_name}.json"
+          if [ ! -f "$ssl_file" ]; then
+            echo "{\"ssl_enabled\": true, \"server_name\": \"${server_name}\"}" > "$ssl_file"
+            chown www-data:root "$ssl_file"
+            chmod 664 "$ssl_file"
+            echo "Created: $ssl_file"
+            CREATED=$((CREATED+1))
+          fi
+        fi
+      done
+    done
+    echo "SSL domain files created: $CREATED"
+  register: ssl_gen_result
+  changed_when: "'Created:' in ssl_gen_result.stdout"
+  tags: [openresty, nginx, ssl]
+
+- name: Display SSL domain generation result
+  debug:
+    msg: "{{ ssl_gen_result.stdout_lines }}"
+  when: ssl_gen_result.stdout_lines | length > 0
+  tags: [openresty, nginx, ssl]
+
 - name: Template servers-mixed-nginx.conf
   template:
     src: servers-mixed-nginx.conf.j2

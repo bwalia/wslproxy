@@ -30,6 +30,7 @@ import EnvProfileHandler from "./component/EnvProfileHandler";
 import ResetPassword from "./component/ResetPassword";
 import Logo from "./component/Logo";
 import { useThemeMode } from "./Theme";
+import { ApiHealthIndicator } from "./component/ApiHealthBanner";
 
 const targetPlatform = import.meta.env.VITE_TARGET_PLATFORM;
 
@@ -264,6 +265,7 @@ const AppBar = () => {
       >
         {targetPlatform !== "DOCKER" && <ApiSync />}
         {settings.storage_type === "disk" && <StorageButton />}
+        <ApiHealthIndicator />
         <CheckStatus />
         <ProfileHandler />
         

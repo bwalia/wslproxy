@@ -4,7 +4,7 @@
 
 ubworker01 ansible_user=bwalia
 slworker00 ansible_user=bwalia
-192.168.1.189 ansible_user=bwalia
+192.168.1.193 ansible_user=bwalia
 whisky10 ansible_user=bwalia
 whisky06 ansible_user=bwalia
 ubworker04 ansible_user=bwalia
@@ -12,6 +12,7 @@ whisky08 ansible_user=bwalia
 192.168.10.1 ansible_user=bwalia
 185.237.99.238 ansible_user=root
 187.77.179.206 ansible_user=root
+187.124.112.155 ansible_user=root
 
 # Environment-based server groups for config deployment
 [openresty_prod]
@@ -34,6 +35,9 @@ slworker00 ansible_user=bwalia
 [openresty_diytaxreturn]
 187.77.179.206 ansible_user=root
 
+[openresty_diytaxreturn_wsl1]
+187.124.112.155 ansible_user=root
+
 # Group all openresty servers
 [openresty_servers:children]
 openresty_prod
@@ -42,8 +46,10 @@ openresty_test
 openresty_dev
 openresty_acc
 openresty_diytaxreturn
+openresty_diytaxreturn_wsl1
 
 # Docker-enabled servers
 [docker_servers]
 187.77.179.206 ansible_user=root
+187.124.112.155 ansible_user=root
 
