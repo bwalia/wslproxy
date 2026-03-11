@@ -275,11 +275,14 @@ function _M.list(args)
 end
 
 -- GET /api/bookmarks/{id} — get single bookmark
+-- dataProvider.getOne expects: { data: { ..., bookmarks_tags: [] } }
 function _M.get(args, id)
     local all_bookmarks = _M.get_merged_bookmarks()
     for _, bm in ipairs(all_bookmarks) do
         if bm.id == id then
-            return ngx.say(cjson.encode(ensure_tags_array(bm)))
+            local result = ensure_tags_array(bm)
+            result.bookmarks_tags = result.tags or empty_json_array()
+            return ngx.say(cjson.encode({ data = result }))
         end
     end
     ngx.status = 404
