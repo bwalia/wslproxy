@@ -143,7 +143,7 @@ const TagsField = () => {
       source="tags"
       label="Tags"
       render={(record) => {
-        const tags = record.tags || [];
+        const tags = Array.isArray(record.tags) ? record.tags : [];
         if (tags.length === 0) return <Typography variant="caption" color="text.disabled">-</Typography>;
         return (
           <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap" }}>

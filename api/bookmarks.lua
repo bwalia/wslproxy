@@ -18,6 +18,33 @@ local configPath = os.getenv("NGINX_CONFIG_DIR") or "/opt/nginx/"
 local BOOKMARKS_DIR = configPath .. "data/bookmarks/"
 local BOOKMARKS_FILE = BOOKMARKS_DIR .. "bookmarks.json"
 
+-- Force an empty Lua table to encode as JSON [] instead of {}
+local function empty_json_array()
+    if cjson.empty_array then
+        return cjson.empty_array
+    end
+    local t = {}
+    if cjson.empty_array_mt then
+        setmetatable(t, cjson.empty_array_mt)
+    end
+    return t
+end
+
+-- Ensure tags is always a JSON array (not object)
+local function ensure_tags_array(bm)
+    if bm.tags == nil or (type(bm.tags) == "table" and next(bm.tags) == nil) then
+        bm.tags = empty_json_array()
+    elseif type(bm.tags) == "table" then
+        -- Ensure it's a sequential table
+        local arr = {}
+        for _, v in ipairs(bm.tags) do
+            arr[#arr + 1] = v
+        end
+        bm.tags = arr
+    end
+    return bm
+end
+
 -- ============================================================================
 -- LEAN BOOKMARK GENERATION (from Virtual Servers)
 -- ============================================================================
@@ -32,8 +59,8 @@ local function server_to_bookmark(server)
         title = host,
         host = host,
         url = scheme .. "://" .. host,
-        tags = {},
-        category = nil,
+        tags = empty_json_array(),
+        category = "",
         description = "",
         auto_generated = true,
         ssl_enabled = server.ssl_enabled or false,
@@ -237,7 +264,7 @@ function _M.list(args)
     local page_data = {}
     for i = startIdx, endIdx do
         if all_bookmarks[i] then
-            table.insert(page_data, all_bookmarks[i])
+            table.insert(page_data, ensure_tags_array(all_bookmarks[i]))
         end
     end
 
@@ -252,7 +279,7 @@ function _M.get(args, id)
     local all_bookmarks = _M.get_merged_bookmarks()
     for _, bm in ipairs(all_bookmarks) do
         if bm.id == id then
-            return ngx.say(cjson.encode(bm))
+            return ngx.say(cjson.encode(ensure_tags_array(bm)))
         end
     end
     ngx.status = 404
