@@ -79,6 +79,17 @@ local isItDTAPEnvironment = function(pHostnameStr)
 end
 
 local settingsObj = Helper.settings()
+
+-- Handle CAPTCHA verification POST early (before rule matching)
+-- This endpoint must be reachable regardless of which rule matches the path
+if ngx.var.uri == "/__captcha/verify" and ngx.req.get_method() == "POST" then
+    local captcha_ok, Captcha = pcall(require, "captcha")
+    if captcha_ok and Captcha then
+        Captcha.handle_verify(settingsObj)
+        return
+    end
+end
+
 local envProfile = settingsObj.env_profile == nil and "prod" or settingsObj.env_profile
 
 local function trimWhitespace(str)
@@ -348,7 +359,18 @@ local function gatewayHostRulesParser(rules, ruleId, priority, message, statusCo
     local isCountryPass = false
     -- check country
     if rules.country and rules.country ~= nil and rules.country ~= "" and type(rules.country) ~= "userdata" then
-        if rules.country == "EU" then
+        if rules.country_key == 'not_equals' then
+            -- Inverse match: pass if country does NOT match (or NOT in EU)
+            if rules.country == "EU" then
+                isCountryPass = not Helper.isEU(country)
+            else
+                isCountryPass = (rules.country ~= country)
+            end
+            if not isCountryPass then
+                failMessage = string.format(
+                    "Country exclusion matched. country=%s is excluded by not_equals rule", country)
+            end
+        elseif rules.country == "EU" then
             if Helper.isEU(country) then
                 isCountryPass = true
             end

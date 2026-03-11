@@ -1,0 +1,43 @@
+{
+  "id": "example-captcha-rule",
+  "name": "CAPTCHA for non-EU traffic on login",
+  "description": "Require CAPTCHA verification for non-EU visitors accessing /login. EU traffic passes through directly. After CAPTCHA verification, request is proxied to the backend (same as statusCode 305).",
+  "profile_id": "prod",
+  "priority": 1,
+  "match": {
+    "rules": [
+      {
+        "path": "/login",
+        "path_key": "starts_with",
+        "country": "EU",
+        "country_key": "not_equals",
+        "response": {
+          "code": 306,
+          "redirect_uri": "127.0.0.1:8080",
+          "allow": true
+        }
+      },
+      {
+        "path": "/",
+        "path_key": "starts_with",
+        "response": {
+          "code": 305,
+          "redirect_uri": "127.0.0.1:8080",
+          "allow": true
+        }
+      }
+    ]
+  },
+  "_docs": {
+    "statusCode_306": "CAPTCHA challenge — verifies human via Cloudflare Turnstile or Google reCAPTCHA before proxying. Requires captcha.site_key and captcha.secret_key in settings.json. After passing CAPTCHA, sets a signed cookie (default 1 hour TTL). Cookie is IP-bound and HMAC-signed to prevent forgery.",
+    "statusCode_305": "Direct proxy — forwards request to redirect_uri backend",
+    "country_not_equals": "Use country_key: 'not_equals' to match traffic from OUTSIDE a country/region. Combined with country: 'EU', this targets non-EU traffic.",
+    "settings_json_captcha": {
+      "provider": "turnstile (default) or recaptcha",
+      "site_key": "Your Cloudflare Turnstile or reCAPTCHA site key",
+      "secret_key": "Your Cloudflare Turnstile or reCAPTCHA secret key",
+      "theme": "dark (default) or light",
+      "cookie_ttl": "3600 (seconds, default 1 hour)"
+    }
+  }
+}
