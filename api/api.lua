@@ -3453,6 +3453,14 @@ local function handle_get_request(args, path)
         -- elseif uuid and (#uuid == 36 or #uuid == 32) and subPath[1] == "sessions" then
         --     listSession(args, uuid)
     end
+    if path == "bookmarks" then
+        local bm_ok, Bookmarks = pcall(require, "bookmarks")
+        if bm_ok then Bookmarks.list(args) end
+    elseif uuid and #uuid > 0 and subPath[1] == "bookmarks" then
+        local bm_ok, Bookmarks = pcall(require, "bookmarks")
+        if bm_ok then Bookmarks.get(args, uuid) end
+    end
+
     if path == "conf" then
         listServerConf(args)
     end
@@ -4105,6 +4113,10 @@ local function handle_post_request(args, path)
         if path == "profiles" then
             createUpdateProfiles(args, nil)
         end
+        if path == "bookmarks" then
+            local bm_ok, Bookmarks = pcall(require, "bookmarks")
+            if bm_ok then Bookmarks.create_or_update(args) end
+        end
         if path == "waf_rules" then
             createUpdateWafRules(args)
         end
@@ -4664,6 +4676,10 @@ local function handle_delete_request(args, path)
         end
         if string.find(path, "profiles") then
             deleteProfile(args)
+        end
+        if string.find(path, "bookmarks") and uuid then
+            local bm_ok, Bookmarks = pcall(require, "bookmarks")
+            if bm_ok then Bookmarks.delete(args, uuid) end
         end
     elseif settings.instance_locked == "false" or preAction == "pre-release-delete-all-override" then
         if path == "delete/all" then
