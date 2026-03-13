@@ -6,7 +6,6 @@ name: Build and Deploy WSLProxy
 on:
   push:
     branches:
-      - main
       - release
   pull_request:
     branches:
@@ -14,6 +13,12 @@ on:
 
   workflow_dispatch:
     inputs:
+      DEPLOY_BRANCH:
+        type: string
+        description: "Branch to deploy (type any existing branch name)"
+        default: "release"
+        required: true
+
       TARGET_ENV:
         type: choice
         description: "Please choose the Target environment"
@@ -45,6 +50,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
+  DEPLOY_BRANCH: ${{ github.event.inputs.DEPLOY_BRANCH || github.ref_name }}
   TARGET_HOST: ${{ github.event.inputs.TARGET_HOST || '187.124.112.155' }}
   TARGET_ENV: ${{ github.event.inputs.TARGET_ENV || (github.event.inputs.TARGET_HOST == '187.124.112.155' && 'prod' || github.event.inputs.TARGET_HOST == 'slworker00' && 'int' || 'prod') }}
   API_DOMAINNAME_ENDPOINT: ${{ github.event.inputs.TARGET_ENV || (github.event.inputs.TARGET_HOST == '187.124.112.155' && 'prod' || github.event.inputs.TARGET_HOST == 'slworker00' && 'int' || 'prod') }}.wslproxy.com
@@ -61,6 +67,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ env.DEPLOY_BRANCH }}
 
       - name: Validate all JSON config files
         run: |
@@ -132,6 +140,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ env.DEPLOY_BRANCH }}
 
       - name: Install Ansible
         run: |
@@ -242,6 +252,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ env.DEPLOY_BRANCH }}
 
       - name: Install Go
         uses: actions/setup-go@v5
@@ -324,6 +336,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ env.DEPLOY_BRANCH }}
 
       - name: Install Ansible
         run: |
@@ -480,6 +494,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ env.DEPLOY_BRANCH }}
 
       - name: Install Ansible
         run: |
@@ -630,6 +646,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ env.DEPLOY_BRANCH }}
 
       - name: Install Ansible
         run: |
