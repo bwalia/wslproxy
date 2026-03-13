@@ -64,51 +64,42 @@ kubectl apply -f deploy/crds/
 
 ### Step 3: Deploy with Helm
 
-**Important:** The chart includes Prometheus ServiceMonitor resources by default.
-If your cluster does **not** have the Prometheus Operator installed, you must
-disable them or install the CRDs first.
-
-**Option A — Disable ServiceMonitor (recommended for clusters without Prometheus Operator):**
+The default install works out of the box (ServiceMonitor is disabled by default):
 
 ```bash
 helm install wslproxy deploy/helm/ \
   --namespace wslproxy-system \
-  --create-namespace \
-  --set controller.image.tag=1.0.0 \
-  --set openresty.image.tag=1.0.0 \
-  --set observability.prometheus.serviceMonitor.enabled=false
+  --create-namespace
 ```
 
-**Option B — Install Prometheus Operator CRDs first, then deploy with ServiceMonitor:**
+**Optional: Enable Prometheus ServiceMonitor**
+
+If you want metrics scraping via Prometheus Operator, first install the CRD:
+
+**Option A — Install just the CRD (lightweight):**
 
 ```bash
-# Install only the ServiceMonitor CRD (lightweight, no full Prometheus stack needed)
 kubectl apply -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/main/example/prometheus-operator-crd/monitoring.coreos.com_servicemonitors.yaml
 
-# Then install with ServiceMonitor enabled (the default)
 helm install wslproxy deploy/helm/ \
   --namespace wslproxy-system \
   --create-namespace \
-  --set controller.image.tag=1.0.0 \
-  --set openresty.image.tag=1.0.0
+  --set observability.prometheus.serviceMonitor.enabled=true
 ```
 
-**Option C — Install the full Prometheus stack (if you want monitoring):**
+**Option B — Install the full Prometheus stack:**
 
 ```bash
-# Install kube-prometheus-stack (includes Prometheus, Grafana, ServiceMonitor CRDs)
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 helm repo update
 helm install kube-prometheus prometheus-community/kube-prometheus-stack \
   --namespace monitoring \
   --create-namespace
 
-# Then install WSLProxy with defaults
 helm install wslproxy deploy/helm/ \
   --namespace wslproxy-system \
   --create-namespace \
-  --set controller.image.tag=1.0.0 \
-  --set openresty.image.tag=1.0.0
+  --set observability.prometheus.serviceMonitor.enabled=true
 ```
 
 ### Step 4: Verify Installation
@@ -261,14 +252,15 @@ Key values you can override with `--set`:
 | Value | Default | Description |
 |-------|---------|-------------|
 | `controller.replicas` | `1` | Number of controller replicas |
-| `controller.image.tag` | `1.1.0` | Controller image tag |
+| `controller.image.tag` | `latest` | Controller image tag |
 | `openresty.replicas` | `3` | Number of OpenResty proxy replicas |
 | `openresty.image.tag` | `latest` | OpenResty image tag |
+| `openresty.useBuiltinConfig` | `true` | Use image's built-in nginx.conf (recommended) |
 | `openresty.service.type` | `LoadBalancer` | Service type (`LoadBalancer`, `NodePort`, `ClusterIP`) |
 | `openresty.autoscaling.enabled` | `true` | Enable HPA |
 | `observability.prometheus.enabled` | `true` | Enable Prometheus metrics |
-| `observability.prometheus.serviceMonitor.enabled` | `true` | Create ServiceMonitor CRs (requires Prometheus Operator) |
-| `certManager.enabled` | `true` | Enable cert-manager integration |
+| `observability.prometheus.serviceMonitor.enabled` | `false` | Create ServiceMonitor CRs (requires Prometheus Operator) |
+| `certManager.enabled` | `false` | Enable cert-manager integration (creates self-signed cert when disabled) |
 | `ingressClass.isDefaultClass` | `false` | Make WSLProxy the default ingress class |
 
 ## Monitoring
@@ -305,9 +297,9 @@ curl http://localhost:9145/metrics
 no matches for kind "ServiceMonitor" in version "monitoring.coreos.com/v1"
 ```
 
-Your cluster doesn't have the Prometheus Operator CRDs. Either:
-- Disable ServiceMonitor: `--set observability.prometheus.serviceMonitor.enabled=false`
-- Or install the CRD: `kubectl apply -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/main/example/prometheus-operator-crd/monitoring.coreos.com_servicemonitors.yaml`
+You enabled `observability.prometheus.serviceMonitor.enabled=true` but your cluster doesn't have the Prometheus Operator CRDs. Either:
+- Remove the `--set` to use the default (`false`)
+- Or install the CRD first: `kubectl apply -f https://raw.githubusercontent.com/prometheus-operator/prometheus-operator/main/example/prometheus-operator-crd/monitoring.coreos.com_servicemonitors.yaml`
 
 ### Check Controller Status
 
@@ -372,8 +364,8 @@ helm upgrade wslproxy deploy/helm/ \
 ```bash
 helm upgrade wslproxy deploy/helm/ \
   --namespace wslproxy-system \
-  --set controller.image.tag=1.1.0 \
-  --set openresty.image.tag=1.1.0
+  --set controller.image.tag=latest \
+  --set openresty.image.tag=latest
 ```
 
 ## Cleanup
