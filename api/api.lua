@@ -285,12 +285,9 @@ local function validateRulePayload(payloads)
                 message = "Match rules configuration is required"
             })
         else
-            -- Validate path
+            -- Default path to "/" if empty or missing
             if not payloads.match.rules.path or payloads.match.rules.path == "" then
-                table.insert(errors, {
-                    field = "match.rules.path",
-                    message = "Path is required (e.g., '/', '/api')"
-                })
+                payloads.match.rules.path = "/"
             end
 
             -- Validate path_key

@@ -406,6 +406,7 @@ const Form = () => {
               <Grid item xs={12} sm={8}>
                 <TextInput
                   source="match.rules.path"
+                  defaultValue="/"
                   validate={[required()]}
                   label="URL Path Value"
                   fullWidth
