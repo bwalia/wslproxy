@@ -64,11 +64,11 @@ Fully automated 4-stage deployment pipeline with fail-fast behavior and Slack no
  ┌──────────────────────────────────────────────────────────────────────┐
  │  STAGE 4: Deploy Production                       [self-hosted]     │
  │                                                                      │
- │  Target: 185.237.99.238 (pop0)                                      │
+ │  Target: 187.124.112.155 (pop0)                                      │
  │                                                                      │
  │  - Decode PROD settings + env from GitHub Secrets                   │
- │  - SSH connectivity test to root@185.237.99.238                     │
- │  - ansible-playbook wslproxy-ops.yml -l 185.237.99.238 (env: prod) │
+ │  - SSH connectivity test to root@187.124.112.155                     │
+ │  - ansible-playbook wslproxy-ops.yml -l 187.124.112.155 (env: prod) │
  │  - Post-deploy gates:                                               │
  │      • openresty -t via SSH                                         │
  │      • systemctl is-active openresty via SSH                        │
@@ -92,7 +92,7 @@ Fully automated 4-stage deployment pipeline with fail-fast behavior and Slack no
 | Environment | Host | Runner | Ansible user | Deploy method |
 |-------------|------|--------|-------------|---------------|
 | int | slworker00 | `[self-hosted, Linux]` | bwalia | Ansible native (local) |
-| prod | 185.237.99.238 | `[self-hosted]` | root | Ansible native (SSH) |
+| prod | 187.124.112.155 | `[self-hosted]` | root | Ansible native (SSH) |
 
 ### Secrets Required
 

@@ -134,10 +134,10 @@ Configs are automatically deployed when changes are pushed to the `main` branch:
 **Option 1: Using sync-configs.sh (SSH)**
 ```bash
 # Deploy prod configs to server
-./sync-configs.sh prod 185.237.99.238
+./sync-configs.sh prod 187.124.112.155
 
 # With custom SSH key
-./sync-configs.sh prod 185.237.99.238 ~/.ssh/my-key
+./sync-configs.sh prod 187.124.112.155 ~/.ssh/my-key
 ```
 
 **Option 2: Using Ansible**
@@ -164,7 +164,7 @@ ansible-playbook deploy-configs.yml -i hosts -e "target_env=prod" --check --diff
 Target servers are defined in `devops/ansible/hosts`:
 ```ini
 [openresty_prod]
-185.237.99.238 ansible_user=root
+187.124.112.155 ansible_user=root
 
 [openresty_int]
 int-server.example.com ansible_user=root

@@ -30,12 +30,12 @@ on:
       TARGET_HOST:
         type: choice
         description: "Please choose the Target host"
-        default: "185.237.99.238"
+        default: "187.124.112.155"
         required: true
         options:
-          - 185.237.99.238
-          - 187.77.179.206
           - 187.124.112.155
+          - 187.77.179.206
+          - 187.124.112.156
           - slworker00
           - all
 
@@ -45,9 +45,9 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  TARGET_HOST: ${{ github.event.inputs.TARGET_HOST || '185.237.99.238' }}
-  TARGET_ENV: ${{ github.event.inputs.TARGET_ENV || (github.event.inputs.TARGET_HOST == '185.237.99.238' && 'prod' || github.event.inputs.TARGET_HOST == 'slworker00' && 'int' || 'prod') }}
-  API_DOMAINNAME_ENDPOINT: ${{ github.event.inputs.TARGET_ENV || (github.event.inputs.TARGET_HOST == '185.237.99.238' && 'prod' || github.event.inputs.TARGET_HOST == 'slworker00' && 'int' || 'prod') }}.wslproxy.com
+  TARGET_HOST: ${{ github.event.inputs.TARGET_HOST || '187.124.112.155' }}
+  TARGET_ENV: ${{ github.event.inputs.TARGET_ENV || (github.event.inputs.TARGET_HOST == '187.124.112.155' && 'prod' || github.event.inputs.TARGET_HOST == 'slworker00' && 'int' || 'prod') }}
+  API_DOMAINNAME_ENDPOINT: ${{ github.event.inputs.TARGET_ENV || (github.event.inputs.TARGET_HOST == '187.124.112.155' && 'prod' || github.event.inputs.TARGET_HOST == 'slworker00' && 'int' || 'prod') }}.wslproxy.com
 
 jobs:
   # ──────────────────────────────────────────────────────
@@ -307,7 +307,7 @@ jobs:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
   # ──────────────────────────────────────────────────────
-  # Stage 4: Deploy Production (185.237.99.238 / pop0)
+  # Stage 4: Deploy Production (187.124.112.155 / pop0)
   # Fully automated — no manual approval gate
   # From main/release branch push or manual dispatch targeting prod
   # ──────────────────────────────────────────────────────
@@ -318,7 +318,7 @@ jobs:
     if: >
       (github.event_name == 'push' && (github.ref == 'refs/heads/release' || github.ref == 'refs/heads/main')) ||
       (github.event_name == 'workflow_dispatch' &&
-      (github.event.inputs.TARGET_HOST == '185.237.99.238' || github.event.inputs.TARGET_HOST == 'all'))
+      (github.event.inputs.TARGET_HOST == '187.124.112.155' || github.event.inputs.TARGET_HOST == 'all'))
     timeout-minutes: 30
 
     steps:
@@ -366,25 +366,25 @@ jobs:
             echo "::error::SSH key not found at ~/.ssh/id_rsa"
             exit 1
           fi
-          ssh-keyscan -H 185.237.99.238 >> ~/.ssh/known_hosts 2>/dev/null || true
-          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@185.237.99.238 "echo 'SSH OK'" 2>&1 || {
-            echo "::error::SSH connection failed to root@185.237.99.238"; exit 1;
+          ssh-keyscan -H 187.124.112.155 >> ~/.ssh/known_hosts 2>/dev/null || true
+          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@187.124.112.155 "echo 'SSH OK'" 2>&1 || {
+            echo "::error::SSH connection failed to root@187.124.112.155"; exit 1;
           }
 
       - name: "Prepare: Clean up Docker resources"
         run: |
-          echo "Pruning unused Docker resources on 185.237.99.238..."
-          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@185.237.99.238 \
+          echo "Pruning unused Docker resources on 187.124.112.155..."
+          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@187.124.112.155 \
             "docker system prune -y" 2>&1 || echo "::warning::Docker prune failed on production"
           echo "Docker cleanup complete"
 
       - name: Run Ansible Playbook (PROD)
         timeout-minutes: 25
         run: |
-          echo "Deploying to production: 185.237.99.238 (env: prod)"
+          echo "Deploying to production: 187.124.112.155 (env: prod)"
           ansible-playbook devops/ansible/wslproxy-ops.yml \
             -i devops/ansible/hosts \
-            -l 185.237.99.238 \
+            -l 187.124.112.155 \
             --timeout 30 \
             --extra-vars "nginx_user_password=THISCOMESFROMSECRETS target_env=prod local_settings_file_path=/tmp/settings_brahmstra_prod.json local_env_file_path=/tmp/.env_brahmstra_prod"
         env:
@@ -393,11 +393,11 @@ jobs:
       - name: Deploy server configs and rules (prod)
         timeout-minutes: 5
         run: |
-          echo "Deploying server configs for env: prod to 185.237.99.238"
+          echo "Deploying server configs for env: prod to 187.124.112.155"
           ansible-playbook devops/ansible/deploy-configs.yml \
             -i devops/ansible/hosts \
             -e "target_env=prod local_data_dir=${{ github.workspace }}/data" \
-            -l 185.237.99.238
+            -l 187.124.112.155
         env:
           ANSIBLE_PRIVATE_KEY_FILE: ~/.ssh/id_rsa
 
@@ -405,12 +405,12 @@ jobs:
         run: |
           echo "Verifying production deployment..."
 
-          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@185.237.99.238 \
+          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@187.124.112.155 \
             "/usr/local/openresty/bin/openresty -t" 2>&1 || {
             echo "::error::Nginx config test failed on production"; exit 1;
           }
 
-          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@185.237.99.238 \
+          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@187.124.112.155 \
             "systemctl is-active openresty" 2>&1 || {
             echo "::error::OpenResty not running on production"; exit 1;
           }
@@ -439,7 +439,7 @@ jobs:
           SLACK_MESSAGE: |
             :white_check_mark: *WSLProxy deployed to production*
             All 4 pipeline stages passed. Zero-downtime deployment complete.
-            *Host:* 185.237.99.238 (pop0)
+            *Host:* 187.124.112.155 (pop0)
             *Branch:* ${{ github.ref_name }} | *Commit:* `${{ github.sha }}`
             *Triggered by:* ${{ github.actor }} (${{ github.event_name }})
           SLACK_TITLE: "WSLProxy Production Deployment — Success"
@@ -455,7 +455,7 @@ jobs:
           SLACK_ICON: https://github.com/rtCamp.png?size=48
           SLACK_MESSAGE: |
             :rotating_light: *Stage 4 FAILED: Production Deployment*
-            Ansible deploy or post-deploy health check failed on 185.237.99.238.
+            Ansible deploy or post-deploy health check failed on 187.124.112.155.
             *Branch:* ${{ github.ref_name }} | *Commit:* `${{ github.sha }}`
             *Triggered by:* ${{ github.actor }} (${{ github.event_name }})
             *Logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -615,16 +615,16 @@ jobs:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
   # ──────────────────────────────────────────────────────
-  # Stage 6: Deploy DIYTaxReturn WSL1 (187.124.112.155 / wsl1.diytaxreturn.co.uk)
+  # Stage 6: Deploy DIYTaxReturn WSL1 (187.124.112.156 / wsl1.diytaxreturn.co.uk)
   # Manual dispatch only (or "all")
   # ──────────────────────────────────────────────────────
   deploy-diytaxreturn-wsl1:
-    name: "Stage 6: Deploy DIYTaxReturn WSL1 (187.124.112.155)"
+    name: "Stage 6: Deploy DIYTaxReturn WSL1 (187.124.112.156)"
     runs-on: [self-hosted, Linux]
     needs: [build-validate]
     if: >
       github.event_name == 'workflow_dispatch' &&
-      (github.event.inputs.TARGET_HOST == '187.124.112.155' || github.event.inputs.TARGET_HOST == 'all')
+      (github.event.inputs.TARGET_HOST == '187.124.112.156' || github.event.inputs.TARGET_HOST == 'all')
     timeout-minutes: 30
 
     steps:
@@ -668,26 +668,26 @@ jobs:
             echo "::error::SSH key not found at ~/.ssh/id_rsa"
             exit 1
           fi
-          ssh-keyscan -H 187.124.112.155 >> ~/.ssh/known_hosts 2>/dev/null || true
-          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@187.124.112.155 "echo 'SSH OK'" 2>&1 || {
-            echo "::error::SSH connection failed to root@187.124.112.155"; exit 1;
+          ssh-keyscan -H 187.124.112.156 >> ~/.ssh/known_hosts 2>/dev/null || true
+          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@187.124.112.156 "echo 'SSH OK'" 2>&1 || {
+            echo "::error::SSH connection failed to root@187.124.112.156"; exit 1;
           }
 
       - name: "Prepare: Clean up Docker resources"
         run: |
-          echo "Pruning unused Docker resources on 187.124.112.155..."
-          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@187.124.112.155 \
+          echo "Pruning unused Docker resources on 187.124.112.156..."
+          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@187.124.112.156 \
             "docker system prune -y" 2>&1 || echo "::warning::Docker prune failed on WSL1"
           echo "Docker cleanup complete"
 
       - name: Run Ansible Playbook (DIYTaxReturn WSL1)
         timeout-minutes: 25
         run: |
-          echo "Deploying to WSL1: 187.124.112.155 (env: wsl1)"
+          echo "Deploying to WSL1: 187.124.112.156 (env: wsl1)"
           export ANSIBLE_HOST_KEY_CHECKING=False
           ansible-playbook devops/ansible/wslproxy-ops.yml \
             -i devops/ansible/hosts \
-            -l 187.124.112.155 \
+            -l 187.124.112.156 \
             --private-key /home/bwalia/.ssh/id_rsa \
             --timeout 30 \
             --extra-vars "nginx_user_password=THISCOMESFROMSECRETS target_env=wsl1 local_settings_file_path=/home/bwalia/.secrets/wslproxy/wsl1/settings.json local_env_file_path=/home/bwalia/.secrets/wslproxy/wsl1/.env"
@@ -695,30 +695,30 @@ jobs:
       - name: Deploy server configs and rules (diytaxreturn_wsl1)
         timeout-minutes: 5
         run: |
-          echo "Deploying server configs for env: diytaxreturn_wsl1 to 187.124.112.155"
+          echo "Deploying server configs for env: diytaxreturn_wsl1 to 187.124.112.156"
           export ANSIBLE_HOST_KEY_CHECKING=False
           ansible-playbook devops/ansible/deploy-configs.yml \
             -i devops/ansible/hosts \
             -e "target_env=diytaxreturn_wsl1 local_data_dir=${{ github.workspace }}/data" \
-            -l 187.124.112.155 \
+            -l 187.124.112.156 \
             --private-key /home/bwalia/.ssh/id_rsa
 
       - name: Post-deploy health gate
         run: |
-          echo "Verifying DIYTaxReturn WSL1 deployment on 187.124.112.155..."
+          echo "Verifying DIYTaxReturn WSL1 deployment on 187.124.112.156..."
 
-          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@187.124.112.155 \
+          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@187.124.112.156 \
             "/usr/local/openresty/bin/openresty -t" 2>&1 || {
-            echo "::error::Nginx config test failed on 187.124.112.155"; exit 1;
+            echo "::error::Nginx config test failed on 187.124.112.156"; exit 1;
           }
 
-          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@187.124.112.155 \
+          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@187.124.112.156 \
             "systemctl is-active openresty" 2>&1 || {
-            echo "::error::OpenResty not running on 187.124.112.155"; exit 1;
+            echo "::error::OpenResty not running on 187.124.112.156"; exit 1;
           }
 
           for i in $(seq 1 12); do
-            STATUS=$(ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@187.124.112.155 \
+            STATUS=$(ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@187.124.112.156 \
               "curl -sf -o /dev/null -w '%{http_code}' http://localhost:8080/health 2>/dev/null" || echo "000")
             if [ "$STATUS" = "200" ]; then
               echo "DIYTaxReturn WSL1 endpoint healthy (HTTP $STATUS)"
@@ -727,7 +727,7 @@ jobs:
             echo "Attempt $i/12: HTTP $STATUS — waiting 5s..."
             sleep 5
           done
-          echo "::error::DIYTaxReturn WSL1 not responding on 187.124.112.155 after 60s"
+          echo "::error::DIYTaxReturn WSL1 not responding on 187.124.112.156 after 60s"
           exit 1
 
       - name: Slack notify - DIYTaxReturn WSL1 deployed
@@ -740,7 +740,7 @@ jobs:
           SLACK_MESSAGE: |
             :white_check_mark: *WSLProxy deployed to WSL1*
             Build validation passed and deployment complete.
-            *Host:* 187.124.112.155 (wsl1.diytaxreturn.co.uk) | *Env:* wsl1
+            *Host:* 187.124.112.156 (wsl1.diytaxreturn.co.uk) | *Env:* wsl1
             *Branch:* ${{ github.ref_name }} | *Commit:* `${{ github.sha }}`
             *Triggered by:* ${{ github.actor }} (${{ github.event_name }})
           SLACK_TITLE: "WSLProxy WSL1 Deployment — Success"
@@ -756,7 +756,7 @@ jobs:
           SLACK_ICON: https://github.com/rtCamp.png?size=48
           SLACK_MESSAGE: |
             :rotating_light: *Stage 6 FAILED: DIYTaxReturn WSL1 Deployment*
-            Ansible deploy or health check failed on 187.124.112.155.
+            Ansible deploy or health check failed on 187.124.112.156.
             *Branch:* ${{ github.ref_name }} | *Commit:* `${{ github.sha }}`
             *Triggered by:* ${{ github.actor }} (${{ github.event_name }})
             *Logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

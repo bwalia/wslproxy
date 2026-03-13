@@ -27,12 +27,12 @@ on:
       TARGET_HOST:
         type: choice
         description: "Target host to deploy configs to"
-        default: "185.237.99.238"
+        default: "187.124.112.155"
         required: true
         options:
-          - 185.237.99.238
-          - 187.77.179.206
           - 187.124.112.155
+          - 187.77.179.206
+          - 187.124.112.156
           - slworker00
 
       DRY_RUN:
@@ -42,7 +42,7 @@ on:
 
 env:
   TARGET_ENV: ${{ github.event.inputs.TARGET_ENV || 'prod' }}
-  TARGET_HOST: ${{ github.event.inputs.TARGET_HOST || '185.237.99.238' }}
+  TARGET_HOST: ${{ github.event.inputs.TARGET_HOST || '187.124.112.155' }}
   DRY_RUN: ${{ github.event.inputs.DRY_RUN || 'false' }}
 
 jobs:

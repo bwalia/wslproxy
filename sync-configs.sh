@@ -6,7 +6,7 @@
 # to the remote server's /opt/nginx/data directory.
 #
 # Examples:
-#   ./sync-configs.sh prod 185.237.99.238
+#   ./sync-configs.sh prod 187.124.112.155
 #   ./sync-configs.sh int api-int.wslproxy.com ~/.ssh/id_rsa
 #   ./sync-configs.sh test 192.168.1.100 /path/to/key.pem
 
@@ -43,7 +43,7 @@ usage() {
     echo "  SSH_USER       SSH username (default: root)"
     echo ""
     echo "Examples:"
-    echo "  $0 prod 185.237.99.238"
+    echo "  $0 prod 187.124.112.155"
     echo "  $0 int api-int.wslproxy.com ~/.ssh/id_rsa"
     echo "  SSH_USER=admin $0 test 192.168.1.100"
     exit 1
