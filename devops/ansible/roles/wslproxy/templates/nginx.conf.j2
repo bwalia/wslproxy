@@ -525,6 +525,11 @@ server {
         limit_req zone=req_zone burst=10 nodelay;
         limit_req zone=req_zone_wl burst=20 nodelay;
 
+        # Allow any size file to be uploaded (needed for Docker registry, large file uploads, etc.)
+        client_max_body_size 0;
+        proxy_buffering off;
+        proxy_request_buffering off;
+
         # resolver 127.0.0.1 local=on;
         # include /tmp/resolver.conf;         #   For docker / kubernetes use 10.43.0.10 and nginx ingress controller (not for native installation)
 
@@ -790,7 +795,7 @@ server {
           proxy_http_version 1.1;
           proxy_set_header Upgrade $http_upgrade;
           proxy_set_header Connection $connection_upgrade;
-          client_max_body_size 300M;
+          client_max_body_size 0;
 
           # proxy_set_header Host $http_host;
           proxy_set_header X-Real-IP $remote_addr;
