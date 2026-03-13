@@ -230,11 +230,11 @@ jobs:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
   # ──────────────────────────────────────────────────────
-  # Stage 3: Test Environment
+  # Stage 3: Smoke Test Int Environment Dashboard Endpoint
   # Runs integration tests against natively deployed slworker00
   # ──────────────────────────────────────────────────────
   test-environment:
-    name: "Stage 3: Test Environment"
+    name: "Stage 3: Smoke Test Int Environment Dashboard Endpoint"
     runs-on: [self-hosted, Linux]
     needs: [deploy-int]
     timeout-minutes: 15
@@ -781,7 +781,7 @@ jobs:
           echo ""
           echo "  Stage 1 — Build & Validate:      ${{ needs.build-validate.result }}"
           echo "  Stage 2 — Deploy Int (Ansible):   ${{ needs.deploy-int.result }}"
-          echo "  Stage 3 — Test Environment:       ${{ needs.test-environment.result }}"
+          echo "  Stage 3 — Smoke Test Int Environment Dashboard Endpoint:       ${{ needs.test-environment.result }}"
           echo "  Stage 4 — Deploy Production:      ${{ needs.deploy-production.result }}"
           echo "  Stage 5 — Deploy DIYTaxReturn:    ${{ needs.deploy-diytaxreturn.result }}"
           echo "  Stage 6 — Deploy WSL1:            ${{ needs.deploy-diytaxreturn-wsl1.result }}"
