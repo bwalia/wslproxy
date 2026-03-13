@@ -162,6 +162,12 @@ jobs:
             echo "::warning::INT env file is empty (may be expected)"
           fi
 
+      - name: "Prepare: Clean up Docker resources"
+        run: |
+          echo "Pruning unused Docker resources on slworker00..."
+          sudo docker system prune -y 2>&1 || echo "::warning::Docker prune failed (docker may not be installed)"
+          echo "Docker cleanup complete"
+
       - name: Run Ansible Playbook (slworker00 / int)
         timeout-minutes: 25
         run: |
@@ -365,6 +371,13 @@ jobs:
             echo "::error::SSH connection failed to root@185.237.99.238"; exit 1;
           }
 
+      - name: "Prepare: Clean up Docker resources"
+        run: |
+          echo "Pruning unused Docker resources on 185.237.99.238..."
+          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@185.237.99.238 \
+            "docker system prune -y" 2>&1 || echo "::warning::Docker prune failed on production"
+          echo "Docker cleanup complete"
+
       - name: Run Ansible Playbook (PROD)
         timeout-minutes: 25
         run: |
@@ -510,6 +523,13 @@ jobs:
             echo "::error::SSH connection failed to root@187.77.179.206"; exit 1;
           }
 
+      - name: "Prepare: Clean up Docker resources"
+        run: |
+          echo "Pruning unused Docker resources on 187.77.179.206..."
+          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@187.77.179.206 \
+            "docker system prune -y" 2>&1 || echo "::warning::Docker prune failed on DIYTaxReturn"
+          echo "Docker cleanup complete"
+
       - name: Run Ansible Playbook (DIYTaxReturn)
         timeout-minutes: 25
         run: |
@@ -652,6 +672,13 @@ jobs:
           ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@187.124.112.155 "echo 'SSH OK'" 2>&1 || {
             echo "::error::SSH connection failed to root@187.124.112.155"; exit 1;
           }
+
+      - name: "Prepare: Clean up Docker resources"
+        run: |
+          echo "Pruning unused Docker resources on 187.124.112.155..."
+          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@187.124.112.155 \
+            "docker system prune -y" 2>&1 || echo "::warning::Docker prune failed on WSL1"
+          echo "Docker cleanup complete"
 
       - name: Run Ansible Playbook (DIYTaxReturn WSL1)
         timeout-minutes: 25
