@@ -635,12 +635,18 @@ if exist_values and exist_values ~= 0 and exist_values ~= nil and exist_values ~
     local jsonval = cjson.decode(exist_values)
     local parse_rules = {}
     if jsonval.rules and type(jsonval.rules) ~= "userdata" then
-        table.insert(parse_rules, gatewayRequestHandler(jsonval.rules))
+        local ruleResult = gatewayRequestHandler(jsonval.rules)
+        if ruleResult then
+            table.insert(parse_rules, ruleResult)
+        end
         if jsonval.match_cases then
             local hasAnd = hasAndCondition(jsonval.match_cases)
             if next(hasAnd) ~= nil then
                 for inx, conditionRule in ipairs(hasAnd) do
-                    table.insert(parse_rules, gatewayRequestHandler(conditionRule))
+                    local condResult = gatewayRequestHandler(conditionRule)
+                    if condResult then
+                        table.insert(parse_rules, condResult)
+                    end
                 end
             end
         end
@@ -825,10 +831,12 @@ if exist_values and exist_values ~= 0 and exist_values ~= nil and exist_values ~
         else
             -- Use default error page (can be overridden via settings.json or environment secrets at deployment)
             local confMismatchHtml = getErrorPage(settingsObj, "conf_mismatch")
-            for rKey, ruleOne in pairs(parse_rules[1]) do
-                if ruleOne.message and ruleOne.message ~= nil and ruleOne.message ~= "" and ruleOne.message ~= "null" then
-                    confMismatchHtml = ruleOne.message
-                    break
+            if parse_rules[1] then
+                for rKey, ruleOne in pairs(parse_rules[1]) do
+                    if ruleOne.message and ruleOne.message ~= nil and ruleOne.message ~= "" and ruleOne.message ~= "null" then
+                        confMismatchHtml = ruleOne.message
+                        break
+                    end
                 end
             end
             ngx.header["Content-Type"] = settingsObj.nginx.content_type ~= nil and settingsObj.nginx.content_type or
