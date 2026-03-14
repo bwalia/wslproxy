@@ -135,18 +135,30 @@ local function hmac_sha1(key, message)
     return hmac:final()
 end
 
+local ffi = require("ffi")
+pcall(ffi.cdef, [[
+    typedef struct engine_st ENGINE;
+    typedef struct evp_md_st EVP_MD;
+    typedef struct evp_md_ctx_st EVP_MD_CTX;
+    unsigned char *HMAC(const EVP_MD *evp_md, const void *key, int key_len,
+                        const unsigned char *d, size_t n, unsigned char *md,
+                        unsigned int *md_len);
+    const EVP_MD *EVP_sha256(void);
+]])
+
 local function hmac_sha256(key, message)
-    local openssl = require("resty.openssl")
-    local hmac = openssl.hmac.new(key, "sha256")
-    hmac:update(message)
-    return hmac:final()
+    local buf = ffi.new("unsigned char[32]")
+    local md_len = ffi.new("unsigned int[1]")
+    ffi.C.HMAC(ffi.C.EVP_sha256(), key, #key, message, #message, buf, md_len)
+    return ffi.string(buf, 32)
 end
 
 local function sha256_hex(data)
-    local openssl = require("resty.openssl")
-    local digest = openssl.digest.new("sha256")
-    digest:update(data)
-    return openssl.bn.from_binary(digest:final()):to_hex():lower()
+    local sha256 = require("resty.sha256")
+    local str = require("resty.string")
+    local hash = sha256:new()
+    hash:update(data)
+    return str.to_hex(hash:final())
 end
 
 local function to_hex(str)
