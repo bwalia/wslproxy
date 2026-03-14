@@ -219,9 +219,22 @@ local function gatewayHostAuthenticate(rule)
                 local s3AccessKey, s3SecretKey = Base64.decode(amazon_s3_access_key), Base64.decode(amazon_s3_secret_key)
                 local bucketregion = tostring(rule.amazon_s3_region or "eu-west-2")
 
-                -- Use actual request URI, prepended with bucket name
+                -- Build S3 object key: /<bucket>/<folderPath>/<request_uri>
+                -- folderPath is the base path within the bucket (e.g. "/landing/index.html" or "/landing")
                 local request_uri = ngx.var.uri
-                local file_path = "/" .. bucketName .. request_uri
+                local s3_key = request_uri
+                if folderPath and folderPath ~= "" and folderPath ~= "/" then
+                    -- Strip leading slash from folderPath for concatenation
+                    local cleanFolder = folderPath:sub(1, 1) == "/" and folderPath:sub(2) or folderPath
+                    if request_uri == "/" then
+                        s3_key = "/" .. cleanFolder
+                    else
+                        -- Strip trailing filename from folderPath if it looks like a file path
+                        local folderPrefix = cleanFolder:match("(.+)/[^/]+%.[^/]+$") or cleanFolder
+                        s3_key = "/" .. folderPrefix .. request_uri
+                    end
+                end
+                local file_path = "/" .. bucketName .. s3_key
 
                 local now = os.date("%a, %d %b %Y %H:%M:%S +0000")
                 local md5_digest = ""
@@ -231,12 +244,12 @@ local function gatewayHostAuthenticate(rule)
                 local host_header_override = "s3." .. bucketregion .. ".amazonaws.com"
 
                 -- Rewrite URI to include bucket name prefix
-                local uri = ngx.re.sub(request_uri, "^(.*)", "/" .. bucketName .. "$1", "o")
-                ngx.req.set_uri(uri)
+                ngx.req.set_uri(file_path)
 
                 ngx.req.set_header("Date", now)
                 ngx.req.set_header("Authorization", authorization_header_override)
-                ngx.req.set_header("Host", host_header_override)
+                -- Store S3 API host so gateway_resp.lua sets proxy_host_override correctly
+                ngx.ctx.s3_host_override = host_header_override
                 isTokenVerified = true
             end
 
