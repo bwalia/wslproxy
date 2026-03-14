@@ -251,18 +251,14 @@ local function gatewayHostAuthenticate(rule)
                 local s3AccessKey, s3SecretKey = Base64.decode(amazon_s3_access_key), Base64.decode(amazon_s3_secret_key)
                 local bucketregion = tostring(rule.amazon_s3_region or "eu-west-2")
 
-                -- Build S3 object key: /<bucket>/<folderPath>/<request_uri>
-                -- folderPath is the base path within the bucket (e.g. "/landing/index.html" or "/landing")
+                -- Build S3 object key: /<bucket>/<key>
+                -- folderPath is the default document for root requests (e.g. "/landing/index.html")
+                -- Non-root requests use URI directly as the S3 key
                 local request_uri = ngx.var.uri
                 local s3_key = request_uri
-                if folderPath and folderPath ~= "" and folderPath ~= "/" then
+                if request_uri == "/" and folderPath and folderPath ~= "" and folderPath ~= "/" then
                     local cleanFolder = folderPath:sub(1, 1) == "/" and folderPath:sub(2) or folderPath
-                    if request_uri == "/" then
-                        s3_key = "/" .. cleanFolder
-                    else
-                        local folderPrefix = cleanFolder:match("(.+)/[^/]+%.[^/]+$") or cleanFolder
-                        s3_key = "/" .. folderPrefix .. request_uri
-                    end
+                    s3_key = "/" .. cleanFolder
                 end
                 local file_path = "/" .. bucketName .. s3_key
 
