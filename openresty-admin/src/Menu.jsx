@@ -14,6 +14,8 @@ import WafEventIcon from "@mui/icons-material/NotificationsActiveRounded";
 import IngressIcon from "@mui/icons-material/AccountTree";
 import HealthIcon from "@mui/icons-material/MonitorHeartRounded";
 import BookmarkIcon from "@mui/icons-material/BookmarkRounded";
+import ChangeRequestIcon from "@mui/icons-material/AssignmentTurnedInRounded";
+import AuditIcon from "@mui/icons-material/HistoryRounded";
 import Logo from "./component/Logo";
 import { useThemeMode } from "./Theme";
 
@@ -201,6 +203,39 @@ export const Menu = () => {
             leftIcon={<IngressIcon />}
           />
         )}
+      </Box>
+
+      <Divider sx={{ my: 2, mx: 2, borderColor: theme.palette.divider }} />
+
+      {/* Change Management Section */}
+      <Box sx={{ px: 1 }}>
+        {open && (
+          <Typography
+            variant="overline"
+            sx={{
+              px: 2,
+              py: 1,
+              color: theme.palette.text.secondary,
+              fontSize: "0.65rem",
+              fontWeight: 700,
+              letterSpacing: "0.1em",
+              display: "block",
+            }}
+          >
+            Change Management
+          </Typography>
+        )}
+
+        <StyledMenuItem
+          to="/change-requests"
+          primaryText="Change Requests"
+          leftIcon={<ChangeRequestIcon />}
+        />
+        <StyledMenuItem
+          to="/audit"
+          primaryText="Audit Log"
+          leftIcon={<AuditIcon />}
+        />
       </Box>
 
       <Divider sx={{ my: 2, mx: 2, borderColor: theme.palette.divider }} />
