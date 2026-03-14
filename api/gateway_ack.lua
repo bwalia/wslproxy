@@ -490,6 +490,11 @@ end
 local exist_values = nil
 
 local file, err = io.open(configPath .. "data/servers/" .. envProfile .. "/host:" .. Hostname .. ".json", "rb")
+-- Fallback: strip "www." prefix and retry (e.g. www.kubepilot.org -> kubepilot.org)
+if file == nil and Hostname:sub(1, 4) == "www." then
+    local bareHost = Hostname:sub(5)
+    file, err = io.open(configPath .. "data/servers/" .. envProfile .. "/host:" .. bareHost .. ".json", "rb")
+end
 if file == nil then
     -- Use default error page (can be overridden via settings.json or environment secrets at deployment)
     local errorPageB64 = getErrorPage(settingsObj, "no_server")
