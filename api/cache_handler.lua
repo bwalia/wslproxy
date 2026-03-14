@@ -315,7 +315,8 @@ function _M.check_cache(server_name, config)
     end
     
     ngx.status = cached.status or 200
-    ngx.say(cached.body or "")
+    ngx.print(cached.body or "")
+    ngx.flush(true)
     
     ngx.log(ngx.INFO, "Cache Handler: Served from cache: ", cache_key)
     
@@ -465,8 +466,9 @@ function _M.store_in_cache()
     local ttl = config.cache_ttl or 3600
     
     -- Combine body chunks
-    local body = table.concat(ngx.ctx.cache_body_chunks or {})
-    
+    local chunks = ngx.ctx.cache_body_chunks or {}
+    local body = table.concat(chunks)
+
     -- Don't cache empty responses
     if not body or body == "" then
         return
@@ -493,7 +495,7 @@ function _M.store_in_cache()
         ngx.log(ngx.WARN, "Cache Handler: Failed to encode cache entry: ", tostring(json))
         return
     end
-    
+
     -- Store in shared dictionary
     local success, err, forcible = cache_dict:set(cache_key, json, ttl)
     if not success then
