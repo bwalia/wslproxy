@@ -87,6 +87,13 @@ elseif selectedRule.statusCode == 305 then
         ngx.exit(ngx.HTTP_INTERNAL_SERVER_ERROR)
     end
 
+    -- Set backend metrics context for single-backend rules (not using Traffic Router)
+    if not ngx.ctx.selected_backend_label then
+        local rule_id = selectedRule.rule_data and selectedRule.rule_data.id or "unknown"
+        ngx.ctx.selected_backend_rule_id = rule_id
+        ngx.ctx.selected_backend_label = selectedRule.redirectUri
+    end
+
     -- Strip matched path prefix from URI before proxying (like K8s Ingress rewrite-target)
     if selectedRule.rule_data.strip_path
         and selectedRule.rule_data.path
@@ -108,6 +115,14 @@ elseif selectedRule.statusCode == 305 then
 
     selectedRule.redirectUri = string.gsub(selectedRule.redirectUri, "https://", "")
     selectedRule.redirectUri = string.gsub(selectedRule.redirectUri, "http://", "")
+    -- Separate path from hostname before DNS resolution
+    -- e.g. "bucket.s3.amazonaws.com/landing" -> host="bucket.s3.amazonaws.com", path="/landing"
+    local redirectPath = nil
+    local slashPos = string.find(selectedRule.redirectUri, "/")
+    if slashPos then
+        redirectPath = string.sub(selectedRule.redirectUri, slashPos)
+        selectedRule.redirectUri = string.sub(selectedRule.redirectUri, 1, slashPos - 1)
+    end
     local extracted = nil
     local extractedPort = 80
     -- if not isIpAddress(selectedRule.redirectUri) then
@@ -211,7 +226,10 @@ elseif selectedRule.statusCode == 305 then
     end
 
     ngx.var.proxy_host = finalProxyHost
-    if proxy_server_name ~= nil and proxy_server_name ~= "" then
+    -- S3 signed requests need s3.<region>.amazonaws.com as Host header
+    if ngx.ctx.s3_host_override then
+        ngx.var.proxy_host_override = ngx.ctx.s3_host_override
+    elseif proxy_server_name ~= nil and proxy_server_name ~= "" then
         ngx.var.proxy_host_override = proxy_server_name
     else
         ngx.var.proxy_host_override = selectedRule.redirectUri
@@ -227,6 +245,13 @@ elseif selectedRule.statusCode == 305 then
     -- Client response headers (sent back to the browser via header_filter phase)
     if proxyServer and proxyServer.custom_response_headers ~= nil and type(proxyServer.custom_response_headers) == "table" then
         ngx.ctx.custom_response_headers = proxyServer.custom_response_headers
+    end
+
+    -- Prepend redirect path to the request URI if present
+    -- e.g. redirect_uri had "/landing" and request is "/" -> upstream gets "/landing/"
+    if redirectPath and redirectPath ~= "/" then
+        local currentUri = ngx.var.uri or "/"
+        ngx.req.set_uri(redirectPath .. currentUri)
     end
 
     ngx.var.proxy_host_scheme = origin_serverScheme

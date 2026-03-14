@@ -44,6 +44,11 @@ on:
           - slworker00
           - all
 
+      DEPLOY_DASHBOARD_ONLY:
+        type: boolean
+        description: "Only rebuild & deploy openresty-admin dashboard UI (skip full build)"
+        default: false
+
 # Prevent concurrent deployments to same ref (but don't cancel in-progress)
 concurrency:
   group: deploy-${{ github.ref }}
@@ -51,6 +56,7 @@ concurrency:
 
 env:
   DEPLOY_BRANCH: ${{ github.event.inputs.DEPLOY_BRANCH || github.ref_name }}
+  DEPLOY_DASHBOARD_ONLY: ${{ github.event.inputs.DEPLOY_DASHBOARD_ONLY || 'false' }}
   TARGET_HOST: ${{ github.event.inputs.TARGET_HOST || '187.124.112.155' }}
   TARGET_ENV: ${{ github.event.inputs.TARGET_ENV || (github.event.inputs.TARGET_HOST == '187.124.112.155' && 'prod' || github.event.inputs.TARGET_HOST == 'slworker00' && 'int' || 'prod') }}
   API_DOMAINNAME_ENDPOINT: ${{ github.event.inputs.TARGET_ENV || (github.event.inputs.TARGET_HOST == '187.124.112.155' && 'prod' || github.event.inputs.TARGET_HOST == 'slworker00' && 'int' || 'prod') }}.wslproxy.com
@@ -181,11 +187,18 @@ jobs:
       - name: Run Ansible Playbook (slworker00 / int)
         timeout-minutes: 25
         run: |
-          echo "Deploying natively to slworker00 (env: int) via local connection"
+          TAGS_FLAG=""
+          if [[ "${{ env.DEPLOY_DASHBOARD_ONLY }}" == "true" ]]; then
+            TAGS_FLAG="--tags dashboard"
+            echo "Dashboard-only deploy to slworker00 (env: int)"
+          else
+            echo "Deploying natively to slworker00 (env: int) via local connection"
+          fi
           sudo ansible-playbook devops/ansible/wslproxy-ops.yml \
             -i devops/ansible/hosts \
             -l slworker00 \
             --connection=local \
+            $TAGS_FLAG \
             --extra-vars "nginx_user_password=THISCOMESFROMSECRETS target_env=int local_settings_file_path=/tmp/settings_brahmstra_slworker00.json local_env_file_path=/tmp/.env_brahmstra_slworker00"
 
       - name: Deploy server configs and rules (int)
@@ -395,11 +408,18 @@ jobs:
       - name: Run Ansible Playbook (PROD)
         timeout-minutes: 25
         run: |
-          echo "Deploying to production: 187.124.112.155 (env: prod)"
+          TAGS_FLAG=""
+          if [[ "${{ env.DEPLOY_DASHBOARD_ONLY }}" == "true" ]]; then
+            TAGS_FLAG="--tags dashboard"
+            echo "Dashboard-only deploy to production: 187.124.112.155"
+          else
+            echo "Deploying to production: 187.124.112.155 (env: prod)"
+          fi
           ansible-playbook devops/ansible/wslproxy-ops.yml \
             -i devops/ansible/hosts \
             -l 187.124.112.155 \
             --timeout 30 \
+            $TAGS_FLAG \
             --extra-vars "nginx_user_password=THISCOMESFROMSECRETS target_env=prod local_settings_file_path=/tmp/settings_brahmstra_prod.json local_env_file_path=/tmp/.env_brahmstra_prod"
         env:
           ANSIBLE_PRIVATE_KEY_FILE: ~/.ssh/id_rsa
@@ -549,13 +569,20 @@ jobs:
       - name: Run Ansible Playbook (DIYTaxReturn)
         timeout-minutes: 25
         run: |
-          echo "Deploying to DIYTaxReturn: 187.77.179.206 (env: diytaxreturn)"
+          TAGS_FLAG=""
+          if [[ "${{ env.DEPLOY_DASHBOARD_ONLY }}" == "true" ]]; then
+            TAGS_FLAG="--tags dashboard"
+            echo "Dashboard-only deploy to DIYTaxReturn: 187.77.179.206"
+          else
+            echo "Deploying to DIYTaxReturn: 187.77.179.206 (env: diytaxreturn)"
+          fi
           export ANSIBLE_HOST_KEY_CHECKING=False
           ansible-playbook devops/ansible/wslproxy-ops.yml \
             -i devops/ansible/hosts \
             -l 187.77.179.206 \
             --private-key /home/bwalia/.ssh/id_rsa \
             --timeout 30 \
+            $TAGS_FLAG \
             --extra-vars "nginx_user_password=THISCOMESFROMSECRETS target_env=diytaxreturn local_settings_file_path=/home/bwalia/.secrets/wslproxy/diytaxreturn/settings.json local_env_file_path=/home/bwalia/.secrets/wslproxy/diytaxreturn/.env"
 
       - name: Deploy server configs and rules (diytaxreturn)
@@ -701,13 +728,20 @@ jobs:
       - name: Run Ansible Playbook (DIYTaxReturn WSL1)
         timeout-minutes: 25
         run: |
-          echo "Deploying to WSL1: 187.124.112.156 (env: wsl1)"
+          TAGS_FLAG=""
+          if [[ "${{ env.DEPLOY_DASHBOARD_ONLY }}" == "true" ]]; then
+            TAGS_FLAG="--tags dashboard"
+            echo "Dashboard-only deploy to WSL1: 187.124.112.156"
+          else
+            echo "Deploying to WSL1: 187.124.112.156 (env: wsl1)"
+          fi
           export ANSIBLE_HOST_KEY_CHECKING=False
           ansible-playbook devops/ansible/wslproxy-ops.yml \
             -i devops/ansible/hosts \
             -l 187.124.112.156 \
             --private-key /home/bwalia/.ssh/id_rsa \
             --timeout 30 \
+            $TAGS_FLAG \
             --extra-vars "nginx_user_password=THISCOMESFROMSECRETS target_env=wsl1 local_settings_file_path=/home/bwalia/.secrets/wslproxy/wsl1/settings.json local_env_file_path=/home/bwalia/.secrets/wslproxy/wsl1/.env"
 
       - name: Deploy server configs and rules (diytaxreturn_wsl1)

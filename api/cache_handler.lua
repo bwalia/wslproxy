@@ -167,7 +167,8 @@ local function should_bypass_cache(config)
     end
     
     -- Check for Authorization header (authenticated requests shouldn't be cached)
-    if ngx.req.get_headers()["Authorization"] then
+    -- cache_bypass_auth allows caching even with Authorization (e.g. S3 signed origins)
+    if ngx.req.get_headers()["Authorization"] and not config.cache_bypass_auth then
         return true, "Authorization header present"
     end
     
@@ -216,12 +217,19 @@ function _M.check_cache(server_name, config)
     end
     
     if not ext then
-        ngx.ctx.cache_bypass = true
-        ngx.ctx.cache_bypass_reason = "no file extension"
-        ngx.ctx.cache_status = "BYPASS"
-        ngx.ctx.cache_status_detail = "no file extension detected"
-        record_cache_bypass(server_name, "no_extension")
-        return false
+        -- Treat directory-style URIs (e.g. "/" or "/about/") as html for caching
+        local uri = ngx.var.uri or ""
+        if uri:sub(-1) == "/" then
+            ext = "html"
+            ngx.ctx.cache_extension = ext
+        else
+            ngx.ctx.cache_bypass = true
+            ngx.ctx.cache_bypass_reason = "no file extension"
+            ngx.ctx.cache_status = "BYPASS"
+            ngx.ctx.cache_status_detail = "no file extension detected"
+            record_cache_bypass(server_name, "no_extension")
+            return false
+        end
     end
     
     -- Check if extension is cacheable
@@ -307,7 +315,8 @@ function _M.check_cache(server_name, config)
     end
     
     ngx.status = cached.status or 200
-    ngx.say(cached.body or "")
+    ngx.print(cached.body or "")
+    ngx.flush(true)
     
     ngx.log(ngx.INFO, "Cache Handler: Served from cache: ", cache_key)
     
@@ -457,8 +466,9 @@ function _M.store_in_cache()
     local ttl = config.cache_ttl or 3600
     
     -- Combine body chunks
-    local body = table.concat(ngx.ctx.cache_body_chunks or {})
-    
+    local chunks = ngx.ctx.cache_body_chunks or {}
+    local body = table.concat(chunks)
+
     -- Don't cache empty responses
     if not body or body == "" then
         return
@@ -485,7 +495,7 @@ function _M.store_in_cache()
         ngx.log(ngx.WARN, "Cache Handler: Failed to encode cache entry: ", tostring(json))
         return
     end
-    
+
     -- Store in shared dictionary
     local success, err, forcible = cache_dict:set(cache_key, json, ttl)
     if not success then

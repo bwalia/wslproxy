@@ -16,6 +16,7 @@ import {
 import Toolbar from "./toolbar/Toolbar";
 import CreateTags from "../component/CreateTags";
 import HtmlEditorInput from "../component/HtmlEditorInput";
+import VersionHistoryTab from "../Versions/VersionHistoryTab";
 import "../styles/forms.css";
 
 const iso_codes = {
@@ -540,7 +541,16 @@ const Form = () => {
                   formData?.match?.rules?.jwt_token_validation === "amazon_s3_signed_header_validation"
                 ) && (
                   <>
-                    <Grid item xs={12} sm={6}>
+                    <Grid item xs={12} sm={4}>
+                      <TextInput
+                        source="match.rules.amazon_s3_region"
+                        defaultValue="eu-west-2"
+                        fullWidth
+                        label="AWS Region"
+                        helperText="S3 bucket region (e.g., eu-west-2)"
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={4}>
                       <TextInput
                         source="match.rules.amazon_s3_access_key"
                         fullWidth
@@ -549,7 +559,7 @@ const Form = () => {
                         helperText="AWS access key ID"
                       />
                     </Grid>
-                    <Grid item xs={12} sm={6}>
+                    <Grid item xs={12} sm={4}>
                       <TextInput
                         source="match.rules.amazon_s3_secret_key"
                         fullWidth
@@ -773,6 +783,11 @@ const Form = () => {
             )
           }
         </FormDataConsumer>
+
+        {/* Version History */}
+        <SectionCard title="Version History" subtitle="Track configuration versions, create drafts, and manage change requests">
+          <VersionHistoryTab resourceType="rules" />
+        </SectionCard>
 
       </div>
     </SimpleForm>

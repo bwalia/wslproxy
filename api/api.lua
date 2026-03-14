@@ -10,6 +10,9 @@ local PushData = require("push-data")
 local SslManager = require("ssl_manager")
 local CacheManager = require("cache_manager")
 local VarnishManager = require("varnish_manager")
+local VersionManager = require("version_manager")
+local CRManager = require("cr_manager")
+local AuditLogger = require("audit_logger")
 
 local settings = Helper.settings()
 local storageTypeOverride = settings.settings or os.getenv("STORAGE_TYPE")
@@ -4065,6 +4068,132 @@ local function handle_get_request(args, path)
             ngx.exit(ngx.HTTP_OK)
         end
     end
+
+    -- ============================================================
+    -- Version Control & Change Request GET endpoints
+    -- ============================================================
+
+    -- GET /api/versions/{type}/{profile}/{name} - List versions for a resource
+    if string.find(path, "^versions/[^/]+/[^/]+/[^/]+$") then
+        local res_type, profile, name = path:match("^versions/([^/]+)/([^/]+)/(.+)$")
+        if res_type and profile and name then
+            local versions = VersionManager.list_versions(res_type, profile, name)
+            local meta = VersionManager.get_meta(res_type, profile, name)
+            ngx.say(cjson.encode({
+                data = versions,
+                total = #versions,
+                meta = meta,
+            }))
+            ngx.exit(ngx.HTTP_OK)
+        end
+    end
+
+    -- GET /api/versions/{type}/{profile}/{name}/live - Get live version
+    if string.find(path, "^versions/[^/]+/[^/]+/[^/]+/live$") then
+        local res_type, profile, name = path:match("^versions/([^/]+)/([^/]+)/(.+)/live$")
+        if res_type and profile and name then
+            local version, err = VersionManager.get_live_version(res_type, profile, name)
+            if version then
+                ngx.say(cjson.encode({ data = version }))
+            else
+                ngx.say(cjson.encode({ data = nil, error = err }))
+            end
+            ngx.exit(ngx.HTTP_OK)
+        end
+    end
+
+    -- GET /api/versions/{type}/{profile}/{name}/diff/{v1}/{v2} - Diff two versions
+    if string.find(path, "^versions/[^/]+/[^/]+/[^/]+/diff/%d+/%d+$") then
+        local res_type, profile, name, v1, v2 = path:match("^versions/([^/]+)/([^/]+)/([^/]+)/diff/(%d+)/(%d+)$")
+        if res_type and profile and name and v1 and v2 then
+            local diff, err = VersionManager.diff_versions(res_type, profile, name, v1, v2)
+            if diff then
+                ngx.say(cjson.encode({ data = diff }))
+            else
+                Errors.throwError(err or "Failed to generate diff", ngx.HTTP_BAD_REQUEST)
+            end
+            ngx.exit(ngx.HTTP_OK)
+        end
+    end
+
+    -- GET /api/versions/{type}/{profile}/{name}/{version} - Get specific version
+    if string.find(path, "^versions/[^/]+/[^/]+/[^/]+/%d+$") then
+        local res_type, profile, name, version = path:match("^versions/([^/]+)/([^/]+)/([^/]+)/(%d+)$")
+        if res_type and profile and name and version then
+            local entry, err = VersionManager.get_version(res_type, profile, name, tonumber(version))
+            if entry then
+                ngx.say(cjson.encode({ data = entry }))
+            else
+                Errors.throwError(err or "Version not found", ngx.HTTP_NOT_FOUND)
+            end
+            ngx.exit(ngx.HTTP_OK)
+        end
+    end
+
+    -- GET /api/change-requests - List all CRs
+    if path == "change-requests" then
+        local params = {}
+        if args then
+            local ok_args, parsed = pcall(function()
+                if args.params then return cjson.decode(args.params) end
+                return args
+            end)
+            if ok_args and parsed then
+                params = parsed.filter or parsed or {}
+            end
+        end
+        local crs, total = CRManager.list_crs(params)
+        ngx.say(cjson.encode({ data = crs, total = total }))
+        ngx.exit(ngx.HTTP_OK)
+    end
+
+    -- GET /api/change-requests/pending-count - Get pending CR count
+    if path == "change-requests/pending-count" then
+        local count = CRManager.get_pending_count()
+        ngx.say(cjson.encode({ data = { count = count } }))
+        ngx.exit(ngx.HTTP_OK)
+    end
+
+    -- GET /api/change-requests/{cr_id} - Get specific CR
+    if string.find(path, "^change%-requests/CR%-") then
+        local cr_id = path:match("^change%-requests/(CR%-%d+)$")
+        if cr_id then
+            local cr, err = CRManager.get_cr(cr_id)
+            if cr then
+                ngx.say(cjson.encode({ data = cr }))
+            else
+                Errors.throwError(err or "CR not found", ngx.HTTP_NOT_FOUND)
+            end
+            ngx.exit(ngx.HTTP_OK)
+        end
+    end
+
+    -- GET /api/audit - List audit logs
+    if path == "audit" then
+        local params = {}
+        if args then
+            local ok_args, parsed = pcall(function()
+                if args.params then return cjson.decode(args.params) end
+                return args
+            end)
+            if ok_args and parsed then
+                params = parsed.filter or parsed or {}
+            end
+        end
+        local entries, total = AuditLogger.list(params)
+        ngx.say(cjson.encode({ data = entries, total = total }))
+        ngx.exit(ngx.HTTP_OK)
+    end
+
+    -- GET /api/audit/{resource_type}/{resource_name} - Get audit for specific resource
+    if string.find(path, "^audit/[^/]+/.+$") then
+        local res_type, res_name = path:match("^audit/([^/]+)/(.+)$")
+        if res_type and res_name then
+            local entries, total = AuditLogger.get_by_resource(res_type, res_name)
+            ngx.say(cjson.encode({ data = entries, total = total }))
+            ngx.exit(ngx.HTTP_OK)
+        end
+    end
 end
 
 local function handle_post_request(args, path)
@@ -4461,6 +4590,84 @@ local function handle_post_request(args, path)
             end
             ngx.exit(ngx.HTTP_OK)
         end
+
+        -- ============================================================
+        -- Version Control & Change Request POST endpoints
+        -- ============================================================
+
+        -- POST /api/versions/{type}/{profile}/{name} - Create a new draft version
+        if string.find(path, "^versions/[^/]+/[^/]+/.+$") and not string.find(path, "/rollback$") and not string.find(path, "/initialize$") then
+            local res_type, profile, name = path:match("^versions/([^/]+)/([^/]+)/(.+)$")
+            if res_type and profile and name then
+                local payloads = Helper.GetPayloads(args)
+                if not payloads then
+                    Errors.throwError("Request body is required", ngx.HTTP_BAD_REQUEST)
+                    ngx.exit(ngx.HTTP_BAD_REQUEST)
+                end
+                local user = payloads.created_by or ngx.req.get_headers()["x-user"] or "system"
+                local version, err = VersionManager.create_version(
+                    res_type, profile, name,
+                    payloads.config_payload or payloads,
+                    user,
+                    payloads.description
+                )
+                if version then
+                    ngx.say(cjson.encode({ data = version, message = "Draft version created" }))
+                else
+                    Errors.throwError(err or "Failed to create version", ngx.HTTP_BAD_REQUEST)
+                end
+                ngx.exit(ngx.HTTP_OK)
+            end
+        end
+
+        -- POST /api/versions/{type}/{profile}/{name}/initialize - Initialize versioning for existing resource
+        if string.find(path, "^versions/[^/]+/[^/]+/.+/initialize$") then
+            local res_type, profile, name = path:match("^versions/([^/]+)/([^/]+)/(.+)/initialize$")
+            if res_type and profile and name then
+                local user = ngx.req.get_headers()["x-user"] or "system"
+                local version, err = VersionManager.initialize_resource(res_type, profile, name, user)
+                if version then
+                    ngx.say(cjson.encode({ data = version, message = "Versioning initialized" }))
+                else
+                    Errors.throwError(err or "Failed to initialize versioning", ngx.HTTP_BAD_REQUEST)
+                end
+                ngx.exit(ngx.HTTP_OK)
+            end
+        end
+
+        -- POST /api/versions/{type}/{profile}/{name}/rollback/{version} - Create rollback version
+        if string.find(path, "^versions/[^/]+/[^/]+/.+/rollback/%d+$") then
+            local res_type, profile, name, version = path:match("^versions/([^/]+)/([^/]+)/([^/]+)/rollback/(%d+)$")
+            if res_type and profile and name and version then
+                local user = ngx.req.get_headers()["x-user"] or "system"
+                local new_version, err = VersionManager.create_rollback_version(
+                    res_type, profile, name, tonumber(version), user
+                )
+                if new_version then
+                    ngx.say(cjson.encode({ data = new_version, message = "Rollback version created as draft" }))
+                else
+                    Errors.throwError(err or "Failed to create rollback version", ngx.HTTP_BAD_REQUEST)
+                end
+                ngx.exit(ngx.HTTP_OK)
+            end
+        end
+
+        -- POST /api/change-requests - Create a new CR
+        if path == "change-requests" then
+            local payloads = Helper.GetPayloads(args)
+            if not payloads then
+                Errors.throwError("Request body is required", ngx.HTTP_BAD_REQUEST)
+                ngx.exit(ngx.HTTP_BAD_REQUEST)
+            end
+            local user = payloads.created_by or ngx.req.get_headers()["x-user"] or "system"
+            local cr, err = CRManager.create_cr(payloads, user)
+            if cr then
+                ngx.say(cjson.encode({ data = cr, message = "Change Request created" }))
+            else
+                Errors.throwError(err or "Failed to create CR", ngx.HTTP_BAD_REQUEST)
+            end
+            ngx.exit(ngx.HTTP_OK)
+        end
     else
         Errors.throwError(
             "You can't create record either you can create it from UI or you need to change settings for instance lock.",
@@ -4510,6 +4717,85 @@ local function handle_put_request(args, path)
         end
         if string.find(path, "profiles") then
             createUpdateProfiles(args, uuid)
+        end
+
+        -- ============================================================
+        -- Version Control & Change Request PUT endpoints
+        -- ============================================================
+
+        -- PUT /api/change-requests/{cr_id}/approve - Approve a CR
+        if string.find(path, "^change%-requests/CR%-[^/]+/approve$") then
+            local cr_id = path:match("^change%-requests/(CR%-%d+)/approve$")
+            if cr_id then
+                local payloads = Helper.GetPayloads(args)
+                local user = (payloads and payloads.user) or ngx.req.get_headers()["x-user"] or "system"
+                local comment = payloads and payloads.comment
+                local cr, err = CRManager.approve_cr(cr_id, user, comment)
+                if cr then
+                    ngx.say(cjson.encode({ data = cr, message = "CR approved" }))
+                else
+                    Errors.throwError(err or "Failed to approve CR", ngx.HTTP_BAD_REQUEST)
+                end
+                ngx.exit(ngx.HTTP_OK)
+            end
+        end
+
+        -- PUT /api/change-requests/{cr_id}/reject - Reject a CR
+        if string.find(path, "^change%-requests/CR%-[^/]+/reject$") then
+            local cr_id = path:match("^change%-requests/(CR%-%d+)/reject$")
+            if cr_id then
+                local payloads = Helper.GetPayloads(args)
+                local user = (payloads and payloads.user) or ngx.req.get_headers()["x-user"] or "system"
+                local reason = payloads and payloads.reason
+                local cr, err = CRManager.reject_cr(cr_id, user, reason)
+                if cr then
+                    ngx.say(cjson.encode({ data = cr, message = "CR rejected" }))
+                else
+                    Errors.throwError(err or "Failed to reject CR", ngx.HTTP_BAD_REQUEST)
+                end
+                ngx.exit(ngx.HTTP_OK)
+            end
+        end
+
+        -- PUT /api/change-requests/{cr_id}/cancel - Cancel a CR
+        if string.find(path, "^change%-requests/CR%-[^/]+/cancel$") then
+            local cr_id = path:match("^change%-requests/(CR%-%d+)/cancel$")
+            if cr_id then
+                local payloads = Helper.GetPayloads(args)
+                local user = (payloads and payloads.user) or ngx.req.get_headers()["x-user"] or "system"
+                local cr, err = CRManager.cancel_cr(cr_id, user)
+                if cr then
+                    ngx.say(cjson.encode({ data = cr, message = "CR cancelled" }))
+                else
+                    Errors.throwError(err or "Failed to cancel CR", ngx.HTTP_BAD_REQUEST)
+                end
+                ngx.exit(ngx.HTTP_OK)
+            end
+        end
+
+        -- PUT /api/versions/{type}/{profile}/{name}/{version} - Update a draft version
+        if string.find(path, "^versions/[^/]+/[^/]+/[^/]+/%d+$") then
+            local res_type, profile, name, version = path:match("^versions/([^/]+)/([^/]+)/([^/]+)/(%d+)$")
+            if res_type and profile and name and version then
+                local payloads = Helper.GetPayloads(args)
+                if not payloads then
+                    Errors.throwError("Request body is required", ngx.HTTP_BAD_REQUEST)
+                    ngx.exit(ngx.HTTP_BAD_REQUEST)
+                end
+                local user = (payloads and payloads.updated_by) or ngx.req.get_headers()["x-user"] or "system"
+                local entry, err = VersionManager.update_draft(
+                    res_type, profile, name, tonumber(version),
+                    payloads.config_payload or payloads,
+                    user,
+                    payloads.description
+                )
+                if entry then
+                    ngx.say(cjson.encode({ data = entry, message = "Draft updated" }))
+                else
+                    Errors.throwError(err or "Failed to update draft", ngx.HTTP_BAD_REQUEST)
+                end
+                ngx.exit(ngx.HTTP_OK)
+            end
         end
 
         -- PUT /api/varnish/config/{server_name} - Update Varnish config
