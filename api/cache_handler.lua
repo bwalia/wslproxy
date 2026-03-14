@@ -167,7 +167,8 @@ local function should_bypass_cache(config)
     end
     
     -- Check for Authorization header (authenticated requests shouldn't be cached)
-    if ngx.req.get_headers()["Authorization"] then
+    -- cache_bypass_auth allows caching even with Authorization (e.g. S3 signed origins)
+    if ngx.req.get_headers()["Authorization"] and not config.cache_bypass_auth then
         return true, "Authorization header present"
     end
     
@@ -216,12 +217,19 @@ function _M.check_cache(server_name, config)
     end
     
     if not ext then
-        ngx.ctx.cache_bypass = true
-        ngx.ctx.cache_bypass_reason = "no file extension"
-        ngx.ctx.cache_status = "BYPASS"
-        ngx.ctx.cache_status_detail = "no file extension detected"
-        record_cache_bypass(server_name, "no_extension")
-        return false
+        -- Treat directory-style URIs (e.g. "/" or "/about/") as html for caching
+        local uri = ngx.var.uri or ""
+        if uri:sub(-1) == "/" then
+            ext = "html"
+            ngx.ctx.cache_extension = ext
+        else
+            ngx.ctx.cache_bypass = true
+            ngx.ctx.cache_bypass_reason = "no file extension"
+            ngx.ctx.cache_status = "BYPASS"
+            ngx.ctx.cache_status_detail = "no file extension detected"
+            record_cache_bypass(server_name, "no_extension")
+            return false
+        end
     end
     
     -- Check if extension is cacheable

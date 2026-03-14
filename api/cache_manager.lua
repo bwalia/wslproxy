@@ -19,6 +19,7 @@ local DEFAULT_CACHE_CONFIG = {
     cache_valid_codes = { 200, 301, 302 },  -- HTTP codes to cache
     cache_bypass_cookie = "",  -- Cookie name to bypass cache (e.g., "nocache")
     cache_bypass_header = "",  -- Header name to bypass cache (e.g., "X-No-Cache")
+    cache_bypass_auth = false,  -- Allow caching even with Authorization header (e.g. S3 signed origins)
     -- File types to cache (MIME types and extensions)
     cached_extensions = {
         -- JavaScript
@@ -34,10 +35,11 @@ local DEFAULT_CACHE_CONFIG = {
         -- Media
         "mp3", "mp4", "webm", "ogg",
         -- Other static
-        "json", "xml", "txt", "map"
+        "html", "json", "xml", "txt", "map"
     },
     -- MIME types to cache
     cached_mime_types = {
+        "text/html",
         "text/css",
         "text/javascript",
         "application/javascript",
