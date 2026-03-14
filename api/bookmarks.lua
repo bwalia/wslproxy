@@ -244,6 +244,8 @@ function _M.list(args)
         end
         local va = a[sort_field] or ""
         local vb = b[sort_field] or ""
+        if type(va) == "boolean" then va = va and 1 or 0 end
+        if type(vb) == "boolean" then vb = vb and 1 or 0 end
         if type(va) == "string" then va = va:lower() end
         if type(vb) == "string" then vb = vb:lower() end
         if sort_order == "DESC" then
