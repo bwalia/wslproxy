@@ -87,6 +87,13 @@ elseif selectedRule.statusCode == 305 then
         ngx.exit(ngx.HTTP_INTERNAL_SERVER_ERROR)
     end
 
+    -- Set backend metrics context for single-backend rules (not using Traffic Router)
+    if not ngx.ctx.selected_backend_label then
+        local rule_id = selectedRule.rule_data and selectedRule.rule_data.id or "unknown"
+        ngx.ctx.selected_backend_rule_id = rule_id
+        ngx.ctx.selected_backend_label = selectedRule.redirectUri
+    end
+
     -- Strip matched path prefix from URI before proxying (like K8s Ingress rewrite-target)
     if selectedRule.rule_data.strip_path
         and selectedRule.rule_data.path
