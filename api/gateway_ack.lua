@@ -135,6 +135,26 @@ local function hmac_sha1(key, message)
     return hmac:final()
 end
 
+local function hmac_sha256(key, message)
+    local openssl = require("resty.openssl")
+    local hmac = openssl.hmac.new(key, "sha256")
+    hmac:update(message)
+    return hmac:final()
+end
+
+local function sha256_hex(data)
+    local openssl = require("resty.openssl")
+    local digest = openssl.digest.new("sha256")
+    digest:update(data)
+    return openssl.bn.from_binary(digest:final()):to_hex():lower()
+end
+
+local function to_hex(str)
+    return (str:gsub('.', function(c)
+        return string.format('%02x', string.byte(c))
+    end))
+end
+
 -- Function to encode base64
 local function base64_encode(data)
     local openssl = require("resty.openssl")
@@ -214,7 +234,7 @@ local function gatewayHostAuthenticate(rule)
             end
 
             if tokenAuthTokenSource == "amazon_s3_signed_header_validation" then
-                -- AWS Signature V2 for S3 API access (private buckets)
+                -- AWS Signature V4 for S3 API access (private buckets)
                 local folderPath, bucketName = passPhrase, jwt_token_key_val_value
                 local s3AccessKey, s3SecretKey = Base64.decode(amazon_s3_access_key), Base64.decode(amazon_s3_secret_key)
                 local bucketregion = tostring(rule.amazon_s3_region or "eu-west-2")
@@ -224,30 +244,52 @@ local function gatewayHostAuthenticate(rule)
                 local request_uri = ngx.var.uri
                 local s3_key = request_uri
                 if folderPath and folderPath ~= "" and folderPath ~= "/" then
-                    -- Strip leading slash from folderPath for concatenation
                     local cleanFolder = folderPath:sub(1, 1) == "/" and folderPath:sub(2) or folderPath
                     if request_uri == "/" then
                         s3_key = "/" .. cleanFolder
                     else
-                        -- Strip trailing filename from folderPath if it looks like a file path
                         local folderPrefix = cleanFolder:match("(.+)/[^/]+%.[^/]+$") or cleanFolder
                         s3_key = "/" .. folderPrefix .. request_uri
                     end
                 end
                 local file_path = "/" .. bucketName .. s3_key
 
-                local now = os.date("%a, %d %b %Y %H:%M:%S +0000")
-                local md5_digest = ""
-                local aws_resource_string_to_sign = "GET\n" .. md5_digest .. "\n\n" .. now .. "\n" .. file_path
-                local base64_aws_signature = ngx.encode_base64(ngx.hmac_sha1(s3SecretKey, aws_resource_string_to_sign))
-                local authorization_header_override = "AWS " .. s3AccessKey .. ":" .. base64_aws_signature
+                -- AWS Signature V4
                 local host_header_override = "s3." .. bucketregion .. ".amazonaws.com"
+                local now_date = os.date("!%Y%m%d")
+                local now_datetime = os.date("!%Y%m%dT%H%M%SZ")
+                local service = "s3"
+                local credential_scope = now_date .. "/" .. bucketregion .. "/" .. service .. "/aws4_request"
+                local payload_hash = sha256_hex("")
+
+                -- Canonical request
+                local canonical_headers = "host:" .. host_header_override .. "\n" ..
+                    "x-amz-content-sha256:" .. payload_hash .. "\n" ..
+                    "x-amz-date:" .. now_datetime .. "\n"
+                local signed_headers = "host;x-amz-content-sha256;x-amz-date"
+                local canonical_request = "GET\n" .. file_path .. "\n" .. "\n" ..
+                    canonical_headers .. "\n" .. signed_headers .. "\n" .. payload_hash
+
+                -- String to sign
+                local string_to_sign = "AWS4-HMAC-SHA256\n" .. now_datetime .. "\n" ..
+                    credential_scope .. "\n" .. sha256_hex(canonical_request)
+
+                -- Signing key
+                local k_date = hmac_sha256("AWS4" .. s3SecretKey, now_date)
+                local k_region = hmac_sha256(k_date, bucketregion)
+                local k_service = hmac_sha256(k_region, service)
+                local k_signing = hmac_sha256(k_service, "aws4_request")
+                local signature = to_hex(hmac_sha256(k_signing, string_to_sign))
+
+                local authorization_header = "AWS4-HMAC-SHA256 Credential=" .. s3AccessKey .. "/" ..
+                    credential_scope .. ", SignedHeaders=" .. signed_headers .. ", Signature=" .. signature
 
                 -- Rewrite URI to include bucket name prefix
                 ngx.req.set_uri(file_path)
 
-                ngx.req.set_header("Date", now)
-                ngx.req.set_header("Authorization", authorization_header_override)
+                ngx.req.set_header("x-amz-date", now_datetime)
+                ngx.req.set_header("x-amz-content-sha256", payload_hash)
+                ngx.req.set_header("Authorization", authorization_header)
                 -- Store S3 API host so gateway_resp.lua sets proxy_host_override correctly
                 ngx.ctx.s3_host_override = host_header_override
                 isTokenVerified = true
