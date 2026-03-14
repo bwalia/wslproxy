@@ -31,6 +31,8 @@ import WafEvents from "./WafEvents";
 import Bookmarks from "./Bookmarks";
 import IngressOverview from "./IngressOverview/IngressOverview";
 import Health from "./Health/Health";
+import ChangeRequestList from "./ChangeRequests/ChangeRequestList";
+import AuditLog from "./Audit/AuditLog";
 
 import UserIcon from "@mui/icons-material/GroupRounded";
 import BookmarkIcon from "@mui/icons-material/BookmarkRounded";
@@ -202,6 +204,9 @@ const AppContent = () => {
           <Route path="/instance-info" element={<InstanceInfo />} />
           <Route path="/ingress" element={<IngressOverview />} />
           <Route path="/health" element={<Health />} />
+          <Route path="/change-requests" element={<ChangeRequestList />} />
+          <Route path="/change-requests/:id" element={<ChangeRequestList />} />
+          <Route path="/audit" element={<AuditLog />} />
         </CustomRoutes>
       </Admin>
       <VersionFooter />

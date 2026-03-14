@@ -16,6 +16,7 @@ import {
 import Toolbar from "./toolbar/Toolbar";
 import CreateTags from "../component/CreateTags";
 import HtmlEditorInput from "../component/HtmlEditorInput";
+import VersionHistoryTab from "../Versions/VersionHistoryTab";
 import "../styles/forms.css";
 
 const iso_codes = {
@@ -782,6 +783,11 @@ const Form = () => {
             )
           }
         </FormDataConsumer>
+
+        {/* Version History */}
+        <SectionCard title="Version History" subtitle="Track configuration versions, create drafts, and manage change requests">
+          <VersionHistoryTab resourceType="rules" />
+        </SectionCard>
 
       </div>
     </SimpleForm>
