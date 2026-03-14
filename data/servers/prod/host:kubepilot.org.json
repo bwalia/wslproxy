@@ -1,0 +1,28 @@
+{
+  "id": "host:kubepilot.org",
+  "server_name": "kubepilot.org www.kubepilot.org",
+  "proxy_server_name": "kubepilot-docs.s3-website.eu-west-2.amazonaws.com",
+  "root": "/var/www/html",
+  "index": "index.html",
+  "access_log": "logs/access.log",
+  "error_log": "logs/error.log",
+  "config_status": false,
+  "profile_id": "prod",
+  "proxy_pass": "http://kubepilot-docs.s3-website.eu-west-2.amazonaws.com",
+  "rules": "kubepilot-org-rule",
+  "created_at": 1710374400,
+  "listens": [
+    {
+      "listen": "80"
+    }
+  ],
+  "ssl_enabled": true,
+  "ssl_force_https": true,
+  "ssl_staging": false,
+  "ssl_auto_renew": true,
+  "ssl_email": "balinder.walia@gmail.com",
+  "cache_enabled": false,
+  "cache_bypass_auth": false,
+  "match_cases": {},
+  "custom_headers": []
+}

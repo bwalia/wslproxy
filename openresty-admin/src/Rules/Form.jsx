@@ -540,7 +540,16 @@ const Form = () => {
                   formData?.match?.rules?.jwt_token_validation === "amazon_s3_signed_header_validation"
                 ) && (
                   <>
-                    <Grid item xs={12} sm={6}>
+                    <Grid item xs={12} sm={4}>
+                      <TextInput
+                        source="match.rules.amazon_s3_region"
+                        defaultValue="eu-west-2"
+                        fullWidth
+                        label="AWS Region"
+                        helperText="S3 bucket region (e.g., eu-west-2)"
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={4}>
                       <TextInput
                         source="match.rules.amazon_s3_access_key"
                         fullWidth
@@ -549,7 +558,7 @@ const Form = () => {
                         helperText="AWS access key ID"
                       />
                     </Grid>
-                    <Grid item xs={12} sm={6}>
+                    <Grid item xs={12} sm={4}>
                       <TextInput
                         source="match.rules.amazon_s3_secret_key"
                         fullWidth

@@ -214,40 +214,30 @@ local function gatewayHostAuthenticate(rule)
             end
 
             if tokenAuthTokenSource == "amazon_s3_signed_header_validation" then
-                -- This code is working only for aws signature version 2
+                -- AWS Signature V2 for S3 API access (private buckets)
                 local folderPath, bucketName = passPhrase, jwt_token_key_val_value
                 local s3AccessKey, s3SecretKey = Base64.decode(amazon_s3_access_key), Base64.decode(amazon_s3_secret_key)
-                local bucketregion = "eu-west-1"
-                local key = ngx.var.uri
+                local bucketregion = tostring(rule.amazon_s3_region or "eu-west-2")
+
+                -- Use actual request URI, prepended with bucket name
+                local request_uri = ngx.var.uri
+                local file_path = "/" .. bucketName .. request_uri
 
                 local now = os.date("%a, %d %b %Y %H:%M:%S +0000")
-                local file_path = "/" ..
-                    bucketName .. "/prod/category-file/1709032659/OdinSPC-TALSystematicSPFactsheet-Jan24.pdf"
-                -- local digest = ngx.md5(file_path)
-                -- local md5_digest = ngx.encode_base64(digest)
                 local md5_digest = ""
                 local aws_resource_string_to_sign = "GET\n" .. md5_digest .. "\n\n" .. now .. "\n" .. file_path
                 local base64_aws_signature = ngx.encode_base64(ngx.hmac_sha1(s3SecretKey, aws_resource_string_to_sign))
                 local authorization_header_override = "AWS " .. s3AccessKey .. ":" .. base64_aws_signature
-                local host_header_override = "s3." ..
-                    bucketregion ..
-                    ".amazonaws.com" -- eu-west-1 is hardcidoded for now but it should be a variable field in the UI
-                local uri = ngx.re.sub(key, "^(.*)", "/" .. bucketName .. "$1", "o")
+                local host_header_override = "s3." .. bucketregion .. ".amazonaws.com"
+
+                -- Rewrite URI to include bucket name prefix
+                local uri = ngx.re.sub(request_uri, "^(.*)", "/" .. bucketName .. "$1", "o")
                 ngx.req.set_uri(uri)
-                -- proxy_pass http://s3.amazonaws.com;
-                --    ngx.say(
-                --     -- "s3AccessKey: " .. s3AccessKey .. "\n",
-                --     -- "s3SecretKey: " .. s3SecretKey .. "\n",
-                --     "aws_resource_string_to_sign: " .. aws_resource_string_to_sign .. "\n",
-                --         "base64_aws_signature: " .. base64_aws_signature .. "\n",
-                --         "Date: " .. now .. "\n",
-                --         "Authorization: " .. authorization_header_override .. "\n",
-                --         "Host: " .. host_header_override
-                --     )
-                --     ngx.exit(ngx.HTTP_OK)
+
                 ngx.req.set_header("Date", now)
                 ngx.req.set_header("Authorization", authorization_header_override)
                 ngx.req.set_header("Host", host_header_override)
+                isTokenVerified = true
             end
 
             -- if tokenAuthTokenSource == "redis" then
