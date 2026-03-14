@@ -4,7 +4,7 @@ import Form from "./Form";
 
 const Edit = () => {
   return (
-    <RaEdit title={"Rule"} redirect="list">
+    <RaEdit title={"Server Rule"} redirect="list">
       <Form />
     </RaEdit>
   );

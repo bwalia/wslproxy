@@ -13,6 +13,23 @@ local proxyServer = globalVars.proxyServer
 local settings = Helper.settings()
 
 
+-- CAPTCHA rule (306): verify human before proxying to backend
+-- Rule matching (path, IP, country) already handled by gateway_ack.lua
+-- If CAPTCHA cookie is valid, treat as 305 (proxy). If not, serve challenge page.
+if selectedRule.statusCode == 306 then
+    local captcha_ok, Captcha = pcall(require, "captcha")
+    if captcha_ok and Captcha then
+        local handled = Captcha.check(settings)
+        if handled then
+            return -- challenge page served or verification processed
+        end
+    else
+        ngx.log(ngx.ERR, "captcha module not available, falling through to proxy")
+    end
+    -- CAPTCHA passed or module unavailable — continue as proxy (305)
+    selectedRule.statusCode = 305
+end
+
 if selectedRule.statusCode == nil then
     ngx.say("Status code not found: ")
     ngx.exit(ngx.HTTP_INTERNAL_SERVER_ERROR)
@@ -36,6 +53,34 @@ elseif selectedRule.statusCode == 302 then
     ngx.exit(ngx.HTTP_MOVED_TEMPORARILY)
 elseif selectedRule.statusCode == 305 then
     local proxy_server_name = primaryNameserver
+
+    -- Traffic Router: multi-backend weighted routing (fail-open)
+    -- Must run BEFORE the redirectUri nil check so backends can populate redirectUri
+    local tr_ok, TrafficRouter = pcall(require, "traffic_router")
+    if tr_ok and TrafficRouter and selectedRule.rule_data then
+        local response = selectedRule.rule_data.response or selectedRule.rule_data
+        if response and response.backends and type(response.backends) == "table" and #response.backends > 0 then
+            local ctx = {
+                remote_addr = ngx.var.remote_addr,
+                headers = ngx.req.get_headers(),
+            }
+            -- Attach rule_id for round-robin counter
+            response.rule_id = selectedRule.rule_data.id or selectedRule.rule_data.rule_id
+            local backend = TrafficRouter.select_backend(response, ctx)
+            if backend then
+                selectedRule.redirectUri = backend.address
+                ngx.ctx.selected_backend_label = backend.label
+                ngx.ctx.selected_backend_rule_id = response.rule_id
+                -- Cache for potential retry in balancer_by_lua
+                ngx.ctx._router_response_cache = response
+                ngx.ctx._router_ctx_cache = ctx
+            end
+            -- Set sticky cookie if traffic router requested it
+            if ngx.ctx._traffic_router_set_cookie then
+                ngx.header["Set-Cookie"] = ngx.ctx._traffic_router_set_cookie
+            end
+        end
+    end
 
     if selectedRule.redirectUri == nil then
         ngx.say("Redirect url not found: ")
@@ -147,6 +192,24 @@ elseif selectedRule.statusCode == 305 then
         ngx.var.proxy_port = extractedPort
     end
 
+    -- Varnish interception: route through local Varnish if enabled for this server
+    local v_ok, VarnishMgr = pcall(require, "varnish_manager")
+    if v_ok and proxyServer and proxyServer.server_name then
+        local varnish_enabled = VarnishMgr.is_varnish_enabled(proxyServer.server_name)
+        if varnish_enabled then
+            local vc = VarnishMgr.get_varnish_config(proxyServer.server_name)
+            if vc and vc.varnish_enabled then
+                -- Store original backend info in debug headers
+                ngx.header["X-Debug-Varnish-Enabled"] = "true"
+                ngx.header["X-Debug-Origin-Backend"] = finalProxyHost .. ":" .. ngx.var.proxy_port
+                -- Route to local Varnish instead of origin
+                finalProxyHost = vc.listen_address or "127.0.0.1"
+                ngx.var.proxy_port = tostring(vc.listen_port or 6081)
+                origin_serverScheme = "http"
+            end
+        end
+    end
+
     ngx.var.proxy_host = finalProxyHost
     if proxy_server_name ~= nil and proxy_server_name ~= "" then
         ngx.var.proxy_host_override = proxy_server_name
@@ -154,10 +217,16 @@ elseif selectedRule.statusCode == 305 then
         ngx.var.proxy_host_override = selectedRule.redirectUri
     end
 
-    if proxyServer and proxyServer ~= nil and proxyServer.custom_headers ~= nil and type(proxyServer.custom_headers) == "table" then
+    -- Upstream backend request headers (forwarded to the backend server)
+    if proxyServer and proxyServer.custom_headers ~= nil and type(proxyServer.custom_headers) == "table" then
         for idx, header in ipairs(proxyServer.custom_headers) do
             ngx.req.set_header(header.header_key, header.header_value)
         end
+    end
+
+    -- Client response headers (sent back to the browser via header_filter phase)
+    if proxyServer and proxyServer.custom_response_headers ~= nil and type(proxyServer.custom_response_headers) == "table" then
+        ngx.ctx.custom_response_headers = proxyServer.custom_response_headers
     end
 
     ngx.var.proxy_host_scheme = origin_serverScheme

@@ -9,6 +9,7 @@ local Errors = require("errors")
 local PushData = require("push-data")
 local SslManager = require("ssl_manager")
 local CacheManager = require("cache_manager")
+local VarnishManager = require("varnish_manager")
 
 local settings = Helper.settings()
 local storageTypeOverride = settings.settings or os.getenv("STORAGE_TYPE")
@@ -68,7 +69,7 @@ local function validateServerPayload(payloads)
         end
     end
 
-    -- Validate custom_headers if provided
+    -- Validate custom_headers (upstream backend request headers) if provided
     if payloads.custom_headers and type(payloads.custom_headers) == "table" then
         for i, header in ipairs(payloads.custom_headers) do
             if not header.header_key or header.header_key == "" then
@@ -80,6 +81,24 @@ local function validateServerPayload(payloads)
             if not header.header_value then
                 table.insert(errors, {
                     field = "custom_headers[" .. i .. "].header_value",
+                    message = "Header value is required"
+                })
+            end
+        end
+    end
+
+    -- Validate custom_response_headers (client response headers) if provided
+    if payloads.custom_response_headers and type(payloads.custom_response_headers) == "table" then
+        for i, header in ipairs(payloads.custom_response_headers) do
+            if not header.header_key or header.header_key == "" then
+                table.insert(errors, {
+                    field = "custom_response_headers[" .. i .. "].header_key",
+                    message = "Header key is required"
+                })
+            end
+            if not header.header_value then
+                table.insert(errors, {
+                    field = "custom_response_headers[" .. i .. "].header_value",
                     message = "Header value is required"
                 })
             end
@@ -99,6 +118,43 @@ local function validateServerPayload(payloads)
                 table.insert(errors, {
                     field = "match_cases[" .. i .. "].condition",
                     message = "Condition is required for each match case (e.g., 'and', 'or')"
+                })
+            end
+        end
+    end
+
+    -- Validate WAF fields
+    if payloads.waf_enabled == true then
+        if not payloads.waf_policy_id or payloads.waf_policy_id == "" then
+            table.insert(errors, {
+                field = "waf_policy_id",
+                message = "WAF policy ID is required when WAF is enabled"
+            })
+        end
+    end
+    if payloads.waf_mode_override ~= nil and payloads.waf_mode_override ~= "" then
+        local valid_modes = { block = true, monitor = true }
+        if not valid_modes[payloads.waf_mode_override] then
+            table.insert(errors, {
+                field = "waf_mode_override",
+                message = "WAF mode override must be 'block' or 'monitor'"
+            })
+        end
+    end
+
+    -- Validate rate limit fields
+    if payloads.rate_limit_enabled == true then
+        if payloads.rate_limit and type(payloads.rate_limit) == "table" then
+            if payloads.rate_limit.requests_per_second and type(payloads.rate_limit.requests_per_second) ~= "number" then
+                table.insert(errors, {
+                    field = "rate_limit.requests_per_second",
+                    message = "Requests per second must be a number"
+                })
+            end
+            if payloads.rate_limit.burst and type(payloads.rate_limit.burst) ~= "number" then
+                table.insert(errors, {
+                    field = "rate_limit.burst",
+                    message = "Burst must be a number"
                 })
             end
         end
@@ -141,6 +197,61 @@ local function validateServerPayload(payloads)
         end
     end
 
+    -- Validate Varnish config fields
+    if payloads.varnish_config and type(payloads.varnish_config) == "table" then
+        local vc = payloads.varnish_config
+        if vc.listen_port then
+            local port = tonumber(vc.listen_port)
+            if not port or port < 1 or port > 65535 then
+                table.insert(errors, {
+                    field = "varnish_config.listen_port",
+                    message = "Varnish listen port must be between 1 and 65535"
+                })
+            end
+        end
+        if vc.admin_listen_port then
+            local port = tonumber(vc.admin_listen_port)
+            if not port or port < 1 or port > 65535 then
+                table.insert(errors, {
+                    field = "varnish_config.admin_listen_port",
+                    message = "Varnish admin listen port must be between 1 and 65535"
+                })
+            end
+        end
+        if vc.cache_ttl_default then
+            local ttl = tonumber(vc.cache_ttl_default)
+            if not ttl or ttl < 0 then
+                table.insert(errors, {
+                    field = "varnish_config.cache_ttl_default",
+                    message = "Cache TTL must be a non-negative number"
+                })
+            end
+        end
+    end
+
+    -- Validate Varnish snippets
+    if payloads.varnish_snippets and type(payloads.varnish_snippets) == "table" then
+        local valid_hooks = {
+            vcl_init = true, vcl_recv = true, vcl_hash = true, vcl_hit = true,
+            vcl_miss = true, vcl_backend_fetch = true, vcl_backend_response = true,
+            vcl_deliver = true, vcl_synth = true
+        }
+        for i, snippet in ipairs(payloads.varnish_snippets) do
+            if snippet.hook_point and not valid_hooks[snippet.hook_point] then
+                table.insert(errors, {
+                    field = "varnish_snippets[" .. i .. "].hook_point",
+                    message = "Invalid VCL hook point. Valid: vcl_init, vcl_recv, vcl_hash, vcl_hit, vcl_miss, vcl_backend_fetch, vcl_backend_response, vcl_deliver, vcl_synth"
+                })
+            end
+            if snippet.content ~= nil and type(snippet.content) ~= "string" then
+                table.insert(errors, {
+                    field = "varnish_snippets[" .. i .. "].content",
+                    message = "Snippet content must be a string"
+                })
+            end
+        end
+    end
+
     return errors
 end
 
@@ -174,12 +285,9 @@ local function validateRulePayload(payloads)
                 message = "Match rules configuration is required"
             })
         else
-            -- Validate path
+            -- Default path to "/" if empty or missing
             if not payloads.match.rules.path or payloads.match.rules.path == "" then
-                table.insert(errors, {
-                    field = "match.rules.path",
-                    message = "Path is required (e.g., '/', '/api')"
-                })
+                payloads.match.rules.path = "/"
             end
 
             -- Validate path_key
@@ -300,6 +408,81 @@ local function handleValidationErrors(errors, resourceType)
             }
         )
     end
+end
+
+-- =====================================================
+-- WAF Rule Validation
+-- =====================================================
+local function validateWafRulePayload(payloads)
+    local errors = {}
+
+    if not payloads.name or payloads.name == "" then
+        table.insert(errors, { field = "name", message = "WAF rule name is required" })
+    elseif type(payloads.name) ~= "string" then
+        table.insert(errors, { field = "name", message = "WAF rule name must be a string" })
+    end
+
+    if not payloads.category or payloads.category == "" then
+        table.insert(errors, { field = "category", message = "WAF rule category is required" })
+    else
+        local valid_categories = { sqli = true, xss = true, cmdi = true, lfi = true, rfi = true, protocol = true, custom = true }
+        if not valid_categories[payloads.category] then
+            table.insert(errors, { field = "category", message = "Invalid category. Must be one of: sqli, xss, cmdi, lfi, rfi, protocol, custom" })
+        end
+    end
+
+    if not payloads.pattern or payloads.pattern == "" then
+        table.insert(errors, { field = "pattern", message = "WAF rule pattern is required" })
+    elseif payloads.pattern_type ~= "string" then
+        local ok, compile_err = pcall(ngx.re.compile, payloads.pattern, "ijo")
+        if not ok then
+            table.insert(errors, { field = "pattern", message = "Invalid regex pattern: " .. tostring(compile_err) })
+        end
+    end
+
+    if not payloads.target or payloads.target == "" then
+        table.insert(errors, { field = "target", message = "WAF rule target is required" })
+    else
+        local valid_targets = { url = true, headers = true, body = true, args = true, cookies = true, user_agent = true, all = true }
+        if not valid_targets[payloads.target] then
+            table.insert(errors, { field = "target", message = "Invalid target. Must be one of: url, headers, body, args, cookies, user_agent, all" })
+        end
+    end
+
+    if not payloads.action or payloads.action == "" then
+        table.insert(errors, { field = "action", message = "WAF rule action is required" })
+    else
+        local valid_actions = { block = true, monitor = true, allow = true }
+        if not valid_actions[payloads.action] then
+            table.insert(errors, { field = "action", message = "Invalid action. Must be one of: block, monitor, allow" })
+        end
+    end
+
+    return errors
+end
+
+-- =====================================================
+-- WAF Policy Validation
+-- =====================================================
+local function validateWafPolicyPayload(payloads)
+    local errors = {}
+
+    if not payloads.name or payloads.name == "" then
+        table.insert(errors, { field = "name", message = "WAF policy name is required" })
+    elseif type(payloads.name) ~= "string" then
+        table.insert(errors, { field = "name", message = "WAF policy name must be a string" })
+    end
+
+    if not payloads.mode or payloads.mode == "" then
+        table.insert(errors, { field = "mode", message = "WAF policy mode is required" })
+    else
+        local valid_modes = { block = true, monitor = true }
+        if not valid_modes[payloads.mode] then
+            table.insert(errors, { field = "mode", message = "Invalid mode. Must be one of: block, monitor" })
+        end
+    end
+
+    return errors
 end
 
 local red = {}
@@ -1118,6 +1301,47 @@ local function createUpdateServer(body, uuid)
         end
     end
 
+    -- Handle Varnish configuration if varnish_enabled is set
+    if payloads.varnish_enabled ~= nil then
+        if payloads.varnish_enabled then
+            local varnish_options = {}
+            if payloads.varnish_config and type(payloads.varnish_config) == "table" then
+                varnish_options = payloads.varnish_config
+            end
+            -- Carry over snippets if provided
+            if payloads.varnish_snippets and type(payloads.varnish_snippets) == "table" then
+                varnish_options.snippets = payloads.varnish_snippets
+            end
+            local varnish_ok, varnish_err = VarnishManager.enable_varnish(payloads.server_name, varnish_options)
+            if not varnish_ok then
+                ngx.log(ngx.ERR, "Failed to enable Varnish for ", payloads.server_name, ": ", varnish_err)
+            else
+                ngx.log(ngx.INFO, "Varnish enabled for domain: ", payloads.server_name)
+            end
+        else
+            local varnish_ok, varnish_err = VarnishManager.disable_varnish(payloads.server_name)
+            if not varnish_ok then
+                ngx.log(ngx.WARN, "Failed to disable Varnish for ", payloads.server_name, ": ", varnish_err)
+            else
+                ngx.log(ngx.INFO, "Varnish disabled for domain: ", payloads.server_name)
+            end
+        end
+    elseif payloads.varnish_config or payloads.varnish_snippets then
+        -- Update config/snippets even if varnish_enabled not explicitly set
+        local existing = VarnishManager.get_varnish_config(payloads.server_name)
+        if existing then
+            if payloads.varnish_config and type(payloads.varnish_config) == "table" then
+                for k, v in pairs(payloads.varnish_config) do
+                    existing[k] = v
+                end
+            end
+            if payloads.varnish_snippets and type(payloads.varnish_snippets) == "table" then
+                existing.snippets = payloads.varnish_snippets
+            end
+            VarnishManager.save_varnish_config(payloads.server_name, existing)
+        end
+    end
+
     ngx.say(cjson.encode({
         data = response
     }))
@@ -1891,6 +2115,379 @@ local function createUpdateInstances(body, uuid)
     end
     ngx.say(cjson.encode({
         data = response
+    }))
+end
+
+-- =====================================================
+-- WAF Rules API Functions
+-- =====================================================
+local function listWafRules(args)
+    local allRules, totalRecords = {}, 0
+    local params = args
+    local qParams, environment = {}, "prod"
+    params = params.params
+    if params == nil and type(params) == "nil" then
+        qParams = {
+            pagination = {
+                page = args['pagination[page]'],
+                perPage = args['pagination[perPage]']
+            },
+            sort = {
+                field = args['sort[field]'],
+                order = args['sort[order]']
+            },
+            filter = {
+                profile_id = args['filter[profile_id]']
+            }
+        }
+    else
+        qParams = cjson.decode(params)
+    end
+    qParams["type"] = {
+        table = "waf_rules",
+        key_name = "name"
+    }
+    local pageSize = qParams.pagination.perPage
+    local pageNumber = qParams.pagination.page
+    if qParams.filter ~= nil and qParams.filter.profile_id ~= nil then
+        environment = qParams.filter.profile_id
+    end
+    allRules, totalRecords = listFromDisk("waf_rules/" .. environment, pageSize, pageNumber, qParams)
+    if qParams.sort ~= nil and qParams.sort.order == "DESC" then
+        table.sort(allRules, Helper.sortDesc(qParams.sort.field))
+    elseif qParams.sort ~= nil and qParams.sort.order == "ASC" then
+        table.sort(allRules, Helper.sortAsc(qParams.sort.field))
+    end
+    ngx.say(cjson.encode({
+        data = allRules,
+        total = totalRecords
+    }))
+end
+
+local function listWafRule(args, uuid)
+    local envProfile = args.envprofile ~= nil and args.envprofile or "prod"
+    local jsonData, dataErr = Helper.getDataFromFile(configPath ..
+        "data/waf_rules/" .. envProfile .. "/" .. uuid .. ".json")
+    if dataErr == nil then
+        local resultData = cjson.decode(jsonData)
+        ngx.say(cjson.encode({
+            data = resultData
+        }))
+    else
+        Errors.throwError("WAF rule not found: " .. tostring(dataErr), ngx.HTTP_NOT_FOUND)
+    end
+end
+
+local function createUpdateWafRules(body, uuid)
+    local payloads, response = Helper.GetPayloads(body), {}
+
+    local validationErrors = validateWafRulePayload(payloads)
+    handleValidationErrors(validationErrors, "waf_rule")
+
+    if not uuid then
+        ---@diagnostic disable-next-line: param-type-mismatch
+        payloads.created_at = os.time(os.date("!*t"))
+    end
+    ---@diagnostic disable-next-line: param-type-mismatch
+    payloads.updated_at = os.time(os.date("!*t"))
+
+    if uuid then
+        response = CreateUpdateRecord(payloads, uuid, "waf_rules", "waf_rules", "update")
+    else
+        local envProfile = payloads.profile_id or "prod"
+        local folderPath = string.format("%sdata/waf_rules/%s", configPath, envProfile)
+        local isUnique, err = Helper.isUniqueField(folderPath, "name", payloads.name)
+        if not isUnique then
+            Errors.conflict(err, { name = payloads.name })
+        end
+        payloads.id = Helper.generate_uuid()
+        response = CreateUpdateRecord(payloads, payloads.id, "waf_rules", "waf_rules", "create")
+    end
+    ngx.say(cjson.encode({
+        data = response
+    }))
+end
+
+local function createDeleteWafRules(body, uuid)
+    local payloads = Helper.GetPayloads(body)
+    if payloads == ngx.null or not body or type(payloads) == "nil" then
+        payloads = ngx.req.get_uri_args()
+    end
+    local envProfile = "prod"
+    if payloads.ids ~= nil then
+        envProfile = payloads.ids.envProfile or "prod"
+    elseif payloads.envProfile then
+        envProfile = payloads.envProfile
+    end
+    if uuid ~= "" and uuid ~= nil then
+        os.remove(configPath .. "data/waf_rules/" .. envProfile .. "/" .. uuid .. ".json")
+    elseif payloads and payloads.ids and payloads.ids.ids and #payloads.ids.ids > 0 then
+        for value = 1, #payloads.ids.ids do
+            os.remove(configPath .. "data/waf_rules/" .. envProfile .. "/" .. payloads.ids.ids[value] .. ".json")
+        end
+    end
+    ngx.say(cjson.encode({
+        data = payloads
+    }))
+end
+
+-- =====================================================
+-- WAF Policies API Functions
+-- =====================================================
+local function listWafPolicies(args)
+    local allPolicies, totalRecords = {}, 0
+    local params = args
+    local qParams, environment = {}, "prod"
+    params = params.params
+    if params == nil and type(params) == "nil" then
+        qParams = {
+            pagination = {
+                page = args['pagination[page]'],
+                perPage = args['pagination[perPage]']
+            },
+            sort = {
+                field = args['sort[field]'],
+                order = args['sort[order]']
+            },
+            filter = {
+                profile_id = args['filter[profile_id]']
+            }
+        }
+    else
+        qParams = cjson.decode(params)
+    end
+    qParams["type"] = {
+        table = "waf_policies",
+        key_name = "name"
+    }
+    local pageSize = qParams.pagination.perPage
+    local pageNumber = qParams.pagination.page
+    if qParams.filter ~= nil and qParams.filter.profile_id ~= nil then
+        environment = qParams.filter.profile_id
+    end
+    allPolicies, totalRecords = listFromDisk("waf_policies/" .. environment, pageSize, pageNumber, qParams)
+    if qParams.sort ~= nil and qParams.sort.order == "DESC" then
+        table.sort(allPolicies, Helper.sortDesc(qParams.sort.field))
+    elseif qParams.sort ~= nil and qParams.sort.order == "ASC" then
+        table.sort(allPolicies, Helper.sortAsc(qParams.sort.field))
+    end
+    ngx.say(cjson.encode({
+        data = allPolicies,
+        total = totalRecords
+    }))
+end
+
+local function listWafPolicy(args, uuid)
+    local envProfile = args.envprofile ~= nil and args.envprofile or "prod"
+    local jsonData, dataErr = Helper.getDataFromFile(configPath ..
+        "data/waf_policies/" .. envProfile .. "/" .. uuid .. ".json")
+    if dataErr == nil then
+        local resultData = cjson.decode(jsonData)
+        ngx.say(cjson.encode({
+            data = resultData
+        }))
+    else
+        Errors.throwError("WAF policy not found: " .. tostring(dataErr), ngx.HTTP_NOT_FOUND)
+    end
+end
+
+local function createUpdateWafPolicies(body, uuid)
+    local payloads, response = Helper.GetPayloads(body), {}
+
+    local validationErrors = validateWafPolicyPayload(payloads)
+    handleValidationErrors(validationErrors, "waf_policy")
+
+    if not uuid then
+        ---@diagnostic disable-next-line: param-type-mismatch
+        payloads.created_at = os.time(os.date("!*t"))
+    end
+    ---@diagnostic disable-next-line: param-type-mismatch
+    payloads.updated_at = os.time(os.date("!*t"))
+
+    if uuid then
+        response = CreateUpdateRecord(payloads, uuid, "waf_policies", "waf_policies", "update")
+    else
+        local envProfile = payloads.profile_id or "prod"
+        local folderPath = string.format("%sdata/waf_policies/%s", configPath, envProfile)
+        local isUnique, err = Helper.isUniqueField(folderPath, "name", payloads.name)
+        if not isUnique then
+            Errors.conflict(err, { name = payloads.name })
+        end
+        payloads.id = Helper.generate_uuid()
+        response = CreateUpdateRecord(payloads, payloads.id, "waf_policies", "waf_policies", "create")
+    end
+    ngx.say(cjson.encode({
+        data = response
+    }))
+end
+
+local function createDeleteWafPolicies(body, uuid)
+    local payloads = Helper.GetPayloads(body)
+    if payloads == ngx.null or not body or type(payloads) == "nil" then
+        payloads = ngx.req.get_uri_args()
+    end
+    local envProfile = "prod"
+    if payloads.ids ~= nil then
+        envProfile = payloads.ids.envProfile or "prod"
+    elseif payloads.envProfile then
+        envProfile = payloads.envProfile
+    end
+    if uuid ~= "" and uuid ~= nil then
+        os.remove(configPath .. "data/waf_policies/" .. envProfile .. "/" .. uuid .. ".json")
+    elseif payloads and payloads.ids and payloads.ids.ids and #payloads.ids.ids > 0 then
+        for value = 1, #payloads.ids.ids do
+            os.remove(configPath .. "data/waf_policies/" .. envProfile .. "/" .. payloads.ids.ids[value] .. ".json")
+        end
+    end
+    ngx.say(cjson.encode({
+        data = payloads
+    }))
+end
+
+-- =====================================================
+-- WAF Events API Functions (read-only)
+-- =====================================================
+local function listWafEvents(args)
+    local events = {}
+    local waf_dict = ngx.shared.waf_events
+    if not waf_dict then
+        ngx.say(cjson.encode({
+            data = events,
+            total = 0,
+            message = "WAF events shared dict not available"
+        }))
+        return
+    end
+
+    local keys = waf_dict:get_keys(1000)
+    for _, key in ipairs(keys) do
+        local val = waf_dict:get(key)
+        if val then
+            local ok, event = pcall(cjson.decode, val)
+            if ok and event then
+                table.insert(events, event)
+            end
+        end
+    end
+
+    -- Filter by host if provided
+    local filter_host = args["filter[host]"] or args["host"]
+    if filter_host and filter_host ~= "" then
+        local filtered = {}
+        for _, event in ipairs(events) do
+            if event.host == filter_host then
+                table.insert(filtered, event)
+            end
+        end
+        events = filtered
+    end
+
+    -- Filter by type if provided
+    local filter_type = args["filter[type]"] or args["type"]
+    if filter_type and filter_type ~= "" then
+        local filtered = {}
+        for _, event in ipairs(events) do
+            if event.type == filter_type then
+                table.insert(filtered, event)
+            end
+        end
+        events = filtered
+    end
+
+    -- Sort by timestamp descending (newest first)
+    table.sort(events, function(a, b)
+        return (a.timestamp or 0) > (b.timestamp or 0)
+    end)
+
+    -- Apply pagination from args
+    local params = args
+    local qParams = {}
+    params = params.params
+    if params == nil and type(params) == "nil" then
+        qParams = {
+            pagination = {
+                page = tonumber(args['pagination[page]']) or 1,
+                perPage = tonumber(args['pagination[perPage]']) or 50
+            }
+        }
+    else
+        qParams = cjson.decode(params)
+    end
+
+    local pageSize = tonumber(qParams.pagination.perPage) or 50
+    local pageNumber = tonumber(qParams.pagination.page) or 1
+    local totalRecords = #events
+    local startIdx = (pageNumber - 1) * pageSize + 1
+    local endIdx = math.min(startIdx + pageSize - 1, totalRecords)
+    local paginatedEvents = {}
+    for i = startIdx, endIdx do
+        if events[i] then
+            table.insert(paginatedEvents, events[i])
+        end
+    end
+
+    ngx.say(cjson.encode({
+        data = paginatedEvents,
+        total = totalRecords
+    }))
+end
+
+-- =====================================================
+-- WAF Seed Function
+-- =====================================================
+local function seedWafRules(args)
+    local ok, WafDefaults = pcall(require, "waf_default_rules")
+    if not ok then
+        Errors.throwError("Failed to load WAF default rules module: " .. tostring(WafDefaults),
+            ngx.HTTP_INTERNAL_SERVER_ERROR)
+        return
+    end
+
+    local payloads = Helper.GetPayloads(args)
+    local envProfile = "prod"
+    if payloads and payloads.profile_id then
+        envProfile = payloads.profile_id
+    end
+
+    local seed_data = WafDefaults.get_seed_data(envProfile)
+    local rulesDir = configPath .. "data/waf_rules/" .. envProfile
+    local policiesDir = configPath .. "data/waf_policies/" .. envProfile
+
+    -- Create directories if needed
+    if not Helper.isDirectoryExists(rulesDir) then
+        Helper.createDirectoryRecursive(rulesDir)
+    end
+    if not Helper.isDirectoryExists(policiesDir) then
+        Helper.createDirectoryRecursive(policiesDir)
+    end
+
+    -- Write seed rules
+    local rulesWritten = 0
+    for _, rule in ipairs(seed_data.rules) do
+        local filePath = rulesDir .. "/" .. rule.id .. ".json"
+        -- Only write if file doesn't exist (don't overwrite customizations)
+        if not Helper.isFileExists(filePath) then
+            Helper.setDataToFile(filePath, rule, rulesDir)
+            rulesWritten = rulesWritten + 1
+        end
+    end
+
+    -- Write default policy
+    local policiesWritten = 0
+    local policyPath = policiesDir .. "/" .. seed_data.policy.id .. ".json"
+    if not Helper.isFileExists(policyPath) then
+        Helper.setDataToFile(policyPath, seed_data.policy, policiesDir)
+        policiesWritten = 1
+    end
+
+    ngx.say(cjson.encode({
+        data = {
+            message = "WAF seed data deployed",
+            profile_id = envProfile,
+            rules_written = rulesWritten,
+            rules_skipped = #seed_data.rules - rulesWritten,
+            policies_written = policiesWritten
+        }
     }))
 end
 
@@ -2853,6 +3450,14 @@ local function handle_get_request(args, path)
         -- elseif uuid and (#uuid == 36 or #uuid == 32) and subPath[1] == "sessions" then
         --     listSession(args, uuid)
     end
+    if path == "bookmarks" then
+        local bm_ok, Bookmarks = pcall(require, "bookmarks")
+        if bm_ok then Bookmarks.list(args) end
+    elseif uuid and #uuid > 0 and subPath[1] == "bookmarks" then
+        local bm_ok, Bookmarks = pcall(require, "bookmarks")
+        if bm_ok then Bookmarks.get(args, uuid) end
+    end
+
     if path == "conf" then
         listServerConf(args)
     end
@@ -2987,6 +3592,91 @@ local function handle_get_request(args, path)
             ngx.say(cjson.encode({
                 data = {
                     error = stats_err or "Failed to get cache stats"
+                }
+            }))
+        end
+        ngx.exit(ngx.HTTP_OK)
+    end
+
+    -- ============================================================
+    -- Varnish GET endpoints
+    -- ============================================================
+
+    -- GET /api/varnish/config/{server_name} - Get Varnish config + snippets
+    if subPath[1] == "varnish" and subPath[2] == "config" and subPath[3] then
+        local server_name = subPath[3]
+        local varnish_config, varnish_err = VarnishManager.get_varnish_config(server_name)
+        if varnish_config then
+            ngx.say(cjson.encode({ data = varnish_config }))
+        else
+            local default_config = VarnishManager.get_default_config()
+            default_config.server_name = server_name
+            ngx.say(cjson.encode({ data = default_config }))
+        end
+        ngx.exit(ngx.HTTP_OK)
+    end
+
+    -- GET /api/varnish/configs - List all Varnish configurations
+    if path == "varnish/configs" then
+        local configs = VarnishManager.list_varnish_configs()
+        ngx.say(cjson.encode({ data = configs }))
+        ngx.exit(ngx.HTTP_OK)
+    end
+
+    -- GET /api/varnish/status/{server_name} - Get deploy status
+    if subPath[1] == "varnish" and subPath[2] == "status" and subPath[3] then
+        local server_name = subPath[3]
+        local status = VarnishManager.get_deploy_status(server_name)
+        ngx.say(cjson.encode({
+            data = {
+                server_name = server_name,
+                deploy_status = status,
+                varnish_enabled = VarnishManager.is_varnish_enabled(server_name)
+            }
+        }))
+        ngx.exit(ngx.HTTP_OK)
+    end
+
+    -- GET /api/varnish/snippets/{server_name} - List snippets
+    if subPath[1] == "varnish" and subPath[2] == "snippets" and subPath[3] then
+        local server_name = subPath[3]
+        local snippets = VarnishManager.get_snippets(server_name)
+        ngx.say(cjson.encode({ data = snippets }))
+        ngx.exit(ngx.HTTP_OK)
+    end
+
+    -- GET /api/varnish/vcl/{server_name} - Get last generated VCL
+    if subPath[1] == "varnish" and subPath[2] == "vcl" and subPath[3] and subPath[3] ~= "preview" then
+        local server_name = subPath[3]
+        local vcl_content = VarnishManager.get_generated_vcl(server_name)
+        ngx.say(cjson.encode({
+            data = {
+                server_name = server_name,
+                vcl = vcl_content or ""
+            }
+        }))
+        ngx.exit(ngx.HTTP_OK)
+    end
+
+    -- GET /api/varnish/vcl/preview/{server_name} - Generate VCL preview without deploying
+    if subPath[1] == "varnish" and subPath[2] == "vcl" and subPath[3] == "preview" and subPath[4] then
+        local server_name = subPath[4]
+        local VarnishVcl = require("varnish_vcl")
+        local config = VarnishManager.get_varnish_config(server_name) or VarnishManager.get_default_config()
+        local snippets = config.snippets or {}
+        local vcl, vcl_err = VarnishVcl.assemble(server_name, config, snippets)
+        if vcl then
+            ngx.say(cjson.encode({
+                data = {
+                    server_name = server_name,
+                    vcl = vcl,
+                    snippet_count = #snippets
+                }
+            }))
+        else
+            ngx.say(cjson.encode({
+                data = {
+                    error = vcl_err or "Failed to generate VCL"
                 }
             }))
         end
@@ -3333,6 +4023,48 @@ local function handle_get_request(args, path)
     elseif uuid and subPath[1] == "profiles" then
         listProfile(args, uuid)
     end
+
+    -- WAF endpoints
+    if path == "waf_rules" then
+        listWafRules(args)
+    elseif uuid and #uuid > 0 and subPath[1] == "waf_rules" then
+        listWafRule(args, uuid)
+    end
+    if path == "waf_policies" then
+        listWafPolicies(args)
+    elseif uuid and #uuid > 0 and subPath[1] == "waf_policies" then
+        listWafPolicy(args, uuid)
+    end
+    if path == "waf_events" then
+        listWafEvents(args)
+    end
+
+    -- Traffic management endpoints
+    if path == "traffic/topology" then
+        local ok, TrafficMgmt = pcall(require, "traffic_mgmt")
+        if ok then
+            local result = TrafficMgmt.get_topology(args)
+            ngx.say(cjson.encode(result))
+            ngx.exit(ngx.HTTP_OK)
+        end
+    end
+    if path == "traffic/backends" then
+        local ok, TrafficMgmt = pcall(require, "traffic_mgmt")
+        if ok then
+            local result = TrafficMgmt.get_backend_stats(args)
+            ngx.status = result.status or 200
+            ngx.say(cjson.encode(result))
+            ngx.exit(ngx.HTTP_OK)
+        end
+    end
+    if path == "traffic/health" then
+        local ok, TrafficMgmt = pcall(require, "traffic_mgmt")
+        if ok then
+            local result = TrafficMgmt.get_backend_health(args)
+            ngx.say(cjson.encode(result))
+            ngx.exit(ngx.HTTP_OK)
+        end
+    end
 end
 
 local function handle_post_request(args, path)
@@ -3377,6 +4109,50 @@ local function handle_post_request(args, path)
         end
         if path == "profiles" then
             createUpdateProfiles(args, nil)
+        end
+        if path == "bookmarks" then
+            local bm_ok, Bookmarks = pcall(require, "bookmarks")
+            if bm_ok then Bookmarks.create_or_update(args) end
+        end
+        if path == "waf_rules" then
+            createUpdateWafRules(args)
+        end
+        if path == "waf_policies" then
+            createUpdateWafPolicies(args)
+        end
+        if path == "waf_rules/seed" then
+            seedWafRules(args)
+        end
+        -- Traffic management POST endpoints
+        if path == "traffic/backends/weights" then
+            local ok, TrafficMgmt = pcall(require, "traffic_mgmt")
+            if ok then
+                local body = Helper.GetPayloads(args)
+                local result = TrafficMgmt.update_weights(body)
+                ngx.status = result.status or 200
+                ngx.say(cjson.encode(result))
+                ngx.exit(ngx.HTTP_OK)
+            end
+        end
+        if path == "traffic/backends/promote" then
+            local ok, TrafficMgmt = pcall(require, "traffic_mgmt")
+            if ok then
+                local body = Helper.GetPayloads(args)
+                local result = TrafficMgmt.promote_backend(body)
+                ngx.status = result.status or 200
+                ngx.say(cjson.encode(result))
+                ngx.exit(ngx.HTTP_OK)
+            end
+        end
+        if path == "traffic/backends/rollback" then
+            local ok, TrafficMgmt = pcall(require, "traffic_mgmt")
+            if ok then
+                local body = Helper.GetPayloads(args)
+                local result = TrafficMgmt.rollback_to_primary(body)
+                ngx.status = result.status or 200
+                ngx.say(cjson.encode(result))
+                ngx.exit(ngx.HTTP_OK)
+            end
         end
         if path == "password/reset" then
             resetPassword(args)
@@ -3463,6 +4239,215 @@ local function handle_post_request(args, path)
             end
             ngx.exit(ngx.HTTP_OK)
         end
+        -- ============================================================
+        -- Varnish POST endpoints
+        -- ============================================================
+
+        -- POST /api/varnish/config/{server_name} - Save Varnish config
+        if string.find(path, "^varnish/config/") then
+            local server_name = path:match("^varnish/config/(.+)$")
+            if not server_name or server_name == "" then
+                Errors.throwError("Server name is required", ngx.HTTP_BAD_REQUEST)
+            end
+            local payloads = Helper.GetPayloads(args)
+            local success, err = VarnishManager.save_varnish_config(server_name, payloads)
+            if success then
+                ngx.say(cjson.encode({
+                    message = "Varnish configuration updated for " .. server_name,
+                    server_name = server_name
+                }))
+            else
+                Errors.throwError("Failed to update Varnish config: " .. (err or "unknown error"),
+                    ngx.HTTP_INTERNAL_SERVER_ERROR)
+            end
+            ngx.exit(ngx.HTTP_OK)
+        end
+
+        -- POST /api/varnish/snippets/{server_name} - Create snippet
+        if string.find(path, "^varnish/snippets/") then
+            local server_name = path:match("^varnish/snippets/(.+)$")
+            if not server_name or server_name == "" then
+                Errors.throwError("Server name is required", ngx.HTTP_BAD_REQUEST)
+            end
+            local payloads = Helper.GetPayloads(args)
+            local success, err = VarnishManager.save_snippet(server_name, payloads)
+            if success then
+                local snippets = VarnishManager.get_snippets(server_name)
+                ngx.say(cjson.encode({
+                    message = "Snippet created for " .. server_name,
+                    server_name = server_name,
+                    snippets = snippets
+                }))
+            else
+                Errors.throwError("Failed to create snippet: " .. (err or "unknown error"),
+                    ngx.HTTP_BAD_REQUEST)
+            end
+            ngx.exit(ngx.HTTP_OK)
+        end
+
+        -- POST /api/varnish/deploy/{server_name} - Deploy VCL
+        if string.find(path, "^varnish/deploy/") then
+            local server_name = path:match("^varnish/deploy/(.+)$")
+            if not server_name or server_name == "" then
+                Errors.throwError("Server name is required", ngx.HTTP_BAD_REQUEST)
+            end
+            local payloads = Helper.GetPayloads(args) or {}
+            local dry_run = payloads.dry_run ~= false  -- default to dry_run=true
+
+            local VarnishVcl = require("varnish_vcl")
+            local config = VarnishManager.get_varnish_config(server_name)
+            if not config then
+                Errors.throwError("No Varnish config found for " .. server_name, ngx.HTTP_NOT_FOUND)
+                ngx.exit(ngx.HTTP_NOT_FOUND)
+            end
+
+            local snippets = config.snippets or {}
+
+            -- Step 1: Generate VCL
+            local vcl, vcl_err = VarnishVcl.assemble(server_name, config, snippets)
+            if not vcl then
+                Errors.throwError("Failed to generate VCL: " .. (vcl_err or "unknown"), ngx.HTTP_INTERNAL_SERVER_ERROR)
+                ngx.exit(ngx.HTTP_INTERNAL_SERVER_ERROR)
+            end
+
+            -- Step 2: Validate VCL
+            local valid, validate_output = VarnishVcl.validate_vcl(vcl)
+
+            if dry_run then
+                ngx.say(cjson.encode({
+                    data = {
+                        server_name = server_name,
+                        dry_run = true,
+                        valid = valid,
+                        validation_output = validate_output,
+                        vcl_preview = vcl,
+                        snippet_count = #snippets
+                    }
+                }))
+                ngx.exit(ngx.HTTP_OK)
+            end
+
+            if not valid then
+                VarnishManager.set_deploy_status(server_name, {
+                    state = "failed",
+                    last_deployed_at = os.time(),
+                    last_error = validate_output
+                })
+                Errors.throwError("VCL validation failed: " .. validate_output, ngx.HTTP_BAD_REQUEST)
+                ngx.exit(ngx.HTTP_BAD_REQUEST)
+            end
+
+            -- Step 3: Save VCL to disk
+            local save_ok, vcl_path = VarnishManager.save_generated_vcl(server_name, vcl)
+            if not save_ok then
+                Errors.throwError("Failed to save VCL: " .. tostring(vcl_path), ngx.HTTP_INTERNAL_SERVER_ERROR)
+                ngx.exit(ngx.HTTP_INTERNAL_SERVER_ERROR)
+            end
+
+            -- Step 4: Deploy VCL to Varnish
+            local admin_addr = (config.admin_listen_address or "127.0.0.1") .. ":" .. (config.admin_listen_port or 6082)
+            local label = VarnishVcl.generate_vcl_label(server_name)
+            local deploy_ok, deploy_output, deployed_label = VarnishVcl.deploy_vcl(vcl_path, admin_addr, label)
+
+            if deploy_ok then
+                VarnishManager.set_deploy_status(server_name, {
+                    state = "deployed",
+                    last_deployed_at = os.time(),
+                    last_vcl_label = deployed_label,
+                    last_error = nil
+                })
+                ngx.say(cjson.encode({
+                    data = {
+                        server_name = server_name,
+                        deployed = true,
+                        vcl_label = deployed_label,
+                        message = deploy_output
+                    }
+                }))
+            else
+                VarnishManager.set_deploy_status(server_name, {
+                    state = "failed",
+                    last_deployed_at = os.time(),
+                    last_vcl_label = deployed_label,
+                    last_error = deploy_output
+                })
+                ngx.say(cjson.encode({
+                    data = {
+                        server_name = server_name,
+                        deployed = false,
+                        error = deploy_output
+                    }
+                }))
+            end
+            ngx.exit(ngx.HTTP_OK)
+        end
+
+        -- POST /api/varnish/enable/{server_name} - Enable Varnish
+        if string.find(path, "^varnish/enable/") then
+            local server_name = path:match("^varnish/enable/(.+)$")
+            if not server_name or server_name == "" then
+                Errors.throwError("Server name is required", ngx.HTTP_BAD_REQUEST)
+            end
+            local payloads = Helper.GetPayloads(args) or {}
+            local success, err = VarnishManager.enable_varnish(server_name, payloads)
+            if success then
+                ngx.say(cjson.encode({
+                    message = "Varnish enabled for " .. server_name,
+                    server_name = server_name,
+                    varnish_enabled = true
+                }))
+            else
+                Errors.throwError("Failed to enable Varnish: " .. (err or "unknown error"),
+                    ngx.HTTP_INTERNAL_SERVER_ERROR)
+            end
+            ngx.exit(ngx.HTTP_OK)
+        end
+
+        -- POST /api/varnish/disable/{server_name} - Disable Varnish
+        if string.find(path, "^varnish/disable/") then
+            local server_name = path:match("^varnish/disable/(.+)$")
+            if not server_name or server_name == "" then
+                Errors.throwError("Server name is required", ngx.HTTP_BAD_REQUEST)
+            end
+            local success, err = VarnishManager.disable_varnish(server_name)
+            if success then
+                ngx.say(cjson.encode({
+                    message = "Varnish disabled for " .. server_name,
+                    server_name = server_name,
+                    varnish_enabled = false
+                }))
+            else
+                Errors.throwError("Failed to disable Varnish: " .. (err or "unknown error"),
+                    ngx.HTTP_INTERNAL_SERVER_ERROR)
+            end
+            ngx.exit(ngx.HTTP_OK)
+        end
+
+        -- POST /api/varnish/purge/{server_name} - Purge Varnish cache
+        if string.find(path, "^varnish/purge/") then
+            local server_name = path:match("^varnish/purge/(.+)$")
+            if not server_name or server_name == "" then
+                Errors.throwError("Server name is required", ngx.HTTP_BAD_REQUEST)
+            end
+            local payloads = Helper.GetPayloads(args) or {}
+            local config = VarnishManager.get_varnish_config(server_name)
+            if not config then
+                Errors.throwError("No Varnish config found for " .. server_name, ngx.HTTP_NOT_FOUND)
+                ngx.exit(ngx.HTTP_NOT_FOUND)
+            end
+            local admin_addr = (config.admin_listen_address or "127.0.0.1") .. ":" .. (config.admin_listen_port or 6082)
+            local VarnishVcl = require("varnish_vcl")
+            local success, output = VarnishVcl.purge_cache(admin_addr, payloads.url_pattern)
+            ngx.say(cjson.encode({
+                data = {
+                    server_name = server_name,
+                    purged = success,
+                    output = output
+                }
+            }))
+            ngx.exit(ngx.HTTP_OK)
+        end
+
         -- POST /api/cache/clear-all - Clear all cache
         if path == "cache/clear-all" then
             local CacheHandler = require("cache_handler")
@@ -3500,7 +4485,11 @@ local function handle_put_request(args, path)
             createUpdateUser(args, uuid)
         end
 
-        if string.find(path, "rules") then
+        if string.find(path, "waf_rules") then
+            createUpdateWafRules(args, uuid)
+        elseif string.find(path, "waf_policies") then
+            createUpdateWafPolicies(args, uuid)
+        elseif string.find(path, "rules") then
             createUpdateRules(args, uuid)
         end
 
@@ -3522,6 +4511,46 @@ local function handle_put_request(args, path)
         if string.find(path, "profiles") then
             createUpdateProfiles(args, uuid)
         end
+
+        -- PUT /api/varnish/config/{server_name} - Update Varnish config
+        if string.find(path, "^varnish/config/") then
+            local server_name = path:match("^varnish/config/(.+)$")
+            if server_name and server_name ~= "" then
+                local payloads = Helper.GetPayloads(args)
+                local success, err = VarnishManager.save_varnish_config(server_name, payloads)
+                if success then
+                    ngx.say(cjson.encode({
+                        message = "Varnish configuration updated for " .. server_name,
+                        server_name = server_name
+                    }))
+                else
+                    Errors.throwError("Failed to update Varnish config: " .. (err or "unknown error"),
+                        ngx.HTTP_INTERNAL_SERVER_ERROR)
+                end
+                ngx.exit(ngx.HTTP_OK)
+            end
+        end
+
+        -- PUT /api/varnish/snippets/{server_name}/{snippet_id} - Update snippet
+        if string.find(path, "^varnish/snippets/") then
+            local server_name, snippet_id = path:match("^varnish/snippets/([^/]+)/(.+)$")
+            if server_name and snippet_id then
+                local payloads = Helper.GetPayloads(args)
+                payloads.id = snippet_id
+                local success, err = VarnishManager.save_snippet(server_name, payloads)
+                if success then
+                    ngx.say(cjson.encode({
+                        message = "Snippet updated",
+                        server_name = server_name,
+                        snippet_id = snippet_id
+                    }))
+                else
+                    Errors.throwError("Failed to update snippet: " .. (err or "unknown error"),
+                        ngx.HTTP_BAD_REQUEST)
+                end
+                ngx.exit(ngx.HTTP_OK)
+            end
+        end
     else
         Errors.throwError(
             "You can't create record either you can create it from UI or you need to change settings for instance lock.",
@@ -3535,7 +4564,48 @@ local function handle_delete_request(args, path)
     local pattern = ".*/(.*)"
     local uuid = string.match(path, pattern)
     if settings.instance_locked == "false" or platform == "react-admin" then
-        if string.find(path, "rules") then
+        -- DELETE /api/varnish/snippets/{server_name}/{snippet_id}
+        if string.find(path, "^varnish/snippets/") then
+            local server_name, snippet_id = path:match("^varnish/snippets/([^/]+)/(.+)$")
+            if server_name and snippet_id then
+                local success, err = VarnishManager.delete_snippet(server_name, snippet_id)
+                if success then
+                    ngx.say(cjson.encode({
+                        message = "Snippet deleted",
+                        server_name = server_name,
+                        snippet_id = snippet_id
+                    }))
+                else
+                    Errors.throwError("Failed to delete snippet: " .. (err or "unknown error"),
+                        ngx.HTTP_BAD_REQUEST)
+                end
+                ngx.exit(ngx.HTTP_OK)
+            end
+        end
+
+        -- DELETE /api/varnish/config/{server_name}
+        if string.find(path, "^varnish/config/") then
+            local server_name = path:match("^varnish/config/(.+)$")
+            if server_name and server_name ~= "" then
+                local success, err = VarnishManager.delete_varnish_config(server_name)
+                if success then
+                    ngx.say(cjson.encode({
+                        message = "Varnish config deleted for " .. server_name,
+                        server_name = server_name
+                    }))
+                else
+                    Errors.throwError("Failed to delete Varnish config: " .. (err or "unknown error"),
+                        ngx.HTTP_INTERNAL_SERVER_ERROR)
+                end
+                ngx.exit(ngx.HTTP_OK)
+            end
+        end
+
+        if string.find(path, "waf_rules") then
+            createDeleteWafRules(args, uuid)
+        elseif string.find(path, "waf_policies") then
+            createDeleteWafPolicies(args, uuid)
+        elseif string.find(path, "rules") then
             createDeleteRules(args, uuid)
         end
         if string.find(path, "secrets") then
@@ -3603,6 +4673,10 @@ local function handle_delete_request(args, path)
         end
         if string.find(path, "profiles") then
             deleteProfile(args)
+        end
+        if string.find(path, "bookmarks") and uuid then
+            local bm_ok, Bookmarks = pcall(require, "bookmarks")
+            if bm_ok then Bookmarks.delete(args, uuid) end
         end
     elseif settings.instance_locked == "false" or preAction == "pre-release-delete-all-override" then
         if path == "delete/all" then

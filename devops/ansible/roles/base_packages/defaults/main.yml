@@ -1,0 +1,123 @@
+---
+# Unified OS-family package mapping
+# Keys match Ansible's ansible_os_family fact: "Debian", "Suse", "RedHat"
+
+_os_packages:
+  Debian:
+    common:
+      - python3-pip
+      - virtualenv
+      - python3-setuptools
+      - zlib1g
+      - zlib1g-dev
+      - libssl-dev
+      - rsync
+      - cron
+      - git
+      - curl
+      - wget
+      - unzip
+      - zip
+      - jq
+      - net-tools
+      - iputils-ping
+      - dnsutils
+      - htop
+      - tree
+      - dmsetup
+      - nfs-common
+      - open-iscsi
+      - ansible
+      - default-jre
+      - vim
+      - make
+      - gcc
+      - g++
+      - python3
+      - npm
+      - openssh-server
+      - ca-certificates
+      - luarocks
+    distro_specific:
+      Ubuntu:
+        - software-properties-common
+        - libpcre3
+        - libpcre3-dev
+        - openjdk-21-jdk
+        - netcat-traditional
+      Debian:
+        - python3-apt
+        - libpcre2-dev
+        - openjdk-21-jdk
+        - netcat-openbsd
+
+  Suse:
+    common:
+      - python3-pip
+      - python3-setuptools
+      - libz1
+      - zlib-devel
+      - libopenssl-devel
+      - rsync
+      - cron
+      - git
+      - curl
+      - wget
+      - unzip
+      - zip
+      - jq
+      - net-tools
+      - iputils
+      - bind-utils
+      - htop
+      - tree
+      - device-mapper
+      - nfs-client
+      - open-iscsi
+      - ansible
+      - vim
+      - make
+      - gcc
+      - gcc-c++
+      - python3
+      - npm20
+      - openssh
+      - ca-certificates
+      - pcre-devel
+    distro_specific: {}
+
+  RedHat:
+    common:
+      - epel-release
+      - python3-pip
+      - python3-setuptools
+      - zlib
+      - zlib-devel
+      - openssl-devel
+      - rsync
+      - cronie
+      - git
+      - curl
+      - wget
+      - unzip
+      - zip
+      - jq
+      - net-tools
+      - iputils
+      - bind-utils
+      - htop
+      - tree
+      - device-mapper
+      - nfs-utils
+      - iscsi-initiator-utils
+      - vim
+      - make
+      - gcc
+      - gcc-c++
+      - python3
+      - npm
+      - openssh-server
+      - ca-certificates
+      - pcre-devel
+      - luarocks
+    distro_specific: {}

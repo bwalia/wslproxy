@@ -85,12 +85,20 @@ _M.server = {
         created_at = { type = "number", required = false, description = "Creation timestamp (epoch)" },
         updated_at = { type = "number", required = false, description = "Last update timestamp (epoch)" },
         custom_headers = { type = "object", required = false, description = "Custom HTTP response headers" },
-        cache_enabled = { type = "boolean", required = false, description = "Whether caching is enabled" }
+        cache_enabled = { type = "boolean", required = false, description = "Whether caching is enabled" },
+        waf_enabled = { type = "boolean", required = false, description = "Whether WAF inspection is enabled" },
+        waf_policy_id = { type = "string", required = false, description = "Bound WAF policy identifier" },
+        waf_mode_override = { type = "string", required = false, description = "Per-server WAF mode override (block/monitor)", enum = {"block", "monitor"} },
+        rate_limit_enabled = { type = "boolean", required = false, description = "Whether rate limiting is enabled" },
+        rate_limit = { type = "object", required = false, description = "Rate limit settings (requests_per_second, burst)" },
+        varnish_enabled = { type = "boolean", required = false, description = "Whether Varnish reverse proxy/cache is enabled" }
     },
     relationships = {
         rules = { type = "wslproxy.rule", cardinality = "many", description = "Security rules applied to this server" },
         ssl = { type = "wslproxy.ssl", cardinality = "one", description = "SSL configuration for this server" },
-        cache = { type = "wslproxy.cache", cardinality = "one", description = "Cache configuration" }
+        cache = { type = "wslproxy.cache", cardinality = "one", description = "Cache configuration" },
+        waf_policy = { type = "wslproxy.waf_policy", cardinality = "one", description = "Bound WAF policy" },
+        varnish = { type = "wslproxy.varnish", cardinality = "one", description = "Varnish proxy/cache configuration" }
     }
 }
 
@@ -316,6 +324,121 @@ _M.settings = {
         ssl_ocsp_stapling = { type = "boolean", required = false, description = "OCSP stapling enabled" },
         dns_resolver = { type = "string", required = false, description = "DNS resolver address" },
         mcp = { type = "object", required = false, description = "MCP configuration (secrets redacted)" }
+    }
+}
+
+-- wslproxy.waf_rule resource schema
+_M.waf_rule = {
+    type = "wslproxy.waf_rule",
+    version = "1.0.0",
+    description = "WAF detection rule with regex/string pattern matching",
+    properties = {
+        id = { type = "string", required = true, description = "Unique WAF rule identifier" },
+        name = { type = "string", required = true, description = "Rule display name" },
+        description = { type = "string", required = false, description = "Rule description" },
+        category = { type = "string", required = true, description = "Attack category (sqli, xss, cmdi, lfi, rfi, protocol, custom)" },
+        severity = { type = "string", required = false, description = "Severity level (critical, high, medium, low, info)" },
+        enabled = { type = "boolean", required = false, description = "Whether this rule is active" },
+        target = { type = "string", required = true, description = "Request component to inspect (url, headers, body, args, cookies, user_agent, all)" },
+        pattern = { type = "string", required = true, description = "Detection pattern (regex or string)" },
+        pattern_type = { type = "string", required = false, description = "Pattern matching type (regex or string)" },
+        action = { type = "string", required = true, description = "Action when pattern matches (block, monitor, allow)" },
+        score = { type = "number", required = false, description = "Anomaly score contribution" },
+        tags = { type = "array", required = false, description = "Classification tags" },
+        profile_id = { type = "string", required = false, description = "Environment profile" },
+        created_at = { type = "number", required = false, description = "Creation timestamp" },
+        updated_at = { type = "number", required = false, description = "Last update timestamp" }
+    }
+}
+
+-- wslproxy.waf_policy resource schema
+_M.waf_policy = {
+    type = "wslproxy.waf_policy",
+    version = "1.0.0",
+    description = "WAF policy grouping rules with mode and threshold settings",
+    properties = {
+        id = { type = "string", required = true, description = "Unique WAF policy identifier" },
+        name = { type = "string", required = true, description = "Policy display name" },
+        description = { type = "string", required = false, description = "Policy description" },
+        mode = { type = "string", required = true, description = "Enforcement mode (block or monitor)" },
+        enabled = { type = "boolean", required = false, description = "Whether this policy is active" },
+        waf_rules = { type = "array", required = false, description = "List of WAF rule IDs" },
+        anomaly_threshold = { type = "number", required = false, description = "Score threshold for blocking" },
+        paranoia_level = { type = "number", required = false, description = "Detection sensitivity (1-4)" },
+        body_inspection = { type = "boolean", required = false, description = "Whether to inspect request bodies" },
+        max_body_size = { type = "number", required = false, description = "Max body size to inspect (bytes)" },
+        whitelist = { type = "object", required = false, description = "Whitelisted IPs, paths, user-agents" },
+        profile_id = { type = "string", required = false, description = "Environment profile" },
+        created_at = { type = "number", required = false, description = "Creation timestamp" },
+        updated_at = { type = "number", required = false, description = "Last update timestamp" }
+    }
+}
+
+-- wslproxy.gateway_config resource schema (composite view of server gateway settings)
+_M.gateway_config = {
+    type = "wslproxy.gateway_config",
+    version = "1.0.0",
+    description = "Virtual Server gateway configuration: WAF binding, rate limiting, security posture",
+    properties = {
+        id = { type = "string", required = true, description = "Server identifier" },
+        server_name = { type = "string", required = true, description = "Server hostname" },
+        profile_id = { type = "string", required = true, description = "Environment profile" },
+        waf_enabled = { type = "boolean", required = true, description = "Whether WAF inspection is active" },
+        waf_policy_id = { type = "string", required = false, description = "Bound WAF policy identifier" },
+        waf_mode_override = { type = "string", required = false, description = "Per-server WAF mode override", enum = {"block", "monitor"} },
+        rate_limit_enabled = { type = "boolean", required = true, description = "Whether rate limiting is active" },
+        rate_limit = { type = "object", required = false, description = "Rate limit settings (requests_per_second, burst)" },
+        ssl_enabled = { type = "boolean", required = false, description = "Whether SSL/TLS is enabled" },
+        cache_enabled = { type = "boolean", required = false, description = "Whether caching is enabled" }
+    },
+    relationships = {
+        waf_policy = { type = "wslproxy.waf_policy", cardinality = "one", description = "Bound WAF policy" },
+        profile = { type = "wslproxy.profile", cardinality = "one", description = "Environment profile" }
+    }
+}
+
+-- wslproxy.waf_event resource schema
+_M.waf_event = {
+    type = "wslproxy.waf_event",
+    version = "1.0.0",
+    description = "WAF inspection event (blocked or monitored request)",
+    properties = {
+        id = { type = "string", required = true, description = "Event identifier" },
+        timestamp = { type = "number", required = true, description = "Event timestamp (epoch)" },
+        type = { type = "string", required = true, description = "Event type (blocked, monitored, error)" },
+        host = { type = "string", required = false, description = "Request host" },
+        rule_id = { type = "string", required = false, description = "Matching WAF rule ID" },
+        rule_name = { type = "string", required = false, description = "Matching WAF rule name" },
+        category = { type = "string", required = false, description = "Attack category" },
+        severity = { type = "string", required = false, description = "Rule severity" },
+        client_ip = { type = "string", required = false, description = "Client IP address" },
+        uri = { type = "string", required = false, description = "Request URI" },
+        method = { type = "string", required = false, description = "HTTP method" },
+        score = { type = "number", required = false, description = "Anomaly score" },
+        matched_data = { type = "string", required = false, description = "Matched pattern snippet" }
+    }
+}
+
+-- wslproxy.varnish resource schema
+_M.varnish = {
+    type = "wslproxy.varnish",
+    version = "1.0.0",
+    description = "Varnish reverse proxy/cache configuration per server",
+    properties = {
+        server_name = { type = "string", required = true, description = "Server domain name" },
+        varnish_enabled = { type = "boolean", required = false, description = "Whether Varnish is active" },
+        listen_port = { type = "number", required = false, description = "Varnish listen port" },
+        listen_address = { type = "string", required = false, description = "Varnish listen address" },
+        cache_ttl_default = { type = "number", required = false, description = "Default cache TTL in seconds" },
+        cache_grace = { type = "number", required = false, description = "Grace period in seconds" },
+        cache_size = { type = "string", required = false, description = "Cache storage size" },
+        health_check_enabled = { type = "boolean", required = false, description = "Backend health check enabled" },
+        snippet_count = { type = "number", required = false, description = "Number of VCL snippets" },
+        deploy_status = { type = "object", required = false, description = "Last deployment status" },
+        updated_at = { type = "number", required = false, description = "Last update timestamp" }
+    },
+    relationships = {
+        server = { type = "wslproxy.server", cardinality = "one", description = "Server this Varnish config belongs to" }
     }
 }
 

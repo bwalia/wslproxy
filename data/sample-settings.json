@@ -54,5 +54,18 @@
     "api_key_header": "X-MCP-API-Key",
     "rate_limit": 100,
     "redact_secrets": true
+  },
+  "captcha": {
+    "provider": "turnstile",
+    "site_key": "",
+    "secret_key": "",
+    "theme": "dark",
+    "cookie_ttl": 3600
+  },
+  "waf": {
+    "enabled": true,
+    "default_policy": "waf-policy-default",
+    "body_inspection": true,
+    "max_body_size": 1048576
   }
 }

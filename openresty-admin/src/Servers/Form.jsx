@@ -32,6 +32,8 @@ import LocationInput from "./input/LocationInput";
 import CreateServerText from "./input/CreateServerText";
 import Toolbar from "./toolbar/Toolbar";
 import CreateTags from "../component/CreateTags";
+import VarnishSnippetEditor from "./VarnishSnippetEditor";
+import VarnishDeployPanel from "./VarnishDeployPanel";
 import get from "lodash/get";
 import "../styles/forms.css";
 
@@ -425,12 +427,127 @@ const Form = ({ type }) => {
             </Grid>
           </SectionCard>
 
-          {/* Custom Headers */}
+          {/* Web Application Firewall */}
           <SectionCard
-            title="Custom Headers"
-            subtitle="Add custom HTTP headers to responses"
+            title="Web Application Firewall"
+            subtitle="Attach a WAF policy to protect this virtual server"
+          >
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6} md={3}>
+                <BooleanInput
+                  source="waf_enabled"
+                  label="Enable WAF"
+                  defaultValue={false}
+                  helperText="Enable WAF inspection for this server"
+                />
+              </Grid>
+              <FormDataConsumer>
+                {({ formData }) =>
+                  formData?.waf_enabled && (
+                    <>
+                      <Grid item xs={12} sm={6} md={4}>
+                        <ReferenceInput source="waf_policy_id" reference="waf_policies">
+                          <AutocompleteInput
+                            optionText="name"
+                            fullWidth
+                            label="WAF Policy"
+                            validate={[required()]}
+                            helperText="Select a WAF policy to apply"
+                          />
+                        </ReferenceInput>
+                      </Grid>
+                      <Grid item xs={12} sm={6} md={3}>
+                        <SelectInput
+                          source="waf_mode_override"
+                          label="Mode Override"
+                          fullWidth
+                          choices={[
+                            { id: '', name: 'Use Policy Default' },
+                            { id: 'block', name: 'Block' },
+                            { id: 'monitor', name: 'Monitor' },
+                          ]}
+                          helperText="Override the policy's enforcement mode for this server"
+                        />
+                      </Grid>
+                    </>
+                  )
+                }
+              </FormDataConsumer>
+            </Grid>
+          </SectionCard>
+
+          {/* Rate Limiting */}
+          <SectionCard
+            title="Rate Limiting"
+            subtitle="Per-server request rate limiting"
+          >
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6} md={3}>
+                <BooleanInput
+                  source="rate_limit_enabled"
+                  label="Enable Rate Limiting"
+                  defaultValue={false}
+                  helperText="Limit requests per IP address"
+                />
+              </Grid>
+              <FormDataConsumer>
+                {({ formData }) =>
+                  formData?.rate_limit_enabled && (
+                    <>
+                      <Grid item xs={12} sm={6} md={3}>
+                        <TextInput
+                          source="rate_limit.requests_per_second"
+                          label="Requests/Second"
+                          fullWidth
+                          defaultValue={100}
+                          helperText="Max requests per second per IP"
+                        />
+                      </Grid>
+                      <Grid item xs={12} sm={6} md={3}>
+                        <TextInput
+                          source="rate_limit.burst"
+                          label="Burst"
+                          fullWidth
+                          defaultValue={50}
+                          helperText="Extra burst capacity above the limit"
+                        />
+                      </Grid>
+                    </>
+                  )
+                }
+              </FormDataConsumer>
+            </Grid>
+          </SectionCard>
+
+          {/* Upstream Backend Request Headers */}
+          <SectionCard
+            title="Upstream Backend Request Headers"
+            subtitle="Headers appended to requests sent to upstream backend servers"
           >
             <ArrayInput source="custom_headers" label="">
+              <SimpleFormIterator
+                inline
+                disableReordering
+                className="server-custom-headers"
+              >
+                <TextInput
+                  source="header_key"
+                  label="Header Name"
+                />
+                <TextInput
+                  source="header_value"
+                  label="Header Value"
+                />
+              </SimpleFormIterator>
+            </ArrayInput>
+          </SectionCard>
+
+          {/* Client Response Headers */}
+          <SectionCard
+            title="Client Response Headers"
+            subtitle="Headers returned to the browser (e.g. CORS, Content-Security-Policy, security headers)"
+          >
+            <ArrayInput source="custom_response_headers" label="">
               <SimpleFormIterator
                 inline
                 disableReordering
@@ -526,34 +643,208 @@ const Form = ({ type }) => {
 
       <TabbedForm.Tab label="Varnish Server">
         <div className="form-container">
-          {totalResults >= 1 ? (
-            <SectionCard
-              title="Varnish Server Configuration"
-              subtitle="Generated Varnish VCL configuration"
-            >
-              <TextInput
-                multiline
-                fullWidth
-                source="varnish_vcl_config"
-                label=""
-                className="code_area"
-                minRows={15}
-              />
-            </SectionCard>
-          ) : (
-            <Card variant="outlined" className="empty-state">
-              <CardContent>
-                <Typography
-                  variant="body1"
-                  color="text.secondary"
-                  className="empty-state__message"
-                >
-                  There are no rules available yet. Please create rules first.
-                </Typography>
-                <Menu.Item to="/rules" primaryText="Create Rules" />
-              </CardContent>
-            </Card>
-          )}
+          {/* Enable Toggle */}
+          <SectionCard
+            title="Varnish Reverse Proxy / Cache"
+            subtitle="Enable and configure Varnish HTTP accelerator for this server"
+          >
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6} md={4}>
+                <BooleanInput
+                  source="varnish_enabled"
+                  label="Enable Varnish"
+                  defaultValue={false}
+                  helperText="Route traffic through Varnish before reaching origin"
+                />
+              </Grid>
+            </Grid>
+          </SectionCard>
+
+          <FormDataConsumer>
+            {({ formData }) =>
+              formData?.varnish_enabled && (
+                <>
+                  {/* Listener Settings */}
+                  <SectionCard
+                    title="Varnish Listener"
+                    subtitle="Local Varnish listen address and port"
+                  >
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} sm={6} md={4}>
+                        <TextInput
+                          source="varnish_config.listen_address"
+                          label="Listen Address"
+                          defaultValue="127.0.0.1"
+                          fullWidth
+                        />
+                      </Grid>
+                      <Grid item xs={12} sm={6} md={4}>
+                        <TextInput
+                          source="varnish_config.listen_port"
+                          label="Listen Port"
+                          defaultValue="6081"
+                          fullWidth
+                        />
+                      </Grid>
+                      <Grid item xs={12} sm={6} md={4}>
+                        <TextInput
+                          source="varnish_config.admin_listen_port"
+                          label="Admin Port"
+                          defaultValue="6082"
+                          fullWidth
+                        />
+                      </Grid>
+                    </Grid>
+                  </SectionCard>
+
+                  {/* Cache Settings */}
+                  <SectionCard
+                    title="Cache Settings"
+                    subtitle="TTL, grace, and storage configuration"
+                  >
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} sm={6} md={3}>
+                        <TextInput
+                          source="varnish_config.cache_ttl_default"
+                          label="Default TTL (seconds)"
+                          defaultValue="120"
+                          fullWidth
+                        />
+                      </Grid>
+                      <Grid item xs={12} sm={6} md={3}>
+                        <TextInput
+                          source="varnish_config.cache_grace"
+                          label="Grace Period (seconds)"
+                          defaultValue="3600"
+                          fullWidth
+                        />
+                      </Grid>
+                      <Grid item xs={12} sm={6} md={3}>
+                        <TextInput
+                          source="varnish_config.cache_keep"
+                          label="Keep Period (seconds)"
+                          defaultValue="7200"
+                          fullWidth
+                        />
+                      </Grid>
+                      <Grid item xs={12} sm={6} md={3}>
+                        <TextInput
+                          source="varnish_config.cache_size"
+                          label="Cache Size"
+                          defaultValue="256m"
+                          fullWidth
+                        />
+                      </Grid>
+                    </Grid>
+                  </SectionCard>
+
+                  {/* Backend Timeouts */}
+                  <SectionCard
+                    title="Backend Timeouts"
+                    subtitle="Connection timeouts to origin server"
+                  >
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} sm={6} md={4}>
+                        <TextInput
+                          source="varnish_config.backend_connect_timeout"
+                          label="Connect Timeout"
+                          defaultValue="5s"
+                          fullWidth
+                        />
+                      </Grid>
+                      <Grid item xs={12} sm={6} md={4}>
+                        <TextInput
+                          source="varnish_config.backend_first_byte_timeout"
+                          label="First Byte Timeout"
+                          defaultValue="30s"
+                          fullWidth
+                        />
+                      </Grid>
+                      <Grid item xs={12} sm={6} md={4}>
+                        <TextInput
+                          source="varnish_config.backend_between_bytes_timeout"
+                          label="Between Bytes Timeout"
+                          defaultValue="5s"
+                          fullWidth
+                        />
+                      </Grid>
+                    </Grid>
+                  </SectionCard>
+
+                  {/* Health Check */}
+                  <SectionCard
+                    title="Backend Health Check"
+                    subtitle="Varnish probe configuration for backend health"
+                  >
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} sm={6} md={3}>
+                        <BooleanInput
+                          source="varnish_config.health_check_enabled"
+                          label="Enable Health Check"
+                          defaultValue={true}
+                        />
+                      </Grid>
+                      <Grid item xs={12} sm={6} md={3}>
+                        <TextInput
+                          source="varnish_config.health_check_url"
+                          label="Health Check URL"
+                          defaultValue="/health"
+                          fullWidth
+                        />
+                      </Grid>
+                      <Grid item xs={12} sm={6} md={3}>
+                        <TextInput
+                          source="varnish_config.health_check_interval"
+                          label="Interval"
+                          defaultValue="5s"
+                          fullWidth
+                        />
+                      </Grid>
+                      <Grid item xs={12} sm={6} md={3}>
+                        <TextInput
+                          source="varnish_config.health_check_timeout"
+                          label="Timeout"
+                          defaultValue="2s"
+                          fullWidth
+                        />
+                      </Grid>
+                    </Grid>
+                  </SectionCard>
+
+                  {/* VCL Snippets */}
+                  <SectionCard
+                    title="VCL Snippets"
+                    subtitle="Custom VCL code injected at defined hook points in the Varnish request lifecycle"
+                  >
+                    <VarnishSnippetEditor />
+                  </SectionCard>
+
+                  {/* Deploy Panel */}
+                  <SectionCard
+                    title="Deployment"
+                    subtitle="Deploy Varnish configuration and monitor status"
+                  >
+                    <VarnishDeployPanel />
+                  </SectionCard>
+
+                  {/* Legacy VCL Override */}
+                  <SectionCard
+                    title="Custom VCL Override"
+                    subtitle="Raw VCL text (overrides generated configuration if provided)"
+                  >
+                    <TextInput
+                      multiline
+                      fullWidth
+                      source="varnish_vcl_config"
+                      label=""
+                      className="code_area"
+                      minRows={10}
+                    />
+                  </SectionCard>
+                </>
+              )
+            }
+          </FormDataConsumer>
         </div>
       </TabbedForm.Tab>
 
@@ -636,6 +927,45 @@ const Form = ({ type }) => {
               </CardContent>
             </Card>
           )}
+        </div>
+      </TabbedForm.Tab>
+
+      <TabbedForm.Tab label="WAF Protection">
+        <div className="form-container">
+          <SectionCard
+            title="WAF Protection"
+            subtitle="Enable and configure Web Application Firewall protection for this server"
+          >
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6} md={4}>
+                <BooleanInput
+                  source="waf_enabled"
+                  label="Enable WAF"
+                  defaultValue={false}
+                  helperText="Enable Web Application Firewall protection"
+                />
+              </Grid>
+              <FormDataConsumer>
+                {({ formData }) =>
+                  formData?.waf_enabled && (
+                    <Grid item xs={12} sm={6} md={8}>
+                      <ReferenceInput
+                        source="waf_policy_id"
+                        reference="waf_policies"
+                      >
+                        <SelectInput
+                          fullWidth
+                          optionText="name"
+                          label="WAF Policy"
+                          helperText="Select a WAF policy to apply to this server"
+                        />
+                      </ReferenceInput>
+                    </Grid>
+                  )
+                }
+              </FormDataConsumer>
+            </Grid>
+          </SectionCard>
         </div>
       </TabbedForm.Tab>
     </TabbedForm>

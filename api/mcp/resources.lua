@@ -496,8 +496,203 @@ _M.RESOURCE_REGISTRY = {
         mimeType = "application/json",
         category = "configuration",
         read_only = true
+    },
+    {
+        id = "waf_rules",
+        name = "WAF Rules",
+        description = "Web Application Firewall detection rules (SQLi, XSS, Command Injection, etc.)",
+        uri = "wslproxy://resources/waf_rules",
+        mimeType = "application/json",
+        category = "security",
+        read_only = true
+    },
+    {
+        id = "waf_policies",
+        name = "WAF Policies",
+        description = "WAF policies grouping rules with enforcement mode and thresholds",
+        uri = "wslproxy://resources/waf_policies",
+        mimeType = "application/json",
+        category = "security",
+        read_only = true
+    },
+    {
+        id = "waf_events",
+        name = "WAF Events",
+        description = "Recent WAF inspection events (blocked and monitored requests)",
+        uri = "wslproxy://resources/waf_events",
+        mimeType = "application/json",
+        category = "security",
+        read_only = true
+    },
+    {
+        id = "gateway_config",
+        name = "Gateway Config",
+        description = "Per-Virtual Server gateway settings: WAF binding, rate limiting, security posture",
+        uri = "wslproxy://resources/gateway_config",
+        mimeType = "application/json",
+        category = "security",
+        read_only = true
+    },
+    {
+        id = "traffic_splits",
+        name = "Traffic Splits",
+        description = "Current weighted routing configuration per rule, including canary percentages, backend health, and per-backend request stats",
+        uri = "wslproxy://resources/traffic_splits",
+        mimeType = "application/json",
+        category = "traffic",
+        read_only = true
     }
 }
+
+-----------------------------------------------------------
+-- Resource: WAF Rules
+-----------------------------------------------------------
+function _M.get_waf_rules(config, profile_id)
+    profile_id = profile_id or "prod"
+    local dir = configPath .. "data/waf_rules/" .. profile_id
+    local rules, err = read_json_directory(dir)
+    if err then
+        ngx.log(ngx.WARN, "MCP: Failed to read WAF rules for profile ", profile_id, ": ", err)
+    end
+    return rules
+end
+
+function _M.get_waf_rule(config, rule_id, profile_id)
+    profile_id = profile_id or "prod"
+    local path = configPath .. "data/waf_rules/" .. profile_id .. "/" .. rule_id .. ".json"
+    local data, err = read_json_file(path)
+    if not data then
+        return nil, "WAF rule not found: " .. rule_id
+    end
+    return data, nil
+end
+
+-----------------------------------------------------------
+-- Resource: WAF Policies
+-----------------------------------------------------------
+function _M.get_waf_policies(config, profile_id)
+    profile_id = profile_id or "prod"
+    local dir = configPath .. "data/waf_policies/" .. profile_id
+    local policies, err = read_json_directory(dir)
+    if err then
+        ngx.log(ngx.WARN, "MCP: Failed to read WAF policies for profile ", profile_id, ": ", err)
+    end
+    return policies
+end
+
+function _M.get_waf_policy(config, policy_id, profile_id)
+    profile_id = profile_id or "prod"
+    local path = configPath .. "data/waf_policies/" .. profile_id .. "/" .. policy_id .. ".json"
+    local data, err = read_json_file(path)
+    if not data then
+        return nil, "WAF policy not found: " .. policy_id
+    end
+    return data, nil
+end
+
+-----------------------------------------------------------
+-- Resource: WAF Events (from shared dict)
+-----------------------------------------------------------
+function _M.get_waf_events(config)
+    local events = {}
+    local waf_dict = ngx.shared.waf_events
+    if not waf_dict then
+        return events
+    end
+
+    local keys = waf_dict:get_keys(500)
+    for _, key in ipairs(keys) do
+        local val = waf_dict:get(key)
+        if val then
+            local ok, event = pcall(cjson.decode, val)
+            if ok and event then
+                table.insert(events, event)
+            end
+        end
+    end
+
+    -- Sort by timestamp descending
+    table.sort(events, function(a, b)
+        return (a.timestamp or 0) > (b.timestamp or 0)
+    end)
+
+    return events
+end
+
+-----------------------------------------------------------
+-- Resource: Gateway Config (composite view of server gateway settings)
+-----------------------------------------------------------
+function _M.get_gateway_config(config, profile_id)
+    profile_id = profile_id or "prod"
+    local dir = configPath .. "data/servers/" .. profile_id
+    local servers, err = read_json_directory(dir)
+    if err then
+        ngx.log(ngx.WARN, "MCP: Failed to read servers for gateway config, profile ", profile_id, ": ", err)
+    end
+
+    local result = {}
+    for _, server in ipairs(servers) do
+        table.insert(result, {
+            id = server.id,
+            server_name = server.server_name,
+            profile_id = server.profile_id or profile_id,
+            waf_enabled = server.waf_enabled or false,
+            waf_policy_id = server.waf_policy_id,
+            waf_mode_override = server.waf_mode_override,
+            rate_limit_enabled = server.rate_limit_enabled or false,
+            rate_limit = server.rate_limit,
+            ssl_enabled = server.ssl_enabled,
+            cache_enabled = server.cache_enabled
+        })
+    end
+
+    return result
+end
+
+-----------------------------------------------------------
+-- Resource: Traffic Splits (multi-backend routing config per rule)
+-----------------------------------------------------------
+function _M.get_traffic_splits(config, profile_id)
+    profile_id = profile_id or "prod"
+    local dir = configPath .. "data/rules/" .. profile_id
+    local rules, err = read_json_directory(dir)
+    if err then
+        ngx.log(ngx.WARN, "MCP: Failed to read rules for traffic splits, profile ", profile_id, ": ", err)
+    end
+
+    local splits = {}
+    local TrafficRouter
+    local tr_ok, tr = pcall(require, "traffic_router")
+    if tr_ok then TrafficRouter = tr end
+
+    for _, rule in ipairs(rules) do
+        local response = rule.match and rule.match.response
+        if response and response.backends and type(response.backends) == "table" and #response.backends > 0 then
+            local backend_info = {}
+            for _, b in ipairs(response.backends) do
+                local label = b.label or b.address
+                local stats = TrafficRouter and TrafficRouter.get_backend_stats(rule.id, label) or {}
+                local healthy = TrafficRouter and TrafficRouter.is_backend_healthy(rule.id, b.address) or true
+                table.insert(backend_info, {
+                    address = b.address,
+                    label = label,
+                    weight = b.weight or 1,
+                    healthy = healthy,
+                    stats = stats
+                })
+            end
+            table.insert(splits, {
+                rule_id = rule.id,
+                rule_name = rule.name,
+                routing = response.routing or { mode = "weighted" },
+                redirect_uri = response.redirect_uri,
+                backends = backend_info
+            })
+        end
+    end
+
+    return splits
+end
 
 -- Get a specific resource by ID
 function _M.get_resource(resource_id, config, params)
@@ -512,7 +707,12 @@ function _M.get_resource(resource_id, config, params)
         cache = function() return _M.get_cache_configs(config), nil end,
         health = function() return _M.get_health(config), nil end,
         metrics = function() return _M.get_metrics_summary(config), nil end,
-        settings = function() return _M.get_settings_safe(config) end
+        settings = function() return _M.get_settings_safe(config) end,
+        waf_rules = function() return _M.get_waf_rules(config, profile_id), nil end,
+        waf_policies = function() return _M.get_waf_policies(config, profile_id), nil end,
+        waf_events = function() return _M.get_waf_events(config), nil end,
+        gateway_config = function() return _M.get_gateway_config(config, profile_id), nil end,
+        traffic_splits = function() return _M.get_traffic_splits(config, profile_id), nil end
     }
 
     local handler = handlers[resource_id]

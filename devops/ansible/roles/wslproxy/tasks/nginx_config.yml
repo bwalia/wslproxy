@@ -1,0 +1,50 @@
+---
+# Nginx configuration directories and base configs
+
+- name: Ensure base nginx conf directory exists
+  ansible.builtin.file:
+    path: /opt/nginx/base.d/
+    state: directory
+    owner: "www-data"
+    group: root
+    mode: 0775
+  notify: Restart openresty
+  tags: [openresty, lapis, dashboard, nginx]
+
+- name: Add nginx base configuration
+  copy:
+    src: ../../nginx-base.d/
+    dest: /opt/nginx/base.d/
+    owner: "www-data"
+    group: root
+    mode: "0644"
+  tags: [openresty, lapis, dashboard, nginx]
+
+- name: Ensure tenants nginx conf directory exists
+  ansible.builtin.file:
+    path: /opt/nginx/conf.d/
+    state: directory
+    owner: "www-data"
+    group: root
+    mode: 0775
+  notify: Restart openresty
+  tags: [openresty, lapis, dashboard, nginx]
+
+- name: Add nginx configuration
+  copy:
+    src: ../../nginx-conf.d/
+    dest: /opt/nginx/conf.d/
+    owner: "www-data"
+    group: root
+    mode: "0644"
+  tags: [openresty, lapis, dashboard, nginx]
+
+- name: Template default server configuration
+  template:
+    src: default.conf.j2
+    dest: /opt/nginx/conf.d/default.conf
+    owner: "www-data"
+    group: root
+    mode: "0644"
+  notify: Restart openresty
+  tags: [openresty, lapis, dashboard, nginx, default-server]

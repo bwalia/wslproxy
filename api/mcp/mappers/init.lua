@@ -14,6 +14,11 @@ local cache_mapper = require("mcp.mappers.cache")
 local health_mapper = require("mcp.mappers.health")
 local metrics_mapper = require("mcp.mappers.metrics")
 local settings_mapper = require("mcp.mappers.settings")
+local waf_rule_mapper = require("mcp.mappers.waf_rule")
+local waf_policy_mapper = require("mcp.mappers.waf_policy")
+local waf_event_mapper = require("mcp.mappers.waf_event")
+local gateway_config_mapper = require("mcp.mappers.gateway_config")
+local varnish_mapper = require("mcp.mappers.varnish")
 
 -- Registry mapping resource IDs to their mappers
 _M.registry = {
@@ -25,7 +30,12 @@ _M.registry = {
     cache = cache_mapper,
     health = health_mapper,
     metrics = metrics_mapper,
-    settings = settings_mapper
+    settings = settings_mapper,
+    waf_rules = waf_rule_mapper,
+    waf_policies = waf_policy_mapper,
+    waf_events = waf_event_mapper,
+    gateway_config = gateway_config_mapper,
+    varnish = varnish_mapper
 }
 
 -- Map a raw data table to a typed MCP resource

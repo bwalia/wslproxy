@@ -17,6 +17,8 @@ import {
   TableCell,
   TableHead,
   TableRow,
+  Tabs,
+  Tab,
 } from "@mui/material";
 import React from "react";
 import {
@@ -47,13 +49,24 @@ import LanguageIcon from "@mui/icons-material/LanguageRounded";
 import DataUsageIcon from "@mui/icons-material/DataUsageRounded";
 import MemoryIcon from "@mui/icons-material/MemoryRounded";
 import InsertDriveFileIcon from "@mui/icons-material/InsertDriveFileRounded";
+import ShieldIcon from "@mui/icons-material/ShieldRounded";
+import VerifiedUserIcon from "@mui/icons-material/VerifiedUserRounded";
+import NotificationsActiveIcon from "@mui/icons-material/NotificationsActiveRounded";
+import BlockIcon from "@mui/icons-material/BlockRounded";
 
 import StorageModal from "./StorageModal";
 import Logs from "../component/Logs";
 import Welcome from "../component/Welcome";
 import GeoTrafficMap from "./GeoTrafficMap";
+import BackendHealth from "./BackendHealth";
 import { useThemeMode } from "../Theme";
 import PublicIcon from "@mui/icons-material/PublicRounded";
+import DashboardIcon from "@mui/icons-material/DashboardRounded";
+import DnsIcon from "@mui/icons-material/DnsRounded";
+import BookmarkIcon from "@mui/icons-material/BookmarkRounded";
+import BookmarkBorderIcon from "@mui/icons-material/BookmarkBorderRounded";
+import LaunchIcon from "@mui/icons-material/LaunchRounded";
+import LockIcon from "@mui/icons-material/LockRounded";
 
 // Format bytes to human readable
 const formatBytes = (bytes, decimals = 2) => {
@@ -460,6 +473,40 @@ const Dashboard = () => {
     top_urls: [],
   });
 
+  // WAF stats state
+  const [wafStats, setWafStats] = React.useState({
+    totalRules: 0,
+    totalPolicies: 0,
+    recentEvents: 0,
+    blockedEvents: 0,
+  });
+
+  // Per-server WAF activity state
+  const [wafServerActivity, setWafServerActivity] = React.useState([]);
+
+  // Backend health & topology state
+  const [backendHealthData, setBackendHealthData] = React.useState([]);
+  const [topologyData, setTopologyData] = React.useState(null);
+
+  // Tab state for RHS content area
+  const [activeTab, setActiveTab] = React.useState(0);
+
+  // Bookmarks state
+  const [recentBookmarks, setRecentBookmarks] = React.useState([]);
+
+  const fetchBookmarks = React.useCallback(() => {
+    dataProvider
+      .getList("bookmarks", {
+        pagination: { page: 1, perPage: 8 },
+        sort: { field: "auto_generated", order: "ASC" },
+        filter: {},
+      })
+      .then((response) => {
+        setRecentBookmarks(response?.data || []);
+      })
+      .catch(() => {});
+  }, [dataProvider]);
+
   const fetchErrorLogs = React.useCallback(() => {
     const logs = dataProvider.getLogs("openresty/error_logs");
     logs.then((log) => {
@@ -600,6 +647,20 @@ const Dashboard = () => {
     setErrorDetails([]);
   };
 
+  const fetchBackendHealth = React.useCallback(() => {
+    Promise.all([
+      dataProvider.getTrafficHealth(),
+      dataProvider.getTrafficTopology(),
+    ])
+      .then(([healthRes, topoRes]) => {
+        setBackendHealthData(healthRes?.data?.rules || []);
+        setTopologyData(topoRes?.data || null);
+      })
+      .catch((error) => {
+        console.log("Failed to fetch backend health:", error);
+      });
+  }, [dataProvider]);
+
   React.useEffect(() => {
     fetchErrorLogs();
     fetchAccessLogs();
@@ -607,6 +668,8 @@ const Dashboard = () => {
     fetchLogMetrics();
     fetchInstanceInfo();
     fetchCacheStats();
+    fetchBackendHealth();
+    fetchBookmarks();
 
     // Fetch entity counts
     Promise.all([
@@ -641,8 +704,103 @@ const Dashboard = () => {
       })
       .catch(() => {});
 
+    // Fetch WAF stats
+    Promise.all([
+      dataProvider.getList("waf_rules", {
+        pagination: { page: 1, perPage: 1 },
+        sort: { field: "id", order: "ASC" },
+        filter: {},
+      }),
+      dataProvider.getList("waf_policies", {
+        pagination: { page: 1, perPage: 1 },
+        sort: { field: "id", order: "ASC" },
+        filter: {},
+      }),
+      dataProvider.getList("waf_events", {
+        pagination: { page: 1, perPage: 1 },
+        sort: { field: "id", order: "ASC" },
+        filter: {},
+      }),
+      dataProvider.getList("waf_events", {
+        pagination: { page: 1, perPage: 1 },
+        sort: { field: "id", order: "ASC" },
+        filter: { type: "blocked" },
+      }),
+    ])
+      .then(([wafRules, wafPolicies, wafEvents, blockedEvents]) => {
+        setWafStats({
+          totalRules: wafRules?.total || 0,
+          totalPolicies: wafPolicies?.total || 0,
+          recentEvents: wafEvents?.total || 0,
+          blockedEvents: blockedEvents?.total || 0,
+        });
+      })
+      .catch(() => {});
+
+    // Fetch per-server WAF activity
+    Promise.all([
+      dataProvider.getList("servers", {
+        pagination: { page: 1, perPage: 1000 },
+        sort: { field: "id", order: "ASC" },
+        filter: {},
+      }),
+      dataProvider.getList("waf_events", {
+        pagination: { page: 1, perPage: 1000 },
+        sort: { field: "timestamp", order: "DESC" },
+        filter: {},
+      }),
+      dataProvider.getList("waf_policies", {
+        pagination: { page: 1, perPage: 1000 },
+        sort: { field: "id", order: "ASC" },
+        filter: {},
+      }),
+    ])
+      .then(([serversRes, eventsRes, policiesRes]) => {
+        const servers = serversRes?.data || [];
+        const events = eventsRes?.data || [];
+        const policies = policiesRes?.data || [];
+        const policyMap = {};
+        policies.forEach((p) => { policyMap[p.id] = p; });
+
+        // Group events by host
+        const eventsByHost = {};
+        events.forEach((evt) => {
+          const host = evt.host || "unknown";
+          if (!eventsByHost[host]) {
+            eventsByHost[host] = { inspected: 0, blocked: 0, monitored: 0 };
+          }
+          eventsByHost[host].inspected++;
+          if (evt.type === "blocked") eventsByHost[host].blocked++;
+          if (evt.type === "monitored") eventsByHost[host].monitored++;
+        });
+
+        // Build per-server activity rows
+        const activity = servers
+          .filter((s) => s.waf_enabled)
+          .map((s) => {
+            const hostEvents = eventsByHost[s.server_name] || { inspected: 0, blocked: 0, monitored: 0 };
+            const policy = s.waf_policy_id ? policyMap[s.waf_policy_id] : null;
+            return {
+              id: s.id,
+              server_name: s.server_name,
+              waf_enabled: true,
+              policy_name: policy?.name || s.waf_policy_id || "N/A",
+              mode: s.waf_mode_override || policy?.mode || "N/A",
+              inspected: hostEvents.inspected,
+              blocked: hostEvents.blocked,
+              monitored: hostEvents.monitored,
+            };
+          });
+
+        setWafServerActivity(activity);
+      })
+      .catch(() => {});
+
     // Auto-refresh traffic data every 60 seconds
-    const trafficInterval = setInterval(fetchTrafficStats, 60000);
+    const trafficInterval = setInterval(() => {
+      fetchTrafficStats();
+      fetchBackendHealth();
+    }, 60000);
     return () => clearInterval(trafficInterval);
   }, []);
 
@@ -794,6 +952,36 @@ const Dashboard = () => {
         </Box>
       </Box>
 
+      {/* Content Tabs */}
+      <Box sx={{ mb: 3, width: "100%" }}>
+        <Tabs
+          value={activeTab}
+          onChange={(_, v) => setActiveTab(v)}
+          sx={{
+            borderBottom: `1px solid ${theme.palette.divider}`,
+            "& .MuiTab-root": {
+              textTransform: "none",
+              fontWeight: 600,
+              fontSize: "0.9rem",
+              minHeight: 48,
+              gap: 1,
+            },
+            "& .MuiTabs-indicator": {
+              height: 3,
+              borderRadius: "3px 3px 0 0",
+            },
+          }}
+        >
+          <Tab icon={<DashboardIcon sx={{ fontSize: 20 }} />} iconPosition="start" label="Overview" />
+          <Tab icon={<DnsIcon sx={{ fontSize: 20 }} />} iconPosition="start" label="Backend Health & Traffic" />
+          <Tab icon={<SecurityIcon sx={{ fontSize: 20 }} />} iconPosition="start" label="SSL/TLS" />
+          <Tab icon={<StorageIcon sx={{ fontSize: 20 }} />} iconPosition="start" label="Cache" />
+          <Tab icon={<ShieldIcon sx={{ fontSize: 20 }} />} iconPosition="start" label="WAF" />
+        </Tabs>
+      </Box>
+
+      {/* Tab: Overview */}
+      {activeTab === 0 && (<>
       {/* Geographic Traffic Map - Full Width */}
       <Box sx={{ mb: 4, width: "100%" }}>
         <ChartCard
@@ -1617,6 +1805,10 @@ const Dashboard = () => {
         </ChartCard>
       </Box>
 
+      </>)}
+
+      {/* Tab: SSL/TLS */}
+      {activeTab === 2 && (<>
       {/* SSL Error Tracking - Full Width */}
       <Box sx={{ mb: 3, width: "100%" }}>
         <ChartCard
@@ -2142,6 +2334,10 @@ const Dashboard = () => {
         </ChartCard>
       </Box>
 
+      </>)}
+
+      {/* Tab: Cache */}
+      {activeTab === 3 && (<>
       {/* Cache Statistics - Full Width */}
       <Box sx={{ mb: 3, width: "100%" }}>
         <ChartCard
@@ -2381,6 +2577,147 @@ const Dashboard = () => {
         </ChartCard>
       </Box>
 
+      </>)}
+
+      {/* Tab: WAF */}
+      {activeTab === 4 && (<>
+      {/* WAF Security Panel */}
+      <Box sx={{ mb: 4, width: "100%" }}>
+        <ChartCard
+          title="WAF Security Overview"
+          subtitle="Web Application Firewall status and recent activity"
+          height="auto"
+          accentColor="#10b981"
+        >
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: {
+                xs: "1fr",
+                sm: "repeat(2, 1fr)",
+                md: "repeat(4, 1fr)",
+              },
+              gap: 2,
+            }}
+          >
+            <StatCard
+              title="WAF Rules"
+              value={wafStats.totalRules}
+              icon={ShieldIcon}
+              color="#6366f1"
+              subtitle="Active detection rules"
+            />
+            <StatCard
+              title="WAF Policies"
+              value={wafStats.totalPolicies}
+              icon={VerifiedUserIcon}
+              color="#10b981"
+              subtitle="Configured policies"
+            />
+            <StatCard
+              title="Total Events"
+              value={formatNumber(wafStats.recentEvents)}
+              icon={NotificationsActiveIcon}
+              color="#f59e0b"
+              subtitle="WAF events recorded"
+            />
+            <StatCard
+              title="Blocked Threats"
+              value={formatNumber(wafStats.blockedEvents)}
+              icon={BlockIcon}
+              color="#ef4444"
+              subtitle="Requests blocked"
+            />
+          </Box>
+        </ChartCard>
+      </Box>
+
+      {/* WAF Activity by Server Table */}
+      {wafServerActivity.length > 0 && (
+        <Box sx={{ mb: 4, width: "100%" }}>
+          <ChartCard
+            title="WAF Activity by Server"
+            subtitle="Per-server WAF binding status and event counts"
+            height="auto"
+            accentColor="#6366f1"
+          >
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell sx={{ fontWeight: 600 }}>Server</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Policy</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Mode</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }} align="right">Inspected</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }} align="right">Blocked</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }} align="right">Monitored</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {wafServerActivity.map((row) => (
+                  <TableRow key={row.id}>
+                    <TableCell>{row.server_name}</TableCell>
+                    <TableCell>
+                      <Chip
+                        label="Active"
+                        size="small"
+                        sx={{
+                          backgroundColor: alpha(theme.palette.success.main, 0.12),
+                          color: theme.palette.success.main,
+                          fontWeight: 500,
+                          fontSize: "0.75rem",
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell>{row.policy_name}</TableCell>
+                    <TableCell>
+                      <Chip
+                        label={row.mode === "block" ? "Block" : row.mode === "monitor" ? "Monitor" : row.mode}
+                        size="small"
+                        sx={{
+                          backgroundColor:
+                            row.mode === "block"
+                              ? alpha(theme.palette.error.main, 0.12)
+                              : alpha(theme.palette.warning.main, 0.12),
+                          color:
+                            row.mode === "block"
+                              ? theme.palette.error.main
+                              : theme.palette.warning.main,
+                          fontWeight: 500,
+                          fontSize: "0.75rem",
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell align="right">{row.inspected}</TableCell>
+                    <TableCell align="right" sx={{ color: row.blocked > 0 ? theme.palette.error.main : "inherit", fontWeight: row.blocked > 0 ? 600 : 400 }}>
+                      {row.blocked}
+                    </TableCell>
+                    <TableCell align="right" sx={{ color: row.monitored > 0 ? theme.palette.warning.main : "inherit" }}>
+                      {row.monitored}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </ChartCard>
+        </Box>
+      )}
+
+      </>)}
+
+      {/* Tab: Backend Metrics */}
+      {activeTab === 1 && (
+      <Box sx={{ mb: 4, width: "100%" }}>
+        <BackendHealth
+          healthData={backendHealthData}
+          topologyData={topologyData}
+          onRefresh={fetchBackendHealth}
+          formatNumber={formatNumber}
+          formatBytes={formatBytes}
+        />
+      </Box>
+      )}
+
       {/* Entity Stats Cards - Smaller secondary cards */}
       <Box
         sx={{
@@ -2445,6 +2782,115 @@ const Dashboard = () => {
           />
         </Box>
       </Box>
+
+      {/* Recent Bookmarks */}
+      {recentBookmarks.length > 0 && (
+        <Box sx={{ mb: 4, width: "100%" }}>
+          <ChartCard
+            title="Recent Bookmarks"
+            subtitle="Your saved and auto-discovered virtual servers"
+            onRefresh={fetchBookmarks}
+            accentColor="#8b5cf6"
+          >
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+              {recentBookmarks.map((bm) => (
+                <Box
+                  key={bm.id}
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1.5,
+                    px: 2,
+                    py: 1.25,
+                    borderRadius: 2,
+                    backgroundColor: bm.auto_generated
+                      ? "transparent"
+                      : alpha("#8b5cf6", 0.04),
+                    border: `1px solid ${bm.auto_generated ? alpha(theme.palette.divider, 0.5) : alpha("#8b5cf6", 0.15)}`,
+                    transition: "all 0.2s ease",
+                    "&:hover": {
+                      backgroundColor: alpha("#8b5cf6", 0.08),
+                      borderColor: alpha("#8b5cf6", 0.3),
+                    },
+                  }}
+                >
+                  {bm.auto_generated ? (
+                    <BookmarkBorderIcon
+                      sx={{ fontSize: 18, color: theme.palette.text.disabled }}
+                    />
+                  ) : (
+                    <BookmarkIcon
+                      sx={{ fontSize: 18, color: "#8b5cf6" }}
+                    />
+                  )}
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        fontWeight: bm.auto_generated ? 400 : 600,
+                        color: theme.palette.text.primary,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {bm.title || bm.host}
+                    </Typography>
+                    {bm.description && (
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                          display: "block",
+                        }}
+                      >
+                        {bm.description}
+                      </Typography>
+                    )}
+                  </Box>
+                  {bm.ssl_enabled && (
+                    <LockIcon
+                      sx={{
+                        fontSize: 14,
+                        color: theme.palette.success.main,
+                      }}
+                    />
+                  )}
+                  {bm.category && (
+                    <Chip
+                      label={bm.category}
+                      size="small"
+                      sx={{
+                        fontSize: "0.65rem",
+                        height: 20,
+                        backgroundColor: alpha(theme.palette.info.main, 0.1),
+                        color: theme.palette.info.main,
+                      }}
+                    />
+                  )}
+                  <Tooltip title={`Open ${bm.host}`}>
+                    <IconButton
+                      size="small"
+                      href={bm.url || `https://${bm.host}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      sx={{
+                        opacity: 0.5,
+                        "&:hover": { opacity: 1, color: "#8b5cf6" },
+                      }}
+                    >
+                      <LaunchIcon sx={{ fontSize: 14 }} />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+              ))}
+            </Box>
+          </ChartCard>
+        </Box>
+      )}
 
       {/* Logs Section - Two columns */}
       <Grid container spacing={2}>

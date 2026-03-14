@@ -2,7 +2,7 @@ openapi: 3.0.0
 info:
   title: WSLProxy OpsAPI Gateway & MCP Server Documentation
   description: API endpoints reference for performing CRUD operations for Servers, Security Rules and HTTP Routes. Includes MCP (Model Context Protocol) endpoints for AI agent integration with typed resource schemas, Swagger-to-MCP mappers, and JSON-RPC 2.0 support.
-  version: 1.2.0
+  version: 1.4.0
 tags:
   - name: Servers  
     description: Create and Manage servers aka HTTP hosts
@@ -10,6 +10,16 @@ tags:
     description: Create and Manage host specific Security Rules and HTTP Routes
   - name: Cache
     description: Enable and Manage static content caching per server
+  - name: WAF Rules
+    description: Create and manage Web Application Firewall detection rules (SQLi, XSS, command injection, LFI, protocol violations, and custom patterns)
+  - name: WAF Policies
+    description: Create and manage WAF policies that group rules with anomaly scoring, whitelisting, and blocking configuration
+  - name: WAF Events
+    description: View real-time WAF security events (blocked and monitored requests)
+  - name: Traffic
+    description: Traffic management APIs for multi-backend routing, canary releases, A/B testing, and weighted load balancing
+  - name: Bookmarks
+    description: Auto-generated bookmarks from Virtual Servers with promote-to-saved support. Lean bookmarks are ephemeral (derived from server configs), user bookmarks are persisted to disk.
   - name: MCP
     description: |
       Model Context Protocol (MCP) server endpoints for AI agent integration.
@@ -765,6 +775,834 @@ paths:
       security:
         - bearerAuth: []
 
+  /api/traffic/topology:
+    get:
+      tags:
+        - Traffic
+      summary: Get traffic routing topology
+      description: Returns the complete servers-to-rules-to-backends graph for the ingress overview. Includes server nodes, rules with multi-backend routing, backend stats, and connection mappings with weight percentages.
+      operationId: getTrafficTopology
+      parameters:
+        - name: profile_id
+          in: query
+          description: Environment profile
+          required: false
+          schema:
+            type: string
+            default: prod
+      responses:
+        '200':
+          description: Traffic topology retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/TrafficTopology'
+      security:
+        - bearerAuth: []
+
+  /api/traffic/backends:
+    get:
+      tags:
+        - Traffic
+      summary: Get backend stats for a rule
+      description: Returns per-backend statistics including request count, error count, average latency, health status, and current weight for all backends of a specific rule.
+      operationId: getTrafficBackendStats
+      parameters:
+        - name: rule_id
+          in: query
+          description: The rule ID to get backend stats for
+          required: true
+          schema:
+            type: string
+        - name: profile_id
+          in: query
+          description: Environment profile
+          required: false
+          schema:
+            type: string
+            default: prod
+      responses:
+        '200':
+          description: Backend stats retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/TrafficBackendStats'
+        '400':
+          description: Missing rule_id parameter
+        '404':
+          description: Rule not found
+      security:
+        - bearerAuth: []
+
+  /api/traffic/backends/weights:
+    post:
+      tags:
+        - Traffic
+      summary: Update backend traffic weights
+      description: Update the weight distribution for a rule's backends. Weights are normalized to sum to 100%. Changes take effect immediately without nginx reload (gateway reads from disk per-request).
+      operationId: updateTrafficWeights
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TrafficWeightUpdate'
+      responses:
+        '200':
+          description: Weights updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      rule_id:
+                        type: string
+                      backends:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/TrafficBackend'
+                      effective_immediately:
+                        type: boolean
+                        default: true
+                      timestamp:
+                        type: string
+        '400':
+          description: Validation error (missing rule_id, invalid backends)
+        '404':
+          description: Rule not found
+      security:
+        - bearerAuth: []
+
+  /api/traffic/backends/promote:
+    post:
+      tags:
+        - Traffic
+      summary: Promote a backend to 100% traffic
+      description: Promote a specific backend to receive 100% of traffic. All other backends are set to 0% weight. The rule's redirect_uri is updated to point to the promoted backend. Used to complete a canary deployment.
+      operationId: promoteBackend
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rule_id, promote_label]
+              properties:
+                rule_id:
+                  type: string
+                  description: The rule ID containing the backend to promote
+                promote_label:
+                  type: string
+                  description: Label of the backend to promote (e.g., 'canary')
+                profile_id:
+                  type: string
+                  description: Environment profile
+                  default: prod
+      responses:
+        '200':
+          description: Backend promoted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      rule_id:
+                        type: string
+                      promoted_label:
+                        type: string
+                      promoted_address:
+                        type: string
+                      backends:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/TrafficBackend'
+                      timestamp:
+                        type: string
+        '400':
+          description: Validation error
+        '404':
+          description: Rule or backend not found
+      security:
+        - bearerAuth: []
+
+  /api/traffic/backends/rollback:
+    post:
+      tags:
+        - Traffic
+      summary: Rollback to single-backend routing
+      description: Remove the backends array and routing configuration from a rule, restoring single-backend routing via redirect_uri. Use this to undo a canary or A/B test deployment.
+      operationId: rollbackBackend
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rule_id]
+              properties:
+                rule_id:
+                  type: string
+                  description: The rule ID to rollback
+                profile_id:
+                  type: string
+                  description: Environment profile
+                  default: prod
+      responses:
+        '200':
+          description: Rollback completed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      rule_id:
+                        type: string
+                      redirect_uri:
+                        type: string
+                      removed_backends:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/TrafficBackend'
+                      timestamp:
+                        type: string
+        '400':
+          description: Validation error
+        '404':
+          description: Rule not found
+      security:
+        - bearerAuth: []
+
+  /api/traffic/health:
+    get:
+      tags:
+        - Traffic
+      summary: Get backend health status
+      description: Returns health status of all backends across all rules that have multi-backend routing configured. Health is determined by active health checks (if configured) or defaults to healthy.
+      operationId: getTrafficHealth
+      parameters:
+        - name: profile_id
+          in: query
+          description: Environment profile
+          required: false
+          schema:
+            type: string
+            default: prod
+      responses:
+        '200':
+          description: Backend health retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TrafficRuleHealth'
+      security:
+        - bearerAuth: []
+
+  /api/waf_rules:
+    get:
+      tags:
+        - WAF Rules
+      summary: List all WAF detection rules
+      description: Retrieve a paginated list of all WAF rules. Supports filtering by profile, sorting, and pagination.
+      operationId: listWafRules
+      parameters:
+        - name: pagination[page]
+          in: query
+          description: Page number
+          required: false
+          schema:
+            type: number
+            default: 1
+        - name: pagination[perPage]
+          in: query
+          description: Items per page
+          required: false
+          schema:
+            type: number
+            default: 25
+        - name: sort[field]
+          in: query
+          description: Field to sort by
+          required: false
+          schema:
+            type: string
+            default: id
+        - name: sort[order]
+          in: query
+          description: Sort order
+          required: false
+          schema:
+            type: string
+            enum: [ASC, DESC]
+            default: ASC
+        - name: filter[profile_id]
+          in: query
+          description: Environment profile filter
+          required: false
+          schema:
+            type: string
+            default: prod
+      responses:
+        '200':
+          description: Successfully retrieved WAF rules list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WafRule'
+                  total:
+                    type: number
+      security:
+        - bearerAuth: []
+
+    post:
+      tags:
+        - WAF Rules
+      summary: Create a new WAF rule
+      operationId: createWafRule
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WafRuleInput'
+      responses:
+        '201':
+          description: WAF rule created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WafRule'
+        '400':
+          description: Validation error (invalid pattern, missing required fields, duplicate name)
+      security:
+        - bearerAuth: []
+
+  /api/waf_rules/{id}:
+    get:
+      tags:
+        - WAF Rules
+      summary: Get a WAF rule by ID
+      operationId: getWafRuleById
+      parameters:
+        - name: id
+          in: path
+          description: WAF rule ID (e.g., waf-rule-sqli-001)
+          required: true
+          schema:
+            type: string
+        - name: envprofile
+          in: query
+          description: Environment profile
+          required: false
+          schema:
+            type: string
+            default: prod
+      responses:
+        '200':
+          description: WAF rule retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/WafRule'
+        '404':
+          description: WAF rule not found
+      security:
+        - bearerAuth: []
+
+    put:
+      tags:
+        - WAF Rules
+      summary: Update a WAF rule by ID
+      operationId: updateWafRuleById
+      parameters:
+        - name: id
+          in: path
+          description: WAF rule ID
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WafRuleInput'
+      responses:
+        '200':
+          description: WAF rule updated successfully
+        '400':
+          description: Validation error
+        '404':
+          description: WAF rule not found
+      security:
+        - bearerAuth: []
+
+    delete:
+      tags:
+        - WAF Rules
+      summary: Delete a WAF rule by ID
+      operationId: deleteWafRuleById
+      parameters:
+        - name: id
+          in: path
+          description: WAF rule ID
+          required: true
+          schema:
+            type: string
+        - name: envProfile
+          in: query
+          description: Environment profile
+          required: false
+          schema:
+            type: string
+            default: prod
+      responses:
+        '200':
+          description: WAF rule deleted successfully
+      security:
+        - bearerAuth: []
+
+  /api/waf_rules/seed:
+    post:
+      tags:
+        - WAF Rules
+      summary: Seed default OWASP WAF rules
+      description: Populates the WAF rules and default policy with 20 built-in OWASP-inspired detection rules (SQLi, XSS, command injection, LFI, protocol violations). Skips rules that already exist on disk.
+      operationId: seedWafRules
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                profile_id:
+                  type: string
+                  description: Target environment profile
+                  default: prod
+      responses:
+        '200':
+          description: Seed operation completed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rules_written:
+                    type: number
+                    description: Number of new rules written to disk
+                  rules_skipped:
+                    type: number
+                    description: Number of rules skipped (already exist)
+                  policies_written:
+                    type: number
+                    description: Number of policies written
+      security:
+        - bearerAuth: []
+
+  /api/waf_policies:
+    get:
+      tags:
+        - WAF Policies
+      summary: List all WAF policies
+      description: Retrieve a paginated list of all WAF policies. Supports filtering by profile, sorting, and pagination.
+      operationId: listWafPolicies
+      parameters:
+        - name: pagination[page]
+          in: query
+          description: Page number
+          required: false
+          schema:
+            type: number
+            default: 1
+        - name: pagination[perPage]
+          in: query
+          description: Items per page
+          required: false
+          schema:
+            type: number
+            default: 25
+        - name: sort[field]
+          in: query
+          description: Field to sort by
+          required: false
+          schema:
+            type: string
+            default: id
+        - name: sort[order]
+          in: query
+          description: Sort order
+          required: false
+          schema:
+            type: string
+            enum: [ASC, DESC]
+            default: ASC
+        - name: filter[profile_id]
+          in: query
+          description: Environment profile filter
+          required: false
+          schema:
+            type: string
+            default: prod
+      responses:
+        '200':
+          description: Successfully retrieved WAF policies list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WafPolicy'
+                  total:
+                    type: number
+      security:
+        - bearerAuth: []
+
+    post:
+      tags:
+        - WAF Policies
+      summary: Create a new WAF policy
+      operationId: createWafPolicy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WafPolicyInput'
+      responses:
+        '201':
+          description: WAF policy created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WafPolicy'
+        '400':
+          description: Validation error (missing required fields, duplicate name)
+      security:
+        - bearerAuth: []
+
+  /api/waf_policies/{id}:
+    get:
+      tags:
+        - WAF Policies
+      summary: Get a WAF policy by ID
+      operationId: getWafPolicyById
+      parameters:
+        - name: id
+          in: path
+          description: WAF policy ID (e.g., waf-policy-default)
+          required: true
+          schema:
+            type: string
+        - name: envprofile
+          in: query
+          description: Environment profile
+          required: false
+          schema:
+            type: string
+            default: prod
+      responses:
+        '200':
+          description: WAF policy retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/WafPolicy'
+        '404':
+          description: WAF policy not found
+      security:
+        - bearerAuth: []
+
+    put:
+      tags:
+        - WAF Policies
+      summary: Update a WAF policy by ID
+      operationId: updateWafPolicyById
+      parameters:
+        - name: id
+          in: path
+          description: WAF policy ID
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WafPolicyInput'
+      responses:
+        '200':
+          description: WAF policy updated successfully
+        '400':
+          description: Validation error
+        '404':
+          description: WAF policy not found
+      security:
+        - bearerAuth: []
+
+    delete:
+      tags:
+        - WAF Policies
+      summary: Delete a WAF policy by ID
+      operationId: deleteWafPolicyById
+      parameters:
+        - name: id
+          in: path
+          description: WAF policy ID
+          required: true
+          schema:
+            type: string
+        - name: envProfile
+          in: query
+          description: Environment profile
+          required: false
+          schema:
+            type: string
+            default: prod
+      responses:
+        '200':
+          description: WAF policy deleted successfully
+      security:
+        - bearerAuth: []
+
+  /api/waf_events:
+    get:
+      tags:
+        - WAF Events
+      summary: List WAF security events
+      description: Retrieve real-time WAF events from the in-memory event store. Events have a 1-hour TTL and are sorted by timestamp descending. Supports filtering by host and event type.
+      operationId: listWafEvents
+      parameters:
+        - name: pagination[page]
+          in: query
+          description: Page number
+          required: false
+          schema:
+            type: number
+            default: 1
+        - name: pagination[perPage]
+          in: query
+          description: Items per page
+          required: false
+          schema:
+            type: number
+            default: 25
+        - name: filter[host]
+          in: query
+          description: Filter by server hostname
+          required: false
+          schema:
+            type: string
+        - name: filter[type]
+          in: query
+          description: Filter by event type
+          required: false
+          schema:
+            type: string
+            enum: [blocked, monitored, error]
+      responses:
+        '200':
+          description: WAF events retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WafEvent'
+                  total:
+                    type: number
+      security:
+        - bearerAuth: []
+
+  /api/bookmarks:
+    get:
+      tags:
+        - Bookmarks
+      summary: List all bookmarks (merged lean + user)
+      description: Returns a merged list of auto-generated lean bookmarks (from virtual server configs) and user-saved bookmarks. User bookmarks override lean bookmarks by host match. Supports pagination, search, category filter, and sorting.
+      operationId: listBookmarks
+      parameters:
+        - name: pagination[page]
+          in: query
+          description: Page number
+          required: false
+          schema:
+            type: number
+            default: 1
+        - name: pagination[perPage]
+          in: query
+          description: Items per page
+          required: false
+          schema:
+            type: number
+            default: 100
+        - name: sort[field]
+          in: query
+          description: Sort field
+          required: false
+          schema:
+            type: string
+            default: title
+            enum: [title, host, category, auto_generated]
+        - name: sort[order]
+          in: query
+          description: Sort direction
+          required: false
+          schema:
+            type: string
+            default: ASC
+            enum: [ASC, DESC]
+        - name: filter[q]
+          in: query
+          description: Search by host, title, or description
+          required: false
+          schema:
+            type: string
+        - name: filter[category]
+          in: query
+          description: Filter by category
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Bookmarks retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Bookmark'
+                  total:
+                    type: number
+      security:
+        - bearerAuth: []
+
+    post:
+      tags:
+        - Bookmarks
+      summary: Create or promote a bookmark
+      description: Promotes an auto-generated lean bookmark to a user-saved bookmark, or creates a new user bookmark. User bookmarks are persisted to disk and override lean bookmarks.
+      operationId: createBookmark
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookmarkInput'
+      responses:
+        '200':
+          description: Bookmark saved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Bookmark'
+                  message:
+                    type: string
+      security:
+        - bearerAuth: []
+
+  /api/bookmarks/{id}:
+    get:
+      tags:
+        - Bookmarks
+      summary: Get a single bookmark by ID
+      description: Retrieve a specific bookmark by its ID from the merged lean + user bookmark set.
+      operationId: getBookmark
+      parameters:
+        - name: id
+          in: path
+          description: Bookmark ID (e.g. bm-example-com)
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Bookmark found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Bookmark'
+        '404':
+          description: Bookmark not found
+      security:
+        - bearerAuth: []
+
+    delete:
+      tags:
+        - Bookmarks
+      summary: Delete a user bookmark
+      description: Removes a user-saved bookmark. The corresponding lean bookmark (if any) will reappear in the merged list. Cannot delete lean-only bookmarks.
+      operationId: deleteBookmark
+      parameters:
+        - name: id
+          in: path
+          description: Bookmark ID to delete
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Bookmark reverted to auto-generated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '404':
+          description: User bookmark not found
+      security:
+        - bearerAuth: []
+
   /mcp/manifest:
     get:
       tags:
@@ -820,7 +1658,7 @@ paths:
       tags:
         - MCP
       summary: List available MCP resources
-      description: Returns a list of all available MCP resources that can be read by AI agents. Resources include servers, rules, upstreams, SSL configs, cache configs, health status, and metrics.
+      description: Returns a list of all available MCP resources that can be read by AI agents. Resources include servers, rules, upstreams, SSL configs, cache configs, health status, metrics, WAF rules, WAF policies, WAF events, and gateway config.
       operationId: mcpListResources
       x-ai-agent: true
       responses:
@@ -839,17 +1677,17 @@ paths:
       tags:
         - MCP
       summary: Read a specific MCP resource
-      description: Fetches the data for a specific resource by ID. Available resources are servers, rules, upstreams, profiles, ssl, cache, health, metrics, and settings. Secrets are automatically redacted.
+      description: Fetches the data for a specific resource by ID. Available resources are servers, rules, upstreams, profiles, ssl, cache, health, metrics, settings, waf_rules, waf_policies, waf_events, and gateway_config. Secrets are automatically redacted.
       operationId: mcpReadResource
       x-ai-agent: true
       parameters:
         - name: resourceId
           in: path
           required: true
-          description: "Resource identifier. One of: servers, rules, upstreams, profiles, ssl, cache, health, metrics, settings"
+          description: "Resource identifier. One of: servers, rules, upstreams, profiles, ssl, cache, health, metrics, settings, waf_rules, waf_policies, waf_events, gateway_config, traffic_splits"
           schema:
             type: string
-            enum: [servers, rules, upstreams, profiles, ssl, cache, health, metrics, settings]
+            enum: [servers, rules, upstreams, profiles, ssl, cache, health, metrics, settings, waf_rules, waf_policies, waf_events, gateway_config, traffic_splits]
         - name: profile_id
           in: query
           required: false
@@ -894,17 +1732,27 @@ paths:
       tags:
         - MCP
       summary: Execute an MCP tool
-      description: Executes a specific MCP tool. Available tools are validate_config, get_error_logs, and reload_config. Tools must be enabled and appropriate mode must be set.
+      description: |
+        Executes a specific MCP tool. Available tools include:
+        - **validate_config**: Validate nginx/OpenResty configuration syntax
+        - **get_error_logs**: Retrieve recent error log entries
+        - **reload_config**: Reload nginx configuration (requires read-write mode)
+        - **test_waf_rule**: Test a WAF regex pattern against sample input (read-only)
+        - **bind_waf_policy**: Bind a WAF policy to a server (requires read-write mode)
+        - **unbind_waf_policy**: Remove WAF policy binding from a server (requires read-write mode)
+        - **update_traffic_split**: Update backend traffic weight distribution (requires read-write mode)
+        - **promote_backend**: Promote a backend to 100% traffic (requires read-write mode)
+        - **rollback_backend**: Rollback to single-backend routing (requires read-write mode)
       operationId: mcpExecuteTool
       x-ai-agent: true
       parameters:
         - name: toolName
           in: path
           required: true
-          description: "Tool name. One of: validate_config, get_error_logs, reload_config"
+          description: "Tool name. One of: validate_config, get_error_logs, reload_config, test_waf_rule, bind_waf_policy, unbind_waf_policy, update_traffic_split, promote_backend, rollback_backend"
           schema:
             type: string
-            enum: [validate_config, get_error_logs, reload_config]
+            enum: [validate_config, get_error_logs, reload_config, test_waf_rule, bind_waf_policy, unbind_waf_policy, update_traffic_split, promote_backend, rollback_backend]
       requestBody:
         required: false
         content:
@@ -921,6 +1769,31 @@ paths:
                   type: number
                   description: "For get_error_logs: maximum lines to return"
                   default: 100
+                pattern:
+                  type: string
+                  description: "For test_waf_rule: regex or string pattern to test"
+                test_input:
+                  type: string
+                  description: "For test_waf_rule: sample input to match against"
+                pattern_type:
+                  type: string
+                  description: "For test_waf_rule: pattern type"
+                  enum: [regex, string]
+                  default: regex
+                server_id:
+                  type: string
+                  description: "For bind/unbind_waf_policy: target server ID"
+                waf_policy_id:
+                  type: string
+                  description: "For bind_waf_policy: WAF policy ID to bind"
+                mode_override:
+                  type: string
+                  description: "For bind_waf_policy: override policy mode for this server"
+                  enum: [block, monitor]
+                profile_id:
+                  type: string
+                  description: "For bind/unbind_waf_policy: environment profile"
+                  default: prod
       responses:
         '200':
           description: Tool executed successfully
@@ -1294,6 +2167,477 @@ components:
           type: number
           description: Timestamp when config was last updated
 
+    WafRule:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique WAF rule identifier
+          default: waf-rule-sqli-001
+        name:
+          type: string
+          description: Human-readable rule name
+          default: "SQL Injection - UNION SELECT"
+        description:
+          type: string
+          description: Detailed description of what this rule detects
+        category:
+          type: string
+          description: Attack category
+          enum: [sqli, xss, cmdi, lfi, rfi, protocol, custom]
+          default: sqli
+        severity:
+          type: string
+          description: Severity level
+          enum: [critical, high, medium, low, info]
+          default: critical
+        enabled:
+          type: boolean
+          description: Whether this rule is active
+          default: true
+        target:
+          type: string
+          description: Request component to inspect
+          enum: [url, headers, body, args, cookies, user_agent, all]
+          default: url
+        pattern:
+          type: string
+          description: PCRE regex pattern or literal string to match
+          default: "(?i)(?:union\\s+(?:all\\s+)?select)"
+        pattern_type:
+          type: string
+          description: How to interpret the pattern
+          enum: [regex, string]
+          default: regex
+        action:
+          type: string
+          description: Action to take when pattern matches
+          enum: [block, monitor, allow]
+          default: block
+        score:
+          type: number
+          description: Anomaly score contribution when matched
+          default: 10
+        tags:
+          type: array
+          items:
+            type: string
+          description: Classification tags
+          default: ["owasp-top10", "sqli", "a03"]
+        profile_id:
+          type: string
+          description: Environment profile
+          default: prod
+        created_at:
+          type: number
+          description: Unix epoch timestamp
+        updated_at:
+          type: number
+          description: Unix epoch timestamp
+
+    WafRuleInput:
+      type: object
+      required: [name, category, pattern, target, action]
+      properties:
+        name:
+          type: string
+          description: Human-readable rule name (must be unique within profile)
+        description:
+          type: string
+        category:
+          type: string
+          enum: [sqli, xss, cmdi, lfi, rfi, protocol, custom]
+        severity:
+          type: string
+          enum: [critical, high, medium, low, info]
+          default: medium
+        enabled:
+          type: boolean
+          default: true
+        target:
+          type: string
+          enum: [url, headers, body, args, cookies, user_agent, all]
+        pattern:
+          type: string
+          description: PCRE regex pattern (validated at creation time) or literal string
+        pattern_type:
+          type: string
+          enum: [regex, string]
+          default: regex
+        action:
+          type: string
+          enum: [block, monitor, allow]
+        score:
+          type: number
+          default: 5
+        tags:
+          type: array
+          items:
+            type: string
+        profile_id:
+          type: string
+          default: prod
+
+    WafPolicy:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique WAF policy identifier
+          default: waf-policy-default
+        name:
+          type: string
+          description: Human-readable policy name
+          default: "Default WAF Policy"
+        description:
+          type: string
+        mode:
+          type: string
+          description: "Policy mode: block (active protection) or monitor (logging only)"
+          enum: [block, monitor]
+          default: monitor
+        enabled:
+          type: boolean
+          default: true
+        waf_rules:
+          type: array
+          items:
+            type: string
+          description: List of WAF rule IDs included in this policy
+          default: ["waf-rule-sqli-001", "waf-rule-xss-001"]
+        anomaly_threshold:
+          type: number
+          description: Cumulative anomaly score threshold for blocking
+          default: 5
+        paranoia_level:
+          type: number
+          description: Detection sensitivity level (1=low, 4=max)
+          default: 1
+          minimum: 1
+          maximum: 4
+        body_inspection:
+          type: boolean
+          description: Whether to inspect request body
+          default: true
+        max_body_size:
+          type: number
+          description: Maximum request body size to inspect (bytes)
+          default: 1048576
+        whitelist:
+          type: object
+          description: Whitelisted items that bypass WAF inspection
+          properties:
+            ips:
+              type: array
+              items:
+                type: string
+              default: ["127.0.0.1"]
+            paths:
+              type: array
+              items:
+                type: string
+              default: ["/health", "/ping", "/metrics"]
+            user_agents:
+              type: array
+              items:
+                type: string
+              default: []
+        blocked_response:
+          type: object
+          description: Custom block page configuration
+          properties:
+            status_code:
+              type: number
+              default: 403
+            content_type:
+              type: string
+              default: "text/html"
+        profile_id:
+          type: string
+          default: prod
+        created_at:
+          type: number
+        updated_at:
+          type: number
+
+    WafPolicyInput:
+      type: object
+      required: [name, mode]
+      properties:
+        name:
+          type: string
+          description: Policy name (must be unique within profile)
+        description:
+          type: string
+        mode:
+          type: string
+          enum: [block, monitor]
+        enabled:
+          type: boolean
+          default: true
+        waf_rules:
+          type: array
+          items:
+            type: string
+        anomaly_threshold:
+          type: number
+          default: 5
+        paranoia_level:
+          type: number
+          default: 1
+        body_inspection:
+          type: boolean
+          default: true
+        max_body_size:
+          type: number
+          default: 1048576
+        whitelist:
+          type: object
+          properties:
+            ips:
+              type: array
+              items:
+                type: string
+            paths:
+              type: array
+              items:
+                type: string
+            user_agents:
+              type: array
+              items:
+                type: string
+        blocked_response:
+          type: object
+          properties:
+            status_code:
+              type: number
+            content_type:
+              type: string
+        profile_id:
+          type: string
+          default: prod
+
+    WafEvent:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Event identifier (timestamp-rule_id)
+        timestamp:
+          type: number
+          description: Unix epoch timestamp when event occurred
+        type:
+          type: string
+          description: Event type
+          enum: [blocked, monitored, error]
+        host:
+          type: string
+          description: Server hostname that triggered the event
+        rule_id:
+          type: string
+          description: ID of the WAF rule that matched
+        rule_name:
+          type: string
+          description: Name of the matched rule
+        category:
+          type: string
+          description: Attack category
+          enum: [sqli, xss, cmdi, lfi, rfi, protocol, custom]
+        severity:
+          type: string
+          enum: [critical, high, medium, low, info]
+        client_ip:
+          type: string
+          description: Client IP address
+        uri:
+          type: string
+          description: Request URI that triggered the rule
+        method:
+          type: string
+          description: HTTP method
+        score:
+          type: number
+          description: Anomaly score for this match
+        matched_data:
+          type: string
+          description: The input data that matched the pattern
+
+    TrafficBackend:
+      type: object
+      properties:
+        address:
+          type: string
+          description: Backend address (host:port)
+          default: "10.0.0.1:8080"
+        weight:
+          type: number
+          description: Traffic weight percentage (0-100)
+          default: 50
+        label:
+          type: string
+          description: Human-readable backend label
+          default: stable
+
+    TrafficRouting:
+      type: object
+      properties:
+        mode:
+          type: string
+          description: Routing algorithm
+          enum: [weighted, round_robin, header, cookie, least_conn]
+          default: weighted
+        header_name:
+          type: string
+          description: Header name for header-based routing
+          default: "X-Canary"
+        header_value:
+          type: string
+          description: Header value that routes to canary backend
+          default: "true"
+        cookie_name:
+          type: string
+          description: Cookie name for sticky session routing
+          default: "canary_session"
+        sticky:
+          type: boolean
+          description: Enable sticky sessions (pin client to first selected backend)
+          default: false
+
+    TrafficTopology:
+      type: object
+      properties:
+        servers:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              server_name:
+                type: string
+              ssl_enabled:
+                type: boolean
+              waf_enabled:
+                type: boolean
+              rule_ids:
+                type: array
+                items:
+                  type: string
+        rules_with_backends:
+          type: array
+          items:
+            type: object
+            properties:
+              rule_id:
+                type: string
+              rule_name:
+                type: string
+              server_name:
+                type: string
+              path:
+                type: string
+              routing:
+                $ref: '#/components/schemas/TrafficRouting'
+              backends:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TrafficBackend'
+              backend_stats:
+                type: array
+                items:
+                  type: object
+        connections:
+          type: array
+          items:
+            type: object
+            properties:
+              from:
+                type: string
+                description: Server name
+              to:
+                type: string
+                description: Backend address
+              label:
+                type: string
+              weight:
+                type: number
+
+    TrafficBackendStats:
+      type: object
+      properties:
+        rule_id:
+          type: string
+        routing:
+          $ref: '#/components/schemas/TrafficRouting'
+        backends:
+          type: array
+          items:
+            type: object
+            properties:
+              address:
+                type: string
+              label:
+                type: string
+              weight:
+                type: number
+              healthy:
+                type: boolean
+              stats:
+                type: object
+                properties:
+                  total_requests:
+                    type: number
+                  total_errors:
+                    type: number
+                  avg_latency_ms:
+                    type: number
+
+    TrafficWeightUpdate:
+      type: object
+      required: [rule_id, backends]
+      properties:
+        rule_id:
+          type: string
+          description: Rule ID to update weights for
+        profile_id:
+          type: string
+          description: Environment profile
+          default: prod
+        backends:
+          type: array
+          description: Backend weight updates
+          items:
+            type: object
+            required: [label, weight]
+            properties:
+              label:
+                type: string
+                description: Backend label
+              weight:
+                type: number
+                description: New weight percentage (0-100)
+
+    TrafficRuleHealth:
+      type: object
+      properties:
+        rule_id:
+          type: string
+        rule_name:
+          type: string
+        backends:
+          type: array
+          items:
+            type: object
+            properties:
+              address:
+                type: string
+              label:
+                type: string
+              weight:
+                type: number
+              healthy:
+                type: boolean
+
     McpManifest:
       type: object
       description: MCP server manifest following the Model Context Protocol specification
@@ -1539,3 +2883,85 @@ components:
               type: number
             message:
               type: string
+    Bookmark:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique bookmark ID (e.g. bm-example-com)
+          example: bm-example-com
+        host:
+          type: string
+          description: Virtual server hostname
+          example: example.com
+        title:
+          type: string
+          description: Display title (defaults to host)
+          example: Example Site
+        url:
+          type: string
+          description: Full URL to the server
+          example: https://example.com
+        description:
+          type: string
+          description: User-provided description
+        category:
+          type: string
+          description: User-defined category
+          example: production
+        tags:
+          type: array
+          items:
+            type: string
+          description: User-defined tags
+          example: ["frontend", "live"]
+        auto_generated:
+          type: boolean
+          description: Whether this is an auto-generated lean bookmark or user-saved
+        profile_id:
+          type: string
+          description: Server profile/environment
+          example: prod
+        proxy_pass:
+          type: string
+          description: Backend proxy address from the first matching rule
+        ssl_enabled:
+          type: boolean
+          description: Whether SSL is configured on the server
+        server_id:
+          type: string
+          description: Original server file ID
+    BookmarkInput:
+      type: object
+      required:
+        - id
+        - host
+      properties:
+        id:
+          type: string
+          description: Bookmark ID
+          example: bm-example-com
+        host:
+          type: string
+          description: Virtual server hostname
+          example: example.com
+        title:
+          type: string
+          description: Display title
+        url:
+          type: string
+          description: Full URL
+        description:
+          type: string
+          description: Description
+        category:
+          type: string
+          description: Category
+        tags:
+          type: array
+          items:
+            type: string
+          description: Tags
+        auto_generated:
+          type: boolean
+          default: false

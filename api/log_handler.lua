@@ -212,6 +212,35 @@ function _M.log_request()
         end
     end
 
+    -- Per-backend traffic metrics (traffic router integration)
+    if ngx.ctx.selected_backend_label and ngx.ctx.selected_backend_rule_id then
+        local tr_ok, TrafficRouter = pcall(require, "traffic_router")
+        if tr_ok and TrafficRouter then
+            pcall(TrafficRouter.record_backend_stat,
+                ngx.ctx.selected_backend_rule_id,
+                ngx.ctx.selected_backend_label,
+                request_time,
+                status,
+                bytes_sent
+            )
+        end
+    end
+
+    -- Wire existing proxy metrics (previously defined but never incremented)
+    if metrics_ok and metrics then
+        local upstream_addr = ngx.var.upstream_addr
+        if upstream_addr and upstream_addr ~= "" then
+            local metric_proxy_req = metrics.get_metric_proxy_requests()
+            if metric_proxy_req then
+                metric_proxy_req:inc(1, { upstream_addr, tostring(status) })
+            end
+            local metric_proxy_lat = metrics.get_metric_proxy_latency()
+            if metric_proxy_lat then
+                metric_proxy_lat:observe(request_time, { upstream_addr })
+            end
+        end
+    end
+
     -- Record traffic stats for dashboard chart
     local traffic_ok, traffic_stats_module = pcall(require, "traffic_stats")
     if traffic_ok and traffic_stats_module and traffic_stats_module.record_request then

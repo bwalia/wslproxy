@@ -1,0 +1,22 @@
+---
+# PAM configuration for limits.conf support
+# Uses os_pam_session_file, os_pam_noninteractive_file, os_pam_create_file
+# from vars/Debian.yml, vars/Suse.yml, or vars/RedHat.yml
+
+- name: Configure PAM to use limits.conf
+  lineinfile:
+    path: "{{ os_pam_session_file }}"
+    line: "session required pam_limits.so"
+    state: present
+    create: "{{ os_pam_create_file }}"
+  ignore_errors: true
+  tags: [openresty, lapis, nginx, limits]
+
+- name: Configure PAM noninteractive to use limits.conf
+  lineinfile:
+    path: "{{ os_pam_noninteractive_file }}"
+    line: "session required pam_limits.so"
+    state: present
+  ignore_errors: true
+  when: os_pam_noninteractive_file | length > 0
+  tags: [openresty, lapis, nginx, limits]

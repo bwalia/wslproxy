@@ -1,0 +1,8 @@
+---
+# base_packages role: Install OS-level dependencies
+# Routes to the correct OS-family task file based on ansible_os_family fact
+# Supported: Debian (Ubuntu/Debian), Suse (openSUSE/SLES), RedHat (RHEL/Rocky/AlmaLinux)
+
+- name: Include OS-specific package installation
+  include_tasks: "packages_{{ ansible_os_family | lower }}.yml"
+  tags: [base_packages]

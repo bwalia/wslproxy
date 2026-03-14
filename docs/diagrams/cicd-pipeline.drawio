@@ -179,7 +179,7 @@
         <mxCell id="env-baremetal-label" value="🖥️ Bare Metal (Ansible)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=12;fontStyle=1;fontColor=#6c8ebf;" vertex="1" parent="1">
           <mxGeometry x="750" y="425" width="140" height="20" as="geometry"/>
         </mxCell>
-        <mxCell id="env-baremetal-details" value="• 185.237.99.238&#xa;• OpenResty native&#xa;• Systemd managed&#xa;• Ansible playbooks" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;fontSize=10;fontColor=#333333;" vertex="1" parent="1">
+        <mxCell id="env-baremetal-details" value="• 187.124.112.155&#xa;• OpenResty native&#xa;• Systemd managed&#xa;• Ansible playbooks" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;fontSize=10;fontColor=#333333;" vertex="1" parent="1">
           <mxGeometry x="735" y="450" width="170" height="80" as="geometry"/>
         </mxCell>
         

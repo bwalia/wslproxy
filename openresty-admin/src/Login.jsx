@@ -19,6 +19,7 @@ import LightModeIcon from "@mui/icons-material/LightModeRounded";
 import DarkModeIcon from "@mui/icons-material/DarkModeRounded";
 import { useLogin, useNotify, Notification } from "react-admin";
 import Logo from "./component/Logo";
+import { ApiHealthBanner } from "./component/ApiHealthBanner";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -65,6 +66,9 @@ const Login = () => {
         transition: 'background-color 0.3s ease',
       }}
     >
+      {/* API Health Status Banner */}
+      <ApiHealthBanner />
+
       {/* Background decorations */}
       <Box
         sx={{

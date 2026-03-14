@@ -7,9 +7,9 @@
 #   ./deploy.sh <server-ip> [playbook] [extra-ansible-args...]
 #
 # Examples:
-#   ./deploy.sh 185.237.99.238
-#   ./deploy.sh 185.237.99.238 deploy-wslproxy.yml --tags nginx
-#   ./deploy.sh 185.237.99.238 deploy-wslproxy.yml --tags "nginx,dashboard"
+#   ./deploy.sh 187.124.112.155
+#   ./deploy.sh 187.124.112.155 deploy-wslproxy.yml --tags nginx
+#   ./deploy.sh 187.124.112.155 deploy-wslproxy.yml --tags "nginx,dashboard"
 #
 
 set -e
@@ -39,9 +39,9 @@ show_usage() {
     echo "  extra-ansible-args Additional arguments passed to ansible-playbook"
     echo ""
     echo "Examples:"
-    echo "  $0 185.237.99.238"
-    echo "  $0 185.237.99.238 deploy-wslproxy.yml --tags nginx"
-    echo "  $0 185.237.99.238 deploy-wslproxy.yml --tags \"nginx,dashboard\""
+    echo "  $0 187.124.112.155"
+    echo "  $0 187.124.112.155 deploy-wslproxy.yml --tags nginx"
+    echo "  $0 187.124.112.155 deploy-wslproxy.yml --tags \"nginx,dashboard\""
     echo ""
     echo "Available servers (host_vars):"
     if [ -d "${SCRIPT_DIR}/host_vars" ]; then
@@ -50,7 +50,7 @@ show_usage() {
                 local ip=$(basename "$dir")
                 local hostname=""
                 if [ -f "${dir}vars.yaml" ]; then
-                    hostname=$(get_yaml_value "${dir}vars.yaml" "nginx_default_server_hostname")
+                    hostname=$(get_yaml_value "${dir}vars.yaml" "nginx_default_server_backend")
                 fi
                 if [ -n "$hostname" ]; then
                     echo "  $ip  ($hostname)"
@@ -137,7 +137,7 @@ echo -e "${GREEN}========================================${NC}"
 echo ""
 
 # Parse vars file
-HOSTNAME=$(get_yaml_value "$VARS_FILE" "nginx_default_server_hostname")
+HOSTNAME=$(get_yaml_value "$VARS_FILE" "nginx_default_server_backend")
 SETTINGS_PATH=$(get_yaml_value "$VARS_FILE" "local_settings_file_path")
 ENV_PATH=$(get_yaml_value "$VARS_FILE" "local_env_file_path")
 WEB_UI=$(get_yaml_value "$VARS_FILE" "nginx_web_ui_enabled")

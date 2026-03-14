@@ -8,7 +8,7 @@ controller:
   # Container image
   image:
     repository: bwalia/wslproxy-ingress-controller
-    tag: "1.1.0"
+    tag: "latest"
     pullPolicy: IfNotPresent
 
   # Resource limits and requests
@@ -52,7 +52,7 @@ controller:
 openresty:
   # Use built-in nginx.conf from the OpenResty image (skip ConfigMap mount)
   # Set to false to use ConfigMap-based config from files/ in this chart
-  useBuiltinConfig: false
+  useBuiltinConfig: true
 
   # Number of proxy replicas
   replicas: 3
@@ -129,8 +129,10 @@ ingressClass:
   parameters: {}
 
 # cert-manager integration
+# When disabled, a self-signed TLS certificate is created for the default HTTPS server.
+# Enable if you have cert-manager installed and want automatic certificate management.
 certManager:
-  enabled: true
+  enabled: false
   issuerRef:
     name: letsencrypt-prod
     kind: ClusterIssuer
@@ -141,7 +143,8 @@ observability:
   prometheus:
     enabled: true
     serviceMonitor:
-      enabled: true
+      # Requires Prometheus Operator CRDs. Set to true if you have kube-prometheus-stack installed.
+      enabled: false
       interval: 30s
       scrapeTimeout: 10s
 

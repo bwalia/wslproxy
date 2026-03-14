@@ -1,0 +1,56 @@
+---
+# Varnish Cache setup for WSLProxy
+# Installs Varnish Cache and creates required directories
+# Conditional: only runs when varnish_enabled is true
+
+- name: Install Varnish Cache
+  package:
+    name: varnish
+    state: present
+
+- name: Create Varnish data directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ openresty_user | default('www-data') }}"
+    group: "{{ openresty_group | default('www-data') }}"
+    mode: "0755"
+  loop:
+    - /opt/nginx/data/varnish
+    - /opt/nginx/data/varnish/vcl
+    - /opt/nginx/data/varnish/snippets
+
+- name: Deploy Varnish default VCL
+  template:
+    src: varnish-default.vcl.j2
+    dest: /etc/varnish/default.vcl
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart varnish
+
+- name: Create Varnish systemd override directory
+  file:
+    path: /etc/systemd/system/varnish.service.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Deploy Varnish systemd service override
+  template:
+    src: varnish.service.j2
+    dest: /etc/systemd/system/varnish.service.d/override.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd
+    - Restart varnish
+
+- name: Enable and start Varnish
+  systemd:
+    name: varnish
+    enabled: true
+    state: started
+    daemon_reload: true

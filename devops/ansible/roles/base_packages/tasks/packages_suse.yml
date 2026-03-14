@@ -1,0 +1,15 @@
+---
+# SUSE/openSUSE package management
+
+- name: Refresh zypper repositories
+  command: zypper --non-interactive refresh
+  changed_when: false
+  tags: [base_packages, suse]
+
+- name: Install SUSE packages
+  zypper:
+    name: "{{ item }}"
+    state: present
+  with_items: "{{ _os_packages.Suse.common }}"
+  ignore_errors: true
+  tags: [base_packages, suse]

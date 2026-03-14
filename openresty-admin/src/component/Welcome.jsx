@@ -1,8 +1,10 @@
 import * as React from 'react';
-import { Box, Card, CardActions, Button, Typography, useTheme, alpha, Chip } from '@mui/material';
+import { Box, Card, CardActions, Button, Typography, useTheme, alpha, Chip, IconButton, Tooltip } from '@mui/material';
 import ServerIcon from "@mui/icons-material/DnsRounded";
 import RuleIcon from "@mui/icons-material/RuleRounded";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
+import ContentCopyIcon from "@mui/icons-material/ContentCopyRounded";
+import CheckIcon from "@mui/icons-material/CheckRounded";
 import { useTranslate } from 'react-admin';
 import Logo from './Logo';
 import { useThemeMode } from '../Theme';
@@ -12,6 +14,14 @@ const Welcome = ({ instanceInfo = {} }) => {
     const theme = useTheme();
     const { mode } = useThemeMode();
     const isDark = mode === 'dark';
+    const [copiedIp, setCopiedIp] = React.useState(false);
+
+    const handleCopyIp = (ip) => {
+        navigator.clipboard.writeText(ip).then(() => {
+            setCopiedIp(true);
+            setTimeout(() => setCopiedIp(false), 2000);
+        });
+    };
     
     return (
         <Card
@@ -184,11 +194,31 @@ const Welcome = ({ instanceInfo = {} }) => {
                             <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontSize: '0.7rem' }}>
                                 IP Address
                             </Typography>
-                            <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.85rem', fontFamily: 'JetBrains Mono, monospace' }}>
-                                {instanceInfo.ip_addresses && instanceInfo.ip_addresses.length > 0
-                                    ? instanceInfo.ip_addresses[0]
-                                    : 'Loading...'}
-                            </Typography>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                <Typography variant="body2" sx={{ fontWeight: 600, fontSize: '0.85rem', fontFamily: 'JetBrains Mono, monospace' }}>
+                                    {instanceInfo.ip_addresses && instanceInfo.ip_addresses.length > 0
+                                        ? instanceInfo.ip_addresses[0]
+                                        : 'Loading...'}
+                                </Typography>
+                                {instanceInfo.ip_addresses && instanceInfo.ip_addresses.length > 0 && (
+                                    <Tooltip title={copiedIp ? "Copied!" : "Copy IP"} arrow>
+                                        <IconButton
+                                            size="small"
+                                            onClick={() => handleCopyIp(instanceInfo.ip_addresses[0])}
+                                            sx={{
+                                                p: 0.3,
+                                                color: copiedIp ? theme.palette.success.main : theme.palette.text.secondary,
+                                                '&:hover': {
+                                                    backgroundColor: alpha(theme.palette.primary.main, 0.08),
+                                                    color: theme.palette.primary.main,
+                                                },
+                                            }}
+                                        >
+                                            {copiedIp ? <CheckIcon sx={{ fontSize: 14 }} /> : <ContentCopyIcon sx={{ fontSize: 14 }} />}
+                                        </IconButton>
+                                    </Tooltip>
+                                )}
+                            </Box>
                         </Box>
 
                         <Box sx={{ mb: 1.5 }}>

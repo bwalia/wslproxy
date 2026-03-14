@@ -1,0 +1,68 @@
+---
+# Systemd service deployment and file descriptor limits configuration
+
+- name: Deploy OpenResty systemd service file
+  template:
+    src: openresty.service.j2
+    dest: /etc/systemd/system/openresty.service
+  notify: Reload systemd
+  tags: [openresty, lapis]
+
+- name: Create systemd drop-in directory for OpenResty
+  ansible.builtin.file:
+    path: /etc/systemd/system/openresty.service.d
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  tags: [openresty, lapis, nginx, limits]
+
+- name: Deploy OpenResty systemd service limits override
+  copy:
+    dest: /etc/systemd/system/openresty.service.d/limits.conf
+    content: |
+      # Ansible managed - OpenResty service-level file descriptor limits
+      # This drop-in override ensures high limits for nginx workers
+      [Service]
+      LimitNOFILE=1048576
+      LimitNPROC=65535
+      LimitCORE=infinity
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Reload systemd
+  tags: [openresty, lapis, nginx, limits]
+
+- name: Configure system-wide file descriptor limits
+  blockinfile:
+    path: /etc/security/limits.conf
+    marker: "# {mark} ANSIBLE MANAGED - OpenResty file descriptor limits"
+    block: |
+      # OpenResty/Nginx file descriptor limits for high-traffic servers
+      root            soft    nofile          1048576
+      root            hard    nofile          1048576
+      www-data        soft    nofile          1048576
+      www-data        hard    nofile          1048576
+      *               soft    nofile          1048576
+      *               hard    nofile          1048576
+    create: yes
+    backup: yes
+  tags: [openresty, lapis, nginx, limits]
+
+- name: Set kernel-level max file descriptors (fs.file-max)
+  sysctl:
+    name: fs.file-max
+    value: "2097152"
+    state: present
+    reload: yes
+    sysctl_file: /etc/sysctl.d/99-openresty.conf
+  tags: [openresty, lapis, nginx, limits]
+
+- name: Set kernel-level max file descriptors per process (fs.nr_open)
+  sysctl:
+    name: fs.nr_open
+    value: "1048576"
+    state: present
+    reload: yes
+    sysctl_file: /etc/sysctl.d/99-openresty.conf
+  tags: [openresty, lapis, nginx, limits]

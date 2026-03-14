@@ -1,13 +1,18 @@
-    # Default server configuration
-    # Hostname: {{ nginx_default_server_hostname }}
+    # Default server configuration — works independently of Lua gateway
+    # Frontend: {{ nginx_default_server_frontend | default('') }}
+    # Backend:  {{ nginx_default_server_backend | default('') }}
     # Let's Encrypt Email: {{ letsencrypt_email }}
-    #
-    # HTTP server block (port 80)
+
+{% if nginx_default_server_frontend | default('') | length > 0 %}
+    # ──────────────────────────────────────────────────────
+    # FRONTEND — Public landing page
+    # ──────────────────────────────────────────────────────
+
+    # HTTP (port 80) — serves landing page + ACME challenge
     server {
         listen       80;
-        server_name  {{ nginx_default_server_hostname }};
+        server_name  {{ nginx_default_server_frontend }} {{ host_lan_ip | default('') }};
 
-        # ACME Challenge for Let's Encrypt certificate validation
         location /.well-known/acme-challenge/ {
             content_by_lua_block {
                 auto_ssl:challenge_server()
@@ -20,36 +25,30 @@
         }
     }
 
-    # HTTPS server block (port 443) with Let's Encrypt auto-ssl
+    # HTTPS (port 443) — landing page with auto-ssl
     server {
         listen       443 ssl;
-        server_name  {{ nginx_default_server_hostname }};
+        server_name  {{ nginx_default_server_frontend }};
 
         http2 on;
 
-        # SSL session settings
         ssl_session_timeout  5m;
-        ssl_session_cache shared:default_ssl:10m;
+        ssl_session_cache shared:frontend_ssl:10m;
         ssl_session_tickets off;
 
-        # Modern TLS configuration
         ssl_protocols TLSv1.2 TLSv1.3;
         ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384;
         ssl_prefer_server_ciphers off;
 
-        # Dynamic SSL certificate via lua-resty-auto-ssl
         ssl_certificate_by_lua_block {
             auto_ssl:ssl_certificate()
         }
 
-        # Fallback certificate (used until Let's Encrypt cert is issued)
         ssl_certificate /etc/ssl/resty-auto-ssl-fallback.crt;
         ssl_certificate_key /etc/ssl/resty-auto-ssl-fallback.key;
 
-        # HSTS - enforce HTTPS for 1 year
         add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
 
-        # ACME Challenge for Let's Encrypt certificate validation
         location /.well-known/acme-challenge/ {
             content_by_lua_block {
                 auto_ssl:challenge_server()
@@ -61,3 +60,68 @@
             index  index.html index.htm;
         }
     }
+{% endif %}
+
+{% if nginx_default_server_backend | default('') | length > 0 %}
+    # ──────────────────────────────────────────────────────
+    # BACKEND — Admin UI (proxy to 127.0.0.1:{{ nginx_default_server_backend_port }})
+    # Works even when Lua gateway is down
+    # ──────────────────────────────────────────────────────
+
+    # HTTP (port 80) — redirect to HTTPS + ACME challenge
+    server {
+        listen       80;
+        server_name  {{ nginx_default_server_backend }};
+
+        location /.well-known/acme-challenge/ {
+            content_by_lua_block {
+                auto_ssl:challenge_server()
+            }
+        }
+
+        location / {
+            return 301 https://$host$request_uri;
+        }
+    }
+
+    # HTTPS (port 443) — admin UI with auto-ssl
+    server {
+        listen       443 ssl;
+        server_name  {{ nginx_default_server_backend }};
+
+        http2 on;
+
+        ssl_session_timeout  5m;
+        ssl_session_cache shared:backend_ssl:10m;
+        ssl_session_tickets off;
+
+        ssl_protocols TLSv1.2 TLSv1.3;
+        ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384;
+        ssl_prefer_server_ciphers off;
+
+        ssl_certificate_by_lua_block {
+            auto_ssl:ssl_certificate()
+        }
+
+        ssl_certificate /etc/ssl/resty-auto-ssl-fallback.crt;
+        ssl_certificate_key /etc/ssl/resty-auto-ssl-fallback.key;
+
+        add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+
+        location /.well-known/acme-challenge/ {
+            content_by_lua_block {
+                auto_ssl:challenge_server()
+            }
+        }
+
+        location / {
+            proxy_pass http://127.0.0.1:{{ nginx_default_server_backend_port }};
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_connect_timeout 10s;
+            proxy_read_timeout 60s;
+        }
+    }
+{% endif %}

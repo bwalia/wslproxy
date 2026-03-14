@@ -74,20 +74,62 @@ Single command to start the entire development environment with hot-reload and u
 ### Quick Start
 
 ```bash
-# Start everything - builds admin, starts containers, attaches to logs
-./dev.sh
+# Start everything - prompts for JWT secret, builds admin inside container, attaches to logs
+./start.sh
+
+# Pass JWT secret directly (skips interactive prompt)
+./start.sh --jwt-secret YOUR_SECRET_KEY
 
 # With auto git stash + pull (no prompts)
-./dev.sh -a
+./start.sh -a
 
 # Skip git prompts entirely
-./dev.sh -n
+./start.sh -n
 
 # With admin dashboard auto-rebuild on file save
-./dev.sh -w
+./start.sh -w
+
+# Combine flags
+./start.sh -n -j YOUR_SECRET_KEY -w
 
 # Press Ctrl+C to stop everything
 ```
+
+### JWT Secret Key
+
+The JWT secret is required for token signing/validation. The script will always ask for it interactively unless provided via CLI argument:
+
+```bash
+# Option 1: Pass as argument (recommended for CI/scripts)
+./start.sh --jwt-secret YOUR_SECRET_KEY
+
+# Option 2: Interactive prompt (press Enter to auto-generate a random key)
+./start.sh
+# > Enter JWT secret key (or press Enter to generate a random one):
+```
+
+The script injects the JWT secret into `openresty-admin/.env` as `VITE_JWT_SECURITY_PASSPHRASE` before the Vite build runs inside the container.
+
+### Environment Variables
+
+The admin dashboard uses Vite environment variables defined in `openresty-admin/.env`. This file is committed to the repo with safe defaults for local Docker development. The JWT secret is the only value injected at runtime by `start.sh`.
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `VITE_API_URL` | Backend API URL | `http://localhost:8280/api` |
+| `VITE_FRONT_URL` | Frontend URL | `http://localhost:8280` |
+| `VITE_APP_NAME` | Application identifier | `wslproxy` |
+| `VITE_APP_DISPLAY_NAME` | Display name in UI | `WSL Proxy` |
+| `VITE_APP_VERSION` | App version | `dev` |
+| `VITE_APP_BUILD_NUMBER` | Build number | `local` |
+| `VITE_DEPLOYMENT_TIME` | Deployment timestamp | `local-dev` |
+| `VITE_THEME_PRIMARY_COLOR` | Primary theme color (hex without #) | `2E3A3C` |
+| `VITE_THEME_SECONDARY_COLOR` | Secondary theme color (hex without #) | `45A049` |
+| `VITE_THEME_HOVER_COLOR` | Hover state color (hex without #) | `036408` |
+| `VITE_TARGET_PLATFORM` | Platform type (`DOCKER` or `KUBERNETES`) | `DOCKER` |
+| `VITE_JWT_SECURITY_PASSPHRASE` | JWT secret key (injected by `start.sh`) | *(empty - set at runtime)* |
+
+> **Note:** `VITE_JWT_SECURITY_PASSPHRASE` is left empty in the committed `.env` file. Never hardcode secrets in files pushed to GitHub. The `start.sh` script handles injecting this value at runtime.
 
 ### Access URLs
 
@@ -95,9 +137,12 @@ Single command to start the entire development environment with hot-reload and u
 |---------|-----|
 | Admin Dashboard | http://localhost:8280 |
 | API | http://localhost:8280/api |
+| Health Check | http://localhost:8280/health |
+| Health Check (detailed) | http://localhost:8280/health?detailed=true |
 | HTTP Proxy | http://localhost:8180 |
 | HTTPS Proxy | https://localhost:8443 |
 | Prometheus Metrics | http://localhost:8280/metrics |
+| Demo Node App | http://localhost:3009 |
 | Redis | localhost:6479 |
 
 ### Options
@@ -106,6 +151,7 @@ Single command to start the entire development environment with hot-reload and u
 |------|-------------|
 | `-n, --no-git` | Skip git stash/pull prompts |
 | `-a, --auto` | Auto mode: stash + pull without prompts |
+| `-j, --jwt-secret KEY` | Set JWT secret key (skips interactive prompt) |
 | `-w, --watch` | Auto-rebuild admin dashboard on file changes |
 | `-s, --skip-build` | Skip admin build (use existing dist) |
 | `-r, --reset` | Fresh start - remove all volumes/data |
@@ -121,7 +167,7 @@ Single command to start the entire development environment with hot-reload and u
 |-----------|-------------|
 | Lua API files (`./api/`) | Volume-mounted, OpenResty re-reads per request |
 | Static HTML (`./html/`) | Volume-mounted, changes reflect immediately |
-| Nginx config | Volume-mounted, run `./dev.sh --reload` to apply |
+| Nginx config | Volume-mounted, run `./start.sh --reload` to apply |
 | Admin dashboard | Use `-w` flag for auto-rebuild on save |
 
 ## Documentation
@@ -208,7 +254,7 @@ VITE_APP_VERSION: 1.0.0
 VITE_DEPLOYMENT_TIME=20231206025957
 VITE_APP_BUILD_NUMBER=025957
 VITE_JWT_SECURITY_PASSPHRASE=YOUR-JWT-TOKEN
-VITE_TARGET_PLATFORM=KUBERNATES
+VITE_TARGET_PLATFORM=KUBERNETES
 MINIO_ENDPOINT=<MINIO_ENDPOINT>
 MINIO_ACCESS_KEY=<MINIO_ACCESS_KEY>
 MINIO_SECRET_KEY=<MINIO_SECRET_KEY>
@@ -360,13 +406,17 @@ helm upgrade -i wslproxy-nodeapp ./devops/helm-charts/node-app/ -f devops/helm-c
 
 ## Usage
 
-If you want to change anything in the react-admin then you need to run the
+To develop the admin dashboard locally, use the `start.sh` script which builds inside the Docker container. For watch mode (auto-rebuild on save):
 
-```
-yarn build
+```bash
+./start.sh -w
 ```
 
-on your local system. It will automatically sync the build changes with the docker.
+Manual rebuild inside the running container:
+
+```bash
+docker exec wslproxy-local sh -c 'cd /usr/local/openresty/nginx/html/openresty-admin && yarn build'
+```
 
 ## List of the environments:-
 

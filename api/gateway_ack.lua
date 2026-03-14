@@ -79,6 +79,17 @@ local isItDTAPEnvironment = function(pHostnameStr)
 end
 
 local settingsObj = Helper.settings()
+
+-- Handle CAPTCHA verification POST early (before rule matching)
+-- This endpoint must be reachable regardless of which rule matches the path
+if ngx.var.uri == "/__captcha/verify" and ngx.req.get_method() == "POST" then
+    local captcha_ok, Captcha = pcall(require, "captcha")
+    if captcha_ok and Captcha then
+        Captcha.handle_verify(settingsObj)
+        return
+    end
+end
+
 local envProfile = settingsObj.env_profile == nil and "prod" or settingsObj.env_profile
 
 local function trimWhitespace(str)
@@ -266,7 +277,7 @@ local function gatewayHostAuthenticate(rule)
 end
 
 local function gatewayHostRulesParser(rules, ruleId, priority, message, statusCode, redirectUri, isConsul,
-                                      consulDomainName, stripPath)
+                                      consulDomainName, stripPath, ruleResponse)
     local chk_path = (rules.path ~= nil and type(rules.path) ~= "userdata") and trimWhitespace(rules.path) or rules.path
     local isPathPass, failMessage, isTokenPass = false, "", false
     local finalResult, results = {}, {}
@@ -348,7 +359,18 @@ local function gatewayHostRulesParser(rules, ruleId, priority, message, statusCo
     local isCountryPass = false
     -- check country
     if rules.country and rules.country ~= nil and rules.country ~= "" and type(rules.country) ~= "userdata" then
-        if rules.country == "EU" then
+        if rules.country_key == 'not_equals' then
+            -- Inverse match: pass if country does NOT match (or NOT in EU)
+            if rules.country == "EU" then
+                isCountryPass = not Helper.isEU(country)
+            else
+                isCountryPass = (rules.country ~= country)
+            end
+            if not isCountryPass then
+                failMessage = string.format(
+                    "Country exclusion matched. country=%s is excluded by not_equals rule", country)
+            end
+        elseif rules.country == "EU" then
             if Helper.isEU(country) then
                 isCountryPass = true
             end
@@ -364,6 +386,10 @@ local function gatewayHostRulesParser(rules, ruleId, priority, message, statusCo
     rules.isConsul = isConsul
     rules.consulDomainName = consulDomainName
     rules.strip_path = stripPath
+    rules.id = ruleId
+    if ruleResponse then
+        rules.response = ruleResponse
+    end
     results["country"] = isCountryPass
     results["priority"] = priority
     results["message"] = message
@@ -404,7 +430,8 @@ local function gatewayRequestHandler(ruleId)
             local results = gatewayHostRulesParser(ruleFromRedis.match.rules, ruleFromRedis.id, ruleFromRedis.priority,
                 ruleFromRedis.match.response.message, ruleFromRedis.match.response.code,
                 ruleFromRedis.match.response.redirect_uri, ruleFromRedis.match.response.is_consul,
-                ruleFromRedis.match.response.consul_domain_name, ruleFromRedis.match.response.strip_path)
+                ruleFromRedis.match.response.consul_domain_name, ruleFromRedis.match.response.strip_path,
+                ruleFromRedis.match.response)
             return results
         end
     end
@@ -718,6 +745,14 @@ if exist_values and exist_values ~= 0 and exist_values ~= nil and exist_values ~
         -- do return ngx.say(highestPriorityKey) end
         if rulePasses == true then
             local selectedRule = parse_rules[highestPriorityParentKey][highestPriorityKey]
+
+            -- Gateway Pipeline: rate_limit -> WAF -> transforms (fail-open)
+            local pipeline_ok, GatewayPipeline = pcall(require, "gateway_pipeline")
+            if pipeline_ok and GatewayPipeline then
+                local handled = GatewayPipeline.execute(jsonval, selectedRule, envProfile)
+                if handled then return end
+            end
+
             local globalVars = ngx.var.frontdoor_global_vars
             globalVars = cjson.decode(globalVars)
             globalVars.executableRule = selectedRule
@@ -725,8 +760,8 @@ if exist_values and exist_values ~= 0 and exist_values ~= nil and exist_values ~
             globalVars.proxyServerName = jsonval.proxy_server_name or jsonval.server_name
             if not jsonval.proxy_server_name or jsonval.proxy_server_name == "null" or jsonval.proxy_server_name == "" or jsonval.proxy_server_name == ngx.null then
                 globalVars.proxyServerName = jsonval.server_name
-                globalVars.proxyServer = jsonval
             end
+            globalVars.proxyServer = jsonval
 
             ngx.var.frontdoor_global_vars = cjson.encode(globalVars)
         else
