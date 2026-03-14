@@ -1,0 +1,27 @@
+{
+  "id": "kubepilot-org-rule",
+  "created_at": 1710374400,
+  "name": "kubepilot-org-s3-proxy",
+  "profile_id": "prod",
+  "priority": 1,
+  "match": {
+    "rules": {
+      "path": "/",
+      "path_key": "starts_with",
+      "client_ip_key": "equals",
+      "country_key": "equals",
+      "jwt_token_validation": "equals"
+    },
+    "response": {
+      "code": 305,
+      "redirect_uri": "http://kubepilot-docs.s3-website.eu-west-2.amazonaws.com/landing",
+      "allow": false,
+      "message": "",
+      "is_consul": false
+    }
+  },
+  "version": 1,
+  "servers": [
+    "host:kubepilot.org"
+  ]
+}
