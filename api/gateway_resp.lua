@@ -108,6 +108,14 @@ elseif selectedRule.statusCode == 305 then
 
     selectedRule.redirectUri = string.gsub(selectedRule.redirectUri, "https://", "")
     selectedRule.redirectUri = string.gsub(selectedRule.redirectUri, "http://", "")
+    -- Separate path from hostname before DNS resolution
+    -- e.g. "bucket.s3.amazonaws.com/landing" -> host="bucket.s3.amazonaws.com", path="/landing"
+    local redirectPath = nil
+    local slashPos = string.find(selectedRule.redirectUri, "/")
+    if slashPos then
+        redirectPath = string.sub(selectedRule.redirectUri, slashPos)
+        selectedRule.redirectUri = string.sub(selectedRule.redirectUri, 1, slashPos - 1)
+    end
     local extracted = nil
     local extractedPort = 80
     -- if not isIpAddress(selectedRule.redirectUri) then
@@ -227,6 +235,13 @@ elseif selectedRule.statusCode == 305 then
     -- Client response headers (sent back to the browser via header_filter phase)
     if proxyServer and proxyServer.custom_response_headers ~= nil and type(proxyServer.custom_response_headers) == "table" then
         ngx.ctx.custom_response_headers = proxyServer.custom_response_headers
+    end
+
+    -- Prepend redirect path to the request URI if present
+    -- e.g. redirect_uri had "/landing" and request is "/" -> upstream gets "/landing/"
+    if redirectPath and redirectPath ~= "/" then
+        local currentUri = ngx.var.uri or "/"
+        ngx.req.set_uri(redirectPath .. currentUri)
     end
 
     ngx.var.proxy_host_scheme = origin_serverScheme
