@@ -1,6 +1,9 @@
 name: Deploy WSLProxy Configs and Nginx
 # Deploys JSON server/rule configs and optionally re-deploys nginx conf files
 # without rebuilding software. Use this for config-only changes.
+#
+# Pipeline: Validate → Deploy Int (self-hosted, fail fast) → Smoke Test Int
+#           → Deploy Target Env (ubuntu-latest) → Nginx Conf (optional)
 
 on:
   push:
@@ -52,6 +55,8 @@ env:
   TARGET_HOST: ${{ github.event.inputs.TARGET_HOST || '187.124.112.155' }}
   DEPLOY_NGINX_CONF: ${{ github.event.inputs.DEPLOY_NGINX_CONF || 'false' }}
   DRY_RUN: ${{ github.event.inputs.DRY_RUN || 'false' }}
+  INT_HOST: slworker00
+  INT_BACKEND_PORT: 8080
 
 jobs:
   # ──────────────────────────────────────────────────────
@@ -118,13 +123,134 @@ jobs:
           ls -la data/rules/${{ env.TARGET_ENV }}/ 2>/dev/null || echo "No rule configs found"
 
   # ──────────────────────────────────────────────────────
-  # Stage 2: Deploy JSON server & rule configs
+  # Stage 2: Deploy to Int first (self-hosted, fail fast)
+  # Always deploys int configs first to validate before
+  # touching prod/test/acc environments
   # ──────────────────────────────────────────────────────
-  deploy-json-configs:
-    name: "Stage 2: Deploy JSON Server & Rule Configs"
-    runs-on: ubuntu-latest
+  deploy-int:
+    name: "Stage 2: Deploy to Int (fail fast)"
+    runs-on: self-hosted
     needs: [validate-json]
     if: ${{ github.event.inputs.DRY_RUN != 'true' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Ansible
+        run: |
+          if command -v zypper &> /dev/null; then
+            sudo zypper install -y ansible
+          elif command -v apt-get &> /dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y ansible
+          else
+            echo "::error::No supported package manager found (zypper or apt-get)"
+            exit 1
+          fi
+
+      - name: Deploy int JSON configs via Ansible
+        run: |
+          echo "Deploying int configs to ${{ env.INT_HOST }} (fail-fast gate)"
+          ansible-playbook devops/ansible/deploy-configs.yml \
+            -i devops/ansible/hosts \
+            -e "target_env=int" \
+            -e "local_data_dir=${{ github.workspace }}/data" \
+            -l ${{ env.INT_HOST }} \
+            -v
+        env:
+          ANSIBLE_PRIVATE_KEY_FILE: ~/.ssh/id_rsa
+
+      - name: Deploy int nginx conf (if requested)
+        if: ${{ github.event.inputs.DEPLOY_NGINX_CONF == 'true' }}
+        timeout-minutes: 10
+        run: |
+          echo "Re-deploying nginx conf files to ${{ env.INT_HOST }} (--tags nginx)"
+          ansible-playbook devops/ansible/wslproxy-ops.yml \
+            -i devops/ansible/hosts \
+            -l ${{ env.INT_HOST }} \
+            --tags nginx \
+            --timeout 30 \
+            -v
+        env:
+          ANSIBLE_PRIVATE_KEY_FILE: ~/.ssh/id_rsa
+
+  # ──────────────────────────────────────────────────────
+  # Stage 3: Smoke test Int environment
+  # Verifies openresty config, backend port, and frontend
+  # domains before proceeding to target environment
+  # ──────────────────────────────────────────────────────
+  smoke-test-int:
+    name: "Stage 3: Smoke Test Int"
+    runs-on: self-hosted
+    needs: [deploy-int]
+    steps:
+      - name: Test OpenResty config syntax
+        run: |
+          echo "Testing OpenResty config on ${{ env.INT_HOST }}..."
+          ssh -o BatchMode=yes -o ConnectTimeout=10 bwalia@${{ env.INT_HOST }} \
+            "sudo /usr/local/openresty/bin/openresty -t" 2>&1 || {
+            echo "::error::OpenResty config test FAILED on ${{ env.INT_HOST }} - blocking deployment to target env"
+            exit 1
+          }
+          echo "✅ OpenResty config syntax OK"
+
+      - name: Test backend port responds 200
+        run: |
+          echo "Testing backend on ${{ env.INT_HOST }}:${{ env.INT_BACKEND_PORT }}..."
+          HTTP_CODE=$(ssh -o BatchMode=yes -o ConnectTimeout=10 bwalia@${{ env.INT_HOST }} \
+            "curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:${{ env.INT_BACKEND_PORT }}/ping" 2>&1) || true
+          echo "Backend HTTP response: $HTTP_CODE"
+          if [[ "$HTTP_CODE" != "200" ]]; then
+            echo "::error::Backend health check FAILED (HTTP $HTTP_CODE) on ${{ env.INT_HOST }}:${{ env.INT_BACKEND_PORT }} - blocking deployment"
+            exit 1
+          fi
+          echo "✅ Backend port ${{ env.INT_BACKEND_PORT }} responding 200 OK"
+
+      - name: Test frontend domains HTTP (port 80)
+        run: |
+          echo "Testing frontend HTTP on ${{ env.INT_HOST }}..."
+          HTTP_CODE=$(ssh -o BatchMode=yes -o ConnectTimeout=10 bwalia@${{ env.INT_HOST }} \
+            "curl -s -o /dev/null -w '%{http_code}' -H 'Host: int.wslproxy.com' http://127.0.0.1:80/" 2>&1) || true
+          echo "Frontend HTTP response (port 80): $HTTP_CODE"
+          if [[ "$HTTP_CODE" != "200" && "$HTTP_CODE" != "301" && "$HTTP_CODE" != "302" ]]; then
+            echo "::error::Frontend HTTP check FAILED (HTTP $HTTP_CODE) on port 80 - blocking deployment"
+            exit 1
+          fi
+          echo "✅ Frontend port 80 responding OK (HTTP $HTTP_CODE)"
+
+      - name: Test frontend domains HTTPS (port 443)
+        run: |
+          echo "Testing frontend HTTPS on ${{ env.INT_HOST }}..."
+          HTTP_CODE=$(ssh -o BatchMode=yes -o ConnectTimeout=10 bwalia@${{ env.INT_HOST }} \
+            "curl -sk -o /dev/null -w '%{http_code}' https://127.0.0.1:443/ -H 'Host: int.wslproxy.com'" 2>&1) || true
+          echo "Frontend HTTPS response (port 443): $HTTP_CODE"
+          if [[ "$HTTP_CODE" != "200" && "$HTTP_CODE" != "301" && "$HTTP_CODE" != "302" ]]; then
+            echo "::error::Frontend HTTPS check FAILED (HTTP $HTTP_CODE) on port 443 - blocking deployment"
+            exit 1
+          fi
+          echo "✅ Frontend port 443 responding OK (HTTP $HTTP_CODE)"
+
+      - name: Int smoke tests passed
+        run: |
+          echo "================================================"
+          echo "✅ All Int smoke tests PASSED"
+          echo "  - OpenResty config syntax: OK"
+          echo "  - Backend port ${{ env.INT_BACKEND_PORT }}: 200 OK"
+          echo "  - Frontend port 80: OK"
+          echo "  - Frontend port 443: OK"
+          echo "Proceeding to deploy target environment..."
+          echo "================================================"
+
+  # ──────────────────────────────────────────────────────
+  # Stage 4: Deploy to target environment (ubuntu-latest)
+  # Only runs after int smoke tests pass
+  # Skipped if target is already 'int' (already deployed)
+  # ──────────────────────────────────────────────────────
+  deploy-target-configs:
+    name: "Stage 4: Deploy to ${{ github.event.inputs.TARGET_ENV || 'prod' }}"
+    runs-on: ubuntu-latest
+    needs: [smoke-test-int]
+    if: ${{ github.event.inputs.DRY_RUN != 'true' && (github.event.inputs.TARGET_ENV || 'prod') != 'int' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -134,16 +260,16 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ansible
 
-      - name: Setup SSH and test connectivity
+      - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
-
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-
           ssh-keyscan -H ${{ env.TARGET_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
 
+      - name: Test SSH connectivity
+        run: |
           echo "Testing SSH connection to ${{ env.TARGET_HOST }}..."
           if ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@${{ env.TARGET_HOST }} "echo 'SSH connection successful'" 2>&1; then
             echo "✅ SSH connection test passed"
@@ -181,15 +307,16 @@ jobs:
           ANSIBLE_PRIVATE_KEY_FILE: ~/.ssh/id_rsa
 
   # ──────────────────────────────────────────────────────
-  # Stage 3: Re-deploy nginx conf files (optional)
+  # Stage 5: Re-deploy nginx conf files (optional)
   # Templates nginx.conf, default.conf, tenant configs
   # without rebuilding OpenResty or compiling anything
+  # Skipped if target is 'int' (already done in Stage 2)
   # ──────────────────────────────────────────────────────
   deploy-nginx-conf:
-    name: "Stage 3: Re-deploy Nginx Conf (no rebuild)"
+    name: "Stage 5: Re-deploy Nginx Conf (no rebuild)"
     runs-on: ubuntu-latest
-    needs: [deploy-json-configs]
-    if: ${{ github.event.inputs.DEPLOY_NGINX_CONF == 'true' && github.event.inputs.DRY_RUN != 'true' }}
+    needs: [deploy-target-configs]
+    if: ${{ github.event.inputs.DEPLOY_NGINX_CONF == 'true' && github.event.inputs.DRY_RUN != 'true' && (github.event.inputs.TARGET_ENV || 'prod') != 'int' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -239,7 +366,7 @@ jobs:
   summary:
     name: "Pipeline Summary"
     runs-on: ubuntu-latest
-    needs: [validate-json, deploy-json-configs, deploy-nginx-conf]
+    needs: [validate-json, deploy-int, smoke-test-int, deploy-target-configs, deploy-nginx-conf]
     if: always()
     steps:
       - name: Print results
@@ -254,6 +381,8 @@ jobs:
           echo "=================================="
           echo ""
           echo "Results:"
-          echo "  Stage 1 - Validate JSON:       ${{ needs.validate-json.result }}"
-          echo "  Stage 2 - Deploy JSON Configs:  ${{ needs.deploy-json-configs.result || 'skipped' }}"
-          echo "  Stage 3 - Deploy Nginx Conf:    ${{ needs.deploy-nginx-conf.result || 'skipped' }}"
+          echo "  Stage 1 - Validate JSON:          ${{ needs.validate-json.result }}"
+          echo "  Stage 2 - Deploy Int (fail fast):  ${{ needs.deploy-int.result || 'skipped' }}"
+          echo "  Stage 3 - Smoke Test Int:          ${{ needs.smoke-test-int.result || 'skipped' }}"
+          echo "  Stage 4 - Deploy Target Env:       ${{ needs.deploy-target-configs.result || 'skipped' }}"
+          echo "  Stage 5 - Deploy Nginx Conf:       ${{ needs.deploy-nginx-conf.result || 'skipped' }}"
