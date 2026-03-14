@@ -148,6 +148,12 @@ jobs:
             exit 1
           fi
 
+      - name: Setup SSH known hosts
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          ssh-keyscan -H ${{ env.INT_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
+
       - name: Deploy int JSON configs via Ansible
         run: |
           echo "Deploying int configs to ${{ env.INT_HOST }} (fail-fast gate)"
