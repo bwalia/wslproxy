@@ -439,6 +439,7 @@ local function gatewayHostRulesParser(rules, ruleId, priority, message, statusCo
     rules.isConsul = isConsul
     rules.consulDomainName = consulDomainName
     rules.strip_path = stripPath
+    rules.auto_redirect_https = ruleResponse and ruleResponse.auto_redirect_https or false
     rules.id = ruleId
     if ruleResponse then
         rules.response = ruleResponse

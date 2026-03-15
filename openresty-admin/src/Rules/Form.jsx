@@ -632,6 +632,14 @@ const Form = () => {
             </Grid>
             <Grid item xs={12} sm={6} md={3}>
               <BooleanInput
+                source="match.response.auto_redirect_https"
+                label="Auto Redirect HTTP to HTTPS"
+                defaultValue={false}
+                helperText="Redirect port 80 requests to HTTPS automatically"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <BooleanInput
                 source="match.response.is_consul"
                 label="Use Consul"
                 defaultValue={false}
