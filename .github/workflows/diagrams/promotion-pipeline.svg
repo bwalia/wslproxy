@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 620" font-family="Segoe UI, Arial, sans-serif" font-size="13">
+  <defs>
+    <linearGradient id="stageGrad2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f8f9fa"/>
+      <stop offset="100%" stop-color="#e9ecef"/>
+    </linearGradient>
+    <linearGradient id="triggerGrad2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#e7f5ff"/>
+      <stop offset="100%" stop-color="#d0ebff"/>
+    </linearGradient>
+    <linearGradient id="optGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fff9db"/>
+      <stop offset="100%" stop-color="#fff3bf"/>
+    </linearGradient>
+    <marker id="arrow2" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#495057"/>
+    </marker>
+  </defs>
+
+  <text x="450" y="30" text-anchor="middle" font-size="18" font-weight="bold" fill="#212529">Promotion Pipeline</text>
+  <text x="450" y="50" text-anchor="middle" font-size="12" fill="#868e96">deploy-wslproxy-promotion-pipeline.yml</text>
+
+  <!-- Triggers -->
+  <rect x="150" y="65" width="600" height="50" rx="20" fill="url(#triggerGrad2)" stroke="#339af0" stroke-width="1.5"/>
+  <text x="450" y="86" text-anchor="middle" font-weight="600" fill="#1864ab">Push to main / PR (feature, bugfix, hotfix, release) / Manual</text>
+  <text x="450" y="103" text-anchor="middle" font-size="11" fill="#1864ab">Deploy modes: nginx | servers</text>
+
+  <line x1="450" y1="115" x2="450" y2="140" stroke="#495057" stroke-width="1.5" marker-end="url(#arrow2)"/>
+
+  <!-- Validate -->
+  <rect x="200" y="140" width="500" height="55" rx="8" fill="url(#stageGrad2)" stroke="#adb5bd" stroke-width="1"/>
+  <text x="220" y="163" font-weight="bold" fill="#495057">Validate</text>
+  <text x="310" y="163" fill="#212529">JSON Config Validation (main)</text>
+  <text x="680" y="163" text-anchor="end" font-size="11" fill="#868e96">ubuntu-latest</text>
+  <text x="220" y="183" font-size="11" fill="#495057">Validates all server, rule, WAF JSON configs</text>
+
+  <line x1="450" y1="195" x2="450" y2="220" stroke="#495057" stroke-width="1.5" marker-end="url(#arrow2)"/>
+
+  <!-- Deploy Int -->
+  <rect x="200" y="220" width="500" height="55" rx="8" fill="url(#stageGrad2)" stroke="#adb5bd" stroke-width="1"/>
+  <text x="220" y="243" font-weight="bold" fill="#495057">Deploy Int</text>
+  <text x="330" y="243" fill="#212529">192.168.1.193 (always runs)</text>
+  <text x="680" y="243" text-anchor="end" font-size="11" fill="#868e96">self-hosted, local</text>
+  <text x="220" y="263" font-size="11" fill="#495057">deploy-environment.yml → branch: main</text>
+
+  <line x1="450" y1="275" x2="450" y2="300" stroke="#495057" stroke-width="1.5" marker-end="url(#arrow2)"/>
+
+  <!-- Smoke Test -->
+  <rect x="200" y="300" width="500" height="55" rx="8" fill="url(#stageGrad2)" stroke="#adb5bd" stroke-width="1"/>
+  <text x="220" y="323" font-weight="bold" fill="#495057">Smoke Test</text>
+  <text x="330" y="323" fill="#212529">Go health checks + endpoint verification</text>
+  <text x="680" y="323" text-anchor="end" font-size="11" fill="#868e96">self-hosted</text>
+  <text x="220" y="343" font-size="11" fill="#495057">Must pass before promoting to test/acc</text>
+
+  <line x1="450" y1="355" x2="450" y2="380" stroke="#495057" stroke-width="1.5" marker-end="url(#arrow2)"/>
+
+  <!-- Deploy Test (conditional) -->
+  <rect x="200" y="380" width="500" height="55" rx="8" fill="url(#optGrad)" stroke="#f08c00" stroke-width="1.5" stroke-dasharray="6,3"/>
+  <text x="220" y="403" font-weight="bold" fill="#e67700">Deploy Test</text>
+  <text x="340" y="403" fill="#212529">192.168.1.140</text>
+  <text x="680" y="403" text-anchor="end" font-size="11" fill="#868e96">self-hosted, SSH</text>
+  <text x="220" y="423" font-size="11" fill="#495057">Runs if TARGET_ENV = test or acc</text>
+
+  <line x1="450" y1="435" x2="450" y2="460" stroke="#495057" stroke-width="1.5" marker-end="url(#arrow2)"/>
+
+  <!-- Deploy ACC (conditional) -->
+  <rect x="200" y="460" width="500" height="55" rx="8" fill="url(#optGrad)" stroke="#f08c00" stroke-width="1.5" stroke-dasharray="6,3"/>
+  <text x="220" y="483" font-weight="bold" fill="#e67700">Deploy ACC</text>
+  <text x="340" y="483" fill="#212529">187.77.179.206</text>
+  <text x="680" y="483" text-anchor="end" font-size="11" fill="#868e96">self-hosted, SSH+key</text>
+  <text x="220" y="503" font-size="11" fill="#495057">Runs only if TARGET_ENV = acc</text>
+
+  <line x1="450" y1="515" x2="450" y2="540" stroke="#495057" stroke-width="1.5" marker-end="url(#arrow2)"/>
+
+  <!-- Summary -->
+  <rect x="280" y="540" width="340" height="40" rx="8" fill="#f1f3f5" stroke="#adb5bd" stroke-width="1"/>
+  <text x="450" y="565" text-anchor="middle" fill="#495057">Promotion Summary</text>
+
+  <!-- Legend -->
+  <rect x="580" y="140" width="180" height="80" rx="8" fill="white" stroke="#dee2e6" stroke-width="1" opacity="0"/>
+</svg>

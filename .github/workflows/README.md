@@ -12,6 +12,16 @@ WSLProxy uses two deployment pipelines and a shared reusable workflow:
 
 ---
 
+## Pipeline Flow Diagrams
+
+### Delivery Pipeline Flow
+![Delivery Pipeline](diagrams/delivery-pipeline.svg)
+
+### Promotion Pipeline Flow
+![Promotion Pipeline](diagrams/promotion-pipeline.svg)
+
+---
+
 ## Delivery Pipeline (`deploy-wslproxy-delivery-pipeline.yml`)
 
 Full production release pipeline with fail-fast behavior and Slack notifications at every gate. Code promotes through **int → test → acc → prod (pop0 + lon1)** — each environment must pass before the next deploys.
