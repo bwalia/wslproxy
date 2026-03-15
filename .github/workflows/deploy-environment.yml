@@ -1,0 +1,319 @@
+name: Deploy Environment
+# Reusable workflow: parameterized deployment to a single WSLProxy environment
+# Called by build-deploy-wslproxy.yml for each environment in the promotion chain
+
+on:
+  workflow_call:
+    inputs:
+      env_name:
+        description: "Ansible target_env value (int, test, acc, prod)"
+        type: string
+        required: true
+      env_label:
+        description: "Human-readable label for logs and Slack (e.g. 'Int (192.168.1.193)')"
+        type: string
+        required: true
+      stage_number:
+        description: "Pipeline stage number for Slack messages (e.g. '2', '6a')"
+        type: string
+        required: true
+      host_ip:
+        description: "Target host IP address"
+        type: string
+        required: true
+      ssh_user:
+        description: "SSH user for remote connections (ignored for local)"
+        type: string
+        default: "root"
+      connection_mode:
+        description: "Connection mode: local (sudo, int only), ssh (test), ssh_key (acc/prod)"
+        type: string
+        required: true
+      secrets_mode:
+        description: "Secrets source: github_secret (decode from GH secret) or runner_file (read from disk)"
+        type: string
+        required: true
+      settings_file_path:
+        description: "Path to settings.json on runner (only for secrets_mode=runner_file)"
+        type: string
+        default: ""
+      env_file_path:
+        description: "Path to .env on runner (only for secrets_mode=runner_file)"
+        type: string
+        default: ""
+      health_endpoint:
+        description: "URL to curl for health check (e.g. http://localhost:8080/health)"
+        type: string
+        required: true
+      health_check_mode:
+        description: "How to check health: local (curl from runner), ssh (curl via SSH), external (curl public URL)"
+        type: string
+        required: true
+      docker_prune:
+        description: "Run Docker system prune before deploy"
+        type: boolean
+        default: false
+      notify_success:
+        description: "Send Slack notification on success"
+        type: boolean
+        default: false
+      deploy_branch:
+        description: "Git branch to deploy"
+        type: string
+        required: true
+      deploy_mode:
+        description: "Deploy mode: code, nginx, servers, dashboard, os_deps, build, full"
+        type: string
+        required: true
+    secrets:
+      SLACK_WEBHOOK:
+        required: true
+      SETTINGS_SECRET:
+        required: false
+      ENV_CREDS_SECRET:
+        required: false
+
+jobs:
+  deploy:
+    name: "Deploy ${{ inputs.env_label }}"
+    runs-on: [self-hosted, Linux]
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.deploy_branch }}
+
+      - name: Install Ansible
+        run: |
+          if command -v zypper &> /dev/null; then
+            sudo zypper install -y ansible
+          elif command -v apt-get &> /dev/null; then
+            sudo apt-get install -y ansible
+          else
+            echo "::error::No supported package manager found"
+            exit 1
+          fi
+
+      # ── Secrets: decode from GitHub Secret ──
+      - name: Decode settings from GitHub Secret
+        if: inputs.secrets_mode == 'github_secret'
+        run: |
+          echo "${{ secrets.SETTINGS_SECRET }}" | base64 -d > /tmp/settings_${{ inputs.host_ip }}.json
+          if [ ! -s /tmp/settings_${{ inputs.host_ip }}.json ]; then
+            echo "::error::Settings file is empty or failed to decode"
+            exit 1
+          fi
+          python3 -m json.tool /tmp/settings_${{ inputs.host_ip }}.json > /dev/null 2>&1 || {
+            echo "::error::Settings file contains invalid JSON"; exit 1;
+          }
+          echo "${{ secrets.ENV_CREDS_SECRET }}" | base64 -d > /tmp/.env_${{ inputs.host_ip }}
+          if [ ! -s /tmp/.env_${{ inputs.host_ip }} ]; then
+            echo "::warning::Env file is empty (may be expected)"
+          fi
+          echo "settings_path=/tmp/settings_${{ inputs.host_ip }}.json" >> $GITHUB_ENV
+          echo "env_path=/tmp/.env_${{ inputs.host_ip }}" >> $GITHUB_ENV
+
+      # ── Secrets: validate from runner file ──
+      - name: Validate settings from runner file
+        if: inputs.secrets_mode == 'runner_file'
+        run: |
+          SETTINGS="${{ inputs.settings_file_path }}"
+          ENVFILE="${{ inputs.env_file_path }}"
+          if [ ! -f "$SETTINGS" ]; then
+            echo "::error::Settings file not found: $SETTINGS"
+            exit 1
+          fi
+          python3 -m json.tool "$SETTINGS" > /dev/null 2>&1 || {
+            echo "::error::Settings file contains invalid JSON"; exit 1;
+          }
+          if [ ! -f "$ENVFILE" ]; then
+            echo "::warning::Env file not found: $ENVFILE (may be expected)"
+          fi
+          echo "settings_path=$SETTINGS" >> $GITHUB_ENV
+          echo "env_path=$ENVFILE" >> $GITHUB_ENV
+
+      # ── SSH setup (remote connections only) ──
+      - name: Setup SSH and test connectivity
+        if: inputs.connection_mode != 'local'
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          ssh-keyscan -H ${{ inputs.host_ip }} >> ~/.ssh/known_hosts 2>/dev/null || true
+
+          SSH_OPTS="-o BatchMode=yes -o ConnectTimeout=10"
+          if [[ "${{ inputs.connection_mode }}" == "ssh_key" ]]; then
+            if [[ ! -f ~/.ssh/id_rsa ]]; then
+              echo "::error::SSH key not found at ~/.ssh/id_rsa"
+              exit 1
+            fi
+            SSH_OPTS="$SSH_OPTS -i ~/.ssh/id_rsa"
+          fi
+
+          ssh $SSH_OPTS ${{ inputs.ssh_user }}@${{ inputs.host_ip }} "echo 'SSH OK'" 2>&1 || {
+            echo "::error::SSH connection failed to ${{ inputs.ssh_user }}@${{ inputs.host_ip }}"; exit 1;
+          }
+
+      # ── Docker prune ──
+      - name: Clean up Docker resources
+        if: inputs.docker_prune
+        run: |
+          if [[ "${{ inputs.connection_mode }}" == "local" ]]; then
+            if command -v docker &> /dev/null; then
+              echo "Pruning Docker on ${{ inputs.host_ip }}..."
+              sudo docker system prune -y 2>&1 || true
+            else
+              echo "Docker not installed — skipping prune"
+            fi
+          else
+            SSH_OPTS="-o BatchMode=yes -o ConnectTimeout=10"
+            [[ "${{ inputs.connection_mode }}" == "ssh_key" ]] && SSH_OPTS="$SSH_OPTS -i ~/.ssh/id_rsa"
+            ssh $SSH_OPTS ${{ inputs.ssh_user }}@${{ inputs.host_ip }} \
+              'if command -v docker &> /dev/null; then echo "Pruning Docker..."; docker system prune -y; else echo "Docker not installed — skipping prune"; fi' 2>&1 || true
+          fi
+
+      # ── Ansible deploy ──
+      - name: Run Ansible Playbook
+        timeout-minutes: 25
+        run: |
+          DEPLOY_MODE="${{ inputs.deploy_mode }}"
+          TAGS_FLAG=""
+          if [[ "$DEPLOY_MODE" == "full" ]]; then
+            echo "Full deploy to ${{ inputs.env_label }}"
+          elif [[ "$DEPLOY_MODE" == "build" ]]; then
+            TAGS_FLAG="--tags os_deps,build"
+            echo "Build deploy to ${{ inputs.env_label }}"
+          else
+            TAGS_FLAG="--tags $DEPLOY_MODE"
+            echo "$DEPLOY_MODE deploy to ${{ inputs.env_label }}"
+          fi
+
+          export ANSIBLE_HOST_KEY_CHECKING=False
+
+          # Build ansible-playbook command based on connection mode
+          CMD_PREFIX=""
+          CONN_FLAGS=""
+          if [[ "${{ inputs.connection_mode }}" == "local" ]]; then
+            CMD_PREFIX="sudo"
+            CONN_FLAGS="--connection=local"
+          elif [[ "${{ inputs.connection_mode }}" == "ssh_key" ]]; then
+            CONN_FLAGS="--private-key ~/.ssh/id_rsa --timeout 30"
+          else
+            CONN_FLAGS="--timeout 30"
+          fi
+
+          $CMD_PREFIX ansible-playbook devops/ansible/wslproxy-ops.yml \
+            -i devops/ansible/hosts \
+            -l ${{ inputs.host_ip }} \
+            $CONN_FLAGS \
+            $TAGS_FLAG \
+            --extra-vars "nginx_user_password=THISCOMESFROMSECRETS target_env=${{ inputs.env_name }} local_settings_file_path=${{ env.settings_path }} local_env_file_path=${{ env.env_path }}"
+
+      # ── Deploy server/rule configs ──
+      - name: Deploy server configs and rules
+        timeout-minutes: 5
+        run: |
+          echo "Deploying server configs for env: ${{ inputs.env_name }} to ${{ inputs.host_ip }}"
+          export ANSIBLE_HOST_KEY_CHECKING=False
+
+          CMD_PREFIX=""
+          CONN_FLAGS=""
+          if [[ "${{ inputs.connection_mode }}" == "local" ]]; then
+            CMD_PREFIX="sudo"
+            CONN_FLAGS="--connection=local"
+          elif [[ "${{ inputs.connection_mode }}" == "ssh_key" ]]; then
+            CONN_FLAGS="--private-key ~/.ssh/id_rsa"
+          fi
+
+          $CMD_PREFIX ansible-playbook devops/ansible/deploy-configs.yml \
+            -i devops/ansible/hosts \
+            -l ${{ inputs.host_ip }} \
+            $CONN_FLAGS \
+            -e "target_env=${{ inputs.env_name }} local_data_dir=${{ github.workspace }}/data"
+
+      # ── Health gate ──
+      - name: Post-deploy health gate
+        run: |
+          echo "Verifying deployment on ${{ inputs.env_label }}..."
+
+          SSH_OPTS="-o BatchMode=yes -o ConnectTimeout=10"
+          [[ "${{ inputs.connection_mode }}" == "ssh_key" ]] && SSH_OPTS="$SSH_OPTS -i ~/.ssh/id_rsa"
+
+          # Nginx config test
+          if [[ "${{ inputs.connection_mode }}" == "local" ]]; then
+            sudo /usr/local/openresty/bin/openresty -t 2>&1 || {
+              echo "::error::Nginx config test failed"; exit 1;
+            }
+            sudo systemctl is-active openresty 2>&1 || {
+              echo "::error::OpenResty service not running"; exit 1;
+            }
+          else
+            ssh $SSH_OPTS ${{ inputs.ssh_user }}@${{ inputs.host_ip }} \
+              "/usr/local/openresty/bin/openresty -t" 2>&1 || {
+              echo "::error::Nginx config test failed on ${{ inputs.host_ip }}"; exit 1;
+            }
+            ssh $SSH_OPTS ${{ inputs.ssh_user }}@${{ inputs.host_ip }} \
+              "systemctl is-active openresty" 2>&1 || {
+              echo "::error::OpenResty not running on ${{ inputs.host_ip }}"; exit 1;
+            }
+          fi
+
+          # Health endpoint check
+          RETRIES=12
+          WAIT=5
+          for i in $(seq 1 $RETRIES); do
+            if [[ "${{ inputs.health_check_mode }}" == "local" ]]; then
+              STATUS=$(curl -sf -o /dev/null -w "%{http_code}" "${{ inputs.health_endpoint }}" 2>/dev/null || echo "000")
+            elif [[ "${{ inputs.health_check_mode }}" == "ssh" ]]; then
+              STATUS=$(ssh $SSH_OPTS ${{ inputs.ssh_user }}@${{ inputs.host_ip }} \
+                "curl -sf -o /dev/null -w '%{http_code}' ${{ inputs.health_endpoint }} 2>/dev/null" || echo "000")
+            else
+              # external: curl from runner to public URL
+              STATUS=$(curl -sf -o /dev/null -w "%{http_code}" "${{ inputs.health_endpoint }}" 2>/dev/null || echo "000")
+            fi
+
+            if [ "$STATUS" = "200" ]; then
+              echo "Health check passed (HTTP $STATUS)"
+              exit 0
+            fi
+            echo "Attempt $i/$RETRIES: HTTP $STATUS — waiting ${WAIT}s..."
+            sleep $WAIT
+          done
+          echo "::error::Health check failed on ${{ inputs.env_label }} after $((RETRIES * WAIT))s"
+          exit 1
+
+      # ── Slack notifications ──
+      - name: Slack notify - deployed
+        if: success() && inputs.notify_success
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_CHANNEL: github-updates
+          SLACK_COLOR: good
+          SLACK_ICON: https://github.com/rtCamp.png?size=48
+          SLACK_MESSAGE: |
+            :white_check_mark: *WSLProxy deployed to ${{ inputs.env_label }}*
+            *Mode:* ${{ inputs.deploy_mode }} | *Host:* ${{ inputs.host_ip }}
+            *Branch:* ${{ github.ref_name }} | *Commit:* `${{ github.sha }}`
+            *Triggered by:* ${{ github.actor }} (${{ github.event_name }})
+          SLACK_TITLE: "WSLProxy ${{ inputs.env_label }} — Success"
+          SLACK_USERNAME: GitHub Actions
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
+      - name: Slack notify - deploy failed
+        if: failure()
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_CHANNEL: github-updates
+          SLACK_COLOR: danger
+          SLACK_ICON: https://github.com/rtCamp.png?size=48
+          SLACK_MESSAGE: |
+            :x: *Stage ${{ inputs.stage_number }} FAILED: ${{ inputs.env_label }}*
+            Deploy or health check failed — pipeline stopped.
+            *Mode:* ${{ inputs.deploy_mode }} | *Host:* ${{ inputs.host_ip }}
+            *Branch:* ${{ github.ref_name }} | *Commit:* `${{ github.sha }}`
+            *Triggered by:* ${{ github.actor }} (${{ github.event_name }})
+            *Logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SLACK_TITLE: "WSLProxy Pipeline Failed — Stage ${{ inputs.stage_number }}"
+          SLACK_USERNAME: GitHub Actions
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
