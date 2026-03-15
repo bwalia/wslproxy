@@ -290,7 +290,7 @@ Only one deployment per branch at a time. In-progress deployments are **not** ca
 
 | Workflow | File | Purpose |
 |----------|------|---------|
-| Deploy Configs | `deploy-wslproxy-configs.yml` | Deploy server/rule JSON configs + optional nginx conf via Ansible |
+| Deploy Virtual Servers | `deploy-wslproxy-virtual-servers.yml` | Deploy server/rule JSON configs + optional nginx conf via Ansible |
 | E2E Tests | `e2e-tests.yml` | Playwright browser tests against deployed frontend |
 | API Test Suite | `automated-api-test-suite.yml` | Go-based API integration tests |
 | UI Smoke Test | `automated-ui-smoke-test.yml` | Cypress UI smoke tests |
