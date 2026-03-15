@@ -207,6 +207,21 @@ function _M.select_backend(rule_response, request_ctx, opts)
         return nil
     end
 
+    -- Filter out unhealthy backends (fail-open: if all unhealthy, use all)
+    local rule_id = (rule_response.rule_id or "default")
+    local healthy_backends = {}
+    for _, b in ipairs(active_backends) do
+        if _M.is_backend_healthy(rule_id, b.address) then
+            table.insert(healthy_backends, b)
+        end
+    end
+    if #healthy_backends > 0 then
+        active_backends = healthy_backends
+    else
+        -- All backends unhealthy — fail-open, try them all
+        ngx.log(ngx.WARN, "traffic_router: all backends unhealthy for rule ", rule_id, ", using all")
+    end
+
     local routing = rule_response.routing or {}
     local mode = routing.mode or "weighted"
     local selected = nil
@@ -260,6 +275,20 @@ function _M.record_backend_stat(rule_id, backend_label, latency, status, bytes_s
 
     if status and status >= 500 then
         router_dict:incr(err_key, 1, 0)
+
+        -- Passive health marking: track consecutive 5xx errors per backend
+        local consec_key = "consec5xx:" .. rule_id .. ":" .. backend_label
+        local consec = router_dict:incr(consec_key, 1, 0)
+        if consec and consec >= 3 then
+            -- 3 consecutive 5xx → mark backend unhealthy for 30s
+            _M.set_backend_health(rule_id, backend_label, false)
+            ngx.log(ngx.WARN, "traffic_router: passive health check marked ", backend_label,
+                " unhealthy for rule ", rule_id, " after ", consec, " consecutive 5xx errors")
+        end
+    else
+        -- Reset consecutive 5xx counter on any non-5xx response
+        local consec_key = "consec5xx:" .. rule_id .. ":" .. backend_label
+        router_dict:set(consec_key, 0, 120)
     end
 
     if latency then
@@ -411,7 +440,7 @@ function _M.start_health_checks()
         end
     end
 
-    local ok, err = ngx.timer.every(30, function(premature)
+    local ok, err = ngx.timer.every(10, function(premature)
         if premature then return end
         local check_ok, check_err = pcall(check_all_backends)
         if not check_ok then
@@ -420,7 +449,7 @@ function _M.start_health_checks()
     end)
 
     if ok then
-        ngx.log(ngx.INFO, "traffic_router: started health check timer (30s interval)")
+        ngx.log(ngx.INFO, "traffic_router: started health check timer (10s interval)")
     else
         ngx.log(ngx.WARN, "traffic_router: failed to start health check timer: ", tostring(err))
     end

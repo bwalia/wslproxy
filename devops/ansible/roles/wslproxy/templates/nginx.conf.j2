@@ -190,12 +190,50 @@ http {
     local balancer = require "ngx.balancer"
     local host = ngx.var.proxy_host
     local port = ngx.var.proxy_port
-    local backendHttps = ngx.var.proxy_host_scheme
+
+    -- Retry support: if this is a retry attempt, pick a different backend
+    local retry_count = ngx.ctx._balancer_retry_count or 0
+    if retry_count > 0 and ngx.ctx._router_response_cache then
+        local tr_ok, TrafficRouter = pcall(require, "traffic_router")
+        if tr_ok and TrafficRouter then
+            local failed_addr = ngx.ctx._balancer_failed_addr
+            local response = ngx.ctx._router_response_cache
+            local ctx = ngx.ctx._router_ctx_cache or {}
+            local new_backend = TrafficRouter.select_backend(response, ctx, { exclude = failed_addr })
+            if new_backend then
+                local addr = new_backend.address or ""
+                addr = addr:gsub("^https?://", "")
+                local new_host = addr:match("^(.-):")
+                local new_port = addr:match(":(%d+)$")
+                if new_host and new_port then
+                    host = new_host
+                    port = new_port
+                    ngx.ctx.selected_backend_label = new_backend.label
+                    ngx.log(ngx.WARN, "balancer: retrying with backend ", host, ":", port,
+                        " after failure on ", tostring(failed_addr))
+                end
+            end
+        end
+    end
+
     local ok, err = balancer.set_current_peer(host, port)
-        if not ok then
+    if not ok then
         ngx.log(ngx.ERR, "balancer.set_current_peer failed to set the host " .. host .. ":" .. port .. " current peer: ", err)
         return ngx.exit(500)
+    end
+
+    -- Enable retries for multi-backend rules (up to 2 retries)
+    if retry_count == 0 and ngx.ctx._router_response_cache then
+        local max_retries = 2
+        local response = ngx.ctx._router_response_cache
+        if response.backends and #response.backends > 1 then
+            balancer.set_more_tries(math.min(max_retries, #response.backends - 1))
         end
+    end
+
+    -- Track retry state
+    ngx.ctx._balancer_retry_count = retry_count + 1
+    ngx.ctx._balancer_failed_addr = host .. ":" .. port
     }
 
     keepalive 10; # connection pool

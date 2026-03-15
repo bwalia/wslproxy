@@ -796,11 +796,11 @@ const Dashboard = () => {
       })
       .catch(() => {});
 
-    // Auto-refresh traffic data every 60 seconds
+    // Auto-refresh traffic data every 15 seconds for near-realtime health visibility
     const trafficInterval = setInterval(() => {
       fetchTrafficStats();
       fetchBackendHealth();
-    }, 60000);
+    }, 15000);
     return () => clearInterval(trafficInterval);
   }, []);
 
