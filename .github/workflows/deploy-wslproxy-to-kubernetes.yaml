@@ -1,4 +1,4 @@
-name: Build-Push-Deploy wslproxy to K3S
+name: Helm Deploy WSLProxy to K3S (Build and Push Docker Images, Helm Deploy to K3S, Post-Deployment Health Check)
 on:
   push:
     branches:
