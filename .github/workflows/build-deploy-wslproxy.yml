@@ -41,7 +41,7 @@ on:
           - 192.168.1.140
           - 187.77.179.206
           - 187.124.112.155
-          - lon1.pop0.uk
+          - 72.62.211.28
           - 187.124.112.156
 
       DEPLOY_DASHBOARD_ONLY:
@@ -793,17 +793,17 @@ jobs:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
   # ──────────────────────────────────────────────────────
-  # Stage 6b: Deploy Prod lon1 (lon1.pop0.uk / 72.62.211.28)
+  # Stage 6b: Deploy Prod lon1 (72.62.211.28 / 72.62.211.28)
   # Runs after pop0 succeeds
   # ──────────────────────────────────────────────────────
   deploy-prod-lon1:
-    name: "Stage 6b: Deploy Prod lon1 (lon1.pop0.uk)"
+    name: "Stage 6b: Deploy Prod lon1 (72.62.211.28)"
     runs-on: [self-hosted]
     needs: [deploy-prod-pop0]
     if: >
       (github.event_name == 'push' && (github.ref == 'refs/heads/release' || github.ref == 'refs/heads/main')) ||
       (github.event_name == 'workflow_dispatch' &&
-      (github.event.inputs.TARGET_HOST == 'lon1.pop0.uk' || github.event.inputs.TARGET_HOST == 'all'))
+      (github.event.inputs.TARGET_HOST == '72.62.211.28' || github.event.inputs.TARGET_HOST == 'all'))
     timeout-minutes: 30
 
     steps:
@@ -850,15 +850,15 @@ jobs:
             echo "::error::SSH key not found at ~/.ssh/id_rsa"
             exit 1
           fi
-          ssh-keyscan -H lon1.pop0.uk >> ~/.ssh/known_hosts 2>/dev/null || true
-          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@lon1.pop0.uk "echo 'SSH OK'" 2>&1 || {
-            echo "::error::SSH connection failed to root@lon1.pop0.uk"; exit 1;
+          ssh-keyscan -H 72.62.211.28 >> ~/.ssh/known_hosts 2>/dev/null || true
+          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@72.62.211.28 "echo 'SSH OK'" 2>&1 || {
+            echo "::error::SSH connection failed to root@72.62.211.28"; exit 1;
           }
 
       - name: "Prepare: Clean up Docker resources"
         run: |
-          echo "Pruning unused Docker resources on lon1.pop0.uk..."
-          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@lon1.pop0.uk \
+          echo "Pruning unused Docker resources on 72.62.211.28..."
+          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@72.62.211.28 \
             "docker system prune -y" 2>&1 || echo "::warning::Docker prune failed on LON1"
           echo "Docker cleanup complete"
 
@@ -868,17 +868,17 @@ jobs:
           TAGS_FLAG=""
           if [[ "${{ env.DEPLOY_DASHBOARD_ONLY }}" == "true" ]]; then
             TAGS_FLAG="--tags dashboard"
-            echo "Dashboard-only deploy to LON1: lon1.pop0.uk"
+            echo "Dashboard-only deploy to LON1: 72.62.211.28"
           elif [[ "${{ env.FULL_BUILD }}" != "true" ]]; then
             TAGS_FLAG="--skip-tags base_packages,build"
-            echo "Code-only deploy to LON1: lon1.pop0.uk — skipping OS updates and OpenResty build"
+            echo "Code-only deploy to LON1: 72.62.211.28 — skipping OS updates and OpenResty build"
           else
-            echo "Full build + deploy to LON1: lon1.pop0.uk (env: prod)"
+            echo "Full build + deploy to LON1: 72.62.211.28 (env: prod)"
           fi
           export ANSIBLE_HOST_KEY_CHECKING=False
           ansible-playbook devops/ansible/wslproxy-ops.yml \
             -i devops/ansible/hosts \
-            -l lon1.pop0.uk \
+            -l 72.62.211.28 \
             --private-key ~/.ssh/id_rsa \
             --timeout 30 \
             $TAGS_FLAG \
@@ -887,30 +887,30 @@ jobs:
       - name: Deploy server configs and rules (lon1 / prod)
         timeout-minutes: 5
         run: |
-          echo "Deploying server configs for env: prod to lon1.pop0.uk"
+          echo "Deploying server configs for env: prod to 72.62.211.28"
           export ANSIBLE_HOST_KEY_CHECKING=False
           ansible-playbook devops/ansible/deploy-configs.yml \
             -i devops/ansible/hosts \
             -e "target_env=prod local_data_dir=${{ github.workspace }}/data" \
-            -l lon1.pop0.uk \
+            -l 72.62.211.28 \
             --private-key ~/.ssh/id_rsa
 
       - name: Post-deploy health gate
         run: |
-          echo "Verifying LON1 deployment on lon1.pop0.uk..."
+          echo "Verifying LON1 deployment on 72.62.211.28..."
 
-          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@lon1.pop0.uk \
+          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@72.62.211.28 \
             "/usr/local/openresty/bin/openresty -t" 2>&1 || {
-            echo "::error::Nginx config test failed on lon1.pop0.uk"; exit 1;
+            echo "::error::Nginx config test failed on 72.62.211.28"; exit 1;
           }
 
-          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@lon1.pop0.uk \
+          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@72.62.211.28 \
             "systemctl is-active openresty" 2>&1 || {
-            echo "::error::OpenResty not running on lon1.pop0.uk"; exit 1;
+            echo "::error::OpenResty not running on 72.62.211.28"; exit 1;
           }
 
           for i in $(seq 1 10); do
-            STATUS=$(curl -sf -o /dev/null -w "%{http_code}" "http://lon1.pop0.uk:8080/health" 2>/dev/null || echo "000")
+            STATUS=$(curl -sf -o /dev/null -w "%{http_code}" "http://72.62.211.28:8080/health" 2>/dev/null || echo "000")
             if [ "$STATUS" = "200" ]; then
               echo "LON1 endpoint healthy (HTTP $STATUS)"
               exit 0
@@ -918,7 +918,7 @@ jobs:
             echo "Attempt $i/10: HTTP $STATUS — waiting 5s..."
             sleep 5
           done
-          echo "::error::LON1 not responding on lon1.pop0.uk after 50s"
+          echo "::error::LON1 not responding on 72.62.211.28 after 50s"
           exit 1
 
       - name: Slack notify - LON1 deployed
@@ -931,7 +931,7 @@ jobs:
           SLACK_MESSAGE: |
             :white_check_mark: *WSLProxy deployed to LON1*
             All pipeline stages passed. Zero-downtime deployment complete.
-            *Host:* lon1.pop0.uk (72.62.211.28) | *Env:* prod
+            *Host:* 72.62.211.28 (72.62.211.28) | *Env:* prod
             *Branch:* ${{ github.ref_name }} | *Commit:* `${{ github.sha }}`
             *Triggered by:* ${{ github.actor }} (${{ github.event_name }})
           SLACK_TITLE: "WSLProxy LON1 Deployment — Success"
@@ -947,7 +947,7 @@ jobs:
           SLACK_ICON: https://github.com/rtCamp.png?size=48
           SLACK_MESSAGE: |
             :rotating_light: *Stage 6b FAILED: LON1 Deployment*
-            Ansible deploy or health check failed on lon1.pop0.uk.
+            Ansible deploy or health check failed on 72.62.211.28.
             *Branch:* ${{ github.ref_name }} | *Commit:* `${{ github.sha }}`
             *Triggered by:* ${{ github.actor }} (${{ github.event_name }})
             *Logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

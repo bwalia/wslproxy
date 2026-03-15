@@ -27,14 +27,14 @@ declare -A FRONT_URL
 FRONT_URL[int]="https://int.wslproxy.com"
 FRONT_URL[test]="https://test.wslproxy.com"
 FRONT_URL[acc]="https://acc.wslproxy.com"
-FRONT_URL[lon1]="http://lon1.pop0.uk"
+FRONT_URL[lon1]="http://72.62.211.28"
 FRONT_URL[wsl1]="https://wsl1.diytaxreturn.co.uk"
 
 declare -A HOSTNAME_VAL
 HOSTNAME_VAL[int]="int.wslproxy.com"
 HOSTNAME_VAL[test]="test.wslproxy.com"
 HOSTNAME_VAL[acc]="acc.wslproxy.com"
-HOSTNAME_VAL[lon1]="lon1.pop0.uk"
+HOSTNAME_VAL[lon1]="72.62.211.28"
 HOSTNAME_VAL[wsl1]="wsl1.diytaxreturn.co.uk"
 
 echo "============================================"

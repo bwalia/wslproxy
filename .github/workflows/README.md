@@ -103,9 +103,9 @@ Fully automated promotion pipeline with fail-fast behavior and Slack notificatio
                             │ pass
                             ▼
  ┌──────────────────────────────────────────────────────────────────────┐
- │  STAGE 6b: Deploy Prod lon1 (lon1.pop0.uk)        [self-hosted]     │
+ │  STAGE 6b: Deploy Prod lon1 (72.62.211.28)        [self-hosted]     │
  │                                                                      │
- │  - SSH to root@lon1.pop0.uk (72.62.211.28)                         │
+ │  - SSH to root@72.62.211.28 (72.62.211.28)                         │
  │  - ansible-playbook wslproxy-ops.yml (env: prod)                    │
  │  - Post-deploy gates:                                               │
  │      • openresty -t via SSH                                         │
@@ -142,7 +142,7 @@ Fully automated promotion pipeline with fail-fast behavior and Slack notificatio
 | test | 192.168.1.140 | 192.168.1.140 | bwalia | Ansible SSH | `http://192.168.1.140:8080/health` |
 | acc | 187.77.179.206 | 187.77.179.206 | root | Ansible SSH | `http://187.77.179.206:8080/health` |
 | prod (pop0) | 187.124.112.155 | 187.124.112.155 | root | Ansible SSH | `https://prod-our.wslproxy.com/health` |
-| prod (lon1) | lon1.pop0.uk | 72.62.211.28 | root | Ansible SSH | `http://72.62.211.28:8080/health` |
+| prod (lon1) | 72.62.211.28 | 72.62.211.28 | root | Ansible SSH | `http://72.62.211.28:8080/health` |
 | wsl1 | 187.124.112.156 | 187.124.112.156 | root | Ansible SSH | `http://187.124.112.156:8080/health` |
 
 ### Build Modes
