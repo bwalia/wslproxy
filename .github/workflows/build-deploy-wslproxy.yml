@@ -184,9 +184,12 @@ jobs:
 
       - name: "Prepare: Clean up Docker resources"
         run: |
-          echo "Pruning unused Docker resources on 192.168.1.193..."
-          sudo docker system prune -y 2>&1 || echo "::warning::Docker prune failed (docker may not be installed)"
-          echo "Docker cleanup complete"
+          if command -v docker &> /dev/null; then
+            echo "Pruning unused Docker resources on 192.168.1.193..."
+            sudo docker system prune -y 2>&1 || true
+          else
+            echo "Docker not installed — skipping prune"
+          fi
 
       - name: Run Ansible Playbook (192.168.1.193 / int)
         timeout-minutes: 25
@@ -524,10 +527,8 @@ jobs:
 
       - name: "Prepare: Clean up Docker resources"
         run: |
-          echo "Pruning unused Docker resources on 187.77.179.206..."
           ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@187.77.179.206 \
-            "docker system prune -y" 2>&1 || echo "::warning::Docker prune failed on ACC"
-          echo "Docker cleanup complete"
+            'if command -v docker &> /dev/null; then echo "Pruning Docker on ACC..."; docker system prune -y; else echo "Docker not installed — skipping prune"; fi' 2>&1 || true
 
       - name: Run Ansible Playbook (ACC)
         timeout-minutes: 25
@@ -690,10 +691,8 @@ jobs:
 
       - name: "Prepare: Clean up Docker resources"
         run: |
-          echo "Pruning unused Docker resources on 187.124.112.155..."
           ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@187.124.112.155 \
-            "docker system prune -y" 2>&1 || echo "::warning::Docker prune failed on production"
-          echo "Docker cleanup complete"
+            'if command -v docker &> /dev/null; then echo "Pruning Docker on pop0..."; docker system prune -y; else echo "Docker not installed — skipping prune"; fi' 2>&1 || true
 
       - name: Run Ansible Playbook (PROD pop0)
         timeout-minutes: 25
@@ -856,10 +855,8 @@ jobs:
 
       - name: "Prepare: Clean up Docker resources"
         run: |
-          echo "Pruning unused Docker resources on 72.62.211.28..."
           ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@72.62.211.28 \
-            "docker system prune -y" 2>&1 || echo "::warning::Docker prune failed on LON1"
-          echo "Docker cleanup complete"
+            'if command -v docker &> /dev/null; then echo "Pruning Docker on LON1..."; docker system prune -y; else echo "Docker not installed — skipping prune"; fi' 2>&1 || true
 
       - name: Run Ansible Playbook (LON1)
         timeout-minutes: 25
