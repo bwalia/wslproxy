@@ -1,7 +1,6 @@
 name: Build and Deploy WSLProxy
-# Pipeline: Validate → Deploy Int → Test → Deploy WSL1 (auto on push)
-# Prod & DIYTaxReturn deploy manually or via "all" target
-# Fail-fast: any stage failure stops the pipeline and sends Slack notification immediately
+# Pipeline: Validate → Int → Smoke Test → Test → Acc → Prod (pop0 + lon1)
+# Promotion pipeline: each environment must pass before the next deploys
 # Default: code-only deploy (lua, nginx conf, data, admin UI). Tick FULL_BUILD to compile OpenResty & update OS packages.
 
 on:
@@ -26,26 +25,24 @@ on:
         default: "prod"
         required: true
         options:
-          - prod
-          - lon1
           - int
           - test
           - acc
-          - diytaxreturn
-          - diytaxreturn_wsl1
+          - prod
 
       TARGET_HOST:
         type: choice
         description: "Please choose the Target host"
-        default: "187.124.112.155"
+        default: "all"
         required: true
         options:
+          - all
+          - slworker00
+          - 192.168.1.140
+          - 187.77.179.206
           - 187.124.112.155
           - lon1.pop0.uk
-          - 187.77.179.206
           - 187.124.112.156
-          - slworker00
-          - all
 
       DEPLOY_DASHBOARD_ONLY:
         type: boolean
@@ -66,9 +63,8 @@ env:
   DEPLOY_BRANCH: ${{ github.event.inputs.DEPLOY_BRANCH || github.ref_name }}
   DEPLOY_DASHBOARD_ONLY: ${{ github.event.inputs.DEPLOY_DASHBOARD_ONLY || 'false' }}
   FULL_BUILD: ${{ github.event.inputs.FULL_BUILD || 'false' }}
-  TARGET_HOST: ${{ github.event.inputs.TARGET_HOST || '187.124.112.155' }}
-  TARGET_ENV: ${{ github.event.inputs.TARGET_ENV || (github.event.inputs.TARGET_HOST == '187.124.112.155' && 'prod' || github.event.inputs.TARGET_HOST == 'slworker00' && 'int' || 'prod') }}
-  API_DOMAINNAME_ENDPOINT: ${{ github.event.inputs.TARGET_ENV || (github.event.inputs.TARGET_HOST == '187.124.112.155' && 'prod' || github.event.inputs.TARGET_HOST == 'slworker00' && 'int' || 'prod') }}.wslproxy.com
+  TARGET_HOST: ${{ github.event.inputs.TARGET_HOST || 'all' }}
+  TARGET_ENV: ${{ github.event.inputs.TARGET_ENV || 'prod' }}
 
 jobs:
   # ──────────────────────────────────────────────────────
@@ -144,10 +140,10 @@ jobs:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
   # ──────────────────────────────────────────────────────
-  # Stage 2: Deploy Int Environment (Ansible native to slworker00)
+  # Stage 2: Deploy Int (slworker00 — local connection)
   # ──────────────────────────────────────────────────────
   deploy-int:
-    name: "Stage 2: Deploy Int (Ansible to slworker00)"
+    name: "Stage 2: Deploy Int (slworker00)"
     runs-on: [self-hosted, Linux]
     needs: [build-validate]
     timeout-minutes: 30
@@ -255,21 +251,20 @@ jobs:
           SLACK_COLOR: danger
           SLACK_ICON: https://github.com/rtCamp.png?size=48
           SLACK_MESSAGE: |
-            :x: *Stage 2 FAILED: Ansible Deploy to slworker00 (int)*
-            Native OpenResty deployment or post-deploy health check failed — pipeline stopped.
+            :x: *Stage 2 FAILED: Deploy Int (slworker00)*
+            Deployment or post-deploy health check failed — pipeline stopped.
             *Branch:* ${{ github.ref_name }} | *Commit:* `${{ github.sha }}`
             *Triggered by:* ${{ github.actor }} (${{ github.event_name }})
             *Logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          SLACK_TITLE: "WSLProxy Pipeline Failed — Stage 2"
+          SLACK_TITLE: "WSLProxy Pipeline Failed — Stage 2 (Int)"
           SLACK_USERNAME: GitHub Actions
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
   # ──────────────────────────────────────────────────────
-  # Stage 3: Smoke Test Int Environment Dashboard Endpoint
-  # Runs integration tests against natively deployed slworker00
+  # Stage 3: Smoke Test Int Environment
   # ──────────────────────────────────────────────────────
-  test-environment:
-    name: "Stage 3: Smoke Test Int Environment Dashboard Endpoint"
+  test-int:
+    name: "Stage 3: Smoke Test Int"
     runs-on: [self-hosted, Linux]
     needs: [deploy-int]
     timeout-minutes: 15
@@ -334,24 +329,308 @@ jobs:
           SLACK_COLOR: danger
           SLACK_ICON: https://github.com/rtCamp.png?size=48
           SLACK_MESSAGE: |
-            :x: *Stage 3 FAILED: Integration Tests on slworker00*
-            Health check or API endpoint tests failed — pipeline stopped before production.
+            :x: *Stage 3 FAILED: Smoke Test Int*
+            Health check or API endpoint tests failed — pipeline stopped before test environment.
             *Branch:* ${{ github.ref_name }} | *Commit:* `${{ github.sha }}`
             *Triggered by:* ${{ github.actor }} (${{ github.event_name }})
             *Logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          SLACK_TITLE: "WSLProxy Pipeline Failed — Stage 3"
+          SLACK_TITLE: "WSLProxy Pipeline Failed — Stage 3 (Smoke Test)"
           SLACK_USERNAME: GitHub Actions
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
   # ──────────────────────────────────────────────────────
-  # Stage 4: Deploy Production (187.124.112.155 / pop0)
-  # Fully automated — no manual approval gate
-  # From main/release branch push or manual dispatch targeting prod
+  # Stage 4: Deploy Test (192.168.1.140)
   # ──────────────────────────────────────────────────────
-  deploy-production:
-    name: "Stage 4: Deploy Production (pop0)"
+  deploy-test:
+    name: "Stage 4: Deploy Test (192.168.1.140)"
+    runs-on: [self-hosted, Linux]
+    needs: [test-int]
+    if: >
+      (github.event_name == 'push' && (github.ref == 'refs/heads/release' || github.ref == 'refs/heads/main')) ||
+      (github.event_name == 'workflow_dispatch' &&
+      (github.event.inputs.TARGET_HOST == '192.168.1.140' || github.event.inputs.TARGET_HOST == 'all'))
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.DEPLOY_BRANCH }}
+
+      - name: Install Ansible
+        run: |
+          if command -v zypper &> /dev/null; then
+            sudo zypper install -y ansible
+          elif command -v apt-get &> /dev/null; then
+            sudo apt-get install -y ansible
+          else
+            echo "::error::No supported package manager found (zypper or apt-get)"
+            exit 1
+          fi
+
+      - name: Validate secrets files exist (TEST)
+        run: |
+          SETTINGS="/home/bwalia/.secrets/wslproxy/test/settings.json"
+          ENVFILE="/home/bwalia/.secrets/wslproxy/test/.env"
+          if [ ! -f "$SETTINGS" ]; then
+            echo "::error::Settings file not found: $SETTINGS"
+            exit 1
+          fi
+          python3 -m json.tool "$SETTINGS" > /dev/null 2>&1 || {
+            echo "::error::Settings file contains invalid JSON"; exit 1;
+          }
+          if [ ! -f "$ENVFILE" ]; then
+            echo "::warning::Env file not found: $ENVFILE (may be expected)"
+          fi
+          echo "TEST secrets validated"
+
+      - name: Setup SSH and test connectivity
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          ssh-keyscan -H 192.168.1.140 >> ~/.ssh/known_hosts 2>/dev/null || true
+          ssh -o BatchMode=yes -o ConnectTimeout=10 bwalia@192.168.1.140 "echo 'SSH OK'" 2>&1 || {
+            echo "::error::SSH connection failed to bwalia@192.168.1.140"; exit 1;
+          }
+
+      - name: Run Ansible Playbook (TEST)
+        timeout-minutes: 25
+        run: |
+          TAGS_FLAG=""
+          if [[ "${{ env.DEPLOY_DASHBOARD_ONLY }}" == "true" ]]; then
+            TAGS_FLAG="--tags dashboard"
+            echo "Dashboard-only deploy to test: 192.168.1.140"
+          elif [[ "${{ env.FULL_BUILD }}" != "true" ]]; then
+            TAGS_FLAG="--skip-tags base_packages,build"
+            echo "Code-only deploy to test: 192.168.1.140 — skipping OS updates and OpenResty build"
+          else
+            echo "Full build + deploy to test: 192.168.1.140"
+          fi
+          export ANSIBLE_HOST_KEY_CHECKING=False
+          ansible-playbook devops/ansible/wslproxy-ops.yml \
+            -i devops/ansible/hosts \
+            -l 192.168.1.140 \
+            --timeout 30 \
+            $TAGS_FLAG \
+            --extra-vars "nginx_user_password=THISCOMESFROMSECRETS target_env=test local_settings_file_path=/home/bwalia/.secrets/wslproxy/test/settings.json local_env_file_path=/home/bwalia/.secrets/wslproxy/test/.env"
+
+      - name: Deploy server configs and rules (test)
+        timeout-minutes: 5
+        run: |
+          echo "Deploying server configs for env: test to 192.168.1.140"
+          export ANSIBLE_HOST_KEY_CHECKING=False
+          ansible-playbook devops/ansible/deploy-configs.yml \
+            -i devops/ansible/hosts \
+            -e "target_env=test local_data_dir=${{ github.workspace }}/data" \
+            -l 192.168.1.140
+
+      - name: Post-deploy health gate
+        run: |
+          echo "Verifying test deployment on 192.168.1.140..."
+
+          ssh -o BatchMode=yes -o ConnectTimeout=10 bwalia@192.168.1.140 \
+            "sudo /usr/local/openresty/bin/openresty -t" 2>&1 || {
+            echo "::error::Nginx config test failed on 192.168.1.140"; exit 1;
+          }
+
+          ssh -o BatchMode=yes -o ConnectTimeout=10 bwalia@192.168.1.140 \
+            "sudo systemctl is-active openresty" 2>&1 || {
+            echo "::error::OpenResty not running on 192.168.1.140"; exit 1;
+          }
+
+          for i in $(seq 1 12); do
+            STATUS=$(ssh -o BatchMode=yes -o ConnectTimeout=10 bwalia@192.168.1.140 \
+              "curl -sf -o /dev/null -w '%{http_code}' http://localhost:8080/health 2>/dev/null" || echo "000")
+            if [ "$STATUS" = "200" ]; then
+              echo "Test endpoint healthy (HTTP $STATUS)"
+              exit 0
+            fi
+            echo "Attempt $i/12: HTTP $STATUS — waiting 5s..."
+            sleep 5
+          done
+          echo "::error::Test server not responding on 192.168.1.140 after 60s"
+          exit 1
+
+      - name: Slack notify - Test deploy failed
+        if: failure()
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_CHANNEL: github-updates
+          SLACK_COLOR: danger
+          SLACK_ICON: https://github.com/rtCamp.png?size=48
+          SLACK_MESSAGE: |
+            :x: *Stage 4 FAILED: Deploy Test (192.168.1.140)*
+            Deployment or health check failed — pipeline stopped before acceptance.
+            *Branch:* ${{ github.ref_name }} | *Commit:* `${{ github.sha }}`
+            *Triggered by:* ${{ github.actor }} (${{ github.event_name }})
+            *Logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SLACK_TITLE: "WSLProxy Pipeline Failed — Stage 4 (Test)"
+          SLACK_USERNAME: GitHub Actions
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
+  # ──────────────────────────────────────────────────────
+  # Stage 5: Deploy Acc (187.77.179.206)
+  # ──────────────────────────────────────────────────────
+  deploy-acc:
+    name: "Stage 5: Deploy Acc (187.77.179.206)"
+    runs-on: [self-hosted, Linux]
+    needs: [deploy-test]
+    if: >
+      (github.event_name == 'push' && (github.ref == 'refs/heads/release' || github.ref == 'refs/heads/main')) ||
+      (github.event_name == 'workflow_dispatch' &&
+      (github.event.inputs.TARGET_HOST == '187.77.179.206' || github.event.inputs.TARGET_HOST == 'all'))
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.DEPLOY_BRANCH }}
+
+      - name: Install Ansible
+        run: |
+          if command -v zypper &> /dev/null; then
+            sudo zypper install -y ansible
+          elif command -v apt-get &> /dev/null; then
+            sudo apt-get install -y ansible
+          else
+            echo "::error::No supported package manager found (zypper or apt-get)"
+            exit 1
+          fi
+
+      - name: Validate secrets files exist (ACC)
+        run: |
+          SETTINGS="/home/bwalia/.secrets/wslproxy/acc/settings.json"
+          ENVFILE="/home/bwalia/.secrets/wslproxy/acc/.env"
+          if [ ! -f "$SETTINGS" ]; then
+            echo "::error::Settings file not found: $SETTINGS"
+            exit 1
+          fi
+          python3 -m json.tool "$SETTINGS" > /dev/null 2>&1 || {
+            echo "::error::Settings file contains invalid JSON"; exit 1;
+          }
+          if [ ! -f "$ENVFILE" ]; then
+            echo "::warning::Env file not found: $ENVFILE (may be expected)"
+          fi
+          echo "ACC secrets validated"
+
+      - name: Setup SSH and test connectivity
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          ssh-keyscan -H 187.77.179.206 >> ~/.ssh/known_hosts 2>/dev/null || true
+          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@187.77.179.206 "echo 'SSH OK'" 2>&1 || {
+            echo "::error::SSH connection failed to root@187.77.179.206"; exit 1;
+          }
+
+      - name: "Prepare: Clean up Docker resources"
+        run: |
+          echo "Pruning unused Docker resources on 187.77.179.206..."
+          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@187.77.179.206 \
+            "docker system prune -y" 2>&1 || echo "::warning::Docker prune failed on ACC"
+          echo "Docker cleanup complete"
+
+      - name: Run Ansible Playbook (ACC)
+        timeout-minutes: 25
+        run: |
+          TAGS_FLAG=""
+          if [[ "${{ env.DEPLOY_DASHBOARD_ONLY }}" == "true" ]]; then
+            TAGS_FLAG="--tags dashboard"
+            echo "Dashboard-only deploy to ACC: 187.77.179.206"
+          elif [[ "${{ env.FULL_BUILD }}" != "true" ]]; then
+            TAGS_FLAG="--skip-tags base_packages,build"
+            echo "Code-only deploy to ACC: 187.77.179.206 — skipping OS updates and OpenResty build"
+          else
+            echo "Full build + deploy to ACC: 187.77.179.206"
+          fi
+          export ANSIBLE_HOST_KEY_CHECKING=False
+          ansible-playbook devops/ansible/wslproxy-ops.yml \
+            -i devops/ansible/hosts \
+            -l 187.77.179.206 \
+            --private-key ~/.ssh/id_rsa \
+            --timeout 30 \
+            $TAGS_FLAG \
+            --extra-vars "nginx_user_password=THISCOMESFROMSECRETS target_env=acc local_settings_file_path=/home/bwalia/.secrets/wslproxy/acc/settings.json local_env_file_path=/home/bwalia/.secrets/wslproxy/acc/.env"
+
+      - name: Deploy server configs and rules (acc)
+        timeout-minutes: 5
+        run: |
+          echo "Deploying server configs for env: acc to 187.77.179.206"
+          export ANSIBLE_HOST_KEY_CHECKING=False
+          ansible-playbook devops/ansible/deploy-configs.yml \
+            -i devops/ansible/hosts \
+            -e "target_env=acc local_data_dir=${{ github.workspace }}/data" \
+            -l 187.77.179.206 \
+            --private-key ~/.ssh/id_rsa
+
+      - name: Post-deploy health gate
+        run: |
+          echo "Verifying ACC deployment on 187.77.179.206..."
+
+          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@187.77.179.206 \
+            "/usr/local/openresty/bin/openresty -t" 2>&1 || {
+            echo "::error::Nginx config test failed on 187.77.179.206"; exit 1;
+          }
+
+          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@187.77.179.206 \
+            "systemctl is-active openresty" 2>&1 || {
+            echo "::error::OpenResty not running on 187.77.179.206"; exit 1;
+          }
+
+          for i in $(seq 1 12); do
+            STATUS=$(ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@187.77.179.206 \
+              "curl -sf -o /dev/null -w '%{http_code}' http://localhost:8080/health 2>/dev/null" || echo "000")
+            if [ "$STATUS" = "200" ]; then
+              echo "ACC endpoint healthy (HTTP $STATUS)"
+              exit 0
+            fi
+            echo "Attempt $i/12: HTTP $STATUS — waiting 5s..."
+            sleep 5
+          done
+          echo "::error::ACC not responding on 187.77.179.206 after 60s"
+          exit 1
+
+      - name: Slack notify - ACC deployed
+        if: success()
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_CHANNEL: github-updates
+          SLACK_COLOR: good
+          SLACK_ICON: https://github.com/rtCamp.png?size=48
+          SLACK_MESSAGE: |
+            :white_check_mark: *WSLProxy deployed to ACC*
+            Acceptance environment deployment complete.
+            *Host:* 187.77.179.206 | *Env:* acc
+            *Branch:* ${{ github.ref_name }} | *Commit:* `${{ github.sha }}`
+            *Triggered by:* ${{ github.actor }} (${{ github.event_name }})
+          SLACK_TITLE: "WSLProxy ACC Deployment — Success"
+          SLACK_USERNAME: GitHub Actions
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
+      - name: Slack notify - ACC deploy failed
+        if: failure()
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_CHANNEL: github-updates
+          SLACK_COLOR: danger
+          SLACK_ICON: https://github.com/rtCamp.png?size=48
+          SLACK_MESSAGE: |
+            :x: *Stage 5 FAILED: Deploy ACC (187.77.179.206)*
+            Deployment or health check failed — pipeline stopped before production.
+            *Branch:* ${{ github.ref_name }} | *Commit:* `${{ github.sha }}`
+            *Triggered by:* ${{ github.actor }} (${{ github.event_name }})
+            *Logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SLACK_TITLE: "WSLProxy Pipeline Failed — Stage 5 (ACC)"
+          SLACK_USERNAME: GitHub Actions
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
+  # ──────────────────────────────────────────────────────
+  # Stage 6a: Deploy Prod pop0 (187.124.112.155)
+  # ──────────────────────────────────────────────────────
+  deploy-prod-pop0:
+    name: "Stage 6a: Deploy Prod pop0 (187.124.112.155)"
     runs-on: [self-hosted]
-    needs: [test-environment]
+    needs: [deploy-acc]
     if: >
       (github.event_name == 'push' && (github.ref == 'refs/heads/release' || github.ref == 'refs/heads/main')) ||
       (github.event_name == 'workflow_dispatch' &&
@@ -417,7 +696,7 @@ jobs:
             "docker system prune -y" 2>&1 || echo "::warning::Docker prune failed on production"
           echo "Docker cleanup complete"
 
-      - name: Run Ansible Playbook (PROD)
+      - name: Run Ansible Playbook (PROD pop0)
         timeout-minutes: 25
         run: |
           TAGS_FLAG=""
@@ -486,8 +765,8 @@ jobs:
           SLACK_COLOR: good
           SLACK_ICON: https://github.com/rtCamp.png?size=48
           SLACK_MESSAGE: |
-            :white_check_mark: *WSLProxy deployed to production*
-            All 4 pipeline stages passed. Zero-downtime deployment complete.
+            :white_check_mark: *WSLProxy deployed to production (pop0)*
+            All pipeline stages passed. Zero-downtime deployment complete.
             *Host:* 187.124.112.155 (pop0)
             *Branch:* ${{ github.ref_name }} | *Commit:* `${{ github.sha }}`
             *Triggered by:* ${{ github.actor }} (${{ github.event_name }})
@@ -503,7 +782,7 @@ jobs:
           SLACK_COLOR: danger
           SLACK_ICON: https://github.com/rtCamp.png?size=48
           SLACK_MESSAGE: |
-            :rotating_light: *Stage 4 FAILED: Production Deployment*
+            :rotating_light: *Stage 6a FAILED: Production Deployment (pop0)*
             Ansible deploy or post-deploy health check failed on 187.124.112.155.
             *Branch:* ${{ github.ref_name }} | *Commit:* `${{ github.sha }}`
             *Triggered by:* ${{ github.actor }} (${{ github.event_name }})
@@ -514,13 +793,13 @@ jobs:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
   # ──────────────────────────────────────────────────────
-  # Stage 4b: Deploy LON1 (lon1.pop0.uk / 72.62.211.28)
-  # Runs after prod succeeds (auto on push) or manual dispatch
+  # Stage 6b: Deploy Prod lon1 (lon1.pop0.uk / 72.62.211.28)
+  # Runs after pop0 succeeds
   # ──────────────────────────────────────────────────────
-  deploy-lon1:
-    name: "Stage 4b: Deploy LON1 (lon1.pop0.uk)"
+  deploy-prod-lon1:
+    name: "Stage 6b: Deploy Prod lon1 (lon1.pop0.uk)"
     runs-on: [self-hosted]
-    needs: [deploy-production]
+    needs: [deploy-prod-pop0]
     if: >
       (github.event_name == 'push' && (github.ref == 'refs/heads/release' || github.ref == 'refs/heads/main')) ||
       (github.event_name == 'workflow_dispatch' &&
@@ -600,7 +879,7 @@ jobs:
           ansible-playbook devops/ansible/wslproxy-ops.yml \
             -i devops/ansible/hosts \
             -l lon1.pop0.uk \
-            --private-key /home/bwalia/.ssh/id_rsa \
+            --private-key ~/.ssh/id_rsa \
             --timeout 30 \
             $TAGS_FLAG \
             --extra-vars "nginx_user_password=THISCOMESFROMSECRETS target_env=prod local_settings_file_path=/home/bwalia/.secrets/wslproxy/lon1/settings.json local_env_file_path=/home/bwalia/.secrets/wslproxy/lon1/.env"
@@ -614,7 +893,7 @@ jobs:
             -i devops/ansible/hosts \
             -e "target_env=prod local_data_dir=${{ github.workspace }}/data" \
             -l lon1.pop0.uk \
-            --private-key /home/bwalia/.ssh/id_rsa
+            --private-key ~/.ssh/id_rsa
 
       - name: Post-deploy health gate
         run: |
@@ -667,7 +946,7 @@ jobs:
           SLACK_COLOR: danger
           SLACK_ICON: https://github.com/rtCamp.png?size=48
           SLACK_MESSAGE: |
-            :rotating_light: *Stage 4b FAILED: LON1 Deployment*
+            :rotating_light: *Stage 6b FAILED: LON1 Deployment*
             Ansible deploy or health check failed on lon1.pop0.uk.
             *Branch:* ${{ github.ref_name }} | *Commit:* `${{ github.sha }}`
             *Triggered by:* ${{ github.actor }} (${{ github.event_name }})
@@ -677,173 +956,11 @@ jobs:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
   # ──────────────────────────────────────────────────────
-  # Stage 5: Deploy DIYTaxReturn (187.77.179.206)
-  # Manual dispatch only (or "all")
+  # Stage 7: Deploy WSL1 (187.124.112.156)
+  # Manual dispatch only
   # ──────────────────────────────────────────────────────
-  deploy-diytaxreturn:
-    name: "Stage 5: Deploy DIYTaxReturn (187.77.179.206)"
-    runs-on: [self-hosted, Linux]
-    needs: [build-validate]
-    if: >
-      github.event_name == 'workflow_dispatch' &&
-      (github.event.inputs.TARGET_HOST == '187.77.179.206' || github.event.inputs.TARGET_HOST == 'all')
-    timeout-minutes: 30
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ env.DEPLOY_BRANCH }}
-
-      - name: Install Ansible
-        run: |
-          if command -v zypper &> /dev/null; then
-            sudo zypper install -y ansible
-          elif command -v apt-get &> /dev/null; then
-            sudo apt-get install -y ansible
-          else
-            echo "::error::No supported package manager found (zypper or apt-get)"
-            exit 1
-          fi
-
-      - name: Validate secrets files exist
-        run: |
-          SETTINGS="/home/bwalia/.secrets/wslproxy/diytaxreturn/settings.json"
-          ENVFILE="/home/bwalia/.secrets/wslproxy/diytaxreturn/.env"
-          if [ ! -f "$SETTINGS" ]; then
-            echo "::error::Settings file not found: $SETTINGS"
-            exit 1
-          fi
-          python3 -m json.tool "$SETTINGS" > /dev/null 2>&1 || {
-            echo "::error::Settings file contains invalid JSON"; exit 1;
-          }
-          if [ ! -f "$ENVFILE" ]; then
-            echo "::warning::Env file not found: $ENVFILE (may be expected)"
-          fi
-          echo "DIYTaxReturn secrets validated"
-
-      - name: Setup SSH and test connectivity
-        run: |
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
-          if [[ -f ~/.ssh/id_rsa ]]; then
-            echo "Using existing SSH key"
-          else
-            echo "::error::SSH key not found at ~/.ssh/id_rsa"
-            exit 1
-          fi
-          ssh-keyscan -H 187.77.179.206 >> ~/.ssh/known_hosts 2>/dev/null || true
-          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@187.77.179.206 "echo 'SSH OK'" 2>&1 || {
-            echo "::error::SSH connection failed to root@187.77.179.206"; exit 1;
-          }
-
-      - name: "Prepare: Clean up Docker resources"
-        run: |
-          echo "Pruning unused Docker resources on 187.77.179.206..."
-          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@187.77.179.206 \
-            "docker system prune -y" 2>&1 || echo "::warning::Docker prune failed on DIYTaxReturn"
-          echo "Docker cleanup complete"
-
-      - name: Run Ansible Playbook (DIYTaxReturn)
-        timeout-minutes: 25
-        run: |
-          TAGS_FLAG=""
-          if [[ "${{ env.DEPLOY_DASHBOARD_ONLY }}" == "true" ]]; then
-            TAGS_FLAG="--tags dashboard"
-            echo "Dashboard-only deploy to DIYTaxReturn: 187.77.179.206"
-          elif [[ "${{ env.FULL_BUILD }}" != "true" ]]; then
-            TAGS_FLAG="--skip-tags base_packages,build"
-            echo "Code-only deploy to DIYTaxReturn: 187.77.179.206 — skipping OS updates and OpenResty build"
-          else
-            echo "Full build + deploy to DIYTaxReturn: 187.77.179.206 (env: diytaxreturn)"
-          fi
-          export ANSIBLE_HOST_KEY_CHECKING=False
-          ansible-playbook devops/ansible/wslproxy-ops.yml \
-            -i devops/ansible/hosts \
-            -l 187.77.179.206 \
-            --private-key /home/bwalia/.ssh/id_rsa \
-            --timeout 30 \
-            $TAGS_FLAG \
-            --extra-vars "nginx_user_password=THISCOMESFROMSECRETS target_env=diytaxreturn local_settings_file_path=/home/bwalia/.secrets/wslproxy/diytaxreturn/settings.json local_env_file_path=/home/bwalia/.secrets/wslproxy/diytaxreturn/.env"
-
-      - name: Deploy server configs and rules (diytaxreturn)
-        timeout-minutes: 5
-        run: |
-          echo "Deploying server configs for env: diytaxreturn to 187.77.179.206"
-          export ANSIBLE_HOST_KEY_CHECKING=False
-          ansible-playbook devops/ansible/deploy-configs.yml \
-            -i devops/ansible/hosts \
-            -e "target_env=diytaxreturn local_data_dir=${{ github.workspace }}/data" \
-            -l 187.77.179.206 \
-            --private-key /home/bwalia/.ssh/id_rsa
-
-      - name: Post-deploy health gate
-        run: |
-          echo "Verifying DIYTaxReturn deployment on 187.77.179.206..."
-
-          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@187.77.179.206 \
-            "/usr/local/openresty/bin/openresty -t" 2>&1 || {
-            echo "::error::Nginx config test failed on 187.77.179.206"; exit 1;
-          }
-
-          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@187.77.179.206 \
-            "systemctl is-active openresty" 2>&1 || {
-            echo "::error::OpenResty not running on 187.77.179.206"; exit 1;
-          }
-
-          for i in $(seq 1 12); do
-            STATUS=$(ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@187.77.179.206 \
-              "curl -sf -o /dev/null -w '%{http_code}' http://localhost:8080/health 2>/dev/null" || echo "000")
-            if [ "$STATUS" = "200" ]; then
-              echo "DIYTaxReturn endpoint healthy (HTTP $STATUS)"
-              exit 0
-            fi
-            echo "Attempt $i/12: HTTP $STATUS — waiting 5s..."
-            sleep 5
-          done
-          echo "::error::DIYTaxReturn not responding on 187.77.179.206 after 60s"
-          exit 1
-
-      - name: Slack notify - DIYTaxReturn deployed
-        if: success()
-        uses: rtCamp/action-slack-notify@v2
-        env:
-          SLACK_CHANNEL: github-updates
-          SLACK_COLOR: good
-          SLACK_ICON: https://github.com/rtCamp.png?size=48
-          SLACK_MESSAGE: |
-            :white_check_mark: *WSLProxy deployed to DIYTaxReturn*
-            Build validation passed and deployment complete.
-            *Host:* 187.77.179.206 | *Env:* diytaxreturn
-            *Branch:* ${{ github.ref_name }} | *Commit:* `${{ github.sha }}`
-            *Triggered by:* ${{ github.actor }} (${{ github.event_name }})
-          SLACK_TITLE: "WSLProxy DIYTaxReturn Deployment — Success"
-          SLACK_USERNAME: GitHub Actions
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-
-      - name: Slack notify - DIYTaxReturn deploy failed
-        if: failure()
-        uses: rtCamp/action-slack-notify@v2
-        env:
-          SLACK_CHANNEL: github-updates
-          SLACK_COLOR: danger
-          SLACK_ICON: https://github.com/rtCamp.png?size=48
-          SLACK_MESSAGE: |
-            :rotating_light: *Stage 5 FAILED: DIYTaxReturn Deployment*
-            Ansible deploy or health check failed on 187.77.179.206.
-            *Branch:* ${{ github.ref_name }} | *Commit:* `${{ github.sha }}`
-            *Triggered by:* ${{ github.actor }} (${{ github.event_name }})
-            *Logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          SLACK_TITLE: "WSLProxy DIYTaxReturn Deployment — FAILED"
-          SLACK_USERNAME: GitHub Actions
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-
-  # ──────────────────────────────────────────────────────
-  # Stage 6: Deploy DIYTaxReturn WSL1 (187.124.112.156 / wsl1.diytaxreturn.co.uk)
-  # Manual dispatch only (or "all")
-  # ──────────────────────────────────────────────────────
-  deploy-diytaxreturn-wsl1:
-    name: "Stage 6: Deploy DIYTaxReturn WSL1 (187.124.112.156)"
+  deploy-wsl1:
+    name: "Stage 7: Deploy WSL1 (187.124.112.156)"
     runs-on: [self-hosted, Linux]
     needs: [build-validate]
     if: >
@@ -868,7 +985,7 @@ jobs:
             exit 1
           fi
 
-      - name: Validate secrets files exist
+      - name: Validate secrets files exist (WSL1)
         run: |
           SETTINGS="/home/bwalia/.secrets/wslproxy/wsl1/settings.json"
           ENVFILE="/home/bwalia/.secrets/wslproxy/wsl1/.env"
@@ -906,7 +1023,7 @@ jobs:
             "docker system prune -y" 2>&1 || echo "::warning::Docker prune failed on WSL1"
           echo "Docker cleanup complete"
 
-      - name: Run Ansible Playbook (DIYTaxReturn WSL1)
+      - name: Run Ansible Playbook (WSL1)
         timeout-minutes: 25
         run: |
           TAGS_FLAG=""
@@ -923,12 +1040,12 @@ jobs:
           ansible-playbook devops/ansible/wslproxy-ops.yml \
             -i devops/ansible/hosts \
             -l 187.124.112.156 \
-            --private-key /home/bwalia/.ssh/id_rsa \
+            --private-key ~/.ssh/id_rsa \
             --timeout 30 \
             $TAGS_FLAG \
             --extra-vars "nginx_user_password=THISCOMESFROMSECRETS target_env=wsl1 local_settings_file_path=/home/bwalia/.secrets/wslproxy/wsl1/settings.json local_env_file_path=/home/bwalia/.secrets/wslproxy/wsl1/.env"
 
-      - name: Deploy server configs and rules (diytaxreturn_wsl1)
+      - name: Deploy server configs and rules (wsl1)
         timeout-minutes: 5
         run: |
           echo "Deploying server configs for env: diytaxreturn_wsl1 to 187.124.112.156"
@@ -937,11 +1054,11 @@ jobs:
             -i devops/ansible/hosts \
             -e "target_env=diytaxreturn_wsl1 local_data_dir=${{ github.workspace }}/data" \
             -l 187.124.112.156 \
-            --private-key /home/bwalia/.ssh/id_rsa
+            --private-key ~/.ssh/id_rsa
 
       - name: Post-deploy health gate
         run: |
-          echo "Verifying DIYTaxReturn WSL1 deployment on 187.124.112.156..."
+          echo "Verifying WSL1 deployment on 187.124.112.156..."
 
           ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@187.124.112.156 \
             "/usr/local/openresty/bin/openresty -t" 2>&1 || {
@@ -957,16 +1074,16 @@ jobs:
             STATUS=$(ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@187.124.112.156 \
               "curl -sf -o /dev/null -w '%{http_code}' http://localhost:8080/health 2>/dev/null" || echo "000")
             if [ "$STATUS" = "200" ]; then
-              echo "DIYTaxReturn WSL1 endpoint healthy (HTTP $STATUS)"
+              echo "WSL1 endpoint healthy (HTTP $STATUS)"
               exit 0
             fi
             echo "Attempt $i/12: HTTP $STATUS — waiting 5s..."
             sleep 5
           done
-          echo "::error::DIYTaxReturn WSL1 not responding on 187.124.112.156 after 60s"
+          echo "::error::WSL1 not responding on 187.124.112.156 after 60s"
           exit 1
 
-      - name: Slack notify - DIYTaxReturn WSL1 deployed
+      - name: Slack notify - WSL1 deployed
         if: success()
         uses: rtCamp/action-slack-notify@v2
         env:
@@ -975,15 +1092,14 @@ jobs:
           SLACK_ICON: https://github.com/rtCamp.png?size=48
           SLACK_MESSAGE: |
             :white_check_mark: *WSLProxy deployed to WSL1*
-            Build validation passed and deployment complete.
-            *Host:* 187.124.112.156 (wsl1.diytaxreturn.co.uk) | *Env:* wsl1
+            *Host:* 187.124.112.156 | *Env:* wsl1
             *Branch:* ${{ github.ref_name }} | *Commit:* `${{ github.sha }}`
             *Triggered by:* ${{ github.actor }} (${{ github.event_name }})
           SLACK_TITLE: "WSLProxy WSL1 Deployment — Success"
           SLACK_USERNAME: GitHub Actions
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
-      - name: Slack notify - DIYTaxReturn WSL1 deploy failed
+      - name: Slack notify - WSL1 deploy failed
         if: failure()
         uses: rtCamp/action-slack-notify@v2
         env:
@@ -991,7 +1107,7 @@ jobs:
           SLACK_COLOR: danger
           SLACK_ICON: https://github.com/rtCamp.png?size=48
           SLACK_MESSAGE: |
-            :rotating_light: *Stage 6 FAILED: DIYTaxReturn WSL1 Deployment*
+            :rotating_light: *Stage 7 FAILED: WSL1 Deployment*
             Ansible deploy or health check failed on 187.124.112.156.
             *Branch:* ${{ github.ref_name }} | *Commit:* `${{ github.sha }}`
             *Triggered by:* ${{ github.actor }} (${{ github.event_name }})
@@ -1006,7 +1122,7 @@ jobs:
   pipeline-summary:
     name: Pipeline Summary
     runs-on: ubuntu-latest
-    needs: [build-validate, deploy-int, test-environment, deploy-production, deploy-lon1, deploy-diytaxreturn, deploy-diytaxreturn-wsl1]
+    needs: [build-validate, deploy-int, test-int, deploy-test, deploy-acc, deploy-prod-pop0, deploy-prod-lon1, deploy-wsl1]
     if: always()
     steps:
       - name: Pipeline Summary
@@ -1015,13 +1131,14 @@ jobs:
           echo "  WSLProxy Deployment Pipeline Summary"
           echo "============================================"
           echo ""
-          echo "  Stage 1 — Build & Validate:      ${{ needs.build-validate.result }}"
-          echo "  Stage 2 — Deploy Int (Ansible):   ${{ needs.deploy-int.result }}"
-          echo "  Stage 3 — Smoke Test Int Environment Dashboard Endpoint:       ${{ needs.test-environment.result }}"
-          echo "  Stage 4 — Deploy Production:      ${{ needs.deploy-production.result }}"
-          echo "  Stage 4b — Deploy LON1:           ${{ needs.deploy-lon1.result }}"
-          echo "  Stage 5 — Deploy DIYTaxReturn:    ${{ needs.deploy-diytaxreturn.result }}"
-          echo "  Stage 6 — Deploy WSL1:            ${{ needs.deploy-diytaxreturn-wsl1.result }}"
+          echo "  Stage 1  — Build & Validate:     ${{ needs.build-validate.result }}"
+          echo "  Stage 2  — Deploy Int:           ${{ needs.deploy-int.result }}"
+          echo "  Stage 3  — Smoke Test Int:       ${{ needs.test-int.result }}"
+          echo "  Stage 4  — Deploy Test:          ${{ needs.deploy-test.result }}"
+          echo "  Stage 5  — Deploy Acc:           ${{ needs.deploy-acc.result }}"
+          echo "  Stage 6a — Deploy Prod (pop0):   ${{ needs.deploy-prod-pop0.result }}"
+          echo "  Stage 6b — Deploy Prod (lon1):   ${{ needs.deploy-prod-lon1.result }}"
+          echo "  Stage 7  — Deploy WSL1:          ${{ needs.deploy-wsl1.result }}"
           echo ""
           echo "  Commit:  ${{ github.sha }}"
           echo "  Branch:  ${{ github.ref_name }}"
@@ -1031,11 +1148,12 @@ jobs:
           # Fail this job if any required stage failed (makes the overall workflow status red)
           if [[ "${{ needs.build-validate.result }}" == "failure" ]] || \
              [[ "${{ needs.deploy-int.result }}" == "failure" ]] || \
-             [[ "${{ needs.test-environment.result }}" == "failure" ]] || \
-             [[ "${{ needs.deploy-production.result }}" == "failure" ]] || \
-             [[ "${{ needs.deploy-lon1.result }}" == "failure" ]] || \
-             [[ "${{ needs.deploy-diytaxreturn.result }}" == "failure" ]] || \
-             [[ "${{ needs.deploy-diytaxreturn-wsl1.result }}" == "failure" ]]; then
+             [[ "${{ needs.test-int.result }}" == "failure" ]] || \
+             [[ "${{ needs.deploy-test.result }}" == "failure" ]] || \
+             [[ "${{ needs.deploy-acc.result }}" == "failure" ]] || \
+             [[ "${{ needs.deploy-prod-pop0.result }}" == "failure" ]] || \
+             [[ "${{ needs.deploy-prod-lon1.result }}" == "failure" ]] || \
+             [[ "${{ needs.deploy-wsl1.result }}" == "failure" ]]; then
             echo "::error::Pipeline failed — see stage results above"
             exit 1
           fi
