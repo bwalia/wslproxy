@@ -12,6 +12,18 @@ local proxyServer = globalVars.proxyServer
 
 local settings = Helper.settings()
 
+-- Server-level Force HTTPS: redirect all port 80 traffic to HTTPS
+-- This is the ssl_force_https toggle from the server editor
+if proxyServer and proxyServer.ssl_enabled and proxyServer.ssl_force_https
+    and ngx.var.server_port == "80" then
+    -- Allow ACME challenges through for Let's Encrypt certificate renewal
+    local uri = ngx.var.uri or ""
+    if not uri:find("^/.well%-known/acme%-challenge/") then
+        local redirect_url = "https://" .. ngx.var.host .. ngx.var.request_uri
+        ngx.redirect(redirect_url, ngx.HTTP_MOVED_PERMANENTLY)
+        return
+    end
+end
 
 -- CAPTCHA rule (306): verify human before proxying to backend
 -- Rule matching (path, IP, country) already handled by gateway_ack.lua
