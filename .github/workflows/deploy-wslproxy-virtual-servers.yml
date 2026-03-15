@@ -1,4 +1,4 @@
-name: Deploy WSLProxy Configs and Nginx
+name: Deploy WSLProxy Virtual Servers, Configs and Nginx
 # Deploys JSON server/rule configs and optionally re-deploys nginx conf files
 # without rebuilding software. Use this for config-only changes.
 #
