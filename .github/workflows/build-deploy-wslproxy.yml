@@ -906,7 +906,7 @@ jobs:
           }
 
           for i in $(seq 1 10); do
-            STATUS=$(curl -sf -o /dev/null -w "%{http_code}" "http://72.62.211.28:8080/health" 2>/dev/null || echo "000")
+            STATUS=$(curl -sf -o /dev/null -w "%{http_code}" "http://72.62.211.28:7691/health" 2>/dev/null || echo "000")
             if [ "$STATUS" = "200" ]; then
               echo "LON1 endpoint healthy (HTTP $STATUS)"
               exit 0

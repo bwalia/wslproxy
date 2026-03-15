@@ -109,7 +109,7 @@ Fully automated promotion pipeline with fail-fast behavior and Slack notificatio
  │  - ansible-playbook wslproxy-ops.yml (env: prod)                    │
  │  - Post-deploy gates:                                               │
  │      • openresty -t via SSH                                         │
- │      • curl http://72.62.211.28:8080/health (10 retries × 5s)      │
+ │      • curl http://72.62.211.28:7691/health (10 retries × 5s)      │
  │                                                                      │
  │  ✓ Success → Slack: "deployed to LON1"                              │
  │  ✗ Failure → Slack: "LON1 deployment FAILED"                       │
@@ -132,7 +132,7 @@ Fully automated promotion pipeline with fail-fast behavior and Slack notificatio
 | test | 192.168.1.140 | 192.168.1.140 | bwalia | Ansible SSH | `http://192.168.1.140:8080/health` |
 | acc | 187.77.179.206 | 187.77.179.206 | root | Ansible SSH | `http://187.77.179.206:8080/health` |
 | prod (pop0) | 187.124.112.155 | 187.124.112.155 | root | Ansible SSH | `https://prod-our.wslproxy.com/health` |
-| prod (lon1) | 72.62.211.28 | 72.62.211.28 | root | Ansible SSH | `http://72.62.211.28:8080/health` |
+| prod (lon1) | 72.62.211.28 | 72.62.211.28 | root | Ansible SSH | `http://72.62.211.28:7691/health` |
 
 ### Build Modes
 
@@ -184,7 +184,7 @@ Each deployment stage runs post-deploy smoke tests before promoting to the next 
 | Stage 6a (Prod) | nginx config syntax | `openresty -t` via SSH | Exit code 0 |
 | Stage 6a (Prod) | Health endpoint | `https://prod-our.wslproxy.com/health` | HTTP 200 |
 | Stage 6b (LON1) | nginx config syntax | `openresty -t` via SSH | Exit code 0 |
-| Stage 6b (LON1) | Health endpoint | `http://72.62.211.28:8080/health` | HTTP 200 |
+| Stage 6b (LON1) | Health endpoint | `http://72.62.211.28:7691/health` | HTTP 200 |
 
 ### Smoke Test .env Variables
 
