@@ -67,7 +67,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install jq
         run: sudo apt-get install -y jq
@@ -134,7 +134,7 @@ jobs:
     if: ${{ github.event.inputs.DRY_RUN != 'true' }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install Ansible
         run: |
@@ -259,7 +259,7 @@ jobs:
     if: ${{ github.event.inputs.DRY_RUN != 'true' && (github.event.inputs.TARGET_ENV || 'prod') != 'int' }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install Ansible
         run: |
@@ -325,7 +325,7 @@ jobs:
     if: ${{ github.event.inputs.DEPLOY_NGINX_CONF == 'true' && github.event.inputs.DRY_RUN != 'true' && (github.event.inputs.TARGET_ENV || 'prod') != 'int' }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install Ansible
         run: |

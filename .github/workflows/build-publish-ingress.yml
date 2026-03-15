@@ -46,7 +46,7 @@ jobs:
         working-directory: ./ingress-controller
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -75,7 +75,7 @@ jobs:
           go tool cover -html=coverage.out -o coverage.html
 
       - name: Upload coverage artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: coverage-report
           path: ingress-controller/coverage.html
@@ -89,7 +89,7 @@ jobs:
         working-directory: ./ingress-controller
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -115,7 +115,7 @@ jobs:
         arch: [amd64, arm64]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -151,7 +151,7 @@ jobs:
             ./cmd/controller/main.go
 
       - name: Upload binary artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: binaries-${{ matrix.os }}-${{ matrix.arch }}
           path: ingress-controller/bin/controller-${{ matrix.os }}-${{ matrix.arch }}
@@ -168,7 +168,7 @@ jobs:
       security-events: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -263,7 +263,7 @@ jobs:
       security-events: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -348,7 +348,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Update Controller README
         continue-on-error: true
@@ -377,7 +377,7 @@ jobs:
     needs: [build-push-controller, build-push-openresty]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Helm
         uses: azure/setup-helm@v3
@@ -403,7 +403,7 @@ jobs:
 
       - name: Upload Helm chart
         if: startsWith(github.ref, 'refs/tags/')
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: helm-chart
           path: dist/*.tgz
@@ -418,10 +418,10 @@ jobs:
       contents: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Download artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
 
       - name: Extract version
         id: version
@@ -505,7 +505,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/ingress-v')
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up kind
         uses: helm/kind-action@v1.8.0

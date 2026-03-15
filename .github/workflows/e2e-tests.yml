@@ -52,7 +52,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set environment config
         id: env_config
@@ -68,7 +68,7 @@ jobs:
           echo "Environment: ${{ matrix.environment }}"
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: "20"
           cache: "npm"
@@ -162,7 +162,7 @@ jobs:
           fi
 
       - name: Upload test report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: ${{ !cancelled() }}
         with:
           name: playwright-report-${{ matrix.environment }}
@@ -170,7 +170,7 @@ jobs:
           retention-days: 14
 
       - name: Upload test traces & screenshots
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: failure()
         with:
           name: playwright-traces-${{ matrix.environment }}

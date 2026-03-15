@@ -50,7 +50,7 @@ jobs:
     if: ${{ github.event.inputs.DEPLOYMENT_TYPE != 'deploy' }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: ${{ env.TARGET_BRANCH }}
 
@@ -169,7 +169,7 @@ jobs:
       (github.event.inputs.DEPLOYMENT_TYPE != 'build')
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Decode and Export Kubeconfig
         run: |
@@ -478,7 +478,7 @@ jobs:
     if: always() && needs.deploy.result == 'success'
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Go
         uses: actions/setup-go@v5

@@ -35,7 +35,7 @@ jobs:
   cypress-tests:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Set up Docker Compose to run Cypress Test framework specs
         uses: ndeloof/install-compose-action@v0.0.1
@@ -66,7 +66,7 @@ jobs:
 
       - name: Upload Cypress Screenshots as Artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: cypress-screenshots
           path: QA/cypress_ui_tests/cypress/screenshots
@@ -75,7 +75,7 @@ jobs:
 
       - name: Upload Cypress Videos as Artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: cypress-videos
           path: QA/cypress_ui_tests/cypress/videos
