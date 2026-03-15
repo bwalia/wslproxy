@@ -11,12 +11,14 @@ ubworker04 ansible_user=bwalia
 whisky08 ansible_user=bwalia
 192.168.10.1 ansible_user=bwalia
 187.124.112.155 ansible_user=root
+lon1.pop0.uk ansible_user=root
 187.77.179.206 ansible_user=root
 187.124.112.156 ansible_user=root
 
 # Environment-based server groups for config deployment
 [openresty_prod]
 187.124.112.155 ansible_user=root
+lon1.pop0.uk ansible_user=root
 
 [openresty_int]
 slworker00 ansible_user=bwalia
