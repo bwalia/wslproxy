@@ -2,6 +2,7 @@ name: Build and Deploy WSLProxy
 # Pipeline: Validate → Deploy Int → Test → Deploy WSL1 (auto on push)
 # Prod & DIYTaxReturn deploy manually or via "all" target
 # Fail-fast: any stage failure stops the pipeline and sends Slack notification immediately
+# Default: code-only deploy (lua, nginx conf, data, admin UI). Tick FULL_BUILD to compile OpenResty & update OS packages.
 
 on:
   push:
@@ -49,6 +50,11 @@ on:
         description: "Only rebuild & deploy openresty-admin dashboard UI (skip full build)"
         default: false
 
+      FULL_BUILD:
+        type: boolean
+        description: "Full build: compile OpenResty, install luarocks, update OS packages (slow). Default: off (code-only deploy)"
+        default: false
+
 # Prevent concurrent deployments to same ref (but don't cancel in-progress)
 concurrency:
   group: deploy-${{ github.ref }}
@@ -57,6 +63,7 @@ concurrency:
 env:
   DEPLOY_BRANCH: ${{ github.event.inputs.DEPLOY_BRANCH || github.ref_name }}
   DEPLOY_DASHBOARD_ONLY: ${{ github.event.inputs.DEPLOY_DASHBOARD_ONLY || 'false' }}
+  FULL_BUILD: ${{ github.event.inputs.FULL_BUILD || 'false' }}
   TARGET_HOST: ${{ github.event.inputs.TARGET_HOST || '187.124.112.155' }}
   TARGET_ENV: ${{ github.event.inputs.TARGET_ENV || (github.event.inputs.TARGET_HOST == '187.124.112.155' && 'prod' || github.event.inputs.TARGET_HOST == 'slworker00' && 'int' || 'prod') }}
   API_DOMAINNAME_ENDPOINT: ${{ github.event.inputs.TARGET_ENV || (github.event.inputs.TARGET_HOST == '187.124.112.155' && 'prod' || github.event.inputs.TARGET_HOST == 'slworker00' && 'int' || 'prod') }}.wslproxy.com
@@ -191,8 +198,11 @@ jobs:
           if [[ "${{ env.DEPLOY_DASHBOARD_ONLY }}" == "true" ]]; then
             TAGS_FLAG="--tags dashboard"
             echo "Dashboard-only deploy to slworker00 (env: int)"
+          elif [[ "${{ env.FULL_BUILD }}" != "true" ]]; then
+            TAGS_FLAG="--skip-tags base_packages,build"
+            echo "Code-only deploy to slworker00 (env: int) — skipping OS updates and OpenResty build"
           else
-            echo "Deploying natively to slworker00 (env: int) via local connection"
+            echo "Full build + deploy to slworker00 (env: int) via local connection"
           fi
           sudo ansible-playbook devops/ansible/wslproxy-ops.yml \
             -i devops/ansible/hosts \
@@ -412,8 +422,11 @@ jobs:
           if [[ "${{ env.DEPLOY_DASHBOARD_ONLY }}" == "true" ]]; then
             TAGS_FLAG="--tags dashboard"
             echo "Dashboard-only deploy to production: 187.124.112.155"
+          elif [[ "${{ env.FULL_BUILD }}" != "true" ]]; then
+            TAGS_FLAG="--skip-tags base_packages,build"
+            echo "Code-only deploy to production: 187.124.112.155 — skipping OS updates and OpenResty build"
           else
-            echo "Deploying to production: 187.124.112.155 (env: prod)"
+            echo "Full build + deploy to production: 187.124.112.155 (env: prod)"
           fi
           ansible-playbook devops/ansible/wslproxy-ops.yml \
             -i devops/ansible/hosts \
@@ -573,8 +586,11 @@ jobs:
           if [[ "${{ env.DEPLOY_DASHBOARD_ONLY }}" == "true" ]]; then
             TAGS_FLAG="--tags dashboard"
             echo "Dashboard-only deploy to DIYTaxReturn: 187.77.179.206"
+          elif [[ "${{ env.FULL_BUILD }}" != "true" ]]; then
+            TAGS_FLAG="--skip-tags base_packages,build"
+            echo "Code-only deploy to DIYTaxReturn: 187.77.179.206 — skipping OS updates and OpenResty build"
           else
-            echo "Deploying to DIYTaxReturn: 187.77.179.206 (env: diytaxreturn)"
+            echo "Full build + deploy to DIYTaxReturn: 187.77.179.206 (env: diytaxreturn)"
           fi
           export ANSIBLE_HOST_KEY_CHECKING=False
           ansible-playbook devops/ansible/wslproxy-ops.yml \
@@ -732,8 +748,11 @@ jobs:
           if [[ "${{ env.DEPLOY_DASHBOARD_ONLY }}" == "true" ]]; then
             TAGS_FLAG="--tags dashboard"
             echo "Dashboard-only deploy to WSL1: 187.124.112.156"
+          elif [[ "${{ env.FULL_BUILD }}" != "true" ]]; then
+            TAGS_FLAG="--skip-tags base_packages,build"
+            echo "Code-only deploy to WSL1: 187.124.112.156 — skipping OS updates and OpenResty build"
           else
-            echo "Deploying to WSL1: 187.124.112.156 (env: wsl1)"
+            echo "Full build + deploy to WSL1: 187.124.112.156 (env: wsl1)"
           fi
           export ANSIBLE_HOST_KEY_CHECKING=False
           ansible-playbook devops/ansible/wslproxy-ops.yml \
