@@ -10,7 +10,7 @@
     state: present
     create: "{{ os_pam_create_file }}"
   ignore_errors: true
-  tags: [openresty, lapis, nginx, limits]
+  tags: [nginx]
 
 - name: Configure PAM noninteractive to use limits.conf
   lineinfile:
@@ -19,4 +19,4 @@
     state: present
   ignore_errors: true
   when: os_pam_noninteractive_file | length > 0
-  tags: [openresty, lapis, nginx, limits]
+  tags: [nginx]

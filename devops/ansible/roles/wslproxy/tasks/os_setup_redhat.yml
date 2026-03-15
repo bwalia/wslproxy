@@ -4,10 +4,10 @@
 - name: Update dnf cache
   dnf:
     update_cache: yes
-  tags: [redhat, openresty, lapis]
+  tags: [os_deps, build]
 
 - name: Upgrade all packages
   dnf:
     name: "*"
     state: latest
-  tags: [redhat, openresty, lapis]
+  tags: [os_deps, build]

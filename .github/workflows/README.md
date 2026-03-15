@@ -1,10 +1,10 @@
 # WSLProxy CI/CD Pipeline
 
-## Build & Deploy Pipeline (`build-deploy-wslproxy.yml`)
+## Build & Deploy Pipeline (`deploy-wslproxy-cicd-pipeline.yml`)
 
 Fully automated promotion pipeline with fail-fast behavior and Slack notifications at every gate. Code promotes through **int → test → acc → prod** — each environment must pass before the next deploys.
 
-**Default mode:** Code-only deploy (lua, nginx conf, data, admin UI). Tick `FULL_BUILD` for OpenResty compilation + OS updates.
+**Deploy modes** are selected via `DEPLOY_MODE` dropdown (default: `code` for manual, `full` for push to release).
 
 ### Triggers
 
@@ -136,11 +136,15 @@ Fully automated promotion pipeline with fail-fast behavior and Slack notificatio
 
 ### Build Modes
 
-| Mode | Flag | What runs | What's skipped |
-|------|------|-----------|----------------|
-| **Code-only** (default) | — | Lua code, nginx conf, data configs, admin UI, cron, systemd, finalize | OS updates, OpenResty compile, luarocks, CDN deps |
-| **Full build** | `FULL_BUILD=true` | Everything | Nothing |
-| **Dashboard only** | `DEPLOY_DASHBOARD_ONLY=true` | Admin UI only | Everything else |
+| Mode | `DEPLOY_MODE` | What runs |
+|------|---------------|-----------|
+| **Code deploy** (manual default) | `code` | Lua API, HTML, settings, nginx conf, restart |
+| **Nginx config** | `nginx` | Nginx conf dirs, tenants, cron, systemd, PAM, SSL, restart |
+| **Virtual servers** | `servers` | Server/rule data configs, settings, SSL, tenant configs, restart |
+| **Dashboard** | `dashboard` | React admin UI build + deploy, restart |
+| **OS dependencies** | `os_deps` | apt/zypper/yum package updates |
+| **Build OpenResty** | `build` | OS deps + OpenResty compile + luarocks + CDN deps |
+| **Full deploy** (push default) | `full` | Everything |
 
 ### Secrets
 
@@ -246,7 +250,7 @@ Runs on `ubuntu-latest` before any deployment:
 To add tests to the pipeline:
 
 1. **Go tests**: Add test files to `QA/` — they run in Stage 3 against the int environment
-2. **API tests**: Add endpoints to the Stage 3 verification loop in `build-deploy-wslproxy.yml`
+2. **API tests**: Add endpoints to the Stage 3 verification loop in `deploy-wslproxy-cicd-pipeline.yml`
 3. **Config validation**: JSON files in `data/` are automatically validated in Stage 1
 
 ---
@@ -286,7 +290,7 @@ Only one deployment per branch at a time. In-progress deployments are **not** ca
 
 | Workflow | File | Purpose |
 |----------|------|---------|
-| Deploy Configs | `deploy-wslproxy-configs.yml` | Deploy server/rule JSON configs + optional nginx conf via Ansible |
+| Deploy Virtual Servers | `deploy-wslproxy-virtual-servers.yml` | Deploy server/rule JSON configs + optional nginx conf via Ansible |
 | E2E Tests | `e2e-tests.yml` | Playwright browser tests against deployed frontend |
 | API Test Suite | `automated-api-test-suite.yml` | Go-based API integration tests |
 | UI Smoke Test | `automated-ui-smoke-test.yml` | Cypress UI smoke tests |

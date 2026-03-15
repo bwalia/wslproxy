@@ -2,6 +2,16 @@
 # wslproxy role: Deploy and configure OpenResty/WSLProxy
 # This orchestrator calls focused task files in the correct order
 # OS-specific variables are loaded automatically from vars/{Debian,Suse,RedHat}.yml
+#
+# Deploy modes (controlled by Ansible tags):
+#   --tags nginx       → Update nginx configuration (conf dirs, tenants, cron, systemd, PAM, restart)
+#   --tags servers     → Update virtual server/rule data configs + SSL + settings
+#   --tags dashboard   → Rebuild and deploy React admin UI
+#   --tags os_deps     → Install/update OS dependencies (apt/zypper/yum packages)
+#   --tags build       → Re-compile, build & deploy OpenResty + luarocks + CDN deps
+#   (no tag filter)    → Full deploy (everything)
+#
+# Multiple tags can be combined: --tags nginx,servers
 
 # Step 0: Load OS-specific variables
 - name: Load OS-specific variables
@@ -13,7 +23,7 @@
 
 # Step 0.5: Auto-detect if OpenResty needs a full build
 # If OpenResty is not installed or is the wrong version, force build steps
-# even when --skip-tags build is used (code-only deploy)
+# even when --skip-tags build is used
 - name: Check if OpenResty is installed
   shell: /usr/local/openresty/bin/openresty -v 2>&1 || echo "NOT_INSTALLED"
   register: openresty_installed_check
@@ -45,17 +55,17 @@
     _build_steps_done: false
   tags: [always]
 
-# Step 1: OS-specific package refresh (runs during explicit full build)
+# Step 1: OS-specific package setup (runs during explicit os_deps or build)
 - name: Run OS-specific setup
   include_tasks: "os_setup_{{ ansible_os_family | lower }}.yml"
-  tags: [openresty, lapis, build]
+  tags: [os_deps, build]
 
 - name: Mark build steps as done
   set_fact:
     _build_steps_done: true
-  tags: [openresty, lapis, build]
+  tags: [os_deps, build]
 
-# Step 1 (auto): OS setup forced when OpenResty is missing (even with --skip-tags build)
+# Step 1 (auto): OS setup forced when OpenResty is missing
 - name: "Auto-build: Run OS-specific setup (OpenResty not installed)"
   include_tasks: "os_setup_{{ ansible_os_family | lower }}.yml"
   when: openresty_needs_build | bool and not _build_steps_done | bool
@@ -64,18 +74,19 @@
 # Step 2: Load host variables
 - name: Load host variables
   include_vars: "{{ playbook_dir }}/host_vars/{{ inventory_hostname }}/vars.yaml"
+  tags: [always]
 
-# Step 3: User and group setup (must run before bootstrap)
+# Step 3: User and group setup (foundational, always needed)
 - name: Setup www-data user and groups
   include_tasks: user_setup.yml
-  tags: [openresty, lapis, dashboard, nginx]
+  tags: [always]
 
-# Step 4: Bootstrap and compile OpenResty from source (runs during explicit full build)
+# Step 4: Bootstrap and compile OpenResty from source
 - name: Bootstrap and build OpenResty
   include_tasks: openresty_build.yml
-  tags: [openresty, lapis, build]
+  tags: [build]
 
-# Step 4 (auto): OpenResty build forced when not installed (even with --skip-tags build)
+# Step 4 (auto): OpenResty build forced when not installed
 - name: "Auto-build: Bootstrap and build OpenResty (not installed)"
   include_tasks: openresty_build.yml
   when: openresty_needs_build | bool and not _build_steps_done | bool
@@ -84,41 +95,57 @@
 # Step 5: Nginx configuration directories and base configs
 - name: Configure nginx
   include_tasks: nginx_config.yml
-  tags: [openresty, lapis, dashboard, nginx]
+  tags: [nginx, code, dashboard, servers]
 
-# Step 6: Deploy application files (HTML, API, settings, CDN deps)
-- name: Deploy application
+# Step 6: Deploy application code (Lua API, HTML)
+- name: Deploy application code
   include_tasks: deploy_app.yml
-  tags: [openresty, lapis, dashboard]
+  tags: [code, dashboard]
+
+# Step 6.1: Deploy server/rule data configs and settings
+- name: Deploy server configs and settings
+  include_tasks: deploy_data.yml
+  tags: [servers, code]
+
+# Step 6.2: Install Lua dependencies (luarocks, CDN deps)
+- name: Install Lua dependencies
+  include_tasks: deploy_deps.yml
+  tags: [build]
+
+# Step 6.2 (auto): Lua deps forced when OpenResty freshly installed
+- name: "Auto-build: Install Lua dependencies (OpenResty freshly installed)"
+  include_tasks: deploy_deps.yml
+  when: openresty_needs_build | bool and not _build_steps_done | bool
+  tags: [always]
 
 # Step 6.5: Install and configure Varnish Cache (conditional)
 - name: Setup Varnish Cache
   include_tasks: varnish_setup.yml
   when: varnish_enabled is defined and varnish_enabled | bool
-  tags: [openresty, varnish]
+  tags: [nginx]
 
 # Step 7: Cron jobs for data sync and nginx restart
 - name: Setup cron jobs
   include_tasks: cron_setup.yml
-  tags: [openresty, nginx]
+  tags: [nginx]
 
 # Step 8: Systemd service and file descriptor limits
 - name: Configure systemd and limits
   include_tasks: systemd_limits.yml
-  tags: [openresty, lapis, nginx, limits]
+  tags: [nginx]
 
 # Step 9: PAM configuration (OS-specific paths)
 - name: Configure PAM
   include_tasks: pam_config.yml
-  tags: [openresty, lapis, nginx, limits]
+  tags: [nginx]
 
 # Step 10: OpenResty admin UI (conditional)
 - name: Deploy OpenResty admin UI
   include_tasks: deploy_admin_ui.yml
   when: nginx_web_ui_enabled is defined and nginx_web_ui_enabled == "yes"
-  tags: [openresty, lapis, dashboard]
+  tags: [dashboard]
 
 # Step 11: Final config, permissions, SSL, tenants, service start, verification
 - name: Finalize deployment
   include_tasks: finalize.yml
-  tags: [openresty, lapis, dashboard, nginx]
+  tags: [nginx, code, dashboard, servers]

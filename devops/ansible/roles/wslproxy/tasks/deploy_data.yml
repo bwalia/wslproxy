@@ -1,0 +1,29 @@
+---
+# Deploy server/rule data configs, settings, and environment files
+
+- name: Ensure nginx data directory exists
+  ansible.builtin.file:
+    path: /opt/nginx/data/
+    state: directory
+    owner: "www-data"
+    group: root
+    mode: 0775
+  tags: [servers, code]
+
+- name: Copy Settings Config file
+  copy:
+    src: "{{ local_settings_file_path }}"
+    dest: /opt/nginx/data/settings.json
+    mode: 0777
+    owner: "www-data"
+    group: root
+    remote_src: no
+  tags: [servers, code]
+
+- name: Copy Environment file
+  copy:
+    src: "{{ local_env_file_path }}"
+    dest: "/tmp/.env"
+    mode: 0777
+    remote_src: no
+  tags: [servers, code]
