@@ -64,8 +64,9 @@ elseif selectedRule.statusCode == 302 then
     ngx.redirect(selectedRule.redirectUri, ngx.HTTP_MOVED_TEMPORARILY)
     ngx.exit(ngx.HTTP_MOVED_TEMPORARILY)
 elseif selectedRule.statusCode == 305 then
-    -- Auto redirect HTTP to HTTPS: if enabled and request arrived on port 80, redirect
+    -- Rule-level auto redirect HTTP to HTTPS (only if server has SSL enabled)
     if selectedRule.rule_data and selectedRule.rule_data.auto_redirect_https
+        and proxyServer and proxyServer.ssl_enabled
         and ngx.var.server_port == "80" then
         local redirect_url = "https://" .. ngx.var.host .. ngx.var.request_uri
         ngx.redirect(redirect_url, ngx.HTTP_MOVED_PERMANENTLY)

@@ -1266,6 +1266,8 @@ local function createUpdateServer(body, uuid)
             SslManager.trigger_certificate_issuance(payloads.server_name)
         end
     else
+        -- If SSL is disabled, clear force HTTPS — can't redirect to HTTPS without a certificate
+        payloads.ssl_force_https = false
         -- If SSL is disabled, remove SSL config
         local ssl_ok, ssl_err = SslManager.remove_ssl_config(payloads.server_name)
         if not ssl_ok then

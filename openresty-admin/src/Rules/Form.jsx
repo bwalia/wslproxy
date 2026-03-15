@@ -635,7 +635,7 @@ const Form = () => {
                 source="match.response.auto_redirect_https"
                 label="Auto Redirect HTTP to HTTPS"
                 defaultValue={false}
-                helperText="Redirect port 80 requests to HTTPS automatically"
+                helperText="Redirect port 80 to HTTPS (requires SSL enabled on server)"
               />
             </Grid>
             <Grid item xs={12} sm={6} md={3}>
