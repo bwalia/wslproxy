@@ -11,10 +11,55 @@
     - "Debian.yml"
   tags: [always]
 
-# Step 1: OS-specific package refresh (heavy — skip with --skip-tags build)
+# Step 0.5: Auto-detect if OpenResty needs a full build
+# If OpenResty is not installed or is the wrong version, force build steps
+# even when --skip-tags build is used (code-only deploy)
+- name: Check if OpenResty is installed
+  shell: /usr/local/openresty/bin/openresty -v 2>&1 || echo "NOT_INSTALLED"
+  register: openresty_installed_check
+  changed_when: false
+  failed_when: false
+  tags: [always]
+
+- name: Set expected OpenResty version
+  set_fact:
+    openresty_expected_version: "1.29.2.1"
+  tags: [always]
+
+- name: Determine if full build is required
+  set_fact:
+    openresty_needs_build: "{{ 'NOT_INSTALLED' in openresty_installed_check.stdout or openresty_expected_version not in openresty_installed_check.stdout }}"
+  tags: [always]
+
+- name: Report OpenResty status
+  debug:
+    msg: >-
+      OpenResty status: {{ openresty_installed_check.stdout | trim }}.
+      Expected version: {{ openresty_expected_version }}.
+      Full build required: {{ openresty_needs_build }}.
+  tags: [always]
+
+# Track whether build steps have already run (to prevent double execution)
+- name: Initialize build tracker
+  set_fact:
+    _build_steps_done: false
+  tags: [always]
+
+# Step 1: OS-specific package refresh (runs during explicit full build)
 - name: Run OS-specific setup
   include_tasks: "os_setup_{{ ansible_os_family | lower }}.yml"
   tags: [openresty, lapis, build]
+
+- name: Mark build steps as done
+  set_fact:
+    _build_steps_done: true
+  tags: [openresty, lapis, build]
+
+# Step 1 (auto): OS setup forced when OpenResty is missing (even with --skip-tags build)
+- name: "Auto-build: Run OS-specific setup (OpenResty not installed)"
+  include_tasks: "os_setup_{{ ansible_os_family | lower }}.yml"
+  when: openresty_needs_build | bool and not _build_steps_done | bool
+  tags: [always]
 
 # Step 2: Load host variables
 - name: Load host variables
@@ -25,10 +70,16 @@
   include_tasks: user_setup.yml
   tags: [openresty, lapis, dashboard, nginx]
 
-# Step 4: Bootstrap and compile OpenResty from source (heavy — skip with --skip-tags build)
+# Step 4: Bootstrap and compile OpenResty from source (runs during explicit full build)
 - name: Bootstrap and build OpenResty
   include_tasks: openresty_build.yml
   tags: [openresty, lapis, build]
+
+# Step 4 (auto): OpenResty build forced when not installed (even with --skip-tags build)
+- name: "Auto-build: Bootstrap and build OpenResty (not installed)"
+  include_tasks: openresty_build.yml
+  when: openresty_needs_build | bool and not _build_steps_done | bool
+  tags: [always]
 
 # Step 5: Nginx configuration directories and base configs
 - name: Configure nginx

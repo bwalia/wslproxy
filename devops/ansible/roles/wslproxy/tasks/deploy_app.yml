@@ -31,6 +31,14 @@
     mode: 0777
   tags: [openresty, lapis, build]
 
+- name: "Auto-build: Copy CDN dependencies script (OpenResty freshly installed)"
+  template:
+    src: cdn-dependencies.sh.j2
+    dest: /tmp/cdn-dependencies.sh
+    mode: 0777
+  when: openresty_needs_build | bool and not _build_steps_done | bool
+  tags: [always]
+
 - name: Ensure nginx data directory exists
   ansible.builtin.file:
     path: /opt/nginx/data/
@@ -106,11 +114,47 @@
   ignore_errors: true
   tags: [openresty, lapis, build]
 
+- name: "Auto-build: Install Lua modules via luarocks (OpenResty freshly installed)"
+  async: 600
+  poll: 20
+  shell: |
+    export PATH="/usr/local/openresty/luajit/bin:/usr/local/openresty/bin:/usr/local/bin:$PATH"
+    TREE="/usr/local/openresty/luajit"
+    FAILED=0
+
+    echo "=== Installing lua-resty-jwt 0.2.3 (pinned) ==="
+    if luarocks install --tree="$TREE" lua-resty-jwt 0.2.3 2>&1; then
+      echo "+++ lua-resty-jwt 0.2.3 OK"
+    else
+      echo "--- lua-resty-jwt 0.2.3 FAILED"
+      FAILED=1
+    fi
+
+    for rock in lua-resty-session lua-resty-http lua-resty-openidc base64 lua-resty-redis-connector lua-resty-dns lua-resty-resolver luafilesystem lua-resty-auto-ssl pgmoon lua-resty-consul; do
+      echo "=== Installing $rock ==="
+      if luarocks install --tree="$TREE" "$rock" 2>&1; then
+        echo "+++ $rock OK"
+      else
+        echo "--- $rock FAILED"
+        FAILED=1
+      fi
+    done
+
+    echo ""
+    echo "=== Installation summary ==="
+    luarocks list --tree="$TREE" 2>&1 | head -40
+    exit $FAILED
+  register: luarocks_auto_result
+  ignore_errors: true
+  when: openresty_needs_build | bool and not _build_steps_done | bool
+  tags: [always]
+
 - name: Show luarocks install output
   debug:
-    msg: "{{ luarocks_install_result.stdout_lines }}"
-  when: luarocks_install_result is defined
-  tags: [openresty, lapis, build]
+    msg: "{{ (luarocks_install_result | default(luarocks_auto_result)).stdout_lines }}"
+  when: (luarocks_install_result is defined and luarocks_install_result.stdout_lines is defined) or
+        (luarocks_auto_result is defined and luarocks_auto_result.stdout_lines is defined)
+  tags: [openresty, lapis, build, always]
 
 - name: Execute the cdn-dependencies.sh script
   shell: /tmp/cdn-dependencies.sh 2>&1
@@ -119,8 +163,17 @@
   poll: 15
   tags: [openresty, lapis, build]
 
+- name: "Auto-build: Execute cdn-dependencies.sh (OpenResty freshly installed)"
+  shell: /tmp/cdn-dependencies.sh 2>&1
+  register: cdn_deps_auto_result
+  async: 300
+  poll: 15
+  when: openresty_needs_build | bool and not _build_steps_done | bool
+  tags: [always]
+
 - name: Show cdn-dependencies output (last 40 lines)
   debug:
-    msg: "{{ cdn_deps_result.stdout_lines[-40:] }}"
-  when: cdn_deps_result is defined
-  tags: [openresty, lapis, build]
+    msg: "{{ (cdn_deps_result | default(cdn_deps_auto_result)).stdout_lines[-40:] }}"
+  when: (cdn_deps_result is defined and cdn_deps_result.stdout_lines is defined) or
+        (cdn_deps_auto_result is defined and cdn_deps_auto_result.stdout_lines is defined)
+  tags: [openresty, lapis, build, always]
