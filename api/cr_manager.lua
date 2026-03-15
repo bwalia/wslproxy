@@ -27,6 +27,10 @@ local function get_cr_dir()
     return configPath .. "data/change_requests"
 end
 
+local function get_cr_config_path()
+    return get_cr_dir() .. "/cr_config.json"
+end
+
 local function ensure_directory(path)
     local ok, attr = pcall(function()
         return lfs.attributes(path)
@@ -106,6 +110,65 @@ end
 
 local function get_cr_path(cr_id)
     return get_cr_dir() .. "/" .. cr_id .. ".json"
+end
+
+-- ============================================================
+-- Passphrase management
+-- ============================================================
+
+--- Get CR config (passphrase, settings)
+function _M.get_cr_config()
+    local config = read_json_file(get_cr_config_path())
+    if not config then
+        config = {
+            approval_passphrase = nil,
+            required_approvals = 2,
+        }
+    end
+    return config
+end
+
+--- Set the CR approval passphrase
+-- @param passphrase string: The passphrase to set
+-- @param user string: User setting the passphrase
+-- @return boolean, string|nil
+function _M.set_passphrase(passphrase, user)
+    if not passphrase or passphrase == "" then
+        return false, "Passphrase cannot be empty"
+    end
+    local config = _M.get_cr_config()
+    config.approval_passphrase = passphrase
+    config.passphrase_set_by = user
+    config.passphrase_set_at = os.time()
+    local cr_dir = get_cr_dir()
+    local ok, err = write_json_file(get_cr_config_path(), config, cr_dir)
+    if not ok then
+        return false, err
+    end
+    AuditLogger.log("cr_passphrase_updated", user, "system", "cr_config", {})
+    return true
+end
+
+--- Check if passphrase is configured
+function _M.has_passphrase()
+    local config = _M.get_cr_config()
+    return config.approval_passphrase ~= nil and config.approval_passphrase ~= ""
+end
+
+--- Validate a passphrase
+local function validate_passphrase(passphrase)
+    local config = _M.get_cr_config()
+    if not config.approval_passphrase or config.approval_passphrase == "" then
+        -- No passphrase configured, allow through
+        return true
+    end
+    if not passphrase or passphrase == "" then
+        return false, "Approval passphrase is required. Contact your admin for the CR approval code."
+    end
+    if passphrase ~= config.approval_passphrase then
+        return false, "Invalid approval passphrase"
+    end
+    return true
 end
 
 -- ============================================================
@@ -211,7 +274,7 @@ end
 -- @param comment string|nil: Approval comment
 -- @return table|nil: Updated CR
 -- @return string|nil: Error message
-function _M.approve_cr(cr_id, user, comment)
+function _M.approve_cr(cr_id, user, comment, passphrase)
     local cr, err = _M.get_cr(cr_id)
     if not cr then
         return nil, err or "CR not found"
@@ -219,6 +282,12 @@ function _M.approve_cr(cr_id, user, comment)
 
     if cr.state ~= "pending_approval" then
         return nil, "CR is not in 'pending_approval' state, current state: " .. cr.state
+    end
+
+    -- Validate approval passphrase
+    local pass_ok, pass_err = validate_passphrase(passphrase)
+    if not pass_ok then
+        return nil, pass_err
     end
 
     -- 4-eyes: Creator cannot approve their own CR
