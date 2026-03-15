@@ -1,16 +1,16 @@
 ---
-# Deploy application files: HTML, API, settings, environment, CDN dependencies
+# Deploy application code: HTML pages and Lua API files
 
 - name: Sync HTML files
   ansible.posix.synchronize:
     src: ../../html/
     dest: /usr/local/openresty/nginx/html
   register: sync_html
-  tags: [openresty, lapis, dashboard, html]
+  tags: [code, dashboard]
 
 - debug:
     var: sync_html.stdout_lines
-  tags: [openresty, lapis, dashboard, html]
+  tags: [code, dashboard]
 
 - name: Sync API files
   ansible.posix.synchronize:
@@ -18,162 +18,8 @@
     dest: /usr/local/openresty/nginx/html/api
   notify: Restart openresty
   register: sync_api
-  tags: [openresty, lapis, dashboard, nginx]
+  tags: [code, dashboard]
 
 - debug:
     var: sync_api.stdout_lines
-  tags: [openresty, lapis, dashboard, nginx]
-
-- name: Copy CDN dependencies script
-  template:
-    src: cdn-dependencies.sh.j2
-    dest: /tmp/cdn-dependencies.sh
-    mode: 0777
-  tags: [openresty, lapis, build]
-
-- name: "Auto-build: Copy CDN dependencies script (OpenResty freshly installed)"
-  template:
-    src: cdn-dependencies.sh.j2
-    dest: /tmp/cdn-dependencies.sh
-    mode: 0777
-  when: openresty_needs_build | bool and not _build_steps_done | bool
-  tags: [always]
-
-- name: Ensure nginx data directory exists
-  ansible.builtin.file:
-    path: /opt/nginx/data/
-    state: directory
-    owner: "www-data"
-    group: root
-    mode: 0775
-  tags: [openresty, lapis]
-
-- name: Copy Settings Config file
-  copy:
-    src: "{{ local_settings_file_path }}"
-    dest: /opt/nginx/data/settings.json
-    mode: 0777
-    owner: "www-data"
-    group: root
-    remote_src: no
-  tags: [openresty, lapis, dashboard]
-
-- name: Copy Environment file
-  copy:
-    src: "{{ local_env_file_path }}"
-    dest: "/tmp/.env"
-    mode: 0777
-    remote_src: no
-  tags: [openresty, lapis, dashboard]
-
-- name: Install Lua modules via luarocks
-  async: 600
-  poll: 20
-  shell: |
-    export PATH="/usr/local/openresty/luajit/bin:/usr/local/openresty/bin:/usr/local/bin:$PATH"
-    LUAROCKS_BIN=$(which luarocks 2>/dev/null)
-    echo "luarocks binary: $LUAROCKS_BIN"
-    echo "luarocks version: $(luarocks --version 2>&1 | head -1)"
-    echo "default deploy dir: $(luarocks config deploy_lua_dir 2>/dev/null)"
-    echo "unzip: $(which unzip 2>/dev/null || echo 'NOT FOUND')"
-    echo ""
-
-    # Install rocks to OpenResty tree so nginx can find them
-    TREE="/usr/local/openresty/luajit"
-    FAILED=0
-
-    # Pin lua-resty-jwt to 0.2.3 — version 0.3.1 requires resty.utils which
-    # is not available, causing OpenResty to fail on startup
-    echo "=== Installing lua-resty-jwt 0.2.3 (pinned) ==="
-    if luarocks install --tree="$TREE" lua-resty-jwt 0.2.3 2>&1; then
-      echo "+++ lua-resty-jwt 0.2.3 OK"
-    else
-      echo "--- lua-resty-jwt 0.2.3 FAILED"
-      FAILED=1
-    fi
-
-    for rock in lua-resty-session lua-resty-http lua-resty-openidc base64 lua-resty-redis-connector lua-resty-dns lua-resty-resolver luafilesystem lua-resty-auto-ssl pgmoon lua-resty-consul; do
-      echo "=== Installing $rock ==="
-      if luarocks install --tree="$TREE" "$rock" 2>&1; then
-        echo "+++ $rock OK"
-      else
-        echo "--- $rock FAILED"
-        FAILED=1
-      fi
-    done
-
-    echo ""
-    echo "=== Installation summary ==="
-    echo "Rocks in tree $TREE:"
-    luarocks list --tree="$TREE" 2>&1 | head -40
-    echo ""
-    echo "Looking for jwt.lua:"
-    find "$TREE" /usr/local/share -name "jwt.lua" 2>/dev/null || echo "jwt.lua NOT FOUND"
-    exit $FAILED
-  register: luarocks_install_result
-  ignore_errors: true
-  tags: [openresty, lapis, build]
-
-- name: "Auto-build: Install Lua modules via luarocks (OpenResty freshly installed)"
-  async: 600
-  poll: 20
-  shell: |
-    export PATH="/usr/local/openresty/luajit/bin:/usr/local/openresty/bin:/usr/local/bin:$PATH"
-    TREE="/usr/local/openresty/luajit"
-    FAILED=0
-
-    echo "=== Installing lua-resty-jwt 0.2.3 (pinned) ==="
-    if luarocks install --tree="$TREE" lua-resty-jwt 0.2.3 2>&1; then
-      echo "+++ lua-resty-jwt 0.2.3 OK"
-    else
-      echo "--- lua-resty-jwt 0.2.3 FAILED"
-      FAILED=1
-    fi
-
-    for rock in lua-resty-session lua-resty-http lua-resty-openidc base64 lua-resty-redis-connector lua-resty-dns lua-resty-resolver luafilesystem lua-resty-auto-ssl pgmoon lua-resty-consul; do
-      echo "=== Installing $rock ==="
-      if luarocks install --tree="$TREE" "$rock" 2>&1; then
-        echo "+++ $rock OK"
-      else
-        echo "--- $rock FAILED"
-        FAILED=1
-      fi
-    done
-
-    echo ""
-    echo "=== Installation summary ==="
-    luarocks list --tree="$TREE" 2>&1 | head -40
-    exit $FAILED
-  register: luarocks_auto_result
-  ignore_errors: true
-  when: openresty_needs_build | bool and not _build_steps_done | bool
-  tags: [always]
-
-- name: Show luarocks install output
-  debug:
-    msg: "{{ (luarocks_install_result | default(luarocks_auto_result)).stdout_lines }}"
-  when: (luarocks_install_result is defined and luarocks_install_result.stdout_lines is defined) or
-        (luarocks_auto_result is defined and luarocks_auto_result.stdout_lines is defined)
-  tags: [openresty, lapis, build, always]
-
-- name: Execute the cdn-dependencies.sh script
-  shell: /tmp/cdn-dependencies.sh 2>&1
-  register: cdn_deps_result
-  async: 300
-  poll: 15
-  tags: [openresty, lapis, build]
-
-- name: "Auto-build: Execute cdn-dependencies.sh (OpenResty freshly installed)"
-  shell: /tmp/cdn-dependencies.sh 2>&1
-  register: cdn_deps_auto_result
-  async: 300
-  poll: 15
-  when: openresty_needs_build | bool and not _build_steps_done | bool
-  tags: [always]
-
-- name: Show cdn-dependencies output (last 40 lines)
-  debug:
-    msg: "{{ (cdn_deps_result | default(cdn_deps_auto_result)).stdout_lines[-40:] }}"
-  when: (cdn_deps_result is defined and cdn_deps_result.stdout_lines is defined) or
-        (cdn_deps_auto_result is defined and cdn_deps_auto_result.stdout_lines is defined)
-  tags: [openresty, lapis, build, always]
+  tags: [code, dashboard]

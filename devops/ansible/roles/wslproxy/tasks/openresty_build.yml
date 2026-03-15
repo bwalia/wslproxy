@@ -6,33 +6,33 @@
     src: bootstrap.sh.j2
     dest: /tmp/bootstrap.sh
     mode: 0777
-  tags: [test, openresty]
+  tags: [build]
 
 - name: Execute the bootstrap.sh openresty bootstrap script
   shell: /tmp/bootstrap.sh
   async: 300
   poll: 15
-  tags: [test, openresty]
+  tags: [build]
 
 - name: Copy openresty build script
   template:
     src: openresty.sh.j2
     dest: /tmp/openresty.sh
     mode: 0777
-  tags: [openresty, lapis]
+  tags: [build]
 
 - name: Execute the openresty.sh build script
   shell: /tmp/openresty.sh 2>&1
   register: openresty_build_output
   async: 900
   poll: 30
-  tags: [test, openresty, lapis]
+  tags: [build]
 
 - name: Show openresty build output (last 30 lines)
   debug:
     msg: "{{ openresty_build_output.stdout_lines[-30:] }}"
   when: openresty_build_output is defined
-  tags: [openresty, lapis]
+  tags: [build]
 
 - name: Verify luarocks is available after build
   shell: |
@@ -44,9 +44,9 @@
     echo $PATH
   register: luarocks_check
   changed_when: false
-  tags: [openresty, lapis]
+  tags: [build]
 
 - name: Show luarocks verification
   debug:
     msg: "{{ luarocks_check.stdout_lines }}"
-  tags: [openresty, lapis]
+  tags: [build]

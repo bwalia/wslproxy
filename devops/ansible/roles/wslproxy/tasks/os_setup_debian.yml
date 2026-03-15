@@ -7,7 +7,7 @@
   until: update_result.rc == 0
   retries: 5
   delay: 10
-  tags: [ubuntu, openresty, lapis]
+  tags: [os_deps, build]
 
 - name: Upgrade apt packages
   command: apt-get upgrade -y
@@ -15,4 +15,4 @@
   until: upgrade_result.rc == 0
   retries: 5
   delay: 10
-  tags: [ubuntu, openresty, lapis]
+  tags: [os_deps, build]

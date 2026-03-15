@@ -1,7 +1,7 @@
 name: Build and Deploy WSLProxy
 # Pipeline: Validate → Int → Smoke Test → Test → Acc → Prod (pop0 + lon1)
 # Promotion pipeline: each environment must pass before the next deploys
-# Default: code-only deploy (lua, nginx conf, data, admin UI). Tick FULL_BUILD to compile OpenResty & update OS packages.
+# Deploy modes: code (default for manual) | nginx | servers | dashboard | os_deps | build | full (default for push)
 
 on:
   push:
@@ -43,15 +43,19 @@ on:
           - 187.124.112.155
           - 72.62.211.28
 
-      DEPLOY_DASHBOARD_ONLY:
-        type: boolean
-        description: "Dashboard only: deploy React admin UI only (skip Lua, nginx conf, data, and build steps)"
-        default: false
-
-      FULL_BUILD:
-        type: boolean
-        description: "Full build: compile OpenResty, install luarocks, update OS packages in addition to code deploy (slow)"
-        default: false
+      DEPLOY_MODE:
+        type: choice
+        description: "What to deploy"
+        default: "code"
+        required: true
+        options:
+          - code
+          - nginx
+          - servers
+          - dashboard
+          - os_deps
+          - build
+          - full
 
 # Prevent concurrent deployments to same ref (but don't cancel in-progress)
 concurrency:
@@ -60,8 +64,7 @@ concurrency:
 
 env:
   DEPLOY_BRANCH: ${{ github.event.inputs.DEPLOY_BRANCH || github.ref_name }}
-  DEPLOY_DASHBOARD_ONLY: ${{ github.event.inputs.DEPLOY_DASHBOARD_ONLY || 'false' }}
-  FULL_BUILD: ${{ github.event.inputs.FULL_BUILD || 'false' }}
+  DEPLOY_MODE: ${{ github.event.inputs.DEPLOY_MODE || 'full' }}
   TARGET_HOST: ${{ github.event.inputs.TARGET_HOST || 'all' }}
   TARGET_ENV: ${{ github.event.inputs.TARGET_ENV || 'prod' }}
 
@@ -75,11 +78,9 @@ jobs:
     timeout-minutes: 5
 
     steps:
-      - name: Check for conflicting options
-        if: env.DEPLOY_DASHBOARD_ONLY == 'true' && env.FULL_BUILD == 'true'
+      - name: Show deploy mode
         run: |
-          echo "::error::Cannot use both DEPLOY_DASHBOARD_ONLY and FULL_BUILD — pick one."
-          exit 1
+          echo "Deploy mode: ${{ env.DEPLOY_MODE }}"
 
       - name: Checkout code
         uses: actions/checkout@v5
@@ -200,15 +201,16 @@ jobs:
       - name: Run Ansible Playbook (192.168.1.193 / int)
         timeout-minutes: 25
         run: |
+          DEPLOY_MODE="${{ env.DEPLOY_MODE }}"
           TAGS_FLAG=""
-          if [[ "${{ env.DEPLOY_DASHBOARD_ONLY }}" == "true" ]]; then
-            TAGS_FLAG="--tags dashboard"
-            echo "Dashboard-only deploy to 192.168.1.193 (env: int)"
-          elif [[ "${{ env.FULL_BUILD }}" != "true" ]]; then
-            TAGS_FLAG="--skip-tags base_packages,build"
-            echo "Code-only deploy to 192.168.1.193 (env: int) — skipping OS updates and OpenResty build"
+          if [[ "$DEPLOY_MODE" == "full" ]]; then
+            echo "Full deploy to 192.168.1.193 (env: int)"
+          elif [[ "$DEPLOY_MODE" == "build" ]]; then
+            TAGS_FLAG="--tags os_deps,build"
+            echo "Build deploy to 192.168.1.193 (env: int) — OS deps + OpenResty compile"
           else
-            echo "Full build + deploy to 192.168.1.193 (env: int) via local connection"
+            TAGS_FLAG="--tags $DEPLOY_MODE"
+            echo "$DEPLOY_MODE deploy to 192.168.1.193 (env: int)"
           fi
           sudo ansible-playbook devops/ansible/wslproxy-ops.yml \
             -i devops/ansible/hosts \
@@ -404,15 +406,16 @@ jobs:
       - name: Run Ansible Playbook (TEST)
         timeout-minutes: 25
         run: |
+          DEPLOY_MODE="${{ env.DEPLOY_MODE }}"
           TAGS_FLAG=""
-          if [[ "${{ env.DEPLOY_DASHBOARD_ONLY }}" == "true" ]]; then
-            TAGS_FLAG="--tags dashboard"
-            echo "Dashboard-only deploy to test: 192.168.1.140"
-          elif [[ "${{ env.FULL_BUILD }}" != "true" ]]; then
-            TAGS_FLAG="--skip-tags base_packages,build"
-            echo "Code-only deploy to test: 192.168.1.140 — skipping OS updates and OpenResty build"
+          if [[ "$DEPLOY_MODE" == "full" ]]; then
+            echo "Full deploy to test: 192.168.1.140"
+          elif [[ "$DEPLOY_MODE" == "build" ]]; then
+            TAGS_FLAG="--tags os_deps,build"
+            echo "Build deploy to test: 192.168.1.140 — OS deps + OpenResty compile"
           else
-            echo "Full build + deploy to test: 192.168.1.140"
+            TAGS_FLAG="--tags $DEPLOY_MODE"
+            echo "$DEPLOY_MODE deploy to test: 192.168.1.140"
           fi
           export ANSIBLE_HOST_KEY_CHECKING=False
           ansible-playbook devops/ansible/wslproxy-ops.yml \
@@ -539,15 +542,16 @@ jobs:
       - name: Run Ansible Playbook (ACC)
         timeout-minutes: 25
         run: |
+          DEPLOY_MODE="${{ env.DEPLOY_MODE }}"
           TAGS_FLAG=""
-          if [[ "${{ env.DEPLOY_DASHBOARD_ONLY }}" == "true" ]]; then
-            TAGS_FLAG="--tags dashboard"
-            echo "Dashboard-only deploy to ACC: 187.77.179.206"
-          elif [[ "${{ env.FULL_BUILD }}" != "true" ]]; then
-            TAGS_FLAG="--skip-tags base_packages,build"
-            echo "Code-only deploy to ACC: 187.77.179.206 — skipping OS updates and OpenResty build"
+          if [[ "$DEPLOY_MODE" == "full" ]]; then
+            echo "Full deploy to ACC: 187.77.179.206"
+          elif [[ "$DEPLOY_MODE" == "build" ]]; then
+            TAGS_FLAG="--tags os_deps,build"
+            echo "Build deploy to ACC: 187.77.179.206 — OS deps + OpenResty compile"
           else
-            echo "Full build + deploy to ACC: 187.77.179.206"
+            TAGS_FLAG="--tags $DEPLOY_MODE"
+            echo "$DEPLOY_MODE deploy to ACC: 187.77.179.206"
           fi
           export ANSIBLE_HOST_KEY_CHECKING=False
           ansible-playbook devops/ansible/wslproxy-ops.yml \
@@ -703,15 +707,16 @@ jobs:
       - name: Run Ansible Playbook (PROD pop0)
         timeout-minutes: 25
         run: |
+          DEPLOY_MODE="${{ env.DEPLOY_MODE }}"
           TAGS_FLAG=""
-          if [[ "${{ env.DEPLOY_DASHBOARD_ONLY }}" == "true" ]]; then
-            TAGS_FLAG="--tags dashboard"
-            echo "Dashboard-only deploy to production: 187.124.112.155"
-          elif [[ "${{ env.FULL_BUILD }}" != "true" ]]; then
-            TAGS_FLAG="--skip-tags base_packages,build"
-            echo "Code-only deploy to production: 187.124.112.155 — skipping OS updates and OpenResty build"
+          if [[ "$DEPLOY_MODE" == "full" ]]; then
+            echo "Full deploy to production: 187.124.112.155"
+          elif [[ "$DEPLOY_MODE" == "build" ]]; then
+            TAGS_FLAG="--tags os_deps,build"
+            echo "Build deploy to production: 187.124.112.155 — OS deps + OpenResty compile"
           else
-            echo "Full build + deploy to production: 187.124.112.155 (env: prod)"
+            TAGS_FLAG="--tags $DEPLOY_MODE"
+            echo "$DEPLOY_MODE deploy to production: 187.124.112.155"
           fi
           ansible-playbook devops/ansible/wslproxy-ops.yml \
             -i devops/ansible/hosts \
@@ -867,15 +872,16 @@ jobs:
       - name: Run Ansible Playbook (LON1)
         timeout-minutes: 25
         run: |
+          DEPLOY_MODE="${{ env.DEPLOY_MODE }}"
           TAGS_FLAG=""
-          if [[ "${{ env.DEPLOY_DASHBOARD_ONLY }}" == "true" ]]; then
-            TAGS_FLAG="--tags dashboard"
-            echo "Dashboard-only deploy to LON1: 72.62.211.28"
-          elif [[ "${{ env.FULL_BUILD }}" != "true" ]]; then
-            TAGS_FLAG="--skip-tags base_packages,build"
-            echo "Code-only deploy to LON1: 72.62.211.28 — skipping OS updates and OpenResty build"
+          if [[ "$DEPLOY_MODE" == "full" ]]; then
+            echo "Full deploy to LON1: 72.62.211.28"
+          elif [[ "$DEPLOY_MODE" == "build" ]]; then
+            TAGS_FLAG="--tags os_deps,build"
+            echo "Build deploy to LON1: 72.62.211.28 — OS deps + OpenResty compile"
           else
-            echo "Full build + deploy to LON1: 72.62.211.28 (env: prod)"
+            TAGS_FLAG="--tags $DEPLOY_MODE"
+            echo "$DEPLOY_MODE deploy to LON1: 72.62.211.28"
           fi
           export ANSIBLE_HOST_KEY_CHECKING=False
           ansible-playbook devops/ansible/wslproxy-ops.yml \

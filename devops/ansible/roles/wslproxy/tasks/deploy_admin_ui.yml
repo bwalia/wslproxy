@@ -7,19 +7,19 @@
     src: ../../openresty-admin/
     dest: /usr/local/openresty/nginx/html/openresty-admin
   register: sync_admin
-  tags: [openresty, lapis, dashboard]
+  tags: [dashboard]
 
 - debug:
     var: sync_admin.stdout_lines
-  tags: [openresty, lapis, dashboard]
+  tags: [dashboard]
 
 - name: Copy npm/yarn build script
   template:
     src: install-build-npm-yarn.sh.j2
     dest: /tmp/install-build-npm-yarn.sh
     mode: 0777
-  tags: [openresty, lapis, dashboard]
+  tags: [dashboard]
 
 - name: Execute the npm/yarn build script
   shell: /tmp/install-build-npm-yarn.sh
-  tags: [openresty, lapis, dashboard]
+  tags: [dashboard]

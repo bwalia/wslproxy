@@ -4,7 +4,7 @@
 
 Fully automated promotion pipeline with fail-fast behavior and Slack notifications at every gate. Code promotes through **int → test → acc → prod** — each environment must pass before the next deploys.
 
-**Default mode:** Code-only deploy (lua, nginx conf, data, admin UI). Tick `FULL_BUILD` for OpenResty compilation + OS updates.
+**Deploy modes** are selected via `DEPLOY_MODE` dropdown (default: `code` for manual, `full` for push to release).
 
 ### Triggers
 
@@ -136,11 +136,15 @@ Fully automated promotion pipeline with fail-fast behavior and Slack notificatio
 
 ### Build Modes
 
-| Mode | Flag | What runs | What's skipped |
-|------|------|-----------|----------------|
-| **Code-only** (default) | — | Lua code, nginx conf, data configs, admin UI, cron, systemd, finalize | OS updates, OpenResty compile, luarocks, CDN deps |
-| **Full build** | `FULL_BUILD=true` | Everything | Nothing |
-| **Dashboard only** | `DEPLOY_DASHBOARD_ONLY=true` | Admin UI only | Everything else |
+| Mode | `DEPLOY_MODE` | What runs |
+|------|---------------|-----------|
+| **Code deploy** (manual default) | `code` | Lua API, HTML, settings, nginx conf, restart |
+| **Nginx config** | `nginx` | Nginx conf dirs, tenants, cron, systemd, PAM, SSL, restart |
+| **Virtual servers** | `servers` | Server/rule data configs, settings, SSL, tenant configs, restart |
+| **Dashboard** | `dashboard` | React admin UI build + deploy, restart |
+| **OS dependencies** | `os_deps` | apt/zypper/yum package updates |
+| **Build OpenResty** | `build` | OS deps + OpenResty compile + luarocks + CDN deps |
+| **Full deploy** (push default) | `full` | Everything |
 
 ### Secrets
 

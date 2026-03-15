@@ -6,7 +6,7 @@
     src: openresty.service.j2
     dest: /etc/systemd/system/openresty.service
   notify: Reload systemd
-  tags: [openresty, lapis]
+  tags: [nginx]
 
 - name: Create systemd drop-in directory for OpenResty
   ansible.builtin.file:
@@ -15,7 +15,7 @@
     owner: root
     group: root
     mode: '0755'
-  tags: [openresty, lapis, nginx, limits]
+  tags: [nginx]
 
 - name: Deploy OpenResty systemd service limits override
   copy:
@@ -31,7 +31,7 @@
     group: root
     mode: '0644'
   notify: Reload systemd
-  tags: [openresty, lapis, nginx, limits]
+  tags: [nginx]
 
 - name: Configure system-wide file descriptor limits
   blockinfile:
@@ -47,7 +47,7 @@
       *               hard    nofile          1048576
     create: yes
     backup: yes
-  tags: [openresty, lapis, nginx, limits]
+  tags: [nginx]
 
 - name: Set kernel-level max file descriptors (fs.file-max)
   sysctl:
@@ -56,7 +56,7 @@
     state: present
     reload: yes
     sysctl_file: /etc/sysctl.d/99-openresty.conf
-  tags: [openresty, lapis, nginx, limits]
+  tags: [nginx]
 
 - name: Set kernel-level max file descriptors per process (fs.nr_open)
   sysctl:
@@ -65,4 +65,4 @@
     state: present
     reload: yes
     sysctl_file: /etc/sysctl.d/99-openresty.conf
-  tags: [openresty, lapis, nginx, limits]
+  tags: [nginx]

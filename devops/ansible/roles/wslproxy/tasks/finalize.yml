@@ -6,18 +6,18 @@
     src: nginx.conf.j2
     dest: /usr/local/openresty/nginx/conf/nginx.conf
   notify: Restart openresty
-  tags: [openresty, lapis, dashboard, nginx]
+  tags: [nginx, code, dashboard, servers]
 
 - name: Copy fix-permissions script
   template:
     src: fix-permissions.sh.j2
     dest: /usr/sbin/fix-permissions.sh
     mode: 0775
-  tags: [openresty, lapis, dashboard, nginx, permissions]
+  tags: [nginx, code, dashboard, servers]
 
 - name: Fix nginx related directory permissions
   shell: /usr/sbin/fix-permissions.sh
-  tags: [openresty, lapis, dashboard, nginx, permissions]
+  tags: [nginx, code, dashboard, servers]
 
 - name: Deploy Let's Encrypt contact email configuration
   template:
@@ -26,7 +26,7 @@
     owner: "www-data"
     group: root
     mode: "0644"
-  tags: [openresty, lapis, nginx, ssl, default-server]
+  tags: [nginx, servers]
 
 - name: Sync tenant configurations
   ansible.posix.synchronize:
@@ -34,7 +34,7 @@
     dest: /opt/nginx/conf.d/
   notify: Restart openresty
   register: sync_tenants
-  tags: [openresty, lapis, dashboard, nginx]
+  tags: [nginx, servers]
 
 - name: Deploy default.conf when frontend or backend is configured
   template:
@@ -44,14 +44,14 @@
     owner: www-data
     group: root
   when: (nginx_default_server_frontend | default('') | length > 0) or (nginx_default_server_backend | default('') | length > 0)
-  tags: [openresty, lapis, nginx, default-server]
+  tags: [nginx, servers]
 
 - name: Remove default.conf when no frontend/backend configured
   file:
     path: /opt/nginx/conf.d/default.conf
     state: absent
   when: (nginx_default_server_frontend | default('') | length == 0) and (nginx_default_server_backend | default('') | length == 0)
-  tags: [openresty, lapis, nginx, default-server]
+  tags: [nginx, servers]
 
 - name: Ensure SSL domain directory exists
   file:
@@ -60,7 +60,7 @@
     mode: '0775'
     owner: www-data
     group: root
-  tags: [openresty, nginx, ssl]
+  tags: [nginx, servers]
 
 - name: Generate SSL domain files for default server frontend/backend domains
   shell: |
@@ -80,13 +80,13 @@
   register: default_ssl_gen
   changed_when: "'Created:' in default_ssl_gen.stdout"
   when: (nginx_default_server_frontend | default('') | length > 0) or (nginx_default_server_backend | default('') | length > 0)
-  tags: [openresty, nginx, ssl, default-server]
+  tags: [nginx, servers]
 
 - name: Show default server SSL domain generation
   debug:
     msg: "{{ default_ssl_gen.stdout_lines }}"
   when: default_ssl_gen is defined and default_ssl_gen.stdout_lines | length > 0
-  tags: [openresty, nginx, ssl, default-server]
+  tags: [nginx, servers]
 
 - name: Generate SSL domain files from server configs
   shell: |
@@ -112,54 +112,55 @@
     echo "SSL domain files created: $CREATED"
   register: ssl_gen_result
   changed_when: "'Created:' in ssl_gen_result.stdout"
-  tags: [openresty, nginx, ssl]
+  tags: [nginx, servers]
 
 - name: Display SSL domain generation result
   debug:
     msg: "{{ ssl_gen_result.stdout_lines }}"
   when: ssl_gen_result.stdout_lines | length > 0
-  tags: [openresty, nginx, ssl]
+  tags: [nginx, servers]
 
 - name: Template servers-mixed-nginx.conf
   template:
     src: servers-mixed-nginx.conf.j2
     dest: /opt/nginx/conf.d/servers-mixed-nginx.conf
     mode: 0777
-  tags: [openresty, lapis, nginx]
+  tags: [nginx, servers]
 
 - debug:
     var: sync_tenants.stdout_lines
-  tags: [openresty, lapis, dashboard, nginx]
+  when: sync_tenants is defined
+  tags: [nginx, servers]
 
 - name: Pre-flight nginx config test
   command: /usr/local/openresty/nginx/sbin/nginx -t
   register: nginx_preflight
   changed_when: false
   ignore_errors: true
-  tags: [openresty, lapis, dashboard, nginx]
+  tags: [nginx, code, dashboard, servers]
 
 - name: Show pre-flight config test result
   debug:
     msg: "{{ nginx_preflight.stderr_lines | default(nginx_preflight.stdout_lines) }}"
   when: nginx_preflight is defined
-  tags: [openresty, lapis, dashboard, nginx]
+  tags: [nginx, code, dashboard, servers]
 
 - name: Stop existing OpenResty service before restart
   systemd:
     name: openresty
     state: stopped
   ignore_errors: true
-  tags: [openresty, lapis, dashboard, nginx]
+  tags: [nginx, code, dashboard, servers]
 
 - name: Kill any stale nginx processes
   shell: killall nginx 2>/dev/null || true
   changed_when: false
-  tags: [openresty, lapis, dashboard, nginx]
+  tags: [nginx, code, dashboard, servers]
 
 - name: Wait for ports to be released
   pause:
     seconds: 2
-  tags: [openresty, lapis, dashboard, nginx]
+  tags: [nginx, code, dashboard, servers]
 
 - name: Enable and start OpenResty service
   systemd:
@@ -169,7 +170,7 @@
     daemon_reload: yes
   register: openresty_start
   ignore_errors: true
-  tags: [openresty, lapis, dashboard, nginx]
+  tags: [nginx, code, dashboard, servers]
 
 - name: Capture OpenResty service status on failure
   shell: |
@@ -179,24 +180,24 @@
     journalctl -u openresty.service --no-pager -n 30 2>&1 || true
   register: service_debug
   when: openresty_start is failed
-  tags: [openresty, lapis, dashboard, nginx]
+  tags: [nginx, code, dashboard, servers]
 
 - name: Show OpenResty service failure details
   debug:
     msg: "{{ service_debug.stdout_lines }}"
   when: openresty_start is failed and service_debug is defined
-  tags: [openresty, lapis, dashboard, nginx]
+  tags: [nginx, code, dashboard, servers]
 
 - name: Fail if OpenResty service did not start
   fail:
     msg: "OpenResty service failed to start. See diagnostic output above."
   when: openresty_start is failed
-  tags: [openresty, lapis, dashboard, nginx]
+  tags: [nginx, code, dashboard, servers]
 
 - name: Verify Nginx config
   command: openresty -t
   changed_when: false
-  tags: [openresty, lapis, dashboard, nginx]
+  tags: [nginx, code, dashboard, servers]
 
 - name: Verify OpenResty file descriptor limits
   shell: |
@@ -208,9 +209,10 @@
     fi
   register: fd_limits_check
   changed_when: false
-  tags: [openresty, lapis, nginx, limits, verify]
+  tags: [nginx]
 
 - name: Display current file descriptor limits
   debug:
     msg: "{{ fd_limits_check.stdout_lines }}"
-  tags: [openresty, lapis, nginx, limits, verify]
+  when: fd_limits_check is defined
+  tags: [nginx]
