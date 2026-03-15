@@ -45,12 +45,12 @@ on:
 
       DEPLOY_DASHBOARD_ONLY:
         type: boolean
-        description: "Only rebuild & deploy openresty-admin dashboard UI (skip full build)"
+        description: "Dashboard only: deploy React admin UI only (skip Lua, nginx conf, data, and build steps)"
         default: false
 
       FULL_BUILD:
         type: boolean
-        description: "Full build: compile OpenResty, install luarocks, update OS packages (slow). Default: off (code-only deploy)"
+        description: "Full build: compile OpenResty, install luarocks, update OS packages in addition to code deploy (slow)"
         default: false
 
 # Prevent concurrent deployments to same ref (but don't cancel in-progress)
@@ -75,6 +75,12 @@ jobs:
     timeout-minutes: 5
 
     steps:
+      - name: Check for conflicting options
+        if: env.DEPLOY_DASHBOARD_ONLY == 'true' && env.FULL_BUILD == 'true'
+        run: |
+          echo "::error::Cannot use both DEPLOY_DASHBOARD_ONLY and FULL_BUILD — pick one."
+          exit 1
+
       - name: Checkout code
         uses: actions/checkout@v5
         with:
