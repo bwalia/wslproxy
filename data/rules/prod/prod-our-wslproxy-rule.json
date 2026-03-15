@@ -14,7 +14,7 @@
     },
     "response": {
       "code": 305,
-      "redirect_uri": "127.0.0.1:8080",
+      "redirect_uri": "127.0.0.1:7691",
       "allow": false,
       "message": "undefined",
       "is_consul": false
