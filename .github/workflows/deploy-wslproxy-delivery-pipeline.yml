@@ -1,4 +1,4 @@
-name: Deploy WSLProxy CD Pipeline
+name: Deploy WSLProxy Delivery Pipeline
 # Pipeline: Validate → Int → Smoke Test → Test → Acc → Prod (pop0 + lon1)
 # Promotion pipeline: each environment must pass before the next deploys
 # Deploy modes: code (default for manual) | nginx | servers | dashboard | os_deps | build | full (default for push)
