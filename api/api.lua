@@ -4154,6 +4154,50 @@ local function handle_get_request(args, path)
         ngx.exit(ngx.HTTP_OK)
     end
 
+    -- GET /api/change-requests/config - Get CR config (whether passphrase is set, etc.)
+    if path == "change-requests/config" then
+        local config = CRManager.get_cr_config()
+        ngx.say(cjson.encode({ data = {
+            has_passphrase = (config.approval_passphrase ~= nil and config.approval_passphrase ~= ""),
+            required_approvals = config.required_approvals or 2,
+            passphrase_set_by = config.passphrase_set_by,
+            passphrase_set_at = config.passphrase_set_at,
+        }}))
+        ngx.exit(ngx.HTTP_OK)
+    end
+
+    -- GET /api/versions/status/{type}/{profile} - Bulk version status for all resources
+    if string.find(path, "^versions/status/[^/]+/[^/]+$") then
+        local res_type, profile = path:match("^versions/status/([^/]+)/([^/]+)$")
+        if res_type and profile then
+            local statuses = {}
+            local versions_base = configPath .. "data/versions/" .. res_type .. "/" .. profile
+            local dir_ok, iter, dir_obj = pcall(LFS.dir, versions_base)
+            if dir_ok and iter then
+                for entry in iter, dir_obj do
+                    if entry ~= "." and entry ~= ".." then
+                        local meta_path = versions_base .. "/" .. entry .. "/meta.json"
+                        local meta_file = io.open(meta_path, "rb")
+                        if meta_file then
+                            local content = meta_file:read("*a")
+                            meta_file:close()
+                            local ok, meta = pcall(cjson.decode, content)
+                            if ok and meta then
+                                statuses[entry] = {
+                                    live_version = meta.live_version,
+                                    latest_version = meta.latest_version,
+                                    managed = true,
+                                }
+                            end
+                        end
+                    end
+                end
+            end
+            ngx.say(cjson.encode({ data = statuses }))
+            ngx.exit(ngx.HTTP_OK)
+        end
+    end
+
     -- GET /api/change-requests/{cr_id} - Get specific CR
     if string.find(path, "^change%-requests/CR%-") then
         local cr_id = path:match("^change%-requests/(CR%-%d+)$")
@@ -4730,7 +4774,8 @@ local function handle_put_request(args, path)
                 local payloads = Helper.GetPayloads(args)
                 local user = (payloads and payloads.user) or ngx.req.get_headers()["x-user"] or "system"
                 local comment = payloads and payloads.comment
-                local cr, err = CRManager.approve_cr(cr_id, user, comment)
+                local passphrase = payloads and payloads.passphrase
+                local cr, err = CRManager.approve_cr(cr_id, user, comment, passphrase)
                 if cr then
                     ngx.say(cjson.encode({ data = cr, message = "CR approved" }))
                 else
@@ -4771,6 +4816,23 @@ local function handle_put_request(args, path)
                 end
                 ngx.exit(ngx.HTTP_OK)
             end
+        end
+
+        -- PUT /api/change-requests/config/passphrase - Set CR approval passphrase
+        if path == "change-requests/config/passphrase" then
+            local payloads = Helper.GetPayloads(args)
+            if not payloads or not payloads.passphrase then
+                Errors.throwError("passphrase is required", ngx.HTTP_BAD_REQUEST)
+                ngx.exit(ngx.HTTP_BAD_REQUEST)
+            end
+            local user = (payloads and payloads.user) or ngx.req.get_headers()["x-user"] or "system"
+            local ok, err = CRManager.set_passphrase(payloads.passphrase, user)
+            if ok then
+                ngx.say(cjson.encode({ message = "CR approval passphrase updated" }))
+            else
+                Errors.throwError(err or "Failed to set passphrase", ngx.HTTP_BAD_REQUEST)
+            end
+            ngx.exit(ngx.HTTP_OK)
         end
 
         -- PUT /api/versions/{type}/{profile}/{name}/{version} - Update a draft version
