@@ -785,9 +785,29 @@ const Form = () => {
         </FormDataConsumer>
 
         {/* Version History */}
-        <SectionCard title="Version History" subtitle="Track configuration versions, create drafts, and manage change requests">
-          <VersionHistoryTab resourceType="rules" />
-        </SectionCard>
+        <Card
+          variant="outlined"
+          className="section-card"
+          sx={{
+            borderColor: "primary.main",
+            borderWidth: 2,
+          }}
+        >
+          <CardContent>
+            <Typography
+              variant="subtitle1"
+              className="section-card__title"
+              sx={{ color: "primary.main" }}
+            >
+              Version History & Change Control
+            </Typography>
+            <Typography variant="body2" color="text.secondary" className="section-card__subtitle">
+              All changes stay in draft until a Change Request is created and approved.
+              Two approvers are required (4-eyes principle).
+            </Typography>
+            <VersionHistoryTab resourceType="rules" />
+          </CardContent>
+        </Card>
 
       </div>
     </SimpleForm>

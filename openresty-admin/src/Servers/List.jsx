@@ -17,6 +17,7 @@ import CancelIcon from "@mui/icons-material/CancelRounded";
 import LockIcon from "@mui/icons-material/LockRounded";
 import CachedIcon from "@mui/icons-material/CachedRounded";
 import ShieldIcon from "@mui/icons-material/ShieldRounded";
+import HistoryIcon from "@mui/icons-material/HistoryRounded";
 import ExportJsonButton from './toolbar/ExportJsonButton';
 import Empty from '../component/Empty';
 import ToolBar from "../component/ToolBar";
@@ -312,6 +313,45 @@ const List = () => {
                 }}
               />
             )}
+          />
+          <FunctionField
+            source="_version_control"
+            label="Version"
+            sortable={false}
+            render={record => {
+              const vc = record._version_control;
+              if (vc && vc.managed) {
+                return (
+                  <Chip
+                    icon={<HistoryIcon />}
+                    label={`v${vc.live_version}`}
+                    size="small"
+                    sx={{
+                      backgroundColor: alpha(theme.palette.success.main, 0.12),
+                      color: theme.palette.success.main,
+                      fontWeight: 600,
+                      fontSize: '0.75rem',
+                      '& .MuiChip-icon': {
+                        fontSize: 14,
+                        color: 'inherit',
+                      },
+                    }}
+                  />
+                );
+              }
+              return (
+                <Chip
+                  label="No VC"
+                  size="small"
+                  variant="outlined"
+                  sx={{
+                    color: theme.palette.text.disabled,
+                    borderColor: theme.palette.divider,
+                    fontSize: '0.75rem',
+                  }}
+                />
+              );
+            }}
           />
           <StatusChip source="config_status" label="Status" successLabel="Active" failLabel="Inactive" />
           <CloneButton />

@@ -8,8 +8,11 @@ import {
   ReferenceInput,
   SelectInput,
   SearchInput,
-  CloneButton
+  CloneButton,
+  FunctionField,
 } from 'react-admin'
+import { Chip, useTheme, alpha } from "@mui/material";
+import HistoryIcon from "@mui/icons-material/HistoryRounded";
 import ExportJsonButton from './toolbar/ExportJsonButton';
 import ImportJsonButton from '../component/ImportJsonButton';
 import Empty from '../component/Empty';
@@ -31,6 +34,8 @@ const rulesFilters = [
 ];
 
 const List = () => {
+  const theme = useTheme();
+
   return (
     <RaList
       title={"Server Rules"}
@@ -48,6 +53,42 @@ const List = () => {
         <TextField source='match.rules.path' />
         <NumberField source='match.rules.client_ip' />
         <BooleanField source='match.response.allow' />
+        <FunctionField
+          source="_version_control"
+          label="Version"
+          sortable={false}
+          render={record => {
+            const vc = record._version_control;
+            if (vc && vc.managed) {
+              return (
+                <Chip
+                  icon={<HistoryIcon />}
+                  label={`v${vc.live_version}`}
+                  size="small"
+                  sx={{
+                    backgroundColor: alpha(theme.palette.success.main, 0.12),
+                    color: theme.palette.success.main,
+                    fontWeight: 600,
+                    fontSize: '0.75rem',
+                    '& .MuiChip-icon': { fontSize: 14, color: 'inherit' },
+                  }}
+                />
+              );
+            }
+            return (
+              <Chip
+                label="No VC"
+                size="small"
+                variant="outlined"
+                sx={{
+                  color: theme.palette.text.disabled,
+                  borderColor: theme.palette.divider,
+                  fontSize: '0.75rem',
+                }}
+              />
+            );
+          }}
+        />
         <CloneButton />
       </Datagrid>
       {/* <ImportJsonButton resource={"rules"} /> */}
