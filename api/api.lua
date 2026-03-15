@@ -3249,13 +3249,11 @@ end
 local function updateProfileSettings(args)
     local payloads = Helper.GetPayloads(args)
     local envProfile = payloads.profile
-    local writableFile, writableErr = io.open(configPath .. "data/settings.json", "w")
     settings.env_profile = envProfile
-    if writableFile == nil then
-        Errors.throwError("Couldn't write file: " .. writableErr, ngx.HTTP_INTERNAL_SERVER_ERROR)
+    local updateSettings, msg = Helper.writeSettingsFile(configPath .. "data/settings.json", settings)
+    if not updateSettings then
+        Errors.throwError("Couldn't save settings: " .. (msg or "unknown error"), ngx.HTTP_INTERNAL_SERVER_ERROR)
     else
-        writableFile:write(cjson.encode(settings))
-        writableFile:close()
         ngx.say(cjson.encode({
             data = {
                 profile = settings.env_profile
@@ -3363,9 +3361,9 @@ local function resetPassword(args)
         Errors.throwError("New password should be different from old password.", ngx.HTTP_FORBIDDEN)
     end
     settings.super_user.password = newPassword
-    local updateSettings, msg = Helper.writeFile(configPath .. "data/settings.json", settings)
+    local updateSettings, msg = Helper.writeSettingsFile(configPath .. "data/settings.json", settings)
     if not updateSettings then
-        Errors.throwError(msg, ngx.HTTP_FORBIDDEN)
+        Errors.throwError(msg, ngx.HTTP_INTERNAL_SERVER_ERROR)
     end
     return ngx.say(cjson.encode({
         message = "Password has been reset successfully."

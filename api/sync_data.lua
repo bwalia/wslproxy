@@ -1,4 +1,5 @@
 local http = require "resty.http"
+local Helper = require("helpers")
 local jwt = JWT
 local cjson = Cjson
 local configPath = os.getenv("NGINX_CONFIG_DIR") or "/opt/nginx/"
@@ -359,7 +360,10 @@ function SyncSettings(args)
     if args and args ~= nil and args.envprofile and args.envprofile ~= nil then
         local envProfile = args.envprofile
         settings.env_profile = envProfile
-        setDataToFile(configPath .. "data/settings.json", settings)
+        local ok, err = Helper.writeSettingsFile(configPath .. "data/settings.json", settings)
+        if not ok then
+            return { error = "Failed to sync settings: " .. (err or "unknown error") }
+        end
         return { success = "settings are synced" }
     end
 end
