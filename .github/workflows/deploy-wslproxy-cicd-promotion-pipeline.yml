@@ -4,6 +4,16 @@ name: CI/CD Promotion Pipeline (main → int → test → acc)
 # Use deploy-wslproxy-delivery-pipeline.yml for production releases from the release branch
 
 on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - feature/*
+      - bugfix/*
+      - hotfix/*
+      - release/*
+      - main
   workflow_dispatch:
     inputs:
       DEPLOY_MODE:
