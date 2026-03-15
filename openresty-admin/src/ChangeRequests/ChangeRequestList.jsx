@@ -30,6 +30,7 @@ import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import CancelIcon from "@mui/icons-material/Cancel";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import RefreshIcon from "@mui/icons-material/Refresh";
+import SettingsIcon from "@mui/icons-material/Settings";
 import { useNotify } from "react-admin";
 import StatusBadge from "../component/StatusBadge";
 
@@ -65,7 +66,12 @@ const ChangeRequestList = () => {
   const [actionCR, setActionCR] = useState(null);
   const [approverUser, setApproverUser] = useState("");
   const [approveComment, setApproveComment] = useState("");
+  const [approvePassphrase, setApprovePassphrase] = useState("");
   const [rejectReason, setRejectReason] = useState("");
+  const [crConfig, setCrConfig] = useState({});
+  const [passphraseDialogOpen, setPassphraseDialogOpen] = useState(false);
+  const [newPassphrase, setNewPassphrase] = useState("");
+  const [passphraseUser, setPassphraseUser] = useState("");
 
   const fetchCRs = useCallback(async () => {
     setLoading(true);
@@ -95,10 +101,22 @@ const ChangeRequestList = () => {
     }
   }, []);
 
+  const fetchCRConfig = useCallback(async () => {
+    try {
+      const url = `${API_URL}/change-requests/config?timestamp=${Date.now()}`;
+      const response = await fetch(url, { method: "GET", headers: getHeaders() });
+      const result = await response.json();
+      setCrConfig(result.data || {});
+    } catch (error) {
+      console.error("Failed to fetch CR config:", error);
+    }
+  }, []);
+
   useEffect(() => {
     fetchCRs();
     fetchPendingCount();
-  }, [fetchCRs, fetchPendingCount]);
+    fetchCRConfig();
+  }, [fetchCRs, fetchPendingCount, fetchCRConfig]);
 
   const handleViewCR = (cr) => {
     setSelectedCR(cr);
@@ -112,7 +130,7 @@ const ChangeRequestList = () => {
       const response = await fetch(url, {
         method: "PUT",
         headers: getHeaders(),
-        body: JSON.stringify({ user: approverUser, comment: approveComment }),
+        body: JSON.stringify({ user: approverUser, comment: approveComment, passphrase: approvePassphrase }),
       });
       const result = await response.json();
       if (response.ok) {
@@ -120,6 +138,7 @@ const ChangeRequestList = () => {
         setApproveDialogOpen(false);
         setApproverUser("");
         setApproveComment("");
+        setApprovePassphrase("");
         fetchCRs();
         fetchPendingCount();
       } else {
@@ -127,6 +146,30 @@ const ChangeRequestList = () => {
       }
     } catch (error) {
       notify("Failed to approve CR", { type: "error" });
+    }
+  };
+
+  const handleSetPassphrase = async () => {
+    if (!newPassphrase || !passphraseUser) return;
+    try {
+      const url = `${API_URL}/change-requests/config/passphrase`;
+      const response = await fetch(url, {
+        method: "PUT",
+        headers: getHeaders(),
+        body: JSON.stringify({ passphrase: newPassphrase, user: passphraseUser }),
+      });
+      if (response.ok) {
+        notify("CR approval passphrase updated", { type: "success" });
+        setPassphraseDialogOpen(false);
+        setNewPassphrase("");
+        setPassphraseUser("");
+        fetchCRConfig();
+      } else {
+        const result = await response.json();
+        notify(result?.data?.message || "Failed to set passphrase", { type: "error" });
+      }
+    } catch (error) {
+      notify("Failed to set passphrase", { type: "error" });
     }
   };
 
@@ -199,6 +242,15 @@ const ChangeRequestList = () => {
         </TextField>
         <Button variant="outlined" size="small" startIcon={<RefreshIcon />} onClick={fetchCRs}>
           Refresh
+        </Button>
+        <Button
+          variant="outlined"
+          size="small"
+          startIcon={<SettingsIcon />}
+          onClick={() => setPassphraseDialogOpen(true)}
+          color={crConfig.has_passphrase ? "success" : "warning"}
+        >
+          {crConfig.has_passphrase ? "Passphrase Set" : "Set Approval Passphrase"}
         </Button>
       </Stack>
 
@@ -444,6 +496,9 @@ const ChangeRequestList = () => {
           <Alert severity="info" sx={{ mb: 2 }}>
             <strong>4-Eyes Principle:</strong> You cannot approve a CR you created.
             Two different users must approve before the change goes live.
+            {crConfig.has_passphrase && (
+              <><br /><strong>Approval passphrase required.</strong> Contact your admin if you don't have it.</>
+            )}
           </Alert>
           <Typography variant="body2" sx={{ mb: 2 }}>
             Resource: {actionCR?.resource_name} (v{actionCR?.version})
@@ -457,6 +512,19 @@ const ChangeRequestList = () => {
             required
             helperText="Must be different from the CR creator"
           />
+          {crConfig.has_passphrase && (
+            <TextField
+              label="Approval Passphrase"
+              fullWidth
+              type="password"
+              value={approvePassphrase}
+              onChange={(e) => setApprovePassphrase(e.target.value)}
+              sx={{ mb: 2 }}
+              required
+              helperText="Secret code required to approve changes"
+              inputProps={{ autoComplete: "new-password" }}
+            />
+          )}
           <TextField
             label="Comment (optional)"
             fullWidth
@@ -468,8 +536,54 @@ const ChangeRequestList = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setApproveDialogOpen(false)}>Cancel</Button>
-          <Button variant="contained" color="success" onClick={handleApprove} disabled={!approverUser}>
+          <Button
+            variant="contained"
+            color="success"
+            onClick={handleApprove}
+            disabled={!approverUser || (crConfig.has_passphrase && !approvePassphrase)}
+          >
             Approve
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Set Passphrase Dialog */}
+      <Dialog open={passphraseDialogOpen} onClose={() => setPassphraseDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>CR Approval Passphrase</DialogTitle>
+        <DialogContent>
+          <Alert severity={crConfig.has_passphrase ? "success" : "warning"} sx={{ mb: 2 }}>
+            {crConfig.has_passphrase
+              ? `Passphrase is configured (set by ${crConfig.passphrase_set_by || "unknown"}).
+                 Anyone approving a CR must provide this passphrase.`
+              : "No passphrase is configured. Anyone can approve CRs without a secret code. Set one to secure the approval process."}
+          </Alert>
+          <TextField
+            label="Your Username"
+            fullWidth
+            value={passphraseUser}
+            onChange={(e) => setPassphraseUser(e.target.value)}
+            sx={{ mb: 2 }}
+            required
+          />
+          <TextField
+            label={crConfig.has_passphrase ? "New Passphrase (replaces existing)" : "Set Passphrase"}
+            fullWidth
+            type="password"
+            value={newPassphrase}
+            onChange={(e) => setNewPassphrase(e.target.value)}
+            required
+            helperText="This passphrase will be required for all future CR approvals"
+            inputProps={{ autoComplete: "new-password" }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPassphraseDialogOpen(false)}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={handleSetPassphrase}
+            disabled={!newPassphrase || !passphraseUser}
+          >
+            {crConfig.has_passphrase ? "Update Passphrase" : "Set Passphrase"}
           </Button>
         </DialogActions>
       </Dialog>

@@ -359,11 +359,23 @@ function _M.activate_version(resource_type, profile, resource_name, version, use
     meta.live_version = version
     write_meta(resource_type, profile, resource_name, meta)
 
-    -- Step 4: Copy config to main data directory
+    -- Step 4: Copy config to main data directory with _version_control metadata
     local live_data_path = get_live_data_path(resource_type, profile, resource_name)
     if live_data_path and entry.config_payload then
         local data_dir = live_data_path:match("^(.*)/[^/]+$")
-        write_json_file(live_data_path, entry.config_payload, data_dir)
+        -- Clone config and embed version control metadata
+        local live_config = {}
+        for k, v in pairs(entry.config_payload) do
+            live_config[k] = v
+        end
+        live_config._version_control = {
+            managed = true,
+            live_version = version,
+            activated_at = os.time(),
+            activated_by = user,
+            cr_id = entry.cr_id,
+        }
+        write_json_file(live_data_path, live_config, data_dir)
     end
 
     -- Step 5: Trigger nginx reload
@@ -558,6 +570,19 @@ function _M.initialize_resource(resource_type, profile, resource_name, user)
     meta.latest_version = 1
     meta.live_version = 1
     write_meta(resource_type, profile, resource_name, meta)
+
+    -- Write _version_control metadata to the live config file
+    local live_config = {}
+    for k, v in pairs(config) do
+        live_config[k] = v
+    end
+    live_config._version_control = {
+        managed = true,
+        live_version = 1,
+        activated_at = os.time(),
+        activated_by = user or "system",
+    }
+    write_json_file(live_data_path, live_config)
 
     AuditLogger.log("version_migrated", user or "system", resource_type, resource_name, {
         version = 1,
