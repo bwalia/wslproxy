@@ -40,6 +40,8 @@ install_build_deps() {
   fi
 {% endif %}
   apt-get install {{ os_build_deps | join(' ') }} -y
+  # Install PCRE dev — try pcre2 first (Debian 13+), fall back to pcre3
+  apt-get install -y libpcre2-dev 2>/dev/null || apt-get install -y libpcre3-dev 2>/dev/null || echo "WARNING: No PCRE dev package found"
 {% endif %}
 }
 
@@ -68,8 +70,13 @@ tar -xzf openresty-${OPENRESTY_VERSION}.tar.gz
 cd openresty-${OPENRESTY_VERSION}
 
   ./configure --prefix=$OPENRESTY_SRC_DIR --with-stream_realip_module --with-http_ssl_module --with-http_gzip_static_module --with-http_sub_module --with-http_v2_module --with-http_stub_status_module --with-stream --with-http_slice_module
+{% if ansible_os_family == "Suse" %}
   gmake -j2
   gmake install
+{% else %}
+  make -j2
+  make install
+{% endif %}
   ln -sf /usr/local/openresty/nginx/sbin/nginx /usr/bin/openresty
 
   # Installed OpenResty
