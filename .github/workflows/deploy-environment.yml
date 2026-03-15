@@ -249,12 +249,15 @@ jobs:
               echo "::error::OpenResty service not running"; exit 1;
             }
           else
+            # Use sudo for non-root SSH users (openresty -t needs access to logs/pid files)
+            SUDO_PREFIX=""
+            [[ "${{ inputs.ssh_user }}" != "root" ]] && SUDO_PREFIX="sudo"
             ssh $SSH_OPTS ${{ inputs.ssh_user }}@${{ inputs.host_ip }} \
-              "/usr/local/openresty/bin/openresty -t" 2>&1 || {
+              "$SUDO_PREFIX /usr/local/openresty/bin/openresty -t" 2>&1 || {
               echo "::error::Nginx config test failed on ${{ inputs.host_ip }}"; exit 1;
             }
             ssh $SSH_OPTS ${{ inputs.ssh_user }}@${{ inputs.host_ip }} \
-              "systemctl is-active openresty" 2>&1 || {
+              "$SUDO_PREFIX systemctl is-active openresty" 2>&1 || {
               echo "::error::OpenResty not running on ${{ inputs.host_ip }}"; exit 1;
             }
           fi
