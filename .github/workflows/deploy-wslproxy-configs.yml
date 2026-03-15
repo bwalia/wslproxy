@@ -27,7 +27,6 @@ on:
           - acc
           - dev
           - diytaxreturn
-          - diytaxreturn_wsl1
 
       TARGET_HOST:
         type: choice
@@ -37,7 +36,6 @@ on:
         options:
           - 187.124.112.155
           - 187.77.179.206
-          - 187.124.112.156
           - 192.168.1.193
 
       DEPLOY_NGINX_CONF:

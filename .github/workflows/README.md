@@ -122,16 +122,6 @@ Fully automated promotion pipeline with fail-fast behavior and Slack notificatio
  │  Reports pass/fail for all stages.                                  │
  │  Exits with error if any stage failed.                              │
  └──────────────────────────────────────────────────────────────────────┘
-
- ── Manual dispatch only ──────────────────────────────────────────────
-
- ┌──────────────────────────────────────────────────────────────────────┐
- │  STAGE 7: Deploy WSL1 (187.124.112.156)           [self-hosted]     │
- │                                                                      │
- │  - Only via workflow_dispatch (TARGET_HOST = 187.124.112.156 / all) │
- │  - SSH to root@187.124.112.156                                      │
- │  - ansible-playbook wslproxy-ops.yml (env: wsl1)                   │
- └──────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Environments & Hosts
@@ -143,7 +133,6 @@ Fully automated promotion pipeline with fail-fast behavior and Slack notificatio
 | acc | 187.77.179.206 | 187.77.179.206 | root | Ansible SSH | `http://187.77.179.206:8080/health` |
 | prod (pop0) | 187.124.112.155 | 187.124.112.155 | root | Ansible SSH | `https://prod-our.wslproxy.com/health` |
 | prod (lon1) | 72.62.211.28 | 72.62.211.28 | root | Ansible SSH | `http://72.62.211.28:8080/health` |
-| wsl1 | 187.124.112.156 | 187.124.112.156 | root | Ansible SSH | `http://187.124.112.156:8080/health` |
 
 ### Build Modes
 
@@ -170,8 +159,7 @@ Runner-local secrets (on 192.168.1.193):
 ├── int/     → settings.json + .env (BACKEND_HOST=192.168.1.193)
 ├── test/    → settings.json + .env (BACKEND_HOST=192.168.1.140)
 ├── acc/     → settings.json + .env (BACKEND_HOST=187.77.179.206)
-├── lon1/    → settings.json + .env (BACKEND_HOST=72.62.211.28)
-└── wsl1/    → settings.json + .env (uses domain names)
+└── lon1/    → settings.json + .env (BACKEND_HOST=72.62.211.28)
 ```
 
 ---

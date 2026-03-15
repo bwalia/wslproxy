@@ -9,7 +9,6 @@
 187.77.179.206 ansible_user=root
 187.124.112.155 ansible_user=root
 72.62.211.28 ansible_user=root
-187.124.112.156 ansible_user=root
 
 # ── Environment groups ─────────────────────────────────
 
@@ -26,11 +25,6 @@
 187.124.112.155 ansible_user=root
 72.62.211.28 ansible_user=root
 
-# ── Standalone targets (manual deploy only) ────────────
-
-[openresty_diytaxreturn_wsl1]
-187.124.112.156 ansible_user=root
-
 # ── Group all openresty servers ────────────────────────
 
 [openresty_servers:children]
@@ -38,10 +32,8 @@ openresty_int
 openresty_test
 openresty_acc
 openresty_prod
-openresty_diytaxreturn_wsl1
 
 # ── Docker-enabled servers ─────────────────────────────
 
 [docker_servers]
 187.77.179.206 ansible_user=root
-187.124.112.156 ansible_user=root
