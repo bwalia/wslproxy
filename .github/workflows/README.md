@@ -1,6 +1,6 @@
 # WSLProxy CI/CD Pipeline
 
-## Build & Deploy Pipeline (`deploy-wslproxy-cicd-pipeline.yml`)
+## Build & Deploy Pipeline (`deploy-wslproxy-delivery-pipeline.yml`)
 
 Fully automated promotion pipeline with fail-fast behavior and Slack notifications at every gate. Code promotes through **int → test → acc → prod** — each environment must pass before the next deploys.
 
@@ -250,7 +250,7 @@ Runs on `ubuntu-latest` before any deployment:
 To add tests to the pipeline:
 
 1. **Go tests**: Add test files to `QA/` — they run in Stage 3 against the int environment
-2. **API tests**: Add endpoints to the Stage 3 verification loop in `deploy-wslproxy-cicd-pipeline.yml`
+2. **API tests**: Add endpoints to the Stage 3 verification loop in `deploy-wslproxy-delivery-pipeline.yml`
 3. **Config validation**: JSON files in `data/` are automatically validated in Stage 1
 
 ---
