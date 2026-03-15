@@ -29,7 +29,7 @@
     src: cdn-dependencies.sh.j2
     dest: /tmp/cdn-dependencies.sh
     mode: 0777
-  tags: [openresty, lapis]
+  tags: [openresty, lapis, build]
 
 - name: Ensure nginx data directory exists
   ansible.builtin.file:
@@ -104,23 +104,23 @@
     exit $FAILED
   register: luarocks_install_result
   ignore_errors: true
-  tags: [openresty, lapis]
+  tags: [openresty, lapis, build]
 
 - name: Show luarocks install output
   debug:
     msg: "{{ luarocks_install_result.stdout_lines }}"
   when: luarocks_install_result is defined
-  tags: [openresty, lapis]
+  tags: [openresty, lapis, build]
 
 - name: Execute the cdn-dependencies.sh script
   shell: /tmp/cdn-dependencies.sh 2>&1
   register: cdn_deps_result
   async: 300
   poll: 15
-  tags: [openresty, lapis]
+  tags: [openresty, lapis, build]
 
 - name: Show cdn-dependencies output (last 40 lines)
   debug:
     msg: "{{ cdn_deps_result.stdout_lines[-40:] }}"
   when: cdn_deps_result is defined
-  tags: [openresty, lapis]
+  tags: [openresty, lapis, build]
