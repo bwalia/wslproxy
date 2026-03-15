@@ -37,7 +37,7 @@ on:
         required: true
         options:
           - all
-          - slworker00
+          - 192.168.1.193
           - 192.168.1.140
           - 187.77.179.206
           - 187.124.112.155
@@ -140,10 +140,10 @@ jobs:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
   # ──────────────────────────────────────────────────────
-  # Stage 2: Deploy Int (slworker00 — local connection)
+  # Stage 2: Deploy Int (192.168.1.193 — local connection)
   # ──────────────────────────────────────────────────────
   deploy-int:
-    name: "Stage 2: Deploy Int (slworker00)"
+    name: "Stage 2: Deploy Int (192.168.1.193)"
     runs-on: [self-hosted, Linux]
     needs: [build-validate]
     timeout-minutes: 30
@@ -166,69 +166,69 @@ jobs:
           fi
       - name: Decode settings file (INT)
         run: |
-          echo "${{ secrets.DOT_WSLPROXY_SETTINGS_INT }}" | base64 -d > /tmp/settings_brahmstra_slworker00.json
-          if [ ! -s /tmp/settings_brahmstra_slworker00.json ]; then
+          echo "${{ secrets.DOT_WSLPROXY_SETTINGS_INT }}" | base64 -d > /tmp/settings_brahmstra_192.168.1.193.json
+          if [ ! -s /tmp/settings_brahmstra_192.168.1.193.json ]; then
             echo "::error::INT settings file is empty or failed to decode"
             exit 1
           fi
-          python3 -m json.tool /tmp/settings_brahmstra_slworker00.json > /dev/null 2>&1 || {
+          python3 -m json.tool /tmp/settings_brahmstra_192.168.1.193.json > /dev/null 2>&1 || {
             echo "::error::INT settings file contains invalid JSON"; exit 1;
           }
           echo "INT settings validated"
 
       - name: Decode env file (INT)
         run: |
-          echo "${{ secrets.DOT_WSLPROXY_ENV_CREDS_INT }}" | base64 -d > /tmp/.env_brahmstra_slworker00
-          if [ ! -s /tmp/.env_brahmstra_slworker00 ]; then
+          echo "${{ secrets.DOT_WSLPROXY_ENV_CREDS_INT }}" | base64 -d > /tmp/.env_brahmstra_192.168.1.193
+          if [ ! -s /tmp/.env_brahmstra_192.168.1.193 ]; then
             echo "::warning::INT env file is empty (may be expected)"
           fi
 
       - name: "Prepare: Clean up Docker resources"
         run: |
-          echo "Pruning unused Docker resources on slworker00..."
+          echo "Pruning unused Docker resources on 192.168.1.193..."
           sudo docker system prune -y 2>&1 || echo "::warning::Docker prune failed (docker may not be installed)"
           echo "Docker cleanup complete"
 
-      - name: Run Ansible Playbook (slworker00 / int)
+      - name: Run Ansible Playbook (192.168.1.193 / int)
         timeout-minutes: 25
         run: |
           TAGS_FLAG=""
           if [[ "${{ env.DEPLOY_DASHBOARD_ONLY }}" == "true" ]]; then
             TAGS_FLAG="--tags dashboard"
-            echo "Dashboard-only deploy to slworker00 (env: int)"
+            echo "Dashboard-only deploy to 192.168.1.193 (env: int)"
           elif [[ "${{ env.FULL_BUILD }}" != "true" ]]; then
             TAGS_FLAG="--skip-tags base_packages,build"
-            echo "Code-only deploy to slworker00 (env: int) — skipping OS updates and OpenResty build"
+            echo "Code-only deploy to 192.168.1.193 (env: int) — skipping OS updates and OpenResty build"
           else
-            echo "Full build + deploy to slworker00 (env: int) via local connection"
+            echo "Full build + deploy to 192.168.1.193 (env: int) via local connection"
           fi
           sudo ansible-playbook devops/ansible/wslproxy-ops.yml \
             -i devops/ansible/hosts \
-            -l slworker00 \
+            -l 192.168.1.193 \
             --connection=local \
             $TAGS_FLAG \
-            --extra-vars "nginx_user_password=THISCOMESFROMSECRETS target_env=int local_settings_file_path=/tmp/settings_brahmstra_slworker00.json local_env_file_path=/tmp/.env_brahmstra_slworker00"
+            --extra-vars "nginx_user_password=THISCOMESFROMSECRETS target_env=int local_settings_file_path=/tmp/settings_brahmstra_192.168.1.193.json local_env_file_path=/tmp/.env_brahmstra_192.168.1.193"
 
       - name: Deploy server configs and rules (int)
         timeout-minutes: 5
         run: |
-          echo "Deploying server configs for env: int to slworker00"
+          echo "Deploying server configs for env: int to 192.168.1.193"
           sudo ansible-playbook devops/ansible/deploy-configs.yml \
             -i devops/ansible/hosts \
-            -l slworker00 \
+            -l 192.168.1.193 \
             --connection=local \
             -e "target_env=int local_data_dir=${{ github.workspace }}/data"
 
       - name: Post-deploy health gate
         run: |
-          echo "Verifying int deployment on slworker00..."
+          echo "Verifying int deployment on 192.168.1.193..."
 
           sudo /usr/local/openresty/bin/openresty -t 2>&1 || {
-            echo "::error::Nginx config syntax check failed on slworker00"; exit 1;
+            echo "::error::Nginx config syntax check failed on 192.168.1.193"; exit 1;
           }
 
           sudo systemctl is-active openresty 2>&1 || {
-            echo "::error::OpenResty service is not running on slworker00"; exit 1;
+            echo "::error::OpenResty service is not running on 192.168.1.193"; exit 1;
           }
 
           for i in $(seq 1 12); do
@@ -240,7 +240,7 @@ jobs:
             echo "Attempt $i/12: HTTP $STATUS — waiting 5s..."
             sleep 5
           done
-          echo "::error::OpenResty not responding on slworker00 after 60s"
+          echo "::error::OpenResty not responding on 192.168.1.193 after 60s"
           exit 1
 
       - name: Slack notify - Int deploy failed
@@ -251,7 +251,7 @@ jobs:
           SLACK_COLOR: danger
           SLACK_ICON: https://github.com/rtCamp.png?size=48
           SLACK_MESSAGE: |
-            :x: *Stage 2 FAILED: Deploy Int (slworker00)*
+            :x: *Stage 2 FAILED: Deploy Int (192.168.1.193)*
             Deployment or post-deploy health check failed — pipeline stopped.
             *Branch:* ${{ github.ref_name }} | *Commit:* `${{ github.sha }}`
             *Triggered by:* ${{ github.actor }} (${{ github.event_name }})
@@ -316,7 +316,7 @@ jobs:
             fi
           done
           if [ $FAILED -gt 0 ]; then
-            echo "::error::$FAILED core endpoint check(s) failed on slworker00"
+            echo "::error::$FAILED core endpoint check(s) failed on 192.168.1.193"
             exit 1
           fi
           echo "All core endpoint checks passed"

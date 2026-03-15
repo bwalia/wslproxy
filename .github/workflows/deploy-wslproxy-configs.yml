@@ -38,7 +38,7 @@ on:
           - 187.124.112.155
           - 187.77.179.206
           - 187.124.112.156
-          - slworker00
+          - 192.168.1.193
 
       DEPLOY_NGINX_CONF:
         type: boolean
@@ -55,7 +55,7 @@ env:
   TARGET_HOST: ${{ github.event.inputs.TARGET_HOST || '187.124.112.155' }}
   DEPLOY_NGINX_CONF: ${{ github.event.inputs.DEPLOY_NGINX_CONF || 'false' }}
   DRY_RUN: ${{ github.event.inputs.DRY_RUN || 'false' }}
-  INT_HOST: slworker00
+  INT_HOST: 192.168.1.193
   INT_BACKEND_PORT: 8080
 
 jobs:

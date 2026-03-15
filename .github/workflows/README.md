@@ -34,7 +34,7 @@ Fully automated 4-stage deployment pipeline with fail-fast behavior and Slack no
  │  STAGE 2: Deploy Int (Ansible native)             [self-hosted]     │
  │                                                                      │
  │  - Decode INT settings + env from GitHub Secrets                    │
- │  - ansible-playbook wslproxy-ops.yml -l slworker00 (env: int)      │
+ │  - ansible-playbook wslproxy-ops.yml -l 192.168.1.193 (env: int)      │
  │  - Post-deploy gates:                                               │
  │      • openresty -t (nginx config syntax)                           │
  │      • systemctl is-active openresty                                │
@@ -91,7 +91,7 @@ Fully automated 4-stage deployment pipeline with fail-fast behavior and Slack no
 
 | Environment | Host | Runner | Ansible user | Deploy method |
 |-------------|------|--------|-------------|---------------|
-| int | slworker00 | `[self-hosted, Linux]` | bwalia | Ansible native (local) |
+| int | 192.168.1.193 | `[self-hosted, Linux]` | bwalia | Ansible native (local) |
 | prod | 187.124.112.155 | `[self-hosted]` | root | Ansible native (SSH) |
 
 ### Secrets Required

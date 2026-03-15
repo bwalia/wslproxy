@@ -4,7 +4,7 @@
 # ──────────────────────────────────────────────────────
 
 [openresty_native_cluster]
-slworker00 ansible_user=bwalia
+192.168.1.193 ansible_user=bwalia
 192.168.1.140 ansible_user=bwalia
 187.77.179.206 ansible_user=root
 187.124.112.155 ansible_user=root
@@ -14,7 +14,7 @@ lon1.pop0.uk ansible_user=root
 # ── Environment groups ─────────────────────────────────
 
 [openresty_int]
-slworker00 ansible_user=bwalia
+192.168.1.193 ansible_user=bwalia
 
 [openresty_test]
 192.168.1.140 ansible_user=bwalia
