@@ -1,4 +1,4 @@
-name: wslproxy QA UI Tests Suite
+name: Run WSLProxy Dashboard Functional UI Tests
 on:
   schedule:
     - cron: "0 22 * * *"
