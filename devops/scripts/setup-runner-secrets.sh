@@ -111,7 +111,7 @@ for env in "${ENVS[@]}"; do
   "instance_hash": "${INSTANCE_HASH}",
   "super_user": {
     "email": "admin@wslproxy.com",
-    "password": "jGl25bVBBBW96Qi9Te4V37Fnqchz/Eu4qB9vKrRIqRg=",
+    "password": "$(echo -n "changeme-${env}" | openssl dgst -sha256 -binary | base64)",
     "username": "admin"
   },
   "mcp": {
