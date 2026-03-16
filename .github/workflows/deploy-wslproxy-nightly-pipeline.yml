@@ -101,7 +101,7 @@ jobs:
           pip3 -q install jinja2
           ERRORS=0
           CHECKED=0
-          for file in $(find devops/ansible/roles -name '*.j2' 2>/dev/null); do
+          for file in $(find infra/ansible/roles -name '*.j2' 2>/dev/null); do
             CHECKED=$((CHECKED+1))
             if python3 -c "
           from jinja2 import Environment, BaseLoader, exceptions

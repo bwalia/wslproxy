@@ -15,8 +15,8 @@
 #   base64_settings_file - Base64 encoded settings file content (optional)
 #
 # Output:
-#   - devops/helm-charts/whitefalcon/values-wslproxy-api-<env>.yaml (for api)
-#   - devops/helm-charts/whitefalcon/values-wslproxy-front-<env>.yaml (for front)
+#   - infra/helm-charts/whitefalcon/values-wslproxy-api-<env>.yaml (for api)
+#   - infra/helm-charts/whitefalcon/values-wslproxy-front-<env>.yaml (for front)
 #
 # Example:
 #   ./kubeseal_automation.sh "$ENV_FILE_BASE64" "test" "test" "api" "$SETTINGS_BASE64"
@@ -34,7 +34,7 @@ readonly NC='\033[0m' # No Color
 # Script configuration
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
-readonly HELM_CHART_DIR="${PROJECT_ROOT}/devops/helm-charts/whitefalcon"
+readonly HELM_CHART_DIR="${PROJECT_ROOT}/infra/helm-charts/whitefalcon"
 readonly KUBESEAL_CONTROLLER_NAME="sealed-secrets-controller"
 readonly KUBESEAL_CONTROLLER_NAMESPACE="kube-system"
 

@@ -203,8 +203,8 @@ jobs:
             CONN_FLAGS="--timeout 30"
           fi
 
-          $CMD_PREFIX ansible-playbook devops/ansible/wslproxy-ops.yml \
-            -i devops/ansible/hosts \
+          $CMD_PREFIX ansible-playbook infra/ansible/wslproxy-ops.yml \
+            -i infra/ansible/hosts \
             -l ${{ inputs.host_ip }} \
             $CONN_FLAGS \
             $TAGS_FLAG \
@@ -226,8 +226,8 @@ jobs:
             CONN_FLAGS="--private-key ~/.ssh/id_rsa"
           fi
 
-          $CMD_PREFIX ansible-playbook devops/ansible/deploy-configs.yml \
-            -i devops/ansible/hosts \
+          $CMD_PREFIX ansible-playbook infra/ansible/deploy-configs.yml \
+            -i infra/ansible/hosts \
             -l ${{ inputs.host_ip }} \
             $CONN_FLAGS \
             -e "target_env=${{ inputs.env_name }} local_data_dir=${{ github.workspace }}/data"

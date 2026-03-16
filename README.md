@@ -52,7 +52,7 @@ open http://localhost:8080
 
 ```bash
 # Deploy to K8s cluster
-helm install wslproxy ./devops/helm-charts/wslproxy \
+helm install wslproxy ./infra/helm-charts/wslproxy \
   -n wslproxy \
   --create-namespace \
   -f values-prod.yaml
@@ -174,7 +174,7 @@ The admin dashboard uses Vite environment variables defined in `openresty-admin/
 
 - **[Docker Deployment Guide](./DOCKER-DEPLOYMENT.md)** - Step-by-step deployment for all scenarios
 - **[Docker Reference](./DOCKER.md)** - Configuration, monitoring, troubleshooting
-- **[Kubernetes Helm Charts](./devops/helm-charts/wslproxy/)** - K8s deployment manifests
+- **[Kubernetes Helm Charts](./infra/helm-charts/wslproxy/)** - K8s deployment manifests
 
 ## Use Cases
 
@@ -393,9 +393,9 @@ front_url: http://wf-front-svc-<NAMESPACE>.<NAMESPACE>.svc.cluster.local
 15. After updating env secrets, now you have to run these helm commands to run api-gateway on your kubernates:
 
 ```
-helm upgrade -i wslproxy-api-<NAMESPACE> ./devops/helm-charts/wslproxy/ -f devops/helm-charts/wslproxy/values-<NAMESPACE>-api-<TARGET_CLUSTER>.yaml --set TARGET_ENV=<NAMESPACE> --namespace <NAMESPACE> --create-namespace
-helm upgrade -i wslproxy-front-<NAMESPACE> ./devops/helm-charts/wslproxy/ -f devops/helm-charts/wslproxy/values-<NAMESPACE>-front-<TARGET_CLUSTER>.yaml --set TARGET_ENV=<NAMESPACE> --namespace <NAMESPACE> --create-namespace
-helm upgrade -i wslproxy-nodeapp ./devops/helm-charts/node-app/ -f devops/helm-charts/node-app/values-<TARGET_CLUSTER>.yaml
+helm upgrade -i wslproxy-api-<NAMESPACE> ./infra/helm-charts/wslproxy/ -f infra/helm-charts/wslproxy/values-<NAMESPACE>-api-<TARGET_CLUSTER>.yaml --set TARGET_ENV=<NAMESPACE> --namespace <NAMESPACE> --create-namespace
+helm upgrade -i wslproxy-front-<NAMESPACE> ./infra/helm-charts/wslproxy/ -f infra/helm-charts/wslproxy/values-<NAMESPACE>-front-<TARGET_CLUSTER>.yaml --set TARGET_ENV=<NAMESPACE> --namespace <NAMESPACE> --create-namespace
+helm upgrade -i wslproxy-nodeapp ./infra/helm-charts/node-app/ -f infra/helm-charts/node-app/values-<TARGET_CLUSTER>.yaml
 ```
 
 16. Disaster Recovery
@@ -443,8 +443,8 @@ docker exec wslproxy-local sh -c 'cd /usr/local/openresty/nginx/html/openresty-a
 
 ## How to run Ansible for a workflow
 
-ansible-playbook devops/ansible/deploy-wslproxy.yml -i devops/ansible/hosts -l target_host_ip
+ansible-playbook infra/ansible/deploy-wslproxy.yml -i infra/ansible/hosts -l target_host_ip
 
-### Replace 'devops/ansible/hosts' with the required host file
+### Replace 'infra/ansible/hosts' with the required host file
 
 ### Replace target_host_ip with the target host which you want to run the playbook

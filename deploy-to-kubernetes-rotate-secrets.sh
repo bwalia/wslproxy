@@ -114,7 +114,7 @@ SEALED_SECRET2_ENV_FILE_CONTENT=$(yq eval '.spec.encryptedData.env_file' secret-
 #echo $SEALED_SECRET_ENV_FILE_CONTENT
 
 #VALUES_API_SEED_TMPL_FILE_PATH="/tmp/sealed-secret-tmp.yaml"
-#VALUES_API_SEED_TMPL_FILE_PATH="/Users/balinderwalia/Documents/Work/Tenthmatrix_Ltd/wslproxy/devops/helm-charts/wslproxy/values-api-seed-template.yaml"
+#VALUES_API_SEED_TMPL_FILE_PATH="/Users/balinderwalia/Documents/Work/Tenthmatrix_Ltd/wslproxy/infra/helm-charts/wslproxy/values-api-seed-template.yaml"
 
 if [[ -n "$SEALED_SECRET_ENV_FILE_CONTENT" && -n "$SEALED_SECRET2_ENV_FILE_CONTENT" ]]; then
     awk -v encoded_content="$SEALED_SECRET_ENV_FILE_CONTENT" '/secure_env_file:/ {$2=encoded_content} 1' "$VALUES_API_SEED_TMPL_FILE_PATH" > temp_secret_api.yaml
@@ -124,20 +124,20 @@ if [[ -n "$SEALED_SECRET_ENV_FILE_CONTENT" && -n "$SEALED_SECRET2_ENV_FILE_CONTE
 
 if [ "$MICROSERVICE_TYPE_INSTALL" == "api" ]; then
     awk -v replacement_value="$TARGET_ENV" '{ gsub(/__target_environment_ref__/, replacement_value) } 1' temp_secret_api.yaml > values-$TARGET_ENV-api-rancher-desktop.yaml
-    mv values-$TARGET_ENV-api-rancher-desktop.yaml devops/helm-charts/wslproxy/values-dev-api-rancher-desktop.yaml
+    mv values-$TARGET_ENV-api-rancher-desktop.yaml infra/helm-charts/wslproxy/values-dev-api-rancher-desktop.yaml
 
 elif [ "$MICROSERVICE_TYPE_INSTALL" == "front" ]; then
     awk -v replacement_value="$TARGET_ENV" '{ gsub(/__target_environment_ref__/, replacement_value) } 1' temp_secret_front.yaml > values-$TARGET_ENV-front-rancher-desktop.yaml
-    mv values-$TARGET_ENV-front-rancher-desktop.yaml devops/helm-charts/wslproxy/values-dev-front-rancher-desktop.yaml
+    mv values-$TARGET_ENV-front-rancher-desktop.yaml infra/helm-charts/wslproxy/values-dev-front-rancher-desktop.yaml
 else
     echo "Both microservices are being installed"
     awk -v replacement_value="$TARGET_ENV" '{ gsub(/__target_environment_ref__/, replacement_value) } 1' temp_secret_api.yaml > values-$TARGET_ENV-api-rancher-desktop.yaml
-    mv values-$TARGET_ENV-api-rancher-desktop.yaml devops/helm-charts/wslproxy/values-dev-api-rancher-desktop.yaml
+    mv values-$TARGET_ENV-api-rancher-desktop.yaml infra/helm-charts/wslproxy/values-dev-api-rancher-desktop.yaml
     awk -v replacement_value="$TARGET_ENV" '{ gsub(/__target_environment_ref__/, replacement_value) } 1' temp_secret_front.yaml > values-$TARGET_ENV-front-rancher-desktop.yaml
-    mv values-$TARGET_ENV-front-rancher-desktop.yaml devops/helm-charts/wslproxy/values-dev-front-rancher-desktop.yaml
+    mv values-$TARGET_ENV-front-rancher-desktop.yaml infra/helm-charts/wslproxy/values-dev-front-rancher-desktop.yaml
 fi
-    stat devops/helm-charts/wslproxy/values-dev-api-rancher-desktop.yaml
-    stat devops/helm-charts/wslproxy/values-dev-front-rancher-desktop.yaml
+    stat infra/helm-charts/wslproxy/values-dev-api-rancher-desktop.yaml
+    stat infra/helm-charts/wslproxy/values-dev-front-rancher-desktop.yaml
 #    echo "Encoded .env file and saved the result in $VALUES_API_SEED_TMPL_FILE_PATH."
 else
     echo "The .env file does not exist. Please add the .env file"
@@ -149,23 +149,23 @@ echo "Deploying to the currently selected kubernetes cluster"
 HELM_CMD="helm"
 KUBECTL_CMD="kubectl"
 
-$HELM_CMD upgrade -i node-app ./devops/helm-charts/node-app/ -f devops/helm-charts/node-app/values-rancher-desktop.yaml
+$HELM_CMD upgrade -i node-app ./infra/helm-charts/node-app/ -f infra/helm-charts/node-app/values-rancher-desktop.yaml
 $KUBECTL_CMD rollout restart deployment/node-app
 $KUBECTL_CMD rollout history deployment/node-app
 
 if [ "$MICROSERVICE_TYPE_INSTALL" == "both" ]; then
-   $HELM_CMD upgrade -i wslproxy-api-dev ./devops/helm-charts/wslproxy/ -f devops/helm-charts/wslproxy/values-dev-api-rancher-desktop.yaml --set TARGET_ENV=dev --namespace dev --create-namespace
+   $HELM_CMD upgrade -i wslproxy-api-dev ./infra/helm-charts/wslproxy/ -f infra/helm-charts/wslproxy/values-dev-api-rancher-desktop.yaml --set TARGET_ENV=dev --namespace dev --create-namespace
    $KUBECTL_CMD rollout restart deployment/wf-api-dev -n dev
    $KUBECTL_CMD rollout history deployment/wf-api-dev -n dev
-   $HELM_CMD upgrade -i wslproxy-front-dev ./devops/helm-charts/wslproxy/ -f devops/helm-charts/wslproxy/values-dev-front-rancher-desktop.yaml --set TARGET_ENV=dev --namespace dev --create-namespace
+   $HELM_CMD upgrade -i wslproxy-front-dev ./infra/helm-charts/wslproxy/ -f infra/helm-charts/wslproxy/values-dev-front-rancher-desktop.yaml --set TARGET_ENV=dev --namespace dev --create-namespace
    $KUBECTL_CMD rollout restart deployment/wf-front-dev -n dev
    $KUBECTL_CMD rollout history deployment/wf-front-dev -n dev
 elif [ "$MICROSERVICE_TYPE_INSTALL" == "api" ]; then
-   $HELM_CMD upgrade -i wslproxy-api-dev ./devops/helm-charts/wslproxy/ -f devops/helm-charts/wslproxy/values-dev-api-rancher-desktop.yaml --set TARGET_ENV=dev --namespace dev --create-namespace
+   $HELM_CMD upgrade -i wslproxy-api-dev ./infra/helm-charts/wslproxy/ -f infra/helm-charts/wslproxy/values-dev-api-rancher-desktop.yaml --set TARGET_ENV=dev --namespace dev --create-namespace
    $KUBECTL_CMD rollout restart deployment/wf-api-dev -n dev
    $KUBECTL_CMD rollout history deployment/wf-api-dev -n dev
 elif [ "$MICROSERVICE_TYPE_INSTALL" == "front" ]; then
-   $HELM_CMD upgrade -i wslproxy-front-dev ./devops/helm-charts/wslproxy/ -f devops/helm-charts/wslproxy/values-dev-front-rancher-desktop.yaml --set TARGET_ENV=dev --namespace dev --create-namespace
+   $HELM_CMD upgrade -i wslproxy-front-dev ./infra/helm-charts/wslproxy/ -f infra/helm-charts/wslproxy/values-dev-front-rancher-desktop.yaml --set TARGET_ENV=dev --namespace dev --create-namespace
    $KUBECTL_CMD rollout restart deployment/wf-front-dev -n dev
    $KUBECTL_CMD rollout history deployment/wf-front-dev -n dev
 fi

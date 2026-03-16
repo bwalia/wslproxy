@@ -142,7 +142,7 @@ Configs are automatically deployed when changes are pushed to the `main` branch:
 
 **Option 2: Using Ansible**
 ```bash
-cd devops/ansible
+cd infra/ansible
 
 # Deploy to production servers (defined in hosts file)
 ansible-playbook deploy-configs.yml -i hosts -e "target_env=prod"
@@ -161,7 +161,7 @@ ansible-playbook deploy-configs.yml -i hosts -e "target_env=prod" --check --diff
 
 ### Server Inventory
 
-Target servers are defined in `devops/ansible/hosts`:
+Target servers are defined in `infra/ansible/hosts`:
 ```ini
 [openresty_prod]
 187.124.112.155 ansible_user=root

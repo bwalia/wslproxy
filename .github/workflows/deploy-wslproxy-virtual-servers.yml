@@ -155,8 +155,8 @@ jobs:
       - name: Deploy int JSON configs via Ansible
         run: |
           echo "Deploying int configs to ${{ env.INT_HOST }} (fail-fast gate)"
-          ansible-playbook devops/ansible/deploy-configs.yml \
-            -i devops/ansible/hosts \
+          ansible-playbook infra/ansible/deploy-configs.yml \
+            -i infra/ansible/hosts \
             -e "target_env=int" \
             -e "local_data_dir=${{ github.workspace }}/data" \
             -l ${{ env.INT_HOST }} \
@@ -169,8 +169,8 @@ jobs:
         timeout-minutes: 10
         run: |
           echo "Re-deploying nginx conf files to ${{ env.INT_HOST }} (--tags nginx)"
-          ansible-playbook devops/ansible/wslproxy-ops.yml \
-            -i devops/ansible/hosts \
+          ansible-playbook infra/ansible/wslproxy-ops.yml \
+            -i infra/ansible/hosts \
             -l ${{ env.INT_HOST }} \
             --tags nginx \
             --timeout 30 \
@@ -288,7 +288,7 @@ jobs:
           import sys
           h='${{ env.TARGET_HOST }}'
           e='${{ env.TARGET_ENV }}'
-          hosts = open('devops/ansible/hosts').read()
+          hosts = open('infra/ansible/hosts').read()
           group = f'[openresty_{e}]'
           found = group in hosts and h in hosts.split(group)[1]
           if found:
@@ -301,8 +301,8 @@ jobs:
       - name: Deploy JSON configs via Ansible
         run: |
           echo "Deploying server & rule configs for ${{ env.TARGET_ENV }} to ${{ env.TARGET_HOST }}"
-          ansible-playbook devops/ansible/deploy-configs.yml \
-            -i devops/ansible/hosts \
+          ansible-playbook infra/ansible/deploy-configs.yml \
+            -i infra/ansible/hosts \
             -e "target_env=${{ env.TARGET_ENV }}" \
             -e "local_data_dir=${{ github.workspace }}/data" \
             -l ${{ env.TARGET_HOST }} \
@@ -342,8 +342,8 @@ jobs:
         timeout-minutes: 10
         run: |
           echo "Re-deploying nginx conf files to ${{ env.TARGET_HOST }} (--tags nginx, no rebuild)"
-          ansible-playbook devops/ansible/wslproxy-ops.yml \
-            -i devops/ansible/hosts \
+          ansible-playbook infra/ansible/wslproxy-ops.yml \
+            -i infra/ansible/hosts \
             -l ${{ env.TARGET_HOST }} \
             --tags nginx \
             --timeout 30 \
