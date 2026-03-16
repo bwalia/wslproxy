@@ -80,23 +80,23 @@ echo "Deploying to k3s2 cluster"
 HELM_CMD="helm --kubeconfig /home/bwalia/.kube/vpn-k3s2.yaml"
 KUBECTL_CMD="kubectl --kubeconfig /home/bwalia/.kube/vpn-k3s2.yaml"
 
-$HELM_CMD upgrade -i node-app ./devops/helm-charts/node-app/ -f devops/helm-charts/node-app/values-k3s2.yaml
+$HELM_CMD upgrade -i node-app ./infra/helm-charts/node-app/ -f infra/helm-charts/node-app/values-k3s2.yaml
 $KUBECTL_CMD rollout restart deployment/node-app
 $KUBECTL_CMD rollout history deployment/node-app
 
 if [ "$APP_TYPE" == "both" ]; then
-   $HELM_CMD upgrade -i wslproxy-api-$4 ./devops/helm-charts/wslproxy/ -f devops/helm-charts/wslproxy/values-$4-api-k3s2.yaml --set TARGET_ENV=$4 --namespace $4 --create-namespace
+   $HELM_CMD upgrade -i wslproxy-api-$4 ./infra/helm-charts/wslproxy/ -f infra/helm-charts/wslproxy/values-$4-api-k3s2.yaml --set TARGET_ENV=$4 --namespace $4 --create-namespace
    $KUBECTL_CMD rollout restart deployment/wf-api-$4 -n $4
    $KUBECTL_CMD rollout history deployment/wf-api-$4 -n $4
-   $HELM_CMD upgrade -i wslproxy-front-$4 ./devops/helm-charts/wslproxy/ -f devops/helm-charts/wslproxy/values-$4-front-k3s2.yaml --set TARGET_ENV=$4 --namespace $4 --create-namespace
+   $HELM_CMD upgrade -i wslproxy-front-$4 ./infra/helm-charts/wslproxy/ -f infra/helm-charts/wslproxy/values-$4-front-k3s2.yaml --set TARGET_ENV=$4 --namespace $4 --create-namespace
    $KUBECTL_CMD rollout restart deployment/wf-front-$4 -n $4
    $KUBECTL_CMD rollout history deployment/wf-front-$4 -n $4
 elif [ "$APP_TYPE" == "api" ]; then
-   $HELM_CMD upgrade -i wslproxy-api-$4 ./devops/helm-charts/wslproxy/ -f devops/helm-charts/wslproxy/values-$4-api-k3s2.yaml --set TARGET_ENV=$4 --namespace $4 --create-namespace
+   $HELM_CMD upgrade -i wslproxy-api-$4 ./infra/helm-charts/wslproxy/ -f infra/helm-charts/wslproxy/values-$4-api-k3s2.yaml --set TARGET_ENV=$4 --namespace $4 --create-namespace
    $KUBECTL_CMD rollout restart deployment/wf-api-$4 -n $4
    $KUBECTL_CMD rollout history deployment/wf-api-$4 -n $4
 elif [ "$APP_TYPE" == "front" ]; then
-   $HELM_CMD upgrade -i wslproxy-front-$4 ./devops/helm-charts/wslproxy/ -f devops/helm-charts/wslproxy/values-$4-front-k3s2.yaml --set TARGET_ENV=$4 --namespace $4 --create-namespace
+   $HELM_CMD upgrade -i wslproxy-front-$4 ./infra/helm-charts/wslproxy/ -f infra/helm-charts/wslproxy/values-$4-front-k3s2.yaml --set TARGET_ENV=$4 --namespace $4 --create-namespace
    $KUBECTL_CMD rollout restart deployment/wf-front-$4 -n $4
    $KUBECTL_CMD rollout history deployment/wf-front-$4 -n $4
 fi

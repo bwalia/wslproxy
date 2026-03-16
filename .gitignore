@@ -23,8 +23,8 @@ data/settings.json
 data/ssl
 node_modules
 .DS_Store
-devops/ansible/roles/luarocks/.DS_Store
-devops/.DS_Store
+infra/ansible/roles/luarocks/.DS_Store
+infra/.DS_Store
 html/.DS_Store
 .qodo
 

@@ -291,7 +291,7 @@ TARGET_HOST=http://192.168.1.193:8080 go test -v -run TestHealthCheck -timeout 6
 | Rule configs | `python3 -m json.tool` | `data/rules/**/*.json` |
 | WAF rules | `python3 -m json.tool` | `data/waf_rules/**/*.json` |
 | WAF policies | `python3 -m json.tool` | `data/waf_policies/**/*.json` |
-| Jinja2 templates | `jinja2.Environment.parse()` | `devops/ansible/roles/**/*.j2` |
+| Jinja2 templates | `jinja2.Environment.parse()` | `infra/ansible/roles/**/*.j2` |
 
 ---
 

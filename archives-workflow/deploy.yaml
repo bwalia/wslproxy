@@ -42,7 +42,7 @@ jobs:
         uses: koslib/helm-eks-action@master
         with:
           command: |
-            helm upgrade -i wf-api-${{ env.TARGET_ENV }} ./devops/helm-charts/wslproxy/ -f devops/helm-charts/wslproxy/values-${{ env.TARGET_ENV }}-api-${{ env.TARGET_CLUSTER}}.yaml --namespace ${{ env.TARGET_ENV }} --create-namespace
+            helm upgrade -i wf-api-${{ env.TARGET_ENV }} ./infra/helm-charts/wslproxy/ -f infra/helm-charts/wslproxy/values-${{ env.TARGET_ENV }}-api-${{ env.TARGET_CLUSTER}}.yaml --namespace ${{ env.TARGET_ENV }} --create-namespace
             kubectl rollout restart deployment/wf-api-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
             kubectl rollout history deployment/wf-api-${{ env.TARGET_ENV }} -n ${{ env.TARGET_ENV }}
 

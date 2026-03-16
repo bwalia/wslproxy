@@ -210,7 +210,7 @@ jobs:
 
       - name: Kubeseal - Generate API values file
         run: |
-          chmod +x ./devops/kubeseal/kubeseal_automation.sh
+          chmod +x ./infra/kubeseal/kubeseal_automation.sh
 
           # Select the correct secrets based on environment
           case "${{ env.TARGET_ENV }}" in
@@ -242,14 +242,14 @@ jobs:
 
           # Run kubeseal automation for API (with optional settings secret)
           if [[ -n "${SETTINGS_SECRET}" ]]; then
-            ./devops/kubeseal/kubeseal_automation.sh \
+            ./infra/kubeseal/kubeseal_automation.sh \
               "${ENV_SECRET}" \
               "${{ env.TARGET_ENV }}" \
               "${{ env.TARGET_ENV }}" \
               "api" \
               "${SETTINGS_SECRET}"
           else
-            ./devops/kubeseal/kubeseal_automation.sh \
+            ./infra/kubeseal/kubeseal_automation.sh \
               "${ENV_SECRET}" \
               "${{ env.TARGET_ENV }}" \
               "${{ env.TARGET_ENV }}" \
@@ -289,14 +289,14 @@ jobs:
 
           # Run kubeseal automation for Front (with optional settings secret)
           if [[ -n "${SETTINGS_SECRET}" ]]; then
-            ./devops/kubeseal/kubeseal_automation.sh \
+            ./infra/kubeseal/kubeseal_automation.sh \
               "${ENV_SECRET}" \
               "${{ env.TARGET_ENV }}" \
               "${{ env.TARGET_ENV }}" \
               "front" \
               "${SETTINGS_SECRET}"
           else
-            ./devops/kubeseal/kubeseal_automation.sh \
+            ./infra/kubeseal/kubeseal_automation.sh \
               "${ENV_SECRET}" \
               "${{ env.TARGET_ENV }}" \
               "${{ env.TARGET_ENV }}" \
@@ -309,8 +309,8 @@ jobs:
           echo "Deploying wslproxy API to ${{ env.TARGET_ENV }} environment..."
 
           helm upgrade --install wslproxy-api-${{ env.TARGET_ENV }} \
-            ./devops/helm-charts/whitefalcon/ \
-            -f ./devops/helm-charts/whitefalcon/values-wslproxy-api-${{ env.TARGET_ENV }}.yaml \
+            ./infra/helm-charts/whitefalcon/ \
+            -f ./infra/helm-charts/whitefalcon/values-wslproxy-api-${{ env.TARGET_ENV }}.yaml \
             --set image.repository=${{ env.IMAGE_REGISTRY }}/wslproxy \
             --set image.tag=latest \
             --namespace ${{ env.TARGET_ENV }} \
@@ -324,8 +324,8 @@ jobs:
           echo "Deploying wslproxy Front to ${{ env.TARGET_ENV }} environment..."
 
           helm upgrade --install wslproxy-front-${{ env.TARGET_ENV }} \
-            ./devops/helm-charts/whitefalcon/ \
-            -f ./devops/helm-charts/whitefalcon/values-wslproxy-front-${{ env.TARGET_ENV }}.yaml \
+            ./infra/helm-charts/whitefalcon/ \
+            -f ./infra/helm-charts/whitefalcon/values-wslproxy-front-${{ env.TARGET_ENV }}.yaml \
             --set image.repository=${{ env.IMAGE_REGISTRY }}/wslproxy \
             --set image.tag=latest \
             --namespace ${{ env.TARGET_ENV }} \
@@ -339,8 +339,8 @@ jobs:
           echo "Deploying Node App..."
 
           helm upgrade --install wslproxy-nodeapp \
-            ./devops/helm-charts/node-app/ \
-            -f ./devops/helm-charts/node-app/values.yaml \
+            ./infra/helm-charts/node-app/ \
+            -f ./infra/helm-charts/node-app/values.yaml \
             --set image.repository=${{ env.IMAGE_REGISTRY }}/node-app \
             --set image.tag=latest \
             --namespace ${{ env.TARGET_ENV }} \
@@ -354,8 +354,8 @@ jobs:
           echo "Deploying S3 Browser App..."
 
           helm upgrade --install wslproxy-s3-browser \
-            ./devops/helm-charts/s3-browser-app/ \
-            -f ./devops/helm-charts/s3-browser-app/values.yaml \
+            ./infra/helm-charts/s3-browser-app/ \
+            -f ./infra/helm-charts/s3-browser-app/values.yaml \
             --set image.repository=${{ env.IMAGE_REGISTRY }}/s3-browser-app \
             --set image.tag=latest \
             --namespace ${{ env.TARGET_ENV }} \
