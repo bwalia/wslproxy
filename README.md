@@ -441,6 +441,141 @@ docker exec wslproxy-local sh -c 'cd /usr/local/openresty/nginx/html/openresty-a
 |             |                                  |                     | `wslproxy Front :- front.wslproxy.com`                                                                                                                  | `80 443`      |
 |             |                                  |                     | `Node-app :-      	`                                                                                                                                     | `3009->3009`  |
 
+## CI/CD Pipeline
+
+WSLProxy has two separate pipelines:
+
+| Pipeline | File | Purpose | Triggers |
+|----------|------|---------|----------|
+| **Promotion** | `deploy-wslproxy-promotion-pipeline.yml` | Deploys `main` → `int` → `test` → `acc` (non-production) | Push to `main`, PRs, manual |
+| **Delivery** | `deploy-wslproxy-delivery-pipeline.yml` | Production releases from the `release` branch | Separate — not covered here |
+
+### Promotion Pipeline
+
+```
+main branch
+    │
+    ▼
+[Stage 1] Validate JSON configs (data/servers, data/rules, data/waf_rules, data/waf_policies)
+    │
+    ▼
+[Stage 2] Deploy → Int (192.168.1.193)   ← self-hosted runner, local connection
+    │
+    ▼
+[Stage 3] Smoke Test Int (Go tests + /health curl)
+    │         └─ fails here → stops, test/acc never touched
+    ▼
+[Stage 4] Deploy → Test (192.168.1.140)  ← SSH
+    │
+    ▼
+[Stage 5] Deploy → ACC (187.77.179.206)  ← SSH key, root user
+    │
+    ▼
+[Summary] Print all stage results
+```
+
+Promotions are **sequential with a gate at each stage** — a failed health check or failed smoke test stops all subsequent environments. Concurrent pipeline runs are queued (not cancelled).
+
+### How to Trigger Manually
+
+Go to **Actions → CI/CD Promotion Pipeline → Run workflow** and choose:
+
+| Input | Options | Default | Description |
+|-------|---------|---------|-------------|
+| `DEPLOY_MODE` | `servers`, `nginx` | `servers` | What to deploy (see modes below) |
+| `TARGET_ENV` | `int`, `test`, `acc` | `acc` | How far to promote (stops after this env) |
+
+On a **push to `main`** or **PR**, the pipeline always runs with `deploy_mode=servers` all the way to `acc`.
+
+### Deploy Modes
+
+| Mode | What it deploys |
+|------|----------------|
+| `servers` *(default)* | nginx `.j2` templates + virtual server/rule JSON configs |
+| `nginx` | nginx `.j2` templates + cron jobs + systemd limits + PAM config |
+| `dashboard` | nginx `.j2` templates + Lua API code + admin UI rebuild |
+| `full` | Everything above combined |
+| `build` | OS dependencies + compile OpenResty from source |
+
+> **Note:** The `deploy-configs.yml` playbook (server/rule JSON files) **always runs** on every deploy regardless of mode.
+
+### What Gets Deployed
+
+Each environment deploy runs two Ansible playbooks back-to-back:
+
+#### Playbook 1 — `wslproxy-ops.yml` (mode-controlled)
+
+Deploys nginx configuration and application code via the `wslproxy` Ansible role:
+
+| File / Task | Deployed when |
+|------------|---------------|
+| `nginx.conf.j2` → `/usr/local/openresty/nginx/conf/nginx.conf` | `servers`, `nginx`, `dashboard`, `code` |
+| `default.conf.j2` → `/opt/nginx/conf.d/default.conf` | `servers`, `nginx`, `dashboard`, `code` |
+| `servers-mixed-nginx.conf.j2` → `/opt/nginx/conf.d/servers-mixed-nginx.conf` | `servers`, `nginx`, `dashboard`, `code` |
+| Tenant nginx configs from `nginx-conf.d/` → `/opt/nginx/conf.d/` | `servers`, `nginx`, `dashboard`, `code` |
+| Lua API files (`api/`) | `code`, `dashboard` |
+| Admin dashboard (React build) | `dashboard` |
+| Cron jobs, systemd limits, PAM config | `nginx` |
+
+**Yes — `.j2` templates are deployed with the default `servers` mode.** They are rendered by Ansible (variables substituted) and written to the target host on every run.
+
+#### Playbook 2 — `deploy-configs.yml` (always runs)
+
+Syncs virtual server and routing rule JSON files from the repo to the target host:
+
+1. Validates all JSON with `jq` before copying (fails fast on syntax errors)
+2. Creates a timestamped backup at `/opt/nginx/backups/configs-<env>-<epoch>.tar.gz`
+3. Copies `data/servers/<env>/*.json` → `/opt/nginx/data/servers/<env>/`
+4. Copies `data/rules/<env>/*.json` → `/opt/nginx/data/rules/<env>/`
+5. Auto-generates SSL domain files for servers with `ssl_enabled: true`
+6. Runs `fix-permissions.sh` if any files changed
+7. Reloads OpenResty if server configs or SSL files changed
+8. Cleans up backups older than 7 days
+
+### Secrets Management
+
+| Environment | Connection | Secrets source |
+|-------------|-----------|----------------|
+| Int | Local (runner on same machine) | GitHub Secrets (`DOT_WSLPROXY_SETTINGS_INT`, `DOT_WSLPROXY_ENV_CREDS_INT`) decoded from base64 |
+| Test | SSH (password) | Runner filesystem at `/home/bwalia/.secrets/wslproxy/test/` |
+| ACC | SSH key (`~/.ssh/id_rsa`, root) | Runner filesystem at `/home/bwalia/.secrets/wslproxy/acc/` |
+
+### Health Gate
+
+After each deploy, the pipeline:
+1. Runs `openresty -t` to validate the nginx config syntax
+2. Checks `systemctl is-active openresty` to confirm the service is running
+3. Polls `http://localhost:8080/health` (up to 12 retries × 5s = 60s) for HTTP 200
+
+If any of these fail, the stage fails and subsequent environments are not deployed.
+
+### Slack Notifications
+
+Failures at any stage send an alert to `#github-updates`. Success notifications are sent for **Test** and **ACC** only (Int is silent on success).
+
+### Running Ansible Manually
+
+```bash
+# Deploy server/rule configs to a specific environment
+ansible-playbook infra/ansible/deploy-configs.yml \
+  -i infra/ansible/hosts \
+  -l 192.168.1.193 \
+  -e "target_env=int local_data_dir=$(pwd)/data"
+
+# Full wslproxy deploy (all tags)
+ansible-playbook infra/ansible/wslproxy-ops.yml \
+  -i infra/ansible/hosts \
+  -l 192.168.1.193 \
+  -e "target_env=int local_settings_file_path=/path/to/settings.json local_env_file_path=/path/to/.env"
+
+# nginx configs only
+ansible-playbook infra/ansible/wslproxy-ops.yml \
+  -i infra/ansible/hosts \
+  -l 192.168.1.193 \
+  --tags nginx \
+  -e "target_env=int local_settings_file_path=/path/to/settings.json local_env_file_path=/path/to/.env"
+```
+
 ## How to run Ansible for a workflow
 
 ansible-playbook infra/ansible/deploy-wslproxy.yml -i infra/ansible/hosts -l target_host_ip

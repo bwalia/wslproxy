@@ -5,6 +5,13 @@
   "env_profile": "int",
   "redis_port": "localhost",
   "storage_type": "disk",
+  "pgsql": {
+    "pg_host": "postgres",
+    "pg_port": 5432,
+    "pg_database": "wslproxy",
+    "pg_user": "wslproxy",
+    "pg_password": ""
+  },
   "nginx": {
     "tenant_conf_path": "/opt/nginx/conf.d",
     "default": {

@@ -113,7 +113,8 @@ export function useApiHealth(authenticated: boolean) {
         Object.assign(headers, getAuthHeaders());
       }
 
-      const response = await fetch(`${config.apiUrl}/ping`, {
+      // Use the public /health endpoint — no auth required and works in all states
+      const response = await fetch(`/health`, {
         method: 'GET',
         headers,
         signal: controller.signal,

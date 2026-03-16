@@ -4,4 +4,4 @@
 CONFIG_D="/opt/nginx/data/ssl-certs/letsencrypt/conf.d"
 LOCKFILE="/opt/nginx/data/ssl-certs/letsencrypt/locks/lock"
 WELLKNOWN="/opt/nginx/data/ssl-certs/letsencrypt/.acme-challenges"
-CA="https://acme-v02.api.letsencrypt.org/directory"
+CA="https://acme-staging-v02.api.letsencrypt.org/directory"
