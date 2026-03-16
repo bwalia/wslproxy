@@ -72,7 +72,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw new Error(error.message || 'Login failed');
     }
 
-    const data = await response.json();
+    const result = await response.json();
+    const data = result.data ?? result;
     const expiryDate = new Date(Date.now() + 60 * 60 * 1000).toISOString();
     const authToken: AuthToken = {
       accessToken: data.accessToken ?? data.token,

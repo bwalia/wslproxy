@@ -11,7 +11,7 @@ interface LogoProps {
 const Logo: React.FC<LogoProps> = ({ width = 180, height = 40, variant = 'full', theme = 'dark' }) => {
   const primaryColor = theme === 'dark' ? '#ffffff' : '#0f172a';
   const accentColor = '#6366f1';
-  const gradientId = `logo-gradient-${Math.random().toString(36).substr(2, 9)}`;
+  const gradientId = variant === 'icon' ? 'wsl-logo-grad-icon' : 'wsl-logo-grad';
 
   if (variant === 'icon') {
     return (
