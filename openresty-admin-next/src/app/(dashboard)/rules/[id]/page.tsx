@@ -344,7 +344,7 @@ export default function RulesEditPage() {
     router.push('/rules');
   };
 
-  if (loading || !data) return null;
+  if (loading || !data?.data) return null;
 
   const record = data.data as Record<string, unknown>;
   const defaultValues = {

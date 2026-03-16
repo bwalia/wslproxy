@@ -508,9 +508,21 @@ export default function ServersEditPage() {
     router.push('/servers');
   };
 
-  if (loading || !data) return null;
+  if (loading) return null;
 
-  const record = data.data as Record<string, unknown>;
+  const record = data?.data as Record<string, unknown> | null;
+  if (!record || Object.keys(record).length === 0) {
+    return (
+      <Box sx={{ p: 4, textAlign: 'center' }}>
+        <Typography variant="h6" color="text.secondary">
+          Server not found
+        </Typography>
+        <Button onClick={() => router.push('/servers')} sx={{ mt: 2 }}>
+          Back to Servers
+        </Button>
+      </Box>
+    );
+  }
   const defaultValues = {
     ...record,
     servers_tags: Array.isArray(record.servers_tags) ? (record.servers_tags as string[]).join(', ') : record.servers_tags,

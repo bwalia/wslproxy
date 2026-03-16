@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, useMemo, useCallback, useEffect, ReactNode } from 'react';
 import { ThemeProvider as MuiThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
+import { AppRouterCacheProvider } from '@mui/material-nextjs/v13-appRouter';
 import { createAppTheme, tokens } from '@/styles/theme';
 
 interface ThemeContextType {
@@ -62,12 +63,14 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   );
 
   return (
-    <ThemeContext.Provider value={value}>
-      <MuiThemeProvider theme={muiTheme}>
-        <CssBaseline />
-        {children}
-      </MuiThemeProvider>
-    </ThemeContext.Provider>
+    <AppRouterCacheProvider>
+      <ThemeContext.Provider value={value}>
+        <MuiThemeProvider theme={muiTheme}>
+          <CssBaseline />
+          {children}
+        </MuiThemeProvider>
+      </ThemeContext.Provider>
+    </AppRouterCacheProvider>
   );
 };
 

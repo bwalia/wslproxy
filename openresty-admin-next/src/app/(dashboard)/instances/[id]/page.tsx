@@ -49,7 +49,7 @@ export default function InstancesEditPage() {
     router.push('/instances');
   };
 
-  if (loading || !data) return null;
+  if (loading || !data?.data) return null;
 
   return (
     <ResourceForm

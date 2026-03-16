@@ -59,7 +59,7 @@ export default function SettingsEditPage() {
     router.push('/settings');
   };
 
-  if (loading || !data) return null;
+  if (loading || !data?.data) return null;
 
   return (
     <ResourceForm

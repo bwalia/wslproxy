@@ -72,7 +72,7 @@ export default function SecretsEditPage() {
     router.push('/secrets');
   };
 
-  if (loading || !data) return null;
+  if (loading || !data?.data) return null;
 
   const record = data.data as Record<string, unknown>;
   const defaultValues = {

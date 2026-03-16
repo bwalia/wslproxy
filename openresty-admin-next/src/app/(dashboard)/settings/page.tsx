@@ -81,7 +81,7 @@ export default function SettingsListPage() {
         page={page}
         perPage={25}
         onPageChange={setPage}
-        onRowClick={(record) => router.push(`/settings/${record.id}`)}
+        onRowClick={(record) => router.push(`/settings/${encodeURIComponent(String(record.id))}`)}
         onSearch={handleSearch}
         searchPlaceholder="Search settings..."
         emptyMessage="settings"

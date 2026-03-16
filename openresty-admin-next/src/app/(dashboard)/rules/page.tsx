@@ -112,7 +112,7 @@ export default function RulesListPage() {
         page={page}
         perPage={25}
         onPageChange={setPage}
-        onRowClick={(record) => router.push(`/rules/${record.id}`)}
+        onRowClick={(record) => router.push(`/rules/${encodeURIComponent(String(record.id))}`)}
         onSearch={handleSearch}
         searchPlaceholder="Search rules..."
         emptyMessage="rules"

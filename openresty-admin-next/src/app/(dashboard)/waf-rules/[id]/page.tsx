@@ -165,7 +165,7 @@ export default function WafRulesEditPage() {
     router.push('/waf-rules');
   };
 
-  if (loading || !data) return null;
+  if (loading || !data?.data) return null;
 
   return (
     <ResourceForm

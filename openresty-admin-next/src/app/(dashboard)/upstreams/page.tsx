@@ -77,7 +77,7 @@ export default function UpstreamsListPage() {
         page={page}
         perPage={25}
         onPageChange={setPage}
-        onRowClick={(record) => router.push(`/upstreams/${record.id}`)}
+        onRowClick={(record) => router.push(`/upstreams/${encodeURIComponent(String(record.id))}`)}
         onSearch={handleSearch}
         searchPlaceholder="Search upstreams..."
         emptyMessage="upstreams"

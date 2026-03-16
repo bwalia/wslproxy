@@ -109,7 +109,7 @@ export default function WafRulesListPage() {
         page={page}
         perPage={25}
         onPageChange={setPage}
-        onRowClick={(record) => router.push(`/waf-rules/${record.id}`)}
+        onRowClick={(record) => router.push(`/waf-rules/${encodeURIComponent(String(record.id))}`)}
         onSearch={handleSearch}
         searchPlaceholder="Search WAF rules..."
         emptyMessage="WAF rules"

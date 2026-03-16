@@ -83,7 +83,7 @@ export default function SecretsListPage() {
         page={page}
         perPage={25}
         onPageChange={setPage}
-        onRowClick={(record) => router.push(`/secrets/${record.id}`)}
+        onRowClick={(record) => router.push(`/secrets/${encodeURIComponent(String(record.id))}`)}
         onSearch={handleSearch}
         searchPlaceholder="Search secrets..."
         emptyMessage="secrets"

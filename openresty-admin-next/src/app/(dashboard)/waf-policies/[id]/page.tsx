@@ -121,7 +121,7 @@ export default function WafPoliciesEditPage() {
     router.push('/waf-policies');
   };
 
-  if (loading || !data) return null;
+  if (loading || !data?.data) return null;
 
   return (
     <ResourceForm

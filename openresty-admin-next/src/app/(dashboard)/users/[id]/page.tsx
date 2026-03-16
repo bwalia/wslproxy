@@ -104,7 +104,7 @@ export default function UsersEditPage() {
     router.push('/users');
   };
 
-  if (loading || !data) return null;
+  if (loading || !data?.data) return null;
 
   return (
     <ResourceForm

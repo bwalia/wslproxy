@@ -141,7 +141,7 @@ export default function UpstreamsEditPage() {
     router.push('/upstreams');
   };
 
-  if (loading || !data) return null;
+  if (loading || !data?.data) return null;
 
   return (
     <ResourceForm

@@ -59,7 +59,7 @@ export default function DashboardLayout({
         }}
       >
         <DashboardAppBar />
-        <Box sx={{ flexGrow: 1, p: 3 }}>
+        <Box sx={{ flexGrow: 1, px: 2, py: 1.5, mt: '64px' }}>
           {children}
         </Box>
         <VersionFooter />

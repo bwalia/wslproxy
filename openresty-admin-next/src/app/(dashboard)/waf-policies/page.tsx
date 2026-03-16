@@ -86,7 +86,7 @@ export default function WafPoliciesListPage() {
         page={page}
         perPage={25}
         onPageChange={setPage}
-        onRowClick={(record) => router.push(`/waf-policies/${record.id}`)}
+        onRowClick={(record) => router.push(`/waf-policies/${encodeURIComponent(String(record.id))}`)}
         onSearch={handleSearch}
         searchPlaceholder="Search WAF policies..."
         emptyMessage="WAF policies"

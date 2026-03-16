@@ -30,17 +30,19 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   const loadSettings = useCallback(async (): Promise<void> => {
-    const response = await fetch(`${config.apiUrl}/global/settings`, {
-      method: 'GET',
-      headers: getHeaders(),
-    });
+    try {
+      const response = await fetch(`${config.apiUrl}/settings?_format=json`, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
 
-    if (!response.ok) {
-      throw new Error('Failed to load settings');
+      if (!response.ok) return;
+
+      const json = await response.json();
+      setSettings(json?.data ?? json);
+    } catch {
+      // Settings load is non-fatal
     }
-
-    const data = await response.json();
-    setSettings(data);
   }, []);
 
   const setEnvironment = useCallback((profile: string) => {
