@@ -1,0 +1,34 @@
+---
+# User and group setup for www-data
+# Uses os_sudo_group from OS-specific vars (sudo on Debian, wheel on SUSE/RHEL)
+# Tagged 'always' — foundational setup needed by all deploy modes
+
+- name: Ensure www-data group exists
+  group:
+    name: www-data
+    state: present
+  tags: [always]
+
+- name: Adding user www-data
+  user:
+    name: www-data
+    group: www-data
+    shell: /bin/bash
+    password: "{{ nginx_user_password }}"
+    groups: "{{ os_sudo_group }}"
+    append: yes
+  tags: [always]
+
+- name: Add www-data user to group root
+  user:
+    name: www-data
+    groups: root
+    state: present
+  tags: [always]
+
+- name: Add www-data user to group {{ os_sudo_group }}
+  user:
+    name: www-data
+    groups: "{{ os_sudo_group }}"
+    append: yes
+  tags: [always]

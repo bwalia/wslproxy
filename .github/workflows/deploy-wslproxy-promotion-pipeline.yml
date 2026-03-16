@@ -1,0 +1,282 @@
+name: CI/CD Promotion Pipeline (main → int → test → acc)
+# Deploys from main branch through non-production environments: int → smoke test → test → acc
+# For config/server updates only — no full builds or production deployments
+# Use deploy-wslproxy-delivery-pipeline.yml for production releases from the release branch
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - feature/*
+      - bugfix/*
+      - hotfix/*
+      - release/*
+      - main
+  workflow_dispatch:
+    inputs:
+      DEPLOY_MODE:
+        type: choice
+        description: "What to deploy"
+        default: "servers"
+        required: true
+        options:
+          - nginx
+          - servers
+
+      TARGET_ENV:
+        type: choice
+        description: "How far to promote (stops after this environment)"
+        default: "acc"
+        required: true
+        options:
+          - int
+          - test
+          - acc
+
+# Prevent concurrent promotions
+concurrency:
+  group: promotion-pipeline
+  cancel-in-progress: false
+
+jobs:
+  # ──────────────────────────────────────────────────────
+  # Stage 1: Validate configs on main branch
+  # ──────────────────────────────────────────────────────
+  validate:
+    name: "Validate Configs (main)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Show promotion settings
+        run: |
+          echo "Deploy mode: ${{ github.event.inputs.DEPLOY_MODE }}"
+          echo "Promote to:  ${{ github.event.inputs.TARGET_ENV }}"
+          echo "Branch:      main"
+
+      - name: Checkout main
+        uses: actions/checkout@v5
+        with:
+          ref: main
+
+      - name: Validate all JSON config files
+        run: |
+          echo "=== Validating All JSON Configs ==="
+          ERRORS=0
+          VALID=0
+          for dir in data/servers data/rules data/waf_rules data/waf_policies; do
+            for file in $(find "$dir" -name '*.json' 2>/dev/null); do
+              if python3 -m json.tool "$file" > /dev/null 2>&1; then
+                VALID=$((VALID+1))
+              else
+                echo "::error file=$file::Invalid JSON syntax"
+                ERRORS=$((ERRORS+1))
+              fi
+            done
+          done
+          echo "Total: $VALID valid, $ERRORS invalid"
+          if [ $ERRORS -gt 0 ]; then exit 1; fi
+
+      - name: Slack notify - Validation failed
+        if: failure()
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_CHANNEL: github-updates
+          SLACK_COLOR: danger
+          SLACK_ICON: https://github.com/rtCamp.png?size=48
+          SLACK_MESSAGE: |
+            :x: *Promotion Pipeline: Validation FAILED*
+            Config validation errors on main — promotion stopped.
+            *Triggered by:* ${{ github.actor }}
+            *Logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SLACK_TITLE: "Promotion Pipeline Failed — Validation"
+          SLACK_USERNAME: GitHub Actions
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
+  # ──────────────────────────────────────────────────────
+  # Stage 2: Deploy to Int (always runs)
+  # ──────────────────────────────────────────────────────
+  deploy-int:
+    needs: [validate]
+    uses: ./.github/workflows/deploy-environment.yml
+    with:
+      env_name: int
+      env_label: "Int (192.168.1.193)"
+      stage_number: "2"
+      host_ip: "192.168.1.193"
+      ssh_user: bwalia
+      connection_mode: local
+      secrets_mode: github_secret
+      health_endpoint: "http://localhost:8080/health"
+      health_check_mode: local
+      docker_prune: false
+      notify_success: false
+      deploy_branch: main
+      deploy_mode: ${{ github.event.inputs.DEPLOY_MODE || 'servers' }}
+    secrets:
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      SETTINGS_SECRET: ${{ secrets.DOT_WSLPROXY_SETTINGS_INT }}
+      ENV_CREDS_SECRET: ${{ secrets.DOT_WSLPROXY_ENV_CREDS_INT }}
+
+  # ──────────────────────────────────────────────────────
+  # Stage 3: Smoke Test Int
+  # ──────────────────────────────────────────────────────
+  smoke-test-int:
+    name: "Smoke Test Int"
+    runs-on: [self-hosted, Linux]
+    needs: [deploy-int]
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v5
+        with:
+          ref: main
+
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.19'
+          cache: false
+
+      - name: Run health check tests (Go)
+        working-directory: QA
+        env:
+          TARGET_HOST: "http://localhost:8080"
+        run: |
+          go test -v -run TestHealthCheck -timeout 60s 2>&1 | tee health-results.txt
+          if [ ${PIPESTATUS[0]} -ne 0 ]; then
+            echo "::error::Go health check tests failed"
+            exit 1
+          fi
+
+      - name: Verify core endpoints
+        run: |
+          FAILED=0
+          for ENDPOINT in /health; do
+            STATUS=$(curl -sf -o /dev/null -w "%{http_code}" "http://localhost:8080${ENDPOINT}" 2>/dev/null || echo "000")
+            if [ "$STATUS" = "200" ]; then
+              printf "  GET :8080%-20s OK (%s)\n" "$ENDPOINT" "$STATUS"
+            else
+              printf "  GET :8080%-20s FAIL (%s)\n" "$ENDPOINT" "$STATUS"
+              FAILED=$((FAILED+1))
+            fi
+          done
+          if [ $FAILED -gt 0 ]; then
+            echo "::error::Core endpoint check failed"
+            exit 1
+          fi
+          echo "All checks passed"
+
+      - name: Slack notify - Smoke test failed
+        if: failure()
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_CHANNEL: github-updates
+          SLACK_COLOR: danger
+          SLACK_ICON: https://github.com/rtCamp.png?size=48
+          SLACK_MESSAGE: |
+            :x: *Promotion Pipeline: Smoke Test FAILED on Int*
+            Promotion stopped before test environment.
+            *Triggered by:* ${{ github.actor }}
+            *Logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SLACK_TITLE: "Promotion Pipeline Failed — Smoke Test"
+          SLACK_USERNAME: GitHub Actions
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
+  # ──────────────────────────────────────────────────────
+  # Stage 4: Deploy to Test (if target is test or acc)
+  # ──────────────────────────────────────────────────────
+  deploy-test:
+    needs: [smoke-test-int]
+    if: >
+      github.event_name != 'workflow_dispatch' ||
+      github.event.inputs.TARGET_ENV == 'test' ||
+      github.event.inputs.TARGET_ENV == 'acc'
+    uses: ./.github/workflows/deploy-environment.yml
+    with:
+      env_name: test
+      env_label: "Test (192.168.1.140)"
+      stage_number: "4"
+      host_ip: "192.168.1.140"
+      ssh_user: bwalia
+      connection_mode: ssh
+      secrets_mode: runner_file
+      settings_file_path: "/home/bwalia/.secrets/wslproxy/test/settings.json"
+      env_file_path: "/home/bwalia/.secrets/wslproxy/test/.env"
+      health_endpoint: "http://localhost:8080/health"
+      health_check_mode: ssh
+      docker_prune: false
+      notify_success: true
+      deploy_branch: main
+      deploy_mode: ${{ github.event.inputs.DEPLOY_MODE || 'servers' }}
+    secrets:
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
+  # ──────────────────────────────────────────────────────
+  # Stage 5: Deploy to ACC (if target is acc or push/PR)
+  # ──────────────────────────────────────────────────────
+  deploy-acc:
+    needs: [deploy-test]
+    if: >
+      github.event_name != 'workflow_dispatch' ||
+      github.event.inputs.TARGET_ENV == 'acc'
+    uses: ./.github/workflows/deploy-environment.yml
+    with:
+      env_name: acc
+      env_label: "ACC (187.77.179.206)"
+      stage_number: "5"
+      host_ip: "187.77.179.206"
+      ssh_user: root
+      connection_mode: ssh_key
+      secrets_mode: runner_file
+      settings_file_path: "/home/bwalia/.secrets/wslproxy/acc/settings.json"
+      env_file_path: "/home/bwalia/.secrets/wslproxy/acc/.env"
+      health_endpoint: "http://localhost:8080/health"
+      health_check_mode: ssh
+      docker_prune: false
+      notify_success: true
+      deploy_branch: main
+      deploy_mode: ${{ github.event.inputs.DEPLOY_MODE || 'servers' }}
+    secrets:
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
+  # ──────────────────────────────────────────────────────
+  # Summary
+  # ──────────────────────────────────────────────────────
+  summary:
+    name: Promotion Summary
+    runs-on: ubuntu-latest
+    needs: [validate, deploy-int, smoke-test-int, deploy-test, deploy-acc]
+    if: always()
+    steps:
+      - name: Promotion Summary
+        run: |
+          echo "============================================"
+          echo "  CI/CD Promotion Pipeline Summary"
+          echo "============================================"
+          echo ""
+          echo "  Deploy mode: ${{ github.event.inputs.DEPLOY_MODE }}"
+          echo "  Target env:  ${{ github.event.inputs.TARGET_ENV }}"
+          echo "  Branch:      main"
+          echo ""
+          echo "  Validate:        ${{ needs.validate.result }}"
+          echo "  Deploy Int:      ${{ needs.deploy-int.result }}"
+          echo "  Smoke Test Int:  ${{ needs.smoke-test-int.result }}"
+          echo "  Deploy Test:     ${{ needs.deploy-test.result }}"
+          echo "  Deploy ACC:      ${{ needs.deploy-acc.result }}"
+          echo ""
+          echo "  Commit:  ${{ github.sha }}"
+          echo "  Trigger: ${{ github.actor }}"
+          echo "============================================"
+
+          if [[ "${{ needs.validate.result }}" == "failure" ]] || \
+             [[ "${{ needs.deploy-int.result }}" == "failure" ]] || \
+             [[ "${{ needs.smoke-test-int.result }}" == "failure" ]] || \
+             [[ "${{ needs.deploy-test.result }}" == "failure" ]] || \
+             [[ "${{ needs.deploy-acc.result }}" == "failure" ]]; then
+              echo "::error::Promotion pipeline failed — see results above"
+              exit 1
+          fi

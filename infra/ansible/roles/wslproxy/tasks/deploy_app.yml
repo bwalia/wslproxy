@@ -1,0 +1,25 @@
+---
+# Deploy application code: HTML pages and Lua API files
+
+- name: Sync HTML files
+  ansible.posix.synchronize:
+    src: ../../html/
+    dest: /usr/local/openresty/nginx/html
+  register: sync_html
+  tags: [code, dashboard]
+
+- debug:
+    var: sync_html.stdout_lines
+  tags: [code, dashboard]
+
+- name: Sync API files
+  ansible.posix.synchronize:
+    src: ../../api/
+    dest: /usr/local/openresty/nginx/html/api
+  notify: Restart openresty
+  register: sync_api
+  tags: [code, dashboard]
+
+- debug:
+    var: sync_api.stdout_lines
+  tags: [code, dashboard]

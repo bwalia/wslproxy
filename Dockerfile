@@ -191,7 +191,7 @@ RUN apk add --no-cache --virtual .build-deps \
     && mkdir -p /etc/consul.d
 
 # Add a basic Consul configuration file
-COPY ./devops/consul/consul.json /etc/consul.d/consul.json
+COPY ./infra/consul/consul.json /etc/consul.d/consul.json
 
 # ============================================================================
 # Port Definitions

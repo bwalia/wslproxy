@@ -1,0 +1,99 @@
+name: Start WSLProxy Dashboard Functional UI Tests
+on:
+  schedule:
+    - cron: "0 22 * * *"
+
+  workflow_dispatch:
+    inputs:
+      TARGET_ENV:
+        type: choice
+        description: "Please choose the Target Environment"
+        default: "dev"
+        required: true
+        options:
+          - dev
+          - int
+          - test
+          - acc
+          - dockerinternal
+      BROWSER:
+        type: choice
+        description: "Browser to test (all runs Chrome, Firefox, Electron)"
+        default: "chrome"
+        required: false
+        options:
+          - all
+          - chrome
+          - firefox
+          - electron
+
+env:
+  TARGET_ENV: ${{ inputs.TARGET_ENV || 'dev' }}
+  BROWSER: ${{ inputs.BROWSER || 'chrome' }}
+
+jobs:
+  cypress-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Docker Compose to run Cypress Test framework specs
+        uses: ndeloof/install-compose-action@v0.0.1
+        with:
+          version: v2.1.0
+          legacy: true
+
+      - name: Setup local environment
+        if: ${{ env.TARGET_ENV == 'dockerinternal' }}
+        run: |
+          echo "spin the wslproxy server"
+          ./deploy-to-docker.sh "dockerinternal" "wslproxy" "${{ secrets.JWT_TOKEN_KEY }}"
+          docker ps
+
+      - name: Executing UI tests using Cypress Test framework on ${{ env.TARGET_ENV }}
+        working-directory: ./QA/cypress_ui_tests
+        run: |
+          chmod +x ./qa-bootstrap-cypress.sh
+          sh ./qa-bootstrap-cypress.sh "${{ secrets.LOGIN_EMAIL }}" "${{ secrets.LOGIN_PASSWORD }}" "${{ env.TARGET_ENV }}" "${{ secrets.JWT_TOKEN_KEY }}" "${{ env.BROWSER }}"
+        continue-on-error: true
+
+      - name: Ensure cypress directories exist
+        if: always()
+        working-directory: ./QA/cypress_ui_tests
+        run: |
+          mkdir -p cypress/screenshots cypress/videos cypress/downloads
+          sudo chmod -R a+rwx cypress/screenshots cypress/videos cypress/downloads
+
+      - name: Upload Cypress Screenshots as Artifact
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: cypress-screenshots
+          path: QA/cypress_ui_tests/cypress/screenshots
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload Cypress Videos as Artifact
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: cypress-videos
+          path: QA/cypress_ui_tests/cypress/videos
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Send Slack Notification
+        if: always()
+        uses: slackapi/slack-github-action@v1.27.0
+        with:
+          channel-id: "cypress-test-results"
+          slack-message: |
+            🧪 *Cypress UI Test Results*
+            • *Environment:* ${{ env.TARGET_ENV }}
+            • *Browser:* ${{ env.BROWSER }}
+            • *Status:* ${{ job.status }}
+            • *Run:* <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Details>
+
+            Screenshots and videos are available as artifacts in the workflow run.
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_TOKEN }}

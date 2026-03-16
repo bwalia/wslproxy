@@ -1,0 +1,39 @@
+# ──────────────────────────────────────────────────────
+# WSLProxy Ansible Inventory
+# Pipeline: int → test → acc → prod
+# ──────────────────────────────────────────────────────
+
+[openresty_native_cluster]
+192.168.1.193 ansible_user=bwalia
+192.168.1.140 ansible_user=bwalia
+187.77.179.206 ansible_user=root
+187.124.112.155 ansible_user=root
+72.62.211.28 ansible_user=root
+
+# ── Environment groups ─────────────────────────────────
+
+[openresty_int]
+192.168.1.193 ansible_user=bwalia
+
+[openresty_test]
+192.168.1.140 ansible_user=bwalia
+
+[openresty_acc]
+187.77.179.206 ansible_user=root
+
+[openresty_prod]
+187.124.112.155 ansible_user=root
+72.62.211.28 ansible_user=root
+
+# ── Group all openresty servers ────────────────────────
+
+[openresty_servers:children]
+openresty_int
+openresty_test
+openresty_acc
+openresty_prod
+
+# ── Docker-enabled servers ─────────────────────────────
+
+[docker_servers]
+187.77.179.206 ansible_user=root

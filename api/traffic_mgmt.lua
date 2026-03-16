@@ -131,6 +131,19 @@ function _M.get_topology(args)
                 else
                     -- Single backend via redirect_uri
                     if response and response.redirect_uri then
+                        local single_label = response.redirect_uri
+                        local single_stats = TrafficRouter.get_all_backend_stats(rule.id, { single_label })
+
+                        table.insert(topology.rules_with_backends, {
+                            rule_id = rule.id,
+                            rule_name = rule.name,
+                            server_name = server.server_name,
+                            path = rule.match and rule.match.rules and rule.match.rules.path or "/",
+                            routing = { mode = "single" },
+                            backends = { { address = response.redirect_uri, label = single_label, weight = 100 } },
+                            backend_stats = single_stats
+                        })
+
                         table.insert(topology.connections, {
                             from = server.server_name,
                             to = response.redirect_uri,

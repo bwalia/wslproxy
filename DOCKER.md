@@ -118,13 +118,13 @@ docker run -d \
 **Using Helm chart (recommended):**
 
 ```bash
-helm install wslproxy ./devops/helm-charts/wslproxy \
+helm install wslproxy ./infra/helm-charts/wslproxy \
   -n wslproxy \
   --create-namespace \
   -f values-prod.yaml
 ```
 
-See `devops/helm-charts/wslproxy/` for Helm configuration.
+See `infra/helm-charts/wslproxy/` for Helm configuration.
 
 ### Scenario 4: Multi-Node Cluster with Persistent Storage
 

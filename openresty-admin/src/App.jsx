@@ -28,10 +28,14 @@ import Upstreams from "./Upstreams";
 import WafRules from "./WafRules";
 import WafPolicies from "./WafPolicies";
 import WafEvents from "./WafEvents";
+import Bookmarks from "./Bookmarks";
 import IngressOverview from "./IngressOverview/IngressOverview";
 import Health from "./Health/Health";
+import ChangeRequestList from "./ChangeRequests/ChangeRequestList";
+import AuditLog from "./Audit/AuditLog";
 
 import UserIcon from "@mui/icons-material/GroupRounded";
+import BookmarkIcon from "@mui/icons-material/BookmarkRounded";
 import SessionIcon from "@mui/icons-material/HistoryToggleOffRounded";
 import ServerIcon from "@mui/icons-material/DnsRounded";
 import RuleIcon from "@mui/icons-material/RuleRounded";
@@ -194,11 +198,15 @@ const AppContent = () => {
         <Resource name="waf_rules" {...WafRules} icon={WafRuleIcon} />
         <Resource name="waf_policies" {...WafPolicies} icon={WafPolicyIcon} />
         <Resource name="waf_events" {...WafEvents} icon={WafEventIcon} />
+        <Resource name="bookmarks" {...Bookmarks} icon={BookmarkIcon} />
         <CustomRoutes>
           <Route path="/password/reset" element={<ResetForm />} />
           <Route path="/instance-info" element={<InstanceInfo />} />
           <Route path="/ingress" element={<IngressOverview />} />
           <Route path="/health" element={<Health />} />
+          <Route path="/change-requests" element={<ChangeRequestList />} />
+          <Route path="/change-requests/:id" element={<ChangeRequestList />} />
+          <Route path="/audit" element={<AuditLog />} />
         </CustomRoutes>
       </Admin>
       <VersionFooter />

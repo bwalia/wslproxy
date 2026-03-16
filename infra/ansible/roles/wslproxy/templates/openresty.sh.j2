@@ -1,0 +1,223 @@
+#!/bin/bash
+
+set -x
+
+{% if target_env != 'prod' %}
+# Remove openresty-admin directory if it exists before installing OpenResty
+# This only runs in non-production environments (current: {{ target_env }})
+if [ -d /usr/local/openresty/nginx/html/openresty-admin ]; then
+  rm -rf /usr/local/openresty/nginx/html/openresty-admin
+fi
+{% else %}
+# Skipping openresty-admin removal in production environment
+echo "Production environment detected - preserving openresty-admin directory"
+{% endif %}
+
+# OS family detected by Ansible: {{ ansible_os_family }}
+
+# Install build dependencies based on OS
+install_build_deps() {
+{% if ansible_os_family == "Suse" %}
+  zypper --non-interactive install {{ os_build_deps | join(' ') }} || true
+{% elif ansible_os_family == "RedHat" %}
+  dnf install -y {{ os_build_deps | join(' ') }}
+  # Add OpenResty yum repo for opm
+  wget https://openresty.org/package/centos/openresty.repo -O /etc/yum.repos.d/openresty.repo || true
+  dnf install -y openresty-opm || true
+{% else %}
+  # Debian/Ubuntu
+{% if ansible_distribution == "Ubuntu" %}
+  # Setup OpenResty apt repo for Ubuntu
+  UBUNTU_VERSION=$(lsb_release -rs | cut -d. -f1)
+  if [ "$UBUNTU_VERSION" -ge 22 ]; then
+    echo "Ubuntu ${UBUNTU_VERSION} detected"
+    rm -f /usr/share/keyrings/openresty.gpg
+    wget -O - https://openresty.org/package/pubkey.gpg | sudo gpg --dearmor -o /usr/share/keyrings/openresty.gpg
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/openresty.gpg] http://openresty.org/package/ubuntu $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/openresty.list > /dev/null
+    apt-get update
+    apt-get install ldconfig -y
+    apt-get -y install openresty-opm
+  fi
+{% endif %}
+  apt-get install {{ os_build_deps | join(' ') }} -y
+  # Install PCRE dev — try pcre2 first (Debian 13+), fall back to pcre3
+  apt-get install -y libpcre2-dev 2>/dev/null || apt-get install -y libpcre3-dev 2>/dev/null || echo "WARNING: No PCRE dev package found"
+{% endif %}
+}
+
+# Set OpenResty source directory
+OPENRESTY_SRC_DIR=/usr/local/openresty
+
+mkdir -p /usr/local/openresty/nginx/logs/
+chmod 777 -R /usr/local/openresty/nginx/logs/
+
+mkdir -p $OPENRESTY_SRC_DIR
+
+source ~/.bashrc
+
+install_build_deps
+
+# Function to build OpenResty
+build_openresty() {
+
+# download nginx third party modules to be compiled with openresty
+ cd /tmp
+ git clone https://github.com/ffutop/ngx_http_env_module.git || true
+
+OPENRESTY_VERSION="1.29.2.1"
+wget https://openresty.org/download/openresty-${OPENRESTY_VERSION}.tar.gz
+tar -xzf openresty-${OPENRESTY_VERSION}.tar.gz
+cd openresty-${OPENRESTY_VERSION}
+
+  ./configure --prefix=$OPENRESTY_SRC_DIR --with-stream_realip_module --with-http_ssl_module --with-http_gzip_static_module --with-http_sub_module --with-http_v2_module --with-http_stub_status_module --with-stream --with-http_slice_module
+{% if ansible_os_family == "Suse" %}
+  gmake -j2
+  gmake install
+{% else %}
+  make -j2
+  make install
+{% endif %}
+  ln -sf /usr/local/openresty/nginx/sbin/nginx /usr/bin/openresty
+
+  # Installed OpenResty
+  # Show OpenResty version
+  mkdir -p /opt/nginx/
+  /usr/bin/openresty -v 2> /opt/nginx/VERSION
+
+echo "Building OpenResty ${OPENRESTY_VERSION} completed"
+}
+
+# Install luarocks from source using standard Lua 5.1 (not LuaJIT)
+# LuaJIT has a 65536 constant limit that prevents parsing large luarocks manifests.
+# Building luarocks with standard Lua avoids this limitation while still installing
+# rocks to the OpenResty/LuaJIT paths where nginx can find them.
+install_luarocks() {
+  export PATH="/usr/local/openresty/luajit/bin:/usr/local/openresty/bin:/usr/local/bin:$PATH"
+
+  # Force rebuild to use standard Lua instead of LuaJIT
+  # Remove old LuaJIT-based luarocks if it exists
+  if [ -f /usr/local/openresty/luajit/bin/luarocks ]; then
+    echo "Removing old LuaJIT-based luarocks..."
+    rm -f /usr/local/openresty/luajit/bin/luarocks
+    rm -f /usr/local/bin/luarocks
+  fi
+
+  # Clear luarocks manifest cache to avoid stale data
+  rm -rf /var/cache/luarocks/ 2>/dev/null || true
+
+  echo "Installing luarocks from source with standard Lua 5.1..."
+  LUAROCKS_VERSION="3.11.1"
+
+  # Find system Lua 5.1
+{% if ansible_os_family == "Suse" %}
+  LUA_BIN=$(which lua5.1 2>/dev/null || which lua51 2>/dev/null || which lua 2>/dev/null)
+  LUA_INCDIR="/usr/include/lua5.1"
+  if [ ! -d "$LUA_INCDIR" ]; then
+    LUA_INCDIR=$(find /usr/include -name "lua.h" -path "*/lua5.1/*" -exec dirname {} \; 2>/dev/null | head -1)
+  fi
+  if [ -z "$LUA_INCDIR" ]; then
+    LUA_INCDIR=$(find /usr/include -name "lua.h" -exec dirname {} \; 2>/dev/null | head -1)
+  fi
+{% elif ansible_os_family == "RedHat" %}
+  LUA_BIN=$(which lua 2>/dev/null)
+  LUA_INCDIR="/usr/include"
+{% else %}
+  LUA_BIN=$(which lua5.1 2>/dev/null || which lua 2>/dev/null)
+  LUA_INCDIR="/usr/include/lua5.1"
+{% endif %}
+
+  if [ -z "$LUA_BIN" ]; then
+    echo "ERROR: Standard Lua 5.1 not found. Falling back to LuaJIT..."
+    LUA_BIN="/usr/local/openresty/luajit/bin/luajit"
+    LUA_INCDIR="/usr/local/openresty/luajit/include/luajit-2.1"
+    LUA_SUFFIX="jit"
+  else
+    echo "Using standard Lua: $LUA_BIN ($($LUA_BIN -v 2>&1))"
+    LUA_DIR=$(dirname $(dirname $LUA_BIN))
+    LUA_SUFFIX=""
+    # Determine lua suffix from binary name
+    LUA_BASENAME=$(basename $LUA_BIN)
+    if [ "$LUA_BASENAME" = "lua5.1" ]; then
+      LUA_SUFFIX="5.1"
+    elif [ "$LUA_BASENAME" = "lua51" ]; then
+      LUA_SUFFIX="51"
+    fi
+  fi
+  echo "Lua include dir: $LUA_INCDIR"
+
+  if [ ! -d "$LUA_INCDIR" ] || [ ! -f "$LUA_INCDIR/lua.h" ]; then
+    echo "ERROR: Lua include directory not found or missing lua.h at $LUA_INCDIR"
+    ls -la "$LUA_INCDIR" 2>/dev/null || echo "Directory does not exist"
+    return 1
+  fi
+
+  cd /tmp
+  rm -f luarocks-${LUAROCKS_VERSION}.tar.gz
+  rm -rf luarocks-${LUAROCKS_VERSION}
+  echo "Downloading luarocks ${LUAROCKS_VERSION}..."
+  wget https://luarocks.github.io/luarocks/releases/luarocks-${LUAROCKS_VERSION}.tar.gz
+  if [ $? -ne 0 ] || [ ! -f luarocks-${LUAROCKS_VERSION}.tar.gz ]; then
+    echo "ERROR: Failed to download luarocks"
+    return 1
+  fi
+
+  tar xzf luarocks-${LUAROCKS_VERSION}.tar.gz
+  cd luarocks-${LUAROCKS_VERSION}
+
+  # Build luarocks using standard Lua, but install rocks to OpenResty tree
+  echo "Configuring luarocks with standard Lua..."
+  CONFIGURE_ARGS="--prefix=/usr/local --with-lua-include=$LUA_INCDIR"
+  if [ -n "$LUA_SUFFIX" ]; then
+    CONFIGURE_ARGS="$CONFIGURE_ARGS --lua-suffix=$LUA_SUFFIX"
+  fi
+  if [ -n "$LUA_DIR" ]; then
+    CONFIGURE_ARGS="$CONFIGURE_ARGS --with-lua=$LUA_DIR"
+  fi
+  echo "Configure args: $CONFIGURE_ARGS"
+  ./configure $CONFIGURE_ARGS
+  if [ $? -ne 0 ]; then
+    echo "ERROR: luarocks configure failed"
+    return 1
+  fi
+
+  echo "Building luarocks..."
+  make
+  if [ $? -ne 0 ]; then
+    echo "ERROR: luarocks make failed"
+    return 1
+  fi
+
+  echo "Installing luarocks..."
+  make install
+  if [ $? -ne 0 ]; then
+    echo "ERROR: luarocks make install failed"
+    return 1
+  fi
+
+  cd /tmp
+  rm -rf luarocks-${LUAROCKS_VERSION} luarocks-${LUAROCKS_VERSION}.tar.gz
+
+  # Verify installation
+  if command -v luarocks &> /dev/null; then
+    echo "luarocks installed successfully: $(luarocks --version 2>&1 | head -1)"
+    echo "luarocks binary: $(which luarocks)"
+  else
+    echo "ERROR: luarocks not found after installation"
+    ls -la /usr/local/bin/luarocks 2>/dev/null || echo "Binary not at expected path"
+    return 1
+  fi
+}
+
+# Main script
+echo "=== Starting OpenResty build ==="
+build_openresty
+echo "=== OpenResty build complete ==="
+
+echo "=== Starting luarocks installation ==="
+install_luarocks
+LUAROCKS_RC=$?
+if [ $LUAROCKS_RC -ne 0 ]; then
+  echo "WARNING: luarocks installation failed (exit code: $LUAROCKS_RC)"
+  echo "Lua modules installed via luarocks will not be available"
+fi
+echo "=== Script complete ==="

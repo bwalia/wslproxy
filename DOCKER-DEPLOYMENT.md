@@ -249,7 +249,7 @@ docker-compose -f docker-compose-prod.yml up -d
 
 ```bash
 git clone https://github.com/wslproxy/wslproxy.git
-cd devops/helm-charts
+cd infra/helm-charts
 ```
 
 **2. Create values override file**
@@ -351,7 +351,7 @@ helm upgrade wslproxy ./wslproxy \
 
 ### Manual Kubernetes Deployment (Without Helm)
 
-See `devops/helm-charts/wslproxy/templates/` for raw Kubernetes manifests.
+See `infra/helm-charts/wslproxy/templates/` for raw Kubernetes manifests.
 
 ---
 

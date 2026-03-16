@@ -1,0 +1,7 @@
+---
+# SUSE/openSUSE-specific wslproxy setup tasks
+
+- name: Refresh zypper repos
+  command: zypper --non-interactive refresh
+  changed_when: false
+  tags: [os_deps, build]

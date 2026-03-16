@@ -18,6 +18,8 @@ tags:
     description: View real-time WAF security events (blocked and monitored requests)
   - name: Traffic
     description: Traffic management APIs for multi-backend routing, canary releases, A/B testing, and weighted load balancing
+  - name: Bookmarks
+    description: Auto-generated bookmarks from Virtual Servers with promote-to-saved support. Lean bookmarks are ephemeral (derived from server configs), user bookmarks are persisted to disk.
   - name: MCP
     description: |
       Model Context Protocol (MCP) server endpoints for AI agent integration.
@@ -1450,6 +1452,157 @@ paths:
       security:
         - bearerAuth: []
 
+  /api/bookmarks:
+    get:
+      tags:
+        - Bookmarks
+      summary: List all bookmarks (merged lean + user)
+      description: Returns a merged list of auto-generated lean bookmarks (from virtual server configs) and user-saved bookmarks. User bookmarks override lean bookmarks by host match. Supports pagination, search, category filter, and sorting.
+      operationId: listBookmarks
+      parameters:
+        - name: pagination[page]
+          in: query
+          description: Page number
+          required: false
+          schema:
+            type: number
+            default: 1
+        - name: pagination[perPage]
+          in: query
+          description: Items per page
+          required: false
+          schema:
+            type: number
+            default: 100
+        - name: sort[field]
+          in: query
+          description: Sort field
+          required: false
+          schema:
+            type: string
+            default: title
+            enum: [title, host, category, auto_generated]
+        - name: sort[order]
+          in: query
+          description: Sort direction
+          required: false
+          schema:
+            type: string
+            default: ASC
+            enum: [ASC, DESC]
+        - name: filter[q]
+          in: query
+          description: Search by host, title, or description
+          required: false
+          schema:
+            type: string
+        - name: filter[category]
+          in: query
+          description: Filter by category
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Bookmarks retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Bookmark'
+                  total:
+                    type: number
+      security:
+        - bearerAuth: []
+
+    post:
+      tags:
+        - Bookmarks
+      summary: Create or promote a bookmark
+      description: Promotes an auto-generated lean bookmark to a user-saved bookmark, or creates a new user bookmark. User bookmarks are persisted to disk and override lean bookmarks.
+      operationId: createBookmark
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookmarkInput'
+      responses:
+        '200':
+          description: Bookmark saved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Bookmark'
+                  message:
+                    type: string
+      security:
+        - bearerAuth: []
+
+  /api/bookmarks/{id}:
+    get:
+      tags:
+        - Bookmarks
+      summary: Get a single bookmark by ID
+      description: Retrieve a specific bookmark by its ID from the merged lean + user bookmark set.
+      operationId: getBookmark
+      parameters:
+        - name: id
+          in: path
+          description: Bookmark ID (e.g. bm-example-com)
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Bookmark found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Bookmark'
+        '404':
+          description: Bookmark not found
+      security:
+        - bearerAuth: []
+
+    delete:
+      tags:
+        - Bookmarks
+      summary: Delete a user bookmark
+      description: Removes a user-saved bookmark. The corresponding lean bookmark (if any) will reappear in the merged list. Cannot delete lean-only bookmarks.
+      operationId: deleteBookmark
+      parameters:
+        - name: id
+          in: path
+          description: Bookmark ID to delete
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Bookmark reverted to auto-generated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '404':
+          description: User bookmark not found
+      security:
+        - bearerAuth: []
+
   /mcp/manifest:
     get:
       tags:
@@ -2730,3 +2883,85 @@ components:
               type: number
             message:
               type: string
+    Bookmark:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique bookmark ID (e.g. bm-example-com)
+          example: bm-example-com
+        host:
+          type: string
+          description: Virtual server hostname
+          example: example.com
+        title:
+          type: string
+          description: Display title (defaults to host)
+          example: Example Site
+        url:
+          type: string
+          description: Full URL to the server
+          example: https://example.com
+        description:
+          type: string
+          description: User-provided description
+        category:
+          type: string
+          description: User-defined category
+          example: production
+        tags:
+          type: array
+          items:
+            type: string
+          description: User-defined tags
+          example: ["frontend", "live"]
+        auto_generated:
+          type: boolean
+          description: Whether this is an auto-generated lean bookmark or user-saved
+        profile_id:
+          type: string
+          description: Server profile/environment
+          example: prod
+        proxy_pass:
+          type: string
+          description: Backend proxy address from the first matching rule
+        ssl_enabled:
+          type: boolean
+          description: Whether SSL is configured on the server
+        server_id:
+          type: string
+          description: Original server file ID
+    BookmarkInput:
+      type: object
+      required:
+        - id
+        - host
+      properties:
+        id:
+          type: string
+          description: Bookmark ID
+          example: bm-example-com
+        host:
+          type: string
+          description: Virtual server hostname
+          example: example.com
+        title:
+          type: string
+          description: Display title
+        url:
+          type: string
+          description: Full URL
+        description:
+          type: string
+          description: Description
+        category:
+          type: string
+          description: Category
+        tags:
+          type: array
+          items:
+            type: string
+          description: Tags
+        auto_generated:
+          type: boolean
+          default: false

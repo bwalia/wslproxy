@@ -135,6 +135,38 @@ local function hmac_sha1(key, message)
     return hmac:final()
 end
 
+local ffi = require("ffi")
+pcall(ffi.cdef, [[
+    typedef struct engine_st ENGINE;
+    typedef struct evp_md_st EVP_MD;
+    typedef struct evp_md_ctx_st EVP_MD_CTX;
+    unsigned char *HMAC(const EVP_MD *evp_md, const void *key, int key_len,
+                        const unsigned char *d, size_t n, unsigned char *md,
+                        unsigned int *md_len);
+    const EVP_MD *EVP_sha256(void);
+]])
+
+local function hmac_sha256(key, message)
+    local buf = ffi.new("unsigned char[32]")
+    local md_len = ffi.new("unsigned int[1]")
+    ffi.C.HMAC(ffi.C.EVP_sha256(), key, #key, message, #message, buf, md_len)
+    return ffi.string(buf, 32)
+end
+
+local function sha256_hex(data)
+    local sha256 = require("resty.sha256")
+    local str = require("resty.string")
+    local hash = sha256:new()
+    hash:update(data)
+    return str.to_hex(hash:final())
+end
+
+local function to_hex(str)
+    return (str:gsub('.', function(c)
+        return string.format('%02x', string.byte(c))
+    end))
+end
+
 -- Function to encode base64
 local function base64_encode(data)
     local openssl = require("resty.openssl")
@@ -214,40 +246,61 @@ local function gatewayHostAuthenticate(rule)
             end
 
             if tokenAuthTokenSource == "amazon_s3_signed_header_validation" then
-                -- This code is working only for aws signature version 2
+                -- AWS Signature V4 for S3 API access (private buckets)
                 local folderPath, bucketName = passPhrase, jwt_token_key_val_value
                 local s3AccessKey, s3SecretKey = Base64.decode(amazon_s3_access_key), Base64.decode(amazon_s3_secret_key)
-                local bucketregion = "eu-west-1"
-                local key = ngx.var.uri
+                local bucketregion = tostring(rule.amazon_s3_region or "eu-west-2")
 
-                local now = os.date("%a, %d %b %Y %H:%M:%S +0000")
-                local file_path = "/" ..
-                    bucketName .. "/prod/category-file/1709032659/OdinSPC-TALSystematicSPFactsheet-Jan24.pdf"
-                -- local digest = ngx.md5(file_path)
-                -- local md5_digest = ngx.encode_base64(digest)
-                local md5_digest = ""
-                local aws_resource_string_to_sign = "GET\n" .. md5_digest .. "\n\n" .. now .. "\n" .. file_path
-                local base64_aws_signature = ngx.encode_base64(ngx.hmac_sha1(s3SecretKey, aws_resource_string_to_sign))
-                local authorization_header_override = "AWS " .. s3AccessKey .. ":" .. base64_aws_signature
-                local host_header_override = "s3." ..
-                    bucketregion ..
-                    ".amazonaws.com" -- eu-west-1 is hardcidoded for now but it should be a variable field in the UI
-                local uri = ngx.re.sub(key, "^(.*)", "/" .. bucketName .. "$1", "o")
-                ngx.req.set_uri(uri)
-                -- proxy_pass http://s3.amazonaws.com;
-                --    ngx.say(
-                --     -- "s3AccessKey: " .. s3AccessKey .. "\n",
-                --     -- "s3SecretKey: " .. s3SecretKey .. "\n",
-                --     "aws_resource_string_to_sign: " .. aws_resource_string_to_sign .. "\n",
-                --         "base64_aws_signature: " .. base64_aws_signature .. "\n",
-                --         "Date: " .. now .. "\n",
-                --         "Authorization: " .. authorization_header_override .. "\n",
-                --         "Host: " .. host_header_override
-                --     )
-                --     ngx.exit(ngx.HTTP_OK)
-                ngx.req.set_header("Date", now)
-                ngx.req.set_header("Authorization", authorization_header_override)
-                ngx.req.set_header("Host", host_header_override)
+                -- Build S3 object key: /<bucket>/<key>
+                -- folderPath is the default document for root requests (e.g. "/landing/index.html")
+                -- Non-root requests use URI directly as the S3 key
+                local request_uri = ngx.var.uri
+                local s3_key = request_uri
+                if request_uri == "/" and folderPath and folderPath ~= "" and folderPath ~= "/" then
+                    local cleanFolder = folderPath:sub(1, 1) == "/" and folderPath:sub(2) or folderPath
+                    s3_key = "/" .. cleanFolder
+                end
+                local file_path = "/" .. bucketName .. s3_key
+
+                -- AWS Signature V4
+                local host_header_override = "s3." .. bucketregion .. ".amazonaws.com"
+                local now_date = os.date("!%Y%m%d")
+                local now_datetime = os.date("!%Y%m%dT%H%M%SZ")
+                local service = "s3"
+                local credential_scope = now_date .. "/" .. bucketregion .. "/" .. service .. "/aws4_request"
+                local payload_hash = sha256_hex("")
+
+                -- Canonical request
+                local canonical_headers = "host:" .. host_header_override .. "\n" ..
+                    "x-amz-content-sha256:" .. payload_hash .. "\n" ..
+                    "x-amz-date:" .. now_datetime .. "\n"
+                local signed_headers = "host;x-amz-content-sha256;x-amz-date"
+                local canonical_request = "GET\n" .. file_path .. "\n" .. "\n" ..
+                    canonical_headers .. "\n" .. signed_headers .. "\n" .. payload_hash
+
+                -- String to sign
+                local string_to_sign = "AWS4-HMAC-SHA256\n" .. now_datetime .. "\n" ..
+                    credential_scope .. "\n" .. sha256_hex(canonical_request)
+
+                -- Signing key
+                local k_date = hmac_sha256("AWS4" .. s3SecretKey, now_date)
+                local k_region = hmac_sha256(k_date, bucketregion)
+                local k_service = hmac_sha256(k_region, service)
+                local k_signing = hmac_sha256(k_service, "aws4_request")
+                local signature = to_hex(hmac_sha256(k_signing, string_to_sign))
+
+                local authorization_header = "AWS4-HMAC-SHA256 Credential=" .. s3AccessKey .. "/" ..
+                    credential_scope .. ", SignedHeaders=" .. signed_headers .. ", Signature=" .. signature
+
+                -- Rewrite URI to include bucket name prefix
+                ngx.req.set_uri(file_path)
+
+                ngx.req.set_header("x-amz-date", now_datetime)
+                ngx.req.set_header("x-amz-content-sha256", payload_hash)
+                ngx.req.set_header("Authorization", authorization_header)
+                -- Store S3 API host so gateway_resp.lua sets proxy_host_override correctly
+                ngx.ctx.s3_host_override = host_header_override
+                isTokenVerified = true
             end
 
             -- if tokenAuthTokenSource == "redis" then
@@ -386,6 +439,7 @@ local function gatewayHostRulesParser(rules, ruleId, priority, message, statusCo
     rules.isConsul = isConsul
     rules.consulDomainName = consulDomainName
     rules.strip_path = stripPath
+    rules.auto_redirect_https = ruleResponse and ruleResponse.auto_redirect_https or false
     rules.id = ruleId
     if ruleResponse then
         rules.response = ruleResponse
@@ -500,6 +554,11 @@ end
 local exist_values = nil
 
 local file, err = io.open(configPath .. "data/servers/" .. envProfile .. "/host:" .. Hostname .. ".json", "rb")
+-- Fallback: strip "www." prefix and retry (e.g. www.kubepilot.org -> kubepilot.org)
+if file == nil and Hostname:sub(1, 4) == "www." then
+    local bareHost = Hostname:sub(5)
+    file, err = io.open(configPath .. "data/servers/" .. envProfile .. "/host:" .. bareHost .. ".json", "rb")
+end
 if file == nil then
     -- Use default error page (can be overridden via settings.json or environment secrets at deployment)
     local errorPageB64 = getErrorPage(settingsObj, "no_server")
@@ -577,12 +636,18 @@ if exist_values and exist_values ~= 0 and exist_values ~= nil and exist_values ~
     local jsonval = cjson.decode(exist_values)
     local parse_rules = {}
     if jsonval.rules and type(jsonval.rules) ~= "userdata" then
-        table.insert(parse_rules, gatewayRequestHandler(jsonval.rules))
+        local ruleResult = gatewayRequestHandler(jsonval.rules)
+        if ruleResult then
+            table.insert(parse_rules, ruleResult)
+        end
         if jsonval.match_cases then
             local hasAnd = hasAndCondition(jsonval.match_cases)
             if next(hasAnd) ~= nil then
                 for inx, conditionRule in ipairs(hasAnd) do
-                    table.insert(parse_rules, gatewayRequestHandler(conditionRule))
+                    local condResult = gatewayRequestHandler(conditionRule)
+                    if condResult then
+                        table.insert(parse_rules, condResult)
+                    end
                 end
             end
         end
@@ -767,10 +832,12 @@ if exist_values and exist_values ~= 0 and exist_values ~= nil and exist_values ~
         else
             -- Use default error page (can be overridden via settings.json or environment secrets at deployment)
             local confMismatchHtml = getErrorPage(settingsObj, "conf_mismatch")
-            for rKey, ruleOne in pairs(parse_rules[1]) do
-                if ruleOne.message and ruleOne.message ~= nil and ruleOne.message ~= "" and ruleOne.message ~= "null" then
-                    confMismatchHtml = ruleOne.message
-                    break
+            if parse_rules[1] then
+                for rKey, ruleOne in pairs(parse_rules[1]) do
+                    if ruleOne.message and ruleOne.message ~= nil and ruleOne.message ~= "" and ruleOne.message ~= "null" then
+                        confMismatchHtml = ruleOne.message
+                        break
+                    end
                 end
             end
             ngx.header["Content-Type"] = settingsObj.nginx.content_type ~= nil and settingsObj.nginx.content_type or

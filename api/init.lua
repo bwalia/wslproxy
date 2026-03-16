@@ -126,6 +126,29 @@ end
 -- Load SSL domains from disk at init time
 load_ssl_domains_from_disk()
 
+-- Ensure versioning directories exist at startup
+local function ensure_versioning_dirs()
+  local dirs = {
+    configPath .. "data/versions",
+    configPath .. "data/versions/servers",
+    configPath .. "data/versions/rules",
+    configPath .. "data/change_requests",
+    configPath .. "data/audit",
+  }
+  for _, dir in ipairs(dirs) do
+    local attr = LFS.attributes(dir)
+    if not attr or attr.mode ~= "directory" then
+      local ok, err = LFS.mkdir(dir)
+      if ok then
+        ngx.log(ngx.INFO, "Versioning: Created directory: ", dir)
+      elseif not LFS.attributes(dir) then
+        ngx.log(ngx.WARN, "Versioning: Failed to create directory: ", dir, " - ", tostring(err))
+      end
+    end
+  end
+end
+ensure_versioning_dirs()
+
 require "resty.session".init({
   remember = true,
   audience = "wslproxy",

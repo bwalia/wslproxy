@@ -16,6 +16,7 @@ import {
 import Toolbar from "./toolbar/Toolbar";
 import CreateTags from "../component/CreateTags";
 import HtmlEditorInput from "../component/HtmlEditorInput";
+import VersionHistoryTab from "../Versions/VersionHistoryTab";
 import "../styles/forms.css";
 
 const iso_codes = {
@@ -406,6 +407,7 @@ const Form = () => {
               <Grid item xs={12} sm={8}>
                 <TextInput
                   source="match.rules.path"
+                  defaultValue="/"
                   validate={[required()]}
                   label="URL Path Value"
                   fullWidth
@@ -539,7 +541,16 @@ const Form = () => {
                   formData?.match?.rules?.jwt_token_validation === "amazon_s3_signed_header_validation"
                 ) && (
                   <>
-                    <Grid item xs={12} sm={6}>
+                    <Grid item xs={12} sm={4}>
+                      <TextInput
+                        source="match.rules.amazon_s3_region"
+                        defaultValue="eu-west-2"
+                        fullWidth
+                        label="AWS Region"
+                        helperText="S3 bucket region (e.g., eu-west-2)"
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={4}>
                       <TextInput
                         source="match.rules.amazon_s3_access_key"
                         fullWidth
@@ -548,7 +559,7 @@ const Form = () => {
                         helperText="AWS access key ID"
                       />
                     </Grid>
-                    <Grid item xs={12} sm={6}>
+                    <Grid item xs={12} sm={4}>
                       <TextInput
                         source="match.rules.amazon_s3_secret_key"
                         fullWidth
@@ -617,6 +628,14 @@ const Form = () => {
                 label="Strip Path Prefix"
                 defaultValue={false}
                 helperText="Remove matched path prefix before proxying"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <BooleanInput
+                source="match.response.auto_redirect_https"
+                label="Auto Redirect HTTP to HTTPS"
+                defaultValue={false}
+                helperText="Redirect port 80 to HTTPS (requires SSL enabled on server)"
               />
             </Grid>
             <Grid item xs={12} sm={6} md={3}>
@@ -772,6 +791,31 @@ const Form = () => {
             )
           }
         </FormDataConsumer>
+
+        {/* Version History */}
+        <Card
+          variant="outlined"
+          className="section-card"
+          sx={{
+            borderColor: "primary.main",
+            borderWidth: 2,
+          }}
+        >
+          <CardContent>
+            <Typography
+              variant="subtitle1"
+              className="section-card__title"
+              sx={{ color: "primary.main" }}
+            >
+              Version History & Change Control
+            </Typography>
+            <Typography variant="body2" color="text.secondary" className="section-card__subtitle">
+              All changes stay in draft until a Change Request is created and approved.
+              Two approvers are required (4-eyes principle).
+            </Typography>
+            <VersionHistoryTab resourceType="rules" />
+          </CardContent>
+        </Card>
 
       </div>
     </SimpleForm>

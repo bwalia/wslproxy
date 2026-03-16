@@ -1,0 +1,34 @@
+---
+# Cron jobs for nginx data sync and restart
+
+- name: Copy Nginx Data Sync CRON script
+  template:
+    src: nginx-data-sync-required.sh.j2
+    dest: /usr/sbin/nginx-data-sync-required.sh
+    mode: 0775
+  tags: [nginx]
+
+- name: Schedule Nginx Data Sync CRON (every minute)
+  cron:
+    name: "nginx_data_sync"
+    user: "root"
+    minute: "*/1"
+    job: '/bin/bash /usr/sbin/nginx-data-sync-required.sh "{{ nginx_data_sync_enabled | default("no") }}" "{{ hdopenresty_api_user_email | default("") }}" "{{ hdopenresty_api_user_passwd | default("") }}" "{{ hdopenresty_api_target_hash | default("") }}" "{{ hdopenresty_api_target_serial | default("") }}"'
+  no_log: true
+  when: nginx_data_sync_enabled is defined and nginx_data_sync_enabled == "yes"
+  tags: [nginx]
+
+- name: Copy Nginx Restart CRON script
+  template:
+    src: nginx_restart_if_required.sh.j2
+    dest: /usr/sbin/nginx_restart_if_required.sh
+    mode: 0775
+  tags: [nginx]
+
+- name: Schedule Nginx Restart CRON (every minute)
+  cron:
+    name: "nginx_restart"
+    user: "root"
+    minute: "*/1"
+    job: "/bin/bash /usr/sbin/nginx_restart_if_required.sh"
+  tags: [nginx]

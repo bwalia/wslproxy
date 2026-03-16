@@ -1,0 +1,38 @@
+{
+  "name": "openresty-admin-next",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 7619",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@codemirror/lang-html": "^6.4.11",
+    "@emotion/cache": "^11.14.0",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/icons-material": "^5.18.0",
+    "@mui/material": "^5.18.0",
+    "@mui/material-nextjs": "^5.18.0",
+    "@uiw/react-codemirror": "^4.25.8",
+    "lodash": "^4.17.23",
+    "next": "16.1.6",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-hook-form": "^7.71.2",
+    "react-simple-maps": "^3.0.0",
+    "recharts": "^2.15.4",
+    "swr": "^2.3.3",
+    "uuid4": "^2.0.3"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "@types/lodash": "^4.17.24",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "typescript": "^5"
+  }
+}

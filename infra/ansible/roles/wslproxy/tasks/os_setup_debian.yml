@@ -1,0 +1,18 @@
+---
+# Debian/Ubuntu-specific wslproxy setup tasks
+
+- name: Update apt cache
+  command: apt-get update
+  register: update_result
+  until: update_result.rc == 0
+  retries: 5
+  delay: 10
+  tags: [os_deps, build]
+
+- name: Upgrade apt packages
+  command: apt-get upgrade -y
+  register: upgrade_result
+  until: upgrade_result.rc == 0
+  retries: 5
+  delay: 10
+  tags: [os_deps, build]

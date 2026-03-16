@@ -178,6 +178,112 @@ function Helper.writeFile(filePath, value)
     end
 end
 
+-- Safe write for settings.json with backup, validation, and rate limiting
+-- Protects against empty content, corruption, and excessive writes
+local _last_settings_write = 0
+local SETTINGS_WRITE_MIN_INTERVAL = 2 -- minimum seconds between writes
+
+function Helper.writeSettingsFile(filePath, value)
+    -- Validate value is not nil or empty
+    if value == nil then
+        return false, "Cannot save settings: value is nil"
+    end
+
+    -- Encode to JSON first to validate before touching the file
+    local ok, encoded = pcall(Cjson.encode, value)
+    if not ok or encoded == nil then
+        return false, "Cannot save settings: JSON encoding failed"
+    end
+
+    -- Reject empty or trivially small JSON (must have core fields)
+    if #encoded < 50 then
+        return false, "Cannot save settings: content too small (" .. #encoded .. " bytes), refusing to overwrite"
+    end
+
+    -- Validate required fields exist
+    if type(value) ~= "table" then
+        return false, "Cannot save settings: value must be a table"
+    end
+    local required_fields = {"instance_id", "super_user", "env_vars"}
+    for _, field in ipairs(required_fields) do
+        if value[field] == nil then
+            return false, "Cannot save settings: missing required field '" .. field .. "'"
+        end
+    end
+
+    -- Rate limit: prevent excessive writes from rapid UI requests
+    local now = ngx.now()
+    if (now - _last_settings_write) < SETTINGS_WRITE_MIN_INTERVAL then
+        return false, "Cannot save settings: too many writes, please wait " .. SETTINGS_WRITE_MIN_INTERVAL .. " seconds between updates"
+    end
+
+    -- Create timestamped backup of current file before overwriting
+    local backup_ok = true
+    local existing, _ = io.open(filePath, "r")
+    if existing then
+        local current_content = existing:read("*a")
+        existing:close()
+        if current_content and #current_content > 0 then
+            local timestamp = os.date("%Y%m%d_%H%M%S")
+            local backup_path = filePath:gsub("settings%.json$", "settings_backup_" .. timestamp .. ".json")
+            local backup_file, backup_err = io.open(backup_path, "w")
+            if backup_file then
+                backup_file:write(current_content)
+                backup_file:close()
+                ngx.log(ngx.NOTICE, "Settings backup created: " .. backup_path)
+
+                -- Keep only the last 10 backups (clean up old ones)
+                local dir = filePath:match("(.*/)")
+                if dir then
+                    local handle = io.popen('ls -t ' .. dir .. 'settings_backup_*.json 2>/dev/null | tail -n +11')
+                    if handle then
+                        for old_backup in handle:lines() do
+                            os.remove(old_backup)
+                        end
+                        handle:close()
+                    end
+                end
+            else
+                ngx.log(ngx.WARN, "Failed to create settings backup: " .. (backup_err or "unknown error"))
+            end
+        end
+    end
+
+    -- Write to temp file first, then rename (atomic write)
+    local tmp_path = filePath .. ".tmp"
+    local file, err = io.open(tmp_path, "w")
+    if file == nil then
+        return false, "Cannot save settings: failed to open temp file - " .. (err or "unknown error")
+    end
+
+    file:write(encoded)
+    file:close()
+
+    -- Verify the temp file was written correctly
+    local verify, _ = io.open(tmp_path, "r")
+    if verify then
+        local written = verify:read("*a")
+        verify:close()
+        if written ~= encoded then
+            os.remove(tmp_path)
+            return false, "Cannot save settings: written content verification failed"
+        end
+    else
+        return false, "Cannot save settings: failed to verify temp file"
+    end
+
+    -- Atomic rename
+    local rename_ok, rename_err = os.rename(tmp_path, filePath)
+    if not rename_ok then
+        os.remove(tmp_path)
+        return false, "Cannot save settings: rename failed - " .. (rename_err or "unknown error")
+    end
+
+    _last_settings_write = now
+    ngx.log(ngx.NOTICE, "Settings file updated successfully: " .. filePath)
+    return true, nil
+end
+
 -- Hash password
 function Helper.hashPassword(password)
     local resty_sha256 = require "resty.sha256"
