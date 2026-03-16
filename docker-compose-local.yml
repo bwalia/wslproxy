@@ -33,23 +33,6 @@ services:
       # Hot-reload HTML/static files
       - ./html:/usr/local/openresty/nginx/html
 
-      # Admin dashboard build output (uses named volume to avoid
-      # macOS Docker root-owned file permission issues with bind mounts)
-      # The ./html mount overrides the container's html dir, so we need
-      # to explicitly mount the built dist back in
-      - admin-dist-local:/usr/local/openresty/nginx/html/openresty-admin/dist
-
-      # Admin dashboard index.html (needed for in-volume builds)
-      - ./openresty-admin/index.html:/usr/local/openresty/nginx/html/openresty-admin/index.html
-
-      # Hot-reload Admin dashboard source (for in-container rebuilds)
-      - ./openresty-admin/src:/usr/local/openresty/nginx/html/openresty-admin/src
-      - ./openresty-admin/public:/usr/local/openresty/nginx/html/openresty-admin/public
-      - ./openresty-admin/package.json:/usr/local/openresty/nginx/html/openresty-admin/package.json
-      - ./openresty-admin/vite.config.js:/usr/local/openresty/nginx/html/openresty-admin/vite.config.js
-      - ./openresty-admin/.env:/usr/local/openresty/nginx/html/openresty-admin/.env
-      - ./openresty-admin/yarn.lock:/usr/local/openresty/nginx/html/openresty-admin/yarn.lock
-
       # Configuration files
       - ./data:/opt/nginx/data
       - ./nginx-dev.conf.tmpl:/usr/local/openresty/nginx/conf/nginx.conf
@@ -159,4 +142,3 @@ networks:
 volumes:
   wslproxy-certs-local:
   redis-data-local:
-  admin-dist-local:

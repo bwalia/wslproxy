@@ -18,16 +18,17 @@ const ThemeContext = createContext<ThemeContextType>({
 });
 
 export const ThemeProvider = ({ children }: { children: ReactNode }) => {
-  const [mode, setModeState] = useState<string>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('theme-mode');
-      if (saved) return saved;
+  const [mode, setModeState] = useState<string>('light');
 
+  useEffect(() => {
+    const saved = localStorage.getItem('theme-mode');
+    if (saved) {
+      setModeState(saved);
+    } else {
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      return prefersDark ? 'dark' : 'light';
+      setModeState(prefersDark ? 'dark' : 'light');
     }
-    return 'light';
-  });
+  }, []);
 
   const setMode = useCallback((newMode: string) => {
     setModeState(newMode);
