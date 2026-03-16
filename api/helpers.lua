@@ -23,12 +23,36 @@ function Helper.settings()
     local readSettings, errSettings = io.open(configPath .. "data/settings.json", "rb")
     local settings = {}
     if readSettings == nil then
-        ApiErrors.throwError("Couldn't read file: settings.json. Please make sure you have correct settings.json file placed on right place.", ngx.HTTP_BAD_REQUEST)
+        ngx.log(ngx.WARN, "settings.json not found at " .. configPath .. "data/settings.json — using safe defaults")
     else
         local jsonString = readSettings:read "*a"
         readSettings:close()
-        settings = Cjson.decode(jsonString)
+        if jsonString and jsonString ~= "" then
+            local ok, decoded = pcall(Cjson.decode, jsonString)
+            if ok and type(decoded) == "table" then
+                settings = decoded
+            else
+                ngx.log(ngx.ERR, "settings.json contains invalid JSON — using safe defaults")
+            end
+        else
+            ngx.log(ngx.WARN, "settings.json is empty — using safe defaults")
+        end
     end
+
+    -- Ensure critical fields always have safe defaults
+    if not settings.env_profile or settings.env_profile == "" then
+        settings.env_profile = "prod"
+    end
+    if not settings.storage_type or settings.storage_type == "" then
+        settings.storage_type = "disk"
+    end
+    if not settings.instance_locked or settings.instance_locked == "" then
+        settings.instance_locked = "true"
+    end
+    if not settings.nginx then
+        settings.nginx = {}
+    end
+
     return settings
 end
 
