@@ -505,12 +505,24 @@ if settings.storage_type == "redis" then
         ngx.log(ngx.ERR, "failed to connect to Redis: ", err)
         Errors.throwError("failed to connect to Redis: " .. err, ngx.HTTP_BAD_GATEWAY)
     end
+elseif settings.storage_type == "pgsql" then
+    local PgStorage = require("pgsql_storage")
+    local pg_config = settings.pgsql or {}
+    local store, pg_err = PgStorage.new(pg_config)
+    if not store then
+        ngx.log(ngx.ERR, "failed to connect to PostgreSQL: ", pg_err)
+        Errors.throwError("failed to connect to PostgreSQL: " .. tostring(pg_err), ngx.HTTP_BAD_GATEWAY)
+    end
+    red = store
 end
+
+-- useRemoteStorage: true for redis and pgsql (both use the `red` interface)
+local useRemoteStorage = settings.storage_type == "redis" or settings.storage_type == "pgsql"
 
 local function removeServerFromRule(oldRuleId, serverId, envProfile)
     local loadRules = nil
     if oldRuleId and oldRuleId ~= nil and type(oldRuleId) ~= "userdata" then
-        if settings.storage_type == "redis" then
+        if useRemoteStorage then
             loadRules = red:hget("request_rules_" .. envProfile, oldRuleId)
         else
             loadRules = Helper.getDataFromFile(configPath .. "data/rules/" .. envProfile .. "/" .. oldRuleId .. ".json")
@@ -526,7 +538,7 @@ local function removeServerFromRule(oldRuleId, serverId, envProfile)
                     i = i + 1
                 end
             end
-            if settings.storage_type == "redis" then
+            if useRemoteStorage then
                 red:hset("request_rules_" .. envProfile, oldRuleId, cjson.encode(loadRules))
             else
                 Helper.setDataToFile(configPath .. "data/rules/" .. envProfile .. "/" .. oldRuleId .. ".json", loadRules,
@@ -538,7 +550,7 @@ end
 
 local function updateServerInRules(ruleId, serverId, Rtype, envProfile)
     local getRules, ruleErr = nil, nil
-    if settings.storage_type == "redis" then
+    if useRemoteStorage then
         getRules, ruleErr = red:hget("request_rules_" .. envProfile, ruleId)
     else
         getRules, ruleErr = Helper.getDataFromFile(configPath .. "data/rules/" .. envProfile .. "/" .. ruleId .. ".json")
@@ -546,7 +558,7 @@ local function updateServerInRules(ruleId, serverId, Rtype, envProfile)
     if getRules and getRules ~= "null" and type(getRules) == "string" then
         getRules = cjson.decode(getRules)
         local getServer = nil
-        if settings.storage_type == "redis" then
+        if useRemoteStorage then
             getServer = red:hget("servers_" .. envProfile, serverId)
         else
             getServer = Helper.getDataFromFile(configPath .. "data/servers/" .. envProfile .. "/" .. serverId .. ".json")
@@ -574,7 +586,7 @@ local function updateServerInRules(ruleId, serverId, Rtype, envProfile)
         end
         if isServer == true then
             table.insert(getRules.servers, serverId)
-            if settings.storage_type == "redis" then
+            if useRemoteStorage then
                 red:hset("request_rules_" .. envProfile, ruleId, cjson.encode(getRules))
             else
                 Helper.setDataToFile(configPath .. "data/rules/" .. envProfile .. "/" .. ruleId .. ".json", getRules,
@@ -586,7 +598,7 @@ end
 
 local function deleteRuleFromServer(ruleId, envProfile)
     local getRule = nil
-    if settings.storage_type == "redis" then
+    if useRemoteStorage then
         getRule = red:hget("request_rules_" .. envProfile, ruleId)
     else
         getRule = Helper.getDataFromFile(configPath .. "data/rules/" .. envProfile .. "/" .. ruleId .. ".json")
@@ -597,7 +609,7 @@ local function deleteRuleFromServer(ruleId, envProfile)
         if getRule.servers and getRule.servers ~= nil then
             for _, server in ipairs(getRule.servers) do
                 local getServer = nil
-                if settings.storage_type == "redis" then
+                if useRemoteStorage then
                     getServer = red:hget("servers_" .. envProfile, server)
                 else
                     Helper.getDataFromFile(configPath .. "data/servers/" .. envProfile .. "/" .. server .. ".json")
@@ -616,7 +628,7 @@ local function deleteRuleFromServer(ruleId, envProfile)
                             end
                         end
                     end
-                    if settings.storage_type == "redis" then
+                    if useRemoteStorage then
                         red:hset("servers_" .. envProfile, server, cjson.encode(getServer))
                     else
                         Helper.setDataToFile(configPath .. "data/servers/" .. envProfile .. "/" .. server .. ".json",
@@ -631,7 +643,7 @@ end
 
 local function deleteServerFromRules(ruleId, serverId, envProfile)
     local getRule = nil
-    if settings.storage_type == "redis" then
+    if useRemoteStorage then
         getRule = red:hget("request_rules_" .. envProfile, ruleId)
     else
         getRule = Helper.getDataFromFile(configPath .. "data/rules/" .. envProfile .. "/" .. ruleId .. ".json")
@@ -644,7 +656,7 @@ local function deleteServerFromRules(ruleId, serverId, envProfile)
                     table.remove(getRule.servers, _)
                 end
             end
-            if settings.storage_type == "redis" then
+            if useRemoteStorage then
                 red:hset("request_rules_" .. envProfile, ruleId, cjson.encode(getRule))
             else
                 Helper.setDataToFile(configPath .. "data/rules/" .. envProfile .. "/" .. ruleId .. ".json", getRule,
@@ -755,7 +767,7 @@ local function login(args)
 
         if suEmail == payloads.email and suPassword == password then
             ngx.status = ngx.OK
-            if settings.storage_type == "redis" then
+            if useRemoteStorage then
                 local session = require "resty.session".new()
                 session:set_subject("Users")
                 session:set(payloads.email, cjson.encode(payloads))
@@ -1805,7 +1817,7 @@ local function createDeleteRules(body, uuid)
     elseif payloads and payloads.ids.ids and #payloads.ids.ids > 0 then
         for value = 1, #payloads.ids.ids do
             if settings then
-                if settings.storage_type == "redis" then
+                if useRemoteStorage then
                     deleteRuleFromServer(payloads.ids.ids[value], envProfile)
                     red:hdel("request_rules_" .. envProfile, payloads.ids.ids[value])
                 else
@@ -1845,7 +1857,7 @@ local function createDeleteSecrets(body, uuid)
     elseif payloads and payloads.ids.ids and #payloads.ids.ids > 0 then
         for value = 1, #payloads.ids.ids do
             if settings then
-                if settings.storage_type == "redis" then
+                if useRemoteStorage then
                     red:hdel("secrets_" .. envProfile, payloads.ids.ids[value])
                 else
                     os.remove(configPath .. "data/secrets/" .. envProfile .. "/" .. payloads.ids.ids[value] .. ".json")
@@ -1883,7 +1895,7 @@ local function createDeleteInstances(body, uuid)
     elseif payloads and payloads.ids.ids and #payloads.ids.ids > 0 then
         for value = 1, #payloads.ids.ids do
             if settings then
-                if settings.storage_type == "redis" then
+                if useRemoteStorage then
                     red:hdel("instances_" .. envProfile, payloads.ids.ids[value])
                 else
                     os.remove(configPath .. "data/instances/" .. envProfile .. "/" .. payloads.ids.ids[value] .. ".json")
@@ -1946,7 +1958,7 @@ CreateUpdateRecord = function(json_val, uuid, key_name, folder_name, method)
     local redis_json, domainJson = {}, {}
     if key_name == 'servers' and json_val.server_name then
         local getDomain = ""
-        if settings.storage_type == "redis" then
+        if useRemoteStorage then
             getDomain = red:hget(key_name .. "_" .. envProfile, json_val.id)
         else
             getDomain = Helper.getDataFromFile(configPath ..
@@ -1963,7 +1975,7 @@ CreateUpdateRecord = function(json_val, uuid, key_name, folder_name, method)
         end
         if method == "update" and json_val.id ~= "host:" .. json_val.server_name then
             local previousDomain = ""
-            if settings.storage_type == "redis" then
+            if useRemoteStorage then
                 previousDomain = red:hget(key_name .. "_" .. envProfile, "host:" .. json_val.server_name)
             else
                 previousDomain = Helper.getDataFromFile(configPath ..
@@ -2001,7 +2013,7 @@ CreateUpdateRecord = function(json_val, uuid, key_name, folder_name, method)
         end
     end
     -- HS 28/08/2024 This part of the code need to be refactor or optimise
-    if settings.storage_type == "redis" then
+    if useRemoteStorage then
         redis_json[uuid] = cjson.encode(json_val)
         red:hmset(key_name .. "_" .. envProfile, redis_json)
     end
@@ -3037,7 +3049,7 @@ local function listSessions(args)
     params = params.params
     local allsessions, sessions = {}, {}
     local records = {}
-    if settings.storage_type == "redis" then
+    if useRemoteStorage then
         local exist_values, err = red:scan(0, "match", "session:*") -- red:keys("session:*")
         if exist_values[2] ~= nil then
             for key, value in pairs(exist_values[2]) do
@@ -3126,7 +3138,7 @@ local function importProjects(args)
         if not Helper.isDirectoryExists(pathDir) then
             Helper.createDirectoryRecursive(pathDir)
         end
-        if settings.storage_type == "redis" then
+        if useRemoteStorage then
             formattedJson[value.id] = cjson.encode(value)
             red:hmset(redisKey .. "_" .. value.profile_id, formattedJson)
             response = Helper.setDataToFile(

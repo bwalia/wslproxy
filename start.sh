@@ -23,6 +23,9 @@ HTTPS_PORT=8443
 ADMIN_PORT=8280
 REDIS_PORT=6479
 NODE_APP_PORT=3009
+PG_PORT=5436
+NEXT_ADMIN_PORT=7619
+VITE_ADMIN_PORT=5173
 
 # ============================================
 # Usage and Help
@@ -60,11 +63,14 @@ show_help() {
     echo ""
     echo -e "${BLUE}Access URLs:${NC}"
     echo "  Admin Dashboard:  http://localhost:$ADMIN_PORT"
+    echo "  Next.js Admin:    http://localhost:$NEXT_ADMIN_PORT  (new dashboard)"
+  echo "  Vite Admin:       http://localhost:$VITE_ADMIN_PORT  (old dashboard)"
     echo "  API:              http://localhost:$ADMIN_PORT/api"
     echo "  HTTP Proxy:       http://localhost:$HTTP_PORT"
     echo "  HTTPS Proxy:      https://localhost:$HTTPS_PORT"
     echo "  Demo Node App:    http://localhost:$NODE_APP_PORT (origin backend)"
     echo "  Redis:            localhost:$REDIS_PORT"
+    echo "  PostgreSQL:       localhost:$PG_PORT  (user: wslproxy / wslproxy_local_dev)"
     echo ""
     echo -e "${BLUE}Hot-Reload (no restart needed):${NC}"
     echo "  Lua API files (./api/)      Changes reflect per-request automatically"
@@ -405,6 +411,13 @@ fi
 # Set permissions on entire data directory (must be writable by container)
 chmod -R 777 "$DATA_DIR"
 
+# Export PostgreSQL credentials for docker-compose
+export WSLPROXY_PG_HOST=postgres
+export WSLPROXY_PG_PORT=5432
+export WSLPROXY_PG_DB=wslproxy
+export WSLPROXY_PG_USER=wslproxy
+export WSLPROXY_PG_PASSWORD=wslproxy_local_dev
+
 echo -e "${GREEN}[+] Data directories and permissions ready${NC}"
 echo ""
 
@@ -529,12 +542,15 @@ echo -e "${CYAN}   WSLProxy is running!                ${NC}"
 echo -e "${CYAN}========================================${NC}"
 echo ""
 echo -e "  Admin Dashboard:  ${GREEN}http://localhost:$ADMIN_PORT${NC}"
+echo -e "  Next.js Admin:    ${GREEN}http://localhost:$NEXT_ADMIN_PORT${NC}  (new dashboard)"
+echo -e "  Vite Admin:       ${GREEN}http://localhost:$VITE_ADMIN_PORT${NC}  (old dashboard)"
 echo -e "  API:              ${GREEN}http://localhost:$ADMIN_PORT/api${NC}"
 echo -e "  HTTP Proxy:       ${GREEN}http://localhost:$HTTP_PORT${NC}"
 echo -e "  HTTPS Proxy:      ${GREEN}https://localhost:$HTTPS_PORT${NC}"
 echo -e "  Demo Node App:    ${GREEN}http://localhost:$NODE_APP_PORT${NC}  (origin backend at 172.177.0.10)"
 echo -e "  Prometheus:       ${GREEN}http://localhost:$ADMIN_PORT/metrics${NC}"
 echo -e "  Redis:            ${GREEN}localhost:$REDIS_PORT${NC}"
+echo -e "  PostgreSQL:       ${GREEN}localhost:$PG_PORT${NC}  (user: wslproxy / wslproxy_local_dev)"
 echo ""
 echo -e "${CYAN}  Hot-Reload (no restart needed):${NC}"
 echo -e "  Lua API files (./api/)      → changes reflect per-request"

@@ -50,11 +50,19 @@ services:
       DNS_RESOLVER: 127.0.0.11
       LUA_LOG_LEVEL: debug
       SSL_STAGING: "true"
+      # PostgreSQL storage backend (used when storage_type=pgsql in settings.json)
+      WSLPROXY_PG_HOST: postgres
+      WSLPROXY_PG_PORT: 5432
+      WSLPROXY_PG_DB: wslproxy
+      WSLPROXY_PG_USER: wslproxy
+      WSLPROXY_PG_PASSWORD: wslproxy_local_dev
 
     depends_on:
       redis:
         condition: service_healthy
       demo-node-app:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
 
     networks:
@@ -131,6 +139,124 @@ services:
       retries: 3
       start_period: 10s
 
+  # ── PostgreSQL ────────────────────────────────────────────────────────────
+  # Optional third storage backend (set storage_type: pgsql in settings.json)
+  postgres:
+    image: postgres:16-alpine
+    container_name: wslproxy-postgres-local
+    restart: unless-stopped
+
+    ports:
+      # Exposed on 5436 to avoid conflicts with any local postgres on 5432
+      - "5436:5432"
+
+    environment:
+      POSTGRES_DB: wslproxy
+      POSTGRES_USER: wslproxy
+      POSTGRES_PASSWORD: wslproxy_local_dev
+
+    volumes:
+      - postgres-data-local:/var/lib/postgresql/data
+      # Schema is applied automatically on first start
+      - ./infra/db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+
+    networks:
+      wslproxy-local-network:
+        ipv4_address: 172.177.0.4
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wslproxy -d wslproxy"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Vite Admin Dashboard (old) ────────────────────────────────────────────
+  # Legacy React-Admin (Vite) dashboard — runs alongside the new Next.js one
+  # Vite dev server proxy eliminates CORS: browser → /api → wslproxy-local
+  openresty-admin:
+    build:
+      context: ./openresty-admin
+      dockerfile: Dockerfile
+    container_name: wslproxy-admin-vite-local
+    restart: unless-stopped
+
+    ports:
+      - "5173:5173"
+
+    volumes:
+      # Bind-mount source for hot-reload (Vite Fast Refresh)
+      - ./openresty-admin/src:/app/src
+      - ./openresty-admin/public:/app/public
+      - ./openresty-admin/index.html:/app/index.html
+      - ./openresty-admin/vite.config.js:/app/vite.config.js
+      - ./openresty-admin/.env:/app/.env
+      # Persist node_modules inside the container (avoid Mac ↔ Linux ABI issues)
+      - vite-admin-node-modules:/app/node_modules
+
+    environment:
+      # Proxy target: Vite dev server forwards /api and /health here server-side
+      PROXY_TARGET: http://wslproxy-local:8080
+      # Signal Docker mode so Vite binds to 0.0.0.0 and picks up PORT
+      DOCKER_ENV: "true"
+      PORT: 5173
+
+    depends_on:
+      wslproxy:
+        condition: service_healthy
+
+    networks:
+      wslproxy-local-network:
+        ipv4_address: 172.177.0.6
+
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:5173 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # ── Next.js Admin Dashboard (new) ────────────────────────────────────────
+  # Standalone Next.js app — replaces the Vite build in openresty-admin
+  # Runs on port 7619 (internal and external) with hot-reload in dev mode
+  openresty-admin-next:
+    build:
+      context: ./openresty-admin-next
+      dockerfile: Dockerfile
+    container_name: wslproxy-admin-next-local
+    restart: unless-stopped
+
+    ports:
+      - "7619:7619"
+
+    volumes:
+      # Bind-mount source for hot-reload (Next.js Fast Refresh)
+      - ./openresty-admin-next/src:/app/src
+      - ./openresty-admin-next/public:/app/public
+      - ./openresty-admin-next/next.config.ts:/app/next.config.ts
+      # Persist node_modules inside the container (avoid Mac ↔ Linux ABI issues)
+      - next-admin-node-modules:/app/node_modules
+
+    environment:
+      # Internal docker network URL used by Next.js server-side rewrites
+      WSLPROXY_API_URL: http://wslproxy-local:8080
+      # Next.js dev server port
+      PORT: 7619
+
+    depends_on:
+      wslproxy:
+        condition: service_healthy
+
+    networks:
+      wslproxy-local-network:
+        ipv4_address: 172.177.0.5
+
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:7619 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
 networks:
   wslproxy-local-network:
     driver: bridge
@@ -142,3 +268,6 @@ networks:
 volumes:
   wslproxy-certs-local:
   redis-data-local:
+  postgres-data-local:
+  next-admin-node-modules:
+  vite-admin-node-modules:

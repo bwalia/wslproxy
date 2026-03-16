@@ -90,7 +90,16 @@ async function handleResponse(response: Response): Promise<any> {
     const error = await response.text();
     throw new Error(error || response.statusText);
   }
-  return response.json();
+  // Some endpoints return 200/204 with an empty body — avoid JSON parse crash
+  const text = await response.text();
+  if (!text || text.trim() === '') {
+    return null;
+  }
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error(`Invalid JSON response from server: ${text.slice(0, 100)}`);
+  }
 }
 
 function jsonHeaders(): Record<string, string> {
@@ -172,7 +181,7 @@ export function createDataProvider(apiUrl: string): DataProvider {
 
     getOne: async (resource, params) => {
       const json = await fetchGet(apiUrl, `${resource}/${params.id}`);
-      return { data: json.data };
+      return { data: json?.data ?? null };
     },
 
     getMany: async (resource, params) => {
@@ -191,7 +200,7 @@ export function createDataProvider(apiUrl: string): DataProvider {
       let body = JSON.stringify(data);
       body = encodeSpecialChars(body);
       const json = await fetchMutate(apiUrl, resource, 'POST', body);
-      return { data: json.data };
+      return { data: json?.data ?? null };
     },
 
     update: async (resource, params) => {
@@ -202,12 +211,12 @@ export function createDataProvider(apiUrl: string): DataProvider {
       let body = JSON.stringify(data);
       body = encodeSpecialChars(body);
       const json = await fetchMutate(apiUrl, `${resource}/${params.id}`, 'PUT', body);
-      return { data: json.data };
+      return { data: json?.data ?? null };
     },
 
     delete: async (resource, params) => {
       const json = await fetchMutate(apiUrl, `${resource}/${params.id}`, 'DELETE');
-      return { data: json.data };
+      return { data: json?.data ?? null };
     },
 
     deleteMany: async (resource, params) => {
@@ -229,7 +238,7 @@ export function createDataProvider(apiUrl: string): DataProvider {
 
     saveStorageFlag: async (resource, params) => {
       const json = await fetchMutate(apiUrl, resource, 'POST', JSON.stringify(params.data));
-      return { data: json.data };
+      return { data: json?.data ?? null };
     },
 
     // ------------------------------------------------------------------
@@ -254,19 +263,19 @@ export function createDataProvider(apiUrl: string): DataProvider {
           },
         });
         const json = await handleResponse(response);
-        return { data: json.data };
+        return { data: json?.data ?? null };
       }
       return { data: null };
     },
 
     importProjects: async (resource, params) => {
       const json = await fetchMutate(apiUrl, resource, 'POST', JSON.stringify(params.data));
-      return { data: json.data };
+      return { data: json?.data ?? null };
     },
 
     profileUpdate: async (resource, params) => {
       const json = await fetchMutate(apiUrl, resource, 'POST', JSON.stringify(params.data));
-      return { data: json.data };
+      return { data: json?.data ?? null };
     },
 
     // ------------------------------------------------------------------
@@ -275,12 +284,12 @@ export function createDataProvider(apiUrl: string): DataProvider {
 
     loadSettings: async (resource, params = {}) => {
       const json = await fetchGet(apiUrl, resource, params);
-      return { data: json.data };
+      return { data: json?.data ?? null };
     },
 
     getLogs: async (resource, params = {}) => {
       const json = await fetchGet(apiUrl, resource, params);
-      return { data: json.data };
+      return { data: json?.data ?? null };
     },
 
     // ------------------------------------------------------------------
@@ -289,22 +298,22 @@ export function createDataProvider(apiUrl: string): DataProvider {
 
     getTrafficStats: async (resource, params = {}) => {
       const json = await fetchGet(apiUrl, `${resource}/traffic-stats`, params);
-      return { data: json.data };
+      return { data: json?.data ?? null };
     },
 
     getErrorDetails: async (resource, params = {}) => {
       const json = await fetchGet(apiUrl, `${resource}/error-details`, params);
-      return { data: json.data };
+      return { data: json?.data ?? null };
     },
 
     getLogMetrics: async (resource, params = {}) => {
       const json = await fetchGet(apiUrl, `${resource}/log-metrics`, params);
-      return { data: json.data };
+      return { data: json?.data ?? null };
     },
 
     getCacheStats: async (resource, params = {}) => {
       const json = await fetchGet(apiUrl, `${resource}/cache-stats`, params);
-      return { data: json.data };
+      return { data: json?.data ?? null };
     },
 
     // ------------------------------------------------------------------
@@ -313,22 +322,22 @@ export function createDataProvider(apiUrl: string): DataProvider {
 
     getInstanceInfo: async (resource, params = {}) => {
       const json = await fetchGet(apiUrl, `${resource}/instance-info`, params);
-      return { data: json.data };
+      return { data: json?.data ?? null };
     },
 
     getTrafficTopology: async (resource, params = {}) => {
       const json = await fetchGet(apiUrl, `${resource}/traffic-topology`, params);
-      return { data: json.data };
+      return { data: json?.data ?? null };
     },
 
     getTrafficBackendStats: async (resource, params = {}) => {
       const json = await fetchGet(apiUrl, `${resource}/traffic-backend-stats`, params);
-      return { data: json.data };
+      return { data: json?.data ?? null };
     },
 
     getTrafficHealth: async (resource, params = {}) => {
       const json = await fetchGet(apiUrl, `${resource}/traffic-health`, params);
-      return { data: json.data };
+      return { data: json?.data ?? null };
     },
 
     // ------------------------------------------------------------------
@@ -337,17 +346,17 @@ export function createDataProvider(apiUrl: string): DataProvider {
 
     updateTrafficWeights: async (resource, params) => {
       const json = await fetchMutate(apiUrl, `${resource}/traffic-weights`, 'POST', JSON.stringify(params.data));
-      return { data: json.data };
+      return { data: json?.data ?? null };
     },
 
     promoteBackend: async (resource, params) => {
       const json = await fetchMutate(apiUrl, `${resource}/promote`, 'POST', JSON.stringify(params.data));
-      return { data: json.data };
+      return { data: json?.data ?? null };
     },
 
     rollbackBackend: async (resource, params) => {
       const json = await fetchMutate(apiUrl, `${resource}/rollback`, 'POST', JSON.stringify(params.data));
-      return { data: json.data };
+      return { data: json?.data ?? null };
     },
 
     // ------------------------------------------------------------------
@@ -356,22 +365,22 @@ export function createDataProvider(apiUrl: string): DataProvider {
 
     getDetailedHealth: async (resource, params = {}) => {
       const json = await fetchGet(apiUrl, `${resource}/detailed-health`, params);
-      return { data: json.data };
+      return { data: json?.data ?? null };
     },
 
     checkORStatus: async (resource, params = {}) => {
       const json = await fetchGet(apiUrl, `${resource}/or-status`, params);
-      return { data: json.data };
+      return { data: json?.data ?? null };
     },
 
     pushDataServers: async (resource, params) => {
       const json = await fetchMutate(apiUrl, `${resource}/push-data`, 'POST', JSON.stringify(params.data));
-      return { data: json.data };
+      return { data: json?.data ?? null };
     },
 
     resetPassword: async (resource, params) => {
       const json = await fetchMutate(apiUrl, `${resource}/reset-password`, 'POST', JSON.stringify(params.data));
-      return { data: json.data };
+      return { data: json?.data ?? null };
     },
   };
 }
