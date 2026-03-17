@@ -6,7 +6,8 @@
 # Deploy modes (controlled by Ansible tags):
 #   --tags nginx       → Update nginx configuration (conf dirs, tenants, cron, systemd, PAM, restart)
 #   --tags servers     → Update virtual server/rule data configs + SSL + settings
-#   --tags dashboard   → Rebuild and deploy React admin UI
+#   --tags dashboard   → Rebuild and deploy React admin UI + Next.js dashboard
+#   --tags dashboard-next → Deploy Next.js admin dashboard only (includes Node.js install)
 #   --tags os_deps     → Install/update OS dependencies (apt/zypper/yum packages)
 #   --tags build       → Re-compile, build & deploy OpenResty + luarocks + CDN deps
 #   (no tag filter)    → Full deploy (everything)

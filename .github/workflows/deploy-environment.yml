@@ -62,7 +62,7 @@ on:
         type: string
         required: true
       deploy_mode:
-        description: "Deploy mode: code, nginx, servers, dashboard, os_deps, build, full"
+        description: "Deploy mode: code, nginx, servers, dashboard, dashboard-next, os_deps, build, full"
         type: string
         required: true
     secrets:
@@ -95,6 +95,30 @@ jobs:
             echo "::error::No supported package manager found"
             exit 1
           fi
+
+      # ── Build Next.js dashboard (standalone mode) ──
+      - name: Build Next.js admin dashboard
+        if: contains(inputs.deploy_mode, 'dashboard') || inputs.deploy_mode == 'full'
+        run: |
+          echo "Building Next.js admin dashboard (standalone)..."
+
+          # Ensure Node.js is available (use nvm if installed, else system node)
+          export NVM_DIR="${HOME}/.nvm"
+          [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+          if ! command -v node &> /dev/null; then
+            echo "Node.js not found — installing via nvm..."
+            curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash
+            [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+            nvm install 18
+            nvm use 18
+          fi
+          echo "Node.js version: $(node --version)"
+
+          cd openresty-admin-next
+          npm ci
+          npm run build
+          echo "Next.js standalone build complete — .next/standalone ready"
+          ls -la .next/standalone/server.js
 
       # ── Secrets: decode from GitHub Secret ──
       - name: Decode settings from GitHub Secret
@@ -184,6 +208,12 @@ jobs:
           elif [[ "$DEPLOY_MODE" == "build" ]]; then
             TAGS_FLAG="--tags os_deps,build"
             echo "Build deploy to ${{ inputs.env_label }}"
+          elif [[ "$DEPLOY_MODE" == "dashboard" ]]; then
+            TAGS_FLAG="--tags dashboard,dashboard-next"
+            echo "Dashboard deploy (legacy + Next.js) to ${{ inputs.env_label }}"
+          elif [[ "$DEPLOY_MODE" == "dashboard-next" ]]; then
+            TAGS_FLAG="--tags dashboard-next"
+            echo "Next.js dashboard deploy to ${{ inputs.env_label }}"
           else
             TAGS_FLAG="--tags $DEPLOY_MODE"
             echo "$DEPLOY_MODE deploy to ${{ inputs.env_label }}"

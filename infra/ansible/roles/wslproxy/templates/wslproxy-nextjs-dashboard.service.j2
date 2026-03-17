@@ -12,7 +12,10 @@ Environment=NODE_ENV=production
 Environment=PORT={{ nginx_nextjs_node_port }}
 Environment=HOSTNAME=0.0.0.0
 Environment=WSLPROXY_API_URL=http://127.0.0.1:{{ nginx_default_server_backend_port }}
-ExecStart=/usr/bin/node /usr/local/openresty/nginx/html/openresty-admin-next/server.js
+# Find node from system path or common nvm locations
+ExecStartPre=/bin/sh -c 'node --version'
+ExecStart=/bin/sh -c 'exec node /usr/local/openresty/nginx/html/openresty-admin-next/server.js'
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
 Restart=on-failure
 RestartSec=5
 StandardOutput=journal

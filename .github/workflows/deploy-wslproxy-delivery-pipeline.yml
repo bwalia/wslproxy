@@ -53,6 +53,7 @@ on:
           - nginx
           - servers
           - dashboard
+          - dashboard-next
           - os_deps
           - build
           - full
