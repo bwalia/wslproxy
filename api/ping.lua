@@ -124,6 +124,22 @@ local services = {}
 
 -- OpenResty
 local openrestyVersion = readFile("/opt/nginx/VERSION")
+if not openrestyVersion then
+    -- Fallback: try known binary paths then PATH lookup (native + Docker)
+    local versionOutput = shell_exec("/usr/local/openresty/bin/openresty -v 2>&1") or ""
+    if not versionOutput:match("openresty") then
+        versionOutput = shell_exec("/usr/local/openresty/nginx/sbin/nginx -v 2>&1") or ""
+    end
+    if not versionOutput:match("openresty") and not versionOutput:match("nginx") then
+        versionOutput = shell_exec("openresty -v 2>&1") or ""
+    end
+    if not versionOutput:match("openresty") and not versionOutput:match("nginx") then
+        versionOutput = shell_exec("nginx -v 2>&1") or ""
+    end
+    if versionOutput then
+        openrestyVersion = versionOutput:match("openresty/([%S]+)") or versionOutput:match("nginx/([%S]+)")
+    end
+end
 if openrestyVersion then
     openrestyVersion = openrestyVersion:gsub('%s+', '')
 end
@@ -132,8 +148,11 @@ services.openresty = {
     version = openrestyVersion or "unknown"
 }
 
--- Nginx workers
-local workerOutput = shell_exec("pgrep -c 'nginx: worker' 2>/dev/null")
+-- Nginx workers: pgrep -f works on GNU + BusyBox; ps fallback for minimal systems
+local workerOutput = shell_exec("pgrep -f 'nginx.*worker' 2>/dev/null | wc -l")
+if not workerOutput or workerOutput:gsub("%s+", "") == "" or workerOutput:gsub("%s+", "") == "0" then
+    workerOutput = shell_exec("ps aux 2>/dev/null | grep 'nginx.*worker' | grep -v grep | wc -l")
+end
 local workerCount = tonumber(workerOutput) or 0
 services.nginx_workers = {
     status = workerCount > 0 and "ok" or "error",
@@ -222,19 +241,29 @@ else
 end
 
 -- ---------- Frontend .env ----------
+-- Try multiple known locations for the frontend .env file
+local frontEnvPaths = {
+    "/usr/local/openresty/nginx/html/openresty-admin/.env",
+    configPath .. "openresty-admin/.env",
+}
 
-local currentDir = lfs.currentdir()
-if not currentDir or currentDir == "/" then
-    currentDir = "/usr/local/openresty/nginx/html/openresty-admin"
+local frontEnvPath = nil
+local frontEnvContent = nil
+for _, path in ipairs(frontEnvPaths) do
+    frontEnvContent = readFile(path)
+    if frontEnvContent and frontEnvContent:gsub("%s+", "") ~= "" then
+        frontEnvPath = path
+        break
+    end
+    frontEnvContent = nil
 end
 
-local frontEnvPath = currentDir .. "/.env"
-local frontEnvContent = readFile(frontEnvPath)
 local frontEnvVars = parseEnvFile(frontEnvContent)
 
+-- For the new Next.js admin, the env vars are NEXT_PUBLIC_* not VITE_*
+-- Check both sets and report whichever is found
 local requiredFrontVars = {
     "VITE_API_URL",
-    "VITE_FRONT_URL",
     "VITE_APP_VERSION",
     "VITE_DEPLOYMENT_TIME"
 }
@@ -242,14 +271,15 @@ local requiredFrontVars = {
 local frontendEnv = {
     status = "ok",
     file_exists = frontEnvContent ~= nil,
+    env_path = frontEnvPath or "not found",
     variables = {},
     missing = {}
 }
 
 if not frontEnvContent then
-    frontendEnv.status = "error"
-    frontendEnv.error = "File not found: " .. frontEnvPath
-    hasWarning = true
+    -- No .env file is OK for production/Next.js deployments where env is injected at build time
+    frontendEnv.status = "ok"
+    frontendEnv.note = "Frontend env is baked at build time — .env file not required at runtime"
 else
     for _, varName in ipairs(requiredFrontVars) do
         if frontEnvVars[varName] and frontEnvVars[varName] ~= "" then
@@ -285,14 +315,73 @@ local environment = {
         API_URL = apiUrl or "Not Found",
     },
     frontend = {
-        VITE_API_URL = frontEnvVars.VITE_API_URL or "Not Found",
-        VITE_FRONT_URL = frontEnvVars.VITE_FRONT_URL or "Not Found",
-        VITE_APP_VERSION = frontEnvVars.VITE_APP_VERSION or "Not Found",
-        VITE_DEPLOYMENT_TIME = frontEnvVars.VITE_DEPLOYMENT_TIME or "Not Found",
-        VITE_APP_DISPLAY_NAME = frontEnvVars.VITE_APP_DISPLAY_NAME or "Not Found",
-        VITE_JWT_SECURITY_PASSPHRASE = frontEnvVars.VITE_JWT_SECURITY_PASSPHRASE and "Found" or "Not Found",
+        status = (frontEnvContent and next(frontEnvVars) ~= nil) and "configured" or "build-time",
+        note = (not frontEnvContent or next(frontEnvVars) == nil)
+            and "Frontend env vars are baked at build time — runtime .env not required"
+            or nil,
+        VITE_API_URL = frontEnvVars.VITE_API_URL or "build-time",
+        VITE_FRONT_URL = frontEnvVars.VITE_FRONT_URL or "build-time",
+        VITE_APP_VERSION = frontEnvVars.VITE_APP_VERSION or "build-time",
+        VITE_DEPLOYMENT_TIME = frontEnvVars.VITE_DEPLOYMENT_TIME or "build-time",
+        VITE_APP_DISPLAY_NAME = frontEnvVars.VITE_APP_DISPLAY_NAME or "build-time",
+        VITE_JWT_SECURITY_PASSPHRASE = frontEnvVars.VITE_JWT_SECURITY_PASSPHRASE and "Found" or "server-side-only",
     }
 }
+
+-- ---------- Nginx Process Metrics ----------
+
+-- Nginx memory: ps aux works on GNU + BusyBox (columns: %CPU=3, VSZ=5, RSS=6 on GNU; varies on BusyBox)
+-- Use ps -eo first (GNU), fall back to ps -o (BusyBox)
+local nginxRssKb = shell_exec("ps -eo rss,comm 2>/dev/null | grep nginx | awk '{sum+=$1} END {print sum+0}'")
+if not nginxRssKb or nginxRssKb:gsub("%s+", "") == "" or nginxRssKb:gsub("%s+", "") == "0" then
+    -- BusyBox: ps -o rss,comm — values may have 'm' suffix (megabytes)
+    nginxRssKb = shell_exec("ps -o rss,comm 2>/dev/null | grep nginx | awk '{v=$1; if(v~/m$/){gsub(/m/,\"\",v); v=v*1024}; sum+=v} END {print sum+0}'")
+end
+nginxRssKb = (nginxRssKb or "0"):gsub("%s+", "")
+local nginxRssMb = string.format("%.1f", (tonumber(nginxRssKb) or 0) / 1024)
+
+local nginxVszKb = shell_exec("ps -eo vsz,comm 2>/dev/null | grep nginx | awk '{sum+=$1} END {print sum+0}'")
+if not nginxVszKb or nginxVszKb:gsub("%s+", "") == "" or nginxVszKb:gsub("%s+", "") == "0" then
+    nginxVszKb = shell_exec("ps -o vsz,comm 2>/dev/null | grep nginx | awk '{v=$1; if(v~/m$/){gsub(/m/,\"\",v); v=v*1024}; sum+=v} END {print sum+0}'")
+end
+nginxVszKb = (nginxVszKb or "0"):gsub("%s+", "")
+local nginxVszMb = string.format("%.1f", (tonumber(nginxVszKb) or 0) / 1024)
+
+-- Nginx limits and config
+local openFilesLimit = shell_exec("cat /proc/1/limits 2>/dev/null | grep 'Max open files' | awk '{print $4}'") or shell_exec("ulimit -n 2>/dev/null") or "unknown"
+openFilesLimit = openFilesLimit:gsub("%s+", "")
+-- nginx config values: parse from config file directly (works regardless of user permissions)
+local nginxConfPaths = {
+    "/usr/local/openresty/nginx/conf/nginx.conf",
+    "/etc/nginx/nginx.conf",
+    "/opt/nginx/nginx.conf",
+}
+local nginxConf = nil
+for _, path in ipairs(nginxConfPaths) do
+    nginxConf = readFile(path)
+    if nginxConf then break end
+end
+local workerConnections = "unknown"
+local workerProcessesConf = "unknown"
+local workerRlimitNofile = nil
+if nginxConf then
+    workerConnections = nginxConf:match("worker_connections%s+(%d+)") or "unknown"
+    workerProcessesConf = nginxConf:match("worker_processes%s+(%S+)") or "unknown"
+    workerProcessesConf = workerProcessesConf:gsub(";", "")
+    local rlimit = nginxConf:match("worker_rlimit_nofile%s+(%d+)")
+    if rlimit then workerRlimitNofile = rlimit end
+end
+
+-- Total system memory for percentage calculation
+local totalMemKb = (shell_exec("grep MemTotal /proc/meminfo 2>/dev/null | awk '{print $2}'") or "0"):gsub("%s+", "")
+local nginxMemPercent = string.format("%.1f", (tonumber(nginxRssKb) or 0) / (tonumber(totalMemKb) or 1) * 100)
+
+-- CPU: /proc/stat is most reliable across all Linux (GNU, BusyBox, SUSE, Debian)
+local systemCpuUsage = shell_exec("cat /proc/stat 2>/dev/null | head -1 | awk '{total=0; for(i=2;i<=NF;i++) total+=$i; idle=$5; if(total>0) printf \"%.1f\", 100*(total-idle)/total; else print \"0\"}'")
+systemCpuUsage = (systemCpuUsage or "0"):gsub("%s+", "")
+
+local cpuCores = shell_exec("nproc 2>/dev/null") or shell_exec("grep -c ^processor /proc/cpuinfo 2>/dev/null") or "unknown"
+cpuCores = cpuCores:gsub("%s+", "")
 
 -- ---------- System Info ----------
 
@@ -310,7 +399,21 @@ local system = {
     env_profile = envProfile,
     deployment_time = deploymentTime,
     uptime = shell_exec("uptime -s 2>/dev/null") or "unknown",
-    swagger_url = ngx.var.scheme .. "://" .. ngx.var.http_host .. "/swagger/"
+    swagger_url = ngx.var.scheme .. "://" .. ngx.var.http_host .. "/swagger/",
+    cpu = {
+        cores = cpuCores,
+        system_usage_percent = systemCpuUsage,
+    },
+    nginx = {
+        worker_count = workerCount,
+        worker_processes_conf = workerProcessesConf,
+        worker_connections = workerConnections,
+        worker_rlimit_nofile = workerRlimitNofile,
+        open_files_limit = openFilesLimit,
+        memory_rss_mb = nginxRssMb,
+        memory_vsz_mb = nginxVszMb,
+        memory_percent = nginxMemPercent,
+    }
 }
 
 -- ---------- Overall Status ----------

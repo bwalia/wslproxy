@@ -3699,6 +3699,24 @@ local function handle_get_request(args, path)
         ngx.exit(ngx.HTTP_OK)
     end
 
+    -- Detailed health check - GET /api/system/detailed-health
+    -- Proxies to the /health?detailed=true endpoint (ping.lua) and wraps in {data: ...}
+    if path == "system/detailed-health" then
+        local res = ngx.location.capture("/health?detailed=true")
+        ngx.header.content_type = "application/json"
+        if res and res.status == 200 and res.body and res.body ~= "" then
+            local ok, healthData = pcall(cjson.decode, res.body)
+            if ok then
+                ngx.say(cjson.encode({ data = healthData }))
+            else
+                ngx.say(res.body)
+            end
+        else
+            ngx.say(cjson.encode({ data = nil, error = "Health check unavailable" }))
+        end
+        ngx.exit(ngx.HTTP_OK)
+    end
+
     -- Get instance/server information - GET /api/instance/info
     if path == "instance/info" then
         local function execute_command(cmd)
@@ -3752,8 +3770,8 @@ local function handle_get_request(args, path)
         local cpu_info = execute_command("lscpu 2>/dev/null | grep 'Model name' | cut -d':' -f2"):gsub("^%s+", ""):gsub(
         "%s+$", "")
         local cpu_cores = execute_command("nproc 2>/dev/null"):gsub("%s+", "")
-        local cpu_usage = execute_command("top -bn1 2>/dev/null | grep 'Cpu(s)' | awk '{print $2}' | cut -d'%' -f1")
-        :gsub("%s+", "")
+        -- CPU usage: /proc/stat is most reliable across all Linux (GNU, BusyBox, SUSE, Debian)
+        local cpu_usage = execute_command("cat /proc/stat 2>/dev/null | head -1 | awk '{total=0; for(i=2;i<=NF;i++) total+=$i; idle=$5; if(total>0) printf \"%.1f\", 100*(total-idle)/total; else print \"0\"}'"):gsub("%s+", "")
 
         -- Memory information (total, used, available, free)
         local memory_total = execute_command("free -h 2>/dev/null | grep Mem | awk '{print $2}'"):gsub("%s+", "")

@@ -340,10 +340,17 @@ export default function DashboardPage() {
   const [recentBookmarks, setRecentBookmarks] = useState<Bookmark[]>([]);
   const [storageManagement, setStorageManagement] = useState<string | null>(null);
 
-  // Check storage management on mount
+  // Check storage management on mount — default to 'disk' if not set
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      setStorageManagement(localStorage.getItem('storageManagement'));
+      const stored = localStorage.getItem('storageManagement');
+      if (!stored) {
+        // Default to disk storage — avoids blocking modal on first login
+        localStorage.setItem('storageManagement', 'disk');
+        setStorageManagement('disk');
+      } else {
+        setStorageManagement(stored);
+      }
     }
   }, []);
 
