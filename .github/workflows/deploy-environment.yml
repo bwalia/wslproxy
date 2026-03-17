@@ -114,7 +114,31 @@ jobs:
           fi
           echo "Node.js version: $(node --version)"
 
+          # Read version info from system/app.json
+          APP_VERSION=$(python3 -c "import json; print(json.load(open('system/app.json'))['version']['version'])" 2>/dev/null || echo "1.0.0")
+          APP_BUILD=$(python3 -c "import json; print(json.load(open('system/app.json'))['version']['build'])" 2>/dev/null || echo "unknown")
+          DEPLOY_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
           cd openresty-admin-next
+
+          # Generate .env.production with build-time variables
+          # NEXT_PUBLIC_API_URL=/api is relative — works on any host:port, no CORS
+          cat > .env.production <<ENVEOF
+          NEXT_PUBLIC_API_URL=/api
+          NEXT_PUBLIC_FRONT_URL=
+          NEXT_PUBLIC_APP_NAME=wslproxy
+          NEXT_PUBLIC_APP_DISPLAY_NAME=WSL Proxy
+          NEXT_PUBLIC_APP_VERSION=${APP_VERSION}
+          NEXT_PUBLIC_APP_BUILD_NUMBER=${APP_BUILD}
+          NEXT_PUBLIC_DEPLOYMENT_TIME=${DEPLOY_TIME}
+          NEXT_PUBLIC_TARGET_PLATFORM=DOCKER
+          ENVEOF
+          # Strip leading whitespace from env file
+          sed -i 's/^[[:space:]]*//' .env.production
+
+          echo "Generated .env.production:"
+          cat .env.production
+
           npm ci
           npm run build
           echo "Next.js standalone build complete — .next/standalone ready"
