@@ -3417,6 +3417,7 @@ local platform = ngx.req.get_headers()["x-platform"]
 local preAction = ngx.req.get_headers()["x-special-case-pre-action"]
 local function handle_get_request(args, path)
     -- handle GET request logic
+    path = ngx.unescape_uri(path)
     local delimiter = "/"
     local subPath = {}
     for substring in string.gmatch(path, "[^" .. delimiter .. "]+") do
@@ -4734,6 +4735,7 @@ end
 -- Function to handle PUT requests
 local function handle_put_request(args, path)
     -- handle PUT request logic
+    path = ngx.unescape_uri(path)
     local pattern = ".*/(.*)"
     local uuid = string.match(path, pattern)
     if not uuid or uuid == nil or uuid == "" then
@@ -4921,6 +4923,7 @@ end
 -- Function to handle DELETE requests
 local function handle_delete_request(args, path)
     -- handle DELETE request logic
+    path = ngx.unescape_uri(path)
     local pattern = ".*/(.*)"
     local uuid = string.match(path, pattern)
     if settings.instance_locked == "false" or platform == "react-admin" then

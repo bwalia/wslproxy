@@ -491,7 +491,7 @@ export default function ServersEditPage() {
   const { notify } = useNotification();
   const id = params.id as string;
 
-  const { data, loading } = useFetch(() => api.getOne('servers', { id }));
+  const { data, loading, error } = useFetch(() => api.getOne('servers', { id }));
 
   const handleSubmit = async (formData: Record<string, unknown>) => {
     if (typeof formData.servers_tags === 'string') {
@@ -509,6 +509,22 @@ export default function ServersEditPage() {
   };
 
   if (loading) return null;
+
+  if (error) {
+    return (
+      <Box sx={{ p: 4, textAlign: 'center' }}>
+        <Typography variant="h6" color="error">
+          Failed to load server
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+          {error.message}
+        </Typography>
+        <Button onClick={() => router.push('/servers')} sx={{ mt: 2 }}>
+          Back to Servers
+        </Button>
+      </Box>
+    );
+  }
 
   const record = data?.data as Record<string, unknown> | null;
   if (!record || Object.keys(record).length === 0) {
