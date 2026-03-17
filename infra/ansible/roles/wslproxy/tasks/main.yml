@@ -145,6 +145,12 @@
   when: nginx_web_ui_enabled is defined and nginx_web_ui_enabled == "yes"
   tags: [dashboard]
 
+# Step 10b: Next.js admin dashboard (conditional)
+- name: Deploy Next.js admin dashboard
+  include_tasks: deploy_nextjs_admin_ui.yml
+  when: nginx_web_ui_enabled is defined and nginx_web_ui_enabled == "yes"
+  tags: [dashboard-next, dashboard]
+
 # Step 11: Final config, permissions, SSL, tenants, service start, verification
 - name: Finalize deployment
   include_tasks: finalize.yml

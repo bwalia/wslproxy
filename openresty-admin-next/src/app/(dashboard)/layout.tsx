@@ -41,8 +41,6 @@ export default function DashboardLayout({
     return null;
   }
 
-  const sidebarWidth = sidebarOpen ? SIDEBAR_WIDTH_EXPANDED : SIDEBAR_WIDTH_COLLAPSED;
-
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
       <LoadingOverlay />

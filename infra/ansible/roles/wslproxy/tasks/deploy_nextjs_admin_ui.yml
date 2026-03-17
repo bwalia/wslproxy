@@ -1,0 +1,55 @@
+---
+# Deploy Next.js admin dashboard (standalone server)
+# Only runs when nginx_web_ui_enabled == "yes"
+# Deploys the pre-built .next/standalone output and starts it as a systemd service
+# Nginx reverse-proxies port {{ nginx_nextjs_dashboard_port }} to Node.js on port {{ nginx_nextjs_node_port }}
+
+- name: Create Next.js admin directory
+  file:
+    path: /usr/local/openresty/nginx/html/openresty-admin-next
+    state: directory
+    mode: '0755'
+  tags: [dashboard-next]
+
+- name: Sync Next.js standalone server
+  ansible.posix.synchronize:
+    src: ../../openresty-admin-next/.next/standalone/
+    dest: /usr/local/openresty/nginx/html/openresty-admin-next
+    delete: yes
+  register: sync_nextjs_standalone
+  tags: [dashboard-next]
+
+- name: Sync Next.js static assets
+  ansible.posix.synchronize:
+    src: ../../openresty-admin-next/.next/static/
+    dest: /usr/local/openresty/nginx/html/openresty-admin-next/.next/static
+  register: sync_nextjs_static
+  tags: [dashboard-next]
+
+- name: Sync Next.js public assets
+  ansible.posix.synchronize:
+    src: ../../openresty-admin-next/public/
+    dest: /usr/local/openresty/nginx/html/openresty-admin-next/public
+  register: sync_nextjs_public
+  ignore_errors: true
+  tags: [dashboard-next]
+
+- debug:
+    msg: "Next.js standalone: {{ sync_nextjs_standalone.stdout_lines | default([]) }}, static: {{ sync_nextjs_static.stdout_lines | default([]) }}"
+  tags: [dashboard-next]
+
+- name: Deploy Next.js dashboard systemd service
+  template:
+    src: wslproxy-nextjs-dashboard.service.j2
+    dest: /etc/systemd/system/wslproxy-nextjs-dashboard.service
+    mode: '0644'
+  notify: restart nextjs dashboard
+  tags: [dashboard-next]
+
+- name: Enable and start Next.js dashboard service
+  systemd:
+    name: wslproxy-nextjs-dashboard
+    enabled: yes
+    state: started
+    daemon_reload: yes
+  tags: [dashboard-next]
