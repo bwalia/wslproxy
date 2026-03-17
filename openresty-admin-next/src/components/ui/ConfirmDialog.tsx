@@ -1,48 +1,55 @@
-'use client';
-import React from 'react';
-import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogContentText,
-  DialogActions,
-  Button,
-} from '@mui/material';
+"use client";
 
-interface ConfirmDialogProps {
+import React from "react";
+import Dialog from "./Dialog";
+import Button from "./Button";
+
+export interface ConfirmDialogProps {
   open: boolean;
   onConfirm: () => void;
   onCancel: () => void;
   title?: string;
   message?: string;
   confirmLabel?: string;
-  confirmColor?: 'error' | 'primary' | 'secondary' | 'success' | 'warning' | 'info';
+  confirmVariant?: "primary" | "danger" | "secondary" | "ghost";
+  loading?: boolean;
 }
 
 const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   open,
   onConfirm,
   onCancel,
-  title = 'Are you sure?',
-  message = 'This action cannot be undone.',
-  confirmLabel = 'Confirm',
-  confirmColor = 'primary',
+  title = "Confirm",
+  message = "Are you sure you want to proceed?",
+  confirmLabel = "Confirm",
+  confirmVariant = "danger",
+  loading = false,
 }) => {
   return (
-    <Dialog open={open} onClose={onCancel} maxWidth="xs" fullWidth>
-      <DialogTitle>{title}</DialogTitle>
-      <DialogContent>
-        <DialogContentText>{message}</DialogContentText>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onCancel}>Cancel</Button>
-        <Button onClick={onConfirm} variant="contained" color={confirmColor}>
-          {confirmLabel}
-        </Button>
-      </DialogActions>
+    <Dialog
+      open={open}
+      onClose={onCancel}
+      title={title}
+      footer={
+        <>
+          <Button variant="ghost" onClick={onCancel} disabled={loading}>
+            Cancel
+          </Button>
+          <Button
+            variant={confirmVariant}
+            onClick={onConfirm}
+            loading={loading}
+          >
+            {confirmLabel}
+          </Button>
+        </>
+      }
+    >
+      <p className="text-sm text-slate-600 dark:text-slate-400">{message}</p>
     </Dialog>
   );
 };
 
-export { ConfirmDialog };
+ConfirmDialog.displayName = "ConfirmDialog";
+
 export default ConfirmDialog;

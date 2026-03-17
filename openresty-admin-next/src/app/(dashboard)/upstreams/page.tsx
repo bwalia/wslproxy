@@ -1,87 +1,122 @@
-'use client';
+"use client";
 
-import React, { useState, useCallback } from 'react';
-import { Button, Chip } from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
-import AccountTreeIcon from '@mui/icons-material/AccountTree';
-import { useRouter } from 'next/navigation';
-import { PageHeader } from '@/components/ui/PageHeader';
-import DataTable, { Column } from '@/components/ui/DataTable';
-import { useApi, useFetch } from '@/hooks/useApi';
-
-interface Upstream {
-  id: string;
-  name: string;
-  servers: Array<Record<string, unknown>>;
-  created_at: string;
-  [key: string]: unknown;
-}
+import { useCallback, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Network } from "lucide-react";
+import { useList } from "@/hooks/useResource";
+import PageHeader from "@/components/ui/PageHeader";
+import DataTable, { type Column } from "@/components/ui/DataTable";
+import Button from "@/components/ui/Button";
+import Badge from "@/components/ui/Badge";
+import StatusBadge from "@/components/ui/StatusBadge";
+import type { Upstream } from "@/types";
 
 export default function UpstreamsListPage() {
-  const api = useApi();
   const router = useRouter();
-  const [page, setPage] = useState(0);
-  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(25);
+  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState<{ field: string; order: "ASC" | "DESC" }>({
+    field: "id",
+    order: "ASC",
+  });
 
-  const { data, loading } = useFetch(() =>
-    api.getList('upstreams', {
-      pagination: { page: page + 1, perPage: 25 },
+  const params = useMemo(
+    () => ({
+      pagination: { page, perPage },
+      sort,
       filter: search ? { q: search } : {},
-    })
+    }),
+    [page, perPage, sort, search],
   );
 
-  const columns: Column<Upstream>[] = [
-    { field: 'name', label: 'Name', sortable: true },
-    {
-      field: 'servers',
-      label: 'Servers',
-      render: (record) => {
-        const count = Array.isArray(record.servers) ? record.servers.length : 0;
-        return <Chip label={`${count} server${count !== 1 ? 's' : ''}`} size="small" variant="outlined" />;
-      },
-    },
-    {
-      field: 'created_at',
-      label: 'Created',
-      render: (record) =>
-        record.created_at ? new Date(record.created_at).toLocaleDateString() : '-',
-    },
-  ];
+  const { data, total, isLoading } = useList<Upstream>("upstreams", params);
 
-  const handleSearch = useCallback((query: string) => {
-    setSearch(query);
-    setPage(0);
+  const columns = useMemo<Column<Upstream>[]>(
+    () => [
+      {
+        field: "name",
+        label: "Name",
+        sortable: true,
+        render: (r) => (
+          <span className="font-semibold text-slate-900 dark:text-slate-100">
+            {r.name}
+          </span>
+        ),
+      },
+      {
+        field: "load_balancing_method",
+        label: "Method",
+        render: (r) => (
+          <Badge variant="primary" size="sm">
+            {r.load_balancing_method ?? "round-robin"}
+          </Badge>
+        ),
+      },
+      {
+        field: "servers",
+        label: "Servers",
+        render: (r) => <span>{r.servers?.length ?? 0}</span>,
+      },
+      {
+        field: "enabled",
+        label: "Enabled",
+        render: (r) => (
+          <StatusBadge status={r.enabled ? "enabled" : "disabled"} />
+        ),
+      },
+      {
+        field: "zone_name",
+        label: "Zone",
+      },
+    ],
+    [],
+  );
+
+  const handleRowClick = useCallback(
+    (record: Upstream) => {
+      router.push(`/upstreams/${record.id}`);
+    },
+    [router],
+  );
+
+  const handleSort = useCallback((field: string) => {
+    setSort((prev) => ({
+      field,
+      order: prev.field === field && prev.order === "ASC" ? "DESC" : "ASC",
+    }));
+  }, []);
+
+  const handleSearch = useCallback((q: string) => {
+    setSearch(q);
+    setPage(1);
   }, []);
 
   return (
-    <>
+    <div>
       <PageHeader
         title="Upstreams"
-        subtitle="Manage upstream backend servers"
-        icon={<AccountTreeIcon />}
+        icon={Network}
         actions={
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => router.push('/upstreams/create')}
-          >
-            Create
+          <Button onClick={() => router.push("/upstreams/create")}>
+            Create Upstream
           </Button>
         }
       />
-      <DataTable<Upstream>
+      <DataTable
         columns={columns}
-        data={(data?.data as Upstream[]) || []}
-        total={data?.total}
-        loading={loading}
+        data={data}
+        total={total}
+        loading={isLoading}
         page={page}
-        perPage={25}
+        perPage={perPage}
+        sort={sort}
+        onSort={handleSort}
         onPageChange={setPage}
-        onRowClick={(record) => router.push(`/upstreams/${encodeURIComponent(String(record.id))}`)}
+        onPerPageChange={setPerPage}
+        onRowClick={handleRowClick}
         onSearch={handleSearch}
-        searchPlaceholder="Search upstreams..."
-        emptyMessage="upstreams"
       />
-    </>
+    </div>
   );
 }

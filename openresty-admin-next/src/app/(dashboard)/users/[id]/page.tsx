@@ -1,121 +1,198 @@
-'use client';
+"use client";
 
+import { useCallback, useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { ArrowLeft, Save, Trash2, Users } from "lucide-react";
+import { useOne, useDataProvider } from "@/hooks/useResource";
+import { useNotification } from "@/contexts/NotificationContext";
+import PageHeader from "@/components/ui/PageHeader";
+import Card from "@/components/ui/Card";
+import Button from "@/components/ui/Button";
+import Input from "@/components/ui/Input";
+import Select from "@/components/ui/Select";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import Skeleton from "@/components/ui/Skeleton";
+import type { User } from "@/types";
 
-import React from 'react';
-import { Grid, TextField, MenuItem } from '@mui/material';
-import { useParams, useRouter } from 'next/navigation';
-import { useFormContext } from 'react-hook-form';
-import ResourceForm from '@/components/ui/ResourceForm';
-import { useApi, useFetch } from '@/hooks/useApi';
-import { useNotification } from '@/contexts/NotificationContext';
-
-function UserFields() {
-  const { register, formState: { errors } } = useFormContext();
-
-  return (
-    <Grid container spacing={2}>
-      <Grid item xs={12} sm={6}>
-        <TextField
-          label="Name"
-          fullWidth
-          required
-          error={!!errors.name}
-          helperText={errors.name?.message as string}
-          {...register('name', { required: 'Name is required' })}
-          InputLabelProps={{ shrink: true }}
-        />
-      </Grid>
-      <Grid item xs={12} sm={6}>
-        <TextField
-          label="Email"
-          type="email"
-          fullWidth
-          required
-          error={!!errors.email}
-          helperText={errors.email?.message as string}
-          {...register('email', { required: 'Email is required' })}
-          InputLabelProps={{ shrink: true }}
-        />
-      </Grid>
-      <Grid item xs={12} sm={6}>
-        <TextField
-          label="Password"
-          type="password"
-          fullWidth
-          helperText="Leave blank to keep current password"
-          {...register('password')}
-          inputProps={{ autoComplete: 'new-password' }}
-          InputLabelProps={{ shrink: true }}
-        />
-      </Grid>
-      <Grid item xs={12} sm={6}>
-        <TextField
-          label="Phone"
-          fullWidth
-          {...register('phone')}
-          InputLabelProps={{ shrink: true }}
-        />
-      </Grid>
-      <Grid item xs={12} sm={6}>
-        <TextField
-          label="Address"
-          fullWidth
-          multiline
-          rows={2}
-          {...register('address')}
-          InputLabelProps={{ shrink: true }}
-        />
-      </Grid>
-      <Grid item xs={12} sm={6}>
-        <TextField
-          label="Role"
-          select
-          fullWidth
-          defaultValue="user"
-          {...register('role')}
-          InputLabelProps={{ shrink: true }}
-        >
-          <MenuItem value="user">User</MenuItem>
-          <MenuItem value="admin">Admin</MenuItem>
-          <MenuItem value="editor">Editor</MenuItem>
-        </TextField>
-      </Grid>
-    </Grid>
-  );
-}
-
-export default function UsersEditPage() {
-  const api = useApi();
-  const router = useRouter();
+export default function UserDetailPage() {
   const params = useParams();
+  const router = useRouter();
+  const dataProvider = useDataProvider();
   const { notify } = useNotification();
   const id = params.id as string;
+  const isCreate = id === "create";
 
-  const { data, loading } = useFetch(() => api.getOne('users', { id }));
+  const { data, isLoading } = useOne<User>(
+    isCreate ? null : "users",
+    isCreate ? null : id,
+  );
 
-  const handleSubmit = async (formData: Record<string, unknown>) => {
-    await api.update('users', { id, data: formData });
-    notify('User updated successfully', { type: 'success' });
-    router.push('/users');
-  };
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    password: "",
+    phone: "",
+    user_role: "user",
+  });
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
 
-  const handleDelete = async () => {
-    await api.delete('users', { id });
-    notify('User deleted', { type: 'success' });
-    router.push('/users');
-  };
+  useEffect(() => {
+    if (data) {
+      setForm({
+        name: data.name ?? "",
+        email: data.email ?? "",
+        password: "",
+        phone: data.phone ?? "",
+        user_role: data.user_role ?? "user",
+      });
+    }
+  }, [data]);
 
-  if (loading || !data?.data) return null;
+  const handleChange = useCallback((field: string, value: string) => {
+    setForm((prev) => ({ ...prev, [field]: value }));
+  }, []);
+
+  const handleSubmit = useCallback(async () => {
+    setSaving(true);
+    try {
+      const payload: Record<string, unknown> = { ...form };
+      if (!payload.password) delete payload.password;
+      if (isCreate) {
+        await dataProvider.create("users", payload);
+        notify("User created successfully", { type: "success" });
+      } else {
+        await dataProvider.update("users", id, payload);
+        notify("User updated successfully", { type: "success" });
+      }
+      router.push("/users");
+    } catch (err) {
+      notify((err as Error).message || "Failed to save user", {
+        type: "error",
+      });
+    } finally {
+      setSaving(false);
+    }
+  }, [isCreate, form, id, dataProvider, notify, router]);
+
+  const handleDelete = useCallback(async () => {
+    setDeleting(true);
+    try {
+      await dataProvider.remove("users", id);
+      notify("User deleted successfully", { type: "success" });
+      router.push("/users");
+    } catch (err) {
+      notify((err as Error).message || "Failed to delete user", {
+        type: "error",
+      });
+    } finally {
+      setDeleting(false);
+      setShowDelete(false);
+    }
+  }, [id, dataProvider, notify, router]);
+
+  if (!isCreate && isLoading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton variant="rectangular" />
+      </div>
+    );
+  }
 
   return (
-    <ResourceForm
-      mode="edit"
-      title="Edit User"
-      defaultValues={data.data as Record<string, unknown>}
-      onSubmit={handleSubmit}
-      onDelete={handleDelete}
-    >
-      <UserFields />
-    </ResourceForm>
+    <div>
+      <PageHeader
+        title={isCreate ? "Create User" : `User: ${data?.name ?? id}`}
+        icon={Users}
+        actions={
+          <Button
+            variant="ghost"
+            onClick={() => router.push("/users")}
+            icon={<ArrowLeft className="h-4 w-4" />}
+          >
+            Back
+          </Button>
+        }
+      />
+
+      <Card>
+        <Card.Header>
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+            User Details
+          </h2>
+        </Card.Header>
+        <Card.Body>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <Input
+              label="Name"
+              value={form.name}
+              onChange={(e) => handleChange("name", e.target.value)}
+            />
+            <Input
+              label="Email"
+              type="email"
+              value={form.email}
+              onChange={(e) => handleChange("email", e.target.value)}
+            />
+            <Input
+              label={
+                isCreate ? "Password" : "Password (leave blank to keep current)"
+              }
+              type="password"
+              value={form.password}
+              onChange={(e) => handleChange("password", e.target.value)}
+            />
+            <Input
+              label="Phone"
+              value={form.phone}
+              onChange={(e) => handleChange("phone", e.target.value)}
+            />
+            <Select
+              label="Role"
+              value={form.user_role}
+              onChange={(e) => handleChange("user_role", e.target.value)}
+              options={[
+                { value: "user", label: "User" },
+                { value: "admin", label: "Admin" },
+              ]}
+            />
+          </div>
+        </Card.Body>
+      </Card>
+
+      <div className="mt-6 flex items-center justify-between">
+        <div>
+          {!isCreate && (
+            <Button
+              variant="danger"
+              onClick={() => setShowDelete(true)}
+              icon={<Trash2 className="h-4 w-4" />}
+            >
+              Delete
+            </Button>
+          )}
+        </div>
+        <Button
+          onClick={handleSubmit}
+          loading={saving}
+          icon={<Save className="h-4 w-4" />}
+        >
+          {isCreate ? "Create" : "Save Changes"}
+        </Button>
+      </div>
+
+      <ConfirmDialog
+        open={showDelete}
+        title="Delete User"
+        message={`Are you sure you want to delete "${data?.name}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        confirmVariant="danger"
+        loading={deleting}
+        onConfirm={handleDelete}
+        onCancel={() => setShowDelete(false)}
+      />
+    </div>
   );
 }

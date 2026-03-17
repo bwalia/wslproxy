@@ -1,96 +1,121 @@
-'use client';
+"use client";
 
-import React, { useState, useCallback } from 'react';
-import { Button, Chip } from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
-import PolicyIcon from '@mui/icons-material/Policy';
-import { useRouter } from 'next/navigation';
-import { PageHeader } from '@/components/ui/PageHeader';
-import DataTable, { Column } from '@/components/ui/DataTable';
-import StatusChip from '@/components/ui/StatusChip';
-import { useApi, useFetch } from '@/hooks/useApi';
-
-interface WafPolicy {
-  id: string;
-  name: string;
-  mode: string;
-  enabled: boolean;
-  anomaly_threshold: number;
-  paranoia_level: number;
-  [key: string]: unknown;
-}
+import { useCallback, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { ShieldCheck } from "lucide-react";
+import { useList } from "@/hooks/useResource";
+import PageHeader from "@/components/ui/PageHeader";
+import DataTable, { type Column } from "@/components/ui/DataTable";
+import Button from "@/components/ui/Button";
+import Badge from "@/components/ui/Badge";
+import StatusBadge from "@/components/ui/StatusBadge";
+import type { WafPolicy } from "@/types";
 
 export default function WafPoliciesListPage() {
-  const api = useApi();
   const router = useRouter();
-  const [page, setPage] = useState(0);
-  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(25);
+  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState<{ field: string; order: "ASC" | "DESC" }>({
+    field: "id",
+    order: "ASC",
+  });
 
-  const { data, loading } = useFetch(() =>
-    api.getList('waf_policies', {
-      pagination: { page: page + 1, perPage: 25 },
+  const params = useMemo(
+    () => ({
+      pagination: { page, perPage },
+      sort,
       filter: search ? { q: search } : {},
-    })
+    }),
+    [page, perPage, sort, search],
   );
 
-  const columns: Column<WafPolicy>[] = [
-    { field: 'name', label: 'Name', sortable: true },
-    {
-      field: 'mode',
-      label: 'Mode',
-      render: (record) =>
-        record.mode ? (
-          <Chip
-            label={record.mode}
-            size="small"
-            color={record.mode === 'block' ? 'error' : 'warning'}
-            variant="outlined"
-          />
-        ) : '-',
-    },
-    {
-      field: 'enabled',
-      label: 'Enabled',
-      render: (record) => <StatusChip value={!!record.enabled} />,
-    },
-    { field: 'anomaly_threshold', label: 'Anomaly Threshold' },
-    { field: 'paranoia_level', label: 'Paranoia Level' },
-  ];
+  const { data, total, isLoading } = useList<WafPolicy>("waf_policies", params);
 
-  const handleSearch = useCallback((query: string) => {
-    setSearch(query);
-    setPage(0);
+  const columns = useMemo<Column<WafPolicy>[]>(
+    () => [
+      {
+        field: "name",
+        label: "Name",
+        sortable: true,
+        render: (r) => (
+          <span className="font-semibold text-slate-900 dark:text-slate-100">
+            {r.name}
+          </span>
+        ),
+      },
+      {
+        field: "mode",
+        label: "Mode",
+        render: (r) => (
+          <Badge variant={r.mode === "block" ? "danger" : "warning"} size="sm">
+            {r.mode ?? "monitor"}
+          </Badge>
+        ),
+      },
+      {
+        field: "enabled",
+        label: "Enabled",
+        render: (r) => (
+          <StatusBadge status={r.enabled ? "enabled" : "disabled"} />
+        ),
+      },
+      {
+        field: "anomaly_threshold",
+        label: "Anomaly Threshold",
+      },
+      {
+        field: "paranoia_level",
+        label: "Paranoia Level",
+      },
+    ],
+    [],
+  );
+
+  const handleRowClick = useCallback(
+    (record: WafPolicy) => {
+      router.push(`/waf-policies/${record.id}`);
+    },
+    [router],
+  );
+
+  const handleSort = useCallback((field: string) => {
+    setSort((prev) => ({
+      field,
+      order: prev.field === field && prev.order === "ASC" ? "DESC" : "ASC",
+    }));
+  }, []);
+
+  const handleSearch = useCallback((q: string) => {
+    setSearch(q);
+    setPage(1);
   }, []);
 
   return (
-    <>
+    <div>
       <PageHeader
         title="WAF Policies"
-        subtitle="Manage Web Application Firewall policies"
-        icon={<PolicyIcon />}
+        icon={ShieldCheck}
         actions={
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => router.push('/waf-policies/create')}
-          >
-            Create
+          <Button onClick={() => router.push("/waf-policies/create")}>
+            Create Policy
           </Button>
         }
       />
-      <DataTable<WafPolicy>
+      <DataTable
         columns={columns}
-        data={(data?.data as WafPolicy[]) || []}
-        total={data?.total}
-        loading={loading}
+        data={data}
+        total={total}
+        loading={isLoading}
         page={page}
-        perPage={25}
+        perPage={perPage}
+        sort={sort}
+        onSort={handleSort}
         onPageChange={setPage}
-        onRowClick={(record) => router.push(`/waf-policies/${encodeURIComponent(String(record.id))}`)}
+        onPerPageChange={setPerPage}
+        onRowClick={handleRowClick}
         onSearch={handleSearch}
-        searchPlaceholder="Search WAF policies..."
-        emptyMessage="WAF policies"
       />
-    </>
+    </div>
   );
 }

@@ -177,6 +177,28 @@ services:
       timeout: 5s
       retries: 5
 
+  # ── Adminer (Database UI) ─────────────────────────────────────────────────
+  # Lightweight database management tool — connect to PostgreSQL at postgres:5432
+  adminer:
+    image: adminer:latest
+    container_name: wslproxy-adminer-local
+    restart: unless-stopped
+
+    ports:
+      - "8380:8080"
+
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+      ADMINER_DESIGN: dracula
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+    networks:
+      wslproxy-local-network:
+        ipv4_address: 172.177.0.7
+
   # ── Vite Admin Dashboard (old) ────────────────────────────────────────────
   # Legacy React-Admin (Vite) dashboard — runs alongside the new Next.js one
   # Vite dev server proxy eliminates CORS: browser → /api → wslproxy-local
@@ -240,6 +262,8 @@ services:
       - ./openresty-admin-next/src:/app/src
       - ./openresty-admin-next/public:/app/public
       - ./openresty-admin-next/next.config.ts:/app/next.config.ts
+      - ./openresty-admin-next/postcss.config.js:/app/postcss.config.js
+      - ./openresty-admin-next/package.json:/app/package.json
       # Persist node_modules inside the container (avoid Mac ↔ Linux ABI issues)
       - next-admin-node-modules:/app/node_modules
 

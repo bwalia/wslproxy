@@ -1,68 +1,82 @@
-'use client';
+"use client";
 
-import React, { createContext, useContext, useState, useCallback } from 'react';
-import { config } from '@/lib/config/env';
-import { getHeaders } from '@/lib/api/client';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
+import type { AppSettings } from "@/types";
+import { dataProvider } from "@/lib/api/data-provider";
 
-interface AppSettings {
-  [key: string]: unknown;
-}
-
-interface SettingsContextType {
+interface SettingsContextValue {
   settings: AppSettings | null;
   environment: string;
+  storageType: string | undefined;
   isLoading: boolean;
   loadSettings: () => Promise<void>;
-  setEnvironment: (profile: string) => void;
-  setIsLoading: (loading: boolean) => void;
+  setEnvironment: (env: string) => void;
 }
 
-const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
+const SettingsContext = createContext<SettingsContextValue | undefined>(undefined);
 
-function getStoredEnvironment(): string {
-  if (typeof window === 'undefined') return 'prod';
-  return localStorage.getItem('environment') ?? 'prod';
-}
+const ENV_KEY = "environment";
 
-export function SettingsProvider({ children }: { children: React.ReactNode }) {
+export function SettingsProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<AppSettings | null>(null);
-  const [environment, setEnvironmentState] = useState<string>(getStoredEnvironment);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [environment, setEnvironmentState] = useState<string>("prod");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const loadSettings = useCallback(async (): Promise<void> => {
+  // Hydrate environment from localStorage
+  useEffect(() => {
+    const stored = localStorage.getItem(ENV_KEY);
+    if (stored) setEnvironmentState(stored);
+  }, []);
+
+  const storageType = useMemo(
+    () => settings?.storage_type,
+    [settings],
+  );
+
+  const loadSettings = useCallback(async () => {
+    setIsLoading(true);
     try {
-      const response = await fetch(`${config.apiUrl}/settings?_format=json`, {
-        method: 'GET',
-        headers: getHeaders(),
-      });
-
-      if (!response.ok) return;
-
-      const json = await response.json();
-      setSettings(json?.data ?? json);
+      const result = await dataProvider.loadSettings();
+      setSettings(result);
     } catch {
-      // Settings load is non-fatal
+      /* settings load failed — keep null */
+    } finally {
+      setIsLoading(false);
     }
   }, []);
 
-  const setEnvironment = useCallback((profile: string) => {
-    localStorage.setItem('environment', profile);
-    setEnvironmentState(profile);
+  const setEnvironment = useCallback((env: string) => {
+    localStorage.setItem(ENV_KEY, env);
+    setEnvironmentState(env);
   }, []);
 
+  const value = useMemo<SettingsContextValue>(
+    () => ({
+      settings,
+      environment,
+      storageType,
+      isLoading,
+      loadSettings,
+      setEnvironment,
+    }),
+    [settings, environment, storageType, isLoading, loadSettings, setEnvironment],
+  );
+
   return (
-    <SettingsContext.Provider
-      value={{ settings, environment, isLoading, loadSettings, setEnvironment, setIsLoading }}
-    >
-      {children}
-    </SettingsContext.Provider>
+    <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>
   );
 }
 
-export function useSettings(): SettingsContextType {
-  const context = useContext(SettingsContext);
-  if (context === undefined) {
-    throw new Error('useSettings must be used within a SettingsProvider');
-  }
-  return context;
+export function useSettings(): SettingsContextValue {
+  const ctx = useContext(SettingsContext);
+  if (!ctx) throw new Error("useSettings must be used within SettingsProvider");
+  return ctx;
 }

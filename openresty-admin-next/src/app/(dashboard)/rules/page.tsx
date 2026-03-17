@@ -1,122 +1,146 @@
-'use client';
+"use client";
 
-import React, { useState, useCallback } from 'react';
-import { Button, Chip, Stack } from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
-import RuleIcon from '@mui/icons-material/Rule';
-import { useRouter } from 'next/navigation';
-import { PageHeader } from '@/components/ui/PageHeader';
-import DataTable, { Column } from '@/components/ui/DataTable';
-import { useApi, useFetch } from '@/hooks/useApi';
-
-interface Rule {
-  id: string;
-  name: string;
-  match: {
-    rules?: {
-      path?: string;
-      path_key?: string;
-      country?: string;
-    };
-    response?: {
-      allow?: boolean;
-      code?: number;
-    };
-  };
-  status: string;
-  rules_tags: string[];
-  [key: string]: unknown;
-}
+import { useCallback, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { GitBranch } from "lucide-react";
+import { useList } from "@/hooks/useResource";
+import PageHeader from "@/components/ui/PageHeader";
+import DataTable, { type Column } from "@/components/ui/DataTable";
+import Button from "@/components/ui/Button";
+import Badge from "@/components/ui/Badge";
+import type { Rule } from "@/types";
 
 export default function RulesListPage() {
-  const api = useApi();
   const router = useRouter();
-  const [page, setPage] = useState(0);
-  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(25);
+  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState<{ field: string; order: "ASC" | "DESC" }>({
+    field: "id",
+    order: "ASC",
+  });
 
-  const { data, loading } = useFetch(() =>
-    api.getList('rules', {
-      pagination: { page: page + 1, perPage: 25 },
+  const params = useMemo(
+    () => ({
+      pagination: { page, perPage },
+      sort,
       filter: search ? { q: search } : {},
-    })
+    }),
+    [page, perPage, sort, search],
   );
 
-  const columns: Column<Rule>[] = [
-    { field: 'name', label: 'Name', sortable: true },
-    {
-      field: 'match',
-      label: 'Match Conditions',
-      render: (record) => {
-        const match = record.match as Rule['match'];
-        const parts: string[] = [];
-        if (match?.rules?.path) {
-          parts.push(`${match.rules.path_key || 'starts_with'}: ${match.rules.path}`);
-        }
-        if (match?.rules?.country) {
-          parts.push(`country: ${match.rules.country}`);
-        }
-        return parts.length > 0 ? parts.join(', ') : '-';
-      },
-    },
-    {
-      field: 'status',
-      label: 'Status',
-      render: (record) => {
-        const status = String(record.status || 'draft');
-        const color = status === 'active' ? 'success' : status === 'pending' ? 'warning' : 'default';
-        return <Chip label={status} size="small" color={color} variant="outlined" />;
-      },
-    },
-    {
-      field: 'rules_tags',
-      label: 'Tags',
-      render: (record) => {
-        const tags = Array.isArray(record.rules_tags) ? record.rules_tags : [];
-        return (
-          <Stack direction="row" spacing={0.5} flexWrap="wrap">
-            {tags.map((tag: string) => (
-              <Chip key={tag} label={tag} size="small" variant="outlined" />
-            ))}
-          </Stack>
-        );
-      },
-    },
-  ];
+  const { data, total, isLoading } = useList<Rule>("rules", params);
 
-  const handleSearch = useCallback((query: string) => {
-    setSearch(query);
-    setPage(0);
+  const columns = useMemo<Column<Rule>[]>(
+    () => [
+      {
+        field: "name",
+        label: "Name",
+        sortable: true,
+        render: (r) => (
+          <span className="font-semibold text-slate-900 dark:text-slate-100">
+            {r.name}
+          </span>
+        ),
+      },
+      {
+        field: "priority",
+        label: "Priority",
+        sortable: true,
+        render: (r) => (
+          <Badge variant="primary" size="sm">
+            {r.priority ?? 0}
+          </Badge>
+        ),
+      },
+      {
+        field: "match.rules.path",
+        label: "Path",
+        render: (r) => (
+          <span className="font-mono text-xs">
+            {r.match?.rules?.path ?? "-"}
+          </span>
+        ),
+      },
+      {
+        field: "match.response.code",
+        label: "Response Code",
+        render: (r) => {
+          const code = r.match?.response?.code;
+          return code ? (
+            <Badge variant="info" size="sm">
+              {code}
+            </Badge>
+          ) : (
+            <span>-</span>
+          );
+        },
+      },
+      {
+        field: "profile_id",
+        label: "Profile",
+      },
+      {
+        field: "rules_tags",
+        label: "Tags",
+        render: (r) => (
+          <div className="flex flex-wrap gap-1">
+            {(r.rules_tags ?? []).map((tag, i) => (
+              <Badge key={i} size="sm">
+                {tag}
+              </Badge>
+            ))}
+          </div>
+        ),
+      },
+    ],
+    [],
+  );
+
+  const handleRowClick = useCallback(
+    (record: Rule) => {
+      router.push(`/rules/${record.id}`);
+    },
+    [router],
+  );
+
+  const handleSort = useCallback((field: string) => {
+    setSort((prev) => ({
+      field,
+      order: prev.field === field && prev.order === "ASC" ? "DESC" : "ASC",
+    }));
+  }, []);
+
+  const handleSearch = useCallback((q: string) => {
+    setSearch(q);
+    setPage(1);
   }, []);
 
   return (
-    <>
+    <div>
       <PageHeader
         title="Rules"
-        subtitle="Manage request matching and response rules"
-        icon={<RuleIcon />}
+        icon={GitBranch}
         actions={
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => router.push('/rules/create')}
-          >
-            Create
+          <Button onClick={() => router.push("/rules/create")}>
+            Create Rule
           </Button>
         }
       />
-      <DataTable<Rule>
+      <DataTable
         columns={columns}
-        data={(data?.data as Rule[]) || []}
-        total={data?.total}
-        loading={loading}
+        data={data}
+        total={total}
+        loading={isLoading}
         page={page}
-        perPage={25}
+        perPage={perPage}
+        sort={sort}
+        onSort={handleSort}
         onPageChange={setPage}
-        onRowClick={(record) => router.push(`/rules/${encodeURIComponent(String(record.id))}`)}
+        onPerPageChange={setPerPage}
+        onRowClick={handleRowClick}
         onSearch={handleSearch}
-        searchPlaceholder="Search rules..."
-        emptyMessage="rules"
       />
-    </>
+    </div>
   );
 }

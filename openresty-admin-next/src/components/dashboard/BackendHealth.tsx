@@ -1,492 +1,544 @@
-'use client';
+"use client";
 
-import React, { useMemo, useState, useEffect, useCallback } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Box,
-  Card,
-  CardContent,
-  Typography,
-  useTheme,
-  alpha,
-  IconButton,
-  Tooltip,
-  Chip,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
-  Button,
-} from '@mui/material';
-import {
-  ResponsiveContainer,
   BarChart,
   Bar,
-  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip as ChartTooltip,
-} from 'recharts';
-import Grid from '@mui/material/Unstable_Grid2';
-import RefreshIcon from '@mui/icons-material/RefreshRounded';
-import StorageIcon from '@mui/icons-material/StorageRounded';
-import CheckCircleIcon from '@mui/icons-material/CheckCircleRounded';
-import CancelIcon from '@mui/icons-material/CancelRounded';
-import ErrorOutlineIcon from '@mui/icons-material/ErrorOutlineRounded';
-import AccountTreeIcon from '@mui/icons-material/AccountTreeRounded';
-import DnsRoundedIcon from '@mui/icons-material/DnsRounded';
-import { useThemeMode } from '@/providers/ThemeProvider';
-import { useApi } from '@/hooks/useApi';
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+} from "recharts";
+import {
+  CheckCircle2,
+  XCircle,
+  Activity,
+  Server,
+  HeartPulse,
+  AlertTriangle,
+} from "lucide-react";
+import { cn } from "@/lib/utils/cn";
+import Card from "@/components/ui/Card";
+import Badge from "@/components/ui/Badge";
+import Skeleton from "@/components/ui/Skeleton";
+import { useDataProvider } from "@/hooks/useResource";
 
-const BACKEND_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16'];
+// ── Types ───────────────────────────────────────────────────────────────
 
-const ROUTING_MODES: Record<string, { label: string; color: string }> = {
-  weighted: { label: 'Weighted', color: '#6366f1' },
-  least_conn: { label: 'Least Busy', color: '#10b981' },
-  round_robin: { label: 'Round Robin', color: '#f59e0b' },
-  ip_hash: { label: 'IP Hash', color: '#8b5cf6' },
-  header: { label: 'Header', color: '#06b6d4' },
-  cookie: { label: 'Cookie', color: '#ec4899' },
-};
-
-// ─── Helpers ────────────────────────────────────────────────────────────────
-const formatNumber = (num: number): string => {
-  if (!num) return '0';
-  if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-  if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-  return num.toString();
-};
-
-const formatBytes = (bytes: number, decimals = 2): string => {
-  if (!bytes || bytes === 0) return '0 B';
-  const k = 1024;
-  const dm = decimals < 0 ? 0 : decimals;
-  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
-};
-
-const getLatencyColor = (ms: number): string => {
-  if (ms < 100) return '#10b981';
-  if (ms < 500) return '#f59e0b';
-  return '#ef4444';
-};
-
-// ─── Compact StatCard ─────────────────────────────────────────────────────
-interface MiniStatCardProps {
-  title: string;
-  value: string | number;
-  icon: React.ElementType;
-  color: string;
-  subtitle?: string;
+interface BackendStats {
+  requests: number;
+  errors: number;
+  avg_latency_ms: number;
+  error_rate: number;
 }
 
-const MiniStatCard: React.FC<MiniStatCardProps> = ({ title, value, icon: Icon, color, subtitle }) => {
-  const theme = useTheme();
-  return (
-    <Card
-      sx={{
-        background: `linear-gradient(135deg, ${alpha(color, 0.08)} 0%, ${alpha(color, 0.02)} 100%)`,
-        border: `1px solid ${alpha(color, 0.15)}`,
-        borderRadius: 3,
-        transition: 'all 0.3s ease',
-        '&:hover': { transform: 'translateY(-4px)', boxShadow: `0 8px 24px ${alpha(color, 0.15)}` },
-      }}
-    >
-      <CardContent sx={{ p: 2.5, '&:last-child': { pb: 2.5 } }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Box>
-            <Typography variant="overline" sx={{ color: theme.palette.text.secondary, fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.08em' }}>
-              {title}
-            </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800, color: theme.palette.text.primary, lineHeight: 1.2 }}>
-              {value}
-            </Typography>
-            {subtitle && (
-              <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
-                {subtitle}
-              </Typography>
-            )}
-          </Box>
-          <Box sx={{ width: 48, height: 48, borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', background: `linear-gradient(135deg, ${alpha(color, 0.2)}, ${alpha(color, 0.1)})` }}>
-            <Icon sx={{ fontSize: 24, color }} />
-          </Box>
-        </Box>
-      </CardContent>
-    </Card>
-  );
-};
-
-// ─── Chart Card wrapper ─────────────────────────────────────────────────────
-interface ChartCardProps {
-  title: string;
-  subtitle?: string;
-  children: React.ReactNode;
-  onRefresh?: () => void;
-  accentColor?: string;
-}
-
-const ChartCard: React.FC<ChartCardProps> = ({ title, subtitle, children, onRefresh, accentColor }) => {
-  const theme = useTheme();
-  return (
-    <Card sx={{ borderRadius: 3, border: `1px solid ${theme.palette.divider}`, borderLeft: `3px solid ${accentColor || theme.palette.primary.main}`, overflow: 'visible' }}>
-      <CardContent>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <Box>
-            <Typography variant="h6" sx={{ fontWeight: 700, fontSize: '1rem' }}>{title}</Typography>
-            {subtitle && <Typography variant="caption" color="text.secondary">{subtitle}</Typography>}
-          </Box>
-          {onRefresh && (
-            <Tooltip title="Refresh">
-              <IconButton size="small" onClick={onRefresh}><RefreshIcon fontSize="small" /></IconButton>
-            </Tooltip>
-          )}
-        </Box>
-        {children}
-      </CardContent>
-    </Card>
-  );
-};
-
-// ─── Per-Rule Health Card ─────────────────────────────────────────────────
-interface BackendStat {
-  requests?: number;
-  errors?: number;
-  avg_latency_ms?: number;
-  total_bytes?: number;
-  error_rate?: number;
-}
-
-interface Backend {
-  label?: string;
+interface HealthBackend {
+  label: string;
   address: string;
-  weight?: number;
-  healthy?: boolean;
-  stats?: BackendStat;
+  healthy: boolean;
+  stats?: BackendStats;
 }
 
-interface Rule {
+interface HealthRule {
   rule_id: string;
-  rule_name?: string;
-  server_name?: string;
-  path?: string;
-  routing?: { mode?: string };
-  backends?: Backend[];
-  backend_stats?: Record<string, BackendStat>;
+  backends: HealthBackend[];
 }
 
-interface RuleHealthCardProps {
-  rule: Rule;
+interface TopologyBackend {
+  label: string;
+  address: string;
+  weight: number;
 }
 
-const RuleHealthCard: React.FC<RuleHealthCardProps> = ({ rule }) => {
-  const theme = useTheme();
-  const { mode } = useThemeMode();
-  const isDark = mode === 'dark';
+interface TopologyRule {
+  rule_id: string;
+  rule_name: string;
+  server_name: string;
+  path: string;
+  routing: { mode: string };
+  backends: TopologyBackend[];
+  backend_stats?: Record<string, BackendStats>;
+}
 
-  const routingMode = rule.routing?.mode || 'weighted';
-  const modeConfig = ROUTING_MODES[routingMode] || ROUTING_MODES.weighted;
+interface MergedBackend {
+  label: string;
+  address: string;
+  weight: number;
+  healthy: boolean;
+  requests: number;
+  errors: number;
+  avg_latency_ms: number;
+  error_rate: number;
+}
 
-  const trafficChartData = (rule.backends || []).map((b, i) => ({
-    name: b.label || b.address,
-    requests: b.stats?.requests || 0,
-    errors: b.stats?.errors || 0,
-    fill: BACKEND_COLORS[i % BACKEND_COLORS.length],
-  }));
+interface MergedRule {
+  rule_id: string;
+  rule_name: string;
+  server_name: string;
+  path: string;
+  routing_mode: string;
+  backends: MergedBackend[];
+}
 
-  const latencyChartData = (rule.backends || []).map((b) => ({
-    name: b.label || b.address,
-    latency: b.stats?.avg_latency_ms || 0,
-  }));
+// ── Helpers ─────────────────────────────────────────────────────────────
+
+function latencyColor(ms: number): string {
+  if (ms < 100) return "text-green-600 dark:text-green-400";
+  if (ms < 500) return "text-amber-600 dark:text-amber-400";
+  if (ms < 1000) return "text-orange-600 dark:text-orange-400";
+  return "text-red-600 dark:text-red-400";
+}
+
+function latencyBarColor(ms: number): string {
+  if (ms < 100) return "#22c55e";
+  if (ms < 500) return "#f59e0b";
+  if (ms < 1000) return "#f97316";
+  return "#ef4444";
+}
+
+// ── Sub-components ──────────────────────────────────────────────────────
+
+const SummaryCard = React.memo(function SummaryCard({
+  icon: Icon,
+  label,
+  value,
+  sub,
+  variant = "default",
+}: {
+  icon: React.ElementType;
+  label: string;
+  value: string | number;
+  sub?: string;
+  variant?: "default" | "success" | "danger" | "warning";
+}) {
+  const iconColors: Record<string, string> = {
+    default: "text-slate-500 dark:text-slate-400",
+    success: "text-green-500",
+    danger: "text-red-500",
+    warning: "text-amber-500",
+  };
 
   return (
-    <Card
-      sx={{
-        mb: 2,
-        borderRadius: 2,
-        border: `1px solid ${isDark ? alpha(theme.palette.divider, 0.3) : theme.palette.divider}`,
-        backgroundColor: isDark ? alpha(theme.palette.background.paper, 0.5) : theme.palette.background.paper,
-      }}
-    >
-      <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-        {/* Header */}
-        <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 1, mb: 2 }}>
-          <Typography variant="subtitle2" fontWeight={700}>
-            {rule.rule_name || rule.rule_id}
-          </Typography>
-          {rule.server_name && (
-            <Chip label={rule.server_name} size="small" variant="outlined" sx={{ fontSize: '0.7rem', height: 22 }} />
+    <Card className="p-4">
+      <div className="flex items-center gap-3">
+        <div
+          className={cn(
+            "flex items-center justify-center h-10 w-10 rounded-lg bg-slate-100 dark:bg-slate-800",
+            iconColors[variant]
           )}
-          {rule.path && rule.path !== '/' && (
-            <Chip label={rule.path} size="small" sx={{ fontSize: '0.7rem', height: 22, fontFamily: 'monospace', backgroundColor: alpha(theme.palette.info.main, 0.1) }} />
+        >
+          <Icon className="h-5 w-5" />
+        </div>
+        <div>
+          <p className="text-sm text-slate-500 dark:text-slate-400">{label}</p>
+          <p className="text-xl font-bold text-slate-900 dark:text-slate-100">
+            {value}
+          </p>
+          {sub && (
+            <p className="text-xs text-slate-400 dark:text-slate-500">{sub}</p>
           )}
-          <Chip
-            label={modeConfig.label}
-            size="small"
-            sx={{
-              fontSize: '0.7rem',
-              height: 22,
-              fontWeight: 600,
-              backgroundColor: alpha(modeConfig.color, 0.12),
-              color: modeConfig.color,
-              border: `1px solid ${alpha(modeConfig.color, 0.3)}`,
-            }}
-          />
-        </Box>
-
-        {/* Backend Table */}
-        <Table size="small" sx={{ mb: 2 }}>
-          <TableHead>
-            <TableRow>
-              <TableCell sx={{ fontWeight: 700, fontSize: '0.7rem', py: 1 }}>Backend</TableCell>
-              <TableCell sx={{ fontWeight: 700, fontSize: '0.7rem', py: 1 }}>Address</TableCell>
-              <TableCell align="center" sx={{ fontWeight: 700, fontSize: '0.7rem', py: 1 }}>Weight</TableCell>
-              <TableCell align="center" sx={{ fontWeight: 700, fontSize: '0.7rem', py: 1 }}>Health</TableCell>
-              <TableCell align="right" sx={{ fontWeight: 700, fontSize: '0.7rem', py: 1 }}>Requests</TableCell>
-              <TableCell align="right" sx={{ fontWeight: 700, fontSize: '0.7rem', py: 1 }}>Errors</TableCell>
-              <TableCell align="right" sx={{ fontWeight: 700, fontSize: '0.7rem', py: 1 }}>Error Rate</TableCell>
-              <TableCell align="right" sx={{ fontWeight: 700, fontSize: '0.7rem', py: 1 }}>Latency</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {(rule.backends || []).map((b, i) => {
-              const healthColor = b.healthy ? '#10b981' : '#ef4444';
-              const latColor = getLatencyColor(b.stats?.avg_latency_ms || 0);
-              return (
-                <TableRow key={b.label || b.address}>
-                  <TableCell sx={{ fontSize: '0.75rem', py: 0.75 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Box sx={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: BACKEND_COLORS[i % BACKEND_COLORS.length], flexShrink: 0 }} />
-                      {b.label || `backend-${i}`}
-                    </Box>
-                  </TableCell>
-                  <TableCell sx={{ fontSize: '0.75rem', py: 0.75, fontFamily: 'monospace' }}>{b.address}</TableCell>
-                  <TableCell align="center" sx={{ fontSize: '0.75rem', py: 0.75 }}>{b.weight || 0}%</TableCell>
-                  <TableCell align="center" sx={{ py: 0.75 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5 }}>
-                      {b.healthy ? (
-                        <CheckCircleIcon sx={{ fontSize: 16, color: healthColor }} />
-                      ) : (
-                        <CancelIcon sx={{ fontSize: 16, color: healthColor }} />
-                      )}
-                      <Typography variant="caption" sx={{ color: healthColor, fontWeight: 600, fontSize: '0.7rem' }}>
-                        {b.healthy ? 'Healthy' : 'Down'}
-                      </Typography>
-                    </Box>
-                  </TableCell>
-                  <TableCell align="right" sx={{ fontSize: '0.75rem', py: 0.75 }}>{formatNumber(b.stats?.requests || 0)}</TableCell>
-                  <TableCell align="right" sx={{ fontSize: '0.75rem', py: 0.75, color: (b.stats?.errors || 0) > 0 ? '#ef4444' : 'inherit' }}>
-                    {formatNumber(b.stats?.errors || 0)}
-                  </TableCell>
-                  <TableCell align="right" sx={{ fontSize: '0.75rem', py: 0.75 }}>
-                    {(b.stats?.error_rate || 0).toFixed(1)}%
-                  </TableCell>
-                  <TableCell align="right" sx={{ fontSize: '0.75rem', py: 0.75, color: latColor, fontWeight: 600 }}>
-                    {(b.stats?.avg_latency_ms || 0).toFixed(0)}ms
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-
-        {/* Charts */}
-        {trafficChartData.length > 1 && (
-          <Grid container spacing={2}>
-            <Grid xs={12} md={6}>
-              <Typography variant="caption" fontWeight={600} color="text.secondary" sx={{ mb: 1, display: 'block' }}>
-                Requests & Errors by Backend
-              </Typography>
-              <Box sx={{ width: '100%', height: 200 }}>
-                <ResponsiveContainer>
-                  <BarChart data={trafficChartData} margin={{ top: 5, right: 5, left: -15, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />
-                    <XAxis dataKey="name" tick={{ fontSize: 11 }} stroke={theme.palette.text.secondary} />
-                    <YAxis tick={{ fontSize: 11 }} stroke={theme.palette.text.secondary} />
-                    <ChartTooltip
-                      contentStyle={{
-                        backgroundColor: theme.palette.background.paper,
-                        border: `1px solid ${theme.palette.divider}`,
-                        borderRadius: 8,
-                        fontSize: '0.8rem',
-                      }}
-                    />
-                    <Bar dataKey="requests" fill="#6366f1" radius={[4, 4, 0, 0]} name="Requests" />
-                    <Bar dataKey="errors" fill="#ef4444" radius={[4, 4, 0, 0]} name="Errors" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </Box>
-            </Grid>
-            <Grid xs={12} md={6}>
-              <Typography variant="caption" fontWeight={600} color="text.secondary" sx={{ mb: 1, display: 'block' }}>
-                Average Latency by Backend
-              </Typography>
-              <Box sx={{ width: '100%', height: 200 }}>
-                <ResponsiveContainer>
-                  <BarChart data={latencyChartData} margin={{ top: 5, right: 5, left: -15, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />
-                    <XAxis dataKey="name" tick={{ fontSize: 11 }} stroke={theme.palette.text.secondary} />
-                    <YAxis tick={{ fontSize: 11 }} stroke={theme.palette.text.secondary} unit="ms" />
-                    <ChartTooltip
-                      contentStyle={{
-                        backgroundColor: theme.palette.background.paper,
-                        border: `1px solid ${theme.palette.divider}`,
-                        borderRadius: 8,
-                        fontSize: '0.8rem',
-                      }}
-                      formatter={(value: number) => [`${value.toFixed(0)}ms`, 'Latency']}
-                    />
-                    <Bar dataKey="latency" radius={[4, 4, 0, 0]} name="Latency">
-                      {latencyChartData.map((entry, index) => (
-                        <Cell key={index} fill={getLatencyColor(entry.latency)} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </Box>
-            </Grid>
-          </Grid>
-        )}
-      </CardContent>
+        </div>
+      </div>
     </Card>
   );
-};
+});
 
-// ─── Main BackendHealth Component ─────────────────────────────────────────
+const BackendTable = React.memo(function BackendTable({
+  backends,
+}: {
+  backends: MergedBackend[];
+}) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-slate-200 dark:border-slate-700 text-left">
+            <th className="py-2 px-3 font-medium text-slate-500 dark:text-slate-400">
+              Backend
+            </th>
+            <th className="py-2 px-3 font-medium text-slate-500 dark:text-slate-400">
+              Address
+            </th>
+            <th className="py-2 px-3 font-medium text-slate-500 dark:text-slate-400">
+              Weight %
+            </th>
+            <th className="py-2 px-3 font-medium text-slate-500 dark:text-slate-400">
+              Health
+            </th>
+            <th className="py-2 px-3 font-medium text-slate-500 dark:text-slate-400 text-right">
+              Requests
+            </th>
+            <th className="py-2 px-3 font-medium text-slate-500 dark:text-slate-400 text-right">
+              Errors
+            </th>
+            <th className="py-2 px-3 font-medium text-slate-500 dark:text-slate-400 text-right">
+              Error Rate %
+            </th>
+            <th className="py-2 px-3 font-medium text-slate-500 dark:text-slate-400 text-right">
+              Latency
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {backends.map((b) => (
+            <tr
+              key={b.label}
+              className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50"
+            >
+              <td className="py-2 px-3 font-medium text-slate-900 dark:text-slate-100">
+                {b.label}
+              </td>
+              <td className="py-2 px-3 font-mono text-xs text-slate-600 dark:text-slate-300">
+                {b.address}
+              </td>
+              <td className="py-2 px-3 text-slate-700 dark:text-slate-300">
+                {b.weight}%
+              </td>
+              <td className="py-2 px-3">
+                {b.healthy ? (
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                ) : (
+                  <XCircle className="h-4 w-4 text-red-500" />
+                )}
+              </td>
+              <td className="py-2 px-3 text-right text-slate-700 dark:text-slate-300">
+                {b.requests.toLocaleString()}
+              </td>
+              <td className="py-2 px-3 text-right text-slate-700 dark:text-slate-300">
+                {b.errors.toLocaleString()}
+              </td>
+              <td className="py-2 px-3 text-right text-slate-700 dark:text-slate-300">
+                {b.error_rate.toFixed(2)}%
+              </td>
+              <td
+                className={cn(
+                  "py-2 px-3 text-right font-medium",
+                  latencyColor(b.avg_latency_ms)
+                )}
+              >
+                {b.avg_latency_ms.toFixed(1)}ms
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+});
+
+const BackendCharts = React.memo(function BackendCharts({
+  backends,
+}: {
+  backends: MergedBackend[];
+}) {
+  const chartData = useMemo(
+    () =>
+      backends.map((b) => ({
+        name: b.label,
+        requests: b.requests,
+        errors: b.errors,
+        latency: b.avg_latency_ms,
+        latencyColor: latencyBarColor(b.avg_latency_ms),
+      })),
+    [backends]
+  );
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+      <div>
+        <h4 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-2">
+          Requests &amp; Errors
+        </h4>
+        <ResponsiveContainer width="100%" height={250}>
+          <BarChart data={chartData}>
+            <CartesianGrid
+              strokeDasharray="3 3"
+              className="stroke-slate-200 dark:stroke-slate-700"
+            />
+            <XAxis
+              dataKey="name"
+              tick={{ fontSize: 12 }}
+              className="fill-slate-500 dark:fill-slate-400"
+            />
+            <YAxis
+              tick={{ fontSize: 12 }}
+              className="fill-slate-500 dark:fill-slate-400"
+            />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: "var(--color-slate-900, #0f172a)",
+                border: "1px solid var(--color-slate-700, #334155)",
+                borderRadius: "8px",
+                color: "#e2e8f0",
+              }}
+            />
+            <Legend />
+            <Bar dataKey="requests" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="errors" fill="#ef4444" radius={[4, 4, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+      <div>
+        <h4 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-2">
+          Latency
+        </h4>
+        <ResponsiveContainer width="100%" height={250}>
+          <BarChart data={chartData}>
+            <CartesianGrid
+              strokeDasharray="3 3"
+              className="stroke-slate-200 dark:stroke-slate-700"
+            />
+            <XAxis
+              dataKey="name"
+              tick={{ fontSize: 12 }}
+              className="fill-slate-500 dark:fill-slate-400"
+            />
+            <YAxis
+              tick={{ fontSize: 12 }}
+              className="fill-slate-500 dark:fill-slate-400"
+              unit="ms"
+            />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: "var(--color-slate-900, #0f172a)",
+                border: "1px solid var(--color-slate-700, #334155)",
+                borderRadius: "8px",
+                color: "#e2e8f0",
+              }}
+              formatter={(value: number) => [`${value.toFixed(1)}ms`, "Latency"]}
+            />
+            <Bar
+              dataKey="latency"
+              radius={[4, 4, 0, 0]}
+              fill="#8b5cf6"
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              shape={(props: any) => {
+                const { x, y, width, height, payload } = props;
+                return (
+                  <rect
+                    x={x}
+                    y={y}
+                    width={width}
+                    height={height}
+                    rx={4}
+                    ry={4}
+                    fill={payload.latencyColor}
+                  />
+                );
+              }}
+            />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+});
+
+// ── Main component ──────────────────────────────────────────────────────
+
 const BackendHealth: React.FC = () => {
-  const theme = useTheme();
-  const { mode } = useThemeMode();
-  const isDark = mode === 'dark';
-  const api = useApi();
+  const dp = useDataProvider();
+  const [loading, setLoading] = useState(true);
+  const [healthRules, setHealthRules] = useState<HealthRule[]>([]);
+  const [topologyRules, setTopologyRules] = useState<TopologyRule[]>([]);
 
-  const [healthData, setHealthData] = useState<Rule[]>([]);
-  const [topologyData, setTopologyData] = useState<any>(null);
-
-  const fetchData = useCallback(() => {
-    Promise.all([
-      api.getTrafficHealth('analytics'),
-      api.getTrafficBackendStats('analytics'),
-    ])
-      .then(([healthRes, topoRes]) => {
-        const hData = (healthRes as any)?.data;
-        const tData = (topoRes as any)?.data;
-        setHealthData(hData?.rules || []);
-        setTopologyData(tData || null);
-      })
-      .catch((error) => {
-        console.error('Failed to fetch backend health:', error);
-      });
-  }, [api]);
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [healthRes, topoRes] = await Promise.all([
+        dp.getTrafficHealth(),
+        dp.getTrafficTopology(),
+      ]);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const hData = (healthRes as any)?.data;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const tData = (topoRes as any)?.data;
+      setHealthRules(Array.isArray(hData?.rules) ? hData.rules : []);
+      setTopologyRules(Array.isArray(tData?.rules_with_backends) ? tData.rules_with_backends : []);
+    } catch {
+      setHealthRules([]);
+      setTopologyRules([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [dp]);
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 15000);
-    return () => clearInterval(interval);
   }, [fetchData]);
 
-  // Merge health + topology data by rule_id
-  const mergedRules = useMemo(() => {
-    const healthMap: Record<string, any> = {};
-    (healthData || []).forEach((rule) => {
-      healthMap[rule.rule_id] = rule;
-    });
+  const mergedRules = useMemo<MergedRule[]>(() => {
+    const healthMap = new Map<string, Map<string, HealthBackend>>();
+    for (const rule of healthRules) {
+      const backendMap = new Map<string, HealthBackend>();
+      for (const b of rule.backends) {
+        backendMap.set(b.label, b);
+      }
+      healthMap.set(rule.rule_id, backendMap);
+    }
 
-    return (topologyData?.rules_with_backends || [])
-      .filter((rule: Rule) => rule.backends && rule.backends.length > 0)
-      .map((rule: Rule) => {
-        const healthRule = healthMap[rule.rule_id] || {};
-        const healthBackendMap: Record<string, any> = {};
-        (healthRule.backends || []).forEach((b: Backend) => {
-          healthBackendMap[b.label || b.address] = b;
-        });
-
+    return topologyRules.map((tRule) => {
+      const hBackends = healthMap.get(tRule.rule_id);
+      const backends: MergedBackend[] = tRule.backends.map((tb) => {
+        const hb = hBackends?.get(tb.label);
+        const stats =
+          hb?.stats ?? tRule.backend_stats?.[tb.label] ?? undefined;
         return {
-          ...rule,
-          backends: (rule.backends || []).map((b) => {
-            const hb = healthBackendMap[b.label || b.address] || {};
-            const stats = rule.backend_stats?.[b.label || ''] || {};
-            return {
-              ...b,
-              healthy: hb.healthy !== undefined ? hb.healthy : true,
-              stats: {
-                requests: stats.requests || 0,
-                errors: stats.errors || 0,
-                avg_latency_ms: stats.avg_latency_ms || 0,
-                total_bytes: stats.total_bytes || 0,
-                error_rate: stats.error_rate || 0,
-              },
-            };
-          }),
+          label: tb.label,
+          address: tb.address,
+          weight: tb.weight,
+          healthy: hb?.healthy ?? true,
+          requests: stats?.requests ?? 0,
+          errors: stats?.errors ?? 0,
+          avg_latency_ms: stats?.avg_latency_ms ?? 0,
+          error_rate: stats?.error_rate ?? 0,
         };
       });
-  }, [healthData, topologyData]);
 
-  // Summary stats
-  const totalRules = mergedRules.length;
-  const totalBackends = mergedRules.reduce((s: number, r: Rule) => s + (r.backends?.length || 0), 0);
-  const healthyBackends = mergedRules.reduce(
-    (s: number, r: Rule) => s + (r.backends || []).filter((b: Backend) => b.healthy).length,
-    0,
-  );
-  const totalRequests = mergedRules.reduce(
-    (s: number, r: Rule) => s + (r.backends || []).reduce((bs: number, b: Backend) => bs + (b.stats?.requests || 0), 0),
-    0,
-  );
-  const totalErrors = mergedRules.reduce(
-    (s: number, r: Rule) => s + (r.backends || []).reduce((bs: number, b: Backend) => bs + (b.stats?.errors || 0), 0),
-    0,
-  );
-  const errorRate = totalRequests > 0 ? ((totalErrors / totalRequests) * 100).toFixed(1) : '0.0';
+      return {
+        rule_id: tRule.rule_id,
+        rule_name: tRule.rule_name,
+        server_name: tRule.server_name,
+        path: tRule.path,
+        routing_mode: tRule.routing?.mode ?? "unknown",
+        backends,
+      };
+    });
+  }, [healthRules, topologyRules]);
 
-  // Empty state
-  if (mergedRules.length === 0) {
+  const summaryStats = useMemo(() => {
+    const totalBackends = mergedRules.reduce(
+      (acc, r) => acc + r.backends.length,
+      0
+    );
+    const healthyBackends = mergedRules.reduce(
+      (acc, r) => acc + r.backends.filter((b) => b.healthy).length,
+      0
+    );
+    const totalErrors = mergedRules.reduce(
+      (acc, r) => acc + r.backends.reduce((a, b) => a + b.errors, 0),
+      0
+    );
+    const totalRequests = mergedRules.reduce(
+      (acc, r) => acc + r.backends.reduce((a, b) => a + b.requests, 0),
+      0
+    );
+    const errorRate =
+      totalRequests > 0 ? ((totalErrors / totalRequests) * 100).toFixed(2) : "0.00";
+
+    return {
+      rulesCount: mergedRules.length,
+      totalBackends,
+      healthyBackends,
+      errorRate,
+    };
+  }, [mergedRules]);
+
+  if (loading) {
     return (
-      <ChartCard title="Backend Health & Traffic" subtitle="Multi-backend routing overview" onRefresh={fetchData} accentColor="#10b981">
-        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', py: 6, gap: 2 }}>
-          <Box sx={{ width: 64, height: 64, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: alpha(theme.palette.info.main, 0.1) }}>
-            <StorageIcon sx={{ fontSize: 32, color: theme.palette.info.main }} />
-          </Box>
-          <Typography variant="body1" color="text.secondary">No backend traffic data</Typography>
-          <Typography variant="caption" color="text.disabled">Configure backends in a rule&apos;s routing settings to see health and traffic metrics here</Typography>
-        </Box>
-      </ChartCard>
+      <div className="space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i} className="p-4">
+              <Skeleton variant="rectangular" className="h-16" />
+            </Card>
+          ))}
+        </div>
+        {Array.from({ length: 2 }).map((_, i) => (
+          <Card key={i}>
+            <Card.Header>
+              <Skeleton className="h-5 w-48" />
+            </Card.Header>
+            <Card.Body>
+              <Skeleton variant="rectangular" className="h-32" />
+            </Card.Body>
+          </Card>
+        ))}
+      </div>
     );
   }
 
   return (
-    <ChartCard
-      title="Backend Health & Traffic"
-      subtitle={`${totalRules} rule${totalRules !== 1 ? 's' : ''} with ${totalBackends} backend${totalBackends !== 1 ? 's' : ''}`}
-      onRefresh={fetchData}
-      accentColor="#10b981"
-    >
-      {/* Summary Stats */}
-      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(4, 1fr)' }, gap: 2, mb: 3 }}>
-        <MiniStatCard title="Rules with Backends" value={totalRules} icon={AccountTreeIcon} color="#6366f1" />
-        <MiniStatCard title="Total Backends" value={totalBackends} icon={DnsRoundedIcon} color="#06b6d4" />
-        <MiniStatCard
-          title="Backend Health"
-          value={`${healthyBackends}/${totalBackends}`}
-          icon={CheckCircleIcon}
-          color={healthyBackends === totalBackends ? '#10b981' : '#f59e0b'}
-          subtitle={healthyBackends === totalBackends ? 'All healthy' : `${totalBackends - healthyBackends} unhealthy`}
+    <div className="space-y-6">
+      {/* Summary stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <SummaryCard
+          icon={Activity}
+          label="Rules with Backends"
+          value={summaryStats.rulesCount}
         />
-        <MiniStatCard
-          title="Error Rate"
-          value={`${errorRate}%`}
-          icon={ErrorOutlineIcon}
-          color={parseFloat(errorRate) > 5 ? '#ef4444' : parseFloat(errorRate) > 1 ? '#f59e0b' : '#10b981'}
-          subtitle={`${formatNumber(totalErrors)} errors / ${formatNumber(totalRequests)} requests`}
+        <SummaryCard
+          icon={Server}
+          label="Total Backends"
+          value={summaryStats.totalBackends}
         />
-      </Box>
+        <SummaryCard
+          icon={HeartPulse}
+          label="Backend Health"
+          value={`${summaryStats.healthyBackends}/${summaryStats.totalBackends}`}
+          variant={
+            summaryStats.healthyBackends === summaryStats.totalBackends
+              ? "success"
+              : "danger"
+          }
+        />
+        <SummaryCard
+          icon={AlertTriangle}
+          label="Error Rate"
+          value={`${summaryStats.errorRate}%`}
+          variant={
+            parseFloat(summaryStats.errorRate) > 5
+              ? "danger"
+              : parseFloat(summaryStats.errorRate) > 1
+                ? "warning"
+                : "success"
+          }
+        />
+      </div>
 
-      {/* Per-Rule Cards */}
-      {mergedRules.map((rule: Rule) => (
-        <RuleHealthCard key={rule.rule_id} rule={rule} />
+      {/* Per-rule cards */}
+      {mergedRules.length === 0 && (
+        <Card>
+          <Card.Body>
+            <p className="text-center text-slate-500 dark:text-slate-400 py-8">
+              No traffic-split rules with backends found.
+            </p>
+          </Card.Body>
+        </Card>
+      )}
+
+      {mergedRules.map((rule) => (
+        <Card key={rule.rule_id}>
+          <Card.Header>
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
+                {rule.rule_name}
+              </h3>
+              <Badge variant="info" size="sm">
+                {rule.server_name}
+              </Badge>
+              <Badge variant="default" size="sm">
+                {rule.path}
+              </Badge>
+              <Badge variant="primary" size="sm">
+                {rule.routing_mode}
+              </Badge>
+            </div>
+          </Card.Header>
+          <Card.Body className="space-y-4">
+            <BackendTable backends={rule.backends} />
+            {rule.backends.length > 1 && (
+              <BackendCharts backends={rule.backends} />
+            )}
+          </Card.Body>
+        </Card>
       ))}
-    </ChartCard>
+    </div>
   );
 };
 
-export default BackendHealth;
+BackendHealth.displayName = "BackendHealth";
+
+export default React.memo(BackendHealth);

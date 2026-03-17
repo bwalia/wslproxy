@@ -1,597 +1,316 @@
-// Plain module data provider — no React dependencies
-// All methods are plain async functions, no hooks or store usage
+/* ──────────────────────────────────────────────────────────────────────────
+   Data-provider — the single gateway between UI and the WSLProxy Lua API.
+   Pure functions, no React hooks.  Use `useResource` / `useApi` in components.
+   ────────────────────────────────────────────────────────────────────────── */
 
-import { getHeaders, encodeSpecialChars } from "@/lib/api/client";
-import { handleConfigField } from "@/lib/nginx/config-generator";
-import { config } from "@/lib/config/env";
+import type {
+  AppSettings,
+  ChangeRequest,
+  DataProvider,
+  HealthData,
+  InstanceInfo,
+  ListParams,
+  ListResult,
+  SingleResult,
+  TrafficStats,
+} from "@/types";
+import { apiFetch, encodePayload } from "./client";
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
+// ── Helpers ─────────────────────────────────────────────────────────────
 
-export interface ListParams {
-  filter?: Record<string, unknown>;
-  pagination?: { page: number; perPage: number };
-  sort?: { field: string; order: "ASC" | "DESC" };
-  timestamp?: number;
-  [key: string]: unknown;
+function getEnvProfile(): string {
+  if (typeof window === "undefined") return "prod";
+  return localStorage.getItem("environment") || "prod";
 }
 
-export interface GetOneParams {
-  id: string | number;
-}
-
-export interface GetManyParams {
-  ids: (string | number)[];
-}
-
-export interface MutationParams<T = Record<string, unknown>> {
-  id?: string | number;
-  data: T;
-}
-
-export interface ListResult<T = Record<string, unknown>> {
-  data: T[];
-  total: number;
-}
-
-export interface SingleResult<T = unknown> {
-  data: T;
-}
-
-export interface DataProvider {
-  get: (resource: string, params?: Record<string, unknown>) => Promise<unknown>;
-  getList: (resource: string, params?: ListParams) => Promise<ListResult>;
-  getOne: (resource: string, params: GetOneParams) => Promise<SingleResult>;
-  getMany: (
-    resource: string,
-    params: GetManyParams,
-  ) => Promise<{ data: Record<string, unknown>[] }>;
-  create: (resource: string, params: MutationParams) => Promise<SingleResult>;
-  update: (
-    resource: string,
-    params: MutationParams & { id: string | number },
-  ) => Promise<SingleResult>;
-  delete: (resource: string, params: GetOneParams) => Promise<SingleResult>;
-  deleteMany: (
-    resource: string,
-    params: GetManyParams,
-  ) => Promise<{ data: unknown[] }>;
-  syncAPI: (resource: string, params?: MutationParams) => Promise<SingleResult>;
-  importProjects: (
-    resource: string,
-    params: MutationParams,
-  ) => Promise<SingleResult>;
-  profileUpdate: (
-    resource: string,
-    params: MutationParams,
-  ) => Promise<SingleResult>;
-  loadSettings: (
-    resource: string,
-    params?: Record<string, unknown>,
-  ) => Promise<SingleResult>;
-  getLogs: (
-    resource: string,
-    params?: Record<string, unknown>,
-  ) => Promise<SingleResult>;
-  getTrafficStats: (
-    resource: string,
-    params?: Record<string, unknown>,
-  ) => Promise<SingleResult>;
-  getErrorDetails: (
-    resource: string,
-    params?: Record<string, unknown>,
-  ) => Promise<SingleResult>;
-  getLogMetrics: (
-    resource: string,
-    params?: Record<string, unknown>,
-  ) => Promise<SingleResult>;
-  getCacheStats: (
-    resource: string,
-    params?: Record<string, unknown>,
-  ) => Promise<SingleResult>;
-  getInstanceInfo: (
-    resource: string,
-    params?: Record<string, unknown>,
-  ) => Promise<SingleResult>;
-  getTrafficTopology: (
-    resource: string,
-    params?: Record<string, unknown>,
-  ) => Promise<SingleResult>;
-  getTrafficBackendStats: (
-    resource: string,
-    params?: Record<string, unknown>,
-  ) => Promise<SingleResult>;
-  getTrafficHealth: (
-    resource: string,
-    params?: Record<string, unknown>,
-  ) => Promise<SingleResult>;
-  updateTrafficWeights: (
-    resource: string,
-    params: MutationParams,
-  ) => Promise<SingleResult>;
-  promoteBackend: (
-    resource: string,
-    params: MutationParams,
-  ) => Promise<SingleResult>;
-  rollbackBackend: (
-    resource: string,
-    params: MutationParams,
-  ) => Promise<SingleResult>;
-  getDetailedHealth: (
-    resource: string,
-    params?: Record<string, unknown>,
-  ) => Promise<SingleResult>;
-  checkORStatus: (
-    resource: string,
-    params?: Record<string, unknown>,
-  ) => Promise<SingleResult>;
-  pushDataServers: (
-    resource: string,
-    params: MutationParams,
-  ) => Promise<SingleResult>;
-  resetPassword: (
-    resource: string,
-    params: MutationParams,
-  ) => Promise<SingleResult>;
-  saveStorageFlag: (
-    resource: string,
-    params: MutationParams,
-  ) => Promise<SingleResult>;
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function handle401(): never {
-  localStorage.removeItem("token");
-  localStorage.removeItem("storageManagement");
-  window.location.href = "/login";
-  throw new Error("Unauthorized");
-}
-
-async function handleResponse(response: Response): Promise<any> {
-  if (response.status === 401) {
-    handle401();
-  }
-  if (response.status < 200 || response.status >= 300) {
-    const error = await response.text();
-    // Extract a short message — avoid dumping full HTML error pages
-    const msg =
-      error && !error.startsWith("<!")
-        ? error.slice(0, 200)
-        : `${response.status} ${response.statusText}`;
-    throw new Error(msg);
-  }
-  // Some endpoints return 200/204 with an empty body — avoid JSON parse crash
-  const text = await response.text();
-  if (!text || text.trim() === "") {
-    return null;
-  }
-  try {
-    return JSON.parse(text);
-  } catch {
-    throw new Error(`Invalid JSON response from server: ${text.slice(0, 100)}`);
-  }
-}
-
-function jsonHeaders(): Record<string, string> {
-  return {
-    ...getHeaders(),
-    "Content-Type": "application/json",
-  };
-}
-
-/** Simple GET against apiUrl with query-string encoded params. */
-async function fetchGet(
-  apiUrl: string,
-  path: string,
-  params: Record<string, unknown> = {},
-): Promise<any> {
-  const url = `${apiUrl}/${path}?_format=json&params=${JSON.stringify(params)}`;
-  const response = await fetch(url, { headers: getHeaders() });
-  return handleResponse(response);
-}
-
-/** POST / PUT / DELETE against apiUrl. */
-async function fetchMutate(
-  apiUrl: string,
-  path: string,
-  method: "POST" | "PUT" | "DELETE",
-  body?: string,
-): Promise<any> {
-  const headers = method === "DELETE" ? getHeaders() : jsonHeaders();
-  const response = await fetch(`${apiUrl}/${path}`, {
-    method,
-    ...(body !== undefined ? { body } : {}),
-    headers,
-  });
-  return handleResponse(response);
-}
-
-// ---------------------------------------------------------------------------
-// Factory
-// ---------------------------------------------------------------------------
-
-export function createDataProvider(apiUrl: string): DataProvider {
-  return {
-    // ------------------------------------------------------------------
-    // Core CRUD
-    // ------------------------------------------------------------------
-
-    get: async (resource, params = {}) => {
-      return fetchGet(apiUrl, resource, params);
+function listUrl(resource: string, params: ListParams = {}): string {
+  const merged = {
+    pagination: params.pagination ?? { page: 1, perPage: 1000 },
+    sort: params.sort ?? { field: "id", order: "ASC" },
+    filter: {
+      ...params.filter,
+      profile_id: (params.filter?.profile_id as string) || getEnvProfile(),
     },
+    timestamp: Date.now(),
+  };
+  return `/${resource}?_format=json&params=${encodeURIComponent(JSON.stringify(merged))}`;
+}
 
-    getList: async (resource, params: ListParams = {}) => {
-      const environmentProfile = localStorage.getItem("environment") || "prod";
-      if (!params.filter) {
-        params.filter = {};
-      }
-      if (!params.filter.profile_id && environmentProfile) {
-        params.filter.profile_id = environmentProfile;
-      }
-      params.timestamp = Date.now();
+function oneUrl(resource: string, id: string): string {
+  return `/${resource}/${id}?_format=json&envprofile=${getEnvProfile()}&timestamp=${Date.now()}`;
+}
 
-      const url = `${apiUrl}/${resource}?_format=json&params=${JSON.stringify(params)}`;
-      try {
-        const response = await fetch(url, { headers: getHeaders() });
-        if (response.status === 401) {
-          handle401();
-        }
-        const json = await response.json();
-        if (!json || !json.data) {
-          return { data: [], total: 0 };
-        }
+function ts(): string {
+  return `timestamp=${Date.now()}`;
+}
+
+// ── Nginx server config builder (same logic as old dashboard) ───────────
+
+function generateSslBlock(d: Record<string, unknown>): string {
+  if (!d.ssl_enabled) return "";
+  return `
+      listen 443 ssl http2;
+      ssl_certificate_by_lua_block { auto_ssl:ssl_certificate() }
+      ssl_certificate /etc/ssl/resty-auto-ssl-fallback.crt;
+      ssl_certificate_key /etc/ssl/resty-auto-ssl-fallback.key;
+      ssl_session_timeout 1d;
+      ssl_session_cache shared:SSL:50m;
+      ssl_session_tickets off;
+      ssl_protocols TLSv1.2 TLSv1.3;
+      ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384;
+      ssl_prefer_server_ciphers off;
+      add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;`;
+}
+
+function generateAcmeBlock(d: Record<string, unknown>): string {
+  if (!d.ssl_enabled) return "";
+  return `
+      location /.well-known/acme-challenge/ {
+          content_by_lua_block { auto_ssl:challenge_server() }
+      }`;
+}
+
+function generateRedirectBlock(d: Record<string, unknown>): string {
+  if (!d.ssl_enabled || !d.ssl_force_https) return "";
+  const name = (d.server_name as string) || "example.com";
+  return `
+server {
+    listen 80;
+    server_name ${name};
+    location /.well-known/acme-challenge/ { content_by_lua_block { auto_ssl:challenge_server() } }
+    location / { return 301 https://$host$request_uri; }
+}
+`;
+}
+
+function handleConfigField(data: Record<string, unknown>): Record<string, unknown> {
+  const d = { ...data };
+  const listens = (d.listens as { listen?: string }[]) ?? [];
+  const locations = (d.locations as Record<string, unknown>[]) ?? [];
+  const customBlocks = (d.custom_block as { additional_block: string }[]) ?? [];
+  const customLocBlocks = (d.custom_location_block as { additional_location_block: string }[]) ?? [];
+  const customHttpBlocks = (d.custom_http_block as { additional_http_block: string }[]) ?? [];
+
+  d.config = `${generateRedirectBlock(d)}server {
+      ${listens.map((l) => `listen ${l.listen || ""};`).join("\n")}
+      ${generateSslBlock(d)}
+      server_name ${d.server_name || "example.com"};
+      root ${d.root || "/var/www/html"};
+      index ${d.index || "index.html index.htm"};
+      access_log ${d.access_log || "/var/log/nginx/access.log"};
+      error_log ${d.error_log || "/var/log/nginx/error.log"};
+      ${generateAcmeBlock(d)}
+      ${locations
+        .map((loc) => {
+          const vals = (loc.location_vals ?? {}) as Record<string, string>;
+          const opts = (loc.location_opts ?? {}) as Record<string, string>;
+          const inner = Object.values(opts)
+            .map((idx) => `${idx} ${vals[idx] ?? ""}`)
+            .join("\n");
+          return `location ${loc.location_path || "/"} {
+                ${inner || "#Please select an Options"}
+            ${customLocBlocks.map((b) => b.additional_location_block).join("\n")}
+          }`;
+        })
+        .join("\n")}
+      ${customBlocks.map((b) => b.additional_block).join("\n")}
+  }
+  ${customHttpBlocks.map((b) => b.additional_http_block).join("\n")}
+  `;
+  return d;
+}
+
+// ── Data provider singleton ─────────────────────────────────────────────
+
+export const dataProvider: DataProvider = {
+  // ── CRUD ───────────────────────────────────────────────────────────
+
+  getList: <T>(resource: string, params: ListParams = {}) =>
+    apiFetch<ListResult<T>>(listUrl(resource, params))
+      .then((r) => {
+        if (!r) return { data: [] as T[], total: 0 };
         return {
-          data: json.data,
-          total: json.total || json.data.length,
-        };
-      } catch (error) {
-        // If the error is an auth redirect, re-throw
-        if (error instanceof Error && error.message === "Unauthorized") {
-          throw error;
-        }
-        return { data: [], total: 0 };
-      }
-    },
+          data: Array.isArray(r.data) ? r.data : [],
+          total: r.total ?? 0,
+        } as ListResult<T>;
+      })
+      .catch(() => ({ data: [] as T[], total: 0 })),
 
-    getOne: async (resource, params) => {
-      const json = await fetchGet(
-        apiUrl,
-        `${resource}/${encodeURIComponent(String(params.id))}`,
-      );
-      return { data: json?.data ?? null };
-    },
+  getOne: <T>(resource: string, id: string) =>
+    apiFetch<SingleResult<T>>(oneUrl(resource, id)),
 
-    getMany: async (resource, params) => {
-      const query = params.ids.map((id) => `id=${id}`).join("&");
-      const url = `${apiUrl}/${resource}?${query}&_format=json`;
-      const response = await fetch(url, { headers: getHeaders() });
-      const json = await handleResponse(response);
-      return { data: json.data || [] };
-    },
+  create: <T>(resource: string, data: Record<string, unknown>) => {
+    const payload = resource === "servers" ? handleConfigField(data) : data;
+    return apiFetch<SingleResult<T>>(`/${resource}`, {
+      method: "POST",
+      body: encodePayload(payload),
+    });
+  },
 
-    create: async (resource, params) => {
-      let data: any = params.data;
-      if (resource === "servers") {
-        data = handleConfigField(data);
-      }
-      let body = JSON.stringify(data);
-      body = encodeSpecialChars(body);
-      const json = await fetchMutate(apiUrl, resource, "POST", body);
-      return { data: json?.data ?? null };
-    },
+  update: <T>(resource: string, id: string, data: Record<string, unknown>) => {
+    let payload = resource === "servers" ? handleConfigField(data) : { ...data };
+    const env = getEnvProfile();
+    if (env && (payload as Record<string, unknown>).profile_id !== env) {
+      (payload as Record<string, unknown>).profile_id = env;
+    }
+    return apiFetch<SingleResult<T>>(`/${resource}/${id}?${ts()}`, {
+      method: "PUT",
+      body: encodePayload(payload),
+    });
+  },
 
-    update: async (resource, params) => {
-      let data: any = params.data;
-      if (resource === "servers") {
-        data = handleConfigField(data);
-      }
-      let body = JSON.stringify(data);
-      body = encodeSpecialChars(body);
-      const json = await fetchMutate(
-        apiUrl,
-        `${resource}/${encodeURIComponent(String(params.id))}`,
-        "PUT",
-        body,
-      );
-      return { data: json?.data ?? null };
-    },
+  remove: (resource: string, id: string, body?: unknown) =>
+    apiFetch(`/${resource}/${id}`, {
+      method: "DELETE",
+      body: body ? JSON.stringify(body) : undefined,
+    }),
 
-    delete: async (resource, params) => {
-      const json = await fetchMutate(
-        apiUrl,
-        `${resource}/${encodeURIComponent(String(params.id))}`,
-        "DELETE",
-      );
-      return { data: json?.data ?? null };
-    },
+  removeMany: (resource: string, ids: string[]) =>
+    apiFetch(`/${resource}`, {
+      method: "DELETE",
+      body: JSON.stringify({ ids: { ids, envProfile: getEnvProfile(), timestamp: Date.now() } }),
+    }),
 
-    deleteMany: async (resource, params) => {
-      const responses = await Promise.all(
-        params.ids.map((id) =>
-          fetch(`${apiUrl}/${resource}/${encodeURIComponent(String(id))}`, {
-            method: "DELETE",
-            headers: getHeaders(),
-          }),
-        ),
-      );
-      const results = await Promise.all(
-        responses.map((r) => handleResponse(r)),
-      );
-      return { data: results.map((json: any) => json.data) };
-    },
+  // ── Analytics ─────────────────────────────────────────────────────
 
-    // ------------------------------------------------------------------
-    // Storage flag
-    // ------------------------------------------------------------------
+  getTrafficStats: () =>
+    apiFetch<SingleResult<TrafficStats>>(`/traffic/stats?${ts()}`).then(
+      (r) => r ?? ({ data: { chart_data: [], summary: {} } } as SingleResult<TrafficStats>),
+    ),
 
-    saveStorageFlag: async (resource, params) => {
-      const json = await fetchMutate(
-        apiUrl,
-        resource,
-        "POST",
-        JSON.stringify(params.data),
-      );
-      return { data: json?.data ?? null };
-    },
+  getErrorDetails: (statusCode?: string) =>
+    apiFetch<SingleResult>(
+      statusCode ? `/traffic/errors/${statusCode}?${ts()}` : `/traffic/errors?${ts()}`,
+    ).then((r) => r ?? { data: {} }),
 
-    // ------------------------------------------------------------------
-    // Sync / Import / Profile
-    // ------------------------------------------------------------------
+  getLogMetrics: () =>
+    apiFetch<SingleResult>(`/log/metrics?${ts()}`).then((r) => r ?? { data: { available: false } }),
 
-    syncAPI: async (resource, params: MutationParams = { data: {} }) => {
-      const FRONT_URL = config.frontUrl;
-      const instanceRaw = localStorage.getItem("instance");
-      if (instanceRaw) {
-        const parsedInstance = JSON.parse(instanceRaw) as Record<
-          string,
-          string
-        >;
-        const environmentProfile =
-          localStorage.getItem("environment") || "prod";
-        const url = `${FRONT_URL}/${resource}?envprofile=${environmentProfile || ""}&settings=true&instance_hash=${parsedInstance.instance_hash}&serial_number=${parsedInstance.serial_number}`;
-        const reqHeaders = getHeaders();
-        delete reqHeaders["x-platform"];
-        const response = await fetch(url, {
-          method: "POST",
-          body: JSON.stringify(params.data || {}),
-          headers: {
-            ...reqHeaders,
-            "Content-Type": "application/json",
-          },
-        });
-        const json = await handleResponse(response);
-        return { data: json?.data ?? null };
-      }
-      return { data: null };
-    },
+  getCacheStats: () =>
+    apiFetch<SingleResult>(`/cache/stats?${ts()}`).then((r) => r ?? { data: { available: false } }),
 
-    importProjects: async (resource, params) => {
-      const json = await fetchMutate(
-        apiUrl,
-        resource,
-        "POST",
-        JSON.stringify(params.data),
-      );
-      return { data: json?.data ?? null };
-    },
+  getLogs: () =>
+    apiFetch<SingleResult>(`/openresty/error_logs?${ts()}`).then((r) => r ?? { data: {} }),
 
-    profileUpdate: async (resource, params) => {
-      const json = await fetchMutate(
-        apiUrl,
-        resource,
-        "POST",
-        JSON.stringify(params.data),
-      );
-      return { data: json?.data ?? null };
-    },
+  // ── Monitoring ────────────────────────────────────────────────────
 
-    // ------------------------------------------------------------------
-    // Settings / Logs
-    // ------------------------------------------------------------------
+  getInstanceInfo: () =>
+    apiFetch<SingleResult<InstanceInfo>>(`/instance/info?${ts()}`).then(
+      (r) => r ?? ({ data: {} } as SingleResult<InstanceInfo>),
+    ),
 
-    loadSettings: async (resource, params = {}) => {
-      const json = await fetchGet(apiUrl, resource, params);
-      return { data: json?.data ?? null };
-    },
+  getDetailedHealth: async () => {
+    const start = Date.now();
+    try {
+      const r = await apiFetch<SingleResult<Record<string, unknown>>>(`/ping?detailed=true&${ts()}`);
+      return {
+        data: {
+          ...(r?.data ?? {}),
+          _http_status: 200,
+          _latency: Date.now() - start,
+          _authenticated: true,
+        },
+      } as SingleResult<HealthData>;
+    } catch (err) {
+      return {
+        data: {
+          status: "unreachable",
+          error: (err as Error).message,
+          _http_status: undefined,
+          _latency: Date.now() - start,
+          _authenticated: false,
+        },
+      } as SingleResult<HealthData>;
+    }
+  },
 
-    getLogs: async (resource, params = {}) => {
-      try {
-        const json = await fetchGet(apiUrl, resource, params);
-        return { data: json?.data ?? null };
-      } catch {
-        // Log endpoints may not be available — fail silently
-        return { data: null };
-      }
-    },
+  checkORStatus: () =>
+    apiFetch<SingleResult>(`/openresty_status?${ts()}`).then((r) => r ?? { data: {} }),
 
-    // ------------------------------------------------------------------
-    // Analytics
-    // ------------------------------------------------------------------
+  getTrafficTopology: () =>
+    apiFetch<SingleResult>(`/traffic/topology?${ts()}`).then(
+      (r) => r ?? { data: { servers: [], rules_with_backends: [], connections: [] } },
+    ),
 
-    getTrafficStats: async (resource, params = {}) => {
-      try {
-        const json = await fetchGet(
-          apiUrl,
-          `${resource}/traffic-stats`,
-          params,
-        );
-        return { data: json?.data ?? null };
-      } catch {
-        return { data: null };
-      }
-    },
+  getTrafficBackendStats: (ruleId: string) =>
+    apiFetch<SingleResult>(`/traffic/backends?rule_id=${encodeURIComponent(ruleId)}&${ts()}`).then(
+      (r) => r ?? { data: { rule_id: ruleId, backends: [] } },
+    ),
 
-    getErrorDetails: async (resource, params = {}) => {
-      try {
-        const json = await fetchGet(
-          apiUrl,
-          `${resource}/error-details`,
-          params,
-        );
-        return { data: json?.data ?? null };
-      } catch {
-        return { data: null };
-      }
-    },
+  getTrafficHealth: () =>
+    apiFetch<SingleResult>(`/traffic/health?${ts()}`).then((r) => r ?? { data: [] }),
 
-    getLogMetrics: async (resource, params = {}) => {
-      try {
-        const json = await fetchGet(apiUrl, `${resource}/log-metrics`, params);
-        return { data: json?.data ?? null };
-      } catch {
-        return { data: null };
-      }
-    },
+  // ── Traffic management ────────────────────────────────────────────
 
-    getCacheStats: async (resource, params = {}) => {
-      try {
-        const json = await fetchGet(apiUrl, `${resource}/cache-stats`, params);
-        return { data: json?.data ?? null };
-      } catch {
-        return { data: null };
-      }
-    },
+  updateTrafficWeights: (data) =>
+    apiFetch(`/traffic/backends/weights`, { method: "POST", body: JSON.stringify(data) }),
 
-    // ------------------------------------------------------------------
-    // Monitoring
-    // ------------------------------------------------------------------
+  promoteBackend: (data) =>
+    apiFetch(`/traffic/backends/promote`, { method: "POST", body: JSON.stringify(data) }),
 
-    getInstanceInfo: async (resource, params = {}) => {
-      try {
-        const json = await fetchGet(
-          apiUrl,
-          `${resource}/instance-info`,
-          params,
-        );
-        return { data: json?.data ?? null };
-      } catch {
-        return { data: null };
-      }
-    },
+  rollbackBackend: (data) =>
+    apiFetch(`/traffic/backends/rollback`, { method: "POST", body: JSON.stringify(data) }),
 
-    getTrafficTopology: async (resource, params = {}) => {
-      try {
-        const json = await fetchGet(
-          apiUrl,
-          `${resource}/traffic-topology`,
-          params,
-        );
-        return { data: json?.data ?? null };
-      } catch {
-        return { data: null };
-      }
-    },
+  // ── Special ───────────────────────────────────────────────────────
 
-    getTrafficBackendStats: async (resource, params = {}) => {
-      try {
-        const json = await fetchGet(
-          apiUrl,
-          `${resource}/traffic-backend-stats`,
-          params,
-        );
-        return { data: json?.data ?? null };
-      } catch {
-        return { data: null };
-      }
-    },
+  loadSettings: async () => {
+    const r = await apiFetch<{ data?: AppSettings } | null>(`/global/settings?${ts()}`);
+    return r?.data ?? null;
+  },
 
-    getTrafficHealth: async (resource, params = {}) => {
-      try {
-        const json = await fetchGet(
-          apiUrl,
-          `${resource}/traffic-health`,
-          params,
-        );
-        return { data: json?.data ?? null };
-      } catch {
-        return { data: null };
-      }
-    },
+  saveStorageFlag: (resource, data) =>
+    apiFetch(`/${resource}?_format=json`, { method: "POST", body: JSON.stringify(data) }),
 
-    // ------------------------------------------------------------------
-    // Traffic management
-    // ------------------------------------------------------------------
+  profileUpdate: (data) =>
+    apiFetch(`/settings/profile`, { method: "POST", body: JSON.stringify(data) }),
 
-    updateTrafficWeights: async (resource, params) => {
-      const json = await fetchMutate(
-        apiUrl,
-        `${resource}/traffic-weights`,
-        "POST",
-        JSON.stringify(params.data),
-      );
-      return { data: json?.data ?? null };
-    },
+  importProjects: (data) =>
+    apiFetch(`/projects/import?_format=json`, { method: "POST", body: JSON.stringify(data) }),
 
-    promoteBackend: async (resource, params) => {
-      const json = await fetchMutate(
-        apiUrl,
-        `${resource}/promote`,
-        "POST",
-        JSON.stringify(params.data),
-      );
-      return { data: json?.data ?? null };
-    },
+  resetPassword: (data) =>
+    apiFetch(`/password/reset`, { method: "POST", body: JSON.stringify(data) }),
 
-    rollbackBackend: async (resource, params) => {
-      const json = await fetchMutate(
-        apiUrl,
-        `${resource}/rollback`,
-        "POST",
-        JSON.stringify(params.data),
-      );
-      return { data: json?.data ?? null };
-    },
+  pushDataServers: (resource, data) =>
+    apiFetch(`/${resource}`, {
+      method: "POST",
+      body: JSON.stringify({ ...(data as Record<string, unknown>), profile: getEnvProfile(), timestamp: Date.now() }),
+    }),
 
-    // ------------------------------------------------------------------
-    // System operations
-    // ------------------------------------------------------------------
+  syncAPI: async () => {
+    const frontUrl = typeof window !== "undefined"
+      ? localStorage.getItem("FRONT_URL") ?? ""
+      : "";
+    if (!frontUrl) return;
+    const instanceRaw = localStorage.getItem("instance");
+    if (!instanceRaw) return;
+    const instance = JSON.parse(instanceRaw);
+    const env = getEnvProfile();
+    await fetch(
+      `${frontUrl}/frontdoor/opsapi/sync?envprofile=${env}&settings=true&instance_hash=${instance.instance_hash}&serial_number=${instance.serial_number}`,
+    );
+  },
 
-    getDetailedHealth: async (resource, params = {}) => {
-      try {
-        const json = await fetchGet(
-          apiUrl,
-          `${resource}/detailed-health`,
-          params,
-        );
-        return { data: json?.data ?? null };
-      } catch {
-        return { data: null };
-      }
-    },
+  // ── Change requests ───────────────────────────────────────────────
 
-    checkORStatus: async (resource, params = {}) => {
-      try {
-        const json = await fetchGet(apiUrl, `${resource}/or-status`, params);
-        return { data: json?.data ?? null };
-      } catch {
-        return { data: null };
-      }
-    },
+  getChangeRequests: (params = {}) =>
+    apiFetch<ListResult<ChangeRequest>>(`/change-requests?${ts()}&params=${encodeURIComponent(JSON.stringify(params))}`).then(
+      (r) => r ?? { data: [], total: 0 },
+    ),
 
-    pushDataServers: async (resource, params) => {
-      const json = await fetchMutate(
-        apiUrl,
-        `${resource}/push-data`,
-        "POST",
-        JSON.stringify(params.data),
-      );
-      return { data: json?.data ?? null };
-    },
+  getPendingCRCount: () =>
+    apiFetch<{ count: number }>(`/change-requests/pending-count?${ts()}`).then(
+      (r) => r ?? { count: 0 },
+    ),
 
-    resetPassword: async (resource, params) => {
-      const json = await fetchMutate(
-        apiUrl,
-        `${resource}/reset-password`,
-        "POST",
-        JSON.stringify(params.data),
-      );
-      return { data: json?.data ?? null };
-    },
-  };
-}
+  getCRConfig: () =>
+    apiFetch<SingleResult>(`/change-requests/config?${ts()}`).then((r) => r ?? { data: {} }),
 
-export default createDataProvider;
+  approveCR: (id, data) =>
+    apiFetch(`/change-requests/${id}/approve`, { method: "PUT", body: JSON.stringify(data) }),
+
+  rejectCR: (id, data) =>
+    apiFetch(`/change-requests/${id}/reject`, { method: "PUT", body: JSON.stringify(data) }),
+
+  setCRPassphrase: (data) =>
+    apiFetch(`/change-requests/config/passphrase`, { method: "PUT", body: JSON.stringify(data) }),
+};

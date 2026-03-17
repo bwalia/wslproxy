@@ -1,119 +1,164 @@
-'use client';
+"use client";
 
-import React, { useState, useCallback } from 'react';
-import { Button, Chip } from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
-import ShieldIcon from '@mui/icons-material/Shield';
-import { useRouter } from 'next/navigation';
-import { PageHeader } from '@/components/ui/PageHeader';
-import DataTable, { Column } from '@/components/ui/DataTable';
-import StatusChip from '@/components/ui/StatusChip';
-import { useApi, useFetch } from '@/hooks/useApi';
+import { useCallback, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { ShieldAlert } from "lucide-react";
+import { useList } from "@/hooks/useResource";
+import PageHeader from "@/components/ui/PageHeader";
+import DataTable, { type Column } from "@/components/ui/DataTable";
+import Button from "@/components/ui/Button";
+import Badge from "@/components/ui/Badge";
+import StatusBadge from "@/components/ui/StatusBadge";
+import type { WafRule } from "@/types";
 
-interface WafRule {
-  id: string;
-  name: string;
-  category: string;
-  severity: string;
-  target: string;
-  action: string;
-  enabled: boolean;
-  score: number;
-  [key: string]: unknown;
-}
+const categoryVariant: Record<
+  string,
+  "primary" | "warning" | "danger" | "info" | "default"
+> = {
+  sqli: "danger",
+  xss: "danger",
+  rce: "danger",
+  lfi: "warning",
+  rfi: "warning",
+  scanner: "info",
+  protocol: "primary",
+};
 
-const severityColor = (severity: string) => {
-  switch (severity?.toLowerCase()) {
-    case 'critical': return 'error';
-    case 'high': return 'error';
-    case 'medium': return 'warning';
-    case 'low': return 'info';
-    default: return 'default';
-  }
+const severityVariant: Record<
+  string,
+  "danger" | "warning" | "info" | "default"
+> = {
+  critical: "danger",
+  high: "danger",
+  medium: "warning",
+  low: "info",
 };
 
 export default function WafRulesListPage() {
-  const api = useApi();
   const router = useRouter();
-  const [page, setPage] = useState(0);
-  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(25);
+  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState<{ field: string; order: "ASC" | "DESC" }>({
+    field: "id",
+    order: "ASC",
+  });
 
-  const { data, loading } = useFetch(() =>
-    api.getList('waf_rules', {
-      pagination: { page: page + 1, perPage: 25 },
+  const params = useMemo(
+    () => ({
+      pagination: { page, perPage },
+      sort,
       filter: search ? { q: search } : {},
-    })
+    }),
+    [page, perPage, sort, search],
   );
 
-  const columns: Column<WafRule>[] = [
-    { field: 'name', label: 'Name', sortable: true },
-    {
-      field: 'category',
-      label: 'Category',
-      render: (record) =>
-        record.category ? <Chip label={record.category} size="small" variant="outlined" /> : '-',
-    },
-    {
-      field: 'severity',
-      label: 'Severity',
-      render: (record) =>
-        record.severity ? (
-          <Chip
-            label={record.severity}
-            size="small"
-            color={severityColor(record.severity) as 'error' | 'warning' | 'info' | 'default'}
-          />
-        ) : '-',
-    },
-    { field: 'target', label: 'Target' },
-    {
-      field: 'action',
-      label: 'Action',
-      render: (record) =>
-        record.action ? <Chip label={record.action} size="small" variant="outlined" /> : '-',
-    },
-    {
-      field: 'enabled',
-      label: 'Enabled',
-      render: (record) => <StatusChip value={!!record.enabled} />,
-    },
-    { field: 'score', label: 'Score' },
-  ];
+  const { data, total, isLoading } = useList<WafRule>("waf_rules", params);
 
-  const handleSearch = useCallback((query: string) => {
-    setSearch(query);
-    setPage(0);
+  const columns = useMemo<Column<WafRule>[]>(
+    () => [
+      {
+        field: "name",
+        label: "Name",
+        sortable: true,
+        render: (r) => (
+          <span className="font-semibold text-slate-900 dark:text-slate-100">
+            {r.name}
+          </span>
+        ),
+      },
+      {
+        field: "category",
+        label: "Category",
+        render: (r) => (
+          <Badge
+            variant={categoryVariant[r.category ?? ""] ?? "default"}
+            size="sm"
+          >
+            {r.category ?? "-"}
+          </Badge>
+        ),
+      },
+      {
+        field: "severity",
+        label: "Severity",
+        render: (r) => (
+          <Badge
+            variant={severityVariant[r.severity ?? ""] ?? "default"}
+            size="sm"
+          >
+            {r.severity ?? "-"}
+          </Badge>
+        ),
+      },
+      {
+        field: "target",
+        label: "Target",
+      },
+      {
+        field: "action",
+        label: "Action",
+        render: (r) => <StatusBadge status={r.action ?? "unknown"} />,
+      },
+      {
+        field: "enabled",
+        label: "Enabled",
+        render: (r) => (
+          <StatusBadge status={r.enabled ? "enabled" : "disabled"} />
+        ),
+      },
+      {
+        field: "score",
+        label: "Score",
+      },
+    ],
+    [],
+  );
+
+  const handleRowClick = useCallback(
+    (record: WafRule) => {
+      router.push(`/waf-rules/${record.id}`);
+    },
+    [router],
+  );
+
+  const handleSort = useCallback((field: string) => {
+    setSort((prev) => ({
+      field,
+      order: prev.field === field && prev.order === "ASC" ? "DESC" : "ASC",
+    }));
+  }, []);
+
+  const handleSearch = useCallback((q: string) => {
+    setSearch(q);
+    setPage(1);
   }, []);
 
   return (
-    <>
+    <div>
       <PageHeader
         title="WAF Rules"
-        subtitle="Manage Web Application Firewall rules"
-        icon={<ShieldIcon />}
+        icon={ShieldAlert}
         actions={
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => router.push('/waf-rules/create')}
-          >
-            Create
+          <Button onClick={() => router.push("/waf-rules/create")}>
+            Create WAF Rule
           </Button>
         }
       />
-      <DataTable<WafRule>
+      <DataTable
         columns={columns}
-        data={(data?.data as WafRule[]) || []}
-        total={data?.total}
-        loading={loading}
+        data={data}
+        total={total}
+        loading={isLoading}
         page={page}
-        perPage={25}
+        perPage={perPage}
+        sort={sort}
+        onSort={handleSort}
         onPageChange={setPage}
-        onRowClick={(record) => router.push(`/waf-rules/${encodeURIComponent(String(record.id))}`)}
+        onPerPageChange={setPerPage}
+        onRowClick={handleRowClick}
         onSearch={handleSearch}
-        searchPlaceholder="Search WAF rules..."
-        emptyMessage="WAF rules"
       />
-    </>
+    </div>
   );
 }

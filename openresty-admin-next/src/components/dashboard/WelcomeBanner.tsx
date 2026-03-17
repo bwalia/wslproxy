@@ -1,0 +1,203 @@
+"use client";
+
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Server,
+  Globe,
+  Cpu,
+  MemoryStick,
+  HardDrive,
+  Copy,
+  Check,
+  ArrowRight,
+} from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useDataProvider } from "@/hooks/useResource";
+import Card from "@/components/ui/Card";
+import Skeleton from "@/components/ui/Skeleton";
+import type { InstanceInfo } from "@/types";
+
+const WelcomeBanner = memo(function WelcomeBanner() {
+  const api = useDataProvider();
+  const router = useRouter();
+  const [info, setInfo] = useState<InstanceInfo | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .getInstanceInfo()
+      .then((r) => {
+        if (!cancelled) setInfo((r?.data as InstanceInfo) ?? null);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [api]);
+
+  const ipAddress = useMemo(() => {
+    if (!info?.ip_addresses) return null;
+    const ips = Array.isArray(info.ip_addresses)
+      ? info.ip_addresses
+      : [info.ip_addresses];
+    return ips[0] ?? null;
+  }, [info]);
+
+  const handleCopyIp = useCallback(async () => {
+    if (!ipAddress) return;
+    try {
+      await navigator.clipboard.writeText(ipAddress);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch { /* clipboard not available */ }
+  }, [ipAddress]);
+
+  return (
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      {/* Left: Welcome text */}
+      <div className="lg:col-span-2">
+        <Card className="relative overflow-hidden bg-linear-to-br from-primary-600 to-primary-800 text-white">
+          <Card.Body>
+            <span className="mb-3 inline-block rounded-full bg-white/20 px-3 py-1 text-xs font-medium backdrop-blur-sm">
+              Admin Portal
+            </span>
+            <h1 className="mb-2 text-3xl font-bold">Welcome to the WSL Proxy</h1>
+            <p className="mb-6 max-w-xl text-primary-100/90">
+              Strengthen your website&apos;s defenses with this comprehensive CDN
+              security platform. Effortlessly provision new servers and assign
+              tailored security rules to build a robust, multi-layered protection
+              strategy.
+            </p>
+            <div className="flex flex-wrap gap-3">
+              <button
+                onClick={() => router.push("/servers")}
+                className="inline-flex items-center gap-2 rounded-lg bg-white px-5 py-2.5 text-sm font-semibold text-primary-700 shadow-lg transition hover:bg-primary-50"
+              >
+                <Server className="h-4 w-4" />
+                Servers
+                <ArrowRight className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => router.push("/rules")}
+                className="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white/10 px-5 py-2.5 text-sm font-semibold text-white backdrop-blur-sm transition hover:bg-white/20"
+              >
+                Rules
+              </button>
+            </div>
+          </Card.Body>
+          {/* Decorative circle */}
+          <div className="pointer-events-none absolute -right-12 -top-12 h-40 w-40 rounded-full bg-white/5" />
+          <div className="pointer-events-none absolute -bottom-8 -right-8 h-24 w-24 rounded-full bg-white/5" />
+        </Card>
+      </div>
+
+      {/* Right: Instance info */}
+      <div>
+        <Card className="h-full">
+          <Card.Header>
+            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+              Instance Info
+            </h2>
+          </Card.Header>
+          <Card.Body>
+            {loading ? (
+              <div className="space-y-4">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <Skeleton key={i} className="h-10 w-full" />
+                ))}
+              </div>
+            ) : info ? (
+              <div className="space-y-4">
+                <InfoRow
+                  icon={<Globe className="h-4 w-4 text-blue-500" />}
+                  label="Hostname"
+                  value={info.hostname ?? "—"}
+                />
+                <InfoRow
+                  icon={<Server className="h-4 w-4 text-purple-500" />}
+                  label="IP Address"
+                  value={
+                    <span className="flex items-center gap-1.5">
+                      <code className="font-mono text-sm">{ipAddress ?? "—"}</code>
+                      {ipAddress && (
+                        <button
+                          onClick={handleCopyIp}
+                          className="rounded p-0.5 text-slate-400 transition hover:text-slate-600 dark:hover:text-slate-300"
+                          title="Copy IP"
+                        >
+                          {copied ? (
+                            <Check className="h-3.5 w-3.5 text-accent-500" />
+                          ) : (
+                            <Copy className="h-3.5 w-3.5" />
+                          )}
+                        </button>
+                      )}
+                    </span>
+                  }
+                />
+                <InfoRow
+                  icon={<Cpu className="h-4 w-4 text-emerald-500" />}
+                  label="CPU Cores"
+                  value={info.cpu?.cores != null ? `${info.cpu.cores} cores` : "—"}
+                />
+                <InfoRow
+                  icon={<MemoryStick className="h-4 w-4 text-amber-500" />}
+                  label="Memory Available"
+                  value={
+                    info.memory
+                      ? `${info.memory.available ?? "—"} / ${info.memory.total ?? "—"}`
+                      : "—"
+                  }
+                />
+                <InfoRow
+                  icon={<HardDrive className="h-4 w-4 text-red-500" />}
+                  label="Storage Available"
+                  value={
+                    info.disk
+                      ? `${info.disk.available ?? "—"} / ${info.disk.total ?? "—"}`
+                      : "—"
+                  }
+                />
+              </div>
+            ) : (
+              <p className="text-sm text-slate-400">Instance info unavailable</p>
+            )}
+            <button
+              onClick={() => router.push("/health")}
+              className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-primary-600 transition hover:text-primary-700 dark:text-primary-400"
+            >
+              View Details <ArrowRight className="h-3.5 w-3.5" />
+            </button>
+          </Card.Body>
+        </Card>
+      </div>
+    </div>
+  );
+});
+
+const InfoRow = memo(function InfoRow({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-start gap-3">
+      <div className="mt-0.5">{icon}</div>
+      <div className="min-w-0 flex-1">
+        <p className="text-xs font-medium text-slate-400 dark:text-slate-500">{label}</p>
+        <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+          {value}
+        </div>
+      </div>
+    </div>
+  );
+});
+
+export default WelcomeBanner;
