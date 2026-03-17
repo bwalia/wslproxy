@@ -1,62 +1,54 @@
-'use client';
-import React from 'react';
-import { Box, Typography, alpha, useTheme } from '@mui/material';
+"use client";
 
-interface PageHeaderProps {
+import React from "react";
+import { cn } from "@/lib/utils/cn";
+import type { LucideIcon } from "lucide-react";
+
+export interface PageHeaderProps {
   title: string;
   subtitle?: string;
-  icon?: React.ReactNode;
+  icon?: LucideIcon;
   actions?: React.ReactNode;
+  className?: string;
 }
 
-const PageHeader: React.FC<PageHeaderProps> = ({ title, subtitle, icon, actions }) => {
-  const theme = useTheme();
-
-  return (
-    <Box
-      sx={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        mb: 3,
-      }}
-    >
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-        {icon && (
-          <Box
-            sx={{
-              width: 48,
-              height: 48,
-              borderRadius: 2,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: alpha(theme.palette.primary.main, 0.1),
-              color: theme.palette.primary.main,
-            }}
-          >
-            {icon}
-          </Box>
-        )}
-        <Box>
-          <Typography variant="h5" fontWeight="bold">
-            {title}
-          </Typography>
-          {subtitle && (
-            <Typography variant="body2" color="text.secondary">
-              {subtitle}
-            </Typography>
-          )}
-        </Box>
-      </Box>
-      {actions && (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          {actions}
-        </Box>
+const PageHeader: React.FC<PageHeaderProps> = ({
+  title,
+  subtitle,
+  icon: Icon,
+  actions,
+  className,
+}) => (
+  <div
+    className={cn(
+      "mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between",
+      className
+    )}
+  >
+    <div className="flex items-center gap-3">
+      {Icon && (
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary-50 dark:bg-primary-900/30">
+          <Icon
+            className="h-5 w-5 text-primary-600 dark:text-primary-400"
+            aria-hidden="true"
+          />
+        </div>
       )}
-    </Box>
-  );
-};
+      <div>
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+          {title}
+        </h1>
+        {subtitle && (
+          <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
+            {subtitle}
+          </p>
+        )}
+      </div>
+    </div>
+    {actions && <div className="flex items-center gap-2">{actions}</div>}
+  </div>
+);
 
-export { PageHeader };
+PageHeader.displayName = "PageHeader";
+
 export default PageHeader;

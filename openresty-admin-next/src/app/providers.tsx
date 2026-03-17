@@ -1,23 +1,28 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { ThemeProvider } from '@/providers/ThemeProvider';
-import { AuthProvider } from '@/contexts/AuthContext';
-import { SettingsProvider } from '@/contexts/SettingsContext';
-import { NotificationProvider } from '@/contexts/NotificationContext';
-import NotificationSnackbar from '@/components/layout/NotificationSnackbar';
+import type { ReactNode } from "react";
+import { SWRConfig } from "swr";
+import { ThemeProvider } from "@/contexts/ThemeContext";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { SettingsProvider } from "@/contexts/SettingsContext";
+import { NotificationProvider } from "@/contexts/NotificationContext";
 
-export function Providers({ children }: { children: React.ReactNode }) {
+export default function Providers({ children }: { children: ReactNode }) {
   return (
-    <ThemeProvider>
-      <AuthProvider>
-        <SettingsProvider>
-          <NotificationProvider>
-            {children}
-            <NotificationSnackbar />
-          </NotificationProvider>
-        </SettingsProvider>
-      </AuthProvider>
-    </ThemeProvider>
+    <SWRConfig
+      value={{
+        revalidateOnFocus: false,
+        dedupingInterval: 5000,
+        errorRetryCount: 3,
+      }}
+    >
+      <ThemeProvider>
+        <AuthProvider>
+          <SettingsProvider>
+            <NotificationProvider>{children}</NotificationProvider>
+          </SettingsProvider>
+        </AuthProvider>
+      </ThemeProvider>
+    </SWRConfig>
   );
 }

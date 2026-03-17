@@ -1,80 +1,107 @@
-'use client';
+"use client";
 
-import React, { useState, useCallback } from 'react';
-import { Button } from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
-import FolderIcon from '@mui/icons-material/Folder';
-import { useRouter } from 'next/navigation';
-import { PageHeader } from '@/components/ui/PageHeader';
-import DataTable, { Column } from '@/components/ui/DataTable';
-import { useApi, useFetch } from '@/hooks/useApi';
-
-interface Profile {
-  id: string;
-  name: string;
-  description: string;
-  created_at: string;
-  [key: string]: unknown;
-}
+import { useCallback, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Layers } from "lucide-react";
+import { useList } from "@/hooks/useResource";
+import PageHeader from "@/components/ui/PageHeader";
+import DataTable, { type Column } from "@/components/ui/DataTable";
+import Button from "@/components/ui/Button";
+import type { Profile } from "@/types";
 
 export default function ProfilesListPage() {
-  const api = useApi();
   const router = useRouter();
-  const [page, setPage] = useState(0);
-  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(25);
+  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState<{ field: string; order: "ASC" | "DESC" }>({
+    field: "id",
+    order: "ASC",
+  });
 
-  const { data, loading } = useFetch(() =>
-    api.getList('profiles', {
-      pagination: { page: page + 1, perPage: 25 },
+  const params = useMemo(
+    () => ({
+      pagination: { page, perPage },
+      sort,
       filter: search ? { q: search } : {},
-    })
+    }),
+    [page, perPage, sort, search],
   );
 
-  const columns: Column<Profile>[] = [
-    { field: 'name', label: 'Name', sortable: true },
-    { field: 'description', label: 'Description' },
-    {
-      field: 'created_at',
-      label: 'Created',
-      render: (record) =>
-        record.created_at ? new Date(record.created_at).toLocaleDateString() : '-',
-    },
-  ];
+  const { data, total, isLoading } = useList<Profile>("profiles", params);
 
-  const handleSearch = useCallback((query: string) => {
-    setSearch(query);
-    setPage(0);
+  const columns = useMemo<Column<Profile>[]>(
+    () => [
+      {
+        field: "name",
+        label: "Name",
+        sortable: true,
+        render: (r) => (
+          <span className="font-semibold text-slate-900 dark:text-slate-100">
+            {r.name}
+          </span>
+        ),
+      },
+      {
+        field: "description",
+        label: "Description",
+      },
+      {
+        field: "created_at",
+        label: "Created",
+        render: (r) =>
+          r.created_at
+            ? new Date(r.created_at * 1000).toLocaleDateString()
+            : "-",
+      },
+    ],
+    [],
+  );
+
+  const handleRowClick = useCallback(
+    (record: Profile) => {
+      router.push(`/profiles/${record.id}`);
+    },
+    [router],
+  );
+
+  const handleSort = useCallback((field: string) => {
+    setSort((prev) => ({
+      field,
+      order: prev.field === field && prev.order === "ASC" ? "DESC" : "ASC",
+    }));
+  }, []);
+
+  const handleSearch = useCallback((q: string) => {
+    setSearch(q);
+    setPage(1);
   }, []);
 
   return (
-    <>
+    <div>
       <PageHeader
         title="Profiles"
-        subtitle="Manage environment profiles"
-        icon={<FolderIcon />}
+        icon={Layers}
         actions={
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => router.push('/profiles/create')}
-          >
-            Create
+          <Button onClick={() => router.push("/profiles/create")}>
+            Create Profile
           </Button>
         }
       />
-      <DataTable<Profile>
+      <DataTable
         columns={columns}
-        data={(data?.data as Profile[]) || []}
-        total={data?.total}
-        loading={loading}
+        data={data}
+        total={total}
+        loading={isLoading}
         page={page}
-        perPage={25}
+        perPage={perPage}
+        sort={sort}
+        onSort={handleSort}
         onPageChange={setPage}
-        onRowClick={(record) => router.push(`/profiles/${encodeURIComponent(String(record.id))}`)}
+        onPerPageChange={setPerPage}
+        onRowClick={handleRowClick}
         onSearch={handleSearch}
-        searchPlaceholder="Search profiles..."
-        emptyMessage="profiles"
       />
-    </>
+    </div>
   );
 }

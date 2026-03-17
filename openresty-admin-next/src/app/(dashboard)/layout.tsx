@@ -1,65 +1,77 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { Box } from '@mui/material';
-import { useAuth } from '@/contexts/AuthContext';
-import { useSettings } from '@/contexts/SettingsContext';
-import DashboardAppBar from '@/components/layout/DashboardAppBar';
-import Sidebar from '@/components/layout/Sidebar';
-import LoadingOverlay from '@/components/layout/LoadingOverlay';
-import VersionFooter from '@/components/layout/VersionFooter';
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useState,
+  type ReactNode,
+} from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
+import { useSettings } from "@/contexts/SettingsContext";
+import Sidebar from "@/components/layout/Sidebar";
+import AppBar from "@/components/layout/AppBar";
+import Footer from "@/components/layout/Footer";
+import DashboardLoading from "./loading";
 
-const SIDEBAR_WIDTH_EXPANDED = 240;
-const SIDEBAR_WIDTH_COLLAPSED = 72;
-
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const router = useRouter();
-  const { isAuthenticated } = useAuth();
+export default function DashboardLayout({ children }: { children: ReactNode }) {
+  const { isAuthenticated, hydrating } = useAuth();
   const { loadSettings } = useSettings();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const router = useRouter();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
+  // Protect route — only redirect after hydration is complete
   useEffect(() => {
-    if (!isAuthenticated) {
-      router.replace('/login');
+    if (!hydrating && !isAuthenticated) {
+      router.push("/login");
     }
-  }, [isAuthenticated, router]);
+  }, [hydrating, isAuthenticated, router]);
 
+  // Load settings once authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      loadSettings().catch(() => {
-        // Settings load failure is non-fatal
-      });
+      loadSettings();
     }
   }, [isAuthenticated, loadSettings]);
+
+  const toggleSidebar = useCallback(() => {
+    setSidebarCollapsed((prev) => !prev);
+  }, []);
+
+  // Show spinner while hydrating auth state from localStorage
+  if (hydrating) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-primary-600 dark:border-slate-700 dark:border-t-primary-400" />
+      </div>
+    );
+  }
 
   if (!isAuthenticated) {
     return null;
   }
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh' }}>
-      <LoadingOverlay />
-      <Sidebar open={sidebarOpen} onToggle={() => setSidebarOpen((prev) => !prev)} />
-      <Box
-        component="main"
-        sx={{
-          flexGrow: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          minHeight: '100vh',
-        }}
+    <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950">
+      <Sidebar collapsed={sidebarCollapsed} onToggle={toggleSidebar} />
+
+      <div
+        className={`flex flex-1 flex-col transition-all duration-300 ${
+          sidebarCollapsed ? "ml-18" : "ml-64"
+        }`}
       >
-        <DashboardAppBar />
-        <Box sx={{ flexGrow: 1, px: 1, py: 1, mt: '64px' }}>
-          {children}
-        </Box>
-        <VersionFooter />
-      </Box>
-    </Box>
+        <AppBar
+          onMenuToggle={toggleSidebar}
+          sidebarCollapsed={sidebarCollapsed}
+        />
+
+        <main className="flex-1 overflow-y-auto p-6">
+          <Suspense fallback={<DashboardLoading />}>{children}</Suspense>
+        </main>
+
+        <Footer />
+      </div>
+    </div>
   );
 }

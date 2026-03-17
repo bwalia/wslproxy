@@ -1,10 +1,17 @@
 ---
 # Deploy Next.js admin dashboard (standalone server)
 # Only runs when nginx_web_ui_enabled == "yes"
-# Deploys the pre-built .next/standalone output and starts it as a systemd service
-# Nginx reverse-proxies port {{ nginx_nextjs_dashboard_port }} to Node.js on port {{ nginx_nextjs_node_port }}
+#
+# Architecture:
+#   Node.js (port {{ nginx_nextjs_node_port }}) ← Nginx reverse proxy (port {{ nginx_nextjs_dashboard_port }})
+#   Both port 8080 (old) and {{ nginx_nextjs_dashboard_port }} (new) share the same Lua API backend.
+#
+# Tags:
+#   dashboard-next  → Deploy pre-built standalone output + systemd service
+#   dashboard       → Deploys both old React admin AND new Next.js dashboard
 
-# ── Prerequisite: Ensure Node.js is available ──
+# ── Step 1: Ensure Node.js is available on the target ────────────────────
+
 - name: Check if Node.js is installed
   shell: node --version 2>/dev/null || echo "NOT_INSTALLED"
   register: node_check
@@ -49,42 +56,93 @@
   when: "'NOT_INSTALLED' not in node_check.stdout"
   tags: [dashboard-next]
 
-# ── Deploy Next.js standalone build ──
+# ── Step 2: Build Next.js on the control machine (if not pre-built) ──────
+
+- name: Check if Next.js standalone build exists locally
+  delegate_to: localhost
+  stat:
+    path: "{{ playbook_dir }}/../../openresty-admin-next/.next/standalone/server.js"
+  register: nextjs_standalone_check
+  tags: [dashboard-next]
+
+- name: Build Next.js dashboard locally if standalone output missing
+  delegate_to: localhost
+  when: not nextjs_standalone_check.stat.exists
+  block:
+    - name: Install Next.js dependencies
+      shell: npm install --legacy-peer-deps
+      args:
+        chdir: "{{ playbook_dir }}/../../openresty-admin-next"
+
+    - name: Build Next.js standalone output
+      shell: npm run build
+      args:
+        chdir: "{{ playbook_dir }}/../../openresty-admin-next"
+      environment:
+        NODE_ENV: production
+        WSLPROXY_API_URL: "http://127.0.0.1:{{ nginx_default_server_backend_port }}"
+
+    - name: Verify standalone build was created
+      stat:
+        path: "{{ playbook_dir }}/../../openresty-admin-next/.next/standalone/server.js"
+      register: nextjs_build_verify
+      failed_when: not nextjs_build_verify.stat.exists
+  tags: [dashboard-next]
+
+# ── Step 3: Deploy Next.js standalone build to target ────────────────────
+
 - name: Create Next.js admin directory
   file:
     path: /usr/local/openresty/nginx/html/openresty-admin-next
     state: directory
+    owner: "{{ openresty_user | default('www-data') }}"
+    group: "{{ openresty_group | default('www-data') }}"
     mode: '0755'
   tags: [dashboard-next]
 
 - name: Sync Next.js standalone server
   ansible.posix.synchronize:
-    src: ../../openresty-admin-next/.next/standalone/
+    src: "{{ playbook_dir }}/../../openresty-admin-next/.next/standalone/"
     dest: /usr/local/openresty/nginx/html/openresty-admin-next
     delete: yes
+    rsync_opts:
+      - "--exclude=node_modules/.cache"
   register: sync_nextjs_standalone
+  notify: restart nextjs dashboard
   tags: [dashboard-next]
 
 - name: Sync Next.js static assets
   ansible.posix.synchronize:
-    src: ../../openresty-admin-next/.next/static/
+    src: "{{ playbook_dir }}/../../openresty-admin-next/.next/static/"
     dest: /usr/local/openresty/nginx/html/openresty-admin-next/.next/static
   register: sync_nextjs_static
   tags: [dashboard-next]
 
 - name: Sync Next.js public assets
   ansible.posix.synchronize:
-    src: ../../openresty-admin-next/public/
+    src: "{{ playbook_dir }}/../../openresty-admin-next/public/"
     dest: /usr/local/openresty/nginx/html/openresty-admin-next/public
   register: sync_nextjs_public
   ignore_errors: true
   tags: [dashboard-next]
 
-- debug:
-    msg: "Next.js standalone: {{ sync_nextjs_standalone.stdout_lines | default([]) }}, static: {{ sync_nextjs_static.stdout_lines | default([]) }}"
+- name: Set ownership on Next.js directory
+  file:
+    path: /usr/local/openresty/nginx/html/openresty-admin-next
+    owner: "{{ openresty_user | default('www-data') }}"
+    group: "{{ openresty_group | default('www-data') }}"
+    recurse: yes
   tags: [dashboard-next]
 
-# ── Systemd service ──
+- debug:
+    msg: >-
+      Next.js deployed — standalone: {{ sync_nextjs_standalone.changed | default(false) }},
+      static: {{ sync_nextjs_static.changed | default(false) }},
+      public: {{ sync_nextjs_public.changed | default(false) }}
+  tags: [dashboard-next]
+
+# ── Step 4: Systemd service ──────────────────────────────────────────────
+
 - name: Deploy Next.js dashboard systemd service
   template:
     src: wslproxy-nextjs-dashboard.service.j2

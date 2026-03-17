@@ -26,6 +26,7 @@ NODE_APP_PORT=3009
 PG_PORT=5436
 NEXT_ADMIN_PORT=7619
 VITE_ADMIN_PORT=5173
+ADMINER_PORT=8380
 
 # ============================================
 # Usage and Help
@@ -65,6 +66,7 @@ show_help() {
     echo "  Admin Dashboard:  http://localhost:$ADMIN_PORT"
     echo "  Next.js Admin:    http://localhost:$NEXT_ADMIN_PORT  (new dashboard)"
   echo "  Vite Admin:       http://localhost:$VITE_ADMIN_PORT  (old dashboard)"
+  echo "  Adminer:          http://localhost:$ADMINER_PORT  (database UI)"
     echo "  API:              http://localhost:$ADMIN_PORT/api"
     echo "  HTTP Proxy:       http://localhost:$HTTP_PORT"
     echo "  HTTPS Proxy:      https://localhost:$HTTPS_PORT"
@@ -544,6 +546,7 @@ echo ""
 echo -e "  Admin Dashboard:  ${GREEN}http://localhost:$ADMIN_PORT${NC}"
 echo -e "  Next.js Admin:    ${GREEN}http://localhost:$NEXT_ADMIN_PORT${NC}  (new dashboard)"
 echo -e "  Vite Admin:       ${GREEN}http://localhost:$VITE_ADMIN_PORT${NC}  (old dashboard)"
+echo -e "  Adminer:          ${GREEN}http://localhost:$ADMINER_PORT${NC}  (database UI)"
 echo -e "  API:              ${GREEN}http://localhost:$ADMIN_PORT/api${NC}"
 echo -e "  HTTP Proxy:       ${GREEN}http://localhost:$HTTP_PORT${NC}"
 echo -e "  HTTPS Proxy:      ${GREEN}https://localhost:$HTTPS_PORT${NC}"

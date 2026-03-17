@@ -1,93 +1,138 @@
-'use client';
+"use client";
 
-import React, { useState, useCallback } from 'react';
-import { Button, Link } from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
-import BookmarkIcon from '@mui/icons-material/Bookmark';
-import { useRouter } from 'next/navigation';
-import { PageHeader } from '@/components/ui/PageHeader';
-import DataTable, { Column } from '@/components/ui/DataTable';
-import { useApi, useFetch } from '@/hooks/useApi';
-
-interface Bookmark {
-  id: string;
-  name: string;
-  url: string;
-  created_at: string;
-  [key: string]: unknown;
-}
+import { useCallback, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Bookmark } from "lucide-react";
+import { useList } from "@/hooks/useResource";
+import PageHeader from "@/components/ui/PageHeader";
+import DataTable, { type Column } from "@/components/ui/DataTable";
+import Button from "@/components/ui/Button";
+import Badge from "@/components/ui/Badge";
+import type { Bookmark as BookmarkType } from "@/types";
 
 export default function BookmarksListPage() {
-  const api = useApi();
   const router = useRouter();
-  const [page, setPage] = useState(0);
-  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(25);
+  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState<{ field: string; order: "ASC" | "DESC" }>({
+    field: "id",
+    order: "ASC",
+  });
 
-  const { data, loading } = useFetch(() =>
-    api.getList('bookmarks', {
-      pagination: { page: page + 1, perPage: 25 },
+  const params = useMemo(
+    () => ({
+      pagination: { page, perPage },
+      sort,
       filter: search ? { q: search } : {},
-    })
+    }),
+    [page, perPage, sort, search],
   );
 
-  const columns: Column<Bookmark>[] = [
-    { field: 'name', label: 'Name', sortable: true },
-    {
-      field: 'url',
-      label: 'URL',
-      render: (record) => (
-        <Link
-          href={String(record.url)}
-          target="_blank"
-          rel="noopener"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {String(record.url)}
-        </Link>
-      ),
-    },
-    {
-      field: 'created_at',
-      label: 'Created',
-      render: (record) =>
-        record.created_at ? new Date(record.created_at).toLocaleDateString() : '-',
-    },
-  ];
+  const { data, total, isLoading } = useList<BookmarkType>("bookmarks", params);
 
-  const handleSearch = useCallback((query: string) => {
-    setSearch(query);
-    setPage(0);
+  const columns = useMemo<Column<BookmarkType>[]>(
+    () => [
+      {
+        field: "title",
+        label: "Title",
+        sortable: true,
+        render: (r) => (
+          <span className="font-semibold text-slate-900 dark:text-slate-100">
+            {r.title}
+          </span>
+        ),
+      },
+      {
+        field: "host",
+        label: "Host",
+      },
+      {
+        field: "url",
+        label: "URL",
+        render: (r) =>
+          r.url ? (
+            <a
+              href={r.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="text-primary-600 hover:underline dark:text-primary-400"
+            >
+              {r.url}
+            </a>
+          ) : (
+            "-"
+          ),
+      },
+      {
+        field: "category",
+        label: "Category",
+        render: (r) =>
+          r.category ? (
+            <Badge variant="info" size="sm">
+              {r.category}
+            </Badge>
+          ) : (
+            <span>-</span>
+          ),
+      },
+      {
+        field: "created_at",
+        label: "Created",
+        render: (r) =>
+          r.created_at
+            ? new Date(r.created_at * 1000).toLocaleDateString()
+            : "-",
+      },
+    ],
+    [],
+  );
+
+  const handleRowClick = useCallback(
+    (record: BookmarkType) => {
+      router.push(`/bookmarks/${record.id}`);
+    },
+    [router],
+  );
+
+  const handleSort = useCallback((field: string) => {
+    setSort((prev) => ({
+      field,
+      order: prev.field === field && prev.order === "ASC" ? "DESC" : "ASC",
+    }));
+  }, []);
+
+  const handleSearch = useCallback((q: string) => {
+    setSearch(q);
+    setPage(1);
   }, []);
 
   return (
-    <>
+    <div>
       <PageHeader
         title="Bookmarks"
-        subtitle="Manage bookmarks"
-        icon={<BookmarkIcon />}
+        icon={Bookmark}
         actions={
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => router.push('/bookmarks/create')}
-          >
-            Create
+          <Button onClick={() => router.push("/bookmarks/create")}>
+            Create Bookmark
           </Button>
         }
       />
-      <DataTable<Bookmark>
+      <DataTable
         columns={columns}
-        data={(data?.data as Bookmark[]) || []}
-        total={data?.total}
-        loading={loading}
+        data={data}
+        total={total}
+        loading={isLoading}
         page={page}
-        perPage={25}
+        perPage={perPage}
+        sort={sort}
+        onSort={handleSort}
         onPageChange={setPage}
-        onRowClick={(record) => router.push(`/bookmarks/${encodeURIComponent(String(record.id))}`)}
+        onPerPageChange={setPerPage}
+        onRowClick={handleRowClick}
         onSearch={handleSearch}
-        searchPlaceholder="Search bookmarks..."
-        emptyMessage="bookmarks"
       />
-    </>
+    </div>
   );
 }

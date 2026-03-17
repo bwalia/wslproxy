@@ -1,26 +1,51 @@
 [Unit]
 Description=WSLProxy Next.js Admin Dashboard
+Documentation=https://github.com/bwalia/wslproxy
 After=network.target openresty.service
 Wants=openresty.service
 
 [Service]
 Type=simple
-User=nobody
-Group=nogroup
+User={{ openresty_user | default('www-data') }}
+Group={{ openresty_group | default('www-data') }}
 WorkingDirectory=/usr/local/openresty/nginx/html/openresty-admin-next
+
+# ── Runtime environment ──
 Environment=NODE_ENV=production
 Environment=PORT={{ nginx_nextjs_node_port }}
 Environment=HOSTNAME=0.0.0.0
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+
+# API backend — Next.js server-side rewrites proxy to this URL
 Environment=WSLPROXY_API_URL=http://127.0.0.1:{{ nginx_default_server_backend_port }}
-# Find node from system path or common nvm locations
+
+# App metadata exposed to the browser via NEXT_PUBLIC_* vars
+Environment=NEXT_PUBLIC_APP_NAME=wslproxy
+Environment=NEXT_PUBLIC_APP_DISPLAY_NAME=WSL Proxy
+Environment=NEXT_PUBLIC_APP_VERSION={{ wslproxy_version | default('1.0.0') }}
+Environment=NEXT_PUBLIC_APP_BUILD_NUMBER={{ wslproxy_build_number | default('unknown') }}
+Environment=NEXT_PUBLIC_DEPLOYMENT_TIME={{ wslproxy_deployment_time | default('') }}
+Environment=NEXT_PUBLIC_TARGET_PLATFORM=BARE_METAL
+
+# ── Process management ──
 ExecStartPre=/bin/sh -c 'node --version'
 ExecStart=/bin/sh -c 'exec node /usr/local/openresty/nginx/html/openresty-admin-next/server.js'
-Environment=PATH=/usr/local/bin:/usr/bin:/bin
 Restart=on-failure
 RestartSec=5
+StartLimitBurst=5
+StartLimitIntervalSec=60
+
+# ── Logging ──
 StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=wslproxy-nextjs
+
+# ── Security hardening ──
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/usr/local/openresty/nginx/html/openresty-admin-next
+ProtectHome=true
+PrivateTmp=true
 
 [Install]
 WantedBy=multi-user.target

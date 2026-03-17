@@ -1,182 +1,265 @@
-'use client';
+"use client";
 
+import { useCallback, useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { ArrowLeft, Save, Trash2, ShieldAlert } from "lucide-react";
+import { useOne, useDataProvider } from "@/hooks/useResource";
+import { useNotification } from "@/contexts/NotificationContext";
+import PageHeader from "@/components/ui/PageHeader";
+import Card from "@/components/ui/Card";
+import Button from "@/components/ui/Button";
+import Input from "@/components/ui/Input";
+import Select from "@/components/ui/Select";
+import ConfirmDialog from "@/components/ui/ConfirmDialog";
+import Skeleton from "@/components/ui/Skeleton";
+import type { WafRule } from "@/types";
 
-import React from 'react';
-import { Grid, TextField, MenuItem, FormControlLabel, Switch } from '@mui/material';
-import { useParams, useRouter } from 'next/navigation';
-import { useFormContext, Controller } from 'react-hook-form';
-import ResourceForm from '@/components/ui/ResourceForm';
-import { useApi, useFetch } from '@/hooks/useApi';
-import { useNotification } from '@/contexts/NotificationContext';
-
-function WafRuleFields() {
-  const { register, control, formState: { errors } } = useFormContext();
-
-  return (
-    <Grid container spacing={2}>
-      <Grid item xs={12} sm={6}>
-        <TextField
-          label="Name"
-          fullWidth
-          required
-          error={!!errors.name}
-          helperText={errors.name?.message as string}
-          {...register('name', { required: 'Name is required' })}
-          InputLabelProps={{ shrink: true }}
-        />
-      </Grid>
-      <Grid item xs={12} sm={6}>
-        <TextField
-          label="Category"
-          select
-          fullWidth
-          defaultValue=""
-          {...register('category')}
-          InputLabelProps={{ shrink: true }}
-        >
-          <MenuItem value="">None</MenuItem>
-          <MenuItem value="sqli">SQL Injection</MenuItem>
-          <MenuItem value="xss">Cross-Site Scripting</MenuItem>
-          <MenuItem value="rce">Remote Code Execution</MenuItem>
-          <MenuItem value="lfi">Local File Inclusion</MenuItem>
-          <MenuItem value="rfi">Remote File Inclusion</MenuItem>
-          <MenuItem value="scanner">Scanner Detection</MenuItem>
-          <MenuItem value="protocol">Protocol Enforcement</MenuItem>
-          <MenuItem value="custom">Custom</MenuItem>
-        </TextField>
-      </Grid>
-      <Grid item xs={12} sm={4}>
-        <TextField
-          label="Severity"
-          select
-          fullWidth
-          defaultValue="medium"
-          {...register('severity')}
-          InputLabelProps={{ shrink: true }}
-        >
-          <MenuItem value="critical">Critical</MenuItem>
-          <MenuItem value="high">High</MenuItem>
-          <MenuItem value="medium">Medium</MenuItem>
-          <MenuItem value="low">Low</MenuItem>
-        </TextField>
-      </Grid>
-      <Grid item xs={12} sm={4}>
-        <TextField
-          label="Target"
-          select
-          fullWidth
-          defaultValue="request"
-          {...register('target')}
-          InputLabelProps={{ shrink: true }}
-        >
-          <MenuItem value="request">Request</MenuItem>
-          <MenuItem value="request_headers">Request Headers</MenuItem>
-          <MenuItem value="request_body">Request Body</MenuItem>
-          <MenuItem value="request_uri">Request URI</MenuItem>
-          <MenuItem value="response">Response</MenuItem>
-          <MenuItem value="response_headers">Response Headers</MenuItem>
-          <MenuItem value="response_body">Response Body</MenuItem>
-        </TextField>
-      </Grid>
-      <Grid item xs={12} sm={4}>
-        <TextField
-          label="Action"
-          select
-          fullWidth
-          defaultValue="block"
-          {...register('action')}
-          InputLabelProps={{ shrink: true }}
-        >
-          <MenuItem value="block">Block</MenuItem>
-          <MenuItem value="allow">Allow</MenuItem>
-          <MenuItem value="log">Log Only</MenuItem>
-          <MenuItem value="score">Score</MenuItem>
-          <MenuItem value="redirect">Redirect</MenuItem>
-        </TextField>
-      </Grid>
-      <Grid item xs={12} sm={6}>
-        <TextField
-          label="Pattern"
-          fullWidth
-          multiline
-          rows={3}
-          helperText="Regex pattern to match"
-          {...register('pattern')}
-          InputLabelProps={{ shrink: true }}
-        />
-      </Grid>
-      <Grid item xs={12} sm={3}>
-        <TextField
-          label="Score"
-          type="number"
-          fullWidth
-          {...register('score', { valueAsNumber: true })}
-          InputLabelProps={{ shrink: true }}
-        />
-      </Grid>
-      <Grid item xs={12} sm={3}>
-        <Controller
-          name="enabled"
-          control={control}
-          render={({ field }) => (
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={!!field.value}
-                  onChange={(e) => field.onChange(e.target.checked)}
-                />
-              }
-              label="Enabled"
-            />
-          )}
-        />
-      </Grid>
-      <Grid item xs={12}>
-        <TextField
-          label="Description"
-          fullWidth
-          multiline
-          rows={2}
-          {...register('description')}
-          InputLabelProps={{ shrink: true }}
-        />
-      </Grid>
-    </Grid>
-  );
-}
-
-export default function WafRulesEditPage() {
-  const api = useApi();
-  const router = useRouter();
+export default function WafRuleDetailPage() {
   const params = useParams();
+  const router = useRouter();
+  const dataProvider = useDataProvider();
   const { notify } = useNotification();
   const id = params.id as string;
+  const isCreate = id === "create";
 
-  const { data, loading } = useFetch(() => api.getOne('waf_rules', { id }));
+  const { data, isLoading } = useOne<WafRule>(
+    isCreate ? null : "waf_rules",
+    isCreate ? null : id,
+  );
 
-  const handleSubmit = async (formData: Record<string, unknown>) => {
-    await api.update('waf_rules', { id, data: formData });
-    notify('WAF rule updated successfully', { type: 'success' });
-    router.push('/waf-rules');
-  };
+  const [form, setForm] = useState({
+    name: "",
+    category: "sqli",
+    severity: "medium",
+    pattern: "",
+    pattern_type: "regex",
+    target: "args",
+    action: "block",
+    score: 5,
+    enabled: true,
+    description: "",
+  });
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
 
-  const handleDelete = async () => {
-    await api.delete('waf_rules', { id });
-    notify('WAF rule deleted', { type: 'success' });
-    router.push('/waf-rules');
-  };
+  useEffect(() => {
+    if (data) {
+      setForm({
+        name: data.name ?? "",
+        category: data.category ?? "sqli",
+        severity: data.severity ?? "medium",
+        pattern: data.pattern ?? "",
+        pattern_type: data.pattern_type ?? "regex",
+        target: data.target ?? "args",
+        action: data.action ?? "block",
+        score: data.score ?? 5,
+        enabled: data.enabled ?? true,
+        description: data.description ?? "",
+      });
+    }
+  }, [data]);
 
-  if (loading || !data?.data) return null;
+  const handleChange = useCallback(
+    (field: string, value: string | boolean | number) => {
+      setForm((prev) => ({ ...prev, [field]: value }));
+    },
+    [],
+  );
+
+  const handleSubmit = useCallback(async () => {
+    setSaving(true);
+    try {
+      if (isCreate) {
+        await dataProvider.create("waf_rules", form);
+        notify("WAF Rule created successfully", { type: "success" });
+      } else {
+        await dataProvider.update("waf_rules", id, form);
+        notify("WAF Rule updated successfully", { type: "success" });
+      }
+      router.push("/waf-rules");
+    } catch (err) {
+      notify((err as Error).message || "Failed to save WAF rule", {
+        type: "error",
+      });
+    } finally {
+      setSaving(false);
+    }
+  }, [isCreate, form, id, dataProvider, notify, router]);
+
+  const handleDelete = useCallback(async () => {
+    setDeleting(true);
+    try {
+      await dataProvider.remove("waf_rules", id);
+      notify("WAF Rule deleted successfully", { type: "success" });
+      router.push("/waf-rules");
+    } catch (err) {
+      notify((err as Error).message || "Failed to delete WAF rule", {
+        type: "error",
+      });
+    } finally {
+      setDeleting(false);
+      setShowDelete(false);
+    }
+  }, [id, dataProvider, notify, router]);
+
+  if (!isCreate && isLoading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton variant="rectangular" />
+      </div>
+    );
+  }
 
   return (
-    <ResourceForm
-      mode="edit"
-      title="Edit WAF Rule"
-      defaultValues={data.data as Record<string, unknown>}
-      onSubmit={handleSubmit}
-      onDelete={handleDelete}
-    >
-      <WafRuleFields />
-    </ResourceForm>
+    <div>
+      <PageHeader
+        title={isCreate ? "Create WAF Rule" : `WAF Rule: ${data?.name ?? id}`}
+        icon={ShieldAlert}
+        actions={
+          <Button
+            variant="ghost"
+            onClick={() => router.push("/waf-rules")}
+            icon={<ArrowLeft className="h-4 w-4" />}
+          >
+            Back
+          </Button>
+        }
+      />
+
+      <Card>
+        <Card.Header>
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+            Rule Details
+          </h2>
+        </Card.Header>
+        <Card.Body>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <Input
+              label="Name"
+              value={form.name}
+              onChange={(e) => handleChange("name", e.target.value)}
+            />
+            <Select
+              label="Category"
+              value={form.category}
+              onChange={(e) => handleChange("category", e.target.value)}
+              options={[
+                { value: "sqli", label: "SQL Injection" },
+                { value: "xss", label: "Cross-Site Scripting" },
+                { value: "rce", label: "Remote Code Execution" },
+                { value: "lfi", label: "Local File Inclusion" },
+                { value: "rfi", label: "Remote File Inclusion" },
+                { value: "scanner", label: "Scanner Detection" },
+                { value: "protocol", label: "Protocol Violation" },
+                { value: "custom", label: "Custom" },
+              ]}
+            />
+            <Select
+              label="Severity"
+              value={form.severity}
+              onChange={(e) => handleChange("severity", e.target.value)}
+              options={[
+                { value: "critical", label: "Critical" },
+                { value: "high", label: "High" },
+                { value: "medium", label: "Medium" },
+                { value: "low", label: "Low" },
+              ]}
+            />
+            <Input
+              label="Pattern"
+              value={form.pattern}
+              onChange={(e) => handleChange("pattern", e.target.value)}
+            />
+            <Select
+              label="Pattern Type"
+              value={form.pattern_type}
+              onChange={(e) => handleChange("pattern_type", e.target.value)}
+              options={[
+                { value: "regex", label: "Regex" },
+                { value: "exact", label: "Exact" },
+                { value: "contains", label: "Contains" },
+              ]}
+            />
+            <Select
+              label="Target"
+              value={form.target}
+              onChange={(e) => handleChange("target", e.target.value)}
+              options={[
+                { value: "args", label: "Args" },
+                { value: "body", label: "Body" },
+                { value: "headers", label: "Headers" },
+                { value: "uri", label: "URI" },
+                { value: "cookies", label: "Cookies" },
+              ]}
+            />
+            <Select
+              label="Action"
+              value={form.action}
+              onChange={(e) => handleChange("action", e.target.value)}
+              options={[
+                { value: "block", label: "Block" },
+                { value: "log", label: "Log" },
+                { value: "score", label: "Score" },
+                { value: "allow", label: "Allow" },
+              ]}
+            />
+            <Input
+              label="Score"
+              type="number"
+              value={String(form.score)}
+              onChange={(e) => handleChange("score", Number(e.target.value))}
+            />
+            <label className="flex items-center gap-3 text-sm text-slate-700 dark:text-slate-300">
+              <input
+                type="checkbox"
+                checked={form.enabled}
+                onChange={(e) => handleChange("enabled", e.target.checked)}
+                className="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+              />
+              Enabled
+            </label>
+            <Input
+              label="Description"
+              value={form.description}
+              onChange={(e) => handleChange("description", e.target.value)}
+            />
+          </div>
+        </Card.Body>
+      </Card>
+
+      <div className="mt-6 flex items-center justify-between">
+        <div>
+          {!isCreate && (
+            <Button
+              variant="danger"
+              onClick={() => setShowDelete(true)}
+              icon={<Trash2 className="h-4 w-4" />}
+            >
+              Delete
+            </Button>
+          )}
+        </div>
+        <Button
+          onClick={handleSubmit}
+          loading={saving}
+          icon={<Save className="h-4 w-4" />}
+        >
+          {isCreate ? "Create" : "Save Changes"}
+        </Button>
+      </div>
+
+      <ConfirmDialog
+        open={showDelete}
+        title="Delete WAF Rule"
+        message={`Are you sure you want to delete "${data?.name}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        confirmVariant="danger"
+        loading={deleting}
+        onConfirm={handleDelete}
+        onCancel={() => setShowDelete(false)}
+      />
+    </div>
   );
 }
