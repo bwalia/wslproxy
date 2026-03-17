@@ -83,7 +83,7 @@ export default function BookmarksListPage() {
         page={page}
         perPage={25}
         onPageChange={setPage}
-        onRowClick={(record) => router.push(`/bookmarks/${record.id}`)}
+        onRowClick={(record) => router.push(`/bookmarks/${encodeURIComponent(String(record.id))}`)}
         onSearch={handleSearch}
         searchPlaceholder="Search bookmarks..."
         emptyMessage="bookmarks"

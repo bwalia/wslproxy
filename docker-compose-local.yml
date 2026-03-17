@@ -25,6 +25,10 @@ services:
       - "8443:443"
       # Admin Dashboard & API (default 8080 → 8280 to avoid conflicts)
       - "8280:8080"
+      # Legacy Vite Admin fallback (port 8090 → 8290 externally)
+      - "8290:8090"
+      # Next.js Admin Dashboard (port 8099 → 8299 externally)
+      - "8299:8099"
 
     volumes:
       # Hot-reload Lua API files (changes reflect per-request, no restart needed)
@@ -42,6 +46,9 @@ services:
 
       # Swagger documentation
       - ./html/swagger:/usr/local/openresty/nginx/html/swagger
+
+      # Legacy Vite Admin dist (served on port 8090/8290)
+      - ./openresty-admin/dist:/usr/local/openresty/nginx/html/openresty-admin/dist:ro
 
     environment:
       NGINX_CONFIG_DIR: /opt/nginx/

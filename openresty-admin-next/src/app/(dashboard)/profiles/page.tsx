@@ -70,7 +70,7 @@ export default function ProfilesListPage() {
         page={page}
         perPage={25}
         onPageChange={setPage}
-        onRowClick={(record) => router.push(`/profiles/${record.id}`)}
+        onRowClick={(record) => router.push(`/profiles/${encodeURIComponent(String(record.id))}`)}
         onSearch={handleSearch}
         searchPlaceholder="Search profiles..."
         emptyMessage="profiles"

@@ -89,7 +89,7 @@ const Welcome: React.FC<WelcomeProps> = ({ instanceInfo = {} }) => {
         }}
       />
 
-      <Box display="flex" sx={{ p: 4, position: 'relative', zIndex: 1 }}>
+      <Box display="flex" sx={{ p: 3, position: 'relative', zIndex: 1 }}>
         <Box flex="1">
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
             <Chip

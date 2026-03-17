@@ -7,6 +7,8 @@ nginx_port: 80
 nginx_default_server_frontend: ""
 nginx_default_server_backend: ""
 nginx_default_server_backend_port: 8080
+nginx_nextjs_dashboard_port: 8099
+nginx_nextjs_node_port: 3099
 
 # Dashboard version and build information
 # These values are used by the React dashboard footer

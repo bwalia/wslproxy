@@ -1,0 +1,102 @@
+---
+# Deploy Next.js admin dashboard (standalone server)
+# Only runs when nginx_web_ui_enabled == "yes"
+# Deploys the pre-built .next/standalone output and starts it as a systemd service
+# Nginx reverse-proxies port {{ nginx_nextjs_dashboard_port }} to Node.js on port {{ nginx_nextjs_node_port }}
+
+# ── Prerequisite: Ensure Node.js is available ──
+- name: Check if Node.js is installed
+  shell: node --version 2>/dev/null || echo "NOT_INSTALLED"
+  register: node_check
+  changed_when: false
+  failed_when: false
+  tags: [dashboard-next]
+
+- name: Install Node.js via system package manager if missing
+  when: "'NOT_INSTALLED' in node_check.stdout"
+  block:
+    - name: Install Node.js (Debian/Ubuntu)
+      apt:
+        name: [nodejs, npm]
+        state: present
+        update_cache: yes
+      when: ansible_os_family == "Debian"
+
+    - name: Install Node.js (SUSE)
+      zypper:
+        name: [nodejs20, npm20]
+        state: present
+      when: ansible_os_family == "Suse"
+
+    - name: Install Node.js (RedHat/Rocky)
+      yum:
+        name: [nodejs, npm]
+        state: present
+      when: ansible_os_family == "RedHat"
+
+    - name: Verify Node.js is now available
+      shell: node --version
+      register: node_version_after
+      changed_when: false
+
+    - debug:
+        msg: "Node.js installed: {{ node_version_after.stdout }}"
+  tags: [dashboard-next]
+
+- name: Report Node.js version
+  debug:
+    msg: "Node.js version: {{ node_check.stdout }}"
+  when: "'NOT_INSTALLED' not in node_check.stdout"
+  tags: [dashboard-next]
+
+# ── Deploy Next.js standalone build ──
+- name: Create Next.js admin directory
+  file:
+    path: /usr/local/openresty/nginx/html/openresty-admin-next
+    state: directory
+    mode: '0755'
+  tags: [dashboard-next]
+
+- name: Sync Next.js standalone server
+  ansible.posix.synchronize:
+    src: ../../openresty-admin-next/.next/standalone/
+    dest: /usr/local/openresty/nginx/html/openresty-admin-next
+    delete: yes
+  register: sync_nextjs_standalone
+  tags: [dashboard-next]
+
+- name: Sync Next.js static assets
+  ansible.posix.synchronize:
+    src: ../../openresty-admin-next/.next/static/
+    dest: /usr/local/openresty/nginx/html/openresty-admin-next/.next/static
+  register: sync_nextjs_static
+  tags: [dashboard-next]
+
+- name: Sync Next.js public assets
+  ansible.posix.synchronize:
+    src: ../../openresty-admin-next/public/
+    dest: /usr/local/openresty/nginx/html/openresty-admin-next/public
+  register: sync_nextjs_public
+  ignore_errors: true
+  tags: [dashboard-next]
+
+- debug:
+    msg: "Next.js standalone: {{ sync_nextjs_standalone.stdout_lines | default([]) }}, static: {{ sync_nextjs_static.stdout_lines | default([]) }}"
+  tags: [dashboard-next]
+
+# ── Systemd service ──
+- name: Deploy Next.js dashboard systemd service
+  template:
+    src: wslproxy-nextjs-dashboard.service.j2
+    dest: /etc/systemd/system/wslproxy-nextjs-dashboard.service
+    mode: '0644'
+  notify: restart nextjs dashboard
+  tags: [dashboard-next]
+
+- name: Enable and start Next.js dashboard service
+  systemd:
+    name: wslproxy-nextjs-dashboard
+    enabled: yes
+    state: started
+    daemon_reload: yes
+  tags: [dashboard-next]

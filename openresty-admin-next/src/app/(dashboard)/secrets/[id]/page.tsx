@@ -1,5 +1,6 @@
 'use client';
 
+
 import React from 'react';
 import { Grid, TextField } from '@mui/material';
 import { useParams, useRouter } from 'next/navigation';
@@ -72,7 +73,7 @@ export default function SecretsEditPage() {
     router.push('/secrets');
   };
 
-  if (loading || !data) return null;
+  if (loading || !data?.data) return null;
 
   const record = data.data as Record<string, unknown>;
   const defaultValues = {

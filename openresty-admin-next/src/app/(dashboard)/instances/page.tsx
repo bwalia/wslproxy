@@ -72,7 +72,7 @@ export default function InstancesListPage() {
         page={page}
         perPage={25}
         onPageChange={setPage}
-        onRowClick={(record) => router.push(`/instances/${record.id}`)}
+        onRowClick={(record) => router.push(`/instances/${encodeURIComponent(String(record.id))}`)}
         onSearch={handleSearch}
         searchPlaceholder="Search instances..."
         emptyMessage="instances"

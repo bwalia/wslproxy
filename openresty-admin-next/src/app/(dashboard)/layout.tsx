@@ -41,8 +41,6 @@ export default function DashboardLayout({
     return null;
   }
 
-  const sidebarWidth = sidebarOpen ? SIDEBAR_WIDTH_EXPANDED : SIDEBAR_WIDTH_COLLAPSED;
-
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh' }}>
       <LoadingOverlay />
@@ -51,15 +49,13 @@ export default function DashboardLayout({
         component="main"
         sx={{
           flexGrow: 1,
-          ml: `${sidebarWidth}px`,
-          transition: 'margin-left 0.3s ease',
           display: 'flex',
           flexDirection: 'column',
           minHeight: '100vh',
         }}
       >
         <DashboardAppBar />
-        <Box sx={{ flexGrow: 1, p: 3 }}>
+        <Box sx={{ flexGrow: 1, px: 1, py: 1, mt: '64px' }}>
           {children}
         </Box>
         <VersionFooter />

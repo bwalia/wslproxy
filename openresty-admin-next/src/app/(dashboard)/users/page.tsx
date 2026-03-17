@@ -78,7 +78,7 @@ export default function UsersListPage() {
         page={page}
         perPage={25}
         onPageChange={setPage}
-        onRowClick={(record) => router.push(`/users/${record.id}`)}
+        onRowClick={(record) => router.push(`/users/${encodeURIComponent(String(record.id))}`)}
         onSearch={handleSearch}
         searchPlaceholder="Search users..."
         emptyMessage="users"

@@ -1,7 +1,36 @@
 {
   "permissions": {
     "allow": [
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(docker ps:*)",
+      "Bash(docker exec:*)",
+      "Bash(docker restart:*)",
+      "Bash(shasum -a 256)",
+      "Read(//Users/balinderwalia/Documents/Work/wslproxy/**)",
+      "Bash(xxd -r -p)",
+      "Bash(TOKEN=\"eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTYiLCJleHAiOjE3NzM3MDk2ODd9.m31NT9l-Pi_pRlkotWwfZPP3vtzbxvyypTbK5hERmvE\")",
+      "Bash(TOKEN=\"eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTYiLCJleHAiOjE3NzM3MDk4Nzh9.QSHUjCJuM1Nz1UjLrb6-lb3FRCfqL4LRo4Y-nWs-xNE\")",
+      "Bash(docker stats:*)",
+      "Bash(git add:*)",
+      "Bash(JWT_SECRET_KEY=\"docker-standlone-dev-jwt\" docker compose -f docker-compose-local.yml up -d wslproxy)",
+      "Bash(JWT_SECRET_KEY=dummy docker compose -f docker-compose-old.yml down -v)",
+      "Bash(npx vite:*)",
+      "Bash(yarn vite:*)",
+      "Bash(VITE_FRONT_URL=\"\" npx vite build)",
+      "Bash(VITE_FRONT_URL=\"\" VITE_JWT_SECURITY_PASSPHRASE=\"docker-standlone-dev-jwt\" npx vite build)",
+      "Bash(docker start:*)",
+      "Bash(JWT_SECRET_KEY=docker-standlone-dev-jwt docker compose -f /Users/balinderwalia/Documents/Work/wslproxy/docker-compose-local.yml restart wslproxy)",
+      "Bash(NEXT_OUTPUT=export npx next build)",
+      "Bash(ls \"/Users/balinderwalia/Documents/Work/wslproxy/openresty-admin-next/src/app/\\(admin\\)/[[...slug]]/\")",
+      "Bash(head -5 \"/Users/balinderwalia/Documents/Work/wslproxy/openresty-admin-next/src/app/\\(dashboard\\)/profiles/[id]/page.tsx\")",
+      "Bash(head -3 \"/Users/balinderwalia/Documents/Work/wslproxy/openresty-admin-next/src/app/\\(dashboard\\)/layout.tsx\")",
+      "Bash(cat \"/Users/balinderwalia/Documents/Work/wslproxy/openresty-admin-next/src/app/\\(dashboard\\)/bookmarks/[id]/page.tsx\")",
+      "Bash(NEXT_OUTPUT=export TURBOPACK=0 npx next build)",
+      "Bash(NEXT_OUTPUT=export npx --yes next build)",
+      "Read(//Users/balinderwalia/Documents/Work/wslproxy/openresty-admin-next/**)",
+      "Bash(cat \"/Users/balinderwalia/Documents/Work/wslproxy/openresty-admin-next/src/app/\\(dashboard\\)/change-requests/[id]/page.tsx\")",
+      "Bash(head -3 \"/Users/balinderwalia/Documents/Work/wslproxy/openresty-admin-next/src/app/\\(dashboard\\)/change-requests/[id]/ClientPage.tsx\")",
+      "Bash(NEXT_OUTPUT=export npx next build --no-turbopack)"
     ]
   }
 }

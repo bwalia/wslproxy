@@ -131,7 +131,7 @@ export default function ServersListPage() {
         page={page}
         perPage={25}
         onPageChange={setPage}
-        onRowClick={(record) => router.push(`/servers/${record.id}`)}
+        onRowClick={(record) => router.push(`/servers/${encodeURIComponent(String(record.id))}`)}
         onSearch={handleSearch}
         searchPlaceholder="Search servers..."
         emptyMessage="servers"

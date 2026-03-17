@@ -1,5 +1,6 @@
 'use client';
 
+
 import React from 'react';
 import { Grid, TextField, MenuItem, FormControlLabel, Switch } from '@mui/material';
 import { useParams, useRouter } from 'next/navigation';
@@ -165,7 +166,7 @@ export default function WafRulesEditPage() {
     router.push('/waf-rules');
   };
 
-  if (loading || !data) return null;
+  if (loading || !data?.data) return null;
 
   return (
     <ResourceForm

@@ -545,10 +545,17 @@ export default function HealthPage() {
           <SectionCard title="Frontend Environment" icon={CodeIcon} accentColor="#ec4899">
             <InfoRow
               label="Env File"
-              value={frontendEnv.file_exists ? 'Found' : 'Missing'}
-              status={frontendEnv.file_exists ? 'ok' : 'error'}
+              value={frontendEnv.file_exists ? 'Found' : (frontendEnv.status === 'ok' ? 'Build-time' : 'Missing')}
+              status={frontendEnv.status === 'ok' ? 'ok' : frontendEnv.file_exists ? 'ok' : 'error'}
             />
             <InfoRow label="Overall" value={String(frontendEnv.status || 'unknown')} status={String(frontendEnv.status || '')} />
+            {(frontendEnv as Record<string, unknown>).note ? (
+              <Box sx={{ mt: 0.5, mb: 1, px: 1 }}>
+                <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic', fontSize: '0.7rem' }}>
+                  {String((frontendEnv as Record<string, unknown>).note)}
+                </Typography>
+              </Box>
+            ) : null}
             {frontendEnv.variables ? Object.entries(frontendEnv.variables as Record<string, string>).map(([key, val]) => (
               <InfoRow
                 key={key}

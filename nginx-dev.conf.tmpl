@@ -683,6 +683,218 @@ http {
           }
         }
     }
+
+    # ── Legacy Vite Admin Dashboard (port 8090 → 8290 externally) ─────────
+    # Serves the pre-built React-Admin (Vite) dist as a fallback UI
+    # so ops can verify the Lua API still works after changes.
+    server {
+        listen       8090;
+        server_name  127.0.0.1 localhost;
+
+        root /usr/local/openresty/nginx/html/openresty-admin/dist;
+        index index.html;
+
+        include /tmp/resolver.conf;
+
+        # SPA fallback — serve index.html for any route the browser requests
+        location / {
+            try_files $uri $uri/ /index.html;
+        }
+
+        # API — identical auth + Lua handler as the main 8080 block
+        location ~ ^/api(.*)$ {
+            default_type 'text/plain';
+            add_header 'Access-Control-Allow-Origin' '*';
+            add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, OPTIONS';
+            add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, X-Requested-With';
+
+            access_by_lua_block {
+                local path_name = ngx.var.uri:match("^/api/(.*)$")
+                if path_name ~= "user/login" then
+                    local jwt = JWT
+                    local token = ngx.req.get_headers()["Authorization"]
+                    if not token then
+                        ngx.status = ngx.HTTP_UNAUTHORIZED
+                        ngx.say("Missing token")
+                        return ngx.exit(ngx.HTTP_UNAUTHORIZED)
+                    end
+                    token = string.gsub(token, "^Bearer ", "")
+                    local function getSettings()
+                      local configPath = os.getenv("NGINX_CONFIG_DIR") or "/opt/nginx/"
+                      local readSettings, errSettings = io.open(configPath .. "data/settings.json", "rb")
+                      local settings = {}
+                      if readSettings == nil then
+                          ngx.say("Couldn't read file: " .. errSettings)
+                      else
+                          local jsonString = readSettings:read "*a"
+                          readSettings:close()
+                          settings = Cjson.decode(jsonString)
+                      end
+                      return settings
+                    end
+                    local settings = getSettings()
+                    if settings and type(settings) == "table" then
+                      local passPhrase = settings.env_vars.JWT_SECURITY_PASSPHRASE or os.getenv("JWT_SECURITY_PASSPHRASE")
+                      if not passPhrase or passPhrase == "" then
+                        ngx.status = ngx.HTTP_UNAUTHORIZED
+                        ngx.say(Cjson.encode({data = {message = "JWT Pass Phrase is missing"}}))
+                        return ngx.exit(ngx.HTTP_UNAUTHORIZED)
+                      end
+                      local verified_token = jwt:verify(passPhrase, token)
+                      if verified_token.verified == false then
+                          ngx.status = ngx.HTTP_UNAUTHORIZED
+                          ngx.say(Cjson.encode({data = {message = verified_token.reason}}))
+                          return ngx.exit(ngx.HTTP_UNAUTHORIZED)
+                      end
+                    else
+                      ngx.status = ngx.HTTP_UNAUTHORIZED
+                      ngx.say(Cjson.encode({data = {message = "Settings Json file missing"}}))
+                      return ngx.exit(ngx.HTTP_UNAUTHORIZED)
+                    end
+                end
+            }
+
+            if ($request_method = 'OPTIONS') {
+                add_header 'Access-Control-Allow-Origin' '*';
+                add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, PUT, DELETE';
+                add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, X-Requested-With';
+                add_header 'Access-Control-Max-Age' 1728069;
+                add_header 'Content-Type' 'text/plain; charset=utf-8';
+                return 204;
+            }
+
+            content_by_lua_file /usr/local/openresty/nginx/html/api/api.lua;
+        }
+
+        location /health {
+            default_type 'application/json';
+            add_header 'Access-Control-Allow-Origin' '*';
+            add_header 'Access-Control-Allow-Methods' 'GET';
+            add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, X-Requested-With';
+            content_by_lua_file /usr/local/openresty/nginx/html/api/ping.lua;
+        }
+
+        location /ping {
+            default_type 'application/json';
+            content_by_lua_file /usr/local/openresty/nginx/html/api/ping.lua;
+        }
+
+        location /swagger {
+            root /usr/local/openresty/nginx/html;
+            index swagger.html swagger.htm;
+        }
+    }
+
+    # ── Next.js Admin Dashboard (port 8099 → 8299 externally) ─────────
+    # Reverse proxies to Next.js standalone Node.js server
+    # API/health/ping endpoints handled by OpenResty Lua directly
+    server {
+        listen       8099;
+        server_name  127.0.0.1 localhost;
+
+        include /tmp/resolver.conf;
+
+        client_max_body_size  256M;
+        client_body_buffer_size 128k;
+
+        # Health and ping — served by OpenResty Lua
+        location /health {
+            default_type 'application/json';
+            add_header 'Access-Control-Allow-Origin' '*';
+            add_header 'Access-Control-Allow-Methods' 'GET';
+            add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, X-Requested-With';
+            content_by_lua_file /usr/local/openresty/nginx/html/api/ping.lua;
+        }
+
+        location /ping {
+            default_type 'application/json';
+            content_by_lua_file /usr/local/openresty/nginx/html/api/ping.lua;
+        }
+
+        # API — identical auth + Lua handler as the main 8080 block
+        location ~ ^/api(.*)$ {
+            default_type 'text/plain';
+            add_header 'Access-Control-Allow-Origin' '*';
+            add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, OPTIONS';
+            add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, X-Requested-With';
+
+            access_by_lua_block {
+                local path_name = ngx.var.uri:match("^/api/(.*)$")
+                if path_name ~= "user/login" then
+                    local jwt = JWT
+                    local token = ngx.req.get_headers()["Authorization"]
+                    if not token then
+                        ngx.status = ngx.HTTP_UNAUTHORIZED
+                        ngx.say("Missing token")
+                        return ngx.exit(ngx.HTTP_UNAUTHORIZED)
+                    end
+                    token = string.gsub(token, "^Bearer ", "")
+                    local function getSettings()
+                      local configPath = os.getenv("NGINX_CONFIG_DIR") or "/opt/nginx/"
+                      local readSettings, errSettings = io.open(configPath .. "data/settings.json", "rb")
+                      local settings = {}
+                      if readSettings == nil then
+                          ngx.say("Couldn't read file: " .. errSettings)
+                      else
+                          local jsonString = readSettings:read "*a"
+                          readSettings:close()
+                          settings = Cjson.decode(jsonString)
+                      end
+                      return settings
+                    end
+                    local settings = getSettings()
+                    if settings and type(settings) == "table" then
+                      local passPhrase = settings.env_vars.JWT_SECURITY_PASSPHRASE or os.getenv("JWT_SECURITY_PASSPHRASE")
+                      if not passPhrase or passPhrase == "" then
+                        ngx.status = ngx.HTTP_UNAUTHORIZED
+                        ngx.say(Cjson.encode({data = {message = "JWT Pass Phrase is missing"}}))
+                        return ngx.exit(ngx.HTTP_UNAUTHORIZED)
+                      end
+                      local verified_token = jwt:verify(passPhrase, token)
+                      if verified_token.verified == false then
+                          ngx.status = ngx.HTTP_UNAUTHORIZED
+                          ngx.say(Cjson.encode({data = {message = verified_token.reason}}))
+                          return ngx.exit(ngx.HTTP_UNAUTHORIZED)
+                      end
+                    else
+                      ngx.status = ngx.HTTP_UNAUTHORIZED
+                      ngx.say(Cjson.encode({data = {message = "Settings Json file missing"}}))
+                      return ngx.exit(ngx.HTTP_UNAUTHORIZED)
+                    end
+                end
+            }
+
+            if ($request_method = 'OPTIONS') {
+                add_header 'Access-Control-Allow-Origin' '*';
+                add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, PUT, DELETE';
+                add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, X-Requested-With';
+                add_header 'Access-Control-Max-Age' 1728069;
+                add_header 'Content-Type' 'text/plain; charset=utf-8';
+                return 204;
+            }
+
+            content_by_lua_file /usr/local/openresty/nginx/html/api/api.lua;
+        }
+
+        location /swagger {
+            root /usr/local/openresty/nginx/html;
+            index swagger.html swagger.htm;
+        }
+
+        # All other requests — proxy to Next.js Node.js server
+        location / {
+            proxy_pass http://openresty-admin-next:7619;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection 'upgrade';
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_cache_bypass $http_upgrade;
+        }
+    }
+
 # Set default generic server vars here
 
 # global_backend

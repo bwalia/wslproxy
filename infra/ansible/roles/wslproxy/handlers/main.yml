@@ -7,4 +7,11 @@
 - name: Reload systemd
   systemd:
     daemon_reload: yes
-  tags: [ luarocks, openresty ] 
+  tags: [ luarocks, openresty ]
+
+- name: restart nextjs dashboard
+  systemd:
+    name: wslproxy-nextjs-dashboard
+    state: restarted
+    daemon_reload: yes
+  tags: [ dashboard-next ]

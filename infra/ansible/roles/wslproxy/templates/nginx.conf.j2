@@ -517,6 +517,123 @@ http {
 {% endif %}
     }
 
+{% if nginx_web_ui_enabled is defined and nginx_web_ui_enabled == "yes" %}
+    # ── Next.js Admin Dashboard (port {{ nginx_nextjs_dashboard_port }}) ──────────────
+    # Reverse proxies to the Next.js standalone Node.js server on port {{ nginx_nextjs_node_port }}
+    # API/health/ping endpoints are handled by OpenResty Lua directly (same as port {{ nginx_default_server_backend_port }})
+    # Runs alongside the legacy React-Admin dashboard on port {{ nginx_default_server_backend_port }}
+    server {
+        listen       {{ nginx_nextjs_dashboard_port }};
+        server_name  127.0.0.1 localhost;
+
+        client_max_body_size  256M;
+        client_body_buffer_size 128k;
+
+        # Health and ping — served by OpenResty Lua (same as legacy dashboard)
+        location /health {
+            default_type 'application/json';
+            more_set_headers 'Access-Control-Allow-Origin: *';
+            more_set_headers 'Access-Control-Allow-Methods: GET';
+            more_set_headers 'Access-Control-Allow-Headers: Authorization, Content-Type, X-Requested-With';
+            content_by_lua_file /usr/local/openresty/nginx/html/api/ping.lua;
+        }
+
+        location /ping {
+            default_type 'application/json';
+            content_by_lua_file /usr/local/openresty/nginx/html/api/ping.lua;
+        }
+
+        # API — identical auth + Lua handler as the main {{ nginx_default_server_backend_port }} block
+        location ~ ^/api(.*)$ {
+            default_type 'text/plain';
+            more_set_headers 'Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS';
+            more_set_headers 'Access-Control-Allow-Headers: Authorization, Content-Type, X-Requested-With';
+            access_by_lua_block {
+                local cjson = Cjson
+                local path_name = ngx.var.uri:match("^/api/(.*)$")
+                if path_name ~= "user/login" then
+                    local jwt = require "resty.jwt"
+                    local token = ngx.req.get_headers()["Authorization"]
+                    if not token then
+                        ngx.status = ngx.HTTP_UNAUTHORIZED
+                        ngx.say("Missing token")
+                        return ngx.exit(ngx.HTTP_UNAUTHORIZED)
+                    end
+                    token = string.gsub(token, "^Bearer ", "")
+                    local function getSettings()
+                      local configPath = os.getenv("NGINX_CONFIG_DIR") or "/opt/nginx/"
+                      local readSettings, errSettings = io.open(configPath .. "data/settings.json", "rb")
+                      local settings = {}
+                      if readSettings == nil then
+                          ngx.say("Couldn't read file: " .. errSettings)
+                      else
+                          local jsonString = readSettings:read "*a"
+                          readSettings:close()
+                          settings = cjson.decode(jsonString)
+                      end
+                      return settings
+                    end
+                    local settings = getSettings()
+                    if settings and type(settings) == "table" then
+                      local passPhrase = settings.env_vars.JWT_SECURITY_PASSPHRASE or os.getenv("JWT_SECURITY_PASSPHRASE")
+                      if not passPhrase or passPhrase == "" then
+                        ngx.status = ngx.HTTP_UNAUTHORIZED
+                        ngx.say(cjson.encode({data = {message = "JWT Pass Phrase is missing"}}))
+                        return ngx.exit(ngx.HTTP_UNAUTHORIZED)
+                      end
+                      local verified_token = jwt:verify(passPhrase, token)
+                      if verified_token.verified == false then
+                          ngx.status = ngx.HTTP_UNAUTHORIZED
+                          ngx.say(cjson.encode({data = {message = verified_token.reason}}))
+                          return ngx.exit(ngx.HTTP_UNAUTHORIZED)
+                      end
+                    else
+                      ngx.status = ngx.HTTP_UNAUTHORIZED
+                      ngx.say(cjson.encode({data = {message = "Settings Json file missing, Please make sure you have correctly placed the setting json file while initlising the project."}}))
+                      return ngx.exit(ngx.HTTP_UNAUTHORIZED)
+                    end
+                end
+            }
+
+            if ($request_method = 'OPTIONS') {
+                more_set_headers 'Access-Control-Allow-Origin: *';
+                more_set_headers 'Access-Control-Allow-Methods: GET, POST, OPTIONS, PUT, DELETE';
+                more_set_headers 'Access-Control-Allow-Headers: Authorization, Content-Type, X-Requested-With';
+                more_set_headers 'Access-Control-Max-Age: 1728069';
+                more_set_headers 'Content-Type: text/plain; charset=utf-8';
+                return 204;
+            }
+
+            content_by_lua_file /usr/local/openresty/nginx/html/api/api.lua;
+        }
+
+        location /swagger {
+          root   html;
+          index  swagger.html swagger.htm;
+        }
+
+        # All other requests — proxy to Next.js standalone Node.js server
+        location / {
+            proxy_pass http://127.0.0.1:{{ nginx_nextjs_node_port }};
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection 'upgrade';
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_cache_bypass $http_upgrade;
+        }
+
+        error_page  403              /403.html;
+        error_page  404              /404.html;
+        error_page  500 502 503 504  /50x.html;
+
+        location = /403.html { root html; internal; }
+        location = /404.html { root html; internal; }
+        location = /50x.html { root html; internal; }
+    }
+{% endif %}
 
   # Internal server running on port 8999 for handling certificate tasks.
   server {

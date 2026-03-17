@@ -50,7 +50,7 @@ interface DataTableProps<T> {
 
 function DataTable<T extends Record<string, unknown>>({
   columns,
-  data,
+  data: rawData,
   total,
   loading = false,
   page = 0,
@@ -67,6 +67,7 @@ function DataTable<T extends Record<string, unknown>>({
   selectable = false,
   onSelectionChange,
 }: DataTableProps<T>) {
+  const data = Array.isArray(rawData) ? rawData : [];
   const [selected, setSelected] = useState<string[]>([]);
 
   const handleSelectAll = (event: React.ChangeEvent<HTMLInputElement>) => {

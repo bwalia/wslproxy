@@ -1,5 +1,6 @@
 'use client';
 
+
 import React from 'react';
 import { Grid, TextField } from '@mui/material';
 import { useParams, useRouter } from 'next/navigation';
@@ -59,7 +60,7 @@ export default function ProfilesEditPage() {
     router.push('/profiles');
   };
 
-  if (loading || !data) return null;
+  if (loading || !data?.data) return null;
 
   return (
     <ResourceForm
