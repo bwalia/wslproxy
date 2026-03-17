@@ -1,9 +1,9 @@
 // Plain module data provider — no React dependencies
 // All methods are plain async functions, no hooks or store usage
 
-import { getHeaders, encodeSpecialChars } from '@/lib/api/client';
-import { handleConfigField } from '@/lib/nginx/config-generator';
-import { config } from '@/lib/config/env';
+import { getHeaders, encodeSpecialChars } from "@/lib/api/client";
+import { handleConfigField } from "@/lib/nginx/config-generator";
+import { config } from "@/lib/config/env";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -12,7 +12,7 @@ import { config } from '@/lib/config/env';
 export interface ListParams {
   filter?: Record<string, unknown>;
   pagination?: { page: number; perPage: number };
-  sort?: { field: string; order: 'ASC' | 'DESC' };
+  sort?: { field: string; order: "ASC" | "DESC" };
   timestamp?: number;
   [key: string]: unknown;
 }
@@ -43,32 +43,101 @@ export interface DataProvider {
   get: (resource: string, params?: Record<string, unknown>) => Promise<unknown>;
   getList: (resource: string, params?: ListParams) => Promise<ListResult>;
   getOne: (resource: string, params: GetOneParams) => Promise<SingleResult>;
-  getMany: (resource: string, params: GetManyParams) => Promise<{ data: Record<string, unknown>[] }>;
+  getMany: (
+    resource: string,
+    params: GetManyParams,
+  ) => Promise<{ data: Record<string, unknown>[] }>;
   create: (resource: string, params: MutationParams) => Promise<SingleResult>;
-  update: (resource: string, params: MutationParams & { id: string | number }) => Promise<SingleResult>;
+  update: (
+    resource: string,
+    params: MutationParams & { id: string | number },
+  ) => Promise<SingleResult>;
   delete: (resource: string, params: GetOneParams) => Promise<SingleResult>;
-  deleteMany: (resource: string, params: GetManyParams) => Promise<{ data: unknown[] }>;
+  deleteMany: (
+    resource: string,
+    params: GetManyParams,
+  ) => Promise<{ data: unknown[] }>;
   syncAPI: (resource: string, params?: MutationParams) => Promise<SingleResult>;
-  importProjects: (resource: string, params: MutationParams) => Promise<SingleResult>;
-  profileUpdate: (resource: string, params: MutationParams) => Promise<SingleResult>;
-  loadSettings: (resource: string, params?: Record<string, unknown>) => Promise<SingleResult>;
-  getLogs: (resource: string, params?: Record<string, unknown>) => Promise<SingleResult>;
-  getTrafficStats: (resource: string, params?: Record<string, unknown>) => Promise<SingleResult>;
-  getErrorDetails: (resource: string, params?: Record<string, unknown>) => Promise<SingleResult>;
-  getLogMetrics: (resource: string, params?: Record<string, unknown>) => Promise<SingleResult>;
-  getCacheStats: (resource: string, params?: Record<string, unknown>) => Promise<SingleResult>;
-  getInstanceInfo: (resource: string, params?: Record<string, unknown>) => Promise<SingleResult>;
-  getTrafficTopology: (resource: string, params?: Record<string, unknown>) => Promise<SingleResult>;
-  getTrafficBackendStats: (resource: string, params?: Record<string, unknown>) => Promise<SingleResult>;
-  getTrafficHealth: (resource: string, params?: Record<string, unknown>) => Promise<SingleResult>;
-  updateTrafficWeights: (resource: string, params: MutationParams) => Promise<SingleResult>;
-  promoteBackend: (resource: string, params: MutationParams) => Promise<SingleResult>;
-  rollbackBackend: (resource: string, params: MutationParams) => Promise<SingleResult>;
-  getDetailedHealth: (resource: string, params?: Record<string, unknown>) => Promise<SingleResult>;
-  checkORStatus: (resource: string, params?: Record<string, unknown>) => Promise<SingleResult>;
-  pushDataServers: (resource: string, params: MutationParams) => Promise<SingleResult>;
-  resetPassword: (resource: string, params: MutationParams) => Promise<SingleResult>;
-  saveStorageFlag: (resource: string, params: MutationParams) => Promise<SingleResult>;
+  importProjects: (
+    resource: string,
+    params: MutationParams,
+  ) => Promise<SingleResult>;
+  profileUpdate: (
+    resource: string,
+    params: MutationParams,
+  ) => Promise<SingleResult>;
+  loadSettings: (
+    resource: string,
+    params?: Record<string, unknown>,
+  ) => Promise<SingleResult>;
+  getLogs: (
+    resource: string,
+    params?: Record<string, unknown>,
+  ) => Promise<SingleResult>;
+  getTrafficStats: (
+    resource: string,
+    params?: Record<string, unknown>,
+  ) => Promise<SingleResult>;
+  getErrorDetails: (
+    resource: string,
+    params?: Record<string, unknown>,
+  ) => Promise<SingleResult>;
+  getLogMetrics: (
+    resource: string,
+    params?: Record<string, unknown>,
+  ) => Promise<SingleResult>;
+  getCacheStats: (
+    resource: string,
+    params?: Record<string, unknown>,
+  ) => Promise<SingleResult>;
+  getInstanceInfo: (
+    resource: string,
+    params?: Record<string, unknown>,
+  ) => Promise<SingleResult>;
+  getTrafficTopology: (
+    resource: string,
+    params?: Record<string, unknown>,
+  ) => Promise<SingleResult>;
+  getTrafficBackendStats: (
+    resource: string,
+    params?: Record<string, unknown>,
+  ) => Promise<SingleResult>;
+  getTrafficHealth: (
+    resource: string,
+    params?: Record<string, unknown>,
+  ) => Promise<SingleResult>;
+  updateTrafficWeights: (
+    resource: string,
+    params: MutationParams,
+  ) => Promise<SingleResult>;
+  promoteBackend: (
+    resource: string,
+    params: MutationParams,
+  ) => Promise<SingleResult>;
+  rollbackBackend: (
+    resource: string,
+    params: MutationParams,
+  ) => Promise<SingleResult>;
+  getDetailedHealth: (
+    resource: string,
+    params?: Record<string, unknown>,
+  ) => Promise<SingleResult>;
+  checkORStatus: (
+    resource: string,
+    params?: Record<string, unknown>,
+  ) => Promise<SingleResult>;
+  pushDataServers: (
+    resource: string,
+    params: MutationParams,
+  ) => Promise<SingleResult>;
+  resetPassword: (
+    resource: string,
+    params: MutationParams,
+  ) => Promise<SingleResult>;
+  saveStorageFlag: (
+    resource: string,
+    params: MutationParams,
+  ) => Promise<SingleResult>;
 }
 
 // ---------------------------------------------------------------------------
@@ -76,10 +145,10 @@ export interface DataProvider {
 // ---------------------------------------------------------------------------
 
 function handle401(): never {
-  localStorage.removeItem('token');
-  localStorage.removeItem('storageManagement');
-  window.location.href = '/login';
-  throw new Error('Unauthorized');
+  localStorage.removeItem("token");
+  localStorage.removeItem("storageManagement");
+  window.location.href = "/login";
+  throw new Error("Unauthorized");
 }
 
 async function handleResponse(response: Response): Promise<any> {
@@ -89,12 +158,15 @@ async function handleResponse(response: Response): Promise<any> {
   if (response.status < 200 || response.status >= 300) {
     const error = await response.text();
     // Extract a short message — avoid dumping full HTML error pages
-    const msg = error && !error.startsWith('<!') ? error.slice(0, 200) : `${response.status} ${response.statusText}`;
+    const msg =
+      error && !error.startsWith("<!")
+        ? error.slice(0, 200)
+        : `${response.status} ${response.statusText}`;
     throw new Error(msg);
   }
   // Some endpoints return 200/204 with an empty body — avoid JSON parse crash
   const text = await response.text();
-  if (!text || text.trim() === '') {
+  if (!text || text.trim() === "") {
     return null;
   }
   try {
@@ -107,12 +179,16 @@ async function handleResponse(response: Response): Promise<any> {
 function jsonHeaders(): Record<string, string> {
   return {
     ...getHeaders(),
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   };
 }
 
 /** Simple GET against apiUrl with query-string encoded params. */
-async function fetchGet(apiUrl: string, path: string, params: Record<string, unknown> = {}): Promise<any> {
+async function fetchGet(
+  apiUrl: string,
+  path: string,
+  params: Record<string, unknown> = {},
+): Promise<any> {
   const url = `${apiUrl}/${path}?_format=json&params=${JSON.stringify(params)}`;
   const response = await fetch(url, { headers: getHeaders() });
   return handleResponse(response);
@@ -122,10 +198,10 @@ async function fetchGet(apiUrl: string, path: string, params: Record<string, unk
 async function fetchMutate(
   apiUrl: string,
   path: string,
-  method: 'POST' | 'PUT' | 'DELETE',
+  method: "POST" | "PUT" | "DELETE",
   body?: string,
 ): Promise<any> {
-  const headers = method === 'DELETE' ? getHeaders() : jsonHeaders();
+  const headers = method === "DELETE" ? getHeaders() : jsonHeaders();
   const response = await fetch(`${apiUrl}/${path}`, {
     method,
     ...(body !== undefined ? { body } : {}),
@@ -149,7 +225,7 @@ export function createDataProvider(apiUrl: string): DataProvider {
     },
 
     getList: async (resource, params: ListParams = {}) => {
-      const environmentProfile = localStorage.getItem('environment') || 'prod';
+      const environmentProfile = localStorage.getItem("environment") || "prod";
       if (!params.filter) {
         params.filter = {};
       }
@@ -174,7 +250,7 @@ export function createDataProvider(apiUrl: string): DataProvider {
         };
       } catch (error) {
         // If the error is an auth redirect, re-throw
-        if (error instanceof Error && error.message === 'Unauthorized') {
+        if (error instanceof Error && error.message === "Unauthorized") {
           throw error;
         }
         return { data: [], total: 0 };
@@ -182,12 +258,15 @@ export function createDataProvider(apiUrl: string): DataProvider {
     },
 
     getOne: async (resource, params) => {
-      const json = await fetchGet(apiUrl, `${resource}/${encodeURIComponent(String(params.id))}`);
+      const json = await fetchGet(
+        apiUrl,
+        `${resource}/${encodeURIComponent(String(params.id))}`,
+      );
       return { data: json?.data ?? null };
     },
 
     getMany: async (resource, params) => {
-      const query = params.ids.map((id) => `id=${id}`).join('&');
+      const query = params.ids.map((id) => `id=${id}`).join("&");
       const url = `${apiUrl}/${resource}?${query}&_format=json`;
       const response = await fetch(url, { headers: getHeaders() });
       const json = await handleResponse(response);
@@ -196,28 +275,37 @@ export function createDataProvider(apiUrl: string): DataProvider {
 
     create: async (resource, params) => {
       let data: any = params.data;
-      if (resource === 'servers') {
+      if (resource === "servers") {
         data = handleConfigField(data);
       }
       let body = JSON.stringify(data);
       body = encodeSpecialChars(body);
-      const json = await fetchMutate(apiUrl, resource, 'POST', body);
+      const json = await fetchMutate(apiUrl, resource, "POST", body);
       return { data: json?.data ?? null };
     },
 
     update: async (resource, params) => {
       let data: any = params.data;
-      if (resource === 'servers') {
+      if (resource === "servers") {
         data = handleConfigField(data);
       }
       let body = JSON.stringify(data);
       body = encodeSpecialChars(body);
-      const json = await fetchMutate(apiUrl, `${resource}/${encodeURIComponent(String(params.id))}`, 'PUT', body);
+      const json = await fetchMutate(
+        apiUrl,
+        `${resource}/${encodeURIComponent(String(params.id))}`,
+        "PUT",
+        body,
+      );
       return { data: json?.data ?? null };
     },
 
     delete: async (resource, params) => {
-      const json = await fetchMutate(apiUrl, `${resource}/${encodeURIComponent(String(params.id))}`, 'DELETE');
+      const json = await fetchMutate(
+        apiUrl,
+        `${resource}/${encodeURIComponent(String(params.id))}`,
+        "DELETE",
+      );
       return { data: json?.data ?? null };
     },
 
@@ -225,12 +313,14 @@ export function createDataProvider(apiUrl: string): DataProvider {
       const responses = await Promise.all(
         params.ids.map((id) =>
           fetch(`${apiUrl}/${resource}/${encodeURIComponent(String(id))}`, {
-            method: 'DELETE',
+            method: "DELETE",
             headers: getHeaders(),
           }),
         ),
       );
-      const results = await Promise.all(responses.map((r) => handleResponse(r)));
+      const results = await Promise.all(
+        responses.map((r) => handleResponse(r)),
+      );
       return { data: results.map((json: any) => json.data) };
     },
 
@@ -239,7 +329,12 @@ export function createDataProvider(apiUrl: string): DataProvider {
     // ------------------------------------------------------------------
 
     saveStorageFlag: async (resource, params) => {
-      const json = await fetchMutate(apiUrl, resource, 'POST', JSON.stringify(params.data));
+      const json = await fetchMutate(
+        apiUrl,
+        resource,
+        "POST",
+        JSON.stringify(params.data),
+      );
       return { data: json?.data ?? null };
     },
 
@@ -249,19 +344,23 @@ export function createDataProvider(apiUrl: string): DataProvider {
 
     syncAPI: async (resource, params: MutationParams = { data: {} }) => {
       const FRONT_URL = config.frontUrl;
-      const instanceRaw = localStorage.getItem('instance');
+      const instanceRaw = localStorage.getItem("instance");
       if (instanceRaw) {
-        const parsedInstance = JSON.parse(instanceRaw) as Record<string, string>;
-        const environmentProfile = localStorage.getItem('environment') || 'prod';
-        const url = `${FRONT_URL}/${resource}?envprofile=${environmentProfile || ''}&settings=true&instance_hash=${parsedInstance.instance_hash}&serial_number=${parsedInstance.serial_number}`;
+        const parsedInstance = JSON.parse(instanceRaw) as Record<
+          string,
+          string
+        >;
+        const environmentProfile =
+          localStorage.getItem("environment") || "prod";
+        const url = `${FRONT_URL}/${resource}?envprofile=${environmentProfile || ""}&settings=true&instance_hash=${parsedInstance.instance_hash}&serial_number=${parsedInstance.serial_number}`;
         const reqHeaders = getHeaders();
-        delete reqHeaders['x-platform'];
+        delete reqHeaders["x-platform"];
         const response = await fetch(url, {
-          method: 'POST',
+          method: "POST",
           body: JSON.stringify(params.data || {}),
           headers: {
             ...reqHeaders,
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
           },
         });
         const json = await handleResponse(response);
@@ -271,12 +370,22 @@ export function createDataProvider(apiUrl: string): DataProvider {
     },
 
     importProjects: async (resource, params) => {
-      const json = await fetchMutate(apiUrl, resource, 'POST', JSON.stringify(params.data));
+      const json = await fetchMutate(
+        apiUrl,
+        resource,
+        "POST",
+        JSON.stringify(params.data),
+      );
       return { data: json?.data ?? null };
     },
 
     profileUpdate: async (resource, params) => {
-      const json = await fetchMutate(apiUrl, resource, 'POST', JSON.stringify(params.data));
+      const json = await fetchMutate(
+        apiUrl,
+        resource,
+        "POST",
+        JSON.stringify(params.data),
+      );
       return { data: json?.data ?? null };
     },
 
@@ -305,30 +414,46 @@ export function createDataProvider(apiUrl: string): DataProvider {
 
     getTrafficStats: async (resource, params = {}) => {
       try {
-        const json = await fetchGet(apiUrl, `${resource}/traffic-stats`, params);
+        const json = await fetchGet(
+          apiUrl,
+          `${resource}/traffic-stats`,
+          params,
+        );
         return { data: json?.data ?? null };
-      } catch { return { data: null }; }
+      } catch {
+        return { data: null };
+      }
     },
 
     getErrorDetails: async (resource, params = {}) => {
       try {
-        const json = await fetchGet(apiUrl, `${resource}/error-details`, params);
+        const json = await fetchGet(
+          apiUrl,
+          `${resource}/error-details`,
+          params,
+        );
         return { data: json?.data ?? null };
-      } catch { return { data: null }; }
+      } catch {
+        return { data: null };
+      }
     },
 
     getLogMetrics: async (resource, params = {}) => {
       try {
         const json = await fetchGet(apiUrl, `${resource}/log-metrics`, params);
         return { data: json?.data ?? null };
-      } catch { return { data: null }; }
+      } catch {
+        return { data: null };
+      }
     },
 
     getCacheStats: async (resource, params = {}) => {
       try {
         const json = await fetchGet(apiUrl, `${resource}/cache-stats`, params);
         return { data: json?.data ?? null };
-      } catch { return { data: null }; }
+      } catch {
+        return { data: null };
+      }
     },
 
     // ------------------------------------------------------------------
@@ -337,30 +462,54 @@ export function createDataProvider(apiUrl: string): DataProvider {
 
     getInstanceInfo: async (resource, params = {}) => {
       try {
-        const json = await fetchGet(apiUrl, `${resource}/instance-info`, params);
+        const json = await fetchGet(
+          apiUrl,
+          `${resource}/instance-info`,
+          params,
+        );
         return { data: json?.data ?? null };
-      } catch { return { data: null }; }
+      } catch {
+        return { data: null };
+      }
     },
 
     getTrafficTopology: async (resource, params = {}) => {
       try {
-        const json = await fetchGet(apiUrl, `${resource}/traffic-topology`, params);
+        const json = await fetchGet(
+          apiUrl,
+          `${resource}/traffic-topology`,
+          params,
+        );
         return { data: json?.data ?? null };
-      } catch { return { data: null }; }
+      } catch {
+        return { data: null };
+      }
     },
 
     getTrafficBackendStats: async (resource, params = {}) => {
       try {
-        const json = await fetchGet(apiUrl, `${resource}/traffic-backend-stats`, params);
+        const json = await fetchGet(
+          apiUrl,
+          `${resource}/traffic-backend-stats`,
+          params,
+        );
         return { data: json?.data ?? null };
-      } catch { return { data: null }; }
+      } catch {
+        return { data: null };
+      }
     },
 
     getTrafficHealth: async (resource, params = {}) => {
       try {
-        const json = await fetchGet(apiUrl, `${resource}/traffic-health`, params);
+        const json = await fetchGet(
+          apiUrl,
+          `${resource}/traffic-health`,
+          params,
+        );
         return { data: json?.data ?? null };
-      } catch { return { data: null }; }
+      } catch {
+        return { data: null };
+      }
     },
 
     // ------------------------------------------------------------------
@@ -368,17 +517,32 @@ export function createDataProvider(apiUrl: string): DataProvider {
     // ------------------------------------------------------------------
 
     updateTrafficWeights: async (resource, params) => {
-      const json = await fetchMutate(apiUrl, `${resource}/traffic-weights`, 'POST', JSON.stringify(params.data));
+      const json = await fetchMutate(
+        apiUrl,
+        `${resource}/traffic-weights`,
+        "POST",
+        JSON.stringify(params.data),
+      );
       return { data: json?.data ?? null };
     },
 
     promoteBackend: async (resource, params) => {
-      const json = await fetchMutate(apiUrl, `${resource}/promote`, 'POST', JSON.stringify(params.data));
+      const json = await fetchMutate(
+        apiUrl,
+        `${resource}/promote`,
+        "POST",
+        JSON.stringify(params.data),
+      );
       return { data: json?.data ?? null };
     },
 
     rollbackBackend: async (resource, params) => {
-      const json = await fetchMutate(apiUrl, `${resource}/rollback`, 'POST', JSON.stringify(params.data));
+      const json = await fetchMutate(
+        apiUrl,
+        `${resource}/rollback`,
+        "POST",
+        JSON.stringify(params.data),
+      );
       return { data: json?.data ?? null };
     },
 
@@ -388,25 +552,43 @@ export function createDataProvider(apiUrl: string): DataProvider {
 
     getDetailedHealth: async (resource, params = {}) => {
       try {
-        const json = await fetchGet(apiUrl, `${resource}/detailed-health`, params);
+        const json = await fetchGet(
+          apiUrl,
+          `${resource}/detailed-health`,
+          params,
+        );
         return { data: json?.data ?? null };
-      } catch { return { data: null }; }
+      } catch {
+        return { data: null };
+      }
     },
 
     checkORStatus: async (resource, params = {}) => {
       try {
         const json = await fetchGet(apiUrl, `${resource}/or-status`, params);
         return { data: json?.data ?? null };
-      } catch { return { data: null }; }
+      } catch {
+        return { data: null };
+      }
     },
 
     pushDataServers: async (resource, params) => {
-      const json = await fetchMutate(apiUrl, `${resource}/push-data`, 'POST', JSON.stringify(params.data));
+      const json = await fetchMutate(
+        apiUrl,
+        `${resource}/push-data`,
+        "POST",
+        JSON.stringify(params.data),
+      );
       return { data: json?.data ?? null };
     },
 
     resetPassword: async (resource, params) => {
-      const json = await fetchMutate(apiUrl, `${resource}/reset-password`, 'POST', JSON.stringify(params.data));
+      const json = await fetchMutate(
+        apiUrl,
+        `${resource}/reset-password`,
+        "POST",
+        JSON.stringify(params.data),
+      );
       return { data: json?.data ?? null };
     },
   };
