@@ -127,6 +127,47 @@ jobs:
 
           echo "✅ Upload complete"
 
+      - name: Create and upload timestamped backup tarball
+        run: |
+          S3_BUCKET="${{ secrets.WSLPROXY_S3_BUCKET }}"
+          TIMESTAMP=$(date -u +"%Y%m%d_%H%M%S")
+          BACKUP_FILE="prod_backup_${TIMESTAMP}.tar.gz"
+
+          echo "Creating backup tarball: ${BACKUP_FILE}"
+          tar -czf "${BACKUP_FILE}" -C staging servers/ rules/
+
+          echo "Uploading to s3://${S3_BUCKET}/backups/${BACKUP_FILE}"
+          aws s3 cp "${BACKUP_FILE}" "s3://${S3_BUCKET}/backups/${BACKUP_FILE}"
+
+          echo "✅ Backup uploaded: ${BACKUP_FILE} ($(du -h "${BACKUP_FILE}" | cut -f1))"
+
+      - name: Set S3 lifecycle policy (60-day retention on backups)
+        run: |
+          S3_BUCKET="${{ secrets.WSLPROXY_S3_BUCKET }}"
+
+          cat > /tmp/lifecycle.json <<'LIFECYCLE'
+          {
+            "Rules": [
+              {
+                "ID": "expire-backups-after-60-days",
+                "Filter": {
+                  "Prefix": "backups/"
+                },
+                "Status": "Enabled",
+                "Expiration": {
+                  "Days": 60
+                }
+              }
+            ]
+          }
+          LIFECYCLE
+
+          aws s3api put-bucket-lifecycle-configuration \
+            --bucket "${S3_BUCKET}" \
+            --lifecycle-configuration file:///tmp/lifecycle.json
+
+          echo "✅ Lifecycle policy set: backups/ objects expire after 60 days"
+
       - name: Verify S3 contents
         run: |
           S3_BUCKET="${{ secrets.WSLPROXY_S3_BUCKET }}"
