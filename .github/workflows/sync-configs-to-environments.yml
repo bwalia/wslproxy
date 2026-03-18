@@ -88,9 +88,9 @@ jobs:
           REPO_RULES=$(find data/rules/int -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
           echo "Repo baseline: ${REPO_SERVERS} server(s), ${REPO_RULES} rule(s)"
 
-          # Copy S3 configs on top of repo data (S3 wins on conflict)
-          cp -v s3-data/servers/int/*.json data/servers/int/ 2>/dev/null || echo "No S3 server configs for int"
-          cp -v s3-data/rules/int/*.json   data/rules/int/   2>/dev/null || echo "No S3 rule configs for int"
+          # Merge S3 configs on top of repo data (S3 wins on conflict, no delete)
+          rsync -av s3-data/servers/int/ data/servers/int/
+          rsync -av s3-data/rules/int/   data/rules/int/
 
           MERGED_SERVERS=$(find data/servers/int -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
           MERGED_RULES=$(find data/rules/int -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
@@ -197,8 +197,9 @@ jobs:
           REPO_RULES=$(find data/rules/test -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
           echo "Repo baseline: ${REPO_SERVERS} server(s), ${REPO_RULES} rule(s)"
 
-          cp -v s3-data/servers/test/*.json data/servers/test/ 2>/dev/null || echo "No S3 server configs for test"
-          cp -v s3-data/rules/test/*.json   data/rules/test/   2>/dev/null || echo "No S3 rule configs for test"
+          # Merge S3 configs on top of repo data (S3 wins on conflict, no delete)
+          rsync -av s3-data/servers/test/ data/servers/test/
+          rsync -av s3-data/rules/test/   data/rules/test/
 
           MERGED_SERVERS=$(find data/servers/test -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
           MERGED_RULES=$(find data/rules/test -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
@@ -306,8 +307,9 @@ jobs:
           REPO_RULES=$(find data/rules/acc -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
           echo "Repo baseline: ${REPO_SERVERS} server(s), ${REPO_RULES} rule(s)"
 
-          cp -v s3-data/servers/acc/*.json data/servers/acc/ 2>/dev/null || echo "No S3 server configs for acc"
-          cp -v s3-data/rules/acc/*.json   data/rules/acc/   2>/dev/null || echo "No S3 rule configs for acc"
+          # Merge S3 configs on top of repo data (S3 wins on conflict, no delete)
+          rsync -av s3-data/servers/acc/ data/servers/acc/
+          rsync -av s3-data/rules/acc/   data/rules/acc/
 
           MERGED_SERVERS=$(find data/servers/acc -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
           MERGED_RULES=$(find data/rules/acc -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
