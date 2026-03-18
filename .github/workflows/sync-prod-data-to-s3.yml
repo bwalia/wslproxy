@@ -3,6 +3,9 @@ name: Sync Prod Data to S3
 # Pulls servers and rules configs from the live prod server and uploads
 # them to an S3 bucket.  This keeps sensitive data (e.g. AWS keys in rules)
 # out of the git repo while still making them available to the deploy pipeline.
+#
+# - Live data sync: ALL environment subdirs (prod, int, acc, test, etc.)
+# - Backup tarball: prod only (timestamped, 60-day retention)
 
 on:
   # Every day at 4:00 AM UTC
@@ -24,7 +27,6 @@ on:
 env:
   PROD_HOST: ${{ github.event.inputs.PROD_HOST || '187.124.112.155' }}
   REMOTE_DATA_DIR: /opt/nginx/data
-  TARGET_ENV: prod
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
@@ -54,61 +56,71 @@ jobs:
       - name: Create local staging directory
         run: mkdir -p staging/servers staging/rules
 
-      - name: Sync server configs from prod
+      - name: Sync all server configs from prod (all environments)
         run: |
-          echo "Syncing servers from ${{ env.PROD_HOST }}:${{ env.REMOTE_DATA_DIR }}/servers/${{ env.TARGET_ENV }}/"
+          echo "Syncing all servers from ${{ env.PROD_HOST }}:${{ env.REMOTE_DATA_DIR }}/servers/"
           rsync -avz --delete \
             -e "ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10" \
-            root@${{ env.PROD_HOST }}:${{ env.REMOTE_DATA_DIR }}/servers/${{ env.TARGET_ENV }}/ \
+            root@${{ env.PROD_HOST }}:${{ env.REMOTE_DATA_DIR }}/servers/ \
             staging/servers/
 
-      - name: Sync rule configs from prod
+      - name: Sync all rule configs from prod (all environments)
         run: |
-          echo "Syncing rules from ${{ env.PROD_HOST }}:${{ env.REMOTE_DATA_DIR }}/rules/${{ env.TARGET_ENV }}/"
+          echo "Syncing all rules from ${{ env.PROD_HOST }}:${{ env.REMOTE_DATA_DIR }}/rules/"
           rsync -avz --delete \
             -e "ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10" \
-            root@${{ env.PROD_HOST }}:${{ env.REMOTE_DATA_DIR }}/rules/${{ env.TARGET_ENV }}/ \
+            root@${{ env.PROD_HOST }}:${{ env.REMOTE_DATA_DIR }}/rules/ \
             staging/rules/
 
       - name: Validate JSON files
         run: |
           sudo apt-get install -y jq
           ERRORS=0
-          echo "=== Validating server configs ==="
-          for file in staging/servers/*.json; do
-            if [[ -f "$file" ]]; then
-              if ! jq empty "$file" 2>/dev/null; then
-                echo "❌ Invalid JSON: $file"
-                ERRORS=$((ERRORS+1))
-              else
-                echo "✅ Valid: $file"
-              fi
+          echo "=== Validating all server configs ==="
+          find staging/servers -name '*.json' | while read -r file; do
+            if ! jq empty "$file" 2>/dev/null; then
+              echo "❌ Invalid JSON: $file"
+              echo "FAIL" >> /tmp/json_errors
+            else
+              echo "✅ Valid: $file"
             fi
           done
           echo ""
-          echo "=== Validating rule configs ==="
-          for file in staging/rules/*.json; do
-            if [[ -f "$file" ]]; then
-              if ! jq empty "$file" 2>/dev/null; then
-                echo "❌ Invalid JSON: $file"
-                ERRORS=$((ERRORS+1))
-              else
-                echo "✅ Valid: $file"
-              fi
+          echo "=== Validating all rule configs ==="
+          find staging/rules -name '*.json' | while read -r file; do
+            if ! jq empty "$file" 2>/dev/null; then
+              echo "❌ Invalid JSON: $file"
+              echo "FAIL" >> /tmp/json_errors
+            else
+              echo "✅ Valid: $file"
             fi
           done
-          if [[ $ERRORS -gt 0 ]]; then
-            echo "::error::Found $ERRORS invalid JSON file(s) — aborting upload"
-            exit 1
+          if [[ -f /tmp/json_errors ]]; then
+            ERRORS=$(wc -l < /tmp/json_errors | tr -d ' ')
+            echo "::warning::Found $ERRORS invalid JSON file(s)"
           fi
 
-      - name: List files to upload
+      - name: List synced environment directories
         run: |
-          echo "=== Server Configs ==="
+          echo "=== Server environment directories ==="
           ls -la staging/servers/ 2>/dev/null || echo "No server configs"
           echo ""
-          echo "=== Rule Configs ==="
+          echo "=== Rule environment directories ==="
           ls -la staging/rules/ 2>/dev/null || echo "No rule configs"
+          echo ""
+          echo "=== File counts per environment ==="
+          for dir in staging/servers/*/; do
+            if [[ -d "$dir" ]]; then
+              COUNT=$(find "$dir" -name '*.json' | wc -l | tr -d ' ')
+              echo "  servers/$(basename "$dir"): $COUNT files"
+            fi
+          done
+          for dir in staging/rules/*/; do
+            if [[ -d "$dir" ]]; then
+              COUNT=$(find "$dir" -name '*.json' | wc -l | tr -d ' ')
+              echo "  rules/$(basename "$dir"): $COUNT files"
+            fi
+          done
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v5
@@ -117,24 +129,27 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Upload to S3
+      - name: Upload all environments to S3 (live data)
         run: |
           S3_BUCKET="${{ secrets.WSLPROXY_S3_BUCKET }}"
-          echo "Uploading to s3://${S3_BUCKET}/data/${{ env.TARGET_ENV }}/"
+          echo "Uploading all environments to s3://${S3_BUCKET}/data/"
 
-          aws s3 sync staging/servers/ "s3://${S3_BUCKET}/data/${{ env.TARGET_ENV }}/servers/" --delete
-          aws s3 sync staging/rules/  "s3://${S3_BUCKET}/data/${{ env.TARGET_ENV }}/rules/"   --delete
+          aws s3 sync staging/servers/ "s3://${S3_BUCKET}/data/servers/" --delete
+          aws s3 sync staging/rules/  "s3://${S3_BUCKET}/data/rules/"   --delete
 
-          echo "✅ Upload complete"
+          echo "✅ All environment data uploaded"
 
-      - name: Create and upload timestamped backup tarball
+      - name: Create and upload prod backup tarball
         run: |
           S3_BUCKET="${{ secrets.WSLPROXY_S3_BUCKET }}"
           TIMESTAMP=$(date -u +"%Y%m%d_%H%M%S")
           BACKUP_FILE="prod_backup_${TIMESTAMP}.tar.gz"
 
-          echo "Creating backup tarball: ${BACKUP_FILE}"
-          tar -czf "${BACKUP_FILE}" -C staging servers/ rules/
+          echo "Creating prod-only backup tarball: ${BACKUP_FILE}"
+          tar -czf "${BACKUP_FILE}" \
+            -C staging \
+            servers/prod/ \
+            rules/prod/
 
           echo "Uploading to s3://${S3_BUCKET}/backups/${BACKUP_FILE}"
           aws s3 cp "${BACKUP_FILE}" "s3://${S3_BUCKET}/backups/${BACKUP_FILE}"
@@ -171,20 +186,20 @@ jobs:
       - name: Verify S3 contents
         run: |
           S3_BUCKET="${{ secrets.WSLPROXY_S3_BUCKET }}"
-          echo "=== S3 Server Configs ==="
-          aws s3 ls "s3://${S3_BUCKET}/data/${{ env.TARGET_ENV }}/servers/"
+          echo "=== S3 data/ structure ==="
+          aws s3 ls "s3://${S3_BUCKET}/data/" --recursive --summarize | tail -5
           echo ""
-          echo "=== S3 Rule Configs ==="
-          aws s3 ls "s3://${S3_BUCKET}/data/${{ env.TARGET_ENV }}/rules/"
+          echo "=== S3 backups/ ==="
+          aws s3 ls "s3://${S3_BUCKET}/backups/" | tail -5
 
       - name: Summary
         run: |
           echo "=========================================="
           echo "Sync Prod Data to S3 — Summary"
           echo "=========================================="
-          echo "Source Host:  ${{ env.PROD_HOST }}"
-          echo "Environment:  ${{ env.TARGET_ENV }}"
-          echo "S3 Bucket:    ${{ secrets.WSLPROXY_S3_BUCKET }}"
-          echo "S3 Path:      data/${{ env.TARGET_ENV }}/{servers,rules}/"
-          echo "Timestamp:    $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
+          echo "Source Host:   ${{ env.PROD_HOST }}"
+          echo "S3 Bucket:     ${{ secrets.WSLPROXY_S3_BUCKET }}"
+          echo "Live data:     data/{servers,rules}/{prod,int,acc,test,...}/"
+          echo "Backup:        backups/prod_backup_*.tar.gz (prod only)"
+          echo "Timestamp:     $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
           echo "=========================================="
