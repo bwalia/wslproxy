@@ -298,7 +298,7 @@ jobs:
               sys.exit(1)
           "
 
-      - name: Deploy JSON configs via Ansible
+      - name: Deploy JSON configs via Ansible (repo baseline)
         run: |
           echo "Deploying server & rule configs for ${{ env.TARGET_ENV }} to ${{ env.TARGET_HOST }}"
           ansible-playbook infra/ansible/deploy-configs.yml \
@@ -309,6 +309,83 @@ jobs:
             -v
         env:
           ANSIBLE_PRIVATE_KEY_FILE: ~/.ssh/id_rsa
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Download S3 configs and overlay onto target
+        run: |
+          S3_BUCKET="${{ secrets.WSLPROXY_S3_BUCKET }}"
+          S3_PREFIX="data/${{ env.TARGET_ENV }}"
+
+          echo "Checking S3 for overlay configs at s3://${S3_BUCKET}/${S3_PREFIX}/"
+
+          # Download S3 configs to a staging area
+          mkdir -p s3-staging/servers s3-staging/rules
+
+          aws s3 sync "s3://${S3_BUCKET}/${S3_PREFIX}/servers/" s3-staging/servers/ 2>/dev/null || true
+          aws s3 sync "s3://${S3_BUCKET}/${S3_PREFIX}/rules/"   s3-staging/rules/   2>/dev/null || true
+
+          S3_SERVERS=$(find s3-staging/servers -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
+          S3_RULES=$(find s3-staging/rules -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
+
+          echo "Found ${S3_SERVERS} server config(s) and ${S3_RULES} rule config(s) in S3"
+
+          if [[ "$S3_SERVERS" -eq 0 && "$S3_RULES" -eq 0 ]]; then
+            echo "No S3 overlay configs found — skipping"
+            exit 0
+          fi
+
+          # Validate JSON before deploying
+          ERRORS=0
+          for file in s3-staging/servers/*.json s3-staging/rules/*.json; do
+            if [[ -f "$file" ]]; then
+              if ! jq empty "$file" 2>/dev/null; then
+                echo "❌ Invalid JSON from S3: $file"
+                ERRORS=$((ERRORS+1))
+              fi
+            fi
+          done
+          if [[ $ERRORS -gt 0 ]]; then
+            echo "::error::Found $ERRORS invalid JSON file(s) from S3 — aborting overlay"
+            exit 1
+          fi
+
+          # rsync S3 configs to the target host (overlay — no --delete, merges on top)
+          echo "Deploying S3 server configs to ${{ env.TARGET_HOST }}..."
+          if [[ "$S3_SERVERS" -gt 0 ]]; then
+            rsync -avz \
+              -e "ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10" \
+              s3-staging/servers/ \
+              root@${{ env.TARGET_HOST }}:/opt/nginx/data/servers/${{ env.TARGET_ENV }}/
+          fi
+
+          echo "Deploying S3 rule configs to ${{ env.TARGET_HOST }}..."
+          if [[ "$S3_RULES" -gt 0 ]]; then
+            rsync -avz \
+              -e "ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10" \
+              s3-staging/rules/ \
+              root@${{ env.TARGET_HOST }}:/opt/nginx/data/rules/${{ env.TARGET_ENV }}/
+          fi
+
+          echo "✅ S3 overlay configs deployed"
+
+      - name: Fix permissions and reload after S3 overlay
+        run: |
+          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@${{ env.TARGET_HOST }} bash <<'REMOTE'
+            # Fix ownership so nginx worker can read the files
+            chown -R www-data:root /opt/nginx/data/servers/${{ env.TARGET_ENV }}/ /opt/nginx/data/rules/${{ env.TARGET_ENV }}/
+            chmod -R 664 /opt/nginx/data/servers/${{ env.TARGET_ENV }}/*.json /opt/nginx/data/rules/${{ env.TARGET_ENV }}/*.json 2>/dev/null || true
+            # Run fix-permissions if available
+            [ -x /usr/sbin/fix-permissions.sh ] && /usr/sbin/fix-permissions.sh || true
+            # Reload nginx to pick up any new configs
+            /usr/local/openresty/bin/openresty -t && systemctl reload openresty
+            echo "✅ Permissions fixed and OpenResty reloaded"
+          REMOTE
 
   # ──────────────────────────────────────────────────────
   # Stage 5: Re-deploy nginx conf files (optional)
