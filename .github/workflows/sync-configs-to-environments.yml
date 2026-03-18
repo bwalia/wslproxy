@@ -127,6 +127,16 @@ jobs:
           # Suppress diff output to avoid leaking secret values in logs
           ANSIBLE_DISPLAY_ARGS_TO_STDOUT: "False"
 
+      - name: Verify deployed files on int
+        run: |
+          echo "=== Deployed server configs on int ==="
+          ssh -o BatchMode=yes -o ConnectTimeout=10 bwalia@192.168.1.193 \
+            "ls -la /opt/nginx/data/servers/int/" 2>&1
+          echo ""
+          echo "=== Deployed rule configs on int ==="
+          ssh -o BatchMode=yes -o ConnectTimeout=10 bwalia@192.168.1.193 \
+            "ls -la /opt/nginx/data/rules/int/" 2>&1
+
       - name: Health check int
         run: |
           HTTP_CODE=$(ssh -o BatchMode=yes -o ConnectTimeout=10 bwalia@192.168.1.193 \
