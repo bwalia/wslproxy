@@ -46,7 +46,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
 
-      - name: Install Ansible
+      - name: Install Ansible and AWS CLI
         run: |
           if command -v zypper &> /dev/null; then
             sudo zypper install -y ansible
@@ -56,6 +56,15 @@ jobs:
             echo "::error::No supported package manager found"
             exit 1
           fi
+          # Install AWS CLI if not present
+          if ! command -v aws &> /dev/null; then
+            echo "Installing AWS CLI..."
+            curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
+            unzip -qo /tmp/awscliv2.zip -d /tmp
+            sudo /tmp/aws/install --update
+            rm -rf /tmp/awscliv2.zip /tmp/aws
+          fi
+          echo "AWS CLI version: $(aws --version)"
 
       - name: Setup SSH known hosts
         run: |
@@ -75,7 +84,6 @@ jobs:
           mkdir -p s3-data/servers/int s3-data/rules/int
 
           echo "Downloading int configs from s3://${S3_BUCKET}/data/"
-          echo "AWS CLI version: $(aws --version 2>&1 || echo 'NOT INSTALLED')"
           aws s3 sync "s3://${S3_BUCKET}/data/servers/int/" s3-data/servers/int/
           aws s3 sync "s3://${S3_BUCKET}/data/rules/int/"   s3-data/rules/int/
 
@@ -165,7 +173,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
 
-      - name: Install Ansible
+      - name: Install Ansible and AWS CLI
         run: |
           if command -v zypper &> /dev/null; then
             sudo zypper install -y ansible
@@ -175,6 +183,15 @@ jobs:
             echo "::error::No supported package manager found"
             exit 1
           fi
+          # Install AWS CLI if not present
+          if ! command -v aws &> /dev/null; then
+            echo "Installing AWS CLI..."
+            curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
+            unzip -qo /tmp/awscliv2.zip -d /tmp
+            sudo /tmp/aws/install --update
+            rm -rf /tmp/awscliv2.zip /tmp/aws
+          fi
+          echo "AWS CLI version: $(aws --version)"
 
       - name: Setup SSH known hosts
         run: |
@@ -194,8 +211,8 @@ jobs:
           mkdir -p s3-data/servers/test s3-data/rules/test
 
           echo "Downloading test configs from s3://${S3_BUCKET}/data/"
-          aws s3 sync "s3://${S3_BUCKET}/data/servers/test/" s3-data/servers/test/ 2>/dev/null || true
-          aws s3 sync "s3://${S3_BUCKET}/data/rules/test/"   s3-data/rules/test/   2>/dev/null || true
+          aws s3 sync "s3://${S3_BUCKET}/data/servers/test/" s3-data/servers/test/
+          aws s3 sync "s3://${S3_BUCKET}/data/rules/test/"   s3-data/rules/test/
 
           S3_SERVERS=$(find s3-data/servers/test -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
           S3_RULES=$(find s3-data/rules/test -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
