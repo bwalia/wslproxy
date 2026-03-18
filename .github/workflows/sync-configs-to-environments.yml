@@ -1,0 +1,204 @@
+name: Sync Configs to Environments
+
+# Pushes environment-tagged server/rule configs from the repo to the
+# matching WSLProxy instances via Ansible (SSH).  Configs may contain
+# secrets — file contents are NEVER printed in logs or saved to git.
+#
+# Pipeline:  int (self-hosted) → acc (ubuntu-latest)
+
+on:
+  # Daily at 04:30 UTC (runs after the prod-to-S3 sync at 04:00)
+  schedule:
+    - cron: "30 4 * * *"
+
+  # Manual trigger with environment selector
+  workflow_dispatch:
+    inputs:
+      TARGET_ENVS:
+        type: choice
+        description: "Which environments to sync"
+        default: "all"
+        required: true
+        options:
+          - all
+          - int
+          - acc
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  # ──────────────────────────────────────────────────────
+  # Stage 1: Deploy int configs (self-hosted runner —
+  #           int host is on local network)
+  # ──────────────────────────────────────────────────────
+  sync-int:
+    name: "Sync configs → Int"
+    runs-on: [self-hosted, Linux]
+    if: >-
+      github.event.inputs.TARGET_ENVS == 'all'
+      || github.event.inputs.TARGET_ENVS == 'int'
+      || github.event_name == 'schedule'
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Install Ansible
+        run: |
+          if command -v zypper &> /dev/null; then
+            sudo zypper install -y ansible
+          elif command -v apt-get &> /dev/null; then
+            sudo apt-get update && sudo apt-get install -y ansible
+          else
+            echo "::error::No supported package manager found"
+            exit 1
+          fi
+
+      - name: Setup SSH known hosts
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          ssh-keyscan -H 192.168.1.193 >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Validate int JSON configs
+        run: |
+          ERRORS=0
+          for file in data/servers/int/*.json data/rules/int/*.json; do
+            [ -f "$file" ] || continue
+            if ! python3 -m json.tool "$file" > /dev/null 2>&1; then
+              echo "::error::Invalid JSON: $(basename "$file")"
+              ERRORS=$((ERRORS+1))
+            fi
+          done
+          if [ "$ERRORS" -gt 0 ]; then
+            echo "::error::$ERRORS invalid JSON file(s) — aborting"
+            exit 1
+          fi
+          echo "All int JSON configs valid"
+
+      - name: Deploy int configs via Ansible
+        run: |
+          echo "Deploying int configs to 192.168.1.193"
+          export ANSIBLE_HOST_KEY_CHECKING=False
+          ansible-playbook infra/ansible/deploy-configs.yml \
+            -i infra/ansible/hosts \
+            -l 192.168.1.193 \
+            -e "target_env=int" \
+            -e "local_data_dir=${{ github.workspace }}/data" \
+            -e "reload_nginx=true"
+        env:
+          ANSIBLE_PRIVATE_KEY_FILE: ~/.ssh/id_rsa
+          # Suppress diff output to avoid leaking secret values in logs
+          ANSIBLE_DISPLAY_ARGS_TO_STDOUT: "False"
+
+      - name: Health check int
+        run: |
+          HTTP_CODE=$(ssh -o BatchMode=yes -o ConnectTimeout=10 bwalia@192.168.1.193 \
+            "curl -sf -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/ping" 2>&1) || true
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::error::Int health check failed (HTTP $HTTP_CODE)"
+            exit 1
+          fi
+          echo "Int health check passed (HTTP 200)"
+
+  # ──────────────────────────────────────────────────────
+  # Stage 2: Deploy acc configs (ubuntu-latest —
+  #           acc host is publicly reachable)
+  # ──────────────────────────────────────────────────────
+  sync-acc:
+    name: "Sync configs → Acc"
+    runs-on: ubuntu-latest
+    if: >-
+      github.event.inputs.TARGET_ENVS == 'all'
+      || github.event.inputs.TARGET_ENVS == 'acc'
+      || github.event_name == 'schedule'
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Install Ansible
+        run: sudo apt-get update && sudo apt-get install -y ansible
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H 187.77.179.206 >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Test SSH connectivity
+        run: |
+          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 \
+            root@187.77.179.206 "echo 'SSH OK'" 2>&1 || {
+            echo "::error::SSH connection failed to acc host"
+            exit 1
+          }
+
+      - name: Validate acc JSON configs
+        run: |
+          ERRORS=0
+          for file in data/servers/acc/*.json data/rules/acc/*.json; do
+            [ -f "$file" ] || continue
+            if ! python3 -m json.tool "$file" > /dev/null 2>&1; then
+              echo "::error::Invalid JSON: $(basename "$file")"
+              ERRORS=$((ERRORS+1))
+            fi
+          done
+          if [ "$ERRORS" -gt 0 ]; then
+            echo "::error::$ERRORS invalid JSON file(s) — aborting"
+            exit 1
+          fi
+          echo "All acc JSON configs valid"
+
+      - name: Deploy acc configs via Ansible
+        run: |
+          echo "Deploying acc configs to 187.77.179.206"
+          export ANSIBLE_HOST_KEY_CHECKING=False
+          ansible-playbook infra/ansible/deploy-configs.yml \
+            -i infra/ansible/hosts \
+            -l 187.77.179.206 \
+            -e "target_env=acc" \
+            -e "local_data_dir=${{ github.workspace }}/data" \
+            -e "reload_nginx=true"
+        env:
+          ANSIBLE_PRIVATE_KEY_FILE: ~/.ssh/id_rsa
+          ANSIBLE_DISPLAY_ARGS_TO_STDOUT: "False"
+
+      - name: Health check acc
+        run: |
+          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 \
+            root@187.77.179.206 \
+            "curl -sf -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/ping" 2>&1 | {
+            read HTTP_CODE
+            if [ "$HTTP_CODE" != "200" ]; then
+              echo "::error::Acc health check failed (HTTP $HTTP_CODE)"
+              exit 1
+            fi
+            echo "Acc health check passed (HTTP 200)"
+          }
+
+      - name: Cleanup SSH key
+        if: always()
+        run: rm -f ~/.ssh/id_rsa
+
+  # ──────────────────────────────────────────────────────
+  # Summary
+  # ──────────────────────────────────────────────────────
+  summary:
+    name: "Sync Summary"
+    runs-on: ubuntu-latest
+    needs: [sync-int, sync-acc]
+    if: always()
+    steps:
+      - name: Results
+        run: |
+          echo "=========================================="
+          echo "Sync Configs to Environments — Summary"
+          echo "=========================================="
+          echo "Int sync:  ${{ needs.sync-int.result }}"
+          echo "Acc sync:  ${{ needs.sync-acc.result }}"
+          echo "Timestamp: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+          echo "=========================================="
