@@ -55,6 +55,7 @@ env:
   DRY_RUN: ${{ github.event.inputs.DRY_RUN || 'false' }}
   INT_HOST: 192.168.1.193
   INT_BACKEND_PORT: 8080
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   # ──────────────────────────────────────────────────────

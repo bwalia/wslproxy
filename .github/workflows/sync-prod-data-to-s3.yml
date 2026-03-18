@@ -25,6 +25,7 @@ env:
   PROD_HOST: ${{ github.event.inputs.PROD_HOST || '187.124.112.155' }}
   REMOTE_DATA_DIR: /opt/nginx/data
   TARGET_ENV: prod
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   sync-prod-data-to-s3:
