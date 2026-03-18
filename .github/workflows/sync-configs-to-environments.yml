@@ -75,8 +75,9 @@ jobs:
           mkdir -p s3-data/servers/int s3-data/rules/int
 
           echo "Downloading int configs from s3://${S3_BUCKET}/data/"
-          aws s3 sync "s3://${S3_BUCKET}/data/servers/int/" s3-data/servers/int/ 2>/dev/null || true
-          aws s3 sync "s3://${S3_BUCKET}/data/rules/int/"   s3-data/rules/int/   2>/dev/null || true
+          echo "AWS CLI version: $(aws --version 2>&1 || echo 'NOT INSTALLED')"
+          aws s3 sync "s3://${S3_BUCKET}/data/servers/int/" s3-data/servers/int/
+          aws s3 sync "s3://${S3_BUCKET}/data/rules/int/"   s3-data/rules/int/
 
           S3_SERVERS=$(find s3-data/servers/int -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
           S3_RULES=$(find s3-data/rules/int -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
