@@ -78,14 +78,23 @@ jobs:
           aws s3 sync "s3://${S3_BUCKET}/data/servers/int/" s3-data/servers/int/ 2>/dev/null || true
           aws s3 sync "s3://${S3_BUCKET}/data/rules/int/"   s3-data/rules/int/   2>/dev/null || true
 
-          S3_COUNT=$(find s3-data -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
-          echo "Downloaded ${S3_COUNT} JSON file(s) from S3 for int"
+          S3_SERVERS=$(find s3-data/servers/int -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
+          S3_RULES=$(find s3-data/rules/int -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
+          echo "Downloaded from S3: ${S3_SERVERS} server(s), ${S3_RULES} rule(s)"
 
       - name: Merge S3 configs on top of repo configs
         run: |
+          REPO_SERVERS=$(find data/servers/int -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
+          REPO_RULES=$(find data/rules/int -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
+          echo "Repo baseline: ${REPO_SERVERS} server(s), ${REPO_RULES} rule(s)"
+
           # Copy S3 configs on top of repo data (S3 wins on conflict)
           cp -v s3-data/servers/int/*.json data/servers/int/ 2>/dev/null || echo "No S3 server configs for int"
           cp -v s3-data/rules/int/*.json   data/rules/int/   2>/dev/null || echo "No S3 rule configs for int"
+
+          MERGED_SERVERS=$(find data/servers/int -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
+          MERGED_RULES=$(find data/rules/int -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
+          echo "After merge: ${MERGED_SERVERS} server(s), ${MERGED_RULES} rule(s) to deploy"
 
       - name: Validate int JSON configs
         run: |
@@ -177,14 +186,23 @@ jobs:
           aws s3 sync "s3://${S3_BUCKET}/data/servers/test/" s3-data/servers/test/ 2>/dev/null || true
           aws s3 sync "s3://${S3_BUCKET}/data/rules/test/"   s3-data/rules/test/   2>/dev/null || true
 
-          S3_COUNT=$(find s3-data -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
-          echo "Downloaded ${S3_COUNT} JSON file(s) from S3 for test"
+          S3_SERVERS=$(find s3-data/servers/test -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
+          S3_RULES=$(find s3-data/rules/test -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
+          echo "Downloaded from S3: ${S3_SERVERS} server(s), ${S3_RULES} rule(s)"
 
       - name: Merge S3 configs on top of repo configs
         run: |
           mkdir -p data/servers/test data/rules/test
+          REPO_SERVERS=$(find data/servers/test -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
+          REPO_RULES=$(find data/rules/test -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
+          echo "Repo baseline: ${REPO_SERVERS} server(s), ${REPO_RULES} rule(s)"
+
           cp -v s3-data/servers/test/*.json data/servers/test/ 2>/dev/null || echo "No S3 server configs for test"
           cp -v s3-data/rules/test/*.json   data/rules/test/   2>/dev/null || echo "No S3 rule configs for test"
+
+          MERGED_SERVERS=$(find data/servers/test -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
+          MERGED_RULES=$(find data/rules/test -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
+          echo "After merge: ${MERGED_SERVERS} server(s), ${MERGED_RULES} rule(s) to deploy"
 
       - name: Validate test JSON configs
         run: |
@@ -277,14 +295,23 @@ jobs:
           aws s3 sync "s3://${S3_BUCKET}/data/servers/acc/" s3-data/servers/acc/ 2>/dev/null || true
           aws s3 sync "s3://${S3_BUCKET}/data/rules/acc/"   s3-data/rules/acc/   2>/dev/null || true
 
-          S3_COUNT=$(find s3-data -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
-          echo "Downloaded ${S3_COUNT} JSON file(s) from S3 for acc"
+          S3_SERVERS=$(find s3-data/servers/acc -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
+          S3_RULES=$(find s3-data/rules/acc -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
+          echo "Downloaded from S3: ${S3_SERVERS} server(s), ${S3_RULES} rule(s)"
 
       - name: Merge S3 configs on top of repo configs
         run: |
           mkdir -p data/servers/acc data/rules/acc
+          REPO_SERVERS=$(find data/servers/acc -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
+          REPO_RULES=$(find data/rules/acc -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
+          echo "Repo baseline: ${REPO_SERVERS} server(s), ${REPO_RULES} rule(s)"
+
           cp -v s3-data/servers/acc/*.json data/servers/acc/ 2>/dev/null || echo "No S3 server configs for acc"
           cp -v s3-data/rules/acc/*.json   data/rules/acc/   2>/dev/null || echo "No S3 rule configs for acc"
+
+          MERGED_SERVERS=$(find data/servers/acc -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
+          MERGED_RULES=$(find data/rules/acc -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
+          echo "After merge: ${MERGED_SERVERS} server(s), ${MERGED_RULES} rule(s) to deploy"
 
       - name: Validate acc JSON configs
         run: |

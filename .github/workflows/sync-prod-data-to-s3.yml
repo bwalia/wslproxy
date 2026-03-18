@@ -137,7 +137,25 @@ jobs:
           aws s3 sync staging/servers/ "s3://${S3_BUCKET}/data/servers/" --delete
           aws s3 sync staging/rules/  "s3://${S3_BUCKET}/data/rules/"   --delete
 
-          echo "✅ All environment data uploaded"
+          echo ""
+          echo "=========================================="
+          echo "S3 Upload Summary (live data)"
+          echo "=========================================="
+          TOTAL_SERVERS=0
+          TOTAL_RULES=0
+          for dir in staging/servers/*/; do
+            if [[ -d "$dir" ]]; then
+              ENV=$(basename "$dir")
+              SC=$(find "$dir" -name '*.json' | wc -l | tr -d ' ')
+              RC=$(find "staging/rules/${ENV}" -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
+              echo "  ${ENV}: ${SC} server(s), ${RC} rule(s)"
+              TOTAL_SERVERS=$((TOTAL_SERVERS + SC))
+              TOTAL_RULES=$((TOTAL_RULES + RC))
+            fi
+          done
+          echo "------------------------------------------"
+          echo "  TOTAL: ${TOTAL_SERVERS} server(s), ${TOTAL_RULES} rule(s)"
+          echo "=========================================="
 
       - name: Create and upload prod backup tarball
         run: |
@@ -145,7 +163,11 @@ jobs:
           TIMESTAMP=$(date -u +"%Y%m%d_%H%M%S")
           BACKUP_FILE="prod_backup_${TIMESTAMP}.tar.gz"
 
+          PROD_SERVERS=$(find staging/servers/prod -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
+          PROD_RULES=$(find staging/rules/prod -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
+
           echo "Creating prod-only backup tarball: ${BACKUP_FILE}"
+          echo "  Backing up: ${PROD_SERVERS} server(s), ${PROD_RULES} rule(s)"
           tar -czf "${BACKUP_FILE}" \
             -C staging \
             servers/prod/ \
@@ -154,7 +176,7 @@ jobs:
           echo "Uploading to s3://${S3_BUCKET}/backups/${BACKUP_FILE}"
           aws s3 cp "${BACKUP_FILE}" "s3://${S3_BUCKET}/backups/${BACKUP_FILE}"
 
-          echo "✅ Backup uploaded: ${BACKUP_FILE} ($(du -h "${BACKUP_FILE}" | cut -f1))"
+          echo "✅ Backup uploaded: ${BACKUP_FILE} ($(du -h "${BACKUP_FILE}" | cut -f1)) — ${PROD_SERVERS} server(s), ${PROD_RULES} rule(s)"
 
       - name: Set S3 lifecycle policy (60-day retention on backups)
         run: |
