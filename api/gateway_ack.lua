@@ -636,9 +636,24 @@ if exist_values and exist_values ~= 0 and exist_values ~= nil and exist_values ~
     local jsonval = cjson.decode(exist_values)
     local parse_rules = {}
     if jsonval.rules and type(jsonval.rules) ~= "userdata" then
-        local ruleResult = gatewayRequestHandler(jsonval.rules)
-        if ruleResult then
-            table.insert(parse_rules, ruleResult)
+        -- rules can be a single string ID, a comma-separated string, or an array of IDs
+        local ruleIds = jsonval.rules
+        if type(ruleIds) == "string" then
+            -- Single ID or comma-separated: split into a list
+            ruleIds = {}
+            for id in string.gmatch(jsonval.rules, "[^,]+") do
+                table.insert(ruleIds, id:match("^%s*(.-)%s*$"))  -- trim whitespace
+            end
+        end
+        if type(ruleIds) == "table" then
+            for _, rid in ipairs(ruleIds) do
+                if type(rid) == "string" and rid ~= "" then
+                    local ruleResult = gatewayRequestHandler(rid)
+                    if ruleResult then
+                        table.insert(parse_rules, ruleResult)
+                    end
+                end
+            end
         end
         if jsonval.match_cases then
             local hasAnd = hasAndCondition(jsonval.match_cases)
