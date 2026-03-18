@@ -1,0 +1,58 @@
+---
+# Install AWS CLI v2 from the official binary bundle
+# Works on all Linux distributions (Debian, SUSE, RedHat)
+
+- name: Check if AWS CLI is already installed
+  command: aws --version
+  register: awscli_check
+  changed_when: false
+  failed_when: false
+
+- name: Display current AWS CLI version
+  debug:
+    msg: "AWS CLI already installed: {{ awscli_check.stdout }}"
+  when: awscli_check.rc == 0
+
+- name: Install AWS CLI v2
+  when: awscli_check.rc != 0
+  block:
+    - name: Determine system architecture
+      set_fact:
+        awscli_arch: "{{ 'aarch64' if ansible_architecture == 'aarch64' else 'x86_64' }}"
+
+    - name: Download AWS CLI v2 installer
+      get_url:
+        url: "https://awscli.amazonaws.com/awscli-exe-linux-{{ awscli_arch }}.zip"
+        dest: /tmp/awscliv2.zip
+        mode: '0644'
+
+    - name: Unzip AWS CLI installer
+      unarchive:
+        src: /tmp/awscliv2.zip
+        dest: /tmp
+        remote_src: yes
+
+    - name: Run AWS CLI installer
+      command: /tmp/aws/install --update
+      register: awscli_install
+
+    - name: Display install result
+      debug:
+        msg: "{{ awscli_install.stdout }}"
+
+    - name: Clean up installer files
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /tmp/awscliv2.zip
+        - /tmp/aws
+
+    - name: Verify AWS CLI installation
+      command: aws --version
+      register: awscli_verify
+      changed_when: false
+
+    - name: Display installed AWS CLI version
+      debug:
+        msg: "AWS CLI installed: {{ awscli_verify.stdout }}"
