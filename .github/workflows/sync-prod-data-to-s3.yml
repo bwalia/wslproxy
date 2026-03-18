@@ -5,9 +5,9 @@ name: Sync Prod Data to S3
 # out of the git repo while still making them available to the deploy pipeline.
 
 on:
-  # Every Friday at 10:00 UTC
+  # Every day at 4:00 AM UTC
   schedule:
-    - cron: "0 10 * * 5"
+    - cron: "0 4 * * *"
 
   # Allow manual trigger
   workflow_dispatch:
