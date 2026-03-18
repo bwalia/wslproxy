@@ -1,0 +1,190 @@
+name: Sync Prod Data to S3
+
+# Pulls servers and rules configs from the live prod server and uploads
+# them to an S3 bucket.  This keeps sensitive data (e.g. AWS keys in rules)
+# out of the git repo while still making them available to the deploy pipeline.
+
+on:
+  # Every day at 4:00 AM UTC
+  schedule:
+    - cron: "0 4 * * *"
+
+  # Allow manual trigger
+  workflow_dispatch:
+    inputs:
+      PROD_HOST:
+        type: choice
+        description: "Production host to sync from"
+        default: "187.124.112.155"
+        required: true
+        options:
+          - 187.124.112.155
+          - 72.62.211.28
+
+env:
+  PROD_HOST: ${{ github.event.inputs.PROD_HOST || '187.124.112.155' }}
+  REMOTE_DATA_DIR: /opt/nginx/data
+  TARGET_ENV: prod
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  sync-prod-data-to-s3:
+    name: "Sync prod data to S3"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ env.PROD_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Test SSH connectivity
+        run: |
+          echo "Testing SSH to ${{ env.PROD_HOST }}..."
+          if ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@${{ env.PROD_HOST }} "echo 'SSH OK'" 2>&1; then
+            echo "✅ SSH connection successful"
+          else
+            echo "::error::SSH connection failed to root@${{ env.PROD_HOST }}"
+            exit 1
+          fi
+
+      - name: Create local staging directory
+        run: mkdir -p staging/servers staging/rules
+
+      - name: Sync server configs from prod
+        run: |
+          echo "Syncing servers from ${{ env.PROD_HOST }}:${{ env.REMOTE_DATA_DIR }}/servers/${{ env.TARGET_ENV }}/"
+          rsync -avz --delete \
+            -e "ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10" \
+            root@${{ env.PROD_HOST }}:${{ env.REMOTE_DATA_DIR }}/servers/${{ env.TARGET_ENV }}/ \
+            staging/servers/
+
+      - name: Sync rule configs from prod
+        run: |
+          echo "Syncing rules from ${{ env.PROD_HOST }}:${{ env.REMOTE_DATA_DIR }}/rules/${{ env.TARGET_ENV }}/"
+          rsync -avz --delete \
+            -e "ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10" \
+            root@${{ env.PROD_HOST }}:${{ env.REMOTE_DATA_DIR }}/rules/${{ env.TARGET_ENV }}/ \
+            staging/rules/
+
+      - name: Validate JSON files
+        run: |
+          sudo apt-get install -y jq
+          ERRORS=0
+          echo "=== Validating server configs ==="
+          for file in staging/servers/*.json; do
+            if [[ -f "$file" ]]; then
+              if ! jq empty "$file" 2>/dev/null; then
+                echo "❌ Invalid JSON: $file"
+                ERRORS=$((ERRORS+1))
+              else
+                echo "✅ Valid: $file"
+              fi
+            fi
+          done
+          echo ""
+          echo "=== Validating rule configs ==="
+          for file in staging/rules/*.json; do
+            if [[ -f "$file" ]]; then
+              if ! jq empty "$file" 2>/dev/null; then
+                echo "❌ Invalid JSON: $file"
+                ERRORS=$((ERRORS+1))
+              else
+                echo "✅ Valid: $file"
+              fi
+            fi
+          done
+          if [[ $ERRORS -gt 0 ]]; then
+            echo "::error::Found $ERRORS invalid JSON file(s) — aborting upload"
+            exit 1
+          fi
+
+      - name: List files to upload
+        run: |
+          echo "=== Server Configs ==="
+          ls -la staging/servers/ 2>/dev/null || echo "No server configs"
+          echo ""
+          echo "=== Rule Configs ==="
+          ls -la staging/rules/ 2>/dev/null || echo "No rule configs"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Upload to S3
+        run: |
+          S3_BUCKET="${{ secrets.WSLPROXY_S3_BUCKET }}"
+          echo "Uploading to s3://${S3_BUCKET}/data/${{ env.TARGET_ENV }}/"
+
+          aws s3 sync staging/servers/ "s3://${S3_BUCKET}/data/${{ env.TARGET_ENV }}/servers/" --delete
+          aws s3 sync staging/rules/  "s3://${S3_BUCKET}/data/${{ env.TARGET_ENV }}/rules/"   --delete
+
+          echo "✅ Upload complete"
+
+      - name: Create and upload timestamped backup tarball
+        run: |
+          S3_BUCKET="${{ secrets.WSLPROXY_S3_BUCKET }}"
+          TIMESTAMP=$(date -u +"%Y%m%d_%H%M%S")
+          BACKUP_FILE="prod_backup_${TIMESTAMP}.tar.gz"
+
+          echo "Creating backup tarball: ${BACKUP_FILE}"
+          tar -czf "${BACKUP_FILE}" -C staging servers/ rules/
+
+          echo "Uploading to s3://${S3_BUCKET}/backups/${BACKUP_FILE}"
+          aws s3 cp "${BACKUP_FILE}" "s3://${S3_BUCKET}/backups/${BACKUP_FILE}"
+
+          echo "✅ Backup uploaded: ${BACKUP_FILE} ($(du -h "${BACKUP_FILE}" | cut -f1))"
+
+      - name: Set S3 lifecycle policy (60-day retention on backups)
+        run: |
+          S3_BUCKET="${{ secrets.WSLPROXY_S3_BUCKET }}"
+
+          cat > /tmp/lifecycle.json <<'LIFECYCLE'
+          {
+            "Rules": [
+              {
+                "ID": "expire-backups-after-60-days",
+                "Filter": {
+                  "Prefix": "backups/"
+                },
+                "Status": "Enabled",
+                "Expiration": {
+                  "Days": 60
+                }
+              }
+            ]
+          }
+          LIFECYCLE
+
+          aws s3api put-bucket-lifecycle-configuration \
+            --bucket "${S3_BUCKET}" \
+            --lifecycle-configuration file:///tmp/lifecycle.json
+
+          echo "✅ Lifecycle policy set: backups/ objects expire after 60 days"
+
+      - name: Verify S3 contents
+        run: |
+          S3_BUCKET="${{ secrets.WSLPROXY_S3_BUCKET }}"
+          echo "=== S3 Server Configs ==="
+          aws s3 ls "s3://${S3_BUCKET}/data/${{ env.TARGET_ENV }}/servers/"
+          echo ""
+          echo "=== S3 Rule Configs ==="
+          aws s3 ls "s3://${S3_BUCKET}/data/${{ env.TARGET_ENV }}/rules/"
+
+      - name: Summary
+        run: |
+          echo "=========================================="
+          echo "Sync Prod Data to S3 — Summary"
+          echo "=========================================="
+          echo "Source Host:  ${{ env.PROD_HOST }}"
+          echo "Environment:  ${{ env.TARGET_ENV }}"
+          echo "S3 Bucket:    ${{ secrets.WSLPROXY_S3_BUCKET }}"
+          echo "S3 Path:      data/${{ env.TARGET_ENV }}/{servers,rules}/"
+          echo "Timestamp:    $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
+          echo "=========================================="
