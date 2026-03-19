@@ -158,6 +158,7 @@
         backup: yes
       loop: "{{ server_config_files.files }}"
       register: server_copy_result
+      no_log: true
 
     - name: Copy rule config files
       copy:
@@ -168,6 +169,7 @@
         group: root
         backup: yes
       loop: "{{ rule_config_files.files }}"
+      no_log: true
       register: rule_copy_result
 
     - name: Ensure SSL domain directory exists

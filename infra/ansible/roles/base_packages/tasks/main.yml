@@ -6,3 +6,7 @@
 - name: Include OS-specific package installation
   include_tasks: "packages_{{ ansible_os_family | lower }}.yml"
   tags: [base_packages]
+
+- name: Install AWS CLI v2
+  include_tasks: "install_awscli.yml"
+  tags: [base_packages, awscli]

@@ -321,15 +321,14 @@ jobs:
       - name: Download S3 configs and overlay onto target
         run: |
           S3_BUCKET="${{ secrets.WSLPROXY_S3_BUCKET }}"
-          S3_PREFIX="data/${{ env.TARGET_ENV }}"
 
-          echo "Checking S3 for overlay configs at s3://${S3_BUCKET}/${S3_PREFIX}/"
+          echo "Checking S3 for overlay configs at s3://${S3_BUCKET}/data/servers/${{ env.TARGET_ENV }}/"
 
           # Download S3 configs to a staging area
           mkdir -p s3-staging/servers s3-staging/rules
 
-          aws s3 sync "s3://${S3_BUCKET}/${S3_PREFIX}/servers/" s3-staging/servers/ 2>/dev/null || true
-          aws s3 sync "s3://${S3_BUCKET}/${S3_PREFIX}/rules/"   s3-staging/rules/   2>/dev/null || true
+          aws s3 sync "s3://${S3_BUCKET}/data/servers/${{ env.TARGET_ENV }}/" s3-staging/servers/ 2>/dev/null || true
+          aws s3 sync "s3://${S3_BUCKET}/data/rules/${{ env.TARGET_ENV }}/"   s3-staging/rules/   2>/dev/null || true
 
           S3_SERVERS=$(find s3-staging/servers -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
           S3_RULES=$(find s3-staging/rules -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
