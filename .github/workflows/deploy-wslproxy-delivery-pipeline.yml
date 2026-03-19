@@ -172,7 +172,7 @@ jobs:
   # ──────────────────────────────────────────────────────
   test-int:
     name: "Stage 3: Smoke Test Int"
-    runs-on: [self-hosted, Linux]
+    runs-on: [self-hosted, Linux, int]
     needs: [deploy-int]
     timeout-minutes: 15
 
