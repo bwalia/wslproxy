@@ -35,13 +35,12 @@ jobs:
   # ──────────────────────────────────────────────────────
   sync-int:
     name: "Sync configs → Int"
-    runs-on: [self-hosted, Linux]
+    runs-on: [self-hosted, Linux, int]
     if: >-
       github.event.inputs.TARGET_ENVS == 'all'
       || github.event.inputs.TARGET_ENVS == 'int'
       || github.event_name == 'schedule'
     timeout-minutes: 10
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -162,13 +161,12 @@ jobs:
   # ──────────────────────────────────────────────────────
   sync-test:
     name: "Sync configs → Test"
-    runs-on: [self-hosted, Linux]
+    runs-on: [self-hosted, Linux, test]
     if: >-
       github.event.inputs.TARGET_ENVS == 'all'
       || github.event.inputs.TARGET_ENVS == 'test'
       || github.event_name == 'schedule'
     timeout-minutes: 10
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -285,7 +283,6 @@ jobs:
       || github.event.inputs.TARGET_ENVS == 'acc'
       || github.event_name == 'schedule'
     timeout-minutes: 10
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -377,7 +374,7 @@ jobs:
         run: |
           ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 \
             root@187.77.179.206 \
-            "curl -sf -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/ping" 2>&1 | {
+            "curl -sf -o /dev/null -w '%{http_code}' http://187.77.179.206:8080/ping" 2>&1 | {
             read HTTP_CODE
             if [ "$HTTP_CODE" != "200" ]; then
               echo "::error::Acc health check failed (HTTP $HTTP_CODE)"
