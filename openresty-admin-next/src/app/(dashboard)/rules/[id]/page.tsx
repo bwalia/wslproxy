@@ -10,7 +10,7 @@ import {
   Plus,
   X,
 } from "lucide-react";
-import { useOne, useDataProvider } from "@/hooks/useResource";
+import { useOne, useList, useDataProvider } from "@/hooks/useResource";
 import { useNotification } from "@/contexts/NotificationContext";
 import PageHeader from "@/components/ui/PageHeader";
 import Card from "@/components/ui/Card";
@@ -81,6 +81,8 @@ interface RuleForm {
   amazon_s3_region: string;
   amazon_s3_access_key: string;
   amazon_s3_secret_key: string;
+  // Tags
+  rules_tags: string[];
   // Response
   allow: boolean;
   code: number;
@@ -116,6 +118,7 @@ const DEFAULT_FORM: RuleForm = {
   amazon_s3_region: "eu-west-2",
   amazon_s3_access_key: "",
   amazon_s3_secret_key: "",
+  rules_tags: [],
   allow: false,
   code: 403,
   redirect_uri: "",
@@ -208,10 +211,19 @@ export default function RuleDetailPage() {
     isCreate ? null : id,
   );
 
+  // Fetch profiles for the dropdown
+  const { data: profiles } = useList<{ id: string; name: string }>("profiles");
+  const profileOptions = useMemo(
+    () =>
+      (profiles ?? []).map((p) => ({ value: p.id ?? p.name, label: p.name })),
+    [profiles],
+  );
+
   const [form, setForm] = useState<RuleForm>(DEFAULT_FORM);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
+  const [newTag, setNewTag] = useState("");
 
   // Hydrate form from fetched data
   useEffect(() => {
@@ -249,7 +261,8 @@ export default function RuleDetailPage() {
       routing_header_value: rt.header_value ?? "true",
       routing_cookie_name: rt.cookie_name ?? "canary_session",
       routing_sticky: rt.sticky ?? false,
-      backends: r.backends ?? (rt as { backends?: Backend[] }).backends ?? [],
+      backends: Array.isArray(r.backends) ? r.backends : Array.isArray((rt as Record<string, unknown>).backends) ? (rt as { backends: Backend[] }).backends : [],
+      rules_tags: Array.isArray(data.rules_tags) ? data.rules_tags : [],
     });
   }, [data]);
 
@@ -258,6 +271,19 @@ export default function RuleDetailPage() {
       setForm((prev) => ({ ...prev, [field]: value })),
     [],
   );
+
+  // ── Tag helpers ────────────────────────────────────────────────────
+  const addTag = useCallback(() => {
+    const tag = newTag.trim();
+    if (tag && !form.rules_tags.includes(tag)) {
+      set("rules_tags", [...form.rules_tags, tag]);
+    }
+    setNewTag("");
+  }, [newTag, form.rules_tags, set]);
+
+  const removeTag = useCallback((idx: number) => {
+    set("rules_tags", form.rules_tags.filter((_, i) => i !== idx));
+  }, [form.rules_tags, set]);
 
   // ── Conditional visibility ──────────────────────────────────────────
 
@@ -288,6 +314,7 @@ export default function RuleDetailPage() {
       profile_id: form.profile_id,
       priority: form.priority,
       version: form.version,
+      rules_tags: form.rules_tags,
       match: {
         rules: {
           path: form.path || "/",
@@ -430,10 +457,39 @@ export default function RuleDetailPage() {
         <Card.Body>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <Input label="Rule Name *" value={form.name} onChange={(e) => set("name", e.target.value)} error={!form.name.trim() ? "Required" : undefined} />
-            <Input label="Profile ID *" value={form.profile_id} onChange={(e) => set("profile_id", e.target.value)} />
+            <Select
+              label="Profile *"
+              value={form.profile_id}
+              onChange={(e) => set("profile_id", e.target.value)}
+              options={profileOptions}
+              placeholder="Select a profile"
+            />
             <div className="grid grid-cols-2 gap-4">
               <Input label="Priority" type="number" value={String(form.priority)} hint="1-10000" onChange={(e) => set("priority", Number(e.target.value))} />
               <Input label="Version" type="number" value={String(form.version)} onChange={(e) => set("version", Number(e.target.value))} />
+            </div>
+          </div>
+        </Card.Body>
+      </Card>
+
+      {/* ── Tags ─────────────────────────────────────────────────────── */}
+      <Card>
+        <Card.Body>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Tags</label>
+            <div className="flex flex-wrap gap-2 mb-2">
+              {form.rules_tags.map((tag, i) => (
+                <Badge key={i} variant="primary">
+                  {tag}
+                  <button onClick={() => removeTag(i)} className="ml-1 hover:text-red-500">
+                    <X size={12} />
+                  </button>
+                </Badge>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <Input value={newTag} onChange={(e) => setNewTag(e.target.value)} placeholder="Add a tag..." onKeyDown={(e) => e.key === 'Enter' && addTag()} />
+              <Button size="sm" variant="secondary" onClick={addTag}>Add</Button>
             </div>
           </div>
         </Card.Body>

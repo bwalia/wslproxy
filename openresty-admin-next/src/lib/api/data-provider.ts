@@ -162,7 +162,7 @@ export const dataProvider: DataProvider = {
   remove: (resource: string, id: string, body?: unknown) =>
     apiFetch(`/${resource}/${id}`, {
       method: "DELETE",
-      body: body ? JSON.stringify(body) : undefined,
+      body: JSON.stringify(body ?? { envProfile: getEnvProfile(), timestamp: Date.now() }),
     }),
 
   removeMany: (resource: string, ids: string[]) =>

@@ -1371,9 +1371,9 @@ local function createDeleteServer(body, uuid)
         payloads = ngx.req.get_uri_args()
     end
     local envProfile = "prod"
-    if payloads.ids ~= nil then
+    if payloads.ids ~= nil and payloads.ids.envProfile ~= nil then
         envProfile = payloads.ids.envProfile
-    else
+    elseif payloads.envProfile ~= nil then
         envProfile = payloads.envProfile
     end
 
@@ -1800,9 +1800,9 @@ local function createDeleteRules(body, uuid)
         payloads = ngx.req.get_uri_args()
     end
     local envProfile = "prod"
-    if payloads.ids ~= nil then
+    if payloads.ids ~= nil and payloads.ids.envProfile ~= nil then
         envProfile = payloads.ids.envProfile
-    else
+    elseif payloads.envProfile ~= nil then
         envProfile = payloads.envProfile
     end
     if uuid ~= "" and uuid ~= nil then
@@ -1841,9 +1841,9 @@ local function createDeleteSecrets(body, uuid)
         payloads = ngx.req.get_uri_args()
     end
     local envProfile = "prod"
-    if payloads.ids ~= nil then
+    if payloads.ids ~= nil and payloads.ids.envProfile ~= nil then
         envProfile = payloads.ids.envProfile
-    else
+    elseif payloads.envProfile ~= nil then
         envProfile = payloads.envProfile
     end
     if uuid ~= "" and uuid ~= nil then
@@ -1879,9 +1879,9 @@ local function createDeleteInstances(body, uuid)
         payloads = ngx.req.get_uri_args()
     end
     local envProfile = "prod"
-    if payloads.ids ~= nil then
+    if payloads.ids ~= nil and payloads.ids.envProfile ~= nil then
         envProfile = payloads.ids.envProfile
-    else
+    elseif payloads.envProfile ~= nil then
         envProfile = payloads.envProfile
     end
     if uuid ~= "" and uuid ~= nil then

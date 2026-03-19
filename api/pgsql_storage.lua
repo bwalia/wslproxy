@@ -112,6 +112,24 @@ function _M.new(config)
         return true
     end
 
+    -- hmset: set multiple hash fields at once (mirrors Redis HMSET)
+    -- Expects: hmset(composite_key, { [field1] = value1, [field2] = value2, ... })
+    -- Each value is a JSON string. Calls hset internally for each field.
+    function store:hmset(composite_key, field_values)
+        if type(field_values) ~= "table" then
+            ngx.log(ngx.ERR, "pgsql_storage hmset: expected table, got ", type(field_values))
+            return false
+        end
+        for field, value in pairs(field_values) do
+            local ok = self:hset(composite_key, field, value)
+            if not ok then
+                ngx.log(ngx.ERR, "pgsql_storage hmset: failed to set field '", field, "' on key '", composite_key, "'")
+                return false
+            end
+        end
+        return true
+    end
+
     -- hdel: soft-delete a record
     function store:hdel(composite_key, field)
         local rtype, profile = parse_key(composite_key)
