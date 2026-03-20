@@ -735,13 +735,20 @@ if exist_values and exist_values ~= 0 and exist_values ~= nil and exist_values ~
         -- do return ngx.say(cjson.encode(finalObj)) end
         local rulePasses = false
         local requestedUri = ngx.var.request_uri
+        local rootMatchPriority = -1  -- track highest priority for "/" matches
         for index, passedRule in pairs(finalObj) do
             if isAllPathPass and not isPathExists then
                 if requestedUri == "/" and passedRule.has_false_value == false then
-                    rulePasses = true
-                    highestPriorityKey = index
-                    highestPriorityParentKey = passedRule.path_key
-                    break
+                    if passedRule.path_priority and passedRule.path_priority > rootMatchPriority then
+                        rootMatchPriority = passedRule.path_priority
+                        rulePasses = true
+                        highestPriorityKey = index
+                        highestPriorityParentKey = passedRule.path_key
+                    elseif not passedRule.path_priority then
+                        rulePasses = true
+                        highestPriorityKey = index
+                        highestPriorityParentKey = passedRule.path_key
+                    end
                 elseif passedRule.paths_key == "starts_with" and
                     requestedUri:startswith(passedRule.paths) == false
                 then
@@ -761,10 +768,16 @@ if exist_values and exist_values ~= 0 and exist_values ~= nil and exist_values ~
             end
             if isAllPathPass == true then
                 if requestedUri == "/" and passedRule.has_false_value == false then
-                    rulePasses = true
-                    highestPriorityKey = index
-                    highestPriorityParentKey = passedRule.path_key
-                    break
+                    if passedRule.path_priority and passedRule.path_priority > rootMatchPriority then
+                        rootMatchPriority = passedRule.path_priority
+                        rulePasses = true
+                        highestPriorityKey = index
+                        highestPriorityParentKey = passedRule.path_key
+                    elseif not passedRule.path_priority then
+                        rulePasses = true
+                        highestPriorityKey = index
+                        highestPriorityParentKey = passedRule.path_key
+                    end
                 elseif passedRule.paths_key == "starts_with" and
                     requestedUri:startswith(passedRule.paths) == false and
                     passedRule.path_matched == true and
