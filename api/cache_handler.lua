@@ -398,8 +398,9 @@ function _M.process_response_headers()
     -- Store headers for caching
     ngx.ctx.cache_headers = {}
     local headers_to_cache = {
-        "Content-Type", "Content-Length", "Last-Modified", 
-        "ETag", "Cache-Control", "Expires", "Content-Encoding"
+        "Content-Type", "Content-Length", "Last-Modified",
+        "ETag", "Cache-Control", "Expires", "Content-Encoding",
+        "Location"
     }
     
     for _, header_name in ipairs(headers_to_cache) do
