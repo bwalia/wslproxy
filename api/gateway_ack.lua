@@ -807,7 +807,7 @@ if exist_values and exist_values ~= 0 and exist_values ~= nil and exist_values ~
                     highestPriorityParentKey = passedRule.path_key
                     break
                 else
-                    if passedRule.path_matched == true and passedRule.has_false_value == false and passedRule.paths ~= "/" then
+                    if passedRule.path_matched == true and passedRule.has_false_value == false and (passedRule.paths ~= "/" or (passedRule.paths_key == "starts_with" and requestedUri ~= "/")) then
                         rulePasses = true
                         highestPriorityKey = index
                         highestPriorityParentKey = passedRule.path_key
