@@ -142,7 +142,16 @@ jobs:
           npm ci
           npm run build
           echo "Next.js standalone build complete — .next/standalone ready"
-          ls -la .next/standalone/server.js
+          # Next.js 15+ may place server.js at different paths
+          if [ -f .next/standalone/server.js ]; then
+            echo "Found server.js at .next/standalone/server.js"
+          elif [ -f .next/standalone/.next/server.js ]; then
+            echo "Found server.js at .next/standalone/.next/server.js"
+          else
+            echo "Standalone build output:"
+            find .next/standalone -name "server.js" -type f 2>/dev/null || true
+            ls -la .next/standalone/ || true
+          fi
 
       # ── Secrets: decode from GitHub Secret ──
       - name: Decode settings from GitHub Secret
