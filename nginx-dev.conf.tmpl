@@ -198,7 +198,7 @@ http {
             add_header 'Access-Control-Allow-Headers' 'Content-Type';
             access_by_lua_block {
                 local path_name = ngx.var.uri:match("^/api/(.*)$")
-                if path_name ~= "user/login" then
+                if path_name ~= "user/login" and path_name ~= "topology/graph" then
                     local jwt = JWT
                     local token = ngx.req.get_headers()["Authorization"]
                     if not token then
@@ -710,7 +710,7 @@ http {
 
             access_by_lua_block {
                 local path_name = ngx.var.uri:match("^/api/(.*)$")
-                if path_name ~= "user/login" then
+                if path_name ~= "user/login" and path_name ~= "topology/graph" then
                     local jwt = JWT
                     local token = ngx.req.get_headers()["Authorization"]
                     if not token then
@@ -820,7 +820,7 @@ http {
 
             access_by_lua_block {
                 local path_name = ngx.var.uri:match("^/api/(.*)$")
-                if path_name ~= "user/login" then
+                if path_name ~= "user/login" and path_name ~= "topology/graph" then
                     local jwt = JWT
                     local token = ngx.req.get_headers()["Authorization"]
                     if not token then

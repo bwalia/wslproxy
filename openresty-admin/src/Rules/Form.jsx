@@ -17,6 +17,7 @@ import Toolbar from "./toolbar/Toolbar";
 import CreateTags from "../component/CreateTags";
 import HtmlEditorInput from "../component/HtmlEditorInput";
 import VersionHistoryTab from "../Versions/VersionHistoryTab";
+import TopologyTab from "../Topology/TopologyTab";
 import "../styles/forms.css";
 
 const iso_codes = {
@@ -331,6 +332,16 @@ const Form = () => {
   return (
     <SimpleForm toolbar={<Toolbar />}>
       <div className="form-container">
+
+        <Card variant="outlined" className="section-card" sx={{ mb: 2 }}>
+          <CardContent>
+            <Typography variant="subtitle1" className="section-card__title">
+              Topology
+            </Typography>
+            <div className="section-card__spacer" />
+            <TopologyTab useRecord resourceType="rules" />
+          </CardContent>
+        </Card>
 
         {/* Basic Rule Information */}
         <SectionCard title="Basic Rule Information" subtitle="Configure the rule name, profile, and metadata">

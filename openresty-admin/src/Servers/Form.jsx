@@ -35,6 +35,7 @@ import CreateTags from "../component/CreateTags";
 import VarnishSnippetEditor from "./VarnishSnippetEditor";
 import VarnishDeployPanel from "./VarnishDeployPanel";
 import VersionHistoryTab from "../Versions/VersionHistoryTab";
+import TopologyTab from "../Topology/TopologyTab";
 import get from "lodash/get";
 import "../styles/forms.css";
 
@@ -116,6 +117,12 @@ const Form = ({ type }) => {
 
   return (
     <TabbedForm toolbar={<Toolbar />} syncWithLocation={false}>
+      <TabbedForm.Tab label="Topology">
+        <div className="form-container">
+          <TopologyTab useRecord resourceType="servers" />
+        </div>
+      </TabbedForm.Tab>
+
       <TabbedForm.Tab label="Nginx Server">
         <div className="form-container">
           {/* Basic Server Configuration */}
@@ -975,6 +982,7 @@ const Form = ({ type }) => {
           <VersionHistoryTab resourceType="servers" />
         </div>
       </TabbedForm.Tab>
+
     </TabbedForm>
   );
 };

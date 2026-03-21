@@ -173,7 +173,18 @@ end
 -- Returns full topology graph: nodes[] + edges[]
 -------------------------------------------------------------------------------
 function _M.get_graph(args)
-    local profile_id = args.profile_id or "prod"
+    -- Default profile from settings.json if not specified
+    local default_profile = "prod"
+    local sf = io.open(configPath .. "data/settings.json", "rb")
+    if sf then
+        local sc = sf:read("*a")
+        sf:close()
+        local settings = cjson.decode(sc)
+        if settings and settings.env_profile then
+            default_profile = settings.env_profile
+        end
+    end
+    local profile_id = args.profile_id or default_profile
     local servers_dir = configPath .. "data/servers/" .. profile_id .. "/"
     local rules_dir = configPath .. "data/rules/" .. profile_id .. "/"
 
@@ -238,6 +249,7 @@ function _M.get_graph(args)
                 id = server_id,
                 kind = "server",
                 name = server.server_name or "unknown",
+                label = server.server_name or "unknown",
                 status = status,
                 ssl_enabled = server.ssl_enabled or false,
                 ssl_force_https = server.ssl_force_https or false,
@@ -283,10 +295,20 @@ function _M.get_graph(args)
                             table.insert(conditions, "auth")
                         end
 
+                        -- Routing info
+                        local routing = response.routing or {}
+                        local routing_mode = routing.mode or "weighted"
+                        local routing_backends = routing.backends or {}
+
+                        -- Count all backends (response + routing)
+                        local all_backends = response.backends or {}
+                        local total_backends = #all_backends + #routing_backends
+
                         table.insert(nodes, {
                             id = rule_node_id,
                             kind = "rule",
                             name = rule.name or rule_id,
+                            label = rule.name or rule_id,
                             status = "healthy",
                             action = action,
                             status_code = code,
@@ -295,7 +317,12 @@ function _M.get_graph(args)
                             path_key = path_key,
                             conditions = conditions,
                             condition_count = #conditions,
-                            has_backends = (response.backends and #response.backends > 0) and true or false,
+                            has_backends = total_backends > 0,
+                            backend_count = total_backends,
+                            routing_mode = routing_mode,
+                            routing_sticky = routing.sticky or false,
+                            routing_header_name = routing.header_name,
+                            routing_cookie_name = routing.cookie_name,
                             auto_redirect_https = match_rules.auto_redirect_https or false,
                             strip_path = match_rules.strip_path or false,
                         })
@@ -329,6 +356,7 @@ function _M.get_graph(args)
                                     id = backend_id,
                                     kind = "backend",
                                     name = b.label or parsed.host,
+                                    label = b.label or parsed.host,
                                     status = health,
                                     address = addr,
                                     host = parsed.host,
@@ -348,8 +376,53 @@ function _M.get_graph(args)
                                 weight = b.weight or 0,
                             })
                         end
-                    elseif response.redirect_uri and response.redirect_uri ~= "" and type(response.redirect_uri) ~= "userdata" then
-                        -- Single backend
+                    end
+
+                    -- Also process routing.backends (canary/header/cookie routing)
+                    local routing = response.routing or {}
+                    if routing.backends and type(routing.backends) == "table" and #routing.backends > 0 then
+                        for _, b in ipairs(routing.backends) do
+                            local addr = b.address or ""
+                            local backend_id = "backend/" .. addr
+                            local parsed = parse_backend_address(addr)
+
+                            if parsed and not added_backends[backend_id] then
+                                added_backends[backend_id] = true
+                                added_nodes[backend_id] = true
+
+                                local health = get_backend_health(rule_id, addr)
+                                local stats = get_backend_stats(rule_id, b.label or addr)
+
+                                table.insert(nodes, {
+                                    id = backend_id,
+                                    kind = "backend",
+                                    name = b.label or parsed.host,
+                                    label = b.label or parsed.host,
+                                    status = health,
+                                    address = addr,
+                                    host = parsed.host,
+                                    port = parsed.port,
+                                    scheme = parsed.scheme,
+                                    path = parsed.path,
+                                    backend_type = parsed.type,
+                                    weight = b.weight,
+                                    stats = stats,
+                                })
+                            end
+
+                            table.insert(edges, {
+                                from = "rule/" .. rule_id,
+                                to = backend_id,
+                                label = b.label or "routing",
+                                weight = b.weight or 0,
+                            })
+                        end
+                    end
+
+                    -- Single backend via redirect_uri (only if no multi-backends)
+                    if not (response.backends and #response.backends > 0) and
+                       not (routing.backends and #routing.backends > 0) and
+                       response.redirect_uri and response.redirect_uri ~= "" and type(response.redirect_uri) ~= "userdata" then
                         local addr = response.redirect_uri
                         local backend_id = "backend/" .. addr
                         local parsed = parse_backend_address(addr)
@@ -365,6 +438,7 @@ function _M.get_graph(args)
                                 id = backend_id,
                                 kind = "backend",
                                 name = parsed.host,
+                                label = parsed.host,
                                 status = health,
                                 address = addr,
                                 host = parsed.host,
