@@ -743,6 +743,27 @@ const dataProvider = (apiUrl, settings = {}) => {
       }
     },
 
+    getTopologyGraph: async (profileId) => {
+      try {
+        setIsLoadig(true);
+        const timestamp = Date.now();
+        const env = profileId || localStorage.getItem("environment") || "prod";
+        const url = `${apiUrl}/topology/graph?profile_id=${env}&timestamp=${timestamp}`;
+        const response = await fetch(url, {
+          method: "GET",
+          headers: getHeaders(),
+        });
+        const data = await response.json();
+        setIsLoadig(false);
+        if (response.status === 200) return data;
+        return { data: { nodes: [], edges: [], summary: {} } };
+      } catch (error) {
+        console.log(error);
+        setIsLoadig(false);
+        return { data: { nodes: [], edges: [], summary: {} } };
+      }
+    },
+
     getTrafficBackendStats: async (ruleId) => {
       try {
         setIsLoadig(true);

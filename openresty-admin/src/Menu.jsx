@@ -12,6 +12,7 @@ import WafRuleIcon from "@mui/icons-material/ShieldRounded";
 import WafPolicyIcon from "@mui/icons-material/VerifiedUserRounded";
 import WafEventIcon from "@mui/icons-material/NotificationsActiveRounded";
 import IngressIcon from "@mui/icons-material/AccountTree";
+import TopologyIcon from "@mui/icons-material/HubRounded";
 import HealthIcon from "@mui/icons-material/MonitorHeartRounded";
 import BookmarkIcon from "@mui/icons-material/BookmarkRounded";
 import ChangeRequestIcon from "@mui/icons-material/AssignmentTurnedInRounded";
@@ -171,6 +172,11 @@ export const Menu = () => {
           </Typography>
         )}
 
+        <StyledMenuItem
+          to="/topology"
+          primaryText="Topology"
+          leftIcon={<TopologyIcon />}
+        />
         <StyledMenuItem
           to="/servers"
           primaryText="Virtual Servers"

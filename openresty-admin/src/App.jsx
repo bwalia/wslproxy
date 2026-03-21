@@ -30,6 +30,7 @@ import WafPolicies from "./WafPolicies";
 import WafEvents from "./WafEvents";
 import Bookmarks from "./Bookmarks";
 import IngressOverview from "./IngressOverview/IngressOverview";
+import Topology from "./Topology/Topology";
 import Health from "./Health/Health";
 import ChangeRequestList from "./ChangeRequests/ChangeRequestList";
 import AuditLog from "./Audit/AuditLog";
@@ -202,6 +203,7 @@ const AppContent = () => {
         <CustomRoutes>
           <Route path="/password/reset" element={<ResetForm />} />
           <Route path="/instance-info" element={<InstanceInfo />} />
+          <Route path="/topology" element={<Topology />} />
           <Route path="/ingress" element={<IngressOverview />} />
           <Route path="/health" element={<Health />} />
           <Route path="/change-requests" element={<ChangeRequestList />} />

@@ -4060,6 +4060,16 @@ local function handle_get_request(args, path)
         listWafEvents(args)
     end
 
+    -- Topology graph endpoint (nodes + edges for canvas visualization)
+    if path == "topology/graph" then
+        local ok, Topology = pcall(require, "topology")
+        if ok then
+            local result = Topology.get_graph(args)
+            ngx.say(cjson.encode(result))
+            ngx.exit(ngx.HTTP_OK)
+        end
+    end
+
     -- Traffic management endpoints
     if path == "traffic/topology" then
         local ok, TrafficMgmt = pcall(require, "traffic_mgmt")

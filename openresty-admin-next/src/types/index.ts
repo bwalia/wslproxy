@@ -393,6 +393,7 @@ export interface DataProvider {
   getDetailedHealth(): Promise<SingleResult<HealthData>>;
   checkORStatus(): Promise<SingleResult>;
   getTrafficTopology(): Promise<SingleResult>;
+  getTopologyGraph(profileId?: string): Promise<SingleResult>;
   getTrafficBackendStats(ruleId: string): Promise<SingleResult>;
   getTrafficHealth(): Promise<SingleResult>;
 
