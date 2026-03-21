@@ -350,10 +350,11 @@ function _M.process_response_headers()
         return
     end
     
-    -- Only cache successful responses
+    -- Only cache successful responses (not redirects — rule-based 301/302
+    -- must be evaluated on every request, not served from cache)
     local status = ngx.status
     local config = ngx.ctx.cache_config or {}
-    local valid_codes = config.cache_valid_codes or { 200, 301, 302 }
+    local valid_codes = config.cache_valid_codes or { 200 }
     
     local should_cache_status = false
     for _, code in ipairs(valid_codes) do
