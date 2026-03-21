@@ -52,11 +52,11 @@ const TopologyTab = ({ filterServerId, filterRuleId, useRecord = false, resource
   const [edges, setEdges] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
 
-  // Resolve IDs
+  // Resolve IDs — record.id for servers has "host:" prefix, use server_name instead
   let serverId = filterServerId;
   let ruleId = filterRuleId;
   if (useRecord && record) {
-    if (resourceType === "servers") serverId = record.id;
+    if (resourceType === "servers") serverId = record.server_name || record.id?.replace(/^host:/, "");
     if (resourceType === "rules") ruleId = record.id;
   }
 
@@ -70,7 +70,11 @@ const TopologyTab = ({ filterServerId, filterRuleId, useRecord = false, resource
 
       // Filter if needed
       if (serverId) {
-        const sid = "server/" + serverId;
+        // Find the matching server node (by id suffix or name)
+        const serverNode = allNodes.find(
+          (n) => n.kind === "server" && (n.id === "server/" + serverId || n.name === serverId)
+        );
+        const sid = serverNode?.id || "server/" + serverId;
         const connectedRuleIds = new Set();
         const connectedBackendIds = new Set();
         allEdges.forEach((e) => {
