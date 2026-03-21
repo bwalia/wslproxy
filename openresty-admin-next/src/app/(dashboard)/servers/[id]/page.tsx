@@ -118,9 +118,9 @@ const TABS: TabDef[] = [
 /* ── Hydrate helper ───────────────────────────────────────────────────── */
 
 function hydrateForm(data: ServerType): ServerFormState {
-  const vc = (data as Record<string, unknown>).varnish_config as Partial<VarnishConfig> | undefined;
-  const vs = (data as Record<string, unknown>).varnish_snippets as VarnishSnippet[] | undefined;
-  const vvcl = (data as Record<string, unknown>).varnish_vcl_config as string | undefined;
+  const vc = (data as unknown as Record<string, unknown>).varnish_config as Partial<VarnishConfig> | undefined;
+  const vs = (data as unknown as Record<string, unknown>).varnish_snippets as VarnishSnippet[] | undefined;
+  const vvcl = (data as unknown as Record<string, unknown>).varnish_vcl_config as string | undefined;
 
   return {
     server_name: data.server_name ?? "",
