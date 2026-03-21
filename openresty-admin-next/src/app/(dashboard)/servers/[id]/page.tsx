@@ -142,7 +142,7 @@ function hydrateForm(data: ServerType): ServerFormState {
 
     cache_enabled: data.cache_enabled ?? false,
     cache_ttl: data.cache_ttl ?? 3600,
-    cache_bypass_auth: (data as Record<string, unknown>).cache_bypass_auth as boolean ?? true,
+    cache_bypass_auth: (data as unknown as Record<string, unknown>).cache_bypass_auth as boolean ?? true,
     cache_bypass_cookie: data.cache_bypass_cookie ?? "",
     cached_mime_types: Array.isArray(data.cached_mime_types) ? data.cached_mime_types : [],
 
@@ -153,7 +153,7 @@ function hydrateForm(data: ServerType): ServerFormState {
     rate_limit_enabled: data.rate_limit_enabled ?? false,
     rate_limit: {
       requests_per_second: data.rate_limit_requests ?? 100,
-      burst: (data as Record<string, unknown>).rate_limit_burst as number ?? 50,
+      burst: (data as unknown as Record<string, unknown>).rate_limit_burst as number ?? 50,
     },
 
     custom_headers: Array.isArray(data.custom_headers) ? data.custom_headers : [],
