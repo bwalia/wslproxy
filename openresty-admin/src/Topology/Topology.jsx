@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useDataProvider, useNotify, Title } from "react-admin";
 import {
   Box,
@@ -13,6 +13,8 @@ import {
   Chip,
   CircularProgress,
   Divider,
+  TextField,
+  InputAdornment,
 } from "@mui/material";
 import {
   AccountTree as TopologyIcon,
@@ -25,6 +27,8 @@ import {
   LockOpen as NoSslIcon,
   Shield as WafIcon,
   Speed as CacheIcon,
+  Search as SearchIcon,
+  Clear as ClearIcon,
 } from "@mui/icons-material";
 import { useThemeMode } from "../Theme";
 
@@ -466,6 +470,53 @@ const Topology = () => {
   const [edges, setEdges] = useState([]);
   const [summary, setSummary] = useState({});
   const [selectedId, setSelectedId] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Search across all node metadata
+  const nodeMatchesSearch = useCallback((node, q) => {
+    if (!q) return true;
+    const terms = q.toLowerCase().split(/\s+/).filter(Boolean);
+    const searchable = [
+      node.name, node.label, node.kind, node.id, node.action,
+      node.status, node.server_name, node.proxy_server_name,
+      node.path, node.path_key, node.address, node.host,
+      node.scheme, node.backend_type, node.routing_mode,
+      node.routing_header_name, node.routing_cookie_name,
+      node.port != null ? String(node.port) : null,
+      node.priority != null ? String(node.priority) : null,
+      node.status_code != null ? String(node.status_code) : null,
+      node.weight != null ? String(node.weight) : null,
+      node.rule_count != null ? `${node.rule_count} rules` : null,
+      node.backend_count != null ? `${node.backend_count} backends` : null,
+      node.ssl_enabled ? "ssl tls https" : null,
+      node.ssl_force_https ? "force https" : null,
+      node.waf_enabled ? "waf" : null,
+      node.cache_enabled ? "cache" : null,
+      node.rate_limit_enabled ? "rate limit" : null,
+      node.strip_path ? "strip path" : null,
+      node.auto_redirect_https ? "redirect https" : null,
+      node.routing_sticky ? "sticky session" : null,
+      ...(node.listen_ports || []).map(String),
+      ...(node.conditions || []),
+    ].filter(Boolean).join(" ").toLowerCase();
+    return terms.every((t) => searchable.includes(t));
+  }, []);
+
+  const { filteredNodes, filteredEdges } = useMemo(() => {
+    if (!searchQuery.trim()) return { filteredNodes: nodes, filteredEdges: edges };
+    const matched = new Set();
+    nodes.forEach((n) => { if (nodeMatchesSearch(n, searchQuery)) matched.add(n.id); });
+    // Also include connected nodes (if a server matches, show its rules+backends)
+    const expanded = new Set(matched);
+    edges.forEach((e) => {
+      if (matched.has(e.from)) expanded.add(e.to);
+      if (matched.has(e.to)) expanded.add(e.from);
+    });
+    return {
+      filteredNodes: nodes.filter((n) => expanded.has(n.id)),
+      filteredEdges: edges.filter((e) => expanded.has(e.from) && expanded.has(e.to)),
+    };
+  }, [nodes, edges, searchQuery, nodeMatchesSearch]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -525,6 +576,37 @@ const Topology = () => {
         </Grid>
       </Grid>
 
+      {/* Search */}
+      <Box sx={{ mb: 2 }}>
+        <TextField
+          fullWidth
+          size="small"
+          placeholder="Search servers, rules, backends, ports, IPs, SSL, WAF, cache, routing..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon sx={{ fontSize: 20, color: theme.palette.text.secondary }} />
+              </InputAdornment>
+            ),
+            endAdornment: searchQuery ? (
+              <InputAdornment position="end">
+                <IconButton size="small" onClick={() => setSearchQuery("")}>
+                  <ClearIcon fontSize="small" />
+                </IconButton>
+              </InputAdornment>
+            ) : null,
+          }}
+          sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
+        />
+        {searchQuery && (
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
+            Showing {filteredNodes.length} of {nodes.length} nodes
+          </Typography>
+        )}
+      </Box>
+
       {/* Canvas + Detail Panel */}
       {loading ? (
         <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}><CircularProgress /></Box>
@@ -538,14 +620,14 @@ const Topology = () => {
                   <Typography variant="caption" color="text.secondary">Click a node for full details</Typography>
                 </Box>
                 <Box sx={{ minHeight: 500 }}>
-                  <TopologyCanvas nodes={nodes} edges={edges} selectedId={selectedId} onSelectNode={setSelectedId} />
+                  <TopologyCanvas nodes={filteredNodes} edges={filteredEdges} selectedId={selectedId} onSelectNode={setSelectedId} />
                 </Box>
               </CardContent>
             </Card>
           </Box>
           {selectedNode && (
             <Box sx={{ width: 340, flexShrink: 0 }}>
-              <DetailPanel node={selectedNode} edges={edges} allNodes={nodes} onClose={() => setSelectedId(null)} />
+              <DetailPanel node={selectedNode} edges={filteredEdges} allNodes={filteredNodes} onClose={() => setSelectedId(null)} />
             </Box>
           )}
         </Box>
