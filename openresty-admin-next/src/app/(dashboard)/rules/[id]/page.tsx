@@ -9,6 +9,9 @@ import {
   GitBranch,
   Plus,
   X,
+  Network,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import { useOne, useList, useDataProvider } from "@/hooks/useResource";
 import { useNotification } from "@/contexts/NotificationContext";
@@ -22,6 +25,7 @@ import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import Skeleton from "@/components/ui/Skeleton";
 import Badge from "@/components/ui/Badge";
 import type { Rule, Backend } from "@/types";
+import { TopologyCanvas } from "@/components/topology/TopologyCanvas";
 
 // ── Country list ────────────────────────────────────────────────────────
 
@@ -224,6 +228,7 @@ export default function RuleDetailPage() {
   const [deleting, setDeleting] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [newTag, setNewTag] = useState("");
+  const [showTopology, setShowTopology] = useState(false);
 
   // Hydrate form from fetched data
   useEffect(() => {
@@ -445,6 +450,26 @@ export default function RuleDetailPage() {
           </Button>
         }
       />
+
+      {/* ── Topology (existing rules only) ──────────────────────────── */}
+      {!isCreate && (
+        <div className="rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+          <button
+            type="button"
+            onClick={() => setShowTopology(!showTopology)}
+            className="flex w-full items-center gap-2 px-5 py-3 text-left text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800/50 rounded-xl"
+          >
+            <Network className="h-4 w-4 text-primary-500" />
+            Topology
+            {showTopology ? <ChevronDown className="ml-auto h-4 w-4" /> : <ChevronRight className="ml-auto h-4 w-4" />}
+          </button>
+          {showTopology && (
+            <div className="border-t border-slate-200 dark:border-slate-800" style={{ height: 420 }}>
+              <TopologyCanvas filterRuleId={id} compact />
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── Section 1: Basic Information ─────────────────────────────── */}
       <Card>

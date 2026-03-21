@@ -232,6 +232,11 @@ export const dataProvider: DataProvider = {
       (r) => r ?? { data: { servers: [], rules_with_backends: [], connections: [] } },
     ),
 
+  getTopologyGraph: (profileId?: string) =>
+    apiFetch<SingleResult>(
+      `/topology/graph?profile_id=${profileId || getEnvProfile()}&${ts()}`,
+    ).then((r) => r ?? { data: { nodes: [], edges: [], summary: {} } }),
+
   getTrafficBackendStats: (ruleId: string) =>
     apiFetch<SingleResult>(`/traffic/backends?rule_id=${encodeURIComponent(ruleId)}&${ts()}`).then(
       (r) => r ?? { data: { rule_id: ruleId, backends: [] } },

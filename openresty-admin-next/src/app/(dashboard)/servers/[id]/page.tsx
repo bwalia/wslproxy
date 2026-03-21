@@ -12,6 +12,7 @@ import {
   ListFilter,
   Shield,
   History,
+  Network,
 } from "lucide-react";
 import { useOne, useList, useDataProvider } from "@/hooks/useResource";
 import { useNotification } from "@/contexts/NotificationContext";
@@ -24,6 +25,7 @@ import VarnishTab from "@/components/servers/VarnishTab";
 import ServerRulesTab from "@/components/servers/ServerRulesTab";
 import WafProtectionTab from "@/components/servers/WafProtectionTab";
 import VersionHistoryTab from "@/components/servers/VersionHistoryTab";
+import { TopologyCanvas } from "@/components/topology/TopologyCanvas";
 import type { Server as ServerType, WafPolicy, Rule } from "@/types";
 import type { ServerFormState, VarnishConfig, VarnishSnippet } from "@/components/servers/types";
 import type { LocationEntry } from "@/components/servers/sections/LocationBlockEditor";
@@ -99,7 +101,7 @@ const DEFAULT_FORM: ServerFormState = {
 
 /* ── Tab definitions ──────────────────────────────────────────────────── */
 
-type TabKey = "nginx" | "varnish" | "rules" | "waf" | "history";
+type TabKey = "nginx" | "varnish" | "rules" | "waf" | "history" | "topology";
 
 interface TabDef {
   key: TabKey;
@@ -113,6 +115,7 @@ const TABS: TabDef[] = [
   { key: "rules", label: "Server Rules", icon: ListFilter },
   { key: "waf", label: "WAF Protection", icon: Shield },
   { key: "history", label: "Version History", icon: History },
+  { key: "topology", label: "Topology", icon: Network },
 ];
 
 /* ── Hydrate helper ───────────────────────────────────────────────────── */
@@ -465,8 +468,12 @@ export default function ServerDetailPage() {
         />
       )}
 
+      {activeTab === "topology" && (
+        <TopologyCanvas filterServerId={id} compact />
+      )}
+
       {/* ── Bottom Action Bar ────────────────────────────────────────── */}
-      {activeTab !== "history" && (
+      {activeTab !== "history" && activeTab !== "topology" && (
         <div className="mt-8 flex items-center justify-between border-t border-slate-200 dark:border-slate-800 pt-6">
           <div>
             {!isCreate && (

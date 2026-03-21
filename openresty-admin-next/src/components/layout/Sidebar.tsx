@@ -64,12 +64,12 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
       {
         title: "Configuration",
         items: [
+          { label: "Topology", href: "/topology", icon: Network },
           { label: "Servers", href: "/servers", icon: Server },
           { label: "Rules", href: "/rules", icon: GitBranch },
           { label: "Profiles", href: "/profiles", icon: Layers },
           { label: "Secrets", href: "/secrets", icon: KeyRound },
           { label: "Instances", href: "/instances", icon: Box },
-          { label: "Upstreams", href: "/upstreams", icon: Network },
         ],
       },
       {
