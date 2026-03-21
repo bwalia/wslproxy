@@ -209,6 +209,7 @@
         display: inline-flex;
         align-items: center;
         gap: 0.5rem;
+        min-height: 44px;
       }
 
       .btn-home:hover {
@@ -230,11 +231,17 @@
         display: inline-flex;
         align-items: center;
         gap: 0.5rem;
+        min-height: 44px;
       }
 
       .btn-retry:hover {
         background: rgba(255,255,255,0.1);
         border-color: rgba(255,255,255,0.4);
+      }
+
+      .btn-home:focus, .btn-retry:focus {
+        outline: 2px solid #6366f1;
+        outline-offset: 2px;
       }
 
       .footer {
@@ -257,13 +264,13 @@
     <div class="glow"></div>
     <div class="glow-2"></div>
 
-    <nav class="navbar">
+    <nav class="navbar" role="navigation" aria-label="Main navigation">
       <a href="/" class="navbar-brand">
         <span>WSL Proxy</span>
       </a>
     </nav>
 
-    <div class="content">
+    <main class="content" role="main">
       <div class="error-container">
         <div class="error-icon">
           <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
@@ -284,20 +291,20 @@
           </ul>
         </div>
         <div class="buttons">
-          <a href="/" class="btn-home">
+          <a href="/" class="btn-home" aria-label="Go to homepage">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
             Back to Homepage
           </a>
-          <a href="javascript:location.reload()" class="btn-retry">
+          <a href="javascript:location.reload()" class="btn-retry" aria-label="Retry loading the page">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
             Try Again
           </a>
         </div>
       </div>
-    </div>
+    </main>
 
-    <div class="footer">
+    <footer class="footer" role="contentinfo">
       &copy; WSL Proxy &mdash; Workstation Solutions Limited
-    </div>
+    </footer>
   </body>
 </html>

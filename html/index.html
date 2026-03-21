@@ -841,6 +841,27 @@
       body.notification-active .navbar-custom {
         top: 80px;
       }
+
+      .btn-primary-custom:focus, .btn-secondary-custom:focus, .btn-nav:focus, .nav-link-custom:focus { outline: 2px solid #6366f1; outline-offset: 2px; }
+
+      /* Hamburger menu */
+      .hamburger-btn {
+        display: none;
+        background: none;
+        border: none;
+        color: var(--white);
+        font-size: 1.5rem;
+        cursor: pointer;
+        padding: 0.25rem 0.5rem;
+        line-height: 1;
+      }
+      .hamburger-btn:focus { outline: 2px solid #6366f1; outline-offset: 2px; }
+
+      @media (max-width: 768px) {
+        .hamburger-btn { display: inline-block; }
+        .nav-links-mobile.open .nav-link-custom { display: inline-block; }
+        .nav-links-mobile.open { display: flex; flex-direction: column; align-items: flex-end; gap: 0.5rem; }
+      }
     </style>
   </head>
 
@@ -863,7 +884,7 @@
       </div>
     </div>
 
-    <nav class="navbar-custom" id="mainNav">
+    <nav class="navbar-custom" id="mainNav" role="navigation" aria-label="Main navigation">
       <div class="container">
         <div class="row align-items-center">
           <div class="col-6 col-md-4">
@@ -872,7 +893,10 @@
               <span>WSL Proxy</span>
             </a>
           </div>
-          <div class="col-6 col-md-8 text-right">
+          <div class="col-6 col-md-8 text-right nav-links-mobile" id="navLinks">
+            <button class="hamburger-btn" id="hamburgerBtn" aria-label="Toggle menu" aria-expanded="false">
+              <i class="fa fa-bars"></i>
+            </button>
             <a href="#features" class="nav-link-custom">Features</a>
             <a href="#architecture" class="nav-link-custom">Architecture</a>
             <a href="#how-it-works" class="nav-link-custom">How it Works</a>
@@ -884,6 +908,7 @@
       </div>
     </nav>
 
+    <main>
     <section class="hero">
       <div class="hero-glow"></div>
       <div class="hero-glow-2"></div>
@@ -1896,7 +1921,9 @@ nginx_upstream_latency_avg 8.2</code></pre>
       </div>
     </section>
 
-    <footer class="footer">
+    </main>
+
+    <footer class="footer" role="contentinfo">
       <div class="container">
         <div class="footer-grid">
           <div class="footer-brand">
@@ -2035,6 +2062,16 @@ nginx_upstream_latency_avg 8.2</code></pre>
           }
         }
       });
+    </script>
+    <script>
+      (function() {
+        var btn = document.getElementById('hamburgerBtn');
+        var nav = document.getElementById('navLinks');
+        btn.addEventListener('click', function() {
+          var open = nav.classList.toggle('open');
+          btn.setAttribute('aria-expanded', open);
+        });
+      })();
     </script>
   </body>
 </html>

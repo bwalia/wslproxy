@@ -1,221 +1,752 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Document</title>
-  </head>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WSL Proxy - Build Your Own CDN &amp; Edge Network</title>
+  <meta name="description" content="Enterprise-grade reverse proxy, load balancer, API gateway, and edge computing platform built on OpenResty.">
   <style>
-    * {
+    :root {
+      --primary: #6366f1;
+      --secondary: #0ea5e9;
+      --accent: #10b981;
+      --dark: #0f172a;
+      --dark-light: #1e293b;
+      --text: #e2e8f0;
+      --text-muted: #94a3b8;
+      --radius: 12px;
+      --transition: 0.3s ease;
+    }
+
+    *,
+    *::before,
+    *::after {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
     }
 
-    .container {
-      width: 100%;
-      min-height: 100vh;
-      background-repeat: no-repeat;
-      background-size: cover;
-      background-position: center;
-      background: linear-gradient(
-        95.2deg,
-        rgba(173, 252, 234, 1) 26.8%,
-        rgba(192, 229, 246, 1) 64%
-      );
+    html {
+      scroll-behavior: smooth;
+      scroll-padding-top: 80px;
     }
 
-    .content {
-      width: 100%;
-      min-height: 100vh;
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+      font-size: 17px;
+      line-height: 1.6;
+      color: var(--text);
+      background-color: var(--dark);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* ── Focus states ── */
+    a:focus-visible,
+    button:focus-visible {
+      outline: 3px solid var(--secondary);
+      outline-offset: 3px;
+      border-radius: 4px;
+    }
+
+    /* ── Skip link ── */
+    .skip-link {
       position: absolute;
+      top: -100%;
+      left: 16px;
+      background: var(--primary);
+      color: #fff;
+      padding: 12px 24px;
+      border-radius: var(--radius);
+      z-index: 1000;
+      font-weight: 600;
+      text-decoration: none;
+    }
+
+    .skip-link:focus {
+      top: 16px;
+    }
+
+    /* ── Container ── */
+    .container {
+      width: 100%;
+      max-width: 1140px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* ── Header ── */
+    .site-header {
+      position: sticky;
       top: 0;
-      left: 0;
+      z-index: 100;
+      background: rgba(15, 23, 42, 0.92);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(99, 102, 241, 0.15);
+    }
+
+    .header-inner {
       display: flex;
-      flex-direction: column;
-      justify-content: center;
+      align-items: center;
+      justify-content: space-between;
+      height: 68px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: #fff;
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .brand-icon {
+      width: 34px;
+      height: 34px;
+      flex-shrink: 0;
+    }
+
+    .nav-list {
+      display: flex;
+      list-style: none;
+      gap: 8px;
       align-items: center;
     }
 
-    .content h1 {
-      font-size: 45px;
+    .nav-list a {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 15px;
+      font-weight: 500;
+      padding: 8px 16px;
+      border-radius: 8px;
+      transition: color var(--transition), background var(--transition);
+      min-height: 44px;
+    }
+
+    .nav-list a:hover,
+    .nav-list a:focus-visible {
       color: #fff;
-      font-weight: 400;
+      background: var(--dark-light);
+    }
+
+    .nav-list .nav-icon {
+      width: 18px;
+      height: 18px;
+    }
+
+    /* ── Hero ── */
+    .hero {
+      position: relative;
+      padding: 100px 0 80px;
+      text-align: center;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: -40%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 800px;
+      height: 800px;
+      background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, rgba(14, 165, 233, 0.08) 40%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .hero-content {
+      position: relative;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(99, 102, 241, 0.12);
+      border: 1px solid rgba(99, 102, 241, 0.25);
+      color: var(--primary);
+      font-size: 13px;
+      font-weight: 600;
+      padding: 6px 16px;
+      border-radius: 100px;
+      margin-bottom: 28px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .hero h1 {
+      font-size: 42px;
+      font-weight: 800;
+      line-height: 1.15;
+      letter-spacing: -0.03em;
+      color: #fff;
+      margin-bottom: 20px;
+      max-width: 720px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .hero h1 .gradient-text {
+      background: linear-gradient(135deg, var(--primary), var(--secondary), var(--accent));
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-sub {
+      font-size: 19px;
+      color: var(--text-muted);
+      max-width: 600px;
+      margin: 0 auto 40px;
+      line-height: 1.7;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 48px;
+      padding: 12px 28px;
+      font-size: 16px;
+      font-weight: 600;
+      text-decoration: none;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+      transition: transform var(--transition), box-shadow var(--transition), background var(--transition);
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: #fff;
+      box-shadow: 0 4px 20px rgba(99, 102, 241, 0.35);
+    }
+
+    .btn-primary:hover {
+      box-shadow: 0 6px 28px rgba(99, 102, 241, 0.5);
+    }
+
+    .btn-secondary {
+      background: var(--dark-light);
+      color: var(--text);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+    }
+
+    .btn-secondary:hover {
+      background: #2d3a4f;
+      border-color: rgba(148, 163, 184, 0.35);
+    }
+
+    .btn-icon {
+      width: 20px;
+      height: 20px;
+      flex-shrink: 0;
+    }
+
+    /* ── Section shared ── */
+    .section {
+      padding: 80px 0;
+    }
+
+    .section-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--secondary);
+      margin-bottom: 12px;
+      text-align: center;
+    }
+
+    .section-title {
+      font-size: 32px;
+      font-weight: 800;
+      color: #fff;
+      text-align: center;
+      margin-bottom: 16px;
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+    }
+
+    .section-desc {
+      text-align: center;
+      color: var(--text-muted);
+      max-width: 560px;
+      margin: 0 auto 56px;
+      font-size: 17px;
+      line-height: 1.7;
+    }
+
+    /* ── Features cards ── */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 24px;
+    }
+
+    .feature-card {
+      background: var(--dark-light);
+      border: 1px solid rgba(148, 163, 184, 0.08);
+      border-radius: var(--radius);
+      padding: 32px 28px;
+      transition: border-color var(--transition), box-shadow var(--transition), transform var(--transition);
+    }
+
+    .feature-card:hover {
+      border-color: rgba(99, 102, 241, 0.3);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      transform: translateY(-4px);
+    }
+
+    .feature-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       margin-bottom: 20px;
     }
 
-    .content p {
-      font-size: 16px;
+    .feature-icon svg {
+      width: 26px;
+      height: 26px;
+    }
+
+    .feature-icon--purple {
+      background: rgba(99, 102, 241, 0.15);
+      color: var(--primary);
+    }
+
+    .feature-icon--blue {
+      background: rgba(14, 165, 233, 0.15);
+      color: var(--secondary);
+    }
+
+    .feature-icon--green {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--accent);
+    }
+
+    .feature-icon--amber {
+      background: rgba(245, 158, 11, 0.15);
+      color: #f59e0b;
+    }
+
+    .feature-card h3 {
+      font-size: 19px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 10px;
+    }
+
+    .feature-card p {
+      color: var(--text-muted);
+      font-size: 15px;
+      line-height: 1.7;
+    }
+
+    /* ── How it works ── */
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 32px;
+      position: relative;
+    }
+
+    .step {
+      text-align: center;
+      position: relative;
+    }
+
+    .step-number {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      font-weight: 800;
+      margin-bottom: 20px;
       color: #fff;
     }
 
-    /* === removing default button style ===*/
-    .button {
-      margin: 0;
-      height: auto;
-      background: transparent;
-      padding: 0;
-      border: none;
+    .step:nth-child(1) .step-number {
+      background: linear-gradient(135deg, var(--primary), #818cf8);
     }
 
-    /* button styling */
-    .button {
-      --border-right: 6px;
-      --text-stroke-color: rgb(3 67 6 / 90%);
-      --animation-color: rgb(1 35 19);
-      --fs-size: 2em;
-      letter-spacing: 3px;
-      text-decoration: none;
-      font-size: var(--fs-size);
-      font-family: "Arial";
-      position: relative;
-      text-transform: uppercase;
-      color: transparent;
-      -webkit-text-stroke: 1px var(--text-stroke-color);
+    .step:nth-child(2) .step-number {
+      background: linear-gradient(135deg, var(--secondary), #38bdf8);
     }
 
-    /* this is the text, when you hover on button */
-    .hover-text {
-      position: absolute;
-      box-sizing: border-box;
-      content: attr(data-text);
-      color: var(--animation-color);
-      width: 0%;
-      inset: 0;
-      border-right: var(--border-right) solid var(--animation-color);
-      overflow: hidden;
-      transition: 0.5s;
-      -webkit-text-stroke: 1px var(--animation-color);
+    .step:nth-child(3) .step-number {
+      background: linear-gradient(135deg, var(--accent), #34d399);
     }
 
-    /* hover */
-    .button:hover .hover-text {
-      width: 100%;
-      filter: drop-shadow(0 0 23px var(--animation-color));
+    .step h3 {
+      font-size: 20px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 10px;
     }
 
-    /*  */
-
-    .square {
-      position: relative;
-      margin: 0 10px;
-      width: 400px;
-      height: 400px;
-      display: flex;
-      justify-content: center;
-      align-items: center;
+    .step p {
+      color: var(--text-muted);
+      font-size: 15px;
+      line-height: 1.7;
+      max-width: 280px;
+      margin: 0 auto;
     }
 
-    .square .one {
-      position: absolute;
-      width: 100%;
-      height: 100%;
-      border: 2px solid black;
-      border-radius: 32% 58% 69% 43% / 48% 32% 59% 55%;
-      transition: 0.5s;
-      animation: animate 6s linear infinite;
+    /* connector arrows between steps (desktop only) */
+    .step-connector {
+      display: none;
     }
 
-    .twitch:hover .one {
-      border: none;
-      background: rgb(20, 36, 50);
+    @media (min-width: 768px) {
+      .steps {
+        grid-template-columns: 1fr auto 1fr auto 1fr;
+        align-items: flex-start;
+      }
+
+      .step-connector {
+        display: flex;
+        align-items: center;
+        padding-top: 20px;
+        color: var(--text-muted);
+      }
+
+      .step-connector svg {
+        width: 32px;
+        height: 32px;
+        opacity: 0.4;
+      }
     }
 
-    .square .two {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      border: 2px solid #082301;
-      border-radius: 38% 62% 63% 37% / 41% 44% 56% 59%;
-      transition: 0.5s;
-      animation: animate 6s linear infinite;
-    }
-
-    .twitch:hover .two {
-      border: none;
-      background: rgb(20, 36, 50);
-    }
-
-    .square .three {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      border: 2px solid #082301;
-      border-radius: 31% 45% 74% 35% / 38% 56% 51% 37%;
-      transition: 0.5s;
-      animation: animate2 10s linear infinite;
-    }
-
-    .twitch:hover .three {
-      border: none;
-      background: rgb(20, 36, 50);
-    }
-
-    .circle {
-      position: relative;
-      padding: 40px 60px;
+    /* ── CTA section ── */
+    .cta-section {
       text-align: center;
-      transition: 0.5s;
-      z-index: 1000;
+      padding: 80px 0;
     }
 
-    .square:hover {
-      color: white;
+    .cta-box {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(14, 165, 233, 0.08), rgba(16, 185, 129, 0.06));
+      border: 1px solid rgba(99, 102, 241, 0.2);
+      border-radius: 20px;
+      padding: 64px 32px;
     }
 
-    /* .content:hover {
-    color: #ffffff;
-  } */
+    .cta-box h2 {
+      font-size: 32px;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 16px;
+      letter-spacing: -0.02em;
+    }
 
-    @keyframes animate {
-      0% {
-        transform: rotate(0deg);
+    .cta-box p {
+      color: var(--text-muted);
+      font-size: 17px;
+      margin-bottom: 32px;
+      line-height: 1.7;
+      max-width: 480px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .cta-box .hero-actions {
+      margin-bottom: 0;
+    }
+
+    /* ── Footer ── */
+    .site-footer {
+      border-top: 1px solid rgba(148, 163, 184, 0.08);
+      padding: 32px 0;
+      text-align: center;
+    }
+
+    .site-footer p {
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 768px) {
+      .hero {
+        padding: 64px 0 56px;
       }
 
-      100% {
-        transform: rotate(360deg);
+      .hero h1 {
+        font-size: 32px;
+      }
+
+      .hero-sub {
+        font-size: 17px;
+      }
+
+      .section-title {
+        font-size: 26px;
+      }
+
+      .section {
+        padding: 56px 0;
+      }
+
+      .cta-box {
+        padding: 48px 24px;
+      }
+
+      .cta-box h2 {
+        font-size: 26px;
+      }
+
+      .hero-actions {
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .btn {
+        width: 100%;
+        max-width: 320px;
       }
     }
 
-    @keyframes animate2 {
-      0% {
-        transform: rotate(360deg);
+    @media (max-width: 480px) {
+      .hero h1 {
+        font-size: 28px;
       }
 
-      100% {
-        transform: rotate(0deg);
+      .nav-list {
+        gap: 2px;
+      }
+
+      .nav-list a {
+        padding: 8px 10px;
+        font-size: 14px;
+      }
+
+      .brand {
+        font-size: 17px;
+      }
+
+      .brand-icon {
+        width: 28px;
+        height: 28px;
       }
     }
 
-    .h2-heading {
-      font-size: 50px;
+    /* ── Reduced motion ── */
+    @media (prefers-reduced-motion: reduce) {
+      html {
+        scroll-behavior: auto;
+      }
+
+      .feature-card,
+      .btn {
+        transition: none;
+      }
+
+      .feature-card:hover,
+      .btn:hover {
+        transform: none;
+      }
     }
   </style>
+</head>
+<body>
 
-  <body>
-    <div class="container">
-      <div class="content">
-        <div class="square twitch" style="margin-bottom: 50px">
-          <span class="one"></span>
-          <span class="two"></span>
-          <span class="three"></span>
-          <div class="circle">
-            <h2 class="h2-heading">wslproxy</h2>
-            <p>Lorem ipsum dolor sit amet, consectetur adipisicing el</p>
+  <a href="#main" class="skip-link">Skip to main content</a>
+
+  <!-- ── Header ── -->
+  <header class="site-header" role="banner">
+    <div class="container header-inner">
+      <a href="/" class="brand" aria-label="WSL Proxy home">
+        <svg class="brand-icon" viewBox="0 0 40 40" fill="none" aria-hidden="true">
+          <rect width="40" height="40" rx="10" fill="url(#brandGrad)"/>
+          <path d="M12 26l4-12h2l3 8 3-8h2l4 12h-2.5l-2.8-8.5L22 26h-2l-2.7-8.5L14.5 26H12z" fill="#fff"/>
+          <defs><linearGradient id="brandGrad" x1="0" y1="0" x2="40" y2="40"><stop stop-color="#6366f1"/><stop offset="1" stop-color="#0ea5e9"/></linearGradient></defs>
+        </svg>
+        WSL Proxy
+      </a>
+      <nav aria-label="Main navigation">
+        <ul class="nav-list">
+          <li><a href="#features">Features</a></li>
+          <li><a href="#how-it-works">Docs</a></li>
+          <li>
+            <a href="https://github.com/mrvautin/wslproxy" target="_blank" rel="noopener noreferrer">
+              <svg class="nav-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.009-.866-.013-1.7-2.782.604-3.369-1.341-3.369-1.341-.454-1.155-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.337-2.22-.252-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836a9.59 9.59 0 012.504.337c1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.579.688.481C19.138 20.163 22 16.418 22 12c0-5.523-4.477-10-10-10z"/></svg>
+              GitHub
+            </a>
+          </li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+
+    <!-- ── Hero ── -->
+    <section class="hero" aria-labelledby="hero-heading">
+      <div class="container hero-content">
+        <span class="badge" aria-label="Open source project">Open Source</span>
+        <h1 id="hero-heading">
+          <span class="gradient-text">Build Your Own CDN</span><br>&amp; Edge Network
+        </h1>
+        <p class="hero-sub">
+          Enterprise-grade reverse proxy, load balancer, API gateway, and edge computing platform built on OpenResty. Full control, zero vendor lock-in.
+        </p>
+        <div class="hero-actions">
+          <a href="https://github.com/mrvautin/wslproxy" class="btn btn-primary" target="_blank" rel="noopener noreferrer">
+            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            Get Started
+          </a>
+          <a href="#how-it-works" class="btn btn-secondary">
+            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
+            View Docs
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Features ── -->
+    <section class="section" id="features" aria-labelledby="features-heading">
+      <div class="container">
+        <span class="section-label">Features</span>
+        <h2 class="section-title" id="features-heading">Everything you need at the edge</h2>
+        <p class="section-desc">
+          A single platform to route, cache, protect, and encrypt your traffic across any infrastructure.
+        </p>
+        <div class="features-grid">
+
+          <!-- Load Balancing -->
+          <article class="feature-card">
+            <div class="feature-icon feature-icon--purple" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/></svg>
+            </div>
+            <h3>Load Balancing</h3>
+            <p>Distribute traffic intelligently across backends with round-robin, least-connections, and IP-hash algorithms. Health checks keep your upstreams reliable.</p>
+          </article>
+
+          <!-- Edge Caching -->
+          <article class="feature-card">
+            <div class="feature-icon feature-icon--blue" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12H2"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/><line x1="6" y1="16" x2="6.01" y2="16"/><line x1="10" y1="16" x2="10.01" y2="16"/></svg>
+            </div>
+            <h3>Edge Caching</h3>
+            <p>Serve content from the network edge with configurable cache rules per route. Reduce origin load and deliver sub-millisecond response times globally.</p>
+          </article>
+
+          <!-- WAF & Security -->
+          <article class="feature-card">
+            <div class="feature-icon feature-icon--green" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </div>
+            <h3>WAF &amp; Security</h3>
+            <p>Block malicious traffic with built-in web application firewall rules, rate limiting, geo-blocking, and IP allow/deny lists at the edge.</p>
+          </article>
+
+          <!-- Auto SSL -->
+          <article class="feature-card">
+            <div class="feature-icon feature-icon--amber" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+            </div>
+            <h3>Auto SSL</h3>
+            <p>Automatic certificate provisioning and renewal via Let's Encrypt. Zero-downtime HTTPS everywhere with OCSP stapling and HTTP/2 out of the box.</p>
+          </article>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ── How it works ── -->
+    <section class="section" id="how-it-works" aria-labelledby="how-heading">
+      <div class="container">
+        <span class="section-label">How It Works</span>
+        <h2 class="section-title" id="how-heading">Up and running in minutes</h2>
+        <p class="section-desc">Three simple steps to a production-ready edge network.</p>
+        <div class="steps">
+
+          <div class="step">
+            <div class="step-number" aria-hidden="true">1</div>
+            <h3>Deploy</h3>
+            <p>Install WSL Proxy on your servers or containers with a single Ansible playbook or Docker image.</p>
+          </div>
+
+          <div class="step-connector" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </div>
+
+          <div class="step">
+            <div class="step-number" aria-hidden="true">2</div>
+            <h3>Configure</h3>
+            <p>Define routes, upstreams, caching rules, and security policies through JSON config files or the admin UI.</p>
+          </div>
+
+          <div class="step-connector" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </div>
+
+          <div class="step">
+            <div class="step-number" aria-hidden="true">3</div>
+            <h3>Scale</h3>
+            <p>Add edge nodes across regions. Built-in clustering and config sync keeps every node in lockstep automatically.</p>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ── CTA ── -->
+    <section class="cta-section" aria-labelledby="cta-heading">
+      <div class="container">
+        <div class="cta-box">
+          <h2 id="cta-heading">Ready to get started?</h2>
+          <p>Join the community building open-source edge infrastructure. Star the repo, open an issue, or deploy your first node today.</p>
+          <div class="hero-actions">
+            <a href="https://github.com/mrvautin/wslproxy" class="btn btn-primary" target="_blank" rel="noopener noreferrer">
+              <svg class="btn-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.009-.866-.013-1.7-2.782.604-3.369-1.341-3.369-1.341-.454-1.155-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.337-2.22-.252-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0112 6.836a9.59 9.59 0 012.504.337c1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.579.688.481C19.138 20.163 22 16.418 22 12c0-5.523-4.477-10-10-10z"/></svg>
+              View on GitHub
+            </a>
           </div>
         </div>
-
-        <a href="https://wslproxy.com" class="button" target="_parent">
-          <span class="actual-text">&nbsp;wslproxy&nbsp;</span>
-          <span class="hover-text" aria-hidden="true"
-            >&nbsp;wslproxy&nbsp;</span
-          >
-        </a>
       </div>
+    </section>
+
+  </main>
+
+  <!-- ── Footer ── -->
+  <footer class="site-footer" role="contentinfo">
+    <div class="container">
+      <p>&copy; 2024 Workstation Solutions Limited. All rights reserved.</p>
     </div>
-  </body>
+  </footer>
+
+</body>
 </html>
