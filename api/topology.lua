@@ -173,7 +173,18 @@ end
 -- Returns full topology graph: nodes[] + edges[]
 -------------------------------------------------------------------------------
 function _M.get_graph(args)
-    local profile_id = args.profile_id or "prod"
+    -- Default profile from settings.json if not specified
+    local default_profile = "prod"
+    local sf = io.open(configPath .. "data/settings.json", "rb")
+    if sf then
+        local sc = sf:read("*a")
+        sf:close()
+        local settings = cjson.decode(sc)
+        if settings and settings.env_profile then
+            default_profile = settings.env_profile
+        end
+    end
+    local profile_id = args.profile_id or default_profile
     local servers_dir = configPath .. "data/servers/" .. profile_id .. "/"
     local rules_dir = configPath .. "data/rules/" .. profile_id .. "/"
 
@@ -238,6 +249,7 @@ function _M.get_graph(args)
                 id = server_id,
                 kind = "server",
                 name = server.server_name or "unknown",
+                label = server.server_name or "unknown",
                 status = status,
                 ssl_enabled = server.ssl_enabled or false,
                 ssl_force_https = server.ssl_force_https or false,
@@ -287,6 +299,7 @@ function _M.get_graph(args)
                             id = rule_node_id,
                             kind = "rule",
                             name = rule.name or rule_id,
+                            label = rule.name or rule_id,
                             status = "healthy",
                             action = action,
                             status_code = code,
@@ -329,6 +342,7 @@ function _M.get_graph(args)
                                     id = backend_id,
                                     kind = "backend",
                                     name = b.label or parsed.host,
+                                    label = b.label or parsed.host,
                                     status = health,
                                     address = addr,
                                     host = parsed.host,
@@ -365,6 +379,7 @@ function _M.get_graph(args)
                                 id = backend_id,
                                 kind = "backend",
                                 name = parsed.host,
+                                label = parsed.host,
                                 status = health,
                                 address = addr,
                                 host = parsed.host,
