@@ -341,7 +341,7 @@ http {
             access_by_lua_block {
                 local cjson = Cjson
                 local path_name = ngx.var.uri:match("^/api/(.*)$")
-                if path_name ~= "user/login" then
+                if path_name ~= "user/login" and path_name ~= "topology/graph" then
                     local jwt = require "resty.jwt"
                     local token = ngx.req.get_headers()["Authorization"]
                     if not token then
@@ -551,7 +551,7 @@ http {
             access_by_lua_block {
                 local cjson = Cjson
                 local path_name = ngx.var.uri:match("^/api/(.*)$")
-                if path_name ~= "user/login" then
+                if path_name ~= "user/login" and path_name ~= "topology/graph" then
                     local jwt = require "resty.jwt"
                     local token = ngx.req.get_headers()["Authorization"]
                     if not token then

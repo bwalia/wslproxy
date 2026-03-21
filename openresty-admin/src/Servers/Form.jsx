@@ -35,6 +35,7 @@ import CreateTags from "../component/CreateTags";
 import VarnishSnippetEditor from "./VarnishSnippetEditor";
 import VarnishDeployPanel from "./VarnishDeployPanel";
 import VersionHistoryTab from "../Versions/VersionHistoryTab";
+import TopologyTab from "../Topology/TopologyTab";
 import get from "lodash/get";
 import "../styles/forms.css";
 
@@ -973,6 +974,12 @@ const Form = ({ type }) => {
       <TabbedForm.Tab label="Version History">
         <div className="form-container">
           <VersionHistoryTab resourceType="servers" />
+        </div>
+      </TabbedForm.Tab>
+
+      <TabbedForm.Tab label="Topology">
+        <div className="form-container">
+          <TopologyTab useRecord resourceType="servers" />
         </div>
       </TabbedForm.Tab>
     </TabbedForm>
