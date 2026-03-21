@@ -40,30 +40,27 @@ local function try_decode_b64(s)
     return s
 end
 
---- Iteratively decode a base64 string up to max_rounds until it stops changing.
---- Used for migration of over-encoded S3 keys.
+--- Iteratively decode a base64 string until it can't be decoded further.
+--- Keeps decoding as long as the result is still a valid base64 string.
+--- Returns the final non-base64 plaintext value.
 local function fully_decode_b64(s, max_rounds)
     max_rounds = max_rounds or 5
     if not s or s == "" or type(s) == "userdata" then return s end
     local current = tostring(s)
     for _ = 1, max_rounds do
+        -- Only attempt decode if current looks like base64
+        if not current:match("^[A-Za-z0-9%+%/%=]+$") then
+            break
+        end
         local ok, decoded = pcall(Base64.decode, current)
         if not ok or not decoded or decoded == "" or decoded == current then
             break
         end
-        -- Check if decoded result looks like a valid AWS key (printable ASCII, reasonable length)
-        local is_printable = not decoded:match("[^%g]")  -- no non-printable chars
-        if is_printable and #decoded >= 16 and #decoded <= 128 then
-            -- This looks like a real key, stop here
-            return decoded
+        -- Check if decoded is printable ASCII
+        if decoded:match("[^%g]") then
+            break  -- non-printable chars → current is the real value
         end
-        -- If decoded looks like another base64 string, keep going
-        if decoded:match("^[A-Za-z0-9%+%/%=]+$") then
-            current = decoded
-        else
-            -- Not base64-like, return current
-            return current
-        end
+        current = decoded
     end
     return current
 end

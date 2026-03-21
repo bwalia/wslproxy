@@ -71,6 +71,20 @@ jobs:
       - name: Install jq
         run: sudo apt-get install -y jq
 
+      - name: Sync html/index.html to docs/index.html (single source of truth)
+        run: |
+          if ! diff -q html/index.html docs/index.html > /dev/null 2>&1; then
+            cp html/index.html docs/index.html
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add docs/index.html
+            git commit -m "Sync docs/index.html from html/index.html (auto)" || true
+            git push || true
+            echo "docs/index.html synced from html/index.html"
+          else
+            echo "docs/index.html already in sync"
+          fi
+
       - name: Validate server config JSON
         run: |
           echo "Validating server configs for environment: ${{ env.TARGET_ENV }}"

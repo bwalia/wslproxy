@@ -84,6 +84,20 @@ jobs:
         with:
           ref: ${{ github.event.inputs.DEPLOY_BRANCH || github.ref_name }}
 
+      - name: Sync html/index.html to docs/index.html (single source of truth)
+        run: |
+          if ! diff -q html/index.html docs/index.html > /dev/null 2>&1; then
+            cp html/index.html docs/index.html
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add docs/index.html
+            git commit -m "Sync docs/index.html from html/index.html (auto)" || true
+            git push || true
+            echo "docs/index.html synced from html/index.html"
+          else
+            echo "docs/index.html already in sync"
+          fi
+
       - name: Validate all JSON config files
         run: |
           echo "=== Validating All JSON Configs ==="
