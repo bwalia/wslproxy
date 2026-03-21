@@ -529,8 +529,8 @@ const Topology = () => {
       {loading ? (
         <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}><CircularProgress /></Box>
       ) : (
-        <Grid container spacing={2}>
-          <Grid item xs={12} md={selectedNode ? 8 : 12}>
+        <Box sx={{ display: "flex", gap: 2, alignItems: "flex-start" }}>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
             <Card sx={{ borderRadius: 3, border: `1px solid ${theme.palette.divider}`, overflow: "hidden" }}>
               <CardContent sx={{ p: 0, "&:last-child": { pb: 0 } }}>
                 <Box sx={{ p: 2, borderBottom: `1px solid ${theme.palette.divider}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -542,13 +542,13 @@ const Topology = () => {
                 </Box>
               </CardContent>
             </Card>
-          </Grid>
+          </Box>
           {selectedNode && (
-            <Grid item xs={12} md={4}>
+            <Box sx={{ width: 340, flexShrink: 0 }}>
               <DetailPanel node={selectedNode} edges={edges} allNodes={nodes} onClose={() => setSelectedId(null)} />
-            </Grid>
+            </Box>
           )}
-        </Grid>
+        </Box>
       )}
     </Box>
   );
