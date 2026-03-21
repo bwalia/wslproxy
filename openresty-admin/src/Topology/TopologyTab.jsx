@@ -11,6 +11,7 @@ import {
   Tooltip,
   Chip,
   CircularProgress,
+  Divider,
 } from "@mui/material";
 import {
   Refresh as RefreshIcon,
@@ -24,10 +25,12 @@ const COL_SERVER = "#0ea5e9";
 const COL_RULE = "#8b5cf6";
 const COL_BACKEND = "#10b981";
 
+const NODE_HEIGHTS = { server: 88, rule: 100, backend: 72 };
+
 const actionBadge = (node) => {
   const code = node?.status_code;
-  if (code === 301 || code === 302) return { label: `${code}`, color: "#f59e0b" };
-  if (code === 403) return { label: "403", color: "#ef4444" };
+  if (code === 301 || code === 302) return { label: `${code} REDIRECT`, color: "#f59e0b" };
+  if (code === 403) return { label: "403 BLOCK", color: "#ef4444" };
   if (node?.action === "consul") return { label: "CONSUL", color: "#06b6d4" };
   if (node?.has_backends && node?.routing_mode && node.routing_mode !== "weighted") {
     return { label: node.routing_mode.toUpperCase(), color: "#8b5cf6" };
@@ -73,7 +76,6 @@ const TopologyTab = ({ filterServerId, filterRuleId, useRecord = false, resource
 
       // Filter if needed
       if (serverId) {
-        // Find the matching server node (by id suffix or name)
         const serverNode = allNodes.find(
           (n) => n.kind === "server" && (n.id === "server/" + serverId || n.name === serverId)
         );
@@ -136,31 +138,53 @@ const TopologyTab = ({ filterServerId, filterRuleId, useRecord = false, resource
   const rules = nodes.filter((n) => n.kind === "rule");
   const backends = nodes.filter((n) => n.kind === "backend");
 
-  const colW = 190;
-  const nodeH = 36;
+  const colW = 240;
   const padX = 30;
-  const padY = 40;
-  const gapY = 14;
+  const padY = 50;
+  const gapY = 12;
   const col1X = padX;
-  const col2X = padX + colW + 70;
-  const col3X = padX + (colW + 70) * 2;
-
-  const colHeight = (arr) => arr.length * (nodeH + gapY) - gapY + padY * 2;
-  const svgHeight = Math.max(colHeight(servers), colHeight(rules), colHeight(backends), 180);
-  const svgWidth = col3X + colW + padX;
+  const col2X = padX + colW + 60;
+  const col3X = padX + (colW + 60) * 2;
 
   const pos = {};
-  const placeColumn = (arr, x) => {
-    const totalH = arr.length * (nodeH + gapY) - gapY;
-    const startY = Math.max(padY, (svgHeight - totalH) / 2);
-    arr.forEach((n, i) => { pos[n.id] = { x, y: startY + i * (nodeH + gapY), w: colW, h: nodeH }; });
+  const placeColumn = (arr, x, kind) => {
+    const h = NODE_HEIGHTS[kind] || 60;
+    const totalH = arr.length * (h + gapY) - gapY;
+    const startY = padY;
+    arr.forEach((n, i) => {
+      pos[n.id] = { x, y: startY + i * (h + gapY), w: colW, h };
+    });
+    return totalH + padY * 2;
   };
-  placeColumn(servers, col1X);
-  placeColumn(rules, col2X);
-  placeColumn(backends, col3X);
+
+  const h1 = placeColumn(servers, col1X, "server");
+  const h2 = placeColumn(rules, col2X, "rule");
+  const h3 = placeColumn(backends, col3X, "backend");
+  const svgHeight = Math.max(h1, h2, h3, 250);
+  const svgWidth = col3X + colW + padX;
 
   const colColor = (kind) => kind === "server" ? COL_SERVER : kind === "rule" ? COL_RULE : COL_BACKEND;
   const truncate = (s, max) => (s && s.length > max ? s.substring(0, max) + "..." : s || "");
+  const secondaryColor = theme.palette.text.secondary;
+  const textColor = theme.palette.text.primary;
+
+  const renderPill = (x, y, label, color) => (
+    <>
+      <rect x={x} y={y} width={label.length * 5.5 + 10} height={14} rx={3} fill={alpha(color, 0.15)} stroke={alpha(color, 0.3)} strokeWidth={0.5} />
+      <text x={x + (label.length * 5.5 + 10) / 2} y={y + 10} textAnchor="middle" fill={color} fontSize={7.5} fontWeight={700}>{label}</text>
+    </>
+  );
+
+  // Detail row for side panel
+  const DetailRow = ({ label, value, mono }) => (
+    <Box sx={{ display: "flex", justifyContent: "space-between", py: 0.4 }}>
+      <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0, mr: 1 }}>{label}</Typography>
+      <Typography variant="caption" fontWeight={600} sx={{ maxWidth: "65%", wordBreak: "break-all", textAlign: "right", fontFamily: mono ? "monospace" : "inherit" }}>{value ?? "—"}</Typography>
+    </Box>
+  );
+
+  const outEdges = selectedNode ? edges.filter((e) => e.from === selectedNode.id) : [];
+  const inEdges = selectedNode ? edges.filter((e) => e.to === selectedNode.id) : [];
 
   return (
     <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
@@ -179,10 +203,11 @@ const TopologyTab = ({ filterServerId, filterRuleId, useRecord = false, resource
               </marker>
             </defs>
 
-            <text x={col1X + colW / 2} y={16} textAnchor="middle" fill={theme.palette.text.secondary} fontSize={10} fontWeight={700} letterSpacing="0.08em">VIRTUAL SERVERS</text>
-            <text x={col2X + colW / 2} y={16} textAnchor="middle" fill={theme.palette.text.secondary} fontSize={10} fontWeight={700} letterSpacing="0.08em">RULES</text>
-            <text x={col3X + colW / 2} y={16} textAnchor="middle" fill={theme.palette.text.secondary} fontSize={10} fontWeight={700} letterSpacing="0.08em">BACKEND ORIGINS</text>
+            <text x={col1X + colW / 2} y={22} textAnchor="middle" fill={secondaryColor} fontSize={11} fontWeight={700} letterSpacing="0.08em">VIRTUAL SERVERS</text>
+            <text x={col2X + colW / 2} y={22} textAnchor="middle" fill={secondaryColor} fontSize={11} fontWeight={700} letterSpacing="0.08em">RULES</text>
+            <text x={col3X + colW / 2} y={22} textAnchor="middle" fill={secondaryColor} fontSize={11} fontWeight={700} letterSpacing="0.08em">BACKEND ORIGINS</text>
 
+            {/* Edges with weight labels */}
             {edges.map((edge, i) => {
               const from = pos[edge.from];
               const to = pos[edge.to];
@@ -193,37 +218,124 @@ const TopologyTab = ({ filterServerId, filterRuleId, useRecord = false, resource
               const x2 = to.x;
               const y2 = to.y + to.h / 2;
               const cp = Math.abs(x2 - x1) * 0.4;
+              const midX = (x1 + x2) / 2;
+              const midY = (y1 + y2) / 2;
               return (
-                <path key={`e-${i}`} d={`M ${x1} ${y1} C ${x1 + cp} ${y1}, ${x2 - cp} ${y2}, ${x2} ${y2}`}
-                  fill="none" stroke={hl ? theme.palette.primary.main : theme.palette.text.disabled}
-                  strokeWidth={hl ? 2.5 : 1.5} strokeOpacity={hl ? 0.9 : 0.3} markerEnd="url(#topo-tab-arrow)" />
+                <g key={`e-${i}`}>
+                  <path d={`M ${x1} ${y1} C ${x1 + cp} ${y1}, ${x2 - cp} ${y2}, ${x2} ${y2}`}
+                    fill="none" stroke={hl ? theme.palette.primary.main : theme.palette.text.disabled}
+                    strokeWidth={hl ? 2.5 : 1.5} strokeOpacity={hl ? 0.9 : 0.3} markerEnd="url(#topo-tab-arrow)" />
+                  {edge.weight > 0 && (
+                    <text x={midX} y={midY - 4} textAnchor="middle" fill={secondaryColor} fontSize={8} fontWeight={600}>
+                      {edge.weight}%
+                    </text>
+                  )}
+                </g>
               );
             })}
 
-            {nodes.map((node) => {
+            {/* Server nodes */}
+            {servers.map((node) => {
               const p = pos[node.id];
               if (!p) return null;
-              const color = colColor(node.kind);
+              const color = COL_SERVER;
               const isSel = selectedId === node.id;
-              const badge = node.kind === "rule" ? actionBadge(node) : null;
+              const ports = (node.listen_ports || ["80"]).join(", ");
               return (
                 <g key={node.id} style={{ cursor: "pointer" }} onClick={() => setSelectedId(isSel ? null : node.id)}>
-                  <rect x={p.x} y={p.y} width={p.w} height={p.h} rx={7}
-                    fill={isSel ? alpha(color, 0.2) : alpha(color, 0.08)}
-                    stroke={isSel ? color : alpha(color, 0.25)} strokeWidth={isSel ? 2 : 1} />
-                  <circle cx={p.x + 12} cy={p.y + p.h / 2} r={3.5}
+                  <rect x={p.x} y={p.y} width={p.w} height={p.h} rx={8}
+                    fill={isSel ? alpha(color, 0.18) : alpha(color, 0.06)}
+                    stroke={isSel ? color : alpha(color, 0.2)} strokeWidth={isSel ? 2 : 1} />
+                  <circle cx={p.x + 14} cy={p.y + 14} r={4}
                     fill={node.status === "error" ? "#ef4444" : node.status === "warning" ? "#f59e0b" : "#10b981"} />
-                  <text x={p.x + 22} y={p.y + p.h / 2 + 4} fill={theme.palette.text.primary} fontSize={10} fontWeight={isSel ? 700 : 500}>
-                    {truncate(node.label, 20)}
+                  <text x={p.x + 24} y={p.y + 18} fill={textColor} fontSize={11} fontWeight={700}>
+                    {truncate(node.label || node.name, 26)}
                   </text>
-                  {badge && (
-                    <>
-                      <rect x={p.x + p.w - 42} y={p.y + 5} width={34} height={14} rx={3}
-                        fill={alpha(badge.color, 0.15)} stroke={alpha(badge.color, 0.3)} strokeWidth={0.5} />
-                      <text x={p.x + p.w - 25} y={p.y + 16} textAnchor="middle" fill={badge.color} fontSize={7} fontWeight={700}>
-                        {badge.label}
-                      </text>
-                    </>
+                  <text x={p.x + 14} y={p.y + 34} fill={secondaryColor} fontSize={9}>
+                    Ports: {ports}
+                  </text>
+                  <g>
+                    {node.ssl_enabled && renderPill(p.x + 14, p.y + 42, node.ssl_force_https ? "SSL+HTTPS" : "SSL", "#0ea5e9")}
+                    {node.waf_enabled && renderPill(p.x + (node.ssl_enabled ? 80 : 14), p.y + 42, "WAF", "#f59e0b")}
+                    {node.cache_enabled && renderPill(p.x + (node.ssl_enabled ? (node.waf_enabled ? 115 : 80) : (node.waf_enabled ? 50 : 14)), p.y + 42, "CACHE", "#8b5cf6")}
+                    {node.rate_limit_enabled && renderPill(p.x + 14, p.y + 58, "RATE-LIMIT", "#ef4444")}
+                  </g>
+                  <text x={p.x + 14} y={p.y + (node.rate_limit_enabled ? 78 : 72)} fill={secondaryColor} fontSize={8.5}>
+                    {node.rule_count || 0} rule{(node.rule_count || 0) !== 1 ? "s" : ""} attached
+                  </text>
+                </g>
+              );
+            })}
+
+            {/* Rule nodes */}
+            {rules.map((node) => {
+              const p = pos[node.id];
+              if (!p) return null;
+              const color = COL_RULE;
+              const isSel = selectedId === node.id;
+              const badge = actionBadge(node);
+              return (
+                <g key={node.id} style={{ cursor: "pointer" }} onClick={() => setSelectedId(isSel ? null : node.id)}>
+                  <rect x={p.x} y={p.y} width={p.w} height={p.h} rx={8}
+                    fill={isSel ? alpha(color, 0.18) : alpha(color, 0.06)}
+                    stroke={isSel ? color : alpha(color, 0.2)} strokeWidth={isSel ? 2 : 1} />
+                  <circle cx={p.x + 14} cy={p.y + 14} r={4}
+                    fill={node.status === "error" ? "#ef4444" : node.status === "warning" ? "#f59e0b" : "#10b981"} />
+                  <text x={p.x + 24} y={p.y + 18} fill={textColor} fontSize={11} fontWeight={700}>
+                    {truncate(node.label || node.name, 22)}
+                  </text>
+                  {badge && renderPill(p.x + p.w - (badge.label.length * 5.5 + 14), p.y + 6, badge.label, badge.color)}
+                  <text x={p.x + 14} y={p.y + 34} fill={secondaryColor} fontSize={9}>
+                    {node.path_key || "starts_with"} "{truncate(node.path || "/", 20)}"
+                  </text>
+                  <text x={p.x + 14} y={p.y + 48} fill={secondaryColor} fontSize={9}>
+                    Priority: {node.priority || 0} · Code: {node.status_code || "305"}
+                  </text>
+                  {node.conditions && node.conditions.length > 0 && (
+                    <text x={p.x + 14} y={p.y + 62} fill={secondaryColor} fontSize={8.5}>
+                      Conditions: {node.conditions.join(", ")}
+                    </text>
+                  )}
+                  {node.has_backends && (
+                    <text x={p.x + 14} y={p.y + 76} fill={secondaryColor} fontSize={8.5}>
+                      Routing: {node.routing_mode || "weighted"} · {node.backend_count || 0} backend{(node.backend_count || 0) !== 1 ? "s" : ""}
+                    </text>
+                  )}
+                  <g>
+                    {node.strip_path && renderPill(p.x + 14, p.y + 82, "STRIP-PATH", "#06b6d4")}
+                    {node.auto_redirect_https && renderPill(p.x + (node.strip_path ? 80 : 14), p.y + 82, "FORCE-HTTPS", "#0ea5e9")}
+                  </g>
+                </g>
+              );
+            })}
+
+            {/* Backend nodes */}
+            {backends.map((node) => {
+              const p = pos[node.id];
+              if (!p) return null;
+              const color = COL_BACKEND;
+              const isSel = selectedId === node.id;
+              const stats = node.stats || {};
+              return (
+                <g key={node.id} style={{ cursor: "pointer" }} onClick={() => setSelectedId(isSel ? null : node.id)}>
+                  <rect x={p.x} y={p.y} width={p.w} height={p.h} rx={8}
+                    fill={isSel ? alpha(color, 0.18) : alpha(color, 0.06)}
+                    stroke={isSel ? color : alpha(color, 0.2)} strokeWidth={isSel ? 2 : 1} />
+                  <circle cx={p.x + 14} cy={p.y + 14} r={4}
+                    fill={node.status === "error" ? "#ef4444" : node.status === "warning" ? "#f59e0b" : "#10b981"} />
+                  <text x={p.x + 24} y={p.y + 18} fill={textColor} fontSize={11} fontWeight={700}>
+                    {truncate(node.host || node.label || node.name, 26)}
+                  </text>
+                  <text x={p.x + 14} y={p.y + 34} fill={secondaryColor} fontSize={9}>
+                    {node.scheme || "http"}://{truncate(node.address || node.host, 20)}
+                  </text>
+                  <text x={p.x + 14} y={p.y + 48} fill={secondaryColor} fontSize={9}>
+                    Port: {node.port || "80"} · Type: {node.backend_type || "origin"}{node.weight != null ? ` · W:${node.weight}%` : ""}
+                  </text>
+                  {(stats.requests > 0 || stats.errors > 0) && (
+                    <text x={p.x + 14} y={p.y + 62} fill={secondaryColor} fontSize={8.5}>
+                      Req: {stats.requests || 0} · Err: {stats.errors || 0} · Latency: {stats.avg_latency_ms || 0}ms
+                    </text>
                   )}
                 </g>
               );
@@ -232,26 +344,127 @@ const TopologyTab = ({ filterServerId, filterRuleId, useRecord = false, resource
         </Box>
       </Box>
 
+      {/* Detail Panel */}
       {selectedNode && (
-        <Box sx={{ width: 280, flexShrink: 0 }}>
-          <Card sx={{ borderRadius: 2, border: `1px solid ${theme.palette.divider}`, borderTop: `3px solid ${colColor(selectedNode.kind)}` }}>
+        <Box sx={{ width: 300, flexShrink: 0 }}>
+          <Card sx={{ borderRadius: 3, border: `1px solid ${theme.palette.divider}`, borderTop: `3px solid ${colColor(selectedNode.kind)}` }}>
             <CardContent sx={{ p: 2 }}>
               <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
-                <Typography variant="subtitle2" fontWeight={700}>{selectedNode.label}</Typography>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  {selectedNode.kind === "server" && <ServerIcon sx={{ fontSize: 18, color: colColor(selectedNode.kind) }} />}
+                  {selectedNode.kind === "rule" && <RuleIcon sx={{ fontSize: 18, color: colColor(selectedNode.kind) }} />}
+                  {selectedNode.kind === "backend" && <BackendIcon sx={{ fontSize: 18, color: colColor(selectedNode.kind) }} />}
+                  <Typography variant="subtitle2" fontWeight={700} sx={{ wordBreak: "break-all" }}>{selectedNode.label || selectedNode.name}</Typography>
+                </Box>
                 <IconButton size="small" onClick={() => setSelectedId(null)}><CloseIcon fontSize="small" /></IconButton>
               </Box>
-              <Chip label={selectedNode.kind} size="small" sx={{ mb: 1, backgroundColor: alpha(colColor(selectedNode.kind), 0.1), color: colColor(selectedNode.kind), fontWeight: 600, fontSize: "0.7rem" }} />
-              {Object.entries(selectedNode.metadata || {}).map(([k, v]) => {
-                if (typeof v === "object") return null;
-                return (
-                  <Box key={k} sx={{ display: "flex", justifyContent: "space-between", py: 0.3 }}>
-                    <Typography variant="caption" color="text.secondary">{k.replace(/_/g, " ")}</Typography>
-                    <Typography variant="caption" fontWeight={600} sx={{ maxWidth: "55%", wordBreak: "break-all", textAlign: "right" }}>
-                      {String(v)}
-                    </Typography>
-                  </Box>
-                );
-              })}
+              <Chip label={selectedNode.kind.toUpperCase()} size="small" sx={{ mb: 1.5, backgroundColor: alpha(colColor(selectedNode.kind), 0.1), color: colColor(selectedNode.kind), fontWeight: 700, fontSize: "0.65rem" }} />
+
+              {selectedNode.kind === "server" && (
+                <>
+                  <DetailRow label="Server Name" value={selectedNode.name} mono />
+                  <DetailRow label="Proxy Name" value={selectedNode.proxy_server_name} mono />
+                  <DetailRow label="Listen Ports" value={(selectedNode.listen_ports || []).join(", ")} />
+                  <DetailRow label="SSL" value={selectedNode.ssl_enabled ? (selectedNode.ssl_force_https ? "Enabled + Force HTTPS" : "Enabled") : "Disabled"} />
+                  <DetailRow label="WAF" value={selectedNode.waf_enabled ? "Enabled" : "Disabled"} />
+                  <DetailRow label="Cache" value={selectedNode.cache_enabled ? "Enabled" : "Disabled"} />
+                  <DetailRow label="Rate Limit" value={selectedNode.rate_limit_enabled ? "Enabled" : "Disabled"} />
+                  <DetailRow label="Rules" value={selectedNode.rule_count || 0} />
+                  <DetailRow label="Custom Headers" value={selectedNode.custom_headers_count || 0} />
+                  <DetailRow label="Response Headers" value={selectedNode.custom_response_headers_count || 0} />
+                  {outEdges.length > 0 && (
+                    <>
+                      <Divider sx={{ my: 1 }} />
+                      <Typography variant="caption" fontWeight={700} sx={{ mb: 0.5, display: "block" }}>Connected Rules</Typography>
+                      {outEdges.map((e, i) => {
+                        const target = nodes.find((n) => n.id === e.to);
+                        return <DetailRow key={i} label={`→ ${target?.label || target?.name || e.to}`} value={target?.action || ""} />;
+                      })}
+                    </>
+                  )}
+                </>
+              )}
+
+              {selectedNode.kind === "rule" && (
+                <>
+                  <DetailRow label="Action" value={selectedNode.action?.toUpperCase()} />
+                  <DetailRow label="Status Code" value={selectedNode.status_code} />
+                  <DetailRow label="Priority" value={selectedNode.priority} />
+                  <Divider sx={{ my: 0.5 }} />
+                  <Typography variant="caption" fontWeight={700} sx={{ mb: 0.3, display: "block", color: secondaryColor }}>Path Matching</Typography>
+                  <DetailRow label="Path" value={selectedNode.path} mono />
+                  <DetailRow label="Match Type" value={selectedNode.path_key} />
+                  <DetailRow label="Strip Path" value={selectedNode.strip_path ? "Yes" : "No"} />
+                  <DetailRow label="Force HTTPS" value={selectedNode.auto_redirect_https ? "Yes" : "No"} />
+                  <Divider sx={{ my: 0.5 }} />
+                  <Typography variant="caption" fontWeight={700} sx={{ mb: 0.3, display: "block", color: secondaryColor }}>Conditions</Typography>
+                  <DetailRow label="Count" value={selectedNode.condition_count || 0} />
+                  {selectedNode.conditions?.length > 0 && <DetailRow label="Types" value={selectedNode.conditions.join(", ")} />}
+                  {selectedNode.has_backends && (
+                    <>
+                      <Divider sx={{ my: 0.5 }} />
+                      <Typography variant="caption" fontWeight={700} sx={{ mb: 0.3, display: "block", color: secondaryColor }}>Traffic Routing</Typography>
+                      <DetailRow label="Mode" value={selectedNode.routing_mode || "weighted"} />
+                      <DetailRow label="Backends" value={selectedNode.backend_count || 0} />
+                      {selectedNode.routing_sticky && <DetailRow label="Sticky Sessions" value="Enabled" />}
+                      {selectedNode.routing_header_name && <DetailRow label="Header" value={selectedNode.routing_header_name} />}
+                      {selectedNode.routing_cookie_name && <DetailRow label="Cookie" value={selectedNode.routing_cookie_name} />}
+                    </>
+                  )}
+                  {inEdges.length > 0 && (
+                    <>
+                      <Divider sx={{ my: 0.5 }} />
+                      <Typography variant="caption" fontWeight={700} sx={{ mb: 0.3, display: "block", color: secondaryColor }}>Parent Servers</Typography>
+                      {inEdges.map((e, i) => {
+                        const src = nodes.find((n) => n.id === e.from);
+                        return <DetailRow key={i} label={`← ${src?.label || src?.name || e.from}`} value="" />;
+                      })}
+                    </>
+                  )}
+                  {outEdges.length > 0 && (
+                    <>
+                      <Divider sx={{ my: 0.5 }} />
+                      <Typography variant="caption" fontWeight={700} sx={{ mb: 0.3, display: "block", color: secondaryColor }}>Backend Targets</Typography>
+                      {outEdges.map((e, i) => {
+                        const target = nodes.find((n) => n.id === e.to);
+                        return <DetailRow key={i} label={`→ ${target?.label || target?.name || e.to}`} value={e.weight ? `${e.weight}%` : ""} />;
+                      })}
+                    </>
+                  )}
+                </>
+              )}
+
+              {selectedNode.kind === "backend" && (
+                <>
+                  <DetailRow label="Address" value={selectedNode.address} mono />
+                  <DetailRow label="Host" value={selectedNode.host} mono />
+                  <DetailRow label="Port" value={selectedNode.port || "80"} />
+                  <DetailRow label="Scheme" value={selectedNode.scheme || "http"} />
+                  <DetailRow label="Type" value={selectedNode.backend_type || "origin"} />
+                  {selectedNode.path && <DetailRow label="Path" value={selectedNode.path} mono />}
+                  {selectedNode.weight != null && <DetailRow label="Weight" value={`${selectedNode.weight}%`} />}
+                  {selectedNode.stats && (
+                    <>
+                      <Divider sx={{ my: 0.5 }} />
+                      <Typography variant="caption" fontWeight={700} sx={{ mb: 0.3, display: "block", color: secondaryColor }}>Traffic Stats</Typography>
+                      <DetailRow label="Requests" value={selectedNode.stats.requests || 0} />
+                      <DetailRow label="Errors" value={selectedNode.stats.errors || 0} />
+                      <DetailRow label="Error Rate" value={selectedNode.stats.error_rate ? `${(selectedNode.stats.error_rate * 100).toFixed(1)}%` : "0%"} />
+                      <DetailRow label="Avg Latency" value={`${selectedNode.stats.avg_latency_ms || 0}ms`} />
+                    </>
+                  )}
+                  {inEdges.length > 0 && (
+                    <>
+                      <Divider sx={{ my: 0.5 }} />
+                      <Typography variant="caption" fontWeight={700} sx={{ mb: 0.3, display: "block", color: secondaryColor }}>Served by Rules</Typography>
+                      {inEdges.map((e, i) => {
+                        const src = nodes.find((n) => n.id === e.from);
+                        return <DetailRow key={i} label={`← ${src?.label || src?.name || e.from}`} value={e.weight ? `${e.weight}%` : ""} />;
+                      })}
+                    </>
+                  )}
+                </>
+              )}
             </CardContent>
           </Card>
         </Box>
