@@ -1,5 +1,5 @@
 ---
-# User and group setup for www-data
+# User and group setup for www-data and bwalia
 # Uses os_sudo_group from OS-specific vars (sudo on Debian, wheel on SUSE/RHEL)
 # Tagged 'always' — foundational setup needed by all deploy modes
 
@@ -31,4 +31,74 @@
     name: www-data
     groups: "{{ os_sudo_group }}"
     append: yes
+  tags: [always]
+
+# ── bwalia user (openresty_user) ────────────────────────────────────────
+# Required on all target machines for file ownership and SSH access
+
+- name: Ensure bwalia user exists
+  user:
+    name: bwalia
+    shell: /bin/bash
+    create_home: yes
+    home: /home/bwalia
+    groups: "{{ os_sudo_group }}"
+    append: yes
+  tags: [always]
+
+- name: Add bwalia to sudoers (passwordless)
+  copy:
+    content: "bwalia ALL=(ALL) NOPASSWD: ALL\n"
+    dest: /etc/sudoers.d/bwalia
+    mode: '0440'
+    validate: 'visudo -cf %s'
+  tags: [always]
+
+- name: Ensure /home/bwalia ownership
+  file:
+    path: /home/bwalia
+    state: directory
+    owner: bwalia
+    group: bwalia
+    mode: '0755'
+  tags: [always]
+
+- name: Ensure /home/bwalia/.ssh directory exists
+  file:
+    path: /home/bwalia/.ssh
+    state: directory
+    owner: bwalia
+    group: bwalia
+    mode: '0700'
+  tags: [always]
+
+- name: Generate SSH keypair for bwalia if not present
+  openssh_keypair:
+    path: /home/bwalia/.ssh/id_rsa
+    owner: bwalia
+    group: bwalia
+    type: rsa
+    size: 4096
+    state: present
+    force: no
+  tags: [always]
+
+- name: Ensure authorized_keys exists for bwalia
+  file:
+    path: /home/bwalia/.ssh/authorized_keys
+    state: touch
+    owner: bwalia
+    group: bwalia
+    mode: '0600'
+    modification_time: preserve
+    access_time: preserve
+  tags: [always]
+
+- name: Add bwalia public key to authorized_keys
+  authorized_key:
+    user: bwalia
+    key: "{{ lookup('file', '/home/bwalia/.ssh/id_rsa.pub', errors='ignore') | default('') }}"
+    state: present
+  when: lookup('file', '/home/bwalia/.ssh/id_rsa.pub', errors='ignore') | default('') | length > 0
+  ignore_errors: true
   tags: [always]
