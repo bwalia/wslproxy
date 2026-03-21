@@ -1,14 +1,22 @@
 local cjson = Cjson
 local configPath = os.getenv("NGINX_CONFIG_DIR") or "/opt/nginx/"
-local globalVars = ngx.var.frontdoor_global_vars
 local Dns = require("dns_access")
 
 local Helper = require("helpers")
 
-globalVars = cjson.decode(globalVars)
-local selectedRule = globalVars.executableRule
-local primaryNameserver = globalVars.proxyServerName
-local proxyServer = globalVars.proxyServer
+-- Read from ngx.ctx.gateway (new) with fallback to legacy nginx variable
+local gateway = ngx.ctx.gateway
+local selectedRule, primaryNameserver, proxyServer
+if gateway then
+    selectedRule = gateway.executableRule
+    primaryNameserver = gateway.proxyServerName
+    proxyServer = gateway.proxyServer
+else
+    local globalVars = cjson.decode(ngx.var.frontdoor_global_vars or "{}")
+    selectedRule = globalVars.executableRule
+    primaryNameserver = globalVars.proxyServerName
+    proxyServer = globalVars.proxyServer
+end
 
 local settings = Helper.settings()
 

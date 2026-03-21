@@ -1748,14 +1748,7 @@ local function listRule(args, uuid)
                     resultData.match.rules.jwt_token_validation_key =
                         Base64.decode(resultData.match.rules.jwt_token_validation_key)
                 end
-                if resultData.match.rules.amazon_s3_access_key then
-                    resultData.match.rules.amazon_s3_access_key = Base64.decode(resultData.match.rules
-                        .amazon_s3_access_key)
-                end
-                if resultData.match.rules.amazon_s3_secret_key then
-                    resultData.match.rules.amazon_s3_secret_key = Base64.decode(resultData.match.rules
-                        .amazon_s3_secret_key)
-                end
+                -- S3 keys are now stored as plaintext (schema v2) — no decoding needed
                 ngx.say(cjson.encode({
                     data = resultData
                 }))
@@ -1777,14 +1770,7 @@ local function listRule(args, uuid)
                 exist_value.match.rules.jwt_token_validation_key =
                     Base64.decode(exist_value.match.rules.jwt_token_validation_key)
             end
-            if exist_value.match.rules.amazon_s3_access_key then
-                exist_value.match.rules.amazon_s3_access_key = Base64.decode(exist_value.match.rules
-                    .amazon_s3_access_key)
-            end
-            if exist_value.match.rules.amazon_s3_secret_key then
-                exist_value.match.rules.amazon_s3_secret_key = Base64.decode(exist_value.match.rules
-                    .amazon_s3_secret_key)
-            end
+            -- S3 keys are now stored as plaintext (schema v2) — no decoding needed
 
             ngx.say({ cjson.encode({
                 data = exist_value
@@ -1934,16 +1920,17 @@ CreateUpdateRecord = function(json_val, uuid, key_name, folder_name, method)
     if folder_name == "rules" and json_val.match.rules.jwt_token_validation_value ~= nil and
         json_val.match.rules.jwt_token_validation_key ~= nil then
         json_val.match.rules.jwt_token_validation_key = Base64.encode(json_val.match.rules.jwt_token_validation_key)
+        -- S3 keys: store as plaintext (schema v2), only fix URL encoding
         if json_val.match.rules.amazon_s3_access_key then
             json_val.match.rules.amazon_s3_access_key = string.gsub(json_val.match.rules.amazon_s3_access_key, "%%2B",
                 "+")
-            json_val.match.rules.amazon_s3_access_key = Base64.encode(json_val.match.rules.amazon_s3_access_key)
         end
         if json_val.match.rules.amazon_s3_secret_key then
             json_val.match.rules.amazon_s3_secret_key = string.gsub(json_val.match.rules.amazon_s3_secret_key, "%%2B",
                 "+")
-            json_val.match.rules.amazon_s3_secret_key = Base64.encode(json_val.match.rules.amazon_s3_secret_key)
         end
+        -- Mark as schema v2 for rule_loader backward compatibility
+        json_val._schema_version = 2
     end
     if key_name == 'servers' and json_val.config then
         json_val.config = Base64.encode(json_val.config)
