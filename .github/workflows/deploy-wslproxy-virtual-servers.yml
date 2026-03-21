@@ -142,7 +142,7 @@ jobs:
   # ──────────────────────────────────────────────────────
   deploy-int:
     name: "Stage 2: Deploy to Int (fail fast)"
-    runs-on: self-hosted
+    runs-on: [self-hosted, Linux, int]
     needs: [validate-json]
     if: ${{ github.event.inputs.DRY_RUN != 'true' }}
     steps:
@@ -200,7 +200,7 @@ jobs:
   # ──────────────────────────────────────────────────────
   smoke-test-int:
     name: "Stage 3: Smoke Test Int"
-    runs-on: self-hosted
+    runs-on: [self-hosted, Linux, int]
     needs: [deploy-int]
     steps:
       - name: Test OpenResty config syntax
