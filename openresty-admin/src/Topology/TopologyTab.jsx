@@ -347,7 +347,7 @@ const TopologyTab = ({ filterServerId, filterRuleId, useRecord = false, resource
       {/* Detail Panel */}
       {selectedNode && (
         <Box sx={{ width: 300, flexShrink: 0 }}>
-          <Card sx={{ borderRadius: 3, border: `1px solid ${theme.palette.divider}`, borderTop: `3px solid ${colColor(selectedNode.kind)}` }}>
+          <Card sx={{ borderRadius: 3, border: `1px solid ${theme.palette.divider}`, borderTop: `3px solid ${colColor(selectedNode.kind)}`, position: "sticky", top: 16 }}>
             <CardContent sx={{ p: 2 }}>
               <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>

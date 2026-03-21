@@ -333,6 +333,16 @@ const Form = () => {
     <SimpleForm toolbar={<Toolbar />}>
       <div className="form-container">
 
+        <Card variant="outlined" className="section-card" sx={{ mb: 2 }}>
+          <CardContent>
+            <Typography variant="subtitle1" className="section-card__title">
+              Topology
+            </Typography>
+            <div className="section-card__spacer" />
+            <TopologyTab useRecord resourceType="rules" />
+          </CardContent>
+        </Card>
+
         {/* Basic Rule Information */}
         <SectionCard title="Basic Rule Information" subtitle="Configure the rule name, profile, and metadata">
           <Grid container spacing={2}>
@@ -815,16 +825,6 @@ const Form = () => {
               Two approvers are required (4-eyes principle).
             </Typography>
             <VersionHistoryTab resourceType="rules" />
-          </CardContent>
-        </Card>
-
-        <Card variant="outlined" className="section-card" sx={{ mt: 2 }}>
-          <CardContent>
-            <Typography variant="subtitle1" className="section-card__title">
-              Topology
-            </Typography>
-            <div className="section-card__spacer" />
-            <TopologyTab useRecord resourceType="rules" />
           </CardContent>
         </Card>
 

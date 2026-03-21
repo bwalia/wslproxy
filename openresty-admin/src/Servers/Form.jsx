@@ -117,6 +117,12 @@ const Form = ({ type }) => {
 
   return (
     <TabbedForm toolbar={<Toolbar />} syncWithLocation={false}>
+      <TabbedForm.Tab label="Topology">
+        <div className="form-container">
+          <TopologyTab useRecord resourceType="servers" />
+        </div>
+      </TabbedForm.Tab>
+
       <TabbedForm.Tab label="Nginx Server">
         <div className="form-container">
           {/* Basic Server Configuration */}
@@ -977,11 +983,6 @@ const Form = ({ type }) => {
         </div>
       </TabbedForm.Tab>
 
-      <TabbedForm.Tab label="Topology">
-        <div className="form-container">
-          <TopologyTab useRecord resourceType="servers" />
-        </div>
-      </TabbedForm.Tab>
     </TabbedForm>
   );
 };
