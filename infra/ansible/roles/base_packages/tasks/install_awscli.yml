@@ -3,7 +3,7 @@
 # Works on all Linux distributions (Debian, SUSE, RedHat)
 
 - name: Check if AWS CLI is already installed
-  command: aws --version
+  shell: /usr/local/bin/aws --version || aws --version
   register: awscli_check
   changed_when: false
   failed_when: false
@@ -49,7 +49,7 @@
         - /tmp/aws
 
     - name: Verify AWS CLI installation
-      command: aws --version
+      shell: /usr/local/bin/aws --version || aws --version
       register: awscli_verify
       changed_when: false
 
