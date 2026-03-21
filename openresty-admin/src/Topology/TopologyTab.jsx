@@ -25,12 +25,15 @@ const COL_RULE = "#8b5cf6";
 const COL_BACKEND = "#10b981";
 
 const actionBadge = (node) => {
-  const resp = node?.metadata?.response || {};
-  const code = resp.code;
+  const code = node?.status_code;
   if (code === 301 || code === 302) return { label: `${code}`, color: "#f59e0b" };
   if (code === 403) return { label: "403", color: "#ef4444" };
-  if (resp.is_consul) return { label: "CONSUL", color: "#06b6d4" };
-  if (node?.metadata?.backends?.length > 0) return { label: "PROXY", color: "#10b981" };
+  if (node?.action === "consul") return { label: "CONSUL", color: "#06b6d4" };
+  if (node?.has_backends && node?.routing_mode && node.routing_mode !== "weighted") {
+    return { label: node.routing_mode.toUpperCase(), color: "#8b5cf6" };
+  }
+  if (node?.has_backends) return { label: "PROXY", color: "#10b981" };
+  if (node?.action === "proxy") return { label: "PROXY", color: "#10b981" };
   return null;
 };
 
