@@ -38,7 +38,7 @@ const COL_RULE = "#8b5cf6";
 const COL_BACKEND = "#10b981";
 
 // Node heights per kind (taller to fit metadata)
-const NODE_HEIGHTS = { server: 88, rule: 100, backend: 72 };
+const NODE_HEIGHTS = { server: 110, rule: 120, backend: 90 };
 
 // Action badge helper
 const actionBadge = (node) => {
@@ -103,13 +103,13 @@ const TopologyCanvas = ({ nodes, edges, selectedId, onSelectNode }) => {
   const backends = nodes.filter((n) => n.kind === "backend");
 
   // Layout
-  const colW = 240;
+  const colW = 340;
   const padX = 30;
   const padY = 50;
-  const gapY = 12;
+  const gapY = 16;
   const col1X = padX;
-  const col2X = padX + colW + 60;
-  const col3X = padX + (colW + 60) * 2;
+  const col2X = padX + colW + 80;
+  const col3X = padX + (colW + 80) * 2;
 
   const pos = {};
 
@@ -135,12 +135,15 @@ const TopologyCanvas = ({ nodes, edges, selectedId, onSelectNode }) => {
   const textColor = theme.palette.text.primary;
 
   // Pill helper for inline badges
-  const renderPill = (x, y, label, color) => (
-    <>
-      <rect x={x} y={y} width={label.length * 5.5 + 10} height={14} rx={3} fill={alpha(color, 0.15)} stroke={alpha(color, 0.3)} strokeWidth={0.5} />
-      <text x={x + (label.length * 5.5 + 10) / 2} y={y + 10} textAnchor="middle" fill={color} fontSize={7.5} fontWeight={700}>{label}</text>
-    </>
-  );
+  const renderPill = (x, y, label, color) => {
+    const w = label.length * 6.5 + 12;
+    return (
+      <>
+        <rect x={x} y={y} width={w} height={16} rx={4} fill={alpha(color, 0.15)} stroke={alpha(color, 0.3)} strokeWidth={0.5} />
+        <text x={x + w / 2} y={y + 11.5} textAnchor="middle" fill={color} fontSize={8.5} fontWeight={700}>{label}</text>
+      </>
+    );
+  };
 
   return (
     <Box sx={{ width: "100%", overflowX: "auto", overflowY: "auto", maxHeight: "100%" }}>
@@ -152,9 +155,9 @@ const TopologyCanvas = ({ nodes, edges, selectedId, onSelectNode }) => {
         </defs>
 
         {/* Column headers */}
-        <text x={col1X + colW / 2} y={22} textAnchor="middle" fill={secondaryColor} fontSize={11} fontWeight={700} letterSpacing="0.08em">VIRTUAL SERVERS</text>
-        <text x={col2X + colW / 2} y={22} textAnchor="middle" fill={secondaryColor} fontSize={11} fontWeight={700} letterSpacing="0.08em">RULES</text>
-        <text x={col3X + colW / 2} y={22} textAnchor="middle" fill={secondaryColor} fontSize={11} fontWeight={700} letterSpacing="0.08em">BACKEND ORIGINS</text>
+        <text x={col1X + colW / 2} y={24} textAnchor="middle" fill={secondaryColor} fontSize={13} fontWeight={700} letterSpacing="0.08em">VIRTUAL SERVERS</text>
+        <text x={col2X + colW / 2} y={24} textAnchor="middle" fill={secondaryColor} fontSize={13} fontWeight={700} letterSpacing="0.08em">RULES</text>
+        <text x={col3X + colW / 2} y={24} textAnchor="middle" fill={secondaryColor} fontSize={13} fontWeight={700} letterSpacing="0.08em">BACKEND ORIGINS</text>
 
         {/* Edges with weight labels */}
         {edges.map((edge, i) => {
@@ -201,26 +204,21 @@ const TopologyCanvas = ({ nodes, edges, selectedId, onSelectNode }) => {
               <rect x={p.x} y={p.y} width={p.w} height={p.h} rx={8}
                 fill={isSel ? alpha(color, 0.18) : alpha(color, 0.06)}
                 stroke={isSel ? color : alpha(color, 0.2)} strokeWidth={isSel ? 2 : 1} />
-              {/* Health dot */}
-              <circle cx={p.x + 14} cy={p.y + 14} r={4}
+              <circle cx={p.x + 16} cy={p.y + 16} r={5}
                 fill={node.status === "error" ? "#ef4444" : node.status === "warning" ? "#f59e0b" : "#10b981"} />
-              {/* Name */}
-              <text x={p.x + 24} y={p.y + 18} fill={textColor} fontSize={11} fontWeight={700}>
-                {truncate(node.label || node.name, 26)}
+              <text x={p.x + 28} y={p.y + 20} fill={textColor} fontSize={13} fontWeight={700}>
+                {truncate(node.label || node.name, 38)}
               </text>
-              {/* Ports */}
-              <text x={p.x + 14} y={p.y + 34} fill={secondaryColor} fontSize={9}>
+              <text x={p.x + 16} y={p.y + 38} fill={secondaryColor} fontSize={10.5}>
                 Ports: {ports}
               </text>
-              {/* SSL / WAF / Cache pills */}
               <g>
-                {node.ssl_enabled && renderPill(p.x + 14, p.y + 42, node.ssl_force_https ? "SSL+HTTPS" : "SSL", "#0ea5e9")}
-                {node.waf_enabled && renderPill(p.x + (node.ssl_enabled ? 80 : 14), p.y + 42, "WAF", "#f59e0b")}
-                {node.cache_enabled && renderPill(p.x + (node.ssl_enabled ? (node.waf_enabled ? 115 : 80) : (node.waf_enabled ? 50 : 14)), p.y + 42, "CACHE", "#8b5cf6")}
-                {node.rate_limit_enabled && renderPill(p.x + 14, p.y + 58, "RATE-LIMIT", "#ef4444")}
+                {node.ssl_enabled && renderPill(p.x + 16, p.y + 48, node.ssl_force_https ? "SSL+HTTPS" : "SSL", "#0ea5e9")}
+                {node.waf_enabled && renderPill(p.x + (node.ssl_enabled ? 90 : 16), p.y + 48, "WAF", "#f59e0b")}
+                {node.cache_enabled && renderPill(p.x + (node.ssl_enabled ? (node.waf_enabled ? 130 : 90) : (node.waf_enabled ? 56 : 16)), p.y + 48, "CACHE", "#8b5cf6")}
+                {node.rate_limit_enabled && renderPill(p.x + 16, p.y + 68, "RATE-LIMIT", "#ef4444")}
               </g>
-              {/* Rules count */}
-              <text x={p.x + 14} y={p.y + (node.rate_limit_enabled ? 78 : 72)} fill={secondaryColor} fontSize={8.5}>
+              <text x={p.x + 16} y={p.y + (node.rate_limit_enabled ? 92 : 86)} fill={secondaryColor} fontSize={10}>
                 {node.rule_count || 0} rule{(node.rule_count || 0) !== 1 ? "s" : ""} attached
               </text>
             </g>
@@ -239,39 +237,31 @@ const TopologyCanvas = ({ nodes, edges, selectedId, onSelectNode }) => {
               <rect x={p.x} y={p.y} width={p.w} height={p.h} rx={8}
                 fill={isSel ? alpha(color, 0.18) : alpha(color, 0.06)}
                 stroke={isSel ? color : alpha(color, 0.2)} strokeWidth={isSel ? 2 : 1} />
-              {/* Health dot */}
-              <circle cx={p.x + 14} cy={p.y + 14} r={4}
+              <circle cx={p.x + 16} cy={p.y + 16} r={5}
                 fill={node.status === "error" ? "#ef4444" : node.status === "warning" ? "#f59e0b" : "#10b981"} />
-              {/* Name */}
-              <text x={p.x + 24} y={p.y + 18} fill={textColor} fontSize={11} fontWeight={700}>
-                {truncate(node.label || node.name, 22)}
+              <text x={p.x + 28} y={p.y + 20} fill={textColor} fontSize={13} fontWeight={700}>
+                {truncate(node.label || node.name, 34)}
               </text>
-              {/* Action badge */}
-              {badge && renderPill(p.x + p.w - (badge.label.length * 5.5 + 14), p.y + 6, badge.label, badge.color)}
-              {/* Path match */}
-              <text x={p.x + 14} y={p.y + 34} fill={secondaryColor} fontSize={9}>
-                {node.path_key || "starts_with"} "{truncate(node.path || "/", 20)}"
+              {badge && renderPill(p.x + p.w - (badge.label.length * 6.5 + 16), p.y + 6, badge.label, badge.color)}
+              <text x={p.x + 16} y={p.y + 38} fill={secondaryColor} fontSize={10.5}>
+                {node.path_key || "starts_with"} "{truncate(node.path || "/", 30)}"
               </text>
-              {/* Priority */}
-              <text x={p.x + 14} y={p.y + 48} fill={secondaryColor} fontSize={9}>
+              <text x={p.x + 16} y={p.y + 54} fill={secondaryColor} fontSize={10.5}>
                 Priority: {node.priority || 0} · Code: {node.status_code || "305"}
               </text>
-              {/* Conditions */}
               {node.conditions && node.conditions.length > 0 && (
-                <text x={p.x + 14} y={p.y + 62} fill={secondaryColor} fontSize={8.5}>
+                <text x={p.x + 16} y={p.y + 70} fill={secondaryColor} fontSize={10}>
                   Conditions: {node.conditions.join(", ")}
                 </text>
               )}
-              {/* Routing mode */}
               {node.has_backends && (
-                <text x={p.x + 14} y={p.y + 76} fill={secondaryColor} fontSize={8.5}>
+                <text x={p.x + 16} y={p.y + 86} fill={secondaryColor} fontSize={10}>
                   Routing: {node.routing_mode || "weighted"} · {node.backend_count || 0} backend{(node.backend_count || 0) !== 1 ? "s" : ""}
                 </text>
               )}
-              {/* Flags */}
               <g>
-                {node.strip_path && renderPill(p.x + 14, p.y + 82, "STRIP-PATH", "#06b6d4")}
-                {node.auto_redirect_https && renderPill(p.x + (node.strip_path ? 80 : 14), p.y + 82, "FORCE-HTTPS", "#0ea5e9")}
+                {node.strip_path && renderPill(p.x + 16, p.y + 96, "STRIP-PATH", "#06b6d4")}
+                {node.auto_redirect_https && renderPill(p.x + (node.strip_path ? 90 : 16), p.y + 96, "FORCE-HTTPS", "#0ea5e9")}
               </g>
             </g>
           );
@@ -289,23 +279,19 @@ const TopologyCanvas = ({ nodes, edges, selectedId, onSelectNode }) => {
               <rect x={p.x} y={p.y} width={p.w} height={p.h} rx={8}
                 fill={isSel ? alpha(color, 0.18) : alpha(color, 0.06)}
                 stroke={isSel ? color : alpha(color, 0.2)} strokeWidth={isSel ? 2 : 1} />
-              {/* Health dot */}
-              <circle cx={p.x + 14} cy={p.y + 14} r={4}
+              <circle cx={p.x + 16} cy={p.y + 16} r={5}
                 fill={node.status === "error" ? "#ef4444" : node.status === "warning" ? "#f59e0b" : "#10b981"} />
-              {/* Host */}
-              <text x={p.x + 24} y={p.y + 18} fill={textColor} fontSize={11} fontWeight={700}>
-                {truncate(node.host || node.label || node.name, 26)}
+              <text x={p.x + 28} y={p.y + 20} fill={textColor} fontSize={13} fontWeight={700}>
+                {truncate(node.host || node.label || node.name, 38)}
               </text>
-              {/* Address + port + type */}
-              <text x={p.x + 14} y={p.y + 34} fill={secondaryColor} fontSize={9}>
-                {node.scheme || "http"}://{truncate(node.address || node.host, 20)}
+              <text x={p.x + 16} y={p.y + 38} fill={secondaryColor} fontSize={10.5}>
+                {node.scheme || "http"}://{truncate(node.address || node.host, 34)}
               </text>
-              <text x={p.x + 14} y={p.y + 48} fill={secondaryColor} fontSize={9}>
+              <text x={p.x + 16} y={p.y + 54} fill={secondaryColor} fontSize={10.5}>
                 Port: {node.port || "80"} · Type: {node.backend_type || "origin"}{node.weight != null ? ` · W:${node.weight}%` : ""}
               </text>
-              {/* Stats if available */}
               {(stats.requests > 0 || stats.errors > 0) && (
-                <text x={p.x + 14} y={p.y + 62} fill={secondaryColor} fontSize={8.5}>
+                <text x={p.x + 16} y={p.y + 72} fill={secondaryColor} fontSize={10}>
                   Req: {stats.requests || 0} · Err: {stats.errors || 0} · Latency: {stats.avg_latency_ms || 0}ms
                 </text>
               )}
