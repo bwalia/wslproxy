@@ -138,13 +138,13 @@ const TopologyTab = ({ filterServerId, filterRuleId, useRecord = false, resource
   const rules = nodes.filter((n) => n.kind === "rule");
   const backends = nodes.filter((n) => n.kind === "backend");
 
-  const colW = 340;
+  const colW = 400;
   const padX = 30;
   const padY = 50;
   const gapY = 16;
   const col1X = padX;
-  const col2X = padX + colW + 80;
-  const col3X = padX + (colW + 80) * 2;
+  const col2X = padX + colW + 100;
+  const col3X = padX + (colW + 100) * 2;
 
   const pos = {};
   const placeColumn = (arr, x, kind) => {
@@ -330,7 +330,7 @@ const TopologyTab = ({ filterServerId, filterRuleId, useRecord = false, resource
                     {truncate(node.host || node.label || node.name, 38)}
                   </text>
                   <text x={p.x + 16} y={p.y + 38} fill={secondaryColor} fontSize={10.5}>
-                    {node.scheme || "http"}://{truncate(node.address || node.host, 34)}
+                    {truncate((node.address || node.host || "").replace(/^https?:\/\//, `${node.scheme || "http"}://`), 44)}
                   </text>
                   <text x={p.x + 16} y={p.y + 54} fill={secondaryColor} fontSize={10.5}>
                     Port: {node.port || "80"} · Type: {node.backend_type || "origin"}{node.weight != null ? ` · W:${node.weight}%` : ""}
