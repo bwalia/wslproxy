@@ -372,16 +372,14 @@ jobs:
 
       - name: Health check acc
         run: |
-          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 \
+          HTTP_CODE=$(ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 \
             root@187.77.179.206 \
-            "curl -sf -o /dev/null -w '%{http_code}' http://187.77.179.206:8080/ping" 2>&1 | {
-            read HTTP_CODE
-            if [ "$HTTP_CODE" != "200" ]; then
-              echo "::error::Acc health check failed (HTTP $HTTP_CODE)"
-              exit 1
-            fi
-            echo "Acc health check passed (HTTP 200)"
-          }
+            "curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/ping" 2>/dev/null) || true
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::error::Acc health check failed (HTTP $HTTP_CODE)"
+            exit 1
+          fi
+          echo "Acc health check passed (HTTP 200)"
 
       - name: Cleanup SSH key
         if: always()
