@@ -360,6 +360,88 @@ export interface InstanceInfo {
   load_average?: string;
 }
 
+// ── Logs & AI Troubleshooting ────────────────────────────────────────────
+
+export interface AccessLogEntry {
+  id: string;
+  timestamp: string;
+  remote_addr: string;
+  method: string;
+  uri: string;
+  status: number;
+  body_bytes_sent: number;
+  request_time: number;
+  upstream_addr?: string;
+  upstream_status?: number;
+  upstream_response_time?: number;
+  http_referer?: string;
+  http_user_agent?: string;
+  server_name?: string;
+  request_id?: string;
+  country_code?: string;
+  rule_id?: string;
+  waf_blocked?: boolean;
+  cache_status?: string;
+}
+
+export interface ErrorLogEntry {
+  id: string;
+  timestamp: string;
+  level: "emerg" | "alert" | "crit" | "error" | "warn" | "notice" | "info" | "debug";
+  message: string;
+  client?: string;
+  server?: string;
+  request?: string;
+  upstream?: string;
+  host?: string;
+}
+
+export interface LogFilters {
+  status_code?: string;
+  method?: string;
+  path?: string;
+  server_name?: string;
+  time_range?: string;
+  level?: string;
+  search?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface AIAnalysisRequest {
+  logs: (AccessLogEntry | ErrorLogEntry)[];
+  context?: string;
+  question?: string;
+}
+
+export interface AIAnalysisResponse {
+  analysis: string;
+  root_causes?: string[];
+  recommendations?: string[];
+  severity?: "low" | "medium" | "high" | "critical";
+  related_patterns?: string[];
+}
+
+export interface BackendHealthDetail {
+  rule_id: string;
+  rule_name: string;
+  server_name: string;
+  path: string;
+  backend_label: string;
+  address: string;
+  healthy: boolean;
+  weight: number;
+  requests: number;
+  errors: number;
+  avg_latency_ms: number;
+  error_rate: number;
+  p95_latency_ms?: number;
+  p99_latency_ms?: number;
+  last_check?: string;
+  consecutive_failures?: number;
+  status_codes?: Record<string, number>;
+}
+
 // ── Settings ────────────────────────────────────────────────────────────
 
 export interface AppSettings {
@@ -418,4 +500,11 @@ export interface DataProvider {
   approveCR(id: string, data: unknown): Promise<SingleResult>;
   rejectCR(id: string, data: unknown): Promise<SingleResult>;
   setCRPassphrase(data: unknown): Promise<SingleResult>;
+
+  // Logs & AI troubleshooting
+  getAccessLogs(filters?: LogFilters): Promise<ListResult<AccessLogEntry>>;
+  getErrorLogs(filters?: LogFilters): Promise<ListResult<ErrorLogEntry>>;
+  getBackendHealthDetails(): Promise<ListResult<BackendHealthDetail>>;
+  analyzeWithAI(request: AIAnalysisRequest): Promise<SingleResult<AIAnalysisResponse>>;
+  getAIModels(): Promise<SingleResult<{ models: string[]; default: string }>>;
 }

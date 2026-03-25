@@ -3492,6 +3492,268 @@ local function handle_get_request(args, path)
         listOpenrestyAccessLogs()
     end
 
+    -- ── Structured logs for dashboard ────────────────────────────────
+    if path == "logs/access" then
+        local args = ngx.req.get_uri_args()
+        local limit = tonumber(args.limit) or 200
+        local offset = tonumber(args.offset) or 0
+        local logFile = "/usr/local/openresty/nginx/logs/access.log"
+        local f = io.open(logFile, "r")
+        local entries = {}
+        local total = 0
+        if f then
+            local lines = {}
+            for line in f:lines() do
+                lines[#lines + 1] = line
+            end
+            f:close()
+            total = #lines
+            -- Read from end (most recent first), apply offset and limit
+            local startIdx = math.max(1, #lines - offset - limit + 1)
+            local endIdx = math.max(1, #lines - offset)
+            for i = endIdx, startIdx, -1 do
+                local line = lines[i]
+                local ok, entry = pcall(cjson.decode, line)
+                if ok and type(entry) == "table" then
+                    entry.id = "access-" .. tostring(i)
+                    -- Apply filters
+                    local include = true
+                    if args.status_code and args.status_code ~= "" then
+                        local sc = tostring(entry.status or "")
+                        local filter = args.status_code
+                        if filter == "2xx" then include = sc:sub(1,1) == "2"
+                        elseif filter == "3xx" then include = sc:sub(1,1) == "3"
+                        elseif filter == "4xx" then include = sc:sub(1,1) == "4"
+                        elseif filter == "5xx" then include = sc:sub(1,1) == "5"
+                        else include = sc == filter end
+                    end
+                    if args.method and args.method ~= "" then
+                        include = include and (entry.method == args.method)
+                    end
+                    if args.search and args.search ~= "" then
+                        local q = args.search:lower()
+                        local haystack = (tostring(entry.uri or "") .. " " .. tostring(entry.remote_addr or "") .. " " .. tostring(entry.http_user_agent or "")):lower()
+                        include = include and haystack:find(q, 1, true)
+                    end
+                    if include then
+                        entries[#entries + 1] = entry
+                    end
+                else
+                    -- Parse common log format
+                    local remote_addr, timestamp, method, uri, status, bytes =
+                        line:match('^(%S+)%s+%-%s+%S+%s+%[([^%]]+)%]%s+"(%S+)%s+(%S+)%s+%S+"%s+(%d+)%s+(%d+)')
+                    if remote_addr then
+                        local entry2 = {
+                            id = "access-" .. tostring(i),
+                            timestamp = timestamp,
+                            remote_addr = remote_addr,
+                            method = method,
+                            uri = uri,
+                            status = tonumber(status) or 0,
+                            body_bytes_sent = tonumber(bytes) or 0,
+                            request_time = 0,
+                        }
+                        local include2 = true
+                        if args.status_code and args.status_code ~= "" then
+                            local sc = tostring(entry2.status)
+                            local filter = args.status_code
+                            if filter == "2xx" then include2 = sc:sub(1,1) == "2"
+                            elseif filter == "3xx" then include2 = sc:sub(1,1) == "3"
+                            elseif filter == "4xx" then include2 = sc:sub(1,1) == "4"
+                            elseif filter == "5xx" then include2 = sc:sub(1,1) == "5"
+                            else include2 = sc == filter end
+                        end
+                        if include2 then
+                            entries[#entries + 1] = entry2
+                        end
+                    end
+                end
+                if #entries >= limit then break end
+            end
+        end
+        ngx.say(cjson.encode({
+            data = entries,
+            total = total
+        }))
+        ngx.exit(ngx.HTTP_OK)
+    end
+
+    if path == "logs/errors" then
+        local args = ngx.req.get_uri_args()
+        local limit = tonumber(args.limit) or 200
+        local logFile = "/usr/local/openresty/nginx/logs/error.log"
+        local f = io.open(logFile, "r")
+        local entries = {}
+        local total = 0
+        if f then
+            local lines = {}
+            for line in f:lines() do
+                lines[#lines + 1] = line
+            end
+            f:close()
+            total = #lines
+            for i = #lines, math.max(1, #lines - limit * 2 + 1), -1 do
+                local line = lines[i]
+                local timestamp, level, message =
+                    line:match("^(%d+/%d+/%d+%s+%d+:%d+:%d+)%s+%[(%w+)%]%s+%d+#%d+:%s*(.*)")
+                if timestamp then
+                    local entry = {
+                        id = "error-" .. tostring(i),
+                        timestamp = timestamp,
+                        level = level,
+                        message = message,
+                    }
+                    local client = message:match("client:%s+(%S+)")
+                    local server = message:match("server:%s+(%S+)")
+                    local request = message:match('request:%s+"([^"]*)"')
+                    local upstream = message:match("upstream:%s+(%S+)")
+                    local host = message:match('host:%s+"([^"]*)"')
+                    if client then entry.client = client end
+                    if server then entry.server = server end
+                    if request then entry.request = request end
+                    if upstream then entry.upstream = upstream end
+                    if host then entry.host = host end
+                    local include = true
+                    if args.level and args.level ~= "" then
+                        include = (entry.level == args.level)
+                    end
+                    if args.search and args.search ~= "" then
+                        include = include and message:lower():find(args.search:lower(), 1, true)
+                    end
+                    if include then
+                        entries[#entries + 1] = entry
+                    end
+                end
+                if #entries >= limit then break end
+            end
+        end
+        ngx.say(cjson.encode({
+            data = entries,
+            total = total
+        }))
+        ngx.exit(ngx.HTTP_OK)
+    end
+
+    -- ── AI analysis proxy (forwards to local Ollama) ─────────────────
+    if path == "ai/analyze" then
+        ngx.req.read_body()
+        local body = ngx.req.get_body_data()
+        local ok, payload = pcall(cjson.decode, body or "{}")
+        if not ok then
+            ngx.status = 400
+            ngx.say(cjson.encode({ error = "Invalid JSON" }))
+            ngx.exit(400)
+        end
+        local logs_text = ""
+        if payload.logs then
+            for _, log_entry in ipairs(payload.logs) do
+                logs_text = logs_text .. cjson.encode(log_entry) .. "\n"
+            end
+        end
+        local question = payload.question or "Analyze these logs for issues."
+        local context = payload.context or ""
+        local prompt = "You are an expert DevOps/SRE engineer specializing in nginx/OpenResty ingress controllers. "
+            .. "Analyze the following log entries and provide:\n"
+            .. "1. A clear analysis of what's happening\n"
+            .. "2. Root causes of any errors or issues\n"
+            .. "3. Specific recommendations to fix the issues\n"
+            .. "4. Severity assessment (low/medium/high/critical)\n\n"
+            .. "Context: " .. context .. "\n"
+            .. "Question: " .. question .. "\n\n"
+            .. "Log entries:\n" .. logs_text .. "\n\n"
+            .. "Respond in this JSON format:\n"
+            .. '{"analysis": "...", "root_causes": ["..."], "recommendations": ["..."], "severity": "low|medium|high|critical", "related_patterns": ["..."]}'
+
+        -- Try local Ollama
+        local ollama_host = (settings and settings.ai_endpoint) or "http://127.0.0.1:11434"
+        local ollama_model = (settings and settings.ai_model) or "llama3.2"
+        local http = require("resty.http")
+        local httpc = http.new()
+        httpc:set_timeout(60000)
+        local res, err = httpc:request_uri(ollama_host .. "/api/generate", {
+            method = "POST",
+            body = cjson.encode({
+                model = ollama_model,
+                prompt = prompt,
+                stream = false,
+                format = "json",
+            }),
+            headers = {
+                ["Content-Type"] = "application/json",
+            },
+        })
+        if res and res.status == 200 then
+            local ok2, result = pcall(cjson.decode, res.body)
+            if ok2 and result.response then
+                local ok3, ai_response = pcall(cjson.decode, result.response)
+                if ok3 then
+                    ngx.say(cjson.encode({ data = ai_response }))
+                else
+                    ngx.say(cjson.encode({
+                        data = {
+                            analysis = result.response,
+                            root_causes = {},
+                            recommendations = {},
+                            severity = "medium",
+                        }
+                    }))
+                end
+            else
+                ngx.say(cjson.encode({
+                    data = {
+                        analysis = "AI returned unexpected format.",
+                        severity = "low",
+                    }
+                }))
+            end
+        else
+            ngx.status = 503
+            ngx.say(cjson.encode({
+                data = {
+                    analysis = "Could not reach AI service at " .. ollama_host .. ". " .. (err or ""),
+                    root_causes = { "Ollama service not running or not reachable" },
+                    recommendations = {
+                        "Start Ollama: ollama serve",
+                        "Pull a model: ollama pull " .. ollama_model,
+                        "Check firewall settings for port 11434",
+                    },
+                    severity = "medium",
+                }
+            }))
+        end
+        ngx.exit(ngx.HTTP_OK)
+    end
+
+    if path == "ai/models" then
+        local ollama_host = (settings and settings.ai_endpoint) or "http://127.0.0.1:11434"
+        local http = require("resty.http")
+        local httpc = http.new()
+        httpc:set_timeout(5000)
+        local res, err = httpc:request_uri(ollama_host .. "/api/tags", {
+            method = "GET",
+        })
+        if res and res.status == 200 then
+            local ok, result = pcall(cjson.decode, res.body)
+            if ok and result.models then
+                local models = {}
+                for _, m in ipairs(result.models) do
+                    models[#models + 1] = m.name
+                end
+                ngx.say(cjson.encode({
+                    data = {
+                        models = models,
+                        default = (settings and settings.ai_model) or "llama3.2",
+                    }
+                }))
+            else
+                ngx.say(cjson.encode({ data = { models = {}, default = "" } }))
+            end
+        else
+            ngx.say(cjson.encode({ data = { models = {}, default = "" } }))
+        end
+        ngx.exit(ngx.HTTP_OK)
+    end
+
     -- SSL Certificate status endpoint
     if subPath[1] == "ssl" and subPath[2] == "status" and subPath[3] then
         local server_name = subPath[3]
