@@ -263,9 +263,10 @@ jobs:
   deploy-test:
     needs: [test-int]
     if: >
-      (github.event_name == 'push' && (github.ref == 'refs/heads/release' || github.ref == 'refs/heads/main')) ||
+      always() && !failure() && !cancelled() &&
+      ((github.event_name == 'push' && (github.ref == 'refs/heads/release' || github.ref == 'refs/heads/main')) ||
       (github.event_name == 'workflow_dispatch' &&
-      (github.event.inputs.TARGET_HOST == '192.168.1.140' || github.event.inputs.TARGET_HOST == 'all'))
+      (github.event.inputs.TARGET_HOST == '192.168.1.140' || github.event.inputs.TARGET_HOST == 'all')))
     uses: ./.github/workflows/deploy-environment.yml
     with:
       env_name: test
@@ -292,9 +293,10 @@ jobs:
   deploy-acc:
     needs: [deploy-test]
     if: >
-      (github.event_name == 'push' && (github.ref == 'refs/heads/release' || github.ref == 'refs/heads/main')) ||
+      always() && !failure() && !cancelled() &&
+      ((github.event_name == 'push' && (github.ref == 'refs/heads/release' || github.ref == 'refs/heads/main')) ||
       (github.event_name == 'workflow_dispatch' &&
-      (github.event.inputs.TARGET_HOST == '187.77.179.206' || github.event.inputs.TARGET_HOST == 'all'))
+      (github.event.inputs.TARGET_HOST == '187.77.179.206' || github.event.inputs.TARGET_HOST == 'all')))
     uses: ./.github/workflows/deploy-environment.yml
     with:
       env_name: acc
@@ -321,9 +323,10 @@ jobs:
   deploy-prod-pop0:
     needs: [deploy-acc]
     if: >
-      (github.event_name == 'push' && (github.ref == 'refs/heads/release' || github.ref == 'refs/heads/main')) ||
+      always() && !failure() && !cancelled() &&
+      ((github.event_name == 'push' && (github.ref == 'refs/heads/release' || github.ref == 'refs/heads/main')) ||
       (github.event_name == 'workflow_dispatch' &&
-      (github.event.inputs.TARGET_HOST == '187.124.112.155' || github.event.inputs.TARGET_HOST == 'all'))
+      (github.event.inputs.TARGET_HOST == '187.124.112.155' || github.event.inputs.TARGET_HOST == 'all')))
     uses: ./.github/workflows/deploy-environment.yml
     with:
       env_name: prod
@@ -350,9 +353,10 @@ jobs:
   deploy-prod-lon1:
     needs: [deploy-prod-pop0]
     if: >
-      (github.event_name == 'push' && (github.ref == 'refs/heads/release' || github.ref == 'refs/heads/main')) ||
+      always() && !failure() && !cancelled() &&
+      ((github.event_name == 'push' && (github.ref == 'refs/heads/release' || github.ref == 'refs/heads/main')) ||
       (github.event_name == 'workflow_dispatch' &&
-      (github.event.inputs.TARGET_HOST == '72.62.211.28' || github.event.inputs.TARGET_HOST == 'all'))
+      (github.event.inputs.TARGET_HOST == '72.62.211.28' || github.event.inputs.TARGET_HOST == 'all')))
     uses: ./.github/workflows/deploy-environment.yml
     with:
       env_name: prod
