@@ -285,7 +285,7 @@ export default function LogsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        icon={<ScrollText className="h-6 w-6" />}
+        icon={ScrollText}
         title="Logs & Troubleshooting"
         subtitle="Monitor ingress traffic, analyze errors, and troubleshoot issues with AI"
       />
