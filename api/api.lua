@@ -235,15 +235,22 @@ local function validateServerPayload(payloads)
     -- Validate Varnish snippets
     if payloads.varnish_snippets and type(payloads.varnish_snippets) == "table" then
         local valid_hooks = {
-            vcl_init = true, vcl_recv = true, vcl_hash = true, vcl_hit = true,
-            vcl_miss = true, vcl_backend_fetch = true, vcl_backend_response = true,
-            vcl_deliver = true, vcl_synth = true
+            vcl_init = true,
+            vcl_recv = true,
+            vcl_hash = true,
+            vcl_hit = true,
+            vcl_miss = true,
+            vcl_backend_fetch = true,
+            vcl_backend_response = true,
+            vcl_deliver = true,
+            vcl_synth = true
         }
         for i, snippet in ipairs(payloads.varnish_snippets) do
             if snippet.hook_point and not valid_hooks[snippet.hook_point] then
                 table.insert(errors, {
                     field = "varnish_snippets[" .. i .. "].hook_point",
-                    message = "Invalid VCL hook point. Valid: vcl_init, vcl_recv, vcl_hash, vcl_hit, vcl_miss, vcl_backend_fetch, vcl_backend_response, vcl_deliver, vcl_synth"
+                    message =
+                    "Invalid VCL hook point. Valid: vcl_init, vcl_recv, vcl_hash, vcl_hit, vcl_miss, vcl_backend_fetch, vcl_backend_response, vcl_deliver, vcl_synth"
                 })
             end
             if snippet.content ~= nil and type(snippet.content) ~= "string" then
@@ -430,7 +437,12 @@ local function validateWafRulePayload(payloads)
     else
         local valid_categories = { sqli = true, xss = true, cmdi = true, lfi = true, rfi = true, protocol = true, custom = true }
         if not valid_categories[payloads.category] then
-            table.insert(errors, { field = "category", message = "Invalid category. Must be one of: sqli, xss, cmdi, lfi, rfi, protocol, custom" })
+            table.insert(errors,
+                {
+                    field = "category",
+                    message =
+                    "Invalid category. Must be one of: sqli, xss, cmdi, lfi, rfi, protocol, custom"
+                })
         end
     end
 
@@ -448,7 +460,12 @@ local function validateWafRulePayload(payloads)
     else
         local valid_targets = { url = true, headers = true, body = true, args = true, cookies = true, user_agent = true, all = true }
         if not valid_targets[payloads.target] then
-            table.insert(errors, { field = "target", message = "Invalid target. Must be one of: url, headers, body, args, cookies, user_agent, all" })
+            table.insert(errors,
+                {
+                    field = "target",
+                    message =
+                    "Invalid target. Must be one of: url, headers, body, args, cookies, user_agent, all"
+                })
         end
     end
 
@@ -3521,18 +3538,25 @@ local function handle_get_request(args, path)
                     if args.status_code and args.status_code ~= "" then
                         local sc = tostring(entry.status or "")
                         local filter = args.status_code
-                        if filter == "2xx" then include = sc:sub(1,1) == "2"
-                        elseif filter == "3xx" then include = sc:sub(1,1) == "3"
-                        elseif filter == "4xx" then include = sc:sub(1,1) == "4"
-                        elseif filter == "5xx" then include = sc:sub(1,1) == "5"
-                        else include = sc == filter end
+                        if filter == "2xx" then
+                            include = sc:sub(1, 1) == "2"
+                        elseif filter == "3xx" then
+                            include = sc:sub(1, 1) == "3"
+                        elseif filter == "4xx" then
+                            include = sc:sub(1, 1) == "4"
+                        elseif filter == "5xx" then
+                            include = sc:sub(1, 1) == "5"
+                        else
+                            include = sc == filter
+                        end
                     end
                     if args.method and args.method ~= "" then
                         include = include and (entry.method == args.method)
                     end
                     if args.search and args.search ~= "" then
                         local q = args.search:lower()
-                        local haystack = (tostring(entry.uri or "") .. " " .. tostring(entry.remote_addr or "") .. " " .. tostring(entry.http_user_agent or "")):lower()
+                        local haystack = (tostring(entry.uri or "") .. " " .. tostring(entry.remote_addr or "") .. " " .. tostring(entry.http_user_agent or ""))
+                            :lower()
                         include = include and haystack:find(q, 1, true)
                     end
                     if include then
@@ -3557,11 +3581,17 @@ local function handle_get_request(args, path)
                         if args.status_code and args.status_code ~= "" then
                             local sc = tostring(entry2.status)
                             local filter = args.status_code
-                            if filter == "2xx" then include2 = sc:sub(1,1) == "2"
-                            elseif filter == "3xx" then include2 = sc:sub(1,1) == "3"
-                            elseif filter == "4xx" then include2 = sc:sub(1,1) == "4"
-                            elseif filter == "5xx" then include2 = sc:sub(1,1) == "5"
-                            else include2 = sc == filter end
+                            if filter == "2xx" then
+                                include2 = sc:sub(1, 1) == "2"
+                            elseif filter == "3xx" then
+                                include2 = sc:sub(1, 1) == "3"
+                            elseif filter == "4xx" then
+                                include2 = sc:sub(1, 1) == "4"
+                            elseif filter == "5xx" then
+                                include2 = sc:sub(1, 1) == "5"
+                            else
+                                include2 = sc == filter
+                            end
                         end
                         if include2 then
                             entries[#entries + 1] = entry2
@@ -3662,7 +3692,8 @@ local function handle_get_request(args, path)
             .. "Question: " .. question .. "\n\n"
             .. "Log entries:\n" .. logs_text .. "\n\n"
             .. "Respond in this JSON format:\n"
-            .. '{"analysis": "...", "root_causes": ["..."], "recommendations": ["..."], "severity": "low|medium|high|critical", "related_patterns": ["..."]}'
+            ..
+            '{"analysis": "...", "root_causes": ["..."], "recommendations": ["..."], "severity": "low|medium|high|critical", "related_patterns": ["..."]}'
 
         -- Try local Ollama
         local ollama_host = (settings and settings.ai_endpoint) or "http://127.0.0.1:11434"
@@ -3766,7 +3797,7 @@ local function handle_get_request(args, path)
                     certificate_exists = ssl_status.certificate_exists,
                     certificate_expiry = ssl_status.certificate_expiry,
                     message = ssl_status.ssl_enabled and "SSL is enabled for this domain" or
-                    "SSL is not enabled for this domain"
+                        "SSL is not enabled for this domain"
                 }
             }))
         else
@@ -3810,7 +3841,7 @@ local function handle_get_request(args, path)
                 cache_enabled = cache_enabled,
                 cache_ttl = cache_config and cache_config.cache_ttl or 3600,
                 message = cache_enabled and "Caching is enabled for this domain" or
-                "Caching is not enabled for this domain"
+                    "Caching is not enabled for this domain"
             }
         }))
         ngx.exit(ngx.HTTP_OK)
@@ -3979,7 +4010,7 @@ local function handle_get_request(args, path)
         local function get_ip_addresses()
             local ips = {}
             local ip_cmd = execute_command(
-            "hostname -I 2>/dev/null || ip addr show 2>/dev/null | grep 'inet ' | awk '{print $2}' | cut -d/ -f1")
+                "hostname -I 2>/dev/null || ip addr show 2>/dev/null | grep 'inet ' | awk '{print $2}' | cut -d/ -f1")
             if ip_cmd then
                 for ip in ip_cmd:gmatch("%S+") do
                     table.insert(ips, ip)
@@ -4017,10 +4048,12 @@ local function handle_get_request(args, path)
         local kernel = execute_command("uname -r 2>/dev/null"):gsub("%s+", "")
         local uptime = execute_command("uptime -p 2>/dev/null || uptime"):gsub("%s+$", "")
         local cpu_info = execute_command("lscpu 2>/dev/null | grep 'Model name' | cut -d':' -f2"):gsub("^%s+", ""):gsub(
-        "%s+$", "")
+            "%s+$", "")
         local cpu_cores = execute_command("nproc 2>/dev/null"):gsub("%s+", "")
         -- CPU usage: /proc/stat is most reliable across all Linux (GNU, BusyBox, SUSE, Debian)
-        local cpu_usage = execute_command("cat /proc/stat 2>/dev/null | head -1 | awk '{total=0; for(i=2;i<=NF;i++) total+=$i; idle=$5; if(total>0) printf \"%.1f\", 100*(total-idle)/total; else print \"0\"}'"):gsub("%s+", "")
+        local cpu_usage = execute_command(
+                "cat /proc/stat 2>/dev/null | head -1 | awk '{total=0; for(i=2;i<=NF;i++) total+=$i; idle=$5; if(total>0) printf \"%.1f\", 100*(total-idle)/total; else print \"0\"}'")
+            :gsub("%s+", "")
 
         -- Memory information (total, used, available, free)
         local memory_total = execute_command("free -h 2>/dev/null | grep Mem | awk '{print $2}'"):gsub("%s+", "")
@@ -4447,12 +4480,14 @@ local function handle_get_request(args, path)
     -- GET /api/change-requests/config - Get CR config (whether passphrase is set, etc.)
     if path == "change-requests/config" then
         local config = CRManager.get_cr_config()
-        ngx.say(cjson.encode({ data = {
-            has_passphrase = (config.approval_passphrase ~= nil and config.approval_passphrase ~= ""),
-            required_approvals = config.required_approvals or 2,
-            passphrase_set_by = config.passphrase_set_by,
-            passphrase_set_at = config.passphrase_set_at,
-        }}))
+        ngx.say(cjson.encode({
+            data = {
+                has_passphrase = (config.approval_passphrase ~= nil and config.approval_passphrase ~= ""),
+                required_approvals = config.required_approvals or 2,
+                passphrase_set_by = config.passphrase_set_by,
+                passphrase_set_at = config.passphrase_set_at,
+            }
+        }))
         ngx.exit(ngx.HTTP_OK)
     end
 
@@ -4755,7 +4790,7 @@ local function handle_post_request(args, path)
                 Errors.throwError("Server name is required", ngx.HTTP_BAD_REQUEST)
             end
             local payloads = Helper.GetPayloads(args) or {}
-            local dry_run = payloads.dry_run ~= false  -- default to dry_run=true
+            local dry_run = payloads.dry_run ~= false -- default to dry_run=true
 
             local VarnishVcl = require("varnish_vcl")
             local config = VarnishManager.get_varnish_config(server_name)

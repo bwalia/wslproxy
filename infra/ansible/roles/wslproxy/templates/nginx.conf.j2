@@ -234,6 +234,18 @@ http {
     -- Track retry state
     ngx.ctx._balancer_retry_count = retry_count + 1
     ngx.ctx._balancer_failed_addr = host .. ":" .. port
+
+    -- Per-server proxy timeouts (set by gateway_resp.lua via ngx.ctx)
+    local pt = ngx.ctx.proxy_timeouts
+    if pt and balancer.set_timeouts then
+        local ct = pt.connect_timeout or 60
+        local st = pt.send_timeout or 60
+        local rt = pt.read_timeout or 60
+        local tok, terr = pcall(balancer.set_timeouts, ct, st, rt)
+        if not tok then
+            ngx.log(ngx.ERR, "balancer.set_timeouts failed: ", terr)
+        end
+    end
     }
 
     keepalive 10; # connection pool

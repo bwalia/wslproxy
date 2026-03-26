@@ -521,6 +521,39 @@ const Form = ({ type }) => {
             </Grid>
           </SectionCard>
 
+          {/* Proxy Timeouts */}
+          <SectionCard
+            title="Proxy Timeouts"
+            subtitle="Configure upstream proxy timeouts (in seconds). Leave empty to use nginx defaults (60s)."
+          >
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6} md={4}>
+                <TextInput
+                  source="proxy_timeouts.connect_timeout"
+                  label="Connect Timeout (s)"
+                  fullWidth
+                  helperText="Time to establish connection with backend"
+                />
+              </Grid>
+              <Grid item xs={12} sm={6} md={4}>
+                <TextInput
+                  source="proxy_timeouts.send_timeout"
+                  label="Send Timeout (s)"
+                  fullWidth
+                  helperText="Time to transmit request to backend"
+                />
+              </Grid>
+              <Grid item xs={12} sm={6} md={4}>
+                <TextInput
+                  source="proxy_timeouts.read_timeout"
+                  label="Read Timeout (s)"
+                  fullWidth
+                  helperText="Time to wait for backend response"
+                />
+              </Grid>
+            </Grid>
+          </SectionCard>
+
           {/* Upstream Backend Request Headers */}
           <SectionCard
             title="Upstream Backend Request Headers"
