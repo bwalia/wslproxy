@@ -168,8 +168,8 @@ http {
         listen       8080;
         server_name  127.0.0.1 localhost;
 
-        limit_req zone=req_zone burst=10 nodelay;
-        limit_req zone=req_zone_wl burst=20 nodelay;
+        limit_req zone=req_zone burst=90 nodelay;
+        limit_req zone=req_zone_wl burst=200 nodelay;
 
         include /tmp/resolver.conf;     # For kubernetes use 10.43.0.10 and nginx ingress controller
 
@@ -191,6 +191,8 @@ http {
         }
         client_max_body_size    256M;
         client_body_buffer_size 128k;
+        proxy_buffering off;
+        proxy_request_buffering off;
 
         location ~ ^/api(.*)$ {
             default_type 'text/plain';
@@ -1005,8 +1007,8 @@ server {
         ssl_certificate /etc/ssl/resty-auto-ssl-fallback.crt;
         ssl_certificate_key /etc/ssl/resty-auto-ssl-fallback.key;
 
-        limit_req zone=req_zone burst=10 nodelay;
-        limit_req zone=req_zone_wl burst=20 nodelay;
+        limit_req zone=req_zone burst=90 nodelay;
+        limit_req zone=req_zone_wl burst=200 nodelay;
 
         access_log /var/log/nginx/access.log main;
         error_log  /var/log/nginx/error.log;
@@ -1142,8 +1144,8 @@ server {
         listen       80 default_server;
         server_name _;
 
-        limit_req zone=req_zone burst=10 nodelay;
-        limit_req zone=req_zone_wl burst=20 nodelay;
+        limit_req zone=req_zone burst=90 nodelay;
+        limit_req zone=req_zone_wl burst=200 nodelay;
 
         # resolver 127.0.0.1 local=on;
         include /tmp/resolver.conf;         #   For kubernetes use 10.43.0.10 and nginx ingress controller

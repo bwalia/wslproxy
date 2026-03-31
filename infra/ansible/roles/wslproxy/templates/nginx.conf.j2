@@ -677,8 +677,8 @@ server {
 
         more_set_headers 'Strict-Transport-Security: max-age=31536000; includeSubDomains';
 
-        limit_req zone=req_zone burst=10 nodelay;
-        limit_req zone=req_zone_wl burst=20 nodelay;
+        limit_req zone=req_zone burst=90 nodelay;
+        limit_req zone=req_zone_wl burst=200 nodelay;
 
         # Allow any size file to be uploaded (needed for Docker registry, large file uploads, etc.)
         client_max_body_size 0;
@@ -862,8 +862,8 @@ server {
         access_log on;
         error_log on;
 
-        limit_req zone=req_zone burst=10 nodelay;
-        limit_req zone=req_zone_wl burst=20 nodelay;
+        limit_req zone=req_zone burst=90 nodelay;
+        limit_req zone=req_zone_wl burst=200 nodelay;
 
         # resolver 127.0.0.1 local=on;
         # include /tmp/resolver.conf;         #   For docker / kubernetes use 10.43.0.10 and nginx ingress controller (not for native installation)
