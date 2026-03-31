@@ -168,6 +168,8 @@ server
             proxy_set_header Connection $connection_upgrade;
         client_max_body_size  2G;
         client_body_buffer_size 0;
+        proxy_send_timeout 600s;
+        proxy_read_timeout 600s;
                       }
 }
 

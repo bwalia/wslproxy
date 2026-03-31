@@ -191,6 +191,8 @@ http {
         }
         client_max_body_size    256M;
         client_body_buffer_size 0;
+        proxy_send_timeout 600s;
+        proxy_read_timeout 600s;
         proxy_buffering off;
         proxy_request_buffering off;
 
@@ -798,6 +800,8 @@ http {
 
         client_max_body_size  0;
         client_body_buffer_size 0;
+        proxy_send_timeout 600s;
+        proxy_read_timeout 600s;
 
         # Health and ping — served by OpenResty Lua
         location /health {
@@ -982,6 +986,8 @@ server {
     # Increase the body buffer size, to ensure the internal POSTs can always
     # parse the full POST contents into memory.
     client_body_buffer_size 0;
+    proxy_send_timeout 600s;
+    proxy_read_timeout 600s;
     client_max_body_size 128k;
 
     location / {
