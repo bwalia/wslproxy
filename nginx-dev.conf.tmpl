@@ -190,7 +190,7 @@ http {
             proxy_set_header X-Forwarded-Proto $scheme;
         }
         client_max_body_size    256M;
-        client_body_buffer_size 0;
+        client_body_buffer_size 128k;
         proxy_buffering off;
         proxy_request_buffering off;
 
@@ -797,7 +797,7 @@ http {
         include /tmp/resolver.conf;
 
         client_max_body_size  0;
-        client_body_buffer_size 0;
+        client_body_buffer_size 128k;
 
         # Health and ping — served by OpenResty Lua
         location /health {
@@ -993,7 +993,7 @@ server {
 
     # Increase the body buffer size, to ensure the internal POSTs can always
     # parse the full POST contents into memory.
-    client_body_buffer_size 0;
+    client_body_buffer_size 128k;
     client_max_body_size 128k;
 
     location / {
