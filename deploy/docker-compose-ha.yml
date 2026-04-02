@@ -1,0 +1,182 @@
+version: '3.8'
+
+services:
+  etcd:
+    image: quay.io/coreos/etcd:v3.5.17
+    container_name: wslproxy-etcd
+    command:
+      - etcd
+      - --name=etcd0
+      - --advertise-client-urls=http://etcd:2379
+      - --listen-client-urls=http://0.0.0.0:2379
+      - --listen-peer-urls=http://0.0.0.0:2380
+      - --data-dir=/etcd-data
+    ports:
+      - "2379:2379"
+    volumes:
+      - etcd-data:/etcd-data
+    networks:
+      ha-network:
+        ipv4_address: 172.178.0.10
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    container_name: wslproxy-redis
+    ports:
+      - "6479:6379"
+    networks:
+      ha-network:
+        ipv4_address: 172.178.0.11
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
+  wslproxy-1:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: wslproxy-ha-1
+    volumes:
+      - ../api:/usr/local/openresty/nginx/html/api
+      - ../html:/usr/local/openresty/nginx/html
+      - wslproxy1-data:/opt/nginx/data
+      - ../nginx-dev.conf.tmpl:/usr/local/openresty/nginx/conf/nginx.conf
+    environment:
+      NGINX_CONFIG_DIR: /opt/nginx/
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      ha-network:
+        ipv4_address: 172.178.0.20
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  wslproxy-2:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: wslproxy-ha-2
+    volumes:
+      - ../api:/usr/local/openresty/nginx/html/api
+      - ../html:/usr/local/openresty/nginx/html
+      - wslproxy2-data:/opt/nginx/data
+      - ../nginx-dev.conf.tmpl:/usr/local/openresty/nginx/conf/nginx.conf
+    environment:
+      NGINX_CONFIG_DIR: /opt/nginx/
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      ha-network:
+        ipv4_address: 172.178.0.30
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  agent-1:
+    build:
+      context: ../wslproxy-agent
+      dockerfile: Dockerfile
+    container_name: wslproxy-agent-1
+    depends_on:
+      etcd:
+        condition: service_healthy
+      wslproxy-1:
+        condition: service_healthy
+    environment:
+      NODE_ID: wslproxy-1
+      REGION: default
+      CLUSTER_NAME: wslproxy-ha
+      ETCD_ENDPOINTS: http://etcd:2379
+      WSLPROXY_URL: http://wslproxy-1:8080
+      CONFIG_DIR: /opt/nginx/data
+    volumes:
+      - wslproxy1-data:/opt/nginx/data
+    networks:
+      ha-network:
+        ipv4_address: 172.178.0.21
+    healthcheck:
+      test: ["CMD", "/wslctl", "--agent-url", "http://localhost:9090", "cluster", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  agent-2:
+    build:
+      context: ../wslproxy-agent
+      dockerfile: Dockerfile
+    container_name: wslproxy-agent-2
+    depends_on:
+      etcd:
+        condition: service_healthy
+      wslproxy-2:
+        condition: service_healthy
+    environment:
+      NODE_ID: wslproxy-2
+      REGION: default
+      CLUSTER_NAME: wslproxy-ha
+      ETCD_ENDPOINTS: http://etcd:2379
+      WSLPROXY_URL: http://wslproxy-2:8080
+      CONFIG_DIR: /opt/nginx/data
+    volumes:
+      - wslproxy2-data:/opt/nginx/data
+    networks:
+      ha-network:
+        ipv4_address: 172.178.0.31
+    healthcheck:
+      test: ["CMD", "/wslctl", "--agent-url", "http://localhost:9090", "cluster", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  haproxy:
+    image: haproxy:2.9-alpine
+    container_name: wslproxy-haproxy
+    depends_on:
+      - wslproxy-1
+      - wslproxy-2
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+      - "8404:8404"
+    volumes:
+      - ./haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    networks:
+      ha-network:
+        ipv4_address: 172.178.0.5
+
+networks:
+  ha-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.178.0.0/16
+          gateway: 172.178.0.1
+
+volumes:
+  etcd-data:
+  wslproxy1-data:
+  wslproxy2-data:
