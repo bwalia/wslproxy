@@ -487,6 +487,29 @@ const Form = ({ type }) => {
                           )
                         }
                       </FormDataConsumer>
+                      <Grid item xs={12} sm={6} md={3}>
+                        <BooleanInput
+                          source="cache_docker_serve_stale"
+                          label="Serve Stale Images"
+                          defaultValue={false}
+                          helperText="Serve cached images when registry is unreachable"
+                        />
+                      </Grid>
+                      <FormDataConsumer>
+                        {({ formData: innerFormData }) =>
+                          innerFormData?.cache_docker_serve_stale && (
+                            <Grid item xs={12} sm={6} md={3}>
+                              <TextInput
+                                source="cache_docker_stale_ttl"
+                                label="Stale Cache TTL (seconds)"
+                                fullWidth
+                                defaultValue="31536000"
+                                helperText="365 days default (keep stale blobs for a long time)"
+                              />
+                            </Grid>
+                          )
+                        }
+                      </FormDataConsumer>
                       <Grid item xs={12}>
                         <Alert severity="info" className="form-alert">
                           <strong>Docker blob caching</strong> stores image layers
@@ -496,8 +519,11 @@ const Form = ({ type }) => {
                           <code>/v2/*/blobs/*</code> and <code>/v2/*/manifests/*</code> paths
                           are cached &mdash; push operations are never cached.
                           <br />
-                          <strong>Supported MIME types:</strong> application/octet-stream,
-                          Docker layer diffs, OCI layers, manifests, and image configs.
+                          <strong>Serve Stale:</strong> When enabled, cached images
+                          are served even when the upstream registry is down, returns
+                          errors (500/502/503/504), or the cache has expired. The stale
+                          TTL controls how long expired cached content is kept on disk
+                          for fallback serving.
                         </Alert>
                       </Grid>
                     </>

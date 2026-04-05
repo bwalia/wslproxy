@@ -25,6 +25,8 @@ local DEFAULT_CACHE_CONFIG = {
     cache_docker_blobs_ttl = 2592000,  -- 30 days (blobs are immutable, content-addressed)
     cache_docker_manifests = false,  -- Cache manifests (mutable by tag, use shorter TTL)
     cache_docker_manifests_ttl = 3600,  -- 1 hour for manifests
+    cache_docker_serve_stale = false,  -- Serve stale cached images when registry is down
+    cache_docker_stale_ttl = 31536000,  -- 365 days (keep stale blobs for a very long time)
     -- File types to cache (MIME types and extensions)
     cached_extensions = {
         -- JavaScript

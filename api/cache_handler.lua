@@ -213,12 +213,21 @@ function _M.check_docker_blob_cache(server_name, config)
     local ok, CacheManager = pcall(require, "cache_manager")
     if not ok then return false end
 
+    local serve_stale = config.cache_docker_serve_stale
+    local stale_ttl = config.cache_docker_stale_ttl or 31536000
+
     -- Check if this is a Docker blob request
     if CacheManager.is_docker_blob_uri(uri) and config.cache_docker_blobs then
         ngx.var.docker_cache_zone = "docker_blobs_cache"
         ngx.ctx.docker_blob_cache = true
         ngx.ctx.docker_blob_type = "blob"
-        ngx.log(ngx.INFO, "Cache Handler: Docker blob cache ENABLED for: ", uri)
+        ngx.ctx.docker_serve_stale = serve_stale
+        ngx.ctx.docker_stale_ttl = stale_ttl
+        if serve_stale then
+            ngx.var.docker_cache_stale = "1"
+        end
+        ngx.log(ngx.INFO, "Cache Handler: Docker blob cache ENABLED for: ", uri,
+            serve_stale and " (serve-stale: " .. stale_ttl .. "s)" or "")
         return true
     end
 
@@ -227,7 +236,13 @@ function _M.check_docker_blob_cache(server_name, config)
         ngx.var.docker_cache_zone = "docker_blobs_cache"
         ngx.ctx.docker_blob_cache = true
         ngx.ctx.docker_blob_type = "manifest"
-        ngx.log(ngx.INFO, "Cache Handler: Docker manifest cache ENABLED for: ", uri)
+        ngx.ctx.docker_serve_stale = serve_stale
+        ngx.ctx.docker_stale_ttl = stale_ttl
+        if serve_stale then
+            ngx.var.docker_cache_stale = "1"
+        end
+        ngx.log(ngx.INFO, "Cache Handler: Docker manifest cache ENABLED for: ", uri,
+            serve_stale and " (serve-stale: " .. stale_ttl .. "s)" or "")
         return true
     end
 
@@ -385,6 +400,13 @@ function _M.process_response_headers()
         local blob_type = ngx.ctx.docker_blob_type or "blob"
         ngx.header["X-WSL-Docker-Cache-Type"] = blob_type
         ngx.header["X-WSL-Docker-Cache-Server"] = ngx.ctx.cache_server_name or ngx.var.host
+        ngx.header["X-WSL-Docker-Serve-Stale"] = ngx.ctx.docker_serve_stale and "on" or "off"
+        -- When serve-stale is enabled, set X-Accel-Expires to keep items in cache
+        -- for the stale TTL period so they can be served when the registry is down
+        if ngx.ctx.docker_serve_stale and ngx.status == 200 then
+            local stale_ttl = ngx.ctx.docker_stale_ttl or 31536000
+            ngx.header["X-Accel-Expires"] = tostring(stale_ttl)
+        end
         return  -- proxy_cache handles caching, skip Lua shared dict logic
     end
 

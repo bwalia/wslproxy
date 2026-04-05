@@ -4255,6 +4255,8 @@ local function handle_get_request(args, path)
                         blob_ttl = cfg.cache_docker_blobs_ttl or 2592000,
                         manifest_caching = cfg.cache_docker_manifests or false,
                         manifest_ttl = cfg.cache_docker_manifests_ttl or 3600,
+                        serve_stale = cfg.cache_docker_serve_stale or false,
+                        stale_ttl = cfg.cache_docker_stale_ttl or 31536000,
                     })
                 end
             end
@@ -4717,6 +4719,8 @@ local function handle_post_request(args, path)
             if payloads.cache_docker_blobs_ttl then options.cache_docker_blobs_ttl = tonumber(payloads.cache_docker_blobs_ttl) end
             if payloads.cache_docker_manifests ~= nil then options.cache_docker_manifests = payloads.cache_docker_manifests end
             if payloads.cache_docker_manifests_ttl then options.cache_docker_manifests_ttl = tonumber(payloads.cache_docker_manifests_ttl) end
+            if payloads.cache_docker_serve_stale ~= nil then options.cache_docker_serve_stale = payloads.cache_docker_serve_stale end
+            if payloads.cache_docker_stale_ttl then options.cache_docker_stale_ttl = tonumber(payloads.cache_docker_stale_ttl) end
 
             local success, err = CacheManager.enable_cache(server_name, options)
             if success then

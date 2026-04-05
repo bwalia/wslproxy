@@ -2695,6 +2695,10 @@ const Dashboard = () => {
                                     ? Math.floor(server.manifest_ttl / 3600) + "h"
                                     : server.manifest_ttl + "s"}</>
                                 )}
+                                {server.serve_stale && (
+                                  <> | Stale TTL:{" "}
+                                  {Math.floor(server.stale_ttl / 86400)}d</>
+                                )}
                               </Typography>
                             </Box>
                             <Box sx={{ display: "flex", gap: 1 }}>
@@ -2724,6 +2728,21 @@ const Dashboard = () => {
                                   }}
                                 >
                                   MANIFESTS
+                                </Box>
+                              )}
+                              {server.serve_stale && (
+                                <Box
+                                  sx={{
+                                    px: 1.5,
+                                    py: 0.5,
+                                    borderRadius: 1,
+                                    backgroundColor: alpha("#f59e0b", 0.1),
+                                    color: "#f59e0b",
+                                    fontSize: "0.75rem",
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  SERVE STALE
                                 </Box>
                               )}
                             </Box>
