@@ -1335,6 +1335,34 @@ local function createUpdateServer(body, uuid)
         end
     end
 
+    -- Handle Docker blob caching configuration
+    if payloads.cache_docker_blobs ~= nil then
+        local existing_config = CacheManager.get_cache_config(payloads.server_name) or {}
+        existing_config.cache_docker_blobs = payloads.cache_docker_blobs
+        if payloads.cache_docker_blobs_ttl then
+            existing_config.cache_docker_blobs_ttl = tonumber(payloads.cache_docker_blobs_ttl)
+        end
+        if payloads.cache_docker_manifests ~= nil then
+            existing_config.cache_docker_manifests = payloads.cache_docker_manifests
+        end
+        if payloads.cache_docker_manifests_ttl then
+            existing_config.cache_docker_manifests_ttl = tonumber(payloads.cache_docker_manifests_ttl)
+        end
+        if payloads.cache_docker_serve_stale ~= nil then
+            existing_config.cache_docker_serve_stale = payloads.cache_docker_serve_stale
+        end
+        if payloads.cache_docker_stale_ttl then
+            existing_config.cache_docker_stale_ttl = tonumber(payloads.cache_docker_stale_ttl)
+        end
+        local cache_ok, cache_err = CacheManager.save_cache_config(payloads.server_name, existing_config)
+        if not cache_ok then
+            ngx.log(ngx.ERR, "Failed to save Docker cache config for ", payloads.server_name, ": ", cache_err)
+        else
+            ngx.log(ngx.INFO, "Docker blob cache ", payloads.cache_docker_blobs and "enabled" or "disabled",
+                " for domain: ", payloads.server_name)
+        end
+    end
+
     -- Handle Varnish configuration if varnish_enabled is set
     if payloads.varnish_enabled ~= nil then
         if payloads.varnish_enabled then
