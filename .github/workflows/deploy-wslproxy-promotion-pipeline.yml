@@ -81,19 +81,13 @@ jobs:
 
       - name: Slack notify - Validation failed
         if: failure()
-        uses: rtCamp/action-slack-notify@v2
-        env:
-          SLACK_CHANNEL: github-updates
-          SLACK_COLOR: danger
-          SLACK_ICON: https://github.com/rtCamp.png?size=48
-          SLACK_MESSAGE: |
-            :x: *Promotion Pipeline: Validation FAILED*
-            Config validation errors on main — promotion stopped.
-            *Triggered by:* ${{ github.actor }}
-            *Logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          SLACK_TITLE: "Promotion Pipeline Failed — Validation"
-          SLACK_USERNAME: GitHub Actions
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+        continue-on-error: true
+        shell: bash
+        run: |
+          curl -sf -X POST "${{ secrets.SLACK_WEBHOOK }}" \
+            -H 'Content-Type: application/json' \
+            -d "$(jq -n --arg text ":x: *Promotion Pipeline: Validation FAILED*\nConfig validation errors on main — promotion stopped.\n*Triggered by:* ${{ github.actor }}\n*Logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+              '{channel: "github-updates", username: "GitHub Actions", text: $text}')"
 
   # ──────────────────────────────────────────────────────
   # Stage 2: Deploy to Int (always runs)
@@ -172,19 +166,13 @@ jobs:
 
       - name: Slack notify - Smoke test failed
         if: failure()
-        uses: rtCamp/action-slack-notify@v2
-        env:
-          SLACK_CHANNEL: github-updates
-          SLACK_COLOR: danger
-          SLACK_ICON: https://github.com/rtCamp.png?size=48
-          SLACK_MESSAGE: |
-            :x: *Promotion Pipeline: Smoke Test FAILED on Int*
-            Promotion stopped before test environment.
-            *Triggered by:* ${{ github.actor }}
-            *Logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          SLACK_TITLE: "Promotion Pipeline Failed — Smoke Test"
-          SLACK_USERNAME: GitHub Actions
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+        continue-on-error: true
+        shell: bash
+        run: |
+          curl -sf -X POST "${{ secrets.SLACK_WEBHOOK }}" \
+            -H 'Content-Type: application/json' \
+            -d "$(jq -n --arg text ":x: *Promotion Pipeline: Smoke Test FAILED on Int*\nPromotion stopped before test environment.\n*Triggered by:* ${{ github.actor }}\n*Logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+              '{channel: "github-updates", username: "GitHub Actions", text: $text}')"
 
   # ──────────────────────────────────────────────────────
   # Stage 4: Deploy to Test (if target is test or acc)
