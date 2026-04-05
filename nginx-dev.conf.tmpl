@@ -85,6 +85,12 @@ http {
     # Static content cache (WSL Proxy caching system)
     lua_shared_dict wsl_cache 100m;
     lua_shared_dict wsl_cache_keys 10m;
+
+    # Docker blob disk cache (content-addressable, immutable layers)
+    proxy_cache_path /var/cache/nginx/docker_blobs levels=1:2
+                     keys_zone=docker_blobs_cache:20m
+                     max_size=10g inactive=30d
+                     use_temp_path=off;
     lua_shared_dict healthcheck 1m;
 
     # Traffic stats for dashboard (stores hourly request/response counts)
@@ -1039,6 +1045,9 @@ server {
           set $proxy_route_server "openresty-default-route-443";
           set $upstream_server "global_backend";
 
+          # Docker blob cache zone variable (set by Lua when Docker blob caching is enabled)
+          set $docker_cache_zone "";
+
           location / {
             default_type text/plain;
             set_by_lua_block $frontdoor_global_vars {
@@ -1048,7 +1057,7 @@ server {
                 proxyServerName = proxyServerName
               })
             }
-            
+
             rewrite_by_lua_file /usr/local/openresty/nginx/html/api/gateway_ack.lua;
             access_by_lua_file /usr/local/openresty/nginx/html/api/gateway_resp.lua;    # this code run just before the setting the proxy pass and content phase.
 
@@ -1070,6 +1079,16 @@ server {
 
           # echo $proxy_host:$proxy_port;
           # echo $upstream_server;
+
+          # Docker blob disk cache (controlled by Lua via $docker_cache_zone)
+          proxy_cache $docker_cache_zone;
+          proxy_cache_key $scheme$host$request_uri;
+          proxy_cache_valid 200 30d;
+          proxy_cache_valid 206 30d;
+          proxy_cache_use_stale error timeout updating http_500 http_502 http_503 http_504;
+          proxy_cache_lock on;
+          proxy_cache_lock_timeout 300s;
+          add_header X-WSL-Docker-Cache $upstream_cache_status;
 
           # WebSocket support
           proxy_http_version 1.1;

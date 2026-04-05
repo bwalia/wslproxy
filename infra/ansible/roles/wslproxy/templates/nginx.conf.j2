@@ -92,6 +92,12 @@ http {
     lua_shared_dict wsl_cache 100m;
     lua_shared_dict wsl_cache_keys 10m;
 
+    # Docker blob disk cache (content-addressable, immutable layers)
+    proxy_cache_path /var/cache/nginx/docker_blobs levels=1:2
+                     keys_zone=docker_blobs_cache:20m
+                     max_size=10g inactive=30d
+                     use_temp_path=off;
+
     # Prometheus metrics storage (increased from 50M to handle high-cardinality metrics)
     lua_shared_dict prometheus_metrics 150M;
     lua_shared_dict healthcheck 1m;
@@ -709,6 +715,9 @@ server {
           set $proxy_route_server "openresty-default-route-443";
           set $upstream_server "global_backend";
 
+          # Docker blob cache zone variable (set by Lua when Docker blob caching is enabled)
+          set $docker_cache_zone "";
+
           # Geo country code variable for logging
           set $geo_country "-";
           set_by_lua_block $geo_country {
@@ -774,6 +783,16 @@ server {
 
           # echo $proxy_host:$proxy_port;
           # echo $upstream_server;
+
+          # Docker blob disk cache (controlled by Lua via $docker_cache_zone)
+          proxy_cache $docker_cache_zone;
+          proxy_cache_key $scheme$host$request_uri;
+          proxy_cache_valid 200 30d;
+          proxy_cache_valid 206 30d;
+          proxy_cache_use_stale error timeout updating http_500 http_502 http_503 http_504;
+          proxy_cache_lock on;
+          proxy_cache_lock_timeout 300s;
+          add_header X-WSL-Docker-Cache $upstream_cache_status;
 
           proxy_ssl_protocols           TLSv1 TLSv1.1 TLSv1.2;
           proxy_ssl_ciphers             HIGH:!aNULL:!MD5;
@@ -889,6 +908,9 @@ server {
           set $proxy_route_server "openresty-default-route-80";
           set $upstream_server "global_backend";
 
+          # Docker blob cache zone variable (set by Lua when Docker blob caching is enabled)
+          set $docker_cache_zone "";
+
           # Geo country code variable for logging
           set $geo_country "-";
           set_by_lua_block $geo_country {
@@ -956,6 +978,16 @@ server {
               end
             end
           }
+
+          # Docker blob disk cache (controlled by Lua via $docker_cache_zone)
+          proxy_cache $docker_cache_zone;
+          proxy_cache_key $scheme$host$request_uri;
+          proxy_cache_valid 200 30d;
+          proxy_cache_valid 206 30d;
+          proxy_cache_use_stale error timeout updating http_500 http_502 http_503 http_504;
+          proxy_cache_lock on;
+          proxy_cache_lock_timeout 300s;
+          add_header X-WSL-Docker-Cache $upstream_cache_status;
 
           proxy_connect_timeout 300;
           # WebSocket support

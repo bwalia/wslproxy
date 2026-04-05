@@ -48,6 +48,13 @@ local function check_and_serve_from_cache()
     if not ok2 then return false end
     local server_name = hostname:gsub("^www%.", "")
     local cache_config = CacheManager.get_cache_config(server_name)
+
+    -- Check Docker blob/manifest caching (disk-based via nginx proxy_cache)
+    if cache_config then
+        CacheHandler.check_docker_blob_cache(server_name, cache_config)
+    end
+
+    -- Check Lua shared dict cache for static content
     if cache_config and cache_config.cache_enabled then
         local served = CacheHandler.check_cache(server_name, cache_config)
         if served then

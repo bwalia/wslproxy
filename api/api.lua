@@ -4667,6 +4667,11 @@ local function handle_post_request(args, path)
             if payloads.cache_ttl then options.cache_ttl = tonumber(payloads.cache_ttl) end
             if payloads.cached_extensions then options.cached_extensions = payloads.cached_extensions end
             if payloads.cached_mime_types then options.cached_mime_types = payloads.cached_mime_types end
+            -- Docker blob caching options
+            if payloads.cache_docker_blobs ~= nil then options.cache_docker_blobs = payloads.cache_docker_blobs end
+            if payloads.cache_docker_blobs_ttl then options.cache_docker_blobs_ttl = tonumber(payloads.cache_docker_blobs_ttl) end
+            if payloads.cache_docker_manifests ~= nil then options.cache_docker_manifests = payloads.cache_docker_manifests end
+            if payloads.cache_docker_manifests_ttl then options.cache_docker_manifests_ttl = tonumber(payloads.cache_docker_manifests_ttl) end
 
             local success, err = CacheManager.enable_cache(server_name, options)
             if success then

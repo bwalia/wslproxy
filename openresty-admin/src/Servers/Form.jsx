@@ -407,6 +407,14 @@ const Form = ({ type }) => {
                             { id: "audio/mpeg", name: "MP3 (audio/mpeg)" },
                             { id: "video/mp4", name: "MP4 (video/mp4)" },
                             { id: "video/webm", name: "WebM (video/webm)" },
+                            { id: "application/octet-stream", name: "Binary (application/octet-stream)" },
+                            { id: "application/vnd.docker.image.rootfs.diff.tar.gzip", name: "Docker Layer (rootfs diff)" },
+                            { id: "application/vnd.oci.image.layer.v1.tar+gzip", name: "OCI Layer (tar+gzip)" },
+                            { id: "application/vnd.docker.distribution.manifest.v2+json", name: "Docker Manifest v2" },
+                            { id: "application/vnd.oci.image.manifest.v1+json", name: "OCI Manifest v1" },
+                            { id: "application/vnd.docker.distribution.manifest.list.v2+json", name: "Docker Manifest List" },
+                            { id: "application/vnd.oci.image.index.v1+json", name: "OCI Image Index" },
+                            { id: "application/vnd.docker.container.image.v1+json", name: "Docker Image Config" },
                           ]}
                         />
                       </Grid>
@@ -420,6 +428,76 @@ const Form = ({ type }) => {
                           <br />
                           <strong>Note:</strong> If you specify custom MIME types above,
                           only those types will be cached (defaults will not apply).
+                        </Alert>
+                      </Grid>
+                    </>
+                  )
+                }
+              </FormDataConsumer>
+            </Grid>
+          </SectionCard>
+
+          {/* Docker / OCI Registry Blob Caching */}
+          <SectionCard
+            title="Docker Registry Blob Caching"
+            subtitle="Cache Docker/OCI image blobs and manifests on disk for faster pulls (requires a container registry backend e.g. NebulaCR)"
+          >
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6} md={3}>
+                <BooleanInput
+                  source="cache_docker_blobs"
+                  label="Cache Docker Blobs"
+                  defaultValue={false}
+                  helperText="Cache image layers on disk (immutable, content-addressed)"
+                />
+              </Grid>
+              <FormDataConsumer>
+                {({ formData }) =>
+                  formData?.cache_docker_blobs && (
+                    <>
+                      <Grid item xs={12} sm={6} md={3}>
+                        <TextInput
+                          source="cache_docker_blobs_ttl"
+                          label="Blob Cache TTL (seconds)"
+                          fullWidth
+                          defaultValue="2592000"
+                          helperText="30 days default (blobs are immutable)"
+                        />
+                      </Grid>
+                      <Grid item xs={12} sm={6} md={3}>
+                        <BooleanInput
+                          source="cache_docker_manifests"
+                          label="Cache Manifests"
+                          defaultValue={false}
+                          helperText="Cache image manifests (use shorter TTL)"
+                        />
+                      </Grid>
+                      <FormDataConsumer>
+                        {({ formData: innerFormData }) =>
+                          innerFormData?.cache_docker_manifests && (
+                            <Grid item xs={12} sm={6} md={3}>
+                              <TextInput
+                                source="cache_docker_manifests_ttl"
+                                label="Manifest Cache TTL (seconds)"
+                                fullWidth
+                                defaultValue="3600"
+                                helperText="1 hour default (tags can be re-pushed)"
+                              />
+                            </Grid>
+                          )
+                        }
+                      </FormDataConsumer>
+                      <Grid item xs={12}>
+                        <Alert severity="info" className="form-alert">
+                          <strong>Docker blob caching</strong> stores image layers
+                          on disk using nginx proxy_cache. Blobs are
+                          content-addressed (SHA256) and immutable, making them
+                          ideal for long-term caching. Only GET/HEAD requests to
+                          <code>/v2/*/blobs/*</code> and <code>/v2/*/manifests/*</code> paths
+                          are cached &mdash; push operations are never cached.
+                          <br />
+                          <strong>Supported MIME types:</strong> application/octet-stream,
+                          Docker layer diffs, OCI layers, manifests, and image configs.
                         </Alert>
                       </Grid>
                     </>
