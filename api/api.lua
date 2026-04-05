@@ -4238,6 +4238,44 @@ local function handle_get_request(args, path)
         -- Sort top URLs by size
         table.sort(top_urls, function(a, b) return a.size > b.size end)
 
+        -- Docker blob cache stats (disk-based proxy_cache)
+        local docker_cache_stats = {
+            enabled_servers = 0,
+            blob_cache_servers = {},
+            manifest_cache_servers = {},
+        }
+        local ok_cm, CacheManagerStats = pcall(require, "cache_manager")
+        if ok_cm then
+            local all_configs = CacheManagerStats.list_cache_configs()
+            for _, cfg in ipairs(all_configs or {}) do
+                if cfg.cache_docker_blobs then
+                    docker_cache_stats.enabled_servers = docker_cache_stats.enabled_servers + 1
+                    table.insert(docker_cache_stats.blob_cache_servers, {
+                        server_name = cfg.server_name or "unknown",
+                        blob_ttl = cfg.cache_docker_blobs_ttl or 2592000,
+                        manifest_caching = cfg.cache_docker_manifests or false,
+                        manifest_ttl = cfg.cache_docker_manifests_ttl or 3600,
+                    })
+                end
+            end
+        end
+
+        -- Read disk cache directory stats
+        local docker_disk_stats = {
+            total_files = 0,
+            total_size_bytes = 0,
+        }
+        local cache_dir = "/var/cache/nginx/docker_blobs"
+        local ok_popen, pipe = pcall(io.popen, "du -sb " .. cache_dir .. " 2>/dev/null && find " .. cache_dir .. " -type f 2>/dev/null | wc -l")
+        if ok_popen and pipe then
+            local output = pipe:read("*a")
+            pipe:close()
+            local dir_size = output:match("^(%d+)")
+            local file_count = output:match("\n(%d+)")
+            docker_disk_stats.total_size_bytes = tonumber(dir_size) or 0
+            docker_disk_stats.total_files = tonumber(file_count) or 0
+        end
+
         ngx.say(cjson.encode({
             data = {
                 available = true,
@@ -4248,7 +4286,14 @@ local function handle_get_request(args, path)
                 entries_by_extension = extensions_array,
                 top_urls = top_urls,
                 cache_dict_capacity = cache_dict:capacity(),
-                cache_dict_free_space = cache_dict:free_space()
+                cache_dict_free_space = cache_dict:free_space(),
+                docker_cache = {
+                    enabled_servers = docker_cache_stats.enabled_servers,
+                    blob_cache_servers = docker_cache_stats.blob_cache_servers,
+                    disk_total_files = docker_disk_stats.total_files,
+                    disk_total_size_bytes = docker_disk_stats.total_size_bytes,
+                    disk_total_size_mb = math.floor(docker_disk_stats.total_size_bytes / 1024 / 1024 * 100) / 100,
+                }
             }
         }))
         ngx.exit(ngx.HTTP_OK)
