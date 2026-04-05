@@ -352,6 +352,7 @@ jobs:
       # ── Slack notifications ──
       - name: Slack notify - deployed
         if: success() && inputs.notify_success
+        continue-on-error: true
         uses: rtCamp/action-slack-notify@v2
         env:
           SLACK_CHANNEL: github-updates
@@ -368,6 +369,7 @@ jobs:
 
       - name: Slack notify - deploy failed
         if: failure()
+        continue-on-error: true
         uses: rtCamp/action-slack-notify@v2
         env:
           SLACK_CHANNEL: github-updates
