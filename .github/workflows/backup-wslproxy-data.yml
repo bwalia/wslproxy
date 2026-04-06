@@ -38,16 +38,25 @@ jobs:
             echo "ENVIRONMENT=prod" >> $GITHUB_OUTPUT
           fi
 
-      - name: Verify credentials file exists
+      - name: Resolve credentials
+        id: creds
         run: |
-          CREDS_FILE="/home/bwalia/.secrets/wslproxy/${{ steps.set-env.outputs.ENVIRONMENT }}/login-creds.json"
-          if [ ! -f "$CREDS_FILE" ]; then
-            echo "Error: Credentials file not found at $CREDS_FILE"
-            echo "Please create the file with the following format:"
-            echo '{"ADMIN_EMAIL": "admin@wslproxy.org", "ADMIN_PASSWORD": "ChangeMe", "GATEWAY_URL": "http://localhost:8080"}'
+          ENV="${{ steps.set-env.outputs.ENVIRONMENT }}"
+          CREDS_FILE="/home/bwalia/.secrets/wslproxy/${ENV}/login-creds.json"
+
+          # Try runner file first, fall back to GitHub Actions secret
+          if [ -f "$CREDS_FILE" ]; then
+            echo "Using credentials from runner file: $CREDS_FILE"
+            echo "creds_file=$CREDS_FILE" >> $GITHUB_OUTPUT
+          elif [ -n "${{ secrets.BACKUP_LOGIN_CREDS }}" ]; then
+            echo "Using credentials from GitHub Actions secret"
+            echo '${{ secrets.BACKUP_LOGIN_CREDS }}' > /tmp/login-creds-${ENV}.json
+            echo "creds_file=/tmp/login-creds-${ENV}.json" >> $GITHUB_OUTPUT
+          else
+            echo "::error::No credentials found. Set BACKUP_LOGIN_CREDS secret or create $CREDS_FILE on the runner."
+            echo "Expected format: {\"ADMIN_EMAIL\": \"admin@wslproxy.org\", \"ADMIN_PASSWORD\": \"...\", \"GATEWAY_URL\": \"http://localhost:8080\"}"
             exit 1
           fi
-          echo "Credentials file found at $CREDS_FILE"
 
       - name: Check required tools
         run: |
@@ -73,7 +82,7 @@ jobs:
 
       - name: Run backup script
         env:
-          CREDS_FILE: /home/bwalia/.secrets/wslproxy/${{ steps.set-env.outputs.ENVIRONMENT }}/login-creds.json
+          CREDS_FILE: ${{ steps.creds.outputs.creds_file }}
           BACKUP_BASE_DIR: /home/bwalia/backups/wslproxy
         run: |
           chmod +x ./api-scripts/backup/backup-data.sh
