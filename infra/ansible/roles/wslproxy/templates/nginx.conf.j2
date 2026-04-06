@@ -364,6 +364,7 @@ http {
                     local token = ngx.req.get_headers()["Authorization"]
                     if not token then
                         ngx.status = ngx.HTTP_UNAUTHORIZED
+                        ngx.header["Access-Control-Allow-Origin"] = "*"
                         ngx.say("Missing token")
                         return ngx.exit(ngx.HTTP_UNAUTHORIZED)
                     end
@@ -386,17 +387,20 @@ http {
                       local passPhrase = settings.env_vars.JWT_SECURITY_PASSPHRASE or os.getenv("JWT_SECURITY_PASSPHRASE")
                       if not passPhrase or passPhrase == "" then
                         ngx.status = ngx.HTTP_UNAUTHORIZED
+                        ngx.header["Access-Control-Allow-Origin"] = "*"
                         ngx.say(cjson.encode({data = {message = "JWT Pass Phrase is missing"}}))
                         return ngx.exit(ngx.HTTP_UNAUTHORIZED)
                       end
                       local verified_token = jwt:verify(passPhrase, token)
                       if verified_token.verified == false then
                           ngx.status = ngx.HTTP_UNAUTHORIZED
+                          ngx.header["Access-Control-Allow-Origin"] = "*"
                           ngx.say(cjson.encode({data = {message = verified_token.reason}}))
                           return ngx.exit(ngx.HTTP_UNAUTHORIZED)
                       end
                     else
                       ngx.status = ngx.HTTP_UNAUTHORIZED
+                      ngx.header["Access-Control-Allow-Origin"] = "*"
                       ngx.say(cjson.encode({data = {message = "Settings Json file missing, Please make sure you have correctly placed the setting json file while initlising the project."}}))
                       return ngx.exit(ngx.HTTP_UNAUTHORIZED)
                     end
@@ -574,6 +578,7 @@ http {
                     local token = ngx.req.get_headers()["Authorization"]
                     if not token then
                         ngx.status = ngx.HTTP_UNAUTHORIZED
+                        ngx.header["Access-Control-Allow-Origin"] = "*"
                         ngx.say("Missing token")
                         return ngx.exit(ngx.HTTP_UNAUTHORIZED)
                     end
@@ -596,17 +601,20 @@ http {
                       local passPhrase = settings.env_vars.JWT_SECURITY_PASSPHRASE or os.getenv("JWT_SECURITY_PASSPHRASE")
                       if not passPhrase or passPhrase == "" then
                         ngx.status = ngx.HTTP_UNAUTHORIZED
+                        ngx.header["Access-Control-Allow-Origin"] = "*"
                         ngx.say(cjson.encode({data = {message = "JWT Pass Phrase is missing"}}))
                         return ngx.exit(ngx.HTTP_UNAUTHORIZED)
                       end
                       local verified_token = jwt:verify(passPhrase, token)
                       if verified_token.verified == false then
                           ngx.status = ngx.HTTP_UNAUTHORIZED
+                          ngx.header["Access-Control-Allow-Origin"] = "*"
                           ngx.say(cjson.encode({data = {message = verified_token.reason}}))
                           return ngx.exit(ngx.HTTP_UNAUTHORIZED)
                       end
                     else
                       ngx.status = ngx.HTTP_UNAUTHORIZED
+                      ngx.header["Access-Control-Allow-Origin"] = "*"
                       ngx.say(cjson.encode({data = {message = "Settings Json file missing, Please make sure you have correctly placed the setting json file while initlising the project."}}))
                       return ngx.exit(ngx.HTTP_UNAUTHORIZED)
                     end
