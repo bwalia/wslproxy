@@ -77,7 +77,8 @@ jobs:
       - name: Create backup directory
         run: |
           BACKUP_DIR="/home/bwalia/backups/wslproxy/${{ steps.set-env.outputs.ENVIRONMENT }}"
-          mkdir -p "$BACKUP_DIR"
+          sudo mkdir -p "$BACKUP_DIR"
+          sudo chown -R $(whoami) /home/bwalia/backups
           echo "Backup directory created: $BACKUP_DIR"
 
       - name: Run backup script
