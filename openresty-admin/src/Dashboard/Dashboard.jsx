@@ -67,6 +67,8 @@ import BookmarkIcon from "@mui/icons-material/BookmarkRounded";
 import BookmarkBorderIcon from "@mui/icons-material/BookmarkBorderRounded";
 import LaunchIcon from "@mui/icons-material/LaunchRounded";
 import LockIcon from "@mui/icons-material/LockRounded";
+import CloudDownloadIcon from "@mui/icons-material/CloudDownloadRounded";
+import LayersIcon from "@mui/icons-material/LayersRounded";
 
 // Format bytes to human readable
 const formatBytes = (bytes, decimals = 2) => {
@@ -471,6 +473,13 @@ const Dashboard = () => {
     entries_by_host: [],
     entries_by_extension: [],
     top_urls: [],
+    docker_cache: {
+      enabled_servers: 0,
+      blob_cache_servers: [],
+      disk_total_files: 0,
+      disk_total_size_bytes: 0,
+      disk_total_size_mb: 0,
+    },
   });
 
   // WAF stats state
@@ -606,6 +615,13 @@ const Dashboard = () => {
           entries_by_host: data.entries_by_host || [],
           entries_by_extension: data.entries_by_extension || [],
           top_urls: data.top_urls || [],
+          docker_cache: data.docker_cache || {
+            enabled_servers: 0,
+            blob_cache_servers: [],
+            disk_total_files: 0,
+            disk_total_size_bytes: 0,
+            disk_total_size_mb: 0,
+          },
         });
       })
       .catch((error) => {
@@ -2571,6 +2587,208 @@ const Dashboard = () => {
               </Typography>
               <Typography variant="caption" color="text.disabled">
                 Cache will populate as static content is served
+              </Typography>
+            </Box>
+          )}
+        </ChartCard>
+      </Box>
+
+      {/* Docker Registry Cache Statistics */}
+      <Box sx={{ mb: 3, width: "100%" }}>
+        <ChartCard
+          title="Docker Registry Blob Cache"
+          subtitle="Disk-based caching of Docker/OCI image blobs and manifests"
+          onRefresh={fetchCacheStats}
+        >
+          {cacheStats.docker_cache && cacheStats.docker_cache.enabled_servers > 0 ? (
+            <Box>
+              {/* Docker Cache Summary */}
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: {
+                    xs: "1fr",
+                    sm: "repeat(2, 1fr)",
+                    md: "repeat(4, 1fr)",
+                  },
+                  gap: 2,
+                  mb: 3,
+                }}
+              >
+                <StatCard
+                  title="Enabled Servers"
+                  value={formatNumber(cacheStats.docker_cache.enabled_servers)}
+                  icon={ServerIcon}
+                  color="#0ea5e9"
+                  subtitle="With Docker blob caching"
+                />
+                <StatCard
+                  title="Cached Files"
+                  value={formatNumber(cacheStats.docker_cache.disk_total_files)}
+                  icon={LayersIcon}
+                  color="#8b5cf6"
+                  subtitle="Blobs & manifests on disk"
+                />
+                <StatCard
+                  title="Disk Cache Size"
+                  value={formatBytes(cacheStats.docker_cache.disk_total_size_bytes)}
+                  icon={StorageIcon}
+                  color="#10b981"
+                  subtitle="Total disk usage"
+                />
+                <StatCard
+                  title="Cache Type"
+                  value="proxy_cache"
+                  icon={CloudDownloadIcon}
+                  color="#f59e0b"
+                  subtitle="nginx disk-based cache"
+                />
+              </Box>
+
+              {/* Enabled Servers List */}
+              {cacheStats.docker_cache.blob_cache_servers &&
+                cacheStats.docker_cache.blob_cache_servers.length > 0 && (
+                  <Box>
+                    <Typography variant="h6" fontWeight={600} sx={{ mb: 2 }}>
+                      Docker Cache Enabled Servers
+                    </Typography>
+                    <Box
+                      sx={{
+                        maxHeight: 300,
+                        overflowY: "auto",
+                        borderRadius: 2,
+                        backgroundColor: alpha(
+                          theme.palette.background.default,
+                          0.5,
+                        ),
+                        p: 2,
+                      }}
+                    >
+                      {cacheStats.docker_cache.blob_cache_servers.map(
+                        (server, index) => (
+                          <Box
+                            key={index}
+                            sx={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                              p: 1.5,
+                              mb: 1,
+                              borderRadius: 1,
+                              backgroundColor: theme.palette.background.paper,
+                              border: `1px solid ${theme.palette.divider}`,
+                            }}
+                          >
+                            <Box sx={{ flex: 1, mr: 2 }}>
+                              <Typography variant="body2" fontWeight={600}>
+                                {server.server_name}
+                              </Typography>
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                              >
+                                Blob TTL:{" "}
+                                {Math.floor(server.blob_ttl / 86400)}d
+                                {server.manifest_caching && (
+                                  <> | Manifest TTL:{" "}
+                                  {server.manifest_ttl >= 3600
+                                    ? Math.floor(server.manifest_ttl / 3600) + "h"
+                                    : server.manifest_ttl + "s"}</>
+                                )}
+                                {server.serve_stale && (
+                                  <> | Stale TTL:{" "}
+                                  {Math.floor(server.stale_ttl / 86400)}d</>
+                                )}
+                              </Typography>
+                            </Box>
+                            <Box sx={{ display: "flex", gap: 1 }}>
+                              <Box
+                                sx={{
+                                  px: 1.5,
+                                  py: 0.5,
+                                  borderRadius: 1,
+                                  backgroundColor: alpha("#10b981", 0.1),
+                                  color: "#10b981",
+                                  fontSize: "0.75rem",
+                                  fontWeight: 600,
+                                }}
+                              >
+                                BLOBS
+                              </Box>
+                              {server.manifest_caching && (
+                                <Box
+                                  sx={{
+                                    px: 1.5,
+                                    py: 0.5,
+                                    borderRadius: 1,
+                                    backgroundColor: alpha("#6366f1", 0.1),
+                                    color: "#6366f1",
+                                    fontSize: "0.75rem",
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  MANIFESTS
+                                </Box>
+                              )}
+                              {server.serve_stale && (
+                                <Box
+                                  sx={{
+                                    px: 1.5,
+                                    py: 0.5,
+                                    borderRadius: 1,
+                                    backgroundColor: alpha("#f59e0b", 0.1),
+                                    color: "#f59e0b",
+                                    fontSize: "0.75rem",
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  SERVE STALE
+                                </Box>
+                              )}
+                            </Box>
+                          </Box>
+                        ),
+                      )}
+                    </Box>
+                  </Box>
+                )}
+            </Box>
+          ) : (
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                py: 6,
+                gap: 2,
+              }}
+            >
+              <Box
+                sx={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: 2,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backgroundColor: alpha(theme.palette.info.main, 0.1),
+                }}
+              >
+                <CloudDownloadIcon
+                  sx={{ fontSize: 32, color: theme.palette.info.main }}
+                />
+              </Box>
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                fontWeight={500}
+              >
+                No Docker blob caching enabled
+              </Typography>
+              <Typography variant="caption" color="text.disabled">
+                Enable Docker blob caching on a server to cache image layers on
+                disk
               </Typography>
             </Box>
           )}

@@ -141,20 +141,13 @@ jobs:
 
       - name: Slack notify - Validation failed
         if: failure()
-        uses: rtCamp/action-slack-notify@v2
-        env:
-          SLACK_CHANNEL: github-updates
-          SLACK_COLOR: danger
-          SLACK_ICON: https://github.com/rtCamp.png?size=48
-          SLACK_MESSAGE: |
-            :x: *Stage 1 FAILED: Build & Validate*
-            Config validation errors found — pipeline stopped.
-            *Branch:* ${{ github.ref_name }} | *Commit:* `${{ github.sha }}`
-            *Triggered by:* ${{ github.actor }} (${{ github.event_name }})
-            *Logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          SLACK_TITLE: "WSLProxy Pipeline Failed — Stage 1"
-          SLACK_USERNAME: GitHub Actions
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+        continue-on-error: true
+        shell: bash
+        run: |
+          curl -sf -X POST "${{ secrets.SLACK_WEBHOOK }}" \
+            -H 'Content-Type: application/json' \
+            -d "$(jq -n --arg text ":x: *Stage 1 FAILED: Build & Validate*\nConfig validation errors found — pipeline stopped.\n*Branch:* ${{ github.ref_name }} | *Commit:* \`${{ github.sha }}\`\n*Triggered by:* ${{ github.actor }} (${{ github.event_name }})\n*Logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+              '{channel: "github-updates", username: "GitHub Actions", text: $text}')"
 
   # ──────────────────────────────────────────────────────
   # Stage 2: Deploy Int (192.168.1.193)
@@ -242,20 +235,13 @@ jobs:
 
       - name: Slack notify - Tests failed
         if: failure()
-        uses: rtCamp/action-slack-notify@v2
-        env:
-          SLACK_CHANNEL: github-updates
-          SLACK_COLOR: danger
-          SLACK_ICON: https://github.com/rtCamp.png?size=48
-          SLACK_MESSAGE: |
-            :x: *Stage 3 FAILED: Smoke Test Int*
-            Health check or API endpoint tests failed — pipeline stopped before test environment.
-            *Branch:* ${{ github.ref_name }} | *Commit:* `${{ github.sha }}`
-            *Triggered by:* ${{ github.actor }} (${{ github.event_name }})
-            *Logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          SLACK_TITLE: "WSLProxy Pipeline Failed — Stage 3 (Smoke Test)"
-          SLACK_USERNAME: GitHub Actions
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+        continue-on-error: true
+        shell: bash
+        run: |
+          curl -sf -X POST "${{ secrets.SLACK_WEBHOOK }}" \
+            -H 'Content-Type: application/json' \
+            -d "$(jq -n --arg text ":x: *Stage 3 FAILED: Smoke Test Int*\nHealth check or API endpoint tests failed — pipeline stopped before test environment.\n*Branch:* ${{ github.ref_name }} | *Commit:* \`${{ github.sha }}\`\n*Triggered by:* ${{ github.actor }} (${{ github.event_name }})\n*Logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+              '{channel: "github-updates", username: "GitHub Actions", text: $text}')"
 
   # ──────────────────────────────────────────────────────
   # Stage 4: Deploy Test (192.168.1.140)

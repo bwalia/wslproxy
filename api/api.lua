@@ -1335,6 +1335,34 @@ local function createUpdateServer(body, uuid)
         end
     end
 
+    -- Handle Docker blob caching configuration
+    if payloads.cache_docker_blobs ~= nil then
+        local existing_config = CacheManager.get_cache_config(payloads.server_name) or {}
+        existing_config.cache_docker_blobs = payloads.cache_docker_blobs
+        if payloads.cache_docker_blobs_ttl then
+            existing_config.cache_docker_blobs_ttl = tonumber(payloads.cache_docker_blobs_ttl)
+        end
+        if payloads.cache_docker_manifests ~= nil then
+            existing_config.cache_docker_manifests = payloads.cache_docker_manifests
+        end
+        if payloads.cache_docker_manifests_ttl then
+            existing_config.cache_docker_manifests_ttl = tonumber(payloads.cache_docker_manifests_ttl)
+        end
+        if payloads.cache_docker_serve_stale ~= nil then
+            existing_config.cache_docker_serve_stale = payloads.cache_docker_serve_stale
+        end
+        if payloads.cache_docker_stale_ttl then
+            existing_config.cache_docker_stale_ttl = tonumber(payloads.cache_docker_stale_ttl)
+        end
+        local cache_ok, cache_err = CacheManager.save_cache_config(payloads.server_name, existing_config)
+        if not cache_ok then
+            ngx.log(ngx.ERR, "Failed to save Docker cache config for ", payloads.server_name, ": ", cache_err)
+        else
+            ngx.log(ngx.INFO, "Docker blob cache ", payloads.cache_docker_blobs and "enabled" or "disabled",
+                " for domain: ", payloads.server_name)
+        end
+    end
+
     -- Handle Varnish configuration if varnish_enabled is set
     if payloads.varnish_enabled ~= nil then
         if payloads.varnish_enabled then
@@ -4238,6 +4266,46 @@ local function handle_get_request(args, path)
         -- Sort top URLs by size
         table.sort(top_urls, function(a, b) return a.size > b.size end)
 
+        -- Docker blob cache stats (disk-based proxy_cache)
+        local docker_cache_stats = {
+            enabled_servers = 0,
+            blob_cache_servers = {},
+            manifest_cache_servers = {},
+        }
+        local ok_cm, CacheManagerStats = pcall(require, "cache_manager")
+        if ok_cm then
+            local all_configs = CacheManagerStats.list_cache_configs()
+            for _, cfg in ipairs(all_configs or {}) do
+                if cfg.cache_docker_blobs then
+                    docker_cache_stats.enabled_servers = docker_cache_stats.enabled_servers + 1
+                    table.insert(docker_cache_stats.blob_cache_servers, {
+                        server_name = cfg.server_name or "unknown",
+                        blob_ttl = cfg.cache_docker_blobs_ttl or 2592000,
+                        manifest_caching = cfg.cache_docker_manifests or false,
+                        manifest_ttl = cfg.cache_docker_manifests_ttl or 3600,
+                        serve_stale = cfg.cache_docker_serve_stale or false,
+                        stale_ttl = cfg.cache_docker_stale_ttl or 31536000,
+                    })
+                end
+            end
+        end
+
+        -- Read disk cache directory stats
+        local docker_disk_stats = {
+            total_files = 0,
+            total_size_bytes = 0,
+        }
+        local cache_dir = "/var/cache/nginx/docker_blobs"
+        local ok_popen, pipe = pcall(io.popen, "du -sb " .. cache_dir .. " 2>/dev/null && find " .. cache_dir .. " -type f 2>/dev/null | wc -l")
+        if ok_popen and pipe then
+            local output = pipe:read("*a")
+            pipe:close()
+            local dir_size = output:match("^(%d+)")
+            local file_count = output:match("\n(%d+)")
+            docker_disk_stats.total_size_bytes = tonumber(dir_size) or 0
+            docker_disk_stats.total_files = tonumber(file_count) or 0
+        end
+
         ngx.say(cjson.encode({
             data = {
                 available = true,
@@ -4248,7 +4316,14 @@ local function handle_get_request(args, path)
                 entries_by_extension = extensions_array,
                 top_urls = top_urls,
                 cache_dict_capacity = cache_dict:capacity(),
-                cache_dict_free_space = cache_dict:free_space()
+                cache_dict_free_space = cache_dict:free_space(),
+                docker_cache = {
+                    enabled_servers = docker_cache_stats.enabled_servers,
+                    blob_cache_servers = docker_cache_stats.blob_cache_servers,
+                    disk_total_files = docker_disk_stats.total_files,
+                    disk_total_size_bytes = docker_disk_stats.total_size_bytes,
+                    disk_total_size_mb = math.floor(docker_disk_stats.total_size_bytes / 1024 / 1024 * 100) / 100,
+                }
             }
         }))
         ngx.exit(ngx.HTTP_OK)
@@ -4667,6 +4742,13 @@ local function handle_post_request(args, path)
             if payloads.cache_ttl then options.cache_ttl = tonumber(payloads.cache_ttl) end
             if payloads.cached_extensions then options.cached_extensions = payloads.cached_extensions end
             if payloads.cached_mime_types then options.cached_mime_types = payloads.cached_mime_types end
+            -- Docker blob caching options
+            if payloads.cache_docker_blobs ~= nil then options.cache_docker_blobs = payloads.cache_docker_blobs end
+            if payloads.cache_docker_blobs_ttl then options.cache_docker_blobs_ttl = tonumber(payloads.cache_docker_blobs_ttl) end
+            if payloads.cache_docker_manifests ~= nil then options.cache_docker_manifests = payloads.cache_docker_manifests end
+            if payloads.cache_docker_manifests_ttl then options.cache_docker_manifests_ttl = tonumber(payloads.cache_docker_manifests_ttl) end
+            if payloads.cache_docker_serve_stale ~= nil then options.cache_docker_serve_stale = payloads.cache_docker_serve_stale end
+            if payloads.cache_docker_stale_ttl then options.cache_docker_stale_ttl = tonumber(payloads.cache_docker_stale_ttl) end
 
             local success, err = CacheManager.enable_cache(server_name, options)
             if success then

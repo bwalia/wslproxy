@@ -94,6 +94,10 @@ mkdir -p /opt/nginx/prod_cache/
 chmod 775 -R /opt/nginx/prod_cache/
 chown www-data:root -R /opt/nginx/prod_cache/
 
+mkdir -p /var/cache/nginx/docker_blobs
+chmod 775 -R /var/cache/nginx/docker_blobs
+chown www-data:root -R /var/cache/nginx/docker_blobs
+
 if [ -f "/tmp/.env" ]; then
   cp /tmp/.env /usr/local/openresty/nginx/html/openresty-admin/.env
 fi
