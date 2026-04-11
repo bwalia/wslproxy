@@ -17,22 +17,32 @@ const Toolbar = () => {
   const handleRuleSubmit = async (e) => {
     e.preventDefault();
     const { id, ...data } = getValues();
-    let serverData = {}
-    if (id) {
-      data.id = id
-      serverData = dataProvider.update("servers", { id, data });
-    } else {
-      serverData = dataProvider.create("servers", { data });
+    if (!data.server_name) {
+      notify("Server name is required", { type: "error" });
+      return;
     }
-    serverData.then(server => {
-      server?.data?.nginx_status && notify(server?.data?.nginx_status, {autoHideDuration: 30000, type: server?.data?.nginx_status_check})
-    });
-
-    serverData.catch(error => {
-      notify(error, {autoHideDuration: 30000, type: "error"})
-    })
-
-    redirect("/servers");
+    if (!data.profile_id) {
+      notify("Profile is required", { type: "error" });
+      return;
+    }
+    try {
+      const serverData = id
+        ? await dataProvider.update("servers", { id, data: { ...data, id } })
+        : await dataProvider.create("servers", { data });
+      if (serverData?.data?.nginx_status) {
+        notify(serverData.data.nginx_status, {
+          autoHideDuration: 30000,
+          type: serverData.data.nginx_status_check,
+        });
+      }
+      redirect("/servers");
+    } catch (error) {
+      const message =
+        typeof error === "string"
+          ? error
+          : error?.message || "Failed to save server";
+      notify(message, { autoHideDuration: 30000, type: "error" });
+    }
   };
   return (
     <RaToolbar>

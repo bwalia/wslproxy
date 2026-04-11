@@ -237,7 +237,7 @@ const Form = ({ type }) => {
             <ArrayInput
               source="listens"
               label=""
-              defaultValue={[{ listen: "" }]}
+              defaultValue={[{ listen: "80" }]}
             >
               <SimpleFormIterator
                 inline
