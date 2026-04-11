@@ -59,6 +59,7 @@ import Logs from "../component/Logs";
 import Welcome from "../component/Welcome";
 import GeoTrafficMap from "./GeoTrafficMap";
 import BackendHealth from "./BackendHealth";
+import AiInsightsPanel from "../component/AiInsightsPanel";
 import { useThemeMode } from "../Theme";
 import PublicIcon from "@mui/icons-material/PublicRounded";
 import DashboardIcon from "@mui/icons-material/DashboardRounded";
@@ -3109,6 +3110,18 @@ const Dashboard = () => {
           </ChartCard>
         </Box>
       )}
+
+      {/* AI Log Analysis — uses the existing /api/ai/analyze endpoint
+          (settings.ai_endpoint / settings.ai_model) shared with
+          openresty-admin-next. No extra config in this dashboard. */}
+      <AiInsightsPanel
+        title="AI Error Log Analysis"
+        subtitle="Local Ollama analysis of the current nginx error log"
+        logsRef={() => errorLogData}
+        question="Identify recurring errors, upstream failures, 5xx spikes, SSL issues, rate-limit hits and WAF blocks. Ignore successful 2xx entries unless they reveal a pattern."
+        context="nginx/openresty reverse proxy error.log, most recent 10KB"
+        emptyLogsMessage="Click the error logs refresh button first to load log content for analysis."
+      />
 
       {/* Logs Section - Two columns */}
       <Grid container spacing={2}>

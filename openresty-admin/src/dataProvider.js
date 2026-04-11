@@ -1006,6 +1006,55 @@ const dataProvider = (apiUrl, settings = {}) => {
         setIsLoadig(false);
       }
     },
+
+    // AI log analysis (local Ollama). Shares the /ai/analyze endpoint with
+    // openresty-admin-next; config lives server-side in settings.ai_endpoint
+    // and settings.ai_model. No extra env vars to set in the dashboard.
+    analyzeLogsAi: async ({ logs = [], question, context } = {}) => {
+      try {
+        setIsLoadig(true);
+        const response = await fetch(`${apiUrl}/ai/analyze`, {
+          method: "POST",
+          headers: { ...getHeaders(), "Content-Type": "application/json" },
+          body: JSON.stringify({ logs, question, context }),
+        });
+        const result = await response.json();
+        setIsLoadig(false);
+        if (response.status === 401) {
+          localStorage.removeItem("token");
+          window.location.href = "/#/login";
+        }
+        return result;
+      } catch (error) {
+        setIsLoadig(false);
+        return {
+          data: {
+            analysis: error?.message || "AI analysis failed",
+            root_causes: [],
+            recommendations: [],
+            severity: "low",
+            related_patterns: [],
+          },
+        };
+      }
+    },
+
+    getAiModels: async () => {
+      try {
+        const response = await fetch(
+          `${apiUrl}/ai/models?timestamp=${Date.now()}`,
+          { method: "GET", headers: getHeaders() },
+        );
+        const result = await response.json();
+        if (response.status === 401) {
+          localStorage.removeItem("token");
+          window.location.href = "/#/login";
+        }
+        return result;
+      } catch (error) {
+        return { data: { models: [], default: "" } };
+      }
+    },
   };
 };
 export default dataProvider;
