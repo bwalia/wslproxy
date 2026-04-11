@@ -105,6 +105,24 @@ local function validateServerPayload(payloads)
                     message = "Header value is required"
                 })
             end
+            -- Access-Control-Allow-Origin must be "*", "null", or a scheme-qualified origin.
+            -- Bare hostnames like "example.com" are silently ignored by browsers and are a
+            -- common foot-gun; reject them at save time.
+            if header.header_key and header.header_value and header.header_value ~= "" then
+                local key_lower = header.header_key:lower()
+                if key_lower == "access-control-allow-origin" then
+                    local v = header.header_value
+                    local ok = v == "*" or v == "null"
+                        or v:match("^https?://[%w%-%.:]+$")
+                        or v:match("^https?://[%w%-%.:]+/.*$")
+                    if not ok then
+                        table.insert(errors, {
+                            field = "custom_response_headers[" .. i .. "].header_value",
+                            message = "Access-Control-Allow-Origin must be '*', 'null', or a scheme-qualified origin (e.g. https://example.com). Got: " .. tostring(v)
+                        })
+                    end
+                end
+            end
         end
     end
 
