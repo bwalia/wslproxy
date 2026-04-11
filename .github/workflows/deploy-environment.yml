@@ -30,7 +30,7 @@ on:
         type: string
         required: true
       secrets_mode:
-        description: "Secrets source: github_secret (decode from GH secret) or runner_file (read from disk)"
+        description: "Secrets source: vault (HashiCorp Vault), github_secret (decode from GH secret), or runner_file (read from disk)"
         type: string
         required: true
       settings_file_path:
@@ -71,6 +71,10 @@ on:
       SETTINGS_SECRET:
         required: false
       ENV_CREDS_SECRET:
+        required: false
+      VAULT_ADDR:
+        required: false
+      VAULT_TOKEN:
         required: false
 
 jobs:
@@ -152,6 +156,37 @@ jobs:
             find .next/standalone -name "server.js" -type f 2>/dev/null || true
             ls -la .next/standalone/ || true
           fi
+
+      # ── Secrets: Vault ─────────────────────────────────────────────────
+      # The actual fetch happens inside ansible (deploy_data.yml uri tasks)
+      # so the same code path works for both workflow and local-machine runs.
+      # This step just makes VAULT_ADDR / VAULT_TOKEN available to the
+      # ansible-playbook process via $GITHUB_ENV.
+      - name: Export Vault credentials
+        if: inputs.secrets_mode == 'vault'
+        env:
+          VAULT_ADDR_SECRET: ${{ secrets.VAULT_ADDR }}
+          VAULT_TOKEN_SECRET: ${{ secrets.VAULT_TOKEN }}
+        run: |
+          if [ -z "$VAULT_ADDR_SECRET" ] || [ -z "$VAULT_TOKEN_SECRET" ]; then
+            echo "::error::secrets.VAULT_ADDR and secrets.VAULT_TOKEN must be set in repo secrets for secrets_mode=vault"
+            exit 1
+          fi
+          # Probe Vault to fail fast if the token is bad — don't dump the body.
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "X-Vault-Token: $VAULT_TOKEN_SECRET" \
+            "$VAULT_ADDR_SECRET/v1/sys/health")
+          if [ "$STATUS" != "200" ] && [ "$STATUS" != "429" ] && [ "$STATUS" != "473" ] && [ "$STATUS" != "501" ] && [ "$STATUS" != "503" ]; then
+            echo "::error::Vault health check failed: HTTP $STATUS at $VAULT_ADDR_SECRET"
+            exit 1
+          fi
+          echo "VAULT_ADDR=$VAULT_ADDR_SECRET" >> $GITHUB_ENV
+          echo "::add-mask::$VAULT_TOKEN_SECRET"
+          echo "VAULT_TOKEN=$VAULT_TOKEN_SECRET" >> $GITHUB_ENV
+          # Empty paths so the existing extra-vars line stays valid; ansible
+          # will ignore them when vault_secrets_enabled=true.
+          echo "settings_path=" >> $GITHUB_ENV
+          echo "env_path=" >> $GITHUB_ENV
 
       # ── Secrets: decode from GitHub Secret ──
       - name: Decode settings from GitHub Secret
@@ -266,12 +301,20 @@ jobs:
             CONN_FLAGS="--timeout 30"
           fi
 
+          # When in vault mode, force ansible to use vault_secrets_enabled
+          # regardless of host_vars (so workflows can opt into Vault without
+          # needing per-host edits).
+          VAULT_FLAG=""
+          if [[ "${{ inputs.secrets_mode }}" == "vault" ]]; then
+            VAULT_FLAG="vault_secrets_enabled=true"
+          fi
+
           $CMD_PREFIX ansible-playbook infra/ansible/wslproxy-ops.yml \
             -i infra/ansible/hosts \
             -l ${{ inputs.host_ip }} \
             $CONN_FLAGS \
             $TAGS_FLAG \
-            --extra-vars "nginx_user_password=THISCOMESFROMSECRETS target_env=${{ inputs.env_name }} local_settings_file_path=${{ env.settings_path }} local_env_file_path=${{ env.env_path }}"
+            --extra-vars "nginx_user_password=THISCOMESFROMSECRETS target_env=${{ inputs.env_name }} local_settings_file_path=${{ env.settings_path }} local_env_file_path=${{ env.env_path }} $VAULT_FLAG"
 
       # ── Deploy server/rule configs ──
       - name: Deploy server configs and rules
