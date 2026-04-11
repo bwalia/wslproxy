@@ -20,6 +20,13 @@ local DEFAULT_CACHE_CONFIG = {
     cache_bypass_cookie = "",  -- Cookie name to bypass cache (e.g., "nocache")
     cache_bypass_header = "",  -- Header name to bypass cache (e.g., "X-No-Cache")
     cache_bypass_auth = false,  -- Allow caching even with Authorization header (e.g. S3 signed origins)
+    -- Docker / OCI registry blob caching (disk-based via nginx proxy_cache)
+    cache_docker_blobs = false,  -- Enable caching of Docker image blobs
+    cache_docker_blobs_ttl = 2592000,  -- 30 days (blobs are immutable, content-addressed)
+    cache_docker_manifests = false,  -- Cache manifests (mutable by tag, use shorter TTL)
+    cache_docker_manifests_ttl = 3600,  -- 1 hour for manifests
+    cache_docker_serve_stale = false,  -- Serve stale cached images when registry is down
+    cache_docker_stale_ttl = 31536000,  -- 365 days (keep stale blobs for a very long time)
     -- File types to cache (MIME types and extensions)
     cached_extensions = {
         -- JavaScript
@@ -61,7 +68,16 @@ local DEFAULT_CACHE_CONFIG = {
         "application/vnd.ms-fontobject",
         "audio/mpeg",
         "video/mp4",
-        "video/webm"
+        "video/webm",
+        -- Docker / OCI registry content types
+        "application/octet-stream",
+        "application/vnd.docker.image.rootfs.diff.tar.gzip",
+        "application/vnd.oci.image.layer.v1.tar+gzip",
+        "application/vnd.docker.distribution.manifest.v2+json",
+        "application/vnd.oci.image.manifest.v1+json",
+        "application/vnd.docker.distribution.manifest.list.v2+json",
+        "application/vnd.oci.image.index.v1+json",
+        "application/vnd.docker.container.image.v1+json"
     }
 }
 
@@ -442,6 +458,32 @@ function _M.should_cache_mime_type(server_name, mime_type)
         end
     end
 
+    return false
+end
+
+-- Check if Docker blob caching is enabled for a server
+function _M.is_docker_blob_cache_enabled(server_name)
+    local config = _M.get_cache_config(server_name)
+    return config and config.cache_docker_blobs == true
+end
+
+-- Check if a URI is a Docker registry blob request
+function _M.is_docker_blob_uri(uri)
+    if not uri then return false end
+    -- Match /v2/{name}/blobs/{digest} (GET/HEAD for pulls)
+    if uri:match("^/v2/.+/blobs/sha256:") then
+        return true
+    end
+    return false
+end
+
+-- Check if a URI is a Docker registry manifest request
+function _M.is_docker_manifest_uri(uri)
+    if not uri then return false end
+    -- Match /v2/{name}/manifests/{reference}
+    if uri:match("^/v2/.+/manifests/") then
+        return true
+    end
     return false
 end
 

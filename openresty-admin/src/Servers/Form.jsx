@@ -237,7 +237,7 @@ const Form = ({ type }) => {
             <ArrayInput
               source="listens"
               label=""
-              defaultValue={[{ listen: "" }]}
+              defaultValue={[{ listen: "80" }]}
             >
               <SimpleFormIterator
                 inline
@@ -407,6 +407,14 @@ const Form = ({ type }) => {
                             { id: "audio/mpeg", name: "MP3 (audio/mpeg)" },
                             { id: "video/mp4", name: "MP4 (video/mp4)" },
                             { id: "video/webm", name: "WebM (video/webm)" },
+                            { id: "application/octet-stream", name: "Binary (application/octet-stream)" },
+                            { id: "application/vnd.docker.image.rootfs.diff.tar.gzip", name: "Docker Layer (rootfs diff)" },
+                            { id: "application/vnd.oci.image.layer.v1.tar+gzip", name: "OCI Layer (tar+gzip)" },
+                            { id: "application/vnd.docker.distribution.manifest.v2+json", name: "Docker Manifest v2" },
+                            { id: "application/vnd.oci.image.manifest.v1+json", name: "OCI Manifest v1" },
+                            { id: "application/vnd.docker.distribution.manifest.list.v2+json", name: "Docker Manifest List" },
+                            { id: "application/vnd.oci.image.index.v1+json", name: "OCI Image Index" },
+                            { id: "application/vnd.docker.container.image.v1+json", name: "Docker Image Config" },
                           ]}
                         />
                       </Grid>
@@ -420,6 +428,102 @@ const Form = ({ type }) => {
                           <br />
                           <strong>Note:</strong> If you specify custom MIME types above,
                           only those types will be cached (defaults will not apply).
+                        </Alert>
+                      </Grid>
+                    </>
+                  )
+                }
+              </FormDataConsumer>
+            </Grid>
+          </SectionCard>
+
+          {/* Docker / OCI Registry Blob Caching */}
+          <SectionCard
+            title="Docker Registry Blob Caching"
+            subtitle="Cache Docker/OCI image blobs and manifests on disk for faster pulls (requires a container registry backend e.g. NebulaCR)"
+          >
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6} md={3}>
+                <BooleanInput
+                  source="cache_docker_blobs"
+                  label="Cache Docker Blobs"
+                  defaultValue={false}
+                  helperText="Cache image layers on disk (immutable, content-addressed)"
+                />
+              </Grid>
+              <FormDataConsumer>
+                {({ formData }) =>
+                  formData?.cache_docker_blobs && (
+                    <>
+                      <Grid item xs={12} sm={6} md={3}>
+                        <TextInput
+                          source="cache_docker_blobs_ttl"
+                          label="Blob Cache TTL (seconds)"
+                          fullWidth
+                          defaultValue="2592000"
+                          helperText="30 days default (blobs are immutable)"
+                        />
+                      </Grid>
+                      <Grid item xs={12} sm={6} md={3}>
+                        <BooleanInput
+                          source="cache_docker_manifests"
+                          label="Cache Manifests"
+                          defaultValue={false}
+                          helperText="Cache image manifests (use shorter TTL)"
+                        />
+                      </Grid>
+                      <FormDataConsumer>
+                        {({ formData: innerFormData }) =>
+                          innerFormData?.cache_docker_manifests && (
+                            <Grid item xs={12} sm={6} md={3}>
+                              <TextInput
+                                source="cache_docker_manifests_ttl"
+                                label="Manifest Cache TTL (seconds)"
+                                fullWidth
+                                defaultValue="3600"
+                                helperText="1 hour default (tags can be re-pushed)"
+                              />
+                            </Grid>
+                          )
+                        }
+                      </FormDataConsumer>
+                      <Grid item xs={12} sm={6} md={3}>
+                        <BooleanInput
+                          source="cache_docker_serve_stale"
+                          label="Serve Stale Images"
+                          defaultValue={false}
+                          helperText="Serve cached images when registry is unreachable"
+                        />
+                      </Grid>
+                      <FormDataConsumer>
+                        {({ formData: innerFormData }) =>
+                          innerFormData?.cache_docker_serve_stale && (
+                            <Grid item xs={12} sm={6} md={3}>
+                              <TextInput
+                                source="cache_docker_stale_ttl"
+                                label="Stale Cache TTL (seconds)"
+                                fullWidth
+                                defaultValue="31536000"
+                                helperText="365 days default (keep stale blobs for a long time)"
+                              />
+                            </Grid>
+                          )
+                        }
+                      </FormDataConsumer>
+                      <Grid item xs={12}>
+                        <Alert severity="info" className="form-alert">
+                          <strong>Docker blob caching</strong> stores image layers
+                          on disk using nginx proxy_cache. Blobs are
+                          content-addressed (SHA256) and immutable, making them
+                          ideal for long-term caching. Only GET/HEAD requests to
+                          <code>/v2/*/blobs/*</code> and <code>/v2/*/manifests/*</code> paths
+                          are cached &mdash; push operations are never cached.
+                          <br />
+                          <strong>Serve Stale:</strong> When enabled, cached images
+                          are served even when the upstream registry is down, returns
+                          errors (500/502/503/504), or the cache has expired. The stale
+                          TTL controls how long expired cached content is kept on disk
+                          for fallback serving.
                         </Alert>
                       </Grid>
                     </>
@@ -518,6 +622,39 @@ const Form = ({ type }) => {
                   )
                 }
               </FormDataConsumer>
+            </Grid>
+          </SectionCard>
+
+          {/* Proxy Timeouts */}
+          <SectionCard
+            title="Proxy Timeouts"
+            subtitle="Configure upstream proxy timeouts (in seconds). Leave empty to use nginx defaults (60s)."
+          >
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6} md={4}>
+                <TextInput
+                  source="proxy_timeouts.connect_timeout"
+                  label="Connect Timeout (s)"
+                  fullWidth
+                  helperText="Time to establish connection with backend"
+                />
+              </Grid>
+              <Grid item xs={12} sm={6} md={4}>
+                <TextInput
+                  source="proxy_timeouts.send_timeout"
+                  label="Send Timeout (s)"
+                  fullWidth
+                  helperText="Time to transmit request to backend"
+                />
+              </Grid>
+              <Grid item xs={12} sm={6} md={4}>
+                <TextInput
+                  source="proxy_timeouts.read_timeout"
+                  label="Read Timeout (s)"
+                  fullWidth
+                  helperText="Time to wait for backend response"
+                />
+              </Grid>
             </Grid>
           </SectionCard>
 

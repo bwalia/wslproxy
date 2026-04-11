@@ -123,18 +123,13 @@ jobs:
 
       - name: Slack notify - Validation failed
         if: failure()
-        uses: rtCamp/action-slack-notify@v2
-        env:
-          SLACK_CHANNEL: github-updates
-          SLACK_COLOR: danger
-          SLACK_ICON: https://github.com/rtCamp.png?size=48
-          SLACK_MESSAGE: |
-            :x: *Nightly Pipeline: Validation FAILED*
-            Config or template errors on `${{ env.NIGHTLY_BRANCH }}` — nightly stopped.
-            *Logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          SLACK_TITLE: "Nightly Pipeline Failed — Validation"
-          SLACK_USERNAME: GitHub Actions (Nightly)
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+        continue-on-error: true
+        shell: bash
+        run: |
+          curl -sf -X POST "${{ secrets.SLACK_WEBHOOK }}" \
+            -H 'Content-Type: application/json' \
+            -d "$(jq -n --arg text ":x: *Nightly Pipeline: Validation FAILED*\nConfig or template errors on \`${{ env.NIGHTLY_BRANCH }}\` — nightly stopped.\n*Logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+              '{channel: "github-updates", username: "GitHub Actions (Nightly)", text: $text}')"
 
   # ──────────────────────────────────────────────────────
   # Stage 2: Deploy to Int (192.168.1.193)
@@ -245,19 +240,13 @@ jobs:
 
       - name: Slack notify - Smoke test failed
         if: failure()
-        uses: rtCamp/action-slack-notify@v2
-        env:
-          SLACK_CHANNEL: github-updates
-          SLACK_COLOR: danger
-          SLACK_ICON: https://github.com/rtCamp.png?size=48
-          SLACK_MESSAGE: |
-            :x: *Nightly Pipeline: Smoke Test FAILED on Int*
-            Health check or API tests failed — nightly stopped before Test environment.
-            *Branch:* `${{ env.NIGHTLY_BRANCH }}` | *Mode:* ${{ env.NIGHTLY_DEPLOY_MODE }}
-            *Logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          SLACK_TITLE: "Nightly Pipeline Failed — Smoke Test Int"
-          SLACK_USERNAME: GitHub Actions (Nightly)
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+        continue-on-error: true
+        shell: bash
+        run: |
+          curl -sf -X POST "${{ secrets.SLACK_WEBHOOK }}" \
+            -H 'Content-Type: application/json' \
+            -d "$(jq -n --arg text ":x: *Nightly Pipeline: Smoke Test FAILED on Int*\nHealth check or API tests failed — nightly stopped before Test environment.\n*Branch:* \`${{ env.NIGHTLY_BRANCH }}\` | *Mode:* ${{ env.NIGHTLY_DEPLOY_MODE }}\n*Logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+              '{channel: "github-updates", username: "GitHub Actions (Nightly)", text: $text}')"
 
   # ──────────────────────────────────────────────────────
   # Stage 4: Deploy to Test (192.168.1.140) — automatic
@@ -330,19 +319,13 @@ jobs:
           needs.deploy-int.result == 'success' &&
           needs.smoke-test-int.result == 'success' &&
           needs.deploy-test.result == 'success'
-        uses: rtCamp/action-slack-notify@v2
-        env:
-          SLACK_CHANNEL: github-updates
-          SLACK_COLOR: good
-          SLACK_ICON: https://github.com/rtCamp.png?size=48
-          SLACK_MESSAGE: |
-            :white_check_mark: *Nightly Integration Pipeline PASSED*
-            All stages succeeded — `${{ env.NIGHTLY_BRANCH }}` deployed through Int and Test.
-            *Mode:* ${{ env.NIGHTLY_DEPLOY_MODE }} | *Commit:* `${{ github.sha }}`
-            *Logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          SLACK_TITLE: "Nightly Pipeline — All Green"
-          SLACK_USERNAME: GitHub Actions (Nightly)
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+        continue-on-error: true
+        shell: bash
+        run: |
+          curl -sf -X POST "${{ secrets.SLACK_WEBHOOK }}" \
+            -H 'Content-Type: application/json' \
+            -d "$(jq -n --arg text ":white_check_mark: *Nightly Integration Pipeline PASSED*\nAll stages succeeded — \`${{ env.NIGHTLY_BRANCH }}\` deployed through Int and Test.\n*Mode:* ${{ env.NIGHTLY_DEPLOY_MODE }} | *Commit:* \`${{ github.sha }}\`\n*Logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+              '{channel: "github-updates", username: "GitHub Actions (Nightly)", text: $text}')"
 
       - name: Slack notify - Nightly failed
         if: >
@@ -350,19 +333,13 @@ jobs:
           needs.deploy-int.result == 'failure' ||
           needs.smoke-test-int.result == 'failure' ||
           needs.deploy-test.result == 'failure'
-        uses: rtCamp/action-slack-notify@v2
-        env:
-          SLACK_CHANNEL: github-updates
-          SLACK_COLOR: danger
-          SLACK_ICON: https://github.com/rtCamp.png?size=48
-          SLACK_MESSAGE: |
-            :x: *Nightly Integration Pipeline FAILED*
-            Validate: ${{ needs.validate.result }} | Int: ${{ needs.deploy-int.result }} | Smoke: ${{ needs.smoke-test-int.result }} | Test: ${{ needs.deploy-test.result }}
-            *Branch:* `${{ env.NIGHTLY_BRANCH }}` | *Mode:* ${{ env.NIGHTLY_DEPLOY_MODE }}
-            *Logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          SLACK_TITLE: "Nightly Pipeline FAILED — Needs Attention"
-          SLACK_USERNAME: GitHub Actions (Nightly)
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+        continue-on-error: true
+        shell: bash
+        run: |
+          curl -sf -X POST "${{ secrets.SLACK_WEBHOOK }}" \
+            -H 'Content-Type: application/json' \
+            -d "$(jq -n --arg text ":x: *Nightly Integration Pipeline FAILED*\nValidate: ${{ needs.validate.result }} | Int: ${{ needs.deploy-int.result }} | Smoke: ${{ needs.smoke-test-int.result }} | Test: ${{ needs.deploy-test.result }}\n*Branch:* \`${{ env.NIGHTLY_BRANCH }}\` | *Mode:* ${{ env.NIGHTLY_DEPLOY_MODE }}\n*Logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+              '{channel: "github-updates", username: "GitHub Actions (Nightly)", text: $text}')"
 
       - name: Fail pipeline if any stage failed
         if: >

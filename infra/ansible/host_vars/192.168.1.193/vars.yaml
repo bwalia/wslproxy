@@ -1,3 +1,12 @@
+# Secrets source.
+# Vault mode (preferred): fetch settings.json and env from
+#   $VAULT_ADDR/v1/secret/data/wslproxy/<target_env>/{settings.json,env}
+# Requires VAULT_TOKEN and VAULT_ADDR exported in the runner/local shell.
+vault_secrets_enabled: true
+target_env: int
+
+# Legacy file paths — kept as fallback when vault_secrets_enabled is false
+# (e.g. emergency rollback) and unused while vault is on.
 local_settings_file_path: "/Users/balinderwalia/Documents/Work/aws_keys/settings_int.json"
 local_env_file_path: "/Users/balinderwalia/Documents/Work/aws_keys/.env_int"
 nginx_user_password: "!!REDACTED!!" # This is the password for the user www-data but must be encrypted using Ansible Vault

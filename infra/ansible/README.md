@@ -34,6 +34,47 @@ Including an example of how to use your role (for instance, with variables passe
       roles:
          - { role: username.rolename, x: 42 }
 
+Secrets: Vault-backed (preferred) or local file
+-----------------------------------------------
+
+`roles/wslproxy/tasks/deploy_data.yml` reads `settings.json` and the `.env`
+file from one of two sources, picked per host via `vault_secrets_enabled`:
+
+1. **Vault mode** (`vault_secrets_enabled: true` in `host_vars/<ip>/vars.yaml`)
+   Fetches secrets at deploy time from HashiCorp Vault. Both the GH workflow
+   path and direct local-machine ansible runs use the same Vault tasks.
+
+   Vault layout (KV v2):
+   ```
+   secret/data/wslproxy/<target_env>/settings.json   # JSON object
+   secret/data/wslproxy/<target_env>/env             # either {value: "<raw .env>"}
+                                                     # or a flat KEY=VAL map
+   ```
+
+   Local-machine deploy (e.g. `ansible-playbook ... -l 192.168.1.193`):
+   ```
+   export VAULT_ADDR=https://acc-vault.example.com
+   export VAULT_TOKEN=hvs.xxxxxxxx     # short-TTL, never commit
+   ansible-playbook infra/ansible/wslproxy-ops.yml -i infra/ansible/hosts \
+     -l 192.168.1.193 --tags servers
+   ```
+
+   GH workflow deploy: set repo secrets `VAULT_ADDR` and `VAULT_TOKEN`, and
+   set `secrets_mode: vault` on the call to the reusable
+   `deploy-environment.yml` workflow. The workflow probes
+   `$VAULT_ADDR/v1/sys/health` to fail fast if the token is invalid.
+
+2. **Legacy file mode** (`vault_secrets_enabled: false` or unset)
+   Reads from paths configured per host: `local_settings_file_path` and
+   `local_env_file_path`. Used by `secrets_mode: runner_file` and
+   `secrets_mode: github_secret` workflow modes. Kept as an emergency
+   rollback path until all hosts are migrated to Vault.
+
+Migration status: int (192.168.1.193) is the first pilot host on Vault.
+test/acc/prod still use the legacy modes — extend by adding
+`vault_secrets_enabled: true` and `target_env: <env>` to each host's vars
+once Vault is populated for that environment.
+
 License
 -------
 

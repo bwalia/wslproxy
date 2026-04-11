@@ -179,43 +179,23 @@ jobs:
 
       - name: Slack notification - Tests Passed
         if: success()
-        uses: rtCamp/action-slack-notify@v2
-        env:
-          SLACK_CHANNEL: github-updates
-          SLACK_COLOR: ${{ job.status }}
-          SLACK_ICON: https://github.com/rtCamp.png?size=48
-          SLACK_MESSAGE: |
-            WSL Proxy E2E Tests passed :white_check_mark:
-            *Environment:* ${{ matrix.environment }}
-            *Tests:* ${{ steps.results.outputs.passed }}/${{ steps.results.outputs.total }} passed (${{ steps.results.outputs.skipped }} skipped)
-            *Target:* ${{ steps.creds.outputs.gateway_url || steps.env_config.outputs.base_url }}
-            *Branch:* ${{ github.ref_name }}
-            *Commit:* `${{ github.sha }}`
-            *Triggered by:* ${{ github.event_name }} (${{ github.actor }})
-          SLACK_TITLE: "WSL Proxy E2E Tests - All Passed (${{ matrix.environment }})"
-          SLACK_USERNAME: GitHub Actions
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+        continue-on-error: true
+        shell: bash
+        run: |
+          curl -sf -X POST "${{ secrets.SLACK_WEBHOOK }}" \
+            -H 'Content-Type: application/json' \
+            -d "$(jq -n --arg text "WSL Proxy E2E Tests passed :white_check_mark:\n*Environment:* ${{ matrix.environment }}\n*Tests:* ${{ steps.results.outputs.passed }}/${{ steps.results.outputs.total }} passed (${{ steps.results.outputs.skipped }} skipped)\n*Target:* ${{ steps.creds.outputs.gateway_url || steps.env_config.outputs.base_url }}\n*Branch:* ${{ github.ref_name }}\n*Commit:* \`${{ github.sha }}\`\n*Triggered by:* ${{ github.event_name }} (${{ github.actor }})" \
+              '{channel: "github-updates", username: "GitHub Actions", text: $text}')"
 
       - name: Slack notification - Tests Failed
         if: failure()
-        uses: rtCamp/action-slack-notify@v2
-        env:
-          SLACK_CHANNEL: github-updates
-          SLACK_COLOR: ${{ job.status }}
-          SLACK_ICON: https://github.com/rtCamp.png?size=48
-          SLACK_MESSAGE: |
-            WSL Proxy E2E Tests FAILED :x:
-            *Environment:* ${{ matrix.environment }}
-            *Tests:* ${{ steps.results.outputs.failed }} failed, ${{ steps.results.outputs.passed }} passed out of ${{ steps.results.outputs.total }} (${{ steps.results.outputs.skipped }} skipped)
-            *Target:* ${{ steps.creds.outputs.gateway_url || steps.env_config.outputs.base_url }}
-            *Branch:* ${{ github.ref_name }}
-            *Commit:* `${{ github.sha }}`
-            *Triggered by:* ${{ github.event_name }} (${{ github.actor }})
-            *Screenshots & Traces:* Download from workflow artifacts
-            *Workflow logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          SLACK_TITLE: "WSL Proxy E2E Tests - Failed (${{ matrix.environment }})"
-          SLACK_USERNAME: GitHub Actions
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+        continue-on-error: true
+        shell: bash
+        run: |
+          curl -sf -X POST "${{ secrets.SLACK_WEBHOOK }}" \
+            -H 'Content-Type: application/json' \
+            -d "$(jq -n --arg text "WSL Proxy E2E Tests FAILED :x:\n*Environment:* ${{ matrix.environment }}\n*Tests:* ${{ steps.results.outputs.failed }} failed, ${{ steps.results.outputs.passed }} passed out of ${{ steps.results.outputs.total }} (${{ steps.results.outputs.skipped }} skipped)\n*Target:* ${{ steps.creds.outputs.gateway_url || steps.env_config.outputs.base_url }}\n*Branch:* ${{ github.ref_name }}\n*Commit:* \`${{ github.sha }}\`\n*Triggered by:* ${{ github.event_name }} (${{ github.actor }})\n*Screenshots & Traces:* Download from workflow artifacts\n*Workflow logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+              '{channel: "github-updates", username: "GitHub Actions", text: $text}')"
 
       - name: Upload screenshot to Slack
         if: failure() && env.SLACK_BOT_TOKEN != ''

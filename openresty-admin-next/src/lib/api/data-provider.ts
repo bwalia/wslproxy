@@ -4,13 +4,19 @@
    ────────────────────────────────────────────────────────────────────────── */
 
 import type {
+  AccessLogEntry,
+  AIAnalysisRequest,
+  AIAnalysisResponse,
   AppSettings,
+  BackendHealthDetail,
   ChangeRequest,
   DataProvider,
+  ErrorLogEntry,
   HealthData,
   InstanceInfo,
   ListParams,
   ListResult,
+  LogFilters,
   SingleResult,
   TrafficStats,
 } from "@/types";
@@ -318,4 +324,51 @@ export const dataProvider: DataProvider = {
 
   setCRPassphrase: (data) =>
     apiFetch(`/change-requests/config/passphrase`, { method: "PUT", body: JSON.stringify(data) }),
+
+  // ── Logs & AI troubleshooting ───────────────────────────────────────
+
+  getAccessLogs: (filters: LogFilters = {}) => {
+    const qs = new URLSearchParams();
+    if (filters.status_code) qs.set("status_code", filters.status_code);
+    if (filters.method) qs.set("method", filters.method);
+    if (filters.path) qs.set("path", filters.path);
+    if (filters.server_name) qs.set("server_name", filters.server_name);
+    if (filters.time_range) qs.set("time_range", filters.time_range);
+    if (filters.search) qs.set("search", filters.search);
+    if (filters.limit) qs.set("limit", String(filters.limit));
+    if (filters.offset) qs.set("offset", String(filters.offset));
+    qs.set("timestamp", String(Date.now()));
+    return apiFetch<ListResult<AccessLogEntry>>(`/logs/access?${qs}`).then(
+      (r) => r ?? { data: [] as AccessLogEntry[], total: 0 },
+    );
+  },
+
+  getErrorLogs: (filters: LogFilters = {}) => {
+    const qs = new URLSearchParams();
+    if (filters.level) qs.set("level", filters.level);
+    if (filters.search) qs.set("search", filters.search);
+    if (filters.time_range) qs.set("time_range", filters.time_range);
+    if (filters.limit) qs.set("limit", String(filters.limit));
+    if (filters.offset) qs.set("offset", String(filters.offset));
+    qs.set("timestamp", String(Date.now()));
+    return apiFetch<ListResult<ErrorLogEntry>>(`/logs/errors?${qs}`).then(
+      (r) => r ?? { data: [] as ErrorLogEntry[], total: 0 },
+    );
+  },
+
+  getBackendHealthDetails: () =>
+    apiFetch<ListResult<BackendHealthDetail>>(`/traffic/health/details?${ts()}`).then(
+      (r) => r ?? { data: [] as BackendHealthDetail[], total: 0 },
+    ),
+
+  analyzeWithAI: (request: AIAnalysisRequest) =>
+    apiFetch<SingleResult<AIAnalysisResponse>>(`/ai/analyze`, {
+      method: "POST",
+      body: JSON.stringify(request),
+    }).then((r) => r ?? { data: { analysis: "Analysis unavailable", root_causes: [], recommendations: [] } }),
+
+  getAIModels: () =>
+    apiFetch<SingleResult<{ models: string[]; default: string }>>(`/ai/models?${ts()}`).then(
+      (r) => r ?? { data: { models: [], default: "" } },
+    ),
 };

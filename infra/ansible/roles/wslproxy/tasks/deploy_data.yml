@@ -1,5 +1,27 @@
 ---
-# Deploy server/rule data configs, settings, and environment files
+# Deploy server/rule data configs, settings, and environment files.
+#
+# Two source modes, gated on the host var `vault_secrets_enabled`:
+#
+#   1) Vault mode (vault_secrets_enabled: true)
+#      Fetches both secrets from HashiCorp Vault using the env vars
+#      VAULT_ADDR and VAULT_TOKEN. The host var `target_env` selects the
+#      environment slug (int|test|acc|prod|...) and is used in the path:
+#        secret/data/wslproxy/<target_env>/settings.json
+#        secret/data/wslproxy/<target_env>/env
+#      Works for both GH workflow runs and direct local ansible runs as
+#      long as VAULT_ADDR/VAULT_TOKEN are exported in the environment.
+#
+#   2) Legacy file mode (vault_secrets_enabled: false / unset, default)
+#      Reads from a path on the ansible controller, configured per host
+#      via local_settings_file_path / local_env_file_path. Used by the
+#      runner_file and github_secret workflow modes which write the
+#      secret to /tmp/<...> on the runner before running the playbook.
+#
+# Vault env-file storage convention (KV v2 secret data):
+#   - either {"value": "<entire .env file contents as a string>"}
+#   - or a flat key/value map → rendered as KEY=VAL lines
+# Both formats are handled by the rendered template below.
 
 - name: Ensure nginx data directory exists
   ansible.builtin.file:
@@ -10,20 +32,99 @@
     mode: 0775
   tags: [servers, code]
 
-- name: Copy Settings Config file
-  copy:
+- name: Determine secrets source mode
+  ansible.builtin.set_fact:
+    _use_vault_secrets: "{{ vault_secrets_enabled | default(false) | bool }}"
+  tags: [servers, code]
+
+# ── Vault mode ─────────────────────────────────────────────────────────────
+
+- name: "Vault: assert env vars and target_env are set"
+  ansible.builtin.assert:
+    that:
+      - lookup('env', 'VAULT_TOKEN') | length > 0
+      - lookup('env', 'VAULT_ADDR')  | length > 0
+      - target_env is defined and target_env | length > 0
+    fail_msg: >-
+      vault_secrets_enabled=true requires VAULT_TOKEN and VAULT_ADDR to be
+      exported in the environment, and target_env to be set on the host.
+      Run: export VAULT_ADDR=https://your-vault VAULT_TOKEN=hvs.xxx
+  when: _use_vault_secrets
+  tags: [servers, code]
+
+- name: "Vault: fetch settings.json"
+  ansible.builtin.uri:
+    url: "{{ lookup('env', 'VAULT_ADDR') }}/v1/secret/data/wslproxy/{{ target_env }}/settings.json"
+    method: GET
+    headers:
+      X-Vault-Token: "{{ lookup('env', 'VAULT_TOKEN') }}"
+    return_content: yes
+    status_code: 200
+  delegate_to: localhost
+  no_log: true
+  register: _vault_settings
+  when: _use_vault_secrets
+  tags: [servers, code]
+
+- name: "Vault: write settings.json to target"
+  ansible.builtin.copy:
+    content: "{{ _vault_settings.json.data.data | to_nice_json }}"
+    dest: /opt/nginx/data/settings.json
+    mode: 0777
+    owner: "www-data"
+    group: root
+  no_log: true
+  when: _use_vault_secrets
+  tags: [servers, code]
+
+- name: "Vault: fetch env file"
+  ansible.builtin.uri:
+    url: "{{ lookup('env', 'VAULT_ADDR') }}/v1/secret/data/wslproxy/{{ target_env }}/env"
+    method: GET
+    headers:
+      X-Vault-Token: "{{ lookup('env', 'VAULT_TOKEN') }}"
+    return_content: yes
+    status_code: 200
+  delegate_to: localhost
+  no_log: true
+  register: _vault_env
+  when: _use_vault_secrets
+  tags: [servers, code]
+
+- name: "Vault: write env file to target"
+  ansible.builtin.copy:
+    content: |
+      {% if _vault_env.json.data.data.value is defined %}
+      {{ _vault_env.json.data.data.value }}
+      {% else %}
+      {% for k, v in _vault_env.json.data.data.items() %}
+      {{ k }}={{ v }}
+      {% endfor %}
+      {% endif %}
+    dest: /tmp/.env
+    mode: 0777
+  no_log: true
+  when: _use_vault_secrets
+  tags: [servers, code]
+
+# ── Legacy file mode (existing behaviour, unchanged) ───────────────────────
+
+- name: "File: copy settings.json from controller"
+  ansible.builtin.copy:
     src: "{{ local_settings_file_path }}"
     dest: /opt/nginx/data/settings.json
     mode: 0777
     owner: "www-data"
     group: root
     remote_src: no
+  when: not _use_vault_secrets
   tags: [servers, code]
 
-- name: Copy Environment file
-  copy:
+- name: "File: copy env file from controller"
+  ansible.builtin.copy:
     src: "{{ local_env_file_path }}"
     dest: "/tmp/.env"
     mode: 0777
     remote_src: no
+  when: not _use_vault_secrets
   tags: [servers, code]

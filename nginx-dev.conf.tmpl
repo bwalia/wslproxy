@@ -85,6 +85,12 @@ http {
     # Static content cache (WSL Proxy caching system)
     lua_shared_dict wsl_cache 100m;
     lua_shared_dict wsl_cache_keys 10m;
+
+    # Docker blob disk cache (content-addressable, immutable layers)
+    proxy_cache_path /var/cache/nginx/docker_blobs levels=1:2
+                     keys_zone=docker_blobs_cache:20m
+                     max_size=10g inactive=30d
+                     use_temp_path=off;
     lua_shared_dict healthcheck 1m;
 
     # Traffic stats for dashboard (stores hourly request/response counts)
@@ -168,8 +174,8 @@ http {
         listen       8080;
         server_name  127.0.0.1 localhost;
 
-        limit_req zone=req_zone burst=10 nodelay;
-        limit_req zone=req_zone_wl burst=20 nodelay;
+        limit_req zone=req_zone burst=90 nodelay;
+        limit_req zone=req_zone_wl burst=200 nodelay;
 
         include /tmp/resolver.conf;     # For kubernetes use 10.43.0.10 and nginx ingress controller
 
@@ -191,6 +197,8 @@ http {
         }
         client_max_body_size    256M;
         client_body_buffer_size 128k;
+        proxy_buffering off;
+        proxy_request_buffering off;
 
         location ~ ^/api(.*)$ {
             default_type 'text/plain';
@@ -203,6 +211,7 @@ http {
                     local token = ngx.req.get_headers()["Authorization"]
                     if not token then
                         ngx.status = ngx.HTTP_UNAUTHORIZED
+                        ngx.header["Access-Control-Allow-Origin"] = "*"
                         ngx.say("Missing token")
                         return ngx.exit(ngx.HTTP_UNAUTHORIZED)
                     end
@@ -225,17 +234,20 @@ http {
                       local passPhrase = settings.env_vars.JWT_SECURITY_PASSPHRASE or os.getenv("JWT_SECURITY_PASSPHRASE")
                       if not passPhrase or passPhrase == "" then
                         ngx.status = ngx.HTTP_UNAUTHORIZED
+                        ngx.header["Access-Control-Allow-Origin"] = "*"
                         ngx.say(Cjson.encode({data = {message = "JWT Pass Phrase is missing"}}))
                         return ngx.exit(ngx.HTTP_UNAUTHORIZED)
                       end
                       local verified_token = jwt:verify(passPhrase, token)
                       if verified_token.verified == false then
                           ngx.status = ngx.HTTP_UNAUTHORIZED
+                          ngx.header["Access-Control-Allow-Origin"] = "*"
                           ngx.say(Cjson.encode({data = {message = verified_token.reason}}))
                           return ngx.exit(ngx.HTTP_UNAUTHORIZED)
                       end
                     else
                       ngx.status = ngx.HTTP_UNAUTHORIZED
+                      ngx.header["Access-Control-Allow-Origin"] = "*"
                       ngx.say(Cjson.encode({data = {message = "Settings Json file missing, Please make sure you have correctly placed the setting json file while initlising the project."}}))
                       return ngx.exit(ngx.HTTP_UNAUTHORIZED)
                     end
@@ -715,6 +727,7 @@ http {
                     local token = ngx.req.get_headers()["Authorization"]
                     if not token then
                         ngx.status = ngx.HTTP_UNAUTHORIZED
+                        ngx.header["Access-Control-Allow-Origin"] = "*"
                         ngx.say("Missing token")
                         return ngx.exit(ngx.HTTP_UNAUTHORIZED)
                     end
@@ -737,17 +750,20 @@ http {
                       local passPhrase = settings.env_vars.JWT_SECURITY_PASSPHRASE or os.getenv("JWT_SECURITY_PASSPHRASE")
                       if not passPhrase or passPhrase == "" then
                         ngx.status = ngx.HTTP_UNAUTHORIZED
+                        ngx.header["Access-Control-Allow-Origin"] = "*"
                         ngx.say(Cjson.encode({data = {message = "JWT Pass Phrase is missing"}}))
                         return ngx.exit(ngx.HTTP_UNAUTHORIZED)
                       end
                       local verified_token = jwt:verify(passPhrase, token)
                       if verified_token.verified == false then
                           ngx.status = ngx.HTTP_UNAUTHORIZED
+                          ngx.header["Access-Control-Allow-Origin"] = "*"
                           ngx.say(Cjson.encode({data = {message = verified_token.reason}}))
                           return ngx.exit(ngx.HTTP_UNAUTHORIZED)
                       end
                     else
                       ngx.status = ngx.HTTP_UNAUTHORIZED
+                      ngx.header["Access-Control-Allow-Origin"] = "*"
                       ngx.say(Cjson.encode({data = {message = "Settings Json file missing"}}))
                       return ngx.exit(ngx.HTTP_UNAUTHORIZED)
                     end
@@ -794,7 +810,7 @@ http {
 
         include /tmp/resolver.conf;
 
-        client_max_body_size  256M;
+        client_max_body_size  0;
         client_body_buffer_size 128k;
 
         # Health and ping — served by OpenResty Lua
@@ -825,6 +841,7 @@ http {
                     local token = ngx.req.get_headers()["Authorization"]
                     if not token then
                         ngx.status = ngx.HTTP_UNAUTHORIZED
+                        ngx.header["Access-Control-Allow-Origin"] = "*"
                         ngx.say("Missing token")
                         return ngx.exit(ngx.HTTP_UNAUTHORIZED)
                     end
@@ -847,17 +864,20 @@ http {
                       local passPhrase = settings.env_vars.JWT_SECURITY_PASSPHRASE or os.getenv("JWT_SECURITY_PASSPHRASE")
                       if not passPhrase or passPhrase == "" then
                         ngx.status = ngx.HTTP_UNAUTHORIZED
+                        ngx.header["Access-Control-Allow-Origin"] = "*"
                         ngx.say(Cjson.encode({data = {message = "JWT Pass Phrase is missing"}}))
                         return ngx.exit(ngx.HTTP_UNAUTHORIZED)
                       end
                       local verified_token = jwt:verify(passPhrase, token)
                       if verified_token.verified == false then
                           ngx.status = ngx.HTTP_UNAUTHORIZED
+                          ngx.header["Access-Control-Allow-Origin"] = "*"
                           ngx.say(Cjson.encode({data = {message = verified_token.reason}}))
                           return ngx.exit(ngx.HTTP_UNAUTHORIZED)
                       end
                     else
                       ngx.status = ngx.HTTP_UNAUTHORIZED
+                      ngx.header["Access-Control-Allow-Origin"] = "*"
                       ngx.say(Cjson.encode({data = {message = "Settings Json file missing"}}))
                       return ngx.exit(ngx.HTTP_UNAUTHORIZED)
                     end
@@ -914,6 +934,18 @@ upstream global_backend {
       if not ok then
       ngx.log(ngx.ERR, "balancer.set_current_peer failed to set the host " .. host .. ":" .. port .. " current peer: ", err)
       return ngx.exit(500)
+      end
+
+      -- Per-server proxy timeouts (set by gateway_resp.lua via ngx.ctx)
+      local pt = ngx.ctx.proxy_timeouts
+      if pt and balancer.set_timeouts then
+          local ct = pt.connect_timeout or 60
+          local st = pt.send_timeout or 60
+          local rt = pt.read_timeout or 60
+          local tok, terr = pcall(balancer.set_timeouts, ct, st, rt)
+          if not tok then
+              ngx.log(ngx.ERR, "balancer.set_timeouts failed: ", terr)
+          end
       end
   }
 
@@ -1005,8 +1037,8 @@ server {
         ssl_certificate /etc/ssl/resty-auto-ssl-fallback.crt;
         ssl_certificate_key /etc/ssl/resty-auto-ssl-fallback.key;
 
-        limit_req zone=req_zone burst=10 nodelay;
-        limit_req zone=req_zone_wl burst=20 nodelay;
+        limit_req zone=req_zone burst=90 nodelay;
+        limit_req zone=req_zone_wl burst=200 nodelay;
 
         access_log /var/log/nginx/access.log main;
         error_log  /var/log/nginx/error.log;
@@ -1025,6 +1057,10 @@ server {
           set $proxy_route_server "openresty-default-route-443";
           set $upstream_server "global_backend";
 
+          # Docker blob cache zone variable (set by Lua when Docker blob caching is enabled)
+          set $docker_cache_zone "";
+          set $docker_cache_stale "";
+
           location / {
             default_type text/plain;
             set_by_lua_block $frontdoor_global_vars {
@@ -1034,7 +1070,7 @@ server {
                 proxyServerName = proxyServerName
               })
             }
-            
+
             rewrite_by_lua_file /usr/local/openresty/nginx/html/api/gateway_ack.lua;
             access_by_lua_file /usr/local/openresty/nginx/html/api/gateway_resp.lua;    # this code run just before the setting the proxy pass and content phase.
 
@@ -1056,6 +1092,18 @@ server {
 
           # echo $proxy_host:$proxy_port;
           # echo $upstream_server;
+
+          # Docker blob disk cache (controlled by Lua via $docker_cache_zone)
+          proxy_cache $docker_cache_zone;
+          proxy_cache_key $scheme$host$request_uri;
+          proxy_cache_valid 200 30d;
+          proxy_cache_valid 206 30d;
+          proxy_cache_use_stale error timeout updating http_500 http_502 http_503 http_504 http_403 http_404;
+          proxy_cache_revalidate on;
+          proxy_cache_background_update on;
+          proxy_cache_lock on;
+          proxy_cache_lock_timeout 300s;
+          add_header X-WSL-Docker-Cache $upstream_cache_status;
 
           # WebSocket support
           proxy_http_version 1.1;
@@ -1142,8 +1190,8 @@ server {
         listen       80 default_server;
         server_name _;
 
-        limit_req zone=req_zone burst=10 nodelay;
-        limit_req zone=req_zone_wl burst=20 nodelay;
+        limit_req zone=req_zone burst=90 nodelay;
+        limit_req zone=req_zone_wl burst=200 nodelay;
 
         # resolver 127.0.0.1 local=on;
         include /tmp/resolver.conf;         #   For kubernetes use 10.43.0.10 and nginx ingress controller

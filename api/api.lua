@@ -105,6 +105,24 @@ local function validateServerPayload(payloads)
                     message = "Header value is required"
                 })
             end
+            -- Access-Control-Allow-Origin must be "*", "null", or a scheme-qualified origin.
+            -- Bare hostnames like "example.com" are silently ignored by browsers and are a
+            -- common foot-gun; reject them at save time.
+            if header.header_key and header.header_value and header.header_value ~= "" then
+                local key_lower = header.header_key:lower()
+                if key_lower == "access-control-allow-origin" then
+                    local v = header.header_value
+                    local ok = v == "*" or v == "null"
+                        or v:match("^https?://[%w%-%.:]+$")
+                        or v:match("^https?://[%w%-%.:]+/.*$")
+                    if not ok then
+                        table.insert(errors, {
+                            field = "custom_response_headers[" .. i .. "].header_value",
+                            message = "Access-Control-Allow-Origin must be '*', 'null', or a scheme-qualified origin (e.g. https://example.com). Got: " .. tostring(v)
+                        })
+                    end
+                end
+            end
         end
     end
 
@@ -235,15 +253,22 @@ local function validateServerPayload(payloads)
     -- Validate Varnish snippets
     if payloads.varnish_snippets and type(payloads.varnish_snippets) == "table" then
         local valid_hooks = {
-            vcl_init = true, vcl_recv = true, vcl_hash = true, vcl_hit = true,
-            vcl_miss = true, vcl_backend_fetch = true, vcl_backend_response = true,
-            vcl_deliver = true, vcl_synth = true
+            vcl_init = true,
+            vcl_recv = true,
+            vcl_hash = true,
+            vcl_hit = true,
+            vcl_miss = true,
+            vcl_backend_fetch = true,
+            vcl_backend_response = true,
+            vcl_deliver = true,
+            vcl_synth = true
         }
         for i, snippet in ipairs(payloads.varnish_snippets) do
             if snippet.hook_point and not valid_hooks[snippet.hook_point] then
                 table.insert(errors, {
                     field = "varnish_snippets[" .. i .. "].hook_point",
-                    message = "Invalid VCL hook point. Valid: vcl_init, vcl_recv, vcl_hash, vcl_hit, vcl_miss, vcl_backend_fetch, vcl_backend_response, vcl_deliver, vcl_synth"
+                    message =
+                    "Invalid VCL hook point. Valid: vcl_init, vcl_recv, vcl_hash, vcl_hit, vcl_miss, vcl_backend_fetch, vcl_backend_response, vcl_deliver, vcl_synth"
                 })
             end
             if snippet.content ~= nil and type(snippet.content) ~= "string" then
@@ -430,7 +455,12 @@ local function validateWafRulePayload(payloads)
     else
         local valid_categories = { sqli = true, xss = true, cmdi = true, lfi = true, rfi = true, protocol = true, custom = true }
         if not valid_categories[payloads.category] then
-            table.insert(errors, { field = "category", message = "Invalid category. Must be one of: sqli, xss, cmdi, lfi, rfi, protocol, custom" })
+            table.insert(errors,
+                {
+                    field = "category",
+                    message =
+                    "Invalid category. Must be one of: sqli, xss, cmdi, lfi, rfi, protocol, custom"
+                })
         end
     end
 
@@ -448,7 +478,12 @@ local function validateWafRulePayload(payloads)
     else
         local valid_targets = { url = true, headers = true, body = true, args = true, cookies = true, user_agent = true, all = true }
         if not valid_targets[payloads.target] then
-            table.insert(errors, { field = "target", message = "Invalid target. Must be one of: url, headers, body, args, cookies, user_agent, all" })
+            table.insert(errors,
+                {
+                    field = "target",
+                    message =
+                    "Invalid target. Must be one of: url, headers, body, args, cookies, user_agent, all"
+                })
         end
     end
 
@@ -1315,6 +1350,34 @@ local function createUpdateServer(body, uuid)
             else
                 ngx.log(ngx.INFO, "Cache disabled for domain: ", payloads.server_name)
             end
+        end
+    end
+
+    -- Handle Docker blob caching configuration
+    if payloads.cache_docker_blobs ~= nil then
+        local existing_config = CacheManager.get_cache_config(payloads.server_name) or {}
+        existing_config.cache_docker_blobs = payloads.cache_docker_blobs
+        if payloads.cache_docker_blobs_ttl then
+            existing_config.cache_docker_blobs_ttl = tonumber(payloads.cache_docker_blobs_ttl)
+        end
+        if payloads.cache_docker_manifests ~= nil then
+            existing_config.cache_docker_manifests = payloads.cache_docker_manifests
+        end
+        if payloads.cache_docker_manifests_ttl then
+            existing_config.cache_docker_manifests_ttl = tonumber(payloads.cache_docker_manifests_ttl)
+        end
+        if payloads.cache_docker_serve_stale ~= nil then
+            existing_config.cache_docker_serve_stale = payloads.cache_docker_serve_stale
+        end
+        if payloads.cache_docker_stale_ttl then
+            existing_config.cache_docker_stale_ttl = tonumber(payloads.cache_docker_stale_ttl)
+        end
+        local cache_ok, cache_err = CacheManager.save_cache_config(payloads.server_name, existing_config)
+        if not cache_ok then
+            ngx.log(ngx.ERR, "Failed to save Docker cache config for ", payloads.server_name, ": ", cache_err)
+        else
+            ngx.log(ngx.INFO, "Docker blob cache ", payloads.cache_docker_blobs and "enabled" or "disabled",
+                " for domain: ", payloads.server_name)
         end
     end
 
@@ -3402,6 +3465,102 @@ end
 
 local platform = ngx.req.get_headers()["x-platform"]
 local preAction = ngx.req.get_headers()["x-special-case-pre-action"]
+
+-- AI log analysis handler shared by GET and POST dispatch.
+-- Request body (JSON): { logs: [<log_entry>], question?: string, context?: string }
+-- Response envelope:   { data: { analysis, root_causes[], recommendations[],
+--                                severity: "low"|"medium"|"high"|"critical",
+--                                related_patterns[] } }
+-- Reads Ollama endpoint from settings.ai_endpoint / settings.ai_model.
+local function handle_ai_analyze()
+    ngx.req.read_body()
+    local body = ngx.req.get_body_data()
+    local ok, payload = pcall(cjson.decode, body or "{}")
+    if not ok then
+        ngx.status = 400
+        ngx.say(cjson.encode({ error = "Invalid JSON" }))
+        ngx.exit(400)
+    end
+    local logs_text = ""
+    if payload.logs then
+        for _, log_entry in ipairs(payload.logs) do
+            logs_text = logs_text .. cjson.encode(log_entry) .. "\n"
+        end
+    end
+    local question = payload.question or "Analyze these logs for issues."
+    local context = payload.context or ""
+    local prompt = "You are an expert DevOps/SRE engineer specializing in nginx/OpenResty ingress controllers. "
+        .. "Analyze the following log entries and provide:\n"
+        .. "1. A clear analysis of what's happening\n"
+        .. "2. Root causes of any errors or issues\n"
+        .. "3. Specific recommendations to fix the issues\n"
+        .. "4. Severity assessment (low/medium/high/critical)\n\n"
+        .. "Context: " .. context .. "\n"
+        .. "Question: " .. question .. "\n\n"
+        .. "Log entries:\n" .. logs_text .. "\n\n"
+        .. "Respond in this JSON format:\n"
+        ..
+        '{"analysis": "...", "root_causes": ["..."], "recommendations": ["..."], "severity": "low|medium|high|critical", "related_patterns": ["..."]}'
+
+    local ollama_host = (settings and settings.ai_endpoint) or "http://127.0.0.1:11434"
+    local ollama_model = (settings and settings.ai_model) or "llama3.2"
+    local http = require("resty.http")
+    local httpc = http.new()
+    httpc:set_timeout(60000)
+    local res, err = httpc:request_uri(ollama_host .. "/api/generate", {
+        method = "POST",
+        body = cjson.encode({
+            model = ollama_model,
+            prompt = prompt,
+            stream = false,
+            format = "json",
+        }),
+        headers = {
+            ["Content-Type"] = "application/json",
+        },
+    })
+    if res and res.status == 200 then
+        local ok2, result = pcall(cjson.decode, res.body)
+        if ok2 and result.response then
+            local ok3, ai_response = pcall(cjson.decode, result.response)
+            if ok3 then
+                ngx.say(cjson.encode({ data = ai_response }))
+            else
+                ngx.say(cjson.encode({
+                    data = {
+                        analysis = result.response,
+                        root_causes = {},
+                        recommendations = {},
+                        severity = "medium",
+                    }
+                }))
+            end
+        else
+            ngx.say(cjson.encode({
+                data = {
+                    analysis = "AI returned unexpected format.",
+                    severity = "low",
+                }
+            }))
+        end
+    else
+        ngx.status = 503
+        ngx.say(cjson.encode({
+            data = {
+                analysis = "Could not reach AI service at " .. ollama_host .. ". " .. (err or ""),
+                root_causes = { "Ollama service not running or not reachable" },
+                recommendations = {
+                    "Start Ollama: ollama serve",
+                    "Pull a model: ollama pull " .. ollama_model,
+                    "Check firewall settings for port 11434",
+                },
+                severity = "medium",
+            }
+        }))
+    end
+    ngx.exit(ngx.HTTP_OK)
+end
+
 local function handle_get_request(args, path)
     -- handle GET request logic
     path = ngx.unescape_uri(path)
@@ -3492,6 +3651,197 @@ local function handle_get_request(args, path)
         listOpenrestyAccessLogs()
     end
 
+    -- ── Structured logs for dashboard ────────────────────────────────
+    if path == "logs/access" then
+        local args = ngx.req.get_uri_args()
+        local limit = tonumber(args.limit) or 200
+        local offset = tonumber(args.offset) or 0
+        local logFile = "/usr/local/openresty/nginx/logs/access.log"
+        local f = io.open(logFile, "r")
+        local entries = {}
+        local total = 0
+        if f then
+            local lines = {}
+            for line in f:lines() do
+                lines[#lines + 1] = line
+            end
+            f:close()
+            total = #lines
+            -- Read from end (most recent first), apply offset and limit
+            local startIdx = math.max(1, #lines - offset - limit + 1)
+            local endIdx = math.max(1, #lines - offset)
+            for i = endIdx, startIdx, -1 do
+                local line = lines[i]
+                local ok, entry = pcall(cjson.decode, line)
+                if ok and type(entry) == "table" then
+                    entry.id = "access-" .. tostring(i)
+                    -- Apply filters
+                    local include = true
+                    if args.status_code and args.status_code ~= "" then
+                        local sc = tostring(entry.status or "")
+                        local filter = args.status_code
+                        if filter == "2xx" then
+                            include = sc:sub(1, 1) == "2"
+                        elseif filter == "3xx" then
+                            include = sc:sub(1, 1) == "3"
+                        elseif filter == "4xx" then
+                            include = sc:sub(1, 1) == "4"
+                        elseif filter == "5xx" then
+                            include = sc:sub(1, 1) == "5"
+                        else
+                            include = sc == filter
+                        end
+                    end
+                    if args.method and args.method ~= "" then
+                        include = include and (entry.method == args.method)
+                    end
+                    if args.search and args.search ~= "" then
+                        local q = args.search:lower()
+                        local haystack = (tostring(entry.uri or "") .. " " .. tostring(entry.remote_addr or "") .. " " .. tostring(entry.http_user_agent or ""))
+                            :lower()
+                        include = include and haystack:find(q, 1, true)
+                    end
+                    if include then
+                        entries[#entries + 1] = entry
+                    end
+                else
+                    -- Parse common log format
+                    local remote_addr, timestamp, method, uri, status, bytes =
+                        line:match('^(%S+)%s+%-%s+%S+%s+%[([^%]]+)%]%s+"(%S+)%s+(%S+)%s+%S+"%s+(%d+)%s+(%d+)')
+                    if remote_addr then
+                        local entry2 = {
+                            id = "access-" .. tostring(i),
+                            timestamp = timestamp,
+                            remote_addr = remote_addr,
+                            method = method,
+                            uri = uri,
+                            status = tonumber(status) or 0,
+                            body_bytes_sent = tonumber(bytes) or 0,
+                            request_time = 0,
+                        }
+                        local include2 = true
+                        if args.status_code and args.status_code ~= "" then
+                            local sc = tostring(entry2.status)
+                            local filter = args.status_code
+                            if filter == "2xx" then
+                                include2 = sc:sub(1, 1) == "2"
+                            elseif filter == "3xx" then
+                                include2 = sc:sub(1, 1) == "3"
+                            elseif filter == "4xx" then
+                                include2 = sc:sub(1, 1) == "4"
+                            elseif filter == "5xx" then
+                                include2 = sc:sub(1, 1) == "5"
+                            else
+                                include2 = sc == filter
+                            end
+                        end
+                        if include2 then
+                            entries[#entries + 1] = entry2
+                        end
+                    end
+                end
+                if #entries >= limit then break end
+            end
+        end
+        ngx.say(cjson.encode({
+            data = entries,
+            total = total
+        }))
+        ngx.exit(ngx.HTTP_OK)
+    end
+
+    if path == "logs/errors" then
+        local args = ngx.req.get_uri_args()
+        local limit = tonumber(args.limit) or 200
+        local logFile = "/usr/local/openresty/nginx/logs/error.log"
+        local f = io.open(logFile, "r")
+        local entries = {}
+        local total = 0
+        if f then
+            local lines = {}
+            for line in f:lines() do
+                lines[#lines + 1] = line
+            end
+            f:close()
+            total = #lines
+            for i = #lines, math.max(1, #lines - limit * 2 + 1), -1 do
+                local line = lines[i]
+                local timestamp, level, message =
+                    line:match("^(%d+/%d+/%d+%s+%d+:%d+:%d+)%s+%[(%w+)%]%s+%d+#%d+:%s*(.*)")
+                if timestamp then
+                    local entry = {
+                        id = "error-" .. tostring(i),
+                        timestamp = timestamp,
+                        level = level,
+                        message = message,
+                    }
+                    local client = message:match("client:%s+(%S+)")
+                    local server = message:match("server:%s+(%S+)")
+                    local request = message:match('request:%s+"([^"]*)"')
+                    local upstream = message:match("upstream:%s+(%S+)")
+                    local host = message:match('host:%s+"([^"]*)"')
+                    if client then entry.client = client end
+                    if server then entry.server = server end
+                    if request then entry.request = request end
+                    if upstream then entry.upstream = upstream end
+                    if host then entry.host = host end
+                    local include = true
+                    if args.level and args.level ~= "" then
+                        include = (entry.level == args.level)
+                    end
+                    if args.search and args.search ~= "" then
+                        include = include and message:lower():find(args.search:lower(), 1, true)
+                    end
+                    if include then
+                        entries[#entries + 1] = entry
+                    end
+                end
+                if #entries >= limit then break end
+            end
+        end
+        ngx.say(cjson.encode({
+            data = entries,
+            total = total
+        }))
+        ngx.exit(ngx.HTTP_OK)
+    end
+
+    -- ── AI analysis proxy (forwards to local Ollama) ─────────────────
+    -- Kept in GET for backward compatibility; real clients POST.
+    if path == "ai/analyze" then
+        handle_ai_analyze()
+    end
+
+    if path == "ai/models" then
+        local ollama_host = (settings and settings.ai_endpoint) or "http://127.0.0.1:11434"
+        local http = require("resty.http")
+        local httpc = http.new()
+        httpc:set_timeout(5000)
+        local res, err = httpc:request_uri(ollama_host .. "/api/tags", {
+            method = "GET",
+        })
+        if res and res.status == 200 then
+            local ok, result = pcall(cjson.decode, res.body)
+            if ok and result.models then
+                local models = {}
+                for _, m in ipairs(result.models) do
+                    models[#models + 1] = m.name
+                end
+                ngx.say(cjson.encode({
+                    data = {
+                        models = models,
+                        default = (settings and settings.ai_model) or "llama3.2",
+                    }
+                }))
+            else
+                ngx.say(cjson.encode({ data = { models = {}, default = "" } }))
+            end
+        else
+            ngx.say(cjson.encode({ data = { models = {}, default = "" } }))
+        end
+        ngx.exit(ngx.HTTP_OK)
+    end
+
     -- SSL Certificate status endpoint
     if subPath[1] == "ssl" and subPath[2] == "status" and subPath[3] then
         local server_name = subPath[3]
@@ -3504,7 +3854,7 @@ local function handle_get_request(args, path)
                     certificate_exists = ssl_status.certificate_exists,
                     certificate_expiry = ssl_status.certificate_expiry,
                     message = ssl_status.ssl_enabled and "SSL is enabled for this domain" or
-                    "SSL is not enabled for this domain"
+                        "SSL is not enabled for this domain"
                 }
             }))
         else
@@ -3548,7 +3898,7 @@ local function handle_get_request(args, path)
                 cache_enabled = cache_enabled,
                 cache_ttl = cache_config and cache_config.cache_ttl or 3600,
                 message = cache_enabled and "Caching is enabled for this domain" or
-                "Caching is not enabled for this domain"
+                    "Caching is not enabled for this domain"
             }
         }))
         ngx.exit(ngx.HTTP_OK)
@@ -3717,7 +4067,7 @@ local function handle_get_request(args, path)
         local function get_ip_addresses()
             local ips = {}
             local ip_cmd = execute_command(
-            "hostname -I 2>/dev/null || ip addr show 2>/dev/null | grep 'inet ' | awk '{print $2}' | cut -d/ -f1")
+                "hostname -I 2>/dev/null || ip addr show 2>/dev/null | grep 'inet ' | awk '{print $2}' | cut -d/ -f1")
             if ip_cmd then
                 for ip in ip_cmd:gmatch("%S+") do
                     table.insert(ips, ip)
@@ -3755,10 +4105,12 @@ local function handle_get_request(args, path)
         local kernel = execute_command("uname -r 2>/dev/null"):gsub("%s+", "")
         local uptime = execute_command("uptime -p 2>/dev/null || uptime"):gsub("%s+$", "")
         local cpu_info = execute_command("lscpu 2>/dev/null | grep 'Model name' | cut -d':' -f2"):gsub("^%s+", ""):gsub(
-        "%s+$", "")
+            "%s+$", "")
         local cpu_cores = execute_command("nproc 2>/dev/null"):gsub("%s+", "")
         -- CPU usage: /proc/stat is most reliable across all Linux (GNU, BusyBox, SUSE, Debian)
-        local cpu_usage = execute_command("cat /proc/stat 2>/dev/null | head -1 | awk '{total=0; for(i=2;i<=NF;i++) total+=$i; idle=$5; if(total>0) printf \"%.1f\", 100*(total-idle)/total; else print \"0\"}'"):gsub("%s+", "")
+        local cpu_usage = execute_command(
+                "cat /proc/stat 2>/dev/null | head -1 | awk '{total=0; for(i=2;i<=NF;i++) total+=$i; idle=$5; if(total>0) printf \"%.1f\", 100*(total-idle)/total; else print \"0\"}'")
+            :gsub("%s+", "")
 
         -- Memory information (total, used, available, free)
         local memory_total = execute_command("free -h 2>/dev/null | grep Mem | awk '{print $2}'"):gsub("%s+", "")
@@ -3943,6 +4295,46 @@ local function handle_get_request(args, path)
         -- Sort top URLs by size
         table.sort(top_urls, function(a, b) return a.size > b.size end)
 
+        -- Docker blob cache stats (disk-based proxy_cache)
+        local docker_cache_stats = {
+            enabled_servers = 0,
+            blob_cache_servers = {},
+            manifest_cache_servers = {},
+        }
+        local ok_cm, CacheManagerStats = pcall(require, "cache_manager")
+        if ok_cm then
+            local all_configs = CacheManagerStats.list_cache_configs()
+            for _, cfg in ipairs(all_configs or {}) do
+                if cfg.cache_docker_blobs then
+                    docker_cache_stats.enabled_servers = docker_cache_stats.enabled_servers + 1
+                    table.insert(docker_cache_stats.blob_cache_servers, {
+                        server_name = cfg.server_name or "unknown",
+                        blob_ttl = cfg.cache_docker_blobs_ttl or 2592000,
+                        manifest_caching = cfg.cache_docker_manifests or false,
+                        manifest_ttl = cfg.cache_docker_manifests_ttl or 3600,
+                        serve_stale = cfg.cache_docker_serve_stale or false,
+                        stale_ttl = cfg.cache_docker_stale_ttl or 31536000,
+                    })
+                end
+            end
+        end
+
+        -- Read disk cache directory stats
+        local docker_disk_stats = {
+            total_files = 0,
+            total_size_bytes = 0,
+        }
+        local cache_dir = "/var/cache/nginx/docker_blobs"
+        local ok_popen, pipe = pcall(io.popen, "du -sb " .. cache_dir .. " 2>/dev/null && find " .. cache_dir .. " -type f 2>/dev/null | wc -l")
+        if ok_popen and pipe then
+            local output = pipe:read("*a")
+            pipe:close()
+            local dir_size = output:match("^(%d+)")
+            local file_count = output:match("\n(%d+)")
+            docker_disk_stats.total_size_bytes = tonumber(dir_size) or 0
+            docker_disk_stats.total_files = tonumber(file_count) or 0
+        end
+
         ngx.say(cjson.encode({
             data = {
                 available = true,
@@ -3953,7 +4345,14 @@ local function handle_get_request(args, path)
                 entries_by_extension = extensions_array,
                 top_urls = top_urls,
                 cache_dict_capacity = cache_dict:capacity(),
-                cache_dict_free_space = cache_dict:free_space()
+                cache_dict_free_space = cache_dict:free_space(),
+                docker_cache = {
+                    enabled_servers = docker_cache_stats.enabled_servers,
+                    blob_cache_servers = docker_cache_stats.blob_cache_servers,
+                    disk_total_files = docker_disk_stats.total_files,
+                    disk_total_size_bytes = docker_disk_stats.total_size_bytes,
+                    disk_total_size_mb = math.floor(docker_disk_stats.total_size_bytes / 1024 / 1024 * 100) / 100,
+                }
             }
         }))
         ngx.exit(ngx.HTTP_OK)
@@ -4185,12 +4584,14 @@ local function handle_get_request(args, path)
     -- GET /api/change-requests/config - Get CR config (whether passphrase is set, etc.)
     if path == "change-requests/config" then
         local config = CRManager.get_cr_config()
-        ngx.say(cjson.encode({ data = {
-            has_passphrase = (config.approval_passphrase ~= nil and config.approval_passphrase ~= ""),
-            required_approvals = config.required_approvals or 2,
-            passphrase_set_by = config.passphrase_set_by,
-            passphrase_set_at = config.passphrase_set_at,
-        }}))
+        ngx.say(cjson.encode({
+            data = {
+                has_passphrase = (config.approval_passphrase ~= nil and config.approval_passphrase ~= ""),
+                required_approvals = config.required_approvals or 2,
+                passphrase_set_by = config.passphrase_set_by,
+                passphrase_set_at = config.passphrase_set_at,
+            }
+        }))
         ngx.exit(ngx.HTTP_OK)
     end
 
@@ -4355,6 +4756,11 @@ local function handle_post_request(args, path)
                 ngx.exit(ngx.HTTP_OK)
             end
         end
+        -- ── AI analysis proxy (forwards to local Ollama) ─────────────────
+        -- Called via POST from both openresty-admin and openresty-admin-next.
+        if path == "ai/analyze" then
+            handle_ai_analyze()
+        end
         if path == "password/reset" then
             resetPassword(args)
         end
@@ -4370,6 +4776,13 @@ local function handle_post_request(args, path)
             if payloads.cache_ttl then options.cache_ttl = tonumber(payloads.cache_ttl) end
             if payloads.cached_extensions then options.cached_extensions = payloads.cached_extensions end
             if payloads.cached_mime_types then options.cached_mime_types = payloads.cached_mime_types end
+            -- Docker blob caching options
+            if payloads.cache_docker_blobs ~= nil then options.cache_docker_blobs = payloads.cache_docker_blobs end
+            if payloads.cache_docker_blobs_ttl then options.cache_docker_blobs_ttl = tonumber(payloads.cache_docker_blobs_ttl) end
+            if payloads.cache_docker_manifests ~= nil then options.cache_docker_manifests = payloads.cache_docker_manifests end
+            if payloads.cache_docker_manifests_ttl then options.cache_docker_manifests_ttl = tonumber(payloads.cache_docker_manifests_ttl) end
+            if payloads.cache_docker_serve_stale ~= nil then options.cache_docker_serve_stale = payloads.cache_docker_serve_stale end
+            if payloads.cache_docker_stale_ttl then options.cache_docker_stale_ttl = tonumber(payloads.cache_docker_stale_ttl) end
 
             local success, err = CacheManager.enable_cache(server_name, options)
             if success then
@@ -4493,7 +4906,7 @@ local function handle_post_request(args, path)
                 Errors.throwError("Server name is required", ngx.HTTP_BAD_REQUEST)
             end
             local payloads = Helper.GetPayloads(args) or {}
-            local dry_run = payloads.dry_run ~= false  -- default to dry_run=true
+            local dry_run = payloads.dry_run ~= false -- default to dry_run=true
 
             local VarnishVcl = require("varnish_vcl")
             local config = VarnishManager.get_varnish_config(server_name)

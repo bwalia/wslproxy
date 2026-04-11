@@ -24,6 +24,7 @@ import {
   ShieldCheck,
   ChevronLeft,
   ChevronRight,
+  ScrollText,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -57,6 +58,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
           ...(settings?.storage_type === "redis"
             ? [{ label: "Sessions", href: "/sessions", icon: Activity }]
             : []),
+          { label: "Logs & Troubleshoot", href: "/logs", icon: ScrollText },
           { label: "Health", href: "/health", icon: HeartPulse },
           { label: "Bookmarks", href: "/bookmarks", icon: Bookmark },
         ],

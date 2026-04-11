@@ -39,6 +39,15 @@ local DEFAULT_CACHED_MIME_TYPES = {
     "audio/mpeg",
     "video/mp4",
     "video/webm",
+    -- Docker / OCI registry content types
+    "application/octet-stream",
+    "application/vnd.docker.image.rootfs.diff.tar.gzip",
+    "application/vnd.oci.image.layer.v1.tar+gzip",
+    "application/vnd.docker.distribution.manifest.v2+json",
+    "application/vnd.oci.image.manifest.v1+json",
+    "application/vnd.docker.distribution.manifest.list.v2+json",
+    "application/vnd.oci.image.index.v1+json",
+    "application/vnd.docker.container.image.v1+json",
 }
 
 -- Get Prometheus metrics module (may not be available)
@@ -185,7 +194,63 @@ local function get_extension(uri)
 end
 
 -- ============================================================
--- Main Cache Functions
+-- Docker Blob Cache Functions (nginx proxy_cache, disk-based)
+-- ============================================================
+
+-- Check if this is a Docker registry request and enable proxy_cache
+-- Called during rewrite/access phase to set $docker_cache_zone variable
+function _M.check_docker_blob_cache(server_name, config)
+    if not config then return false end
+
+    local uri = ngx.var.uri or ""
+    local method = ngx.req.get_method()
+
+    -- Only cache GET and HEAD requests (not uploads/pushes)
+    if method ~= "GET" and method ~= "HEAD" then
+        return false
+    end
+
+    local ok, CacheManager = pcall(require, "cache_manager")
+    if not ok then return false end
+
+    local serve_stale = config.cache_docker_serve_stale
+    local stale_ttl = config.cache_docker_stale_ttl or 31536000
+
+    -- Check if this is a Docker blob request
+    if CacheManager.is_docker_blob_uri(uri) and config.cache_docker_blobs then
+        ngx.var.docker_cache_zone = "docker_blobs_cache"
+        ngx.ctx.docker_blob_cache = true
+        ngx.ctx.docker_blob_type = "blob"
+        ngx.ctx.docker_serve_stale = serve_stale
+        ngx.ctx.docker_stale_ttl = stale_ttl
+        if serve_stale then
+            ngx.var.docker_cache_stale = "1"
+        end
+        ngx.log(ngx.INFO, "Cache Handler: Docker blob cache ENABLED for: ", uri,
+            serve_stale and " (serve-stale: " .. stale_ttl .. "s)" or "")
+        return true
+    end
+
+    -- Check if this is a Docker manifest request
+    if CacheManager.is_docker_manifest_uri(uri) and config.cache_docker_manifests then
+        ngx.var.docker_cache_zone = "docker_blobs_cache"
+        ngx.ctx.docker_blob_cache = true
+        ngx.ctx.docker_blob_type = "manifest"
+        ngx.ctx.docker_serve_stale = serve_stale
+        ngx.ctx.docker_stale_ttl = stale_ttl
+        if serve_stale then
+            ngx.var.docker_cache_stale = "1"
+        end
+        ngx.log(ngx.INFO, "Cache Handler: Docker manifest cache ENABLED for: ", uri,
+            serve_stale and " (serve-stale: " .. stale_ttl .. "s)" or "")
+        return true
+    end
+
+    return false
+end
+
+-- ============================================================
+-- Main Cache Functions (Lua shared dict, in-memory)
 -- ============================================================
 
 -- Check if we have a cached response (access phase)
@@ -329,13 +394,28 @@ function _M.process_response_headers()
     if ngx.ctx.cache_hit then
         return
     end
-    
+
+    -- Add Docker blob cache debug headers (proxy_cache handles the actual caching)
+    if ngx.ctx.docker_blob_cache then
+        local blob_type = ngx.ctx.docker_blob_type or "blob"
+        ngx.header["X-WSL-Docker-Cache-Type"] = blob_type
+        ngx.header["X-WSL-Docker-Cache-Server"] = ngx.ctx.cache_server_name or ngx.var.host
+        ngx.header["X-WSL-Docker-Serve-Stale"] = ngx.ctx.docker_serve_stale and "on" or "off"
+        -- When serve-stale is enabled, set X-Accel-Expires to keep items in cache
+        -- for the stale TTL period so they can be served when the registry is down
+        if ngx.ctx.docker_serve_stale and ngx.status == 200 then
+            local stale_ttl = ngx.ctx.docker_stale_ttl or 31536000
+            ngx.header["X-Accel-Expires"] = tostring(stale_ttl)
+        end
+        return  -- proxy_cache handles caching, skip Lua shared dict logic
+    end
+
     -- Always add cache status headers for debugging
     local cache_status = ngx.ctx.cache_status or "NONE"
     local cache_detail = ngx.ctx.cache_status_detail or ""
     local server_name = ngx.ctx.cache_server_name or ngx.var.host:gsub("^www%.", "")
     local ext = ngx.ctx.cache_extension or "none"
-    
+
     ngx.header["X-WSL-Cache"] = cache_status
     ngx.header["X-WSL-Cache-Status"] = cache_status
     ngx.header["X-WSL-Cache-Detail"] = cache_detail

@@ -30,7 +30,7 @@ on:
         type: string
         required: true
       secrets_mode:
-        description: "Secrets source: github_secret (decode from GH secret) or runner_file (read from disk)"
+        description: "Secrets source: vault (HashiCorp Vault), github_secret (decode from GH secret), or runner_file (read from disk)"
         type: string
         required: true
       settings_file_path:
@@ -71,6 +71,10 @@ on:
       SETTINGS_SECRET:
         required: false
       ENV_CREDS_SECRET:
+        required: false
+      VAULT_ADDR:
+        required: false
+      VAULT_TOKEN:
         required: false
 
 jobs:
@@ -152,6 +156,81 @@ jobs:
             find .next/standalone -name "server.js" -type f 2>/dev/null || true
             ls -la .next/standalone/ || true
           fi
+
+      # ── Secrets: Vault ─────────────────────────────────────────────────
+      # The actual fetch happens inside ansible (deploy_data.yml uri tasks)
+      # so the same code path works for both workflow and local-machine runs.
+      # This step just makes VAULT_ADDR / VAULT_TOKEN available to the
+      # ansible-playbook process via $GITHUB_ENV.
+      - name: Export Vault credentials
+        if: inputs.secrets_mode == 'vault'
+        shell: bash
+        env:
+          VAULT_ADDR_SECRET: ${{ secrets.VAULT_ADDR }}
+          VAULT_TOKEN_SECRET: ${{ secrets.VAULT_TOKEN }}
+        run: |
+          # Turn off bash -e explicitly so curl/validation failures produce a
+          # clear error message instead of a silent exit. We manage exits by
+          # hand below.
+          set +e
+
+          # Trim any accidental leading/trailing whitespace that may have
+          # been introduced when the secret was set via echo / printf.
+          VAULT_ADDR_SECRET="$(printf '%s' "$VAULT_ADDR_SECRET" | tr -d '[:space:]')"
+          VAULT_TOKEN_SECRET="$(printf '%s' "$VAULT_TOKEN_SECRET" | tr -d '[:space:]')"
+
+          if [ -z "$VAULT_ADDR_SECRET" ]; then
+            echo "::error::secrets.VAULT_ADDR is empty — set it with: gh secret set VAULT_ADDR --repo bwalia/wslproxy"
+            exit 1
+          fi
+          if [ -z "$VAULT_TOKEN_SECRET" ]; then
+            echo "::error::secrets.VAULT_TOKEN is empty — set it with: gh secret set VAULT_TOKEN --repo bwalia/wslproxy"
+            exit 1
+          fi
+          case "$VAULT_ADDR_SECRET" in
+            http://*|https://*) ;;
+            *)
+              echo "::error::secrets.VAULT_ADDR must start with http:// or https:// (got a value with length=${#VAULT_ADDR_SECRET} starting: $(printf '%s' "$VAULT_ADDR_SECRET" | head -c 10 | sed 's/./*/g'))"
+              exit 1 ;;
+          esac
+
+          # Probe Vault. Capture both exit code and body-less status via -w.
+          # --max-time bounds DNS/connect. -L follows redirects (some Vault
+          # UIs are behind a path-prefix or a reverse proxy that 30x's).
+          STATUS="$(curl -sSL --max-time 10 -o /dev/null -w '%{http_code}' \
+            -H "X-Vault-Token: $VAULT_TOKEN_SECRET" \
+            "$VAULT_ADDR_SECRET/v1/sys/health" 2>/tmp/curl_err)"
+          CURL_RC=$?
+
+          if [ "$CURL_RC" -ne 0 ]; then
+            ERR="$(cat /tmp/curl_err 2>/dev/null | head -c 300)"
+            echo "::error::Vault probe failed: curl exit=$CURL_RC (${ERR:-no detail}). Check VAULT_ADDR reachability from the runner."
+            echo "::error::Probe URL path used: \$VAULT_ADDR/v1/sys/health (value redacted)"
+            exit 1
+          fi
+          # 200 = healthy, 429 = sealed, 473 = disaster-recovery standby,
+          # 501 = not-initialised, 503 = sealed or standby.
+          # All of these are "Vault is reachable, continue" — ansible will
+          # surface the real error if the token can't actually read secrets.
+          case "$STATUS" in
+            200|429|473|501|503)
+              echo "Vault reachable (HTTP $STATUS)" ;;
+            *)
+              echo "::error::Vault health check returned HTTP $STATUS (expected 200/429/473/501/503). Check VAULT_ADDR and VAULT_TOKEN."
+              exit 1 ;;
+          esac
+
+          # Mask the token in any downstream logs that might happen to echo
+          # env vars, then export to GITHUB_ENV for the ansible-playbook step.
+          echo "::add-mask::$VAULT_TOKEN_SECRET"
+          {
+            echo "VAULT_ADDR=$VAULT_ADDR_SECRET"
+            echo "VAULT_TOKEN=$VAULT_TOKEN_SECRET"
+            # Empty paths so the existing extra-vars line stays valid; ansible
+            # ignores them when vault_secrets_enabled=true.
+            echo "settings_path="
+            echo "env_path="
+          } >> "$GITHUB_ENV"
 
       # ── Secrets: decode from GitHub Secret ──
       - name: Decode settings from GitHub Secret
@@ -254,11 +333,19 @@ jobs:
 
           export ANSIBLE_HOST_KEY_CHECKING=False
 
-          # Build ansible-playbook command based on connection mode
+          # Build ansible-playbook command based on connection mode.
+          # For local+vault mode we must preserve VAULT_ADDR and VAULT_TOKEN
+          # through sudo; by default sudo scrubs env vars, so ansible's
+          # lookup('env', 'VAULT_TOKEN') in deploy_data.yml would see an
+          # empty string and the vault_secrets_enabled assertion would fail.
           CMD_PREFIX=""
           CONN_FLAGS=""
           if [[ "${{ inputs.connection_mode }}" == "local" ]]; then
-            CMD_PREFIX="sudo"
+            if [[ "${{ inputs.secrets_mode }}" == "vault" ]]; then
+              CMD_PREFIX="sudo --preserve-env=VAULT_ADDR,VAULT_TOKEN"
+            else
+              CMD_PREFIX="sudo"
+            fi
             CONN_FLAGS="--connection=local"
           elif [[ "${{ inputs.connection_mode }}" == "ssh_key" ]]; then
             CONN_FLAGS="--private-key ~/.ssh/id_rsa --timeout 30"
@@ -266,12 +353,20 @@ jobs:
             CONN_FLAGS="--timeout 30"
           fi
 
+          # When in vault mode, force ansible to use vault_secrets_enabled
+          # regardless of host_vars (so workflows can opt into Vault without
+          # needing per-host edits).
+          VAULT_FLAG=""
+          if [[ "${{ inputs.secrets_mode }}" == "vault" ]]; then
+            VAULT_FLAG="vault_secrets_enabled=true"
+          fi
+
           $CMD_PREFIX ansible-playbook infra/ansible/wslproxy-ops.yml \
             -i infra/ansible/hosts \
             -l ${{ inputs.host_ip }} \
             $CONN_FLAGS \
             $TAGS_FLAG \
-            --extra-vars "nginx_user_password=THISCOMESFROMSECRETS target_env=${{ inputs.env_name }} local_settings_file_path=${{ env.settings_path }} local_env_file_path=${{ env.env_path }}"
+            --extra-vars "nginx_user_password=THISCOMESFROMSECRETS target_env=${{ inputs.env_name }} local_settings_file_path=${{ env.settings_path }} local_env_file_path=${{ env.env_path }} $VAULT_FLAG"
 
       # ── Deploy server/rule configs ──
       - name: Deploy server configs and rules
@@ -352,34 +447,20 @@ jobs:
       # ── Slack notifications ──
       - name: Slack notify - deployed
         if: success() && inputs.notify_success
-        uses: rtCamp/action-slack-notify@v2
-        env:
-          SLACK_CHANNEL: github-updates
-          SLACK_COLOR: good
-          SLACK_ICON: https://github.com/rtCamp.png?size=48
-          SLACK_MESSAGE: |
-            :white_check_mark: *WSLProxy deployed to ${{ inputs.env_label }}*
-            *Mode:* ${{ inputs.deploy_mode }} | *Host:* ${{ inputs.host_ip }}
-            *Branch:* ${{ github.ref_name }} | *Commit:* `${{ github.sha }}`
-            *Triggered by:* ${{ github.actor }} (${{ github.event_name }})
-          SLACK_TITLE: "WSLProxy ${{ inputs.env_label }} — Success"
-          SLACK_USERNAME: GitHub Actions
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+        continue-on-error: true
+        shell: bash
+        run: |
+          curl -sf -X POST "${{ secrets.SLACK_WEBHOOK }}" \
+            -H 'Content-Type: application/json' \
+            -d "$(jq -n --arg text ":white_check_mark: *WSLProxy ${{ inputs.env_label }} — Success*\n*Mode:* ${{ inputs.deploy_mode }} | *Host:* ${{ inputs.host_ip }}\n*Branch:* ${{ github.ref_name }} | *Commit:* \`${{ github.sha }}\`\n*Triggered by:* ${{ github.actor }} (${{ github.event_name }})" \
+              '{channel: "github-updates", username: "GitHub Actions", text: $text}')"
 
       - name: Slack notify - deploy failed
         if: failure()
-        uses: rtCamp/action-slack-notify@v2
-        env:
-          SLACK_CHANNEL: github-updates
-          SLACK_COLOR: danger
-          SLACK_ICON: https://github.com/rtCamp.png?size=48
-          SLACK_MESSAGE: |
-            :x: *Stage ${{ inputs.stage_number }} FAILED: ${{ inputs.env_label }}*
-            Deploy or health check failed — pipeline stopped.
-            *Mode:* ${{ inputs.deploy_mode }} | *Host:* ${{ inputs.host_ip }}
-            *Branch:* ${{ github.ref_name }} | *Commit:* `${{ github.sha }}`
-            *Triggered by:* ${{ github.actor }} (${{ github.event_name }})
-            *Logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          SLACK_TITLE: "WSLProxy Pipeline Failed — Stage ${{ inputs.stage_number }}"
-          SLACK_USERNAME: GitHub Actions
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+        continue-on-error: true
+        shell: bash
+        run: |
+          curl -sf -X POST "${{ secrets.SLACK_WEBHOOK }}" \
+            -H 'Content-Type: application/json' \
+            -d "$(jq -n --arg text ":x: *Stage ${{ inputs.stage_number }} FAILED: ${{ inputs.env_label }}*\nDeploy or health check failed — pipeline stopped.\n*Mode:* ${{ inputs.deploy_mode }} | *Host:* ${{ inputs.host_ip }}\n*Branch:* ${{ github.ref_name }} | *Commit:* \`${{ github.sha }}\`\n*Triggered by:* ${{ github.actor }} (${{ github.event_name }})\n*Logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+              '{channel: "github-updates", username: "GitHub Actions", text: $text}')"

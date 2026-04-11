@@ -284,6 +284,22 @@ elseif selectedRule.statusCode == 305 then
     end
 
     ngx.var.proxy_host_scheme = origin_serverScheme
+
+    -- Per-server proxy timeouts: pass to balancer_by_lua via ngx.ctx
+    if proxyServer and proxyServer.proxy_timeouts and type(proxyServer.proxy_timeouts) == "table" then
+        local pt = proxyServer.proxy_timeouts
+        local connect = tonumber(pt.connect_timeout)
+        local send = tonumber(pt.send_timeout)
+        local read = tonumber(pt.read_timeout)
+        if connect or send or read then
+            ngx.ctx.proxy_timeouts = {
+                connect_timeout = connect,
+                send_timeout = send,
+                read_timeout = read,
+            }
+        end
+    end
+
     --ngx.req.set_header("Host", ngx.var.proxy_host_override) this will never work here because balancer by lua overrides host header
     ngx.header["X-Debug-Request-ID"] = ngx.var.request_id
     ngx.header["X-Debug-Origin-Host"] = ngx.var.proxy_host_override
