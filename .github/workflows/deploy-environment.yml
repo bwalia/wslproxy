@@ -333,11 +333,19 @@ jobs:
 
           export ANSIBLE_HOST_KEY_CHECKING=False
 
-          # Build ansible-playbook command based on connection mode
+          # Build ansible-playbook command based on connection mode.
+          # For local+vault mode we must preserve VAULT_ADDR and VAULT_TOKEN
+          # through sudo; by default sudo scrubs env vars, so ansible's
+          # lookup('env', 'VAULT_TOKEN') in deploy_data.yml would see an
+          # empty string and the vault_secrets_enabled assertion would fail.
           CMD_PREFIX=""
           CONN_FLAGS=""
           if [[ "${{ inputs.connection_mode }}" == "local" ]]; then
-            CMD_PREFIX="sudo"
+            if [[ "${{ inputs.secrets_mode }}" == "vault" ]]; then
+              CMD_PREFIX="sudo --preserve-env=VAULT_ADDR,VAULT_TOKEN"
+            else
+              CMD_PREFIX="sudo"
+            fi
             CONN_FLAGS="--connection=local"
           elif [[ "${{ inputs.connection_mode }}" == "ssh_key" ]]; then
             CONN_FLAGS="--private-key ~/.ssh/id_rsa --timeout 30"
