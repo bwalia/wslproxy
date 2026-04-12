@@ -32,7 +32,7 @@ env:
 jobs:
   sync-prod-data-to-s3:
     name: "Sync prod data to S3"
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, prod]
 
     steps:
       - name: Setup SSH
