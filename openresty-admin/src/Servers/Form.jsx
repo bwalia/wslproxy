@@ -781,7 +781,7 @@ const Form = ({ type }) => {
       </TabbedForm.Tab>
 
       <TabbedForm.Tab label="Topology">
-        <div className="form-container">
+        <div className="form-container form-container--wide">
           <TopologyTab useRecord resourceType="servers" />
         </div>
       </TabbedForm.Tab>
