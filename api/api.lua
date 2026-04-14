@@ -105,6 +105,24 @@ local function validateServerPayload(payloads)
                     message = "Header value is required"
                 })
             end
+            -- Access-Control-Allow-Origin must be "*", "null", or a scheme-qualified origin.
+            -- Bare hostnames like "example.com" are silently ignored by browsers and are a
+            -- common foot-gun; reject them at save time.
+            if header.header_key and header.header_value and header.header_value ~= "" then
+                local key_lower = header.header_key:lower()
+                if key_lower == "access-control-allow-origin" then
+                    local v = header.header_value
+                    local ok = v == "*" or v == "null"
+                        or v:match("^https?://[%w%-%.:]+$")
+                        or v:match("^https?://[%w%-%.:]+/.*$")
+                    if not ok then
+                        table.insert(errors, {
+                            field = "custom_response_headers[" .. i .. "].header_value",
+                            message = "Access-Control-Allow-Origin must be '*', 'null', or a scheme-qualified origin (e.g. https://example.com). Got: " .. tostring(v)
+                        })
+                    end
+                end
+            end
         end
     end
 
@@ -3447,6 +3465,102 @@ end
 
 local platform = ngx.req.get_headers()["x-platform"]
 local preAction = ngx.req.get_headers()["x-special-case-pre-action"]
+
+-- AI log analysis handler shared by GET and POST dispatch.
+-- Request body (JSON): { logs: [<log_entry>], question?: string, context?: string }
+-- Response envelope:   { data: { analysis, root_causes[], recommendations[],
+--                                severity: "low"|"medium"|"high"|"critical",
+--                                related_patterns[] } }
+-- Reads Ollama endpoint from settings.ai_endpoint / settings.ai_model.
+local function handle_ai_analyze()
+    ngx.req.read_body()
+    local body = ngx.req.get_body_data()
+    local ok, payload = pcall(cjson.decode, body or "{}")
+    if not ok then
+        ngx.status = 400
+        ngx.say(cjson.encode({ error = "Invalid JSON" }))
+        ngx.exit(400)
+    end
+    local logs_text = ""
+    if payload.logs then
+        for _, log_entry in ipairs(payload.logs) do
+            logs_text = logs_text .. cjson.encode(log_entry) .. "\n"
+        end
+    end
+    local question = payload.question or "Analyze these logs for issues."
+    local context = payload.context or ""
+    local prompt = "You are an expert DevOps/SRE engineer specializing in nginx/OpenResty ingress controllers. "
+        .. "Analyze the following log entries and provide:\n"
+        .. "1. A clear analysis of what's happening\n"
+        .. "2. Root causes of any errors or issues\n"
+        .. "3. Specific recommendations to fix the issues\n"
+        .. "4. Severity assessment (low/medium/high/critical)\n\n"
+        .. "Context: " .. context .. "\n"
+        .. "Question: " .. question .. "\n\n"
+        .. "Log entries:\n" .. logs_text .. "\n\n"
+        .. "Respond in this JSON format:\n"
+        ..
+        '{"analysis": "...", "root_causes": ["..."], "recommendations": ["..."], "severity": "low|medium|high|critical", "related_patterns": ["..."]}'
+
+    local ollama_host = (settings and settings.ai_endpoint) or "http://127.0.0.1:11434"
+    local ollama_model = (settings and settings.ai_model) or "llama3.2"
+    local http = require("resty.http")
+    local httpc = http.new()
+    httpc:set_timeout(60000)
+    local res, err = httpc:request_uri(ollama_host .. "/api/generate", {
+        method = "POST",
+        body = cjson.encode({
+            model = ollama_model,
+            prompt = prompt,
+            stream = false,
+            format = "json",
+        }),
+        headers = {
+            ["Content-Type"] = "application/json",
+        },
+    })
+    if res and res.status == 200 then
+        local ok2, result = pcall(cjson.decode, res.body)
+        if ok2 and result.response then
+            local ok3, ai_response = pcall(cjson.decode, result.response)
+            if ok3 then
+                ngx.say(cjson.encode({ data = ai_response }))
+            else
+                ngx.say(cjson.encode({
+                    data = {
+                        analysis = result.response,
+                        root_causes = {},
+                        recommendations = {},
+                        severity = "medium",
+                    }
+                }))
+            end
+        else
+            ngx.say(cjson.encode({
+                data = {
+                    analysis = "AI returned unexpected format.",
+                    severity = "low",
+                }
+            }))
+        end
+    else
+        ngx.status = 503
+        ngx.say(cjson.encode({
+            data = {
+                analysis = "Could not reach AI service at " .. ollama_host .. ". " .. (err or ""),
+                root_causes = { "Ollama service not running or not reachable" },
+                recommendations = {
+                    "Start Ollama: ollama serve",
+                    "Pull a model: ollama pull " .. ollama_model,
+                    "Check firewall settings for port 11434",
+                },
+                severity = "medium",
+            }
+        }))
+    end
+    ngx.exit(ngx.HTTP_OK)
+end
+
 local function handle_get_request(args, path)
     -- handle GET request logic
     path = ngx.unescape_uri(path)
@@ -3693,94 +3807,9 @@ local function handle_get_request(args, path)
     end
 
     -- ── AI analysis proxy (forwards to local Ollama) ─────────────────
+    -- Kept in GET for backward compatibility; real clients POST.
     if path == "ai/analyze" then
-        ngx.req.read_body()
-        local body = ngx.req.get_body_data()
-        local ok, payload = pcall(cjson.decode, body or "{}")
-        if not ok then
-            ngx.status = 400
-            ngx.say(cjson.encode({ error = "Invalid JSON" }))
-            ngx.exit(400)
-        end
-        local logs_text = ""
-        if payload.logs then
-            for _, log_entry in ipairs(payload.logs) do
-                logs_text = logs_text .. cjson.encode(log_entry) .. "\n"
-            end
-        end
-        local question = payload.question or "Analyze these logs for issues."
-        local context = payload.context or ""
-        local prompt = "You are an expert DevOps/SRE engineer specializing in nginx/OpenResty ingress controllers. "
-            .. "Analyze the following log entries and provide:\n"
-            .. "1. A clear analysis of what's happening\n"
-            .. "2. Root causes of any errors or issues\n"
-            .. "3. Specific recommendations to fix the issues\n"
-            .. "4. Severity assessment (low/medium/high/critical)\n\n"
-            .. "Context: " .. context .. "\n"
-            .. "Question: " .. question .. "\n\n"
-            .. "Log entries:\n" .. logs_text .. "\n\n"
-            .. "Respond in this JSON format:\n"
-            ..
-            '{"analysis": "...", "root_causes": ["..."], "recommendations": ["..."], "severity": "low|medium|high|critical", "related_patterns": ["..."]}'
-
-        -- Try local Ollama
-        local ollama_host = (settings and settings.ai_endpoint) or "http://127.0.0.1:11434"
-        local ollama_model = (settings and settings.ai_model) or "llama3.2"
-        local http = require("resty.http")
-        local httpc = http.new()
-        httpc:set_timeout(60000)
-        local res, err = httpc:request_uri(ollama_host .. "/api/generate", {
-            method = "POST",
-            body = cjson.encode({
-                model = ollama_model,
-                prompt = prompt,
-                stream = false,
-                format = "json",
-            }),
-            headers = {
-                ["Content-Type"] = "application/json",
-            },
-        })
-        if res and res.status == 200 then
-            local ok2, result = pcall(cjson.decode, res.body)
-            if ok2 and result.response then
-                local ok3, ai_response = pcall(cjson.decode, result.response)
-                if ok3 then
-                    ngx.say(cjson.encode({ data = ai_response }))
-                else
-                    ngx.say(cjson.encode({
-                        data = {
-                            analysis = result.response,
-                            root_causes = {},
-                            recommendations = {},
-                            severity = "medium",
-                        }
-                    }))
-                end
-            else
-                ngx.say(cjson.encode({
-                    data = {
-                        analysis = "AI returned unexpected format.",
-                        severity = "low",
-                    }
-                }))
-            end
-        else
-            ngx.status = 503
-            ngx.say(cjson.encode({
-                data = {
-                    analysis = "Could not reach AI service at " .. ollama_host .. ". " .. (err or ""),
-                    root_causes = { "Ollama service not running or not reachable" },
-                    recommendations = {
-                        "Start Ollama: ollama serve",
-                        "Pull a model: ollama pull " .. ollama_model,
-                        "Check firewall settings for port 11434",
-                    },
-                    severity = "medium",
-                }
-            }))
-        end
-        ngx.exit(ngx.HTTP_OK)
+        handle_ai_analyze()
     end
 
     if path == "ai/models" then
@@ -4726,6 +4755,11 @@ local function handle_post_request(args, path)
                 ngx.say(cjson.encode(result))
                 ngx.exit(ngx.HTTP_OK)
             end
+        end
+        -- ── AI analysis proxy (forwards to local Ollama) ─────────────────
+        -- Called via POST from both openresty-admin and openresty-admin-next.
+        if path == "ai/analyze" then
+            handle_ai_analyze()
         end
         if path == "password/reset" then
             resetPassword(args)

@@ -30,7 +30,7 @@ on:
         type: string
         required: true
       secrets_mode:
-        description: "Secrets source: github_secret (decode from GH secret) or runner_file (read from disk)"
+        description: "Secrets source: vault (HashiCorp Vault), github_secret (decode from GH secret), or runner_file (read from disk)"
         type: string
         required: true
       settings_file_path:
@@ -71,6 +71,10 @@ on:
       SETTINGS_SECRET:
         required: false
       ENV_CREDS_SECRET:
+        required: false
+      VAULT_ADDR:
+        required: false
+      VAULT_TOKEN:
         required: false
 
 jobs:
@@ -152,6 +156,79 @@ jobs:
             find .next/standalone -name "server.js" -type f 2>/dev/null || true
             ls -la .next/standalone/ || true
           fi
+
+      # ── Secrets: Vault ─────────────────────────────────────────────────
+      # The actual fetch happens inside ansible (deploy_data.yml uri tasks)
+      # so the same code path works for both workflow and local-machine runs.
+      # This step just makes VAULT_ADDR / VAULT_TOKEN available to the
+      # ansible-playbook process via $GITHUB_ENV.
+      - name: Export Vault credentials
+        if: inputs.secrets_mode == 'vault'
+        shell: bash
+        env:
+          VAULT_ADDR_SECRET: ${{ secrets.VAULT_ADDR }}
+          VAULT_TOKEN_SECRET: ${{ secrets.VAULT_TOKEN }}
+        run: |
+          # Turn off bash -e explicitly so curl/validation failures produce a
+          # clear error message instead of a silent exit. We manage exits by
+          # hand below.
+          set +e
+
+          # Trim any accidental leading/trailing whitespace that may have
+          # been introduced when the secret was set via echo / printf.
+          VAULT_ADDR_SECRET="$(printf '%s' "$VAULT_ADDR_SECRET" | tr -d '[:space:]')"
+          VAULT_TOKEN_SECRET="$(printf '%s' "$VAULT_TOKEN_SECRET" | tr -d '[:space:]')"
+
+          if [ -z "$VAULT_ADDR_SECRET" ]; then
+            echo "::error::secrets.VAULT_ADDR is empty — set it with: gh secret set VAULT_ADDR --repo bwalia/wslproxy"
+            exit 1
+          fi
+          if [ -z "$VAULT_TOKEN_SECRET" ]; then
+            echo "::error::secrets.VAULT_TOKEN is empty — set it with: gh secret set VAULT_TOKEN --repo bwalia/wslproxy"
+            exit 1
+          fi
+          case "$VAULT_ADDR_SECRET" in
+            http://*|https://*) ;;
+            *)
+              echo "::error::secrets.VAULT_ADDR must start with http:// or https:// (got a value with length=${#VAULT_ADDR_SECRET} starting: $(printf '%s' "$VAULT_ADDR_SECRET" | head -c 10 | sed 's/./*/g'))"
+              exit 1 ;;
+          esac
+
+          # Probe Vault — INFORMATIONAL ONLY. Some Vault setups expose the
+          # secret paths but block /v1/sys/health at the reverse-proxy layer
+          # (observed on run 24294596315: same secrets / same runner as a
+          # previously-passing run, but the health endpoint returned 404).
+          # The authoritative test is ansible's own uri task fetching the
+          # actual secret in deploy_data.yml; if that fails it surfaces a
+          # real error. This probe just logs reachability for diagnostics.
+          STATUS="$(curl -sSL --max-time 10 -o /dev/null -w '%{http_code}' \
+            -H "X-Vault-Token: $VAULT_TOKEN_SECRET" \
+            "$VAULT_ADDR_SECRET/v1/sys/health" 2>/tmp/curl_err)"
+          CURL_RC=$?
+
+          if [ "$CURL_RC" -ne 0 ]; then
+            ERR="$(cat /tmp/curl_err 2>/dev/null | head -c 300)"
+            echo "::warning::Vault probe could not connect: curl exit=$CURL_RC (${ERR:-no detail}). Continuing — ansible's uri task will surface the real error if Vault is actually unreachable."
+          else
+            case "$STATUS" in
+              200|429|473|501|503)
+                echo "Vault reachable via /v1/sys/health (HTTP $STATUS)" ;;
+              *)
+                echo "::warning::Vault /v1/sys/health returned HTTP $STATUS (expected 200/429/473/501/503). This often just means the health endpoint is blocked at a reverse proxy; the actual secret fetch may still work. Continuing — ansible's uri task is authoritative." ;;
+            esac
+          fi
+
+          # Mask the token in any downstream logs that might happen to echo
+          # env vars, then export to GITHUB_ENV for the ansible-playbook step.
+          echo "::add-mask::$VAULT_TOKEN_SECRET"
+          {
+            echo "VAULT_ADDR=$VAULT_ADDR_SECRET"
+            echo "VAULT_TOKEN=$VAULT_TOKEN_SECRET"
+            # Empty paths so the existing extra-vars line stays valid; ansible
+            # ignores them when vault_secrets_enabled=true.
+            echo "settings_path="
+            echo "env_path="
+          } >> "$GITHUB_ENV"
 
       # ── Secrets: decode from GitHub Secret ──
       - name: Decode settings from GitHub Secret
@@ -254,11 +331,19 @@ jobs:
 
           export ANSIBLE_HOST_KEY_CHECKING=False
 
-          # Build ansible-playbook command based on connection mode
+          # Build ansible-playbook command based on connection mode.
+          # For local+vault mode we must preserve VAULT_ADDR and VAULT_TOKEN
+          # through sudo; by default sudo scrubs env vars, so ansible's
+          # lookup('env', 'VAULT_TOKEN') in deploy_data.yml would see an
+          # empty string and the vault_secrets_enabled assertion would fail.
           CMD_PREFIX=""
           CONN_FLAGS=""
           if [[ "${{ inputs.connection_mode }}" == "local" ]]; then
-            CMD_PREFIX="sudo"
+            if [[ "${{ inputs.secrets_mode }}" == "vault" ]]; then
+              CMD_PREFIX="sudo --preserve-env=VAULT_ADDR,VAULT_TOKEN"
+            else
+              CMD_PREFIX="sudo"
+            fi
             CONN_FLAGS="--connection=local"
           elif [[ "${{ inputs.connection_mode }}" == "ssh_key" ]]; then
             CONN_FLAGS="--private-key ~/.ssh/id_rsa --timeout 30"
@@ -266,12 +351,20 @@ jobs:
             CONN_FLAGS="--timeout 30"
           fi
 
+          # When in vault mode, force ansible to use vault_secrets_enabled
+          # regardless of host_vars (so workflows can opt into Vault without
+          # needing per-host edits).
+          VAULT_FLAG=""
+          if [[ "${{ inputs.secrets_mode }}" == "vault" ]]; then
+            VAULT_FLAG="vault_secrets_enabled=true"
+          fi
+
           $CMD_PREFIX ansible-playbook infra/ansible/wslproxy-ops.yml \
             -i infra/ansible/hosts \
             -l ${{ inputs.host_ip }} \
             $CONN_FLAGS \
             $TAGS_FLAG \
-            --extra-vars "nginx_user_password=THISCOMESFROMSECRETS target_env=${{ inputs.env_name }} local_settings_file_path=${{ env.settings_path }} local_env_file_path=${{ env.env_path }}"
+            --extra-vars "nginx_user_password=THISCOMESFROMSECRETS target_env=${{ inputs.env_name }} local_settings_file_path=${{ env.settings_path }} local_env_file_path=${{ env.env_path }} $VAULT_FLAG"
 
       # ── Deploy server/rule configs ──
       - name: Deploy server configs and rules

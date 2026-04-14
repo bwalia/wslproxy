@@ -11,6 +11,12 @@
   padding: 16px 0;
 }
 
+/* Modifier: let content take the full available width (e.g. Topology tab, */
+/* which renders a ~1460px SVG and needs to escape the 1200px form cap).   */
+.form-container--wide {
+  max-width: none;
+}
+
 /* ---- Section Card ---- */
 /* Outlined card sections that group related form fields */
 .section-card {
