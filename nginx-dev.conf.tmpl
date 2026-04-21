@@ -206,16 +206,24 @@ http {
             add_header 'Access-Control-Allow-Headers' 'Content-Type';
             access_by_lua_block {
                 local path_name = ngx.var.uri:match("^/api/(.*)$")
-                if path_name ~= "user/login" and path_name ~= "topology/graph" then
+                if path_name ~= "user/login"
+                    and path_name ~= "user/logout"
+                    and path_name ~= "topology/graph" then
                     local jwt = JWT
+                    -- Accept either Authorization: Bearer (react-admin) or
+                    -- the httpOnly `wslproxy_token` cookie (openresty-admin-next).
                     local token = ngx.req.get_headers()["Authorization"]
-                    if not token then
+                    if token then
+                        token = string.gsub(token, "^Bearer ", "")
+                    else
+                        token = ngx.var.cookie_wslproxy_token
+                    end
+                    if not token or token == "" then
                         ngx.status = ngx.HTTP_UNAUTHORIZED
                         ngx.header["Access-Control-Allow-Origin"] = "*"
                         ngx.say("Missing token")
                         return ngx.exit(ngx.HTTP_UNAUTHORIZED)
                     end
-                    token = string.gsub(token, "^Bearer ", "")
                     local function getSettings()
                       local configPath = os.getenv("NGINX_CONFIG_DIR") or "/opt/nginx/"
                       local readSettings, errSettings = io.open(configPath .. "data/settings.json", "rb")
@@ -722,16 +730,24 @@ http {
 
             access_by_lua_block {
                 local path_name = ngx.var.uri:match("^/api/(.*)$")
-                if path_name ~= "user/login" and path_name ~= "topology/graph" then
+                if path_name ~= "user/login"
+                    and path_name ~= "user/logout"
+                    and path_name ~= "topology/graph" then
                     local jwt = JWT
+                    -- Accept either Authorization: Bearer (react-admin) or
+                    -- the httpOnly `wslproxy_token` cookie (openresty-admin-next).
                     local token = ngx.req.get_headers()["Authorization"]
-                    if not token then
+                    if token then
+                        token = string.gsub(token, "^Bearer ", "")
+                    else
+                        token = ngx.var.cookie_wslproxy_token
+                    end
+                    if not token or token == "" then
                         ngx.status = ngx.HTTP_UNAUTHORIZED
                         ngx.header["Access-Control-Allow-Origin"] = "*"
                         ngx.say("Missing token")
                         return ngx.exit(ngx.HTTP_UNAUTHORIZED)
                     end
-                    token = string.gsub(token, "^Bearer ", "")
                     local function getSettings()
                       local configPath = os.getenv("NGINX_CONFIG_DIR") or "/opt/nginx/"
                       local readSettings, errSettings = io.open(configPath .. "data/settings.json", "rb")
@@ -836,16 +852,24 @@ http {
 
             access_by_lua_block {
                 local path_name = ngx.var.uri:match("^/api/(.*)$")
-                if path_name ~= "user/login" and path_name ~= "topology/graph" then
+                if path_name ~= "user/login"
+                    and path_name ~= "user/logout"
+                    and path_name ~= "topology/graph" then
                     local jwt = JWT
+                    -- Accept either Authorization: Bearer (react-admin) or
+                    -- the httpOnly `wslproxy_token` cookie (openresty-admin-next).
                     local token = ngx.req.get_headers()["Authorization"]
-                    if not token then
+                    if token then
+                        token = string.gsub(token, "^Bearer ", "")
+                    else
+                        token = ngx.var.cookie_wslproxy_token
+                    end
+                    if not token or token == "" then
                         ngx.status = ngx.HTTP_UNAUTHORIZED
                         ngx.header["Access-Control-Allow-Origin"] = "*"
                         ngx.say("Missing token")
                         return ngx.exit(ngx.HTTP_UNAUTHORIZED)
                     end
-                    token = string.gsub(token, "^Bearer ", "")
                     local function getSettings()
                       local configPath = os.getenv("NGINX_CONFIG_DIR") or "/opt/nginx/"
                       local readSettings, errSettings = io.open(configPath .. "data/settings.json", "rb")

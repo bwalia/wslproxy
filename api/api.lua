@@ -792,6 +792,36 @@ end
 
 -- Authentication
 
+-- Auth cookie name — keep in sync with nginx auth block fallback + Next.js middleware.
+local AUTH_COOKIE_NAME = "wslproxy_token"
+-- Align with JWT expiry (Helper.generateToken uses 3600s).
+local AUTH_COOKIE_MAX_AGE = 3600
+
+-- Build a Set-Cookie value for the auth token.  `Secure` is only added on
+-- HTTPS requests so local HTTP development still works.
+local function buildAuthCookie(token, maxAge)
+    local parts = {
+        AUTH_COOKIE_NAME .. "=" .. (token or ""),
+        "Path=/",
+        "HttpOnly",
+        "SameSite=Lax",
+        "Max-Age=" .. tostring(maxAge or 0),
+    }
+    if ngx.var.scheme == "https" then
+        table.insert(parts, "Secure")
+    end
+    return table.concat(parts, "; ")
+end
+
+local function instanceInfo()
+    return {
+        instance_id = settings.instance_id,
+        instance_name = settings.instance_name,
+        instance_hash = settings.instance_hash,
+        serial_number = settings.serial_number,
+    }
+end
+
 local function login(args)
     if settings then
         local suEmail = settings.super_user.email
@@ -801,6 +831,12 @@ local function login(args)
         local password = Helper.hashPassword(payloads.password)
 
         if suEmail == payloads.email and suPassword == password then
+            local token = Helper.generateToken()
+
+            -- Set httpOnly cookie so middleware can gate auth server-side and
+            -- tokens are no longer accessible via document.cookie / localStorage.
+            ngx.header["Set-Cookie"] = buildAuthCookie(token, AUTH_COOKIE_MAX_AGE)
+
             ngx.status = ngx.OK
             if useRemoteStorage then
                 local session = require "resty.session".new()
@@ -810,14 +846,11 @@ local function login(args)
             end
             ngx.say(cjson.encode({
                 data = {
-                    user = payloads,
-                    accessToken = Helper.generateToken(),
-                    instance = {
-                        instance_id = settings.instance_id,
-                        instance_name = settings.instance_name,
-                        instance_hash = settings.instance_hash,
-                        serial_number = settings.serial_number,
-                    }
+                    user = { email = payloads.email },
+                    -- accessToken retained in the body for backward-compat
+                    -- with the react-admin UI (localStorage-based auth).
+                    accessToken = token,
+                    instance = instanceInfo(),
                 },
                 status = 200
             }))
@@ -826,6 +859,33 @@ local function login(args)
             Errors.throwError("Invalid credentials", ngx.HTTP_UNAUTHORIZED)
         end
     end
+end
+
+-- Clears the auth cookie.  Idempotent: safe to call with an already-expired
+-- cookie.  Does NOT require a valid JWT (see nginx auth bypass list).
+local function logout()
+    ngx.header["Set-Cookie"] = buildAuthCookie("", 0)
+    ngx.status = ngx.HTTP_OK
+    ngx.say(cjson.encode({ data = { message = "Logged out" }, status = 200 }))
+    ngx.exit(ngx.HTTP_OK)
+end
+
+-- Returns the current session info.  Auth is enforced by the nginx auth
+-- block, so if we get here the cookie/bearer is already validated.
+local function userMe()
+    if not settings then
+        Errors.throwError("Settings not loaded", ngx.HTTP_INTERNAL_SERVER_ERROR)
+        return
+    end
+    ngx.status = ngx.HTTP_OK
+    ngx.say(cjson.encode({
+        data = {
+            user = { email = settings.super_user and settings.super_user.email or nil },
+            instance = instanceInfo(),
+        },
+        status = 200
+    }))
+    ngx.exit(ngx.HTTP_OK)
 end
 
 local function setStorage(body)
@@ -3572,6 +3632,9 @@ local function handle_get_request(args, path)
     local pattern = ".*/(.*)"
     local uuid = string.match(path, pattern)
 
+    if path == "user/me" then
+        userMe()
+    end
     if path == "servers" then
         listServers(args)
     elseif uuid and string.match(uuid, "^host:") and subPath[1] == "servers" then
@@ -4673,6 +4736,9 @@ local function handle_post_request(args, path)
     -- handle POST request logic
     if path == "user/login" then
         login(args)
+    end
+    if path == "user/logout" then
+        logout()
     end
     if path == "push-data" then
         local body = Helper.GetPayloads(args)
