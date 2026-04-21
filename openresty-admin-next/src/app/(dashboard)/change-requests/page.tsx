@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useOptimistic,
+  useState,
+  useTransition,
+} from "react";
 import { GitPullRequest, Eye, Check, X } from "lucide-react";
 import { useDataProvider } from "@/hooks/useResource";
 import { useNotification } from "@/contexts/NotificationContext";
@@ -15,12 +22,28 @@ import type { ChangeRequest } from "@/types";
 
 type TabFilter = "all" | "pending" | "approved" | "rejected" | "cancelled";
 
+type OptimisticUpdate = { id: string; newState: "approved" | "rejected" };
+
 export default function ChangeRequestsPage() {
   const dataProvider = useDataProvider();
   const { notify } = useNotification();
   const [data, setData] = useState<ChangeRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<TabFilter>("all");
+
+  // Transitions + optimistic state for approve/reject.  Any state set while a
+  // mutation is in flight appears in `optimisticData` immediately; once the
+  // network round-trip resolves and `data` is refreshed, the optimistic state
+  // is dropped (React forgets it when the source state changes).
+  const [isPending, startTransition] = useTransition();
+  const [optimisticData, applyOptimistic] = useOptimistic<
+    ChangeRequest[],
+    OptimisticUpdate
+  >(data, (state, update) =>
+    state.map((cr) =>
+      cr.id === update.id ? { ...cr, state: update.newState } : cr,
+    ),
+  );
 
   // View dialog
   const [viewCR, setViewCR] = useState<ChangeRequest | null>(null);
@@ -32,12 +55,10 @@ export default function ChangeRequestsPage() {
     passphrase: "",
     comment: "",
   });
-  const [approving, setApproving] = useState(false);
 
   // Reject dialog
   const [rejectCR, setRejectCR] = useState<ChangeRequest | null>(null);
   const [rejectForm, setRejectForm] = useState({ username: "", reason: "" });
-  const [rejecting, setRejecting] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -56,13 +77,15 @@ export default function ChangeRequestsPage() {
   }, [fetchData]);
 
   const filteredData = useMemo(() => {
-    if (tab === "all") return data;
-    return data.filter((cr) => cr.state?.toLowerCase() === tab);
-  }, [data, tab]);
+    if (tab === "all") return optimisticData;
+    return optimisticData.filter((cr) => cr.state?.toLowerCase() === tab);
+  }, [optimisticData, tab]);
 
   const pendingCount = useMemo(
-    () => data.filter((cr) => cr.state?.toLowerCase() === "pending").length,
-    [data],
+    () =>
+      optimisticData.filter((cr) => cr.state?.toLowerCase() === "pending")
+        .length,
+    [optimisticData],
   );
 
   const columns = useMemo<Column<ChangeRequest>[]>(
@@ -137,35 +160,51 @@ export default function ChangeRequestsPage() {
     [],
   );
 
-  const handleApprove = useCallback(async () => {
+  const handleApprove = useCallback(() => {
     if (!approveCR) return;
-    setApproving(true);
-    try {
-      await dataProvider.approveCR(approveCR.id, approveForm);
-      notify("Change request approved", { type: "success" });
-      setApproveCR(null);
-      fetchData();
-    } catch (err) {
-      notify((err as Error).message || "Failed to approve", { type: "error" });
-    } finally {
-      setApproving(false);
-    }
-  }, [approveCR, approveForm, dataProvider, notify, fetchData]);
+    const id = approveCR.id;
+    const form = approveForm;
+    // Close the dialog immediately so the user gets instant feedback.
+    setApproveCR(null);
 
-  const handleReject = useCallback(async () => {
+    startTransition(async () => {
+      // Optimistically flip the row's state to "approved" — this propagates
+      // to `optimisticData` used by the table + filter tabs.
+      applyOptimistic({ id, newState: "approved" });
+
+      try {
+        await dataProvider.approveCR(id, form);
+        notify("Change request approved", { type: "success" });
+        // Refresh real data.  useOptimistic automatically drops our override
+        // once `data` changes, so the source of truth returns to the server.
+        await fetchData();
+      } catch (err) {
+        notify((err as Error).message || "Failed to approve", { type: "error" });
+        // Re-open the dialog so the user can retry with corrected input.
+        setApproveCR(approveCR);
+      }
+    });
+  }, [approveCR, approveForm, dataProvider, notify, fetchData, applyOptimistic]);
+
+  const handleReject = useCallback(() => {
     if (!rejectCR) return;
-    setRejecting(true);
-    try {
-      await dataProvider.rejectCR(rejectCR.id, rejectForm);
-      notify("Change request rejected", { type: "success" });
-      setRejectCR(null);
-      fetchData();
-    } catch (err) {
-      notify((err as Error).message || "Failed to reject", { type: "error" });
-    } finally {
-      setRejecting(false);
-    }
-  }, [rejectCR, rejectForm, dataProvider, notify, fetchData]);
+    const id = rejectCR.id;
+    const form = rejectForm;
+    setRejectCR(null);
+
+    startTransition(async () => {
+      applyOptimistic({ id, newState: "rejected" });
+
+      try {
+        await dataProvider.rejectCR(id, form);
+        notify("Change request rejected", { type: "success" });
+        await fetchData();
+      } catch (err) {
+        notify((err as Error).message || "Failed to reject", { type: "error" });
+        setRejectCR(rejectCR);
+      }
+    });
+  }, [rejectCR, rejectForm, dataProvider, notify, fetchData, applyOptimistic]);
 
   const tabs: { key: TabFilter; label: string }[] = [
     { key: "all", label: "All" },
@@ -272,11 +311,11 @@ export default function ChangeRequestsPage() {
             <Button
               variant="ghost"
               onClick={() => setApproveCR(null)}
-              disabled={approving}
+              disabled={isPending}
             >
               Cancel
             </Button>
-            <Button onClick={handleApprove} loading={approving}>
+            <Button onClick={handleApprove} loading={isPending}>
               Approve
             </Button>
           </>
@@ -321,11 +360,11 @@ export default function ChangeRequestsPage() {
             <Button
               variant="ghost"
               onClick={() => setRejectCR(null)}
-              disabled={rejecting}
+              disabled={isPending}
             >
               Cancel
             </Button>
-            <Button variant="danger" onClick={handleReject} loading={rejecting}>
+            <Button variant="danger" onClick={handleReject} loading={isPending}>
               Reject
             </Button>
           </>
