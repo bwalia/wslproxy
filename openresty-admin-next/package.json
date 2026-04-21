@@ -6,7 +6,8 @@
     "dev": "next dev -p 7619",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "analyze": "cross-env ANALYZE=true next build"
   },
   "dependencies": {
     "clsx": "^2.1.1",
@@ -23,12 +24,14 @@
     "uuid4": "^2.0.3"
   },
   "devDependencies": {
+    "@next/bundle-analyzer": "^16.2.4",
     "@tailwindcss/postcss": "^4.1.0",
     "@types/lodash": "^4.17.24",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/react-simple-maps": "^3.0.6",
+    "cross-env": "^10.1.0",
     "tailwindcss": "^4.1.0",
     "typescript": "^5"
   }

@@ -1,8 +1,27 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import PageHeader from "@/components/ui/PageHeader";
-import { TopologyCanvas } from "@/components/topology/TopologyCanvas";
+import Card from "@/components/ui/Card";
+import Skeleton from "@/components/ui/Skeleton";
 import { Network } from "lucide-react";
+
+const TopologyCanvas = dynamic(
+  () =>
+    import("@/components/topology/TopologyCanvas").then(
+      (mod) => mod.TopologyCanvas,
+    ),
+  {
+    loading: () => (
+      <Card>
+        <Card.Body>
+          <Skeleton variant="rectangular" className="h-[70vh] w-full" />
+        </Card.Body>
+      </Card>
+    ),
+    ssr: false,
+  },
+);
 
 export default function TopologyPage() {
   return (

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import {
   ArrowLeft,
   Save,
@@ -21,11 +22,33 @@ import Button from "@/components/ui/Button";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import Skeleton from "@/components/ui/Skeleton";
 import NginxServerTab from "@/components/servers/NginxServerTab";
-import VarnishTab from "@/components/servers/VarnishTab";
-import ServerRulesTab from "@/components/servers/ServerRulesTab";
-import WafProtectionTab from "@/components/servers/WafProtectionTab";
-import VersionHistoryTab from "@/components/servers/VersionHistoryTab";
-import { TopologyCanvas } from "@/components/topology/TopologyCanvas";
+
+// Deferred — heavy tabs only loaded when first opened
+const VarnishTab = dynamic(() => import("@/components/servers/VarnishTab"), {
+  loading: () => <Skeleton variant="rectangular" className="h-64 w-full" />,
+});
+const ServerRulesTab = dynamic(
+  () => import("@/components/servers/ServerRulesTab"),
+  { loading: () => <Skeleton variant="rectangular" className="h-64 w-full" /> },
+);
+const WafProtectionTab = dynamic(
+  () => import("@/components/servers/WafProtectionTab"),
+  { loading: () => <Skeleton variant="rectangular" className="h-64 w-full" /> },
+);
+const VersionHistoryTab = dynamic(
+  () => import("@/components/servers/VersionHistoryTab"),
+  { loading: () => <Skeleton variant="rectangular" className="h-64 w-full" /> },
+);
+const TopologyCanvas = dynamic(
+  () =>
+    import("@/components/topology/TopologyCanvas").then(
+      (mod) => mod.TopologyCanvas,
+    ),
+  {
+    loading: () => <Skeleton variant="rectangular" className="h-96 w-full" />,
+    ssr: false,
+  },
+);
 import type { Server as ServerType, WafPolicy, Rule } from "@/types";
 import type { ServerFormState, VarnishConfig, VarnishSnippet } from "@/components/servers/types";
 import type { LocationEntry } from "@/components/servers/sections/LocationBlockEditor";

@@ -7,30 +7,11 @@ import {
   useMemo,
   useState,
 } from "react";
+import dynamic from "next/dynamic";
 import { useDataProvider } from "@/hooks/useResource";
 import Card from "@/components/ui/Card";
 import Skeleton from "@/components/ui/Skeleton";
 import LazySection from "@/components/ui/LazySection";
-
-// ── Dashboard sections ──────────────────────────────────────────────────
-
-import TrafficStatsCards from "@/components/dashboard/TrafficStatsCards";
-import TrafficChart from "@/components/dashboard/TrafficChart";
-import TopDomainsChart from "@/components/dashboard/TopDomainsChart";
-import ErrorCodesChart from "@/components/dashboard/ErrorCodesChart";
-import LatencyChart from "@/components/dashboard/LatencyChart";
-import MethodsChart from "@/components/dashboard/MethodsChart";
-import GeoTrafficMap from "@/components/dashboard/GeoTrafficMap";
-import EntityStats from "@/components/dashboard/EntityStats";
-import RecentBookmarks from "@/components/dashboard/RecentBookmarks";
-import LogsSection from "@/components/dashboard/LogsSection";
-import DashboardTabs from "@/components/dashboard/DashboardTabs";
-import BackendHealth from "@/components/dashboard/BackendHealth";
-import SslOverview from "@/components/dashboard/SslOverview";
-import CacheStats from "@/components/dashboard/CacheStats";
-import WafOverview from "@/components/dashboard/WafOverview";
-import ErrorDetailsDialog from "@/components/dashboard/ErrorDetailsDialog";
-import WelcomeBanner from "@/components/dashboard/WelcomeBanner";
 
 // ── Section skeleton ────────────────────────────────────────────────────
 
@@ -43,6 +24,71 @@ function SectionSkeleton({ height = "h-64" }: { height?: string }) {
     </Card>
   );
 }
+
+// ── Dashboard sections ──────────────────────────────────────────────────
+// Static (small, always visible): TrafficStatsCards, WelcomeBanner, DashboardTabs, ErrorDetailsDialog
+// Dynamic (heavy, chart-based): deferred via next/dynamic so Recharts + react-simple-maps
+// stay out of the initial bundle and load only when rendered.
+
+import TrafficStatsCards from "@/components/dashboard/TrafficStatsCards";
+import DashboardTabs from "@/components/dashboard/DashboardTabs";
+import ErrorDetailsDialog from "@/components/dashboard/ErrorDetailsDialog";
+import WelcomeBanner from "@/components/dashboard/WelcomeBanner";
+
+const chartLoader = () => <SectionSkeleton height="h-72" />;
+
+const TrafficChart = dynamic(
+  () => import("@/components/dashboard/TrafficChart"),
+  { loading: chartLoader },
+);
+const TopDomainsChart = dynamic(
+  () => import("@/components/dashboard/TopDomainsChart"),
+  { loading: chartLoader },
+);
+const ErrorCodesChart = dynamic(
+  () => import("@/components/dashboard/ErrorCodesChart"),
+  { loading: chartLoader },
+);
+const LatencyChart = dynamic(
+  () => import("@/components/dashboard/LatencyChart"),
+  { loading: chartLoader },
+);
+const MethodsChart = dynamic(
+  () => import("@/components/dashboard/MethodsChart"),
+  { loading: chartLoader },
+);
+const GeoTrafficMap = dynamic(
+  () => import("@/components/dashboard/GeoTrafficMap"),
+  { loading: () => <SectionSkeleton height="h-[400px]" />, ssr: false },
+);
+const EntityStats = dynamic(
+  () => import("@/components/dashboard/EntityStats"),
+  { loading: chartLoader },
+);
+const RecentBookmarks = dynamic(
+  () => import("@/components/dashboard/RecentBookmarks"),
+  { loading: chartLoader },
+);
+const LogsSection = dynamic(
+  () => import("@/components/dashboard/LogsSection"),
+  { loading: chartLoader },
+);
+const BackendHealth = dynamic(
+  () => import("@/components/dashboard/BackendHealth"),
+  { loading: chartLoader },
+);
+const SslOverview = dynamic(
+  () => import("@/components/dashboard/SslOverview"),
+  { loading: chartLoader },
+);
+const CacheStats = dynamic(
+  () => import("@/components/dashboard/CacheStats"),
+  { loading: chartLoader },
+);
+const WafOverview = dynamic(
+  () => import("@/components/dashboard/WafOverview"),
+  { loading: chartLoader },
+);
 
 // ── Traffic data hook ───────────────────────────────────────────────────
 

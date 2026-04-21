@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import {
   ScrollText,
   AlertTriangle,
@@ -17,11 +18,35 @@ import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import Skeleton from "@/components/ui/Skeleton";
 import LogViewer from "@/components/logs/LogViewer";
-import AIAnalysisPanel from "@/components/logs/AIAnalysisPanel";
-import BackendMonitor from "@/components/logs/BackendMonitor";
 import RequestInspector from "@/components/logs/RequestInspector";
 import { useDataProvider } from "@/hooks/useResource";
 import type { AccessLogEntry, ErrorLogEntry, LogFilters } from "@/types";
+
+// Heavy panels (Recharts + AI UI) — deferred until their tabs are opened
+const AIAnalysisPanel = dynamic(
+  () => import("@/components/logs/AIAnalysisPanel"),
+  {
+    loading: () => (
+      <Card>
+        <Card.Body>
+          <Skeleton variant="rectangular" className="h-96 w-full" />
+        </Card.Body>
+      </Card>
+    ),
+  },
+);
+const BackendMonitor = dynamic(
+  () => import("@/components/logs/BackendMonitor"),
+  {
+    loading: () => (
+      <Card>
+        <Card.Body>
+          <Skeleton variant="rectangular" className="h-96 w-full" />
+        </Card.Body>
+      </Card>
+    ),
+  },
+);
 
 // ── Tab definition ──────────────────────────────────────────────────────
 
