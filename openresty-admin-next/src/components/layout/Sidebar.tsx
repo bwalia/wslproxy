@@ -2,6 +2,7 @@
 
 import React, { useMemo } from "react";
 import Link from "next/link";
+import type { Route } from "next";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils/cn";
 import { useSettings } from "@/contexts/SettingsContext";
@@ -22,15 +23,19 @@ import {
   FileText,
   ShieldAlert,
   ShieldCheck,
+  Siren,
   ChevronLeft,
   ChevronRight,
   ScrollText,
+  BookOpen,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 interface NavItem {
   label: string;
-  href: string;
+  // Typed route: next.config.ts `typedRoutes: true` enforces that `href`
+  // resolves to a real page in the app router at build time.
+  href: Route;
   icon: LucideIcon;
 }
 
@@ -56,7 +61,9 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
           { label: "Dashboard", href: "/", icon: LayoutDashboard },
           { label: "Users", href: "/users", icon: Users },
           ...(settings?.storage_type === "redis"
-            ? [{ label: "Sessions", href: "/sessions", icon: Activity }]
+            ? ([
+                { label: "Sessions", href: "/sessions", icon: Activity },
+              ] satisfies NavItem[])
             : []),
           { label: "Logs & Troubleshoot", href: "/logs", icon: ScrollText },
           { label: "Health", href: "/health", icon: HeartPulse },
@@ -77,7 +84,11 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
       {
         title: "Change Management",
         items: [
-          { label: "Change Requests", href: "/change-requests", icon: GitPullRequest },
+          {
+            label: "Change Requests",
+            href: "/change-requests",
+            icon: GitPullRequest,
+          },
           { label: "Audit", href: "/audit", icon: FileText },
         ],
       },
@@ -86,15 +97,23 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
         items: [
           { label: "WAF Rules", href: "/waf-rules", icon: ShieldAlert },
           { label: "WAF Policies", href: "/waf-policies", icon: ShieldCheck },
+          { label: "WAF Events", href: "/waf-events", icon: Siren },
+        ],
+      },
+      {
+        title: "Reference",
+        items: [
+          { label: "API Docs", href: "/api-docs", icon: BookOpen },
         ],
       },
     ];
     return nav;
   }, [settings?.storage_type]);
 
-  const isActive = (href: string) => {
-    if (href === "/") return pathname === "/";
-    return pathname.startsWith(href);
+  const isActive = (href: Route) => {
+    const hrefStr = href as string;
+    if (hrefStr === "/") return pathname === "/";
+    return pathname.startsWith(hrefStr);
   };
 
   return (

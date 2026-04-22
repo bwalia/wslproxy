@@ -67,7 +67,7 @@ export interface Server {
   index?: string;
   access_log?: string;
   error_log?: string;
-  rules?: string;
+  rules?: string[];
   match_cases?: { statement: string; condition: string }[];
   locations?: LocationBlock[];
   custom_headers?: { header_key: string; header_value: string }[];
@@ -179,6 +179,7 @@ export interface UpstreamServer {
 export interface Secret {
   id: string;
   secret_name: string;
+  description?: string;
   profile_id: string;
   secrets?: { key: string; value: string }[];
   secrets_tags?: string[];
@@ -292,6 +293,53 @@ export interface Session {
   timeout?: number;
   created_at?: number;
   expires_at?: number;
+}
+
+// ── Audit ───────────────────────────────────────────────────────────────
+
+/** Audit log entry.  Written by the backend on every mutation. */
+export interface AuditEntry {
+  timestamp: number; // unix epoch seconds
+  user?: string;
+  action?: string; // "create" | "update" | "delete" | custom
+  resource_type?: string; // "servers" | "rules" | "upstreams" | …
+  resource_name?: string;
+  actor?: string;
+  actor_ip?: string;
+  profile_id?: string;
+  diff?: unknown;
+  [extra: string]: unknown;
+}
+
+export interface AuditFilters {
+  date_from?: number;
+  date_to?: number;
+  user?: string;
+  action?: string;
+  resource_type?: string;
+  resource_name?: string;
+  limit?: number;
+  offset?: number;
+}
+
+// ── WAF events ──────────────────────────────────────────────────────────
+
+/** WAF event emitted when a rule matches. */
+export interface WafEvent {
+  id?: string;
+  timestamp?: number;
+  host?: string;
+  client_ip?: string;
+  method?: string;
+  uri?: string;
+  rule_id?: string;
+  rule_name?: string;
+  category?: string;
+  severity?: string; // "critical" | "high" | "medium" | "low"
+  action?: string; // "block" | "monitor"
+  score?: number;
+  message?: string;
+  [extra: string]: unknown;
 }
 
 // ── Health / system ─────────────────────────────────────────────────────
@@ -507,4 +555,40 @@ export interface DataProvider {
   getBackendHealthDetails(): Promise<ListResult<BackendHealthDetail>>;
   analyzeWithAI(request: AIAnalysisRequest): Promise<SingleResult<AIAnalysisResponse>>;
   getAIModels(): Promise<SingleResult<{ models: string[]; default: string }>>;
+
+  // Cache management
+  /** Purge cache for a specific server (`POST /api/cache/clear/{server}`). */
+  purgeCache(serverName: string): Promise<SingleResult>;
+  /** Purge ALL cached content (`POST /api/cache/clear-all`). */
+  purgeAllCache(): Promise<SingleResult>;
+
+  // Version history
+  /** List stored versions for a resource.
+   *  `GET /api/versions/{type}/{profile}/{name}`. */
+  listVersions(
+    resourceType: string,
+    profile: string,
+    resourceName: string,
+  ): Promise<ListResult<StoredVersion>>;
+  /**
+   * Create a new draft version cloned from a historical version.
+   * `POST /api/versions/{type}/{profile}/{name}/rollback/{version}`.
+   */
+  rollbackVersion(
+    resourceType: string,
+    profile: string,
+    resourceName: string,
+    version: number,
+  ): Promise<SingleResult>;
+}
+
+/** Backend representation of a stored version. */
+export interface StoredVersion {
+  version: number;
+  state?: "draft" | "pending" | "live" | "archived" | string;
+  created_at?: number;
+  created_by?: string;
+  description?: string;
+  config?: unknown;
+  [extra: string]: unknown;
 }

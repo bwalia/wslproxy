@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils/cn";
 import Card from "@/components/ui/Card";
 import Skeleton from "@/components/ui/Skeleton";
 import { useDataProvider } from "@/hooks/useResource";
+import CachePurgeButton from "@/components/servers/CachePurgeButton";
 
 // ── Types ───────────────────────────────────────────────────────────────
 
@@ -178,6 +179,22 @@ const CacheStats: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Header row: global purge action to the right of the tab title */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+            Cache overview
+          </h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Aggregate counts across every server with caching enabled.
+          </p>
+        </div>
+        <CachePurgeButton
+          onPurged={fetchData}
+          disabled={!cacheData.total_entries}
+        />
+      </div>
+
       {/* Summary stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard

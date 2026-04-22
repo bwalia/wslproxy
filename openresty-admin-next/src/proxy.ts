@@ -2,18 +2,19 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 /**
- * Auth gate for the admin dashboard.
+ * Auth gate for the admin dashboard.  Implements Next.js 16's `proxy`
+ * file convention (renamed from `middleware`).
  *
- * Runs on the Edge/Node runtime before any page or API route.  This is the
- * production-grade equivalent of the client-side `useEffect(() => router.push("/login"))`
- * pattern — it prevents the protected page from rendering at all when the
+ * Runs before every page / API route render.  Production-grade
+ * equivalent of the old client-side `useEffect(() => router.push("/login"))`
+ * pattern — prevents the protected page from rendering at all when the
  * user is not authenticated, eliminating the login-flash race condition.
  *
  * The auth cookie is set by the Lua backend (`/api/user/login` →
  * `Set-Cookie: wslproxy_token=…; HttpOnly; SameSite=Lax; Secure?`).  We
- * intentionally do NOT verify the JWT signature here — the Lua auth block
- * still performs full verification on every `/api/*` request.  This
- * middleware only checks cookie presence to prevent UI from rendering
+ * intentionally do NOT verify the JWT signature here — the Lua auth
+ * block still performs full verification on every `/api/*` request.
+ * This proxy only checks cookie presence to keep UI from rendering
  * behind the login wall.
  */
 
@@ -36,7 +37,7 @@ function isPublicPath(pathname: string): boolean {
   );
 }
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { nextUrl } = request;
   const { pathname } = nextUrl;
 

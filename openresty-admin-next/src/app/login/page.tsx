@@ -3,6 +3,7 @@
 import { useActionState, useCallback } from "react";
 import { useFormStatus } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
+import type { Route } from "next";
 import { useAuth } from "@/contexts/AuthContext";
 import { Shield } from "lucide-react";
 
@@ -84,7 +85,10 @@ export default function LoginPage() {
       try {
         await login(email, password);
         if (returnTo !== "/") {
-          router.replace(returnTo);
+          // returnTo comes from the middleware-provided `returnTo` query
+          // param and is sanitised by `sanitizeReturnTo` to only accept
+          // in-app paths.  Cast is safe for typedRoutes.
+          router.replace(returnTo as Route);
         }
         return { status: "success" };
       } catch (err) {

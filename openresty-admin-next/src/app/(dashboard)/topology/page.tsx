@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import PageHeader from "@/components/ui/PageHeader";
 import Card from "@/components/ui/Card";
 import Skeleton from "@/components/ui/Skeleton";
+import ErrorBoundary from "@/components/ui/ErrorBoundary";
 import { Network } from "lucide-react";
 
 const TopologyCanvas = dynamic(
@@ -32,7 +33,9 @@ export default function TopologyPage() {
         subtitle="Virtual Servers, Rules, and Backend Origins"
       />
       <div className="flex-1 px-6 pb-6">
-        <TopologyCanvas />
+        <ErrorBoundary label="Topology" minHeightClass="min-h-[60vh]">
+          <TopologyCanvas />
+        </ErrorBoundary>
       </div>
     </div>
   );

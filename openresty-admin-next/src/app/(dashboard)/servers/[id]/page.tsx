@@ -17,11 +17,13 @@ import {
 } from "lucide-react";
 import { useOne, useList, useDataProvider } from "@/hooks/useResource";
 import { useNotification } from "@/contexts/NotificationContext";
+import { useProfile } from "@/contexts/ProfileContext";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import Skeleton from "@/components/ui/Skeleton";
 import NginxServerTab from "@/components/servers/NginxServerTab";
+import CachePurgeButton from "@/components/servers/CachePurgeButton";
 
 // Deferred — heavy tabs only loaded when first opened
 const VarnishTab = dynamic(() => import("@/components/servers/VarnishTab"), {
@@ -118,7 +120,7 @@ const DEFAULT_FORM: ServerFormState = {
   varnish_snippets: [],
   varnish_vcl_config: "",
 
-  rules: [],
+  rules: "",
   match_cases: [],
 };
 
@@ -204,10 +206,22 @@ function hydrateForm(data: ServerType): ServerFormState {
     varnish_snippets: Array.isArray(vs) ? vs : [],
     varnish_vcl_config: vvcl ?? "",
 
-    rules: data.rules ? (typeof data.rules === "string" ? data.rules.split(",").filter(Boolean) : data.rules as unknown as string[]) : [],
+    // Persisted as array for legacy compatibility — UI uses one id.
+    rules: Array.isArray(data.rules)
+      ? (data.rules[0] ?? "")
+      : typeof data.rules === "string"
+        ? data.rules
+        : "",
     match_cases: (Array.isArray(data.match_cases) ? data.match_cases : []).map((mc) => ({
       condition: mc.condition ?? "",
-      statement: Array.isArray(mc.statement) ? mc.statement : typeof mc.statement === "string" ? [mc.statement] : [],
+      // Backend stores a single rule_id as `statement`.  Older records
+      // may have been serialized as a single-element array; flatten.
+      statement:
+        typeof mc.statement === "string"
+          ? mc.statement
+          : Array.isArray(mc.statement)
+            ? (mc.statement[0] ?? "")
+            : "",
     })),
   };
 }
@@ -250,7 +264,9 @@ function buildPayload(form: ServerFormState): Record<string, unknown> {
     varnish_config: form.varnish_config,
     varnish_snippets: form.varnish_snippets,
     varnish_vcl_config: form.varnish_vcl_config,
-    rules: form.rules,
+    // Send array to preserve the legacy on-disk shape — Lua
+    // `parse_rule_ids` accepts both, but existing records are arrays.
+    rules: form.rules ? [form.rules] : [],
     match_cases: form.match_cases,
   };
 }
@@ -264,6 +280,7 @@ export default function ServerDetailPage() {
   const router = useRouter();
   const dataProvider = useDataProvider();
   const { notify } = useNotification();
+  const { setProfile } = useProfile();
 
   const id = params.id as string;
   const isCreate = id === "create";
@@ -345,6 +362,12 @@ export default function ServerDetailPage() {
         await dataProvider.update("servers", id, payload);
         notify("Server updated successfully", { type: "success" });
       }
+      // Sync the active environment profile to the saved server's
+      // profile so the list page (which filters by the active profile)
+      // shows the record the user just created or updated.
+      if (form.profile_id) {
+        setProfile(form.profile_id);
+      }
       router.push("/servers");
     } catch (err) {
       notify((err as Error).message || "Failed to save server", {
@@ -405,6 +428,14 @@ export default function ServerDetailPage() {
             >
               Back
             </Button>
+            {/* Cache purge only meaningful for saved servers that have
+                caching enabled — disabled otherwise to avoid confusion. */}
+            {!isCreate && (
+              <CachePurgeButton
+                serverName={form.server_name}
+                disabled={!form.cache_enabled || !form.server_name}
+              />
+            )}
             {!isCreate && (
               <Button
                 variant="danger"

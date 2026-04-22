@@ -6,6 +6,7 @@ import { useSettings } from "@/contexts/SettingsContext";
 import Sidebar from "@/components/layout/Sidebar";
 import AppBar from "@/components/layout/AppBar";
 import Footer from "@/components/layout/Footer";
+import RouteFocusReset from "@/components/layout/RouteFocusReset";
 import DashboardLoading from "./loading";
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
@@ -29,6 +30,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950">
+      <RouteFocusReset />
       <Sidebar collapsed={sidebarCollapsed} onToggle={toggleSidebar} />
 
       <div

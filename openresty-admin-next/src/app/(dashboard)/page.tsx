@@ -12,6 +12,7 @@ import { useDataProvider } from "@/hooks/useResource";
 import Card from "@/components/ui/Card";
 import Skeleton from "@/components/ui/Skeleton";
 import LazySection from "@/components/ui/LazySection";
+import ErrorBoundary from "@/components/ui/ErrorBoundary";
 
 // ── Section skeleton ────────────────────────────────────────────────────
 
@@ -167,42 +168,71 @@ export default function DashboardPage() {
 
       {activeTab === 0 && (
         <div className="space-y-6">
-          <GeoTrafficMap geoData={geoData} loading={trafficLoading} />
+          {/* Each chart is isolated in its own ErrorBoundary — one broken
+              widget cannot take down the rest of the dashboard. */}
+          <ErrorBoundary label="Traffic map">
+            <GeoTrafficMap geoData={geoData} loading={trafficLoading} />
+          </ErrorBoundary>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <TopDomainsChart domains={topDomains} loading={trafficLoading} />
-            <ErrorCodesChart
-              errorCodes={errorCodes}
-              loading={trafficLoading}
-              onCodeClick={handleErrorCodeClick}
-            />
-            <LatencyChart latency={latency} loading={trafficLoading} />
-            <MethodsChart methods={methods} loading={trafficLoading} />
+            <ErrorBoundary label="Top domains">
+              <TopDomainsChart domains={topDomains} loading={trafficLoading} />
+            </ErrorBoundary>
+            <ErrorBoundary label="Error codes">
+              <ErrorCodesChart
+                errorCodes={errorCodes}
+                loading={trafficLoading}
+                onCodeClick={handleErrorCodeClick}
+              />
+            </ErrorBoundary>
+            <ErrorBoundary label="Latency">
+              <LatencyChart latency={latency} loading={trafficLoading} />
+            </ErrorBoundary>
+            <ErrorBoundary label="HTTP methods">
+              <MethodsChart methods={methods} loading={trafficLoading} />
+            </ErrorBoundary>
           </div>
 
-          <TrafficChart chartData={chartData} loading={trafficLoading} />
+          <ErrorBoundary label="Traffic chart">
+            <TrafficChart chartData={chartData} loading={trafficLoading} />
+          </ErrorBoundary>
         </div>
       )}
 
-      {activeTab === 1 && <BackendHealth />}
-      {activeTab === 2 && <SslOverview />}
-      {activeTab === 3 && <CacheStats />}
-      {activeTab === 4 && <WafOverview />}
+      {activeTab === 1 && (
+        <ErrorBoundary label="Backend health"><BackendHealth /></ErrorBoundary>
+      )}
+      {activeTab === 2 && (
+        <ErrorBoundary label="SSL overview"><SslOverview /></ErrorBoundary>
+      )}
+      {activeTab === 3 && (
+        <ErrorBoundary label="Cache stats"><CacheStats /></ErrorBoundary>
+      )}
+      {activeTab === 4 && (
+        <ErrorBoundary label="WAF overview"><WafOverview /></ErrorBoundary>
+      )}
 
       {/* ── Bottom sections — lazy-loaded on scroll ────────────────── */}
       {/* These only render + fetch their data when scrolled into view,
-          so the initial page load doesn't fire unnecessary API calls. */}
+          so the initial page load doesn't fire unnecessary API calls.
+          Each gets its own boundary so a broken widget stays local. */}
 
       <LazySection height="h-24">
-        <EntityStats />
+        <ErrorBoundary label="Entity stats">
+          <EntityStats />
+        </ErrorBoundary>
       </LazySection>
 
       <LazySection height="h-40">
-        <RecentBookmarks />
+        <ErrorBoundary label="Recent bookmarks">
+          <RecentBookmarks />
+        </ErrorBoundary>
       </LazySection>
 
       <LazySection height="h-64">
-        <LogsSection />
+        <ErrorBoundary label="Logs">
+          <LogsSection />
+        </ErrorBoundary>
       </LazySection>
 
       {/* ── Error details modal ─────────────────────────────────────── */}

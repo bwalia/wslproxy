@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
+import { STORAGE_KEYS, get, set, remove } from "@/lib/storage";
 
 /**
  * Auth is managed via an httpOnly `wslproxy_token` cookie set by the Lua
@@ -47,10 +48,9 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-// Non-sensitive cache of user/instance for quick UI hydration.  The JWT
-// itself is NEVER stored here — it lives only in the httpOnly cookie.
-const INSTANCE_KEY = "wslproxy.instance";
-const USER_KEY = "wslproxy.user";
+// Non-sensitive cache of user/instance for quick UI hydration lives in
+// localStorage via the typed storage layer.  The JWT itself is NEVER
+// stored here — it lives only in the httpOnly cookie set by the backend.
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
@@ -65,14 +65,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
 
     // Fast path: use cached non-sensitive info for instant paint.
-    try {
-      const cachedInstance = localStorage.getItem(INSTANCE_KEY);
-      if (cachedInstance) setInstance(JSON.parse(cachedInstance));
-      const cachedUser = localStorage.getItem(USER_KEY);
-      if (cachedUser) setUser(JSON.parse(cachedUser));
-    } catch {
-      /* corrupt data — ignore */
-    }
+    const cachedInstance = get(STORAGE_KEYS.instance);
+    if (cachedInstance) setInstance(cachedInstance);
+    const cachedUser = get(STORAGE_KEYS.user);
+    if (cachedUser) setUser(cachedUser);
 
     (async () => {
       try {
@@ -87,19 +83,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const data = json?.data ?? json;
           if (data?.user) {
             setUser(data.user);
-            try {
-              localStorage.setItem(USER_KEY, JSON.stringify(data.user));
-            } catch {
-              /* quota / privacy mode — non-fatal */
-            }
+            set(STORAGE_KEYS.user, data.user);
           }
           if (data?.instance) {
             setInstance(data.instance);
-            try {
-              localStorage.setItem(INSTANCE_KEY, JSON.stringify(data.instance));
-            } catch {
-              /* non-fatal */
-            }
+            set(STORAGE_KEYS.instance, data.instance);
           }
           setIsAuthenticated(true);
         } else {
@@ -108,12 +96,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setIsAuthenticated(false);
           setUser(null);
           setInstance(null);
-          try {
-            localStorage.removeItem(USER_KEY);
-            localStorage.removeItem(INSTANCE_KEY);
-          } catch {
-            /* non-fatal */
-          }
+          remove(STORAGE_KEYS.user);
+          remove(STORAGE_KEYS.instance);
         }
       } catch {
         if (!cancelled) setIsAuthenticated(false);
@@ -149,19 +133,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // to hydrate the UI with user/instance info.
       if (data?.user) {
         setUser(data.user);
-        try {
-          localStorage.setItem(USER_KEY, JSON.stringify(data.user));
-        } catch {
-          /* non-fatal */
-        }
+        set(STORAGE_KEYS.user, data.user);
       }
       if (data?.instance) {
         setInstance(data.instance);
-        try {
-          localStorage.setItem(INSTANCE_KEY, JSON.stringify(data.instance));
-        } catch {
-          /* non-fatal */
-        }
+        set(STORAGE_KEYS.instance, data.instance);
       }
       setIsAuthenticated(true);
 
@@ -185,12 +161,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setInstance(null);
     setIsAuthenticated(false);
-    try {
-      localStorage.removeItem(USER_KEY);
-      localStorage.removeItem(INSTANCE_KEY);
-    } catch {
-      /* non-fatal */
-    }
+    remove(STORAGE_KEYS.user);
+    remove(STORAGE_KEYS.instance);
     router.push("/login");
   }, [router]);
 

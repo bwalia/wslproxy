@@ -88,6 +88,20 @@ export interface ServerFormState {
   varnish_vcl_config: string;
 
   /* Rules */
-  rules: string[];
-  match_cases: { condition: string; statement: string[] }[];
+  /**
+   * The primary rule assigned to this server.  Empty string means
+   * "none".  Additional rules combined via AND/OR live in `match_cases`.
+   *
+   * Persisted on the backend as an array (`[]` or `[rule_id]`) for
+   * consistency with legacy records; see `buildPayload` /
+   * `toFormState`.
+   */
+  rules: string;
+  /**
+   * Match case = one "additional rule to evaluate, combined with the
+   * primary rule via AND/OR".  The Lua gateway
+   * (api/rule_loader.lua:parse_match_cases) reads `statement` as a
+   * single rule_id string and `condition` as "and" / "or" / "none".
+   */
+  match_cases: { condition: string; statement: string }[];
 }

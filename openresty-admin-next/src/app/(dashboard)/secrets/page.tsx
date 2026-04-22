@@ -48,7 +48,7 @@ export default function SecretsListPage() {
         label: "Tags",
         render: (r) => (
           <div className="flex flex-wrap gap-1">
-            {(r.secrets_tags ?? []).map((tag, i) => (
+            {(Array.isArray(r.secrets_tags) ? r.secrets_tags : []).map((tag, i) => (
               <Badge key={i} size="sm">
                 {tag}
               </Badge>
