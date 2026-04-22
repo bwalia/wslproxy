@@ -13,3 +13,19 @@ openresty-admin/.env.local
 openresty-admin/.env.development.local
 openresty-admin/.env.test.local
 openresty-admin/.env.production.local
+
+# Legacy stub files — empty placeholders under html/openresty-admin that
+# shadow the real admin source when `COPY ./html` runs before
+# `COPY ./openresty-admin`.  The real admin source lives in /openresty-admin/.
+html/openresty-admin
+
+# Next.js admin — its own image handles this, not needed in the main image
+openresty-admin-next/node_modules
+openresty-admin-next/.next
+openresty-admin-next/.env.local
+
+# Docker build artifacts and local-only state
+.next
+data/cache
+data/varnish
+data/servers/*/conf

@@ -555,6 +555,21 @@ end
 local useRemoteStorage = settings.storage_type == "redis" or settings.storage_type == "pgsql"
 
 local function removeServerFromRule(oldRuleId, serverId, envProfile)
+    -- Accept either a single rule ID (string) or an array of rule IDs,
+    -- for the same reason as `updateServerInRules` — Next.js admin may
+    -- pass arrays while legacy react-admin passed single strings.
+    if type(oldRuleId) == "table" then
+        for _, r in ipairs(oldRuleId) do
+            if type(r) == "string" and r ~= "" then
+                removeServerFromRule(r, serverId, envProfile)
+            end
+        end
+        return
+    end
+    if type(oldRuleId) ~= "string" or oldRuleId == "" then
+        return
+    end
+
     local loadRules = nil
     if oldRuleId and oldRuleId ~= nil and type(oldRuleId) ~= "userdata" then
         if useRemoteStorage then
@@ -584,6 +599,22 @@ local function removeServerFromRule(oldRuleId, serverId, envProfile)
 end
 
 local function updateServerInRules(ruleId, serverId, Rtype, envProfile)
+    -- Accept either a single rule ID (string) or an array of rule IDs
+    -- (Next.js admin sends `rules` and `match_cases[].statement` as
+    -- arrays; legacy react-admin sent them as single strings).  Normalize
+    -- by recursing element-wise when a table is received.
+    if type(ruleId) == "table" then
+        for _, r in ipairs(ruleId) do
+            if type(r) == "string" and r ~= "" then
+                updateServerInRules(r, serverId, Rtype, envProfile)
+            end
+        end
+        return
+    end
+    if type(ruleId) ~= "string" or ruleId == "" then
+        return
+    end
+
     local getRules, ruleErr = nil, nil
     if useRemoteStorage then
         getRules, ruleErr = red:hget("request_rules_" .. envProfile, ruleId)
@@ -3526,6 +3557,24 @@ end
 local platform = ngx.req.get_headers()["x-platform"]
 local preAction = ngx.req.get_headers()["x-special-case-pre-action"]
 
+-- Official admin UIs allowed to mutate even when the instance is locked.
+-- Add new official UIs here when they're introduced.
+local ALLOWED_MUTATION_PLATFORMS = {
+    ["react-admin"] = true,          -- Legacy React-Admin (Vite) UI
+    ["openresty-admin-next"] = true, -- Modern Next.js UI
+    ["openresty-admin-next-ssr"] = true, -- Next.js server-component SSR
+}
+
+-- Returns true if mutations are allowed for this request: either the
+-- instance is unlocked globally, or the request came from a known
+-- official admin UI identified via the x-platform header.
+local function isMutationAllowed()
+    if settings and settings.instance_locked == "false" then
+        return true
+    end
+    return platform and ALLOWED_MUTATION_PLATFORMS[platform] == true
+end
+
 -- AI log analysis handler shared by GET and POST dispatch.
 -- Request body (JSON): { logs: [<log_entry>], question?: string, context?: string }
 -- Response envelope:   { data: { analysis, root_causes[], recommendations[],
@@ -4744,7 +4793,7 @@ local function handle_post_request(args, path)
         local body = Helper.GetPayloads(args)
         PushData.sendData(body, Helper, configPath, Errors)
     end
-    if settings.instance_locked == "false" or platform == "react-admin" then
+    if isMutationAllowed() then
         if path == "servers" then
             createUpdateServer(args)
         end
@@ -5236,7 +5285,7 @@ local function handle_put_request(args, path)
         Errors.throwError("The uuid must be present while updating the data.", ngx.HTTP_INTERNAL_SERVER_ERROR)
         return
     end
-    if settings.instance_locked == "false" or platform == "react-admin" then
+    if isMutationAllowed() then
         if string.find(path, "servers") then
             createUpdateServer(args, uuid)
         end
@@ -5420,7 +5469,7 @@ local function handle_delete_request(args, path)
     path = ngx.unescape_uri(path)
     local pattern = ".*/(.*)"
     local uuid = string.match(path, pattern)
-    if settings.instance_locked == "false" or platform == "react-admin" then
+    if isMutationAllowed() then
         -- DELETE /api/varnish/snippets/{server_name}/{snippet_id}
         if string.find(path, "^varnish/snippets/") then
             local server_name, snippet_id = path:match("^varnish/snippets/([^/]+)/(.+)$")

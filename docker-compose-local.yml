@@ -37,6 +37,20 @@ services:
       # Hot-reload HTML/static files
       - ./html:/usr/local/openresty/nginx/html
 
+      # Real openresty-admin source — layered on top of ./html to hide the
+      # empty stub files at html/openresty-admin/ (legacy).  node_modules
+      # and dist live in a named volume so yarn install/build inside the
+      # container doesn't pollute the host filesystem.
+      - ./openresty-admin/src:/usr/local/openresty/nginx/html/openresty-admin/src
+      - ./openresty-admin/public:/usr/local/openresty/nginx/html/openresty-admin/public
+      - ./openresty-admin/index.html:/usr/local/openresty/nginx/html/openresty-admin/index.html
+      - ./openresty-admin/package.json:/usr/local/openresty/nginx/html/openresty-admin/package.json
+      - ./openresty-admin/package-lock.json:/usr/local/openresty/nginx/html/openresty-admin/package-lock.json
+      - ./openresty-admin/vite.config.js:/usr/local/openresty/nginx/html/openresty-admin/vite.config.js
+      - ./openresty-admin/.env:/usr/local/openresty/nginx/html/openresty-admin/.env
+      - admin-wslproxy-node-modules:/usr/local/openresty/nginx/html/openresty-admin/node_modules
+      - admin-wslproxy-dist:/usr/local/openresty/nginx/html/openresty-admin/dist
+
       # Configuration files
       - ./data:/opt/nginx/data
       - ./nginx-dev.conf.tmpl:/usr/local/openresty/nginx/conf/nginx.conf
@@ -46,9 +60,6 @@ services:
 
       # Swagger documentation
       - ./html/swagger:/usr/local/openresty/nginx/html/swagger
-
-      # Legacy Vite Admin dist (served on port 8090/8290)
-      - ./openresty-admin/dist:/usr/local/openresty/nginx/html/openresty-admin/dist:ro
 
     environment:
       NGINX_CONFIG_DIR: /opt/nginx/
@@ -302,3 +313,5 @@ volumes:
   postgres-data-local:
   next-admin-node-modules:
   vite-admin-node-modules:
+  admin-wslproxy-node-modules:
+  admin-wslproxy-dist:
