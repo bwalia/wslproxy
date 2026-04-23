@@ -9,6 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { STORAGE_KEYS, get, set } from "@/lib/storage";
 
 type Theme = "light" | "dark";
 
@@ -18,8 +19,6 @@ interface ThemeContextValue {
 }
 
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
-
-const STORAGE_KEY = "theme-mode";
 
 function getSystemPreference(): Theme {
   if (typeof window === "undefined") return "light";
@@ -33,8 +32,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   // Hydrate from localStorage or system preference
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY) as Theme | null;
-    const initial = stored ?? getSystemPreference();
+    const stored = get(STORAGE_KEYS.theme);
+    const initial: Theme =
+      stored === "dark" || stored === "light"
+        ? stored
+        : getSystemPreference();
     setTheme(initial);
     document.documentElement.classList.toggle("dark", initial === "dark");
   }, []);
@@ -42,7 +44,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   // Sync class whenever theme changes
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
-    localStorage.setItem(STORAGE_KEY, theme);
+    set(STORAGE_KEYS.theme, theme);
   }, [theme]);
 
   const toggleTheme = useCallback(() => {

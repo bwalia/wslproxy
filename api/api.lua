@@ -555,6 +555,21 @@ end
 local useRemoteStorage = settings.storage_type == "redis" or settings.storage_type == "pgsql"
 
 local function removeServerFromRule(oldRuleId, serverId, envProfile)
+    -- Accept either a single rule ID (string) or an array of rule IDs,
+    -- for the same reason as `updateServerInRules` — Next.js admin may
+    -- pass arrays while legacy react-admin passed single strings.
+    if type(oldRuleId) == "table" then
+        for _, r in ipairs(oldRuleId) do
+            if type(r) == "string" and r ~= "" then
+                removeServerFromRule(r, serverId, envProfile)
+            end
+        end
+        return
+    end
+    if type(oldRuleId) ~= "string" or oldRuleId == "" then
+        return
+    end
+
     local loadRules = nil
     if oldRuleId and oldRuleId ~= nil and type(oldRuleId) ~= "userdata" then
         if useRemoteStorage then
@@ -584,6 +599,22 @@ local function removeServerFromRule(oldRuleId, serverId, envProfile)
 end
 
 local function updateServerInRules(ruleId, serverId, Rtype, envProfile)
+    -- Accept either a single rule ID (string) or an array of rule IDs
+    -- (Next.js admin sends `rules` and `match_cases[].statement` as
+    -- arrays; legacy react-admin sent them as single strings).  Normalize
+    -- by recursing element-wise when a table is received.
+    if type(ruleId) == "table" then
+        for _, r in ipairs(ruleId) do
+            if type(r) == "string" and r ~= "" then
+                updateServerInRules(r, serverId, Rtype, envProfile)
+            end
+        end
+        return
+    end
+    if type(ruleId) ~= "string" or ruleId == "" then
+        return
+    end
+
     local getRules, ruleErr = nil, nil
     if useRemoteStorage then
         getRules, ruleErr = red:hget("request_rules_" .. envProfile, ruleId)
@@ -792,6 +823,36 @@ end
 
 -- Authentication
 
+-- Auth cookie name — keep in sync with nginx auth block fallback + Next.js middleware.
+local AUTH_COOKIE_NAME = "wslproxy_token"
+-- Align with JWT expiry (Helper.generateToken uses 3600s).
+local AUTH_COOKIE_MAX_AGE = 3600
+
+-- Build a Set-Cookie value for the auth token.  `Secure` is only added on
+-- HTTPS requests so local HTTP development still works.
+local function buildAuthCookie(token, maxAge)
+    local parts = {
+        AUTH_COOKIE_NAME .. "=" .. (token or ""),
+        "Path=/",
+        "HttpOnly",
+        "SameSite=Lax",
+        "Max-Age=" .. tostring(maxAge or 0),
+    }
+    if ngx.var.scheme == "https" then
+        table.insert(parts, "Secure")
+    end
+    return table.concat(parts, "; ")
+end
+
+local function instanceInfo()
+    return {
+        instance_id = settings.instance_id,
+        instance_name = settings.instance_name,
+        instance_hash = settings.instance_hash,
+        serial_number = settings.serial_number,
+    }
+end
+
 local function login(args)
     if settings then
         local suEmail = settings.super_user.email
@@ -801,6 +862,12 @@ local function login(args)
         local password = Helper.hashPassword(payloads.password)
 
         if suEmail == payloads.email and suPassword == password then
+            local token = Helper.generateToken()
+
+            -- Set httpOnly cookie so middleware can gate auth server-side and
+            -- tokens are no longer accessible via document.cookie / localStorage.
+            ngx.header["Set-Cookie"] = buildAuthCookie(token, AUTH_COOKIE_MAX_AGE)
+
             ngx.status = ngx.OK
             if useRemoteStorage then
                 local session = require "resty.session".new()
@@ -810,14 +877,11 @@ local function login(args)
             end
             ngx.say(cjson.encode({
                 data = {
-                    user = payloads,
-                    accessToken = Helper.generateToken(),
-                    instance = {
-                        instance_id = settings.instance_id,
-                        instance_name = settings.instance_name,
-                        instance_hash = settings.instance_hash,
-                        serial_number = settings.serial_number,
-                    }
+                    user = { email = payloads.email },
+                    -- accessToken retained in the body for backward-compat
+                    -- with the react-admin UI (localStorage-based auth).
+                    accessToken = token,
+                    instance = instanceInfo(),
                 },
                 status = 200
             }))
@@ -826,6 +890,33 @@ local function login(args)
             Errors.throwError("Invalid credentials", ngx.HTTP_UNAUTHORIZED)
         end
     end
+end
+
+-- Clears the auth cookie.  Idempotent: safe to call with an already-expired
+-- cookie.  Does NOT require a valid JWT (see nginx auth bypass list).
+local function logout()
+    ngx.header["Set-Cookie"] = buildAuthCookie("", 0)
+    ngx.status = ngx.HTTP_OK
+    ngx.say(cjson.encode({ data = { message = "Logged out" }, status = 200 }))
+    ngx.exit(ngx.HTTP_OK)
+end
+
+-- Returns the current session info.  Auth is enforced by the nginx auth
+-- block, so if we get here the cookie/bearer is already validated.
+local function userMe()
+    if not settings then
+        Errors.throwError("Settings not loaded", ngx.HTTP_INTERNAL_SERVER_ERROR)
+        return
+    end
+    ngx.status = ngx.HTTP_OK
+    ngx.say(cjson.encode({
+        data = {
+            user = { email = settings.super_user and settings.super_user.email or nil },
+            instance = instanceInfo(),
+        },
+        status = 200
+    }))
+    ngx.exit(ngx.HTTP_OK)
 end
 
 local function setStorage(body)
@@ -3466,6 +3557,24 @@ end
 local platform = ngx.req.get_headers()["x-platform"]
 local preAction = ngx.req.get_headers()["x-special-case-pre-action"]
 
+-- Official admin UIs allowed to mutate even when the instance is locked.
+-- Add new official UIs here when they're introduced.
+local ALLOWED_MUTATION_PLATFORMS = {
+    ["react-admin"] = true,          -- Legacy React-Admin (Vite) UI
+    ["openresty-admin-next"] = true, -- Modern Next.js UI
+    ["openresty-admin-next-ssr"] = true, -- Next.js server-component SSR
+}
+
+-- Returns true if mutations are allowed for this request: either the
+-- instance is unlocked globally, or the request came from a known
+-- official admin UI identified via the x-platform header.
+local function isMutationAllowed()
+    if settings and settings.instance_locked == "false" then
+        return true
+    end
+    return platform and ALLOWED_MUTATION_PLATFORMS[platform] == true
+end
+
 -- AI log analysis handler shared by GET and POST dispatch.
 -- Request body (JSON): { logs: [<log_entry>], question?: string, context?: string }
 -- Response envelope:   { data: { analysis, root_causes[], recommendations[],
@@ -3572,6 +3681,9 @@ local function handle_get_request(args, path)
     local pattern = ".*/(.*)"
     local uuid = string.match(path, pattern)
 
+    if path == "user/me" then
+        userMe()
+    end
     if path == "servers" then
         listServers(args)
     elseif uuid and string.match(uuid, "^host:") and subPath[1] == "servers" then
@@ -4674,11 +4786,14 @@ local function handle_post_request(args, path)
     if path == "user/login" then
         login(args)
     end
+    if path == "user/logout" then
+        logout()
+    end
     if path == "push-data" then
         local body = Helper.GetPayloads(args)
         PushData.sendData(body, Helper, configPath, Errors)
     end
-    if settings.instance_locked == "false" or platform == "react-admin" then
+    if isMutationAllowed() then
         if path == "servers" then
             createUpdateServer(args)
         end
@@ -5170,7 +5285,7 @@ local function handle_put_request(args, path)
         Errors.throwError("The uuid must be present while updating the data.", ngx.HTTP_INTERNAL_SERVER_ERROR)
         return
     end
-    if settings.instance_locked == "false" or platform == "react-admin" then
+    if isMutationAllowed() then
         if string.find(path, "servers") then
             createUpdateServer(args, uuid)
         end
@@ -5354,7 +5469,7 @@ local function handle_delete_request(args, path)
     path = ngx.unescape_uri(path)
     local pattern = ".*/(.*)"
     local uuid = string.match(path, pattern)
-    if settings.instance_locked == "false" or platform == "react-admin" then
+    if isMutationAllowed() then
         -- DELETE /api/varnish/snippets/{server_name}/{snippet_id}
         if string.find(path, "^varnish/snippets/") then
             local server_name, snippet_id = path:match("^varnish/snippets/([^/]+)/(.+)$")

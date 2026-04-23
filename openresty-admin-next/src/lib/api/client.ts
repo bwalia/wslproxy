@@ -1,24 +1,10 @@
 /* ──────────────────────────────────────────────────────────────────────────
-   Low-level fetch wrapper — handles auth headers, 401 redirect, JSON
-   parsing, and empty-body safety.  No React dependency.
+   Low-level fetch wrapper.
+
+   Auth is handled by the httpOnly `wslproxy_token` cookie set by the Lua
+   backend on login.  The cookie is sent automatically with every
+   same-origin request — there is no manual token handling in JS.
    ────────────────────────────────────────────────────────────────────────── */
-
-function getAuthHeaders(): Record<string, string> {
-  const headers: Record<string, string> = { "x-platform": "react-admin" };
-  if (typeof window === "undefined") return headers;
-
-  try {
-    const raw = localStorage.getItem("token");
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      const accessToken = parsed?.accessToken ?? parsed?.token;
-      if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
-    }
-  } catch {
-    /* corrupt token — ignore */
-  }
-  return headers;
-}
 
 /** Encode chars that OpenResty's Lua JSON parser chokes on. */
 export function encodePayload(data: unknown): string {
@@ -41,8 +27,13 @@ export class ApiError extends Error {
 /**
  * Core fetch helper.  All API calls go through here.
  *
- * - Paths are relative to `/api` (the Next.js rewrite proxy strips CORS).
- * - 401 responses clear the token and redirect to /login.
+ * - Paths are relative to `/api` (Next.js rewrites proxy to the Lua backend,
+ *   keeping requests same-origin so the auth cookie is sent automatically).
+ * - `credentials: "same-origin"` makes the cookie requirement explicit.
+ * - `cache: "no-store"` keeps the browser cache from serving user-specific
+ *   responses; we rely on SWR for client-side deduplication.
+ * - 401 responses send the user to /login (middleware will also gate the
+ *   next navigation, but this covers in-flight requests).
  * - Empty response bodies safely return `null`.
  */
 export async function apiFetch<T = unknown>(
@@ -54,16 +45,21 @@ export async function apiFetch<T = unknown>(
     ? path
     : `/api${path.startsWith("/") ? path : `/${path}`}`;
 
+  const headers: Record<string, string> = {
+    "x-platform": "openresty-admin-next",
+    ...((options.headers as Record<string, string>) ?? {}),
+  };
+
   const res = await fetch(url, {
+    credentials: "same-origin",
+    cache: "no-store",
     ...options,
     signal,
-    headers: { ...getAuthHeaders(), ...(options.headers as Record<string, string>) },
+    headers,
   });
 
   if (res.status === 401) {
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("token");
-      localStorage.removeItem("uuid_business_id");
+    if (typeof window !== "undefined" && window.location.pathname !== "/login") {
       window.location.href = "/login";
     }
     throw new ApiError("Unauthorized", 401);

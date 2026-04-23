@@ -1,13 +1,14 @@
 "use client";
 
 import React, { useMemo } from "react";
-import { History, Clock, FileText } from "lucide-react";
+import { History, Clock } from "lucide-react";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import Skeleton from "@/components/ui/Skeleton";
 import { useList } from "@/hooks/useResource";
 import type { ChangeRequest } from "@/types";
 import { cn } from "@/lib/utils/cn";
+import StoredVersionsList from "./StoredVersionsList";
 
 /* ── Types ─────────────────────────────────────────────────────────────── */
 
@@ -66,47 +67,61 @@ const VersionHistoryTab: React.FC<VersionHistoryTabProps> = ({
     [changeRequests],
   );
 
+  // Stored versions (with rollback) always renders — shows nothing when
+  // there are no stored versions, and collapses cleanly when empty.
+  const storedVersions = (
+    <StoredVersionsList resourceType="servers" resourceName={serverName} />
+  );
+
   if (isLoading) {
     return (
-      <Card>
-        <Card.Body>
-          <div className="space-y-4">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="space-y-2">
-                <Skeleton className="h-5 w-40" />
-                <Skeleton variant="rectangular" className="h-16" />
-              </div>
-            ))}
-          </div>
-        </Card.Body>
-      </Card>
+      <div className="space-y-6">
+        {storedVersions}
+        <Card>
+          <Card.Body>
+            <div className="space-y-4">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="space-y-2">
+                  <Skeleton className="h-5 w-40" />
+                  <Skeleton variant="rectangular" className="h-16" />
+                </div>
+              ))}
+            </div>
+          </Card.Body>
+        </Card>
+      </div>
     );
   }
 
   if (sorted.length === 0) {
     return (
-      <Card>
-        <Card.Body>
-          <div className="flex flex-col items-center gap-4 py-12 text-center">
-            <div className="rounded-full bg-slate-100 p-4 dark:bg-slate-800">
-              <History className="h-8 w-8 text-slate-400" />
+      <div className="space-y-6">
+        {storedVersions}
+        <Card>
+          <Card.Body>
+            <div className="flex flex-col items-center gap-4 py-12 text-center">
+              <div className="rounded-full bg-slate-100 p-4 dark:bg-slate-800">
+                <History className="h-8 w-8 text-slate-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                  No change requests
+                </h3>
+                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                  Edits that go through the 4-eyes approval flow will show up here.
+                </p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-                No Version History
-              </h3>
-              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                Changes to this server will appear here once change tracking is enabled.
-              </p>
-            </div>
-          </div>
-        </Card.Body>
-      </Card>
+          </Card.Body>
+        </Card>
+      </div>
     );
   }
 
   return (
-    <Card>
+    <div className="space-y-6">
+      {storedVersions}
+      <Card>
       <Card.Header>
         <div className="flex items-center gap-2">
           <History className="h-5 w-5 text-primary-500" />
@@ -195,6 +210,7 @@ const VersionHistoryTab: React.FC<VersionHistoryTabProps> = ({
         </div>
       </Card.Body>
     </Card>
+    </div>
   );
 };
 

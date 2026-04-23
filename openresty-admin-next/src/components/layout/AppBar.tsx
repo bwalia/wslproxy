@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { Sun, Moon, Settings, CircleUser, LogOut } from "lucide-react";
+import ProfileSwitcher from "./ProfileSwitcher";
 
 interface AppBarProps {
   sidebarCollapsed: boolean;
@@ -32,6 +33,9 @@ export default function AppBar({ sidebarCollapsed }: AppBarProps) {
 
       {/* Right side actions */}
       <div className="flex items-center gap-2">
+        {/* Environment profile switcher — drives list filters + mutation defaults */}
+        <ProfileSwitcher />
+
         {/* Theme toggle */}
         <button
           type="button"

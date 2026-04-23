@@ -111,37 +111,88 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     [notifications, notify, removeNotification],
   );
 
+  // Split notifications into polite (info/success) vs assertive (error/warning)
+  // regions — screen readers announce them with appropriate urgency.
+  const politeNotifs = notifications.filter(
+    (n) => n.type === "success" || n.type === "info",
+  );
+  const assertiveNotifs = notifications.filter(
+    (n) => n.type === "error" || n.type === "warning",
+  );
+
   return (
     <NotificationContext.Provider value={value}>
       {children}
-      {/* Toast container */}
-      <div className="pointer-events-none fixed right-4 bottom-4 z-50 flex flex-col gap-2">
-        {notifications.map((n) => {
-          const Icon = iconMap[n.type];
-          return (
-            <div
-              key={n.id}
-              className={cn(
-                "pointer-events-auto flex w-80 items-start gap-3 rounded-lg border-l-4 bg-white p-4 shadow-lg dark:bg-slate-800",
-                borderColorMap[n.type],
-              )}
-            >
-              <Icon className={cn("mt-0.5 h-5 w-5 shrink-0", iconColorMap[n.type])} />
-              <p className="flex-1 text-sm text-slate-700 dark:text-slate-200">
-                {n.message}
-              </p>
-              <button
-                type="button"
-                onClick={() => removeNotification(n.id)}
-                className="shrink-0 text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-300"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          );
-        })}
+      {/* Toast container — a11y: split by severity so AT announces correctly. */}
+      <div
+        className="pointer-events-none fixed right-4 bottom-4 z-50 flex flex-col gap-2"
+        aria-label="Notifications"
+      >
+        <ToastRegion
+          notifications={assertiveNotifs}
+          politeness="assertive"
+          onClose={removeNotification}
+        />
+        <ToastRegion
+          notifications={politeNotifs}
+          politeness="polite"
+          onClose={removeNotification}
+        />
       </div>
     </NotificationContext.Provider>
+  );
+}
+
+interface ToastRegionProps {
+  notifications: Notification[];
+  politeness: "polite" | "assertive";
+  onClose: (id: string) => void;
+}
+
+/**
+ * ARIA live region.  Screen readers observe the DOM changes here and
+ * announce new children based on the `aria-live` politeness setting.
+ * Empty divs are fine — the region stays in the tree so additions are
+ * observed in real time (not re-announced every render).
+ */
+function ToastRegion({ notifications, politeness, onClose }: ToastRegionProps) {
+  return (
+    <div
+      role={politeness === "assertive" ? "alert" : "status"}
+      aria-live={politeness}
+      aria-atomic="false"
+      aria-relevant="additions text"
+      className="flex flex-col gap-2"
+    >
+      {notifications.map((n) => {
+        const Icon = iconMap[n.type];
+        return (
+          <div
+            key={n.id}
+            className={cn(
+              "pointer-events-auto flex w-80 items-start gap-3 rounded-lg border-l-4 bg-white p-4 shadow-lg dark:bg-slate-800",
+              borderColorMap[n.type],
+            )}
+          >
+            <Icon
+              className={cn("mt-0.5 h-5 w-5 shrink-0", iconColorMap[n.type])}
+              aria-hidden="true"
+            />
+            <p className="flex-1 text-sm text-slate-700 dark:text-slate-200">
+              {n.message}
+            </p>
+            <button
+              type="button"
+              onClick={() => onClose(n.id)}
+              className="shrink-0 text-slate-400 transition-colors hover:text-slate-600 dark:hover:text-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 rounded"
+              aria-label="Dismiss notification"
+            >
+              <X className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 

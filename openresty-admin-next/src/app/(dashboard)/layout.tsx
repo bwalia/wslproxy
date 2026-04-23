@@ -1,34 +1,23 @@
 "use client";
 
-import {
-  Suspense,
-  useCallback,
-  useEffect,
-  useState,
-  type ReactNode,
-} from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useCallback, useEffect, useState, type ReactNode } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSettings } from "@/contexts/SettingsContext";
 import Sidebar from "@/components/layout/Sidebar";
 import AppBar from "@/components/layout/AppBar";
 import Footer from "@/components/layout/Footer";
+import RouteFocusReset from "@/components/layout/RouteFocusReset";
 import DashboardLoading from "./loading";
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
-  const { isAuthenticated, hydrating } = useAuth();
+  // Auth gating is enforced by src/middleware.ts before this layout renders.
+  // When reached here the user has a valid auth cookie; `useAuth` is used
+  // only to fetch user/instance info and coordinate logout.
+  const { isAuthenticated } = useAuth();
   const { loadSettings } = useSettings();
-  const router = useRouter();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  // Protect route — only redirect after hydration is complete
-  useEffect(() => {
-    if (!hydrating && !isAuthenticated) {
-      router.push("/login");
-    }
-  }, [hydrating, isAuthenticated, router]);
-
-  // Load settings once authenticated
+  // Load settings once the session is confirmed by /api/user/me.
   useEffect(() => {
     if (isAuthenticated) {
       loadSettings();
@@ -39,21 +28,9 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     setSidebarCollapsed((prev) => !prev);
   }, []);
 
-  // Show spinner while hydrating auth state from localStorage
-  if (hydrating) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-primary-600 dark:border-slate-700 dark:border-t-primary-400" />
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return null;
-  }
-
   return (
     <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950">
+      <RouteFocusReset />
       <Sidebar collapsed={sidebarCollapsed} onToggle={toggleSidebar} />
 
       <div
@@ -66,7 +43,11 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           sidebarCollapsed={sidebarCollapsed}
         />
 
-        <main className="flex-1 overflow-y-auto p-6">
+        <main
+          id="main-content"
+          tabIndex={-1}
+          className="flex-1 overflow-y-auto p-6 focus:outline-none"
+        >
           <Suspense fallback={<DashboardLoading />}>{children}</Suspense>
         </main>
 

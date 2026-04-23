@@ -6,6 +6,7 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { SettingsProvider } from "@/contexts/SettingsContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
+import { ProfileProvider } from "@/contexts/ProfileContext";
 
 export default function Providers({ children }: { children: ReactNode }) {
   return (
@@ -18,9 +19,11 @@ export default function Providers({ children }: { children: ReactNode }) {
     >
       <ThemeProvider>
         <AuthProvider>
-          <SettingsProvider>
-            <NotificationProvider>{children}</NotificationProvider>
-          </SettingsProvider>
+          <ProfileProvider>
+            <SettingsProvider>
+              <NotificationProvider>{children}</NotificationProvider>
+            </SettingsProvider>
+          </ProfileProvider>
         </AuthProvider>
       </ThemeProvider>
     </SWRConfig>

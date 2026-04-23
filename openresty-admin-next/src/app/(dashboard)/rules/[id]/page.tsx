@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import {
   ArrowLeft,
   Save,
@@ -25,7 +26,17 @@ import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import Skeleton from "@/components/ui/Skeleton";
 import Badge from "@/components/ui/Badge";
 import type { Rule, Backend } from "@/types";
-import { TopologyCanvas } from "@/components/topology/TopologyCanvas";
+
+const TopologyCanvas = dynamic(
+  () =>
+    import("@/components/topology/TopologyCanvas").then(
+      (mod) => mod.TopologyCanvas,
+    ),
+  {
+    loading: () => <Skeleton variant="rectangular" className="h-96 w-full" />,
+    ssr: false,
+  },
+);
 
 // ── Country list ────────────────────────────────────────────────────────
 
