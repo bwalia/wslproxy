@@ -27,7 +27,11 @@ function buildCsp(): string {
     // `data:` images are used by react-simple-maps for inline SVG encodings.
     // `blob:` is used by recharts for download/export features.
     "img-src 'self' data: blob: https://cdn.jsdelivr.net",
-    "connect-src 'self' ws: wss:",
+    // `connect-src` covers fetch/XHR.  The Geo map lazy-loads its
+    // TopoJSON from the jsdelivr CDN, so we explicitly allow that
+    // origin here — otherwise the browser blocks the request and the
+    // map silently renders blank.
+    "connect-src 'self' ws: wss: https://cdn.jsdelivr.net",
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",
@@ -48,6 +52,29 @@ const nextConfig: NextConfig = {
   // All hrefs must resolve to real app-router routes — typos become
   // compile errors instead of runtime 404s.
   typedRoutes: true,
+
+  // ── Server Actions ────────────────────────────────────────────────
+  // Next.js 16 rejects cross-origin Server Action requests by default
+  // ("Invalid Server Actions request").  In the docker-compose dev
+  // stack, nginx fronts the Next.js container on a non-matching port
+  // (localhost:8280 → openresty-admin-next:7619) — the browser sends
+  // `Origin: http://localhost:8280` which doesn't match the upstream
+  // Host header, so Next.js aborts the action.
+  //
+  // `allowedOrigins` is Next's sanctioned opt-in.  We also set
+  // `proxy_set_header Host $http_host` in `nginx-dev.conf.tmpl`, but
+  // this list is the safety net for any additional proxy hops the
+  // user might layer on (local IP access, LAN testing, etc.).
+  experimental: {
+    serverActions: {
+      allowedOrigins: [
+        "localhost:8280",
+        "localhost:7619",
+        "127.0.0.1:8280",
+        "127.0.0.1:7619",
+      ],
+    },
+  },
 
   // Security-relevant headers for all routes
   async headers() {
@@ -84,7 +111,12 @@ const nextConfig: NextConfig = {
     const apiBase =
       process.env.WSLPROXY_API_URL ?? "http://wslproxy-local:8080";
     return [
-      { source: "/health", destination: `${apiBase}/health` },
+      // NB: there is NO `/health` rewrite here intentionally.  The
+      // upstream nginx has `location /health` as a PREFIX match
+      // that hands anything starting with "/health" (including
+      // "/health-status", "/healthcheck", etc.) to the Lua JSON
+      // probe — so the admin dashboard lives at `/system-status`
+      // to sidestep the collision without touching nginx.
       { source: "/api/:path*", destination: `${apiBase}/api/:path*` },
       // Swagger UI is static HTML served by OpenResty at /swagger/.  We
       // proxy it under /swagger-ui/ so the Next.js page at /api-docs can

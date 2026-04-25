@@ -1,19 +1,27 @@
 "use client";
 
 import React, { useMemo } from "react";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  type TooltipProps,
-} from "recharts";
+import { Globe } from "lucide-react";
 import Card from "@/components/ui/Card";
 import Skeleton from "@/components/ui/Skeleton";
+import { formatNumber } from "@/lib/utils/formatters";
+import { cn } from "@/lib/utils/cn";
 
-// ── Types ────────────────────────────────────────────────────────────────
+/* ──────────────────────────────────────────────────────────────────────────
+   "Top Domains" chart — rendered as a simple CSS-bar list rather than
+   a Recharts BarChart.
+
+   Why we ditched Recharts here:
+    - The card sits in a 4-column grid, so each instance is narrow.
+      Recharts' vertical BarChart devotes ~140px to the YAxis label
+      column before the bar starts rendering, leaving the actual bar
+      cramped (the visible cutoff the user reported).
+    - Rendering N rows of `<div className="w-[x%]">` gives us
+      predictable layout at any width, no canvas/SVG overhead, and
+      proper truncation on the domain name via `truncate`.
+    - Legacy dashboard rendered this exact same list style — we're
+      matching parity, not introducing a new pattern.
+   ────────────────────────────────────────────────────────────────────────── */
 
 interface DomainEntry {
   domain: string;
@@ -23,103 +31,123 @@ interface DomainEntry {
 interface TopDomainsChartProps {
   domains: DomainEntry[] | null;
   loading: boolean;
+  /** Max rows rendered; everything beyond is trimmed silently. */
+  limit?: number;
 }
-
-// ── Helpers ──────────────────────────────────────────────────────────────
-
-function truncate(str: string, max: number): string {
-  return str.length > max ? str.slice(0, max) + "\u2026" : str;
-}
-
-// ── Custom tooltip ───────────────────────────────────────────────────────
-
-const CustomTooltip: React.FC<TooltipProps<number, string>> = ({
-  active,
-  payload,
-}) => {
-  if (!active || !payload?.length) return null;
-  const entry = payload[0]?.payload as DomainEntry | undefined;
-  if (!entry) return null;
-  return (
-    <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-lg dark:border-slate-700 dark:bg-slate-800">
-      <p className="font-medium text-slate-900 dark:text-slate-100">
-        {entry.domain}
-      </p>
-      <p className="text-primary-600 dark:text-primary-400">
-        {entry.requests.toLocaleString()} requests
-      </p>
-    </div>
-  );
-};
 
 // ── Main component ───────────────────────────────────────────────────────
 
 const TopDomainsChart: React.FC<TopDomainsChartProps> = ({
   domains,
   loading,
+  limit = 8,
 }) => {
-  const data = useMemo(() => {
-    if (!Array.isArray(domains) || domains.length === 0) return [];
-    return domains.slice(0, 8).map((d) => ({
-      ...d,
-      shortDomain: truncate(d.domain, 20),
-    }));
-  }, [domains]);
-
-  if (loading) {
-    return (
-      <Card>
-        <Card.Header>
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-            Top Domains
-          </h2>
-        </Card.Header>
-        <Card.Body>
-          <Skeleton variant="rectangular" className="h-[300px] w-full" />
-        </Card.Body>
-      </Card>
-    );
-  }
+  const { rows, maxRequests, total } = useMemo(() => {
+    if (!Array.isArray(domains) || domains.length === 0) {
+      return { rows: [], maxRequests: 0, total: 0 };
+    }
+    const sorted = [...domains]
+      .sort((a, b) => b.requests - a.requests)
+      .slice(0, limit);
+    return {
+      rows: sorted,
+      maxRequests: sorted[0]?.requests ?? 0,
+      total: domains.reduce((s, d) => s + (d.requests ?? 0), 0),
+    };
+  }, [domains, limit]);
 
   return (
-    <Card>
+    <Card className="flex h-full flex-col">
       <Card.Header>
-        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-          Top Domains
-        </h2>
+        <div className="flex min-w-0 items-center gap-2">
+          <Globe className="h-4 w-4 shrink-0 text-slate-400" aria-hidden="true" />
+          <h3 className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
+            Top Domains
+          </h3>
+        </div>
+        {total > 0 && (
+          <span className="text-xs text-slate-500 dark:text-slate-400">
+            {formatNumber(total)} total
+          </span>
+        )}
       </Card.Header>
-      <Card.Body className="pr-2">
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={data} layout="vertical" margin={{ left: 20 }}>
-            <defs>
-              <linearGradient id="barGradient" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stopColor="var(--color-primary-500, #6366f1)" />
-                <stop offset="100%" stopColor="var(--color-primary-700, #4338ca)" />
-              </linearGradient>
-            </defs>
-            <XAxis
-              type="number"
-              tick={{ fontSize: 12 }}
-              className="fill-slate-500 dark:fill-slate-400"
-            />
-            <YAxis
-              type="category"
-              dataKey="shortDomain"
-              width={140}
-              tick={{ fontSize: 12 }}
-              className="fill-slate-500 dark:fill-slate-400"
-            />
-            <Tooltip content={<CustomTooltip />} />
-            <Bar
-              dataKey="requests"
-              fill="url(#barGradient)"
-              radius={[0, 4, 4, 0]}
-            />
-          </BarChart>
-        </ResponsiveContainer>
+      <Card.Body className="flex-1">
+        {loading ? (
+          <div className="space-y-2.5">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} className="h-7 w-full" />
+            ))}
+          </div>
+        ) : rows.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-6 text-center text-slate-400 dark:text-slate-500">
+            <Globe className="mb-1.5 h-6 w-6" aria-hidden="true" />
+            <p className="text-xs">No domain traffic yet</p>
+          </div>
+        ) : (
+          <ol className="space-y-2.5">
+            {rows.map((row, idx) => (
+              <DomainRow
+                key={row.domain}
+                rank={idx + 1}
+                domain={row.domain}
+                requests={row.requests}
+                widthPct={
+                  maxRequests > 0 ? (row.requests / maxRequests) * 100 : 0
+                }
+              />
+            ))}
+          </ol>
+        )}
       </Card.Body>
     </Card>
   );
 };
+
+// ── Single row ───────────────────────────────────────────────────────────
+
+interface DomainRowProps {
+  rank: number;
+  domain: string;
+  requests: number;
+  widthPct: number;
+}
+
+const DomainRow = React.memo(function DomainRow({
+  rank,
+  domain,
+  requests,
+  widthPct,
+}: DomainRowProps) {
+  return (
+    <li className="flex items-center gap-2">
+      <span
+        className={cn(
+          "w-4 shrink-0 text-right text-xs font-mono text-slate-400 dark:text-slate-500",
+        )}
+      >
+        {rank}
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="mb-1 flex items-baseline justify-between gap-2">
+          <span
+            className="truncate text-xs font-medium text-slate-700 dark:text-slate-200"
+            title={domain}
+          >
+            {domain}
+          </span>
+          <span className="shrink-0 text-[11px] font-mono tabular-nums text-slate-500 dark:text-slate-400">
+            {formatNumber(requests)}
+          </span>
+        </div>
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+          <div
+            className="h-full rounded-full bg-linear-to-r from-primary-500 to-primary-600 transition-[width] duration-500 ease-out"
+            style={{ width: `${Math.max(widthPct, 2)}%` }}
+          />
+        </div>
+      </div>
+    </li>
+  );
+});
 
 export default React.memo(TopDomainsChart);

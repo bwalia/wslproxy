@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useTransition,
+} from "react";
 import {
   BarChart,
   Bar,
@@ -10,12 +16,20 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { Database, HardDrive, Globe, FileType, Info } from "lucide-react";
+import {
+  Database,
+  HardDrive,
+  Globe,
+  FileType,
+  Info,
+  RefreshCw,
+} from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import Card from "@/components/ui/Card";
 import Skeleton from "@/components/ui/Skeleton";
 import { useDataProvider } from "@/hooks/useResource";
 import CachePurgeButton from "@/components/servers/CachePurgeButton";
+import { refreshCacheStats } from "@/lib/dashboard/actions";
 
 // ── Types ───────────────────────────────────────────────────────────────
 
@@ -92,6 +106,7 @@ const CacheStats: React.FC = () => {
   const dp = useDataProvider();
   const [loading, setLoading] = useState(true);
   const [cacheData, setCacheData] = useState<CacheData | null>(null);
+  const [refreshing, startRefresh] = useTransition();
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -108,6 +123,13 @@ const CacheStats: React.FC = () => {
 
   useEffect(() => {
     fetchData();
+  }, [fetchData]);
+
+  const handleRefresh = useCallback(() => {
+    startRefresh(async () => {
+      await refreshCacheStats();
+      await fetchData();
+    });
   }, [fetchData]);
 
   const hostChartData = useMemo(() => {
@@ -189,10 +211,25 @@ const CacheStats: React.FC = () => {
             Aggregate counts across every server with caching enabled.
           </p>
         </div>
-        <CachePurgeButton
-          onPurged={fetchData}
-          disabled={!cacheData.total_entries}
-        />
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleRefresh}
+            disabled={refreshing}
+            aria-label="Refresh cache stats"
+            className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 disabled:cursor-wait disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-slate-600 dark:hover:bg-slate-700"
+          >
+            <RefreshCw
+              className={cn("h-3.5 w-3.5", refreshing && "animate-spin")}
+              aria-hidden="true"
+            />
+            {refreshing ? "Refreshing…" : "Refresh"}
+          </button>
+          <CachePurgeButton
+            onPurged={fetchData}
+            disabled={!cacheData.total_entries}
+          />
+        </div>
       </div>
 
       {/* Summary stats */}

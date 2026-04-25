@@ -95,14 +95,40 @@
  *     it in `reset({...})` anyway — it'll sit in form state and come
  *     back in the submit payload unchanged.
  *
- *   • Remaining forms to migrate (as of this writing): Servers, Rules,
- *     Upstreams, Users, Bookmarks, Instances, WAF Rules.  Pick the
- *     pattern from above that matches the form shape and follow the
- *     referenced worked example.  The Servers and Rules forms are the
- *     most complex — expect a mix of patterns B, C, and D in each.
+ *   • Remaining forms to migrate (as of this writing): Upstreams,
+ *     Users, Bookmarks, Instances, WAF Rules.  Pick the pattern from
+ *     above that matches the form shape and follow the referenced
+ *     worked example.
+ *
+ * ─────────────────────────────────────────────────────────────────────
+ *  Alternative: validation gate (for large existing forms)
+ * ─────────────────────────────────────────────────────────────────────
+ *
+ * The Servers and Rules pages are ~1500+ lines of tightly-coupled
+ * `useState<FormState>` + `setForm` across lazy-loaded tabs.  A full
+ * react-hook-form migration would be high-risk churn for no
+ * user-visible improvement — the inputs already work.
+ *
+ * For these, we keep the existing state wiring and use
+ * `runValidationGate(schema, formState)` at submit time to get the
+ * same Zod-driven validation as `useZodForm`.  Worked examples:
+ *
+ *   - `src/app/(dashboard)/servers/[id]/page.tsx` — validation gate
+ *     plus `findTabForError()` to auto-jump to the tab containing
+ *     the first error.
+ *   - `src/app/(dashboard)/rules/[id]/page.tsx` — simpler gate, no
+ *     tab jump.
+ *
+ * Use the gate when the form already works + the inputs are too many
+ * to retrofit.  Use `useZodForm` for new forms and green-field CRUD.
  */
 export { useZodForm, type UseZodFormOptions } from "./useZodForm";
 export { default as FormField } from "./FormField";
 export { default as FormInput } from "./FormInput";
 export { default as FormTextarea } from "./FormTextarea";
 export { default as FormSelect } from "./FormSelect";
+export {
+  runValidationGate,
+  findTabForError,
+  type ValidationGateResult,
+} from "./validation-gate";

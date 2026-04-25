@@ -26,6 +26,8 @@ import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import Skeleton from "@/components/ui/Skeleton";
 import Badge from "@/components/ui/Badge";
 import type { Rule, Backend } from "@/types";
+import { runValidationGate } from "@/lib/forms";
+import { ruleInputSchema } from "@/lib/validation/input-schemas";
 
 const TopologyCanvas = dynamic(
   () =>
@@ -380,8 +382,18 @@ export default function RuleDetailPage() {
   // ── Submit ──────────────────────────────────────────────────────────
 
   const handleSubmit = useCallback(async () => {
-    if (!form.name.trim()) {
-      notify("Rule name is required", { type: "error" });
+    // Structured Zod validation — replaces the single ad-hoc name check.
+    // Covers priority, 301/302 redirect_uri, and 305 backend
+    // requirements before we send a half-formed rule to the backend.
+    const gate = runValidationGate(ruleInputSchema, {
+      name: form.name,
+      priority: form.priority,
+      code: form.code,
+      redirect_uri: form.redirect_uri,
+      backends: form.backends,
+    });
+    if (!gate.ok && gate.firstError) {
+      notify(gate.firstError.message, { type: "error" });
       return;
     }
     setSaving(true);
@@ -400,7 +412,7 @@ export default function RuleDetailPage() {
     } finally {
       setSaving(false);
     }
-  }, [isCreate, id, form.name, buildPayload, api, notify, router]);
+  }, [isCreate, id, form, buildPayload, api, notify, router]);
 
   const handleDelete = useCallback(async () => {
     setDeleting(true);

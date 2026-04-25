@@ -54,6 +54,8 @@ const TopologyCanvas = dynamic(
 import type { Server as ServerType, WafPolicy, Rule } from "@/types";
 import type { ServerFormState, VarnishConfig, VarnishSnippet } from "@/components/servers/types";
 import type { LocationEntry } from "@/components/servers/sections/LocationBlockEditor";
+import { runValidationGate, findTabForError } from "@/lib/forms";
+import { serverInputSchema } from "@/lib/validation/input-schemas";
 import { cn } from "@/lib/utils/cn";
 
 /* ── Defaults ─────────────────────────────────────────────────────────── */
@@ -127,6 +129,23 @@ const DEFAULT_FORM: ServerFormState = {
 /* ── Tab definitions ──────────────────────────────────────────────────── */
 
 type TabKey = "nginx" | "varnish" | "rules" | "waf" | "history" | "topology";
+
+/**
+ * Which tab owns each top-level field — used to auto-jump to the tab
+ * containing a validation error.  Order matters: the first matching
+ * prefix wins.  Anything not listed falls back to the Nginx tab.
+ */
+const FIELD_TO_TAB: Array<{ prefix: string; tab: TabKey }> = [
+  { prefix: "varnish_enabled", tab: "varnish" },
+  { prefix: "varnish_config", tab: "varnish" },
+  { prefix: "varnish_snippets", tab: "varnish" },
+  { prefix: "varnish_vcl_config", tab: "varnish" },
+  { prefix: "waf_enabled", tab: "waf" },
+  { prefix: "waf_policy_id", tab: "waf" },
+  { prefix: "waf_mode_override", tab: "waf" },
+  { prefix: "rules", tab: "rules" },
+  { prefix: "match_cases", tab: "rules" },
+];
 
 interface TabDef {
   key: TabKey;
@@ -336,19 +355,14 @@ export default function ServerDetailPage() {
   /* ── Handlers ────────────────────────────────────────────────────── */
 
   const handleSubmit = useCallback(async () => {
-    if (!form.server_name.trim()) {
-      notify("Server name is required", { type: "error" });
-      setActiveTab("nginx");
-      return;
-    }
-    if (!form.profile_id.trim()) {
-      notify("Profile is required", { type: "error" });
-      setActiveTab("nginx");
-      return;
-    }
-    if (form.ssl_enabled && !form.ssl_email.trim()) {
-      notify("SSL email is required when SSL is enabled", { type: "error" });
-      setActiveTab("nginx");
+    // Structured submit-time validation via the shared Zod schema.
+    // Mirrors what the Lua backend enforces + what the old react-admin
+    // Form.jsx checked, so the user sees a precise error before the
+    // PUT round-trip.
+    const gate = runValidationGate(serverInputSchema, form);
+    if (!gate.ok && gate.firstError) {
+      notify(gate.firstError.message, { type: "error" });
+      setActiveTab(findTabForError(gate.firstError.field, FIELD_TO_TAB, "nginx"));
       return;
     }
 

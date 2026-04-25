@@ -424,10 +424,14 @@ const LogViewer: React.FC<LogViewerProps> = ({
   const [sortField, setSortField] = useState<string>("timestamp");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
-  // Reset selection when logs change
+  // Reset selection when the user switches between Access and Error
+  // tabs.  The old implementation listened to the log arrays, which
+  // caused an infinite render loop because the parent passes a fresh
+  // `[]` for the inactive tab on every render (see logs/page.tsx).
+  // It also made auto-refresh wipe the user's selection mid-task.
   useEffect(() => {
-    setSelectedIds(new Set());
-  }, [accessLogs, errorLogs]);
+    setSelectedIds((prev) => (prev.size === 0 ? prev : new Set()));
+  }, [logType]);
 
   const toggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -452,10 +456,26 @@ const LogViewer: React.FC<LogViewerProps> = ({
     return logs.filter((l) => selectedIds.has(l.id));
   }, [logType, accessLogs, errorLogs, selectedIds]);
 
-  // Propagate selection
+  // Propagate selection to the parent ONLY when the user-visible
+  // selection actually changes.
+  //
+  // Keying the effect on `selectedLogs` breaks — the memo returns a
+  // new array whenever the log prop reference changes (which happens
+  // every render because SWR / fetch hands us a fresh array), so the
+  // effect would fire in a loop: propagate → parent re-renders →
+  // logs get a fresh reference → memo re-runs → new array →
+  // propagate → loop.
+  //
+  // `selectedIds` + `logType` are the actual user intent.  `new Set`
+  // is only produced when toggleSelect / toggleAll / tab-switch
+  // happens, so this effect fires exactly when the selection
+  // semantically changes.
   useEffect(() => {
     onSelectLogs(selectedLogs);
-  }, [selectedLogs, onSelectLogs]);
+    // Only notify when the user's selection intent changes; the
+    // `selectedLogs` memo may produce a new array reference on
+    // every log refresh without a real selection change — see comment above.
+  }, [selectedIds, logType]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSort = useCallback((field: string) => {
     setSortDir((prev) => (sortField === field ? (prev === "asc" ? "desc" : "asc") : "desc"));

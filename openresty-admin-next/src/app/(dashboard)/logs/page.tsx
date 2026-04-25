@@ -22,6 +22,14 @@ import RequestInspector from "@/components/logs/RequestInspector";
 import { useDataProvider } from "@/hooks/useResource";
 import type { AccessLogEntry, ErrorLogEntry, LogFilters } from "@/types";
 
+// Module-level stable empty arrays.  LogViewer is only rendered with
+// ONE of (accessLogs, errorLogs) populated — the other MUST be a
+// stable reference so downstream `useEffect` / `useMemo` dep arrays
+// don't see "changed" on every render and trigger an infinite
+// selection-propagation loop.
+const EMPTY_ACCESS_LOGS: AccessLogEntry[] = [];
+const EMPTY_ERROR_LOGS: ErrorLogEntry[] = [];
+
 // Heavy panels (Recharts + AI UI) — deferred until their tabs are opened
 const AIAnalysisPanel = dynamic(
   () => import("@/components/logs/AIAnalysisPanel"),
@@ -121,17 +129,29 @@ export default function LogsPage() {
     setAccessLoading(true);
     try {
       const result = await dp.getAccessLogs(accessFilters);
-      setAccessLogs(result.data || []);
+      // Defensive: the Lua backend encodes an empty array as `{}`
+      // (ambiguous empty-table), which is truthy but breaks
+      // `.filter()` / `.map()` downstream.  Accept only arrays.
+      setAccessLogs(Array.isArray(result?.data) ? result.data : []);
       setAccessTotal(result.total || 0);
     } catch {
-      // Fall back to existing error logs API
+      // Fall back to the raw text endpoint.  The backend parks the
+      // text at `data.logs` (current shape) or `data.access_log`
+      // (legacy shape) — handle both.
       try {
-        const result = await dp.getLogs();
+        const result = await dp.getLogs("openresty/access_logs");
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const data = (result as any)?.data;
-        if (data?.access_log) {
-          // Parse raw log text into entries
-          const lines = (data.access_log as string).split("\n").filter(Boolean);
+        const rawText: string =
+          typeof data === "string"
+            ? data
+            : typeof data?.logs === "string"
+              ? data.logs
+              : typeof data?.access_log === "string"
+                ? data.access_log
+                : "";
+        if (rawText) {
+          const lines = rawText.split("\n").filter(Boolean);
           const parsed: AccessLogEntry[] = lines.map((line, i) => {
             // Try JSON parse first
             try {
@@ -185,16 +205,28 @@ export default function LogsPage() {
     setErrorLoading(true);
     try {
       const result = await dp.getErrorLogs(errorFilters);
-      setErrorLogs(result.data || []);
+      // Same Array.isArray guard as accessLogs — Lua empty-table
+      // responses can arrive as `{}` instead of `[]`.
+      setErrorLogs(Array.isArray(result?.data) ? result.data : []);
       setErrorTotal(result.total || 0);
     } catch {
-      // Fall back to existing logs API
+      // Fall back to the raw text endpoint — hit the error file
+      // specifically, and accept both modern (`data.logs`) and
+      // legacy (`data.error_log`) shapes.
       try {
-        const result = await dp.getLogs();
+        const result = await dp.getLogs("openresty/error_logs");
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const data = (result as any)?.data;
-        if (data?.error_log) {
-          const lines = (data.error_log as string).split("\n").filter(Boolean);
+        const rawText: string =
+          typeof data === "string"
+            ? data
+            : typeof data?.logs === "string"
+              ? data.logs
+              : typeof data?.error_log === "string"
+                ? data.error_log
+                : "";
+        if (rawText) {
+          const lines = rawText.split("\n").filter(Boolean);
           const parsed: ErrorLogEntry[] = lines.map((line, i) => {
             try {
               const j = JSON.parse(line);
@@ -360,7 +392,7 @@ export default function LogsPage() {
           <LogViewer
             logType="access"
             accessLogs={accessLogs}
-            errorLogs={[]}
+            errorLogs={EMPTY_ERROR_LOGS}
             loading={accessLoading}
             total={accessTotal}
             filters={accessFilters}
@@ -375,7 +407,7 @@ export default function LogsPage() {
         {activeTab === "errors" && (
           <LogViewer
             logType="error"
-            accessLogs={[]}
+            accessLogs={EMPTY_ACCESS_LOGS}
             errorLogs={errorLogs}
             loading={errorLoading}
             total={errorTotal}

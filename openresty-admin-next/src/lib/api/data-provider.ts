@@ -17,6 +17,7 @@ import type {
   ListParams,
   ListResult,
   LogFilters,
+  LogSearchResult,
   SingleResult,
   StoredVersion,
   TrafficStats,
@@ -282,8 +283,42 @@ export const dataProvider: DataProvider = {
   getCacheStats: () =>
     apiFetch<SingleResult>(`/cache/stats`).then((r) => r ?? { data: { available: false } }),
 
-  getLogs: () =>
-    apiFetch<SingleResult>(`/openresty/error_logs`).then((r) => r ?? { data: {} }),
+  getLogs: (resource: string = "openresty/error_logs") =>
+    apiFetch<SingleResult>(`/${resource}`).then((r) => r ?? { data: {} }),
+
+  // Server-side grep over the raw nginx log files.  Scans the tail
+  // (newest first) with a hard byte cap so it's safe on multi-GB
+  // logs.  Query is passed literal by default; `regex: true` flips
+  // to PCRE.  See api/api.lua `path == "logs/search"`.
+  searchLogs: (params: {
+    kind: "error" | "access";
+    q?: string;
+    regex?: boolean;
+    caseSensitive?: boolean;
+    limit?: number;
+    maxBytes?: number;
+  }) => {
+    const qs = new URLSearchParams({ kind: params.kind });
+    if (params.q) qs.set("q", params.q);
+    if (params.regex) qs.set("regex", "1");
+    if (params.caseSensitive) qs.set("case", "1");
+    if (params.limit != null) qs.set("limit", String(params.limit));
+    if (params.maxBytes != null) qs.set("max_bytes", String(params.maxBytes));
+    return apiFetch<SingleResult<LogSearchResult>>(
+      `/logs/search?${qs.toString()}`,
+    ).then(
+      (r) =>
+        r ??
+        ({
+          data: {
+            matches: [],
+            scanned_bytes: 0,
+            total_lines_scanned: 0,
+            truncated: false,
+          },
+        } as SingleResult<LogSearchResult>),
+    );
+  },
 
   // ── Monitoring ────────────────────────────────────────────────────
 
@@ -293,27 +328,20 @@ export const dataProvider: DataProvider = {
     ),
 
   getDetailedHealth: async () => {
-    const start = Date.now();
+    // Client-side wrapper — the Health page itself uses a server
+    // fetcher (`lib/dashboard/health-fetcher.ts`) that also captures
+    // latency + API meta in a HealthBundle.  Kept here for ad-hoc
+    // client callers that only need the raw payload.
     try {
-      const r = await apiFetch<SingleResult<Record<string, unknown>>>(`/ping?detailed=true`);
-      return {
-        data: {
-          ...(r?.data ?? {}),
-          _http_status: 200,
-          _latency: Date.now() - start,
-          _authenticated: true,
-        },
-      } as SingleResult<HealthData>;
+      const r = await apiFetch<SingleResult<HealthData>>(`/ping?detailed=true`);
+      return r ?? { data: { status: "unreachable" } as HealthData };
     } catch (err) {
       return {
         data: {
           status: "unreachable",
-          error: (err as Error).message,
-          _http_status: undefined,
-          _latency: Date.now() - start,
-          _authenticated: false,
-        },
-      } as SingleResult<HealthData>;
+          response: (err as Error).message,
+        } as HealthData,
+      };
     }
   },
 

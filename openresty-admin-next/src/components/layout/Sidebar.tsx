@@ -28,6 +28,8 @@ import {
   ChevronRight,
   ScrollText,
   BookOpen,
+  Info,
+  Share2,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -66,7 +68,14 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
               ] satisfies NavItem[])
             : []),
           { label: "Logs & Troubleshoot", href: "/logs", icon: ScrollText },
-          { label: "Health", href: "/health", icon: HeartPulse },
+          // The admin health-dashboard page lives at `/system-status`,
+          // not `/health`.  Reason: upstream nginx has
+          // `location /health` as a PREFIX match → the Lua JSON probe
+          // swallows everything starting with `/health` (`/health`,
+          // `/health-status`, `/healthcheck`, ...).  Picking a route
+          // that doesn't start with "health" sidesteps the collision
+          // without touching nginx.
+          { label: "Health", href: "/system-status" as Route, icon: HeartPulse },
           { label: "Bookmarks", href: "/bookmarks", icon: Bookmark },
         ],
       },
@@ -74,6 +83,9 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
         title: "Configuration",
         items: [
           { label: "Topology", href: "/topology", icon: Network },
+          // Cast: typedRoutes union is built from existing routes; new
+          // routes need an explicit cast until the next build.
+          { label: "Ingress", href: "/ingress" as Route, icon: Share2 },
           { label: "Servers", href: "/servers", icon: Server },
           { label: "Rules", href: "/rules", icon: GitBranch },
           { label: "Profiles", href: "/profiles", icon: Layers },
@@ -103,6 +115,10 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
       {
         title: "Reference",
         items: [
+          // Cast: typedRoutes generates the Route union from existing
+          // routes at build time — new routes need an explicit cast
+          // until the first build picks them up.
+          { label: "Instance Info", href: "/instance-info" as Route, icon: Info },
           { label: "API Docs", href: "/api-docs", icon: BookOpen },
         ],
       },
