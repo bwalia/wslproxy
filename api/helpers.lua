@@ -182,12 +182,129 @@ end
 function Helper.readLogFile(path)
     local file, fileErr = io.open(path, "r")
     if not file then return fileErr, ngx.HTTP_BAD_REQUEST end
-    
+
     local max_size = 10 * 1024  -- 10KB
     file:seek("end", -max_size)
     local content = file:read("*a")
     file:close()
     return content, ngx.HTTP_OK
+end
+
+--- Search a log file and return matching lines.
+---
+--- Reads the file from the tail (newest entries first) so recent
+--- matches surface quickly for incident response.  Uses PCRE via
+--- ngx.re.find when `regex == true`, otherwise plain substring
+--- match (faster + safe against catastrophic backtracking).
+---
+--- @param path    string  Absolute path to the log file.
+--- @param opts    table   { query=string, regex=boolean, case_sensitive=boolean,
+---                          limit=integer, max_scan_bytes=integer }
+--- @return table|string  On success: { matches = {{lineno, text}, ...},
+---                                     scanned_bytes = integer,
+---                                     total_lines_scanned = integer,
+---                                     truncated = boolean }.
+---                       On error  : error message string.
+--- @return integer       HTTP status code (200 on success, 4xx on error).
+function Helper.searchLogFile(path, opts)
+    opts = opts or {}
+    local query          = opts.query or ""
+    local is_regex       = opts.regex == true
+    local case_sensitive = opts.case_sensitive == true
+    local limit          = tonumber(opts.limit) or 500
+    local max_scan_bytes = tonumber(opts.max_scan_bytes) or (16 * 1024 * 1024) -- 16 MB
+
+    -- Clamp limits defensively — callers may pass absurd values.
+    if limit < 1 then limit = 1 elseif limit > 2000 then limit = 2000 end
+    if max_scan_bytes < 1024 then max_scan_bytes = 1024
+    elseif max_scan_bytes > (64 * 1024 * 1024) then max_scan_bytes = 64 * 1024 * 1024 end
+
+    -- Validate / pre-compile regex once so we can return a sensible
+    -- error string instead of a generic 500 on bad user input.
+    local re_options = case_sensitive and "" or "jo"  -- j=JIT, o=cache compiled
+    if is_regex and query ~= "" then
+        -- "jo" implies case-sensitive.  Add "i" for case-insensitive.
+        if not case_sensitive then re_options = "ijo" end
+        local ok_compile = ngx.re.find("", query, re_options)
+        -- ngx.re.find returns nil+err on compile failure
+        if ok_compile == nil then
+            local _, err = ngx.re.find("", query, re_options)
+            if err and err ~= "no match" then
+                return ("Invalid regex: " .. err), ngx.HTTP_BAD_REQUEST
+            end
+        end
+    end
+
+    local file, fileErr = io.open(path, "rb")
+    if not file then
+        return (fileErr or ("cannot open log file: " .. path)), ngx.HTTP_BAD_REQUEST
+    end
+
+    -- How many bytes of the file should we scan?  Seek to
+    -- `max(0, filesize - max_scan_bytes)` so we always cover the
+    -- tail even on massive log files.
+    local size_ok = file:seek("end")
+    local file_size = size_ok or 0
+    local scan_start = file_size > max_scan_bytes
+        and (file_size - max_scan_bytes) or 0
+    local truncated = scan_start > 0
+    file:seek("set", scan_start)
+
+    -- Read the whole scan window in one shot, then walk backwards
+    -- line-by-line so newest matches land first.  Reading all at
+    -- once is simpler + fine for the 16 MB default cap (well under
+    -- nginx worker memory headroom).
+    local content = file:read("*a") or ""
+    file:close()
+
+    -- Split into lines without copying the entire list unnecessarily;
+    -- we walk back-to-front and stop at `limit`.
+    local lines = {}
+    local n = 0
+    for line in (content .. "\n"):gmatch("([^\n]*)\n") do
+        n = n + 1
+        lines[n] = line
+    end
+
+    -- Empty-table marker so cjson emits `[]` when there are no
+    -- matches instead of `{}` — the dashboard's result renderer
+    -- iterates this with `.map()` and would crash on an object.
+    local cjson_ok, cjson = pcall(require, "cjson")
+    local matches = cjson_ok and setmetatable({}, cjson.empty_array_mt) or {}
+    local match_count = 0
+    local query_lower = case_sensitive and query or query:lower()
+
+    -- Walk newest → oldest.  `lineno` is relative to the scan window;
+    -- when `truncated` is true the caller knows that line 1 here is
+    -- not line 1 of the file.
+    for i = n, 1, -1 do
+        local line = lines[i]
+        if line ~= "" then
+            local hit
+            if query == "" then
+                hit = true
+            elseif is_regex then
+                local from = ngx.re.find(line, query, re_options)
+                hit = from ~= nil
+            elseif case_sensitive then
+                hit = string.find(line, query, 1, true) ~= nil
+            else
+                hit = string.find(line:lower(), query_lower, 1, true) ~= nil
+            end
+            if hit then
+                match_count = match_count + 1
+                matches[match_count] = { lineno = i, text = line }
+                if match_count >= limit then break end
+            end
+        end
+    end
+
+    return {
+        matches = matches,
+        scanned_bytes = #content,
+        total_lines_scanned = n,
+        truncated = truncated,
+    }, ngx.HTTP_OK
 end
 
 -- Write file
