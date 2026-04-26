@@ -158,19 +158,27 @@ export const upstreamSchema = z
     name: z.string(),
     profile_id: zOptStr,
     load_balancing_method: zOptStr,
+    // `servers` arrives from Lua — coerce empty `{}` (Lua-table
+    // ambiguity) to `[]` BEFORE the array shape check, otherwise
+    // tolerant validation passes the raw `{}` through and downstream
+    // `.map()` crashes.  Same pattern as `zStringArray` / `zIdList`.
     servers: z
-      .array(
+      .preprocess(
+        (v) => (Array.isArray(v) ? v : []),
         z
-          .object({
-            address: z.string(),
-            port: zNumish,
-            weight: zNumish,
-            max_fails: zNumish,
-            state: zOptStr,
-          })
-          .passthrough(),
-      )
-      .optional(),
+          .array(
+            z
+              .object({
+                address: z.string(),
+                port: zNumish,
+                weight: zNumish,
+                max_fails: zNumish,
+                state: zOptStr,
+              })
+              .passthrough(),
+          )
+          .default([]),
+      ),
   })
   .passthrough();
 

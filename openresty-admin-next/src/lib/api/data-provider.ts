@@ -421,7 +421,13 @@ export const dataProvider: DataProvider = {
 
   getChangeRequests: (params = {}) =>
     apiFetch<ListResult<ChangeRequest>>(`/change-requests?params=${encodeURIComponent(JSON.stringify(params))}`).then(
-      (r) => r ?? { data: [], total: 0 },
+      (r) => {
+        // Lua's cjson encodes empty tables as `{}` not `[]`; if the
+        // backend has zero pending CRs we'd otherwise hand `{}` to
+        // downstream `.map()` and crash.  Coerce defensively.
+        const data = Array.isArray(r?.data) ? r.data : [];
+        return { data, total: r?.total ?? 0 };
+      },
     ),
 
   getPendingCRCount: () =>
