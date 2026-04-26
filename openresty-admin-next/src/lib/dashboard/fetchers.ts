@@ -123,9 +123,19 @@ export async function fetchBackendHealth(): Promise<BackendHealthData> {
       { data: {} },
     ),
   ]);
+  // `??` doesn't catch Lua's empty-table `{}` (it's truthy), so use
+  // `Array.isArray` for the array field.  Same pattern as the
+  // client-side `getTrafficTopology` / `getTrafficHealth` wrappers
+  // in data-provider.ts.
+  const healthRaw = healthRes?.data as unknown;
+  const topoRaw = topoRes?.data as unknown;
   return {
-    health: (healthRes?.data as BackendHealthData["health"]) ?? [],
-    topology: (topoRes?.data as BackendHealthData["topology"]) ?? {},
+    health: (Array.isArray(healthRaw)
+      ? healthRaw
+      : []) as BackendHealthData["health"],
+    topology: (topoRaw && typeof topoRaw === "object"
+      ? topoRaw
+      : {}) as BackendHealthData["topology"],
   };
 }
 

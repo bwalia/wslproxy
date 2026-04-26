@@ -107,10 +107,18 @@ export default function IngressOverviewPage() {
   // Merge health into topology by rule_id + backend label so each row
   // has a single source of truth.
   const rules = useMemo<RuleRow[]>(() => {
-    const topo = (topoResp?.data as TopologyPayload | undefined)
+    // Lua's cjson encodes empty tables as `{}` not `[]`.  `??`
+    // doesn't catch the empty-object case (it's truthy), so guard
+    // explicitly with `Array.isArray` — otherwise `for…of {}` and
+    // `.filter` on `{}` both crash.
+    const topoRaw = (topoResp?.data as TopologyPayload | undefined)
       ?.rules_with_backends;
-    if (!topo) return [];
-    const health = (healthResp?.data as HealthRule[] | undefined) ?? [];
+    const topo = Array.isArray(topoRaw) ? topoRaw : [];
+    const healthRaw = healthResp?.data as HealthRule[] | undefined;
+    const health = Array.isArray(healthRaw) ? healthRaw : [];
+
+    if (topo.length === 0) return [];
+
     const healthByRule = new Map<string, HealthRule>();
     for (const h of health) healthByRule.set(h.rule_id, h);
 

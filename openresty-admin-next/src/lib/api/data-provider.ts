@@ -348,23 +348,56 @@ export const dataProvider: DataProvider = {
   checkORStatus: () =>
     apiFetch<SingleResult>(`/openresty_status`).then((r) => r ?? { data: {} }),
 
+  // Helper: Lua's cjson encodes empty tables as `{}` not `[]`.
+  // Coerce nested array fields here so consumers can safely
+  // `for…of` / `.filter` / `.map` without re-implementing the
+  // guard.  See the same pattern in `getChangeRequests` above.
   getTrafficTopology: () =>
-    apiFetch<SingleResult>(`/traffic/topology`).then(
-      (r) => r ?? { data: { servers: [], rules_with_backends: [], connections: [] } },
-    ),
+    apiFetch<SingleResult>(`/traffic/topology`).then((r) => {
+      const raw = (r?.data ?? {}) as Record<string, unknown>;
+      return {
+        data: {
+          servers: Array.isArray(raw.servers) ? raw.servers : [],
+          rules_with_backends: Array.isArray(raw.rules_with_backends)
+            ? raw.rules_with_backends
+            : [],
+          connections: Array.isArray(raw.connections) ? raw.connections : [],
+        },
+      };
+    }),
 
   getTopologyGraph: (profileId?: string) =>
     apiFetch<SingleResult>(
       `/topology/graph?profile_id=${profileId || getEnvProfile()}`,
-    ).then((r) => r ?? { data: { nodes: [], edges: [], summary: {} } }),
+    ).then((r) => {
+      const raw = (r?.data ?? {}) as Record<string, unknown>;
+      return {
+        data: {
+          nodes: Array.isArray(raw.nodes) ? raw.nodes : [],
+          edges: Array.isArray(raw.edges) ? raw.edges : [],
+          summary: raw.summary ?? {},
+        },
+      };
+    }),
 
   getTrafficBackendStats: (ruleId: string) =>
-    apiFetch<SingleResult>(`/traffic/backends?rule_id=${encodeURIComponent(ruleId)}`).then(
-      (r) => r ?? { data: { rule_id: ruleId, backends: [] } },
-    ),
+    apiFetch<SingleResult>(
+      `/traffic/backends?rule_id=${encodeURIComponent(ruleId)}`,
+    ).then((r) => {
+      const raw = (r?.data ?? {}) as Record<string, unknown>;
+      return {
+        data: {
+          rule_id: ruleId,
+          backends: Array.isArray(raw.backends) ? raw.backends : [],
+        },
+      };
+    }),
 
   getTrafficHealth: () =>
-    apiFetch<SingleResult>(`/traffic/health`).then((r) => r ?? { data: [] }),
+    apiFetch<SingleResult>(`/traffic/health`).then((r) => ({
+      // Top-level `data` is itself the array — same coercion idea.
+      data: Array.isArray(r?.data) ? r.data : [],
+    })),
 
   // ── Traffic management ────────────────────────────────────────────
 

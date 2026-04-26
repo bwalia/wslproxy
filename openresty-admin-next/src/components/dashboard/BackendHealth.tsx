@@ -360,12 +360,21 @@ const BackendHealth: React.FC = () => {
         dp.getTrafficHealth(),
         dp.getTrafficTopology(),
       ]);
+      // `/traffic/health` returns `{ data: [...rules...] }` — see
+      // api/traffic_mgmt.lua:get_backend_health.  Reading `data.rules`
+      // (legacy bug, predates the migration) was silently always
+      // returning empty.  The provider already coerces the shape, so
+      // we just consume `healthRes.data` directly here.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const hData = (healthRes as any)?.data;
+      const hRules = (healthRes as any)?.data;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const tData = (topoRes as any)?.data;
-      setHealthRules(Array.isArray(hData?.rules) ? hData.rules : []);
-      setTopologyRules(Array.isArray(tData?.rules_with_backends) ? tData.rules_with_backends : []);
+      setHealthRules(Array.isArray(hRules) ? hRules : []);
+      setTopologyRules(
+        Array.isArray(tData?.rules_with_backends)
+          ? tData.rules_with_backends
+          : [],
+      );
     } catch {
       setHealthRules([]);
       setTopologyRules([]);
