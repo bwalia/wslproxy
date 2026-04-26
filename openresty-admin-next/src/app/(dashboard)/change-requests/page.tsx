@@ -64,9 +64,20 @@ export default function ChangeRequestsPage() {
     setLoading(true);
     try {
       const result = await dataProvider.getChangeRequests();
-      setData(result.data ?? []);
-    } catch {
-      // ignore
+      // `??` only catches null/undefined; the provider already
+      // coerces Lua `{}` to `[]` but we double-guard here so a
+      // future provider change can't reintroduce the crash.
+      setData(Array.isArray(result.data) ? result.data : []);
+    } catch (err) {
+      // Surface the failure rather than swallowing it — otherwise
+      // the loading spinner just disappears and the user is left
+      // staring at an empty list with no idea what went wrong.
+      notify(
+        "Failed to load change requests: " +
+          ((err as Error).message || String(err)),
+        { type: "error" },
+      );
+      setData([]);
     } finally {
       setLoading(false);
     }

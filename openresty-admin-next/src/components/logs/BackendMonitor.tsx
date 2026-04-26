@@ -229,12 +229,20 @@ const BackendMonitor: React.FC<BackendMonitorProps> = ({ onAnalyze }) => {
         dp.getTrafficHealth(),
         dp.getTrafficTopology(),
       ]);
+      // `/traffic/health` returns `{ data: [...rules...] }` directly
+      // — see api/traffic_mgmt.lua:get_backend_health.  Reading
+      // `data.rules` (a long-standing legacy bug) silently returned
+      // empty; consume `data` directly to actually get the array.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const hData = (healthRes as any)?.data;
+      const hRules = (healthRes as any)?.data;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const tData = (topoRes as any)?.data;
-      setHealthRules(Array.isArray(hData?.rules) ? hData.rules : []);
-      setTopologyRules(Array.isArray(tData?.rules_with_backends) ? tData.rules_with_backends : []);
+      setHealthRules(Array.isArray(hRules) ? hRules : []);
+      setTopologyRules(
+        Array.isArray(tData?.rules_with_backends)
+          ? tData.rules_with_backends
+          : [],
+      );
     } catch {
       setHealthRules([]);
       setTopologyRules([]);

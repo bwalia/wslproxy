@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useTransition,
+} from "react";
 import {
   BarChart,
   Bar,
@@ -18,12 +24,14 @@ import {
   Server,
   HeartPulse,
   AlertTriangle,
+  RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import Skeleton from "@/components/ui/Skeleton";
 import { useDataProvider } from "@/hooks/useResource";
+import { refreshBackendHealth } from "@/lib/dashboard/actions";
 
 // ── Types ───────────────────────────────────────────────────────────────
 
@@ -343,6 +351,7 @@ const BackendHealth: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [healthRules, setHealthRules] = useState<HealthRule[]>([]);
   const [topologyRules, setTopologyRules] = useState<TopologyRule[]>([]);
+  const [refreshing, startRefresh] = useTransition();
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -351,12 +360,21 @@ const BackendHealth: React.FC = () => {
         dp.getTrafficHealth(),
         dp.getTrafficTopology(),
       ]);
+      // `/traffic/health` returns `{ data: [...rules...] }` — see
+      // api/traffic_mgmt.lua:get_backend_health.  Reading `data.rules`
+      // (legacy bug, predates the migration) was silently always
+      // returning empty.  The provider already coerces the shape, so
+      // we just consume `healthRes.data` directly here.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const hData = (healthRes as any)?.data;
+      const hRules = (healthRes as any)?.data;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const tData = (topoRes as any)?.data;
-      setHealthRules(Array.isArray(hData?.rules) ? hData.rules : []);
-      setTopologyRules(Array.isArray(tData?.rules_with_backends) ? tData.rules_with_backends : []);
+      setHealthRules(Array.isArray(hRules) ? hRules : []);
+      setTopologyRules(
+        Array.isArray(tData?.rules_with_backends)
+          ? tData.rules_with_backends
+          : [],
+      );
     } catch {
       setHealthRules([]);
       setTopologyRules([]);
@@ -367,6 +385,13 @@ const BackendHealth: React.FC = () => {
 
   useEffect(() => {
     fetchData();
+  }, [fetchData]);
+
+  const handleRefresh = useCallback(() => {
+    startRefresh(async () => {
+      await refreshBackendHealth();
+      await fetchData();
+    });
   }, [fetchData]);
 
   const mergedRules = useMemo<MergedRule[]>(() => {
@@ -462,6 +487,32 @@ const BackendHealth: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Section header with per-panel refresh — invalidates just the
+          `dashboard-backend` cache tag, not the whole dashboard. */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+            Backend Health
+          </h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Topology + live stats merged per rule.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={handleRefresh}
+          disabled={refreshing}
+          aria-label="Refresh backend health"
+          className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 disabled:cursor-wait disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-slate-600 dark:hover:bg-slate-700"
+        >
+          <RefreshCw
+            className={cn("h-3.5 w-3.5", refreshing && "animate-spin")}
+            aria-hidden="true"
+          />
+          {refreshing ? "Refreshing…" : "Refresh"}
+        </button>
+      </div>
+
       {/* Summary stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <SummaryCard

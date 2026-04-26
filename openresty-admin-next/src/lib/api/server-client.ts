@@ -107,10 +107,19 @@ export const CACHE_TAGS = {
   bookmarks: "bookmarks",
   wafRules: "waf-rules",
   wafPolicies: "waf-policies",
+  wafEvents: "waf-events",
   changeRequests: "change-requests",
   traffic: "traffic",
   health: "health",
   topology: "topology",
+  // ── Dashboard-specific tags ──────────────────────────────────────
+  dashboardTraffic: "dashboard-traffic",
+  dashboardInstance: "dashboard-instance",
+  dashboardBackend: "dashboard-backend",
+  dashboardCache: "dashboard-cache",
+  dashboardWaf: "dashboard-waf",
+  dashboardSsl: "dashboard-ssl",
+  dashboardEntities: "dashboard-entities",
 } as const;
 
 export type CacheTag = (typeof CACHE_TAGS)[keyof typeof CACHE_TAGS];

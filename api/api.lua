@@ -3763,6 +3763,62 @@ local function handle_get_request(args, path)
         listOpenrestyAccessLogs()
     end
 
+    -- ── Log search (server-side grep) ────────────────────────────────
+    -- GET /api/logs/search?kind=error|access&q=pattern
+    --                    &regex=0|1&case=0|1&limit=N&max_bytes=N
+    --
+    -- Powers the full-screen log viewer in the admin.  Validates
+    -- inputs + dispatches to Helper.searchLogFile which caps scan
+    -- size and result count defensively.
+    if path == "logs/search" then
+        local args = ngx.req.get_uri_args()
+        local kind = args.kind or "error"
+        local logFile
+        if kind == "error" then
+            logFile = "/usr/local/openresty/nginx/logs/error.log"
+        elseif kind == "access" then
+            logFile = "/usr/local/openresty/nginx/logs/access.log"
+        else
+            ngx.status = ngx.HTTP_BAD_REQUEST
+            ngx.say(cjson.encode({
+                data = {
+                    message = "kind must be 'error' or 'access'"
+                }
+            }))
+            ngx.exit(ngx.HTTP_BAD_REQUEST)
+        end
+
+        local query = args.q or ""
+        if #query > 512 then
+            ngx.status = ngx.HTTP_BAD_REQUEST
+            ngx.say(cjson.encode({
+                data = {
+                    message = "query too long (max 512 chars)"
+                }
+            }))
+            ngx.exit(ngx.HTTP_BAD_REQUEST)
+        end
+
+        local result, status = Helper.searchLogFile(logFile, {
+            query = query,
+            regex = args.regex == "1" or args.regex == "true",
+            case_sensitive = args.case == "1" or args.case == "true",
+            limit = tonumber(args.limit),
+            max_scan_bytes = tonumber(args.max_bytes),
+        })
+
+        if status ~= ngx.HTTP_OK then
+            ngx.status = status
+            ngx.say(cjson.encode({
+                data = { message = tostring(result) }
+            }))
+            ngx.exit(status)
+        end
+
+        ngx.say(cjson.encode({ data = result }))
+        ngx.exit(ngx.HTTP_OK)
+    end
+
     -- ── Structured logs for dashboard ────────────────────────────────
     if path == "logs/access" then
         local args = ngx.req.get_uri_args()
@@ -3770,7 +3826,11 @@ local function handle_get_request(args, path)
         local offset = tonumber(args.offset) or 0
         local logFile = "/usr/local/openresty/nginx/logs/access.log"
         local f = io.open(logFile, "r")
-        local entries = {}
+        -- Tag as an array so cjson always emits `[]` for an empty
+        -- result — otherwise `{}` gets returned and the frontend's
+        -- `.filter()` / `.map()` blow up.  See lua-cjson docs on
+        -- `empty_array_mt`.
+        local entries = setmetatable({}, cjson.empty_array_mt)
         local total = 0
         if f then
             local lines = {}
@@ -3867,7 +3927,9 @@ local function handle_get_request(args, path)
         local limit = tonumber(args.limit) or 200
         local logFile = "/usr/local/openresty/nginx/logs/error.log"
         local f = io.open(logFile, "r")
-        local entries = {}
+        -- Tag as an array so an empty result serializes as `[]` not
+        -- `{}` — matches the `logs/access` handler above.
+        local entries = setmetatable({}, cjson.empty_array_mt)
         local total = 0
         if f then
             local lines = {}

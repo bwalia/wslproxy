@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useCallback, useMemo, useTransition } from "react";
 import {
   ShieldCheck,
   ShieldAlert,
   Activity,
   Ban,
   Info,
+  RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import Card from "@/components/ui/Card";
@@ -14,6 +15,7 @@ import Badge from "@/components/ui/Badge";
 import StatusBadge from "@/components/ui/StatusBadge";
 import Skeleton from "@/components/ui/Skeleton";
 import { useList } from "@/hooks/useResource";
+import { refreshWafStats } from "@/lib/dashboard/actions";
 
 // ── Types ───────────────────────────────────────────────────────────────
 
@@ -101,22 +103,43 @@ const WafOverview: React.FC = () => {
   const {
     data: wafRules,
     isLoading: rulesLoading,
+    mutate: mutateRules,
   } = useList<WafRule>("waf_rules");
 
   const {
     data: wafPolicies,
     isLoading: policiesLoading,
+    mutate: mutatePolicies,
   } = useList<WafPolicy>("waf_policies");
 
   const {
     data: wafEvents,
     isLoading: eventsLoading,
+    mutate: mutateEvents,
   } = useList<WafEvent>("waf_events");
 
   const {
     data: servers,
     isLoading: serversLoading,
+    mutate: mutateServers,
   } = useList<ServerRecord>("servers");
+
+  const [refreshing, startRefresh] = useTransition();
+
+  const handleRefresh = useCallback(() => {
+    startRefresh(async () => {
+      // Invalidate the server-side tag first so the next page
+      // navigation streams fresh data.  Then force the SWR hooks to
+      // re-fetch now so the user sees the update without navigating.
+      await refreshWafStats();
+      await Promise.all([
+        mutateRules(),
+        mutatePolicies(),
+        mutateEvents(),
+        mutateServers(),
+      ]);
+    });
+  }, [mutateRules, mutatePolicies, mutateEvents, mutateServers]);
 
   const isLoading = rulesLoading || policiesLoading || eventsLoading || serversLoading;
 
@@ -192,6 +215,32 @@ const WafOverview: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {/* Header row with refresh.  Invalidates the `dashboard-waf`
+          cache tag + forces the SWR lists to re-fetch. */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+            WAF Overview
+          </h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Rules, policies, events, and per-server activity.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={handleRefresh}
+          disabled={refreshing}
+          aria-label="Refresh WAF stats"
+          className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 disabled:cursor-wait disabled:opacity-60 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-slate-600 dark:hover:bg-slate-700"
+        >
+          <RefreshCw
+            className={cn("h-3.5 w-3.5", refreshing && "animate-spin")}
+            aria-hidden="true"
+          />
+          {refreshing ? "Refreshing…" : "Refresh"}
+        </button>
+      </div>
+
       {/* WAF Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard

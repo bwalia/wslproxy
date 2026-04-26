@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 import {
   Server,
   Globe,
@@ -12,31 +12,24 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useDataProvider } from "@/hooks/useResource";
+import type { Route } from "next";
 import Card from "@/components/ui/Card";
-import Skeleton from "@/components/ui/Skeleton";
 import type { InstanceInfo } from "@/types";
 
-const WelcomeBanner = memo(function WelcomeBanner() {
-  const api = useDataProvider();
-  const router = useRouter();
-  const [info, setInfo] = useState<InstanceInfo | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [copied, setCopied] = useState(false);
+interface WelcomeBannerProps {
+  info: InstanceInfo;
+}
 
-  useEffect(() => {
-    let cancelled = false;
-    api
-      .getInstanceInfo()
-      .then((r) => {
-        if (!cancelled) setInfo((r?.data as InstanceInfo) ?? null);
-      })
-      .catch(() => {})
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => { cancelled = true; };
-  }, [api]);
+/**
+ * Client-side welcome banner.  Takes fully-resolved `info` as a prop
+ * (fetched server-side in `WelcomeBannerServer`) — does NOT issue
+ * any API calls itself.  All the interactive bits (Copy IP button
+ * with clipboard feedback, router navigation) stay client-only since
+ * they need browser APIs / React state.
+ */
+const WelcomeBanner = memo(function WelcomeBanner({ info }: WelcomeBannerProps) {
+  const router = useRouter();
+  const [copied, setCopied] = useState(false);
 
   const ipAddress = useMemo(() => {
     if (!info?.ip_addresses) return null;
@@ -57,10 +50,13 @@ const WelcomeBanner = memo(function WelcomeBanner() {
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-      {/* Left: Welcome text */}
+      {/* Left: Welcome text — `h-full` + `flex` so the card stretches
+          to match the system-info card on the right.  Without this,
+          the banner renders at its natural content height (short) and
+          the right column dwarfs it. */}
       <div className="lg:col-span-2">
-        <Card className="relative overflow-hidden bg-linear-to-br from-primary-600 to-primary-800 text-white">
-          <Card.Body>
+        <Card className="relative flex h-full flex-col overflow-hidden bg-linear-to-br from-primary-600 to-primary-800 text-white">
+          <Card.Body className="flex flex-1 flex-col justify-center">
             <span className="mb-3 inline-block rounded-full bg-white/20 px-3 py-1 text-xs font-medium backdrop-blur-sm">
               Admin Portal
             </span>
@@ -103,13 +99,7 @@ const WelcomeBanner = memo(function WelcomeBanner() {
             </h2>
           </Card.Header>
           <Card.Body>
-            {loading ? (
-              <div className="space-y-4">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <Skeleton key={i} className="h-10 w-full" />
-                ))}
-              </div>
-            ) : info ? (
+            {info && Object.keys(info).length > 0 ? (
               <div className="space-y-4">
                 <InfoRow
                   icon={<Globe className="h-4 w-4 text-blue-500" />}
@@ -166,7 +156,12 @@ const WelcomeBanner = memo(function WelcomeBanner() {
               <p className="text-sm text-slate-400">Instance info unavailable</p>
             )}
             <button
-              onClick={() => router.push("/health")}
+              // `/health` is the Lua JSON probe endpoint.  Nginx uses
+              // `location /health` as a prefix match, so it swallows
+              // anything starting with "health" (including
+              // `/health-status`).  The admin dashboard lives at
+              // `/system-status` to avoid the collision entirely.
+              onClick={() => router.push("/system-status" as Route)}
               className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-primary-600 transition hover:text-primary-700 dark:text-primary-400"
             >
               View Details <ArrowRight className="h-3.5 w-3.5" />

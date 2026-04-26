@@ -85,7 +85,7 @@ export default function RulesListPage() {
         label: "Tags",
         render: (r) => (
           <div className="flex flex-wrap gap-1">
-            {(r.rules_tags ?? []).map((tag, i) => (
+            {(Array.isArray(r.rules_tags) ? r.rules_tags : []).map((tag, i) => (
               <Badge key={i} size="sm">
                 {tag}
               </Badge>

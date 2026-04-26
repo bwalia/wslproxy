@@ -158,19 +158,27 @@ export const upstreamSchema = z
     name: z.string(),
     profile_id: zOptStr,
     load_balancing_method: zOptStr,
+    // `servers` arrives from Lua — coerce empty `{}` (Lua-table
+    // ambiguity) to `[]` BEFORE the array shape check, otherwise
+    // tolerant validation passes the raw `{}` through and downstream
+    // `.map()` crashes.  Same pattern as `zStringArray` / `zIdList`.
     servers: z
-      .array(
+      .preprocess(
+        (v) => (Array.isArray(v) ? v : []),
         z
-          .object({
-            address: z.string(),
-            port: zNumish,
-            weight: zNumish,
-            max_fails: zNumish,
-            state: zOptStr,
-          })
-          .passthrough(),
-      )
-      .optional(),
+          .array(
+            z
+              .object({
+                address: z.string(),
+                port: zNumish,
+                weight: zNumish,
+                max_fails: zNumish,
+                state: zOptStr,
+              })
+              .passthrough(),
+          )
+          .default([]),
+      ),
   })
   .passthrough();
 
@@ -189,63 +197,55 @@ export const appSettingsSchema = z
 
 export type AppSettings = z.infer<typeof appSettingsSchema>;
 
-/** HealthData — returned by `/api/ping?detailed=true`. */
+/**
+ * Tolerant runtime validator for `GET /api/ping?detailed=true`.
+ *
+ * The authoritative compile-time shape is `HealthData` in
+ * `src/types/index.ts` (match `api/ping.lua` exactly).  This schema
+ * is intentionally loose — `.passthrough()` everywhere so unknown
+ * fields flow through untouched and the UI never blanks out over
+ * payload drift.  Only the few top-level fields that page renderers
+ * actually branch on are declared; everything else passes through.
+ */
 export const healthDataSchema = z
   .object({
     status: zOptStr,
-    openresty_version: zOptStr,
-    nginx_workers: zNumish,
-    redis: z.object({ status: zOptStr }).passthrough().optional(),
-    system: z
+    response: zOptStr,
+    timestamp: zOptStr,
+    services: z
       .object({
-        hostname: zOptStr,
-        os: zOptStr,
-        cpu: z
+        openresty: z.object({ status: zOptStr, version: zOptStr }).passthrough().optional(),
+        nginx_workers: z
+          .object({ status: zOptStr, worker_count: zNumish })
+          .passthrough()
+          .optional(),
+        redis: z
           .object({
-            model: zOptStr,
-            cores: zNumish,
-            usage_percent: zNumish,
+            status: zOptStr,
+            message: zOptStr,
+            host: zOptStr,
+            port: zNumish,
           })
-          .passthrough()
-          .optional(),
-        memory: z
-          .object({ used: zOptStr, total: zOptStr })
-          .passthrough()
-          .optional(),
-        disk: z
-          .object({ used: zOptStr, total: zOptStr, percent: zOptStr })
           .passthrough()
           .optional(),
       })
       .passthrough()
       .optional(),
-    settings_check: z
+    settings: z
       .object({
-        exists: zBoolish,
+        status: zOptStr,
+        file_exists: zBoolish,
         valid_json: zBoolish,
         missing_keys: z.array(z.string()).optional(),
+        env_profile: zOptStr,
+        storage_type: zOptStr,
       })
       .passthrough()
       .optional(),
-    data_directories: z
-      .array(
-        z
-          .object({
-            path: z.string(),
-            exists: zBoolish,
-            readable: zBoolish,
-            writable: zBoolish,
-          })
-          .passthrough(),
-      )
-      .optional(),
-    _latency: zNumish,
-    _http_status: zNumish,
-    _authenticated: zBoolish,
+    // Keyed by path — record so cjson `{}` empties don't blow up.
+    data_directories: z.record(z.string(), z.unknown()).optional(),
   })
   .passthrough();
-
-export type HealthData = z.infer<typeof healthDataSchema>;
 
 /** Audit log entry.  Very loose — the backend writes arbitrary diffs. */
 export const auditEntrySchema = z

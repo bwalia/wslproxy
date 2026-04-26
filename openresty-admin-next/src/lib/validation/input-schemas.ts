@@ -99,3 +99,158 @@ export const wafPolicyInputSchema = z.object({
 });
 
 export type WafPolicyInput = z.input<typeof wafPolicyInputSchema>;
+
+// ─── Password reset ──────────────────────────────────────────────────────
+
+export const passwordResetInputSchema = z
+  .object({
+    oldPassword: z.string().min(1, "Current password is required"),
+    newPassword: z
+      .string()
+      .min(8, "New password must be at least 8 characters")
+      .max(128, "Too long"),
+    confirmPassword: z.string().min(1, "Please confirm your new password"),
+  })
+  .refine((v) => v.newPassword === v.confirmPassword, {
+    path: ["confirmPassword"],
+    message: "Passwords do not match",
+  })
+  .refine((v) => v.newPassword !== v.oldPassword, {
+    path: ["newPassword"],
+    message: "New password must differ from the old one",
+  });
+
+export type PasswordResetInput = z.input<typeof passwordResetInputSchema>;
+
+// ─── Server (validation-gate only) ───────────────────────────────────────
+//
+// The Servers form is large and already uses plain `useState` with
+// fine-grained `setForm` across several lazy-loaded tabs.  Migrating
+// every input to react-hook-form would be a ~1800-line refactor with
+// no user-visible improvement.
+//
+// Instead, this schema runs at submit time only (see `runValidationGate`).
+// It asserts the same invariants as the legacy react-admin Form.jsx +
+// the Lua backend, so the user gets a structured error before the
+// network round-trip.  It intentionally DOES NOT enumerate every
+// server field — only the ones with preconditions that the backend
+// or downstream rule evaluation actually depends on.
+
+const hostnameRegex = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$/i;
+
+export const serverInputSchema = z
+  .object({
+    server_name: z
+      .string()
+      .trim()
+      .min(1, "Server name is required")
+      .max(253, "Hostname too long")
+      .regex(hostnameRegex, "Must be a valid hostname (letters, digits, dot, hyphen)"),
+    profile_id: z.string().trim().min(1, "Profile is required"),
+    listens: z
+      .array(
+        z.object({
+          listen: z.string().trim().min(1, "Listen directive cannot be empty"),
+        }),
+      )
+      .min(1, "At least one listen directive is required"),
+    ssl_enabled: z.boolean(),
+    ssl_email: z.string().trim(),
+    rate_limit_enabled: z.boolean(),
+    rate_limit: z.object({
+      requests_per_second: z.coerce.number(),
+      burst: z.coerce.number(),
+    }),
+  })
+  // If SSL is enabled, the email is required AND must be a valid format.
+  // Let's Encrypt needs a real address for expiry notices.
+  .refine((v) => !v.ssl_enabled || v.ssl_email.length > 0, {
+    path: ["ssl_email"],
+    message: "SSL email is required when SSL is enabled",
+  })
+  .refine(
+    (v) => !v.ssl_enabled || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.ssl_email),
+    {
+      path: ["ssl_email"],
+      message: "SSL email must be a valid email address",
+    },
+  )
+  // If rate limiting is on, the numeric settings must be positive — a
+  // zero `requests_per_second` would silently block all traffic.
+  .refine(
+    (v) => !v.rate_limit_enabled || v.rate_limit.requests_per_second > 0,
+    {
+      path: ["rate_limit", "requests_per_second"],
+      message: "Must be at least 1 when rate limiting is enabled",
+    },
+  )
+  .refine(
+    (v) => !v.rate_limit_enabled || v.rate_limit.burst >= 0,
+    {
+      path: ["rate_limit", "burst"],
+      message: "Burst must be ≥ 0",
+    },
+  );
+
+export type ServerInput = z.input<typeof serverInputSchema>;
+
+// ─── Rule (validation-gate only) ─────────────────────────────────────────
+
+const ruleNameRegex = /^[A-Za-z0-9][A-Za-z0-9_.:/-]*$/;
+
+export const ruleInputSchema = z
+  .object({
+    name: z
+      .string()
+      .trim()
+      .min(1, "Rule name is required")
+      .max(128, "Rule name too long")
+      .regex(
+        ruleNameRegex,
+        "Letters, numbers, and - _ . : / only; must start alphanumeric",
+      ),
+    priority: z.coerce
+      .number()
+      .int("Priority must be a whole number")
+      .min(1, "Priority must be at least 1"),
+    code: z.coerce.number().int(),
+    redirect_uri: z.string().trim().default(""),
+    backends: z
+      .array(
+        z.object({
+          address: z.string().trim(),
+          weight: z.coerce.number().default(100),
+        }),
+      )
+      .default([]),
+  })
+  // 301/302 redirects require a destination URI — otherwise the rule
+  // matches but the gateway has nothing to redirect to.
+  .refine(
+    (v) =>
+      !(v.code === 301 || v.code === 302) ||
+      v.redirect_uri.length > 0,
+    {
+      path: ["redirect_uri"],
+      message: "Redirect URI is required for 301 / 302 responses",
+    },
+  )
+  // 305 = proxy pass.  Lua gateway expects at least one backend; zero
+  // means the rule matches but can't route anywhere.
+  .refine((v) => v.code !== 305 || v.backends.length > 0, {
+    path: ["backends"],
+    message: "At least one backend is required for proxy-pass (305) rules",
+  })
+  // Each backend in a 305 rule needs an address — empty entries produce
+  // broken upstream config.
+  .refine(
+    (v) =>
+      v.code !== 305 ||
+      v.backends.every((b) => b.address.trim().length > 0),
+    {
+      path: ["backends"],
+      message: "Every backend must have a non-empty address",
+    },
+  );
+
+export type RuleInput = z.input<typeof ruleInputSchema>;
