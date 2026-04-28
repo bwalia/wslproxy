@@ -20,8 +20,14 @@ const clientEnvSchema = z.object({
   NEXT_PUBLIC_APP_VERSION: z.string().default("dev"),
   NEXT_PUBLIC_APP_BUILD_NUMBER: z.string().default("local"),
   NEXT_PUBLIC_DEPLOYMENT_TIME: z.string().default(""),
+  // Accept the four deploy targets we actually ship to.  `BARE_METAL`
+  // is the value the Ansible systemd template sets on int / test /
+  // acc / prod (see infra/ansible/roles/wslproxy/templates/
+  // wslproxy-nextjs-dashboard.service.j2:28); without it here, env
+  // validation throws on import and every page that pulls in this
+  // module 500s.  `NATIVE` is kept as an alias for older deployments.
   NEXT_PUBLIC_TARGET_PLATFORM: z
-    .enum(["DOCKER", "KUBERNETES", "NATIVE"])
+    .enum(["DOCKER", "KUBERNETES", "NATIVE", "BARE_METAL"])
     .default("DOCKER"),
   NEXT_PUBLIC_THEME_PRIMARY_COLOR: z
     .string()
