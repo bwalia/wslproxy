@@ -19,16 +19,16 @@ services:
     restart: unless-stopped
 
     ports:
-      # HTTP proxy (default 80 → 8180 to avoid conflicts)
-      - "8180:80"
-      # HTTPS proxy (default 443 → 8443 to avoid conflicts)
-      - "8443:443"
-      # Admin Dashboard & API (default 8080 → 8280 to avoid conflicts)
-      - "8280:8080"
-      # Legacy Vite Admin fallback (port 8090 → 8290 externally)
-      - "8290:8090"
-      # Next.js Admin Dashboard (port 8099 → 8299 externally)
-      - "8299:8099"
+      # HTTP proxy (default 80 → 18180 to avoid conflicts)
+      - "18180:80"
+      # HTTPS proxy (default 443 → 18443 to avoid conflicts)
+      - "18443:443"
+      # Admin Dashboard & API (default 8080 → 18280 to avoid conflicts)
+      - "18280:8080"
+      # Legacy Vite Admin fallback (port 8090 → 18290 externally)
+      - "18290:8090"
+      # Next.js Admin Dashboard (port 8099 → 18299 externally)
+      - "18299:8099"
 
     volumes:
       # Hot-reload Lua API files (changes reflect per-request, no restart needed)

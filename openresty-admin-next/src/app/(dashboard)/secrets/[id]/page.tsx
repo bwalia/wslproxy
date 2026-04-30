@@ -11,7 +11,7 @@ import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import Skeleton from "@/components/ui/Skeleton";
-import { useZodForm, FormInput } from "@/lib/forms";
+import { useZodForm, FormInput, surfaceServerErrors } from "@/lib/forms";
 import {
   secretInputSchema,
   type SecretInput,
@@ -50,7 +50,7 @@ export default function SecretDetailPage() {
     schema: secretInputSchema,
     defaultValues: DEFAULT_FORM,
   });
-  const { reset, handleSubmit, formState, control } = form;
+  const { reset, handleSubmit, formState, control, setError } = form;
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -84,12 +84,15 @@ export default function SecretDetailPage() {
         }
         router.push("/secrets");
       } catch (err) {
+        // Surface backend-side validation errors inline.  Most
+        // common 4xx for secrets is a duplicate `secret_name`.
+        surfaceServerErrors(setError, err, "secret_name");
         notify((err as Error).message || "Failed to save secret", {
           type: "error",
         });
       }
     },
-    [isCreate, id, dataProvider, notify, router],
+    [isCreate, id, dataProvider, notify, router, setError],
   );
 
   const handleDelete = useCallback(async () => {

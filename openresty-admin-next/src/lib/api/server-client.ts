@@ -49,6 +49,14 @@ export interface ServerFetchOptions extends RequestInit {
  *   state or rely on middleware to have already redirected.
  * - Empty body → returns `null` (matches client-side `apiFetch`).
  */
+/**
+ * Default timeout for server-side fetches.  RSC paths block the
+ * Suspense fallback while in flight, so a hung backend would freeze
+ * the page render.  30s matches the browser-side default in
+ * `client.ts`.
+ */
+const DEFAULT_SERVER_TIMEOUT_MS = 30_000;
+
 export async function serverFetch<T = unknown>(
   path: string,
   options: ServerFetchOptions = {},
@@ -62,30 +70,76 @@ export async function serverFetch<T = unknown>(
 
   const cookieHeader = await forwardAuthCookie();
 
-  const res = await fetch(url, {
-    // Default: never cache per-user data server-side either.  Page authors
-    // can override with `{ next: { revalidate: 60 } }` for shared data.
-    cache: options.cache ?? "no-store",
-    ...options,
-    headers: {
-      "x-platform": "openresty-admin-next-ssr",
-      ...(cookieHeader ? { cookie: cookieHeader } : {}),
-      ...((options.headers as Record<string, string>) ?? {}),
-    },
-  });
+  // Wrap with AbortController so a hung backend can't block the
+  // RSC render forever — typed as ApiError(408) so consumers can
+  // branch on it the same way they do for client-side fetches.
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => {
+    ctrl.abort(new DOMException("Request timed out", "TimeoutError"));
+  }, DEFAULT_SERVER_TIMEOUT_MS);
 
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new ApiError(text || res.statusText, res.status);
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      // Default: never cache per-user data server-side either.  Page
+      // authors can override with `{ next: { revalidate: 60 } }`.
+      cache: options.cache ?? "no-store",
+      ...options,
+      signal: ctrl.signal,
+      headers: {
+        "x-platform": "openresty-admin-next-ssr",
+        ...(cookieHeader ? { cookie: cookieHeader } : {}),
+        ...((options.headers as Record<string, string>) ?? {}),
+      },
+    });
+  } catch (err) {
+    clearTimeout(timer);
+    if (err instanceof DOMException && err.name === "TimeoutError") {
+      throw new ApiError("Request timed out", 408);
+    }
+    // Network errors land as TypeError("fetch failed") in Node.
+    if (err instanceof TypeError) {
+      throw new ApiError(`Network error: ${err.message}`, 0);
+    }
+    throw err;
   }
 
-  const text = await res.text();
-  if (!text || !text.trim()) return null as T;
-
   try {
-    return JSON.parse(text) as T;
-  } catch {
-    throw new ApiError(`Invalid JSON: ${text.slice(0, 120)}`, 500);
+    if (!res.ok) {
+      // Parse the Lua structured error envelope so callers see the
+      // human message + code + details, not a raw JSON string.
+      // Mirrors the same logic in `client.ts` for client fetches.
+      const text = await res.text().catch(() => "");
+      let message = text || res.statusText;
+      let code: string | undefined;
+      let details: unknown;
+      if (text) {
+        try {
+          const parsed = JSON.parse(text) as {
+            error?: { message?: string; code?: string; details?: unknown };
+          };
+          if (parsed?.error?.message) {
+            message = parsed.error.message;
+            code = parsed.error.code;
+            details = parsed.error.details;
+          }
+        } catch {
+          /* not JSON, keep raw text */
+        }
+      }
+      throw new ApiError(message, res.status, { code, details });
+    }
+
+    const text = await res.text();
+    if (!text || !text.trim()) return null as T;
+
+    try {
+      return JSON.parse(text) as T;
+    } catch {
+      throw new ApiError(`Invalid JSON: ${text.slice(0, 120)}`, 500);
+    }
+  } finally {
+    clearTimeout(timer);
   }
 }
 

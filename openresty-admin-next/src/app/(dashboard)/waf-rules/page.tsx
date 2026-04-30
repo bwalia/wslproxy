@@ -53,7 +53,10 @@ export default function WafRulesListPage() {
     [page, perPage, sort, search],
   );
 
-  const { data, total, isLoading } = useList<WafRule>("waf_rules", params);
+  const { data, total, isLoading, error, mutate } = useList<WafRule>(
+    "waf_rules",
+    params,
+  );
 
   const columns = useMemo<Column<WafRule>[]>(
     () => [
@@ -150,6 +153,8 @@ export default function WafRulesListPage() {
         data={data}
         total={total}
         loading={isLoading}
+        error={error}
+        onRetry={() => mutate()}
         page={page}
         perPage={perPage}
         sort={sort}

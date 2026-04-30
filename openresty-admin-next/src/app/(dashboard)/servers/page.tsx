@@ -30,7 +30,10 @@ export default function ServersListPage() {
     [page, perPage, sort, search],
   );
 
-  const { data, total, isLoading } = useList<ServerType>("servers", params);
+  const { data, total, isLoading, error, mutate } = useList<ServerType>(
+    "servers",
+    params,
+  );
 
   const columns = useMemo<Column<ServerType>[]>(
     () => [
@@ -131,6 +134,8 @@ export default function ServersListPage() {
         data={data}
         total={total}
         loading={isLoading}
+        error={error}
+        onRetry={() => mutate()}
         page={page}
         perPage={perPage}
         sort={sort}

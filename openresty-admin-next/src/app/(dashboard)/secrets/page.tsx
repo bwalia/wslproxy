@@ -29,7 +29,10 @@ export default function SecretsListPage() {
     [page, perPage, sort, search],
   );
 
-  const { data, total, isLoading } = useList<Secret>("secrets", params);
+  const { data, total, isLoading, error, mutate } = useList<Secret>(
+    "secrets",
+    params,
+  );
 
   const columns = useMemo<Column<Secret>[]>(
     () => [
@@ -103,6 +106,8 @@ export default function SecretsListPage() {
         data={data}
         total={total}
         loading={isLoading}
+        error={error}
+        onRetry={() => mutate()}
         page={page}
         perPage={perPage}
         sort={sort}

@@ -29,7 +29,10 @@ export default function InstancesListPage() {
     [page, perPage, sort, search],
   );
 
-  const { data, total, isLoading } = useList<Instance>("instances", params);
+  const { data, total, isLoading, error, mutate } = useList<Instance>(
+    "instances",
+    params,
+  );
 
   const columns = useMemo<Column<Instance>[]>(
     () => [
@@ -105,6 +108,8 @@ export default function InstancesListPage() {
         data={data}
         total={total}
         loading={isLoading}
+        error={error}
+        onRetry={() => mutate()}
         page={page}
         perPage={perPage}
         sort={sort}

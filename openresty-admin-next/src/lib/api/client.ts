@@ -6,6 +6,15 @@
    same-origin request — there is no manual token handling in JS.
    ────────────────────────────────────────────────────────────────────────── */
 
+/**
+ * Default request timeout in milliseconds.  Without this, browser
+ * fetch hangs indefinitely on a stalled backend — buttons spin
+ * forever, users get no feedback.  30s gives slow-but-alive backends
+ * room to respond on big writes (e.g. server config + nginx -t)
+ * while still surfacing real outages quickly.
+ */
+const DEFAULT_TIMEOUT_MS = 30_000;
+
 /** Encode chars that OpenResty's Lua JSON parser chokes on. */
 export function encodePayload(data: unknown): string {
   return JSON.stringify(data)
@@ -14,14 +23,109 @@ export function encodePayload(data: unknown): string {
     .replace(/=/g, "\\u003D");
 }
 
+/**
+ * Shape of the Lua backend's structured error envelope (see
+ * `api/errors.lua:Errors.throwError`).  `details` is opaque — callers
+ * that know the resource map specific keys (e.g. `field`) to form
+ * inputs.
+ */
+interface BackendErrorEnvelope {
+  error?: {
+    message?: string;
+    status?: number;
+    code?: string;
+    details?: unknown;
+  };
+}
+
 export class ApiError extends Error {
+  /**
+   * Semantic code from the backend (e.g. "CONFLICT", "BAD_REQUEST").
+   * Useful for branching without parsing the message string.
+   */
+  public code?: string;
+  /**
+   * Optional structured payload (validation field map etc.) — same
+   * shape the backend put in `error.details`.
+   */
+  public details?: unknown;
+
   constructor(
     message: string,
     public status: number,
+    extra?: { code?: string; details?: unknown },
   ) {
     super(message);
     this.name = "ApiError";
+    if (extra?.code !== undefined) this.code = extra.code;
+    if (extra?.details !== undefined) this.details = extra.details;
   }
+}
+
+/**
+ * Try to extract the human message + code + details from a Lua
+ * backend error response body.  Backend always emits
+ * `{ error: { message, status, code, details? } }` for thrown errors
+ * (see `api/errors.lua`), so this is a best-effort JSON.parse with
+ * graceful fallback to the raw text when the body isn't structured.
+ */
+function parseBackendError(
+  text: string,
+  fallbackStatus: number,
+): { message: string; code?: string; details?: unknown } {
+  if (!text) return { message: "" };
+  try {
+    const parsed = JSON.parse(text) as BackendErrorEnvelope;
+    if (parsed?.error?.message) {
+      return {
+        message: parsed.error.message,
+        code: parsed.error.code,
+        details: parsed.error.details,
+      };
+    }
+  } catch {
+    /* not JSON — fall through to raw text */
+  }
+  return { message: text || `HTTP ${fallbackStatus}` };
+}
+
+/**
+ * Compose an outer `AbortController` that aborts after `timeoutMs`
+ * with the caller's optional signal.  Returns the merged signal +
+ * a cleanup function the caller calls in `finally` to release the
+ * timer (so the timer doesn't leak when the request finishes early).
+ */
+function withTimeout(
+  external: AbortSignal | undefined,
+  timeoutMs: number,
+): { signal: AbortSignal; cleanup: () => void } {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => {
+    ctrl.abort(new DOMException("Request timed out", "TimeoutError"));
+  }, timeoutMs);
+
+  // If the caller passed their own signal (e.g. SWR's per-request
+  // abort), forward its abort to the inner controller so we honor
+  // both timeout AND user-cancel.
+  let externalListener: (() => void) | null = null;
+  if (external) {
+    if (external.aborted) {
+      ctrl.abort(external.reason);
+    } else {
+      externalListener = () => ctrl.abort(external.reason);
+      external.addEventListener("abort", externalListener, { once: true });
+    }
+  }
+
+  return {
+    signal: ctrl.signal,
+    cleanup: () => {
+      clearTimeout(timer);
+      if (external && externalListener) {
+        external.removeEventListener("abort", externalListener);
+      }
+    },
+  };
 }
 
 /**
@@ -50,32 +154,68 @@ export async function apiFetch<T = unknown>(
     ...((options.headers as Record<string, string>) ?? {}),
   };
 
-  const res = await fetch(url, {
-    credentials: "same-origin",
-    cache: "no-store",
-    ...options,
+  const { signal: timedSignal, cleanup } = withTimeout(
     signal,
-    headers,
-  });
+    DEFAULT_TIMEOUT_MS,
+  );
 
-  if (res.status === 401) {
-    if (typeof window !== "undefined" && window.location.pathname !== "/login") {
-      window.location.href = "/login";
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      credentials: "same-origin",
+      cache: "no-store",
+      ...options,
+      signal: timedSignal,
+      headers,
+    });
+  } catch (err) {
+    cleanup();
+    // Distinguish timeout from user-abort from network error so the
+    // UI can show a sensible message (and so SWR's retry policy can
+    // decide whether to bother retrying).
+    if (err instanceof DOMException && err.name === "TimeoutError") {
+      throw new ApiError("Request timed out", 408);
     }
-    throw new ApiError("Unauthorized", 401);
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw err; // caller cancelled — propagate as-is
+    }
+    if (err instanceof TypeError) {
+      // Network-level failures (DNS, offline, CORS) surface as
+      // TypeError("Failed to fetch") in browsers.  Map to a
+      // displayable ApiError with a status code that signals
+      // "network unreachable" to consumers.
+      throw new ApiError(`Network error: ${err.message}`, 0);
+    }
+    throw err;
   }
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new ApiError(text || res.statusText, res.status);
-  }
-
-  const text = await res.text();
-  if (!text || !text.trim()) return null as T;
 
   try {
-    return JSON.parse(text) as T;
-  } catch {
-    throw new ApiError(`Invalid JSON: ${text.slice(0, 120)}`, 500);
+    if (res.status === 401) {
+      if (typeof window !== "undefined" && window.location.pathname !== "/login") {
+        window.location.href = "/login";
+      }
+      throw new ApiError("Unauthorized", 401);
+    }
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      const parsed = parseBackendError(text, res.status);
+      throw new ApiError(
+        parsed.message || res.statusText,
+        res.status,
+        { code: parsed.code, details: parsed.details },
+      );
+    }
+
+    const text = await res.text();
+    if (!text || !text.trim()) return null as T;
+
+    try {
+      return JSON.parse(text) as T;
+    } catch {
+      throw new ApiError(`Invalid JSON: ${text.slice(0, 120)}`, 500);
+    }
+  } finally {
+    cleanup();
   }
 }

@@ -30,7 +30,10 @@ export default function UpstreamsListPage() {
     [page, perPage, sort, search],
   );
 
-  const { data, total, isLoading } = useList<Upstream>("upstreams", params);
+  const { data, total, isLoading, error, mutate } = useList<Upstream>(
+    "upstreams",
+    params,
+  );
 
   const columns = useMemo<Column<Upstream>[]>(
     () => [
@@ -108,6 +111,8 @@ export default function UpstreamsListPage() {
         data={data}
         total={total}
         loading={isLoading}
+        error={error}
+        onRetry={() => mutate()}
         page={page}
         perPage={perPage}
         sort={sort}

@@ -216,6 +216,8 @@ export default function WafEventsPage() {
         data={data}
         total={total}
         loading={isLoading}
+        error={error}
+        onRetry={() => mutate()}
         page={page}
         perPage={perPage}
         onPageChange={setPage}

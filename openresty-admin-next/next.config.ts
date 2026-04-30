@@ -57,8 +57,8 @@ const nextConfig: NextConfig = {
   // Next.js 16 rejects cross-origin Server Action requests by default
   // ("Invalid Server Actions request").  In the docker-compose dev
   // stack, nginx fronts the Next.js container on a non-matching port
-  // (localhost:8280 → openresty-admin-next:7619) — the browser sends
-  // `Origin: http://localhost:8280` which doesn't match the upstream
+  // (localhost:18280 → openresty-admin-next:7619) — the browser sends
+  // `Origin: http://localhost:18280` which doesn't match the upstream
   // Host header, so Next.js aborts the action.
   //
   // `allowedOrigins` is Next's sanctioned opt-in.  We also set
@@ -68,9 +68,9 @@ const nextConfig: NextConfig = {
   experimental: {
     serverActions: {
       allowedOrigins: [
-        "localhost:8280",
+        "localhost:18280",
         "localhost:7619",
-        "127.0.0.1:8280",
+        "127.0.0.1:18280",
         "127.0.0.1:7619",
       ],
     },

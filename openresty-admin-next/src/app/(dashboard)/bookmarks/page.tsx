@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bookmark } from "lucide-react";
+import { Bookmark, Globe2, Lock } from "lucide-react";
 import { useList } from "@/hooks/useResource";
 import PageHeader from "@/components/ui/PageHeader";
 import DataTable, { type Column } from "@/components/ui/DataTable";
@@ -29,7 +29,10 @@ export default function BookmarksListPage() {
     [page, perPage, sort, search],
   );
 
-  const { data, total, isLoading } = useList<BookmarkType>("bookmarks", params);
+  const { data, total, isLoading, error, mutate } = useList<BookmarkType>(
+    "bookmarks",
+    params,
+  );
 
   const columns = useMemo<Column<BookmarkType>[]>(
     () => [
@@ -78,6 +81,22 @@ export default function BookmarksListPage() {
           ),
       },
       {
+        field: "public",
+        label: "Visibility",
+        // Two-state badge — public records are loud (green + globe) so
+        // admins can spot exposed entries at a glance during audits.
+        render: (r) =>
+          r.public ? (
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+              <Globe2 className="h-3 w-3" aria-hidden="true" /> Public
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
+              <Lock className="h-3 w-3" aria-hidden="true" /> Private
+            </span>
+          ),
+      },
+      {
         field: "created_at",
         label: "Created",
         render: (r) =>
@@ -114,9 +133,24 @@ export default function BookmarksListPage() {
         title="Bookmarks"
         icon={Bookmark}
         actions={
-          <Button onClick={() => router.push("/bookmarks/create")}>
-            Create Bookmark
-          </Button>
+          <div className="flex items-center gap-2">
+            {/* Convenience link to the public surface so admins can
+                preview what anonymous visitors see.  `target="_blank"`
+                avoids losing in-progress edits if the user is mid-flow
+                somewhere else. */}
+            <a
+              href="/links"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+            >
+              <Globe2 className="h-4 w-4" aria-hidden="true" />
+              View public page
+            </a>
+            <Button onClick={() => router.push("/bookmarks/create")}>
+              Create Bookmark
+            </Button>
+          </div>
         }
       />
       <DataTable
@@ -124,6 +158,8 @@ export default function BookmarksListPage() {
         data={data}
         total={total}
         loading={isLoading}
+        error={error}
+        onRetry={() => mutate()}
         page={page}
         perPage={perPage}
         sort={sort}

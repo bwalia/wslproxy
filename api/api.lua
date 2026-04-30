@@ -3732,6 +3732,18 @@ local function handle_get_request(args, path)
         if bm_ok then Bookmarks.get(args, uuid) end
     end
 
+    -- Public, unauthenticated bookmark surface.  The matching nginx
+    -- access_by_lua_block exempts /api/public/bookmarks from JWT
+    -- verification (GET-only).  Only bookmarks explicitly flagged
+    -- `public: true` are returned, with sensitive fields stripped.
+    if path == "public/bookmarks" then
+        local bm_ok, Bookmarks = pcall(require, "bookmarks")
+        if bm_ok then Bookmarks.list_public(args) end
+    elseif uuid and #uuid > 0 and subPath[1] == "public" and subPath[2] == "bookmarks" then
+        local bm_ok, Bookmarks = pcall(require, "bookmarks")
+        if bm_ok then Bookmarks.get_public(args, uuid) end
+    end
+
     if path == "conf" then
         listServerConf(args)
     end
@@ -5380,6 +5392,17 @@ local function handle_put_request(args, path)
         end
         if string.find(path, "profiles") then
             createUpdateProfiles(args, uuid)
+        end
+
+        -- Bookmarks share a single create/update handler (the function
+        -- looks up by id/host and replaces or appends).  Without this
+        -- the admin form's PUT request would silently no-op — POST
+        -- would still work for create, but edits to existing
+        -- bookmarks (including flipping the `public` flag) would never
+        -- reach disk.
+        if string.find(path, "bookmarks") then
+            local bm_ok, Bookmarks = pcall(require, "bookmarks")
+            if bm_ok then Bookmarks.create_or_update(args) end
         end
 
         -- ============================================================

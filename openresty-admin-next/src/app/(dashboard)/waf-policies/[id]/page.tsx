@@ -11,7 +11,12 @@ import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import Skeleton from "@/components/ui/Skeleton";
-import { useZodForm, FormInput, FormSelect } from "@/lib/forms";
+import {
+  useZodForm,
+  FormInput,
+  FormSelect,
+  surfaceServerErrors,
+} from "@/lib/forms";
 import {
   wafPolicyInputSchema,
   type WafPolicyInput,
@@ -64,7 +69,7 @@ export default function WafPolicyDetailPage() {
     schema: wafPolicyInputSchema,
     defaultValues: DEFAULT_FORM,
   });
-  const { reset, handleSubmit, formState, control } = form;
+  const { reset, handleSubmit, formState, control, setError } = form;
 
   useEffect(() => {
     if (data) {
@@ -99,12 +104,16 @@ export default function WafPolicyDetailPage() {
         }
         router.push("/waf-policies");
       } catch (err) {
+        // Surface structured backend errors inline (e.g. duplicate
+        // policy name, invalid threshold combo).  Most 4xx messages
+        // for WAF policies refer to the `name` field.
+        surfaceServerErrors(setError, err, "name");
         notify((err as Error).message || "Failed to save WAF policy", {
           type: "error",
         });
       }
     },
-    [isCreate, id, dataProvider, notify, router],
+    [isCreate, id, dataProvider, notify, router, setError],
   );
 
   const handleDelete = useCallback(async () => {

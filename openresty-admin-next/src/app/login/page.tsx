@@ -5,7 +5,7 @@ import { useFormStatus } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { Route } from "next";
 import { useAuth } from "@/contexts/AuthContext";
-import { Shield } from "lucide-react";
+import { Shield, Globe2 } from "lucide-react";
 
 // Only allow in-app redirects — never trust an external URL.
 function sanitizeReturnTo(raw: string | null): string {
@@ -181,6 +181,23 @@ export default function LoginPage() {
 
             <SubmitButton />
           </form>
+        </div>
+
+        {/* Pointer to the unauthenticated /links page so visitors who
+            don't have admin credentials can still discover the public
+            service directory.  Plain anchor (not <Link>) because /links
+            sits in a different route group with its own layout — a
+            full-page navigation lands them in the right shell. */}
+        <div className="mt-6 text-center">
+          <a
+            href="/links"
+            className="inline-flex items-center gap-1.5 text-sm text-slate-500 transition-colors hover:text-primary-600 dark:text-slate-400 dark:hover:text-primary-400"
+          >
+            <Globe2 className="h-3.5 w-3.5" aria-hidden="true" />
+            Browse public services
+            <span className="text-slate-300 dark:text-slate-600">·</span>
+            <span className="text-xs">no sign-in required</span>
+          </a>
         </div>
       </div>
     </div>

@@ -237,6 +237,10 @@ export interface Bookmark {
   ssl_enabled?: boolean;
   auto_generated?: boolean;
   created_at?: number;
+  /** When true, the bookmark is exposed at the public, unauthenticated
+   *  /links page (and via GET /api/public/bookmarks).  Defaults to false
+   *  so newly-saved records are never accidentally exposed. */
+  public?: boolean;
 }
 
 export interface WafRule {

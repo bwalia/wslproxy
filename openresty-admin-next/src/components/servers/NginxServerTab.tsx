@@ -23,6 +23,14 @@ export interface NginxServerTabProps {
   isCreate: boolean;
   profileOptions: { value: string; label: string }[];
   wafPolicyOptions: { value: string; label: string }[];
+  /**
+   * Per-field validation errors from the parent's `runValidationGate`
+   * call.  Keys are dotted paths into the form (e.g. `server_name`,
+   * `rate_limit.requests_per_second`, `listens.0.listen`); values
+   * are human messages.  Surfaced inline on the matching `<Input>` /
+   * `<Select>` so the user sees exactly which field is wrong.
+   */
+  fieldErrors?: Record<string, string>;
 }
 
 /* ── Constants ─────────────────────────────────────────────────────────── */
@@ -66,6 +74,7 @@ const NginxServerTab: React.FC<NginxServerTabProps> = ({
   isCreate,
   profileOptions,
   wafPolicyOptions,
+  fieldErrors,
 }) => {
   /* ── Helpers ──────────────────────────────────────────────────────── */
 
@@ -243,6 +252,7 @@ const NginxServerTab: React.FC<NginxServerTabProps> = ({
               onChange={(e) => handleChange("server_name", e.target.value)}
               disabled={!isCreate}
               hint={!isCreate ? "Server name cannot be changed after creation" : undefined}
+              error={fieldErrors?.server_name}
             />
             <Input
               label="Proxy Server Name"
@@ -256,6 +266,7 @@ const NginxServerTab: React.FC<NginxServerTabProps> = ({
               onChange={(e) => handleChange("profile_id", e.target.value)}
               options={profileOptions}
               placeholder="Select a profile"
+              error={fieldErrors?.profile_id}
             />
             <Input
               label="Root"
@@ -327,6 +338,18 @@ const NginxServerTab: React.FC<NginxServerTabProps> = ({
         </Card.Header>
         <Card.Body>
           <div className="space-y-2">
+            {/* Section-level error: schema's "at least one listen
+                directive" lives at path "listens".  Show above the
+                list; per-row errors land at `listens.<idx>.listen`
+                and surface inline below. */}
+            {fieldErrors?.listens && (
+              <div
+                role="alert"
+                className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300"
+              >
+                {fieldErrors.listens}
+              </div>
+            )}
             {form.listens.map((l, idx) => (
               <div key={idx} className="flex items-end gap-2">
                 <div className="flex-1">
@@ -335,6 +358,7 @@ const NginxServerTab: React.FC<NginxServerTabProps> = ({
                     placeholder="80"
                     value={l.listen}
                     onChange={(e) => handleListenChange(idx, e.target.value)}
+                    error={fieldErrors?.[`listens.${idx}.listen`]}
                   />
                 </div>
                 <button
@@ -386,10 +410,14 @@ const NginxServerTab: React.FC<NginxServerTabProps> = ({
                   placeholder="admin@example.com"
                   value={form.ssl_email}
                   onChange={(e) => handleChange("ssl_email", e.target.value)}
+                  // Server-side validation gate's per-field error wins
+                  // over the inline format check so the user sees the
+                  // exact constraint message after a submit attempt.
                   error={
-                    form.ssl_enabled && form.ssl_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.ssl_email)
+                    fieldErrors?.ssl_email ??
+                    (form.ssl_enabled && form.ssl_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.ssl_email)
                       ? "Please enter a valid email address"
-                      : undefined
+                      : undefined)
                   }
                 />
                 <div className="space-y-3 md:col-span-2">
@@ -570,12 +598,14 @@ const NginxServerTab: React.FC<NginxServerTabProps> = ({
                   type="number"
                   value={String(form.rate_limit.requests_per_second)}
                   onChange={(e) => handleNestedChange("requests_per_second", Number(e.target.value))}
+                  error={fieldErrors?.["rate_limit.requests_per_second"]}
                 />
                 <Input
                   label="Burst"
                   type="number"
                   value={String(form.rate_limit.burst)}
                   onChange={(e) => handleNestedChange("burst", Number(e.target.value))}
+                  error={fieldErrors?.["rate_limit.burst"]}
                 />
               </div>
             )}

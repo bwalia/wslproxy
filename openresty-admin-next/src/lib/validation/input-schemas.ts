@@ -138,6 +138,16 @@ export type PasswordResetInput = z.input<typeof passwordResetInputSchema>;
 
 const hostnameRegex = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$/i;
 
+// Nginx `listen` directive — bare port, port + flags (ssl/http2/proxy_protocol),
+// or `address:port` with optional flags.  Bracketed IPv6 also allowed.
+//   80
+//   443 ssl
+//   443 ssl http2
+//   0.0.0.0:8080
+//   [::]:443 ssl
+const listenDirectiveRegex =
+  /^(\[[0-9a-fA-F:]+\]:|\d{1,3}(?:\.\d{1,3}){3}:)?\d{1,5}(\s+(ssl|http2|http3|proxy_protocol|default_server|reuseport|deferred))*\s*$/;
+
 export const serverInputSchema = z
   .object({
     server_name: z
@@ -146,11 +156,27 @@ export const serverInputSchema = z
       .min(1, "Server name is required")
       .max(253, "Hostname too long")
       .regex(hostnameRegex, "Must be a valid hostname (letters, digits, dot, hyphen)"),
+    proxy_server_name: z
+      .string()
+      .trim()
+      .default("")
+      // Only validated when set — empty means "use server_name".
+      .refine(
+        (v) => v.length === 0 || hostnameRegex.test(v),
+        "Must be a valid hostname (letters, digits, dot, hyphen)",
+      ),
     profile_id: z.string().trim().min(1, "Profile is required"),
     listens: z
       .array(
         z.object({
-          listen: z.string().trim().min(1, "Listen directive cannot be empty"),
+          listen: z
+            .string()
+            .trim()
+            .min(1, "Listen directive cannot be empty")
+            .regex(
+              listenDirectiveRegex,
+              "Format: port (e.g. 80) or address:port [ssl|http2|...]",
+            ),
         }),
       )
       .min(1, "At least one listen directive is required"),
@@ -198,6 +224,33 @@ export type ServerInput = z.input<typeof serverInputSchema>;
 
 const ruleNameRegex = /^[A-Za-z0-9][A-Za-z0-9_.:/-]*$/;
 
+// URL paths used in rule matching go straight into nginx's location/uri
+// match.  Whitespace would break the matcher and is almost always a
+// paste-error from the user.  Allow the standard URL path character set
+// plus a few wildcards rules sometimes use (`*`, `?`).
+const rulePathRegex = /^[A-Za-z0-9._~!$&'()*+,;=:@/?%-]+$/;
+
+// IPv4, IPv4-with-CIDR, IPv6, IPv6-with-CIDR.  Permissive on purpose —
+// we only need to catch the obvious "user typed words instead of an
+// IP" mistake.  The Lua gateway does the actual range matching.
+const ipv4Octet = "(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)";
+const ipv4Regex = new RegExp(
+  `^${ipv4Octet}\\.${ipv4Octet}\\.${ipv4Octet}\\.${ipv4Octet}(/(3[0-2]|[12]?\\d))?$`,
+);
+const ipv6Regex =
+  /^(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|::([0-9a-fA-F]{1,4}:){0,5}[0-9a-fA-F]{1,4}|::)(\/(12[0-8]|1[01]\d|\d?\d))?$/;
+
+// HTTP / HTTPS URL — required for redirect_uri on 301/302 and
+// recommended for the proxy-pass target on 305.
+const httpUrlRegex =
+  /^https?:\/\/[A-Za-z0-9._~!$&'()*+,;=:@%-]+(:\d{1,5})?(\/[^\s]*)?$/i;
+
+function isValidIpEntry(value: string): boolean {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) return false;
+  return ipv4Regex.test(trimmed) || ipv6Regex.test(trimmed);
+}
+
 export const ruleInputSchema = z
   .object({
     name: z
@@ -212,8 +265,26 @@ export const ruleInputSchema = z
     priority: z.coerce
       .number()
       .int("Priority must be a whole number")
-      .min(1, "Priority must be at least 1"),
+      .min(1, "Priority must be at least 1")
+      .max(10_000, "Priority must be 10000 or less"),
     code: z.coerce.number().int(),
+    // Required.  An empty path matches everything, which is almost
+    // always wrong; force the user to explicitly type "/" if they
+    // really mean it.
+    path: z
+      .string()
+      .trim()
+      .min(1, "Path is required")
+      .max(1024, "Path too long")
+      .regex(
+        rulePathRegex,
+        "Path cannot contain whitespace; use URL-safe characters only",
+      ),
+    path_key: z.enum(["starts_with", "ends_with", "equals"]).default("starts_with"),
+    // Optional — only validated when present.  Accepts a comma-separated
+    // list so users can match multiple ranges in one rule.
+    client_ip: z.string().trim().default(""),
+    country: z.string().default(""),
     redirect_uri: z.string().trim().default(""),
     backends: z
       .array(
@@ -224,6 +295,33 @@ export const ruleInputSchema = z
       )
       .default([]),
   })
+  // Path must start with "/" for starts_with / equals matching — those
+  // modes match against the full request URI which always begins with /.
+  .refine(
+    (v) =>
+      !(v.path_key === "starts_with" || v.path_key === "equals") ||
+      v.path.startsWith("/"),
+    {
+      path: ["path"],
+      message: 'Path must start with "/" for starts_with / equals matching',
+    },
+  )
+  // When client_ip is set, every comma-separated entry must look like
+  // a real IP / CIDR — catches the "Lorem ipsum" paste mistake.
+  .refine(
+    (v) =>
+      v.client_ip.length === 0 ||
+      v.client_ip
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .every(isValidIpEntry),
+    {
+      path: ["client_ip"],
+      message:
+        "Must be IPv4, IPv6, CIDR (1.2.3.0/24), or comma-separated list of those",
+    },
+  )
   // 301/302 redirects require a destination URI — otherwise the rule
   // matches but the gateway has nothing to redirect to.
   .refine(
@@ -233,6 +331,19 @@ export const ruleInputSchema = z
     {
       path: ["redirect_uri"],
       message: "Redirect URI is required for 301 / 302 responses",
+    },
+  )
+  // ...and when it IS provided for 301/302/305, it must look like an
+  // http(s) URL.  The gateway proxies/redirects to it verbatim, so a
+  // malformed value silently 502s at request time.
+  .refine(
+    (v) =>
+      !(v.code === 301 || v.code === 302 || v.code === 305) ||
+      v.redirect_uri.length === 0 ||
+      httpUrlRegex.test(v.redirect_uri),
+    {
+      path: ["redirect_uri"],
+      message: "Must be a full http(s):// URL",
     },
   )
   // 305 = proxy pass.  Lua gateway expects at least one backend; zero

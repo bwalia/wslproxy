@@ -54,7 +54,12 @@ const TopologyCanvas = dynamic(
 import type { Server as ServerType, WafPolicy, Rule } from "@/types";
 import type { ServerFormState, VarnishConfig, VarnishSnippet } from "@/components/servers/types";
 import type { LocationEntry } from "@/components/servers/sections/LocationBlockEditor";
-import { runValidationGate, findTabForError } from "@/lib/forms";
+import {
+  runValidationGate,
+  findTabForError,
+  useSubmitGuard,
+  useScrollToFirstFieldError,
+} from "@/lib/forms";
 import { serverInputSchema } from "@/lib/validation/input-schemas";
 import { cn } from "@/lib/utils/cn";
 
@@ -343,6 +348,11 @@ export default function ServerDetailPage() {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
+  // Per-field validation errors from the validation gate, surfaced
+  // inline on each input + as red dots on the relevant tab buttons.
+  // Cleared on successful submit and on the next setForm so the user
+  // sees errors disappear as they fix them.
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   /* ── Hydrate from API ────────────────────────────────────────────── */
 
@@ -354,17 +364,38 @@ export default function ServerDetailPage() {
 
   /* ── Handlers ────────────────────────────────────────────────────── */
 
-  const handleSubmit = useCallback(async () => {
+  // Guard against duplicate submits on rapid clicks while the
+  // request is in flight (Wave 11.5).  Disabled-button state has a
+  // one-render lag; this ref-based guard is synchronous.
+  const guardSubmit = useSubmitGuard();
+
+  // Imperative scroll-to-error — fires only when `handleSubmit`
+  // explicitly calls it, never on per-keystroke error clearing, so
+  // the cursor stays put while the user is typing.  The two RAFs
+  // inside the hook give React time to commit the new fieldErrors
+  // state AND mount the new active tab before we query the DOM.
+  const scrollToFirstError = useScrollToFirstFieldError();
+
+  const handleSubmit = useCallback(guardSubmit(async () => {
     // Structured submit-time validation via the shared Zod schema.
     // Mirrors what the Lua backend enforces + what the old react-admin
     // Form.jsx checked, so the user sees a precise error before the
     // PUT round-trip.
     const gate = runValidationGate(serverInputSchema, form);
     if (!gate.ok && gate.firstError) {
+      // Surface every field error inline (Wave 11.6) so the user
+      // sees the offending input(s) highlighted in red, plus a red
+      // dot on every tab that has errors.  The toast gives the
+      // headline; the tab-jump moves them to the first issue and
+      // the scroll lands them on the exact input.
+      setFieldErrors(gate.fieldErrors);
       notify(gate.firstError.message, { type: "error" });
       setActiveTab(findTabForError(gate.firstError.field, FIELD_TO_TAB, "nginx"));
+      scrollToFirstError();
       return;
     }
+    // Clear stale errors from a previous failed submit attempt.
+    setFieldErrors({});
 
     setSaving(true);
     try {
@@ -390,7 +421,17 @@ export default function ServerDetailPage() {
     } finally {
       setSaving(false);
     }
-  }, [isCreate, form, id, dataProvider, notify, router]);
+  }), [
+    isCreate,
+    form,
+    id,
+    dataProvider,
+    notify,
+    router,
+    guardSubmit,
+    setProfile,
+    scrollToFirstError,
+  ]);
 
   const handleDelete = useCallback(async () => {
     setDeleting(true);
@@ -411,6 +452,20 @@ export default function ServerDetailPage() {
   const handleTabChange = useCallback((tab: TabKey) => {
     setActiveTab(tab);
   }, []);
+
+  /* ── Tabs-with-errors set, derived from fieldErrors + FIELD_TO_TAB ── */
+
+  // Used to render a red dot next to each tab name when one of its
+  // fields failed validation, so the operator can see at a glance
+  // which other tabs to revisit even after fixing the one they
+  // landed on.
+  const tabsWithErrors = useMemo(() => {
+    const set = new Set<TabKey>();
+    for (const path of Object.keys(fieldErrors)) {
+      set.add(findTabForError(path, FIELD_TO_TAB, "nginx"));
+    }
+    return set;
+  }, [fieldErrors]);
 
   /* ── Loading skeleton ────────────────────────────────────────────── */
 
@@ -476,6 +531,7 @@ export default function ServerDetailPage() {
           {TABS.map((tab) => {
             const Icon = tab.icon;
             const active = activeTab === tab.key;
+            const hasError = tabsWithErrors.has(tab.key);
             return (
               <button
                 key={tab.key}
@@ -488,9 +544,22 @@ export default function ServerDetailPage() {
                     : "border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700 dark:text-slate-400 dark:hover:border-slate-600 dark:hover:text-slate-300",
                 )}
                 aria-current={active ? "page" : undefined}
+                aria-label={
+                  hasError ? `${tab.label} (has validation errors)` : tab.label
+                }
               >
                 <Icon className="h-4 w-4" />
                 {tab.label}
+                {hasError && (
+                  // Red dot indicates one or more fields on this tab
+                  // failed the validation gate.  Disappears as the
+                  // user fixes them (per-field errors clear in NginxServerTab's
+                  // setForm wrapper).
+                  <span
+                    className="ml-1 inline-block h-1.5 w-1.5 rounded-full bg-red-500"
+                    aria-hidden="true"
+                  />
+                )}
               </button>
             );
           })}
@@ -505,6 +574,7 @@ export default function ServerDetailPage() {
           isCreate={isCreate}
           profileOptions={profileOptions}
           wafPolicyOptions={wafPolicyOptions}
+          fieldErrors={fieldErrors}
         />
       )}
 
