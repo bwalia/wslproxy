@@ -132,3 +132,6 @@ export {
   findTabForError,
   type ValidationGateResult,
 } from "./validation-gate";
+export { surfaceServerErrors } from "./server-errors";
+export { useSubmitGuard } from "./use-submit-guard";
+export { useScrollToFirstFieldError } from "./use-scroll-to-error";

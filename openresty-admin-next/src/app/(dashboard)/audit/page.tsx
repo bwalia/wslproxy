@@ -134,10 +134,11 @@ export default function AuditPage() {
     return f;
   }, [filters, page, perPage]);
 
-  const { data, total, isLoading, isValidating, error } = useList<AuditEntry>(
-    "audit",
-    { filter: backendFilter, pagination: { page, perPage } },
-  );
+  const { data, total, isLoading, isValidating, error, mutate } =
+    useList<AuditEntry>("audit", {
+      filter: backendFilter,
+      pagination: { page, perPage },
+    });
 
   const updateFilter = useCallback(
     <K extends keyof FilterState>(key: K, value: FilterState[K]) => {
@@ -340,14 +341,9 @@ export default function AuditPage() {
         </Card>
       )}
 
-      {error && (
-        <div
-          role="alert"
-          className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300"
-        >
-          Failed to load audit log: {(error as Error).message}
-        </div>
-      )}
+      {/* Error rendering moved into the DataTable error/onRetry props
+          (Wave 11.1) so every list page shares the same look + a
+          retry button. */}
 
       <div className={cn(isValidating && !isLoading && "opacity-70 transition-opacity")}>
         <DataTable
@@ -355,6 +351,8 @@ export default function AuditPage() {
           data={data}
           total={total}
           loading={isLoading}
+          error={error}
+          onRetry={() => mutate()}
           page={page}
           perPage={perPage}
           onPageChange={setPage}

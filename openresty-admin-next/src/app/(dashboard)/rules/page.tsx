@@ -29,7 +29,10 @@ export default function RulesListPage() {
     [page, perPage, sort, search],
   );
 
-  const { data, total, isLoading } = useList<Rule>("rules", params);
+  const { data, total, isLoading, error, mutate } = useList<Rule>(
+    "rules",
+    params,
+  );
 
   const columns = useMemo<Column<Rule>[]>(
     () => [
@@ -132,6 +135,8 @@ export default function RulesListPage() {
         data={data}
         total={total}
         loading={isLoading}
+        error={error}
+        onRetry={() => mutate()}
         page={page}
         perPage={perPage}
         sort={sort}

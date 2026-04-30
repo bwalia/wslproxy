@@ -26,7 +26,11 @@ import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import Skeleton from "@/components/ui/Skeleton";
 import Badge from "@/components/ui/Badge";
 import type { Rule, Backend } from "@/types";
-import { runValidationGate } from "@/lib/forms";
+import {
+  runValidationGate,
+  useSubmitGuard,
+  useScrollToFirstFieldError,
+} from "@/lib/forms";
 import { ruleInputSchema } from "@/lib/validation/input-schemas";
 
 const TopologyCanvas = dynamic(
@@ -242,6 +246,10 @@ export default function RuleDetailPage() {
   const [showDelete, setShowDelete] = useState(false);
   const [newTag, setNewTag] = useState("");
   const [showTopology, setShowTopology] = useState(false);
+  // Per-field validation errors surfaced from `runValidationGate`.
+  // Populated in handleSubmit; cleared per-field as the user edits
+  // the offending input via the `set` helper below.
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   // Hydrate form from fetched data
   useEffect(() => {
@@ -285,8 +293,20 @@ export default function RuleDetailPage() {
   }, [data]);
 
   const set = useCallback(
-    <K extends keyof RuleForm>(field: K, value: RuleForm[K]) =>
-      setForm((prev) => ({ ...prev, [field]: value })),
+    <K extends keyof RuleForm>(field: K, value: RuleForm[K]) => {
+      setForm((prev) => ({ ...prev, [field]: value }));
+      // Clear that field's validation error as the user edits — and
+      // any nested error path under it (e.g. `backends.0.address`
+      // when the user edits the `backends` array).
+      setFieldErrors((prev) => {
+        const fieldStr = String(field);
+        const next: Record<string, string> = {};
+        for (const [k, v] of Object.entries(prev)) {
+          if (k !== fieldStr && !k.startsWith(fieldStr + ".")) next[k] = v;
+        }
+        return next;
+      });
+    },
     [],
   );
 
@@ -381,21 +401,44 @@ export default function RuleDetailPage() {
 
   // ── Submit ──────────────────────────────────────────────────────────
 
-  const handleSubmit = useCallback(async () => {
+  // Synchronous duplicate-submit guard (Wave 11.5).  The
+  // `loading={saving}` button state is one render behind, so a fast
+  // double-click can fire two POSTs before the disable paints.
+  const guardSubmit = useSubmitGuard();
+
+  // Imperative scroll-to-error — only fires on submit, never on
+  // per-keystroke error clearing, so the cursor stays where the user
+  // is typing.
+  const scrollToFirstError = useScrollToFirstFieldError();
+
+  const handleSubmit = useCallback(guardSubmit(async () => {
     // Structured Zod validation — replaces the single ad-hoc name check.
-    // Covers priority, 301/302 redirect_uri, and 305 backend
-    // requirements before we send a half-formed rule to the backend.
+    // Covers priority, path / IP format, 301/302 redirect_uri, and 305
+    // backend requirements before we send a half-formed rule to the
+    // backend.
     const gate = runValidationGate(ruleInputSchema, {
       name: form.name,
       priority: form.priority,
       code: form.code,
+      path: form.path,
+      path_key: form.path_key,
+      client_ip: form.client_ip,
+      country: form.country,
       redirect_uri: form.redirect_uri,
       backends: form.backends,
     });
     if (!gate.ok && gate.firstError) {
+      // Surface every field error inline (Wave 11.6) — the toast
+      // gives the headline, but the actual offending input also
+      // turns red with a message below it so the user doesn't have
+      // to guess which field is wrong.
+      setFieldErrors(gate.fieldErrors);
       notify(gate.firstError.message, { type: "error" });
+      scrollToFirstError();
       return;
     }
+    // Clear any stale errors from a previous failed attempt.
+    setFieldErrors({});
     setSaving(true);
     try {
       const payload = buildPayload();
@@ -412,7 +455,17 @@ export default function RuleDetailPage() {
     } finally {
       setSaving(false);
     }
-  }, [isCreate, id, form, buildPayload, api, notify, router]);
+  }), [
+    isCreate,
+    id,
+    form,
+    buildPayload,
+    api,
+    notify,
+    router,
+    guardSubmit,
+    scrollToFirstError,
+  ]);
 
   const handleDelete = useCallback(async () => {
     setDeleting(true);
@@ -504,7 +557,16 @@ export default function RuleDetailPage() {
         </Card.Header>
         <Card.Body>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <Input label="Rule Name *" value={form.name} onChange={(e) => set("name", e.target.value)} error={!form.name.trim() ? "Required" : undefined} />
+            <Input
+              label="Rule Name *"
+              value={form.name}
+              onChange={(e) => set("name", e.target.value)}
+              // Validation gate's per-field errors take precedence
+              // over the simple "Required" hint so the user sees the
+              // exact constraint message ("must start alphanumeric"
+              // etc.) when validation has run.
+              error={fieldErrors.name ?? (!form.name.trim() ? "Required" : undefined)}
+            />
             <Select
               label="Profile *"
               value={form.profile_id}
@@ -513,8 +575,20 @@ export default function RuleDetailPage() {
               placeholder="Select a profile"
             />
             <div className="grid grid-cols-2 gap-4">
-              <Input label="Priority" type="number" value={String(form.priority)} hint="1-10000" onChange={(e) => set("priority", Number(e.target.value))} />
-              <Input label="Version" type="number" value={String(form.version)} onChange={(e) => set("version", Number(e.target.value))} />
+              <Input
+                label="Priority"
+                type="number"
+                value={String(form.priority)}
+                hint={fieldErrors.priority ? undefined : "1-10000"}
+                onChange={(e) => set("priority", Number(e.target.value))}
+                error={fieldErrors.priority}
+              />
+              <Input
+                label="Version"
+                type="number"
+                value={String(form.version)}
+                onChange={(e) => set("version", Number(e.target.value))}
+              />
             </div>
           </div>
         </Card.Body>
@@ -560,7 +634,13 @@ export default function RuleDetailPage() {
               { value: "ends_with", label: "Ends With" },
               { value: "equals", label: "Exact Match" },
             ]} />
-            <Input label="Path *" value={form.path} placeholder="/" onChange={(e) => set("path", e.target.value)} />
+            <Input
+              label="Path *"
+              value={form.path}
+              placeholder="/"
+              onChange={(e) => set("path", e.target.value)}
+              error={fieldErrors.path}
+            />
 
             {/* Geographic */}
             <SectionLabel>Geographic Filtering</SectionLabel>
@@ -578,7 +658,18 @@ export default function RuleDetailPage() {
 
             {/* Client IP */}
             <SectionLabel>Client IP Filtering</SectionLabel>
-            <Input label="Client IP" value={form.client_ip} placeholder="e.g. 192.168.1.0/24" onChange={(e) => set("client_ip", e.target.value)} />
+            <Input
+              label="Client IP"
+              value={form.client_ip}
+              placeholder="e.g. 192.168.1.0/24"
+              onChange={(e) => set("client_ip", e.target.value)}
+              error={fieldErrors.client_ip}
+              hint={
+                fieldErrors.client_ip
+                  ? undefined
+                  : "IPv4, IPv6, CIDR, or comma-separated list"
+              }
+            />
             {form.client_ip && (
               <Select label="IP Match Type" value={form.client_ip_key} onChange={(e) => set("client_ip_key", e.target.value)} options={[
                 { value: "equals", label: "Equals" },
@@ -644,7 +735,13 @@ export default function RuleDetailPage() {
             ]} />
 
             {showRedirectUri && (
-              <Input label={`${redirectLabel} *`} value={form.redirect_uri} placeholder="https://example.com" onChange={(e) => set("redirect_uri", e.target.value)} />
+              <Input
+                label={`${redirectLabel} *`}
+                value={form.redirect_uri}
+                placeholder="https://example.com"
+                onChange={(e) => set("redirect_uri", e.target.value)}
+                error={fieldErrors.redirect_uri}
+              />
             )}
 
             <SectionLabel>Proxy Options</SectionLabel>
@@ -720,6 +817,20 @@ export default function RuleDetailPage() {
                   Add Backend
                 </Button>
               </div>
+
+              {/* Section-level validation error.  The schema's
+                  refine() puts the message at path "backends" — when
+                  set, the missing-backends or empty-address message
+                  shows above the list so the user can see it without
+                  scrolling per-row. */}
+              {fieldErrors.backends && (
+                <div
+                  role="alert"
+                  className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300"
+                >
+                  {fieldErrors.backends}
+                </div>
+              )}
 
               {form.backends.length === 0 && (
                 <p className="py-6 text-center text-sm text-slate-400">

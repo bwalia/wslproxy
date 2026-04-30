@@ -30,9 +30,12 @@ export default function SessionsPage() {
 
   const isRedisBackend = storageType === "redis";
 
-  const { data, total, isLoading, error } = useList<Session>("sessions", {
-    pagination: { page, perPage },
-  });
+  const { data, total, isLoading, error, mutate } = useList<Session>(
+    "sessions",
+    {
+      pagination: { page, perPage },
+    },
+  );
 
   const columns = useMemo<Column<Session>[]>(
     () => [
@@ -118,20 +121,17 @@ export default function SessionsPage() {
         subtitle="Active admin sessions (Redis-backed)"
       />
 
-      {error && (
-        <div
-          role="alert"
-          className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300"
-        >
-          Failed to load sessions: {(error as Error).message}
-        </div>
-      )}
+      {/* Error rendering moved into the DataTable error/onRetry props
+          (Wave 11.1) — gives users a Retry button + consistent UX
+          across every list page. */}
 
       <DataTable
         columns={columns}
         data={data}
         total={total}
         loading={isLoading || settingsLoading}
+        error={error}
+        onRetry={() => mutate()}
         page={page}
         perPage={perPage}
         onPageChange={setPage}

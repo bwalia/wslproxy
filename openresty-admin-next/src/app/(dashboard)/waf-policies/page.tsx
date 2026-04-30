@@ -30,7 +30,10 @@ export default function WafPoliciesListPage() {
     [page, perPage, sort, search],
   );
 
-  const { data, total, isLoading } = useList<WafPolicy>("waf_policies", params);
+  const { data, total, isLoading, error, mutate } = useList<WafPolicy>(
+    "waf_policies",
+    params,
+  );
 
   const columns = useMemo<Column<WafPolicy>[]>(
     () => [
@@ -107,6 +110,8 @@ export default function WafPoliciesListPage() {
         data={data}
         total={total}
         loading={isLoading}
+        error={error}
+        onRetry={() => mutate()}
         page={page}
         perPage={perPage}
         sort={sort}

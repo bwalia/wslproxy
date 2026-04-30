@@ -11,7 +11,12 @@ import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import Skeleton from "@/components/ui/Skeleton";
-import { useZodForm, FormInput, FormTextarea } from "@/lib/forms";
+import {
+  useZodForm,
+  FormInput,
+  FormTextarea,
+  surfaceServerErrors,
+} from "@/lib/forms";
 import {
   profileInputSchema,
   type ProfileInput,
@@ -54,7 +59,7 @@ export default function ProfileDetailPage() {
     schema: profileInputSchema,
     defaultValues: DEFAULT_FORM,
   });
-  const { reset, handleSubmit, formState } = form;
+  const { reset, handleSubmit, formState, setError } = form;
 
   // Hydrate the form when server data arrives.  `reset` replaces the
   // form state atomically and clears any stale validation errors.
@@ -83,12 +88,23 @@ export default function ProfileDetailPage() {
         }
         router.push("/profiles");
       } catch (err) {
-        notify((err as Error).message || "Failed to save profile", {
-          type: "error",
-        });
+        // Map any structured backend validation errors onto form
+        // fields so the user sees them inline.  Backend's "Profile
+        // name already exists" and similar 4xx messages are most
+        // relevant to the `name` field.
+        const handled = surfaceServerErrors(setError, err, "name");
+        // Always notify too — gives the user a clear top-level
+        // signal (especially for non-field issues like 5xx).
+        notify(
+          (err as Error).message || "Failed to save profile",
+          { type: "error" },
+        );
+        // `handled` is documented for future callers that may want
+        // to skip the toast when every error is already inline.
+        void handled;
       }
     },
-    [isCreate, id, dataProvider, notify, router],
+    [isCreate, id, dataProvider, notify, router, setError],
   );
 
   const handleDelete = useCallback(async () => {

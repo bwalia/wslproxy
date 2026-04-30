@@ -16,6 +16,8 @@ import {
   ArrowDown,
   ChevronLeft,
   ChevronRight,
+  AlertCircle,
+  RefreshCw,
 } from "lucide-react";
 import Skeleton from "./Skeleton";
 import EmptyState from "./EmptyState";
@@ -38,6 +40,17 @@ export interface DataTableProps<T> {
   data: T[];
   total?: number;
   loading?: boolean;
+  /**
+   * Fetch error to surface inline above the table.  When set, the
+   * empty-state row is replaced with a red error card that includes
+   * the message + a "Retry" button (when `onRetry` is provided).
+   * Without this, list pages silently render an empty table on
+   * backend failure and the user assumes "no data" instead of
+   * "API down" — see Wave 11.1.
+   */
+  error?: Error | { message?: string } | string | null;
+  /** Optional retry callback wired to the error card's button. */
+  onRetry?: () => void;
   page?: number;
   perPage?: number;
   sort?: { field: string; order: "ASC" | "DESC" };
@@ -85,6 +98,59 @@ function buildPageNumbers(current: number, total: number): (number | "...")[] {
 
   addPage(total);
   return pages;
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Error banner — rendered inline when a list fetch fails                    */
+/* -------------------------------------------------------------------------- */
+
+function extractErrorMessage(
+  error: Error | { message?: string } | string,
+): string {
+  if (typeof error === "string") return error;
+  if (error instanceof Error) return error.message;
+  if (typeof error === "object" && error !== null && "message" in error) {
+    return String(error.message ?? "");
+  }
+  return "Unknown error";
+}
+
+function DataTableErrorBanner({
+  error,
+  onRetry,
+}: {
+  error: Error | { message?: string } | string;
+  onRetry?: () => void;
+}) {
+  return (
+    <div
+      role="alert"
+      className="flex flex-col items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800 sm:flex-row sm:items-center sm:justify-between dark:border-red-900 dark:bg-red-950/40 dark:text-red-300"
+    >
+      <div className="flex min-w-0 items-start gap-2">
+        <AlertCircle
+          className="mt-0.5 h-4 w-4 shrink-0 text-red-500"
+          aria-hidden="true"
+        />
+        <div className="min-w-0">
+          <p className="font-semibold">Failed to load data</p>
+          <p className="mt-0.5 wrap-break-word text-xs opacity-90">
+            {extractErrorMessage(error)}
+          </p>
+        </div>
+      </div>
+      {onRetry && (
+        <button
+          type="button"
+          onClick={onRetry}
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-red-300 bg-white px-3 py-1.5 text-xs font-medium text-red-700 transition-colors hover:bg-red-50 dark:border-red-800 dark:bg-red-950/60 dark:text-red-200 dark:hover:bg-red-900/40"
+        >
+          <RefreshCw className="h-3 w-3" aria-hidden="true" />
+          Retry
+        </button>
+      )}
+    </div>
+  );
 }
 
 /* -------------------------------------------------------------------------- */
@@ -168,6 +234,8 @@ function DataTableInner<T>({
   data,
   total: totalProp,
   loading = false,
+  error = null,
+  onRetry,
   page = 1,
   perPage = 10,
   sort,
@@ -380,8 +448,24 @@ function DataTableInner<T>({
                 </tr>
               ))}
 
-            {/* Empty state */}
-            {!loading && data.length === 0 && (
+            {/* Error state — takes precedence over empty state when
+                the fetch failed.  Without this, list pages render
+                an empty table on backend failure and the user can't
+                tell whether there are no records or whether the API
+                is down (Wave 11.1). */}
+            {!loading && error && (
+              <tr>
+                <td
+                  colSpan={columns.length + (selectable ? 1 : 0)}
+                  className="px-4 py-6"
+                >
+                  <DataTableErrorBanner error={error} onRetry={onRetry} />
+                </td>
+              </tr>
+            )}
+
+            {/* Empty state — only when there's no error and zero rows. */}
+            {!loading && !error && data.length === 0 && (
               <tr>
                 <td
                   colSpan={columns.length + (selectable ? 1 : 0)}
@@ -392,8 +476,11 @@ function DataTableInner<T>({
               </tr>
             )}
 
-            {/* Data rows */}
+            {/* Data rows — suppressed when an error is being shown so
+                stale data from a previous successful fetch doesn't
+                render beneath the error banner. */}
             {!loading &&
+              !error &&
               (Array.isArray(data) ? data : []).map((record, idx) => (
                 <TableRow
                   key={getId(record)}

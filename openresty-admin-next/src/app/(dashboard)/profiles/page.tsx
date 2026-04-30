@@ -28,7 +28,10 @@ export default function ProfilesListPage() {
     [page, perPage, sort, search],
   );
 
-  const { data, total, isLoading } = useList<Profile>("profiles", params);
+  const { data, total, isLoading, error, mutate } = useList<Profile>(
+    "profiles",
+    params,
+  );
 
   const columns = useMemo<Column<Profile>[]>(
     () => [
@@ -93,6 +96,8 @@ export default function ProfilesListPage() {
         data={data}
         total={total}
         loading={isLoading}
+        error={error}
+        onRetry={() => mutate()}
         page={page}
         perPage={perPage}
         sort={sort}
