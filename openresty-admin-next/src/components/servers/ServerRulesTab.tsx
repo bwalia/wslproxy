@@ -7,6 +7,7 @@ import Card from "@/components/ui/Card";
 import Select from "@/components/ui/Select";
 import Combobox from "@/components/ui/Combobox";
 import Button from "@/components/ui/Button";
+import RulePreview from "./RulePreview";
 import type { ServerFormState } from "./types";
 
 /**
@@ -130,14 +131,22 @@ const ServerRulesTab: React.FC<ServerRulesTabProps> = ({
               server.
             </p>
           ) : (
-            <Combobox
-              label="Select Rules"
-              placeholder="Pick a rule…"
-              searchPlaceholder="Search rules…"
-              value={form.rules}
-              options={ruleOptions}
-              onChange={handleRuleChange}
-            />
+            <>
+              <Combobox
+                label="Select Rules"
+                placeholder="Pick a rule…"
+                searchPlaceholder="Search rules…"
+                value={form.rules}
+                options={ruleOptions}
+                onChange={handleRuleChange}
+              />
+              {/* Inline preview for the chosen primary rule — answers
+                  "what does this rule actually do?" without making the
+                  user navigate away and lose unsaved server state.
+                  Click "View" inside the preview to open a modal with
+                  the full rule details. */}
+              {form.rules && <RulePreview ruleId={form.rules} />}
+            </>
           )}
         </Card.Body>
       </Card>
@@ -174,42 +183,48 @@ const ServerRulesTab: React.FC<ServerRulesTabProps> = ({
                 {form.match_cases.map((mc, idx) => (
                   <div
                     key={idx}
-                    className="flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800/50"
+                    className="rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800/50"
                   >
-                    <div className="w-32 shrink-0">
-                      <Select
-                        label={idx === 0 ? "Condition" : undefined}
-                        value={mc.condition || "none"}
-                        onChange={(e) =>
-                          handleMatchCaseChange(idx, {
-                            condition: e.target.value,
-                          })
-                        }
-                        options={CONDITION_OPTIONS}
-                      />
+                    <div className="flex items-start gap-3">
+                      <div className="w-32 shrink-0">
+                        <Select
+                          label={idx === 0 ? "Condition" : undefined}
+                          value={mc.condition || "none"}
+                          onChange={(e) =>
+                            handleMatchCaseChange(idx, {
+                              condition: e.target.value,
+                            })
+                          }
+                          options={CONDITION_OPTIONS}
+                        />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <Combobox
+                          label={idx === 0 ? "Rule" : undefined}
+                          placeholder="Pick a rule…"
+                          searchPlaceholder="Search rules…"
+                          value={mc.statement}
+                          options={matchCaseOptionsFor(idx)}
+                          onChange={(next) =>
+                            handleMatchCaseChange(idx, { statement: next })
+                          }
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveMatchCase(idx)}
+                        className={`shrink-0 rounded p-1.5 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400 ${
+                          idx === 0 ? "mt-7" : "mt-1"
+                        }`}
+                        aria-label="Remove match condition"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <Combobox
-                        label={idx === 0 ? "Rule" : undefined}
-                        placeholder="Pick a rule…"
-                        searchPlaceholder="Search rules…"
-                        value={mc.statement}
-                        options={matchCaseOptionsFor(idx)}
-                        onChange={(next) =>
-                          handleMatchCaseChange(idx, { statement: next })
-                        }
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveMatchCase(idx)}
-                      className={`shrink-0 rounded p-1.5 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400 ${
-                        idx === 0 ? "mt-7" : "mt-1"
-                      }`}
-                      aria-label="Remove match condition"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                    {/* Inline preview lives below the row so each
+                        combined rule is just as scannable as the
+                        primary one above. */}
+                    {mc.statement && <RulePreview ruleId={mc.statement} />}
                   </div>
                 ))}
               </div>
