@@ -20,13 +20,24 @@ import type { NextRequest } from "next/server";
 
 const AUTH_COOKIE = "wslproxy_token";
 
-// Paths reachable WITHOUT auth.  Everything else requires the cookie.
+// Exact paths reachable without auth.
 const PUBLIC_PATHS = new Set<string>([
   "/login",
 ]);
 
+// Path *prefixes* reachable without auth.  Use this for entire route
+// trees (e.g. the (public) route group) where every nested page should
+// be anonymous.  Keep it narrow — anything added here must consciously
+// be safe for the open internet.
+const PUBLIC_PREFIXES = ["/links"];
+
 function isPublicPath(pathname: string): boolean {
   if (PUBLIC_PATHS.has(pathname)) return true;
+  for (const prefix of PUBLIC_PREFIXES) {
+    if (pathname === prefix || pathname.startsWith(prefix + "/")) {
+      return true;
+    }
+  }
   // Next.js internals and static assets are excluded by the `matcher` below,
   // but we belt-and-suspender here too.
   return (

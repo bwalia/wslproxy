@@ -206,9 +206,17 @@ http {
             add_header 'Access-Control-Allow-Headers' 'Content-Type';
             access_by_lua_block {
                 local path_name = ngx.var.uri:match("^/api/(.*)$")
+                -- `public/...` is a read-only, unauthenticated surface
+                -- (currently just GET /api/public/bookmarks for the
+                -- /links page).  GET-only is enforced here so the same
+                -- prefix can't be used to push writes; non-GET requests
+                -- still hit the auth block below and require a token.
+                local is_public_get = ngx.req.get_method() == "GET"
+                    and path_name and string.find(path_name, "^public/") == 1
                 if path_name ~= "user/login"
                     and path_name ~= "user/logout"
-                    and path_name ~= "topology/graph" then
+                    and path_name ~= "topology/graph"
+                    and not is_public_get then
                     local jwt = JWT
                     -- Accept either Authorization: Bearer (react-admin) or
                     -- the httpOnly `wslproxy_token` cookie (openresty-admin-next).
@@ -261,7 +269,7 @@ http {
                     end
                 end
             }
-            
+
             if ($request_method = 'OPTIONS') {
                 add_header 'Access-Control-Allow-Origin' '*';
                 add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, PUT, DELETE';
@@ -730,9 +738,17 @@ http {
 
             access_by_lua_block {
                 local path_name = ngx.var.uri:match("^/api/(.*)$")
+                -- `public/...` is a read-only, unauthenticated surface
+                -- (currently just GET /api/public/bookmarks for the
+                -- /links page).  GET-only is enforced here so the same
+                -- prefix can't be used to push writes; non-GET requests
+                -- still hit the auth block below and require a token.
+                local is_public_get = ngx.req.get_method() == "GET"
+                    and path_name and string.find(path_name, "^public/") == 1
                 if path_name ~= "user/login"
                     and path_name ~= "user/logout"
-                    and path_name ~= "topology/graph" then
+                    and path_name ~= "topology/graph"
+                    and not is_public_get then
                     local jwt = JWT
                     -- Accept either Authorization: Bearer (react-admin) or
                     -- the httpOnly `wslproxy_token` cookie (openresty-admin-next).
@@ -852,9 +868,17 @@ http {
 
             access_by_lua_block {
                 local path_name = ngx.var.uri:match("^/api/(.*)$")
+                -- `public/...` is a read-only, unauthenticated surface
+                -- (currently just GET /api/public/bookmarks for the
+                -- /links page).  GET-only is enforced here so the same
+                -- prefix can't be used to push writes; non-GET requests
+                -- still hit the auth block below and require a token.
+                local is_public_get = ngx.req.get_method() == "GET"
+                    and path_name and string.find(path_name, "^public/") == 1
                 if path_name ~= "user/login"
                     and path_name ~= "user/logout"
-                    and path_name ~= "topology/graph" then
+                    and path_name ~= "topology/graph"
+                    and not is_public_get then
                     local jwt = JWT
                     -- Accept either Authorization: Bearer (react-admin) or
                     -- the httpOnly `wslproxy_token` cookie (openresty-admin-next).

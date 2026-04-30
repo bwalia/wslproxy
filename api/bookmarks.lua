@@ -313,6 +313,10 @@ function _M.create_or_update(args)
     end
 
     body.auto_generated = false
+    -- `public` defaults to false on every save unless the admin
+    -- explicitly opted in.  Coerce truthy values to a real boolean so
+    -- the disk JSON stays clean (no "true" strings, no nils).
+    body.public = body.public == true or body.public == "true"
     body.updated_at = os.time()
     if not body.created_at then
         body.created_at = os.time()
@@ -347,8 +351,167 @@ function _M.create_or_update(args)
     }))
 end
 
+-- ============================================================================
+-- PUBLIC (UNAUTHENTICATED) READ-ONLY API
+-- ============================================================================
+--
+-- Exposed at GET /api/public/bookmarks (and /:id) for the unauthenticated
+-- "/links" page.  Differences vs the admin endpoints above:
+--
+--   1. Only user-saved bookmarks with `public == true` are returned —
+--      auto-generated entries (which mirror internal server hostnames)
+--      and private bookmarks are excluded.  Default for any new bookmark
+--      is `public == false`, so a record only becomes public when an
+--      admin explicitly opts it in.
+--
+--   2. The serialization strips fields that don't belong on a public
+--      surface (profile_id, proxy_pass, ssl_enabled, auto_generated,
+--      timestamps...).  Only the user-facing presentation fields go out.
+--
+--   3. No write operations.  POST/PUT/DELETE are not implemented here
+--      and the nginx layer only routes GET to this path.
+
+-- Allowlist of fields safe for the public response.  Anything not listed
+-- is dropped — keeps internal metadata from leaking even if the user
+-- bookmark JSON grows new fields later.
+local PUBLIC_FIELDS = {
+    id = true,
+    title = true,
+    host = true,
+    url = true,
+    category = true,
+    description = true,
+    tags = true,
+}
+
+local function strip_to_public(bm)
+    local out = {}
+    for k in pairs(PUBLIC_FIELDS) do
+        if bm[k] ~= nil then
+            out[k] = bm[k]
+        end
+    end
+    return ensure_tags_array(out)
+end
+
+local function load_public_bookmarks()
+    local user_bookmarks = _M.load_user_bookmarks()
+    local public_only = {}
+    for _, bm in ipairs(user_bookmarks) do
+        if bm.public == true then
+            table.insert(public_only, bm)
+        end
+    end
+    return public_only
+end
+
+-- GET /api/public/bookmarks — public list, no auth required
+function _M.list_public(args)
+    local params = args.params
+    local qParams = {}
+
+    if params == nil then
+        qParams = {
+            pagination = {
+                page = tonumber(args['pagination[page]']) or 1,
+                perPage = tonumber(args['pagination[perPage]']) or 100
+            },
+            sort = {
+                field = args['sort[field]'] or 'title',
+                order = args['sort[order]'] or 'ASC'
+            },
+            filter = {
+                q = args['filter[q]'] or nil,
+                category = args['filter[category]'] or nil,
+            }
+        }
+    else
+        qParams = cjson.decode(params)
+    end
+
+    local all_bookmarks = load_public_bookmarks()
+
+    if qParams.filter and qParams.filter.q and qParams.filter.q ~= "" then
+        local q = qParams.filter.q:lower()
+        local filtered = {}
+        for _, bm in ipairs(all_bookmarks) do
+            if (bm.title and bm.title:lower():find(q, 1, true))
+                or (bm.host and bm.host:lower():find(q, 1, true))
+                or (bm.description and bm.description:lower():find(q, 1, true))
+                or (bm.category and bm.category:lower():find(q, 1, true)) then
+                table.insert(filtered, bm)
+            end
+        end
+        all_bookmarks = filtered
+    end
+
+    if qParams.filter and qParams.filter.category and qParams.filter.category ~= "" then
+        local cat = qParams.filter.category
+        local filtered = {}
+        for _, bm in ipairs(all_bookmarks) do
+            if bm.category == cat then
+                table.insert(filtered, bm)
+            end
+        end
+        all_bookmarks = filtered
+    end
+
+    local sort_field = qParams.sort and qParams.sort.field or "title"
+    local sort_order = qParams.sort and qParams.sort.order or "ASC"
+
+    table.sort(all_bookmarks, function(a, b)
+        local va = a[sort_field] or ""
+        local vb = b[sort_field] or ""
+        if type(va) == "string" then va = va:lower() end
+        if type(vb) == "string" then vb = vb:lower() end
+        if sort_order == "DESC" then
+            return va > vb
+        else
+            return va < vb
+        end
+    end)
+
+    local total = #all_bookmarks
+    local page = qParams.pagination and qParams.pagination.page or 1
+    local perPage = qParams.pagination and qParams.pagination.perPage or 100
+    local startIdx = (page - 1) * perPage + 1
+    local endIdx = math.min(startIdx + perPage - 1, total)
+
+    -- Seed with the cjson empty-array sentinel so an empty result
+    -- serializes as `[]` not `{}` — otherwise the React frontend hits
+    -- `data.data.map` on an object and throws.
+    local page_data = empty_json_array()
+    for i = startIdx, endIdx do
+        if all_bookmarks[i] then
+            if page_data == cjson.empty_array then page_data = {} end
+            table.insert(page_data, strip_to_public(all_bookmarks[i]))
+        end
+    end
+
+    -- Cache for 60s — public list rarely changes and this softens any
+    -- traffic spike against the disk-backed bookmarks store.
+    ngx.header["Cache-Control"] = "public, max-age=60"
+    ngx.say(cjson.encode({
+        data = page_data,
+        total = total
+    }))
+end
+
+-- GET /api/public/bookmarks/{id} — public single bookmark
+function _M.get_public(_, id)
+    local all_bookmarks = load_public_bookmarks()
+    for _, bm in ipairs(all_bookmarks) do
+        if bm.id == id then
+            ngx.header["Cache-Control"] = "public, max-age=60"
+            return ngx.say(cjson.encode({ data = strip_to_public(bm) }))
+        end
+    end
+    ngx.status = 404
+    ngx.say(cjson.encode({ error = "Bookmark not found" }))
+end
+
 -- DELETE /api/bookmarks/{id} — remove user bookmark (reverts to lean)
-function _M.delete(args, id)
+function _M.delete(_, id)
     local user_bookmarks = _M.load_user_bookmarks()
 
     local new_bookmarks = {}
