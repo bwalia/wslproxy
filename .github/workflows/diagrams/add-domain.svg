@@ -1,0 +1,186 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1040" font-family="Inter, system-ui, -apple-system, sans-serif">
+  <defs>
+    <marker id="arrow-gray" markerWidth="10" markerHeight="10" refX="6" refY="3" orient="auto">
+      <polygon points="0 0, 6 3, 0 6" fill="#64748b"/>
+    </marker>
+    <marker id="arrow-green" markerWidth="10" markerHeight="10" refX="6" refY="3" orient="auto">
+      <polygon points="0 0, 6 3, 0 6" fill="#10b981"/>
+    </marker>
+    <marker id="arrow-purple" markerWidth="10" markerHeight="10" refX="6" refY="3" orient="auto">
+      <polygon points="0 0, 6 3, 0 6" fill="#a855f7"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="1040" fill="#0f172a"/>
+
+  <text x="600" y="40" fill="#f1f5f9" font-size="22" font-weight="700" text-anchor="middle">add-domain.yml — Add Domain to WSLProxy</text>
+  <text x="600" y="64" fill="#94a3b8" font-size="13" text-anchor="middle">Manual workflow that adds a single virtual host (and an optional proxy rule) via the admin API</text>
+  <line x1="40" y1="84" x2="1160" y2="84" stroke="#334155" stroke-width="1"/>
+
+  <!-- LEFT COLUMN: trigger + inputs -->
+  <rect x="40" y="100" width="320" height="50" rx="8" fill="#f59e0b"/>
+  <text x="200" y="125" fill="#0f172a" font-size="14" font-weight="700" text-anchor="middle">▶ Trigger: workflow_dispatch only</text>
+  <text x="200" y="142" fill="#0f172a" font-size="11" text-anchor="middle">No push events — manual run only</text>
+
+  <text x="40" y="180" fill="#f1f5f9" font-size="14" font-weight="700">Inputs</text>
+
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace">
+    <rect x="40" y="194" width="320" height="40" rx="6" fill="#1e293b" stroke="#3b82f6"/>
+    <text x="50" y="210" fill="#3b82f6" font-size="12" font-weight="700">API_SERVER</text>
+    <text x="50" y="226" fill="#94a3b8" font-size="10">required • string • default: int-api…wslproxy.com</text>
+
+    <rect x="40" y="240" width="320" height="40" rx="6" fill="#1e293b" stroke="#3b82f6"/>
+    <text x="50" y="256" fill="#3b82f6" font-size="12" font-weight="700">BEARER_TOKEN</text>
+    <text x="50" y="272" fill="#94a3b8" font-size="10">required • string • JWT for admin API</text>
+
+    <rect x="40" y="286" width="320" height="40" rx="6" fill="#1e293b" stroke="#3b82f6"/>
+    <text x="50" y="302" fill="#3b82f6" font-size="12" font-weight="700">DOMAIN</text>
+    <text x="50" y="318" fill="#94a3b8" font-size="10">required • FQDN to add (e.g. myapp.example.com)</text>
+
+    <rect x="40" y="332" width="320" height="40" rx="6" fill="#1e293b" stroke="#3b82f6"/>
+    <text x="50" y="348" fill="#3b82f6" font-size="12" font-weight="700">PROFILE_ID</text>
+    <text x="50" y="364" fill="#94a3b8" font-size="10">required • choice: prod | int | test | acc | dev | …</text>
+
+    <rect x="40" y="378" width="320" height="40" rx="6" fill="#1e293b" stroke="#10b981" stroke-dasharray="3,2"/>
+    <text x="50" y="394" fill="#10b981" font-size="12" font-weight="700">BACKEND</text>
+    <text x="50" y="410" fill="#94a3b8" font-size="10">optional • http(s) URL — triggers rule creation</text>
+
+    <text x="40" y="438" fill="#cbd5e1" font-size="11" font-weight="700" font-family="Inter, sans-serif">SSL options</text>
+
+    <rect x="40" y="446" width="155" height="38" rx="6" fill="#1e293b" stroke="#a855f7"/>
+    <text x="50" y="462" fill="#a855f7" font-size="11" font-weight="700">SSL_ENABLED</text>
+    <text x="50" y="476" fill="#94a3b8" font-size="9">bool • default false</text>
+
+    <rect x="205" y="446" width="155" height="38" rx="6" fill="#1e293b" stroke="#a855f7"/>
+    <text x="215" y="462" fill="#a855f7" font-size="11" font-weight="700">SSL_EMAIL</text>
+    <text x="215" y="476" fill="#94a3b8" font-size="9">required when SSL on</text>
+
+    <rect x="40" y="490" width="155" height="38" rx="6" fill="#1e293b" stroke="#a855f7"/>
+    <text x="50" y="506" fill="#a855f7" font-size="11" font-weight="700">SSL_FORCE_HTTPS</text>
+    <text x="50" y="520" fill="#94a3b8" font-size="9">bool • default true</text>
+
+    <rect x="205" y="490" width="155" height="38" rx="6" fill="#1e293b" stroke="#a855f7"/>
+    <text x="215" y="506" fill="#a855f7" font-size="11" font-weight="700">SSL_STAGING</text>
+    <text x="215" y="520" fill="#94a3b8" font-size="9">bool • default true (safety)</text>
+
+    <text x="40" y="552" fill="#cbd5e1" font-size="11" font-weight="700" font-family="Inter, sans-serif">Activation &amp; safety</text>
+
+    <rect x="40" y="560" width="155" height="38" rx="6" fill="#1e293b" stroke="#f97316"/>
+    <text x="50" y="576" fill="#f97316" font-size="11" font-weight="700">ACTIVATE_CONFIG</text>
+    <text x="50" y="590" fill="#94a3b8" font-size="9">bool • default false</text>
+
+    <rect x="205" y="560" width="155" height="38" rx="6" fill="#1e293b" stroke="#f97316"/>
+    <text x="215" y="576" fill="#f97316" font-size="11" font-weight="700">DRY_RUN</text>
+    <text x="215" y="590" fill="#94a3b8" font-size="9">bool • print payloads only</text>
+  </g>
+
+  <!-- RIGHT COLUMN: job/steps flow -->
+  <rect x="420" y="100" width="740" height="50" rx="8" fill="#1e293b" stroke="#475569"/>
+  <text x="790" y="125" fill="#f1f5f9" font-size="14" font-weight="700" text-anchor="middle">Job: add-domain</text>
+  <text x="790" y="142" fill="#94a3b8" font-size="11" text-anchor="middle">runs-on: ubuntu-latest</text>
+
+  <!-- Step 1 -->
+  <rect x="500" y="170" width="580" height="46" rx="6" fill="#334155" stroke="#64748b"/>
+  <text x="510" y="190" fill="#e2e8f0" font-size="13" font-weight="700">Step 1 · Install jq</text>
+  <text x="510" y="206" fill="#94a3b8" font-size="11" font-family="ui-monospace, monospace">apt-get install -y jq</text>
+  <line x1="790" y1="216" x2="790" y2="234" stroke="#64748b" stroke-width="2" marker-end="url(#arrow-gray)"/>
+
+  <!-- Step 2 -->
+  <rect x="500" y="234" width="580" height="76" rx="6" fill="#1e293b" stroke="#64748b"/>
+  <text x="510" y="254" fill="#e2e8f0" font-size="13" font-weight="700">Step 2 · Validate inputs</text>
+  <text x="510" y="272" fill="#94a3b8" font-size="11">• DOMAIN must match FQDN regex</text>
+  <text x="510" y="288" fill="#94a3b8" font-size="11">• SSL_EMAIL required when SSL_ENABLED=true</text>
+  <text x="510" y="304" fill="#94a3b8" font-size="11">• BACKEND must start with http:// or https://</text>
+  <line x1="790" y1="310" x2="790" y2="326" stroke="#64748b" stroke-width="2" marker-end="url(#arrow-gray)"/>
+
+  <!-- Conditional: BACKEND? -->
+  <polygon points="790,326 870,366 790,406 710,366" fill="#fbbf24" stroke="#f59e0b" stroke-width="2"/>
+  <text x="790" y="362" fill="#0f172a" font-size="11" font-weight="700" text-anchor="middle">BACKEND</text>
+  <text x="790" y="376" fill="#0f172a" font-size="11" font-weight="700" text-anchor="middle">provided?</text>
+
+  <!-- YES branch (left) -->
+  <line x1="710" y1="366" x2="540" y2="366" stroke="#10b981" stroke-width="2"/>
+  <line x1="540" y1="366" x2="540" y2="430" stroke="#10b981" stroke-width="2" marker-end="url(#arrow-green)"/>
+  <text x="620" y="358" fill="#10b981" font-size="11" font-weight="700" text-anchor="middle">yes</text>
+
+  <!-- Step 3 -->
+  <rect x="430" y="430" width="220" height="62" rx="6" fill="#064e3b" stroke="#10b981"/>
+  <text x="540" y="450" fill="#a7f3d0" font-size="12" font-weight="700" text-anchor="middle">Step 3 · Build rule</text>
+  <text x="540" y="466" fill="#86efac" font-size="10" text-anchor="middle">jq → rule JSON</text>
+  <text x="540" y="482" fill="#86efac" font-size="10" text-anchor="middle">priority=100, code=305, path=/</text>
+  <line x1="540" y1="492" x2="540" y2="512" stroke="#10b981" stroke-width="2" marker-end="url(#arrow-green)"/>
+
+  <!-- Step 4 -->
+  <rect x="410" y="512" width="260" height="80" rx="6" fill="#10b981"/>
+  <text x="540" y="532" fill="#0f172a" font-size="12" font-weight="700" text-anchor="middle">Step 4 · Create rule via API</text>
+  <text x="540" y="550" fill="#0f172a" font-size="11" font-family="ui-monospace, monospace" text-anchor="middle">POST /api/rules</text>
+  <text x="540" y="566" fill="#0f172a" font-size="10" text-anchor="middle">→ extracts rule_id from response</text>
+  <text x="540" y="582" fill="#0f172a" font-size="10" text-anchor="middle">(skipped if DRY_RUN=true)</text>
+  <line x1="540" y1="592" x2="540" y2="606" stroke="#10b981" stroke-width="2"/>
+  <line x1="540" y1="606" x2="788" y2="606" stroke="#10b981" stroke-width="2"/>
+
+  <!-- NO branch (right) -->
+  <line x1="870" y1="366" x2="1040" y2="366" stroke="#94a3b8" stroke-width="2"/>
+  <line x1="1040" y1="366" x2="1040" y2="606" stroke="#94a3b8" stroke-width="2"/>
+  <text x="950" y="358" fill="#cbd5e1" font-size="11" font-weight="700" text-anchor="middle">no — skip rule steps</text>
+  <line x1="1040" y1="606" x2="792" y2="606" stroke="#94a3b8" stroke-width="2"/>
+
+  <line x1="790" y1="606" x2="790" y2="630" stroke="#64748b" stroke-width="2" marker-end="url(#arrow-gray)"/>
+
+  <!-- Step 5 -->
+  <rect x="500" y="630" width="580" height="76" rx="6" fill="#312e81" stroke="#6366f1"/>
+  <text x="510" y="650" fill="#c7d2fe" font-size="13" font-weight="700">Step 5 · Build server payload</text>
+  <text x="510" y="668" fill="#a5b4fc" font-size="11">jq composes server JSON: server_name, profile_id, listens, ssl_*,</text>
+  <text x="510" y="684" fill="#a5b4fc" font-size="11">root, index, access/error logs, config_status, custom_headers</text>
+  <text x="510" y="700" fill="#a5b4fc" font-size="11">• adds rules: &lt;rule_id&gt; if Step 4 ran</text>
+  <line x1="790" y1="706" x2="790" y2="722" stroke="#64748b" stroke-width="2" marker-end="url(#arrow-gray)"/>
+
+  <!-- Conditional: DRY_RUN? -->
+  <polygon points="790,722 870,762 790,802 710,762" fill="#fbbf24" stroke="#f59e0b" stroke-width="2"/>
+  <text x="790" y="758" fill="#0f172a" font-size="11" font-weight="700" text-anchor="middle">DRY_RUN</text>
+  <text x="790" y="772" fill="#0f172a" font-size="11" font-weight="700" text-anchor="middle">=true?</text>
+
+  <!-- YES → Dry run summary -->
+  <line x1="710" y1="762" x2="540" y2="762" stroke="#a855f7" stroke-width="2"/>
+  <line x1="540" y1="762" x2="540" y2="780" stroke="#a855f7" stroke-width="2" marker-end="url(#arrow-purple)"/>
+  <text x="620" y="754" fill="#a855f7" font-size="11" font-weight="700" text-anchor="middle">yes</text>
+
+  <rect x="410" y="780" width="260" height="56" rx="6" fill="#581c87" stroke="#a855f7"/>
+  <text x="540" y="800" fill="#e9d5ff" font-size="12" font-weight="700" text-anchor="middle">Step 6 · Dry-run summary</text>
+  <text x="540" y="816" fill="#d8b4fe" font-size="10" text-anchor="middle">No API calls — print intent only</text>
+  <text x="540" y="830" fill="#d8b4fe" font-size="10" text-anchor="middle">(both rule + server payloads above)</text>
+
+  <!-- NO → Create server -->
+  <line x1="870" y1="762" x2="1040" y2="762" stroke="#10b981" stroke-width="2"/>
+  <text x="950" y="754" fill="#10b981" font-size="11" font-weight="700" text-anchor="middle">no</text>
+  <line x1="1040" y1="762" x2="1040" y2="800" stroke="#10b981" stroke-width="2" marker-end="url(#arrow-green)"/>
+
+  <rect x="900" y="800" width="280" height="92" rx="6" fill="#10b981"/>
+  <text x="1040" y="820" fill="#0f172a" font-size="12" font-weight="700" text-anchor="middle">Step 7 · Create server via API</text>
+  <text x="1040" y="838" fill="#0f172a" font-size="11" font-family="ui-monospace, monospace" text-anchor="middle">POST /api/servers</text>
+  <text x="1040" y="856" fill="#0f172a" font-size="10" text-anchor="middle">Backend writes JSON to disk +</text>
+  <text x="1040" y="870" fill="#0f172a" font-size="10" text-anchor="middle">conf/{server}.conf, runs `openresty -t`</text>
+  <text x="1040" y="884" fill="#0f172a" font-size="10" text-anchor="middle">(only activates if config_status=true)</text>
+
+  <!-- Legend -->
+  <line x1="40" y1="930" x2="1160" y2="930" stroke="#334155" stroke-width="1"/>
+  <text x="40" y="958" fill="#cbd5e1" font-size="12" font-weight="700">Legend</text>
+
+  <rect x="40" y="975" width="14" height="14" rx="3" fill="#3b82f6"/>
+  <text x="60" y="986" fill="#cbd5e1" font-size="11">required input</text>
+
+  <rect x="180" y="975" width="14" height="14" rx="3" fill="#10b981"/>
+  <text x="200" y="986" fill="#cbd5e1" font-size="11">API write call (POST)</text>
+
+  <polygon points="350,975 360,983 350,991 340,983" fill="#fbbf24" stroke="#f59e0b"/>
+  <text x="368" y="986" fill="#cbd5e1" font-size="11">conditional branch</text>
+
+  <rect x="500" y="975" width="14" height="14" rx="3" fill="#6366f1"/>
+  <text x="520" y="986" fill="#cbd5e1" font-size="11">data transform (jq)</text>
+
+  <rect x="650" y="975" width="14" height="14" rx="3" fill="#a855f7"/>
+  <text x="670" y="986" fill="#cbd5e1" font-size="11">SSL / dry-run path</text>
+
+  <rect x="800" y="975" width="14" height="14" rx="3" fill="#f97316"/>
+  <text x="820" y="986" fill="#cbd5e1" font-size="11">safety toggle</text>
+</svg>
