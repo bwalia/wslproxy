@@ -1,0 +1,249 @@
+name: Add Domain to WSLProxy
+
+# Adds a single virtual host (domain) to a wslproxy environment via the admin API.
+# Optionally creates a proxy rule pointing at a backend and links it to the server.
+#
+# Manual dispatch only — never wired to push events. The server is created with
+# config_status=false by default so it does not go live until reviewed in the UI.
+
+on:
+  workflow_dispatch:
+    inputs:
+      API_SERVER:
+        description: "Admin API base URL (e.g. https://int-api-controlplane.wslproxy.com)"
+        required: true
+        default: "https://int-api-controlplane.wslproxy.com"
+        type: string
+
+      BEARER_TOKEN:
+        description: "JWT bearer token (POST /api/user/login on the target API to get one)"
+        required: true
+        type: string
+
+      DOMAIN:
+        description: "Fully qualified domain to add (e.g. myapp.example.com)"
+        required: true
+        type: string
+
+      PROFILE_ID:
+        description: "Environment profile this server belongs to"
+        required: true
+        default: "int"
+        type: choice
+        options:
+          - prod
+          - int
+          - test
+          - acc
+          - dev
+          - diytaxreturn
+
+      BACKEND:
+        description: "Optional backend to proxy to (e.g. http://10.0.0.5:8080). If set, a 305 proxy rule is created and linked."
+        required: false
+        type: string
+
+      SSL_ENABLED:
+        description: "Enable Let's Encrypt SSL for this domain"
+        required: true
+        default: false
+        type: boolean
+
+      SSL_EMAIL:
+        description: "Email used for ACME registration (required when SSL_ENABLED=true)"
+        required: false
+        type: string
+
+      SSL_FORCE_HTTPS:
+        description: "Redirect plain HTTP to HTTPS (only meaningful when SSL_ENABLED=true)"
+        required: false
+        default: true
+        type: boolean
+
+      SSL_STAGING:
+        description: "Use Let's Encrypt staging directory (recommended for first try)"
+        required: false
+        default: true
+        type: boolean
+
+      ACTIVATE_CONFIG:
+        description: "Set config_status=true so the server's nginx conf is written to /opt/nginx/conf.d and reload is triggered. Leave false to stage and review in the admin UI first."
+        required: false
+        default: false
+        type: boolean
+
+      DRY_RUN:
+        description: "Print the JSON payloads without calling the API"
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  add-domain:
+    name: "Add ${{ inputs.DOMAIN }} to ${{ inputs.PROFILE_ID }}"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install jq
+        run: sudo apt-get update -qq && sudo apt-get install -y jq
+
+      - name: Validate inputs
+        run: |
+          set -euo pipefail
+          DOMAIN="${{ inputs.DOMAIN }}"
+          if ! [[ "$DOMAIN" =~ ^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$ ]]; then
+            echo "::error::DOMAIN '$DOMAIN' is not a valid FQDN"
+            exit 1
+          fi
+          if [[ "${{ inputs.SSL_ENABLED }}" == "true" && -z "${{ inputs.SSL_EMAIL }}" ]]; then
+            echo "::error::SSL_EMAIL is required when SSL_ENABLED=true"
+            exit 1
+          fi
+          if [[ -n "${{ inputs.BACKEND }}" ]] && ! [[ "${{ inputs.BACKEND }}" =~ ^https?:// ]]; then
+            echo "::error::BACKEND must start with http:// or https://"
+            exit 1
+          fi
+
+      - name: Build rule payload (only if BACKEND provided)
+        id: rule
+        if: inputs.BACKEND != ''
+        run: |
+          set -euo pipefail
+          RULE_NAME="${{ inputs.DOMAIN }}-default-proxy"
+          # Slug-safe name (lowercase, dots/colons → dashes)
+          RULE_NAME_SLUG="$(echo "$RULE_NAME" | tr '[:upper:]' '[:lower:]' | tr ':.' '-')"
+          RULE_JSON=$(jq -n \
+            --arg name "$RULE_NAME_SLUG" \
+            --arg profile "${{ inputs.PROFILE_ID }}" \
+            --arg backend "${{ inputs.BACKEND }}" \
+            '{
+              name: $name,
+              priority: 100,
+              profile_id: $profile,
+              match: {
+                rules: { path: "/", path_key: "starts_with" },
+                response: {
+                  code: 305,
+                  redirect_uri: $backend
+                }
+              },
+              _schema_version: 2
+            }')
+          echo "rule_name=$RULE_NAME_SLUG" >> "$GITHUB_OUTPUT"
+          {
+            echo 'rule_json<<RULE_EOF'
+            echo "$RULE_JSON"
+            echo 'RULE_EOF'
+          } >> "$GITHUB_OUTPUT"
+          echo "Rule payload:"
+          echo "$RULE_JSON" | jq .
+
+      - name: Create rule via API
+        id: create_rule
+        if: inputs.BACKEND != '' && inputs.DRY_RUN != true
+        env:
+          API_SERVER: ${{ inputs.API_SERVER }}
+          BEARER_TOKEN: ${{ inputs.BEARER_TOKEN }}
+          RULE_JSON: ${{ steps.rule.outputs.rule_json }}
+        run: |
+          set -euo pipefail
+          RESP=$(curl -sS -w "\n%{http_code}" -X POST "${API_SERVER%/}/api/rules" \
+            -H "Authorization: Bearer $BEARER_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data-raw "$RULE_JSON")
+          BODY="$(echo "$RESP" | sed '$d')"
+          CODE="$(echo "$RESP" | tail -n1)"
+          echo "HTTP $CODE"
+          echo "$BODY"
+          if [[ "$CODE" != "200" && "$CODE" != "201" ]]; then
+            echo "::error::Rule creation failed (HTTP $CODE)"
+            exit 1
+          fi
+          RULE_ID=$(echo "$BODY" | jq -r '.data.id // .id // empty')
+          if [[ -z "$RULE_ID" ]]; then
+            echo "::error::Could not extract rule id from response"
+            exit 1
+          fi
+          echo "rule_id=$RULE_ID" >> "$GITHUB_OUTPUT"
+          echo "Created rule id: $RULE_ID"
+
+      - name: Build server payload
+        id: server
+        env:
+          RULE_ID: ${{ steps.create_rule.outputs.rule_id }}
+        run: |
+          set -euo pipefail
+          # Listener: SSL → 443 ssl, otherwise 80
+          if [[ "${{ inputs.SSL_ENABLED }}" == "true" ]]; then
+            LISTEN_VAL="443 ssl"
+          else
+            LISTEN_VAL="80"
+          fi
+          SERVER_JSON=$(jq -n \
+            --arg server_name "${{ inputs.DOMAIN }}" \
+            --arg profile_id "${{ inputs.PROFILE_ID }}" \
+            --arg listen "$LISTEN_VAL" \
+            --arg ssl_email "${{ inputs.SSL_EMAIL }}" \
+            --argjson ssl_enabled ${{ inputs.SSL_ENABLED }} \
+            --argjson ssl_force_https ${{ inputs.SSL_FORCE_HTTPS }} \
+            --argjson ssl_staging ${{ inputs.SSL_STAGING }} \
+            --argjson config_status ${{ inputs.ACTIVATE_CONFIG }} \
+            --arg rules "${RULE_ID:-}" \
+            '{
+              server_name: $server_name,
+              proxy_server_name: $server_name,
+              profile_id: $profile_id,
+              root: "/var/www/html",
+              index: "index.html",
+              access_log: "logs/access.log",
+              error_log: "logs/error.log",
+              listens: [ { listen: $listen } ],
+              config_status: $config_status,
+              ssl_enabled: $ssl_enabled,
+              ssl_force_https: $ssl_force_https,
+              ssl_auto_renew: true,
+              ssl_staging: $ssl_staging,
+              ssl_email: $ssl_email,
+              cache_enabled: false,
+              custom_headers: [],
+              match_cases: {}
+            }
+            | if $rules == "" then . else . + { rules: $rules } end')
+          {
+            echo 'server_json<<SERVER_EOF'
+            echo "$SERVER_JSON"
+            echo 'SERVER_EOF'
+          } >> "$GITHUB_OUTPUT"
+          echo "Server payload:"
+          echo "$SERVER_JSON" | jq .
+
+      - name: Dry run summary
+        if: inputs.DRY_RUN == true
+        run: |
+          echo "DRY_RUN=true → no API calls were made."
+          echo "Would POST the rule above to ${{ inputs.API_SERVER }}/api/rules (if BACKEND set)."
+          echo "Would POST the server above to ${{ inputs.API_SERVER }}/api/servers."
+
+      - name: Create server via API
+        if: inputs.DRY_RUN != true
+        env:
+          API_SERVER: ${{ inputs.API_SERVER }}
+          BEARER_TOKEN: ${{ inputs.BEARER_TOKEN }}
+          SERVER_JSON: ${{ steps.server.outputs.server_json }}
+        run: |
+          set -euo pipefail
+          RESP=$(curl -sS -w "\n%{http_code}" -X POST "${API_SERVER%/}/api/servers" \
+            -H "Authorization: Bearer $BEARER_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data-raw "$SERVER_JSON")
+          BODY="$(echo "$RESP" | sed '$d')"
+          CODE="$(echo "$RESP" | tail -n1)"
+          echo "HTTP $CODE"
+          echo "$BODY"
+          if [[ "$CODE" != "200" && "$CODE" != "201" ]]; then
+            echo "::error::Server creation failed (HTTP $CODE)"
+            exit 1
+          fi
+          echo "::notice::Created server host:${{ inputs.DOMAIN }} in profile ${{ inputs.PROFILE_ID }}"
+          if [[ "${{ inputs.ACTIVATE_CONFIG }}" != "true" ]]; then
+            echo "::notice::config_status=false — open the admin UI, review the generated nginx config, then save with 'Activate' to apply."
+          fi

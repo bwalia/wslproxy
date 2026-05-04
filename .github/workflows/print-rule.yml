@@ -1,0 +1,102 @@
+name: Print WSLProxy Rule by ID
+
+# Fetches a single rule from a wslproxy environment via the admin API
+# and prints both a pretty-printed summary and the raw JSON.
+
+on:
+  workflow_dispatch:
+    inputs:
+      API_SERVER:
+        description: "Admin API base URL (e.g. https://int-api-controlplane.wslproxy.com)"
+        required: true
+        default: "https://int-api-controlplane.wslproxy.com"
+        type: string
+
+      BEARER_TOKEN:
+        description: "JWT bearer token (POST /api/user/login on the target API to get one)"
+        required: true
+        type: string
+
+      RULE_ID:
+        description: "Rule UUID to fetch (the id returned by POST /api/rules)"
+        required: true
+        type: string
+
+      PROFILE_ID:
+        description: "Environment profile the rule lives in"
+        required: true
+        default: "int"
+        type: choice
+        options:
+          - prod
+          - int
+          - test
+          - acc
+          - dev
+          - diytaxreturn
+
+jobs:
+  print-rule:
+    name: "Print rule ${{ inputs.RULE_ID }} (${{ inputs.PROFILE_ID }})"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install jq
+        run: sudo apt-get update -qq && sudo apt-get install -y jq
+
+      - name: Fetch rule
+        env:
+          API_SERVER: ${{ inputs.API_SERVER }}
+          BEARER_TOKEN: ${{ inputs.BEARER_TOKEN }}
+          RULE_ID: ${{ inputs.RULE_ID }}
+          PROFILE_ID: ${{ inputs.PROFILE_ID }}
+        run: |
+          set -euo pipefail
+          URL="${API_SERVER%/}/api/rules/${RULE_ID}?envprofile=${PROFILE_ID}"
+          echo "GET $URL"
+          RESP=$(curl -sS -w "\n%{http_code}" "$URL" \
+            -H "Authorization: Bearer $BEARER_TOKEN" \
+            -H "Accept: application/json")
+          BODY="$(echo "$RESP" | sed '$d')"
+          CODE="$(echo "$RESP" | tail -n1)"
+          echo "HTTP $CODE"
+          if [[ "$CODE" != "200" ]]; then
+            echo "::error::Rule fetch failed (HTTP $CODE)"
+            echo "$BODY"
+            exit 1
+          fi
+          # The Lua handler can wrap the rule in {data: {...}} or return it bare;
+          # accept both shapes.
+          RULE=$(echo "$BODY" | jq -c '.data // .')
+          if [[ -z "$RULE" || "$RULE" == "null" ]]; then
+            echo "::error::No rule found for id '$RULE_ID' in profile '$PROFILE_ID'"
+            exit 1
+          fi
+
+          {
+            echo "## Rule \`${RULE_ID}\` (profile \`${PROFILE_ID}\`)"
+            echo ""
+            echo "| Field | Value |"
+            echo "| --- | --- |"
+            echo "| name | $(echo "$RULE" | jq -r '.name // "—"') |"
+            echo "| priority | $(echo "$RULE" | jq -r '.priority // "—"') |"
+            echo "| profile_id | $(echo "$RULE" | jq -r '.profile_id // "—"') |"
+            echo "| schema | v$(echo "$RULE" | jq -r '._schema_version // 1') |"
+            echo "| created_at | $(echo "$RULE" | jq -r '.created_at // "—"') |"
+            echo "| match.path | $(echo "$RULE" | jq -r '.match.rules.path // "—"') ($(echo "$RULE" | jq -r '.match.rules.path_key // "—"')) |"
+            echo "| match.country | $(echo "$RULE" | jq -r '.match.rules.country // "—"') |"
+            echo "| match.client_ip | $(echo "$RULE" | jq -r '.match.rules.client_ip // "—"') |"
+            echo "| response.code | $(echo "$RULE" | jq -r '.match.response.code // "—"') |"
+            echo "| response.redirect_uri | $(echo "$RULE" | jq -r '.match.response.redirect_uri // "—"') |"
+            echo "| response.backends | $(echo "$RULE" | jq -r '(.match.response.backends // []) | length') |"
+            echo "| linked servers | $(echo "$RULE" | jq -r '(.servers // []) | join(", ") // "—"') |"
+            echo ""
+            echo "### Raw JSON"
+            echo ""
+            echo '```json'
+            echo "$RULE" | jq .
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo ""
+          echo "─────── Rule JSON ───────"
+          echo "$RULE" | jq .
