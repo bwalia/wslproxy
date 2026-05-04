@@ -1,0 +1,264 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 1080" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif">
+  <defs>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#0f172a" flood-opacity="0.10"/>
+    </filter>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b"/>
+    </marker>
+    <marker id="arrowConditional" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#f59e0b"/>
+    </marker>
+    <marker id="arrowApi" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#f43f5e"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1280" height="1080" fill="#f8fafc"/>
+
+  <!-- ─── Header ─────────────────────────────────────────────── -->
+  <text x="40" y="48" font-size="22" font-weight="700" fill="#0f172a">Data Plane · Push Rules and Servers to Environment</text>
+  <text x="40" y="72" font-size="13" font-family="ui-monospace, 'SF Mono', Menlo, monospace" fill="#64748b">.github/workflows/data-plane-push-servers-rules.yml</text>
+  <text x="40" y="92" font-size="12" fill="#64748b">Manual one-shot job that imports server + rule JSON files into a control-plane API,
+    optionally wiping the target environment first.</text>
+
+  <!-- ─── 1. Triggers ─────────────────────────────────────────── -->
+  <g transform="translate(40, 130)">
+    <rect width="600" height="120" rx="10" fill="#ffffff" stroke="#e2e8f0" filter="url(#shadow)"/>
+    <rect width="600" height="32" rx="10" fill="#eef2ff"/>
+    <rect y="22" width="600" height="10" fill="#eef2ff"/>
+    <text x="16" y="22" font-size="12" font-weight="700" fill="#4338ca" letter-spacing="0.06em">① TRIGGERS</text>
+
+    <!-- push trigger (no-op) -->
+    <g transform="translate(20, 48)">
+      <rect width="260" height="60" rx="8" fill="#fafafa" stroke="#cbd5e1" stroke-dasharray="4 3"/>
+      <text x="14" y="22" font-size="13" font-weight="600" fill="#475569">push</text>
+      <text x="14" y="42" font-size="12" fill="#64748b" font-family="ui-monospace, 'SF Mono', Menlo, monospace">branches: [dummy]</text>
+      <text x="14" y="56" font-size="10" fill="#94a3b8" font-style="italic">no-op — branch never exists</text>
+    </g>
+
+    <!-- workflow_dispatch -->
+    <g transform="translate(300, 48)">
+      <rect width="280" height="60" rx="8" fill="#eef2ff" stroke="#6366f1" stroke-width="1.5"/>
+      <text x="14" y="22" font-size="13" font-weight="600" fill="#4338ca">workflow_dispatch</text>
+      <text x="14" y="42" font-size="12" fill="#475569">manual run from the Actions tab</text>
+      <text x="14" y="56" font-size="11" fill="#6366f1" font-weight="600">▼ accepts 5 inputs</text>
+    </g>
+  </g>
+
+  <!-- ─── 2. Inputs ───────────────────────────────────────────── -->
+  <g transform="translate(40, 280)">
+    <rect width="780" height="190" rx="10" fill="#ffffff" stroke="#e2e8f0" filter="url(#shadow)"/>
+    <rect width="780" height="32" rx="10" fill="#ecfdf5"/>
+    <rect y="22" width="780" height="10" fill="#ecfdf5"/>
+    <text x="16" y="22" font-size="12" font-weight="700" fill="#047857" letter-spacing="0.06em">② INPUTS (workflow_dispatch)</text>
+
+    <!-- input rows -->
+    <g font-size="12">
+      <g transform="translate(20, 50)">
+        <circle cx="6" cy="6" r="6" fill="#10b981"/>
+        <text x="20" y="10" font-weight="700" fill="#0f172a">API_SERVER</text>
+        <text x="140" y="10" fill="#475569">string · required</text>
+        <text x="280" y="10" font-family="ui-monospace, 'SF Mono', Menlo, monospace" fill="#64748b">default: https://int-api-controlplane.wslproxy.com</text>
+      </g>
+      <g transform="translate(20, 75)">
+        <circle cx="6" cy="6" r="6" fill="#10b981"/>
+        <text x="20" y="10" font-weight="700" fill="#0f172a">BEARER_TOKEN</text>
+        <text x="140" y="10" fill="#475569">string · required</text>
+        <text x="280" y="10" fill="#64748b">JWT for the control-plane Authorization header</text>
+      </g>
+      <g transform="translate(20, 100)">
+        <circle cx="6" cy="6" r="6" fill="#10b981"/>
+        <text x="20" y="10" font-weight="700" fill="#0f172a">SERVER_FILE_PATH</text>
+        <text x="140" y="10" fill="#475569">string · required</text>
+        <text x="280" y="10" fill="#64748b">repo-relative path to a servers JSON file</text>
+      </g>
+      <g transform="translate(20, 125)">
+        <circle cx="6" cy="6" r="6" fill="#10b981"/>
+        <text x="20" y="10" font-weight="700" fill="#0f172a">RULES_FILE_PATH</text>
+        <text x="140" y="10" fill="#475569">string · required</text>
+        <text x="280" y="10" fill="#64748b">repo-relative path to a rules JSON file</text>
+      </g>
+      <g transform="translate(20, 150)">
+        <circle cx="6" cy="6" r="6" fill="#f59e0b"/>
+        <text x="20" y="10" font-weight="700" fill="#0f172a">DELETE_EXISTS_DATA</text>
+        <text x="140" y="10" fill="#475569">boolean · required</text>
+        <text x="280" y="10" font-family="ui-monospace, 'SF Mono', Menlo, monospace" fill="#64748b">default: false</text>
+        <text x="430" y="10" fill="#b45309" font-style="italic">⚠ when true, wipes target before import</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- ─── 3. env block ─────────────────────────────────────────── -->
+  <g transform="translate(40, 500)">
+    <rect width="780" height="60" rx="10" fill="#fffbeb" stroke="#fcd34d" stroke-width="1"/>
+    <text x="16" y="24" font-size="12" font-weight="700" fill="#b45309" letter-spacing="0.06em">③ ENV (job-scoped)</text>
+    <text x="16" y="46" font-size="12" fill="#78350f" font-family="ui-monospace, 'SF Mono', Menlo, monospace">
+      API_SERVER · BEARER_TOKEN · SERVER_FILE_PATH · RULES_FILE_PATH · DELETE_EXISTS_DATA  (1:1 mapping from inputs)
+    </text>
+  </g>
+
+  <!-- arrow inputs → env -->
+  <line x1="430" y1="470" x2="430" y2="498" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- ─── 4. Job box ───────────────────────────────────────────── -->
+  <g transform="translate(40, 600)">
+    <rect width="780" height="430" rx="10" fill="#ffffff" stroke="#e2e8f0" filter="url(#shadow)"/>
+    <rect width="780" height="32" rx="10" fill="#f5f3ff"/>
+    <rect y="22" width="780" height="10" fill="#f5f3ff"/>
+    <text x="16" y="22" font-size="12" font-weight="700" fill="#6d28d9" letter-spacing="0.06em">④ JOB · build · runs-on: ubuntu-latest</text>
+
+    <!-- Step 1 -->
+    <g transform="translate(20, 48)">
+      <rect width="740" height="50" rx="8" fill="#faf5ff" stroke="#c4b5fd"/>
+      <circle cx="22" cy="25" r="14" fill="#8b5cf6"/>
+      <text x="22" y="29" font-size="13" font-weight="700" fill="#ffffff" text-anchor="middle">1</text>
+      <text x="46" y="22" font-size="13" font-weight="700" fill="#0f172a">Checkout code</text>
+      <text x="46" y="40" font-size="11" fill="#64748b" font-family="ui-monospace, 'SF Mono', Menlo, monospace">uses: actions/checkout@v5</text>
+    </g>
+
+    <!-- Step 2 (conditional) -->
+    <g transform="translate(20, 108)">
+      <rect width="740" height="68" rx="8" fill="#fffbeb" stroke="#f59e0b" stroke-dasharray="6 3"/>
+      <circle cx="22" cy="25" r="14" fill="#f59e0b"/>
+      <text x="22" y="29" font-size="13" font-weight="700" fill="#ffffff" text-anchor="middle">2</text>
+      <text x="46" y="22" font-size="13" font-weight="700" fill="#0f172a">Conditionally Delete Existing Servers</text>
+      <text x="46" y="40" font-size="11" fill="#92400e" font-family="ui-monospace, 'SF Mono', Menlo, monospace">if: inputs.DELETE_EXISTS_DATA == 'true'</text>
+      <text x="46" y="58" font-size="11" fill="#475569" font-family="ui-monospace, 'SF Mono', Menlo, monospace">curl DELETE  $API_SERVER/api/delete/all   body: {"type":"servers"}</text>
+    </g>
+
+    <!-- Step 3 (conditional) -->
+    <g transform="translate(20, 186)">
+      <rect width="740" height="68" rx="8" fill="#fffbeb" stroke="#f59e0b" stroke-dasharray="6 3"/>
+      <circle cx="22" cy="25" r="14" fill="#f59e0b"/>
+      <text x="22" y="29" font-size="13" font-weight="700" fill="#ffffff" text-anchor="middle">3</text>
+      <text x="46" y="22" font-size="13" font-weight="700" fill="#0f172a">Conditionally Delete Existing Rules</text>
+      <text x="46" y="40" font-size="11" fill="#92400e" font-family="ui-monospace, 'SF Mono', Menlo, monospace">if: inputs.DELETE_EXISTS_DATA == 'true'</text>
+      <text x="46" y="58" font-size="11" fill="#475569" font-family="ui-monospace, 'SF Mono', Menlo, monospace">curl DELETE  $API_SERVER/api/delete/all   body: {"type":"rules"}</text>
+    </g>
+
+    <!-- Step 4 -->
+    <g transform="translate(20, 264)">
+      <rect width="740" height="68" rx="8" fill="#ecfdf5" stroke="#10b981"/>
+      <circle cx="22" cy="25" r="14" fill="#10b981"/>
+      <text x="22" y="29" font-size="13" font-weight="700" fill="#ffffff" text-anchor="middle">4</text>
+      <text x="46" y="22" font-size="13" font-weight="700" fill="#0f172a">Push Servers</text>
+      <text x="46" y="40" font-size="11" fill="#475569" font-family="ui-monospace, 'SF Mono', Menlo, monospace">jq wraps file → {data: [...], dataType: "server"}</text>
+      <text x="46" y="58" font-size="11" fill="#475569" font-family="ui-monospace, 'SF Mono', Menlo, monospace">curl POST  $API_SERVER/api/projects/import?_format=json</text>
+    </g>
+
+    <!-- Step 5 -->
+    <g transform="translate(20, 342)">
+      <rect width="740" height="68" rx="8" fill="#ecfdf5" stroke="#10b981"/>
+      <circle cx="22" cy="25" r="14" fill="#10b981"/>
+      <text x="22" y="29" font-size="13" font-weight="700" fill="#ffffff" text-anchor="middle">5</text>
+      <text x="46" y="22" font-size="13" font-weight="700" fill="#0f172a">Push Rules</text>
+      <text x="46" y="40" font-size="11" fill="#475569" font-family="ui-monospace, 'SF Mono', Menlo, monospace">jq wraps file → {data: [...], dataType: "rules"}</text>
+      <text x="46" y="58" font-size="11" fill="#475569" font-family="ui-monospace, 'SF Mono', Menlo, monospace">curl POST  $API_SERVER/api/projects/import?_format=json</text>
+    </g>
+  </g>
+
+  <!-- ─── 5. Target API (right column) ──────────────────────── -->
+  <g transform="translate(860, 130)">
+    <rect width="380" height="900" rx="10" fill="#ffffff" stroke="#e2e8f0" filter="url(#shadow)"/>
+    <rect width="380" height="32" rx="10" fill="#fff1f2"/>
+    <rect y="22" width="380" height="10" fill="#fff1f2"/>
+    <text x="16" y="22" font-size="12" font-weight="700" fill="#be123c" letter-spacing="0.06em">⑤ TARGET · CONTROL-PLANE API</text>
+
+    <!-- API Server -->
+    <g transform="translate(16, 50)">
+      <text font-size="12" fill="#475569">Authority — value of</text>
+      <text x="0" y="20" font-size="12" font-weight="700" fill="#0f172a" font-family="ui-monospace, 'SF Mono', Menlo, monospace">env.API_SERVER</text>
+      <text x="0" y="42" font-size="11" fill="#64748b">Default points to the int control-plane;</text>
+      <text x="0" y="56" font-size="11" fill="#64748b">override per-run via the input.</text>
+    </g>
+
+    <!-- Auth -->
+    <g transform="translate(16, 130)">
+      <rect width="350" height="62" rx="8" fill="#f8fafc" stroke="#cbd5e1"/>
+      <text x="12" y="20" font-size="12" font-weight="700" fill="#0f172a">Auth</text>
+      <text x="12" y="38" font-size="11" font-family="ui-monospace, 'SF Mono', Menlo, monospace" fill="#475569">Authorization: Bearer $BEARER_TOKEN</text>
+      <text x="12" y="54" font-size="10" fill="#64748b">Same JWT verified by the gateway's nginx auth block.</text>
+    </g>
+
+    <!-- Endpoints used -->
+    <text x="16" y="220" font-size="12" font-weight="700" fill="#0f172a" letter-spacing="0.04em">ENDPOINTS HIT</text>
+
+    <!-- DELETE endpoint -->
+    <g transform="translate(16, 232)">
+      <rect width="350" height="106" rx="8" fill="#fef2f2" stroke="#fca5a5"/>
+      <text x="12" y="22" font-size="12" font-weight="700" fill="#b91c1c">DELETE  /api/delete/all</text>
+      <text x="12" y="42" font-size="11" fill="#7f1d1d">Used by steps 2 + 3 when DELETE_EXISTS_DATA is true.</text>
+      <text x="12" y="60" font-size="10" font-family="ui-monospace, 'SF Mono', Menlo, monospace" fill="#7f1d1d">x-special-case-pre-action:</text>
+      <text x="12" y="74" font-size="10" font-family="ui-monospace, 'SF Mono', Menlo, monospace" fill="#7f1d1d">  pre-release-delete-all-override</text>
+      <text x="12" y="92" font-size="10" font-family="ui-monospace, 'SF Mono', Menlo, monospace" fill="#7f1d1d">body: {"type": "servers" | "rules"}</text>
+    </g>
+
+    <!-- POST endpoint -->
+    <g transform="translate(16, 360)">
+      <rect width="350" height="120" rx="8" fill="#ecfdf5" stroke="#6ee7b7"/>
+      <text x="12" y="22" font-size="12" font-weight="700" fill="#047857">POST  /api/projects/import?_format=json</text>
+      <text x="12" y="42" font-size="11" fill="#065f46">Used by steps 4 + 5 — the actual import.</text>
+      <text x="12" y="62" font-size="10" font-family="ui-monospace, 'SF Mono', Menlo, monospace" fill="#065f46">body shape (built by jq -c):</text>
+      <text x="12" y="78" font-size="10" font-family="ui-monospace, 'SF Mono', Menlo, monospace" fill="#065f46">  {</text>
+      <text x="12" y="92" font-size="10" font-family="ui-monospace, 'SF Mono', Menlo, monospace" fill="#065f46">    "data": &lt;parsed JSON file content&gt;,</text>
+      <text x="12" y="106" font-size="10" font-family="ui-monospace, 'SF Mono', Menlo, monospace" fill="#065f46">    "dataType": "server" | "rules"</text>
+    </g>
+
+    <!-- Execution order -->
+    <text x="16" y="510" font-size="12" font-weight="700" fill="#0f172a" letter-spacing="0.04em">ORDER OF EXECUTION</text>
+    <g transform="translate(16, 522)" font-size="11" fill="#475569">
+      <text y="14">1.  checkout repo</text>
+      <text y="32">2.  delete servers   ← only if flag true</text>
+      <text y="50">3.  delete rules     ← only if flag true</text>
+      <text y="68">4.  POST servers JSON</text>
+      <text y="86">5.  POST rules JSON</text>
+      <text y="108" fill="#94a3b8" font-style="italic">No fail-fast — each step runs even if the</text>
+      <text y="120" fill="#94a3b8" font-style="italic">previous one returned a non-2xx response,</text>
+      <text y="132" fill="#94a3b8" font-style="italic">because curl exit code is the only signal.</text>
+    </g>
+
+    <!-- Bug-watch -->
+    <g transform="translate(16, 690)">
+      <rect width="350" height="190" rx="8" fill="#fef9c3" stroke="#facc15"/>
+      <text x="12" y="22" font-size="12" font-weight="700" fill="#854d0e">⚠ KNOWN ISSUES IN THIS WORKFLOW</text>
+      <text x="12" y="44" font-size="11" font-family="ui-monospace, 'SF Mono', Menlo, monospace" fill="#713f12">L56, L68:  ${{ env.API_SERVER }}}/api/...</text>
+      <text x="12" y="58" font-size="10" fill="#854d0e">Extra `}` produces a malformed URL on every</text>
+      <text x="12" y="70" font-size="10" fill="#854d0e">DELETE call.</text>
+      <text x="12" y="92" font-size="11" font-family="ui-monospace, 'SF Mono', Menlo, monospace" fill="#713f12">L57-60, L69-72</text>
+      <text x="12" y="106" font-size="10" fill="#854d0e">Missing `\` line continuations: the second</text>
+      <text x="12" y="118" font-size="10" fill="#854d0e">and following `-H` / `-d` flags become</text>
+      <text x="12" y="130" font-size="10" fill="#854d0e">separate shell commands, not curl args.</text>
+      <text x="12" y="152" font-size="11" font-family="ui-monospace, 'SF Mono', Menlo, monospace" fill="#713f12">L52, L64:  == 'true'</text>
+      <text x="12" y="166" font-size="10" fill="#854d0e">DELETE_EXISTS_DATA is declared as `boolean`</text>
+      <text x="12" y="178" font-size="10" fill="#854d0e">but compared as a string — checkbox value</text>
+    </g>
+  </g>
+
+  <!-- ─── Flow arrows ────────────────────────────────────────── -->
+  <!-- workflow_dispatch (in triggers box) → inputs box -->
+  <line x1="440" y1="250" x2="440" y2="278" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- env → job box -->
+  <line x1="430" y1="560" x2="430" y2="598" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Step 2 → DELETE endpoint (right side) -->
+  <path d="M 800 743 C 840 743 840 285 880 285" fill="none" stroke="#f43f5e" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arrowApi)"/>
+  <!-- Step 3 → DELETE endpoint -->
+  <path d="M 800 821 C 850 821 850 305 880 305" fill="none" stroke="#f43f5e" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arrowApi)"/>
+  <!-- Step 4 → POST endpoint -->
+  <path d="M 800 899 C 850 899 850 540 880 540" fill="none" stroke="#10b981" stroke-width="1.5" marker-end="url(#arrowApi)"/>
+  <!-- Step 5 → POST endpoint -->
+  <path d="M 800 977 C 855 977 855 565 880 565" fill="none" stroke="#10b981" stroke-width="1.5" marker-end="url(#arrowApi)"/>
+
+  <!-- Legend -->
+  <g transform="translate(40, 1040)" font-size="11" fill="#64748b">
+    <rect x="0" y="0" width="14" height="10" rx="2" fill="#10b981"/>
+    <text x="20" y="9">solid border = unconditional step</text>
+    <rect x="220" y="0" width="14" height="10" rx="2" fill="#fffbeb" stroke="#f59e0b" stroke-dasharray="4 2"/>
+    <text x="240" y="9">dashed amber = conditional (DELETE_EXISTS_DATA)</text>
+    <rect x="560" y="0" width="14" height="10" rx="2" fill="#fafafa" stroke="#cbd5e1" stroke-dasharray="4 3"/>
+    <text x="580" y="9">dashed gray = effectively dead (push: dummy)</text>
+  </g>
+</svg>

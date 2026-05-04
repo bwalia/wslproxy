@@ -1,4 +1,4 @@
-name: Add Rules and Servers to Environment
+name: Data Plane - Push Rules and Servers to Environment From Github.
 
 on:
   push:
