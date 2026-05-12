@@ -10,6 +10,7 @@ import { Sun, Moon, Settings, CircleUser, LogOut, KeyRound } from "lucide-react"
 import ProfileSwitcher from "./ProfileSwitcher";
 import SyncButton from "./SyncButton";
 import StorageSelector from "./StorageSelector";
+import ApiHealthIndicator from "./ApiHealthIndicator";
 
 interface AppBarProps {
   sidebarCollapsed: boolean;
@@ -37,6 +38,12 @@ export default function AppBar({ sidebarCollapsed }: AppBarProps) {
 
       {/* Right side actions */}
       <div className="flex items-center gap-2">
+        {/* API health pill — first slot on the right so operators have
+            a constant peripheral signal that the backend is reachable
+            without having to look at console errors or load a page.
+            Matches the legacy ApiHealthIndicator placement. */}
+        <ApiHealthIndicator />
+
         {/* Storage backend selector — shown for all deploys since the
             setting is global.  Matches legacy StorageButton. */}
         <StorageSelector />
