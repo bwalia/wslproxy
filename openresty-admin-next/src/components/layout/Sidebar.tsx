@@ -6,7 +6,9 @@ import type { Route } from "next";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils/cn";
 import { useSettings } from "@/contexts/SettingsContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import { env } from "@/lib/config/env";
+import Logo from "@/components/Logo";
 import {
   LayoutDashboard,
   Users,
@@ -54,6 +56,10 @@ interface SidebarProps {
 export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
   const { settings } = useSettings();
+  // `theme` only feeds the Logo wordmark colour — the rest of the
+  // sidebar is styled via Tailwind's `dark:` variant + the html.dark
+  // class set by ThemeContext.
+  const { theme } = useTheme();
 
   const sections = useMemo<NavSection[]>(() => {
     const nav: NavSection[] = [
@@ -139,16 +145,29 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
         collapsed ? "w-[72px]" : "w-64",
       )}
     >
-      {/* Logo area */}
+      {/* Logo area — same component the login page renders.  Icon-only
+          when the sidebar is collapsed; full wordmark when expanded.
+          Theme drives the wordmark colour ("WSL" half) — the shield
+          gradient is theme-invariant so it works on both backgrounds.
+          The <Link> wrapper means the brand mark doubles as a "go
+          home" affordance, matching standard dashboard conventions. */}
       <div className="flex h-16 items-center justify-between border-b border-slate-200 px-4 dark:border-slate-800">
         {collapsed ? (
-          <span className="mx-auto text-xl font-bold text-primary-600 dark:text-primary-400">
-            W
-          </span>
+          <Link
+            href="/"
+            className="mx-auto rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30"
+            aria-label="WSL Proxy — home"
+          >
+            <Logo variant="icon" height={32} />
+          </Link>
         ) : (
-          <span className="text-lg font-bold text-slate-900 dark:text-slate-100">
-            WSL Proxy
-          </span>
+          <Link
+            href="/"
+            className="rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30"
+            aria-label="WSL Proxy — home"
+          >
+            <Logo variant="full" width={170} height={36} theme={theme} />
+          </Link>
         )}
         <button
           type="button"

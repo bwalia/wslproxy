@@ -14,6 +14,7 @@ import {
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
 import Card from "@/components/ui/Card";
+import Logo from "@/components/Logo";
 import type { InstanceInfo } from "@/types";
 
 interface WelcomeBannerProps {
@@ -57,6 +58,13 @@ const WelcomeBanner = memo(function WelcomeBanner({ info }: WelcomeBannerProps) 
       <div className="lg:col-span-2">
         <Card className="relative flex h-full flex-col overflow-hidden bg-linear-to-br from-primary-600 to-primary-800 text-white">
           <Card.Body className="flex flex-1 flex-col justify-center">
+            {/* Brand mark above the welcome copy.  Forced `theme="dark"`
+                because the card has a deep-purple gradient background
+                regardless of the user's chosen UI theme — the wordmark
+                needs to render in white for contrast. */}
+            <div className="mb-4">
+              <Logo variant="full" width={210} height={44} theme="dark" />
+            </div>
             <span className="mb-3 inline-block rounded-full bg-white/20 px-3 py-1 text-xs font-medium backdrop-blur-sm">
               Admin Portal
             </span>
