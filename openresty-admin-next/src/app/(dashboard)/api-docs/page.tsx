@@ -9,8 +9,10 @@ import Card, { CardBody } from "@/components/ui/Card";
  * API Docs — embeds the Swagger UI served by the Lua backend.
  *
  * Swagger UI lives at `${WSLPROXY_API_URL}/swagger/` (OpenResty-served
- * static HTML).  We proxy it to `/swagger-ui/` via next.config rewrites
- * so the iframe loads same-origin (no CORS, no mixed-content issues).
+ * static HTML).  We forward the same path through Next.js rewrites so
+ * the iframe loads same-origin AND Swagger's absolute asset paths
+ * (`/swagger/openapi.json` etc.) resolve to the upstream too.  An
+ * aliased prefix would 404 those.
  */
 
 export default function ApiDocsPage() {
@@ -23,7 +25,7 @@ export default function ApiDocsPage() {
         actions={
           <Button
             variant="ghost"
-            onClick={() => window.open("/swagger-ui/", "_blank", "noopener,noreferrer")}
+            onClick={() => window.open("/swagger/", "_blank", "noopener,noreferrer")}
             aria-label="Open API docs in a new tab"
           >
             <ExternalLink className="h-4 w-4" aria-hidden="true" />
@@ -35,7 +37,7 @@ export default function ApiDocsPage() {
       <Card className="flex-1 overflow-hidden">
         <CardBody className="h-full p-0">
           <iframe
-            src="/swagger-ui/"
+            src="/swagger/"
             title="WSL Proxy API documentation"
             className="h-full w-full border-0"
             // Lock down iframe permissions — Swagger UI doesn't need any.

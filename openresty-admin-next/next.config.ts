@@ -118,11 +118,18 @@ const nextConfig: NextConfig = {
       // probe — so the admin dashboard lives at `/system-status`
       // to sidestep the collision without touching nginx.
       { source: "/api/:path*", destination: `${apiBase}/api/:path*` },
-      // Swagger UI is static HTML served by OpenResty at /swagger/.  We
-      // proxy it under /swagger-ui/ so the Next.js page at /api-docs can
-      // iframe it same-origin (no CORS + keeps dashboard chrome visible).
-      { source: "/swagger-ui", destination: `${apiBase}/swagger/` },
-      { source: "/swagger-ui/:path*", destination: `${apiBase}/swagger/:path*` },
+      // Swagger UI is static HTML served by OpenResty at /swagger/.
+      // Forward the SAME path (`/swagger/`) so:
+      //   - The URL in the operator's address bar is the real one,
+      //     matching what nginx serves at the openresty front directly.
+      //   - Swagger's absolute asset paths (`/swagger/openapi.json` etc.)
+      //     resolve to the upstream too, instead of 404ing because they
+      //     don't match a different alias prefix.
+      // The bare `/swagger` source covers Next.js's trailing-slash
+      // redirect dance; `/swagger/:path*` covers nested assets and the
+      // openapi.json fetch.
+      { source: "/swagger", destination: `${apiBase}/swagger/` },
+      { source: "/swagger/:path*", destination: `${apiBase}/swagger/:path*` },
     ];
   },
 };
