@@ -62,7 +62,7 @@ jobs:
             echo "base_url=https://int-our.wslproxy.com" >> "$GITHUB_OUTPUT"
             echo "creds_file=/home/bwalia/.secrets/wslproxy/int/login-creds.json" >> "$GITHUB_OUTPUT"
           else
-            echo "base_url=https://prod-our.wslproxy.com" >> "$GITHUB_OUTPUT"
+            echo "base_url=https://prod-our-v1.wslproxy.com" >> "$GITHUB_OUTPUT"
             echo "creds_file=/home/bwalia/.secrets/wslproxy/prod/login-creds.json" >> "$GITHUB_OUTPUT"
           fi
           echo "Environment: ${{ matrix.environment }}"
