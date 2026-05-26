@@ -14,7 +14,7 @@ export default async function globalSetup(config) {
   const baseURL =
     process.env.E2E_BASE_URL ||
     config.projects[0]?.use?.baseURL ||
-    'https://prod-our.wslproxy.com';
+    'https://prod-our-v1.wslproxy.com';
 
   const email = process.env.E2E_TEST_EMAIL;
   const password = process.env.E2E_TEST_PASSWORD;

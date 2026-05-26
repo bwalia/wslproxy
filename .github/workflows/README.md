@@ -197,7 +197,7 @@ Shared parameterized workflow called by both pipelines via `workflow_call`. Hand
 | int | 192.168.1.193 | (local) | `local` | `github_secret` | `local` | `http://localhost:8080/health` |
 | test | 192.168.1.140 | bwalia | `ssh` | `runner_file` | `ssh` | `http://localhost:8080/health` |
 | acc | 187.77.179.206 | root | `ssh_key` | `runner_file` | `ssh` | `http://localhost:8080/health` |
-| prod (pop0) | 187.124.112.155 | root | `ssh_key` | `github_secret` | `external` | `https://prod-our.wslproxy.com/health` |
+| prod (pop0) | 187.124.112.155 | root | `ssh_key` | `github_secret` | `external` | `https://prod-our-v1.wslproxy.com/health` |
 | prod (lon1) | 72.62.211.28 | root | `ssh_key` | `runner_file` | `external` | `http://72.62.211.28:7691/health` |
 
 ### Steps (conditional per environment)

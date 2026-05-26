@@ -330,7 +330,7 @@ jobs:
       ssh_user: root
       connection_mode: ssh_key
       secrets_mode: github_secret
-      health_endpoint: "https://prod-our.wslproxy.com/health"
+      health_endpoint: "https://prod-our-v1.wslproxy.com/health"
       health_check_mode: external
       docker_prune: true
       notify_success: true

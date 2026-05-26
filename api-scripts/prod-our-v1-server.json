@@ -1,6 +1,6 @@
 {
-  "server_name": "prod-our.wslproxy.com",
-  "proxy_server_name": "prod-our.wslproxy.com",
+  "server_name": "prod-our-v1.wslproxy.com",
+  "proxy_server_name": "prod-our-v1.wslproxy.com",
   "root": "/var/www/html",
   "index": "index.html",
   "access_log": "logs/access.log",

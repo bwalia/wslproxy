@@ -1,15 +1,15 @@
 {
-  "id": "host:prod-our.wslproxy.com",
-  "server_name": "prod-our.wslproxy.com",
-  "proxy_server_name": "prod-our.wslproxy.com",
+  "id": "host:prod-our-v1.wslproxy.com",
+  "server_name": "prod-our-v1.wslproxy.com",
+  "proxy_server_name": "prod-our-v1.wslproxy.com",
   "root": "/var/www/html",
   "index": "index.html",
   "access_log": "logs/access.log",
   "error_log": "logs/error.log",
   "config_status": false,
   "profile_id": "prod",
-  "proxy_pass": "http://localhost:3099",
-  "rules": "prod-our-wslproxy-rule",
+  "proxy_pass": "http://localhost:7691",
+  "rules": "prod-our-v1-wslproxy-rule",
   "created_at": 1769388403,
   "listens": [
     {
