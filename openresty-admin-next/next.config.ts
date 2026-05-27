@@ -107,31 +107,19 @@ const nextConfig: NextConfig = {
     ];
   },
 
-  async rewrites() {
-    const apiBase =
-      process.env.WSLPROXY_API_URL ?? "http://wslproxy-local:8080";
-    return [
-      // NB: there is NO `/health` rewrite here intentionally.  The
-      // upstream nginx has `location /health` as a PREFIX match
-      // that hands anything starting with "/health" (including
-      // "/health-status", "/healthcheck", etc.) to the Lua JSON
-      // probe — so the admin dashboard lives at `/system-status`
-      // to sidestep the collision without touching nginx.
-      { source: "/api/:path*", destination: `${apiBase}/api/:path*` },
-      // Swagger UI is static HTML served by OpenResty at /swagger/.
-      // Forward the SAME path (`/swagger/`) so:
-      //   - The URL in the operator's address bar is the real one,
-      //     matching what nginx serves at the openresty front directly.
-      //   - Swagger's absolute asset paths (`/swagger/openapi.json` etc.)
-      //     resolve to the upstream too, instead of 404ing because they
-      //     don't match a different alias prefix.
-      // The bare `/swagger` source covers Next.js's trailing-slash
-      // redirect dance; `/swagger/:path*` covers nested assets and the
-      // openapi.json fetch.
-      { source: "/swagger", destination: `${apiBase}/swagger/` },
-      { source: "/swagger/:path*", destination: `${apiBase}/swagger/:path*` },
-    ];
-  },
+  // NB: `/api/*` and `/swagger/*` are intentionally NOT build-time
+  // rewrites.  Build-time rewrites freeze the upstream port
+  // (WSLPROXY_API_URL) into the standalone artifact — which breaks on
+  // hosts whose admin API isn't on the default port (e.g. prod pop0 on
+  // :7691).  Both are now handled by RUNTIME proxy route handlers:
+  //   src/app/api/[...path]/route.ts
+  //   src/app/swagger/[[...path]]/route.ts
+  // which read WSLPROXY_API_URL per request, so one bundle works on
+  // every host and a deploy can never re-bake a wrong port.
+  //
+  // There is deliberately no `/health` route either — upstream nginx
+  // owns `location /health` as a prefix match, so the dashboard lives
+  // at `/system-status` to avoid the collision.
 };
 
 export default withBundleAnalyzer(nextConfig);
