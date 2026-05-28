@@ -1,0 +1,203 @@
+name: WSL Proxy Admin UI Login Tests
+
+on:
+  push:
+    branches:
+      - feat/admin-ui-login-workflow
+    paths:
+      - "openresty-admin/e2e/login.spec.js"
+      - "openresty-admin/e2e/helpers.js"
+      - "openresty-admin/e2e/global-setup.js"
+      - "openresty-admin/playwright.config.js"
+      - "openresty-admin/package*.json"
+      - ".github/workflows/e2e-admin-ui-login.yml"
+  schedule:
+    # Hourly smoke check that the admin login is healthy
+    - cron: "0 * * * *"
+  workflow_dispatch:
+    inputs:
+      TARGET_ENV:
+        type: choice
+        description: "Target environment to test"
+        default: "prod"
+        required: true
+        options:
+          - prod
+          - int
+
+jobs:
+  setup:
+    name: "Setup test matrix"
+    runs-on: [self-hosted]
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Determine environments to test
+        id: set-matrix
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo 'matrix={"environment":["${{ inputs.TARGET_ENV }}"]}' >> "$GITHUB_OUTPUT"
+          else
+            echo 'matrix={"environment":["prod","int"]}' >> "$GITHUB_OUTPUT"
+          fi
+
+  login:
+    name: "Admin UI Login (${{ matrix.environment }})"
+    needs: setup
+    runs-on: [self-hosted]
+    timeout-minutes: 8
+    concurrency:
+      group: e2e-admin-login-${{ github.ref }}-${{ matrix.environment }}
+      cancel-in-progress: true
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.setup.outputs.matrix) }}
+    defaults:
+      run:
+        shell: bash
+        working-directory: openresty-admin
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set environment config
+        id: env_config
+        working-directory: .
+        run: |
+          if [ "${{ matrix.environment }}" = "int" ]; then
+            echo "base_url=https://int-our.wslproxy.com" >> "$GITHUB_OUTPUT"
+            echo "creds_file=/home/bwalia/.secrets/wslproxy/int/login-creds.json" >> "$GITHUB_OUTPUT"
+          else
+            echo "base_url=https://prod-our-v1.wslproxy.com" >> "$GITHUB_OUTPUT"
+            echo "creds_file=/home/bwalia/.secrets/wslproxy/prod/login-creds.json" >> "$GITHUB_OUTPUT"
+          fi
+          echo "Environment: ${{ matrix.environment }}"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: openresty-admin/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci || npm install
+
+      - name: Install Playwright browsers
+        run: npx playwright install chromium
+
+      - name: Validate test credentials
+        working-directory: .
+        env:
+          TEST_CREDS_FILE: ${{ steps.env_config.outputs.creds_file }}
+        run: |
+          if [ ! -f "$TEST_CREDS_FILE" ]; then
+            echo "::error::Test credentials file not found at $TEST_CREDS_FILE"
+            echo "Create it with: echo '{\"ADMIN_EMAIL\":\"...\",\"ADMIN_PASSWORD\":\"...\",\"GATEWAY_URL\":\"...\"}' > $TEST_CREDS_FILE"
+            exit 1
+          fi
+          if ! python3 -c "import json; d=json.load(open('$TEST_CREDS_FILE')); assert 'ADMIN_EMAIL' in d and 'ADMIN_PASSWORD' in d and 'GATEWAY_URL' in d" 2>/dev/null; then
+            echo "::error::Test credentials file is missing required keys (ADMIN_EMAIL, ADMIN_PASSWORD, GATEWAY_URL)"
+            exit 1
+          fi
+          echo "Test credentials validated for ${{ matrix.environment }}."
+
+      - name: Load test credentials
+        id: creds
+        working-directory: .
+        env:
+          TEST_CREDS_FILE: ${{ steps.env_config.outputs.creds_file }}
+        run: |
+          EMAIL=$(python3 -c "import json; print(json.load(open('$TEST_CREDS_FILE'))['ADMIN_EMAIL'])")
+          PASSWORD=$(python3 -c "import json; print(json.load(open('$TEST_CREDS_FILE'))['ADMIN_PASSWORD'])")
+          GATEWAY_URL=$(python3 -c "import json; print(json.load(open('$TEST_CREDS_FILE'))['GATEWAY_URL'])")
+          echo "::add-mask::$EMAIL"
+          echo "::add-mask::$PASSWORD"
+          echo "email=$EMAIL" >> "$GITHUB_OUTPUT"
+          echo "password=$PASSWORD" >> "$GITHUB_OUTPUT"
+          echo "gateway_url=$GATEWAY_URL" >> "$GITHUB_OUTPUT"
+          echo "Using gateway URL: $GATEWAY_URL"
+
+      - name: Wait for admin UI to be reachable
+        working-directory: .
+        env:
+          TARGET_URL: ${{ steps.creds.outputs.gateway_url || steps.env_config.outputs.base_url }}
+        run: |
+          echo "Checking admin UI at $TARGET_URL (${{ matrix.environment }}) ..."
+          for i in $(seq 1 12); do
+            STATUS=$(curl -sf -o /dev/null -w "%{http_code}" "$TARGET_URL" 2>/dev/null || echo "000")
+            if [ "$STATUS" = "200" ] || [ "$STATUS" = "301" ] || [ "$STATUS" = "302" ]; then
+              echo "Admin UI is reachable (HTTP $STATUS)."
+              exit 0
+            fi
+            echo "Attempt $i: HTTP $STATUS - waiting 5s..."
+            sleep 5
+          done
+          echo "::error::Admin UI not reachable at $TARGET_URL after 60s"
+          exit 1
+
+      - name: Run Admin UI Login tests
+        id: tests
+        env:
+          E2E_TEST_EMAIL: ${{ steps.creds.outputs.email }}
+          E2E_TEST_PASSWORD: ${{ steps.creds.outputs.password }}
+          E2E_BASE_URL: ${{ steps.creds.outputs.gateway_url || steps.env_config.outputs.base_url }}
+          CI: "true"
+        run: npx playwright test --project=login 2>&1 | tee playwright-output.txt || true
+
+      - name: Parse test results
+        id: results
+        if: always()
+        run: |
+          OUTPUT=$(cat playwright-output.txt 2>/dev/null || echo "No output")
+          PASSED=$(echo "$OUTPUT" | grep -oP '\d+ passed' | grep -oP '\d+' || echo "0")
+          FAILED=$(echo "$OUTPUT" | grep -oP '\d+ failed' | grep -oP '\d+' || echo "0")
+          SKIPPED=$(echo "$OUTPUT" | grep -oP '\d+ skipped' | grep -oP '\d+' || echo "0")
+          TOTAL=$((PASSED + FAILED))
+          echo "passed=$PASSED" >> "$GITHUB_OUTPUT"
+          echo "failed=$FAILED" >> "$GITHUB_OUTPUT"
+          echo "skipped=$SKIPPED" >> "$GITHUB_OUTPUT"
+          echo "total=$TOTAL" >> "$GITHUB_OUTPUT"
+          if [ "$FAILED" -gt 0 ]; then
+            echo "status=failed" >> "$GITHUB_OUTPUT"
+            exit 1
+          else
+            echo "status=passed" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload Playwright HTML report
+        uses: actions/upload-artifact@v5
+        if: ${{ !cancelled() }}
+        with:
+          name: admin-login-report-${{ matrix.environment }}
+          path: openresty-admin/playwright-report/
+          retention-days: 14
+
+      - name: Upload traces & screenshots
+        uses: actions/upload-artifact@v5
+        if: failure()
+        with:
+          name: admin-login-traces-${{ matrix.environment }}
+          path: openresty-admin/test-results/
+          retention-days: 7
+
+      - name: Slack notification - Login Tests Passed
+        if: success()
+        continue-on-error: true
+        shell: bash
+        run: |
+          curl -sf -X POST "${{ secrets.SLACK_WEBHOOK }}" \
+            -H 'Content-Type: application/json' \
+            -d "$(jq -n --arg text "WSL Proxy Admin UI Login tests passed :white_check_mark:\n*Environment:* ${{ matrix.environment }}\n*Tests:* ${{ steps.results.outputs.passed }}/${{ steps.results.outputs.total }} passed (${{ steps.results.outputs.skipped }} skipped)\n*Target:* ${{ steps.creds.outputs.gateway_url || steps.env_config.outputs.base_url }}\n*Branch:* ${{ github.ref_name }}\n*Commit:* \`${{ github.sha }}\`\n*Triggered by:* ${{ github.event_name }} (${{ github.actor }})" \
+              '{channel: "github-updates", username: "GitHub Actions", text: $text}')"
+
+      - name: Slack notification - Login Tests Failed
+        if: failure()
+        continue-on-error: true
+        shell: bash
+        run: |
+          curl -sf -X POST "${{ secrets.SLACK_WEBHOOK }}" \
+            -H 'Content-Type: application/json' \
+            -d "$(jq -n --arg text "WSL Proxy Admin UI Login tests FAILED :x:\n*Environment:* ${{ matrix.environment }}\n*Tests:* ${{ steps.results.outputs.failed }} failed, ${{ steps.results.outputs.passed }} passed out of ${{ steps.results.outputs.total }} (${{ steps.results.outputs.skipped }} skipped)\n*Target:* ${{ steps.creds.outputs.gateway_url || steps.env_config.outputs.base_url }}\n*Branch:* ${{ github.ref_name }}\n*Commit:* \`${{ github.sha }}\`\n*Triggered by:* ${{ github.event_name }} (${{ github.actor }})\n*Screenshots & Traces:* Download from workflow artifacts\n*Workflow logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+              '{channel: "github-updates", username: "GitHub Actions", text: $text}')"
