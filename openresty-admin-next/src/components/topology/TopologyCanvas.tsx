@@ -226,7 +226,9 @@ function NodeCard({
   onClick: () => void;
 }) {
   const accent = kindColor(node.kind);
-  const border = selected ? accent : "rgba(255,255,255,0.1)";
+  // `var(--topology-node-border)` is defined on the canvas root in
+  // both light + dark via Tailwind arbitrary properties.
+  const border = selected ? accent : "var(--topology-node-border)";
 
   return (
     <div
@@ -238,7 +240,7 @@ function NodeCard({
         border: `1.5px solid ${border}`,
         boxShadow: selected ? `0 0 0 2px ${accent}55` : undefined,
       }}
-      className="absolute bg-[#0f1117] rounded-lg cursor-pointer hover:brightness-125 transition-all select-none overflow-hidden"
+      className="absolute rounded-lg cursor-pointer transition-all select-none overflow-hidden bg-white shadow-sm hover:shadow-md hover:-translate-y-px dark:bg-[#0f1117] dark:shadow-none dark:hover:brightness-125 dark:hover:translate-y-0"
     >
       <div style={{ height: 3, background: accent }} />
       <div className="px-3 pt-2 pb-1 flex flex-col gap-1">
@@ -271,12 +273,12 @@ function NodeCard({
         </div>
 
         {/* Name */}
-        <p className="text-white text-xs font-semibold truncate leading-tight">
+        <p className="text-slate-900 dark:text-white text-xs font-semibold truncate leading-tight">
           {node.name}
         </p>
 
         {/* Sub-line */}
-        <div className="text-[10px] text-gray-400 truncate leading-tight">
+        <div className="text-[10px] text-slate-500 dark:text-gray-400 truncate leading-tight">
           {node.kind === "server" && (
             <>
               {node.listen_ports?.join(", ") ?? "80"}
@@ -289,7 +291,7 @@ function NodeCard({
           )}
           {node.kind === "rule" && (
             <>
-              {node.path_key ?? "starts_with"} <span className="text-sky-300 font-mono">{node.path ?? "/"}</span>
+              {node.path_key ?? "starts_with"} <span className="text-sky-600 dark:text-sky-300 font-mono">{node.path ?? "/"}</span>
               {node.priority !== undefined && node.priority > 0 && (
                 <span className="ml-1 text-amber-400">P{node.priority}</span>
               )}
@@ -315,8 +317,8 @@ function NodeCard({
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-start gap-2">
-      <span className="text-gray-500 shrink-0 w-28">{label}</span>
-      <span className="text-gray-200 break-all flex-1">{children}</span>
+      <span className="text-slate-500 dark:text-gray-500 shrink-0 w-28">{label}</span>
+      <span className="text-slate-800 dark:text-gray-200 break-all flex-1">{children}</span>
     </div>
   );
 }
@@ -331,20 +333,20 @@ function DetailPanel({
   const accent = kindColor(node.kind);
 
   return (
-    <div className="w-80 shrink-0 bg-[#0f1117] border-l border-white/10 flex flex-col">
+    <div className="w-80 shrink-0 bg-slate-50 dark:bg-[#0f1117] border-l border-slate-200 dark:border-white/10 flex flex-col">
       <div
         className="flex items-center justify-between px-4 py-3 border-b"
         style={{ borderColor: accent + "55" }}
       >
         <div className="flex items-center gap-2">
           <KindIcon kind={node.kind} size={16} />
-          <span className="font-bold text-white text-sm truncate max-w-[180px]">
+          <span className="font-bold text-slate-900 dark:text-white text-sm truncate max-w-45">
             {node.name}
           </span>
         </div>
         <button
           onClick={onClose}
-          className="text-gray-400 hover:text-white p-1 rounded hover:bg-white/10"
+          className="text-slate-500 hover:text-slate-900 p-1 rounded hover:bg-slate-100 dark:text-gray-400 dark:hover:text-white dark:hover:bg-white/10"
         >
           <X className="w-4 h-4" />
         </button>
@@ -393,7 +395,7 @@ function DetailPanel({
             </Row>
             <Row label="Status Code">{node.status_code}</Row>
             <Row label="Path">
-              <span className="font-mono text-sky-300">{node.path ?? "/"}</span>
+              <span className="font-mono text-sky-600 dark:text-sky-300">{node.path ?? "/"}</span>
             </Row>
             <Row label="Match">{node.path_key ?? "starts_with"}</Row>
             <Row label="Priority">{node.priority ?? 0}</Row>
@@ -403,7 +405,7 @@ function DetailPanel({
                   {node.conditions.map((c) => (
                     <span
                       key={c}
-                      className="bg-white/5 rounded px-1.5 py-0.5 font-mono text-[10px] text-gray-300"
+                      className="bg-slate-100 dark:bg-white/5 rounded px-1.5 py-0.5 font-mono text-[10px] text-slate-700 dark:text-gray-300"
                     >
                       {c}
                     </span>
@@ -432,7 +434,7 @@ function DetailPanel({
             {node.weight !== undefined && <Row label="Weight">{node.weight}</Row>}
             {node.stats && Object.keys(node.stats).length > 0 && (
               <div>
-                <p className="text-gray-500 uppercase tracking-wider text-[10px] mb-1.5 mt-2">
+                <p className="text-slate-500 dark:text-gray-500 uppercase tracking-wider text-[10px] mb-1.5 mt-2">
                   Stats
                 </p>
                 {Object.entries(node.stats).map(([k, v]) => (
@@ -471,7 +473,7 @@ function ColHeader({ label, count, color }: { label: string; count: number; colo
 
 function Legend() {
   return (
-    <div className="flex items-center gap-4 px-4 py-2 border-t border-white/10 text-[10px] text-gray-500 flex-wrap">
+    <div className="flex items-center gap-4 px-4 py-2 border-t border-slate-200 dark:border-white/10 text-[10px] text-slate-500 dark:text-gray-500 flex-wrap">
       {Object.entries(KIND_COLORS).map(([kind, color]) => (
         <span key={kind} className="flex items-center gap-1 capitalize">
           <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ background: color }} />
@@ -595,15 +597,20 @@ export function TopologyCanvas({ filterServerId, filterRuleId, compact }: Topolo
   }, [filteredNodes]);
 
   return (
+    /* Theme-aware tokens used by SVG (edges, edge labels) and inline
+       styles (node border) below.  Tailwind arbitrary-property syntax
+       sets these as CSS custom properties on this element; dark variant
+       overrides them when html.dark is present.  This keeps the SVG
+       attributes pure markup (no JS theme branching needed). */
     <div
-      className={`flex flex-col bg-[#080a0f] rounded-lg border border-white/10 overflow-hidden ${
+      className={`flex flex-col rounded-lg overflow-hidden bg-white border border-slate-200 dark:bg-[#080a0f] dark:border-white/10 [--topology-edge:#cbd5e1] dark:[--topology-edge:rgba(255,255,255,0.12)] [--topology-edge-label:#94a3b8] dark:[--topology-edge-label:rgba(255,255,255,0.35)] [--topology-node-border:#e2e8f0] dark:[--topology-node-border:rgba(255,255,255,0.1)] ${
         compact ? "h-[400px]" : "h-full"
       }`}
     >
       {/* Toolbar */}
-      <div className="flex items-center gap-3 px-4 py-2.5 border-b border-white/10 shrink-0">
-        <Network className="w-4 h-4 text-sky-400" />
-        <span className="text-sm font-bold text-white tracking-wide">
+      <div className="flex items-center gap-3 px-4 py-2.5 border-b border-slate-200 dark:border-white/10 shrink-0">
+        <Network className="w-4 h-4 text-sky-500 dark:text-sky-400" />
+        <span className="text-sm font-bold text-slate-900 dark:text-white tracking-wide">
           {filterServerId
             ? "Server Topology"
             : filterRuleId
@@ -611,13 +618,13 @@ export function TopologyCanvas({ filterServerId, filterRuleId, compact }: Topolo
             : "Service Topology"}
         </span>
         {data?.summary && (
-          <span className="text-[10px] text-gray-500 ml-2">
+          <span className="text-[10px] text-slate-500 dark:text-gray-500 ml-2">
             {data.summary.servers} servers · {data.summary.rules} rules · {data.summary.backends} backends
           </span>
         )}
         <button
           onClick={fetchData}
-          className="ml-auto p-1.5 rounded hover:bg-white/10 text-gray-400 hover:text-white"
+          className="ml-auto p-1.5 rounded text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-gray-400 dark:hover:bg-white/10 dark:hover:text-white"
           title="Refresh"
         >
           <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
@@ -628,17 +635,17 @@ export function TopologyCanvas({ filterServerId, filterRuleId, compact }: Topolo
       <div className="flex flex-1 min-h-0 overflow-hidden">
         <div className="flex-1 overflow-auto p-4">
           {loading && (
-            <div className="flex items-center justify-center h-40 text-gray-500 text-sm">
+            <div className="flex items-center justify-center h-40 text-slate-500 dark:text-gray-500 text-sm">
               Loading topology...
             </div>
           )}
           {error && (
-            <div className="flex items-center justify-center h-40 text-red-400 text-sm">
+            <div className="flex items-center justify-center h-40 text-red-600 dark:text-red-400 text-sm">
               {error}
             </div>
           )}
           {!loading && !error && filteredNodes.length === 0 && (
-            <div className="flex items-center justify-center h-40 text-gray-500 text-sm">
+            <div className="flex items-center justify-center h-40 text-slate-500 dark:text-gray-500 text-sm">
               No topology data found.
             </div>
           )}
@@ -668,7 +675,7 @@ export function TopologyCanvas({ filterServerId, filterRuleId, compact }: Topolo
                     key={key}
                     d={path}
                     fill="none"
-                    stroke="rgba(255,255,255,0.12)"
+                    stroke="var(--topology-edge)"
                     strokeWidth={1.5}
                   />
                 ))}
@@ -709,7 +716,7 @@ export function TopologyCanvas({ filterServerId, filterRuleId, compact }: Topolo
                       key={key + "-label"}
                       x={mx}
                       y={my - 6}
-                      fill="rgba(255,255,255,0.35)"
+                      fill="var(--topology-edge-label)"
                       fontSize={9}
                       textAnchor="middle"
                     >

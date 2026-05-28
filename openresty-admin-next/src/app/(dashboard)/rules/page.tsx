@@ -2,7 +2,8 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { GitBranch } from "lucide-react";
+import type { Route } from "next";
+import { GitBranch, Copy } from "lucide-react";
 import { useList } from "@/hooks/useResource";
 import PageHeader from "@/components/ui/PageHeader";
 import DataTable, { type Column } from "@/components/ui/DataTable";
@@ -32,6 +33,17 @@ export default function RulesListPage() {
   const { data, total, isLoading, error, mutate } = useList<Rule>(
     "rules",
     params,
+  );
+
+  // Per-row Clone — pushes to /rules/create?source=<id>; the create
+  // page hydrates from the source and suffixes `name` with `-clone`.
+  const handleClone = useCallback(
+    (sourceId: string) => {
+      router.push(
+        `/rules/create?source=${encodeURIComponent(sourceId)}` as Route,
+      );
+    },
+    [router],
   );
 
   const columns = useMemo<Column<Rule>[]>(
@@ -96,8 +108,31 @@ export default function RulesListPage() {
           </div>
         ),
       },
+      {
+        // Synthetic "field" — render only.  Rightmost column so it sits
+        // in the standard row-actions slot.  `stopPropagation` keeps
+        // the row's navigate-to-edit from also firing.
+        field: "_actions",
+        label: "",
+        render: (r) => (
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleClone(r.id);
+              }}
+              title="Clone this rule"
+              aria-label={`Clone ${r.name}`}
+              className="inline-flex items-center gap-1 rounded-md p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+            >
+              <Copy className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </div>
+        ),
+      },
     ],
-    [],
+    [handleClone],
   );
 
   const handleRowClick = useCallback(
