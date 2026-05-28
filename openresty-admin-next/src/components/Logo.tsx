@@ -1,4 +1,4 @@
-import React, { useId } from "react";
+import React from "react";
 
 /* ──────────────────────────────────────────────────────────────────────────
    WSL Proxy Logo — TypeScript port of openresty-admin/src/component/Logo.jsx.
@@ -11,10 +11,21 @@ import React, { useId } from "react";
    and accent ("Proxy" + ADMIN pill) are theme-invariant because the brand
    purple/indigo holds contrast against both light and dark surfaces.
 
-   `useId()` generates a per-instance gradient ID so multiple Logo
-   instances on the same page don't accidentally share a `<defs>` and
-   blow out each other when one unmounts.
+   Gradient ID is intentionally STATIC (not `useId()`):
+     - The brand gradient is the same across every Logo instance, so a
+       per-instance unique ID has no visual purpose.
+     - `url(#id)` resolves to the first element with that ID in document
+       order; since each `<linearGradient>` definition we emit is
+       byte-identical, every Logo paints the same fill regardless of
+       which definition the browser happens to reach first.
+     - `useId()` can produce different counter values for the same
+       Logo across SSR vs. CSR when the component straddles a Suspense
+       streaming boundary (Sidebar + WelcomeBanner are an exact example),
+       producing a hydration mismatch on the `id` / `fill="url(#…)"`
+       attributes.  Static ID dodges that entirely.
    ────────────────────────────────────────────────────────────────────────── */
+
+const GRADIENT_ID = "wslproxy-logo-gradient";
 
 export interface LogoProps {
   width?: number;
@@ -37,7 +48,7 @@ const Logo: React.FC<LogoProps> = ({
   const wordmarkColor = theme === "dark" ? "#ffffff" : "#0f172a";
   const accentColor = "#6366f1"; // Indigo-500 — matches Tailwind primary
 
-  const gradientId = useId();
+  const gradientId = GRADIENT_ID;
 
   if (variant === "icon") {
     return (
