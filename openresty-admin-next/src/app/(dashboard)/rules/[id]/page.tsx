@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import {
   ArrowLeft,
@@ -227,9 +227,19 @@ export default function RuleDetailPage() {
   const id = params.id as string;
   const isCreate = id === "create";
 
+  /* ── Clone mode ──────────────────────────────────────────────────────
+     `/rules/create?source=<id>` loads an existing rule and pre-fills
+     this form, suffixing the name with `-clone` so an unedited Save
+     creates a new rule instead of editing the source.  The backend
+     generates a fresh uuid on POST. */
+  const searchParams = useSearchParams();
+  const sourceId = isCreate ? searchParams?.get("source") ?? null : null;
+  const isClone = isCreate && Boolean(sourceId);
+  const fetchKey = isCreate ? sourceId : id;
+
   const { data, isLoading } = useOne<Rule>(
-    isCreate ? null : "rules",
-    isCreate ? null : id,
+    fetchKey ? "rules" : null,
+    fetchKey,
   );
 
   // Fetch profiles for the dropdown
@@ -257,11 +267,18 @@ export default function RuleDetailPage() {
     const m = data.match?.rules ?? {};
     const r = data.match?.response ?? {};
     const rt = r.routing ?? {};
+    // On clone, suffix the unique identifier so the user spots that
+    // it's a copy and an accidental Save doesn't collide with the
+    // source.  Version resets to 1 — a clone's own change history
+    // starts fresh.
+    const baseName = data.name ?? "";
+    const initialName = isClone ? `${baseName}-clone` : baseName;
+    const initialVersion = isClone ? 1 : data.version ?? 1;
     setForm({
-      name: data.name ?? "",
+      name: initialName,
       profile_id: data.profile_id ?? "",
       priority: data.priority ?? 1,
-      version: data.version ?? 1,
+      version: initialVersion,
       path: m.path ?? "/",
       path_key: m.path_key ?? "starts_with",
       country: m.country ?? "",
@@ -290,7 +307,7 @@ export default function RuleDetailPage() {
       backends: Array.isArray(r.backends) ? r.backends : Array.isArray((rt as Record<string, unknown>).backends) ? (rt as { backends: Backend[] }).backends : [],
       rules_tags: Array.isArray(data.rules_tags) ? data.rules_tags : [],
     });
-  }, [data]);
+  }, [data, isClone]);
 
   const set = useCallback(
     <K extends keyof RuleForm>(field: K, value: RuleForm[K]) => {
@@ -504,7 +521,10 @@ export default function RuleDetailPage() {
 
   // ── Loading state ───────────────────────────────────────────────────
 
-  if (!isCreate && isLoading) {
+  // Show skeleton while either an edit fetch OR a clone source fetch
+  // is in flight.  Pure create (no source) has fetchKey === null and
+  // isLoading === false, so it falls straight through.
+  if (fetchKey && isLoading) {
     return (
       <div className="space-y-4">
         <Skeleton className="h-8 w-48" />
@@ -518,7 +538,13 @@ export default function RuleDetailPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title={isCreate ? "Create Rule" : `Edit Rule: ${data?.name ?? id}`}
+        title={
+          isClone
+            ? `Clone of ${data?.name ?? "rule"}`
+            : isCreate
+              ? "Create Rule"
+              : `Edit Rule: ${data?.name ?? id}`
+        }
         icon={GitBranch}
         actions={
           <Button variant="ghost" onClick={() => router.push("/rules")} icon={<ArrowLeft className="h-4 w-4" />}>
@@ -889,7 +915,7 @@ export default function RuleDetailPage() {
           )}
         </div>
         <Button onClick={handleSubmit} loading={saving} icon={<Save className="h-4 w-4" />}>
-          {isCreate ? "Create Rule" : "Save Changes"}
+          {isClone ? "Save as new rule" : isCreate ? "Create Rule" : "Save Changes"}
         </Button>
       </div>
 
