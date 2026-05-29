@@ -46,7 +46,10 @@ jobs:
   login:
     name: "Admin UI Login (${{ matrix.environment }})"
     needs: setup
-    runs-on: [self-hosted]
+    # Pin to the runner whose label matches the env under test, so the
+    # job lands on the host that actually has that env's login-creds.json
+    # (prod creds live on srv1467484, int creds on slworker00, etc.).
+    runs-on: [self-hosted, "${{ matrix.environment }}"]
     timeout-minutes: 8
     concurrency:
       group: e2e-admin-login-${{ github.ref }}-${{ matrix.environment }}
