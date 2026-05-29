@@ -73,7 +73,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
                 { label: "Sessions", href: "/sessions", icon: Activity },
               ] satisfies NavItem[])
             : []),
-          { label: "Logs & Troubleshoot", href: "/logs", icon: ScrollText },
+          { label: "Logs", href: "/logs", icon: ScrollText },
           // The admin health-dashboard page lives at `/system-status`,
           // not `/health`.  Reason: upstream nginx has
           // `location /health` as a PREFIX match → the Lua JSON probe

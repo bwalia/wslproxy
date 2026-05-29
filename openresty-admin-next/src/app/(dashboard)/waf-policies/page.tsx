@@ -17,8 +17,8 @@ export default function WafPoliciesListPage() {
   const [perPage, setPerPage] = useState(25);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<{ field: string; order: "ASC" | "DESC" }>({
-    field: "id",
-    order: "ASC",
+    field: "created_at",
+    order: "DESC",
   });
 
   const params = useMemo(
