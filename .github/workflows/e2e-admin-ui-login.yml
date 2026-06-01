@@ -35,16 +35,21 @@ jobs:
       - name: Determine environments to test
         id: set-matrix
         run: |
+          # workflow_dispatch respects the chosen env; schedule/push run prod only
+          # (int has no provisioned login-creds.json on the runner yet).
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo 'matrix={"environment":["${{ inputs.TARGET_ENV }}"]}' >> "$GITHUB_OUTPUT"
           else
-            echo 'matrix={"environment":["prod","int"]}' >> "$GITHUB_OUTPUT"
+            echo 'matrix={"environment":["prod"]}' >> "$GITHUB_OUTPUT"
           fi
 
   login:
     name: "Admin UI Login (${{ matrix.environment }})"
     needs: setup
-    runs-on: [self-hosted]
+    # Pin to the runner whose label matches the env under test, so the
+    # job lands on the host that actually has that env's login-creds.json
+    # (prod creds live on srv1467484, int creds on slworker00, etc.).
+    runs-on: [self-hosted, "${{ matrix.environment }}"]
     timeout-minutes: 8
     concurrency:
       group: e2e-admin-login-${{ github.ref }}-${{ matrix.environment }}
@@ -126,8 +131,10 @@ jobs:
         run: |
           echo "Checking admin UI at $TARGET_URL (${{ matrix.environment }}) ..."
           for i in $(seq 1 12); do
-            STATUS=$(curl -sf -o /dev/null -w "%{http_code}" "$TARGET_URL" 2>/dev/null || echo "000")
-            if [ "$STATUS" = "200" ] || [ "$STATUS" = "301" ] || [ "$STATUS" = "302" ]; then
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$TARGET_URL" 2>/dev/null || echo "000")
+            # Treat any 2xx/3xx as reachable — prod gateway redirects with 307
+            # to /login, which is the expected behavior for an unauthenticated GET.
+            if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 400 ]; then
               echo "Admin UI is reachable (HTTP $STATUS)."
               exit 0
             fi
