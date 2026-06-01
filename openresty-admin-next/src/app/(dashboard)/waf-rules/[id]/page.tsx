@@ -12,6 +12,7 @@ import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import Skeleton from "@/components/ui/Skeleton";
+import FetchErrorState from "@/components/ui/FetchErrorState";
 import type { WafRule } from "@/types";
 
 export default function WafRuleDetailPage() {
@@ -22,7 +23,7 @@ export default function WafRuleDetailPage() {
   const id = params.id as string;
   const isCreate = id === "create";
 
-  const { data, isLoading } = useOne<WafRule>(
+  const { data, isLoading, error, mutate } = useOne<WafRule>(
     isCreate ? null : "waf_rules",
     isCreate ? null : id,
   );
@@ -110,6 +111,12 @@ export default function WafRuleDetailPage() {
         <Skeleton variant="rectangular" />
       </div>
     );
+  }
+
+  // Surface fetch failures explicitly — otherwise an empty form
+  // renders and the user wastes time wondering what went wrong.
+  if (!isCreate && error) {
+    return <FetchErrorState error={error} onRetry={() => mutate()} />;
   }
 
   return (
@@ -229,7 +236,7 @@ export default function WafRuleDetailPage() {
         </Card.Body>
       </Card>
 
-      <div className="mt-6 flex items-center justify-between">
+      <div className="sticky bottom-0 z-20 -mx-6 -mb-6 mt-6 flex items-center justify-between border-t border-slate-200 bg-white/95 px-6 py-4 backdrop-blur-sm dark:border-slate-800 dark:bg-slate-950/95">
         <div>
           {!isCreate && (
             <Button

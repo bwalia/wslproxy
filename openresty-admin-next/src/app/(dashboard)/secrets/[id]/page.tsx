@@ -11,6 +11,7 @@ import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import Skeleton from "@/components/ui/Skeleton";
+import FetchErrorState from "@/components/ui/FetchErrorState";
 import { useZodForm, FormInput, surfaceServerErrors } from "@/lib/forms";
 import {
   secretInputSchema,
@@ -41,7 +42,7 @@ export default function SecretDetailPage() {
   const id = params.id as string;
   const isCreate = id === "create";
 
-  const { data, isLoading } = useOne<Secret>(
+  const { data, isLoading, error, mutate } = useOne<Secret>(
     isCreate ? null : "secrets",
     isCreate ? null : id,
   );
@@ -64,7 +65,9 @@ export default function SecretDetailPage() {
         secret_name: data.secret_name ?? "",
         description: data.description ?? "",
         profile_id: data.profile_id ?? "",
-        secrets: data.secrets ?? [],
+        // Lua's cjson serialises empty arrays as `{}` — pass that
+        // straight to RHF's `useFieldArray` and `.map` blows up.
+        secrets: Array.isArray(data.secrets) ? data.secrets : [],
       });
     }
   }, [data, reset]);
@@ -118,6 +121,10 @@ export default function SecretDetailPage() {
         <Skeleton variant="rectangular" />
       </div>
     );
+  }
+
+  if (!isCreate && error) {
+    return <FetchErrorState error={error} onRetry={() => mutate()} />;
   }
 
   const secretsArrayError = formState.errors.secrets?.root?.message
@@ -228,7 +235,7 @@ export default function SecretDetailPage() {
             </Card.Body>
           </Card>
 
-          <div className="mt-6 flex items-center justify-between">
+          <div className="sticky bottom-0 z-20 -mx-6 -mb-6 mt-6 flex items-center justify-between border-t border-slate-200 bg-white/95 px-6 py-4 backdrop-blur-sm dark:border-slate-800 dark:bg-slate-950/95">
             <div>
               {!isCreate && (
                 <Button

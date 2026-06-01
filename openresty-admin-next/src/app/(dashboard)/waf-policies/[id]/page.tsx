@@ -11,6 +11,7 @@ import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import Skeleton from "@/components/ui/Skeleton";
+import FetchErrorState from "@/components/ui/FetchErrorState";
 import {
   useZodForm,
   FormInput,
@@ -60,7 +61,7 @@ export default function WafPolicyDetailPage() {
   const id = params.id as string;
   const isCreate = id === "create";
 
-  const { data, isLoading } = useOne<WafPolicy>(
+  const { data, isLoading, error, mutate } = useOne<WafPolicy>(
     isCreate ? null : "waf_policies",
     isCreate ? null : id,
   );
@@ -84,7 +85,9 @@ export default function WafPolicyDetailPage() {
         paranoia_level: data.paranoia_level ?? 1,
         body_inspection: data.body_inspection ?? true,
         max_body_size: data.max_body_size ?? 1048576,
-        waf_rules: data.waf_rules ?? [],
+        // Lua's cjson serialises empty arrays as `{}` — pass that
+        // straight to a rule-picker component and `.map` blows up.
+        waf_rules: Array.isArray(data.waf_rules) ? data.waf_rules : [],
       });
     }
   }, [data, reset]);
@@ -139,6 +142,10 @@ export default function WafPolicyDetailPage() {
         <Skeleton variant="rectangular" />
       </div>
     );
+  }
+
+  if (!isCreate && error) {
+    return <FetchErrorState error={error} onRetry={() => mutate()} />;
   }
 
   return (
@@ -223,7 +230,7 @@ export default function WafPolicyDetailPage() {
             </Card.Body>
           </Card>
 
-          <div className="mt-6 flex items-center justify-between">
+          <div className="sticky bottom-0 z-20 -mx-6 -mb-6 mt-6 flex items-center justify-between border-t border-slate-200 bg-white/95 px-6 py-4 backdrop-blur-sm dark:border-slate-800 dark:bg-slate-950/95">
             <div>
               {!isCreate && (
                 <Button

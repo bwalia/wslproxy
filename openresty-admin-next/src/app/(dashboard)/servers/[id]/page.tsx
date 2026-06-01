@@ -22,6 +22,7 @@ import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import Skeleton from "@/components/ui/Skeleton";
+import FetchErrorState from "@/components/ui/FetchErrorState";
 import NginxServerTab from "@/components/servers/NginxServerTab";
 import CachePurgeButton from "@/components/servers/CachePurgeButton";
 
@@ -324,7 +325,7 @@ export default function ServerDetailPage() {
 
   /* ── Remote data ─────────────────────────────────────────────────── */
 
-  const { data, isLoading } = useOne<ServerType>(
+  const { data, isLoading, error, mutate } = useOne<ServerType>(
     fetchKey ? "servers" : null,
     fetchKey,
   );
@@ -381,6 +382,18 @@ export default function ServerDetailPage() {
     }
     setForm(hydrated);
   }, [data, isClone]);
+
+  // Reset the active tab when the record changes.  `/servers/create`
+  // is the same path segment regardless of `?source=`, so the page
+  // component is NOT remounted between two consecutive clones — which
+  // means `activeTab` would otherwise persist.  If the user had
+  // switched to `history` or `topology` on a previous record, the
+  // bottom Save bar (line ~654) would stay hidden on the next one and
+  // the page would appear to have no save button.
+  useEffect(() => {
+    setActiveTab("nginx");
+    setFieldErrors({});
+  }, [fetchKey, isCreate]);
 
   /* ── Handlers ────────────────────────────────────────────────────── */
 
@@ -501,10 +514,24 @@ export default function ServerDetailPage() {
     );
   }
 
+  // Surface fetch failures explicitly — otherwise an empty form
+  // would render and the user wouldn't know whether the record is
+  // empty or the request just failed.
+  if (fetchKey && error) {
+    return <FetchErrorState error={error} onRetry={() => mutate()} />;
+  }
+
   /* ── Render ──────────────────────────────────────────────────────── */
 
   return (
     <div>
+      {/* Sticky header wrapper.  Keeps the title row + tab bar pinned
+          to the top while the (very tall) form scrolls underneath, so
+          the Save button in PageHeader's actions is always one glance
+          away.  The bottom Save bar can't reliably stick when it's the
+          last child of its parent (sticky needs room below to anchor
+          against), so we rely on this top-pinned copy instead. */}
+      <div className="sticky top-0 z-20 -mx-6 -mt-6 mb-6 bg-slate-50/95 px-6 pt-6 pb-2 backdrop-blur-sm dark:bg-slate-950/95">
       {/* ── Page Header ──────────────────────────────────────────────── */}
       <PageHeader
         title={
@@ -548,19 +575,24 @@ export default function ServerDetailPage() {
                 Delete
               </Button>
             )}
+            {/* Header Save — same label whether the user arrived via
+                Create or via Clone (both create a new record).  The
+                page title says "Clone of <name>" so the user still
+                knows they're working from a copy; the button just
+                needs to be a clear "do the thing" action. */}
             <Button
               onClick={handleSubmit}
               loading={saving}
               icon={<Save className="h-4 w-4" />}
             >
-              {isCreate ? "Create" : "Save Changes"}
+              {isCreate ? "Create Server" : "Save Changes"}
             </Button>
           </div>
         }
       />
 
       {/* ── Tab Bar ──────────────────────────────────────────────────── */}
-      <div className="mb-6 border-b border-slate-200 dark:border-slate-800">
+      <div className="border-b border-slate-200 dark:border-slate-800">
         <nav className="-mb-px flex gap-x-1 overflow-x-auto" aria-label="Server configuration tabs">
           {TABS.map((tab) => {
             const Icon = tab.icon;
@@ -599,6 +631,7 @@ export default function ServerDetailPage() {
           })}
         </nav>
       </div>
+      </div>{/* end sticky header wrapper */}
 
       {/* ── Tab Content ──────────────────────────────────────────────── */}
       {activeTab === "nginx" && (
@@ -644,9 +677,15 @@ export default function ServerDetailPage() {
         <TopologyCanvas filterServerId={id} compact />
       )}
 
-      {/* ── Bottom Action Bar ────────────────────────────────────────── */}
+      {/* ── Bottom Action Bar ──────────────────────────────────────────
+          Sticky so it stays visible on tall tabs (especially Nginx
+          Server, which has 10 sections + a 600px config preview).
+          Without `sticky bottom-0`, the bar lives at the natural end
+          of the form and is far below the viewport — the user has to
+          scroll thousands of pixels to find Save, and easily concludes
+          the button is missing entirely. */}
       {activeTab !== "history" && activeTab !== "topology" && (
-        <div className="mt-8 flex items-center justify-between border-t border-slate-200 dark:border-slate-800 pt-6">
+        <div className="sticky bottom-0 z-20 -mx-6 -mb-6 mt-8 flex items-center justify-between border-t border-slate-200 bg-white/95 px-6 py-4 backdrop-blur-sm dark:border-slate-800 dark:bg-slate-950/95">
           <div>
             {!isCreate && (
               <Button
@@ -663,7 +702,7 @@ export default function ServerDetailPage() {
             loading={saving}
             icon={<Save className="h-4 w-4" />}
           >
-            {isClone ? "Save as new server" : isCreate ? "Create Server" : "Save Changes"}
+            {isCreate ? "Create Server" : "Save Changes"}
           </Button>
         </div>
       )}

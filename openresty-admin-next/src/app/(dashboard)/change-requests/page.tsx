@@ -130,9 +130,10 @@ export default function ChangeRequestsPage() {
               type="button"
               onClick={() => setViewCR(r)}
               className="rounded p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+              aria-label={`View change request ${r.id ?? ""}`}
               title="View"
             >
-              <Eye className="h-4 w-4" />
+              <Eye className="h-4 w-4" aria-hidden="true" />
             </button>
             {r.state?.toLowerCase() === "pending" && (
               <>
@@ -147,9 +148,10 @@ export default function ChangeRequestsPage() {
                     });
                   }}
                   className="rounded p-1.5 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
+                  aria-label={`Approve change request ${r.id ?? ""}`}
                   title="Approve"
                 >
-                  <Check className="h-4 w-4" />
+                  <Check className="h-4 w-4" aria-hidden="true" />
                 </button>
                 <button
                   type="button"
@@ -158,9 +160,10 @@ export default function ChangeRequestsPage() {
                     setRejectForm({ username: "", reason: "" });
                   }}
                   className="rounded p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+                  aria-label={`Reject change request ${r.id ?? ""}`}
                   title="Reject"
                 >
-                  <X className="h-4 w-4" />
+                  <X className="h-4 w-4" aria-hidden="true" />
                 </button>
               </>
             )}

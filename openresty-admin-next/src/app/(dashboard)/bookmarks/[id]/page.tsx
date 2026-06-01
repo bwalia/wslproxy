@@ -11,6 +11,7 @@ import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import Skeleton from "@/components/ui/Skeleton";
+import FetchErrorState from "@/components/ui/FetchErrorState";
 import type { Bookmark as BookmarkType } from "@/types";
 
 export default function BookmarkDetailPage() {
@@ -21,7 +22,7 @@ export default function BookmarkDetailPage() {
   const id = params.id as string;
   const isCreate = id === "create";
 
-  const { data, isLoading } = useOne<BookmarkType>(
+  const { data, isLoading, error, mutate } = useOne<BookmarkType>(
     isCreate ? null : "bookmarks",
     isCreate ? null : id,
   );
@@ -47,7 +48,10 @@ export default function BookmarkDetailPage() {
         url: data.url ?? "",
         category: data.category ?? "",
         description: data.description ?? "",
-        tags: (data.tags ?? []).join(", "),
+        // Lua's cjson serialises empty arrays as `{}` rather than
+        // `[]`, so `data.tags ?? []` isn't enough — `{}.join` throws
+        // `tags.join is not a function`.
+        tags: (Array.isArray(data.tags) ? data.tags : []).join(", "),
         isPublic: data.public === true,
       });
     }
@@ -116,6 +120,10 @@ export default function BookmarkDetailPage() {
         <Skeleton variant="rectangular" />
       </div>
     );
+  }
+
+  if (!isCreate && error) {
+    return <FetchErrorState error={error} onRetry={() => mutate()} />;
   }
 
   return (
@@ -226,7 +234,7 @@ export default function BookmarkDetailPage() {
         </Card.Body>
       </Card>
 
-      <div className="mt-6 flex items-center justify-between">
+      <div className="sticky bottom-0 z-20 -mx-6 -mb-6 mt-6 flex items-center justify-between border-t border-slate-200 bg-white/95 px-6 py-4 backdrop-blur-sm dark:border-slate-800 dark:bg-slate-950/95">
         <div>
           {!isCreate && (
             <Button

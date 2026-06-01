@@ -34,7 +34,13 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       <Sidebar collapsed={sidebarCollapsed} onToggle={toggleSidebar} />
 
       <div
-        className={`flex flex-1 flex-col transition-all duration-300 ${
+        // `min-w-0` is required on a flex child whose content can be
+        // wider than the parent — without it, the default `min-width:
+        // auto` forces the column to grow to fit its widest descendant
+        // (e.g. the base64-encoded `<pre>` config preview on
+        // /servers/[id]), pushing the action bar and Save button far
+        // off-screen to the right.
+        className={`flex min-w-0 flex-1 flex-col transition-all duration-300 ${
           sidebarCollapsed ? "ml-18" : "ml-64"
         }`}
       >
@@ -46,7 +52,20 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         <main
           id="main-content"
           tabIndex={-1}
-          className="flex-1 overflow-y-auto p-6 focus:outline-none"
+          // No `overflow-y-auto` — the dashboard root uses
+          // `min-h-screen` and the document body scrolls.  Making
+          // <main> a scroll container (a) duplicates scrollbars on
+          // pages taller than the viewport and (b) breaks CSS
+          // `position: sticky` for elements inside pages: sticky
+          // anchors to the nearest scrolling ancestor, and an
+          // `overflow-y-auto` <main> qualifies even when it doesn't
+          // actually scroll — so a sticky child anchors to <main>'s
+          // top (which itself moves with the page scroll) instead
+          // of the viewport.  Without this fix, the sticky page
+          // header on /servers/[id] never sticks, the very tall
+          // Nginx Server tab pushes the bottom Save button far
+          // below the fold, and users conclude the button is gone.
+          className="flex-1 p-6 focus:outline-none"
         >
           <Suspense fallback={<DashboardLoading />}>{children}</Suspense>
         </main>

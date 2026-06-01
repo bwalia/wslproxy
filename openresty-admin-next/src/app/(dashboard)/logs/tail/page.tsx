@@ -16,7 +16,11 @@ import TailViewer from "./TailViewer";
 
 export default function LogsTailPage() {
   return (
-    <div className="flex h-[calc(100vh-5rem)] flex-col">
+    // See `api-docs/page.tsx` for the same pattern: `min-h` with `svh`
+    // is stable across mobile browser chrome reveal/hide, and a
+    // conservative -12rem accounts for AppBar + Footer + main padding
+    // without assuming exact pixel heights.
+    <div className="flex min-h-[calc(100svh-12rem)] flex-col">
       <Suspense fallback={<TailSkeleton />}>
         <TailViewer />
       </Suspense>
