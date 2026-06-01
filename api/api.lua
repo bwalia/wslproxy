@@ -732,93 +732,157 @@ local function deleteServerFromRules(ruleId, serverId, envProfile)
     end
 end
 
+-- ─── Redis-backed sibling of listFromDisk ────────────────────────────────
+--
+-- Previously this did its own (broken) paginate-then-filter inline.  We
+-- now load the full hash with one HSCAN pass and delegate the
+-- filter / sort / paginate pipeline to listPaginationLocal so disk and
+-- redis paths share the same correct semantics.  Loading everything
+-- before paginating is necessary for the q-filter to find records that
+-- live past the requested page — see the rationale in
+-- listPaginationLocal.  In practice the hash sizes here are small
+-- (servers / rules per installation are typically <1000 records).
 local function listWithPagination(recordsKey, cursor, pageSize, pageNumber, qParams)
-    local recordCount, totalRecords, records = 0, 0, {}
-    -- Calculate the start and end indices for pagination
-    local startIdx = (pageNumber - 1) * pageSize
-    local endIdx = startIdx + pageSize - 1
-    -- Get the total number of records
-    local totalKeys, err = red:hlen(recordsKey)
-    if not totalKeys or err or totalKeys == 0 then
-        ngx.log(ngx.INFO, "Failed to retrieve total number of records: ", err)
-        return {}
-    end
-    ---@diagnostic disable-next-line: cast-local-type
-    totalRecords = tonumber(totalKeys)
+    local allRecords = {}
 
-    repeat
-        local res, err = red:hscan(recordsKey, cursor, "COUNT", pageSize)
-        if not res then
-            ngx.log(ngx.INFO, "Failed to retrieve records: ", err)
-            return {}
+    local totalKeys, hlenErr = red:hlen(recordsKey)
+    if not totalKeys or hlenErr or totalKeys == 0 then
+        if hlenErr then
+            ngx.log(ngx.INFO, "Failed to retrieve total number of records: ", hlenErr)
         end
-        cursor = res[1]
-        -- Iterate over the returned records
+        return {}, 0
+    end
+
+    -- Full HSCAN pass — no early break.  COUNT 200 is a hint to the
+    -- redis cursor; the actual number returned per round-trip may
+    -- differ.  Loop until the cursor returns to "0".
+    local nextCursor = cursor or "0"
+    repeat
+        local res, scanErr = red:hscan(recordsKey, nextCursor, "COUNT", 200)
+        if not res then
+            ngx.log(ngx.INFO, "Failed to retrieve records: ", scanErr)
+            return {}, 0
+        end
+        nextCursor = res[1]
         for i = 1, #res[2], 2 do
             local recordValue = res[2][i + 1]
-            local dataRecord = cjson.decode(recordValue)
-            local key = res[2][i]
-            recordCount = recordCount + 1
-            -- Store the record in the result table if within the desired range
-            if recordCount >= startIdx + 1 and recordCount <= endIdx + 1 then
-                if type(qParams.meta) == "table" then
-                    if qParams.meta.exclude == key then
-                        goto continue
-                    end
-                end
-                if type(qParams.filter) == "table" and qParams.filter.q ~= nil then
-                    local fieldValue = dataRecord.name
-                    fieldValue = fieldValue:lower()
-                    local pattern = qParams.filter.q
-                    pattern = pattern:lower()
-                    if fieldValue and fieldValue:find(pattern, 1, true) then
-                        table.insert(records, cjson.decode(recordValue))
-                    end
-                else
-                    table.insert(records, cjson.decode(recordValue))
-                end
-                ::continue::
-            elseif recordCount > endIdx + 1 then
-                -- Break the loop if we have retrieved enough records
-                break
+            local ok, dataRecord = pcall(cjson.decode, recordValue)
+            if ok and type(dataRecord) == "table" then
+                allRecords[#allRecords + 1] = dataRecord
             end
         end
-    until cursor == "0" or recordCount >= endIdx + 1
-    return records, totalRecords
+    until nextCursor == "0"
+
+    return listPaginationLocal(allRecords, pageSize, pageNumber, qParams)
 end
 
+-- ─── Filter / sort / paginate over an in-memory collection ───────────────
+--
+-- Pipeline order: **filter → sort → paginate**.  Previously this was
+-- paginate-first (the page slice was computed before the filter ran),
+-- which meant a search only saw records on the visible page — typing
+-- `abc` returned "not found" if the matching record happened to live on
+-- page 2 of the unfiltered list.  Sort was also applied AFTER pagination
+-- by each list* caller, so cross-page ordering reflected whatever order
+-- `ls` returned from disk rather than the requested sort.field / order.
+--
+-- Both fixed here, in one place, so every resource that calls into this
+-- helper (servers, rules, secrets, instances, upstreams, waf_rules,
+-- waf_policies, users, profiles) gets correct query semantics and
+-- accurate total counts.  The list* callers' own post-pagination sort
+-- blocks are now redundant and have been removed.
+--
+-- qParams.type.search_fields (optional, array of dotted paths like
+-- "match.rules.path") broadens the q match across multiple columns.
+-- Falls back to a single-field match on qParams.type.key_name so
+-- callers that haven't been updated still work.
 local function listPaginationLocal(data, pageSize, pageNumber, qParams)
-    local startIdx, endIdx = 0, #data
+    qParams = qParams or {}
 
-    if pageSize ~= nil or pageNumber ~= nil then
-        startIdx = (pageNumber - 1) * pageSize + 1
-        endIdx = startIdx + pageSize - 1
+    -- Resolve a dotted path against a nested record (e.g.
+    -- "match.rules.path").  Returns nil at any missing segment.
+    local function getNested(item, path)
+        local cur = item
+        for segment in tostring(path):gmatch("[^.]+") do
+            if type(cur) ~= "table" then return nil end
+            cur = cur[segment]
+        end
+        return cur
     end
 
-    local currentPageData, totalRec = {}, #data
-    for i = startIdx, math.min(endIdx, #data) do
-        if data[i] ~= nil and data[i] ~= ngx.null and data[i] ~= "null" then
-            if type(qParams.meta) == "table" then
-                if qParams.meta.exclude == data[i].id then
-                    goto continue
-                end
+    -- Pick search fields.  Prefer the explicit search_fields array;
+    -- otherwise the single key_name set by the caller; otherwise "name"
+    -- as a generic fallback.
+    local searchFields = qParams.type and qParams.type.search_fields
+    if not (type(searchFields) == "table" and #searchFields > 0) then
+        local keyName = (qParams.type and qParams.type.key_name) or "name"
+        searchFields = { keyName }
+    end
+
+    -- Normalise the q query once.  An empty string or nil means
+    -- "no filter".
+    local q
+    if type(qParams.filter) == "table"
+        and qParams.filter.q ~= nil
+        and qParams.filter.q ~= ""
+    then
+        q = tostring(qParams.filter.q):lower()
+    end
+
+    -- meta.exclude lets callers (combobox pickers) hide a record from
+    -- its own dropdown.  Preserved from the previous behaviour.
+    local excludeId
+    if type(qParams.meta) == "table" then
+        excludeId = qParams.meta.exclude
+    end
+
+    -- 1. Filter the WHOLE collection.
+    local matches = {}
+    for _, item in ipairs(data or {}) do
+        if item ~= nil and item ~= ngx.null and item ~= "null" then
+            local keep = true
+            if excludeId ~= nil and item.id == excludeId then
+                keep = false
             end
-            if type(qParams.filter) == "table" and qParams.filter.q ~= nil then
-                local fieldValue = data[i][qParams.type.key_name]
-                fieldValue = fieldValue:lower()
-                local pattern = qParams.filter.q
-                pattern = pattern:lower()
-                if fieldValue and fieldValue:find(pattern, 1, true) then
-                    table.insert(currentPageData, data[i])
+            if keep and q ~= nil then
+                local hit = false
+                for _, fieldPath in ipairs(searchFields) do
+                    local val = getNested(item, fieldPath)
+                    if val ~= nil and val ~= ngx.null then
+                        if tostring(val):lower():find(q, 1, true) then
+                            hit = true
+                            break
+                        end
+                    end
                 end
-                totalRec = #currentPageData
-            else
-                table.insert(currentPageData, data[i])
+                if not hit then keep = false end
             end
-            ::continue::
+            if keep then matches[#matches + 1] = item end
         end
     end
-    return currentPageData, totalRec
+
+    -- 2. Sort the filtered collection.
+    if type(qParams.sort) == "table" and qParams.sort.field ~= nil then
+        if qParams.sort.order == "DESC" then
+            table.sort(matches, Helper.sortDesc(qParams.sort.field))
+        elseif qParams.sort.order == "ASC" then
+            table.sort(matches, Helper.sortAsc(qParams.sort.field))
+        end
+    end
+
+    -- 3. Paginate the sorted, filtered slice.  `total` is the count of
+    -- matches BEFORE pagination, so the frontend's page count is honest.
+    local total = #matches
+    if pageSize == nil or pageNumber == nil then
+        return matches, total
+    end
+    local startIdx = (pageNumber - 1) * pageSize + 1
+    local endIdx = math.min(startIdx + pageSize - 1, total)
+    local pageData = {}
+    for i = startIdx, endIdx do
+        pageData[#pageData + 1] = matches[i]
+    end
+    return pageData, total
 end
 
 -- Authentication
@@ -1024,7 +1088,12 @@ local function listServers(args)
     end
     qParams["type"] = {
         table = "servers",
-        key_name = "server_name"
+        key_name = "server_name",
+        -- Fields the q search matches.  `id` covers `host:foo.wslproxy.com`
+        -- exact-id paste-search; `proxy_server_name` lets users find a
+        -- server by its upstream alias even when server_name doesn't
+        -- contain the term.
+        search_fields = { "server_name", "proxy_server_name", "id" }
     }
     -- Set the pagination parameters
     local pageSize = qParams.pagination.perPage -- Number of records per page
@@ -1054,11 +1123,9 @@ local function listServers(args)
         end
     end
 
-    if qParams.sort ~= nil and qParams.sort.order == "DESC" then
-        table.sort(allServers, Helper.sortDesc(qParams.sort.field))
-    elseif qParams.sort ~= nil and qParams.sort.order == "ASC" then
-        table.sort(allServers, Helper.sortAsc(qParams.sort.field))
-    end
+    -- (Sort is now applied inside listPaginationLocal / listWithPagination,
+    -- on the full filtered collection BEFORE pagination — so a search
+    -- can't lose records that live on a later page.)
     return ngx.say(cjson.encode({
         data = allServers,
         total = totalRecords
@@ -1145,7 +1212,8 @@ local function listSecrets(args)
     end
     qParams["type"] = {
         table = "secrets",
-        key_name = "secret_name"
+        key_name = "secret_name",
+        search_fields = { "secret_name", "id", "description" }
     }
     -- Set the pagination parameters
     local pageSize = qParams.pagination.perPage -- Number of records per page
@@ -1175,11 +1243,7 @@ local function listSecrets(args)
         end
     end
 
-    if qParams.sort ~= nil and qParams.sort.order == "DESC" then
-        table.sort(allServers, Helper.sortDesc(qParams.sort.field))
-    elseif qParams.sort ~= nil and qParams.sort.order == "ASC" then
-        table.sort(allServers, Helper.sortAsc(qParams.sort.field))
-    end
+    -- Sort applied inside listPaginationLocal / listWithPagination.
     return ngx.say(cjson.encode({
         data = allServers,
         total = totalRecords
@@ -1250,7 +1314,8 @@ local function listInstances(args)
     end
     qParams["type"] = {
         table = "instances",
-        key_name = "instance_name"
+        key_name = "instance_name",
+        search_fields = { "instance_name", "id" }
     }
     -- Set the pagination parameters
     local pageSize = qParams.pagination.perPage -- Number of records per page
@@ -1280,11 +1345,7 @@ local function listInstances(args)
         end
     end
 
-    if qParams.sort ~= nil and qParams.sort.order == "DESC" then
-        table.sort(allServers, Helper.sortDesc(qParams.sort.field))
-    elseif qParams.sort ~= nil and qParams.sort.order == "ASC" then
-        table.sort(allServers, Helper.sortAsc(qParams.sort.field))
-    end
+    -- Sort applied inside listPaginationLocal / listWithPagination.
     return ngx.say(cjson.encode({
         data = allServers,
         total = totalRecords
@@ -1656,13 +1717,7 @@ local function listUsers(args)
             totalRecords = totalCount
         end
     end
-    if next(users) ~= nil then
-        if qParams.sort.order == "DESC" then
-            table.sort(users, Helper.sortDesc(qParams.sort.field))
-        else
-            table.sort(users, Helper.sortAsc(qParams.sort.field))
-        end
-    end
+    -- Sort applied inside listPaginationLocal / listWithPagination.
     ngx.say(cjson.encode({
         data = users,
         total = totalRecords
@@ -1856,7 +1911,11 @@ local function listRules(args)
     end
     qParams["type"] = {
         table = "rules",
-        key_name = "name"
+        key_name = "name",
+        -- Rules are useful to find by name (typical), by id (uuid pasted
+        -- from a server's match_cases), or by the path they match — e.g.
+        -- searching `/api` finds every rule that targets the API.
+        search_fields = { "name", "id", "match.rules.path" }
     }
     -- Set the pagination parameters
     local pageSize = qParams.pagination.perPage -- Number of records per page
@@ -1878,11 +1937,7 @@ local function listRules(args)
             -- end
         end
     end
-    if qParams.sort ~= nil and qParams.sort.order == "DESC" then
-        table.sort(allRules, Helper.sortDesc(qParams.sort.field))
-    elseif qParams.sort ~= nil and qParams.sort.order == "ASC" then
-        table.sort(allRules, Helper.sortAsc(qParams.sort.field))
-    end
+    -- Sort applied inside listPaginationLocal / listWithPagination.
     ngx.say({ cjson.encode({
         data = allRules,
         total = totalRecords
@@ -2303,7 +2358,8 @@ local function listWafRules(args)
     end
     qParams["type"] = {
         table = "waf_rules",
-        key_name = "name"
+        key_name = "name",
+        search_fields = { "name", "id", "category", "description" }
     }
     local pageSize = qParams.pagination.perPage
     local pageNumber = qParams.pagination.page
@@ -2311,11 +2367,7 @@ local function listWafRules(args)
         environment = qParams.filter.profile_id
     end
     allRules, totalRecords = listFromDisk("waf_rules/" .. environment, pageSize, pageNumber, qParams)
-    if qParams.sort ~= nil and qParams.sort.order == "DESC" then
-        table.sort(allRules, Helper.sortDesc(qParams.sort.field))
-    elseif qParams.sort ~= nil and qParams.sort.order == "ASC" then
-        table.sort(allRules, Helper.sortAsc(qParams.sort.field))
-    end
+    -- Sort applied inside listPaginationLocal / listWithPagination.
     ngx.say(cjson.encode({
         data = allRules,
         total = totalRecords
@@ -2416,7 +2468,8 @@ local function listWafPolicies(args)
     end
     qParams["type"] = {
         table = "waf_policies",
-        key_name = "name"
+        key_name = "name",
+        search_fields = { "name", "id", "description" }
     }
     local pageSize = qParams.pagination.perPage
     local pageNumber = qParams.pagination.page
@@ -2424,11 +2477,7 @@ local function listWafPolicies(args)
         environment = qParams.filter.profile_id
     end
     allPolicies, totalRecords = listFromDisk("waf_policies/" .. environment, pageSize, pageNumber, qParams)
-    if qParams.sort ~= nil and qParams.sort.order == "DESC" then
-        table.sort(allPolicies, Helper.sortDesc(qParams.sort.field))
-    elseif qParams.sort ~= nil and qParams.sort.order == "ASC" then
-        table.sort(allPolicies, Helper.sortAsc(qParams.sort.field))
-    end
+    -- Sort applied inside listPaginationLocal / listWithPagination.
     ngx.say(cjson.encode({
         data = allPolicies,
         total = totalRecords
@@ -2676,7 +2725,8 @@ local function listUpstreams(args)
     end
     qParams["type"] = {
         table = "upstreams",
-        key_name = "name"
+        key_name = "name",
+        search_fields = { "name", "id", "load_balancing_method" }
     }
     local pageSize = qParams.pagination.perPage
     local pageNumber = qParams.pagination.page
@@ -2701,11 +2751,7 @@ local function listUpstreams(args)
         end
     end
 
-    if qParams.sort ~= nil and qParams.sort.order == "DESC" then
-        table.sort(allUpstreams, Helper.sortDesc(qParams.sort.field))
-    elseif qParams.sort ~= nil and qParams.sort.order == "ASC" then
-        table.sort(allUpstreams, Helper.sortAsc(qParams.sort.field))
-    end
+    -- Sort applied inside listPaginationLocal / listWithPagination.
 
     return ngx.say(cjson.encode({
         data = allUpstreams,
