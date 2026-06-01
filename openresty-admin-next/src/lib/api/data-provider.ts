@@ -34,12 +34,25 @@ import {
   auditEntrySchema,
   wafEventSchema,
   sessionSchema,
+  bookmarkSchema,
+  secretSchema,
+  wafPolicySchema,
+  wafRuleSchema,
+  profileSchema,
+  instanceSchema,
+  userSchema,
+  changeRequestSchema,
   listResultSchema,
   singleResultSchema,
 } from "@/lib/validation/schemas";
 
 // Map resource name → Zod schema for per-item validation on list/one.
 // Resources not listed pass through without validation (backward-compat).
+// The schemas exist primarily as a normalisation layer: Lua's cjson
+// can't distinguish `[]` from `{}`, so fields that are conceptually
+// arrays sometimes arrive as empty objects.  The schemas' preprocessors
+// coerce `{}` back to `[]` BEFORE the data reaches the page components,
+// preventing `.map is not a function` crashes on the edit forms.
 const RESOURCE_SCHEMAS: Record<string, ZodTypeAny | undefined> = {
   servers: serverSchema,
   rules: ruleSchema,
@@ -47,6 +60,14 @@ const RESOURCE_SCHEMAS: Record<string, ZodTypeAny | undefined> = {
   audit: auditEntrySchema,
   waf_events: wafEventSchema,
   sessions: sessionSchema,
+  bookmarks: bookmarkSchema,
+  secrets: secretSchema,
+  waf_policies: wafPolicySchema,
+  waf_rules: wafRuleSchema,
+  profiles: profileSchema,
+  instances: instanceSchema,
+  users: userSchema,
+  change_requests: changeRequestSchema,
 };
 
 // Tolerant by default so payload drift doesn't break the UI; failures

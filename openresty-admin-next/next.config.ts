@@ -65,14 +65,31 @@ const nextConfig: NextConfig = {
   // `proxy_set_header Host $http_host` in `nginx-dev.conf.tmpl`, but
   // this list is the safety net for any additional proxy hops the
   // user might layer on (local IP access, LAN testing, etc.).
+  //
+  // Production deploys MUST set `WSLPROXY_ALLOWED_ORIGINS` (comma-
+  // separated host:port list, e.g. `admin.example.com,proxy.example.com`)
+  // — otherwise Server Actions behind a real domain will be rejected
+  // and the admin UI will half-work in surprising ways.  The dev list
+  // is kept as a fallback so `./dev.sh` and the local docker stack
+  // continue to work without setting an env var.
   experimental: {
     serverActions: {
-      allowedOrigins: [
-        "localhost:18280",
-        "localhost:7619",
-        "127.0.0.1:18280",
-        "127.0.0.1:7619",
-      ],
+      allowedOrigins: (() => {
+        const fromEnv = process.env.WSLPROXY_ALLOWED_ORIGINS;
+        if (fromEnv && fromEnv.trim()) {
+          return fromEnv
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean);
+        }
+        // Dev fallback — matches the docker-compose port mapping.
+        return [
+          "localhost:18280",
+          "localhost:7619",
+          "127.0.0.1:18280",
+          "127.0.0.1:7619",
+        ];
+      })(),
     },
   },
 

@@ -296,3 +296,155 @@ export const sessionSchema = z
   .passthrough();
 
 export type Session = z.infer<typeof sessionSchema>;
+
+/* ──────────────────────────────────────────────────────────────────────────
+   The schemas below are tolerant boundary contracts — they exist purely to
+   normalise empty Lua tables (`{}`) back into JS arrays (`[]`) on fields
+   the UI will later iterate with `.map()` / `.length` / `.filter()`.
+   Without these, the backend's cjson ambiguity propagates straight to the
+   detail pages and crashes the form-hydrate step.
+   See `zStringArray` / `zIdList` for the shared array-tolerance helpers.
+   ────────────────────────────────────────────────────────────────────────── */
+
+/** Bookmark — link with tags + visibility flag. */
+export const bookmarkSchema = z
+  .object({
+    id: zOptStr,
+    title: zOptStr,
+    host: zOptStr,
+    url: zOptStr,
+    category: zOptStr,
+    description: zOptStr,
+    // `tags` is the field that crashes `tags.join(", ")` when it
+    // arrives as `{}` from Lua — normalise here, not in every caller.
+    tags: zStringArray,
+    public: zBoolish,
+    created_at: zNumish,
+  })
+  .passthrough();
+
+export type Bookmark = z.infer<typeof bookmarkSchema>;
+
+/** Secret — an opaque credential bag.  `secrets` is the field that
+ *  feeds RHF's `useFieldArray` on the edit page — must always be a
+ *  real array. */
+export const secretSchema = z
+  .object({
+    id: zOptStr,
+    secret_name: zOptStr,
+    description: zOptStr,
+    profile_id: zOptStr,
+    secrets: z.preprocess(
+      (v) => (Array.isArray(v) ? v : []),
+      z.array(z.record(z.string(), z.unknown())).default([]),
+    ),
+    created_at: zNumish,
+  })
+  .passthrough();
+
+export type Secret = z.infer<typeof secretSchema>;
+
+/** WAF policy — bundles a set of WAF rules with a mode + tunables. */
+export const wafPolicySchema = z
+  .object({
+    id: zOptStr,
+    name: z.string(),
+    description: zOptStr,
+    profile_id: zOptStr,
+    mode: zOptStr,
+    enabled: zBoolish,
+    anomaly_threshold: zNumish,
+    paranoia_level: zNumish,
+    body_inspection: zBoolish,
+    max_body_size: zNumish,
+    // `waf_rules` is iterated as an array in the policy editor.
+    waf_rules: zIdList,
+    created_at: zNumish,
+  })
+  .passthrough();
+
+export type WafPolicy = z.infer<typeof wafPolicySchema>;
+
+/** WAF rule — single rule definition.  Most fields are scalars; the
+ *  passthrough handles category-specific extras. */
+export const wafRuleSchema = z
+  .object({
+    id: zOptStr,
+    name: z.string(),
+    description: zOptStr,
+    profile_id: zOptStr,
+    category: zOptStr,
+    severity: zOptStr,
+    action: zOptStr,
+    enabled: zBoolish,
+    score: zNumish,
+    created_at: zNumish,
+  })
+  .passthrough();
+
+export type WafRule = z.infer<typeof wafRuleSchema>;
+
+/** Profile — environment configuration (prod / int / acc / etc). */
+export const profileSchema = z
+  .object({
+    id: zOptStr,
+    name: zOptStr,
+    description: zOptStr,
+    createdAt: zNumish,
+    updatedAt: zNumish,
+  })
+  .passthrough();
+
+export type Profile = z.infer<typeof profileSchema>;
+
+/** Instance — deployment record. */
+export const instanceSchema = z
+  .object({
+    id: zOptStr,
+    name: zOptStr,
+    description: zOptStr,
+    profile_id: zOptStr,
+    host: zOptStr,
+    port: zNumish,
+    instances_tags: zStringArray,
+    created_at: zNumish,
+  })
+  .passthrough();
+
+export type Instance = z.infer<typeof instanceSchema>;
+
+/** User — admin user record. */
+export const userSchema = z
+  .object({
+    id: zOptStr,
+    username: zOptStr,
+    email: zOptStr,
+    role: zOptStr,
+    profile_id: zOptStr,
+    created_at: zNumish,
+  })
+  .passthrough();
+
+export type User = z.infer<typeof userSchema>;
+
+/** Change request — 4-eyes approval record.  `approvals` and
+ *  `rejections` are critical: any consumer that lists them as a count
+ *  or maps a name list would crash on `{}`. */
+export const changeRequestSchema = z
+  .object({
+    id: zOptStr,
+    title: zOptStr,
+    description: zOptStr,
+    status: zOptStr,
+    requester: zOptStr,
+    resource_type: zOptStr,
+    resource_id: zOptStr,
+    approvals: zStringArray,
+    rejections: zStringArray,
+    diff: z.unknown().optional(),
+    created_at: zNumish,
+    updated_at: zNumish,
+  })
+  .passthrough();
+
+export type ChangeRequest = z.infer<typeof changeRequestSchema>;

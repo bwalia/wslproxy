@@ -24,6 +24,7 @@ import Select from "@/components/ui/Select";
 import Textarea from "@/components/ui/Textarea";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import Skeleton from "@/components/ui/Skeleton";
+import FetchErrorState from "@/components/ui/FetchErrorState";
 import Badge from "@/components/ui/Badge";
 import type { Rule, Backend } from "@/types";
 import {
@@ -237,7 +238,7 @@ export default function RuleDetailPage() {
   const isClone = isCreate && Boolean(sourceId);
   const fetchKey = isCreate ? sourceId : id;
 
-  const { data, isLoading } = useOne<Rule>(
+  const { data, isLoading, error, mutate } = useOne<Rule>(
     fetchKey ? "rules" : null,
     fetchKey,
   );
@@ -308,6 +309,17 @@ export default function RuleDetailPage() {
       rules_tags: Array.isArray(data.rules_tags) ? data.rules_tags : [],
     });
   }, [data, isClone]);
+
+  // Reset transient UI state when the record being edited changes.
+  // `/rules/create` is the same path segment regardless of `?source=`,
+  // so the page component is NOT remounted between consecutive clones —
+  // which means stale `showTopology`, `fieldErrors`, and `newTag` would
+  // bleed across records.  Clear them explicitly on every record swap.
+  useEffect(() => {
+    setFieldErrors({});
+    setShowTopology(false);
+    setNewTag("");
+  }, [fetchKey, isCreate]);
 
   const set = useCallback(
     <K extends keyof RuleForm>(field: K, value: RuleForm[K]) => {
@@ -531,6 +543,10 @@ export default function RuleDetailPage() {
         <Skeleton variant="rectangular" className="h-96" />
       </div>
     );
+  }
+
+  if (fetchKey && error) {
+    return <FetchErrorState error={error} onRetry={() => mutate()} />;
   }
 
   // ── Render ──────────────────────────────────────────────────────────
@@ -905,8 +921,11 @@ export default function RuleDetailPage() {
         </Card>
       )}
 
-      {/* ── Action bar ───────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+      {/* ── Action bar ─────────────────────────────────────────────────
+          Sticky so it stays visible regardless of how tall the rule
+          form grows (path/IP/JWT/S3/backends sections stack quickly).
+          Matches the servers page treatment. */}
+      <div className="sticky bottom-0 z-20 -mx-6 -mb-6 flex items-center justify-between border-t border-slate-200 bg-white/95 px-6 py-4 backdrop-blur-sm dark:border-slate-800 dark:bg-slate-950/95">
         <div>
           {!isCreate && (
             <Button variant="danger" onClick={() => setShowDelete(true)} icon={<Trash2 className="h-4 w-4" />}>
@@ -915,7 +934,7 @@ export default function RuleDetailPage() {
           )}
         </div>
         <Button onClick={handleSubmit} loading={saving} icon={<Save className="h-4 w-4" />}>
-          {isClone ? "Save as new rule" : isCreate ? "Create Rule" : "Save Changes"}
+          {isCreate ? "Create Rule" : "Save Changes"}
         </Button>
       </div>
 
