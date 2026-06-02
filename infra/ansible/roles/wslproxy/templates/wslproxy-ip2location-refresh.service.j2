@@ -1,0 +1,32 @@
+[Unit]
+# One-shot job that refreshes the IP2Location LITE country database.
+# Triggered by wslproxy-ip2location-refresh.timer (monthly).  Can also
+# be invoked manually: `systemctl start wslproxy-ip2location-refresh`.
+Description=Refresh IP2Location LITE country database
+Documentation=https://github.com/{{ wslproxy_git_repo | default('bwalia/wslproxy') }}
+After=network-online.target openresty.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/wslproxy-ip2location-refresh.sh
+
+# Tight timeout — the download is ~165 MB on a healthy link, the
+# script's own --max-time is 600s.  Anything beyond 15 min and the
+# unit is stuck.
+TimeoutStartSec=900
+
+# Security hardening — the script only needs to write to one file
+# and shell out to systemctl.  Lock everything else down.
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/usr/local/openresty/nginx
+ProtectHome=true
+PrivateTmp=true
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=wslproxy-ip2location-refresh
+
+[Install]
+WantedBy=multi-user.target

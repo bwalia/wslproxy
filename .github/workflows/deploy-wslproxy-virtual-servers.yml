@@ -24,7 +24,6 @@ on:
           - prod
           - int
           - test
-          - acc
           - dev
           - diytaxreturn
 
@@ -35,7 +34,7 @@ on:
         required: true
         options:
           - 187.124.112.155
-          - 187.77.179.206
+          # 187.77.179.206 (acc) was decommissioned.
           - 192.168.1.193
 
       DEPLOY_NGINX_CONF:
@@ -138,7 +137,7 @@ jobs:
   # ──────────────────────────────────────────────────────
   # Stage 2: Deploy to Int first (self-hosted, fail fast)
   # Always deploys int configs first to validate before
-  # touching prod/test/acc environments
+  # touching prod/test environments
   # ──────────────────────────────────────────────────────
   deploy-int:
     name: "Stage 2: Deploy to Int (fail fast)"

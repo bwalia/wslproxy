@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+#
+# Refresh the IP2Location LITE country database in-place.
+#
+# Invoked by the monthly `wslproxy-ip2location-refresh.timer` systemd
+# unit.  The initial install is done by cdn-dependencies.sh during
+# the `build` ansible tag — this script keeps the DB current between
+# full deploys, so country lookups don't drift as IPs are reassigned.
+#
+# Safety:
+#   - Download to a temp file, then atomic-rename onto the target.
+#     OpenResty's IP2location:new() reads the file once at init and
+#     keeps the mmap, so the rename doesn't disturb running workers.
+#   - On download failure, leave the existing DB untouched.  An old
+#     DB is better than no DB.
+#   - HUP openresty after rename so a fresh worker picks up the new
+#     file mtime (the cached mmap survives a HUP-reload — but a worker
+#     restart drops it cleanly and re-opens).
+#
+# Rendered by Ansible from
+#   infra/ansible/roles/wslproxy/templates/wslproxy-ip2location-refresh.sh.j2
+# using ip2location_db_path + ip2location_download_url from
+# roles/wslproxy/defaults/main.yml.
+
+set -euo pipefail
+
+TARGET="{{ ip2location_db_path }}"
+URL="{{ ip2location_download_url }}"
+TMP="${TARGET}.tmp.$$"
+LOG_TAG="wslproxy-ip2location-refresh"
+
+log() {
+    logger -t "$LOG_TAG" -s -- "$1" 2>&1
+}
+
+trap 'rm -f "$TMP"' EXIT
+
+log "Refreshing IP2Location DB from $URL → $TARGET"
+
+if ! curl --fail --silent --show-error --location \
+        --connect-timeout 30 --max-time 600 \
+        --user-agent "wslproxy-ip2location-refresh" \
+        -o "$TMP" "$URL"; then
+    log "ERROR: download failed; keeping existing DB at $TARGET"
+    exit 1
+fi
+
+# Sanity check: LITE DB11 is ~165 MB.  A file under 10 MB usually
+# means we hit an error page rather than the real DB.
+SIZE=$(stat -c %s "$TMP" 2>/dev/null || stat -f %z "$TMP")
+if [[ "$SIZE" -lt 10485760 ]]; then
+    log "ERROR: downloaded file is only ${SIZE} bytes — refusing to install"
+    exit 2
+fi
+
+install -D -m 0775 -o www-data -g root "$TMP" "$TARGET"
+log "Installed new DB (${SIZE} bytes) at $TARGET"
+
+# HUP openresty so newly-spawned workers pick up the file.
+# Existing workers keep the old mmap until they cycle, which is fine
+# (no broken lookups, just stale-by-up-to-a-month answers from the
+# in-flight workers).
+if systemctl is-active --quiet openresty; then
+    systemctl reload openresty || log "WARN: reload openresty failed; new DB still installed"
+fi

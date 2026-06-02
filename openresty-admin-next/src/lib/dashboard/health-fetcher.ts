@@ -12,10 +12,21 @@ import type {
    Server-side Health page data fetcher.
 
    Fans out to three endpoints in parallel so the detail panels
-   (`/ping?detailed=true` is the main one; `instance/info` and
+   (`/system/detailed-health` is the main one; `instance/info` and
    `cache/stats` supplement it with OS / disk + cache stats).  Captures
-   the ping round-trip latency + HTTP status so the API Health panel
-   can render them without a separate client-side call.
+   the round-trip latency + HTTP status so the API Health panel can
+   render them without a separate client-side call.
+
+   Note on the detailed-health endpoint: this page used to hit
+   `/api/ping?detailed=true`, but the api.lua dispatcher has no
+   `path == "ping"` handler — that path falls through and returns an
+   empty body, which the page reads as `data: undefined` and surfaces
+   as a permanent "System Status: unreachable" even though the API is
+   responding fine.  `/api/system/detailed-health` is the real
+   endpoint: it runs ping.lua internally via `ngx.location.capture`
+   and wraps the result in the `{data: …}` envelope this fetcher
+   expects (see api/api.lua around the `system/detailed-health`
+   handler).
 
    Runs behind the httpOnly auth cookie via `serverFetch`, so the
    rendered HTML already contains the authenticated view on first
@@ -42,7 +53,7 @@ export async function fetchHealthBundle(): Promise<HealthBundle> {
   // failing endpoint (e.g. Redis down → cache/stats 500) doesn't
   // blank out the rest of the page.
   const [pingRes, instanceRes, cacheRes] = await Promise.allSettled([
-    serverFetch<SingleResult<HealthData>>("/ping?detailed=true", {
+    serverFetch<SingleResult<HealthData>>("/system/detailed-health", {
       next: { revalidate: REVALIDATE_SECONDS, tags: [CACHE_TAGS.health] },
     }),
     serverFetch<SingleResult<InstanceInfo>>("/instance/info", {

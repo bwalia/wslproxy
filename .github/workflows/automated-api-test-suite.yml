@@ -16,7 +16,7 @@ on:
           - int2
           - int6
           - test
-          - acc
+          # `acc` was decommissioned along with 187.77.179.206.
 
       PROFILE_ID:
         type: choice
@@ -116,13 +116,7 @@ jobs:
             export FRONT_URL="http://localhost:8069"
             export JWT_TOKEN_KEY="${{ secrets.JWT_TOKEN_KEY_DEV }}"
 
-          elif [[ "${{ inputs.TARGET_ENV }}" == 'acc' ]]; then
-            export TARGET_HOST="https://api-acc.wslproxy.com"
-            export SERVER_NAME="frontdoor-acc.wslproxy.com"
-            export SERVER_ID_QA="host:frontdoor-acc.wslproxy.com"
-            export NODE_APP_IP=""
-            export FRONT_URL="https://frontdoor-acc.wslproxy.com"
-            export JWT_TOKEN_KEY="${{ secrets.JWT_TOKEN_KEY_ACC }}"
+          # `acc` branch removed — 187.77.179.206 was decommissioned.
 
           elif [[ "${{ inputs.TARGET_ENV }}" == '' ]]; then
             export TARGET_HOST="https://dev-our.wslproxy.com"

@@ -36,6 +36,18 @@
   --color-warn-600: #d97706;
 
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+
+  /* ── Typography scale tune-up ─────────────────────────────────────────
+     Lift the smallest text from 12px → 13px so eyebrow labels (sidebar
+     section headings, footer build-info labels, form field hints,
+     small badge text) stop straining the eye.  Body text stays at
+     14px (text-sm) which is the industry-standard admin density —
+     bumping that would feel "consumer app" instead of "operator
+     console".  text-sm and above are unchanged.
+     Line heights tuned together so the new size still snaps to the
+     8px vertical rhythm. */
+  --text-xs: 0.8125rem;        /* 13px (was 0.75rem / 12px) */
+  --text-xs--line-height: 1.125rem; /* 18px */
 }
 
 /* ── Base resets ─────────────────────────────────────────────────────────── */
@@ -46,7 +58,20 @@ html {
 
 body {
   @apply bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100;
-  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+
+  /* Inter's OpenType features that make it read like a polished
+     design system instead of the default Google Fonts look:
+       cv02 — clearer `1` (less ambiguous next to `l`/`I`)
+       cv03 — improved `4` (open shape, no closed counter)
+       cv04 — clearer `6` and `9`
+       cv11 — single-story `a` and `g` (design-system feel)
+       ss03 — cleaner numerals (matters for dashboards full of stats)
+       cv01 — alternate `l` (less ambiguous next to `1` and `I`)
+     Plus `tabular-nums` so numbers in tables, stats, badges, and
+     log timestamps align column-wise rather than wandering.  This is
+     usually the single biggest "professional" tell on an admin UI. */
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11", "ss03", "cv01";
+  font-variant-numeric: tabular-nums;
 }
 
 /* ── Scrollbar ───────────────────────────────────────────────────────────── */

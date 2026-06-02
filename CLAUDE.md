@@ -277,11 +277,12 @@ Three completely independent deploy mechanisms — they don't share configuratio
 
 Main pipeline: `.github/workflows/deploy-wslproxy-delivery-pipeline.yml`
 
-**Promotion chain:** Build & Validate → Int (192.168.1.193) → Smoke Test Int → Test (192.168.1.140) → Acc (187.77.179.206) → Prod pop0 (187.124.112.155) → Prod lon1 (72.62.211.28)
+**Promotion chain:** Build & Validate → Int (192.168.1.193) → Smoke Test Int → Test (192.168.1.140) → Prod pop0 (187.124.112.155) → Prod lon1 (72.62.211.28)
+(The `acc` tier on 187.77.179.206 was decommissioned; the delivery pipeline now goes test → prod directly.)
 
 **Inputs:** `DEPLOY_BRANCH`, `TARGET_ENV`, `TARGET_HOST`, `DEPLOY_MODE` (code/nginx/servers/dashboard/dashboard-next/os_deps/build/full).
 
-**Gotcha (fixed):** the `if` conditions on `deploy-test`, `deploy-acc`, `deploy-prod-pop0`, `deploy-prod-lon1` must include `always() && !failure() && !cancelled() &&` — otherwise a skipped intermediate stage causes downstream stages to skip even when their `TARGET_HOST` matches. This is now in place.
+**Gotcha (fixed):** the `if` conditions on `deploy-test`, `deploy-prod-pop0`, `deploy-prod-lon1` must include `always() && !failure() && !cancelled() &&` — otherwise a skipped intermediate stage causes downstream stages to skip even when their `TARGET_HOST` matches. This is now in place.
 
 Reusable workflow: `deploy-environment.yml` (per-environment deploy). Supports `connection_mode: local|ssh|ssh_key`, `secrets_mode: github_secret|runner_file`, `health_check_mode: local|ssh|external`.
 

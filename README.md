@@ -447,8 +447,10 @@ WSLProxy has two separate pipelines:
 
 | Pipeline | File | Purpose | Triggers |
 |----------|------|---------|----------|
-| **Promotion** | `deploy-wslproxy-promotion-pipeline.yml` | Deploys `main` → `int` → `test` → `acc` (non-production) | Push to `main`, PRs, manual |
+| **Promotion** | `deploy-wslproxy-promotion-pipeline.yml` | Deploys `main` → `int` → `test` (non-production) | Push to `main`, PRs, manual |
 | **Delivery** | `deploy-wslproxy-delivery-pipeline.yml` | Production releases from the `release` branch | Separate — not covered here |
+
+> The `acc` tier on 187.77.179.206 was decommissioned. Both pipelines now go test → prod directly.
 
 ### Promotion Pipeline
 
@@ -463,12 +465,9 @@ main branch
     │
     ▼
 [Stage 3] Smoke Test Int (Go tests + /health curl)
-    │         └─ fails here → stops, test/acc never touched
+    │         └─ fails here → stops, test never touched
     ▼
 [Stage 4] Deploy → Test (192.168.1.140)  ← SSH
-    │
-    ▼
-[Stage 5] Deploy → ACC (187.77.179.206)  ← SSH key, root user
     │
     ▼
 [Summary] Print all stage results
@@ -483,9 +482,9 @@ Go to **Actions → CI/CD Promotion Pipeline → Run workflow** and choose:
 | Input | Options | Default | Description |
 |-------|---------|---------|-------------|
 | `DEPLOY_MODE` | `servers`, `nginx` | `servers` | What to deploy (see modes below) |
-| `TARGET_ENV` | `int`, `test`, `acc` | `acc` | How far to promote (stops after this env) |
+| `TARGET_ENV` | `int`, `test` | `test` | How far to promote (stops after this env) |
 
-On a **push to `main`** or **PR**, the pipeline always runs with `deploy_mode=servers` all the way to `acc`.
+On a **push to `main`** or **PR**, the pipeline always runs with `deploy_mode=servers` all the way to `test`.
 
 ### Deploy Modes
 
@@ -538,7 +537,6 @@ Syncs virtual server and routing rule JSON files from the repo to the target hos
 |-------------|-----------|----------------|
 | Int | Local (runner on same machine) | GitHub Secrets (`DOT_WSLPROXY_SETTINGS_INT`, `DOT_WSLPROXY_ENV_CREDS_INT`) decoded from base64 |
 | Test | SSH (password) | Runner filesystem at `/home/bwalia/.secrets/wslproxy/test/` |
-| ACC | SSH key (`~/.ssh/id_rsa`, root) | Runner filesystem at `/home/bwalia/.secrets/wslproxy/acc/` |
 
 ### Health Gate
 

@@ -1,0 +1,73 @@
+---
+# Install + enable the monthly IP2Location LITE DB refresh timer.
+#
+# Background: the initial DB install happens once in
+# cdn-dependencies.sh (`build` tag).  Without a periodic refresh the
+# on-disk DB stays at whatever was current the day the host was
+# provisioned — which historically meant 3-year-old data because no
+# pipeline ever re-ran the install step.
+#
+# This task is idempotent: it's safe to run on every deploy.  The
+# timer/service stay enabled across reboots via systemctl enable.
+
+- name: "IP2Location: install refresh script"
+  template:
+    src: wslproxy-ip2location-refresh.sh.j2
+    dest: /usr/local/bin/wslproxy-ip2location-refresh.sh
+    owner: root
+    group: root
+    mode: '0755'
+  tags: [nginx, build, ip2location]
+
+- name: "IP2Location: install refresh systemd service"
+  template:
+    src: wslproxy-ip2location-refresh.service.j2
+    dest: /etc/systemd/system/wslproxy-ip2location-refresh.service
+    owner: root
+    group: root
+    mode: '0644'
+  register: ip2loc_service_unit
+  tags: [nginx, build, ip2location]
+
+- name: "IP2Location: install refresh systemd timer"
+  template:
+    src: wslproxy-ip2location-refresh.timer.j2
+    dest: /etc/systemd/system/wslproxy-ip2location-refresh.timer
+    owner: root
+    group: root
+    mode: '0644'
+  register: ip2loc_timer_unit
+  tags: [nginx, build, ip2location]
+
+- name: "IP2Location: reload systemd if units changed"
+  systemd:
+    daemon_reload: true
+  when: ip2loc_service_unit.changed or ip2loc_timer_unit.changed
+  tags: [nginx, build, ip2location]
+
+- name: "IP2Location: enable + start monthly refresh timer"
+  systemd:
+    name: wslproxy-ip2location-refresh.timer
+    enabled: true
+    state: started
+  tags: [nginx, build, ip2location]
+
+# Optional kick: only if the on-disk DB is missing or > 60 days
+# old AND the operator explicitly tagged `ip2location` on the
+# command line.  We don't run this in the default deploy path
+# because the download is ~165 MB and can stall a normal restart.
+- name: "IP2Location: stat current DB file"
+  stat:
+    path: "{{ ip2location_db_path }}"
+  register: ip2loc_db_stat
+  tags: [ip2location]
+
+- name: "IP2Location: trigger refresh now if DB missing or stale"
+  systemd:
+    name: wslproxy-ip2location-refresh.service
+    state: started
+  when:
+    - "'ip2location' in ansible_run_tags"
+    - (not ip2loc_db_stat.stat.exists) or
+      ((ansible_date_time.epoch | int) - (ip2loc_db_stat.stat.mtime | int) > 60 * 86400)
+  tags: [ip2location]

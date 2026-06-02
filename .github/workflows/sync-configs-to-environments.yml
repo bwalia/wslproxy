@@ -4,7 +4,8 @@ name: Sync Configs to Environments
 # to the matching WSLProxy instances via Ansible (SSH).
 # S3 data is populated by the daily sync-prod-data-to-s3 workflow at 04:00.
 #
-# Pipeline:  int (self-hosted) → test (self-hosted) → acc (ubuntu-latest)
+# Pipeline:  int (self-hosted) → test (self-hosted)
+# (The `acc` tier on 187.77.179.206 was decommissioned.)
 
 on:
   # Daily at 04:30 UTC (runs after the prod-to-S3 sync at 04:00)
@@ -23,7 +24,6 @@ on:
           - all
           - int
           - test
-          - acc
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -271,119 +271,8 @@ jobs:
           fi
           echo "Test health check passed (HTTP 200)"
 
-  # ──────────────────────────────────────────────────────
-  # Stage 3: Deploy acc configs (ubuntu-latest —
-  #           acc host is publicly reachable)
-  # ──────────────────────────────────────────────────────
-  sync-acc:
-    name: "Sync configs → Acc"
-    runs-on: ubuntu-latest
-    if: >-
-      github.event.inputs.TARGET_ENVS == 'all'
-      || github.event.inputs.TARGET_ENVS == 'acc'
-      || github.event_name == 'schedule'
-    timeout-minutes: 10
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
-
-      - name: Install Ansible
-        run: sudo apt-get update && sudo apt-get install -y ansible
-
-      - name: Setup SSH
-        run: |
-          mkdir -p ~/.ssh && chmod 700 ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H 187.77.179.206 >> ~/.ssh/known_hosts 2>/dev/null || true
-
-      - name: Test SSH connectivity
-        run: |
-          ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 \
-            root@187.77.179.206 "echo 'SSH OK'" 2>&1 || {
-            echo "::error::SSH connection failed to acc host"
-            exit 1
-          }
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v5
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-
-      - name: Download acc configs from S3
-        run: |
-          S3_BUCKET="${{ secrets.WSLPROXY_S3_BUCKET }}"
-          mkdir -p s3-data/servers/acc s3-data/rules/acc
-
-          echo "Downloading acc configs from s3://${S3_BUCKET}/data/"
-          aws s3 sync "s3://${S3_BUCKET}/data/servers/acc/" s3-data/servers/acc/ 2>/dev/null || true
-          aws s3 sync "s3://${S3_BUCKET}/data/rules/acc/"   s3-data/rules/acc/   2>/dev/null || true
-
-          S3_SERVERS=$(find s3-data/servers/acc -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
-          S3_RULES=$(find s3-data/rules/acc -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
-          echo "Downloaded from S3: ${S3_SERVERS} server(s), ${S3_RULES} rule(s)"
-
-      - name: Merge S3 configs on top of repo configs
-        run: |
-          mkdir -p data/servers/acc data/rules/acc
-          REPO_SERVERS=$(find data/servers/acc -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
-          REPO_RULES=$(find data/rules/acc -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
-          echo "Repo baseline: ${REPO_SERVERS} server(s), ${REPO_RULES} rule(s)"
-
-          # Merge S3 configs on top of repo data (S3 wins on conflict, no delete)
-          rsync -av s3-data/servers/acc/ data/servers/acc/
-          rsync -av s3-data/rules/acc/   data/rules/acc/
-
-          MERGED_SERVERS=$(find data/servers/acc -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
-          MERGED_RULES=$(find data/rules/acc -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
-          echo "After merge: ${MERGED_SERVERS} server(s), ${MERGED_RULES} rule(s) to deploy"
-
-      - name: Validate acc JSON configs
-        run: |
-          ERRORS=0
-          for file in data/servers/acc/*.json data/rules/acc/*.json; do
-            [ -f "$file" ] || continue
-            if ! python3 -m json.tool "$file" > /dev/null 2>&1; then
-              echo "::error::Invalid JSON: $(basename "$file")"
-              ERRORS=$((ERRORS+1))
-            fi
-          done
-          if [ "$ERRORS" -gt 0 ]; then
-            echo "::error::$ERRORS invalid JSON file(s) — aborting"
-            exit 1
-          fi
-          echo "All acc JSON configs valid"
-
-      - name: Deploy acc configs via Ansible
-        run: |
-          echo "Deploying acc configs to 187.77.179.206"
-          export ANSIBLE_HOST_KEY_CHECKING=False
-          ansible-playbook infra/ansible/deploy-configs.yml \
-            -i infra/ansible/hosts \
-            -l 187.77.179.206 \
-            -e "target_env=acc" \
-            -e "local_data_dir=${{ github.workspace }}/data" \
-            -e "reload_nginx=true"
-        env:
-          ANSIBLE_PRIVATE_KEY_FILE: ~/.ssh/id_rsa
-          ANSIBLE_DISPLAY_ARGS_TO_STDOUT: "False"
-
-      - name: Health check acc
-        run: |
-          HTTP_CODE=$(ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 \
-            root@187.77.179.206 \
-            "curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/ping" 2>/dev/null) || true
-          if [ "$HTTP_CODE" != "200" ]; then
-            echo "::error::Acc health check failed (HTTP $HTTP_CODE)"
-            exit 1
-          fi
-          echo "Acc health check passed (HTTP 200)"
-
-      - name: Cleanup SSH key
-        if: always()
-        run: rm -f ~/.ssh/id_rsa
+  # Stage 3 (acc / 187.77.179.206) was decommissioned along with
+  # the underlying host — int + test remain.
 
   # ──────────────────────────────────────────────────────
   # Summary
@@ -391,7 +280,7 @@ jobs:
   summary:
     name: "Sync Summary"
     runs-on: ubuntu-latest
-    needs: [sync-int, sync-test, sync-acc]
+    needs: [sync-int, sync-test]
     if: always()
     steps:
       - name: Results
@@ -401,6 +290,5 @@ jobs:
           echo "=========================================="
           echo "Int sync:  ${{ needs.sync-int.result }}"
           echo "Test sync: ${{ needs.sync-test.result }}"
-          echo "Acc sync:  ${{ needs.sync-acc.result }}"
           echo "Timestamp: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
           echo "=========================================="

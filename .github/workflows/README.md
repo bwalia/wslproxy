@@ -6,9 +6,11 @@ WSLProxy uses two deployment pipelines and a shared reusable workflow:
 
 | Pipeline | File | Branch | Environments | Purpose |
 |----------|------|--------|-------------|---------|
-| **Delivery** | `deploy-wslproxy-delivery-pipeline.yml` | `release` | int → test → acc → prod (pop0 + lon1) | Production releases |
-| **Promotion** | `deploy-wslproxy-promotion-pipeline.yml` | `main` | int → test → acc | CI/CD for config/server changes |
+| **Delivery** | `deploy-wslproxy-delivery-pipeline.yml` | `release` | int → test → prod (pop0 + lon1) | Production releases |
+| **Promotion** | `deploy-wslproxy-promotion-pipeline.yml` | `main` | int → test | CI/CD for config/server changes |
 | **Reusable** | `deploy-environment.yml` | — | (called by both pipelines) | Parameterized per-environment deploy logic |
+
+> The `acc` tier on 187.77.179.206 was decommissioned. Both pipelines now go test → prod (delivery) or stop at test (promotion).
 
 ---
 
@@ -24,13 +26,13 @@ WSLProxy uses two deployment pipelines and a shared reusable workflow:
 
 ## Delivery Pipeline (`deploy-wslproxy-delivery-pipeline.yml`)
 
-Full production release pipeline with fail-fast behavior and Slack notifications at every gate. Code promotes through **int → test → acc → prod (pop0 + lon1)** — each environment must pass before the next deploys.
+Full production release pipeline with fail-fast behavior and Slack notifications at every gate. Code promotes through **int → test → prod (pop0 + lon1)** — each environment must pass before the next deploys.
 
 ### Triggers
 
 | Trigger | Branches | Behavior |
 |---------|----------|----------|
-| Push | `release` | Runs full pipeline: int → test → acc → prod (pop0 + lon1) |
+| Push | `release` | Runs full pipeline: int → test → prod (pop0 + lon1) |
 | Manual (`workflow_dispatch`) | any | Choose target host, environment, and deploy mode |
 
 ### Deploy Modes
@@ -81,20 +83,12 @@ Selected via `DEPLOY_MODE` dropdown (default: `code` for manual, `full` for push
  ┌──────────────────────────────────────────────────────────────────────┐
  │  STAGE 4: Deploy Test                   [self-hosted, SSH]          │
  │  Uses deploy-environment.yml (connection_mode: ssh)                 │
- │  ✗ Failure → Slack alert → pipeline stops before acc                │
- └──────────────────────────┬───────────────────────────────────────────┘
-                            │ pass
-                            ▼
- ┌──────────────────────────────────────────────────────────────────────┐
- │  STAGE 5: Deploy ACC                    [self-hosted, SSH+key]      │
- │  Uses deploy-environment.yml (connection_mode: ssh_key)             │
- │  ✓ Success → Slack: "deployed to ACC"                               │
  │  ✗ Failure → Slack alert → pipeline stops before production         │
  └──────────────────────────┬───────────────────────────────────────────┘
                             │ pass
                             ▼
  ┌──────────────────────────────────────────────────────────────────────┐
- │  STAGE 6a: Deploy Prod pop0             [self-hosted, SSH+key]      │
+ │  STAGE 5a: Deploy Prod pop0             [self-hosted, SSH+key]      │
  │  Uses deploy-environment.yml (connection_mode: ssh_key)             │
  │  ✓ Success → Slack: "deployed to production (pop0)"                 │
  │  ✗ Failure → Slack alert + manual rollback                          │
@@ -102,7 +96,7 @@ Selected via `DEPLOY_MODE` dropdown (default: `code` for manual, `full` for push
                             │ pass
                             ▼
  ┌──────────────────────────────────────────────────────────────────────┐
- │  STAGE 6b: Deploy Prod lon1             [self-hosted, SSH+key]      │
+ │  STAGE 5b: Deploy Prod lon1             [self-hosted, SSH+key]      │
  │  Uses deploy-environment.yml (connection_mode: ssh_key)             │
  │  ✓ Success → Slack: "deployed to LON1"                              │
  │  ✗ Failure → Slack alert + manual rollback                          │
@@ -125,8 +119,8 @@ Lightweight CI/CD pipeline for deploying config and server changes from `main` t
 
 | Trigger | Branches | Behavior |
 |---------|----------|----------|
-| Push | `main` | Validates and deploys through int → test → acc |
-| Pull Request | `feature/*`, `bugfix/*`, `hotfix/*`, `release/*`, `main` | Validates and deploys through int → test → acc |
+| Push | `main` | Validates and deploys through int → test |
+| Pull Request | `feature/*`, `bugfix/*`, `hotfix/*`, `release/*`, `main` | Validates and deploys through int → test |
 | Manual (`workflow_dispatch`) | — | Choose deploy mode (`nginx` or `servers`) and how far to promote |
 
 ### Deploy Modes
@@ -165,13 +159,7 @@ Limited to config-only changes:
                             ▼
  ┌──────────────────────────────────────────────────────────────────────┐
  │  Deploy Test (192.168.1.140)                      [self-hosted]     │
- │  Runs if TARGET_ENV is test or acc                                  │
- └──────────────────────────┬───────────────────────────────────────────┘
-                            │ pass
-                            ▼
- ┌──────────────────────────────────────────────────────────────────────┐
- │  Deploy ACC (187.77.179.206)                      [self-hosted]     │
- │  Runs only if TARGET_ENV is acc                                     │
+ │  Runs if TARGET_ENV is test                                         │
  └──────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -196,7 +184,6 @@ Shared parameterized workflow called by both pipelines via `workflow_call`. Hand
 |-------------|---------|----------|--------------------|----------------|---------------------|-----------------|
 | int | 192.168.1.193 | (local) | `local` | `github_secret` | `local` | `http://localhost:8080/health` |
 | test | 192.168.1.140 | bwalia | `ssh` | `runner_file` | `ssh` | `http://localhost:8080/health` |
-| acc | 187.77.179.206 | root | `ssh_key` | `runner_file` | `ssh` | `http://localhost:8080/health` |
 | prod (pop0) | 187.124.112.155 | root | `ssh_key` | `github_secret` | `external` | `https://prod-our-v1.wslproxy.com/health` |
 | prod (lon1) | 72.62.211.28 | root | `ssh_key` | `runner_file` | `external` | `http://72.62.211.28:7691/health` |
 
@@ -247,7 +234,6 @@ Runner-local secrets (on 192.168.1.193):
 /home/bwalia/.secrets/wslproxy/
 ├── int/     → settings.json + .env (BACKEND_HOST=192.168.1.193)
 ├── test/    → settings.json + .env (BACKEND_HOST=192.168.1.140)
-├── acc/     → settings.json + .env (BACKEND_HOST=187.77.179.206)
 └── lon1/    → settings.json + .env (BACKEND_HOST=72.62.211.28)
 ```
 
@@ -304,10 +290,9 @@ Both pipelines stop immediately on failure and send Slack alerts:
 Stage 1 fails  → "Build & Validate FAILED"              → pipeline stops
 Stage 2 fails  → "Deploy Int FAILED"                    → pipeline stops
 Stage 3 fails  → "Smoke Test Int FAILED"                → pipeline stops (before test)
-Stage 4 fails  → "Deploy Test FAILED"                   → pipeline stops (before acc)
-Stage 5 fails  → "Deploy ACC FAILED"                    → pipeline stops (before prod)
-Stage 6a fails → "Production Deployment FAILED (pop0)"  → alert + manual rollback
-Stage 6b fails → "LON1 Deployment FAILED"               → alert + manual rollback
+Stage 4 fails  → "Deploy Test FAILED"                   → pipeline stops (before prod)
+Stage 5a fails → "Production Deployment FAILED (pop0)"  → alert + manual rollback
+Stage 5b fails → "LON1 Deployment FAILED"               → alert + manual rollback
 ```
 
 ### Promotion Pipeline
@@ -315,8 +300,7 @@ Stage 6b fails → "LON1 Deployment FAILED"               → alert + manual rol
 Validate fails     → pipeline stops
 Deploy Int fails   → pipeline stops
 Smoke Test fails   → pipeline stops (before test)
-Deploy Test fails  → pipeline stops (before acc)
-Deploy ACC fails   → alert
+Deploy Test fails  → alert
 ```
 
 ### Rollback

@@ -10,7 +10,7 @@
 #   - openresty_int: Integration servers
 #   - openresty_test: Test servers
 #   - openresty_dev: Development servers
-#   - openresty_acc: Acceptance servers
+#   (openresty_acc was decommissioned along with 187.77.179.206)
 
 - name: Deploy WSLProxy Server Configs and Rules
   hosts: "{{ host_group | default('openresty_' + (target_env | default('int'))) }}"
@@ -61,8 +61,8 @@
     - name: Validate target environment
       assert:
         that:
-          - target_env in ['dev', 'int', 'test', 'acc', 'prod', 'lon1', 'diytaxreturn', 'diytaxreturn_wsl1']
-        fail_msg: "Invalid target_env: {{ target_env }}. Must be one of: dev, int, test, acc, prod, lon1, diytaxreturn, diytaxreturn_wsl1"
+          - target_env in ['dev', 'int', 'test', 'prod', 'lon1', 'diytaxreturn', 'diytaxreturn_wsl1']
+        fail_msg: "Invalid target_env: {{ target_env }}. Must be one of: dev, int, test, prod, lon1, diytaxreturn, diytaxreturn_wsl1"
         success_msg: "Target environment validated: {{ target_env }}"
 
     - name: Ensure remote directories exist
