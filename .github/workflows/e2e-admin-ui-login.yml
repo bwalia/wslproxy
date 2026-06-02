@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feat/admin-ui-login-workflow
+      - ci/admin-ui-login-merge-int-prod
     paths:
       - "openresty-admin/e2e/login.spec.js"
       - "openresty-admin/e2e/helpers.js"
