@@ -14,7 +14,7 @@ on:
           - dev
           - int
           - test
-          - acc
+          # `acc` was decommissioned along with 187.77.179.206.
           - local
 
 env:

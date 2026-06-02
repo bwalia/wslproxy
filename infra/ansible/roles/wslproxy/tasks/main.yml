@@ -119,6 +119,16 @@
   when: openresty_needs_build | bool and not _build_steps_done | bool
   tags: [always]
 
+# Step 6.3: Install monthly IP2Location LITE DB refresh timer.
+# The initial DB download itself lives in deploy_deps.yml /
+# cdn-dependencies.sh (under the `build` tag).  This task installs the
+# systemd timer that keeps the DB current between full builds —
+# included under the `nginx` tag too so routine deploys can pick up
+# script/unit-file changes without a full rebuild.
+- name: Setup IP2Location DB refresh timer
+  include_tasks: ip2location_refresh.yml
+  tags: [nginx, build, ip2location]
+
 # Step 6.5: Install and configure Varnish Cache (conditional)
 - name: Setup Varnish Cache
   include_tasks: varnish_setup.yml

@@ -569,7 +569,7 @@ export function TopologyCanvas({ filterServerId, filterRuleId, compact }: Topolo
 
   const svgEdges = useMemo(() => {
     if (filteredEdges.length === 0) return [];
-    return filteredEdges.flatMap((e) => {
+    return filteredEdges.flatMap((e, idx) => {
       const src = layoutMap.get(e.from);
       const tgt = layoutMap.get(e.to);
       if (!src || !tgt) return [];
@@ -580,7 +580,14 @@ export function TopologyCanvas({ filterServerId, filterRuleId, compact }: Topolo
       return [
         {
           path: edgePath(fx, fy, tx, ty),
-          key: e.from + "->" + e.to,
+          // `from->to` alone is NOT unique: a single rule can route to
+          // the same backend address more than once (e.g. two weighted
+          // entries for `httpbin.org` to test failover with different
+          // weights, or accidental duplicates).  Append the source
+          // index so React doesn't collapse them — without this we hit
+          // "Encountered two children with the same key" and one of
+          // the duplicate edges silently disappears from the canvas.
+          key: e.from + "->" + e.to + "#" + idx,
           label: e.label,
           weight: e.weight,
           from: e.from,
@@ -679,11 +686,15 @@ export function TopologyCanvas({ filterServerId, filterRuleId, compact }: Topolo
                     strokeWidth={1.5}
                   />
                 ))}
-                {/* Highlighted edges for selected node */}
+                {/* Highlighted edges for selected node.  Same
+                    duplicate-key risk as svgEdges above: a rule with
+                    two backends pointing at the same address produces
+                    two edges with identical (from, to).  Append the
+                    source-array index to keep React keys unique. */}
                 {selected &&
                   filteredEdges
                     .filter((e) => e.from === selected.id || e.to === selected.id)
-                    .flatMap((e) => {
+                    .flatMap((e, idx) => {
                       const src = layoutMap.get(e.from);
                       const tgt = layoutMap.get(e.to);
                       if (!src || !tgt) return [];
@@ -694,7 +705,7 @@ export function TopologyCanvas({ filterServerId, filterRuleId, compact }: Topolo
                       const col = kindColor(selected.kind);
                       return [
                         <path
-                          key={e.from + "->" + e.to + "-hl"}
+                          key={e.from + "->" + e.to + "#" + idx + "-hl"}
                           d={edgePath(fx, fy, tx, ty)}
                           fill="none"
                           stroke={col}
@@ -703,11 +714,15 @@ export function TopologyCanvas({ filterServerId, filterRuleId, compact }: Topolo
                         />,
                       ];
                     })}
-                {/* Edge weight labels */}
-                {svgEdges.map(({ key, path, weight, label }) => {
+                {/* Edge weight labels.  Use `from`/`to` from the svgEdge
+                    object directly (not parsed back out of the key) —
+                    the key now carries a `#idx` suffix to disambiguate
+                    duplicate edges, and a `.split("->")` would no
+                    longer return the bare ids. */}
+                {svgEdges.map(({ key, weight, label, from, to }) => {
                   if (!weight && !label) return null;
-                  const src = layoutMap.get(key.split("->")[0]);
-                  const tgt = layoutMap.get(key.split("->")[1]);
+                  const src = layoutMap.get(from);
+                  const tgt = layoutMap.get(to);
                   if (!src || !tgt) return null;
                   const mx = (src.x + NW + tgt.x) / 2;
                   const my = (src.y + NH / 2 + tgt.y + NH / 2) / 2;

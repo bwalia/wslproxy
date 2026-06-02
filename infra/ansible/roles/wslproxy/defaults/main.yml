@@ -17,3 +17,29 @@ nginx_nextjs_node_port: 3099
 wslproxy_version: "{{ (lookup('file', playbook_dir + '/../../system/app.json') | from_json).version.version | default('1.0.0') }}"
 wslproxy_build_number: "{{ (lookup('file', playbook_dir + '/../../system/app.json') | from_json).version.build | default('unknown') }}"
 wslproxy_deployment_time: "{{ ansible_date_time.iso8601 }}"
+
+# ── IP2Location LITE database ────────────────────────────────────────────
+# Canonical on-disk location for the country-lookup DB.  Read by
+# api/log_handler.lua (per-request country recording) and
+# api/geo_lookup.lua (rule-time country matching).
+#
+# History: prod silently lost geographic traffic for weeks because
+# the file was installed under /usr/local/openresty/nginx/ but
+# settings.json (in Vault) still pointed at the legacy /tmp/ path.
+# Centralising the var here means cdn-dependencies.sh.j2, the
+# /__ip_location debug endpoint in nginx.conf.j2, the refresh
+# systemd timer, and the api/init.lua fallback all agree on the
+# same file.  `/tmp` is also a bad idea — some systems clear it on
+# reboot, which would silently break geo lookups after every restart.
+ip2location_db_path: /usr/local/openresty/nginx/IP2LOCATION-LITE-DB11.IPV6.BIN
+
+# Source URL for the LITE DB file.  Currently a public S3 mirror — to
+# refresh content you replace the object in that bucket, or override
+# this variable per-environment to point at upstream IP2Location LITE
+# (which requires registration + a download token).
+ip2location_download_url: "https://edgeone-public.s3.eu-west-2.amazonaws.com/src/openresty/IP2LOCATION-LITE-DB11.IPV6.BIN/IP2LOCATION-LITE-DB11.IPV6.BIN"
+
+# OnCalendar expression for the monthly auto-refresh systemd timer.
+# `*-*-01 03:30:00` = 03:30 UTC on the 1st of every month.  The LITE
+# DB is updated by IP2Location around the start of each month.
+ip2location_refresh_schedule: "*-*-01 03:30:00"

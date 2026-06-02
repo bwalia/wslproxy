@@ -27,7 +27,12 @@ import type { Profile } from "@/types";
  *    responsive while SWR refetches + server components re-render.
  */
 
-const FALLBACK_PROFILES = ["dev", "int", "acc", "prod"];
+// `acc` removed — the underlying host (187.77.179.206) was
+// decommissioned, so the profile would just route to a dead env.
+// The list of profiles available at runtime is still driven by
+// /api/profiles; this is only used as a fallback when that fetch
+// hasn't returned yet.
+const FALLBACK_PROFILES = ["dev", "int", "prod"];
 
 export default function ProfileSwitcher() {
   const { profile, setProfile, isSwitching, hydrated } = useProfile();

@@ -19,12 +19,18 @@ Environment=PATH=/usr/local/bin:/usr/bin:/bin
 # API backend — Next.js server-side rewrites proxy to this URL
 Environment=WSLPROXY_API_URL=http://127.0.0.1:{{ nginx_default_server_backend_port }}
 
-# App metadata exposed to the browser via NEXT_PUBLIC_* vars
+# App metadata.  NOTE: NEXT_PUBLIC_* vars set here only affect the
+# server-side rendered HTML (SSR).  The client bundle inlined these
+# values at `npm run build` time — see deploy_nextjs_admin_ui.yml.
+# We set them here too so SSR and client agree.
 Environment=NEXT_PUBLIC_APP_NAME=wslproxy
 Environment=NEXT_PUBLIC_APP_DISPLAY_NAME=WSL Proxy
 Environment=NEXT_PUBLIC_APP_VERSION={{ wslproxy_version | default('1.0.0') }}
 Environment=NEXT_PUBLIC_APP_BUILD_NUMBER={{ wslproxy_build_number | default('unknown') }}
 Environment=NEXT_PUBLIC_DEPLOYMENT_TIME={{ wslproxy_deployment_time | default('') }}
+Environment=NEXT_PUBLIC_ENV_NAME={{ target_env | default('local') }}
+Environment=NEXT_PUBLIC_GIT_SHA={{ wslproxy_git_sha | default('') }}
+Environment=NEXT_PUBLIC_GIT_REPO={{ wslproxy_git_repo | default('bwalia/wslproxy') }}
 Environment=NEXT_PUBLIC_TARGET_PLATFORM=BARE_METAL
 
 # ── Process management ──

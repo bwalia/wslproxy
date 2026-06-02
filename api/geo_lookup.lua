@@ -23,6 +23,9 @@ local function get_ip2location()
     -- Use global IP2LocationPath from init.lua (loaded from settings.json)
     local path = IP2LocationPath
     if not path or path == "" then
+        -- ERR (was silent) — rule-time country matching is broken,
+        -- the operator must know so they can fix settings.json.
+        ngx.log(ngx.ERR, "geo_lookup: IP2LocationPath not set in init.lua — rule-time country matching disabled")
         return nil
     end
 
@@ -33,7 +36,10 @@ local function get_ip2location()
     end)
 
     if not ok then
-        ngx.log(ngx.WARN, "geo_lookup: Failed to init IP2Location: ", tostring(err))
+        -- ERR (was WARN) — rule-time country matching is fully
+        -- broken, default error_log level would have filtered WARN.
+        ngx.log(ngx.ERR, "geo_lookup: Failed to init IP2Location from ", path, ": ", tostring(err),
+            " — rule-time country matching disabled")
     end
 
     return ip2loc_instance

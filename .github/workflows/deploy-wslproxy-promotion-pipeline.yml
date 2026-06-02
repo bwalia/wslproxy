@@ -1,16 +1,18 @@
-name: CI/CD Promotion Pipeline (main → int → test → acc)
-# Deploys from main branch through non-production environments: int → smoke test → test → acc
+name: CI/CD Promotion Pipeline (main → int → test)
+# Deploys from main branch through non-production environments: int → smoke test → test.
+# (The `acc` tier on 187.77.179.206 was decommissioned — promotion
+# now stops at `test` and prod releases run from the release branch
+# via deploy-wslproxy-delivery-pipeline.yml.)
 #
 # Auto-trigger policy (push to `main`):
 #   - int  → `full`  (everything: api code, nginx, servers, both admin
 #                     UIs, os_deps, build).  This is the canary host
 #                     where every layer is verified before promotion.
 #   - test → `code`  (Lua api/* only — int already proved the rest).
-#   - acc  → `code`  (same).
 #
 # Manual `workflow_dispatch` lets ops pick any DEPLOY_MODE and stop
 # at any TARGET_ENV — useful for surgical redeploys (e.g. push only
-# `dashboard-next` to acc after an admin-UI hotfix).
+# `dashboard-next` to test after an admin-UI hotfix).
 #
 # Production hosts are never touched here — use
 # deploy-wslproxy-delivery-pipeline.yml for production releases from
@@ -40,12 +42,11 @@ on:
       TARGET_ENV:
         type: choice
         description: "How far to promote (stops after this environment)"
-        default: "acc"
+        default: "test"
         required: true
         options:
           - int
           - test
-          - acc
 
 # Prevent concurrent promotions
 concurrency:
@@ -197,14 +198,15 @@ jobs:
               '{channel: "github-updates", username: "GitHub Actions", text: $text}')"
 
   # ──────────────────────────────────────────────────────
-  # Stage 4: Deploy to Test (if target is test or acc)
+  # Stage 4: Deploy to Test (final stage in this pipeline —
+  # `acc` was decommissioned, prod releases run from the release
+  # branch via deploy-wslproxy-delivery-pipeline.yml)
   # ──────────────────────────────────────────────────────
   deploy-test:
     needs: [smoke-test-int]
     if: >
       github.event_name != 'workflow_dispatch' ||
-      github.event.inputs.TARGET_ENV == 'test' ||
-      github.event.inputs.TARGET_ENV == 'acc'
+      github.event.inputs.TARGET_ENV == 'test'
     uses: ./.github/workflows/deploy-environment.yml
     with:
       env_name: test
@@ -229,43 +231,12 @@ jobs:
       SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
   # ──────────────────────────────────────────────────────
-  # Stage 5: Deploy to ACC (if target is acc or push/PR)
-  # ──────────────────────────────────────────────────────
-  deploy-acc:
-    needs: [deploy-test]
-    if: >
-      github.event_name != 'workflow_dispatch' ||
-      github.event.inputs.TARGET_ENV == 'acc'
-    uses: ./.github/workflows/deploy-environment.yml
-    with:
-      env_name: acc
-      env_label: "ACC (187.77.179.206)"
-      stage_number: "5"
-      host_ip: "187.77.179.206"
-      ssh_user: root
-      connection_mode: ssh_key
-      secrets_mode: runner_file
-      settings_file_path: "/home/bwalia/.secrets/wslproxy/acc/settings.json"
-      env_file_path: "/home/bwalia/.secrets/wslproxy/acc/.env"
-      health_endpoint: "http://localhost:8080/health"
-      health_check_mode: ssh
-      docker_prune: false
-      notify_success: true
-      deploy_branch: main
-      # Push to main → `code` only (int already proved every other
-      # layer in the canary stage above).  Manual workflow_dispatch
-      # can override DEPLOY_MODE for a scoped or `full` redeploy.
-      deploy_mode: ${{ github.event.inputs.DEPLOY_MODE || 'code' }}
-    secrets:
-      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-
-  # ──────────────────────────────────────────────────────
   # Summary
   # ──────────────────────────────────────────────────────
   summary:
     name: Promotion Summary
     runs-on: ubuntu-latest
-    needs: [validate, deploy-int, smoke-test-int, deploy-test, deploy-acc]
+    needs: [validate, deploy-int, smoke-test-int, deploy-test]
     if: always()
     steps:
       - name: Promotion Summary
@@ -282,7 +253,6 @@ jobs:
           echo "  Deploy Int:      ${{ needs.deploy-int.result }}"
           echo "  Smoke Test Int:  ${{ needs.smoke-test-int.result }}"
           echo "  Deploy Test:     ${{ needs.deploy-test.result }}"
-          echo "  Deploy ACC:      ${{ needs.deploy-acc.result }}"
           echo ""
           echo "  Commit:  ${{ github.sha }}"
           echo "  Trigger: ${{ github.actor }}"
@@ -291,8 +261,7 @@ jobs:
           if [[ "${{ needs.validate.result }}" == "failure" ]] || \
              [[ "${{ needs.deploy-int.result }}" == "failure" ]] || \
              [[ "${{ needs.smoke-test-int.result }}" == "failure" ]] || \
-             [[ "${{ needs.deploy-test.result }}" == "failure" ]] || \
-             [[ "${{ needs.deploy-acc.result }}" == "failure" ]]; then
+             [[ "${{ needs.deploy-test.result }}" == "failure" ]]; then
               echo "::error::Promotion pipeline failed — see results above"
               exit 1
           fi
