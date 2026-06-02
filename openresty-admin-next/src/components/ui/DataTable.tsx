@@ -1,6 +1,13 @@
 "use client";
 
-import React, { useMemo, useCallback, useState, useEffect, useRef } from "react";
+import React, {
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useState,
+  useTransition,
+} from "react";
 import { cn } from "@/lib/utils/cn";
 import {
   Search,
@@ -9,6 +16,8 @@ import {
   ArrowDown,
   ChevronLeft,
   ChevronRight,
+  AlertCircle,
+  RefreshCw,
 } from "lucide-react";
 import Skeleton from "./Skeleton";
 import EmptyState from "./EmptyState";
@@ -31,6 +40,17 @@ export interface DataTableProps<T> {
   data: T[];
   total?: number;
   loading?: boolean;
+  /**
+   * Fetch error to surface inline above the table.  When set, the
+   * empty-state row is replaced with a red error card that includes
+   * the message + a "Retry" button (when `onRetry` is provided).
+   * Without this, list pages silently render an empty table on
+   * backend failure and the user assumes "no data" instead of
+   * "API down" — see Wave 11.1.
+   */
+  error?: Error | { message?: string } | string | null;
+  /** Optional retry callback wired to the error card's button. */
+  onRetry?: () => void;
   page?: number;
   perPage?: number;
   sort?: { field: string; order: "ASC" | "DESC" };
@@ -78,6 +98,59 @@ function buildPageNumbers(current: number, total: number): (number | "...")[] {
 
   addPage(total);
   return pages;
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Error banner — rendered inline when a list fetch fails                    */
+/* -------------------------------------------------------------------------- */
+
+function extractErrorMessage(
+  error: Error | { message?: string } | string,
+): string {
+  if (typeof error === "string") return error;
+  if (error instanceof Error) return error.message;
+  if (typeof error === "object" && error !== null && "message" in error) {
+    return String(error.message ?? "");
+  }
+  return "Unknown error";
+}
+
+function DataTableErrorBanner({
+  error,
+  onRetry,
+}: {
+  error: Error | { message?: string } | string;
+  onRetry?: () => void;
+}) {
+  return (
+    <div
+      role="alert"
+      className="flex flex-col items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800 sm:flex-row sm:items-center sm:justify-between dark:border-red-900 dark:bg-red-950/40 dark:text-red-300"
+    >
+      <div className="flex min-w-0 items-start gap-2">
+        <AlertCircle
+          className="mt-0.5 h-4 w-4 shrink-0 text-red-500"
+          aria-hidden="true"
+        />
+        <div className="min-w-0">
+          <p className="font-semibold">Failed to load data</p>
+          <p className="mt-0.5 wrap-break-word text-xs opacity-90">
+            {extractErrorMessage(error)}
+          </p>
+        </div>
+      </div>
+      {onRetry && (
+        <button
+          type="button"
+          onClick={onRetry}
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-red-300 bg-white px-3 py-1.5 text-xs font-medium text-red-700 transition-colors hover:bg-red-50 dark:border-red-800 dark:bg-red-950/60 dark:text-red-200 dark:hover:bg-red-900/40"
+        >
+          <RefreshCw className="h-3 w-3" aria-hidden="true" />
+          Retry
+        </button>
+      )}
+    </div>
+  );
 }
 
 /* -------------------------------------------------------------------------- */
@@ -161,6 +234,8 @@ function DataTableInner<T>({
   data,
   total: totalProp,
   loading = false,
+  error = null,
+  onRetry,
   page = 1,
   perPage = 10,
   sort,
@@ -177,27 +252,35 @@ function DataTableInner<T>({
   emptyMessage = "No records found",
   getId = (record: T) => (record as Record<string, unknown>).id as string,
 }: DataTableProps<T>) {
-  /* -- search debounce ---------------------------------------------------- */
+  /* -- search: React 19 deferred + transition ---------------------------- */
+  // `searchValue` follows every keystroke (urgent update → input echoes instantly).
+  // `deferredSearch` lags under load, feeding the debounced network call.
+  // `isSearchPending` is true while a transition is in-flight so we can
+  // surface a subtle activity indicator to the user.
   const [searchValue, setSearchValue] = useState("");
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const deferredSearch = useDeferredValue(searchValue);
+  const [isSearchPending, startSearchTransition] = useTransition();
+
+  useEffect(() => {
+    if (!onSearch) return;
+    // Still debounced with a short timeout — protects the backend from
+    // firing on every deferred frame while the user is actively typing.
+    const handle = setTimeout(() => {
+      startSearchTransition(() => onSearch(deferredSearch));
+    }, 300);
+    return () => clearTimeout(handle);
+  }, [deferredSearch, onSearch]);
 
   const handleSearch = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      const value = e.target.value;
-      setSearchValue(value);
-      if (onSearch) {
-        if (debounceRef.current) clearTimeout(debounceRef.current);
-        debounceRef.current = setTimeout(() => onSearch(value), 300);
-      }
+      setSearchValue(e.target.value);
     },
-    [onSearch]
+    [],
   );
 
-  useEffect(() => {
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, []);
+  // "Stale" = user has typed but deferred value hasn't caught up yet, OR a
+  // transition is in-flight.  Used to dim the input slightly as feedback.
+  const isSearchStale = searchValue !== deferredSearch || isSearchPending;
 
   /* -- computed ----------------------------------------------------------- */
   const total = totalProp ?? data.length;
@@ -270,7 +353,10 @@ function DataTableInner<T>({
           {onSearch && (
             <div className="relative max-w-sm w-full">
               <Search
-                className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+                className={cn(
+                  "absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 transition-opacity",
+                  isSearchStale && "animate-pulse",
+                )}
                 aria-hidden="true"
               />
               <input
@@ -282,9 +368,12 @@ function DataTableInner<T>({
                   "block w-full rounded-lg border border-slate-300 dark:border-slate-600 pl-10 pr-3 py-2 text-sm",
                   "bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100",
                   "placeholder:text-slate-400 dark:placeholder:text-slate-500",
-                  "focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500"
+                  "focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500",
+                  "transition-colors",
+                  isSearchStale && "text-slate-500 dark:text-slate-400",
                 )}
                 aria-label={searchPlaceholder}
+                aria-busy={isSearchStale}
               />
             </div>
           )}
@@ -359,8 +448,24 @@ function DataTableInner<T>({
                 </tr>
               ))}
 
-            {/* Empty state */}
-            {!loading && data.length === 0 && (
+            {/* Error state — takes precedence over empty state when
+                the fetch failed.  Without this, list pages render
+                an empty table on backend failure and the user can't
+                tell whether there are no records or whether the API
+                is down (Wave 11.1). */}
+            {!loading && error && (
+              <tr>
+                <td
+                  colSpan={columns.length + (selectable ? 1 : 0)}
+                  className="px-4 py-6"
+                >
+                  <DataTableErrorBanner error={error} onRetry={onRetry} />
+                </td>
+              </tr>
+            )}
+
+            {/* Empty state — only when there's no error and zero rows. */}
+            {!loading && !error && data.length === 0 && (
               <tr>
                 <td
                   colSpan={columns.length + (selectable ? 1 : 0)}
@@ -371,8 +476,11 @@ function DataTableInner<T>({
               </tr>
             )}
 
-            {/* Data rows */}
+            {/* Data rows — suppressed when an error is being shown so
+                stale data from a previous successful fetch doesn't
+                render beneath the error banner. */}
             {!loading &&
+              !error &&
               (Array.isArray(data) ? data : []).map((record, idx) => (
                 <TableRow
                   key={getId(record)}

@@ -331,8 +331,10 @@ const Form = () => {
 
   return (
     <SimpleForm toolbar={<Toolbar />}>
-      <div className="form-container">
-
+      {/* Topology lives in its own wide container so the ~1460px SVG isn't */}
+      {/* clipped by the 1200px .form-container cap used for the rest of    */}
+      {/* the form below.                                                    */}
+      <div className="form-container form-container--wide" style={{ paddingBottom: 0 }}>
         <Card variant="outlined" className="section-card" sx={{ mb: 2 }}>
           <CardContent>
             <Typography variant="subtitle1" className="section-card__title">
@@ -342,6 +344,9 @@ const Form = () => {
             <TopologyTab useRecord resourceType="rules" />
           </CardContent>
         </Card>
+      </div>
+
+      <div className="form-container">
 
         {/* Basic Rule Information */}
         <SectionCard title="Basic Rule Information" subtitle="Configure the rule name, profile, and metadata">

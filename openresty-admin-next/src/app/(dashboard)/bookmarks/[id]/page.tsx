@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Save, Trash2, Bookmark } from "lucide-react";
+import { ArrowLeft, Save, Trash2, Bookmark, Globe2 } from "lucide-react";
 import { useOne, useDataProvider } from "@/hooks/useResource";
 import { useNotification } from "@/contexts/NotificationContext";
 import PageHeader from "@/components/ui/PageHeader";
@@ -11,6 +11,7 @@ import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import Skeleton from "@/components/ui/Skeleton";
+import FetchErrorState from "@/components/ui/FetchErrorState";
 import type { Bookmark as BookmarkType } from "@/types";
 
 export default function BookmarkDetailPage() {
@@ -21,7 +22,7 @@ export default function BookmarkDetailPage() {
   const id = params.id as string;
   const isCreate = id === "create";
 
-  const { data, isLoading } = useOne<BookmarkType>(
+  const { data, isLoading, error, mutate } = useOne<BookmarkType>(
     isCreate ? null : "bookmarks",
     isCreate ? null : id,
   );
@@ -33,6 +34,7 @@ export default function BookmarkDetailPage() {
     category: "",
     description: "",
     tags: "",
+    isPublic: false,
   });
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -46,7 +48,11 @@ export default function BookmarkDetailPage() {
         url: data.url ?? "",
         category: data.category ?? "",
         description: data.description ?? "",
-        tags: (data.tags ?? []).join(", "),
+        // Lua's cjson serialises empty arrays as `{}` rather than
+        // `[]`, so `data.tags ?? []` isn't enough — `{}.join` throws
+        // `tags.join is not a function`.
+        tags: (Array.isArray(data.tags) ? data.tags : []).join(", "),
+        isPublic: data.public === true,
       });
     }
   }, [data]);
@@ -55,15 +61,24 @@ export default function BookmarkDetailPage() {
     setForm((prev) => ({ ...prev, [field]: value }));
   }, []);
 
+  const handleTogglePublic = useCallback(() => {
+    setForm((prev) => ({ ...prev, isPublic: !prev.isPublic }));
+  }, []);
+
   const handleSubmit = useCallback(async () => {
     setSaving(true);
     try {
+      // Re-shape the controlled form to the wire format.  `isPublic`
+      // is the local UI-friendly name; the Lua backend stores it as
+      // `public`, so we translate at the boundary.
+      const { isPublic, ...rest } = form;
       const payload = {
-        ...form,
+        ...rest,
         tags: form.tags
           .split(",")
           .map((t) => t.trim())
           .filter(Boolean),
+        public: isPublic,
       };
       if (isCreate) {
         await dataProvider.create("bookmarks", payload);
@@ -105,6 +120,10 @@ export default function BookmarkDetailPage() {
         <Skeleton variant="rectangular" />
       </div>
     );
+  }
+
+  if (!isCreate && error) {
+    return <FetchErrorState error={error} onRetry={() => mutate()} />;
   }
 
   return (
@@ -162,10 +181,60 @@ export default function BookmarkDetailPage() {
               onChange={(e) => handleChange("tags", e.target.value)}
             />
           </div>
+
+          {/* ── Public visibility ────────────────────────────────────────
+              The toggle below is the only way for a record to appear at
+              the unauthenticated `/links` page.  Default is OFF so
+              new bookmarks stay private until an admin explicitly opts
+              in.  We keep the affordance loud so an admin doesn't flip
+              it by accident — full-width strip with explicit "Public" /
+              "Private" labels and a description of what it changes. */}
+          <div className="mt-6 flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/50">
+            <div className="mt-0.5 shrink-0">
+              <button
+                type="button"
+                role="switch"
+                aria-checked={form.isPublic}
+                onClick={handleTogglePublic}
+                className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
+                  form.isPublic
+                    ? "bg-primary-600"
+                    : "bg-slate-300 dark:bg-slate-600"
+                } focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                    form.isPublic ? "translate-x-6" : "translate-x-1"
+                  }`}
+                />
+              </button>
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                  Public visibility
+                </span>
+                {form.isPublic ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+                    <Globe2 className="h-3 w-3" aria-hidden="true" /> Public
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-700 dark:bg-slate-700 dark:text-slate-300">
+                    Private
+                  </span>
+                )}
+              </div>
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                {form.isPublic
+                  ? "Anyone with the link can see this bookmark on the public /links page — no login required."
+                  : "Only signed-in admins can see this bookmark. Toggle on to publish."}
+              </p>
+            </div>
+          </div>
         </Card.Body>
       </Card>
 
-      <div className="mt-6 flex items-center justify-between">
+      <div className="sticky bottom-0 z-20 -mx-6 -mb-6 mt-6 flex items-center justify-between border-t border-slate-200 bg-white/95 px-6 py-4 backdrop-blur-sm dark:border-slate-800 dark:bg-slate-950/95">
         <div>
           {!isCreate && (
             <Button

@@ -112,7 +112,22 @@ RUN luarocks install lua-resty-redis-connector
 RUN luarocks install lua-resty-dns
 RUN luarocks install lua-resty-resolver
 RUN luarocks install luafilesystem
-RUN luarocks install lua-resty-auto-ssl
+# lua-resty-auto-ssl pulls in the `sockproc` native dependency.  sockproc's
+# source uses legacy C (`void proc_exit()` instead of `void proc_exit(int)`)
+# and its Makefile hardcodes `-Werror`.  Alpine 3.19+ ships GCC 13+ which
+# treats the mismatched function-pointer type as an error (not just a
+# warning), breaking the build.
+#
+# Fix: wrap `gcc` with a tiny shim that appends
+# `-Wno-error=incompatible-pointer-types` so the offending warning stays a
+# warning.  The wrapper is removed once the install completes, so later
+# builds (and the final image) use stock gcc.
+RUN mv /usr/bin/gcc /usr/bin/gcc.real \
+    && printf '#!/bin/sh\nexec /usr/bin/gcc.real "$@" -Wno-error=incompatible-pointer-types\n' > /usr/bin/gcc \
+    && chmod +x /usr/bin/gcc \
+    && luarocks install lua-resty-auto-ssl \
+    && rm -f /usr/bin/gcc \
+    && mv /usr/bin/gcc.real /usr/bin/gcc
 # RUN luarocks install lua-resty-aws-auth
 RUN luarocks install pgmoon
 
@@ -233,6 +248,10 @@ RUN mkdir -p "/var/log/nginx/" \
     && chmod +x "/var/log/nginx/" \
     && chown root:root "/var/log/nginx/" \
     && chmod 755 -R "/var/log/nginx/"
+
+RUN mkdir -p "/var/cache/nginx/docker_blobs" \
+    && chown -R nobody:root "/var/cache/nginx/" \
+    && chmod 775 -R "/var/cache/nginx/"
 
 
 # set environment file based on the argument

@@ -555,6 +555,21 @@ end
 local useRemoteStorage = settings.storage_type == "redis" or settings.storage_type == "pgsql"
 
 local function removeServerFromRule(oldRuleId, serverId, envProfile)
+    -- Accept either a single rule ID (string) or an array of rule IDs,
+    -- for the same reason as `updateServerInRules` — Next.js admin may
+    -- pass arrays while legacy react-admin passed single strings.
+    if type(oldRuleId) == "table" then
+        for _, r in ipairs(oldRuleId) do
+            if type(r) == "string" and r ~= "" then
+                removeServerFromRule(r, serverId, envProfile)
+            end
+        end
+        return
+    end
+    if type(oldRuleId) ~= "string" or oldRuleId == "" then
+        return
+    end
+
     local loadRules = nil
     if oldRuleId and oldRuleId ~= nil and type(oldRuleId) ~= "userdata" then
         if useRemoteStorage then
@@ -584,6 +599,22 @@ local function removeServerFromRule(oldRuleId, serverId, envProfile)
 end
 
 local function updateServerInRules(ruleId, serverId, Rtype, envProfile)
+    -- Accept either a single rule ID (string) or an array of rule IDs
+    -- (Next.js admin sends `rules` and `match_cases[].statement` as
+    -- arrays; legacy react-admin sent them as single strings).  Normalize
+    -- by recursing element-wise when a table is received.
+    if type(ruleId) == "table" then
+        for _, r in ipairs(ruleId) do
+            if type(r) == "string" and r ~= "" then
+                updateServerInRules(r, serverId, Rtype, envProfile)
+            end
+        end
+        return
+    end
+    if type(ruleId) ~= "string" or ruleId == "" then
+        return
+    end
+
     local getRules, ruleErr = nil, nil
     if useRemoteStorage then
         getRules, ruleErr = red:hget("request_rules_" .. envProfile, ruleId)
@@ -701,96 +732,190 @@ local function deleteServerFromRules(ruleId, serverId, envProfile)
     end
 end
 
+-- ─── Redis-backed sibling of listFromDisk ────────────────────────────────
+--
+-- Previously this did its own (broken) paginate-then-filter inline.  We
+-- now load the full hash with one HSCAN pass and delegate the
+-- filter / sort / paginate pipeline to listPaginationLocal so disk and
+-- redis paths share the same correct semantics.  Loading everything
+-- before paginating is necessary for the q-filter to find records that
+-- live past the requested page — see the rationale in
+-- listPaginationLocal.  In practice the hash sizes here are small
+-- (servers / rules per installation are typically <1000 records).
 local function listWithPagination(recordsKey, cursor, pageSize, pageNumber, qParams)
-    local recordCount, totalRecords, records = 0, 0, {}
-    -- Calculate the start and end indices for pagination
-    local startIdx = (pageNumber - 1) * pageSize
-    local endIdx = startIdx + pageSize - 1
-    -- Get the total number of records
-    local totalKeys, err = red:hlen(recordsKey)
-    if not totalKeys or err or totalKeys == 0 then
-        ngx.log(ngx.INFO, "Failed to retrieve total number of records: ", err)
-        return {}
-    end
-    ---@diagnostic disable-next-line: cast-local-type
-    totalRecords = tonumber(totalKeys)
+    local allRecords = {}
 
-    repeat
-        local res, err = red:hscan(recordsKey, cursor, "COUNT", pageSize)
-        if not res then
-            ngx.log(ngx.INFO, "Failed to retrieve records: ", err)
-            return {}
+    local totalKeys, hlenErr = red:hlen(recordsKey)
+    if not totalKeys or hlenErr or totalKeys == 0 then
+        if hlenErr then
+            ngx.log(ngx.INFO, "Failed to retrieve total number of records: ", hlenErr)
         end
-        cursor = res[1]
-        -- Iterate over the returned records
+        return {}, 0
+    end
+
+    -- Full HSCAN pass — no early break.  COUNT 200 is a hint to the
+    -- redis cursor; the actual number returned per round-trip may
+    -- differ.  Loop until the cursor returns to "0".
+    local nextCursor = cursor or "0"
+    repeat
+        local res, scanErr = red:hscan(recordsKey, nextCursor, "COUNT", 200)
+        if not res then
+            ngx.log(ngx.INFO, "Failed to retrieve records: ", scanErr)
+            return {}, 0
+        end
+        nextCursor = res[1]
         for i = 1, #res[2], 2 do
             local recordValue = res[2][i + 1]
-            local dataRecord = cjson.decode(recordValue)
-            local key = res[2][i]
-            recordCount = recordCount + 1
-            -- Store the record in the result table if within the desired range
-            if recordCount >= startIdx + 1 and recordCount <= endIdx + 1 then
-                if type(qParams.meta) == "table" then
-                    if qParams.meta.exclude == key then
-                        goto continue
-                    end
-                end
-                if type(qParams.filter) == "table" and qParams.filter.q ~= nil then
-                    local fieldValue = dataRecord.name
-                    fieldValue = fieldValue:lower()
-                    local pattern = qParams.filter.q
-                    pattern = pattern:lower()
-                    if fieldValue and fieldValue:find(pattern, 1, true) then
-                        table.insert(records, cjson.decode(recordValue))
-                    end
-                else
-                    table.insert(records, cjson.decode(recordValue))
-                end
-                ::continue::
-            elseif recordCount > endIdx + 1 then
-                -- Break the loop if we have retrieved enough records
-                break
+            local ok, dataRecord = pcall(cjson.decode, recordValue)
+            if ok and type(dataRecord) == "table" then
+                allRecords[#allRecords + 1] = dataRecord
             end
         end
-    until cursor == "0" or recordCount >= endIdx + 1
-    return records, totalRecords
+    until nextCursor == "0"
+
+    return listPaginationLocal(allRecords, pageSize, pageNumber, qParams)
 end
 
+-- ─── Filter / sort / paginate over an in-memory collection ───────────────
+--
+-- Pipeline order: **filter → sort → paginate**.  Previously this was
+-- paginate-first (the page slice was computed before the filter ran),
+-- which meant a search only saw records on the visible page — typing
+-- `abc` returned "not found" if the matching record happened to live on
+-- page 2 of the unfiltered list.  Sort was also applied AFTER pagination
+-- by each list* caller, so cross-page ordering reflected whatever order
+-- `ls` returned from disk rather than the requested sort.field / order.
+--
+-- Both fixed here, in one place, so every resource that calls into this
+-- helper (servers, rules, secrets, instances, upstreams, waf_rules,
+-- waf_policies, users, profiles) gets correct query semantics and
+-- accurate total counts.  The list* callers' own post-pagination sort
+-- blocks are now redundant and have been removed.
+--
+-- qParams.type.search_fields (optional, array of dotted paths like
+-- "match.rules.path") broadens the q match across multiple columns.
+-- Falls back to a single-field match on qParams.type.key_name so
+-- callers that haven't been updated still work.
 local function listPaginationLocal(data, pageSize, pageNumber, qParams)
-    local startIdx, endIdx = 0, #data
+    qParams = qParams or {}
 
-    if pageSize ~= nil or pageNumber ~= nil then
-        startIdx = (pageNumber - 1) * pageSize + 1
-        endIdx = startIdx + pageSize - 1
+    -- Resolve a dotted path against a nested record (e.g.
+    -- "match.rules.path").  Returns nil at any missing segment.
+    local function getNested(item, path)
+        local cur = item
+        for segment in tostring(path):gmatch("[^.]+") do
+            if type(cur) ~= "table" then return nil end
+            cur = cur[segment]
+        end
+        return cur
     end
 
-    local currentPageData, totalRec = {}, #data
-    for i = startIdx, math.min(endIdx, #data) do
-        if data[i] ~= nil and data[i] ~= ngx.null and data[i] ~= "null" then
-            if type(qParams.meta) == "table" then
-                if qParams.meta.exclude == data[i].id then
-                    goto continue
-                end
+    -- Pick search fields.  Prefer the explicit search_fields array;
+    -- otherwise the single key_name set by the caller; otherwise "name"
+    -- as a generic fallback.
+    local searchFields = qParams.type and qParams.type.search_fields
+    if not (type(searchFields) == "table" and #searchFields > 0) then
+        local keyName = (qParams.type and qParams.type.key_name) or "name"
+        searchFields = { keyName }
+    end
+
+    -- Normalise the q query once.  An empty string or nil means
+    -- "no filter".
+    local q
+    if type(qParams.filter) == "table"
+        and qParams.filter.q ~= nil
+        and qParams.filter.q ~= ""
+    then
+        q = tostring(qParams.filter.q):lower()
+    end
+
+    -- meta.exclude lets callers (combobox pickers) hide a record from
+    -- its own dropdown.  Preserved from the previous behaviour.
+    local excludeId
+    if type(qParams.meta) == "table" then
+        excludeId = qParams.meta.exclude
+    end
+
+    -- 1. Filter the WHOLE collection.
+    local matches = {}
+    for _, item in ipairs(data or {}) do
+        if item ~= nil and item ~= ngx.null and item ~= "null" then
+            local keep = true
+            if excludeId ~= nil and item.id == excludeId then
+                keep = false
             end
-            if type(qParams.filter) == "table" and qParams.filter.q ~= nil then
-                local fieldValue = data[i][qParams.type.key_name]
-                fieldValue = fieldValue:lower()
-                local pattern = qParams.filter.q
-                pattern = pattern:lower()
-                if fieldValue and fieldValue:find(pattern, 1, true) then
-                    table.insert(currentPageData, data[i])
+            if keep and q ~= nil then
+                local hit = false
+                for _, fieldPath in ipairs(searchFields) do
+                    local val = getNested(item, fieldPath)
+                    if val ~= nil and val ~= ngx.null then
+                        if tostring(val):lower():find(q, 1, true) then
+                            hit = true
+                            break
+                        end
+                    end
                 end
-                totalRec = #currentPageData
-            else
-                table.insert(currentPageData, data[i])
+                if not hit then keep = false end
             end
-            ::continue::
+            if keep then matches[#matches + 1] = item end
         end
     end
-    return currentPageData, totalRec
+
+    -- 2. Sort the filtered collection.
+    if type(qParams.sort) == "table" and qParams.sort.field ~= nil then
+        if qParams.sort.order == "DESC" then
+            table.sort(matches, Helper.sortDesc(qParams.sort.field))
+        elseif qParams.sort.order == "ASC" then
+            table.sort(matches, Helper.sortAsc(qParams.sort.field))
+        end
+    end
+
+    -- 3. Paginate the sorted, filtered slice.  `total` is the count of
+    -- matches BEFORE pagination, so the frontend's page count is honest.
+    local total = #matches
+    if pageSize == nil or pageNumber == nil then
+        return matches, total
+    end
+    local startIdx = (pageNumber - 1) * pageSize + 1
+    local endIdx = math.min(startIdx + pageSize - 1, total)
+    local pageData = {}
+    for i = startIdx, endIdx do
+        pageData[#pageData + 1] = matches[i]
+    end
+    return pageData, total
 end
 
 -- Authentication
+
+-- Auth cookie name — keep in sync with nginx auth block fallback + Next.js middleware.
+local AUTH_COOKIE_NAME = "wslproxy_token"
+-- Align with JWT expiry (Helper.generateToken uses 3600s).
+local AUTH_COOKIE_MAX_AGE = 3600
+
+-- Build a Set-Cookie value for the auth token.  `Secure` is only added on
+-- HTTPS requests so local HTTP development still works.
+local function buildAuthCookie(token, maxAge)
+    local parts = {
+        AUTH_COOKIE_NAME .. "=" .. (token or ""),
+        "Path=/",
+        "HttpOnly",
+        "SameSite=Lax",
+        "Max-Age=" .. tostring(maxAge or 0),
+    }
+    if ngx.var.scheme == "https" then
+        table.insert(parts, "Secure")
+    end
+    return table.concat(parts, "; ")
+end
+
+local function instanceInfo()
+    return {
+        instance_id = settings.instance_id,
+        instance_name = settings.instance_name,
+        instance_hash = settings.instance_hash,
+        serial_number = settings.serial_number,
+    }
+end
 
 local function login(args)
     if settings then
@@ -801,6 +926,12 @@ local function login(args)
         local password = Helper.hashPassword(payloads.password)
 
         if suEmail == payloads.email and suPassword == password then
+            local token = Helper.generateToken()
+
+            -- Set httpOnly cookie so middleware can gate auth server-side and
+            -- tokens are no longer accessible via document.cookie / localStorage.
+            ngx.header["Set-Cookie"] = buildAuthCookie(token, AUTH_COOKIE_MAX_AGE)
+
             ngx.status = ngx.OK
             if useRemoteStorage then
                 local session = require "resty.session".new()
@@ -810,14 +941,11 @@ local function login(args)
             end
             ngx.say(cjson.encode({
                 data = {
-                    user = payloads,
-                    accessToken = Helper.generateToken(),
-                    instance = {
-                        instance_id = settings.instance_id,
-                        instance_name = settings.instance_name,
-                        instance_hash = settings.instance_hash,
-                        serial_number = settings.serial_number,
-                    }
+                    user = { email = payloads.email },
+                    -- accessToken retained in the body for backward-compat
+                    -- with the react-admin UI (localStorage-based auth).
+                    accessToken = token,
+                    instance = instanceInfo(),
                 },
                 status = 200
             }))
@@ -826,6 +954,33 @@ local function login(args)
             Errors.throwError("Invalid credentials", ngx.HTTP_UNAUTHORIZED)
         end
     end
+end
+
+-- Clears the auth cookie.  Idempotent: safe to call with an already-expired
+-- cookie.  Does NOT require a valid JWT (see nginx auth bypass list).
+local function logout()
+    ngx.header["Set-Cookie"] = buildAuthCookie("", 0)
+    ngx.status = ngx.HTTP_OK
+    ngx.say(cjson.encode({ data = { message = "Logged out" }, status = 200 }))
+    ngx.exit(ngx.HTTP_OK)
+end
+
+-- Returns the current session info.  Auth is enforced by the nginx auth
+-- block, so if we get here the cookie/bearer is already validated.
+local function userMe()
+    if not settings then
+        Errors.throwError("Settings not loaded", ngx.HTTP_INTERNAL_SERVER_ERROR)
+        return
+    end
+    ngx.status = ngx.HTTP_OK
+    ngx.say(cjson.encode({
+        data = {
+            user = { email = settings.super_user and settings.super_user.email or nil },
+            instance = instanceInfo(),
+        },
+        status = 200
+    }))
+    ngx.exit(ngx.HTTP_OK)
 end
 
 local function setStorage(body)
@@ -933,7 +1088,12 @@ local function listServers(args)
     end
     qParams["type"] = {
         table = "servers",
-        key_name = "server_name"
+        key_name = "server_name",
+        -- Fields the q search matches.  `id` covers `host:foo.wslproxy.com`
+        -- exact-id paste-search; `proxy_server_name` lets users find a
+        -- server by its upstream alias even when server_name doesn't
+        -- contain the term.
+        search_fields = { "server_name", "proxy_server_name", "id" }
     }
     -- Set the pagination parameters
     local pageSize = qParams.pagination.perPage -- Number of records per page
@@ -963,11 +1123,9 @@ local function listServers(args)
         end
     end
 
-    if qParams.sort ~= nil and qParams.sort.order == "DESC" then
-        table.sort(allServers, Helper.sortDesc(qParams.sort.field))
-    elseif qParams.sort ~= nil and qParams.sort.order == "ASC" then
-        table.sort(allServers, Helper.sortAsc(qParams.sort.field))
-    end
+    -- (Sort is now applied inside listPaginationLocal / listWithPagination,
+    -- on the full filtered collection BEFORE pagination — so a search
+    -- can't lose records that live on a later page.)
     return ngx.say(cjson.encode({
         data = allServers,
         total = totalRecords
@@ -1054,7 +1212,8 @@ local function listSecrets(args)
     end
     qParams["type"] = {
         table = "secrets",
-        key_name = "secret_name"
+        key_name = "secret_name",
+        search_fields = { "secret_name", "id", "description" }
     }
     -- Set the pagination parameters
     local pageSize = qParams.pagination.perPage -- Number of records per page
@@ -1084,11 +1243,7 @@ local function listSecrets(args)
         end
     end
 
-    if qParams.sort ~= nil and qParams.sort.order == "DESC" then
-        table.sort(allServers, Helper.sortDesc(qParams.sort.field))
-    elseif qParams.sort ~= nil and qParams.sort.order == "ASC" then
-        table.sort(allServers, Helper.sortAsc(qParams.sort.field))
-    end
+    -- Sort applied inside listPaginationLocal / listWithPagination.
     return ngx.say(cjson.encode({
         data = allServers,
         total = totalRecords
@@ -1159,7 +1314,8 @@ local function listInstances(args)
     end
     qParams["type"] = {
         table = "instances",
-        key_name = "instance_name"
+        key_name = "instance_name",
+        search_fields = { "instance_name", "id" }
     }
     -- Set the pagination parameters
     local pageSize = qParams.pagination.perPage -- Number of records per page
@@ -1189,11 +1345,7 @@ local function listInstances(args)
         end
     end
 
-    if qParams.sort ~= nil and qParams.sort.order == "DESC" then
-        table.sort(allServers, Helper.sortDesc(qParams.sort.field))
-    elseif qParams.sort ~= nil and qParams.sort.order == "ASC" then
-        table.sort(allServers, Helper.sortAsc(qParams.sort.field))
-    end
+    -- Sort applied inside listPaginationLocal / listWithPagination.
     return ngx.say(cjson.encode({
         data = allServers,
         total = totalRecords
@@ -1565,13 +1717,7 @@ local function listUsers(args)
             totalRecords = totalCount
         end
     end
-    if next(users) ~= nil then
-        if qParams.sort.order == "DESC" then
-            table.sort(users, Helper.sortDesc(qParams.sort.field))
-        else
-            table.sort(users, Helper.sortAsc(qParams.sort.field))
-        end
-    end
+    -- Sort applied inside listPaginationLocal / listWithPagination.
     ngx.say(cjson.encode({
         data = users,
         total = totalRecords
@@ -1765,7 +1911,11 @@ local function listRules(args)
     end
     qParams["type"] = {
         table = "rules",
-        key_name = "name"
+        key_name = "name",
+        -- Rules are useful to find by name (typical), by id (uuid pasted
+        -- from a server's match_cases), or by the path they match — e.g.
+        -- searching `/api` finds every rule that targets the API.
+        search_fields = { "name", "id", "match.rules.path" }
     }
     -- Set the pagination parameters
     local pageSize = qParams.pagination.perPage -- Number of records per page
@@ -1787,11 +1937,7 @@ local function listRules(args)
             -- end
         end
     end
-    if qParams.sort ~= nil and qParams.sort.order == "DESC" then
-        table.sort(allRules, Helper.sortDesc(qParams.sort.field))
-    elseif qParams.sort ~= nil and qParams.sort.order == "ASC" then
-        table.sort(allRules, Helper.sortAsc(qParams.sort.field))
-    end
+    -- Sort applied inside listPaginationLocal / listWithPagination.
     ngx.say({ cjson.encode({
         data = allRules,
         total = totalRecords
@@ -2212,7 +2358,8 @@ local function listWafRules(args)
     end
     qParams["type"] = {
         table = "waf_rules",
-        key_name = "name"
+        key_name = "name",
+        search_fields = { "name", "id", "category", "description" }
     }
     local pageSize = qParams.pagination.perPage
     local pageNumber = qParams.pagination.page
@@ -2220,11 +2367,7 @@ local function listWafRules(args)
         environment = qParams.filter.profile_id
     end
     allRules, totalRecords = listFromDisk("waf_rules/" .. environment, pageSize, pageNumber, qParams)
-    if qParams.sort ~= nil and qParams.sort.order == "DESC" then
-        table.sort(allRules, Helper.sortDesc(qParams.sort.field))
-    elseif qParams.sort ~= nil and qParams.sort.order == "ASC" then
-        table.sort(allRules, Helper.sortAsc(qParams.sort.field))
-    end
+    -- Sort applied inside listPaginationLocal / listWithPagination.
     ngx.say(cjson.encode({
         data = allRules,
         total = totalRecords
@@ -2325,7 +2468,8 @@ local function listWafPolicies(args)
     end
     qParams["type"] = {
         table = "waf_policies",
-        key_name = "name"
+        key_name = "name",
+        search_fields = { "name", "id", "description" }
     }
     local pageSize = qParams.pagination.perPage
     local pageNumber = qParams.pagination.page
@@ -2333,11 +2477,7 @@ local function listWafPolicies(args)
         environment = qParams.filter.profile_id
     end
     allPolicies, totalRecords = listFromDisk("waf_policies/" .. environment, pageSize, pageNumber, qParams)
-    if qParams.sort ~= nil and qParams.sort.order == "DESC" then
-        table.sort(allPolicies, Helper.sortDesc(qParams.sort.field))
-    elseif qParams.sort ~= nil and qParams.sort.order == "ASC" then
-        table.sort(allPolicies, Helper.sortAsc(qParams.sort.field))
-    end
+    -- Sort applied inside listPaginationLocal / listWithPagination.
     ngx.say(cjson.encode({
         data = allPolicies,
         total = totalRecords
@@ -2585,7 +2725,8 @@ local function listUpstreams(args)
     end
     qParams["type"] = {
         table = "upstreams",
-        key_name = "name"
+        key_name = "name",
+        search_fields = { "name", "id", "load_balancing_method" }
     }
     local pageSize = qParams.pagination.perPage
     local pageNumber = qParams.pagination.page
@@ -2610,11 +2751,7 @@ local function listUpstreams(args)
         end
     end
 
-    if qParams.sort ~= nil and qParams.sort.order == "DESC" then
-        table.sort(allUpstreams, Helper.sortDesc(qParams.sort.field))
-    elseif qParams.sort ~= nil and qParams.sort.order == "ASC" then
-        table.sort(allUpstreams, Helper.sortAsc(qParams.sort.field))
-    end
+    -- Sort applied inside listPaginationLocal / listWithPagination.
 
     return ngx.say(cjson.encode({
         data = allUpstreams,
@@ -3466,6 +3603,24 @@ end
 local platform = ngx.req.get_headers()["x-platform"]
 local preAction = ngx.req.get_headers()["x-special-case-pre-action"]
 
+-- Official admin UIs allowed to mutate even when the instance is locked.
+-- Add new official UIs here when they're introduced.
+local ALLOWED_MUTATION_PLATFORMS = {
+    ["react-admin"] = true,          -- Legacy React-Admin (Vite) UI
+    ["openresty-admin-next"] = true, -- Modern Next.js UI
+    ["openresty-admin-next-ssr"] = true, -- Next.js server-component SSR
+}
+
+-- Returns true if mutations are allowed for this request: either the
+-- instance is unlocked globally, or the request came from a known
+-- official admin UI identified via the x-platform header.
+local function isMutationAllowed()
+    if settings and settings.instance_locked == "false" then
+        return true
+    end
+    return platform and ALLOWED_MUTATION_PLATFORMS[platform] == true
+end
+
 -- AI log analysis handler shared by GET and POST dispatch.
 -- Request body (JSON): { logs: [<log_entry>], question?: string, context?: string }
 -- Response envelope:   { data: { analysis, root_causes[], recommendations[],
@@ -3572,6 +3727,9 @@ local function handle_get_request(args, path)
     local pattern = ".*/(.*)"
     local uuid = string.match(path, pattern)
 
+    if path == "user/me" then
+        userMe()
+    end
     if path == "servers" then
         listServers(args)
     elseif uuid and string.match(uuid, "^host:") and subPath[1] == "servers" then
@@ -3620,6 +3778,18 @@ local function handle_get_request(args, path)
         if bm_ok then Bookmarks.get(args, uuid) end
     end
 
+    -- Public, unauthenticated bookmark surface.  The matching nginx
+    -- access_by_lua_block exempts /api/public/bookmarks from JWT
+    -- verification (GET-only).  Only bookmarks explicitly flagged
+    -- `public: true` are returned, with sensitive fields stripped.
+    if path == "public/bookmarks" then
+        local bm_ok, Bookmarks = pcall(require, "bookmarks")
+        if bm_ok then Bookmarks.list_public(args) end
+    elseif uuid and #uuid > 0 and subPath[1] == "public" and subPath[2] == "bookmarks" then
+        local bm_ok, Bookmarks = pcall(require, "bookmarks")
+        if bm_ok then Bookmarks.get_public(args, uuid) end
+    end
+
     if path == "conf" then
         listServerConf(args)
     end
@@ -3651,6 +3821,62 @@ local function handle_get_request(args, path)
         listOpenrestyAccessLogs()
     end
 
+    -- ── Log search (server-side grep) ────────────────────────────────
+    -- GET /api/logs/search?kind=error|access&q=pattern
+    --                    &regex=0|1&case=0|1&limit=N&max_bytes=N
+    --
+    -- Powers the full-screen log viewer in the admin.  Validates
+    -- inputs + dispatches to Helper.searchLogFile which caps scan
+    -- size and result count defensively.
+    if path == "logs/search" then
+        local args = ngx.req.get_uri_args()
+        local kind = args.kind or "error"
+        local logFile
+        if kind == "error" then
+            logFile = "/usr/local/openresty/nginx/logs/error.log"
+        elseif kind == "access" then
+            logFile = "/usr/local/openresty/nginx/logs/access.log"
+        else
+            ngx.status = ngx.HTTP_BAD_REQUEST
+            ngx.say(cjson.encode({
+                data = {
+                    message = "kind must be 'error' or 'access'"
+                }
+            }))
+            ngx.exit(ngx.HTTP_BAD_REQUEST)
+        end
+
+        local query = args.q or ""
+        if #query > 512 then
+            ngx.status = ngx.HTTP_BAD_REQUEST
+            ngx.say(cjson.encode({
+                data = {
+                    message = "query too long (max 512 chars)"
+                }
+            }))
+            ngx.exit(ngx.HTTP_BAD_REQUEST)
+        end
+
+        local result, status = Helper.searchLogFile(logFile, {
+            query = query,
+            regex = args.regex == "1" or args.regex == "true",
+            case_sensitive = args.case == "1" or args.case == "true",
+            limit = tonumber(args.limit),
+            max_scan_bytes = tonumber(args.max_bytes),
+        })
+
+        if status ~= ngx.HTTP_OK then
+            ngx.status = status
+            ngx.say(cjson.encode({
+                data = { message = tostring(result) }
+            }))
+            ngx.exit(status)
+        end
+
+        ngx.say(cjson.encode({ data = result }))
+        ngx.exit(ngx.HTTP_OK)
+    end
+
     -- ── Structured logs for dashboard ────────────────────────────────
     if path == "logs/access" then
         local args = ngx.req.get_uri_args()
@@ -3658,7 +3884,11 @@ local function handle_get_request(args, path)
         local offset = tonumber(args.offset) or 0
         local logFile = "/usr/local/openresty/nginx/logs/access.log"
         local f = io.open(logFile, "r")
-        local entries = {}
+        -- Tag as an array so cjson always emits `[]` for an empty
+        -- result — otherwise `{}` gets returned and the frontend's
+        -- `.filter()` / `.map()` blow up.  See lua-cjson docs on
+        -- `empty_array_mt`.
+        local entries = setmetatable({}, cjson.empty_array_mt)
         local total = 0
         if f then
             local lines = {}
@@ -3755,7 +3985,9 @@ local function handle_get_request(args, path)
         local limit = tonumber(args.limit) or 200
         local logFile = "/usr/local/openresty/nginx/logs/error.log"
         local f = io.open(logFile, "r")
-        local entries = {}
+        -- Tag as an array so an empty result serializes as `[]` not
+        -- `{}` — matches the `logs/access` handler above.
+        local entries = setmetatable({}, cjson.empty_array_mt)
         local total = 0
         if f then
             local lines = {}
@@ -4674,11 +4906,14 @@ local function handle_post_request(args, path)
     if path == "user/login" then
         login(args)
     end
+    if path == "user/logout" then
+        logout()
+    end
     if path == "push-data" then
         local body = Helper.GetPayloads(args)
         PushData.sendData(body, Helper, configPath, Errors)
     end
-    if settings.instance_locked == "false" or platform == "react-admin" then
+    if isMutationAllowed() then
         if path == "servers" then
             createUpdateServer(args)
         end
@@ -5170,7 +5405,7 @@ local function handle_put_request(args, path)
         Errors.throwError("The uuid must be present while updating the data.", ngx.HTTP_INTERNAL_SERVER_ERROR)
         return
     end
-    if settings.instance_locked == "false" or platform == "react-admin" then
+    if isMutationAllowed() then
         if string.find(path, "servers") then
             createUpdateServer(args, uuid)
         end
@@ -5203,6 +5438,17 @@ local function handle_put_request(args, path)
         end
         if string.find(path, "profiles") then
             createUpdateProfiles(args, uuid)
+        end
+
+        -- Bookmarks share a single create/update handler (the function
+        -- looks up by id/host and replaces or appends).  Without this
+        -- the admin form's PUT request would silently no-op — POST
+        -- would still work for create, but edits to existing
+        -- bookmarks (including flipping the `public` flag) would never
+        -- reach disk.
+        if string.find(path, "bookmarks") then
+            local bm_ok, Bookmarks = pcall(require, "bookmarks")
+            if bm_ok then Bookmarks.create_or_update(args) end
         end
 
         -- ============================================================
@@ -5354,7 +5600,7 @@ local function handle_delete_request(args, path)
     path = ngx.unescape_uri(path)
     local pattern = ".*/(.*)"
     local uuid = string.match(path, pattern)
-    if settings.instance_locked == "false" or platform == "react-admin" then
+    if isMutationAllowed() then
         -- DELETE /api/varnish/snippets/{server_name}/{snippet_id}
         if string.find(path, "^varnish/snippets/") then
             local server_name, snippet_id = path:match("^varnish/snippets/([^/]+)/(.+)$")

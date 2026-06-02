@@ -16,8 +16,8 @@ export default function SecretsListPage() {
   const [perPage, setPerPage] = useState(25);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<{ field: string; order: "ASC" | "DESC" }>({
-    field: "id",
-    order: "ASC",
+    field: "created_at",
+    order: "DESC",
   });
 
   const params = useMemo(
@@ -29,7 +29,10 @@ export default function SecretsListPage() {
     [page, perPage, sort, search],
   );
 
-  const { data, total, isLoading } = useList<Secret>("secrets", params);
+  const { data, total, isLoading, error, mutate } = useList<Secret>(
+    "secrets",
+    params,
+  );
 
   const columns = useMemo<Column<Secret>[]>(
     () => [
@@ -48,7 +51,7 @@ export default function SecretsListPage() {
         label: "Tags",
         render: (r) => (
           <div className="flex flex-wrap gap-1">
-            {(r.secrets_tags ?? []).map((tag, i) => (
+            {(Array.isArray(r.secrets_tags) ? r.secrets_tags : []).map((tag, i) => (
               <Badge key={i} size="sm">
                 {tag}
               </Badge>
@@ -103,6 +106,8 @@ export default function SecretsListPage() {
         data={data}
         total={total}
         loading={isLoading}
+        error={error}
+        onRetry={() => mutate()}
         page={page}
         perPage={perPage}
         sort={sort}

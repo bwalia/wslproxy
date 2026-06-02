@@ -12,6 +12,7 @@ import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import Skeleton from "@/components/ui/Skeleton";
+import FetchErrorState from "@/components/ui/FetchErrorState";
 import type { Upstream } from "@/types";
 
 export default function UpstreamDetailPage() {
@@ -22,7 +23,7 @@ export default function UpstreamDetailPage() {
   const id = params.id as string;
   const isCreate = id === "create";
 
-  const { data, isLoading } = useOne<Upstream>(
+  const { data, isLoading, error, mutate } = useOne<Upstream>(
     isCreate ? null : "upstreams",
     isCreate ? null : id,
   );
@@ -98,6 +99,10 @@ export default function UpstreamDetailPage() {
         <Skeleton variant="rectangular" />
       </div>
     );
+  }
+
+  if (!isCreate && error) {
+    return <FetchErrorState error={error} onRetry={() => mutate()} />;
   }
 
   return (
@@ -194,7 +199,11 @@ export default function UpstreamDetailPage() {
         </Card>
       )}
 
-      <div className="mt-6 flex items-center justify-between">
+      {/* Sticky action bar — keeps Save visible regardless of form
+          height.  Negative `-mx-6 -mb-6` cancels the dashboard
+          layout's `p-6` on <main> so the bar spans full width and
+          flush against the bottom edge. */}
+      <div className="sticky bottom-0 z-20 -mx-6 -mb-6 mt-6 flex items-center justify-between border-t border-slate-200 bg-white/95 px-6 py-4 backdrop-blur-sm dark:border-slate-800 dark:bg-slate-950/95">
         <div>
           {!isCreate && (
             <Button

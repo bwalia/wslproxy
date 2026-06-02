@@ -16,8 +16,8 @@ export default function UsersListPage() {
   const [perPage, setPerPage] = useState(25);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<{ field: string; order: "ASC" | "DESC" }>({
-    field: "id",
-    order: "ASC",
+    field: "created_at",
+    order: "DESC",
   });
 
   const params = useMemo(
@@ -29,7 +29,10 @@ export default function UsersListPage() {
     [page, perPage, sort, search],
   );
 
-  const { data, total, isLoading } = useList<User>("users", params);
+  const { data, total, isLoading, error, mutate } = useList<User>(
+    "users",
+    params,
+  );
 
   const columns = useMemo<Column<User>[]>(
     () => [
@@ -107,6 +110,8 @@ export default function UsersListPage() {
         data={data}
         total={total}
         loading={isLoading}
+        error={error}
+        onRetry={() => mutate()}
         page={page}
         perPage={perPage}
         sort={sort}

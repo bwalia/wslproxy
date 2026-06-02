@@ -1,29 +1,41 @@
 name: CI/CD Promotion Pipeline (main → int → test → acc)
 # Deploys from main branch through non-production environments: int → smoke test → test → acc
-# For config/server updates only — no full builds or production deployments
-# Use deploy-wslproxy-delivery-pipeline.yml for production releases from the release branch
+#
+# Auto-trigger policy (push to `main`):
+#   - int  → `full`  (everything: api code, nginx, servers, both admin
+#                     UIs, os_deps, build).  This is the canary host
+#                     where every layer is verified before promotion.
+#   - test → `code`  (Lua api/* only — int already proved the rest).
+#   - acc  → `code`  (same).
+#
+# Manual `workflow_dispatch` lets ops pick any DEPLOY_MODE and stop
+# at any TARGET_ENV — useful for surgical redeploys (e.g. push only
+# `dashboard-next` to acc after an admin-UI hotfix).
+#
+# Production hosts are never touched here — use
+# deploy-wslproxy-delivery-pipeline.yml for production releases from
+# the release branch.
 
 on:
   push:
     branches:
       - main
-  pull_request:
-    branches:
-      - feature/*
-      - bugfix/*
-      - hotfix/*
-      - release/*
-      - main
   workflow_dispatch:
     inputs:
       DEPLOY_MODE:
         type: choice
-        description: "What to deploy"
-        default: "servers"
+        description: "What to deploy (full = everything; specific layers for surgical updates)"
+        default: "full"
         required: true
         options:
+          - full
+          - code
           - nginx
           - servers
+          - dashboard
+          - dashboard-next
+          - os_deps
+          - build
 
       TARGET_ENV:
         type: choice
@@ -110,7 +122,11 @@ jobs:
       docker_prune: false
       notify_success: false
       deploy_branch: main
-      deploy_mode: ${{ github.event.inputs.DEPLOY_MODE || 'servers' }}
+      # int is the canary — push to main runs `full` so every layer
+      # is exercised here before promoting code-only to test/acc.
+      # Manual workflow_dispatch can override DEPLOY_MODE for a
+      # scoped redeploy.
+      deploy_mode: ${{ github.event.inputs.DEPLOY_MODE || 'full' }}
     secrets:
       SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
       VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
@@ -205,7 +221,10 @@ jobs:
       docker_prune: false
       notify_success: true
       deploy_branch: main
-      deploy_mode: ${{ github.event.inputs.DEPLOY_MODE || 'servers' }}
+      # Push to main → `code` only (int already proved every other
+      # layer in the canary stage above).  Manual workflow_dispatch
+      # can override DEPLOY_MODE for a scoped or `full` redeploy.
+      deploy_mode: ${{ github.event.inputs.DEPLOY_MODE || 'code' }}
     secrets:
       SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
@@ -233,7 +252,10 @@ jobs:
       docker_prune: false
       notify_success: true
       deploy_branch: main
-      deploy_mode: ${{ github.event.inputs.DEPLOY_MODE || 'servers' }}
+      # Push to main → `code` only (int already proved every other
+      # layer in the canary stage above).  Manual workflow_dispatch
+      # can override DEPLOY_MODE for a scoped or `full` redeploy.
+      deploy_mode: ${{ github.event.inputs.DEPLOY_MODE || 'code' }}
     secrets:
       SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 

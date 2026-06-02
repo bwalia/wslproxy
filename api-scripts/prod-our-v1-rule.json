@@ -1,5 +1,5 @@
 {
-  "name": "prod-our-wslproxy-local",
+  "name": "prod-our-v1-wslproxy-local",
   "profile_id": "prod",
   "priority": 1,
   "match": {

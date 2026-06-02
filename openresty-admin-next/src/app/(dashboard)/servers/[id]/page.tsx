@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import dynamic from "next/dynamic";
 import {
   ArrowLeft,
   Save,
@@ -16,19 +17,51 @@ import {
 } from "lucide-react";
 import { useOne, useList, useDataProvider } from "@/hooks/useResource";
 import { useNotification } from "@/contexts/NotificationContext";
+import { useProfile } from "@/contexts/ProfileContext";
 import PageHeader from "@/components/ui/PageHeader";
 import Button from "@/components/ui/Button";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import Skeleton from "@/components/ui/Skeleton";
+import FetchErrorState from "@/components/ui/FetchErrorState";
 import NginxServerTab from "@/components/servers/NginxServerTab";
-import VarnishTab from "@/components/servers/VarnishTab";
-import ServerRulesTab from "@/components/servers/ServerRulesTab";
-import WafProtectionTab from "@/components/servers/WafProtectionTab";
-import VersionHistoryTab from "@/components/servers/VersionHistoryTab";
-import { TopologyCanvas } from "@/components/topology/TopologyCanvas";
+import CachePurgeButton from "@/components/servers/CachePurgeButton";
+
+// Deferred — heavy tabs only loaded when first opened
+const VarnishTab = dynamic(() => import("@/components/servers/VarnishTab"), {
+  loading: () => <Skeleton variant="rectangular" className="h-64 w-full" />,
+});
+const ServerRulesTab = dynamic(
+  () => import("@/components/servers/ServerRulesTab"),
+  { loading: () => <Skeleton variant="rectangular" className="h-64 w-full" /> },
+);
+const WafProtectionTab = dynamic(
+  () => import("@/components/servers/WafProtectionTab"),
+  { loading: () => <Skeleton variant="rectangular" className="h-64 w-full" /> },
+);
+const VersionHistoryTab = dynamic(
+  () => import("@/components/servers/VersionHistoryTab"),
+  { loading: () => <Skeleton variant="rectangular" className="h-64 w-full" /> },
+);
+const TopologyCanvas = dynamic(
+  () =>
+    import("@/components/topology/TopologyCanvas").then(
+      (mod) => mod.TopologyCanvas,
+    ),
+  {
+    loading: () => <Skeleton variant="rectangular" className="h-96 w-full" />,
+    ssr: false,
+  },
+);
 import type { Server as ServerType, WafPolicy, Rule } from "@/types";
 import type { ServerFormState, VarnishConfig, VarnishSnippet } from "@/components/servers/types";
 import type { LocationEntry } from "@/components/servers/sections/LocationBlockEditor";
+import {
+  runValidationGate,
+  findTabForError,
+  useSubmitGuard,
+  useScrollToFirstFieldError,
+} from "@/lib/forms";
+import { serverInputSchema } from "@/lib/validation/input-schemas";
 import { cn } from "@/lib/utils/cn";
 
 /* ── Defaults ─────────────────────────────────────────────────────────── */
@@ -95,13 +128,30 @@ const DEFAULT_FORM: ServerFormState = {
   varnish_snippets: [],
   varnish_vcl_config: "",
 
-  rules: [],
+  rules: "",
   match_cases: [],
 };
 
 /* ── Tab definitions ──────────────────────────────────────────────────── */
 
 type TabKey = "nginx" | "varnish" | "rules" | "waf" | "history" | "topology";
+
+/**
+ * Which tab owns each top-level field — used to auto-jump to the tab
+ * containing a validation error.  Order matters: the first matching
+ * prefix wins.  Anything not listed falls back to the Nginx tab.
+ */
+const FIELD_TO_TAB: Array<{ prefix: string; tab: TabKey }> = [
+  { prefix: "varnish_enabled", tab: "varnish" },
+  { prefix: "varnish_config", tab: "varnish" },
+  { prefix: "varnish_snippets", tab: "varnish" },
+  { prefix: "varnish_vcl_config", tab: "varnish" },
+  { prefix: "waf_enabled", tab: "waf" },
+  { prefix: "waf_policy_id", tab: "waf" },
+  { prefix: "waf_mode_override", tab: "waf" },
+  { prefix: "rules", tab: "rules" },
+  { prefix: "match_cases", tab: "rules" },
+];
 
 interface TabDef {
   key: TabKey;
@@ -181,10 +231,22 @@ function hydrateForm(data: ServerType): ServerFormState {
     varnish_snippets: Array.isArray(vs) ? vs : [],
     varnish_vcl_config: vvcl ?? "",
 
-    rules: data.rules ? (typeof data.rules === "string" ? data.rules.split(",").filter(Boolean) : data.rules as unknown as string[]) : [],
+    // Persisted as array for legacy compatibility — UI uses one id.
+    rules: Array.isArray(data.rules)
+      ? (data.rules[0] ?? "")
+      : typeof data.rules === "string"
+        ? data.rules
+        : "",
     match_cases: (Array.isArray(data.match_cases) ? data.match_cases : []).map((mc) => ({
       condition: mc.condition ?? "",
-      statement: Array.isArray(mc.statement) ? mc.statement : typeof mc.statement === "string" ? [mc.statement] : [],
+      // Backend stores a single rule_id as `statement`.  Older records
+      // may have been serialized as a single-element array; flatten.
+      statement:
+        typeof mc.statement === "string"
+          ? mc.statement
+          : Array.isArray(mc.statement)
+            ? (mc.statement[0] ?? "")
+            : "",
     })),
   };
 }
@@ -227,7 +289,9 @@ function buildPayload(form: ServerFormState): Record<string, unknown> {
     varnish_config: form.varnish_config,
     varnish_snippets: form.varnish_snippets,
     varnish_vcl_config: form.varnish_vcl_config,
-    rules: form.rules,
+    // Send array to preserve the legacy on-disk shape — Lua
+    // `parse_rule_ids` accepts both, but existing records are arrays.
+    rules: form.rules ? [form.rules] : [],
     match_cases: form.match_cases,
   };
 }
@@ -241,15 +305,29 @@ export default function ServerDetailPage() {
   const router = useRouter();
   const dataProvider = useDataProvider();
   const { notify } = useNotification();
+  const { setProfile } = useProfile();
 
   const id = params.id as string;
   const isCreate = id === "create";
 
+  /* ── Clone mode ──────────────────────────────────────────────────────
+     When the create route carries `?source=<id>`, we're cloning an
+     existing server: fetch the source record, hydrate the form with
+     it, and suffix `server_name` with `-clone` so an unedited Save
+     creates a new file at `host:<name>-clone.json` instead of
+     overwriting the original. */
+  const searchParams = useSearchParams();
+  const sourceId = isCreate ? searchParams?.get("source") ?? null : null;
+  const isClone = isCreate && Boolean(sourceId);
+  // Single fetch key — populated for both edit and clone paths.  When
+  // it's null (pure create) `useOne` is a no-op and returns null data.
+  const fetchKey = isCreate ? sourceId : id;
+
   /* ── Remote data ─────────────────────────────────────────────────── */
 
-  const { data, isLoading } = useOne<ServerType>(
-    isCreate ? null : "servers",
-    isCreate ? null : id,
+  const { data, isLoading, error, mutate } = useOne<ServerType>(
+    fetchKey ? "servers" : null,
+    fetchKey,
   );
 
   const { data: profiles } = useList<{ id: string; name: string }>("profiles");
@@ -284,33 +362,73 @@ export default function ServerDetailPage() {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
+  // Per-field validation errors from the validation gate, surfaced
+  // inline on each input + as red dots on the relevant tab buttons.
+  // Cleared on successful submit and on the next setForm so the user
+  // sees errors disappear as they fix them.
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   /* ── Hydrate from API ────────────────────────────────────────────── */
 
   useEffect(() => {
-    if (data) {
-      setForm(hydrateForm(data));
+    if (!data) return;
+    const hydrated = hydrateForm(data);
+    if (isClone) {
+      // Suffix the unique identifier so a click-Save doesn't overwrite
+      // the source.  The user can rename to something meaningful before
+      // saving.  The matching id `host:<server_name>` is regenerated by
+      // the backend from server_name on POST.
+      hydrated.server_name = `${hydrated.server_name}-clone`;
     }
-  }, [data]);
+    setForm(hydrated);
+  }, [data, isClone]);
+
+  // Reset the active tab when the record changes.  `/servers/create`
+  // is the same path segment regardless of `?source=`, so the page
+  // component is NOT remounted between two consecutive clones — which
+  // means `activeTab` would otherwise persist.  If the user had
+  // switched to `history` or `topology` on a previous record, the
+  // bottom Save bar (line ~654) would stay hidden on the next one and
+  // the page would appear to have no save button.
+  useEffect(() => {
+    setActiveTab("nginx");
+    setFieldErrors({});
+  }, [fetchKey, isCreate]);
 
   /* ── Handlers ────────────────────────────────────────────────────── */
 
-  const handleSubmit = useCallback(async () => {
-    if (!form.server_name.trim()) {
-      notify("Server name is required", { type: "error" });
-      setActiveTab("nginx");
+  // Guard against duplicate submits on rapid clicks while the
+  // request is in flight (Wave 11.5).  Disabled-button state has a
+  // one-render lag; this ref-based guard is synchronous.
+  const guardSubmit = useSubmitGuard();
+
+  // Imperative scroll-to-error — fires only when `handleSubmit`
+  // explicitly calls it, never on per-keystroke error clearing, so
+  // the cursor stays put while the user is typing.  The two RAFs
+  // inside the hook give React time to commit the new fieldErrors
+  // state AND mount the new active tab before we query the DOM.
+  const scrollToFirstError = useScrollToFirstFieldError();
+
+  const handleSubmit = useCallback(guardSubmit(async () => {
+    // Structured submit-time validation via the shared Zod schema.
+    // Mirrors what the Lua backend enforces + what the old react-admin
+    // Form.jsx checked, so the user sees a precise error before the
+    // PUT round-trip.
+    const gate = runValidationGate(serverInputSchema, form);
+    if (!gate.ok && gate.firstError) {
+      // Surface every field error inline (Wave 11.6) so the user
+      // sees the offending input(s) highlighted in red, plus a red
+      // dot on every tab that has errors.  The toast gives the
+      // headline; the tab-jump moves them to the first issue and
+      // the scroll lands them on the exact input.
+      setFieldErrors(gate.fieldErrors);
+      notify(gate.firstError.message, { type: "error" });
+      setActiveTab(findTabForError(gate.firstError.field, FIELD_TO_TAB, "nginx"));
+      scrollToFirstError();
       return;
     }
-    if (!form.profile_id.trim()) {
-      notify("Profile is required", { type: "error" });
-      setActiveTab("nginx");
-      return;
-    }
-    if (form.ssl_enabled && !form.ssl_email.trim()) {
-      notify("SSL email is required when SSL is enabled", { type: "error" });
-      setActiveTab("nginx");
-      return;
-    }
+    // Clear stale errors from a previous failed submit attempt.
+    setFieldErrors({});
 
     setSaving(true);
     try {
@@ -322,6 +440,12 @@ export default function ServerDetailPage() {
         await dataProvider.update("servers", id, payload);
         notify("Server updated successfully", { type: "success" });
       }
+      // Sync the active environment profile to the saved server's
+      // profile so the list page (which filters by the active profile)
+      // shows the record the user just created or updated.
+      if (form.profile_id) {
+        setProfile(form.profile_id);
+      }
       router.push("/servers");
     } catch (err) {
       notify((err as Error).message || "Failed to save server", {
@@ -330,7 +454,17 @@ export default function ServerDetailPage() {
     } finally {
       setSaving(false);
     }
-  }, [isCreate, form, id, dataProvider, notify, router]);
+  }), [
+    isCreate,
+    form,
+    id,
+    dataProvider,
+    notify,
+    router,
+    guardSubmit,
+    setProfile,
+    scrollToFirstError,
+  ]);
 
   const handleDelete = useCallback(async () => {
     setDeleting(true);
@@ -352,9 +486,25 @@ export default function ServerDetailPage() {
     setActiveTab(tab);
   }, []);
 
+  /* ── Tabs-with-errors set, derived from fieldErrors + FIELD_TO_TAB ── */
+
+  // Used to render a red dot next to each tab name when one of its
+  // fields failed validation, so the operator can see at a glance
+  // which other tabs to revisit even after fixing the one they
+  // landed on.
+  const tabsWithErrors = useMemo(() => {
+    const set = new Set<TabKey>();
+    for (const path of Object.keys(fieldErrors)) {
+      set.add(findTabForError(path, FIELD_TO_TAB, "nginx"));
+    }
+    return set;
+  }, [fieldErrors]);
+
   /* ── Loading skeleton ────────────────────────────────────────────── */
 
-  if (!isCreate && isLoading) {
+  // Show the skeleton while we have a fetch in flight — covers both
+  // "open existing server" and "clone (source is being loaded)".
+  if (fetchKey && isLoading) {
     return (
       <div className="space-y-4">
         <Skeleton className="h-8 w-48" />
@@ -364,14 +514,40 @@ export default function ServerDetailPage() {
     );
   }
 
+  // Surface fetch failures explicitly — otherwise an empty form
+  // would render and the user wouldn't know whether the record is
+  // empty or the request just failed.
+  if (fetchKey && error) {
+    return <FetchErrorState error={error} onRetry={() => mutate()} />;
+  }
+
   /* ── Render ──────────────────────────────────────────────────────── */
 
   return (
     <div>
+      {/* Sticky header wrapper.  Keeps the title row + tab bar pinned
+          to the top while the (very tall) form scrolls underneath, so
+          the Save button in PageHeader's actions is always one glance
+          away.  The bottom Save bar can't reliably stick when it's the
+          last child of its parent (sticky needs room below to anchor
+          against), so we rely on this top-pinned copy instead. */}
+      <div className="sticky top-0 z-20 -mx-6 -mt-6 mb-6 bg-slate-50/95 px-6 pt-6 pb-2 backdrop-blur-sm dark:bg-slate-950/95">
       {/* ── Page Header ──────────────────────────────────────────────── */}
       <PageHeader
-        title={isCreate ? "Create Server" : `Server: ${data?.server_name ?? id}`}
-        subtitle={isCreate ? "Configure a new nginx server block" : "Edit server configuration"}
+        title={
+          isClone
+            ? `Clone of ${data?.server_name ?? "server"}`
+            : isCreate
+              ? "Create Server"
+              : `Server: ${data?.server_name ?? id}`
+        }
+        subtitle={
+          isClone
+            ? "Rename and tweak fields, then Save to create a new server"
+            : isCreate
+              ? "Configure a new nginx server block"
+              : "Edit server configuration"
+        }
         icon={Server}
         actions={
           <div className="flex items-center gap-2">
@@ -382,6 +558,14 @@ export default function ServerDetailPage() {
             >
               Back
             </Button>
+            {/* Cache purge only meaningful for saved servers that have
+                caching enabled — disabled otherwise to avoid confusion. */}
+            {!isCreate && (
+              <CachePurgeButton
+                serverName={form.server_name}
+                disabled={!form.cache_enabled || !form.server_name}
+              />
+            )}
             {!isCreate && (
               <Button
                 variant="danger"
@@ -391,23 +575,29 @@ export default function ServerDetailPage() {
                 Delete
               </Button>
             )}
+            {/* Header Save — same label whether the user arrived via
+                Create or via Clone (both create a new record).  The
+                page title says "Clone of <name>" so the user still
+                knows they're working from a copy; the button just
+                needs to be a clear "do the thing" action. */}
             <Button
               onClick={handleSubmit}
               loading={saving}
               icon={<Save className="h-4 w-4" />}
             >
-              {isCreate ? "Create" : "Save Changes"}
+              {isCreate ? "Create Server" : "Save Changes"}
             </Button>
           </div>
         }
       />
 
       {/* ── Tab Bar ──────────────────────────────────────────────────── */}
-      <div className="mb-6 border-b border-slate-200 dark:border-slate-800">
+      <div className="border-b border-slate-200 dark:border-slate-800">
         <nav className="-mb-px flex gap-x-1 overflow-x-auto" aria-label="Server configuration tabs">
           {TABS.map((tab) => {
             const Icon = tab.icon;
             const active = activeTab === tab.key;
+            const hasError = tabsWithErrors.has(tab.key);
             return (
               <button
                 key={tab.key}
@@ -420,14 +610,28 @@ export default function ServerDetailPage() {
                     : "border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700 dark:text-slate-400 dark:hover:border-slate-600 dark:hover:text-slate-300",
                 )}
                 aria-current={active ? "page" : undefined}
+                aria-label={
+                  hasError ? `${tab.label} (has validation errors)` : tab.label
+                }
               >
                 <Icon className="h-4 w-4" />
                 {tab.label}
+                {hasError && (
+                  // Red dot indicates one or more fields on this tab
+                  // failed the validation gate.  Disappears as the
+                  // user fixes them (per-field errors clear in NginxServerTab's
+                  // setForm wrapper).
+                  <span
+                    className="ml-1 inline-block h-1.5 w-1.5 rounded-full bg-red-500"
+                    aria-hidden="true"
+                  />
+                )}
               </button>
             );
           })}
         </nav>
       </div>
+      </div>{/* end sticky header wrapper */}
 
       {/* ── Tab Content ──────────────────────────────────────────────── */}
       {activeTab === "nginx" && (
@@ -437,6 +641,7 @@ export default function ServerDetailPage() {
           isCreate={isCreate}
           profileOptions={profileOptions}
           wafPolicyOptions={wafPolicyOptions}
+          fieldErrors={fieldErrors}
         />
       )}
 
@@ -472,9 +677,15 @@ export default function ServerDetailPage() {
         <TopologyCanvas filterServerId={id} compact />
       )}
 
-      {/* ── Bottom Action Bar ────────────────────────────────────────── */}
+      {/* ── Bottom Action Bar ──────────────────────────────────────────
+          Sticky so it stays visible on tall tabs (especially Nginx
+          Server, which has 10 sections + a 600px config preview).
+          Without `sticky bottom-0`, the bar lives at the natural end
+          of the form and is far below the viewport — the user has to
+          scroll thousands of pixels to find Save, and easily concludes
+          the button is missing entirely. */}
       {activeTab !== "history" && activeTab !== "topology" && (
-        <div className="mt-8 flex items-center justify-between border-t border-slate-200 dark:border-slate-800 pt-6">
+        <div className="sticky bottom-0 z-20 -mx-6 -mb-6 mt-8 flex items-center justify-between border-t border-slate-200 bg-white/95 px-6 py-4 backdrop-blur-sm dark:border-slate-800 dark:bg-slate-950/95">
           <div>
             {!isCreate && (
               <Button

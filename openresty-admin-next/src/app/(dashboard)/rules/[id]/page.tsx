@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import dynamic from "next/dynamic";
 import {
   ArrowLeft,
   Save,
@@ -23,9 +24,26 @@ import Select from "@/components/ui/Select";
 import Textarea from "@/components/ui/Textarea";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import Skeleton from "@/components/ui/Skeleton";
+import FetchErrorState from "@/components/ui/FetchErrorState";
 import Badge from "@/components/ui/Badge";
 import type { Rule, Backend } from "@/types";
-import { TopologyCanvas } from "@/components/topology/TopologyCanvas";
+import {
+  runValidationGate,
+  useSubmitGuard,
+  useScrollToFirstFieldError,
+} from "@/lib/forms";
+import { ruleInputSchema } from "@/lib/validation/input-schemas";
+
+const TopologyCanvas = dynamic(
+  () =>
+    import("@/components/topology/TopologyCanvas").then(
+      (mod) => mod.TopologyCanvas,
+    ),
+  {
+    loading: () => <Skeleton variant="rectangular" className="h-96 w-full" />,
+    ssr: false,
+  },
+);
 
 // ── Country list ────────────────────────────────────────────────────────
 
@@ -210,9 +228,19 @@ export default function RuleDetailPage() {
   const id = params.id as string;
   const isCreate = id === "create";
 
-  const { data, isLoading } = useOne<Rule>(
-    isCreate ? null : "rules",
-    isCreate ? null : id,
+  /* ── Clone mode ──────────────────────────────────────────────────────
+     `/rules/create?source=<id>` loads an existing rule and pre-fills
+     this form, suffixing the name with `-clone` so an unedited Save
+     creates a new rule instead of editing the source.  The backend
+     generates a fresh uuid on POST. */
+  const searchParams = useSearchParams();
+  const sourceId = isCreate ? searchParams?.get("source") ?? null : null;
+  const isClone = isCreate && Boolean(sourceId);
+  const fetchKey = isCreate ? sourceId : id;
+
+  const { data, isLoading, error, mutate } = useOne<Rule>(
+    fetchKey ? "rules" : null,
+    fetchKey,
   );
 
   // Fetch profiles for the dropdown
@@ -229,6 +257,10 @@ export default function RuleDetailPage() {
   const [showDelete, setShowDelete] = useState(false);
   const [newTag, setNewTag] = useState("");
   const [showTopology, setShowTopology] = useState(false);
+  // Per-field validation errors surfaced from `runValidationGate`.
+  // Populated in handleSubmit; cleared per-field as the user edits
+  // the offending input via the `set` helper below.
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   // Hydrate form from fetched data
   useEffect(() => {
@@ -236,11 +268,18 @@ export default function RuleDetailPage() {
     const m = data.match?.rules ?? {};
     const r = data.match?.response ?? {};
     const rt = r.routing ?? {};
+    // On clone, suffix the unique identifier so the user spots that
+    // it's a copy and an accidental Save doesn't collide with the
+    // source.  Version resets to 1 — a clone's own change history
+    // starts fresh.
+    const baseName = data.name ?? "";
+    const initialName = isClone ? `${baseName}-clone` : baseName;
+    const initialVersion = isClone ? 1 : data.version ?? 1;
     setForm({
-      name: data.name ?? "",
+      name: initialName,
       profile_id: data.profile_id ?? "",
       priority: data.priority ?? 1,
-      version: data.version ?? 1,
+      version: initialVersion,
       path: m.path ?? "/",
       path_key: m.path_key ?? "starts_with",
       country: m.country ?? "",
@@ -269,11 +308,34 @@ export default function RuleDetailPage() {
       backends: Array.isArray(r.backends) ? r.backends : Array.isArray((rt as Record<string, unknown>).backends) ? (rt as { backends: Backend[] }).backends : [],
       rules_tags: Array.isArray(data.rules_tags) ? data.rules_tags : [],
     });
-  }, [data]);
+  }, [data, isClone]);
+
+  // Reset transient UI state when the record being edited changes.
+  // `/rules/create` is the same path segment regardless of `?source=`,
+  // so the page component is NOT remounted between consecutive clones —
+  // which means stale `showTopology`, `fieldErrors`, and `newTag` would
+  // bleed across records.  Clear them explicitly on every record swap.
+  useEffect(() => {
+    setFieldErrors({});
+    setShowTopology(false);
+    setNewTag("");
+  }, [fetchKey, isCreate]);
 
   const set = useCallback(
-    <K extends keyof RuleForm>(field: K, value: RuleForm[K]) =>
-      setForm((prev) => ({ ...prev, [field]: value })),
+    <K extends keyof RuleForm>(field: K, value: RuleForm[K]) => {
+      setForm((prev) => ({ ...prev, [field]: value }));
+      // Clear that field's validation error as the user edits — and
+      // any nested error path under it (e.g. `backends.0.address`
+      // when the user edits the `backends` array).
+      setFieldErrors((prev) => {
+        const fieldStr = String(field);
+        const next: Record<string, string> = {};
+        for (const [k, v] of Object.entries(prev)) {
+          if (k !== fieldStr && !k.startsWith(fieldStr + ".")) next[k] = v;
+        }
+        return next;
+      });
+    },
     [],
   );
 
@@ -368,11 +430,44 @@ export default function RuleDetailPage() {
 
   // ── Submit ──────────────────────────────────────────────────────────
 
-  const handleSubmit = useCallback(async () => {
-    if (!form.name.trim()) {
-      notify("Rule name is required", { type: "error" });
+  // Synchronous duplicate-submit guard (Wave 11.5).  The
+  // `loading={saving}` button state is one render behind, so a fast
+  // double-click can fire two POSTs before the disable paints.
+  const guardSubmit = useSubmitGuard();
+
+  // Imperative scroll-to-error — only fires on submit, never on
+  // per-keystroke error clearing, so the cursor stays where the user
+  // is typing.
+  const scrollToFirstError = useScrollToFirstFieldError();
+
+  const handleSubmit = useCallback(guardSubmit(async () => {
+    // Structured Zod validation — replaces the single ad-hoc name check.
+    // Covers priority, path / IP format, 301/302 redirect_uri, and 305
+    // backend requirements before we send a half-formed rule to the
+    // backend.
+    const gate = runValidationGate(ruleInputSchema, {
+      name: form.name,
+      priority: form.priority,
+      code: form.code,
+      path: form.path,
+      path_key: form.path_key,
+      client_ip: form.client_ip,
+      country: form.country,
+      redirect_uri: form.redirect_uri,
+      backends: form.backends,
+    });
+    if (!gate.ok && gate.firstError) {
+      // Surface every field error inline (Wave 11.6) — the toast
+      // gives the headline, but the actual offending input also
+      // turns red with a message below it so the user doesn't have
+      // to guess which field is wrong.
+      setFieldErrors(gate.fieldErrors);
+      notify(gate.firstError.message, { type: "error" });
+      scrollToFirstError();
       return;
     }
+    // Clear any stale errors from a previous failed attempt.
+    setFieldErrors({});
     setSaving(true);
     try {
       const payload = buildPayload();
@@ -389,7 +484,17 @@ export default function RuleDetailPage() {
     } finally {
       setSaving(false);
     }
-  }, [isCreate, id, form.name, buildPayload, api, notify, router]);
+  }), [
+    isCreate,
+    id,
+    form,
+    buildPayload,
+    api,
+    notify,
+    router,
+    guardSubmit,
+    scrollToFirstError,
+  ]);
 
   const handleDelete = useCallback(async () => {
     setDeleting(true);
@@ -428,7 +533,10 @@ export default function RuleDetailPage() {
 
   // ── Loading state ───────────────────────────────────────────────────
 
-  if (!isCreate && isLoading) {
+  // Show skeleton while either an edit fetch OR a clone source fetch
+  // is in flight.  Pure create (no source) has fetchKey === null and
+  // isLoading === false, so it falls straight through.
+  if (fetchKey && isLoading) {
     return (
       <div className="space-y-4">
         <Skeleton className="h-8 w-48" />
@@ -437,12 +545,22 @@ export default function RuleDetailPage() {
     );
   }
 
+  if (fetchKey && error) {
+    return <FetchErrorState error={error} onRetry={() => mutate()} />;
+  }
+
   // ── Render ──────────────────────────────────────────────────────────
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title={isCreate ? "Create Rule" : `Edit Rule: ${data?.name ?? id}`}
+        title={
+          isClone
+            ? `Clone of ${data?.name ?? "rule"}`
+            : isCreate
+              ? "Create Rule"
+              : `Edit Rule: ${data?.name ?? id}`
+        }
         icon={GitBranch}
         actions={
           <Button variant="ghost" onClick={() => router.push("/rules")} icon={<ArrowLeft className="h-4 w-4" />}>
@@ -481,7 +599,16 @@ export default function RuleDetailPage() {
         </Card.Header>
         <Card.Body>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <Input label="Rule Name *" value={form.name} onChange={(e) => set("name", e.target.value)} error={!form.name.trim() ? "Required" : undefined} />
+            <Input
+              label="Rule Name *"
+              value={form.name}
+              onChange={(e) => set("name", e.target.value)}
+              // Validation gate's per-field errors take precedence
+              // over the simple "Required" hint so the user sees the
+              // exact constraint message ("must start alphanumeric"
+              // etc.) when validation has run.
+              error={fieldErrors.name ?? (!form.name.trim() ? "Required" : undefined)}
+            />
             <Select
               label="Profile *"
               value={form.profile_id}
@@ -490,8 +617,20 @@ export default function RuleDetailPage() {
               placeholder="Select a profile"
             />
             <div className="grid grid-cols-2 gap-4">
-              <Input label="Priority" type="number" value={String(form.priority)} hint="1-10000" onChange={(e) => set("priority", Number(e.target.value))} />
-              <Input label="Version" type="number" value={String(form.version)} onChange={(e) => set("version", Number(e.target.value))} />
+              <Input
+                label="Priority"
+                type="number"
+                value={String(form.priority)}
+                hint={fieldErrors.priority ? undefined : "1-10000"}
+                onChange={(e) => set("priority", Number(e.target.value))}
+                error={fieldErrors.priority}
+              />
+              <Input
+                label="Version"
+                type="number"
+                value={String(form.version)}
+                onChange={(e) => set("version", Number(e.target.value))}
+              />
             </div>
           </div>
         </Card.Body>
@@ -537,7 +676,13 @@ export default function RuleDetailPage() {
               { value: "ends_with", label: "Ends With" },
               { value: "equals", label: "Exact Match" },
             ]} />
-            <Input label="Path *" value={form.path} placeholder="/" onChange={(e) => set("path", e.target.value)} />
+            <Input
+              label="Path *"
+              value={form.path}
+              placeholder="/"
+              onChange={(e) => set("path", e.target.value)}
+              error={fieldErrors.path}
+            />
 
             {/* Geographic */}
             <SectionLabel>Geographic Filtering</SectionLabel>
@@ -555,7 +700,18 @@ export default function RuleDetailPage() {
 
             {/* Client IP */}
             <SectionLabel>Client IP Filtering</SectionLabel>
-            <Input label="Client IP" value={form.client_ip} placeholder="e.g. 192.168.1.0/24" onChange={(e) => set("client_ip", e.target.value)} />
+            <Input
+              label="Client IP"
+              value={form.client_ip}
+              placeholder="e.g. 192.168.1.0/24"
+              onChange={(e) => set("client_ip", e.target.value)}
+              error={fieldErrors.client_ip}
+              hint={
+                fieldErrors.client_ip
+                  ? undefined
+                  : "IPv4, IPv6, CIDR, or comma-separated list"
+              }
+            />
             {form.client_ip && (
               <Select label="IP Match Type" value={form.client_ip_key} onChange={(e) => set("client_ip_key", e.target.value)} options={[
                 { value: "equals", label: "Equals" },
@@ -621,7 +777,13 @@ export default function RuleDetailPage() {
             ]} />
 
             {showRedirectUri && (
-              <Input label={`${redirectLabel} *`} value={form.redirect_uri} placeholder="https://example.com" onChange={(e) => set("redirect_uri", e.target.value)} />
+              <Input
+                label={`${redirectLabel} *`}
+                value={form.redirect_uri}
+                placeholder="https://example.com"
+                onChange={(e) => set("redirect_uri", e.target.value)}
+                error={fieldErrors.redirect_uri}
+              />
             )}
 
             <SectionLabel>Proxy Options</SectionLabel>
@@ -698,6 +860,20 @@ export default function RuleDetailPage() {
                 </Button>
               </div>
 
+              {/* Section-level validation error.  The schema's
+                  refine() puts the message at path "backends" — when
+                  set, the missing-backends or empty-address message
+                  shows above the list so the user can see it without
+                  scrolling per-row. */}
+              {fieldErrors.backends && (
+                <div
+                  role="alert"
+                  className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300"
+                >
+                  {fieldErrors.backends}
+                </div>
+              )}
+
               {form.backends.length === 0 && (
                 <p className="py-6 text-center text-sm text-slate-400">
                   No backends configured. Add at least one backend for traffic splitting.
@@ -745,8 +921,11 @@ export default function RuleDetailPage() {
         </Card>
       )}
 
-      {/* ── Action bar ───────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+      {/* ── Action bar ─────────────────────────────────────────────────
+          Sticky so it stays visible regardless of how tall the rule
+          form grows (path/IP/JWT/S3/backends sections stack quickly).
+          Matches the servers page treatment. */}
+      <div className="sticky bottom-0 z-20 -mx-6 -mb-6 flex items-center justify-between border-t border-slate-200 bg-white/95 px-6 py-4 backdrop-blur-sm dark:border-slate-800 dark:bg-slate-950/95">
         <div>
           {!isCreate && (
             <Button variant="danger" onClick={() => setShowDelete(true)} icon={<Trash2 className="h-4 w-4" />}>

@@ -14,8 +14,13 @@ export default function ProfilesListPage() {
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(25);
   const [search, setSearch] = useState("");
+  // Profiles are filesystem directories (not JSON records), so the
+  // backend exposes them with `name` + `createdAt` (camelCase) — not
+  // the `created_at` snake_case that the other resources use.  Sort
+  // alphabetically by name; that's also the most useful order for a
+  // small set of named buckets.
   const [sort, setSort] = useState<{ field: string; order: "ASC" | "DESC" }>({
-    field: "id",
+    field: "name",
     order: "ASC",
   });
 
@@ -28,7 +33,10 @@ export default function ProfilesListPage() {
     [page, perPage, sort, search],
   );
 
-  const { data, total, isLoading } = useList<Profile>("profiles", params);
+  const { data, total, isLoading, error, mutate } = useList<Profile>(
+    "profiles",
+    params,
+  );
 
   const columns = useMemo<Column<Profile>[]>(
     () => [
@@ -93,6 +101,8 @@ export default function ProfilesListPage() {
         data={data}
         total={total}
         loading={isLoading}
+        error={error}
+        onRetry={() => mutate()}
         page={page}
         perPage={perPage}
         sort={sort}

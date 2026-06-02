@@ -63,6 +63,17 @@ const Footer = React.forwardRef<HTMLDivElement, CardSectionProps>(
 );
 Footer.displayName = "Card.Footer";
 
+/**
+ * Named exports are REQUIRED for consumption from Server Components.
+ * React's server/client boundary only exposes the default export of a
+ * `"use client"` module — properties attached via `Object.assign`
+ * (the `Card.Header` / `Card.Body` compound pattern) are stripped.
+ *
+ * Client component callers may continue to use `<Card.Header>` syntax;
+ * server component callers must use the named `<CardHeader>` imports.
+ */
+export { Header as CardHeader, Body as CardBody, Footer as CardFooter };
+
 const Card = Object.assign(CardRoot, {
   Header,
   Body,

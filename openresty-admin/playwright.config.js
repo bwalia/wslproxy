@@ -4,7 +4,7 @@ import { defineConfig, devices } from "@playwright/test";
  * Playwright E2E test configuration for WSL Proxy Admin.
  *
  * Tests run against a deployed server — set E2E_BASE_URL to the target
- * environment. Defaults to https://prod-our.wslproxy.com.
+ * environment. Defaults to https://prod-our-v1.wslproxy.com.
  *
  * Projects:
  *   - "no-auth"   — API, Swagger, MCP tests (no login needed)
@@ -40,7 +40,7 @@ export default defineConfig({
     : [["html", { open: "on-failure", outputFolder: "./playwright-report" }]],
 
   use: {
-    baseURL: process.env.E2E_BASE_URL || "https://prod-our.wslproxy.com",
+    baseURL: process.env.E2E_BASE_URL || "https://prod-our-v1.wslproxy.com",
     ignoreHTTPSErrors: true,
     trace: "on-first-retry",
     screenshot: "only-on-failure",
@@ -58,6 +58,13 @@ export default defineConfig({
     {
       name: "login",
       testMatch: /\/login\.spec\.js$/,
+      use: { ...devices["Desktop Chrome"] },
+    },
+    {
+      // Login flow for the Next.js admin dashboard (path routing, different
+      // selectors/copy than the React-Admin "login" project).
+      name: "login-next",
+      testMatch: /\/login-next\.spec\.js$/,
       use: { ...devices["Desktop Chrome"] },
     },
     {

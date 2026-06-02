@@ -13,5 +13,8 @@ COPY . .
 
 EXPOSE 5173
 
-# Development server — Vite proxies /api and /health to wslproxy (no CORS)
-CMD ["yarn", "dev"]
+# On container start, re-sync node_modules from the (bind-mounted)
+# package.json.  node_modules lives on a named volume, so a fresh dep
+# added to package.json on the host wouldn't otherwise be reflected.
+# yarn install is a no-op when deps are already in sync.
+CMD ["sh", "-c", "yarn install --non-interactive --silent 2>&1 | tail -1 && yarn dev"]

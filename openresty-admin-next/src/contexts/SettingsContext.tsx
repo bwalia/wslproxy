@@ -12,34 +12,27 @@ import {
 import type { AppSettings } from "@/types";
 import { dataProvider } from "@/lib/api/data-provider";
 
+/**
+ * Global app settings (read-only cache of `GET /api/global/settings`).
+ *
+ * Environment profile is NO LONGER owned here — that's `ProfileContext`.
+ * This context is purely for instance-wide settings the UI needs to
+ * know about (e.g. `storage_type` decides whether `/sessions` is shown).
+ */
 interface SettingsContextValue {
   settings: AppSettings | null;
-  environment: string;
   storageType: string | undefined;
   isLoading: boolean;
   loadSettings: () => Promise<void>;
-  setEnvironment: (env: string) => void;
 }
 
 const SettingsContext = createContext<SettingsContextValue | undefined>(undefined);
 
-const ENV_KEY = "environment";
-
 export function SettingsProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<AppSettings | null>(null);
-  const [environment, setEnvironmentState] = useState<string>("prod");
   const [isLoading, setIsLoading] = useState(false);
 
-  // Hydrate environment from localStorage
-  useEffect(() => {
-    const stored = localStorage.getItem(ENV_KEY);
-    if (stored) setEnvironmentState(stored);
-  }, []);
-
-  const storageType = useMemo(
-    () => settings?.storage_type,
-    [settings],
-  );
+  const storageType = useMemo(() => settings?.storage_type, [settings]);
 
   const loadSettings = useCallback(async () => {
     setIsLoading(true);
@@ -53,21 +46,9 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const setEnvironment = useCallback((env: string) => {
-    localStorage.setItem(ENV_KEY, env);
-    setEnvironmentState(env);
-  }, []);
-
   const value = useMemo<SettingsContextValue>(
-    () => ({
-      settings,
-      environment,
-      storageType,
-      isLoading,
-      loadSettings,
-      setEnvironment,
-    }),
-    [settings, environment, storageType, isLoading, loadSettings, setEnvironment],
+    () => ({ settings, storageType, isLoading, loadSettings }),
+    [settings, storageType, isLoading, loadSettings],
   );
 
   return (

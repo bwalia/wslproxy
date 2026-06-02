@@ -2,9 +2,15 @@
 
 import React, { useCallback, useState } from "react";
 import Link from "next/link";
+import type { Route } from "next";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
-import { Sun, Moon, Settings, CircleUser, LogOut } from "lucide-react";
+import { env } from "@/lib/config/env";
+import { Sun, Moon, Settings, CircleUser, LogOut, KeyRound } from "lucide-react";
+import ProfileSwitcher from "./ProfileSwitcher";
+import SyncButton from "./SyncButton";
+import StorageSelector from "./StorageSelector";
+import ApiHealthIndicator from "./ApiHealthIndicator";
 
 interface AppBarProps {
   sidebarCollapsed: boolean;
@@ -32,6 +38,25 @@ export default function AppBar({ sidebarCollapsed }: AppBarProps) {
 
       {/* Right side actions */}
       <div className="flex items-center gap-2">
+        {/* API health pill — first slot on the right so operators have
+            a constant peripheral signal that the backend is reachable
+            without having to look at console errors or load a page.
+            Matches the legacy ApiHealthIndicator placement. */}
+        <ApiHealthIndicator />
+
+        {/* Storage backend selector — shown for all deploys since the
+            setting is global.  Matches legacy StorageButton. */}
+        <StorageSelector />
+
+        {/* Environment profile switcher — drives list filters + mutation defaults */}
+        <ProfileSwitcher />
+
+        {/* API sync button — hidden for Docker deploys (the sync
+            endpoint targets a frontdoor control-plane that local
+            Docker nodes don't have).  Matches legacy VITE_TARGET_PLATFORM
+            gate in openresty-admin/src/AppBar.jsx:266. */}
+        {env.targetPlatform !== "DOCKER" && <SyncButton />}
+
         {/* Theme toggle */}
         <button
           type="button"
@@ -72,6 +97,15 @@ export default function AppBar({ sidebarCollapsed }: AppBarProps) {
                 onClick={() => setUserMenuOpen(false)}
               />
               <div className="absolute right-0 z-50 mt-1 w-48 rounded-lg border border-slate-200 bg-white py-1 shadow-lg dark:border-slate-700 dark:bg-slate-900">
+                <Link
+                  href={"/account/password" as Route}
+                  onClick={() => setUserMenuOpen(false)}
+                  className="flex w-full items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+                >
+                  <KeyRound className="h-4 w-4" />
+                  Change Password
+                </Link>
+                <div className="my-1 border-t border-slate-200 dark:border-slate-700" />
                 <button
                   type="button"
                   onClick={handleLogout}

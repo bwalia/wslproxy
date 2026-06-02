@@ -65,6 +65,10 @@ on:
         description: "Deploy mode: code, nginx, servers, dashboard, dashboard-next, os_deps, build, full"
         type: string
         required: true
+      nextjs_dashboard_port:
+        description: "Port the nginx-fronted Next.js dashboard listens on (nginx_nextjs_dashboard_port). Used only by the post-deploy dashboard health gate."
+        type: string
+        default: "8099"
     secrets:
       SLACK_WEBHOOK:
         required: true
@@ -135,7 +139,7 @@ jobs:
           NEXT_PUBLIC_APP_VERSION=${APP_VERSION}
           NEXT_PUBLIC_APP_BUILD_NUMBER=${APP_BUILD}
           NEXT_PUBLIC_DEPLOYMENT_TIME=${DEPLOY_TIME}
-          NEXT_PUBLIC_TARGET_PLATFORM=DOCKER
+          NEXT_PUBLIC_TARGET_PLATFORM=BARE_METAL
           ENVEOF
           # Strip leading whitespace from env file
           sed -i 's/^[[:space:]]*//' .env.production
@@ -441,6 +445,95 @@ jobs:
           done
           echo "::error::Health check failed on ${{ inputs.env_label }} after $((RETRIES * WAIT))s"
           exit 1
+
+      # ── Next.js dashboard health gate ──
+      # Only runs when this deploy actually touched the dashboard
+      # (dashboard-next / dashboard / full).  The main gate above only
+      # checks the Lua API on :8080 — without this, a Next.js service
+      # that failed to start would still let the pipeline pass green.
+      #
+      # Connection-mode based (not health_check_mode) because the
+      # dashboard port is bound to localhost on the target and isn't
+      # reachable externally on prod hosts — so we always check it
+      # locally or over SSH, mirroring the openresty -t check above.
+      - name: Post-deploy Next.js dashboard health gate
+        if: contains(inputs.deploy_mode, 'dashboard') || inputs.deploy_mode == 'full'
+        run: |
+          PORT="${{ inputs.nextjs_dashboard_port }}"
+          # /login always returns 200 (the root redirects to it when
+          # unauthenticated, which would muddy a status-code check).
+          URL="http://localhost:${PORT}/login"
+          SVC="wslproxy-nextjs-dashboard"
+          echo "Verifying Next.js dashboard on ${{ inputs.env_label }} (port ${PORT})..."
+
+          SSH_OPTS="-o BatchMode=yes -o ConnectTimeout=10"
+          [[ "${{ inputs.connection_mode }}" == "ssh_key" ]] && SSH_OPTS="$SSH_OPTS -i ~/.ssh/id_rsa"
+
+          # 1) systemd service must be active
+          if [[ "${{ inputs.connection_mode }}" == "local" ]]; then
+            sudo systemctl is-active "$SVC" >/dev/null 2>&1 || {
+              echo "::error::$SVC is not active on ${{ inputs.host_ip }}"
+              sudo systemctl status "$SVC" --no-pager -l 2>&1 | tail -30 || true
+              exit 1
+            }
+          else
+            SUDO_PREFIX=""
+            [[ "${{ inputs.ssh_user }}" != "root" ]] && SUDO_PREFIX="sudo"
+            ssh $SSH_OPTS ${{ inputs.ssh_user }}@${{ inputs.host_ip }} \
+              "$SUDO_PREFIX systemctl is-active $SVC" >/dev/null 2>&1 || {
+              echo "::error::$SVC is not active on ${{ inputs.host_ip }}"
+              ssh $SSH_OPTS ${{ inputs.ssh_user }}@${{ inputs.host_ip }} \
+                "$SUDO_PREFIX systemctl status $SVC --no-pager -l 2>&1 | tail -30" || true
+              exit 1
+            }
+          fi
+          echo "Service $SVC is active"
+
+          # helper: run a curl either locally or over SSH
+          probe() {
+            local u="$1"
+            if [[ "${{ inputs.connection_mode }}" == "local" ]]; then
+              curl -s -o /dev/null -w "%{http_code}" "$u" 2>/dev/null || echo "000"
+            else
+              ssh $SSH_OPTS ${{ inputs.ssh_user }}@${{ inputs.host_ip }} \
+                "curl -s -o /dev/null -w '%{http_code}' '$u' 2>/dev/null" || echo "000"
+            fi
+          }
+
+          # 2) dashboard must serve /login with HTTP 200 (retry: the
+          #    Node server takes a few seconds to bind after restart)
+          RETRIES=12
+          WAIT=5
+          OK=""
+          for i in $(seq 1 $RETRIES); do
+            STATUS=$(probe "$URL")
+            if [ "$STATUS" = "200" ]; then
+              echo "Next.js /login OK (HTTP $STATUS)"
+              OK=1; break
+            fi
+            echo "Attempt $i/$RETRIES: HTTP $STATUS on $URL — waiting ${WAIT}s..."
+            sleep $WAIT
+          done
+          if [ -z "$OK" ]; then
+            echo "::error::Next.js dashboard did not return 200 on $URL after $((RETRIES * WAIT))s"
+            exit 1
+          fi
+
+          # 3) the /api/* proxy must REACH the backend.  Unauthenticated
+          #    we expect 401 (or any non-5xx); a 5xx means the dashboard's
+          #    API proxy is misrouted to a dead port — exactly the
+          #    baked-wrong-port bug this guards against.  Without this
+          #    check the dashboard can pass /login yet show empty
+          #    server/rule lists in the browser.
+          API_URL="http://localhost:${PORT}/api/servers?_format=json"
+          API_STATUS=$(probe "$API_URL")
+          if [ "$API_STATUS" -ge 500 ] 2>/dev/null || [ "$API_STATUS" = "000" ]; then
+            echo "::error::Next.js /api proxy is broken (HTTP $API_STATUS on /api/servers). Likely WSLPROXY_API_URL points at the wrong/dead backend port."
+            exit 1
+          fi
+          echo "Next.js /api proxy reaches backend (HTTP $API_STATUS — non-5xx, auth gate working)"
+          echo "Next.js dashboard health check passed"
+          exit 0
 
       # ── Slack notifications ──
       - name: Slack notify - deployed

@@ -2,10 +2,13 @@
 
 import React, { useMemo } from "react";
 import Link from "next/link";
+import type { Route } from "next";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils/cn";
 import { useSettings } from "@/contexts/SettingsContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import { env } from "@/lib/config/env";
+import Logo from "@/components/Logo";
 import {
   LayoutDashboard,
   Users,
@@ -22,15 +25,21 @@ import {
   FileText,
   ShieldAlert,
   ShieldCheck,
+  Siren,
   ChevronLeft,
   ChevronRight,
   ScrollText,
+  BookOpen,
+  Info,
+  Share2,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 interface NavItem {
   label: string;
-  href: string;
+  // Typed route: next.config.ts `typedRoutes: true` enforces that `href`
+  // resolves to a real page in the app router at build time.
+  href: Route;
   icon: LucideIcon;
 }
 
@@ -47,6 +56,10 @@ interface SidebarProps {
 export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
   const { settings } = useSettings();
+  // `theme` only feeds the Logo wordmark colour — the rest of the
+  // sidebar is styled via Tailwind's `dark:` variant + the html.dark
+  // class set by ThemeContext.
+  const { theme } = useTheme();
 
   const sections = useMemo<NavSection[]>(() => {
     const nav: NavSection[] = [
@@ -56,10 +69,19 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
           { label: "Dashboard", href: "/", icon: LayoutDashboard },
           { label: "Users", href: "/users", icon: Users },
           ...(settings?.storage_type === "redis"
-            ? [{ label: "Sessions", href: "/sessions", icon: Activity }]
+            ? ([
+                { label: "Sessions", href: "/sessions", icon: Activity },
+              ] satisfies NavItem[])
             : []),
-          { label: "Logs & Troubleshoot", href: "/logs", icon: ScrollText },
-          { label: "Health", href: "/health", icon: HeartPulse },
+          { label: "Logs", href: "/logs", icon: ScrollText },
+          // The admin health-dashboard page lives at `/system-status`,
+          // not `/health`.  Reason: upstream nginx has
+          // `location /health` as a PREFIX match → the Lua JSON probe
+          // swallows everything starting with `/health` (`/health`,
+          // `/health-status`, `/healthcheck`, ...).  Picking a route
+          // that doesn't start with "health" sidesteps the collision
+          // without touching nginx.
+          { label: "Health", href: "/system-status" as Route, icon: HeartPulse },
           { label: "Bookmarks", href: "/bookmarks", icon: Bookmark },
         ],
       },
@@ -67,6 +89,9 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
         title: "Configuration",
         items: [
           { label: "Topology", href: "/topology", icon: Network },
+          // Cast: typedRoutes union is built from existing routes; new
+          // routes need an explicit cast until the next build.
+          { label: "Ingress", href: "/ingress" as Route, icon: Share2 },
           { label: "Servers", href: "/servers", icon: Server },
           { label: "Rules", href: "/rules", icon: GitBranch },
           { label: "Profiles", href: "/profiles", icon: Layers },
@@ -77,7 +102,11 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
       {
         title: "Change Management",
         items: [
-          { label: "Change Requests", href: "/change-requests", icon: GitPullRequest },
+          {
+            label: "Change Requests",
+            href: "/change-requests",
+            icon: GitPullRequest,
+          },
           { label: "Audit", href: "/audit", icon: FileText },
         ],
       },
@@ -86,15 +115,27 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
         items: [
           { label: "WAF Rules", href: "/waf-rules", icon: ShieldAlert },
           { label: "WAF Policies", href: "/waf-policies", icon: ShieldCheck },
+          { label: "WAF Events", href: "/waf-events", icon: Siren },
+        ],
+      },
+      {
+        title: "Reference",
+        items: [
+          // Cast: typedRoutes generates the Route union from existing
+          // routes at build time — new routes need an explicit cast
+          // until the first build picks them up.
+          { label: "Instance Info", href: "/instance-info" as Route, icon: Info },
+          { label: "API Docs", href: "/api-docs", icon: BookOpen },
         ],
       },
     ];
     return nav;
   }, [settings?.storage_type]);
 
-  const isActive = (href: string) => {
-    if (href === "/") return pathname === "/";
-    return pathname.startsWith(href);
+  const isActive = (href: Route) => {
+    const hrefStr = href as string;
+    if (hrefStr === "/") return pathname === "/";
+    return pathname.startsWith(hrefStr);
   };
 
   return (
@@ -104,16 +145,29 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
         collapsed ? "w-[72px]" : "w-64",
       )}
     >
-      {/* Logo area */}
+      {/* Logo area — same component the login page renders.  Icon-only
+          when the sidebar is collapsed; full wordmark when expanded.
+          Theme drives the wordmark colour ("WSL" half) — the shield
+          gradient is theme-invariant so it works on both backgrounds.
+          The <Link> wrapper means the brand mark doubles as a "go
+          home" affordance, matching standard dashboard conventions. */}
       <div className="flex h-16 items-center justify-between border-b border-slate-200 px-4 dark:border-slate-800">
         {collapsed ? (
-          <span className="mx-auto text-xl font-bold text-primary-600 dark:text-primary-400">
-            W
-          </span>
+          <Link
+            href="/"
+            className="mx-auto rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30"
+            aria-label="WSL Proxy — home"
+          >
+            <Logo variant="icon" height={32} />
+          </Link>
         ) : (
-          <span className="text-lg font-bold text-slate-900 dark:text-slate-100">
-            WSL Proxy
-          </span>
+          <Link
+            href="/"
+            className="rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30"
+            aria-label="WSL Proxy — home"
+          >
+            <Logo variant="full" width={170} height={36} theme={theme} />
+          </Link>
         )}
         <button
           type="button"

@@ -67,7 +67,7 @@ export interface Server {
   index?: string;
   access_log?: string;
   error_log?: string;
-  rules?: string;
+  rules?: string[];
   match_cases?: { statement: string; condition: string }[];
   locations?: LocationBlock[];
   custom_headers?: { header_key: string; header_value: string }[];
@@ -179,6 +179,7 @@ export interface UpstreamServer {
 export interface Secret {
   id: string;
   secret_name: string;
+  description?: string;
   profile_id: string;
   secrets?: { key: string; value: string }[];
   secrets_tags?: string[];
@@ -236,6 +237,10 @@ export interface Bookmark {
   ssl_enabled?: boolean;
   auto_generated?: boolean;
   created_at?: number;
+  /** When true, the bookmark is exposed at the public, unauthenticated
+   *  /links page (and via GET /api/public/bookmarks).  Defaults to false
+   *  so newly-saved records are never accidentally exposed. */
+  public?: boolean;
 }
 
 export interface WafRule {
@@ -294,53 +299,163 @@ export interface Session {
   expires_at?: number;
 }
 
+// ── Audit ───────────────────────────────────────────────────────────────
+
+/** Audit log entry.  Written by the backend on every mutation. */
+export interface AuditEntry {
+  timestamp: number; // unix epoch seconds
+  user?: string;
+  action?: string; // "create" | "update" | "delete" | custom
+  resource_type?: string; // "servers" | "rules" | "upstreams" | …
+  resource_name?: string;
+  actor?: string;
+  actor_ip?: string;
+  profile_id?: string;
+  diff?: unknown;
+  [extra: string]: unknown;
+}
+
+export interface AuditFilters {
+  date_from?: number;
+  date_to?: number;
+  user?: string;
+  action?: string;
+  resource_type?: string;
+  resource_name?: string;
+  limit?: number;
+  offset?: number;
+}
+
+// ── WAF events ──────────────────────────────────────────────────────────
+
+/** WAF event emitted when a rule matches. */
+export interface WafEvent {
+  id?: string;
+  timestamp?: number;
+  host?: string;
+  client_ip?: string;
+  method?: string;
+  uri?: string;
+  rule_id?: string;
+  rule_name?: string;
+  category?: string;
+  severity?: string; // "critical" | "high" | "medium" | "low"
+  action?: string; // "block" | "monitor"
+  score?: number;
+  message?: string;
+  [extra: string]: unknown;
+}
+
 // ── Health / system ─────────────────────────────────────────────────────
 
+/**
+ * Response shape for `GET /api/ping?detailed=true` — defined by
+ * api/ping.lua.  Every field is optional because the backend can
+ * degrade gracefully and return partial data.  The `health` page
+ * renders whichever fields are present.
+ */
 export interface HealthData {
-  status?: string;
-  openresty_version?: string;
-  nginx_workers?: number;
-  redis?: { status?: string; endpoint?: string };
-  data_directories?: {
-    path: string;
-    exists: boolean;
-    readable: boolean;
-    writable: boolean;
-  }[];
-  settings_check?: {
-    exists: boolean;
-    valid_json: boolean;
-    status: string;
-    error?: string;
+  status?: "healthy" | "degraded" | "unhealthy" | "unreachable" | string;
+  response?: string;
+  timestamp?: string;
+
+  services?: {
+    openresty?: { status?: string; version?: string };
+    nginx_workers?: { status?: string; worker_count?: number };
+    redis?: {
+      status?: "ok" | "error" | "skipped" | string;
+      message?: string;
+      host?: string;
+      port?: number;
+    };
+  };
+
+  /**
+   * Keyed by absolute directory path — e.g.
+   * `{ "data/servers/prod": { exists, readable, writable } }`.
+   * Ordering is not guaranteed.
+   */
+  data_directories?: Record<
+    string,
+    { exists?: boolean; readable?: boolean; writable?: boolean }
+  >;
+
+  settings?: {
+    status?: "ok" | "warning" | "error" | string;
+    file_exists?: boolean;
+    valid_json?: boolean;
     missing_keys?: string[];
+    env_profile?: string;
+    storage_type?: string;
+    error?: string;
   };
-  frontend_env?: { status: string; variables?: Record<string, string>; missing?: string[] };
-  backend_env?: Record<string, string>;
+
+  frontend_env?: {
+    status?: string;
+    file_exists?: boolean;
+    env_path?: string;
+    variables?: Record<string, string>;
+    missing?: string[];
+    note?: string;
+  };
+
+  environment?: {
+    backend?: Record<string, string>;
+    frontend?: Record<string, string>;
+  };
+
   system?: {
+    app?: string;
+    version?: string;
     hostname?: string;
-    fqdn?: string;
-    os?: string;
-    kernel?: string;
+    openresty_version?: string;
+    storage_type?: string;
+    env_profile?: string;
+    deployment_time?: string;
     uptime?: string;
-    load_average?: string;
-    cpu?: { model?: string; cores?: number; usage_percent?: number };
-    memory?: { total?: string; used?: string; available?: string; free?: string };
-    disk?: { total?: string; used?: string; available?: string; percent?: string; status?: string };
-    ip_addresses?: string[];
+    swagger_url?: string;
+    cpu?: {
+      cores?: string | number;
+      system_usage_percent?: string | number;
+    };
+    nginx?: {
+      worker_count?: number;
+      worker_processes_conf?: string;
+      worker_connections?: string | number;
+      worker_rlimit_nofile?: string | number | null;
+      open_files_limit?: string | number;
+      memory_rss_mb?: string | number;
+      memory_vsz_mb?: string | number;
+      memory_percent?: string | number;
+    };
   };
-  cache_stats?: {
-    available: boolean;
+}
+
+/**
+ * Everything the Health page needs in one bundle, so fetchers stay in
+ * one place and the page component receives a single, already-merged
+ * prop shape.  `meta` is populated by the server-side fetcher itself
+ * (the Lua ping endpoint doesn't report its own URL / HTTP status).
+ */
+export interface HealthBundle {
+  health: HealthData;
+  instance: InstanceInfo;
+  cache: {
+    available?: boolean;
     total_entries?: number;
     total_size_bytes?: number;
-    dict_capacity?: string;
-    dict_free_space?: string;
+    dict_capacity?: string | number;
+    dict_free_space?: string | number;
+    [key: string]: unknown;
   };
-  network?: { ip_addresses?: string[]; dns?: { primary?: string; secondary?: string; port?: string } };
-  build?: Record<string, string>;
-  _api_url?: string;
-  _http_status?: number;
-  _latency?: number;
-  _authenticated?: boolean;
+  meta: {
+    api_url: string;
+    http_status: number;
+    latency_ms: number;
+    authenticated: boolean;
+    /** Error string when the ping call itself failed. */
+    error?: string;
+  };
 }
 
 export interface TrafficStats {
@@ -351,13 +466,24 @@ export interface TrafficStats {
 export interface InstanceInfo {
   hostname?: string;
   fqdn?: string;
+  environment?: string;
+  uptime?: string;
   ip_addresses?: string[];
   os?: string;
   kernel?: string;
   cpu?: { model?: string; cores?: number; usage_percent?: number };
-  memory?: { total?: string; used?: string; available?: string };
+  memory?: {
+    total?: string;
+    used?: string;
+    available?: string;
+    free?: string;
+  };
   disk?: { total?: string; used?: string; available?: string; percent?: string };
   load_average?: string;
+  network?: {
+    interfaces?: string[];
+    routes?: string[];
+  };
 }
 
 // ── Logs & AI Troubleshooting ────────────────────────────────────────────
@@ -422,6 +548,28 @@ export interface AIAnalysisResponse {
   related_patterns?: string[];
 }
 
+/**
+ * Result envelope returned by `GET /api/logs/search`.  Matches the
+ * shape produced by `Helper.searchLogFile` in `api/helpers.lua`.
+ *
+ *  - `matches` — newest-first up to the requested `limit`.
+ *  - `lineno` is relative to the scanned window, NOT the full file;
+ *    check `truncated` to know if older lines were skipped.
+ *  - `scanned_bytes` / `total_lines_scanned` are useful for the
+ *    "Showing X of Y" status bar in the viewer.
+ */
+export interface LogSearchMatch {
+  lineno: number;
+  text: string;
+}
+
+export interface LogSearchResult {
+  matches: LogSearchMatch[];
+  scanned_bytes: number;
+  total_lines_scanned: number;
+  truncated: boolean;
+}
+
 export interface BackendHealthDetail {
   rule_id: string;
   rule_name: string;
@@ -468,7 +616,15 @@ export interface DataProvider {
   getErrorDetails(statusCode?: string): Promise<SingleResult>;
   getLogMetrics(): Promise<SingleResult>;
   getCacheStats(): Promise<SingleResult>;
-  getLogs(): Promise<SingleResult>;
+  getLogs(resource?: string): Promise<SingleResult>;
+  searchLogs(params: {
+    kind: "error" | "access";
+    q?: string;
+    regex?: boolean;
+    caseSensitive?: boolean;
+    limit?: number;
+    maxBytes?: number;
+  }): Promise<SingleResult<LogSearchResult>>;
 
   // Monitoring
   getInstanceInfo(): Promise<SingleResult<InstanceInfo>>;
@@ -507,4 +663,40 @@ export interface DataProvider {
   getBackendHealthDetails(): Promise<ListResult<BackendHealthDetail>>;
   analyzeWithAI(request: AIAnalysisRequest): Promise<SingleResult<AIAnalysisResponse>>;
   getAIModels(): Promise<SingleResult<{ models: string[]; default: string }>>;
+
+  // Cache management
+  /** Purge cache for a specific server (`POST /api/cache/clear/{server}`). */
+  purgeCache(serverName: string): Promise<SingleResult>;
+  /** Purge ALL cached content (`POST /api/cache/clear-all`). */
+  purgeAllCache(): Promise<SingleResult>;
+
+  // Version history
+  /** List stored versions for a resource.
+   *  `GET /api/versions/{type}/{profile}/{name}`. */
+  listVersions(
+    resourceType: string,
+    profile: string,
+    resourceName: string,
+  ): Promise<ListResult<StoredVersion>>;
+  /**
+   * Create a new draft version cloned from a historical version.
+   * `POST /api/versions/{type}/{profile}/{name}/rollback/{version}`.
+   */
+  rollbackVersion(
+    resourceType: string,
+    profile: string,
+    resourceName: string,
+    version: number,
+  ): Promise<SingleResult>;
+}
+
+/** Backend representation of a stored version. */
+export interface StoredVersion {
+  version: number;
+  state?: "draft" | "pending" | "live" | "archived" | string;
+  created_at?: number;
+  created_by?: string;
+  description?: string;
+  config?: unknown;
+  [extra: string]: unknown;
 }

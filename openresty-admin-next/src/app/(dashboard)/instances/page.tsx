@@ -16,8 +16,8 @@ export default function InstancesListPage() {
   const [perPage, setPerPage] = useState(25);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<{ field: string; order: "ASC" | "DESC" }>({
-    field: "id",
-    order: "ASC",
+    field: "created_at",
+    order: "DESC",
   });
 
   const params = useMemo(
@@ -29,7 +29,10 @@ export default function InstancesListPage() {
     [page, perPage, sort, search],
   );
 
-  const { data, total, isLoading } = useList<Instance>("instances", params);
+  const { data, total, isLoading, error, mutate } = useList<Instance>(
+    "instances",
+    params,
+  );
 
   const columns = useMemo<Column<Instance>[]>(
     () => [
@@ -105,6 +108,8 @@ export default function InstancesListPage() {
         data={data}
         total={total}
         loading={isLoading}
+        error={error}
+        onRetry={() => mutate()}
         page={page}
         perPage={perPage}
         sort={sort}
