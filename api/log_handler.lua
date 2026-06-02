@@ -24,7 +24,10 @@ local function get_ip2location()
     -- Use global IP2LocationPath from init.lua (loaded from settings.json)
     local path = IP2LocationPath
     if not path or path == "" then
-        ngx.log(ngx.WARN, "log_handler: IP2LocationPath not set in init.lua")
+        -- Logged at ERR (not WARN) so the default error_log level
+        -- catches it.  WARN was filtered for ~3 years and let a
+        -- silent prod regression go unnoticed.
+        ngx.log(ngx.ERR, "log_handler: IP2LocationPath not set in init.lua — geographic traffic stats will be empty")
         return nil
     end
 
@@ -36,7 +39,11 @@ local function get_ip2location()
     end)
 
     if not ok then
-        ngx.log(ngx.WARN, "log_handler: Failed to init IP2Location from ", path, ": ", tostring(err))
+        -- ERR (was WARN) — geographic tracking is fully broken at
+        -- this point, the operator needs to know without grep-ing
+        -- through verbose logs.
+        ngx.log(ngx.ERR, "log_handler: Failed to init IP2Location from ", path, ": ", tostring(err),
+            " — geographic traffic stats will be empty until this is fixed")
     end
 
     return ip2loc_instance

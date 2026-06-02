@@ -20,6 +20,20 @@ const clientEnvSchema = z.object({
   NEXT_PUBLIC_APP_VERSION: z.string().default("dev"),
   NEXT_PUBLIC_APP_BUILD_NUMBER: z.string().default("local"),
   NEXT_PUBLIC_DEPLOYMENT_TIME: z.string().default(""),
+  // Which environment this build is running in.  Drives the colour
+  // badge in the footer so a single glance tells you whether you're
+  // looking at prod or a staging tier.  `local` covers laptop /
+  // docker compose; the rest map 1:1 to the deploy pipeline tiers.
+  NEXT_PUBLIC_ENV_NAME: z
+    .enum(["local", "int", "test", "prod"])
+    .default("local"),
+  // Full git SHA of the deployed commit — empty in dev.  The footer
+  // renders the first 7 chars and links to the GitHub commit page.
+  NEXT_PUBLIC_GIT_SHA: z.string().default(""),
+  // `owner/repo` — used to build the commit / actions-run URLs.
+  // Centralised here (not hard-coded in Footer.tsx) so an internal
+  // mirror or fork can override it without code changes.
+  NEXT_PUBLIC_GIT_REPO: z.string().default("bwalia/wslproxy"),
   // Accept the four deploy targets we actually ship to.  `BARE_METAL`
   // is the value the Ansible systemd template sets on int / test /
   // acc / prod (see infra/ansible/roles/wslproxy/templates/
@@ -89,6 +103,9 @@ export const env = {
   appVersion: client.NEXT_PUBLIC_APP_VERSION,
   buildNumber: client.NEXT_PUBLIC_APP_BUILD_NUMBER,
   deploymentTime: client.NEXT_PUBLIC_DEPLOYMENT_TIME,
+  envName: client.NEXT_PUBLIC_ENV_NAME,
+  gitSha: client.NEXT_PUBLIC_GIT_SHA,
+  gitRepo: client.NEXT_PUBLIC_GIT_REPO,
   targetPlatform: client.NEXT_PUBLIC_TARGET_PLATFORM,
   primaryColor: client.NEXT_PUBLIC_THEME_PRIMARY_COLOR,
   secondaryColor: client.NEXT_PUBLIC_THEME_SECONDARY_COLOR,

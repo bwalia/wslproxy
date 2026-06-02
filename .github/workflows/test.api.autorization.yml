@@ -14,7 +14,7 @@ on:
           - int2
           - int6
           - test
-          - acc
+          # `acc` was decommissioned along with 187.77.179.206.
           - prod
       LOGIN_EMAIL:
         description: "Login Email (leave empty to use secret)"
@@ -97,13 +97,7 @@ jobs:
             export FRONT_URL="http://localhost:8069"
             export PROFILE_ID="dev"
 
-          elif [[ "${{ inputs.TARGET_ENV }}" == 'acc' ]]; then
-            export TARGET_HOST="https://api-acc.wslproxy.com"
-            export SERVER_NAME="frontdoor-acc.wslproxy.com"
-            export SERVER_ID_QA="host:frontdoor-acc.wslproxy.com"
-            export NODE_APP_IP=""
-            export FRONT_URL="https://frontdoor-acc.wslproxy.com"
-            export PROFILE_ID="acc"
+          # `acc` branch removed — 187.77.179.206 was decommissioned.
 
           elif [[ "${{ inputs.TARGET_ENV }}" == 'prod' ]]; then
             export TARGET_HOST="https://api-prod.wslproxy.com"

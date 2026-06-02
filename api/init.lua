@@ -52,8 +52,19 @@ end
 local use_redis_storage = settings and settings.storage_type == "redis"
 
 -- Export IP2Location path as global variable for use in log_handler
--- This is loaded at init time when file I/O is allowed
-IP2LocationPath = settings and settings.ip2location_path or "/tmp/IP2LOCATION-LITE-DB11.IPV6.BIN"
+-- and geo_lookup.  This is loaded at init time when file I/O is
+-- allowed.
+--
+-- Fallback default matches where the ansible role installs the DB
+-- (cdn-dependencies.sh.j2 + ip2location_db_path in role defaults).
+-- A previous fallback of `/tmp/...` silently broke geographic
+-- traffic in prod for weeks: the on-disk file lived at the new
+-- path but settings.json (in Vault) still pointed at /tmp/, and
+-- the fallback didn't catch the drift because it pointed at the
+-- same wrong place.  `/tmp` is also a poor location — some systems
+-- clear it on reboot.
+IP2LocationPath = settings and settings.ip2location_path
+    or "/usr/local/openresty/nginx/IP2LOCATION-LITE-DB11.IPV6.BIN"
 ngx.log(ngx.INFO, "IP2Location: Using database path: ", IP2LocationPath)
 
 -- Use shared dictionary for SSL domains cache

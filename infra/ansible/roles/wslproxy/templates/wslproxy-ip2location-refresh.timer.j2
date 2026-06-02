@@ -1,0 +1,30 @@
+[Unit]
+# Monthly auto-refresh for the IP2Location LITE country database.
+# Without this, the on-disk DB ages indefinitely between full ansible
+# deploys (the initial install is a one-time cdn-dependencies.sh
+# step) — IPs reassigned by their owners since then return the wrong
+# country or "?".
+#
+# Schedule is configured via ip2location_refresh_schedule in
+# roles/wslproxy/defaults/main.yml (default: 03:30 UTC on the 1st
+# of each month — IP2Location refreshes their LITE files around the
+# start of every month).
+Description=Refresh IP2Location LITE DB monthly
+Requires=wslproxy-ip2location-refresh.service
+
+[Timer]
+OnCalendar={{ ip2location_refresh_schedule | default('*-*-01 03:30:00') }}
+
+# If the box was off when the timer would have fired (downtime,
+# reboot, install lag), catch up on next boot instead of skipping
+# the whole month.
+Persistent=true
+
+# Spread the load across the fleet so all servers don't hit the
+# download URL at exactly 03:30 UTC.
+RandomizedDelaySec=30m
+
+Unit=wslproxy-ip2location-refresh.service
+
+[Install]
+WantedBy=timers.target

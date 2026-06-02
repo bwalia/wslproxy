@@ -368,7 +368,7 @@ jobs:
             -l ${{ inputs.host_ip }} \
             $CONN_FLAGS \
             $TAGS_FLAG \
-            --extra-vars "nginx_user_password=THISCOMESFROMSECRETS target_env=${{ inputs.env_name }} local_settings_file_path=${{ env.settings_path }} local_env_file_path=${{ env.env_path }} $VAULT_FLAG"
+            --extra-vars "nginx_user_password=THISCOMESFROMSECRETS target_env=${{ inputs.env_name }} local_settings_file_path=${{ env.settings_path }} local_env_file_path=${{ env.env_path }} wslproxy_build_number=${{ github.run_id }} wslproxy_git_sha=${{ github.sha }} wslproxy_git_repo=${{ github.repository }} wslproxy_deployment_time=$(date -u +%Y-%m-%dT%H:%M:%SZ) $VAULT_FLAG"
 
       # ── Deploy server/rule configs ──
       - name: Deploy server configs and rules

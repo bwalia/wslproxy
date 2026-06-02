@@ -52,6 +52,13 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
         <main
           id="main-content"
           tabIndex={-1}
+          // `flex flex-col` so full-viewport pages (topology,
+          // api-docs, logs/tail) can declare `flex-1` on their
+          // wrapper instead of doing brittle viewport-height
+          // arithmetic like `h-[calc(100vh-4rem)]` — that pattern
+          // ignored the AppBar/Footer chrome and pushed the footer
+          // mid-page on long content.
+          //
           // No `overflow-y-auto` — the dashboard root uses
           // `min-h-screen` and the document body scrolls.  Making
           // <main> a scroll container (a) duplicates scrollbars on
@@ -65,7 +72,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           // header on /servers/[id] never sticks, the very tall
           // Nginx Server tab pushes the bottom Save button far
           // below the fold, and users conclude the button is gone.
-          className="flex-1 p-6 focus:outline-none"
+          className="flex flex-1 flex-col p-6 focus:outline-none"
         >
           <Suspense fallback={<DashboardLoading />}>{children}</Suspense>
         </main>

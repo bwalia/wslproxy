@@ -17,14 +17,10 @@ import Card, { CardBody } from "@/components/ui/Card";
 
 export default function ApiDocsPage() {
   return (
-    // `min-h` (not `h`) using `svh` (small viewport height — stable
-    // across mobile browser chrome reveal/hide).  Subtracting 12rem
-    // accounts for AppBar (4rem), Footer (~4rem), and the dashboard
-    // <main>'s vertical padding (3rem × 2).  Using fixed `h-[calc()]`
-    // would double-scroll if the layout chrome grew (banners, toasts,
-    // breadcrumbs) and create a dead zone at the bottom on every other
-    // common viewport.
-    <div className="flex min-h-[calc(100svh-12rem)] flex-col">
+    // `flex-1` fills the dashboard <main>'s flex column — no
+    // viewport-height arithmetic needed.  See `(dashboard)/layout.tsx`
+    // for the matching <main> change.
+    <div className="flex flex-1 flex-col">
       <PageHeader
         title="API documentation"
         icon={BookOpen}

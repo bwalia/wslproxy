@@ -39,7 +39,7 @@ on:
           - all
           - 192.168.1.193
           - 192.168.1.140
-          - 187.77.179.206
+          # 187.77.179.206 (acc) was decommissioned.
           - 187.124.112.155
           - 72.62.211.28
 
@@ -281,41 +281,15 @@ jobs:
     secrets:
       SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
-  # ──────────────────────────────────────────────────────
-  # Stage 5: Deploy Acc (187.77.179.206)
-  # ──────────────────────────────────────────────────────
-  deploy-acc:
-    needs: [deploy-test]
-    if: >
-      always() && !failure() && !cancelled() &&
-      ((github.event_name == 'push' && (github.ref == 'refs/heads/release' || github.ref == 'refs/heads/main')) ||
-      (github.event_name == 'workflow_dispatch' &&
-      (github.event.inputs.TARGET_HOST == '187.77.179.206' || github.event.inputs.TARGET_HOST == 'all')))
-    uses: ./.github/workflows/deploy-environment.yml
-    with:
-      env_name: acc
-      env_label: "ACC (187.77.179.206)"
-      stage_number: "5"
-      host_ip: "187.77.179.206"
-      ssh_user: root
-      connection_mode: ssh_key
-      secrets_mode: runner_file
-      settings_file_path: "/home/bwalia/.secrets/wslproxy/acc/settings.json"
-      env_file_path: "/home/bwalia/.secrets/wslproxy/acc/.env"
-      health_endpoint: "http://localhost:8080/health"
-      health_check_mode: ssh
-      docker_prune: true
-      notify_success: true
-      deploy_branch: ${{ github.event.inputs.DEPLOY_BRANCH || github.ref_name }}
-      deploy_mode: ${{ github.event.inputs.DEPLOY_MODE || 'full' }}
-    secrets:
-      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+  # Stage 5 (acc / 187.77.179.206) was decommissioned.  Prod stages
+  # below now depend directly on `deploy-test` so the pipeline still
+  # gates production behind a successful non-prod deploy.
 
   # ──────────────────────────────────────────────────────
-  # Stage 6a: Deploy Prod pop0 (187.124.112.155)
+  # Stage 5a: Deploy Prod pop0 (187.124.112.155)
   # ──────────────────────────────────────────────────────
   deploy-prod-pop0:
-    needs: [deploy-acc]
+    needs: [deploy-test]
     if: >
       always() && !failure() && !cancelled() &&
       ((github.event_name == 'push' && (github.ref == 'refs/heads/release' || github.ref == 'refs/heads/main')) ||
@@ -325,7 +299,7 @@ jobs:
     with:
       env_name: prod
       env_label: "Prod pop0 (187.124.112.155)"
-      stage_number: "6a"
+      stage_number: "5a"
       host_ip: "187.124.112.155"
       ssh_user: root
       connection_mode: ssh_key
@@ -342,7 +316,7 @@ jobs:
       ENV_CREDS_SECRET: ${{ secrets.DOT_WSLPROXY_ENV_CREDS_PROD }}
 
   # ──────────────────────────────────────────────────────
-  # Stage 6b: Deploy Prod lon1 (72.62.211.28)
+  # Stage 5b: Deploy Prod lon1 (72.62.211.28)
   # ──────────────────────────────────────────────────────
   deploy-prod-lon1:
     needs: [deploy-prod-pop0]
@@ -355,7 +329,7 @@ jobs:
     with:
       env_name: prod
       env_label: "Prod lon1 (72.62.211.28)"
-      stage_number: "6b"
+      stage_number: "5b"
       host_ip: "72.62.211.28"
       ssh_user: root
       connection_mode: ssh_key
@@ -377,7 +351,7 @@ jobs:
   pipeline-summary:
     name: Pipeline Summary
     runs-on: ubuntu-latest
-    needs: [build-validate, deploy-int, test-int, deploy-test, deploy-acc, deploy-prod-pop0, deploy-prod-lon1]
+    needs: [build-validate, deploy-int, test-int, deploy-test, deploy-prod-pop0, deploy-prod-lon1]
     if: always()
     steps:
       - name: Pipeline Summary
@@ -390,9 +364,8 @@ jobs:
           echo "  Stage 2  — Deploy Int:           ${{ needs.deploy-int.result }}"
           echo "  Stage 3  — Smoke Test Int:       ${{ needs.test-int.result }}"
           echo "  Stage 4  — Deploy Test:          ${{ needs.deploy-test.result }}"
-          echo "  Stage 5  — Deploy Acc:           ${{ needs.deploy-acc.result }}"
-          echo "  Stage 6a — Deploy Prod (pop0):   ${{ needs.deploy-prod-pop0.result }}"
-          echo "  Stage 6b — Deploy Prod (lon1):   ${{ needs.deploy-prod-lon1.result }}"
+          echo "  Stage 5a — Deploy Prod (pop0):   ${{ needs.deploy-prod-pop0.result }}"
+          echo "  Stage 5b — Deploy Prod (lon1):   ${{ needs.deploy-prod-lon1.result }}"
           echo ""
           echo "  Commit:  ${{ github.sha }}"
           echo "  Branch:  ${{ github.ref_name }}"
@@ -403,7 +376,6 @@ jobs:
              [[ "${{ needs.deploy-int.result }}" == "failure" ]] || \
              [[ "${{ needs.test-int.result }}" == "failure" ]] || \
              [[ "${{ needs.deploy-test.result }}" == "failure" ]] || \
-             [[ "${{ needs.deploy-acc.result }}" == "failure" ]] || \
              [[ "${{ needs.deploy-prod-pop0.result }}" == "failure" ]] || \
              [[ "${{ needs.deploy-prod-lon1.result }}" == "failure" ]]; then
               echo "::error::Pipeline failed — see stage results above"

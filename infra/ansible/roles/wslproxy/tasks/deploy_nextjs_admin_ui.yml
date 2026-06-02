@@ -58,22 +58,35 @@
 
 # ── Step 2: Build Next.js on the control machine (if not pre-built) ──────
 
-- name: Check if Next.js standalone build exists locally
+# Always rebuild on deploy.  The previous `when: not stat.exists`
+# guard meant that whichever `.next/standalone/server.js` happened to
+# be lying around on the runner — possibly built with no
+# NEXT_PUBLIC_* vars set, possibly weeks stale — was the artifact that
+# shipped to int / test / acc / prod.  Operators couldn't tell which
+# build was actually in front of them.  Rebuilding from scratch is
+# ~30 seconds and removes the silent-stale-bundle class of bugs.
+- name: Wipe previous Next.js build output
   delegate_to: localhost
-  stat:
-    path: "{{ playbook_dir }}/../../openresty-admin-next/.next/standalone/server.js"
-  register: nextjs_standalone_check
+  file:
+    path: "{{ playbook_dir }}/../../openresty-admin-next/.next"
+    state: absent
   tags: [dashboard-next]
 
-- name: Build Next.js dashboard locally if standalone output missing
+- name: Build Next.js dashboard locally
   delegate_to: localhost
-  when: not nextjs_standalone_check.stat.exists
   block:
     - name: Install Next.js dependencies
       shell: npm install --legacy-peer-deps
       args:
         chdir: "{{ playbook_dir }}/../../openresty-admin-next"
 
+    # NEXT_PUBLIC_* env vars are INLINED into the client bundle at
+    # build time and CANNOT be overridden by systemd Environment=
+    # lines at runtime.  So the build step is the only place these
+    # have any effect — pass them all here.  See also the systemd
+    # template (wslproxy-nextjs-dashboard.service.j2): it keeps the
+    # same vars set for server-side rendering, but the client-bundle
+    # values come from THIS step.
     - name: Build Next.js standalone output
       shell: npm run build
       args:
@@ -81,6 +94,13 @@
       environment:
         NODE_ENV: production
         WSLPROXY_API_URL: "http://127.0.0.1:{{ nginx_default_server_backend_port }}"
+        NEXT_PUBLIC_APP_VERSION: "{{ wslproxy_version | default('1.0.0') }}"
+        NEXT_PUBLIC_APP_BUILD_NUMBER: "{{ wslproxy_build_number | default('local') }}"
+        NEXT_PUBLIC_DEPLOYMENT_TIME: "{{ wslproxy_deployment_time | default(ansible_date_time.iso8601) }}"
+        NEXT_PUBLIC_ENV_NAME: "{{ target_env | default('local') }}"
+        NEXT_PUBLIC_GIT_SHA: "{{ wslproxy_git_sha | default('') }}"
+        NEXT_PUBLIC_GIT_REPO: "{{ wslproxy_git_repo | default('bwalia/wslproxy') }}"
+        NEXT_PUBLIC_TARGET_PLATFORM: BARE_METAL
 
     - name: Verify standalone build was created
       stat:
