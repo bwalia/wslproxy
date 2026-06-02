@@ -39,6 +39,13 @@ export default async function globalSetup(config) {
     );
     await page.locator('#main-content').waitFor({ state: 'visible', timeout: 10000 });
     await context.storageState({ path: AUTH_STATE_PATH });
+  } catch (err) {
+    // Pre-seeding the logged-in auth state is best-effort. The "login" /
+    // "login-next" projects perform their own explicit login per test and do
+    // NOT depend on this state, so a failure here must not abort the whole run
+    // — that previously surfaced as a misleading "0 tests / passed" result.
+    // Only the "logged-in" dashboard project relies on the saved state.
+    console.warn(`[global-setup] could not pre-seed auth state: ${err.message}`);
   } finally {
     await browser.close();
   }

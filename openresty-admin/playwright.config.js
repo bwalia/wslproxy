@@ -61,6 +61,13 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
     },
     {
+      // Login flow for the Next.js admin dashboard (path routing, different
+      // selectors/copy than the React-Admin "login" project).
+      name: "login-next",
+      testMatch: /\/login-next\.spec\.js$/,
+      use: { ...devices["Desktop Chrome"] },
+    },
+    {
       name: "logged-in",
       testMatch: /\/dashboard\.spec\.js$/,
       dependencies: ["no-auth"],

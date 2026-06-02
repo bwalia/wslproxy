@@ -6,6 +6,7 @@ on:
       - feat/admin-ui-login-workflow
     paths:
       - "openresty-admin/e2e/login.spec.js"
+      - "openresty-admin/e2e/login-next.spec.js"
       - "openresty-admin/e2e/helpers.js"
       - "openresty-admin/e2e/global-setup.js"
       - "openresty-admin/playwright.config.js"
@@ -18,12 +19,11 @@ on:
     inputs:
       TARGET_ENV:
         type: choice
-        description: "Target environment to test"
+        description: "Target environment to test (must be a key in the ADMIN_LOGIN_URLS variable)"
         default: "prod"
         required: true
         options:
           - prod
-          - int
 
 jobs:
   setup:
@@ -45,13 +45,16 @@ jobs:
           DISPATCH_ENV: ${{ inputs.TARGET_ENV }}
         run: |
           # workflow_dispatch tests only the chosen env; schedule/push test
-          # BOTH int and prod. Each env fans out to every URL configured for
-          # it, so prod runs once per prod URL.
+          # every env present in the variable. Each env fans out to every URL
+          # configured for it (so prod runs once per prod URL), and each URL
+          # carries the Playwright "suite"/project to run against it
+          # (login = React-Admin, login-next = Next.js dashboard). A URL may be
+          # a bare string (defaults to the "login" suite) or {url, suite}.
           MATRIX=$(python3 -c '
           import json, os
           urls = json.loads(os.environ.get("URLS_JSON") or "{}")
-          envs = [os.environ["DISPATCH_ENV"]] if os.environ.get("EVENT") == "workflow_dispatch" else ["int", "prod"]
-          include = [{"environment": e, "url": u} for e in envs for u in urls.get(e, [])]
+          envs = [os.environ["DISPATCH_ENV"]] if os.environ.get("EVENT") == "workflow_dispatch" else sorted(urls.keys())
+          include = [({"environment": e, "url": it, "suite": "login"} if isinstance(it, str) else {"environment": e, "url": it["url"], "suite": it.get("suite", "login")}) for e in envs for it in urls.get(e, [])]
           print(json.dumps({"include": include}))
           ')
           if [ -z "$(echo "$MATRIX" | python3 -c 'import json,sys; print(json.load(sys.stdin)["include"])')" ] || \
@@ -174,7 +177,7 @@ jobs:
           E2E_TEST_PASSWORD: ${{ steps.creds.outputs.password }}
           E2E_BASE_URL: ${{ matrix.url }}
           CI: "true"
-        run: npx playwright test --project=login 2>&1 | tee playwright-output.txt || true
+        run: npx playwright test --project=${{ matrix.suite }} 2>&1 | tee playwright-output.txt || true
 
       - name: Parse test results
         id: results
@@ -189,6 +192,14 @@ jobs:
           echo "failed=$FAILED" >> "$GITHUB_OUTPUT"
           echo "skipped=$SKIPPED" >> "$GITHUB_OUTPUT"
           echo "total=$TOTAL" >> "$GITHUB_OUTPUT"
+          # Treat "no tests ran" as a failure. A global-setup error or a wrong
+          # URL makes Playwright exit having run 0 tests (0 passed / 0 failed);
+          # without this guard that silently reported as a green "passed".
+          if [ "$TOTAL" -eq 0 ]; then
+            echo "::error::No tests executed (0 passed, 0 failed) for ${{ matrix.url }} — Playwright likely errored before running tests (check the run log)."
+            echo "status=failed" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
           if [ "$FAILED" -gt 0 ]; then
             echo "status=failed" >> "$GITHUB_OUTPUT"
             exit 1
