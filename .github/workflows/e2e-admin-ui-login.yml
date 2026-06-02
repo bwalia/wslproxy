@@ -34,18 +34,36 @@ jobs:
     steps:
       - name: Determine environments to test
         id: set-matrix
+        env:
+          # URLs are NOT hardcoded in this workflow. They live in the
+          # ADMIN_LOGIN_URLS repo variable, a JSON map of env -> [urls], e.g.
+          #   {"int":["http://.../"],"prod":["https://a","https://b"]}
+          # so endpoints can change (or prod can test several URLs) without
+          # editing this file.
+          URLS_JSON: ${{ vars.ADMIN_LOGIN_URLS }}
+          EVENT: ${{ github.event_name }}
+          DISPATCH_ENV: ${{ inputs.TARGET_ENV }}
         run: |
-          # workflow_dispatch respects the chosen env; schedule/push exercise
-          # BOTH int and prod in a single run now that int has a provisioned
-          # login-creds.json on its runner.
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo 'matrix={"environment":["${{ inputs.TARGET_ENV }}"]}' >> "$GITHUB_OUTPUT"
-          else
-            echo 'matrix={"environment":["int","prod"]}' >> "$GITHUB_OUTPUT"
+          # workflow_dispatch tests only the chosen env; schedule/push test
+          # BOTH int and prod. Each env fans out to every URL configured for
+          # it, so prod runs once per prod URL.
+          MATRIX=$(python3 -c '
+          import json, os
+          urls = json.loads(os.environ.get("URLS_JSON") or "{}")
+          envs = [os.environ["DISPATCH_ENV"]] if os.environ.get("EVENT") == "workflow_dispatch" else ["int", "prod"]
+          include = [{"environment": e, "url": u} for e in envs for u in urls.get(e, [])]
+          print(json.dumps({"include": include}))
+          ')
+          if [ -z "$(echo "$MATRIX" | python3 -c 'import json,sys; print(json.load(sys.stdin)["include"])')" ] || \
+             [ "$MATRIX" = '{"include": []}' ]; then
+            echo "::error::No URLs configured in ADMIN_LOGIN_URLS for the selected environment(s)."
+            exit 1
           fi
+          echo "matrix=$MATRIX" >> "$GITHUB_OUTPUT"
+          echo "$MATRIX" | python3 -m json.tool
 
   login:
-    name: "Admin UI Login (${{ matrix.environment }})"
+    name: "Admin UI Login (${{ matrix.environment }} ${{ matrix.url }})"
     needs: setup
     # Pin to the runner whose label matches the env under test, so the
     # job lands on the host that actually has that env's login-creds.json
@@ -53,7 +71,8 @@ jobs:
     runs-on: [self-hosted, "${{ matrix.environment }}"]
     timeout-minutes: 8
     concurrency:
-      group: e2e-admin-login-${{ github.ref }}-${{ matrix.environment }}
+      # Per (env, url) so the multiple prod URLs don't cancel each other.
+      group: e2e-admin-login-${{ github.ref }}-${{ matrix.environment }}-${{ matrix.url }}
       cancel-in-progress: true
     strategy:
       fail-fast: false
@@ -70,21 +89,19 @@ jobs:
       - name: Set environment config
         id: env_config
         working-directory: .
+        env:
+          TARGET_URL: ${{ matrix.url }}
         run: |
           ENV="${{ matrix.environment }}"
-          # Single config block for all environments. The creds_file path is
-          # identical across envs except for the env segment, so derive it
-          # generically instead of branching per environment.
+          # creds_file (email/password) is the only per-env path; the URL under
+          # test comes from the matrix (sourced from the ADMIN_LOGIN_URLS repo
+          # variable), so no URLs are hardcoded here.
           echo "creds_file=/home/bwalia/.secrets/wslproxy/${ENV}/login-creds.json" >> "$GITHUB_OUTPUT"
-          # Per-env public default URL, used only as a fallback when the
-          # runner's login-creds.json does not specify GATEWAY_URL
-          # (resolution is gateway_url || base_url downstream).
-          case "$ENV" in
-            int) base_url="https://int-our.wslproxy.com" ;;
-            *)   base_url="https://prod-our-v1.wslproxy.com" ;;
-          esac
-          echo "base_url=$base_url" >> "$GITHUB_OUTPUT"
-          echo "Environment: $ENV (base_url fallback: $base_url)"
+          # Slug of the URL for unique artifact / report names (one prod job
+          # per prod URL would otherwise collide).
+          SLUG=$(printf '%s' "$TARGET_URL" | sed -E 's#^https?://##; s#[^a-zA-Z0-9]+#-#g; s#^-+|-+$##g')
+          echo "url_slug=$SLUG" >> "$GITHUB_OUTPUT"
+          echo "Environment: $ENV, URL: $TARGET_URL (slug: $SLUG)"
 
       - name: Setup Node.js
         uses: actions/setup-node@v5
@@ -106,11 +123,13 @@ jobs:
         run: |
           if [ ! -f "$TEST_CREDS_FILE" ]; then
             echo "::error::Test credentials file not found at $TEST_CREDS_FILE"
-            echo "Create it with: echo '{\"ADMIN_EMAIL\":\"...\",\"ADMIN_PASSWORD\":\"...\",\"GATEWAY_URL\":\"...\"}' > $TEST_CREDS_FILE"
+            echo "Create it with: echo '{\"ADMIN_EMAIL\":\"...\",\"ADMIN_PASSWORD\":\"...\"}' > $TEST_CREDS_FILE"
             exit 1
           fi
-          if ! python3 -c "import json; d=json.load(open('$TEST_CREDS_FILE')); assert 'ADMIN_EMAIL' in d and 'ADMIN_PASSWORD' in d and 'GATEWAY_URL' in d" 2>/dev/null; then
-            echo "::error::Test credentials file is missing required keys (ADMIN_EMAIL, ADMIN_PASSWORD, GATEWAY_URL)"
+          # Only credentials are required from the file now; the URL under test
+          # comes from the ADMIN_LOGIN_URLS repo variable, not the creds file.
+          if ! python3 -c "import json; d=json.load(open('$TEST_CREDS_FILE')); assert 'ADMIN_EMAIL' in d and 'ADMIN_PASSWORD' in d" 2>/dev/null; then
+            echo "::error::Test credentials file is missing required keys (ADMIN_EMAIL, ADMIN_PASSWORD)"
             exit 1
           fi
           echo "Test credentials validated for ${{ matrix.environment }}."
@@ -123,18 +142,15 @@ jobs:
         run: |
           EMAIL=$(python3 -c "import json; print(json.load(open('$TEST_CREDS_FILE'))['ADMIN_EMAIL'])")
           PASSWORD=$(python3 -c "import json; print(json.load(open('$TEST_CREDS_FILE'))['ADMIN_PASSWORD'])")
-          GATEWAY_URL=$(python3 -c "import json; print(json.load(open('$TEST_CREDS_FILE'))['GATEWAY_URL'])")
           echo "::add-mask::$EMAIL"
           echo "::add-mask::$PASSWORD"
           echo "email=$EMAIL" >> "$GITHUB_OUTPUT"
           echo "password=$PASSWORD" >> "$GITHUB_OUTPUT"
-          echo "gateway_url=$GATEWAY_URL" >> "$GITHUB_OUTPUT"
-          echo "Using gateway URL: $GATEWAY_URL"
 
       - name: Wait for admin UI to be reachable
         working-directory: .
         env:
-          TARGET_URL: ${{ steps.creds.outputs.gateway_url || steps.env_config.outputs.base_url }}
+          TARGET_URL: ${{ matrix.url }}
         run: |
           echo "Checking admin UI at $TARGET_URL (${{ matrix.environment }}) ..."
           for i in $(seq 1 12); do
@@ -156,7 +172,7 @@ jobs:
         env:
           E2E_TEST_EMAIL: ${{ steps.creds.outputs.email }}
           E2E_TEST_PASSWORD: ${{ steps.creds.outputs.password }}
-          E2E_BASE_URL: ${{ steps.creds.outputs.gateway_url || steps.env_config.outputs.base_url }}
+          E2E_BASE_URL: ${{ matrix.url }}
           CI: "true"
         run: npx playwright test --project=login 2>&1 | tee playwright-output.txt || true
 
@@ -184,7 +200,7 @@ jobs:
         uses: actions/upload-artifact@v5
         if: ${{ !cancelled() }}
         with:
-          name: admin-login-report-${{ matrix.environment }}
+          name: admin-login-report-${{ matrix.environment }}-${{ steps.env_config.outputs.url_slug }}
           path: openresty-admin/playwright-report/
           retention-days: 14
 
@@ -192,7 +208,7 @@ jobs:
         uses: actions/upload-artifact@v5
         if: failure()
         with:
-          name: admin-login-traces-${{ matrix.environment }}
+          name: admin-login-traces-${{ matrix.environment }}-${{ steps.env_config.outputs.url_slug }}
           path: openresty-admin/test-results/
           retention-days: 7
 
@@ -203,7 +219,7 @@ jobs:
         run: |
           curl -sf -X POST "${{ secrets.SLACK_WEBHOOK }}" \
             -H 'Content-Type: application/json' \
-            -d "$(jq -n --arg text "WSL Proxy Admin UI Login tests passed :white_check_mark:\n*Environment:* ${{ matrix.environment }}\n*Tests:* ${{ steps.results.outputs.passed }}/${{ steps.results.outputs.total }} passed (${{ steps.results.outputs.skipped }} skipped)\n*Target:* ${{ steps.creds.outputs.gateway_url || steps.env_config.outputs.base_url }}\n*Branch:* ${{ github.ref_name }}\n*Commit:* \`${{ github.sha }}\`\n*Triggered by:* ${{ github.event_name }} (${{ github.actor }})" \
+            -d "$(jq -n --arg text "WSL Proxy Admin UI Login tests passed :white_check_mark:\n*Environment:* ${{ matrix.environment }}\n*Tests:* ${{ steps.results.outputs.passed }}/${{ steps.results.outputs.total }} passed (${{ steps.results.outputs.skipped }} skipped)\n*Target:* ${{ matrix.url }}\n*Branch:* ${{ github.ref_name }}\n*Commit:* \`${{ github.sha }}\`\n*Triggered by:* ${{ github.event_name }} (${{ github.actor }})" \
               '{channel: "github-updates", username: "GitHub Actions", text: $text}')"
 
       - name: Slack notification - Login Tests Failed
@@ -213,5 +229,5 @@ jobs:
         run: |
           curl -sf -X POST "${{ secrets.SLACK_WEBHOOK }}" \
             -H 'Content-Type: application/json' \
-            -d "$(jq -n --arg text "WSL Proxy Admin UI Login tests FAILED :x:\n*Environment:* ${{ matrix.environment }}\n*Tests:* ${{ steps.results.outputs.failed }} failed, ${{ steps.results.outputs.passed }} passed out of ${{ steps.results.outputs.total }} (${{ steps.results.outputs.skipped }} skipped)\n*Target:* ${{ steps.creds.outputs.gateway_url || steps.env_config.outputs.base_url }}\n*Branch:* ${{ github.ref_name }}\n*Commit:* \`${{ github.sha }}\`\n*Triggered by:* ${{ github.event_name }} (${{ github.actor }})\n*Screenshots & Traces:* Download from workflow artifacts\n*Workflow logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            -d "$(jq -n --arg text "WSL Proxy Admin UI Login tests FAILED :x:\n*Environment:* ${{ matrix.environment }}\n*Tests:* ${{ steps.results.outputs.failed }} failed, ${{ steps.results.outputs.passed }} passed out of ${{ steps.results.outputs.total }} (${{ steps.results.outputs.skipped }} skipped)\n*Target:* ${{ matrix.url }}\n*Branch:* ${{ github.ref_name }}\n*Commit:* \`${{ github.sha }}\`\n*Triggered by:* ${{ github.event_name }} (${{ github.actor }})\n*Screenshots & Traces:* Download from workflow artifacts\n*Workflow logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
               '{channel: "github-updates", username: "GitHub Actions", text: $text}')"
