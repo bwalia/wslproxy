@@ -35,12 +35,13 @@ jobs:
       - name: Determine environments to test
         id: set-matrix
         run: |
-          # workflow_dispatch respects the chosen env; schedule/push run prod only
-          # (int has no provisioned login-creds.json on the runner yet).
+          # workflow_dispatch respects the chosen env; schedule/push exercise
+          # BOTH int and prod in a single run now that int has a provisioned
+          # login-creds.json on its runner.
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo 'matrix={"environment":["${{ inputs.TARGET_ENV }}"]}' >> "$GITHUB_OUTPUT"
           else
-            echo 'matrix={"environment":["prod"]}' >> "$GITHUB_OUTPUT"
+            echo 'matrix={"environment":["int","prod"]}' >> "$GITHUB_OUTPUT"
           fi
 
   login:
@@ -70,14 +71,20 @@ jobs:
         id: env_config
         working-directory: .
         run: |
-          if [ "${{ matrix.environment }}" = "int" ]; then
-            echo "base_url=https://int-our.wslproxy.com" >> "$GITHUB_OUTPUT"
-            echo "creds_file=/home/bwalia/.secrets/wslproxy/int/login-creds.json" >> "$GITHUB_OUTPUT"
-          else
-            echo "base_url=https://prod-our-v1.wslproxy.com" >> "$GITHUB_OUTPUT"
-            echo "creds_file=/home/bwalia/.secrets/wslproxy/prod/login-creds.json" >> "$GITHUB_OUTPUT"
-          fi
-          echo "Environment: ${{ matrix.environment }}"
+          ENV="${{ matrix.environment }}"
+          # Single config block for all environments. The creds_file path is
+          # identical across envs except for the env segment, so derive it
+          # generically instead of branching per environment.
+          echo "creds_file=/home/bwalia/.secrets/wslproxy/${ENV}/login-creds.json" >> "$GITHUB_OUTPUT"
+          # Per-env public default URL, used only as a fallback when the
+          # runner's login-creds.json does not specify GATEWAY_URL
+          # (resolution is gateway_url || base_url downstream).
+          case "$ENV" in
+            int) base_url="https://int-our.wslproxy.com" ;;
+            *)   base_url="https://prod-our-v1.wslproxy.com" ;;
+          esac
+          echo "base_url=$base_url" >> "$GITHUB_OUTPUT"
+          echo "Environment: $ENV (base_url fallback: $base_url)"
 
       - name: Setup Node.js
         uses: actions/setup-node@v5
