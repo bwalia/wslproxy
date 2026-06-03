@@ -333,12 +333,17 @@ export const ruleInputSchema = z
       message: "Redirect URI is required for 301 / 302 responses",
     },
   )
-  // ...and when it IS provided for 301/302/305, it must look like an
-  // http(s) URL.  The gateway proxies/redirects to it verbatim, so a
-  // malformed value silently 502s at request time.
+  // For 301 / 302 (real HTTP redirects) the destination MUST be a
+  // full `http(s)://` URL — the gateway puts it verbatim into the
+  // `Location:` response header, and browsers refuse anything without
+  // a scheme.  305 (proxy pass) does NOT carry that constraint: the
+  // Lua gateway strips/prefixes the scheme itself before opening
+  // the upstream connection, so the user can type any of
+  // `https://backend:8080`, `backend:8080`, or `1.2.3.4` and they all
+  // resolve to the same proxy target.  Don't force a scheme there.
   .refine(
     (v) =>
-      !(v.code === 301 || v.code === 302 || v.code === 305) ||
+      !(v.code === 301 || v.code === 302) ||
       v.redirect_uri.length === 0 ||
       httpUrlRegex.test(v.redirect_uri),
     {
@@ -346,12 +351,24 @@ export const ruleInputSchema = z
       message: "Must be a full http(s):// URL",
     },
   )
-  // 305 = proxy pass.  Lua gateway expects at least one backend; zero
-  // means the rule matches but can't route anywhere.
-  .refine((v) => v.code !== 305 || v.backends.length > 0, {
-    path: ["backends"],
-    message: "At least one backend is required for proxy-pass (305) rules",
-  })
+  // 305 = proxy pass.  The Lua gateway accepts EITHER a single
+  // `redirect_uri` (the legacy one-target shape) OR a `backends`
+  // array (weighted / canary routing) — having one is sufficient.
+  // Previously this required `backends.length > 0` unconditionally,
+  // which forced anyone routing to a single host to type the same
+  // address twice (once in Proxy URL, once as a backend) and made
+  // the form actively confusing.
+  .refine(
+    (v) =>
+      v.code !== 305 ||
+      v.redirect_uri.length > 0 ||
+      v.backends.length > 0,
+    {
+      path: ["backends"],
+      message:
+        "Proxy-pass (305) needs either a Proxy URL or at least one backend",
+    },
+  )
   // Each backend in a 305 rule needs an address — empty entries produce
   // broken upstream config.
   .refine(
