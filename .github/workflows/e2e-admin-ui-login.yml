@@ -66,7 +66,7 @@ jobs:
           echo "$MATRIX" | python3 -m json.tool
 
   login:
-    name: "Admin UI Login (${{ matrix.environment }} ${{ matrix.url }})"
+    name: "${{ matrix.suite == 'login' && 'Legacy Admin UI Login' || 'Admin UI Login' }} (${{ matrix.environment }} ${{ matrix.url }})"
     needs: setup
     # Pin to the runner whose label matches the env under test, so the
     # job lands on the host that actually has that env's login-creds.json
