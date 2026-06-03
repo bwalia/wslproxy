@@ -75,12 +75,39 @@ function formatZodError(
   return `Invalid ${kind} environment variables:\n${issues}`;
 }
 
-const clientResult = clientEnvSchema.safeParse(process.env);
+// Critical: Next.js inlines `process.env.NEXT_PUBLIC_X` into the
+// client bundle ONLY when accessed by explicit property name — not
+// when `process.env` is passed around as a whole object.  Webpack's
+// DefinePlugin substitutes literal text matches like
+// `process.env.NEXT_PUBLIC_APP_VERSION`, but a call like
+// `safeParse(process.env)` reaches the browser with `process.env`
+// shimmed to `{ NODE_ENV: "production" }` — every NEXT_PUBLIC_* var
+// is undefined, every Zod `.default(...)` kicks in, and the footer
+// permanently shows `LOCAL · vdev · Build local` no matter what the
+// ansible build step set.  Build each field explicitly so the
+// inlining can fire.
+const clientEnv = {
+  NEXT_PUBLIC_APP_NAME: process.env.NEXT_PUBLIC_APP_NAME,
+  NEXT_PUBLIC_APP_DISPLAY_NAME: process.env.NEXT_PUBLIC_APP_DISPLAY_NAME,
+  NEXT_PUBLIC_APP_VERSION: process.env.NEXT_PUBLIC_APP_VERSION,
+  NEXT_PUBLIC_APP_BUILD_NUMBER: process.env.NEXT_PUBLIC_APP_BUILD_NUMBER,
+  NEXT_PUBLIC_DEPLOYMENT_TIME: process.env.NEXT_PUBLIC_DEPLOYMENT_TIME,
+  NEXT_PUBLIC_ENV_NAME: process.env.NEXT_PUBLIC_ENV_NAME,
+  NEXT_PUBLIC_GIT_SHA: process.env.NEXT_PUBLIC_GIT_SHA,
+  NEXT_PUBLIC_GIT_REPO: process.env.NEXT_PUBLIC_GIT_REPO,
+  NEXT_PUBLIC_TARGET_PLATFORM: process.env.NEXT_PUBLIC_TARGET_PLATFORM,
+  NEXT_PUBLIC_THEME_PRIMARY_COLOR: process.env.NEXT_PUBLIC_THEME_PRIMARY_COLOR,
+  NEXT_PUBLIC_THEME_SECONDARY_COLOR: process.env.NEXT_PUBLIC_THEME_SECONDARY_COLOR,
+};
+
+const clientResult = clientEnvSchema.safeParse(clientEnv);
 if (!clientResult.success) {
   throw new Error(formatZodError("client", clientResult.error));
 }
 
 // Only parse server schema in a Node runtime — skip on client bundles.
+// `process.env` IS the real env on the server (no Webpack rewriting),
+// so passing it as an object here is correct.
 const isServer = typeof window === "undefined";
 const serverResult = isServer
   ? serverEnvSchema.safeParse(process.env)
