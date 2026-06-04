@@ -99,7 +99,14 @@ export default function LoginPage() {
       }
       try {
         await login(email, password);
-        if (returnTo !== "/") router.replace(returnTo as Route);
+        // Always navigate — including when returnTo is the default "/".
+        // The previous `returnTo !== "/"` guard was a workaround for the
+        // double-navigation race in AuthContext.login (which used to
+        // push "/" itself); now that AuthContext doesn't navigate, this
+        // page owns the single navigation call and must handle every
+        // case, otherwise a default-landing login leaves the user
+        // stranded on /login with a valid cookie.
+        router.replace(returnTo as Route);
         return { status: "success" };
       } catch (err) {
         return {

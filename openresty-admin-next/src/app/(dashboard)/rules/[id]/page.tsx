@@ -671,17 +671,30 @@ export default function RuleDetailPage() {
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {/* URL Path */}
             <SectionLabel>URL Path Matching</SectionLabel>
-            <Select label="Match Type *" value={form.path_key} onChange={(e) => set("path_key", e.target.value)} options={[
-              { value: "starts_with", label: "Starts With" },
-              { value: "ends_with", label: "Ends With" },
-              { value: "equals", label: "Exact Match" },
-            ]} />
+            <Select
+              label="Match Type *"
+              value={form.path_key}
+              onChange={(e) => set("path_key", e.target.value)}
+              options={[
+                { value: "starts_with", label: "Starts With" },
+                { value: "ends_with", label: "Ends With" },
+                { value: "equals", label: "Exact Match" },
+              ]}
+              hint="How the path below is compared against the incoming request URL."
+            />
             <Input
-              label="Path *"
+              label="Path (URL pattern) *"
               value={form.path}
               placeholder="/"
               onChange={(e) => set("path", e.target.value)}
               error={fieldErrors.path}
+              hint={
+                form.path_key === "equals"
+                  ? `Match the exact request path.  Example: "/api/health" matches "/api/health" only.  Use "/" to match the homepage.`
+                  : form.path_key === "ends_with"
+                    ? `Match URLs ending with this value.  Example: ".jpg" matches "/photos/cat.jpg".`
+                    : `Match URLs starting with this value.  Example: "/api" matches "/api", "/api/v1/users", "/api?q=…".  Use "/" to match every request.`
+              }
             />
 
             {/* Geographic */}

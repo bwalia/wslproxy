@@ -13,14 +13,19 @@ export interface SelectProps
   extends Omit<React.SelectHTMLAttributes<HTMLSelectElement>, "children"> {
   label?: string;
   error?: string;
+  // Helper text rendered below the field — mirrors `Input`'s `hint`
+  // for visual consistency.  Suppressed when an error is shown so
+  // the same vertical slot doesn't render twice.
+  hint?: string;
   options: SelectOption[];
   placeholder?: string;
 }
 
 const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
-  ({ label, error, options, placeholder, id, className, ...rest }, ref) => {
+  ({ label, error, hint, options, placeholder, id, className, ...rest }, ref) => {
     const selectId = id || React.useId();
     const errorId = error ? `${selectId}-error` : undefined;
+    const hintId = hint ? `${selectId}-hint` : undefined;
 
     return (
       <div className="space-y-1.5">
@@ -48,7 +53,9 @@ const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
               className
             )}
             aria-invalid={error ? true : undefined}
-            aria-describedby={errorId}
+            aria-describedby={
+              [errorId, hintId].filter(Boolean).join(" ") || undefined
+            }
             {...rest}
           >
             {placeholder && (
@@ -70,6 +77,11 @@ const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
         {error && (
           <p id={errorId} className="text-sm text-danger-500" role="alert">
             {error}
+          </p>
+        )}
+        {hint && !error && (
+          <p id={hintId} className="text-sm text-slate-500 dark:text-slate-400">
+            {hint}
           </p>
         )}
       </div>
