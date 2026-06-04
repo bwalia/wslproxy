@@ -49,13 +49,24 @@ const PageHeader: React.FC<PageHeaderProps> = ({
     : null;
 
   return (
+    // Header layout shrinks gracefully:
+    //   - up to lg: title + actions stack vertically (actions get
+    //     their own row so wide button bars don't compete with the
+    //     title for horizontal space).
+    //   - lg+: side-by-side row; actions hug the right edge.
+    //   - `min-w-0` on both halves is essential — without it flex
+    //     children refuse to shrink below their intrinsic content
+    //     width and the title pushes everything off-screen.
+    //   - actions wrap (`flex-wrap`) when they still don't fit on
+    //     the row, so a 4-button bar (Back / Purge / Delete / Save)
+    //     drops cleanly onto a second line instead of overflowing.
     <div
       className={cn(
-        "mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between",
+        "mb-6 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between",
         className,
       )}
     >
-      <div className="flex items-center gap-3">
+      <div className="flex min-w-0 flex-1 items-center gap-3">
         {iconNode && (
           <div
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary-50 dark:bg-primary-900/30"
@@ -64,18 +75,22 @@ const PageHeader: React.FC<PageHeaderProps> = ({
             {iconNode}
           </div>
         )}
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+        <div className="min-w-0 flex-1">
+          <h1 className="truncate text-xl font-bold text-slate-900 dark:text-slate-100 sm:text-2xl">
             {title}
           </h1>
           {subtitle && (
-            <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
+            <p className="mt-0.5 truncate text-sm text-slate-500 dark:text-slate-400">
               {subtitle}
             </p>
           )}
         </div>
       </div>
-      {actions && <div className="flex items-center gap-2">{actions}</div>}
+      {actions && (
+        <div className="flex flex-wrap items-center gap-2 lg:shrink-0 lg:justify-end">
+          {actions}
+        </div>
+      )}
     </div>
   );
 };

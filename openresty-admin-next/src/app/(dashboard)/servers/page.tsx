@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
-import { Server, Copy } from "lucide-react";
+import { Server, Copy, ExternalLink } from "lucide-react";
 import { useList } from "@/hooks/useResource";
 import PageHeader from "@/components/ui/PageHeader";
 import DataTable, { type Column } from "@/components/ui/DataTable";
@@ -71,9 +71,28 @@ export default function ServersListPage() {
         label: "Server Name",
         sortable: true,
         render: (r) => (
-          <span className="font-semibold text-slate-900 dark:text-slate-100">
-            {r.server_name}
-          </span>
+          // `flex` + `stopPropagation` on the external-link button so
+          // clicking the icon opens the live domain in a new tab
+          // without ALSO triggering the row click that opens the edit
+          // page.  The bare name keeps its row-click behaviour intact.
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-slate-900 dark:text-slate-100">
+              {r.server_name}
+            </span>
+            {r.server_name && (
+              <a
+                href={`https://${r.server_name}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                title={`Open https://${r.server_name} in a new tab`}
+                aria-label={`Open https://${r.server_name} in a new tab`}
+                className="inline-flex items-center justify-center rounded p-1 text-slate-400 transition-colors hover:bg-primary-50 hover:text-primary-600 dark:hover:bg-primary-900/20 dark:hover:text-primary-400"
+              >
+                <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+              </a>
+            )}
+          </div>
         ),
       },
       {

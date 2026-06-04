@@ -45,6 +45,39 @@ function buildCsp(): string {
   return directives.join("; ");
 }
 
+// Looser CSP applied ONLY to /swagger paths — kept separate from the
+// global CSP above so the rest of the dashboard stays locked down.
+//
+// What's relaxed and why:
+//   - script-src + style-src whitelist `cdnjs.cloudflare.com` because
+//     the Lua-served swagger HTML loads swagger-ui.min.css and
+//     swagger-ui-bundle.js from there.  Without those origins the
+//     browser blocks the scripts and the page is just an empty
+//     `<div id="swagger-ui">`.
+//   - frame-ancestors goes from 'none' → 'self' so the `<iframe>` on
+//     /api-docs (same-origin) can embed /swagger.  Third-party
+//     embedding is still forbidden.
+//   - X-Frame-Options DENY similarly relaxed to SAMEORIGIN in the
+//     headers() rule below (same reason).
+function buildSwaggerCsp(): string {
+  const isDev = process.env.NODE_ENV !== "production";
+  const scriptSrc = isDev
+    ? "'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com"
+    : "'self' 'unsafe-inline' https://cdnjs.cloudflare.com";
+  return [
+    "default-src 'self'",
+    `script-src ${scriptSrc}`,
+    "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com",
+    "font-src 'self' https://cdnjs.cloudflare.com data:",
+    "img-src 'self' data: blob:",
+    "connect-src 'self'",
+    "frame-ancestors 'self'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "object-src 'none'",
+  ].join("; ");
+}
+
 const nextConfig: NextConfig = {
   output: "standalone",
 
@@ -93,32 +126,71 @@ const nextConfig: NextConfig = {
     },
   },
 
-  // Security-relevant headers for all routes
+  // Security-relevant headers.
+  //
+  // Two source patterns:
+  //   1. Everything EXCEPT /swagger* — strict CSP, X-Frame-Options DENY.
+  //   2. /swagger and /swagger/* — looser CSP that whitelists the
+  //      cdnjs origin (where swagger UI's JS/CSS live) and allows
+  //      same-origin framing so the /api-docs page can embed swagger
+  //      in an iframe.
+  //
+  // The negative-lookahead syntax `((?!swagger).*)` excludes any path
+  // starting with the literal "swagger" from rule #1 — keeps Next.js
+  // from applying BOTH rules to swagger paths (which would otherwise
+  // emit two CSP headers with the browser merging them via "most
+  // restrictive wins", which would re-block the swagger scripts).
   async headers() {
+    const sharedSecurity = [
+      { key: "X-Content-Type-Options", value: "nosniff" },
+      { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+      {
+        key: "Permissions-Policy",
+        value: "camera=(), microphone=(), geolocation=()",
+      },
+      { key: "X-DNS-Prefetch-Control", value: "on" },
+      // Enable HSTS only in production so local HTTP dev isn't broken.
+      ...(process.env.NODE_ENV === "production"
+        ? [
+            {
+              key: "Strict-Transport-Security" as const,
+              value: "max-age=63072000; includeSubDomains; preload",
+            },
+          ]
+        : []),
+      { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
+      { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
+    ];
+
     return [
       {
-        source: "/:path*",
+        // All non-swagger routes: strict.
+        source: "/((?!swagger).*)",
         headers: [
           { key: "Content-Security-Policy", value: buildCsp() },
           { key: "X-Frame-Options", value: "DENY" },
-          { key: "X-Content-Type-Options", value: "nosniff" },
-          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-          {
-            key: "Permissions-Policy",
-            value: "camera=(), microphone=(), geolocation=()",
-          },
-          { key: "X-DNS-Prefetch-Control", value: "on" },
-          // Enable HSTS only in production so local HTTP dev isn't broken.
-          ...(process.env.NODE_ENV === "production"
-            ? [
-                {
-                  key: "Strict-Transport-Security",
-                  value: "max-age=63072000; includeSubDomains; preload",
-                },
-              ]
-            : []),
-          { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
-          { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
+          ...sharedSecurity,
+        ],
+      },
+      {
+        // /swagger and any nested asset (openapi.yaml, etc).
+        source: "/swagger/:path*",
+        headers: [
+          { key: "Content-Security-Policy", value: buildSwaggerCsp() },
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          ...sharedSecurity,
+        ],
+      },
+      {
+        // The exact "/swagger" path (no trailing slash) — Next.js's
+        // path-to-regexp `/swagger/:path*` does NOT match the bare
+        // /swagger, only /swagger/<something>, so without this rule
+        // /swagger inherits the strict global CSP and still blocks.
+        source: "/swagger",
+        headers: [
+          { key: "Content-Security-Policy", value: buildSwaggerCsp() },
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          ...sharedSecurity,
         ],
       },
     ];
