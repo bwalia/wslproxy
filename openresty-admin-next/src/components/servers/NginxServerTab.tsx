@@ -12,7 +12,7 @@ import LocationBlockEditor from "./sections/LocationBlockEditor";
 import ConfigPreview from "./sections/ConfigPreview";
 import type { ServerFormState } from "./types";
 import type { LocationEntry } from "./sections/LocationBlockEditor";
-import { Plus, Trash2, X } from "lucide-react";
+import { ExternalLink, Plus, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 
 /* ── Types ─────────────────────────────────────────────────────────────── */
@@ -245,20 +245,42 @@ const NginxServerTab: React.FC<NginxServerTabProps> = ({
         </Card.Header>
         <Card.Body>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <Input
-              label="Server Name"
-              placeholder="example.com"
-              value={form.server_name}
-              onChange={(e) => handleChange("server_name", e.target.value)}
-              disabled={!isCreate}
-              hint={!isCreate ? "Server name cannot be changed after creation" : undefined}
-              error={fieldErrors?.server_name}
-            />
+            {/* Server name + "open the live URL" affordance.  The
+                wrapping div lets us hang the visit link directly under
+                the input without inventing a `hint` ReactNode escape
+                hatch on the shared Input component. */}
+            <div className="space-y-1.5">
+              <Input
+                label="Server Name (Domain)"
+                placeholder="app.example.com"
+                value={form.server_name}
+                onChange={(e) => handleChange("server_name", e.target.value)}
+                disabled={!isCreate}
+                hint={
+                  isCreate
+                    ? "The public hostname this server will respond to, e.g. app.example.com.  Used as the nginx server_name and as the file id (`host:<value>`) — choose carefully, it can't be changed later."
+                    : "Server name cannot be changed after creation"
+                }
+                error={fieldErrors?.server_name}
+              />
+              {!isCreate && form.server_name && (
+                <a
+                  href={`https://${form.server_name}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs font-medium text-primary-600 hover:underline dark:text-primary-400"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                  Open https://{form.server_name} in a new tab
+                </a>
+              )}
+            </div>
             <Input
               label="Proxy Server Name"
               placeholder="proxy.example.com"
               value={form.proxy_server_name}
               onChange={(e) => handleChange("proxy_server_name", e.target.value)}
+              hint="Optional internal alias used when this server itself acts as an upstream behind another nginx hop.  Leave blank if unsure."
             />
             <Select
               label="Profile"

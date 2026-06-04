@@ -32,7 +32,12 @@ export default function AppBar({ sidebarCollapsed }: AppBarProps) {
   }, [logout]);
 
   return (
-    <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-slate-200 bg-white px-6 dark:border-slate-800 dark:bg-slate-900">
+    // Header sits ABOVE the per-page sticky wrappers (e.g. the
+    // `sticky top-0 z-20` PageHeader on /servers/[id]).  Without the
+    // bump, equal z-index → DOM order wins → the page header covers
+    // dropdowns that open from this AppBar (env switcher, user menu)
+    // the moment you're on a page that has its own sticky header.
+    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-slate-200 bg-white px-6 dark:border-slate-800 dark:bg-slate-900">
       {/* Left side - breadcrumb placeholder */}
       <div className="text-sm text-slate-500 dark:text-slate-400" />
 

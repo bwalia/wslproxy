@@ -108,6 +108,37 @@ const PAD_Y = 48;
 
 type ColKind = "server" | "rule" | "backend";
 const COLUMNS: ColKind[] = ["server", "rule", "backend"];
+
+/**
+ * Normalise whatever the caller hands us as a "server id" into the
+ * bare `server_name` the topology API uses for node ids.
+ *
+ * Why this exists: the topology API encodes server nodes as
+ * `server/<server_name>` — but the callers on this page have the
+ * server's URL id, which is `host:<server_name>`.  On top of that,
+ * Next.js's `useParams()` sometimes hands the dynamic segment back
+ * **URL-encoded** when the path contained reserved characters (the
+ * `:` in `host:foo` arrives as `host%3Afoo` depending on how the
+ * user navigated — typed URL vs clicked link vs reload).  We saw
+ * `host%3Awww.wslproxy.org` come through in the wild, which
+ * silently produced an empty topology canvas.  Decode first, then
+ * strip the prefix, then prefix again with `server/`.
+ *
+ * `decodeURIComponent` is a no-op on already-decoded input, so
+ * this is safe for both encoded and decoded callers.
+ */
+function bareServerName(raw: string): string {
+  let normalized = raw;
+  try {
+    normalized = decodeURIComponent(raw);
+  } catch {
+    /* malformed input — fall through with the original */
+  }
+  return normalized.startsWith("host:")
+    ? normalized.slice("host:".length)
+    : normalized;
+}
+
 const COL_LABELS: Record<ColKind, string> = {
   server: "Virtual Servers",
   rule: "Rules",
@@ -517,11 +548,22 @@ export function TopologyCanvas({ filterServerId, filterRuleId, compact }: Topolo
     }
   }, [dp]);
 
+  // Initial fetch always runs.  Auto-refresh, though, is wasteful on
+  // a server- or rule-filtered view (the tabs on /servers/[id] and
+  // /rules/[id]) — the operator is editing one record and the parent
+  // form already revalidates via SWR, so a background topology
+  // refetch every few seconds just thrashes the network.  Keep the
+  // auto-refresh for the full-graph `/topology` page only, and stretch
+  // the cadence to 60s — the topology graph changes on save events,
+  // not in real time, and 30s was burning ~30 API calls per
+  // operator-minute on a page they're typically just scanning.
+  const isFilteredView = Boolean(filterServerId || filterRuleId);
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 30000);
+    if (isFilteredView) return;
+    const interval = setInterval(fetchData, 60_000);
     return () => clearInterval(interval);
-  }, [fetchData]);
+  }, [fetchData, isFilteredView]);
 
   // Filter nodes/edges if filterServerId or filterRuleId is set
   const { filteredNodes, filteredEdges } = useMemo(() => {
@@ -531,7 +573,7 @@ export function TopologyCanvas({ filterServerId, filterRuleId, compact }: Topolo
     let edges = data.edges;
 
     if (filterServerId) {
-      const serverId = "server/" + filterServerId;
+      const serverId = "server/" + bareServerName(filterServerId);
       // Find rules connected to this server
       const ruleIds = new Set(
         edges.filter((e) => e.from === serverId).map((e) => e.to),
@@ -652,9 +694,38 @@ export function TopologyCanvas({ filterServerId, filterRuleId, compact }: Topolo
             </div>
           )}
           {!loading && !error && filteredNodes.length === 0 && (
-            <div className="flex items-center justify-center h-40 text-slate-500 dark:text-gray-500 text-sm">
-              No topology data found.
-            </div>
+            // Distinguish "this server exists in the graph but has no
+            // rules attached" from "no data at all".  The first case
+            // is common — a freshly cloned server typically has zero
+            // rules until the operator assigns them — and the old
+            // "No topology data found." message read as a bug.  When
+            // we know the server is in the graph, point the user at
+            // the Server Rules tab instead.
+            (() => {
+              const serverExistsButHasNoRules =
+                filterServerId !== undefined &&
+                data !== null &&
+                data.nodes.some(
+                  (n) => n.id === "server/" + bareServerName(filterServerId),
+                );
+              return (
+                <div className="flex flex-col items-center justify-center gap-1 h-40 px-6 text-center text-sm text-slate-500 dark:text-gray-500">
+                  {serverExistsButHasNoRules ? (
+                    <>
+                      <p className="font-medium text-slate-700 dark:text-slate-300">
+                        No rules attached to this server yet
+                      </p>
+                      <p>
+                        Open the <span className="font-medium">Server Rules</span> tab and assign one — the
+                        topology will populate as soon as a rule is linked.
+                      </p>
+                    </>
+                  ) : (
+                    <p>No topology data found.</p>
+                  )}
+                </div>
+              );
+            })()
           )}
           {!loading && !error && filteredNodes.length > 0 && (
             <div

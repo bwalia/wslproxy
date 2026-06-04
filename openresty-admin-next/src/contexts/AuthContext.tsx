@@ -141,9 +141,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       setIsAuthenticated(true);
 
-      router.push("/");
+      // Navigation is the caller's responsibility — the LoginPage knows
+      // about the `?returnTo=` query param and we don't.  Previously
+      // this also did `router.push("/")`, which raced against the
+      // LoginPage's `router.replace(returnTo)`: on slower networks
+      // (prod) the two navigations interleaved and *neither* committed,
+      // leaving the user stuck on /login with a valid cookie until they
+      // hit reload.  One router call per login flow, end of race.
     },
-    [router],
+    [],
   );
 
   const logout = useCallback(async () => {
