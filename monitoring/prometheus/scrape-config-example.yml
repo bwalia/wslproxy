@@ -1,0 +1,37 @@
+# Example Prometheus scrape config for the WSLProxy fleet.
+# Merge into the prometheus.yml of the server backing int-grafana.
+#
+# The dashboard's "Node (Region)" variable is driven by the `instance` label,
+# so keep one target per proxy node.
+
+scrape_configs:
+  - job_name: wslproxy
+    scheme: https
+    metrics_path: /metrics
+    scrape_interval: 30s
+    scrape_timeout: 10s
+    static_configs:
+      - targets: ["prod-our-v1.wslproxy.com"]
+        labels: { node: pop0, env: prod }
+      # Add lon1 here once its metrics vhost is exposed, e.g.:
+      # - targets: ["prod-lon1.wslproxy.com"]
+      #   labels: { node: lon1, env: prod }
+
+  # Optional but recommended — drives the Infrastructure row (CPU/mem/disk/net).
+  # - job_name: wslproxy-node
+  #   static_configs:
+  #     - targets: ["187.124.112.155:9100", "72.62.211.28:9100"]
+
+  # Optional but recommended — drives SSL cert-expiry panels + alerts.
+  # - job_name: blackbox-ssl
+  #   metrics_path: /probe
+  #   params: { module: [http_2xx] }
+  #   static_configs:
+  #     - targets:
+  #         - https://prod-our.wslproxy.com
+  #         - https://prod-our-v1.wslproxy.com
+  #         # ... one per public domain with ssl_enabled
+  #   relabel_configs:
+  #     - { source_labels: [__address__], target_label: __param_target }
+  #     - { source_labels: [__param_target], target_label: instance }
+  #     - { target_label: __address__, replacement: "blackbox-exporter:9115" }
