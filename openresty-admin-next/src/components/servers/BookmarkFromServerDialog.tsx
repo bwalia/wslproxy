@@ -1,12 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Bookmark, ExternalLink } from "lucide-react";
+import { Bookmark, ExternalLink, Plus } from "lucide-react";
 import Dialog from "@/components/ui/Dialog";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
+import AutocompleteInput from "@/components/ui/AutocompleteInput";
 import Textarea from "@/components/ui/Textarea";
 import { useDataProvider } from "@/hooks/useResource";
+import { useBookmarkSuggestions } from "@/hooks/useBookmarkSuggestions";
 import { useNotification } from "@/contexts/NotificationContext";
 import type { Bookmark as BookmarkType } from "@/types";
 
@@ -48,6 +50,12 @@ export default function BookmarkFromServerDialog({
 }: BookmarkFromServerDialogProps) {
   const dp = useDataProvider();
   const { notify } = useNotification();
+  // Distinct categories + tags from existing bookmarks, powering the
+  // autocomplete dropdowns + the "suggested tag" chip row.  Solves
+  // the "every save creates a new typo'd category" problem — admins
+  // pick from what already exists instead of retyping.
+  const { categories: catSuggestions, tags: tagSuggestions } =
+    useBookmarkSuggestions();
 
   // Default URL: HTTPS scheme assumed.  If the server is HTTP-only
   // (unusual), the user can edit the URL field before submit.  We
@@ -245,21 +253,41 @@ export default function BookmarkFromServerDialog({
         />
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <Input
+          <AutocompleteInput
             label="Category (optional)"
             value={form.category}
             onChange={(e) => handleChange("category", e.target.value)}
             disabled={!!existing}
             placeholder="e.g. internal, customer, demo"
+            suggestions={catSuggestions}
+            hint={
+              catSuggestions.length > 0
+                ? "Pick from existing or type a new one."
+                : undefined
+            }
           />
-          <Input
-            label="Tags (optional)"
-            value={form.tags}
-            onChange={(e) => handleChange("tags", e.target.value)}
-            disabled={!!existing}
-            placeholder="comma, separated"
-            hint="Comma-separated. Used for filtering on the bookmarks page."
-          />
+          <div>
+            <Input
+              label="Tags (optional)"
+              value={form.tags}
+              onChange={(e) => handleChange("tags", e.target.value)}
+              disabled={!!existing}
+              placeholder="comma, separated"
+              hint="Comma-separated. Used for filtering on the bookmarks page."
+            />
+            {/* Existing-tag chip row — datalist can't help past the
+                first tag (it matches the whole input including
+                commas), so we render the existing tags as click-to-
+                append chips below the input.  Skips ones already in
+                the current value to avoid double-add. */}
+            {tagSuggestions.length > 0 && !existing && (
+              <SuggestedTagChips
+                allTags={tagSuggestions}
+                current={form.tags}
+                onPick={(next) => handleChange("tags", next)}
+              />
+            )}
+          </div>
         </div>
 
         <Textarea
@@ -291,6 +319,54 @@ export default function BookmarkFromServerDialog({
         </label>
       </div>
     </Dialog>
+  );
+}
+
+/* Click-to-append chips for existing tags.  Filters out tags
+ * already present in the comma-separated input so each chip
+ * disappears after it's used, leaving a shrinking palette of
+ * still-available choices. */
+function SuggestedTagChips({
+  allTags,
+  current,
+  onPick,
+}: {
+  allTags: string[];
+  current: string;
+  onPick: (next: string) => void;
+}) {
+  const presentSet = new Set(
+    current
+      .split(",")
+      .map((t) => t.trim().toLowerCase())
+      .filter(Boolean),
+  );
+  const available = allTags.filter(
+    (t) => !presentSet.has(t.toLowerCase()),
+  );
+  if (available.length === 0) return null;
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+      <span className="text-xs text-slate-500 dark:text-slate-400">
+        Suggested:
+      </span>
+      {available.slice(0, 10).map((t) => (
+        <button
+          key={t}
+          type="button"
+          onClick={() => {
+            // Append with a comma separator, trimming any trailing
+            // comma/space the user might have already typed.
+            const cleaned = current.replace(/[\s,]+$/, "");
+            onPick(cleaned ? `${cleaned}, ${t}` : t);
+          }}
+          className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-700 hover:bg-primary-50 hover:text-primary-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-primary-900/30 dark:hover:text-primary-300"
+        >
+          <Plus className="h-3 w-3" />
+          {t}
+        </button>
+      ))}
+    </div>
   );
 }
 
