@@ -490,13 +490,21 @@ export interface InstanceInfo {
 
 export interface AccessLogEntry {
   id: string;
-  timestamp: string;
+  // The Lua backend emits the ISO timestamp under the field name
+  // `time` (matching nginx's `$time_iso8601` variable), but earlier
+  // versions of this UI assumed `timestamp`.  Both are declared so a
+  // renderer that does `log.time ?? log.timestamp` works against any
+  // payload shape — older bundles + the JSON nginx log format.
+  time?: string;
+  timestamp?: string;
   remote_addr: string;
   method: string;
   uri: string;
   status: number;
   body_bytes_sent: number;
   request_time: number;
+  // Some upstream lines also use the shorter alias `upstream`.
+  upstream?: string;
   upstream_addr?: string;
   upstream_status?: number;
   upstream_response_time?: number;
@@ -512,7 +520,11 @@ export interface AccessLogEntry {
 
 export interface ErrorLogEntry {
   id: string;
-  timestamp: string;
+  // Same shape ambiguity as `AccessLogEntry` — backend emits `time`
+  // in some pipelines and `timestamp` in others.  Renderer uses
+  // `logTime(log)` to pick whichever is present.
+  time?: string;
+  timestamp?: string;
   level: "emerg" | "alert" | "crit" | "error" | "warn" | "notice" | "info" | "debug";
   message: string;
   client?: string;

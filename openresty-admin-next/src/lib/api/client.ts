@@ -191,8 +191,30 @@ export async function apiFetch<T = unknown>(
 
   try {
     if (res.status === 401) {
-      if (typeof window !== "undefined" && window.location.pathname !== "/login") {
-        window.location.href = "/login";
+      // Use `location.replace` instead of `.href` so the redirected
+      // /login doesn't end up in the browser's back-stack (the user
+      // never asked to navigate to /login; we forced it).  Carry the
+      // current path as `?returnTo=` so the LoginPage can send them
+      // back where they were.  The middleware does the same on a
+      // fresh page load — this is the equivalent for an in-flight
+      // fetch that 401s mid-session.
+      //
+      // We deliberately avoid `router.push` from here: this function
+      // is called outside React's render tree (inside fetchers,
+      // event handlers, anywhere), so we can't reach the Next.js
+      // router instance.  A full-document navigation is the cleanest
+      // boundary — it also forces every SWR cache, every running
+      // setInterval, every Suspense boundary to be torn down with
+      // the page, so the post-login dashboard starts from a clean
+      // slate.  The AuthContext.login then nukes SWR cache anyway
+      // (defence in depth).
+      if (
+        typeof window !== "undefined" &&
+        window.location.pathname !== "/login"
+      ) {
+        const here = window.location.pathname + window.location.search;
+        const target = `/login?returnTo=${encodeURIComponent(here)}`;
+        window.location.replace(target);
       }
       throw new ApiError("Unauthorized", 401);
     }

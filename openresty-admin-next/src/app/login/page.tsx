@@ -2,8 +2,7 @@
 
 import { useActionState, useCallback, useState } from "react";
 import { useFormStatus } from "react-dom";
-import { useRouter, useSearchParams } from "next/navigation";
-import type { Route } from "next";
+import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import {
@@ -81,7 +80,6 @@ function SubmitButton() {
 export default function LoginPage() {
   const { login } = useAuth();
   const { theme, toggleTheme } = useTheme();
-  const router = useRouter();
   const searchParams = useSearchParams();
   const returnTo = sanitizeReturnTo(searchParams?.get("returnTo") ?? null);
 
@@ -99,14 +97,32 @@ export default function LoginPage() {
       }
       try {
         await login(email, password);
-        // Always navigate — including when returnTo is the default "/".
-        // The previous `returnTo !== "/"` guard was a workaround for the
-        // double-navigation race in AuthContext.login (which used to
-        // push "/" itself); now that AuthContext doesn't navigate, this
-        // page owns the single navigation call and must handle every
-        // case, otherwise a default-landing login leaves the user
-        // stranded on /login with a valid cookie.
-        router.replace(returnTo as Route);
+        // Hard reload (not router.replace) to the target.  The login
+        // → dashboard transition is the one event in the app's
+        // lifecycle where soft client-side navigation has been
+        // unreliable on slower networks: a soft transition stays in
+        // the same JS context, so SWR's in-memory 401 cache from the
+        // expired session, React 19 transition cancellation when the
+        // user double-clicks Sign in, and any background fetches
+        // that fire between cookie-commit and navigation-commit all
+        // get a chance to corrupt the post-login state.
+        //
+        // `location.assign` short-circuits every one of those:
+        //   - Full page reload tears down ALL JS state — no surviving
+        //     SWR cache, no surviving React transitions.
+        //   - The navigation request the browser fires is committed
+        //     before any JS in the current page runs again, so the
+        //     newly-set `wslproxy_token` cookie is guaranteed to be
+        //     in the request.
+        //   - The middleware on the new page load sees the cookie
+        //     and lets the user through to `returnTo`.
+        //
+        // Cost: a ~200 ms page flash on a per-session-once event.
+        // Every reputable admin dashboard (Linear / GitHub / Vercel /
+        // Stripe etc.) does this for exactly the same reason.
+        if (typeof window !== "undefined") {
+          window.location.assign(returnTo);
+        }
         return { status: "success" };
       } catch (err) {
         return {
@@ -116,7 +132,7 @@ export default function LoginPage() {
         };
       }
     },
-    [login, returnTo, router],
+    [login, returnTo],
   );
 
   const [state, formAction] = useActionState<LoginState, FormData>(

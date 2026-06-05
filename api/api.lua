@@ -3935,9 +3935,27 @@ local function handle_get_request(args, path)
                         entries[#entries + 1] = entry
                     end
                 else
-                    -- Parse common log format
+                    -- Parse common / combined log format.
+                    --
+                    -- The original pattern was rigidly anchored to
+                    --   <ip> - <user> [time] "<method> <uri> ..." <status> <bytes>
+                    -- but the docker-dev nginx (and ingress-controller
+                    -- variants) inject extra columns BEFORE the
+                    -- `- - [time]` block — typically server_name,
+                    -- request_id, or x-forwarded-for.  Anything in
+                    -- there breaks the rigid pattern and the whole
+                    -- entry is dropped → frontend shows
+                    -- "57 total entries · 0 loaded" with an empty
+                    -- table even though the access.log has data.
+                    --
+                    -- Lazy-match (`.-`) past the IP up to the first
+                    -- `[timestamp]`, then continue.  Also relaxed the
+                    -- "HTTP/x.x" tail so an unusual protocol string
+                    -- doesn't fail the match.  Works against both the
+                    -- canonical combined log format and the
+                    -- server_name-prefixed dev variant.
                     local remote_addr, timestamp, method, uri, status, bytes =
-                        line:match('^(%S+)%s+%-%s+%S+%s+%[([^%]]+)%]%s+"(%S+)%s+(%S+)%s+%S+"%s+(%d+)%s+(%d+)')
+                        line:match('^(%S+).-%[([^%]]+)%]%s+"(%S+)%s+(%S+)[^"]*"%s+(%d+)%s+(%d+)')
                     if remote_addr then
                         local entry2 = {
                             id = "access-" .. tostring(i),
