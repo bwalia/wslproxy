@@ -23,6 +23,14 @@ const AUTH_COOKIE = "wslproxy_token";
 // Exact paths reachable without auth.
 const PUBLIC_PATHS = new Set<string>([
   "/login",
+  // Prometheus metrics endpoint.  Scrapers don't carry the admin
+  // login cookie, so middleware-level auth would lock them out; the
+  // backend itself restricts access via `allow <cidr>` directives in
+  // its nginx `location /metrics` block (see nginx-dev.conf.tmpl /
+  // infra/ansible/roles/wslproxy/templates/nginx.conf.j2).  This proxy
+  // is just the Next.js-side passthrough — the network ACL on the
+  // upstream is the actual gate.
+  "/metrics",
 ]);
 
 // Path *prefixes* reachable without auth.  Use this for entire route
