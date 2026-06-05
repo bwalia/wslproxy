@@ -9,8 +9,10 @@ import PageHeader from "@/components/ui/PageHeader";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
-import AutocompleteInput from "@/components/ui/AutocompleteInput";
+import CreatableCombobox from "@/components/ui/CreatableCombobox";
+import TagInput from "@/components/ui/TagInput";
 import { useBookmarkSuggestions } from "@/hooks/useBookmarkSuggestions";
+import { useSWRConfig } from "swr";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import Skeleton from "@/components/ui/Skeleton";
 import FetchErrorState from "@/components/ui/FetchErrorState";
@@ -21,6 +23,22 @@ export default function BookmarkDetailPage() {
   const router = useRouter();
   const dataProvider = useDataProvider();
   const { notify } = useNotification();
+  // Global SWR mutator — after create / update / delete, invalidates
+  // every cached `useList("bookmarks", ...)` entry so the autocomplete
+  // on the NEXT form open immediately reflects the change.  Same
+  // reason as in BookmarkFromServerDialog — the suggestions hook and
+  // the list page use different SWR keys, so a list-page mutate
+  // wouldn't refresh the dropdown.
+  const { mutate: globalMutate } = useSWRConfig();
+  const invalidateBookmarks = useCallback(
+    () =>
+      globalMutate(
+        (key) => Array.isArray(key) && key[0] === "bookmarks",
+        undefined,
+        { revalidate: true },
+      ),
+    [globalMutate],
+  );
   // Distinct categories + tags from existing bookmarks, used to
   // power the autocomplete dropdowns on the form below.  Stops the
   // form from generating typo-twins ("demo" / "Demo" / "demos") on
@@ -35,13 +53,23 @@ export default function BookmarkDetailPage() {
     isCreate ? null : id,
   );
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<{
+    title: string;
+    host: string;
+    url: string;
+    category: string;
+    description: string;
+    // Source of truth is string[] — TagInput owns the chip + dropdown
+    // rendering, no more comma-separated joins in the form state.
+    tags: string[];
+    isPublic: boolean;
+  }>({
     title: "",
     host: "",
     url: "",
     category: "",
     description: "",
-    tags: "",
+    tags: [],
     isPublic: false,
   });
   const [saving, setSaving] = useState(false);
@@ -57,17 +85,22 @@ export default function BookmarkDetailPage() {
         category: data.category ?? "",
         description: data.description ?? "",
         // Lua's cjson serialises empty arrays as `{}` rather than
-        // `[]`, so `data.tags ?? []` isn't enough — `{}.join` throws
-        // `tags.join is not a function`.
-        tags: (Array.isArray(data.tags) ? data.tags : []).join(", "),
+        // `[]`, so `data.tags ?? []` isn't enough — non-array shapes
+        // become an empty list, which TagInput renders cleanly.
+        tags: Array.isArray(data.tags) ? data.tags : [],
         isPublic: data.public === true,
       });
     }
   }, [data]);
 
-  const handleChange = useCallback((field: string, value: string) => {
-    setForm((prev) => ({ ...prev, [field]: value }));
-  }, []);
+  // Generic field setter typed against the form shape so TS catches
+  // mismatches (e.g. assigning a string to `tags` which is now string[]).
+  const handleChange = useCallback(
+    <K extends keyof typeof form>(field: K, value: (typeof form)[K]) => {
+      setForm((prev) => ({ ...prev, [field]: value }));
+    },
+    [],
+  );
 
   const handleTogglePublic = useCallback(() => {
     setForm((prev) => ({ ...prev, isPublic: !prev.isPublic }));
@@ -82,10 +115,9 @@ export default function BookmarkDetailPage() {
       const { isPublic, ...rest } = form;
       const payload = {
         ...rest,
-        tags: form.tags
-          .split(",")
-          .map((t) => t.trim())
-          .filter(Boolean),
+        // form.tags is already string[] from TagInput — trim + filter
+        // defensively, no split-on-comma any more.
+        tags: form.tags.map((t) => t.trim()).filter(Boolean),
         public: isPublic,
       };
       if (isCreate) {
@@ -95,6 +127,7 @@ export default function BookmarkDetailPage() {
         await dataProvider.update("bookmarks", id, payload);
         notify("Bookmark updated successfully", { type: "success" });
       }
+      invalidateBookmarks();
       router.push("/bookmarks");
     } catch (err) {
       notify((err as Error).message || "Failed to save bookmark", {
@@ -103,13 +136,14 @@ export default function BookmarkDetailPage() {
     } finally {
       setSaving(false);
     }
-  }, [isCreate, form, id, dataProvider, notify, router]);
+  }, [isCreate, form, id, dataProvider, invalidateBookmarks, notify, router]);
 
   const handleDelete = useCallback(async () => {
     setDeleting(true);
     try {
       await dataProvider.remove("bookmarks", id);
       notify("Bookmark deleted successfully", { type: "success" });
+      invalidateBookmarks();
       router.push("/bookmarks");
     } catch (err) {
       notify((err as Error).message || "Failed to delete bookmark", {
@@ -119,7 +153,7 @@ export default function BookmarkDetailPage() {
       setDeleting(false);
       setShowDelete(false);
     }
-  }, [id, dataProvider, notify, router]);
+  }, [id, dataProvider, invalidateBookmarks, notify, router]);
 
   if (!isCreate && isLoading) {
     return (
@@ -173,15 +207,16 @@ export default function BookmarkDetailPage() {
               value={form.url}
               onChange={(e) => handleChange("url", e.target.value)}
             />
-            <AutocompleteInput
+            <CreatableCombobox
               label="Category"
               value={form.category}
-              onChange={(e) => handleChange("category", e.target.value)}
-              suggestions={catSuggestions}
+              onChange={(v) => handleChange("category", v)}
+              options={catSuggestions}
+              placeholder="Pick or type to create…"
               hint={
                 catSuggestions.length > 0
-                  ? "Pick from existing or type a new one."
-                  : undefined
+                  ? "Click to pick from existing, or type to create a new one."
+                  : "Type to create the first category."
               }
             />
             <Input
@@ -189,53 +224,18 @@ export default function BookmarkDetailPage() {
               value={form.description}
               onChange={(e) => handleChange("description", e.target.value)}
             />
-            <div>
-              <Input
-                label="Tags (comma-separated)"
-                value={form.tags}
-                onChange={(e) => handleChange("tags", e.target.value)}
-              />
-              {/* Click-to-append palette for the existing tags.
-                  Native datalist can't help once the input contains
-                  a comma — it matches the whole string — so the
-                  chip row picks up where the autocomplete leaves
-                  off.  Chip disappears once added so the palette
-                  shrinks as the user fills the field. */}
-              {tagSuggestions.length > 0 && (
-                <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                  <span className="text-xs text-slate-500 dark:text-slate-400">
-                    Suggested:
-                  </span>
-                  {tagSuggestions
-                    .filter((t) => {
-                      const present = new Set(
-                        form.tags
-                          .split(",")
-                          .map((x) => x.trim().toLowerCase())
-                          .filter(Boolean),
-                      );
-                      return !present.has(t.toLowerCase());
-                    })
-                    .slice(0, 10)
-                    .map((t) => (
-                      <button
-                        key={t}
-                        type="button"
-                        onClick={() => {
-                          const cleaned = form.tags.replace(/[\s,]+$/, "");
-                          handleChange(
-                            "tags",
-                            cleaned ? `${cleaned}, ${t}` : t,
-                          );
-                        }}
-                        className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-700 hover:bg-primary-50 hover:text-primary-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-primary-900/30 dark:hover:text-primary-300"
-                      >
-                        + {t}
-                      </button>
-                    ))}
-                </div>
-              )}
-            </div>
+            <TagInput
+              label="Tags"
+              value={form.tags}
+              onChange={(v) => handleChange("tags", v)}
+              options={tagSuggestions}
+              placeholder="Click and pick or type…"
+              hint={
+                tagSuggestions.length > 0
+                  ? "Click to browse existing tags, or type to create a new one."
+                  : "Type a tag and press Enter to add it."
+              }
+            />
           </div>
 
           {/* ── Public visibility ────────────────────────────────────────

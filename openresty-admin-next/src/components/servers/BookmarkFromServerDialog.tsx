@@ -1,12 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Bookmark, ExternalLink, Plus } from "lucide-react";
+import { Bookmark, ExternalLink } from "lucide-react";
 import Dialog from "@/components/ui/Dialog";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
-import AutocompleteInput from "@/components/ui/AutocompleteInput";
+import CreatableCombobox from "@/components/ui/CreatableCombobox";
+import TagInput from "@/components/ui/TagInput";
 import Textarea from "@/components/ui/Textarea";
+import { useSWRConfig } from "swr";
 import { useDataProvider } from "@/hooks/useResource";
 import { useBookmarkSuggestions } from "@/hooks/useBookmarkSuggestions";
 import { useNotification } from "@/contexts/NotificationContext";
@@ -50,6 +52,14 @@ export default function BookmarkFromServerDialog({
 }: BookmarkFromServerDialogProps) {
   const dp = useDataProvider();
   const { notify } = useNotification();
+  // Global SWR mutator — used after a successful POST to invalidate
+  // every cached `useList("bookmarks", ...)` entry so the next form
+  // open immediately sees the new category / tag in its autocomplete.
+  // Without this, the suggestions hook's own SWR key (perPage: 500)
+  // stays at last-seen state while the bookmark list page's key
+  // (paginated, sorted, filtered) revalidates independently — leading
+  // to "I just created category X and it's not in the dropdown" bugs.
+  const { mutate: globalMutate } = useSWRConfig();
   // Distinct categories + tags from existing bookmarks, powering the
   // autocomplete dropdowns + the "suggested tag" chip row.  Solves
   // the "every save creates a new typo'd category" problem — admins
@@ -65,12 +75,23 @@ export default function BookmarkFromServerDialog({
   const initialTitle = serverName;
   const initialUrl = serverName ? `https://${serverName}` : "";
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<{
+    title: string;
+    url: string;
+    category: string;
+    description: string;
+    // Multi-value: `TagInput` owns chip rendering + dropdown.  The
+    // string[] is the source of truth — no more comma-separated
+    // string in-form state.  Conversion still happens at the
+    // backend boundary on save.
+    tags: string[];
+    isPublic: boolean;
+  }>({
     title: initialTitle,
     url: initialUrl,
     category: "",
     description: "",
-    tags: "",
+    tags: [],
     isPublic: false,
   });
   const [saving, setSaving] = useState(false);
@@ -91,7 +112,7 @@ export default function BookmarkFromServerDialog({
       url: serverName ? `https://${serverName}` : "",
       category: "",
       description: "",
-      tags: "",
+      tags: [],
       isPublic: false,
     });
     setExisting(undefined);
@@ -138,8 +159,11 @@ export default function BookmarkFromServerDialog({
     };
   }, [open, serverName, dp]);
 
+  // Generic field setter typed by the form shape so TS catches
+  // mismatches (e.g. passing a number where a string is expected).
+  // tags + isPublic are non-string so we keep the value param wide.
   const handleChange = useCallback(
-    (field: keyof typeof form, value: string | boolean) => {
+    <K extends keyof typeof form>(field: K, value: (typeof form)[K]) => {
       setForm((prev) => ({ ...prev, [field]: value }));
     },
     [],
@@ -165,10 +189,10 @@ export default function BookmarkFromServerDialog({
         url: form.url.trim(),
         category: form.category.trim(),
         description: form.description.trim(),
-        tags: form.tags
-          .split(",")
-          .map((t) => t.trim())
-          .filter(Boolean),
+        // Already a clean string[] from TagInput — no split needed.
+        // Trim and filter defensively in case a future caller passes
+        // a value containing whitespace.
+        tags: form.tags.map((t) => t.trim()).filter(Boolean),
         public: form.isPublic,
         ...(profileId ? { profile_id: profileId } : {}),
         // Mark as quick-created from a server so future tooling
@@ -177,6 +201,18 @@ export default function BookmarkFromServerDialog({
         auto_generated: true,
       });
       notify("Bookmark created.", { type: "success" });
+      // Drop every cached `useList("bookmarks", ...)` entry —
+      // covers the dedup query, the suggestions hook, the admin
+      // list page, the dashboard's RecentBookmarks widget.  SWR
+      // keys are `[resource, JSON.stringify(params)]` arrays so we
+      // match on the first element.  revalidate:true re-fetches
+      // active subscribers immediately; inactive ones revalidate
+      // on next mount.
+      globalMutate(
+        (key) => Array.isArray(key) && key[0] === "bookmarks",
+        undefined,
+        { revalidate: true },
+      );
       onClose();
     } catch (err) {
       notify((err as Error)?.message ?? "Failed to create bookmark.", {
@@ -185,7 +221,7 @@ export default function BookmarkFromServerDialog({
     } finally {
       setSaving(false);
     }
-  }, [existing, form, serverName, profileId, dp, notify, onClose]);
+  }, [existing, form, serverName, profileId, dp, globalMutate, notify, onClose]);
 
   const checking = existing === undefined;
 
@@ -253,41 +289,32 @@ export default function BookmarkFromServerDialog({
         />
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <AutocompleteInput
+          <CreatableCombobox
             label="Category (optional)"
             value={form.category}
-            onChange={(e) => handleChange("category", e.target.value)}
+            onChange={(v) => handleChange("category", v)}
             disabled={!!existing}
-            placeholder="e.g. internal, customer, demo"
-            suggestions={catSuggestions}
+            placeholder="Pick or type to create…"
+            options={catSuggestions}
             hint={
               catSuggestions.length > 0
-                ? "Pick from existing or type a new one."
-                : undefined
+                ? "Click to pick from existing, or type to create a new one."
+                : "Type to create the first category."
             }
           />
-          <div>
-            <Input
-              label="Tags (optional)"
-              value={form.tags}
-              onChange={(e) => handleChange("tags", e.target.value)}
-              disabled={!!existing}
-              placeholder="comma, separated"
-              hint="Comma-separated. Used for filtering on the bookmarks page."
-            />
-            {/* Existing-tag chip row — datalist can't help past the
-                first tag (it matches the whole input including
-                commas), so we render the existing tags as click-to-
-                append chips below the input.  Skips ones already in
-                the current value to avoid double-add. */}
-            {tagSuggestions.length > 0 && !existing && (
-              <SuggestedTagChips
-                allTags={tagSuggestions}
-                current={form.tags}
-                onPick={(next) => handleChange("tags", next)}
-              />
-            )}
-          </div>
+          <TagInput
+            label="Tags (optional)"
+            value={form.tags}
+            onChange={(v) => handleChange("tags", v)}
+            disabled={!!existing}
+            options={tagSuggestions}
+            placeholder="Click and pick or type…"
+            hint={
+              tagSuggestions.length > 0
+                ? "Click to browse existing tags, or type to create a new one."
+                : "Type a tag and press Enter to add it."
+            }
+          />
         </div>
 
         <Textarea
@@ -319,54 +346,6 @@ export default function BookmarkFromServerDialog({
         </label>
       </div>
     </Dialog>
-  );
-}
-
-/* Click-to-append chips for existing tags.  Filters out tags
- * already present in the comma-separated input so each chip
- * disappears after it's used, leaving a shrinking palette of
- * still-available choices. */
-function SuggestedTagChips({
-  allTags,
-  current,
-  onPick,
-}: {
-  allTags: string[];
-  current: string;
-  onPick: (next: string) => void;
-}) {
-  const presentSet = new Set(
-    current
-      .split(",")
-      .map((t) => t.trim().toLowerCase())
-      .filter(Boolean),
-  );
-  const available = allTags.filter(
-    (t) => !presentSet.has(t.toLowerCase()),
-  );
-  if (available.length === 0) return null;
-  return (
-    <div className="mt-2 flex flex-wrap items-center gap-1.5">
-      <span className="text-xs text-slate-500 dark:text-slate-400">
-        Suggested:
-      </span>
-      {available.slice(0, 10).map((t) => (
-        <button
-          key={t}
-          type="button"
-          onClick={() => {
-            // Append with a comma separator, trimming any trailing
-            // comma/space the user might have already typed.
-            const cleaned = current.replace(/[\s,]+$/, "");
-            onPick(cleaned ? `${cleaned}, ${t}` : t);
-          }}
-          className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-700 hover:bg-primary-50 hover:text-primary-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-primary-900/30 dark:hover:text-primary-300"
-        >
-          <Plus className="h-3 w-3" />
-          {t}
-        </button>
-      ))}
-    </div>
   );
 }
 
