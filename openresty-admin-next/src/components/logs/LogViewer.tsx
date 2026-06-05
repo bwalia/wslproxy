@@ -67,20 +67,62 @@ function statusCategory(code: number): string {
   return "2xx";
 }
 
-function formatTimestamp(ts: string): string {
-  try {
-    const d = new Date(ts);
-    return d.toLocaleString(undefined, {
-      month: "short",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: false,
-    });
-  } catch {
-    return ts;
-  }
+// Convert nginx's `$time_local` format (e.g. `05/Jun/2026:05:23:06
+// +0000`) to ISO 8601, which `new Date()` can parse.  When the
+// backend's JSON `log_format` is in use the field is already ISO 8601
+// and this returns null — the caller falls back to passing the raw
+// string to Date().
+const NGINX_MONTHS: Record<string, string> = {
+  Jan: "01", Feb: "02", Mar: "03", Apr: "04", May: "05", Jun: "06",
+  Jul: "07", Aug: "08", Sep: "09", Oct: "10", Nov: "11", Dec: "12",
+};
+const NGINX_TIME_RE =
+  /^(\d{2})\/(\w{3})\/(\d{4}):(\d{2}):(\d{2}):(\d{2})\s+([+-]\d{4})$/;
+function parseNginxTimestamp(ts: string): string | null {
+  const m = NGINX_TIME_RE.exec(ts);
+  if (!m) return null;
+  const [, day, monStr, year, hour, min, sec, tz] = m;
+  const mon = NGINX_MONTHS[monStr];
+  if (!mon) return null;
+  return `${year}-${mon}-${day}T${hour}:${min}:${sec}${tz.slice(0, 3)}:${tz.slice(3)}`;
+}
+
+function formatTimestamp(ts: string | undefined | null): string {
+  // The Lua backend's JSON log_format emits the timestamp as `time`
+  // (ISO 8601); the access.log text fallback parser emits `timestamp`
+  // in nginx `$time_local` format (`05/Jun/2026:05:23:06 +0000`).
+  // Convert the latter to ISO before handing to `new Date()` — without
+  // this the cell renders the raw nginx string, which is technically
+  // human-readable but doesn't sort and doesn't fit the table.
+  if (!ts) return "—";
+  const iso = parseNginxTimestamp(ts);
+  const d = new Date(iso ?? ts);
+  // `new Date()` returns an Invalid Date OBJECT for unparseable input
+  // (no throw) — guard explicitly so we don't render that literal
+  // string back to the user.
+  if (Number.isNaN(d.getTime())) return ts;
+  return d.toLocaleString(undefined, {
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+}
+
+// Pull the timestamp from whichever field the backend used.  The Lua
+// JSON log_format emits `time`; the api.lua text-format fallback
+// parser uses `timestamp`.  Both are valid AccessLogEntry shapes.
+function logTime(log: { time?: string; timestamp?: string }): string | undefined {
+  return log.time ?? log.timestamp;
+}
+
+// Same idea for the upstream address — the JSON nginx log_format
+// names it `upstream_addr`; the api.lua fallback parser names it
+// `upstream`.  Accept either; fall back to em-dash for "none".
+function logUpstream(log: { upstream?: string; upstream_addr?: string }): string {
+  return log.upstream ?? log.upstream_addr ?? "—";
 }
 
 function formatLatency(ms: number): string {
@@ -278,7 +320,7 @@ const AccessLogRow = React.memo(function AccessLogRow({
         </button>
       </td>
       <td className="py-2 px-2 text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">
-        {formatTimestamp(log.timestamp)}
+        {formatTimestamp(logTime(log))}
       </td>
       <td className="py-2 px-2">
         <span className={cn("inline-block rounded px-1.5 py-0.5 text-xs font-bold", STATUS_CLASSES[cat])}>
@@ -312,7 +354,7 @@ const AccessLogRow = React.memo(function AccessLogRow({
         {formatLatency(log.request_time * 1000)}
       </td>
       <td className="py-2 px-2 text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">
-        {log.upstream_addr || "—"}
+        {logUpstream(log)}
       </td>
       <td className="py-2 px-2">
         <div className="flex items-center gap-1">
@@ -367,7 +409,7 @@ const ErrorLogRow = React.memo(function ErrorLogRow({
           </button>
         </td>
         <td className="py-2 px-2 text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">
-          {formatTimestamp(log.timestamp)}
+          {formatTimestamp(logTime(log))}
         </td>
         <td className="py-2 px-2">
           <span className={cn("inline-block rounded px-1.5 py-0.5 text-xs font-bold uppercase", LEVEL_CLASSES[log.level] || LEVEL_CLASSES.info)}>
@@ -568,7 +610,9 @@ const LogViewer: React.FC<LogViewerProps> = ({
                       <span className="inline-flex items-center gap-1">Latency <ArrowUpDown className="h-3 w-3" /></span>
                     </th>
                     <th className="py-2.5 px-2 text-xs font-semibold text-slate-500 dark:text-slate-400">Upstream</th>
-                    <th className="py-2.5 px-2 text-xs font-semibold text-slate-500 dark:text-slate-400">Tags</th>
+                    {/* "Tags" was misleading — the cell renders cache /
+                        WAF / country badges, not arbitrary tags. */}
+                    <th className="py-2.5 px-2 text-xs font-semibold text-slate-500 dark:text-slate-400">Flags</th>
                   </>
                 ) : (
                   <>
