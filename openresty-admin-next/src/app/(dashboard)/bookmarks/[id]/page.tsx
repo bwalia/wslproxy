@@ -9,6 +9,8 @@ import PageHeader from "@/components/ui/PageHeader";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
+import AutocompleteInput from "@/components/ui/AutocompleteInput";
+import { useBookmarkSuggestions } from "@/hooks/useBookmarkSuggestions";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import Skeleton from "@/components/ui/Skeleton";
 import FetchErrorState from "@/components/ui/FetchErrorState";
@@ -19,6 +21,12 @@ export default function BookmarkDetailPage() {
   const router = useRouter();
   const dataProvider = useDataProvider();
   const { notify } = useNotification();
+  // Distinct categories + tags from existing bookmarks, used to
+  // power the autocomplete dropdowns on the form below.  Stops the
+  // form from generating typo-twins ("demo" / "Demo" / "demos") on
+  // every save.
+  const { categories: catSuggestions, tags: tagSuggestions } =
+    useBookmarkSuggestions();
   const id = params.id as string;
   const isCreate = id === "create";
 
@@ -165,21 +173,69 @@ export default function BookmarkDetailPage() {
               value={form.url}
               onChange={(e) => handleChange("url", e.target.value)}
             />
-            <Input
+            <AutocompleteInput
               label="Category"
               value={form.category}
               onChange={(e) => handleChange("category", e.target.value)}
+              suggestions={catSuggestions}
+              hint={
+                catSuggestions.length > 0
+                  ? "Pick from existing or type a new one."
+                  : undefined
+              }
             />
             <Input
               label="Description"
               value={form.description}
               onChange={(e) => handleChange("description", e.target.value)}
             />
-            <Input
-              label="Tags (comma-separated)"
-              value={form.tags}
-              onChange={(e) => handleChange("tags", e.target.value)}
-            />
+            <div>
+              <Input
+                label="Tags (comma-separated)"
+                value={form.tags}
+                onChange={(e) => handleChange("tags", e.target.value)}
+              />
+              {/* Click-to-append palette for the existing tags.
+                  Native datalist can't help once the input contains
+                  a comma — it matches the whole string — so the
+                  chip row picks up where the autocomplete leaves
+                  off.  Chip disappears once added so the palette
+                  shrinks as the user fills the field. */}
+              {tagSuggestions.length > 0 && (
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  <span className="text-xs text-slate-500 dark:text-slate-400">
+                    Suggested:
+                  </span>
+                  {tagSuggestions
+                    .filter((t) => {
+                      const present = new Set(
+                        form.tags
+                          .split(",")
+                          .map((x) => x.trim().toLowerCase())
+                          .filter(Boolean),
+                      );
+                      return !present.has(t.toLowerCase());
+                    })
+                    .slice(0, 10)
+                    .map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => {
+                          const cleaned = form.tags.replace(/[\s,]+$/, "");
+                          handleChange(
+                            "tags",
+                            cleaned ? `${cleaned}, ${t}` : t,
+                          );
+                        }}
+                        className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-700 hover:bg-primary-50 hover:text-primary-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-primary-900/30 dark:hover:text-primary-300"
+                      >
+                        + {t}
+                      </button>
+                    ))}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* ── Public visibility ────────────────────────────────────────
