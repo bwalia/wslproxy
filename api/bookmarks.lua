@@ -207,14 +207,30 @@ function _M.list(args)
 
     local all_bookmarks = _M.get_merged_bookmarks()
 
-    -- Apply search filter
+    -- Apply search filter.  Matches title / host / description /
+    -- category, and case-insensitive substring against any tag.  The
+    -- public /links page already does this client-side (page.tsx
+    -- search includes tag + category); the admin /bookmarks list
+    -- search reaches the backend, so the predicate has to match here
+    -- too or the two surfaces disagree about which bookmarks
+    -- contain "production".
     if qParams.filter and qParams.filter.q and qParams.filter.q ~= "" then
         local q = qParams.filter.q:lower()
         local filtered = {}
         for _, bm in ipairs(all_bookmarks) do
-            if (bm.title and bm.title:lower():find(q, 1, true))
+            local hit = (bm.title and bm.title:lower():find(q, 1, true))
                 or (bm.host and bm.host:lower():find(q, 1, true))
-                or (bm.description and bm.description:lower():find(q, 1, true)) then
+                or (bm.description and bm.description:lower():find(q, 1, true))
+                or (bm.category and bm.category:lower():find(q, 1, true))
+            if not hit and type(bm.tags) == "table" then
+                for _, t in ipairs(bm.tags) do
+                    if type(t) == "string" and t:lower():find(q, 1, true) then
+                        hit = true
+                        break
+                    end
+                end
+            end
+            if hit then
                 table.insert(filtered, bm)
             end
         end
@@ -435,10 +451,23 @@ function _M.list_public(args)
         local q = qParams.filter.q:lower()
         local filtered = {}
         for _, bm in ipairs(all_bookmarks) do
-            if (bm.title and bm.title:lower():find(q, 1, true))
+            local hit = (bm.title and bm.title:lower():find(q, 1, true))
                 or (bm.host and bm.host:lower():find(q, 1, true))
                 or (bm.description and bm.description:lower():find(q, 1, true))
-                or (bm.category and bm.category:lower():find(q, 1, true)) then
+                or (bm.category and bm.category:lower():find(q, 1, true))
+            -- Same tag-substring extension as the merged-list path
+            -- above (line ~211).  Kept inline rather than factored
+            -- because the two paths' filter signatures differ enough
+            -- that a shared helper would obscure the matching logic.
+            if not hit and type(bm.tags) == "table" then
+                for _, t in ipairs(bm.tags) do
+                    if type(t) == "string" and t:lower():find(q, 1, true) then
+                        hit = true
+                        break
+                    end
+                end
+            end
+            if hit then
                 table.insert(filtered, bm)
             end
         end

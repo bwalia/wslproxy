@@ -1,14 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Bookmark, ExternalLink } from "lucide-react";
 import Dialog from "@/components/ui/Dialog";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
+import CreatableCombobox from "@/components/ui/CreatableCombobox";
+import TagInput from "@/components/ui/TagInput";
 import Textarea from "@/components/ui/Textarea";
+import { useSWRConfig } from "swr";
 import { useDataProvider } from "@/hooks/useResource";
+import { useBookmarkSuggestions } from "@/hooks/useBookmarkSuggestions";
 import { useNotification } from "@/contexts/NotificationContext";
-import type { Bookmark as BookmarkType } from "@/types";
 
 interface BookmarkFromServerDialogProps {
   open: boolean;
@@ -48,6 +51,30 @@ export default function BookmarkFromServerDialog({
 }: BookmarkFromServerDialogProps) {
   const dp = useDataProvider();
   const { notify } = useNotification();
+  // Global SWR mutator — used after a successful POST to invalidate
+  // every cached `useList("bookmarks", ...)` entry so the next form
+  // open immediately sees the new category / tag in its autocomplete.
+  // Without this, the suggestions hook's own SWR key (perPage: 500)
+  // stays at last-seen state while the bookmark list page's key
+  // (paginated, sorted, filtered) revalidates independently — leading
+  // to "I just created category X and it's not in the dropdown" bugs.
+  const { mutate: globalMutate } = useSWRConfig();
+  // Distinct categories + tags from existing bookmarks, powering the
+  // autocomplete dropdowns + the "suggested tag" chip row.  Solves
+  // the "every save creates a new typo'd category" problem — admins
+  // pick from what already exists instead of retyping.
+  //
+  // We ALSO consume the underlying `bookmarks` array here for the
+  // dedup check below.  Both the dedup and suggestions need the same
+  // /api/bookmarks?perPage=500 payload — pulling them through one
+  // hook means one SWR cache key and one network fetch per modal
+  // open instead of two.
+  const {
+    categories: catSuggestions,
+    tags: tagSuggestions,
+    bookmarks: allBookmarks,
+    isLoading: suggestionsLoading,
+  } = useBookmarkSuggestions();
 
   // Default URL: HTTPS scheme assumed.  If the server is HTTP-only
   // (unusual), the user can edit the URL field before submit.  We
@@ -57,25 +84,32 @@ export default function BookmarkFromServerDialog({
   const initialTitle = serverName;
   const initialUrl = serverName ? `https://${serverName}` : "";
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<{
+    title: string;
+    url: string;
+    category: string;
+    description: string;
+    // Multi-value: `TagInput` owns chip rendering + dropdown.  The
+    // string[] is the source of truth — no more comma-separated
+    // string in-form state.  Conversion still happens at the
+    // backend boundary on save.
+    tags: string[];
+    isPublic: boolean;
+  }>({
     title: initialTitle,
     url: initialUrl,
     category: "",
     description: "",
-    tags: "",
+    tags: [],
     isPublic: false,
   });
   const [saving, setSaving] = useState(false);
-  // `existing` is the bookmark id that already covers this host.
-  // Populated by the duplicate-check fetch each time the modal opens.
-  // null = no duplicate found; undefined = check hasn't completed yet.
-  const [existing, setExisting] = useState<string | null | undefined>(
-    undefined,
-  );
 
-  // Reset form + re-run dedup check every time the modal opens with a
-  // different server.  Without this, the user could close, change the
-  // server_name field, re-open, and see stale prefills.
+  // Reset form fields each time the modal opens with a different
+  // server.  Without this, the user could close, change the
+  // server_name field, re-open, and see stale prefills.  Pure
+  // form-state work — the dedup result is derived separately
+  // below from the shared bookmarks list.
   useEffect(() => {
     if (!open) return;
     setForm({
@@ -83,55 +117,45 @@ export default function BookmarkFromServerDialog({
       url: serverName ? `https://${serverName}` : "",
       category: "",
       description: "",
-      tags: "",
+      tags: [],
       isPublic: false,
     });
-    setExisting(undefined);
-    if (!serverName) {
-      setExisting(null);
-      return;
-    }
-    // Fetch ALL bookmarks (small set in practice) and look for an
-    // exact host match.  We don't pass a `filter: { host }` because
-    // the Lua backend's list endpoint doesn't filter on this field —
-    // it'd silently return everything anyway, masking the intent.
-    //
-    // CRITICAL: only USER bookmarks count as duplicates.  The
-    // /api/bookmarks endpoint (api/bookmarks.lua: get_merged_bookmarks)
-    // synthesises a "lean" virtual bookmark for every saved server —
-    // those entries come back with `auto_generated: true` and exist
-    // only because the server does.  If we treated them as duplicates,
-    // the modal would refuse to ever create a real bookmark (the lean
-    // entry for the very server we're trying to bookmark is always
-    // present!).  We only dedup against `auto_generated === false`
-    // entries — i.e. ones a human explicitly saved before.
-    let cancelled = false;
-    dp.getList<BookmarkType>("bookmarks", { pagination: { page: 1, perPage: 500 } })
-      .then((res) => {
-        if (cancelled) return;
-        const hit = (res.data ?? []).find(
-          (b) =>
-            b.auto_generated === false &&
-            ((b.host ?? "").toLowerCase() === serverName.toLowerCase() ||
-              // Also catch the case where a previous quick-create
-              // stored the full URL as the host (older shape).
-              // Compare hosts out of both fields, defensively.
-              normaliseHost(b.url) === serverName.toLowerCase()),
-        );
-        setExisting(hit?.id ?? null);
-      })
-      .catch(() => {
-        // Bookmarks list failed — don't block the user; just skip the
-        // dedup check.  Worst case is one duplicate row.
-        if (!cancelled) setExisting(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [open, serverName, dp]);
+  }, [open, serverName]);
 
+  // Duplicate-check derived synchronously from the shared bookmark
+  // list (which `useBookmarkSuggestions` already fetches).  Returns:
+  //   - undefined  → still loading; UI shows "Checking…"
+  //   - null       → no duplicate, Create button enabled
+  //   - string id  → existing user bookmark found, "Open existing"
+  //
+  // CRITICAL: only USER bookmarks count as duplicates.  The
+  // /api/bookmarks endpoint (api/bookmarks.lua: get_merged_bookmarks)
+  // synthesises a "lean" virtual bookmark for every saved server —
+  // those entries come back with `auto_generated: true` and exist
+  // only because the server does.  Matching against them would make
+  // the modal refuse to ever create a real bookmark for the very
+  // server it's bookmarking.  We only dedup against
+  // `auto_generated === false` entries — humans who saved manually.
+  const existing = useMemo<string | null | undefined>(() => {
+    if (!serverName) return null;
+    if (suggestionsLoading) return undefined;
+    const target = serverName.toLowerCase();
+    const hit = allBookmarks.find(
+      (b) =>
+        b.auto_generated === false &&
+        ((b.host ?? "").toLowerCase() === target ||
+          // Also catch the case where a previous quick-create
+          // stored the full URL as the host (older shape).
+          normaliseHost(b.url) === target),
+    );
+    return hit?.id ?? null;
+  }, [serverName, suggestionsLoading, allBookmarks]);
+
+  // Generic field setter typed by the form shape so TS catches
+  // mismatches (e.g. passing a number where a string is expected).
+  // tags + isPublic are non-string so we keep the value param wide.
   const handleChange = useCallback(
-    (field: keyof typeof form, value: string | boolean) => {
+    <K extends keyof typeof form>(field: K, value: (typeof form)[K]) => {
       setForm((prev) => ({ ...prev, [field]: value }));
     },
     [],
@@ -157,10 +181,10 @@ export default function BookmarkFromServerDialog({
         url: form.url.trim(),
         category: form.category.trim(),
         description: form.description.trim(),
-        tags: form.tags
-          .split(",")
-          .map((t) => t.trim())
-          .filter(Boolean),
+        // Already a clean string[] from TagInput — no split needed.
+        // Trim and filter defensively in case a future caller passes
+        // a value containing whitespace.
+        tags: form.tags.map((t) => t.trim()).filter(Boolean),
         public: form.isPublic,
         ...(profileId ? { profile_id: profileId } : {}),
         // Mark as quick-created from a server so future tooling
@@ -176,8 +200,28 @@ export default function BookmarkFromServerDialog({
       });
     } finally {
       setSaving(false);
+      // Drop every cached `useList("bookmarks", ...)` entry — covers
+      // the dedup query, the suggestions hook, the admin list page,
+      // the dashboard's RecentBookmarks widget.  SWR keys are
+      // `[resource, JSON.stringify(params)]` arrays so we match on
+      // the first element.  revalidate:true re-fetches active
+      // subscribers immediately; inactive ones revalidate on next
+      // mount.
+      //
+      // In `finally` so it ALSO runs on the error path: the user's
+      // SWR cache might be stale before they save (someone else
+      // edited a category from another session), they hit Save,
+      // backend returns 4xx, the autocomplete on the next retry
+      // would still show the stale list — defeating the whole
+      // point of the cache fix.  Refetching after a failed write
+      // is cheap (~50 entries) and removes the gotcha.
+      globalMutate(
+        (key) => Array.isArray(key) && key[0] === "bookmarks",
+        undefined,
+        { revalidate: true },
+      );
     }
-  }, [existing, form, serverName, profileId, dp, notify, onClose]);
+  }, [existing, form, serverName, profileId, dp, globalMutate, notify, onClose]);
 
   const checking = existing === undefined;
 
@@ -245,20 +289,31 @@ export default function BookmarkFromServerDialog({
         />
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <Input
+          <CreatableCombobox
             label="Category (optional)"
             value={form.category}
-            onChange={(e) => handleChange("category", e.target.value)}
+            onChange={(v) => handleChange("category", v)}
             disabled={!!existing}
-            placeholder="e.g. internal, customer, demo"
+            placeholder="Pick or type to create…"
+            options={catSuggestions}
+            hint={
+              catSuggestions.length > 0
+                ? "Click to pick from existing, or type to create a new one."
+                : "Type to create the first category."
+            }
           />
-          <Input
+          <TagInput
             label="Tags (optional)"
             value={form.tags}
-            onChange={(e) => handleChange("tags", e.target.value)}
+            onChange={(v) => handleChange("tags", v)}
             disabled={!!existing}
-            placeholder="comma, separated"
-            hint="Comma-separated. Used for filtering on the bookmarks page."
+            options={tagSuggestions}
+            placeholder="Click and pick or type…"
+            hint={
+              tagSuggestions.length > 0
+                ? "Click to browse existing tags, or type to create a new one."
+                : "Type a tag and press Enter to add it."
+            }
           />
         </div>
 
