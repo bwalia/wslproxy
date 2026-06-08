@@ -275,7 +275,13 @@ const TopCountries = React.memo(function TopCountries({
               <span className="min-w-0 flex-1 truncate text-slate-700 dark:text-slate-300">
                 {name}
               </span>
-              <span className="shrink-0 font-medium text-slate-600 dark:text-slate-400">
+              {/* Fixed-width right-aligned count so the name column's
+                  flex-1 share is constant across rows (otherwise a
+                  6-digit count steals width from the name on row 1
+                  while a 2-digit count gives it back on row 10,
+                  shifting bars around).  Tabular-nums is set on
+                  body globally — see globals.css. */}
+              <span className="w-14 shrink-0 text-right font-medium text-slate-600 dark:text-slate-400">
                 {entry.requests.toLocaleString()}
               </span>
               <div className="relative h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
@@ -439,8 +445,15 @@ const GeoTrafficMap: React.FC<GeoTrafficMapProps> = ({ geoData, loading }) => {
             </div>
           </div>
 
-          {/* Right sidebar — desktop only */}
-          <div className="hidden w-56 shrink-0 border-t p-4 lg:block lg:border-l lg:border-t-0 border-slate-200 dark:border-slate-800">
+          {/* Right sidebar — desktop only.
+              Bumped from w-56 (224px) to w-72 (288px) so country names
+              like "Switzerland", "United Kingdom" stop being
+              truncated to "Switzerl…", "Uni…".  The country column
+              uses flex-1 + truncate but had ~88px of usable width at
+              w-56 once the rank, count, and bar took their fixed
+              shares.  72 / 18rem fits every country in our
+              COUNTRY_NAMES table at the current 12px size. */}
+          <div className="hidden w-72 shrink-0 border-t p-4 lg:block lg:border-l lg:border-t-0 border-slate-200 dark:border-slate-800">
             <TopCountries entries={sorted} total={total} />
           </div>
         </div>

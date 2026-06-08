@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
+import { useSWRConfig } from "swr";
 import { STORAGE_KEYS, get, set, remove } from "@/lib/storage";
 
 /**
@@ -54,6 +55,15 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
+  // SWR cache control — used in `login()` to nuke any 401 responses
+  // cached from the *previous* (expired) session.  Without this, the
+  // dashboard mounts after navigation, every `useList`/`useOne` hook
+  // finds the old 401 within SWR's 5 s `dedupingInterval` (see
+  // providers.tsx), returns the cached error, and the user appears to
+  // stay on `/login` (the navigation completed, but every component
+  // hydrates with errors — and any error-driven hard redirect in
+  // apiFetch immediately bounces them back).
+  const { mutate } = useSWRConfig();
   const [user, setUser] = useState<SessionUser | null>(null);
   const [instance, setInstance] = useState<SessionInstance | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -141,6 +151,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       setIsAuthenticated(true);
 
+      // Drop every SWR cache entry that's still carrying a 401 from
+      // the just-expired session.  Without this, the post-login
+      // dashboard re-renders, every `useList`/`useOne` looks up its
+      // cache key, finds the previous 401 within the 5 s
+      // `dedupingInterval` window, and returns the cached error
+      // before the network even gets touched.  Components render
+      // failure states and any error-driven redirect in apiFetch
+      // (`window.location.href = "/login"`) bounces the user back —
+      // exactly the symptom users reported as "I keep clicking login,
+      // it stays on /login until I reload."
+      //
+      // `mutate(() => true, undefined, { revalidate: false })` matches
+      // every key (the predicate returns true for all) and writes
+      // `undefined` so the next render does a fresh fetch with the
+      // new cookie.  `revalidate: false` avoids stampeding the
+      // backend with one refetch per cached key right now — the
+      // refetches happen lazily as components actually need their
+      // data.
+      mutate(() => true, undefined, { revalidate: false });
+
       // Navigation is the caller's responsibility — the LoginPage knows
       // about the `?returnTo=` query param and we don't.  Previously
       // this also did `router.push("/")`, which raced against the
@@ -149,7 +179,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // leaving the user stuck on /login with a valid cookie until they
       // hit reload.  One router call per login flow, end of race.
     },
-    [],
+    [mutate],
   );
 
   const logout = useCallback(async () => {

@@ -14,6 +14,7 @@ import {
   Shield,
   History,
   Network,
+  Bookmark,
 } from "lucide-react";
 import { useOne, useList, useDataProvider } from "@/hooks/useResource";
 import { useNotification } from "@/contexts/NotificationContext";
@@ -25,6 +26,7 @@ import Skeleton from "@/components/ui/Skeleton";
 import FetchErrorState from "@/components/ui/FetchErrorState";
 import NginxServerTab from "@/components/servers/NginxServerTab";
 import CachePurgeButton from "@/components/servers/CachePurgeButton";
+import BookmarkFromServerDialog from "@/components/servers/BookmarkFromServerDialog";
 
 // Deferred — heavy tabs only loaded when first opened
 const VarnishTab = dynamic(() => import("@/components/servers/VarnishTab"), {
@@ -362,6 +364,7 @@ export default function ServerDetailPage() {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
+  const [showBookmark, setShowBookmark] = useState(false);
   // Per-field validation errors from the validation gate, surfaced
   // inline on each input + as red dots on the relevant tab buttons.
   // Cleared on successful submit and on the next setForm so the user
@@ -566,6 +569,26 @@ export default function ServerDetailPage() {
                 disabled={!form.cache_enabled || !form.server_name}
               />
             )}
+            {/* Bookmark only after Save — pre-fill needs a real
+                `server_name` and creating a bookmark for a record
+                that doesn't exist yet would orphan it.  Hidden on
+                Create / Clone for the same reason the Delete button
+                is. */}
+            {!isCreate && (
+              <Button
+                variant="ghost"
+                onClick={() => setShowBookmark(true)}
+                disabled={!form.server_name}
+                icon={<Bookmark className="h-4 w-4" />}
+                title={
+                  form.server_name
+                    ? `Create a bookmark for ${form.server_name}`
+                    : "Save the server first to enable bookmarking"
+                }
+              >
+                Bookmark
+              </Button>
+            )}
             {!isCreate && (
               <Button
                 variant="danger"
@@ -706,6 +729,14 @@ export default function ServerDetailPage() {
           </Button>
         </div>
       )}
+
+      {/* ── Quick Bookmark Dialog ────────────────────────────────────── */}
+      <BookmarkFromServerDialog
+        open={showBookmark}
+        onClose={() => setShowBookmark(false)}
+        serverName={form.server_name ?? ""}
+        profileId={form.profile_id ?? data?.profile_id}
+      />
 
       {/* ── Delete Confirmation ──────────────────────────────────────── */}
       <ConfirmDialog
