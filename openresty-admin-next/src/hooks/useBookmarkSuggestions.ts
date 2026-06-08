@@ -12,6 +12,13 @@ interface BookmarkSuggestions {
   /** Distinct, non-empty tag strings used by existing user bookmarks.
    *  Same sort. */
   tags: string[];
+  /** Raw bookmark list backing the suggestions.  Exposed so callers
+   *  that ALSO need to scan bookmarks (e.g. the dedup check in
+   *  BookmarkFromServerDialog) can read from this single SWR cache
+   *  instead of firing a parallel `dp.getList(...)` for the same
+   *  data.  Falls back to an empty array on the first render
+   *  before the fetch resolves. */
+  bookmarks: Bookmark[];
   /** Pass-through loading state so the calling form can show a hint
    *  ("loading suggestions…") if it cares; usually it doesn't and
    *  just renders an empty datalist while we wait. */
@@ -69,6 +76,10 @@ export function useBookmarkSuggestions(): BookmarkSuggestions {
     return {
       categories: Array.from(cats).sort(sortCI),
       tags: Array.from(tagsSet).sort(sortCI),
+      // Expose the raw list so other callers (the dedup check) can
+      // read from it without firing a second fetch for the exact
+      // same SWR key.
+      bookmarks: data ?? [],
       isLoading,
     };
   }, [data, isLoading]);

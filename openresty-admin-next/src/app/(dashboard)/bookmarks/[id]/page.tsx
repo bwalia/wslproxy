@@ -127,7 +127,6 @@ export default function BookmarkDetailPage() {
         await dataProvider.update("bookmarks", id, payload);
         notify("Bookmark updated successfully", { type: "success" });
       }
-      invalidateBookmarks();
       router.push("/bookmarks");
     } catch (err) {
       notify((err as Error).message || "Failed to save bookmark", {
@@ -135,6 +134,11 @@ export default function BookmarkDetailPage() {
       });
     } finally {
       setSaving(false);
+      // Invalidate in `finally` (not the try block) so the
+      // autocomplete refreshes even when the server rejects.  Stale
+      // suggestions on a retry was the exact symptom that motivated
+      // the cache fix; moving it here closes the failure-path gap.
+      invalidateBookmarks();
     }
   }, [isCreate, form, id, dataProvider, invalidateBookmarks, notify, router]);
 
@@ -143,7 +147,6 @@ export default function BookmarkDetailPage() {
     try {
       await dataProvider.remove("bookmarks", id);
       notify("Bookmark deleted successfully", { type: "success" });
-      invalidateBookmarks();
       router.push("/bookmarks");
     } catch (err) {
       notify((err as Error).message || "Failed to delete bookmark", {
@@ -152,6 +155,9 @@ export default function BookmarkDetailPage() {
     } finally {
       setDeleting(false);
       setShowDelete(false);
+      // Same reasoning as handleSubmit — invalidate on the error
+      // path too so a retry sees fresh state.
+      invalidateBookmarks();
     }
   }, [id, dataProvider, invalidateBookmarks, notify, router]);
 

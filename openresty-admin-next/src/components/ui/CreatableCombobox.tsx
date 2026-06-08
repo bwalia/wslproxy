@@ -293,8 +293,16 @@ export default function CreatableCombobox({
                 </li>
               )}
               {filtered.length === 0 && !showCreateRow && (
+                // Two distinct empty states: "nothing exists yet" on
+                // a fresh dashboard vs. "your search matched nothing".
+                // Conflating them on first open ("No matches.") makes
+                // the field look broken to admins who haven't created
+                // anything yet — they don't realise typing creates a
+                // new value.
                 <li className="px-3 py-2 text-sm text-slate-500 dark:text-slate-400">
-                  No matches.
+                  {options.length === 0
+                    ? "Nothing here yet — type to create the first one."
+                    : "No matches."}
                 </li>
               )}
               {filtered.map((opt, idx) => {

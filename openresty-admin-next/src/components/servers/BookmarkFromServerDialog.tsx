@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Bookmark, ExternalLink } from "lucide-react";
 import Dialog from "@/components/ui/Dialog";
 import Button from "@/components/ui/Button";
@@ -12,7 +12,6 @@ import { useSWRConfig } from "swr";
 import { useDataProvider } from "@/hooks/useResource";
 import { useBookmarkSuggestions } from "@/hooks/useBookmarkSuggestions";
 import { useNotification } from "@/contexts/NotificationContext";
-import type { Bookmark as BookmarkType } from "@/types";
 
 interface BookmarkFromServerDialogProps {
   open: boolean;
@@ -64,8 +63,18 @@ export default function BookmarkFromServerDialog({
   // autocomplete dropdowns + the "suggested tag" chip row.  Solves
   // the "every save creates a new typo'd category" problem — admins
   // pick from what already exists instead of retyping.
-  const { categories: catSuggestions, tags: tagSuggestions } =
-    useBookmarkSuggestions();
+  //
+  // We ALSO consume the underlying `bookmarks` array here for the
+  // dedup check below.  Both the dedup and suggestions need the same
+  // /api/bookmarks?perPage=500 payload — pulling them through one
+  // hook means one SWR cache key and one network fetch per modal
+  // open instead of two.
+  const {
+    categories: catSuggestions,
+    tags: tagSuggestions,
+    bookmarks: allBookmarks,
+    isLoading: suggestionsLoading,
+  } = useBookmarkSuggestions();
 
   // Default URL: HTTPS scheme assumed.  If the server is HTTP-only
   // (unusual), the user can edit the URL field before submit.  We
@@ -95,16 +104,12 @@ export default function BookmarkFromServerDialog({
     isPublic: false,
   });
   const [saving, setSaving] = useState(false);
-  // `existing` is the bookmark id that already covers this host.
-  // Populated by the duplicate-check fetch each time the modal opens.
-  // null = no duplicate found; undefined = check hasn't completed yet.
-  const [existing, setExisting] = useState<string | null | undefined>(
-    undefined,
-  );
 
-  // Reset form + re-run dedup check every time the modal opens with a
-  // different server.  Without this, the user could close, change the
-  // server_name field, re-open, and see stale prefills.
+  // Reset form fields each time the modal opens with a different
+  // server.  Without this, the user could close, change the
+  // server_name field, re-open, and see stale prefills.  Pure
+  // form-state work — the dedup result is derived separately
+  // below from the shared bookmarks list.
   useEffect(() => {
     if (!open) return;
     setForm({
@@ -115,49 +120,36 @@ export default function BookmarkFromServerDialog({
       tags: [],
       isPublic: false,
     });
-    setExisting(undefined);
-    if (!serverName) {
-      setExisting(null);
-      return;
-    }
-    // Fetch ALL bookmarks (small set in practice) and look for an
-    // exact host match.  We don't pass a `filter: { host }` because
-    // the Lua backend's list endpoint doesn't filter on this field —
-    // it'd silently return everything anyway, masking the intent.
-    //
-    // CRITICAL: only USER bookmarks count as duplicates.  The
-    // /api/bookmarks endpoint (api/bookmarks.lua: get_merged_bookmarks)
-    // synthesises a "lean" virtual bookmark for every saved server —
-    // those entries come back with `auto_generated: true` and exist
-    // only because the server does.  If we treated them as duplicates,
-    // the modal would refuse to ever create a real bookmark (the lean
-    // entry for the very server we're trying to bookmark is always
-    // present!).  We only dedup against `auto_generated === false`
-    // entries — i.e. ones a human explicitly saved before.
-    let cancelled = false;
-    dp.getList<BookmarkType>("bookmarks", { pagination: { page: 1, perPage: 500 } })
-      .then((res) => {
-        if (cancelled) return;
-        const hit = (res.data ?? []).find(
-          (b) =>
-            b.auto_generated === false &&
-            ((b.host ?? "").toLowerCase() === serverName.toLowerCase() ||
-              // Also catch the case where a previous quick-create
-              // stored the full URL as the host (older shape).
-              // Compare hosts out of both fields, defensively.
-              normaliseHost(b.url) === serverName.toLowerCase()),
-        );
-        setExisting(hit?.id ?? null);
-      })
-      .catch(() => {
-        // Bookmarks list failed — don't block the user; just skip the
-        // dedup check.  Worst case is one duplicate row.
-        if (!cancelled) setExisting(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [open, serverName, dp]);
+  }, [open, serverName]);
+
+  // Duplicate-check derived synchronously from the shared bookmark
+  // list (which `useBookmarkSuggestions` already fetches).  Returns:
+  //   - undefined  → still loading; UI shows "Checking…"
+  //   - null       → no duplicate, Create button enabled
+  //   - string id  → existing user bookmark found, "Open existing"
+  //
+  // CRITICAL: only USER bookmarks count as duplicates.  The
+  // /api/bookmarks endpoint (api/bookmarks.lua: get_merged_bookmarks)
+  // synthesises a "lean" virtual bookmark for every saved server —
+  // those entries come back with `auto_generated: true` and exist
+  // only because the server does.  Matching against them would make
+  // the modal refuse to ever create a real bookmark for the very
+  // server it's bookmarking.  We only dedup against
+  // `auto_generated === false` entries — humans who saved manually.
+  const existing = useMemo<string | null | undefined>(() => {
+    if (!serverName) return null;
+    if (suggestionsLoading) return undefined;
+    const target = serverName.toLowerCase();
+    const hit = allBookmarks.find(
+      (b) =>
+        b.auto_generated === false &&
+        ((b.host ?? "").toLowerCase() === target ||
+          // Also catch the case where a previous quick-create
+          // stored the full URL as the host (older shape).
+          normaliseHost(b.url) === target),
+    );
+    return hit?.id ?? null;
+  }, [serverName, suggestionsLoading, allBookmarks]);
 
   // Generic field setter typed by the form shape so TS catches
   // mismatches (e.g. passing a number where a string is expected).
@@ -201,18 +193,6 @@ export default function BookmarkFromServerDialog({
         auto_generated: true,
       });
       notify("Bookmark created.", { type: "success" });
-      // Drop every cached `useList("bookmarks", ...)` entry —
-      // covers the dedup query, the suggestions hook, the admin
-      // list page, the dashboard's RecentBookmarks widget.  SWR
-      // keys are `[resource, JSON.stringify(params)]` arrays so we
-      // match on the first element.  revalidate:true re-fetches
-      // active subscribers immediately; inactive ones revalidate
-      // on next mount.
-      globalMutate(
-        (key) => Array.isArray(key) && key[0] === "bookmarks",
-        undefined,
-        { revalidate: true },
-      );
       onClose();
     } catch (err) {
       notify((err as Error)?.message ?? "Failed to create bookmark.", {
@@ -220,6 +200,26 @@ export default function BookmarkFromServerDialog({
       });
     } finally {
       setSaving(false);
+      // Drop every cached `useList("bookmarks", ...)` entry — covers
+      // the dedup query, the suggestions hook, the admin list page,
+      // the dashboard's RecentBookmarks widget.  SWR keys are
+      // `[resource, JSON.stringify(params)]` arrays so we match on
+      // the first element.  revalidate:true re-fetches active
+      // subscribers immediately; inactive ones revalidate on next
+      // mount.
+      //
+      // In `finally` so it ALSO runs on the error path: the user's
+      // SWR cache might be stale before they save (someone else
+      // edited a category from another session), they hit Save,
+      // backend returns 4xx, the autocomplete on the next retry
+      // would still show the stale list — defeating the whole
+      // point of the cache fix.  Refetching after a failed write
+      // is cheap (~50 entries) and removes the gotcha.
+      globalMutate(
+        (key) => Array.isArray(key) && key[0] === "bookmarks",
+        undefined,
+        { revalidate: true },
+      );
     }
   }, [existing, form, serverName, profileId, dp, globalMutate, notify, onClose]);
 

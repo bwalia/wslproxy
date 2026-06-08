@@ -79,13 +79,26 @@ export default function TagInput({
   const wrapRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Defensive: filter out any non-string members in `value` before
+  // we ever touch them with .toLowerCase() or render them.  The
+  // backend SHOULD always send a clean string[] (api/bookmarks.lua's
+  // ensure_tags_array() normalises shape), but bookmarks.json can
+  // be hand-edited and cjson can emit ngx.null for JSON null — the
+  // form should not become un-editable just because one entry got
+  // corrupted.  See useBookmarkSuggestions.ts:62 for the matching
+  // pattern.
+  const cleanValue = useMemo(
+    () => value.filter((t): t is string => typeof t === "string"),
+    [value],
+  );
+
   // Compare tags case-insensitively for "already in value" — admins
   // shouldn't be able to accidentally add "Prod" and "prod" as
   // separate tags via this component.  The original-case copy in
   // `value` is preserved on display.
   const valueLowerSet = useMemo(
-    () => new Set(value.map((t) => t.toLowerCase())),
-    [value],
+    () => new Set(cleanValue.map((t) => t.toLowerCase())),
+    [cleanValue],
   );
 
   // Available options = source options minus already-selected ones,
@@ -118,7 +131,9 @@ export default function TagInput({
     !exactInOptions &&
     !alreadySelected;
 
-  const atMax = typeof maxTags === "number" && value.length >= maxTags;
+  // Use cleanValue (string-only) for limit + rendering so non-string
+  // junk doesn't count against maxTags and doesn't crash the map().
+  const atMax = typeof maxTags === "number" && cleanValue.length >= maxTags;
   const totalRows = filtered.length + (showCreateRow ? 1 : 0);
 
   // Click outside closes the dropdown.
@@ -134,6 +149,16 @@ export default function TagInput({
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
 
+  // Reset the highlighted row each time the dropdown re-opens.
+  // Without this, activeIndex carries over from the previous open
+  // session — user closes after navigating to row 3, re-opens, and
+  // the highlight is still at row 3 (which may no longer exist if
+  // the available-options list changed in between).  Mirrors the
+  // open-side-effect in CreatableCombobox for consistency.
+  useEffect(() => {
+    if (open) setActiveIndex(0);
+  }, [open]);
+
   // Clamp active row when the filter shrinks the list.
   useEffect(() => {
     if (activeIndex >= totalRows) {
@@ -147,27 +172,33 @@ export default function TagInput({
       if (!clean) return;
       if (valueLowerSet.has(clean.toLowerCase())) return;
       if (atMax) return;
-      onChange([...value, clean]);
+      // Append to the cleaned array, not the raw `value` — this also
+      // silently drops any pre-existing non-string members on the
+      // first user edit, so a corrupted record gradually heals on
+      // its first save instead of preserving the corruption.
+      onChange([...cleanValue, clean]);
       setQuery("");
       setActiveIndex(0);
       inputRef.current?.focus();
     },
-    [atMax, onChange, value, valueLowerSet],
+    [atMax, cleanValue, onChange, valueLowerSet],
   );
 
   const removeTag = useCallback(
     (tag: string) => {
-      onChange(value.filter((t) => t !== tag));
+      onChange(cleanValue.filter((t) => t !== tag));
     },
-    [onChange, value],
+    [onChange, cleanValue],
   );
 
   const handleKey = useCallback(
     (e: KeyboardEvent<HTMLInputElement>) => {
-      // Backspace on an empty query removes the last chip.
-      if (e.key === "Backspace" && query.length === 0 && value.length > 0) {
+      // Backspace on an empty query removes the last chip.  Read
+      // from `cleanValue` so a corrupted leading non-string entry
+      // doesn't get "removed" via the original `value` index.
+      if (e.key === "Backspace" && query.length === 0 && cleanValue.length > 0) {
         e.preventDefault();
-        removeTag(value[value.length - 1]);
+        removeTag(cleanValue[cleanValue.length - 1]);
         return;
       }
       if (e.key === "Escape") {
@@ -211,6 +242,7 @@ export default function TagInput({
       activeIndex,
       addTag,
       allowCreate,
+      cleanValue,
       filtered,
       open,
       query,
@@ -218,7 +250,6 @@ export default function TagInput({
       showCreateRow,
       totalRows,
       trimmedQuery,
-      value,
     ],
   );
 
@@ -248,7 +279,7 @@ export default function TagInput({
             disabled && "cursor-not-allowed opacity-60",
           )}
         >
-          {value.map((tag) => (
+          {cleanValue.map((tag) => (
             <span
               key={tag}
               className="inline-flex items-center gap-1 rounded-md bg-primary-50 px-2 py-0.5 text-xs font-medium text-primary-700 dark:bg-primary-900/30 dark:text-primary-300"
@@ -285,7 +316,7 @@ export default function TagInput({
             placeholder={
               atMax
                 ? `Limit of ${maxTags} reached`
-                : value.length === 0
+                : cleanValue.length === 0
                   ? placeholder
                   : ""
             }
