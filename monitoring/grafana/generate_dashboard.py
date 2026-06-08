@@ -775,6 +775,11 @@ def sec_cache():
     hits = f'sum(rate(nginx_cache_hits_total{{{SH}}}[{RI}]))'
     miss = f'sum(rate(nginx_cache_misses_total{{{SH}}}[{RI}]))'
     return row("12 · Cache Performance", [
+        stat("Cache-Enabled Servers",
+             [tgt(f'sum(nginx_cache_enabled{{{SH}}} == 1) or vector(0)')],
+             w=6, h=7, color_bg=False,
+             desc="Servers with caching enabled "
+                  "(nginx_cache_enabled gauge, 1=on)."),
         gauge("Cache Hit Rate",
               [tgt(f'100 * {hits} / clamp_min({hits} + {miss}, 1e-9)', "hit rate")],
               w=6, h=7, decimals=1,
@@ -854,6 +859,21 @@ def sec_lb():
            thresholds=steps((None, "green"), (1, "yellow"), (2.5, "red")),
            desc="Rising p95 under steady traffic = backend saturating. "
                 "Bucket ceiling is 2.5s (exporter histogram definition)."),
+        ts("Requests by Upstream Address (top 10)",
+           [tgt(f'topk(10, sum by (upstream) (rate(nginx_proxy_requests_total{{{SI}}}[{RI}])))',
+                "{{upstream}}")],
+           w=12, h=6, unit="reqps",
+           desc="Raw proxy traffic keyed by upstream ip:port "
+                "(nginx_proxy_requests_total) — complements the logical "
+                "backend_label view above."),
+        ts("Upstream Latency p95 by Address (top 10)",
+           [tgt(f'topk(10, histogram_quantile(0.95, sum by (upstream, le) '
+                f'(rate(nginx_proxy_response_time_seconds_bucket{{{SI}}}[{RI}]))))',
+                "{{upstream}}")],
+           w=12, h=6, unit="s",
+           thresholds=steps((None, "green"), (1, "yellow"), (2.5, "red")),
+           desc="Per-upstream-address p95 response time "
+                "(nginx_proxy_response_time_seconds)."),
     ])
 
 # ============================================================ 14. API GATEWAY
@@ -983,7 +1003,79 @@ def sec_trouble():
                             "all panels."),
     ])
 
-# ============================================================ 17. ALERTING
+# ============================================================ 17. TRAFFIC COMPOSITION
+def sec_traffic():
+    REQSZ = "nginx_http_request_size_bytes"
+    RESPSZ = "nginx_http_response_size_bytes"
+    BYIP = "nginx_http_requests_by_ip_total"
+    ERR = "nginx_http_errors_total"
+    def q(metric, quantile):
+        return (f'histogram_quantile({quantile}, sum by (le) '
+                f'(rate({metric}_bucket{{{SH}}}[{RI}])))')
+    return row("17 · Traffic Composition & Top Talkers", [
+        stat("Unique Source IPs (range)",
+             [tgt(f'count(sum by (ip) (increase({BYIP}{{{SH}}}[$__range])) > 0) or vector(0)')],
+             w=6, h=5, color_bg=False,
+             desc="Distinct client IPs seen in the selected range "
+                  "(from nginx_http_requests_by_ip_total)."),
+        stat("Ingress Bandwidth (req bodies)",
+             [tgt(f'sum(rate({REQSZ}_sum{{{SH}}}[{RI}])) or vector(0)')],
+             w=6, h=5, unit="Bps", color_bg=False,
+             desc="Bytes/s of inbound request payloads."),
+        stat("Egress Bandwidth (responses)",
+             [tgt(f'sum(rate({RESPSZ}_sum{{{SH}}}[{RI}])) or vector(0)')],
+             w=6, h=5, unit="Bps", color_bg=False,
+             desc="Bytes/s served to clients."),
+        stat("Avg Response Size",
+             [tgt(f'sum(rate({RESPSZ}_sum{{{SH}}}[{RI}])) '
+                  f'/ clamp_min(sum(rate({RESPSZ}_count{{{SH}}}[{RI}])), 1e-9)')],
+             w=6, h=5, unit="bytes", color_bg=False),
+        ts("Request Size — p50 / p95 / p99",
+           tgts((q(REQSZ, 0.50), "p50"), (q(REQSZ, 0.95), "p95"),
+                (q(REQSZ, 0.99), "p99")),
+           w=12, h=8, unit="bytes",
+           desc="Inbound request payload size distribution "
+                "(nginx_http_request_size_bytes histogram)."),
+        ts("Response Size — p50 / p95 / p99",
+           tgts((q(RESPSZ, 0.50), "p50"), (q(RESPSZ, 0.95), "p95"),
+                (q(RESPSZ, 0.99), "p99")),
+           w=12, h=8, unit="bytes",
+           desc="Outbound response size distribution "
+                "(nginx_http_response_size_bytes histogram)."),
+        ts("Egress Bandwidth by Service (top 10)",
+           [tgt(f'topk(10, sum by (host) (rate({RESPSZ}_sum{{{SH}}}[{RI}])))',
+                "{{host}}")],
+           w=12, h=8, unit="Bps",
+           desc="Which domains consume the most outbound bandwidth."),
+        table("Top Source IPs (range)",
+              [tgt(f'topk(25, sum by (ip, host) (increase({BYIP}{{{SH}}}[$__range])))',
+                   instant=True, fmt="table")],
+              w=12, h=8,
+              desc="Heaviest client IPs by request volume — scraper / abuse "
+                   "detection. From nginx_http_requests_by_ip_total.",
+              transformations=[{"id": "organize", "options": {
+                  "excludeByName": {"Time": True, "instance": True, "job": True},
+                  "renameByName": {"ip": "Source IP", "host": "Service",
+                                   "Value": "Requests"}}},
+                  {"id": "sortBy", "options": {
+                      "sort": [{"field": "Requests", "desc": True}]}}]),
+        table("Errors by Route (range)",
+              [tgt(f'topk(25, sum by (host, endpoint, status) '
+                   f'(increase({ERR}{{{SH}}}[$__range])))',
+                   instant=True, fmt="table")],
+              w=24, h=8,
+              desc="Per-endpoint error attribution across all status codes "
+                   "(from nginx_http_errors_total — finer than the 4xx/5xx "
+                   "aggregate counters).",
+              transformations=[{"id": "organize", "options": {
+                  "excludeByName": {"Time": True, "instance": True, "job": True},
+                  "renameByName": {"host": "Service", "endpoint": "Route",
+                                   "status": "Status", "Value": "Errors"}}},
+                  {"id": "sortBy", "options": {
+                      "sort": [{"field": "Errors", "desc": True}]}}]),
+    ])
+
+# ============================================================ 18. ALERTING
 def sec_alerts():
     def sev(name, color):
         return stat(f"{name.capitalize()} Alerts",
@@ -1000,7 +1092,7 @@ def sec_alerts():
                                              "noData": False, "normal": False,
                                              "pending": True}},
                  "fieldConfig": {"defaults": {}, "overrides": []}}
-    return row("17 · Alerting", [
+    return row("18 · Alerting", [
         sev("critical", "red"), sev("warning", "yellow"), sev("info", "blue"),
         stat("Total Firing", [tgt('count(ALERTS{alertstate="firing"}) or vector(0)')],
              w=4, h=5, thresholds=steps((None, "green"), (1, "orange"), (3, "red"))),
@@ -1031,7 +1123,7 @@ def build():
     sections = [sec_exec(), sec_golden(), sec_sli(), sec_slo(), sec_budget(),
                 sec_burn(), sec_latency(), sec_backend(), sec_infra(), sec_ssl(),
                 sec_waf(), sec_cache(), sec_lb(), sec_api(), sec_region(),
-                sec_trouble(), sec_alerts()]
+                sec_trouble(), sec_traffic(), sec_alerts()]
     qvar = lambda name, label, query, **kw: {
         "name": name, "label": label, "type": "query",
         "datasource": DS(),
