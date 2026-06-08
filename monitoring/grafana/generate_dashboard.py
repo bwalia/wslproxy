@@ -182,9 +182,12 @@ def heatmap(title, expr, w=12, h=9, desc=None):
     return panel("heatmap", title, w, h, [t], "s", desc, options=opts)
 
 def state_timeline(title, targets, w=24, h=8, unit="short", desc=None,
-                   thresholds=None, mappings=None):
+                   thresholds=None, mappings=None, row_height=0.85,
+                   show_legend=True):
+    legend = ({"displayMode": "list", "placement": "bottom"}
+              if show_legend else {"showLegend": False})
     opts = {"mergeValues": True, "showValue": "never", "alignValue": "left",
-            "rowHeight": 0.85, "legend": {"displayMode": "list", "placement": "bottom"},
+            "rowHeight": row_height, "legend": legend,
             "tooltip": {"mode": "single"}}
     custom = {"lineWidth": 0, "fillOpacity": 75, "spanNulls": False}
     return panel("state-timeline", title, w, h, targets, unit, desc, thresholds,
@@ -966,15 +969,18 @@ def sec_trouble():
                  w=12, h=8,
                  thresholds=steps((None, "green"), (10, "yellow"), (100, "red"))),
         state_timeline("Incident Timeline — per-service 5xx state",
-                       [tgt(f'(sum by (host) (rate(nginx_http_5xx_errors_total{{{SH}}}[5m])) > bool 0)',
+                       [tgt(f'(sum by (host) (rate(nginx_http_5xx_errors_total{{{SH}}}[5m])) > bool 0) > 0',
                             "{{host}}")],
-                       w=24, h=9,
+                       w=24, h=10, row_height=0.8, show_legend=False,
                        mappings=[{"type": "value", "options": {
-                           "0": {"text": "OK", "color": "green", "index": 0},
-                           "1": {"text": "ERRORS", "color": "red", "index": 1}}}],
-                       thresholds=steps((None, "green"), (1, "red")),
-                       desc="Red segments = the service emitted 5xx in that window. "
-                            "Alert annotations (firing ALERTS) overlay all panels."),
+                           "1": {"text": "5xx", "color": "red", "index": 0}}}],
+                       thresholds=steps((None, "red")),
+                       desc="Incident-only view: a lane appears for a service ONLY while it "
+                            "is emitting 5xx (healthy services are filtered out so the panel "
+                            "stays readable with many hosts selected). Red segment = that "
+                            "service had 5xx in that 5m window; gaps = healthy. Empty panel "
+                            "= no errors in range. Alert annotations (firing ALERTS) overlay "
+                            "all panels."),
     ])
 
 # ============================================================ 17. ALERTING

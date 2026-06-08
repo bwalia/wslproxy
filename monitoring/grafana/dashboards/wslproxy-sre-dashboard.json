@@ -9016,12 +9016,12 @@
             "x": 0,
             "y": 88,
             "w": 24,
-            "h": 9
+            "h": 10
           },
           "targets": [
             {
               "refId": "A",
-              "expr": "(sum by (host) (rate(nginx_http_5xx_errors_total{instance=~\"$instance\",host=~\"$host\"}[5m])) > bool 0)",
+              "expr": "(sum by (host) (rate(nginx_http_5xx_errors_total{instance=~\"$instance\",host=~\"$host\"}[5m])) > bool 0) > 0",
               "datasource": {
                 "type": "prometheus",
                 "uid": "${datasource}"
@@ -9040,10 +9040,6 @@
                 "steps": [
                   {
                     "value": null,
-                    "color": "green"
-                  },
-                  {
-                    "value": 1,
                     "color": "red"
                   }
                 ]
@@ -9052,15 +9048,10 @@
                 {
                   "type": "value",
                   "options": {
-                    "0": {
-                      "text": "OK",
-                      "color": "green",
-                      "index": 0
-                    },
                     "1": {
-                      "text": "ERRORS",
+                      "text": "5xx",
                       "color": "red",
-                      "index": 1
+                      "index": 0
                     }
                   }
                 }
@@ -9076,15 +9067,14 @@
             },
             "overrides": []
           },
-          "description": "Red segments = the service emitted 5xx in that window. Alert annotations (firing ALERTS) overlay all panels.",
+          "description": "Incident-only view: a lane appears for a service ONLY while it is emitting 5xx (healthy services are filtered out so the panel stays readable with many hosts selected). Red segment = that service had 5xx in that 5m window; gaps = healthy. Empty panel = no errors in range. Alert annotations (firing ALERTS) overlay all panels.",
           "options": {
             "mergeValues": true,
             "showValue": "never",
             "alignValue": "left",
-            "rowHeight": 0.85,
+            "rowHeight": 0.8,
             "legend": {
-              "displayMode": "list",
-              "placement": "bottom"
+              "showLegend": false
             },
             "tooltip": {
               "mode": "single"
