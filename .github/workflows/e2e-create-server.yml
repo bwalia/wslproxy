@@ -2,7 +2,7 @@ name: WSL Proxy Create Server Test
 
 # Automated end-to-end test that creates a server through the live admin and
 # verifies it shows up on the /servers list page. On success a new server is
-# left behind so it can be seen at https://prod-our.wslproxy.com/servers.
+# left behind so it can be seen at https://int-our-new.wslproxy.com/servers.
 # Slack is notified on BOTH pass and fail.
 
 on:
@@ -19,11 +19,11 @@ on:
     inputs:
       TARGET_URL:
         description: "Admin dashboard URL to test against (Next.js admin)"
-        default: "https://prod-our.wslproxy.com"
+        default: "https://int-our-new.wslproxy.com"
         required: true
       PROFILE:
         description: "Environment profile to create the server under"
-        default: "prod"
+        default: "int"
         required: true
       CLEANUP:
         type: boolean
@@ -32,10 +32,10 @@ on:
 
 jobs:
   create-server:
-    name: "Create Server (prod ${{ inputs.TARGET_URL || 'https://prod-our.wslproxy.com' }})"
-    # Pin to the prod self-hosted runner — that host has the prod login
-    # credentials at /home/bwalia/.secrets/wslproxy/prod/login-creds.json.
-    runs-on: [self-hosted, prod]
+    name: "Create Server (int ${{ inputs.TARGET_URL || 'https://int-our-new.wslproxy.com' }})"
+    # Pin to the int self-hosted runner — that host has the int login
+    # credentials at /home/bwalia/.secrets/wslproxy/int/login-creds.json.
+    runs-on: [self-hosted, int]
     timeout-minutes: 10
     concurrency:
       group: e2e-create-server-${{ github.ref }}
@@ -47,10 +47,10 @@ jobs:
 
     env:
       # Defaults make the scheduled/push path work without dispatch inputs.
-      TARGET_URL: ${{ inputs.TARGET_URL || 'https://prod-our.wslproxy.com' }}
-      PROFILE: ${{ inputs.PROFILE || 'prod' }}
+      TARGET_URL: ${{ inputs.TARGET_URL || 'https://int-our-new.wslproxy.com' }}
+      PROFILE: ${{ inputs.PROFILE || 'int' }}
       CLEANUP: ${{ inputs.CLEANUP || false }}
-      CREDS_FILE: /home/bwalia/.secrets/wslproxy/prod/login-creds.json
+      CREDS_FILE: /home/bwalia/.secrets/wslproxy/int/login-creds.json
 
     steps:
       - name: Reset workspace (clear root-owned build artifacts)
