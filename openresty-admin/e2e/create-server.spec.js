@@ -126,6 +126,18 @@ test.describe('Create Server (Next.js)', { tag: '@regression' }, () => {
     expect(record?.server_name ?? record?.id).toContain(serverName.split('.')[0]);
 
     // ── 4. Verify it shows up on the /servers list page ────────────────────
+    // The /servers list filters by the UI's *active environment profile*
+    // (localStorage `wslproxy.environment`, JSON-encoded), which defaults to
+    // "prod" when unset. A fresh login leaves it unset, so without this the
+    // list would query the prod profile and never show a server created under
+    // a different profile (e.g. int). Pin the UI to the same profile we created
+    // under so the list and the record line up.
+    await page.evaluate((p) => {
+      localStorage.setItem('wslproxy.environment', JSON.stringify(p));
+      // Legacy unnamespaced key the data-provider falls back to.
+      localStorage.setItem('environment', p);
+    }, PROFILE);
+
     // The list is sorted by created_at DESC, so the freshly-created server is
     // on the first page. Search by name as a belt-and-braces filter in case
     // the default page size ever changes.
