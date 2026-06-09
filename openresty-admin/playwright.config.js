@@ -68,6 +68,13 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
     },
     {
+      // Create-server flow for the Next.js admin: logs in, creates a server
+      // via the authenticated API, and asserts it appears on /servers.
+      name: "create-server",
+      testMatch: /\/create-server\.spec\.js$/,
+      use: { ...devices["Desktop Chrome"] },
+    },
+    {
       name: "logged-in",
       testMatch: /\/dashboard\.spec\.js$/,
       dependencies: ["no-auth"],

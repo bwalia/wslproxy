@@ -1,0 +1,186 @@
+name: WSL Proxy Create Server Test
+
+# Automated end-to-end test that creates a server through the live admin and
+# verifies it shows up on the /servers list page. On success a new server is
+# left behind so it can be seen at https://prod-our.wslproxy.com/servers.
+# Slack is notified on BOTH pass and fail.
+
+on:
+  push:
+    branches:
+      - feat/e2e-create-server-test
+    paths:
+      - "openresty-admin/e2e/create-server.spec.js"
+      - "openresty-admin/e2e/helpers.js"
+      - "openresty-admin/playwright.config.js"
+      - "openresty-admin/package*.json"
+      - ".github/workflows/e2e-create-server.yml"
+  workflow_dispatch:
+    inputs:
+      TARGET_URL:
+        description: "Admin dashboard URL to test against (Next.js admin)"
+        default: "https://prod-our.wslproxy.com"
+        required: true
+      PROFILE:
+        description: "Environment profile to create the server under"
+        default: "prod"
+        required: true
+      CLEANUP:
+        type: boolean
+        description: "Delete the created server after verifying (leave unchecked to keep it visible on /servers)"
+        default: false
+
+jobs:
+  create-server:
+    name: "Create Server (prod ${{ inputs.TARGET_URL || 'https://prod-our.wslproxy.com' }})"
+    # Pin to the prod self-hosted runner — that host has the prod login
+    # credentials at /home/bwalia/.secrets/wslproxy/prod/login-creds.json.
+    runs-on: [self-hosted, prod]
+    timeout-minutes: 10
+    concurrency:
+      group: e2e-create-server-${{ github.ref }}
+      cancel-in-progress: true
+    defaults:
+      run:
+        shell: bash
+        working-directory: openresty-admin
+
+    env:
+      # Defaults make the scheduled/push path work without dispatch inputs.
+      TARGET_URL: ${{ inputs.TARGET_URL || 'https://prod-our.wslproxy.com' }}
+      PROFILE: ${{ inputs.PROFILE || 'prod' }}
+      CLEANUP: ${{ inputs.CLEANUP || false }}
+      CREDS_FILE: /home/bwalia/.secrets/wslproxy/prod/login-creds.json
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: openresty-admin/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci || npm install
+
+      - name: Install Playwright browsers
+        run: npx playwright install chromium
+
+      - name: Validate test credentials
+        working-directory: .
+        run: |
+          if [ ! -f "$CREDS_FILE" ]; then
+            echo "::error::Test credentials file not found at $CREDS_FILE"
+            echo "Create it with: echo '{\"ADMIN_EMAIL\":\"...\",\"ADMIN_PASSWORD\":\"...\"}' > $CREDS_FILE"
+            exit 1
+          fi
+          if ! python3 -c "import json; d=json.load(open('$CREDS_FILE')); assert 'ADMIN_EMAIL' in d and 'ADMIN_PASSWORD' in d" 2>/dev/null; then
+            echo "::error::Test credentials file is missing required keys (ADMIN_EMAIL, ADMIN_PASSWORD)"
+            exit 1
+          fi
+          echo "Test credentials validated."
+
+      - name: Load test credentials
+        id: creds
+        working-directory: .
+        run: |
+          EMAIL=$(python3 -c "import json; print(json.load(open('$CREDS_FILE'))['ADMIN_EMAIL'])")
+          PASSWORD=$(python3 -c "import json; print(json.load(open('$CREDS_FILE'))['ADMIN_PASSWORD'])")
+          echo "::add-mask::$EMAIL"
+          echo "::add-mask::$PASSWORD"
+          echo "email=$EMAIL" >> "$GITHUB_OUTPUT"
+          echo "password=$PASSWORD" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for admin UI to be reachable
+        working-directory: .
+        run: |
+          echo "Checking admin UI at $TARGET_URL ..."
+          for i in $(seq 1 12); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$TARGET_URL" 2>/dev/null || echo "000")
+            if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 400 ]; then
+              echo "Admin UI is reachable (HTTP $STATUS)."
+              exit 0
+            fi
+            echo "Attempt $i: HTTP $STATUS - waiting 5s..."
+            sleep 5
+          done
+          echo "::error::Admin UI not reachable at $TARGET_URL after 60s"
+          exit 1
+
+      - name: Run Create Server test
+        id: tests
+        env:
+          E2E_TEST_EMAIL: ${{ steps.creds.outputs.email }}
+          E2E_TEST_PASSWORD: ${{ steps.creds.outputs.password }}
+          E2E_BASE_URL: ${{ env.TARGET_URL }}
+          E2E_PROFILE: ${{ env.PROFILE }}
+          E2E_CLEANUP: ${{ env.CLEANUP }}
+          CI: "true"
+        run: npx playwright test --project=create-server 2>&1 | tee playwright-output.txt || true
+
+      - name: Parse test results
+        id: results
+        if: always()
+        run: |
+          OUTPUT=$(cat playwright-output.txt 2>/dev/null || echo "No output")
+          PASSED=$(echo "$OUTPUT" | grep -oP '\d+ passed' | grep -oP '\d+' || echo "0")
+          FAILED=$(echo "$OUTPUT" | grep -oP '\d+ failed' | grep -oP '\d+' || echo "0")
+          SKIPPED=$(echo "$OUTPUT" | grep -oP '\d+ skipped' | grep -oP '\d+' || echo "0")
+          TOTAL=$((PASSED + FAILED))
+          echo "passed=$PASSED" >> "$GITHUB_OUTPUT"
+          echo "failed=$FAILED" >> "$GITHUB_OUTPUT"
+          echo "skipped=$SKIPPED" >> "$GITHUB_OUTPUT"
+          echo "total=$TOTAL" >> "$GITHUB_OUTPUT"
+          # Treat "no tests ran" as a failure — a global-setup error or wrong
+          # URL makes Playwright exit having run 0 tests, which would otherwise
+          # masquerade as a green pass.
+          if [ "$TOTAL" -eq 0 ]; then
+            echo "::error::No tests executed (0 passed, 0 failed) for $TARGET_URL — Playwright likely errored before running tests (check the run log)."
+            echo "status=failed" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+          if [ "$FAILED" -gt 0 ]; then
+            echo "status=failed" >> "$GITHUB_OUTPUT"
+            exit 1
+          else
+            echo "status=passed" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload Playwright HTML report
+        uses: actions/upload-artifact@v5
+        if: ${{ !cancelled() }}
+        with:
+          name: create-server-report
+          path: openresty-admin/playwright-report/
+          retention-days: 14
+
+      - name: Upload traces & screenshots
+        uses: actions/upload-artifact@v5
+        if: failure()
+        with:
+          name: create-server-traces
+          path: openresty-admin/test-results/
+          retention-days: 7
+
+      - name: Slack notification - Create Server Passed
+        if: success()
+        continue-on-error: true
+        shell: bash
+        run: |
+          curl -sf -X POST "${{ secrets.SLACK_WEBHOOK }}" \
+            -H 'Content-Type: application/json' \
+            -d "$(jq -n --arg text "WSL Proxy Create Server test passed :white_check_mark:\n*Profile:* ${PROFILE}\n*Tests:* ${{ steps.results.outputs.passed }}/${{ steps.results.outputs.total }} passed\n*Target:* ${TARGET_URL}/servers\n*Note:* A new test server was created and is visible on the servers list.\n*Branch:* ${{ github.ref_name }}\n*Commit:* \`${{ github.sha }}\`\n*Triggered by:* ${{ github.event_name }} (${{ github.actor }})" \
+              '{channel: "github-updates", username: "GitHub Actions", text: $text}')"
+
+      - name: Slack notification - Create Server Failed
+        if: failure()
+        continue-on-error: true
+        shell: bash
+        run: |
+          curl -sf -X POST "${{ secrets.SLACK_WEBHOOK }}" \
+            -H 'Content-Type: application/json' \
+            -d "$(jq -n --arg text "WSL Proxy Create Server test FAILED :x:\n*Profile:* ${PROFILE}\n*Tests:* ${{ steps.results.outputs.failed }} failed, ${{ steps.results.outputs.passed }} passed out of ${{ steps.results.outputs.total }}\n*Target:* ${TARGET_URL}/servers\n*Branch:* ${{ github.ref_name }}\n*Commit:* \`${{ github.sha }}\`\n*Triggered by:* ${{ github.event_name }} (${{ github.actor }})\n*Screenshots & Traces:* Download from workflow artifacts\n*Workflow logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+              '{channel: "github-updates", username: "GitHub Actions", text: $text}')"
