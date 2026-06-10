@@ -77,9 +77,14 @@ test.describe('Create Server (Next.js)', { tag: '@regression' }, () => {
     await page.locator('#email').fill(EMAIL);
     await page.locator('#password').fill(PASSWORD);
     await page.getByRole('button', { name: 'Sign in' }).click();
-    await page.waitForURL((url) => !url.pathname.startsWith('/login'), {
-      timeout: 15000,
-    });
+    // Require a real app route. A transient post-login navigation failure (e.g.
+    // net::ERR_NETWORK_CHANGED) can dump the page on about:blank, whose pathname
+    // ("") also satisfies "not /login" — gating on the http(s) protocol keeps us
+    // from proceeding against an opaque-origin page where storage access throws.
+    await page.waitForURL(
+      (url) => url.protocol.startsWith('http') && !url.pathname.startsWith('/login'),
+      { timeout: 15000 },
+    );
 
     // ── 2. Create a uniquely-named server via the authenticated API ────────
     // Unique per run: epoch seconds + worker index keep concurrent/repeat runs
@@ -132,16 +137,27 @@ test.describe('Create Server (Next.js)', { tag: '@regression' }, () => {
     // list would query the prod profile and never show a server created under
     // a different profile (e.g. int). Pin the UI to the same profile we created
     // under so the list and the record line up.
+    //
+    // localStorage is only reachable from a real same-origin document, so land
+    // on a real app page FIRST, set the profile, then reload so the
+    // data-provider reads it on load. Setting it against about:blank would throw
+    // `SecurityError: Access is denied`.
+    await page.goto('/servers');
     await page.evaluate((p) => {
-      localStorage.setItem('wslproxy.environment', JSON.stringify(p));
-      // Legacy unnamespaced key the data-provider falls back to.
-      localStorage.setItem('environment', p);
+      try {
+        localStorage.setItem('wslproxy.environment', JSON.stringify(p));
+        // Legacy unnamespaced key the data-provider falls back to.
+        localStorage.setItem('environment', p);
+      } catch (_) {
+        // Storage unavailable on this document — the name search below still
+        // surfaces the server even if the profile filter isn't pinned.
+      }
     }, PROFILE);
+    await page.reload();
 
     // The list is sorted by created_at DESC, so the freshly-created server is
     // on the first page. Search by name as a belt-and-braces filter in case
     // the default page size ever changes.
-    await page.goto('/servers');
     const search = page.getByPlaceholder(/search/i).first();
     if (await search.isVisible().catch(() => false)) {
       await search.fill(serverName);

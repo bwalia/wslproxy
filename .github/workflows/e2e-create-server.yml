@@ -142,12 +142,19 @@ jobs:
         if: always()
         run: |
           OUTPUT=$(cat playwright-output.txt 2>/dev/null || echo "No output")
-          PASSED=$(echo "$OUTPUT" | grep -oP '\d+ passed' | grep -oP '\d+' || echo "0")
-          FAILED=$(echo "$OUTPUT" | grep -oP '\d+ failed' | grep -oP '\d+' || echo "0")
-          SKIPPED=$(echo "$OUTPUT" | grep -oP '\d+ skipped' | grep -oP '\d+' || echo "0")
+          PASSED=$(echo "$OUTPUT" | grep -oP '\d+ passed' | grep -oP '\d+' | tail -1 || echo "0")
+          FAILED=$(echo "$OUTPUT" | grep -oP '\d+ failed' | grep -oP '\d+' | tail -1 || echo "0")
+          # "flaky" = the test failed at least once but PASSED on a retry.
+          # Playwright exits 0 for these, so they must count as passes — not
+          # doing so falsely reports a green run as failed.
+          FLAKY=$(echo "$OUTPUT" | grep -oP '\d+ flaky' | grep -oP '\d+' | tail -1 || echo "0")
+          SKIPPED=$(echo "$OUTPUT" | grep -oP '\d+ skipped' | grep -oP '\d+' | tail -1 || echo "0")
+          PASSED=${PASSED:-0}; FAILED=${FAILED:-0}; FLAKY=${FLAKY:-0}; SKIPPED=${SKIPPED:-0}
+          PASSED=$((PASSED + FLAKY))
           TOTAL=$((PASSED + FAILED))
           echo "passed=$PASSED" >> "$GITHUB_OUTPUT"
           echo "failed=$FAILED" >> "$GITHUB_OUTPUT"
+          echo "flaky=$FLAKY" >> "$GITHUB_OUTPUT"
           echo "skipped=$SKIPPED" >> "$GITHUB_OUTPUT"
           echo "total=$TOTAL" >> "$GITHUB_OUTPUT"
           # Treat "no tests ran" as a failure — a global-setup error or wrong
