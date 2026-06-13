@@ -37,7 +37,14 @@ export async function login(page, email, password) {
  */
 export async function clearAppState(page) {
   await page.evaluate(() => {
-    localStorage.clear();
-    sessionStorage.clear();
+    // Guard against an opaque-origin document (e.g. about:blank after a
+    // transient navigation failure), where accessing storage throws
+    // SecurityError. Cleanup is best-effort and must never fail the test.
+    try {
+      localStorage.clear();
+      sessionStorage.clear();
+    } catch (_) {
+      /* storage not accessible on this document — nothing to clear */
+    }
   });
 }

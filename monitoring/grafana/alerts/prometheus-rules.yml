@@ -1,0 +1,253 @@
+# WSLProxy SRE alert rules (Prometheus rule_files format).
+#
+# Load on the Prometheus server that scrapes the wslproxy /metrics endpoints:
+#   rule_files:
+#     - /etc/prometheus/rules/wslproxy-rules.yml
+#
+# All ratios treat 5xx responses as failures. 499 (client abort) is NOT a
+# failure. SLO targets: availability 99.95%, latency 95% < 500ms,
+# backend availability 99.9%.
+#
+# A Grafana-managed equivalent of these rules is provided in
+# ../provisioning/alerting/wslproxy-alert-rules.yml — deploy ONE of the two,
+# not both, or you will page twice for every incident.
+
+groups:
+  # ------------------------------------------------------------------ SLO
+  - name: wslproxy-slo
+    interval: 1m
+    rules:
+      # Recording rules so dashboards/alerts share one definition of "bad".
+      - record: wslproxy:request_availability:ratio_rate5m
+        expr: >
+          sum(rate(nginx_http_requests_total{status!~"5.."}[5m]))
+          / sum(rate(nginx_http_requests_total[5m]))
+
+      - record: wslproxy:error_budget_burn:rate5m
+        expr: >
+          ((sum(rate(nginx_http_requests_total{status=~"5.."}[5m])) or vector(0))
+           / sum(rate(nginx_http_requests_total[5m]))) / 0.0005
+
+      - record: wslproxy:error_budget_burn:rate1h
+        expr: >
+          ((sum(rate(nginx_http_requests_total{status=~"5.."}[1h])) or vector(0))
+           / sum(rate(nginx_http_requests_total[1h]))) / 0.0005
+
+      - record: wslproxy:error_budget_burn:rate6h
+        expr: >
+          ((sum(rate(nginx_http_requests_total{status=~"5.."}[6h])) or vector(0))
+           / sum(rate(nginx_http_requests_total[6h]))) / 0.0005
+
+      - alert: WSLProxyAvailabilityBelowTarget
+        expr: 100 * wslproxy:request_availability:ratio_rate5m < 99.9
+        for: 5m
+        labels:
+          severity: critical
+          team: sre
+          service: wslproxy
+        annotations:
+          summary: "WSLProxy availability {{ $value | printf \"%.3f\" }}% < 99.9%"
+          description: >
+            Request availability (non-5xx / total, 5m window) has dropped below
+            99.9%. Check the Troubleshooting row of the SRE dashboard: top
+            failing routes/backends, then backend health and recent config
+            changes (/opt/nginx/conf.d, reboot flag).
+          dashboard: "https://int-grafana.diytaxreturn.co.uk/d/wslproxy-sre"
+
+      - alert: WSLProxyErrorBudgetFastBurn
+        # Google multi-window pattern: both the short and long window must
+        # exceed the threshold so a brief blip cannot page.
+        expr: >
+          wslproxy:error_budget_burn:rate5m > 5
+          and
+          wslproxy:error_budget_burn:rate1h > 5
+        for: 2m
+        labels:
+          severity: critical
+          team: sre
+          service: wslproxy
+        annotations:
+          summary: "Error budget burn rate {{ $value | printf \"%.1f\" }}x (>5x)"
+          description: >
+            The monthly error budget is burning more than 5x faster than
+            sustainable. At 5x, a full 30-day budget is gone in ~6 days; at
+            14.4x in ~2 days. Treat as an active incident.
+
+      - alert: WSLProxyErrorBudgetSlowBurn
+        expr: >
+          wslproxy:error_budget_burn:rate6h > 2
+          and
+          wslproxy:error_budget_burn:rate1h > 2
+        for: 15m
+        labels:
+          severity: warning
+          team: sre
+          service: wslproxy
+        annotations:
+          summary: "Sustained error budget burn {{ $value | printf \"%.1f\" }}x (>2x)"
+          description: >
+            Slow but sustained budget burn. Not pageable, but open a ticket and
+            investigate before the monthly budget is exhausted.
+
+      - alert: WSLProxyP99LatencyHigh
+        expr: >
+          histogram_quantile(0.99,
+            sum by (le) (rate(nginx_http_request_duration_seconds_bucket[5m]))) > 1
+        for: 5m
+        labels:
+          severity: warning
+          team: sre
+          service: wslproxy
+        annotations:
+          summary: "P99 latency {{ $value | printf \"%.2f\" }}s > 1s"
+          description: >
+            Edge p99 above 1 second for 5 minutes. Check Latency Analytics
+            (slowest endpoints/backends). Remember the two-layer timeout
+            topology: the k3s ingress layer has its own timeouts.
+
+      - alert: WSLProxyErrorRateHigh
+        expr: >
+          100 * (sum(rate(nginx_http_requests_total{status=~"5.."}[5m])) or vector(0))
+          / sum(rate(nginx_http_requests_total[5m])) > 5
+        for: 5m
+        labels:
+          severity: critical
+          team: sre
+          service: wslproxy
+        annotations:
+          summary: "5xx error rate {{ $value | printf \"%.2f\" }}% > 5%"
+          description: >
+            More than 5% of all requests are failing with 5xx. Identify the
+            failing host/route in the Failed Requests Explorer; check
+            balancer peer errors in the OpenResty error log.
+
+  # ------------------------------------------------------------- BACKENDS
+  - name: wslproxy-backends
+    interval: 1m
+    rules:
+      - alert: WSLProxyBackendHealthLow
+        expr: >
+          100 * sum(wslproxy_backend_healthy) / count(wslproxy_backend_healthy) < 80
+        for: 5m
+        labels:
+          severity: critical
+          team: sre
+          service: wslproxy
+        annotations:
+          summary: "Only {{ $value | printf \"%.0f\" }}% of backends healthy (<80%)"
+          description: >
+            The traffic router marks backends unhealthy after 3 consecutive
+            5xx (passive) or failed active checks. Note: routing fails open,
+            so traffic still flows — but origin capacity is degraded.
+
+      - alert: WSLProxyBackendDown
+        expr: wslproxy_backend_healthy == 0
+        for: 5m
+        labels:
+          severity: warning
+          team: sre
+          service: wslproxy
+        annotations:
+          summary: "Backend {{ $labels.backend_label }} unhealthy (rule {{ $labels.rule_id }})"
+          description: >
+            Backend has been failing health checks for 5 minutes. Check the
+            origin service and the upstream address configured on the rule.
+
+      - alert: WSLProxyBackendFlapping
+        expr: changes(wslproxy_backend_healthy[30m]) > 4
+        for: 0m
+        labels:
+          severity: warning
+          team: sre
+          service: wslproxy
+        annotations:
+          summary: "Backend {{ $labels.backend_label }} flapping ({{ $value }} transitions/30m)"
+          description: >
+            Health state is oscillating — usually an origin under intermittent
+            load, an aggressive health-check threshold, or a two-layer timeout
+            mismatch (outer proxy vs k3s ingress).
+
+  # ------------------------------------------------------------------ SSL
+  - name: wslproxy-ssl
+    interval: 5m
+    rules:
+      # Requires blackbox_exporter HTTPS probes against the public domains.
+      - alert: WSLProxySSLCertExpiringSoon
+        expr: (probe_ssl_earliest_cert_expiry - time()) / 86400 < 15
+        for: 30m
+        labels:
+          severity: critical
+          team: sre
+          service: wslproxy
+        annotations:
+          summary: "Cert for {{ $labels.instance }} expires in {{ $value | printf \"%.1f\" }} days"
+          description: >
+            Less than 15 days of validity left. auto-ssl should have renewed
+            ~30 days out — check data/ssl/{domain}.json, the ssl_domains shared
+            dict, DNS, and that port 80 ACME challenges are reachable.
+
+      - alert: WSLProxySSLCertExpiryWarning
+        expr: (probe_ssl_earliest_cert_expiry - time()) / 86400 < 30
+        for: 1h
+        labels:
+          severity: warning
+          team: sre
+          service: wslproxy
+        annotations:
+          summary: "Cert for {{ $labels.instance }} expires in {{ $value | printf \"%.1f\" }} days"
+          description: "Renewal window entered; verify auto-ssl renewal is on track."
+
+      - alert: WSLProxySSLProbeFailing
+        expr: probe_success{job=~".*ssl.*|blackbox.*"} == 0
+        for: 5m
+        labels:
+          severity: critical
+          team: sre
+          service: wslproxy
+        annotations:
+          summary: "TLS probe failing for {{ $labels.instance }}"
+          description: "HTTPS endpoint unreachable or handshake failing."
+
+  # ----------------------------------------------------------------- META
+  - name: wslproxy-meta
+    interval: 1m
+    rules:
+      - alert: WSLProxyNoTraffic
+        expr: sum(rate(nginx_http_requests_total[10m])) == 0 or absent(nginx_http_requests_total)
+        for: 10m
+        labels:
+          severity: critical
+          team: sre
+          service: wslproxy
+        annotations:
+          summary: "WSLProxy is serving zero traffic"
+          description: >
+            Either the proxy is down, the scrape is broken, or a stuck worker
+            (production runs worker_processes=1 — a single stuck worker is a
+            full outage). Check: curl -sf http://127.0.0.1:8099/health and
+            ps aux | grep 'nginx: worker'.
+
+      - alert: WSLProxyScrapeDown
+        expr: up{job=~".*wslproxy.*"} == 0
+        for: 3m
+        labels:
+          severity: critical
+          team: sre
+          service: wslproxy
+        annotations:
+          summary: "Prometheus cannot scrape {{ $labels.instance }}"
+          description: "Metrics endpoint unreachable — node down or admin server block broken."
+
+      - alert: WSLProxyMetricExporterErrors
+        expr: rate(nginx_metric_errors_total[5m]) > 0
+        for: 10m
+        labels:
+          severity: info
+          team: sre
+          service: wslproxy
+        annotations:
+          summary: "nginx-lua-prometheus dropping metrics on {{ $labels.instance }}"
+          description: >
+            The exporter's shared dict is erroring (usually full). Metrics on
+            this dashboard may be incomplete — increase the
+            lua_shared_dict prometheus_metrics size.

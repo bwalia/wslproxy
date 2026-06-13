@@ -1,0 +1,229 @@
+# Grafana-managed alert rules for WSLProxy (file provisioning format,
+# apiVersion 1 — Grafana 9.5+ unified alerting).
+#
+# Deploy: copy into the Grafana container/host at
+#   /etc/grafana/provisioning/alerting/wslproxy-alert-rules.yml
+# and replace PROMETHEUS_UID with the UID of the Prometheus datasource
+# (Grafana → Connections → Data sources → Prometheus → UID, or:
+#   curl -H "Authorization: Bearer $TOKEN" $GRAFANA_URL/api/datasources | jq)
+#
+#   sed -i 's/PROMETHEUS_UID/<your-uid>/' wslproxy-alert-rules.yml
+#
+# NOTE: these mirror ../alerts/prometheus-rules.yml. Deploy ONE of the two
+# (Prometheus-evaluated or Grafana-managed), not both.
+
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: wslproxy-slo
+    folder: WSLProxy Monitoring
+    interval: 1m
+    rules:
+      - uid: wslproxy-availability-low
+        title: WSLProxy availability below 99.9%
+        condition: C
+        for: 5m
+        noDataState: NoData
+        execErrState: Error
+        labels: { severity: critical, team: sre, service: wslproxy }
+        annotations:
+          summary: WSLProxy 5m availability dropped below 99.9%
+          runbook_url: https://int-grafana.diytaxreturn.co.uk/d/wslproxy-sre
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: PROMETHEUS_UID
+            model:
+              refId: A
+              instant: true
+              expr: >-
+                100 * sum(rate(nginx_http_requests_total{status!~"5.."}[5m]))
+                / sum(rate(nginx_http_requests_total[5m]))
+          - refId: C
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: lt, params: [99.9] }
+                  operator: { type: and }
+                  query: { params: [A] }
+                  reducer: { type: last, params: [] }
+
+      - uid: wslproxy-burn-rate-fast
+        title: WSLProxy error budget fast burn (>5x)
+        condition: C
+        for: 2m
+        noDataState: OK
+        execErrState: Error
+        labels: { severity: critical, team: sre, service: wslproxy }
+        annotations:
+          summary: Error budget burning >5x sustainable rate (5m AND 1h windows)
+        data:
+          - refId: A
+            relativeTimeRange: { from: 3600, to: 0 }
+            datasourceUid: PROMETHEUS_UID
+            model:
+              refId: A
+              instant: true
+              expr: >-
+                (
+                  ((sum(rate(nginx_http_requests_total{status=~"5.."}[5m])) or vector(0))
+                   / sum(rate(nginx_http_requests_total[5m]))) / 0.0005 > bool 5
+                )
+                *
+                (
+                  ((sum(rate(nginx_http_requests_total{status=~"5.."}[1h])) or vector(0))
+                   / sum(rate(nginx_http_requests_total[1h]))) / 0.0005 > bool 5
+                )
+          - refId: C
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [0] }
+                  operator: { type: and }
+                  query: { params: [A] }
+                  reducer: { type: last, params: [] }
+
+      - uid: wslproxy-p99-latency
+        title: WSLProxy P99 latency above 1s
+        condition: C
+        for: 5m
+        noDataState: NoData
+        execErrState: Error
+        labels: { severity: warning, team: sre, service: wslproxy }
+        annotations:
+          summary: Edge p99 latency above 1 second — check both proxy layers
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: PROMETHEUS_UID
+            model:
+              refId: A
+              instant: true
+              expr: >-
+                histogram_quantile(0.99, sum by (le)
+                (rate(nginx_http_request_duration_seconds_bucket[5m])))
+          - refId: C
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [1] }
+                  operator: { type: and }
+                  query: { params: [A] }
+                  reducer: { type: last, params: [] }
+
+      - uid: wslproxy-error-rate
+        title: WSLProxy 5xx error rate above 5%
+        condition: C
+        for: 5m
+        noDataState: NoData
+        execErrState: Error
+        labels: { severity: critical, team: sre, service: wslproxy }
+        annotations:
+          summary: More than 5% of requests failing with 5xx
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: PROMETHEUS_UID
+            model:
+              refId: A
+              instant: true
+              expr: >-
+                100 * (sum(rate(nginx_http_requests_total{status=~"5.."}[5m])) or vector(0))
+                / sum(rate(nginx_http_requests_total[5m]))
+          - refId: C
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [5] }
+                  operator: { type: and }
+                  query: { params: [A] }
+                  reducer: { type: last, params: [] }
+
+  - orgId: 1
+    name: wslproxy-backends
+    folder: WSLProxy Monitoring
+    interval: 1m
+    rules:
+      - uid: wslproxy-backend-health
+        title: WSLProxy backend health below 80%
+        condition: C
+        for: 5m
+        noDataState: NoData
+        execErrState: Error
+        labels: { severity: critical, team: sre, service: wslproxy }
+        annotations:
+          summary: Less than 80% of configured backends are healthy
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: PROMETHEUS_UID
+            model:
+              refId: A
+              instant: true
+              expr: >-
+                100 * sum(wslproxy_backend_healthy) / count(wslproxy_backend_healthy)
+          - refId: C
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: lt, params: [80] }
+                  operator: { type: and }
+                  query: { params: [A] }
+                  reducer: { type: last, params: [] }
+
+  - orgId: 1
+    name: wslproxy-ssl
+    folder: WSLProxy Monitoring
+    interval: 5m
+    rules:
+      - uid: wslproxy-ssl-expiry
+        title: WSLProxy SSL certificate expiring within 15 days
+        condition: C
+        for: 30m
+        noDataState: OK   # blackbox probes may not be configured yet
+        execErrState: Error
+        labels: { severity: critical, team: sre, service: wslproxy }
+        annotations:
+          summary: A public certificate has <15 days validity — auto-ssl renewal failed
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: PROMETHEUS_UID
+            model:
+              refId: A
+              instant: true
+              expr: >-
+                min((probe_ssl_earliest_cert_expiry - time()) / 86400)
+          - refId: C
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: lt, params: [15] }
+                  operator: { type: and }
+                  query: { params: [A] }
+                  reducer: { type: last, params: [] }
