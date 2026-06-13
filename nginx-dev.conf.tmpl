@@ -99,6 +99,17 @@ http {
     init_by_lua_file /usr/local/openresty/nginx/html/api/init.lua;
 
     init_worker_by_lua_block {
+        -- Start the lua-resty-auto-ssl background renewal timer.
+        -- auto_ssl:init() (in init.lua) only enables on-demand issuance; the
+        -- per-worker init_worker() call is what schedules the renewal timer.
+        -- Without it, certificates are issued on first request but NEVER
+        -- auto-renew — they silently expire ~90 days after issuance.
+        if auto_ssl and auto_ssl.init_worker then
+            auto_ssl:init_worker()
+        else
+            ngx.log(ngx.ERR, "auto_ssl global missing in init_worker - cert renewal disabled")
+        end
+
         -- Initialize Prometheus metrics (requires lua_code_cache to be ON)
         local ok, metrics = pcall(require, "prometheus_metrics")
         if ok then
