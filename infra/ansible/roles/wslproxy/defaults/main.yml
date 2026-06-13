@@ -4,9 +4,11 @@ nginx_port: 80
 # Override these in host_vars or group_vars for each environment
 # Frontend: public landing page (static HTML)
 # Backend: admin UI proxy to localhost:8080
+# Backend (Next.js): canonical domain proxied to the Next.js node (3099)
 nginx_default_server_frontend: ""
 nginx_default_server_backend: ""
 nginx_default_server_backend_port: 8080
+nginx_default_server_backend_nextjs: ""
 nginx_nextjs_dashboard_port: 8099
 nginx_nextjs_node_port: 3099
 
