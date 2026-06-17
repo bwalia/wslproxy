@@ -10,8 +10,11 @@ import Button from "@/components/ui/Button";
 import ArrayFieldEditor from "./sections/ArrayFieldEditor";
 import LocationBlockEditor from "./sections/LocationBlockEditor";
 import ConfigPreview from "./sections/ConfigPreview";
+import PopMultiSelect from "./sections/PopMultiSelect";
+import DnsStatePanel from "./sections/DnsStatePanel";
 import type { ServerFormState } from "./types";
 import type { LocationEntry } from "./sections/LocationBlockEditor";
+import type { Pop } from "@/types";
 import { ExternalLink, Plus, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 
@@ -21,8 +24,18 @@ export interface NginxServerTabProps {
   form: ServerFormState;
   setForm: Dispatch<SetStateAction<ServerFormState>>;
   isCreate: boolean;
+  /** Server id (e.g. `host:foo.com`) — only meaningful in edit mode.
+   *  Passed through to DnsStatePanel for /api/dns/lookup +
+   *  /api/dns/provision calls.  Undefined in create mode (the panel
+   *  hides itself there anyway). */
+  serverId?: string;
   profileOptions: { value: string; label: string }[];
   wafPolicyOptions: { value: string; label: string }[];
+  /** Full POP list — passed straight through to the picker.  Parent
+   *  fetches via `useList<Pop>("pops", ...)`; the picker handles
+   *  grouping / sorting / status rendering. */
+  pops?: Pop[];
+  popsLoading?: boolean;
   /**
    * Per-field validation errors from the parent's `runValidationGate`
    * call.  Keys are dotted paths into the form (e.g. `server_name`,
@@ -72,8 +85,11 @@ const NginxServerTab: React.FC<NginxServerTabProps> = ({
   form,
   setForm,
   isCreate,
+  serverId,
   profileOptions,
   wafPolicyOptions,
+  pops,
+  popsLoading,
   fieldErrors,
 }) => {
   /* ── Helpers ──────────────────────────────────────────────────────── */
@@ -350,6 +366,36 @@ const NginxServerTab: React.FC<NginxServerTabProps> = ({
           </div>
         </Card.Body>
       </Card>
+
+      {/* ── POPs (Points of Presence) ───────────────────────────────────
+          Sits right after the profile selection — POP assignment is a
+          foundational routing decision, on par with which environment
+          profile this server belongs to.  The picker handles its own
+          empty / loading states; we just feed it the data. */}
+      <PopMultiSelect
+        pops={pops ?? []}
+        value={form.pop_ids}
+        onChange={(next) =>
+          setForm((prev) => ({ ...prev, pop_ids: next }))
+        }
+        isLoading={popsLoading}
+      />
+
+      {/* ── DNS State (Cloudflare) ──────────────────────────────────────
+          Sits right under the POP picker because the two are tightly
+          coupled — every change to pop_ids affects the DNS plan, and
+          the operator should be able to see/apply the impact without
+          navigating away.  The panel hides itself in create mode
+          (nothing to provision until the server is saved). */}
+      {!isCreate && serverId && form.server_name && (
+        <DnsStatePanel
+          serverId={serverId}
+          profileId={form.profile_id}
+          serverName={form.server_name}
+          popIds={form.pop_ids}
+          isCreate={isCreate}
+        />
+      )}
 
       {/* ── Listen Ports ─────────────────────────────────────────────── */}
       <Card>

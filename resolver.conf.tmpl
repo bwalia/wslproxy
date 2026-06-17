@@ -1,3 +1,7 @@
 #resolver 1.1.1.1;  # Cloudflare resolver
 #resolver OPSAPI Dashboard;  # Google resolver
-resolver 127.0.0.11;  # Docker resolver
+# `ipv6=off` is required: Docker's DNS bridge returns AAAA records for
+# external hosts like api.cloudflare.com, but the bridge network has
+# no v6 route, so lua-resty-http connect() fails with
+# `Network unreachable`.  Forcing v4-only resolution avoids that.
+resolver 127.0.0.11 ipv6=off;  # Docker resolver

@@ -54,7 +54,7 @@ const TopologyCanvas = dynamic(
     ssr: false,
   },
 );
-import type { Server as ServerType, WafPolicy, Rule } from "@/types";
+import type { Server as ServerType, WafPolicy, Rule, Pop } from "@/types";
 import type { ServerFormState, VarnishConfig, VarnishSnippet } from "@/components/servers/types";
 import type { LocationEntry } from "@/components/servers/sections/LocationBlockEditor";
 import {
@@ -72,6 +72,7 @@ const DEFAULT_FORM: ServerFormState = {
   server_name: "",
   proxy_server_name: "",
   profile_id: "",
+  pop_ids: [],
   servers_tags: [],
   root: "/var/www/html",
   index: "index.html",
@@ -181,6 +182,7 @@ function hydrateForm(data: ServerType): ServerFormState {
     server_name: data.server_name ?? "",
     proxy_server_name: data.proxy_server_name ?? "",
     profile_id: data.profile_id ?? "",
+    pop_ids: Array.isArray(data.pop_ids) ? data.pop_ids : [],
     servers_tags: Array.isArray(data.servers_tags) ? data.servers_tags : [],
     root: data.root ?? "/var/www/html",
     index: data.index ?? "index.html",
@@ -260,6 +262,7 @@ function buildPayload(form: ServerFormState): Record<string, unknown> {
     server_name: form.server_name,
     proxy_server_name: form.proxy_server_name,
     profile_id: form.profile_id,
+    pop_ids: form.pop_ids,
     servers_tags: form.servers_tags,
     root: form.root,
     index: form.index,
@@ -335,6 +338,15 @@ export default function ServerDetailPage() {
   const { data: profiles } = useList<{ id: string; name: string }>("profiles");
   const { data: wafPolicies, isLoading: wafPoliciesLoading } = useList<WafPolicy>("waf_policies");
   const { data: rulesData } = useList<Rule>("rules");
+  // POPs feed the PopMultiSelect picker.  Fetched once and passed
+  // straight through — the picker handles its own filtering /
+  // grouping / status rendering.  perPage:500 because there's no
+  // realistic fleet that won't fit comfortably; capping smaller
+  // would silently truncate.
+  const { data: popsData, isLoading: popsLoading } = useList<Pop>("pops", {
+    pagination: { page: 1, perPage: 500 },
+    sort: { field: "id", order: "ASC" },
+  });
 
   /* ── Derived option lists ────────────────────────────────────────── */
 
@@ -662,8 +674,11 @@ export default function ServerDetailPage() {
           form={form}
           setForm={setForm}
           isCreate={isCreate}
+          serverId={isCreate ? undefined : (id as string)}
           profileOptions={profileOptions}
           wafPolicyOptions={wafPolicyOptions}
+          pops={popsData ?? []}
+          popsLoading={popsLoading}
           fieldErrors={fieldErrors}
         />
       )}

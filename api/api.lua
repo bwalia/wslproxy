@@ -13,6 +13,8 @@ local VarnishManager = require("varnish_manager")
 local VersionManager = require("version_manager")
 local CRManager = require("cr_manager")
 local AuditLogger = require("audit_logger")
+local Pops = require("pops")
+local DnsManager = require("dns_manager")
 
 local settings = Helper.settings()
 local storageTypeOverride = settings.settings or os.getenv("STORAGE_TYPE")
@@ -3484,6 +3486,248 @@ local function deleteProfile(body)
     end
 end
 
+-- ─────────────────────────────────────────────────────────────────────
+-- POPs (Points of Presence) — HTTP wrappers
+--
+-- Pure HTTP-translation layer.  All validation, persistence, audit
+-- and referential-integrity logic lives in api/pops.lua; these
+-- functions translate between HTTP request shape and the module's
+-- structured return contract.
+--
+-- Module returns `(value, err_table)` where `err_table.code` is one
+-- of: validation_failed | not_found | conflict | io_error.  The
+-- mapping below converts those to HTTP status codes once, in one
+-- place, so every endpoint surfaces identical error semantics.
+-- ─────────────────────────────────────────────────────────────────────
+
+local function popErrorResponse(err)
+    local status_for = {
+        validation_failed = ngx.HTTP_BAD_REQUEST,
+        not_found = ngx.HTTP_NOT_FOUND,
+        conflict = ngx.HTTP_CONFLICT,
+        io_error = ngx.HTTP_INTERNAL_SERVER_ERROR,
+    }
+    local status = status_for[err.code] or ngx.HTTP_INTERNAL_SERVER_ERROR
+    ngx.status = status
+    -- Envelope shape MUST match what the dashboard's parseBackendError
+    -- expects: `{ error: { message, status, code, details? } }`.  A
+    -- flat `{error: "code", message: ...}` body is parsed as raw text
+    -- and rendered verbatim in the UI's error banners.
+    ngx.say(cjson.encode({
+        error = {
+            message = err.message or "Unknown error",
+            status = status,
+            code = err.code or "internal_error",
+            details = err.details,
+        },
+    }))
+    return ngx.exit(status)
+end
+
+local function listPops(args)
+    local params = {}
+    -- Two query-arg conventions are in use across this API: a single
+    -- `params=<json>` blob (used by the react-admin dataProvider) or
+    -- individual `pagination[page]` style flat keys (used by curl /
+    -- the Next.js admin's dataProvider).  Accept both so callers
+    -- don't have to know which dialect this endpoint expects.
+    if args.params and args.params ~= "" then
+        local ok, decoded = pcall(cjson.decode, args.params)
+        if ok and type(decoded) == "table" then params = decoded end
+    else
+        params = {
+            pagination = {
+                page = tonumber(args['pagination[page]']) or 1,
+                perPage = tonumber(args['pagination[perPage]']) or 25,
+            },
+            sort = {
+                field = args['sort[field]'] or 'id',
+                order = args['sort[order]'] or 'ASC',
+            },
+            filter = {
+                q = args['filter[q]'],
+                status = args['filter[status]'],
+                region = args['filter[region]'],
+            },
+        }
+    end
+    local records, total_or_err = Pops.list(params)
+    if not records then
+        return popErrorResponse(total_or_err)
+    end
+    ngx.say(cjson.encode({ data = records, total = total_or_err }))
+end
+
+local function listPop(args, uuid)
+    local record, err = Pops.get(uuid)
+    if not record then
+        return popErrorResponse(err)
+    end
+    ngx.say(cjson.encode({ data = record }))
+end
+
+-- Shared create/update handler — matches the convention used by
+-- every other resource in this file (createUpdateServer,
+-- createUpdateUpstreams, etc.).  `uuid` nil = POST = create;
+-- `uuid` set = PUT = update.
+local function createUpdatePop(body, uuid)
+    local payload = Helper.GetPayloads(body)
+    if not payload then
+        ngx.status = ngx.HTTP_BAD_REQUEST
+        ngx.say(cjson.encode({
+            error = "validation_failed",
+            message = "Failed to parse request payload",
+        }))
+        return ngx.exit(ngx.HTTP_BAD_REQUEST)
+    end
+    local user = ngx.req.get_headers()["x-user"] or "system"
+    local record, err
+    if uuid and uuid ~= "" and uuid ~= "pops" then
+        record, err = Pops.update(uuid, payload, user)
+    else
+        record, err = Pops.create(payload, user)
+    end
+    if not record then
+        return popErrorResponse(err)
+    end
+    ngx.say(cjson.encode({ data = record }))
+end
+
+-- DELETE supports an optional `?force=true` query param for
+-- cascade-detach (strip the pop_id from every server that
+-- references it before removing).  Default behaviour is to refuse
+-- with 409 + a list of referencing servers so the operator can
+-- review them first.
+local function deletePop(args, uuid)
+    if not uuid or uuid == "" or uuid == "pops" then
+        ngx.status = ngx.HTTP_BAD_REQUEST
+        ngx.say(cjson.encode({
+            error = "validation_failed",
+            message = "pop id is required in the URL",
+        }))
+        return ngx.exit(ngx.HTTP_BAD_REQUEST)
+    end
+    -- Force flag can arrive in three places:
+    --   1. URL query string `?force=true`  (curl, direct API users)
+    --   2. POST body field `force=true`    (form-encoded)
+    --   3. Nested in `params` JSON blob   (react-admin dataProvider)
+    -- handle_delete_request passes the POST args to us; the URI
+    -- query args have to be read explicitly here.  Accept all three
+    -- forms so the API behaves identically regardless of caller.
+    local force = false
+    local query_args = ngx.req.get_uri_args()
+    if query_args.force == "true" or args.force == "true" or args.force == true then
+        force = true
+    elseif args.params then
+        local ok, decoded = pcall(cjson.decode, args.params)
+        if ok and type(decoded) == "table" and decoded.force then
+            force = true
+        end
+    end
+    local user = ngx.req.get_headers()["x-user"] or "system"
+    local ok, err = Pops.delete(uuid, {force = force}, user)
+    if not ok then
+        return popErrorResponse(err)
+    end
+    ngx.say(cjson.encode({ data = {message = "POP deleted", id = uuid, forced = force} }))
+end
+
+-- ─────────────────────────────────────────────────────────────────────
+-- DNS Manager — HTTP wrappers
+--
+-- Pure HTTP-translation layer for the Cloudflare provisioning module.
+-- Domain logic lives in api/dns_manager.lua; these handlers translate
+-- between request shape and the module's structured-error contract.
+--
+-- Status-code mapping covers a superset of the pops mapping: DNS adds
+-- `zone_not_allowed` (403 — the managed_zones safety guard fired),
+-- `not_configured` (503 — settings.json has no usable dns block),
+-- `disabled` (503 — explicitly off), `network_error` (502 — couldn't
+-- reach Cloudflare), `provider_error` (502 — Cloudflare returned
+-- success:false), `rate_limited` (429 — retries exhausted).
+-- ─────────────────────────────────────────────────────────────────────
+
+local function dnsErrorResponse(err)
+    local status_for = {
+        validation_failed = ngx.HTTP_BAD_REQUEST,
+        not_found = ngx.HTTP_NOT_FOUND,
+        no_pops_assigned = ngx.HTTP_BAD_REQUEST,
+        no_targets = ngx.HTTP_BAD_REQUEST,
+        zone_not_allowed = ngx.HTTP_FORBIDDEN,
+        conflict = ngx.HTTP_CONFLICT,
+        not_configured = ngx.HTTP_SERVICE_UNAVAILABLE,
+        disabled = ngx.HTTP_SERVICE_UNAVAILABLE,
+        network_error = ngx.HTTP_BAD_GATEWAY,
+        provider_error = ngx.HTTP_BAD_GATEWAY,
+        decode_error = ngx.HTTP_BAD_GATEWAY,
+        rate_limited = 429,
+        io_error = ngx.HTTP_INTERNAL_SERVER_ERROR,
+    }
+    local status = status_for[err.code] or ngx.HTTP_INTERNAL_SERVER_ERROR
+    ngx.status = status
+    -- Same envelope contract as popErrorResponse — the dashboard's
+    -- parseBackendError reads `error.message` / `error.code` /
+    -- `error.details` from this nested shape.  A flat top-level
+    -- envelope is treated as opaque text and rendered raw.
+    ngx.say(cjson.encode({
+        error = {
+            message = err.message or "Unknown error",
+            status = status,
+            code = err.code or "internal_error",
+            details = err.details,
+        },
+    }))
+    return ngx.exit(status)
+end
+
+-- GET /api/dns/lookup?domain=<fqdn>[&type=A]
+-- Read-only inspection — returns the current Cloudflare records for
+-- a domain, annotated with which ones wslproxy manages.  Used by the
+-- "DNS State" panel on the server form and for ops debugging.
+local function dnsLookup(args)
+    local domain = args.domain
+    if (not domain or domain == "") and args.params then
+        local ok, decoded = pcall(cjson.decode, args.params)
+        if ok and type(decoded) == "table" then
+            domain = decoded.domain
+        end
+    end
+    local result, err = DnsManager.lookup({
+        domain = domain,
+        type = args.type,
+    })
+    if not result then return dnsErrorResponse(err) end
+    ngx.say(cjson.encode({ data = result }))
+end
+
+-- POST /api/dns/provision
+-- Body: { server_id, profile_id, dry_run?, include_inactive?, record_type? }
+-- Reads the server's pop_ids, resolves each to a POP IP, and
+-- converges Cloudflare to match.  See dns_manager.provision_for_server
+-- for the exact action-planning semantics.
+local function dnsProvision(body)
+    local payload = Helper.GetPayloads(body)
+    if not payload then
+        ngx.status = ngx.HTTP_BAD_REQUEST
+        ngx.say(cjson.encode({
+            error = "validation_failed",
+            message = "Failed to parse request payload",
+        }))
+        return ngx.exit(ngx.HTTP_BAD_REQUEST)
+    end
+    local user = ngx.req.get_headers()["x-user"] or "system"
+    local result, err = DnsManager.provision_for_server({
+        server_id = payload.server_id,
+        profile_id = payload.profile_id,
+        dry_run = payload.dry_run == true,
+        include_inactive = payload.include_inactive == true,
+        record_type = payload.record_type,
+        user = user,
+    })
+    if not result then return dnsErrorResponse(err) end
+    ngx.say(cjson.encode({ data = result }))
+end
+
 local function readFile(filePath)
     local file, fileErr = io.open(filePath, "r")
     if not file then return fileErr, ngx.HTTP_INTERNAL_SERVER_ERROR end
@@ -4694,6 +4938,21 @@ local function handle_get_request(args, path)
         listProfile(args, uuid)
     end
 
+    -- POPs (Points of Presence)
+    if path == "pops" then
+        listPops(args)
+    elseif uuid and subPath[1] == "pops" then
+        listPop(args, uuid)
+    end
+
+    -- DNS Manager (Cloudflare).  Read-only inspection — returns the
+    -- current Cloudflare records for a domain.  Matches both
+    -- `/api/dns/lookup?domain=...` and the `params=` JSON envelope so
+    -- both curl and the dashboard's dataProvider can call it.
+    if path == "dns/lookup" then
+        dnsLookup(args)
+    end
+
     -- WAF endpoints
     if path == "waf_rules" then
         listWafRules(args)
@@ -4964,6 +5223,19 @@ local function handle_post_request(args, path)
         end
         if path == "profiles" then
             createUpdateProfiles(args, nil)
+        end
+        -- POPs POST: exact-match dispatch.  POST is create-only here;
+        -- updates go through PUT /api/pops/{id} via the PUT
+        -- dispatcher's "^pops" string.find clause.
+        if path == "pops" then
+            createUpdatePop(args, nil)
+        end
+        -- DNS provisioning.  The action endpoint (not a CRUD on a
+        -- resource) — body carries server_id + profile_id + flags.
+        -- Reads each pop's IP, converges Cloudflare to a 1-A-per-pop
+        -- record set.  See api/dns_manager.lua provision_for_server.
+        if path == "dns/provision" then
+            dnsProvision(args)
         end
         if path == "bookmarks" then
             local bm_ok, Bookmarks = pcall(require, "bookmarks")
@@ -5458,6 +5730,15 @@ local function handle_put_request(args, path)
             createUpdateProfiles(args, uuid)
         end
 
+        -- POPs PUT: forwards uuid (the URL segment) to the shared
+        -- create/update handler so it takes the update path.  We
+        -- anchor with "^pops" so unrelated paths like "shops/..."
+        -- can't trip on a `find` substring match.  POST routes to a
+        -- separate dispatch in handle_post_request (path == "pops").
+        if string.find(path, "^pops") then
+            createUpdatePop(args, uuid)
+        end
+
         -- Bookmarks share a single create/update handler (the function
         -- looks up by id/host and replaces or appends).  Without this
         -- the admin form's PUT request would silently no-op — POST
@@ -5728,6 +6009,13 @@ local function handle_delete_request(args, path)
         end
         if string.find(path, "profiles") then
             deleteProfile(args)
+        end
+        -- POPs DELETE: forwards uuid + the parsed query args (the
+        -- wrapper reads `force` from either a flat query param or a
+        -- nested params blob so the API behaves identically whether
+        -- called via curl or via the react-admin dataProvider).
+        if string.find(path, "^pops") and uuid then
+            deletePop(args, uuid)
         end
         if string.find(path, "bookmarks") and uuid then
             local bm_ok, Bookmarks = pcall(require, "bookmarks")
