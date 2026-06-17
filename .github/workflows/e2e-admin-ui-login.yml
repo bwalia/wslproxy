@@ -86,8 +86,24 @@ jobs:
         working-directory: openresty-admin
 
     steps:
+      - name: Reset workspace (clear root-owned build artifacts)
+        # A prior deploy builds the Next.js admin as root and leaves root-owned
+        # files (openresty-admin-next/.next/*) in this runner's workspace.
+        # actions/checkout's default `clean` step then fails with
+        # `EACCES: permission denied, unlink .../.next/BUILD_ID` and the whole
+        # job dies before any test runs. Best-effort reclaim ownership so the
+        # checkout can proceed. Runs from the runner workspace root (which always
+        # exists) rather than the job's openresty-admin default.
+        working-directory: ${{ runner.workspace }}
+        run: |
+          sudo chown -R "$(id -u)":"$(id -g)" . 2>/dev/null || true
+
       - name: Checkout code
         uses: actions/checkout@v5
+        with:
+          # Defence in depth: even if the reclaim above couldn't run (no sudo),
+          # don't let leftover untracked root-owned files abort the checkout.
+          clean: false
 
       - name: Set environment config
         id: env_config
