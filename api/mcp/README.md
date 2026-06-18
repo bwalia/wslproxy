@@ -242,6 +242,37 @@ JSON, and summarise. To exercise write tools:
 > a 305 rule that proxies everything to `https://backend.local:8080`. Use
 > dry_run first."*
 
+#### POPs + DNS examples
+
+POPs and DNS provisioning have their own dedicated tools.  Some flows that
+work today:
+
+> *"List all the POPs."*  → calls `list_pops`
+
+> *"What's the status of `pop0`?"*  → calls `get_pop`
+
+> *"Add a new POP called `lon2` in London with IP `192.0.2.42` — preview
+> first, then create."*  → calls `create_pop` with `dry_run: true`, then
+> after your confirmation, `dry_run: false`.
+
+> *"Drain `lon1` — set its status to maintenance."*  → calls `update_pop`
+
+> *"Delete the unused `us-east-1` POP."*  → calls `delete_pop` (which
+> previews referencing servers first; you confirm; then it cascades).
+
+> *"What DNS records does Cloudflare have for `api.example.com`?"*  →
+> calls `lookup_dns` and annotates each record with whether wslproxy owns
+> it.
+
+> *"Provision DNS for `host:api.example.com` in prod."*  → calls
+> `provision_dns` (which defaults to `dry_run: true`), shows the
+> create/update/delete plan, and waits for your "yes" before applying with
+> `dry_run: false`.
+
+For the full Cloudflare token setup, `settings.json` configuration, dashboard
+walkthrough, and troubleshooting — see **[POPS_AND_DNS_GUIDE.md](../../POPS_AND_DNS_GUIDE.md)**
+at the repo root.
+
 ---
 
 ## Integrate with Cursor / other MCP clients
@@ -360,8 +391,17 @@ curl -sS -H "X-MCP-API-Key: $KEY" -H 'Content-Type: application/json' \
 | **`update_rule`** | Partial update of an existing rule | Yes | No_op response when nothing actually differs |
 | **`delete_server`** | Delete a server and detach from referencing rules | Yes | **Destructive** — requires `confirm: true` or returns preview |
 | **`delete_rule`** | Delete a rule and strip from every server's `rules` + `match_cases` | Yes | **Destructive** — requires `confirm: true` or returns preview |
+| **`list_pops`** | List Points of Presence with status / region / search filters | No | |
+| **`get_pop`** | Fetch one POP record by id | No | |
+| **`create_pop`** | Create a new POP (edge server) | Yes | Supports `dry_run: true`. id must be lowercase slug |
+| **`update_pop`** | Partial update of a POP (status, capacity_weight, etc.) | Yes | Supports `dry_run: true` |
+| **`delete_pop`** | Delete a POP; refuses if servers reference it (use `force: true` to cascade-detach) | Yes | **Destructive** — requires `confirm: true` or returns preview with referencing servers |
+| **`lookup_dns`** | Read current Cloudflare DNS records for a domain (annotated with `managed_by_wslproxy` + `pop_id`) | No | Refuses domains outside `managed_zones` before any HTTP call |
+| **`provision_dns`** | Converge Cloudflare A records for a server to match its `pop_ids` | Yes | **`dry_run: true` is the DEFAULT** — must pass `dry_run: false` to actually apply |
 
-**Bold = added in this MCP CRUD pass.**
+**Bold = added in the MCP CRUD pass and the POPs/DNS pass.**
+
+> 📘 **End-to-end POPs + DNS setup** (Cloudflare token generation, settings.json, dashboard walkthrough, troubleshooting): see **[POPS_AND_DNS_GUIDE.md](../../POPS_AND_DNS_GUIDE.md)** at the repo root.
 
 ### Write-mode gate
 
