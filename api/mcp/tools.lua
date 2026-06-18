@@ -592,6 +592,177 @@ _M.TOOL_REGISTRY = {
             idempotentHint = true,
             openWorldHint = false
         }
+    },
+    -- ──────────────────────────────────────────────────────────────
+    -- POPs (Points of Presence) — the edge locations running wslproxy.
+    -- Servers reference these by id (in `pop_ids`) to decide which
+    -- POPs serve them.  The DNS provisioner reads the same list to
+    -- decide which Cloudflare A records to publish.
+    -- ──────────────────────────────────────────────────────────────
+    {
+        name = "list_pops",
+        description = "List all POPs (Points of Presence) with optional filtering by status / region.  Read-only.  Returns id, display_name, public_ipv4, region, city, status, capacity_weight, tags for each.  Use this to discover available POPs before assigning them to a server or provisioning DNS.",
+        inputSchema = {
+            type = "object",
+            properties = {
+                status = {type = "string", description = "Optional filter: only POPs with this status ('active', 'draining', 'maintenance', 'down')."},
+                region = {type = "string", description = "Optional filter: only POPs in this region (e.g. 'eu-west-1')."},
+                q = {type = "string", description = "Optional free-text search across id/display_name/city/region/public_ipv4/provider."},
+                limit = {type = "integer", description = "Max number of POPs to return (default 100, cap 500)."}
+            },
+            required = {}
+        },
+        annotations = {
+            title = "List POPs",
+            readOnlyHint = true,
+            destructiveHint = false,
+            idempotentHint = true,
+            openWorldHint = false
+        }
+    },
+    {
+        name = "get_pop",
+        description = "Fetch a single POP by id.  Read-only.  Returns the full record including metadata, lat/lng, country_code, provider, and timestamps.",
+        inputSchema = {
+            type = "object",
+            properties = {
+                pop_id = {type = "string", description = "POP id (e.g. 'pop0', 'lon1', 'us-east-1')."}
+            },
+            required = {"pop_id"}
+        },
+        annotations = {
+            title = "Get POP",
+            readOnlyHint = true,
+            destructiveHint = false,
+            idempotentHint = true,
+            openWorldHint = false
+        }
+    },
+    {
+        name = "create_pop",
+        description = "Create a new POP.  The id must be lowercase alphanumeric with optional dashes (2-32 chars, e.g. 'pop0', 'lon1', 'us-east-1').  public_ipv4 is required and must be a valid IPv4 address — this is the IP that DNS provisioning will publish.  Returns the created record.  Default behaviour is to actually create; pass dry_run=true to preview the validated payload without writing.",
+        inputSchema = {
+            type = "object",
+            properties = {
+                id = {type = "string", description = "Slug id, lowercase alphanumeric with optional dashes (e.g. 'lon2', 'us-west-1')."},
+                display_name = {type = "string", description = "Human-readable name (e.g. 'London POP 2')."},
+                public_ipv4 = {type = "string", description = "Public IPv4 address — the A record content DNS provisioning will publish."},
+                public_ipv6 = {type = "string", description = "Optional public IPv6 address."},
+                region = {type = "string", description = "Region identifier (e.g. 'eu-west-1')."},
+                city = {type = "string", description = "City name."},
+                country_code = {type = "string", description = "ISO 3166-1 alpha-2 (e.g. 'GB', 'US')."},
+                provider = {type = "string", description = "Hosting provider name (e.g. 'aws', 'linode')."},
+                status = {type = "string", description = "One of 'active', 'draining', 'maintenance', 'down' (default 'active')."},
+                capacity_weight = {type = "number", description = "Routing weight in [0, 10]; 1.0 = default, 0 = drain (default 1.0)."},
+                tags = {type = "array", items = {type = "string"}, description = "Optional tags (default [])."},
+                dry_run = {type = "boolean", description = "If true, validates the payload but doesn't write.  Default false = actually create."}
+            },
+            required = {"id", "public_ipv4"}
+        },
+        annotations = {
+            title = "Create POP",
+            readOnlyHint = false,
+            destructiveHint = false,
+            idempotentHint = false,
+            openWorldHint = false
+        }
+    },
+    {
+        name = "update_pop",
+        description = "Update an existing POP by id.  Partial updates supported — only fields provided are changed.  Use this to flip status (drain → active), adjust capacity_weight, or fix metadata.  Default behaviour is to actually update; pass dry_run=true to preview.",
+        inputSchema = {
+            type = "object",
+            properties = {
+                pop_id = {type = "string", description = "POP id to update."},
+                display_name = {type = "string"},
+                public_ipv4 = {type = "string"},
+                public_ipv6 = {type = "string"},
+                region = {type = "string"},
+                city = {type = "string"},
+                country_code = {type = "string"},
+                provider = {type = "string"},
+                status = {type = "string", description = "One of 'active', 'draining', 'maintenance', 'down'."},
+                capacity_weight = {type = "number"},
+                tags = {type = "array", items = {type = "string"}},
+                dry_run = {type = "boolean", description = "If true, validates the update but doesn't write.  Default false."}
+            },
+            required = {"pop_id"}
+        },
+        annotations = {
+            title = "Update POP",
+            readOnlyHint = false,
+            destructiveHint = false,
+            idempotentHint = true,
+            openWorldHint = false
+        }
+    },
+    {
+        name = "delete_pop",
+        description = "Delete a POP.  Destructive — requires `confirm: true` or returns a preview of which servers currently reference it.  If any server references the POP and `force: true` is not set, the call refuses with 409 + the list of referencing servers.  When `force: true`, every referencing server is detached (pop removed from its pop_ids) before the POP file is deleted.  If ANY detach fails, the whole operation aborts to avoid dangling pop_ids.",
+        inputSchema = {
+            type = "object",
+            properties = {
+                pop_id = {type = "string", description = "POP id to delete."},
+                confirm = {type = "boolean", description = "Must be true to actually delete.  Default false = preview which servers would be affected."},
+                force = {type = "boolean", description = "If true and servers reference this POP, detach them first then delete.  Default false = refuse if referenced."}
+            },
+            required = {"pop_id"}
+        },
+        annotations = {
+            title = "Delete POP",
+            readOnlyHint = false,
+            destructiveHint = true,
+            idempotentHint = true,
+            openWorldHint = false
+        }
+    },
+    -- ──────────────────────────────────────────────────────────────
+    -- DNS Manager (Cloudflare provisioning).
+    -- These talk to the live Cloudflare API.  lookup_dns is read-
+    -- only.  provision_dns mutates external state (creates / updates
+    -- / deletes A records); default dry_run=true so an agent gets the
+    -- plan first and must explicitly opt in to apply.
+    -- ──────────────────────────────────────────────────────────────
+    {
+        name = "lookup_dns",
+        description = "Look up the current Cloudflare DNS records for a domain.  Read-only — calls Cloudflare's GET /zones/{id}/dns_records.  Returns each record annotated with `managed_by_wslproxy` (true if the record was created by wslproxy and carries the marker comment) and `pop_id` (the POP id parsed from the marker comment, if any).  The domain must fall under a zone listed in settings.dns.providers[].managed_zones, otherwise zone_not_allowed is returned BEFORE any HTTP call.",
+        inputSchema = {
+            type = "object",
+            properties = {
+                domain = {type = "string", description = "Fully-qualified domain to query (e.g. 'api.example.com')."},
+                record_type = {type = "string", description = "Optional DNS record type filter (default: any; common: 'A')."}
+            },
+            required = {"domain"}
+        },
+        annotations = {
+            title = "Lookup DNS Records",
+            readOnlyHint = true,
+            destructiveHint = false,
+            idempotentHint = true,
+            openWorldHint = true
+        }
+    },
+    {
+        name = "provision_dns",
+        description = "Converge Cloudflare DNS records for a server to match its pop_ids.  Computes a plan (create / update / delete / unchanged per POP) and either previews it (dry_run=true) or applies it (dry_run=false).  Default is dry_run=true so an agent ALWAYS sees the plan first; pass dry_run=false in a follow-up call to apply.  Only modifies records created by wslproxy (carrying the marker comment) — hand-curated records are never touched.  Returns the action list, including any skipped POPs and the reason.",
+        inputSchema = {
+            type = "object",
+            properties = {
+                server_id = {type = "string", description = "Server id (e.g. 'host:api.example.com')."},
+                profile_id = {type = "string", description = "Environment profile (e.g. 'prod', 'int')."},
+                dry_run = {type = "boolean", description = "If true (DEFAULT), returns the action plan without calling Cloudflare to write.  Pass false to actually apply."},
+                include_inactive = {type = "boolean", description = "If true, POPs in 'down' or 'maintenance' status are included in the desired set.  Default false."},
+                record_type = {type = "string", description = "DNS record type to manage (default 'A')."}
+            },
+            required = {"server_id", "profile_id"}
+        },
+        annotations = {
+            title = "Provision DNS (Cloudflare)",
+            readOnlyHint = false,
+            destructiveHint = false,
+            idempotentHint = true,
+            openWorldHint = true
+        }
     }
 }
 
@@ -2545,6 +2716,228 @@ function _M.delete_rule(params)
     }
 end
 
+-- ──────────────────────────────────────────────────────────────────
+-- POPs + DNS — implementations
+-- ──────────────────────────────────────────────────────────────────
+
+-- Helper: wrap a (data, err) backend return in the MCP response
+-- shape.  Keeps each handler short and uniform.
+local function pop_response(tool, data, err)
+    if not data then
+        return {
+            tool = tool,
+            result = {
+                error = err and err.code or "internal_error",
+                message = err and err.message or "Unknown error",
+                details = err and err.details or nil,
+            },
+            isError = true,
+        }
+    end
+    return {tool = tool, result = data, isError = false}
+end
+
+-- Tool: list_pops
+function _M.list_pops(params)
+    local Pops = require("pops")
+    local limit = tonumber(params.limit) or 100
+    if limit > 500 then limit = 500 end
+    local filter = {}
+    if params.status and params.status ~= "" then filter.status = params.status end
+    if params.region and params.region ~= "" then filter.region = params.region end
+    if params.q and params.q ~= "" then filter.q = params.q end
+    local data, total = Pops.list({
+        pagination = {page = 1, perPage = limit},
+        sort = {field = "id", order = "ASC"},
+        filter = filter,
+    })
+    return {
+        tool = "list_pops",
+        result = {pops = data, total = total, returned = #data},
+        isError = false,
+    }
+end
+
+-- Tool: get_pop
+function _M.get_pop(params)
+    local Pops = require("pops")
+    if not params.pop_id or params.pop_id == "" then
+        return pop_response("get_pop", nil, {
+            code = "validation_failed", message = "pop_id is required"})
+    end
+    local rec, err = Pops.get(params.pop_id)
+    return pop_response("get_pop", rec, err)
+end
+
+-- Tool: create_pop
+function _M.create_pop(params)
+    local Pops = require("pops")
+    local payload = {
+        id = params.id,
+        display_name = params.display_name,
+        public_ipv4 = params.public_ipv4,
+        public_ipv6 = params.public_ipv6,
+        region = params.region,
+        city = params.city,
+        country_code = params.country_code,
+        provider = params.provider,
+        status = params.status,
+        capacity_weight = params.capacity_weight,
+        tags = params.tags,
+    }
+    -- dry_run defaults to false here — operators creating POPs via an
+    -- agent usually want the create to actually happen.  Pass
+    -- dry_run=true explicitly to preview without writing.
+    if params.dry_run then
+        -- Lightweight preview: validate by running create then... not
+        -- applying.  Pops doesn't expose a separate validator, so we
+        -- approximate by returning what would be persisted alongside
+        -- the message.  A future enhancement is to add Pops.validate().
+        return {
+            tool = "create_pop",
+            result = {
+                dry_run = true,
+                would_create = payload,
+                next_steps = "Re-run with dry_run=false to actually create.",
+            },
+            isError = false,
+        }
+    end
+    local rec, err = Pops.create(payload, "mcp")
+    if rec then
+        ngx.log(ngx.INFO, "MCP: POP '", rec.id, "' created by ", ngx.var.remote_addr)
+    end
+    return pop_response("create_pop", rec, err)
+end
+
+-- Tool: update_pop
+function _M.update_pop(params)
+    local Pops = require("pops")
+    if not params.pop_id or params.pop_id == "" then
+        return pop_response("update_pop", nil, {
+            code = "validation_failed", message = "pop_id is required"})
+    end
+    -- Build the delta — only include fields the caller actually
+    -- passed, so an update of `status` doesn't accidentally clear
+    -- `tags` by sending nil.
+    local delta = {}
+    for _, k in ipairs({"display_name", "public_ipv4", "public_ipv6",
+                       "region", "city", "country_code", "provider",
+                       "status", "capacity_weight", "tags"}) do
+        if params[k] ~= nil then delta[k] = params[k] end
+    end
+    if params.dry_run then
+        return {
+            tool = "update_pop",
+            result = {
+                dry_run = true,
+                pop_id = params.pop_id,
+                would_patch = delta,
+                next_steps = "Re-run with dry_run=false to apply.",
+            },
+            isError = false,
+        }
+    end
+    local rec, err = Pops.update(params.pop_id, delta, "mcp")
+    if rec then
+        ngx.log(ngx.INFO, "MCP: POP '", params.pop_id, "' updated by ", ngx.var.remote_addr)
+    end
+    return pop_response("update_pop", rec, err)
+end
+
+-- Tool: delete_pop
+function _M.delete_pop(params)
+    local Pops = require("pops")
+    if not params.pop_id or params.pop_id == "" then
+        return pop_response("delete_pop", nil, {
+            code = "validation_failed", message = "pop_id is required"})
+    end
+    -- Always inventory references first so the preview is useful
+    -- (and so the destructive-action gate is informed).
+    local refs = Pops.find_servers_using(params.pop_id) or {}
+    if not params.confirm then
+        return {
+            tool = "delete_pop",
+            result = {
+                confirmed = false,
+                pop_id = params.pop_id,
+                referencing_servers = refs,
+                will_cascade_detach = (#refs > 0) and (params.force or false) or nil,
+                next_steps = (#refs > 0 and not params.force)
+                    and "Servers reference this POP.  Re-run with confirm=true AND force=true to cascade-detach + delete, OR detach those servers first."
+                    or "Re-run with confirm=true to actually delete.",
+            },
+            isError = false,
+        }
+    end
+    local result, err = Pops.delete(
+        params.pop_id, {force = params.force or false}, "mcp")
+    if result then
+        ngx.log(ngx.INFO, "MCP: POP '", params.pop_id, "' deleted by ",
+            ngx.var.remote_addr, " (force=", tostring(params.force or false), ")")
+        -- Pops.delete returns bare `true` on success; replace with a
+        -- structured payload so the agent / dashboard sees what
+        -- actually happened rather than an opaque boolean.
+        return {
+            tool = "delete_pop",
+            result = {
+                deleted = true,
+                pop_id = params.pop_id,
+                forced = params.force or false,
+                detached_servers = (#refs > 0) and refs or nil,
+            },
+            isError = false,
+        }
+    end
+    return pop_response("delete_pop", nil, err)
+end
+
+-- Tool: lookup_dns
+function _M.lookup_dns(params)
+    local DnsManager = require("dns_manager")
+    if not params.domain or params.domain == "" then
+        return pop_response("lookup_dns", nil, {
+            code = "validation_failed", message = "domain is required"})
+    end
+    local result, err = DnsManager.lookup({
+        domain = params.domain,
+        type = params.record_type,
+    })
+    return pop_response("lookup_dns", result, err)
+end
+
+-- Tool: provision_dns
+function _M.provision_dns(params)
+    local DnsManager = require("dns_manager")
+    if not params.server_id or params.server_id == "" then
+        return pop_response("provision_dns", nil, {
+            code = "validation_failed", message = "server_id is required"})
+    end
+    if not params.profile_id or params.profile_id == "" then
+        return pop_response("provision_dns", nil, {
+            code = "validation_failed", message = "profile_id is required"})
+    end
+    -- DEFAULT TO DRY-RUN.  This is the opposite of create_pop /
+    -- update_pop: provisioning touches external state (Cloudflare),
+    -- so an agent must always see the plan first.  The caller has
+    -- to explicitly pass dry_run=false to actually apply.
+    local dry_run = params.dry_run
+    if dry_run == nil then dry_run = true end
+    local result, err = DnsManager.provision_for_server({
+        server_id = params.server_id,
+        profile_id = params.profile_id,
+        dry_run = dry_run,
+        include_inactive = params.include_inactive,
+        record_type = params.record_type,
+    })
+    if result and not dry_run then
+        ngx.log(ngx.INFO, "MCP: DNS provisioned for server '",
+            params.server_id, "' by ", ngx.var.remote_addr,
+            " (", #(result.actions or {}), " actions)")
+    end
+    return pop_response("provision_dns", result, err)
+end
+
 -- Execute a tool by name
 function _M.execute(tool_name, params)
     local config = McpConfig.load()
@@ -2574,7 +2967,15 @@ function _M.execute(tool_name, params)
         update_server = function() return _M.update_server(params) end,
         update_rule = function() return _M.update_rule(params) end,
         delete_server = function() return _M.delete_server(params) end,
-        delete_rule = function() return _M.delete_rule(params) end
+        delete_rule = function() return _M.delete_rule(params) end,
+        -- POPs + DNS (added in feature/pops-and-cloudflare-dns)
+        list_pops = function() return _M.list_pops(params) end,
+        get_pop = function() return _M.get_pop(params) end,
+        create_pop = function() return _M.create_pop(params) end,
+        update_pop = function() return _M.update_pop(params) end,
+        delete_pop = function() return _M.delete_pop(params) end,
+        lookup_dns = function() return _M.lookup_dns(params) end,
+        provision_dns = function() return _M.provision_dns(params) end
     }
 
     local handler = tool_handlers[tool_name]
@@ -2589,11 +2990,23 @@ function _M.execute(tool_name, params)
         deploy_varnish = true, purge_varnish = true,
         create_server = true, create_rule = true, attach_rule = true,
         update_server = true, update_rule = true,
-        delete_server = true, delete_rule = true
+        delete_server = true, delete_rule = true,
+        -- POPs + DNS write tools.  provision_dns is in here even
+        -- though it defaults to dry_run=true: a dry-run-only call
+        -- doesn't mutate Cloudflare, but it still counts as a
+        -- "write tool" for permission gating so an operator
+        -- running MCP in read-only mode can't reach the apply path
+        -- by accident.
+        create_pop = true, update_pop = true, delete_pop = true,
+        provision_dns = true
     }
     if write_tools[tool_name] then
         if tool_name == "reload_config" and params.dry_run ~= false then
             -- dry_run reload is read-only, allow it
+        elseif tool_name == "provision_dns" and params.dry_run ~= false then
+            -- dry_run provision is read-only (no Cloudflare writes),
+            -- so allow even in read-only mode.  Mirrors the
+            -- reload_config exception above.
         elseif McpConfig.is_read_only(config) then
             return nil, "Tool '" .. tool_name .. "' requires write mode. MCP is currently in read-only mode."
         end

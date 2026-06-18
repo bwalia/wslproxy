@@ -137,6 +137,17 @@ local function read_pop_file(id)
 end
 
 local function write_pop_file(id, record)
+    -- Re-stamp the empty-array metatable on tags BEFORE encoding.
+    -- read_pop_file decodes JSON into a plain Lua table with no
+    -- metatable; without re-stamping, an empty `tags: []` on disk
+    -- round-trips through read → update → write as `tags: {}`,
+    -- which then crashes downstream `.map(...)` calls in the
+    -- dashboard (CLAUDE.md §13).  metadata is intentionally left as
+    -- an object — it's a Record<string, unknown>, not an array.
+    if cjson.empty_array_mt and type(record.tags) == "table"
+            and next(record.tags) == nil then
+        setmetatable(record.tags, cjson.empty_array_mt)
+    end
     local f, err = io.open(pop_path(id), "wb")
     if not f then return false, "Failed to open " .. pop_path(id) .. ": " .. tostring(err) end
     f:write(cjson.encode(record))
