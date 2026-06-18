@@ -11,6 +11,7 @@ import ArrayFieldEditor from "./sections/ArrayFieldEditor";
 import LocationBlockEditor from "./sections/LocationBlockEditor";
 import ConfigPreview from "./sections/ConfigPreview";
 import PopMultiSelect from "./sections/PopMultiSelect";
+import DnsRecordTypeCard from "./sections/DnsRecordTypeCard";
 import DnsStatePanel from "./sections/DnsStatePanel";
 import type { ServerFormState } from "./types";
 import type { LocationEntry } from "./sections/LocationBlockEditor";
@@ -379,6 +380,31 @@ const NginxServerTab: React.FC<NginxServerTabProps> = ({
           setForm((prev) => ({ ...prev, pop_ids: next }))
         }
         isLoading={popsLoading}
+      />
+
+      {/* ── DNS Record Type (A / AAAA / BOTH / CNAME) ───────────────────
+          Sits between POPs and the DNS State panel so the order on the
+          form reads "where do I serve from? what shape of record?
+          what's actually in Cloudflare now?".  The v6-warning surfaces
+          when the operator picked AAAA/BOTH but no selected POP has
+          public_ipv6 — that misconfiguration would otherwise only
+          surface at provision time as a skipped-POP. */}
+      <DnsRecordTypeCard
+        value={form.dns_record_type}
+        cnameTarget={form.dns_cname_target}
+        onChange={(next) =>
+          setForm((prev) => ({ ...prev, dns_record_type: next }))
+        }
+        onCnameTargetChange={(next) =>
+          setForm((prev) => ({ ...prev, dns_cname_target: next }))
+        }
+        selectedPopsHaveV6={
+          form.pop_ids.length === 0
+            ? undefined
+            : (pops ?? []).some(
+                (p) => form.pop_ids.includes(p.id) && !!p.public_ipv6,
+              )
+        }
       />
 
       {/* ── DNS State (Cloudflare) ──────────────────────────────────────

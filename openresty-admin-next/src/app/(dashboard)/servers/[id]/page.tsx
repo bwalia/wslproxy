@@ -73,6 +73,8 @@ const DEFAULT_FORM: ServerFormState = {
   proxy_server_name: "",
   profile_id: "",
   pop_ids: [],
+  dns_record_type: "A",
+  dns_cname_target: "",
   servers_tags: [],
   root: "/var/www/html",
   index: "index.html",
@@ -183,6 +185,11 @@ function hydrateForm(data: ServerType): ServerFormState {
     proxy_server_name: data.proxy_server_name ?? "",
     profile_id: data.profile_id ?? "",
     pop_ids: Array.isArray(data.pop_ids) ? data.pop_ids : [],
+    // Defaults preserve backwards compatibility: an existing server
+    // saved before this field existed reads as `"A"` (the previous
+    // behaviour) so its DNS provisioning is unchanged on first edit.
+    dns_record_type: (data.dns_record_type as "A" | "AAAA" | "BOTH" | "CNAME") ?? "A",
+    dns_cname_target: data.dns_cname_target ?? "",
     servers_tags: Array.isArray(data.servers_tags) ? data.servers_tags : [],
     root: data.root ?? "/var/www/html",
     index: data.index ?? "index.html",
@@ -263,6 +270,12 @@ function buildPayload(form: ServerFormState): Record<string, unknown> {
     proxy_server_name: form.proxy_server_name,
     profile_id: form.profile_id,
     pop_ids: form.pop_ids,
+    dns_record_type: form.dns_record_type,
+    // Only persist dns_cname_target when the mode actually uses it
+    // — leaving stale CNAME targets on A-mode servers would be
+    // misleading state.
+    dns_cname_target:
+      form.dns_record_type === "CNAME" ? form.dns_cname_target : undefined,
     servers_tags: form.servers_tags,
     root: form.root,
     index: form.index,

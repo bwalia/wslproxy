@@ -251,6 +251,11 @@ export default function PopMultiSelect({
                         </div>
                         <div className="mt-0.5 truncate font-mono text-xs text-slate-500 dark:text-slate-500">
                           {p.public_ipv4}
+                          {p.public_ipv6 && (
+                            <span className="ml-2 text-slate-400">
+                              · v6 {p.public_ipv6}
+                            </span>
+                          )}
                           {p.city && (
                             <span className="ml-2 text-slate-400">
                               · {p.city}

@@ -75,6 +75,19 @@ export interface Server {
    *  provisioner falls back to the profile's default POPs.
    *  See `api/pops.lua` and `data/pops/{id}.json`. */
   pop_ids?: string[];
+  /** DNS record type the provisioner should manage for this server's
+   *  domain.  Defaults to `"A"` (one A record per active POP using
+   *  `public_ipv4`).  `"AAAA"` uses `public_ipv6` instead; `"BOTH"`
+   *  publishes both (dual-stack); `"CNAME"` publishes a single CNAME
+   *  record pointing at `dns_cname_target` (POPs are ignored).  See
+   *  POPS_AND_DNS_GUIDE.md for when to use each. */
+  dns_record_type?: "A" | "AAAA" | "BOTH" | "CNAME";
+  /** Required when `dns_record_type === "CNAME"`: the hostname this
+   *  server's domain should point at via a CNAME record.  Ignored in
+   *  other modes.  CNAME records cannot coexist with A/AAAA records
+   *  at the same name (DNS spec), so picking CNAME removes any
+   *  A/AAAA records wslproxy was managing for this domain. */
+  dns_cname_target?: string;
   locations?: LocationBlock[];
   custom_headers?: { header_key: string; header_value: string }[];
   custom_response_headers?: { header_key: string; header_value: string }[];

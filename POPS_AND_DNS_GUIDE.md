@@ -76,6 +76,19 @@ When you click **Preview & Provision** (or call the equivalent MCP / REST endpoi
 
 **Records wslproxy didn't create are never modified or deleted.**  This is the hard guarantee — your hand-curated records and other tools' records are safe.
 
+### Choosing the record type
+
+Each server has a `dns_record_type` field — set via the **DNS Record Type** card on the server form — that controls what shape of record the provisioner publishes:
+
+| Mode | What's published | Uses pop_ids? | Reads which POP field |
+|---|---|---|---|
+| **A** (default) | One A record per active POP | yes | `public_ipv4` |
+| **AAAA** | One AAAA record per active POP | yes | `public_ipv6` |
+| **BOTH** | Both A and AAAA per active POP (dual-stack) | yes | `public_ipv4` + `public_ipv6` |
+| **CNAME** | ONE CNAME pointing at a hostname | no | uses `dns_cname_target` instead |
+
+In **BOTH** mode, POPs that have `public_ipv4` but no `public_ipv6` still get an A record — the AAAA pass just skips them with reason `no_public_ipv6`.  In **CNAME** mode, POPs are not used at all; the server points at a single hostname.
+
 ---
 
 ## 3. One-time Cloudflare setup
@@ -457,10 +470,16 @@ Check the comment on the existing Cloudflare records.  wslproxy can only update 
 Yes.  `providers[]` is an array — add a second entry with a different token + different `managed_zones`.  Each provider has its own allowlist.
 
 **Q: What about AAAA (IPv6) records?**
-Today the provisioner manages A records only.  POPs have a `public_ipv6` field and the code is structured to support AAAA in a future change — but it's not exposed yet.  If you need it, file an issue or open a PR.
+Supported.  On the server form, pick the **DNS Record Type** card and choose **AAAA** (or **BOTH** for dual-stack).  AAAA mode publishes one record per active POP using its `public_ipv6` field; POPs without v6 set get skipped with reason `no_public_ipv6` so you can see at a glance which need configuring.  Set each POP's `public_ipv6` either via the `/pops` dashboard or by setting the field in `data/pops/<id>.json`.
 
 **Q: What about CNAME records?**
-Not supported yet — same reason as AAAA.  Today wslproxy creates one A record per POP.  CNAME-via-single-hostname (e.g. all servers point to `wslproxy.example.com` which has A records for each POP) would be cleaner for fleets with rotating IPs, but isn't implemented.
+Supported.  Pick **CNAME** on the DNS Record Type card and fill in the **CNAME target** field — the hostname your domain should point at (e.g. `edge.wslproxy.com`).  CNAME mode publishes ONE record (not per-POP) and ignores `pop_ids`.  Note that the DNS spec forbids CNAME from coexisting with A/AAAA at the same name; the provisioner will clean up any old A/AAAA records it owns when you switch to CNAME (records you curated by hand outside wslproxy are left alone, as always).
+
+**Q: When should I use BOTH vs A vs AAAA?**
+- **A** (default): every POP has IPv4, you don't need v6 yet, no client requests AAAA.
+- **AAAA**: pure v6 environment (rare for public-facing services, common for internal/eyeball clouds).
+- **BOTH**: dual-stack — you want v4 and v6 clients to both reach the POP closest to them.  POPs without v6 still get an A record; the AAAA pass just skips them.
+- **CNAME**: the domain is an alias for another hostname that already has the right records (e.g. a wholesale CDN endpoint, a managed-service hostname).  CNAME mode is incompatible with multi-POP routing on the same name.
 
 **Q: Does the dashboard's "Refresh" button rate-limit Cloudflare?**
 Each Refresh hits Cloudflare's `GET /zones/{id}/dns_records` once per domain.  Cloudflare's limit is ~1200 req/5min per token — you'd have to spam Refresh hundreds of times per minute to hit it.

@@ -261,6 +261,22 @@ function DnsStateBody({
         />
       );
     }
+    if (code === "no_cname_target") {
+      return (
+        <InfoBanner
+          tone="warning"
+          title="CNAME target not set"
+          body={
+            <p>
+              You picked <strong>CNAME</strong> mode for this server but
+              haven&apos;t set the target hostname yet.  Scroll up to the{" "}
+              <strong>DNS Record Type</strong> card and fill in the
+              <em> CNAME target</em> input.
+            </p>
+          }
+        />
+      );
+    }
     if (code === "provider_error" || code === "network_error") {
       const zone = error.details?.zone;
       const cfHttp = error.details?.http_status;

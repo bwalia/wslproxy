@@ -52,6 +52,10 @@ type ActionKind =
 interface PlanAction {
   action: ActionKind;
   pop_id?: string;
+  /** Record type the action targets — present when BOTH mode produces
+   *  a mixed list (A + AAAA), and on every action emitted by the
+   *  refactored planner.  Older plans omit it (treated as "A"). */
+  record_type?: "A" | "AAAA" | "CNAME";
   content?: string;
   from_content?: string;
   record_id?: string;
@@ -234,7 +238,9 @@ export default function DnsProvisionDialog({
                       {a.pop_id}
                     </span>
                   )}
-                  <span className="text-xs text-slate-500">A record</span>
+                  <span className="text-xs text-slate-500">
+                    {a.record_type || "A"} record
+                  </span>
                 </div>
                 <div className="mt-1 font-mono text-xs text-slate-700 dark:text-slate-300">
                   {a.from_content && a.content && a.from_content !== a.content ? (

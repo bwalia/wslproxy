@@ -442,22 +442,227 @@ end
 -- Public: high-level orchestrator — provision DNS for a server
 -- ============================================================
 
---- The main user-facing flow.  Reads server.pop_ids, looks up each
---- POP's IP, and converges Cloudflare to publish exactly one A
---- record per active POP.  Orphaned wslproxy-managed records (POPs
---- that were removed from the server) are deleted.
+--- Plan the per-POP convergence for a single record type (A or
+--- AAAA).  Extracted from provision_for_server so the BOTH mode can
+--- run it twice without duplicating the loop.
+---
+--- `ip_field` is which POP field to read for the record content
+--- (`public_ipv4` for A; `public_ipv6` for AAAA).  POPs missing that
+--- specific field skip with a type-specific reason — the operator
+--- sees "no_public_ipv6" rather than a generic "no_public_ipv4" when
+--- they're running AAAA mode against POPs that only have v4.
+---
+--- Every action emitted carries a `record_type` field so the
+--- executor below can call create/update/delete with the right type
+--- when BOTH mode produces a mixed action list.
+local function plan_per_pop(opts, server, zone, pop_ids,
+                            record_type, ip_field, no_ip_reason)
+    local desired = {}
+    local skipped = {}
+    for _, pid in ipairs(pop_ids) do
+        -- Capture both returns from Pops.get so we don't masquerade
+        -- io_error / decode_error as "not_found".
+        local pop, perr = Pops.get(pid)
+        if type(pop) ~= "table" then
+            table.insert(skipped, {
+                pop_id = pid,
+                reason = (perr and perr.code) or "not_found",
+                record_type = record_type,
+            })
+        elseif not pop[ip_field] or pop[ip_field] == "" then
+            table.insert(skipped, {
+                pop_id = pid,
+                reason = no_ip_reason,
+                record_type = record_type,
+            })
+        elseif (pop.status == "down" or pop.status == "maintenance") and
+                not opts.include_inactive then
+            table.insert(skipped, {
+                pop_id = pid,
+                reason = "status_" .. pop.status,
+                record_type = record_type,
+            })
+        else
+            table.insert(desired, {pop_id = pid, content = pop[ip_field]})
+        end
+    end
+
+    -- Inventory CF records OF THIS TYPE for the domain.  Filtering
+    -- by type matters: BOTH mode plans A and AAAA independently and
+    -- must not see one type's records in the other's plan.
+    local existing, lerr = list_records_for_name(
+        zone.provider, zone.zone_id, server.server_name, record_type)
+    if not existing then
+        local enriched = lerr or {code = "io_error", message = "Cloudflare call returned nil"}
+        enriched.details = enriched.details or {}
+        enriched.details.zone = {name = zone.zone_name, id = zone.zone_id}
+        enriched.details.record_type = record_type
+        return nil, nil, enriched
+    end
+
+    local by_pop = {}
+    local untracked_ours = {}
+    for _, r in ipairs(existing) do
+        if is_wslproxy_managed(r) then
+            local rpop = extract_pop_id(r)
+            if rpop and rpop ~= "cname" then
+                by_pop[rpop] = r
+            else
+                table.insert(untracked_ours, r)
+            end
+        end
+    end
+
+    local actions = {}
+    local seen_pops = {}
+    for _, d in ipairs(desired) do
+        seen_pops[d.pop_id] = true
+        local existing_rec = by_pop[d.pop_id]
+        local desired_comment = build_comment(opts.server_id, opts.profile_id, d.pop_id)
+        if not existing_rec then
+            table.insert(actions, {
+                pop_id = d.pop_id, action = "create",
+                content = d.content, comment = desired_comment,
+                record_type = record_type,
+            })
+        elseif existing_rec.content == d.content then
+            table.insert(actions, {
+                pop_id = d.pop_id, action = "unchanged",
+                content = d.content, record_id = existing_rec.id,
+                record_type = record_type,
+            })
+        else
+            table.insert(actions, {
+                pop_id = d.pop_id, action = "update",
+                content = d.content, comment = desired_comment,
+                record_id = existing_rec.id,
+                from_content = existing_rec.content,
+                record_type = record_type,
+            })
+        end
+    end
+    for pop_id, rec in pairs(by_pop) do
+        if not seen_pops[pop_id] then
+            table.insert(actions, {
+                pop_id = pop_id, action = "delete",
+                record_id = rec.id, from_content = rec.content,
+                record_type = record_type,
+            })
+        end
+    end
+    for _, rec in ipairs(untracked_ours) do
+        table.insert(actions, {
+            pop_id = nil, action = "delete_legacy",
+            record_id = rec.id, from_content = rec.content,
+            record_type = record_type,
+        })
+    end
+
+    return actions, skipped
+end
+
+--- Plan the single-record convergence for CNAME mode.  CNAME is
+--- fundamentally different from A/AAAA: it's ONE record pointing at
+--- a hostname, not per-POP fan-out.  Reads `server.dns_cname_target`
+--- as the target hostname.  POPs are not involved.
+---
+--- Cloudflare and the DNS spec disallow CNAME records coexisting
+--- with other record types at the same name, so callers should not
+--- combine CNAME with A/AAAA on the same server.
+local function plan_cname(opts, server, zone)
+    local target = server.dns_cname_target
+    if not target or target == "" then
+        return nil, nil, {
+            code = "no_cname_target",
+            message = "Server '" .. opts.server_id ..
+                "' has dns_record_type='CNAME' but no dns_cname_target set.  " ..
+                "Set the hostname this server should point at (e.g. " ..
+                "'edge.wslproxy.com') in the server form's DNS section.",
+        }
+    end
+
+    local existing, lerr = list_records_for_name(
+        zone.provider, zone.zone_id, server.server_name, "CNAME")
+    if not existing then
+        local enriched = lerr or {code = "io_error", message = "Cloudflare call returned nil"}
+        enriched.details = enriched.details or {}
+        enriched.details.zone = {name = zone.zone_name, id = zone.zone_id}
+        enriched.details.record_type = "CNAME"
+        return nil, nil, enriched
+    end
+
+    -- There should be at most ONE wslproxy-managed CNAME per name.
+    -- If there are more (somehow corrupted state), the later one
+    -- "wins" and the earlier ones get cleaned up as legacy.
+    local our_existing
+    local untracked_ours = {}
+    for _, r in ipairs(existing) do
+        if is_wslproxy_managed(r) then
+            if our_existing then
+                table.insert(untracked_ours, our_existing)
+            end
+            our_existing = r
+        end
+    end
+
+    local actions = {}
+    local desired_comment = build_comment(opts.server_id, opts.profile_id, "cname")
+    if not our_existing then
+        table.insert(actions, {
+            pop_id = nil, action = "create",
+            content = target, comment = desired_comment,
+            record_type = "CNAME",
+        })
+    elseif our_existing.content == target then
+        table.insert(actions, {
+            pop_id = nil, action = "unchanged",
+            content = target, record_id = our_existing.id,
+            record_type = "CNAME",
+        })
+    else
+        table.insert(actions, {
+            pop_id = nil, action = "update",
+            content = target, comment = desired_comment,
+            record_id = our_existing.id,
+            from_content = our_existing.content,
+            record_type = "CNAME",
+        })
+    end
+    for _, rec in ipairs(untracked_ours) do
+        table.insert(actions, {
+            pop_id = nil, action = "delete_legacy",
+            record_id = rec.id, from_content = rec.content,
+            record_type = "CNAME",
+        })
+    end
+
+    return actions, {}
+end
+
+--- The main user-facing flow.  Dispatches on `record_type` (or
+--- `server.dns_record_type`, falling back to "A"):
+---
+---   - "A"    — one A record per active POP using public_ipv4
+---   - "AAAA" — one AAAA record per active POP using public_ipv6
+---   - "BOTH" — both of the above; produces a mixed action list
+---   - "CNAME" — one CNAME pointing at server.dns_cname_target;
+---               POPs are not used in this mode
+---
+--- Orphaned wslproxy-managed records (POPs removed from the server,
+--- or records of the wrong type for the current mode) are deleted.
 ---
 --- opts: {
 ---   server_id (req), profile_id (req),
----   dry_run (bool), include_inactive (bool), record_type ("A")
+---   dry_run (bool), include_inactive (bool),
+---   record_type ("A"|"AAAA"|"BOTH"|"CNAME") — overrides
+---              server.dns_record_type if set,
 --- }
 ---
 --- Returns a summary table:
 --- {
----   domain, zone_id, zone_name,
----   actions = [ {action, content, pop_id, record_id?, error?}, ... ],
----   skipped = [ {pop_id, reason}, ... ],
----   warnings = [ ... ],
+---   domain, zone_id, zone_name, record_type,
+---   actions = [ {action, content, pop_id, record_type, record_id?, error?}, ... ],
+---   skipped = [ {pop_id, record_type, reason}, ... ],
 --- }
 function _M.provision_for_server(opts)
     opts = opts or {}
@@ -493,127 +698,85 @@ function _M.provision_for_server(opts)
         }
     end
 
-    -- 2. Resolve target IPs from pop_ids
-    local pop_ids = server.pop_ids
-    if type(pop_ids) ~= "table" or #pop_ids == 0 then
+    -- 2. Decide which record type(s) to converge.  Explicit
+    -- opts.record_type beats server.dns_record_type beats "A".
+    -- Upper-casing is forgiving (operators write "a" or "cname"
+    -- interchangeably).  The validation rejects anything not in the
+    -- enum before we start touching Cloudflare.
+    local record_type = opts.record_type or server.dns_record_type or "A"
+    record_type = string.upper(tostring(record_type))
+    local VALID_TYPES = {A = true, AAAA = true, BOTH = true, CNAME = true}
+    if not VALID_TYPES[record_type] then
         return nil, {
-            code = "no_pops_assigned",
-            message = "Server '" .. opts.server_id ..
-                "' has no pop_ids assigned.  Assign at least one POP on the server form before provisioning DNS.",
-        }
-    end
-    local desired = {}      -- list of {pop_id, content (IP)}
-    local skipped = {}
-    for _, pid in ipairs(pop_ids) do
-        -- Capture both returns from Pops.get so we don't masquerade
-        -- io_error / decode_error as "not_found".  The operator sees
-        -- the real reason in the skipped list (e.g. "io_error" when a
-        -- pop file is unreadable — distinct from a genuinely missing
-        -- POP).
-        local pop, perr = Pops.get(pid)
-        if type(pop) ~= "table" then
-            local reason = (perr and perr.code) or "not_found"
-            table.insert(skipped, {pop_id = pid, reason = reason})
-        elseif not pop.public_ipv4 or pop.public_ipv4 == "" then
-            table.insert(skipped, {pop_id = pid, reason = "no_public_ipv4"})
-        elseif (pop.status == "down" or pop.status == "maintenance") and
-                not opts.include_inactive then
-            table.insert(skipped, {pop_id = pid, reason = "status_" .. pop.status})
-        else
-            table.insert(desired, {pop_id = pid, content = pop.public_ipv4})
-        end
-    end
-    if #desired == 0 then
-        return nil, {
-            code = "no_targets",
-            message = "No active POPs to provision.  All assigned POPs were skipped — see the `skipped` list.",
-            details = {skipped = skipped},
+            code = "validation_failed",
+            message = "Invalid record_type '" .. record_type ..
+                "'.  Must be one of: A, AAAA, BOTH, CNAME.",
         }
     end
 
-    -- 3. Resolve Cloudflare zone for the domain
+    -- 3. Resolve Cloudflare zone for the domain (one lookup, reused
+    -- by both planners — the zone allowlist check is the safety gate
+    -- that runs BEFORE any record-shape decision).
     local zone, zerr = _M.find_zone(domain)
     if not zone then return nil, zerr end
 
-    -- 4. Inventory existing wslproxy-managed records for this name
-    local existing, lerr = list_records_for_name(
-        zone.provider, zone.zone_id, domain, opts.record_type or "A")
-    if not existing then
-        local enriched = lerr or {code = "io_error", message = "Cloudflare call returned nil"}
-        enriched.details = enriched.details or {}
-        enriched.details.zone = {name = zone.zone_name, id = zone.zone_id}
-        return nil, enriched
-    end
-    -- Index by pop_id (when extractable) for O(1) diff lookup.
-    -- Records that are NOT wslproxy-managed are left untouched
-    -- regardless of their content — the marker is what protects
-    -- hand-curated records from this orchestrator.
-    local by_pop = {}
-    local untracked_ours = {}  -- our records with no pop_id parseable
-    for _, r in ipairs(existing) do
-        if is_wslproxy_managed(r) then
-            local rpop = extract_pop_id(r)
-            if rpop then
-                by_pop[rpop] = r
-            else
-                table.insert(untracked_ours, r)
-            end
-        end
-    end
-
-    -- 5. Compute the action plan: for each desired POP, decide
-    -- create / update / unchanged.  Then collect orphans for delete.
+    -- 4. Dispatch on record_type.  CNAME is a fundamentally different
+    -- shape (one record, no POP fan-out) so it has its own planner.
+    -- A / AAAA / BOTH all share the per-POP planner; BOTH runs it
+    -- twice and accumulates.
     local actions = {}
-    local seen_pops = {}
-    for _, d in ipairs(desired) do
-        seen_pops[d.pop_id] = true
-        local existing_rec = by_pop[d.pop_id]
-        local desired_comment = build_comment(opts.server_id, opts.profile_id, d.pop_id)
-        if not existing_rec then
-            table.insert(actions, {
-                pop_id = d.pop_id,
-                action = "create",
-                content = d.content,
-                comment = desired_comment,
-            })
-        elseif existing_rec.content == d.content then
-            table.insert(actions, {
-                pop_id = d.pop_id,
-                action = "unchanged",
-                content = d.content,
-                record_id = existing_rec.id,
-            })
+    local skipped = {}
+    if record_type == "CNAME" then
+        local cnames, cskipped, cerr = plan_cname(opts, server, zone)
+        if cerr then return nil, cerr end
+        -- `or {}` fallbacks are defensive: plan_cname's contract is
+        -- "return (actions, skipped) OR (nil, nil, err)", but the
+        -- LSP can't narrow that across the error guard above.
+        actions = cnames or {}
+        skipped = cskipped or {}
+    else
+        local pop_ids = server.pop_ids
+        if type(pop_ids) ~= "table" or #pop_ids == 0 then
+            return nil, {
+                code = "no_pops_assigned",
+                message = "Server '" .. opts.server_id ..
+                    "' has no pop_ids assigned.  Assign at least one POP on the server form before provisioning DNS.",
+            }
+        end
+        -- BOTH mode → run the planner twice; A and AAAA → once.
+        -- Each pass returns actions tagged with its record_type so
+        -- the executor below can route to the right CF endpoint.
+        local types_to_do
+        if record_type == "BOTH" then
+            types_to_do = {{type = "A", field = "public_ipv4", reason = "no_public_ipv4"},
+                           {type = "AAAA", field = "public_ipv6", reason = "no_public_ipv6"}}
+        elseif record_type == "AAAA" then
+            types_to_do = {{type = "AAAA", field = "public_ipv6", reason = "no_public_ipv6"}}
         else
-            table.insert(actions, {
-                pop_id = d.pop_id,
-                action = "update",
-                content = d.content,
-                comment = desired_comment,
-                record_id = existing_rec.id,
-                from_content = existing_rec.content,
-            })
+            types_to_do = {{type = "A", field = "public_ipv4", reason = "no_public_ipv4"}}
         end
-    end
-    for pop_id, rec in pairs(by_pop) do
-        if not seen_pops[pop_id] then
-            table.insert(actions, {
-                pop_id = pop_id,
-                action = "delete",
-                record_id = rec.id,
-                from_content = rec.content,
-            })
+        for _, t in ipairs(types_to_do) do
+            local pacts, pskipped, perr = plan_per_pop(
+                opts, server, zone, pop_ids, t.type, t.field, t.reason)
+            if perr then return nil, perr end
+            -- Same defensive narrowing as the CNAME branch.
+            for _, x in ipairs(pacts or {}) do table.insert(actions, x) end
+            for _, x in ipairs(pskipped or {}) do table.insert(skipped, x) end
         end
-    end
-    -- Also clean up any legacy our-records that have no pop_id —
-    -- these would be from earlier provisioning shapes and don't
-    -- belong in the new desired set.
-    for _, rec in ipairs(untracked_ours) do
-        table.insert(actions, {
-            pop_id = nil,
-            action = "delete_legacy",
-            record_id = rec.id,
-            from_content = rec.content,
-        })
+        -- "no_targets" only fires when every plan came back empty
+        -- AND there are no deletes either.  For BOTH mode this means
+        -- both v4 and v6 had no work — usually because every POP was
+        -- skipped (e.g. all in maintenance).  Deletes are still
+        -- useful work, so an actions list of [delete, delete] is
+        -- allowed through.
+        local has_any_action = #actions > 0
+        if not has_any_action then
+            return nil, {
+                code = "no_targets",
+                message = "No active POPs to provision and no records to clean up.  All assigned POPs were skipped — see the `skipped` list.",
+                details = {skipped = skipped, record_type = record_type},
+            }
+        end
     end
 
     -- 6. Execute (or just plan)
@@ -623,6 +786,7 @@ function _M.provision_for_server(opts)
             domain = domain,
             zone_id = zone.zone_id,
             zone_name = zone.zone_name,
+            record_type = record_type,
             actions = actions,
             skipped = skipped,
         }
@@ -630,9 +794,14 @@ function _M.provision_for_server(opts)
 
     local executed = {}
     for _, a in ipairs(actions) do
+        -- Per-action record_type — BOTH mode produces a mixed list
+        -- of A and AAAA actions; each must call CF with its own type.
+        -- Fallback to opts.record_type is for old callers and CNAME
+        -- (where every action already carries `record_type = "CNAME"`).
+        local rt = a.record_type or opts.record_type or "A"
         if a.action == "create" then
             local rec, err = create_record(zone.provider, zone.zone_id, {
-                type = opts.record_type or "A",
+                type = rt,
                 name = domain,
                 content = a.content,
                 ttl = zone.provider.default_ttl,
@@ -643,17 +812,18 @@ function _M.provision_for_server(opts)
                 table.insert(executed, {
                     action = "created", pop_id = a.pop_id,
                     content = a.content, record_id = rec.id,
+                    record_type = rt,
                 })
             else
                 table.insert(executed, {
                     action = "error", pop_id = a.pop_id,
-                    content = a.content,
+                    content = a.content, record_type = rt,
                     error = (err and err.message) or "unknown error",
                 })
             end
         elseif a.action == "update" then
             local rec, err = update_record(zone.provider, zone.zone_id, a.record_id, {
-                type = opts.record_type or "A",
+                type = rt,
                 name = domain,
                 content = a.content,
                 ttl = zone.provider.default_ttl,
@@ -665,11 +835,12 @@ function _M.provision_for_server(opts)
                     action = "updated", pop_id = a.pop_id,
                     content = a.content, record_id = rec.id,
                     from_content = a.from_content,
+                    record_type = rt,
                 })
             else
                 table.insert(executed, {
                     action = "error", pop_id = a.pop_id,
-                    content = a.content,
+                    content = a.content, record_type = rt,
                     error = (err and err.message) or "unknown error",
                 })
             end
@@ -679,11 +850,12 @@ function _M.provision_for_server(opts)
                 table.insert(executed, {
                     action = a.action == "delete_legacy" and "deleted_legacy" or "deleted",
                     pop_id = a.pop_id, from_content = a.from_content,
-                    record_id = a.record_id,
+                    record_id = a.record_id, record_type = rt,
                 })
             else
                 table.insert(executed, {
                     action = "error", pop_id = a.pop_id,
+                    record_type = rt,
                     error = (err and err.message) or "unknown error",
                 })
             end
@@ -691,6 +863,7 @@ function _M.provision_for_server(opts)
             table.insert(executed, {
                 action = "unchanged", pop_id = a.pop_id,
                 content = a.content, record_id = a.record_id,
+                record_type = rt,
             })
         end
     end
@@ -701,6 +874,7 @@ function _M.provision_for_server(opts)
             profile_id = opts.profile_id,
             domain = domain,
             zone_id = zone.zone_id,
+            record_type = record_type,
             actions_count = #executed,
             skipped = skipped,
         })
@@ -710,6 +884,7 @@ function _M.provision_for_server(opts)
         domain = domain,
         zone_id = zone.zone_id,
         zone_name = zone.zone_name,
+        record_type = record_type,
         actions = executed,
         skipped = skipped,
     }

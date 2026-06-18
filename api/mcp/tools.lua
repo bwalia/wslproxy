@@ -744,7 +744,7 @@ _M.TOOL_REGISTRY = {
     },
     {
         name = "provision_dns",
-        description = "Converge Cloudflare DNS records for a server to match its pop_ids.  Computes a plan (create / update / delete / unchanged per POP) and either previews it (dry_run=true) or applies it (dry_run=false).  Default is dry_run=true so an agent ALWAYS sees the plan first; pass dry_run=false in a follow-up call to apply.  Only modifies records created by wslproxy (carrying the marker comment) — hand-curated records are never touched.  Returns the action list, including any skipped POPs and the reason.",
+        description = "Converge Cloudflare DNS records for a server.  Supports four modes via `record_type`: \"A\" (default — one A per active POP using public_ipv4), \"AAAA\" (one AAAA per active POP using public_ipv6), \"BOTH\" (dual-stack — A AND AAAA), and \"CNAME\" (a single CNAME pointing at the server's dns_cname_target; POPs are not used).  If `record_type` is omitted, the server's stored `dns_record_type` is used (defaulting to \"A\" for backwards compatibility).  Computes a plan (create / update / delete / unchanged) and either previews it (dry_run=true) or applies it (dry_run=false).  Default is dry_run=true so an agent ALWAYS sees the plan first.  Only modifies records created by wslproxy (carrying the marker comment) — hand-curated records are never touched.  Returns the action list with each action tagged by its record_type, plus any skipped POPs with reasons.",
         inputSchema = {
             type = "object",
             properties = {
@@ -752,7 +752,7 @@ _M.TOOL_REGISTRY = {
                 profile_id = {type = "string", description = "Environment profile (e.g. 'prod', 'int')."},
                 dry_run = {type = "boolean", description = "If true (DEFAULT), returns the action plan without calling Cloudflare to write.  Pass false to actually apply."},
                 include_inactive = {type = "boolean", description = "If true, POPs in 'down' or 'maintenance' status are included in the desired set.  Default false."},
-                record_type = {type = "string", description = "DNS record type to manage (default 'A')."}
+                record_type = {type = "string", description = "One of \"A\", \"AAAA\", \"BOTH\", \"CNAME\".  Overrides the server's stored dns_record_type.  Omit to use whatever the server has configured."}
             },
             required = {"server_id", "profile_id"}
         },
