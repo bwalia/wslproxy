@@ -18,7 +18,8 @@ This guide walks you through the **POPs** (Points of Presence) feature and the *
 4. [Adding your POPs](#4-adding-your-pops)
    - [4.1  Via the dashboard](#41-via-the-dashboard)
    - [4.2  Via the REST API (curl)](#42-via-the-rest-api-curl)
-   - [4.3  Via Claude / MCP (natural language)](#43-via-claude--mcp-natural-language)
+   - [4.3  Via Ansible (production deploy)](#43-via-ansible-production-deploy)
+   - [4.4  Via Claude / MCP (natural language)](#44-via-claude--mcp-natural-language)
 5. [Assigning POPs to a server](#5-assigning-pops-to-a-server)
 6. [Provisioning DNS](#6-provisioning-dns)
    - [6.1  Via the dashboard (Preview & Provision)](#61-via-the-dashboard-preview--provision)
@@ -210,7 +211,42 @@ curl -X POST http://localhost:18280/api/pops \
   }'
 ```
 
-### 4.3  Via Claude / MCP (natural language)
+### 4.3  Via Ansible (production deploy)
+
+If you deploy wslproxy via the Ansible role, the two production POPs (`pop0` + `lon1`) are seeded automatically on the first deploy.  The seed is defined in `infra/ansible/roles/wslproxy/defaults/main.yml` under the `wslproxy_pops` variable, and the task lives at `tasks/seed_pops.yml`.
+
+**Two important properties:**
+
+1. **Idempotent.**  The seed uses `force: no` — if `/opt/nginx/data/pops/<id>.json` already exists on the target host (because an operator edited via the dashboard, or a previous deploy seeded it), the file is left untouched.  Re-running the role is safe.
+2. **Customisable per-environment.**  Override `wslproxy_pops` in your inventory / group_vars to add environment-specific POPs:
+
+```yaml
+# inventory/group_vars/staging.yml
+wslproxy_pops:
+  - id: pop0
+    display_name: "London POP 0"
+    public_ipv4: "187.124.112.155"
+    region: eu-west
+    city: London
+    country_code: GB
+    status: active
+    capacity_weight: 1.0
+    tags: [production, primary]
+    metadata: {}
+  # ... add per-environment POPs here ...
+  - id: staging-1
+    display_name: "Staging EU"
+    public_ipv4: "10.42.0.1"
+    region: eu-staging
+    status: maintenance
+    capacity_weight: 0
+    tags: [staging]
+    metadata: {}
+```
+
+Run `ansible-playbook ... --tags pops` to re-run just the seed task on its own.
+
+### 4.4  Via Claude / MCP (natural language)
 
 Once you've integrated wslproxy with Claude Desktop, Claude Code, or any other MCP client (see [api/mcp/README.md](api/mcp/README.md)), you can just ask:
 
