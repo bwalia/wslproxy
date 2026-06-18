@@ -6,6 +6,31 @@ This guide walks you through the **POPs** (Points of Presence) feature and the *
 
 ---
 
+## The mental model in 60 seconds
+
+The whole system is **two separate actions**, never tangled together:
+
+| Action | What it does | Touches Cloudflare? |
+|---|---|---|
+| **SAVE** (server form → Save Changes) | Writes the server JSON on disk (pop_ids, record type, etc.) | **No.** |
+| **PROVISION** (click Preview & Provision → Apply) | Reads what's currently in Cloudflare, computes the diff, writes the changes | **Yes.** |
+
+This means you can edit a server twenty times a day — flip pop_ids, switch record type, change CNAME targets — and Cloudflare sees nothing.  Cloudflare is only touched when you explicitly click **Preview & Provision** and approve the plan.
+
+### When *exactly* does Cloudflare get called?
+
+| Moment | What wslproxy does | Calls |
+|---|---|---|
+| You open a server edit page | Loads the current DNS records to show in the State panel | 1 read |
+| You click **Preview & Provision** | Builds a fresh action plan | 1 read |
+| You click **Apply N changes** in the dialog | Writes each action | N writes |
+
+That's it.  There's no cron job hitting Cloudflare.  There's no background sync.  Cloudflare is touched **only when an operator (or an AI agent) explicitly asks for it.**
+
+> **The single rule to remember:** "Save = wslproxy state only.  Provision = Cloudflare state."
+
+---
+
 ## Table of Contents
 
 1. [What is a POP?](#1-what-is-a-pop)
@@ -20,14 +45,15 @@ This guide walks you through the **POPs** (Points of Presence) feature and the *
    - [4.2  Via the REST API (curl)](#42-via-the-rest-api-curl)
    - [4.3  Via Ansible (production deploy)](#43-via-ansible-production-deploy)
    - [4.4  Via Claude / MCP (natural language)](#44-via-claude--mcp-natural-language)
-5. [Assigning POPs to a server](#5-assigning-pops-to-a-server)
+5. [Assigning POPs and choosing the record type](#5-assigning-pops-and-choosing-the-record-type)
 6. [Provisioning DNS](#6-provisioning-dns)
    - [6.1  Via the dashboard (Preview & Provision)](#61-via-the-dashboard-preview--provision)
    - [6.2  Via the REST API](#62-via-the-rest-api)
    - [6.3  Via Claude / MCP](#63-via-claude--mcp)
-7. [Safety guarantees](#7-safety-guarantees)
-8. [Troubleshooting](#8-troubleshooting)
-9. [FAQ](#9-faq)
+7. [Day-to-day operations](#7-day-to-day-operations)
+8. [Safety guarantees](#8-safety-guarantees)
+9. [Troubleshooting](#9-troubleshooting)
+10. [FAQ](#10-faq)
 
 ---
 
@@ -288,36 +314,67 @@ Other natural-language commands that work:
 
 ---
 
-## 5. Assigning POPs to a server
+## 5. Assigning POPs and choosing the record type
 
-Once your POPs exist, you tell each server (Virtual Server / hostname) which POPs serve it.
+Once your POPs exist, you tell each server (Virtual Server / hostname) two things:
+1. **Which POPs serve it** — the `pop_ids` list
+2. **What shape of DNS record to publish** — A / AAAA / BOTH / CNAME
 
 **Dashboard:**
 
 1. Open the server you want to edit at `/servers/host:your-domain.com`
 2. Scroll to the **POPs (Points of Presence)** section (right after **Basic Settings**).
 3. Tick the checkbox next to each POP that should serve this server.
-4. Click **Save Changes** at the bottom.
+4. Scroll one more card down to **DNS Record Type** and pick:
+   - **A** (default) — one IPv4 record per POP.  The right choice for most setups.
+   - **AAAA** — one IPv6 record per POP.  Each POP must have `public_ipv6` set.
+   - **BOTH** — dual-stack: A *and* AAAA per POP.  POPs without v6 still get their A record; the AAAA pass just skips them.
+   - **CNAME** — one CNAME pointing at a hostname.  When you pick this, a **CNAME target** input appears — fill in the hostname (e.g. `edge.wslproxy.com`).  POPs are ignored in CNAME mode.
+5. Click **Save Changes** at the bottom.
+
+> 💡 The picker above shows `· v6 <addr>` next to each POP's IPv4 address when that POP has `public_ipv6` set.  Use that to spot v6-ready POPs before flipping a server to AAAA or BOTH mode.
 
 **REST API:**
 
-Update the server with a `pop_ids` array:
+Update the server with `pop_ids`, `dns_record_type`, and (for CNAME mode) `dns_cname_target`:
 
 ```bash
+# Standard dual-stack server
 curl -X PUT "http://localhost:18280/api/servers/host:api.example.com" \
   -H "Authorization: Bearer $TOKEN" \
   -H 'x-platform: openresty-admin-next' \
   -H 'Content-Type: application/json' \
-  -d '{"pop_ids": ["pop0", "lon1"]}'
+  -d '{
+    "pop_ids": ["pop0", "lon1"],
+    "dns_record_type": "BOTH"
+  }'
+
+# CNAME server (pop_ids ignored)
+curl -X PUT "http://localhost:18280/api/servers/host:cdn.example.com" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'x-platform: openresty-admin-next' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "dns_record_type": "CNAME",
+    "dns_cname_target": "edge.wslproxy.com"
+  }'
 ```
 
 **Claude / MCP:**
 
 ```
-You: For server host:api.example.com, set the POPs to pop0 and lon1.
+You: For server host:api.example.com, set the POPs to pop0 and lon1
+     and publish both A and AAAA records.
 
-Claude: [calls update_server with pop_ids=["pop0","lon1"]]
-        Done.  api.example.com is now served by pop0 + lon1.
+Claude: [calls update_server with pop_ids=["pop0","lon1"],
+         dns_record_type="BOTH"]
+        Done.  api.example.com is now served by pop0 + lon1, dual-stack.
+
+You: For host:cdn.example.com, point it at edge.wslproxy.com via CNAME.
+
+Claude: [calls update_server with dns_record_type="CNAME",
+         dns_cname_target="edge.wslproxy.com"]
+        Done.  cdn.example.com is now a CNAME alias for edge.wslproxy.com.
 ```
 
 ---
@@ -419,7 +476,36 @@ For a full tour of the MCP setup (Claude Desktop, Claude Code, Cursor, Continue.
 
 ---
 
-## 7. Safety guarantees
+## 7. Day-to-day operations
+
+Once everything's set up, here's the rhythm operators repeat.  Every action follows the same shape: **edit → save → provision → apply.**  The "save" is local; the "apply" is the Cloudflare write.
+
+| You want to… | What you click | What Cloudflare sees |
+|---|---|---|
+| **Add a new POP to a domain** | Tick another POP on the server form → Save → Preview & Provision → Apply | One new A (or AAAA) record |
+| **Remove a POP from a domain** | Untick it on the server form → Save → Preview & Provision → Apply | One DELETE on the orphaned record |
+| **Replace a POP's IP** | Edit the POP record's `public_ipv4` → Save → re-Provision on every domain that uses it | One UPDATE per affected domain |
+| **Drain a POP for maintenance** | `/pops/<id>` → set status to "maintenance" → Save → re-Provision on each domain | One DELETE per affected domain (records come back when you flip status to active and re-provision) |
+| **Switch a domain from A to BOTH** | Server form → DNS Record Type → BOTH → Save → Preview & Provision → Apply | New AAAA records created alongside the existing A records |
+| **Switch a domain from A to CNAME** | Server form → DNS Record Type → CNAME + set target → Save → Preview & Provision → Apply | All A records deleted (orphaned), one CNAME created.  Because CNAME can't coexist with A at the same name, the orchestrator cleans up its old A records automatically. |
+| **Add a new POP to your fleet** | `/pops` → + Create POP → Save | Nothing.  The new POP is just sitting in the inventory until a server adds it to its `pop_ids`. |
+| **Audit "what records does wslproxy own?"** | Open server → DNS State panel.  Each row says "managed by wslproxy" or "external". | Nothing.  Read-only. |
+
+### A few useful Claude prompts
+
+Once Claude is connected via MCP ([api/mcp/README.md](api/mcp/README.md)):
+
+> *"Show me which POPs are currently active."*
+> *"Drain `lon1` for maintenance."*
+> *"What does Cloudflare currently have for `api.example.com`?"*
+> *"Add `pop2` in Frankfurt with IP 1.2.3.4 then provision DNS for `api.example.com` using all three POPs."*
+> *"Switch `cdn.example.com` to CNAME mode pointing at `edge.wslproxy.com`."*
+
+Claude will always **show you the action plan and wait for your "yes"** before writing to Cloudflare.  The `provision_dns` tool defaults to dry-run; the apply pass needs an explicit confirmation.
+
+---
+
+## 8. Safety guarantees
 
 The DNS provisioner has five hard guardrails:
 
@@ -431,7 +517,7 @@ The DNS provisioner has five hard guardrails:
 
 ---
 
-## 8. Troubleshooting
+## 9. Troubleshooting
 
 ### "DNS provisioning is not configured" in the panel
 You haven't added the `dns` block to `settings.json` yet.  Go back to [step 3.3](#33-add-the-dns-block-to-settingsjson).
@@ -443,6 +529,9 @@ Your `managed_zones[0].zone_id` is `00000000000000000000000000000000` (a placeho
 The domain you're trying to provision is not under any of the zones in your `managed_zones` allowlist.  Either:
 - Add the parent zone to `managed_zones` (with its zone_id), or
 - Pick a different domain that IS under an allowed zone.
+
+### "CNAME target not set" in the DNS State panel
+You picked **CNAME** for `dns_record_type` but the **CNAME target** input is empty.  Scroll up to the DNS Record Type card on the server form and fill in the target hostname (e.g. `edge.wslproxy.com`).
 
 ### "Cloudflare rejected the request (HTTP 403)" with code 10000 "Authentication error"
 The token doesn't have permission to read/write DNS on the zone you're targeting.  Either:
@@ -464,7 +553,7 @@ Check the comment on the existing Cloudflare records.  wslproxy can only update 
 
 ---
 
-## 9. FAQ
+## 10. FAQ
 
 **Q: Can I have multiple Cloudflare accounts / multiple providers?**
 Yes.  `providers[]` is an array — add a second entry with a different token + different `managed_zones`.  Each provider has its own allowlist.
