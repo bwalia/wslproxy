@@ -712,6 +712,64 @@ export interface DataProvider {
   pushDataServers(resource: string, data: unknown): Promise<SingleResult>;
   syncAPI(): Promise<void>;
 
+  // DNS Manager (Cloudflare provisioning).  Thin wrappers around
+  // /api/dns/lookup and /api/dns/provision — return shapes match
+  // what dns_manager.lua emits, see POPS_AND_DNS_GUIDE.md.
+  lookupDns(
+    domain: string,
+    recordType?: string,
+  ): Promise<{
+    data: {
+      domain: string;
+      zone_id: string;
+      zone_name: string;
+      records: Array<{
+        id: string;
+        type: string;
+        name: string;
+        content: string;
+        ttl: number;
+        proxied: boolean;
+        comment?: string;
+        managed_by_wslproxy: boolean;
+        pop_id?: string;
+      }>;
+    };
+  }>;
+  provisionDns(opts: {
+    server_id: string;
+    profile_id: string;
+    dry_run?: boolean;
+    include_inactive?: boolean;
+    record_type?: string;
+  }): Promise<{
+    data: {
+      domain: string;
+      zone_id: string;
+      zone_name: string;
+      dry_run?: boolean;
+      actions: Array<{
+        action:
+          | "created"
+          | "updated"
+          | "unchanged"
+          | "deleted"
+          | "deleted_legacy"
+          | "create"
+          | "update"
+          | "delete"
+          | "delete_legacy"
+          | "error";
+        pop_id?: string;
+        content?: string;
+        from_content?: string;
+        record_id?: string;
+        error?: string;
+      }>;
+      skipped: Array<{ pop_id: string; reason: string }>;
+    };
+  }>;
+
   // Change requests
   getChangeRequests(params?: ListParams): Promise<ListResult<ChangeRequest>>;
   getPendingCRCount(): Promise<{ count: number }>;

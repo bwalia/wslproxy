@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import type { Route } from "next";
 import {
   ArrowLeft,
   Save,
@@ -213,7 +214,7 @@ export default function PopDetailPage() {
         await dataProvider.update("pops", id, payload);
         notify("POP updated", { type: "success" });
       }
-      router.push("/pops");
+      router.push("/pops" as Route);
     } catch (err) {
       handleApiError(err, "Failed to save POP");
     } finally {
@@ -277,7 +278,7 @@ export default function PopDetailPage() {
         notify(force ? "POP force-deleted" : "POP deleted", {
           type: "success",
         });
-        router.push("/pops");
+        router.push("/pops" as Route);
       } catch (err) {
         const errObj = err as {
           message?: string;
@@ -346,7 +347,7 @@ export default function PopDetailPage() {
           <div className="flex items-center gap-2">
             <Button
               variant="ghost"
-              onClick={() => router.push("/pops")}
+              onClick={() => router.push("/pops" as Route)}
               icon={<ArrowLeft className="h-4 w-4" />}
             >
               Back
