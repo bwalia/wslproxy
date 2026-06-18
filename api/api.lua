@@ -3571,14 +3571,18 @@ end
 -- createUpdateUpstreams, etc.).  `uuid` nil = POST = create;
 -- `uuid` set = PUT = update.
 local function createUpdatePop(body, uuid)
-    local payload = Helper.GetPayloads(body)
-    if not payload then
-        ngx.status = ngx.HTTP_BAD_REQUEST
-        ngx.say(cjson.encode({
-            error = "validation_failed",
+    -- Helper.GetPayloads internally calls cjson.decode without a
+    -- pcall — malformed JSON throws a Lua runtime error which would
+    -- otherwise escape as a 500 with an HTML body, defeating our
+    -- structured error envelope.  Wrap defensively so any parse
+    -- failure surfaces as a 400 validation_failed instead.
+    local ok, payload = pcall(Helper.GetPayloads, body)
+    if not ok or not payload then
+        return popErrorResponse({
+            code = "validation_failed",
             message = "Failed to parse request payload",
-        }))
-        return ngx.exit(ngx.HTTP_BAD_REQUEST)
+            details = (not ok) and {parse_error = tostring(payload)} or nil,
+        })
     end
     local user = ngx.req.get_headers()["x-user"] or "system"
     local record, err
@@ -3600,12 +3604,10 @@ end
 -- review them first.
 local function deletePop(args, uuid)
     if not uuid or uuid == "" or uuid == "pops" then
-        ngx.status = ngx.HTTP_BAD_REQUEST
-        ngx.say(cjson.encode({
-            error = "validation_failed",
+        return popErrorResponse({
+            code = "validation_failed",
             message = "pop id is required in the URL",
-        }))
-        return ngx.exit(ngx.HTTP_BAD_REQUEST)
+        })
     end
     -- Force flag can arrive in three places:
     --   1. URL query string `?force=true`  (curl, direct API users)
@@ -3706,14 +3708,16 @@ end
 -- converges Cloudflare to match.  See dns_manager.provision_for_server
 -- for the exact action-planning semantics.
 local function dnsProvision(body)
-    local payload = Helper.GetPayloads(body)
-    if not payload then
-        ngx.status = ngx.HTTP_BAD_REQUEST
-        ngx.say(cjson.encode({
-            error = "validation_failed",
+    -- See note in createUpdatePop: Helper.GetPayloads will throw on
+    -- malformed JSON; pcall keeps the failure inside our structured
+    -- error envelope rather than bubbling up as a 500 HTML page.
+    local ok, payload = pcall(Helper.GetPayloads, body)
+    if not ok or not payload then
+        return dnsErrorResponse({
+            code = "validation_failed",
             message = "Failed to parse request payload",
-        }))
-        return ngx.exit(ngx.HTTP_BAD_REQUEST)
+            details = (not ok) and {parse_error = tostring(payload)} or nil,
+        })
     end
     local user = ngx.req.get_headers()["x-user"] or "system"
     local result, err = DnsManager.provision_for_server({

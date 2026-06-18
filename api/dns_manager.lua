@@ -505,11 +505,15 @@ function _M.provision_for_server(opts)
     local desired = {}      -- list of {pop_id, content (IP)}
     local skipped = {}
     for _, pid in ipairs(pop_ids) do
-        local pop = Pops.get(pid)
+        -- Capture both returns from Pops.get so we don't masquerade
+        -- io_error / decode_error as "not_found".  The operator sees
+        -- the real reason in the skipped list (e.g. "io_error" when a
+        -- pop file is unreadable — distinct from a genuinely missing
+        -- POP).
+        local pop, perr = Pops.get(pid)
         if type(pop) ~= "table" then
-            -- Pops.get returned an error; record the skip with the
-            -- error code so the dashboard can highlight it.
-            table.insert(skipped, {pop_id = pid, reason = "not_found"})
+            local reason = (perr and perr.code) or "not_found"
+            table.insert(skipped, {pop_id = pid, reason = reason})
         elseif not pop.public_ipv4 or pop.public_ipv4 == "" then
             table.insert(skipped, {pop_id = pid, reason = "no_public_ipv4"})
         elseif (pop.status == "down" or pop.status == "maintenance") and
@@ -643,7 +647,8 @@ function _M.provision_for_server(opts)
             else
                 table.insert(executed, {
                     action = "error", pop_id = a.pop_id,
-                    content = a.content, error = err.message,
+                    content = a.content,
+                    error = (err and err.message) or "unknown error",
                 })
             end
         elseif a.action == "update" then
@@ -664,7 +669,8 @@ function _M.provision_for_server(opts)
             else
                 table.insert(executed, {
                     action = "error", pop_id = a.pop_id,
-                    content = a.content, error = err.message,
+                    content = a.content,
+                    error = (err and err.message) or "unknown error",
                 })
             end
         elseif a.action == "delete" or a.action == "delete_legacy" then
@@ -678,7 +684,7 @@ function _M.provision_for_server(opts)
             else
                 table.insert(executed, {
                     action = "error", pop_id = a.pop_id,
-                    error = err.message,
+                    error = (err and err.message) or "unknown error",
                 })
             end
         else  -- unchanged

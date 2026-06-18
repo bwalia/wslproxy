@@ -123,7 +123,16 @@ local function read_pop_file(id)
     local content = Helper.getDataFromFile(pop_path(id))
     if not content then return nil end
     local ok, decoded = pcall(cjson.decode, content)
-    if not ok or type(decoded) ~= "table" then return nil end
+    if not ok or type(decoded) ~= "table" then
+        -- Log to nginx error.log so corrupted POP JSON shows up in
+        -- ops dashboards rather than silently vanishing from /pops.
+        -- We still return nil — list() can't reasonably surface a
+        -- single-record corruption error per-call without breaking
+        -- the whole listing — but at least the operator can see it.
+        ngx.log(ngx.ERR, "pops: failed to decode '", pop_path(id),
+            "': ", tostring(decoded))
+        return nil
+    end
     return decoded
 end
 
@@ -431,8 +440,12 @@ function _M.create(payload, user)
     -- Apply sane defaults for fields the caller omitted.
     if record.status == nil then record.status = "active" end
     if record.capacity_weight == nil then record.capacity_weight = 1.0 end
+    -- tags is a string[] — force JSON `[]` for empty so the dashboard
+    -- `.map()` doesn't crash on `{}` (CLAUDE.md §13).  metadata is a
+    -- key/value object — leave the default `{}` shape so consumers
+    -- can do `metadata.foo` lookups without a runtime type check.
     if record.tags == nil then record.tags = setmetatable({}, cjson.empty_array_mt or nil) end
-    if record.metadata == nil then record.metadata = setmetatable({}, cjson.empty_array_mt or nil) end
+    if record.metadata == nil then record.metadata = {} end
 
     local ok, err = write_pop_file(record.id, record)
     if not ok then
@@ -605,31 +618,75 @@ function _M.delete(id, opts, user)
         }
     end
 
-    -- Cascade-detach if forced.  We write each server before
-    -- deleting the POP so an error mid-way leaves the system in a
-    -- safe state (no dangling pop_ids referencing a deleted POP).
+    -- Cascade-detach if forced.  Every referencing server must be
+    -- successfully rewritten BEFORE we delete the POP file — any
+    -- read / decode / write failure aborts the whole delete with
+    -- io_error so we never leave a dangling pop_id behind.  This is
+    -- the opposite of "best-effort detach": correctness over
+    -- progress, because dangling pop_ids cause silent DNS-provision
+    -- errors that are far harder to debug than a refused delete.
     local detached = {}
     if opts.force and #refs > 0 then
         for _, ref in ipairs(refs) do
             local spath = configPath .. "data/servers/" .. ref.profile_id ..
                 "/" .. ref.server_id .. ".json"
             local content = Helper.getDataFromFile(spath)
-            if content then
-                local ok_d, server = pcall(cjson.decode, content)
-                if ok_d and type(server) == "table" and type(server.pop_ids) == "table" then
-                    local kept = {}
-                    for _, pid in ipairs(server.pop_ids) do
-                        if pid ~= id then table.insert(kept, pid) end
-                    end
-                    server.pop_ids = kept
-                    local f = io.open(spath, "wb")
-                    if f then
-                        f:write(cjson.encode(server))
-                        f:close()
-                        table.insert(detached, ref.server_id)
-                    end
-                end
+            if not content then
+                return nil, {
+                    code = "io_error",
+                    message = "Refusing to delete POP '" .. id ..
+                        "': could not read referencing server '" ..
+                        ref.server_id .. "' to detach it.  Fix the file " ..
+                        "access problem and retry.",
+                    details = {server_id = ref.server_id, path = spath},
+                }
             end
+            local ok_d, server = pcall(cjson.decode, content)
+            if not ok_d or type(server) ~= "table" then
+                return nil, {
+                    code = "io_error",
+                    message = "Refusing to delete POP '" .. id ..
+                        "': server '" .. ref.server_id ..
+                        "' JSON is corrupted and cannot be safely detached.",
+                    details = {server_id = ref.server_id,
+                               parse_error = tostring(server)},
+                }
+            end
+            if type(server.pop_ids) == "table" then
+                local kept = {}
+                for _, pid in ipairs(server.pop_ids) do
+                    if pid ~= id then table.insert(kept, pid) end
+                end
+                server.pop_ids = kept
+            end
+            -- Encode FIRST so a serialisation failure doesn't truncate
+            -- the file mid-write.  Then open, write, check the write
+            -- return, then close — surface any I/O failure as a hard
+            -- abort rather than silently marking the server detached.
+            local encoded = cjson.encode(server)
+            local f, oerr = io.open(spath, "wb")
+            if not f then
+                return nil, {
+                    code = "io_error",
+                    message = "Refusing to delete POP '" .. id ..
+                        "': could not open server '" .. ref.server_id ..
+                        "' for write: " .. tostring(oerr),
+                    details = {server_id = ref.server_id, path = spath},
+                }
+            end
+            local wrote, werr = f:write(encoded)
+            f:close()
+            if not wrote then
+                return nil, {
+                    code = "io_error",
+                    message = "Refusing to delete POP '" .. id ..
+                        "': write to server '" .. ref.server_id ..
+                        "' failed (" .. tostring(werr) ..
+                        ").  Server JSON may be truncated; check the file.",
+                    details = {server_id = ref.server_id, path = spath},
+                }
+            end
+            table.insert(detached, ref.server_id)
         end
     end
 
