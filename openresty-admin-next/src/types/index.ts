@@ -69,6 +69,25 @@ export interface Server {
   error_log?: string;
   rules?: string[];
   match_cases?: { statement: string; condition: string }[];
+  /** Ordered list of POP ids that should serve this domain.  Read by
+   *  the DNS provisioner to know which IPs to publish as A records
+   *  for `server_name`.  Empty / absent = "no opinion" — the
+   *  provisioner falls back to the profile's default POPs.
+   *  See `api/pops.lua` and `data/pops/{id}.json`. */
+  pop_ids?: string[];
+  /** DNS record type the provisioner should manage for this server's
+   *  domain.  Defaults to `"A"` (one A record per active POP using
+   *  `public_ipv4`).  `"AAAA"` uses `public_ipv6` instead; `"BOTH"`
+   *  publishes both (dual-stack); `"CNAME"` publishes a single CNAME
+   *  record pointing at `dns_cname_target` (POPs are ignored).  See
+   *  POPS_AND_DNS_GUIDE.md for when to use each. */
+  dns_record_type?: "A" | "AAAA" | "BOTH" | "CNAME";
+  /** Required when `dns_record_type === "CNAME"`: the hostname this
+   *  server's domain should point at via a CNAME record.  Ignored in
+   *  other modes.  CNAME records cannot coexist with A/AAAA records
+   *  at the same name (DNS spec), so picking CNAME removes any
+   *  A/AAAA records wslproxy was managing for this domain. */
+  dns_cname_target?: string;
   locations?: LocationBlock[];
   custom_headers?: { header_key: string; header_value: string }[];
   custom_response_headers?: { header_key: string; header_value: string }[];
@@ -222,6 +241,38 @@ export interface Profile {
   name: string;
   description?: string;
   created_at?: number;
+}
+
+/** A POP (Point of Presence) — a physical edge location running
+ *  wslproxy.  Global (not profile-scoped) — a POP is physical
+ *  infrastructure shared by every profile that references it.
+ *
+ *  Mirrors the on-disk schema at `data/pops/{id}.json` and the Lua
+ *  module's validation rules (`api/pops.lua`). */
+export interface Pop {
+  id: string;
+  display_name: string;
+  region?: string;
+  country_code?: string;
+  city?: string;
+  lat?: number;
+  lng?: number;
+  public_ipv4: string;
+  public_ipv6?: string | null;
+  internal_hostname?: string;
+  /** `active` = in rotation; `draining` = no new traffic, finishing
+   *  in-flight; `down` = unplanned outage (pages oncall); `maintenance`
+   *  = planned outage (does not page). */
+  status?: "active" | "draining" | "down" | "maintenance";
+  /** 0.0-1.0 multiplier for traffic share when this POP is in a
+   *  weighted DNS pool.  Set to 0 to drain via the routing layer
+   *  without changing `status`. */
+  capacity_weight?: number;
+  provider?: string;
+  tags?: string[];
+  metadata?: Record<string, unknown>;
+  created_at?: number;
+  updated_at?: number;
 }
 
 export interface Bookmark {

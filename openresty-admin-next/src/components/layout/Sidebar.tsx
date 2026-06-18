@@ -32,6 +32,7 @@ import {
   BookOpen,
   Info,
   Share2,
+  Globe2,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -92,6 +93,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
           // Cast: typedRoutes union is built from existing routes; new
           // routes need an explicit cast until the next build.
           { label: "Ingress", href: "/ingress" as Route, icon: Share2 },
+          { label: "POPs", href: "/pops" as Route, icon: Globe2 },
           { label: "Servers", href: "/servers", icon: Server },
           { label: "Rules", href: "/rules", icon: GitBranch },
           { label: "Profiles", href: "/profiles", icon: Layers },

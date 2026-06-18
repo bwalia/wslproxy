@@ -63,6 +63,15 @@ http {
     lua_package_path "/usr/local/openresty/nginx/html/api/?.lua;/usr/local/openresty/nginx/html/api/?/init.lua;/usr/local/openresty/lualib/?.lua;/usr/local/openresty/site/lualib/?.lua;;";
     lua_package_cpath '/usr/local/openresty/site/lualib/resty/?.so;/usr/local/openresty/lualib/?.so;;';
 
+    # Trust store for outbound HTTPS from Lua (lua-resty-http →
+    # Cloudflare for dns_manager.lua, Let's Encrypt ACME, AI providers
+    # etc.).  Without this, lua-resty-http fails TLS verification with
+    # OpenSSL error 20 "unable to get local issuer certificate".
+    # Alpine ships the bundle at this exact path via the
+    # ca-certificates package.
+    lua_ssl_trusted_certificate /etc/ssl/certs/ca-certificates.crt;
+    lua_ssl_verify_depth 5;
+
     # WebSocket support: map Upgrade header to Connection header value
     map $http_upgrade $connection_upgrade {
         default upgrade;

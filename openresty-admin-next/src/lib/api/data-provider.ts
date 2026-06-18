@@ -460,6 +460,75 @@ export const dataProvider: DataProvider = {
       body: JSON.stringify({ ...(data as Record<string, unknown>), profile: getEnvProfile(), timestamp: Date.now() }),
     }),
 
+  // ── DNS Manager (Cloudflare provisioning) ──────────────────────────
+  // Thin wrappers around the dns_manager.lua endpoints.  The dialog
+  // / state panel call these directly via useDataProvider() so error
+  // handling + response shapes stay consistent with the rest of the
+  // data layer.  Both return the standard `{data: ...}` envelope on
+  // success; on error apiFetch throws an ApiError that components
+  // catch for inline rendering.
+
+  lookupDns: (domain: string, recordType?: string) => {
+    const qs = new URLSearchParams({ domain });
+    if (recordType) qs.set("type", recordType);
+    return apiFetch<{
+      data: {
+        domain: string;
+        zone_id: string;
+        zone_name: string;
+        records: Array<{
+          id: string;
+          type: string;
+          name: string;
+          content: string;
+          ttl: number;
+          proxied: boolean;
+          comment?: string;
+          managed_by_wslproxy: boolean;
+          pop_id?: string;
+        }>;
+      };
+    }>(`/dns/lookup?${qs.toString()}`);
+  },
+
+  provisionDns: (opts: {
+    server_id: string;
+    profile_id: string;
+    dry_run?: boolean;
+    include_inactive?: boolean;
+    record_type?: string;
+  }) =>
+    apiFetch<{
+      data: {
+        domain: string;
+        zone_id: string;
+        zone_name: string;
+        dry_run?: boolean;
+        actions: Array<{
+          action:
+            | "created"
+            | "updated"
+            | "unchanged"
+            | "deleted"
+            | "deleted_legacy"
+            | "create"
+            | "update"
+            | "delete"
+            | "delete_legacy"
+            | "error";
+          pop_id?: string;
+          content?: string;
+          from_content?: string;
+          record_id?: string;
+          error?: string;
+        }>;
+        skipped: Array<{ pop_id: string; reason: string }>;
+      };
+    }>("/dns/provision", {
+      method: "POST",
+      body: JSON.stringify(opts),
+    }),
+
   syncAPI: async () => {
     const frontUrl = getWithDefault(STORAGE_KEYS.frontUrl, "");
     if (!frontUrl) return;

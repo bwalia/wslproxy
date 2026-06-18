@@ -108,6 +108,11 @@
   include_tasks: deploy_data.yml
   tags: [servers, code]
 
+# Step 6.1.5: Seed default POPs (idempotent — only writes missing files)
+- name: Seed POPs
+  include_tasks: seed_pops.yml
+  tags: [servers, code, pops]
+
 # Step 6.2: Install Lua dependencies (luarocks, CDN deps)
 - name: Install Lua dependencies
   include_tasks: deploy_deps.yml
