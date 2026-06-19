@@ -261,6 +261,28 @@ function DnsStateBody({
         />
       );
     }
+    if (code === "zone_not_found") {
+      return (
+        <InfoBanner
+          tone="warning"
+          title={`No Cloudflare zone found for ${serverName}`}
+          body={
+            <>
+              <p>{message}</p>
+              <p className="mt-2 text-xs">
+                Auto-discovery is on, so wslproxy looked this domain up in
+                Cloudflare directly.  Make sure the parent zone exists in your
+                Cloudflare account and the API token has{" "}
+                <code className="rounded bg-slate-100 px-1 py-0.5 dark:bg-slate-800">
+                  Zone:Read
+                </code>{" "}
+                access to it.
+              </p>
+            </>
+          }
+        />
+      );
+    }
     if (code === "no_cname_target") {
       return (
         <InfoBanner

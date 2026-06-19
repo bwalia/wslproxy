@@ -114,18 +114,29 @@ local function load_provider()
                         "' has no api_token.  Generate a token at https://dash.cloudflare.com/profile/api-tokens with 'Zone:Read' + 'DNS:Edit' scoped to your managed_zones.",
                 }
             end
-            if type(p.managed_zones) ~= "table" or #p.managed_zones == 0 then
+            -- `auto_discover_zones` flips the safety model: instead of a
+            -- hand-curated allowlist, wslproxy asks Cloudflare for the
+            -- zone_id of any domain at request time (find_zone below).
+            -- This requires an account-scoped ("all zones") token with
+            -- Zone:Read, which is exactly what enables editing DNS for
+            -- arbitrary domains from the Servers UI.  When it's on,
+            -- managed_zones becomes an OPTIONAL pin/override rather than
+            -- a hard requirement, so an empty list is allowed.
+            local auto_discover = dns_cfg.auto_discover_zones == true
+            if not auto_discover and
+                    (type(p.managed_zones) ~= "table" or #p.managed_zones == 0) then
                 return nil, {
                     code = "not_configured",
                     message = "Cloudflare provider '" .. (p.name or "?") ..
-                        "' has no managed_zones.  Add each zone explicitly to prevent accidental writes to other domains.",
+                        "' has no managed_zones.  Add each zone explicitly to prevent accidental writes to other domains, or set dns.auto_discover_zones=true to resolve zones from Cloudflare automatically (requires an all-zones token).",
                 }
             end
             return {
                 name = p.name or "cloudflare",
                 type = "cloudflare",
                 api_token = p.api_token,
-                managed_zones = p.managed_zones,
+                managed_zones = p.managed_zones or {},
+                auto_discover = auto_discover,
                 default_ttl = tonumber(dns_cfg.default_ttl) or DEFAULT_TTL,
                 default_proxied = dns_cfg.default_proxied == true,
             }
@@ -137,10 +148,44 @@ local function load_provider()
     }
 end
 
---- Find the zone whose name is the longest suffix of `domain`.
---- Refuses domains not covered by any managed zone — that's the
---- safety guarantee that prevents accidental writes outside the
---- declared scope.
+-- Forward declaration: the body lives after cf_request (which it
+-- depends on) so this local must be in scope for find_zone's closure.
+local cf_lookup_zone_id
+
+local DISCOVERY_CACHE_TTL = 3600   -- seconds a discovered zone_id is trusted
+
+--- Generate the candidate zone names for a domain, longest first.
+--- For `a.b.example.co.uk` → {"a.b.example.co.uk", "b.example.co.uk",
+--- "example.co.uk", "co.uk"}.  Single-label TLDs are never queried
+--- (you can't own a bare TLD as a CF zone).  Longest-first ordering
+--- means the first Cloudflare hit is the MOST specific zone — matching
+--- the longest-suffix semantics of the static allowlist path.
+local function candidate_zone_names(lower_domain)
+    local labels = {}
+    for part in lower_domain:gmatch("[^.]+") do
+        table.insert(labels, part)
+    end
+    local candidates = {}
+    -- Stop at 2 labels minimum (need at least sld.tld to be a zone).
+    for i = 1, #labels - 1 do
+        table.insert(candidates, table.concat(labels, ".", i))
+    end
+    return candidates
+end
+
+--- Find the Cloudflare zone for `domain`.
+---
+--- Resolution order:
+---   1. Static `managed_zones` allowlist — longest-suffix match.  An
+---      operator who pins a zone_id here always wins (lets you override
+---      or scope a specific zone even with discovery on).
+---   2. If unmatched AND auto_discover is enabled, ask Cloudflare for
+---      the zone_id of each suffix candidate (longest first), caching
+---      the hit.  This is what lets the Servers UI manage DNS for any
+---      domain in the account without a settings.json edit per zone.
+---
+--- With auto_discover OFF, step 2 is skipped and an unknown domain is
+--- refused — preserving the original hard allowlist guardrail.
 function _M.find_zone(domain)
     if type(domain) ~= "string" or domain == "" then
         return nil, {code = "validation_failed", message = "domain is required"}
@@ -148,6 +193,8 @@ function _M.find_zone(domain)
     local provider, err = load_provider()
     if not provider then return nil, err end
     local lower_domain = domain:lower()
+
+    -- 1. Static allowlist (pin/override) — longest suffix wins.
     local best_match = nil
     local best_len = 0
     for _, z in ipairs(provider.managed_zones) do
@@ -167,18 +214,62 @@ function _M.find_zone(domain)
             end
         end
     end
-    if not best_match then
-        local zone_names = {}
-        for _, z in ipairs(provider.managed_zones) do
-            table.insert(zone_names, z.name)
+    if best_match then return best_match end
+
+    -- 2. Auto-discovery fallback.
+    if provider.auto_discover then
+        local cache = ngx.shared and ngx.shared.wsl_cache or nil
+        local cache_key = "dns:zone:" .. lower_domain
+        if cache then
+            local cached = cache:get(cache_key)
+            if cached then
+                local zid, zname = cached:match("^([^|]+)|(.+)$")
+                if zid then
+                    return {zone_id = zid, zone_name = zname, provider = provider}
+                end
+            end
         end
+
+        local candidates = candidate_zone_names(lower_domain)
+        for _, cand in ipairs(candidates) do
+            local zone_id, lookup_err = cf_lookup_zone_id(provider, cand)
+            if lookup_err then
+                -- Genuine API/network failure — surface it rather than
+                -- masquerading as "no such zone", so the operator can
+                -- tell a broken token apart from an un-owned domain.
+                lookup_err.details = lookup_err.details or {}
+                lookup_err.details.attempted_zone = cand
+                return nil, lookup_err
+            end
+            if zone_id then
+                if cache then
+                    cache:set(cache_key, zone_id .. "|" .. cand,
+                        DISCOVERY_CACHE_TTL)
+                end
+                return {zone_id = zone_id, zone_name = cand, provider = provider}
+            end
+        end
+    end
+
+    -- Unmatched.  Message depends on whether discovery was even tried.
+    local zone_names = {}
+    for _, z in ipairs(provider.managed_zones) do
+        table.insert(zone_names, z.name)
+    end
+    if provider.auto_discover then
         return nil, {
-            code = "zone_not_allowed",
-            message = "Domain '" .. domain .. "' is not covered by any managed_zone.  Add the parent zone to settings.json (with its Cloudflare zone_id) before provisioning records under it.",
-            details = {managed_zones = zone_names},
+            code = "zone_not_found",
+            message = "Domain '" .. domain .. "' did not resolve to any " ..
+                "Cloudflare zone in this account.  Confirm the zone exists " ..
+                "in Cloudflare and the API token has Zone:Read access to it.",
+            details = {managed_zones = zone_names, auto_discover = true},
         }
     end
-    return best_match
+    return nil, {
+        code = "zone_not_allowed",
+        message = "Domain '" .. domain .. "' is not covered by any managed_zone.  Add the parent zone to settings.json (with its Cloudflare zone_id), or set dns.auto_discover_zones=true to resolve zones automatically.",
+        details = {managed_zones = zone_names},
+    }
 end
 
 --- Cheap public-facing check.  Used by the HTTP layer to decide
@@ -280,6 +371,29 @@ local function cf_request(provider, method, path, body)
             return decoded.result
         end
     end
+end
+
+--- Look up a Cloudflare zone by its EXACT name and return its zone_id.
+--- Assigns to the local forward-declared above so find_zone (defined
+--- earlier) can reach it.
+---
+--- Three outcomes, deliberately distinct:
+---   • (zone_id, nil)  — zone exists in this account
+---   • (nil, nil)      — token works but no such zone (try next suffix)
+---   • (nil, err)      — genuine API/network failure (stop, surface it)
+--- The middle case must NOT be an error: candidate_zone_names walks
+--- several suffixes and most will legitimately not be zones.
+cf_lookup_zone_id = function(provider, zone_name)
+    local res, err = cf_request(provider, "GET",
+        "/zones?name=" .. ngx.escape_uri(zone_name) ..
+        "&status=active&per_page=1")
+    if not res then
+        return nil, err
+    end
+    if type(res) == "table" and res[1] and type(res[1].id) == "string" then
+        return res[1].id
+    end
+    return nil
 end
 
 -- ============================================================
