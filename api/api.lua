@@ -3657,6 +3657,7 @@ local function dnsErrorResponse(err)
         no_targets = ngx.HTTP_BAD_REQUEST,
         no_cname_target = ngx.HTTP_BAD_REQUEST,
         zone_not_allowed = ngx.HTTP_FORBIDDEN,
+        zone_not_found = ngx.HTTP_NOT_FOUND,
         conflict = ngx.HTTP_CONFLICT,
         not_configured = ngx.HTTP_SERVICE_UNAVAILABLE,
         disabled = ngx.HTTP_SERVICE_UNAVAILABLE,
