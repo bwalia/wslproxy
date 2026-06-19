@@ -1,0 +1,84 @@
+---
+# Ensure the CA trust bundle exists at the path the nginx.conf.j2
+# template references in `lua_ssl_trusted_certificate`.
+#
+# Why this task exists: api/dns_manager.lua (and any future Lua code
+# that talks to external HTTPS via lua-resty-http) needs OpenSSL to
+# verify the remote certificate.  The nginx directive expects a single
+# concrete file path, but different distros ship the bundle in
+# different places:
+#
+#   Debian / Ubuntu : /etc/ssl/certs/ca-certificates.crt
+#   SUSE / openSUSE : /etc/ssl/ca-bundle.pem
+#                     /var/lib/ca-certificates/ca-bundle.pem
+#   RHEL / Rocky    : /etc/pki/tls/certs/ca-bundle.crt
+#                     /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem
+#
+# Rather than templating an OS-specific path into nginx.conf.j2 (which
+# would also have to be threaded through the dev template), this task
+# installs ca-certificates on every distro and then ensures the Debian
+# path `/etc/ssl/certs/ca-certificates.crt` exists — either because
+# the OS package created it (Debian) or because we symlink to the
+# actual bundle (SUSE / RHEL).  The nginx template keeps one path and
+# Just Works on all three families.
+
+- name: "CA: install ca-certificates package"
+  ansible.builtin.package:
+    name: ca-certificates
+    state: present
+  tags: [nginx, dashboard, servers, os_deps, build, code]
+
+- name: "CA: check if the Debian-style bundle already exists"
+  ansible.builtin.stat:
+    path: /etc/ssl/certs/ca-certificates.crt
+  register: _ca_debian_path
+  tags: [nginx, dashboard, servers, os_deps, build, code]
+
+# Only probe the distro-specific paths when the Debian-style symlink
+# is missing — saves four stat calls on the most common case.
+- name: "CA: locate the actual bundle (non-Debian distros)"
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  register: _ca_actual_paths
+  loop:
+    - /etc/ssl/ca-bundle.pem
+    - /var/lib/ca-certificates/ca-bundle.pem
+    - /etc/pki/tls/certs/ca-bundle.crt
+    - /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem
+  when: not _ca_debian_path.stat.exists
+  tags: [nginx, dashboard, servers, os_deps, build, code]
+
+- name: "CA: pick first existing bundle path"
+  ansible.builtin.set_fact:
+    _ca_bundle_source: "{{ (_ca_actual_paths.results | selectattr('stat.exists') | map(attribute='stat.path') | list | first) | default(omit) }}"
+  when: not _ca_debian_path.stat.exists
+  tags: [nginx, dashboard, servers, os_deps, build, code]
+
+- name: "CA: assert we found a bundle somewhere"
+  ansible.builtin.assert:
+    that:
+      - _ca_debian_path.stat.exists or (_ca_bundle_source is defined and _ca_bundle_source | length > 0)
+    fail_msg: |
+      No CA trust bundle found at any expected path.  Tried:
+        /etc/ssl/certs/ca-certificates.crt
+        /etc/ssl/ca-bundle.pem
+        /var/lib/ca-certificates/ca-bundle.pem
+        /etc/pki/tls/certs/ca-bundle.crt
+        /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem
+      lua_ssl_trusted_certificate in nginx.conf will fail to load.
+      Check the ca-certificates package installed correctly.
+  tags: [nginx, dashboard, servers, os_deps, build, code]
+
+# On non-Debian distros, expose the bundle at the Debian path so the
+# nginx template can keep one hardcoded path.  Symlink — not copy —
+# so future ca-certificates updates flow through automatically.
+- name: "CA: symlink bundle to /etc/ssl/certs/ca-certificates.crt"
+  ansible.builtin.file:
+    src: "{{ _ca_bundle_source }}"
+    dest: /etc/ssl/certs/ca-certificates.crt
+    state: link
+    force: yes
+  when:
+    - not _ca_debian_path.stat.exists
+    - _ca_bundle_source is defined
+  tags: [nginx, dashboard, servers, os_deps, build, code]

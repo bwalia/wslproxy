@@ -94,6 +94,14 @@
   tags: [always]
 
 # Step 5: Nginx configuration directories and base configs
+# Step 5.5: Ensure CA trust bundle is at the path nginx.conf.j2's
+# lua_ssl_trusted_certificate directive expects.  Must run BEFORE
+# nginx_config so the config-test in finalize.yml doesn't fail with
+# "cannot load certificate".
+- name: Ensure CA trust bundle
+  include_tasks: ensure_ca_certs.yml
+  tags: [nginx, code, dashboard, servers, os_deps, build]
+
 - name: Configure nginx
   include_tasks: nginx_config.yml
   tags: [nginx, code, dashboard, servers]
