@@ -14,6 +14,8 @@ WSLProxy is a high-performance, cloud-native API gateway and reverse proxy built
 - **🏗️ Multi-Deployment Ready** - Docker, Kubernetes, Docker Swarm, and bare metal support
 - **🔌 Service Mesh Ready** - Consul integration for service discovery and health checks
 - **📦 Zero Dependencies** - Lightweight container (~150MB) with everything included
+- **🌍 POPs + Cloudflare DNS** - Declare your edge locations once, provision A records automatically — with safety guardrails so wslproxy never touches a record it didn't create. See **[POPS_AND_DNS_GUIDE.md](POPS_AND_DNS_GUIDE.md)**
+- **🤖 MCP / AI Agent Integration** - Manage servers, rules, POPs, and DNS via natural language from Claude Desktop / Claude Code / Cursor. See **[api/mcp/README.md](api/mcp/README.md)**
 
 ## Quick Start (Choose Your Deployment)
 

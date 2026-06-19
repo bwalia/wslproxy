@@ -101,6 +101,38 @@ export default function ServersListPage() {
         sortable: true,
       },
       {
+        // Synthetic column — pop_ids has no native sort/filter
+        // semantics from the backend, so we just render chips.
+        // Truncate at 3 visible chips so the column doesn't blow
+        // out when a server is multi-region; show "+N" for the rest.
+        field: "_pop_ids",
+        label: "POPs",
+        render: (r) => {
+          const ids = Array.isArray(r.pop_ids) ? r.pop_ids : [];
+          if (ids.length === 0) {
+            return (
+              <span className="text-xs text-slate-400">profile default</span>
+            );
+          }
+          const visible = ids.slice(0, 3);
+          const overflow = ids.length - visible.length;
+          return (
+            <div className="flex flex-wrap items-center gap-1">
+              {visible.map((id) => (
+                <Badge key={id} variant="info" size="sm">
+                  {id}
+                </Badge>
+              ))}
+              {overflow > 0 && (
+                <Badge variant="default" size="sm">
+                  +{overflow}
+                </Badge>
+              )}
+            </div>
+          );
+        },
+      },
+      {
         field: "ssl_enabled",
         label: "SSL",
         render: (r) => (

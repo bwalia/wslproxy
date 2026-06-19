@@ -9,7 +9,12 @@ export interface ConfirmDialogProps {
   onConfirm: () => void;
   onCancel: () => void;
   title?: string;
-  message?: string;
+  /** String for simple confirmations; ReactNode when the caller needs
+   *  rich content (e.g. a list of affected items, an inline warning
+   *  card).  When a non-string is passed we render it inside a <div>
+   *  instead of <p> so block-level children don't generate invalid
+   *  HTML — see pops/[id]/page.tsx's force-delete dialog. */
+  message?: React.ReactNode;
   confirmLabel?: string;
   confirmVariant?: "primary" | "danger" | "secondary" | "ghost";
   loading?: boolean;
@@ -45,7 +50,15 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
         </>
       }
     >
-      <p className="text-sm text-slate-600 dark:text-slate-400">{message}</p>
+      {typeof message === "string" ? (
+        <p className="text-sm text-slate-600 dark:text-slate-400">{message}</p>
+      ) : (
+        // ReactNode messages may contain block-level children (divs,
+        // lists, etc.) which are invalid inside a <p>; wrap in <div>.
+        <div className="text-sm text-slate-600 dark:text-slate-400">
+          {message}
+        </div>
+      )}
     </Dialog>
   );
 };

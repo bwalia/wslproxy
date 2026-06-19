@@ -45,3 +45,47 @@ ip2location_download_url: "https://edgeone-public.s3.eu-west-2.amazonaws.com/src
 # `*-*-01 03:30:00` = 03:30 UTC on the 1st of every month.  The LITE
 # DB is updated by IP2Location around the start of each month.
 ip2location_refresh_schedule: "*-*-01 03:30:00"
+
+# ── POPs (Points of Presence) seed ───────────────────────────────────────
+#
+# Default seeds for the two production POPs (pop0 + lon1).  These are
+# only written if the file doesn't already exist on the target host
+# (`force: no` in tasks/seed_pops.yml), so any edit an operator made
+# via the dashboard survives a re-run of the role.
+#
+# To customise per-environment:
+#   - Override `wslproxy_pops` in inventory / group_vars to ADD POPs
+#     specific to that environment (e.g. a per-region edge fleet).
+#   - To DELETE a POP that the seed would otherwise create, use the
+#     dashboard or `DELETE /api/pops/<id>`.  Re-deploying the role
+#     won't recreate it because the seed only writes missing files.
+#
+# Fields match the schema validated by api/pops.lua.  See
+# POPS_AND_DNS_GUIDE.md §1 for what each field means.
+wslproxy_pops:
+  - id: pop0
+    display_name: "London POP 0"
+    public_ipv4: "187.124.112.155"
+    provider: hetzner
+    region: eu-west
+    city: London
+    country_code: GB
+    status: active
+    capacity_weight: 1.0
+    tags:
+      - production
+      - primary
+    metadata: {}
+  - id: lon1
+    display_name: "London POP 1"
+    public_ipv4: "72.62.211.28"
+    provider: vultr
+    region: eu-west
+    city: London
+    country_code: GB
+    status: active
+    capacity_weight: 1.0
+    tags:
+      - production
+      - secondary
+    metadata: {}

@@ -34,6 +34,14 @@ export interface ServerFormState {
   server_name: string;
   proxy_server_name: string;
   profile_id: string;
+  /** POPs (Points of Presence) this server should be served from.
+   *  Empty array = unassigned; the DNS provisioner falls back to a
+   *  profile-default list when this is empty. */
+  pop_ids: string[];
+  /** Which DNS record type the provisioner manages.  Default "A". */
+  dns_record_type: "A" | "AAAA" | "BOTH" | "CNAME";
+  /** Required when dns_record_type === "CNAME". */
+  dns_cname_target: string;
   servers_tags: string[];
   root: string;
   index: string;

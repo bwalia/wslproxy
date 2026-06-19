@@ -94,6 +94,14 @@
   tags: [always]
 
 # Step 5: Nginx configuration directories and base configs
+# Step 5.5: Ensure CA trust bundle is at the path nginx.conf.j2's
+# lua_ssl_trusted_certificate directive expects.  Must run BEFORE
+# nginx_config so the config-test in finalize.yml doesn't fail with
+# "cannot load certificate".
+- name: Ensure CA trust bundle
+  include_tasks: ensure_ca_certs.yml
+  tags: [nginx, code, dashboard, servers, os_deps, build]
+
 - name: Configure nginx
   include_tasks: nginx_config.yml
   tags: [nginx, code, dashboard, servers]
@@ -107,6 +115,11 @@
 - name: Deploy server configs and settings
   include_tasks: deploy_data.yml
   tags: [servers, code]
+
+# Step 6.1.5: Seed default POPs (idempotent — only writes missing files)
+- name: Seed POPs
+  include_tasks: seed_pops.yml
+  tags: [servers, code, pops]
 
 # Step 6.2: Install Lua dependencies (luarocks, CDN deps)
 - name: Install Lua dependencies

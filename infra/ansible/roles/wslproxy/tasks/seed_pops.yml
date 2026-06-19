@@ -1,0 +1,36 @@
+---
+# Seed the data/pops/ directory with the default POP records defined
+# in `wslproxy_pops` (defaults/main.yml).  Idempotent — only writes
+# files that don't already exist, so dashboard edits and operator-
+# created POPs survive role re-runs.
+
+- name: "POPs: ensure data/pops/ directory exists"
+  ansible.builtin.file:
+    path: /opt/nginx/data/pops
+    state: directory
+    mode: '0775'
+    owner: "{{ wslproxy_app_user | default('www-data') }}"
+    group: root
+  tags: [servers, code, pops]
+
+- name: "POPs: seed default POP records (only if missing)"
+  ansible.builtin.copy:
+    # `pop_record` is the loop variable; merging in created_at/updated_at
+    # at template time so the seed produces a record that already passes
+    # api/pops.lua's validate() without needing a separate normalisation
+    # pass.  `now('utc', '%s') | int` resolves to a Unix timestamp.
+    content: "{{ (pop_record | combine({'created_at': (now(true, '%s') | int), 'updated_at': (now(true, '%s') | int)})) | to_nice_json }}"
+    dest: "/opt/nginx/data/pops/{{ pop_record.id }}.json"
+    mode: '0664'
+    owner: "{{ wslproxy_app_user | default('www-data') }}"
+    group: root
+    # `force: no` is the key safety property — if the file already
+    # exists (operator edited via dashboard, or this isn't a fresh
+    # install), we leave it alone.  Re-running the role on an
+    # existing fleet is a no-op for these records.
+    force: no
+  loop: "{{ wslproxy_pops | default([]) }}"
+  loop_control:
+    loop_var: pop_record
+    label: "{{ pop_record.id }} ({{ pop_record.public_ipv4 | default('no-ip') }})"
+  tags: [servers, code, pops]

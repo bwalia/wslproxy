@@ -77,6 +77,17 @@ http {
     lua_package_path "/usr/local/openresty/nginx/html/api/?.lua;/usr/local/openresty/nginx/html/api/?/init.lua;/usr/local/openresty/lualib/?.lua;/usr/local/openresty/site/lualib/?.lua;/usr/local/openresty/luajit/share/lua/5.1/?.lua;/usr/local/openresty/luajit/share/lua/5.1/?/init.lua;/usr/local/share/lua/5.1/?.lua;/usr/local/share/lua/5.1/?/init.lua;;";
     lua_package_cpath '/usr/local/openresty/site/lualib/resty/?.so;/usr/local/openresty/lualib/?.so;/usr/local/openresty/luajit/lib/lua/5.1/?.so;/usr/local/lib/lua/5.1/?.so;;';
 
+    # Trust store for outbound HTTPS from Lua (lua-resty-http) — used
+    # by api/dns_manager.lua to talk to the Cloudflare API and by any
+    # future HTTPS callers (AI providers, etc.).  Without this,
+    # `httpc:request_uri(...)` against an HTTPS URL fails with OpenSSL
+    # error 20 "unable to get local issuer certificate".  Debian /
+    # Ubuntu ship the bundle at this exact path via the
+    # ca-certificates package (preinstalled in os_setup_debian.yml).
+    # Kept in sync with nginx-dev.conf.tmpl per CLAUDE.md §6.
+    lua_ssl_trusted_certificate /etc/ssl/certs/ca-certificates.crt;
+    lua_ssl_verify_depth 5;
+
     # Include dynamic upstream configurations
     include /opt/nginx/data/upstreams/*/upstreams.conf;
 
