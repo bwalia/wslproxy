@@ -26,13 +26,13 @@
   ansible.builtin.package:
     name: ca-certificates
     state: present
-  tags: [os_deps, build, code]
+  tags: [nginx, dashboard, servers, os_deps, build, code]
 
 - name: "CA: check if the Debian-style bundle already exists"
   ansible.builtin.stat:
     path: /etc/ssl/certs/ca-certificates.crt
   register: _ca_debian_path
-  tags: [os_deps, build, code]
+  tags: [nginx, dashboard, servers, os_deps, build, code]
 
 # Only probe the distro-specific paths when the Debian-style symlink
 # is missing — saves four stat calls on the most common case.
@@ -46,13 +46,13 @@
     - /etc/pki/tls/certs/ca-bundle.crt
     - /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem
   when: not _ca_debian_path.stat.exists
-  tags: [os_deps, build, code]
+  tags: [nginx, dashboard, servers, os_deps, build, code]
 
 - name: "CA: pick first existing bundle path"
   ansible.builtin.set_fact:
     _ca_bundle_source: "{{ (_ca_actual_paths.results | selectattr('stat.exists') | map(attribute='stat.path') | list | first) | default(omit) }}"
   when: not _ca_debian_path.stat.exists
-  tags: [os_deps, build, code]
+  tags: [nginx, dashboard, servers, os_deps, build, code]
 
 - name: "CA: assert we found a bundle somewhere"
   ansible.builtin.assert:
@@ -67,7 +67,7 @@
         /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem
       lua_ssl_trusted_certificate in nginx.conf will fail to load.
       Check the ca-certificates package installed correctly.
-  tags: [os_deps, build, code]
+  tags: [nginx, dashboard, servers, os_deps, build, code]
 
 # On non-Debian distros, expose the bundle at the Debian path so the
 # nginx template can keep one hardcoded path.  Symlink — not copy —
@@ -81,4 +81,4 @@
   when:
     - not _ca_debian_path.stat.exists
     - _ca_bundle_source is defined
-  tags: [os_deps, build, code]
+  tags: [nginx, dashboard, servers, os_deps, build, code]

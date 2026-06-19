@@ -37,7 +37,22 @@
 
 local _M = {}
 
-local http = require("resty.http")
+-- `lua-resty-http` is installed by infra/ansible/roles/wslproxy/tasks/
+-- deploy_deps.yml, but that task uses `ignore_errors: true` on the
+-- luarocks install loop — so a past failed install can leave prod
+-- without the module while the deploy still reports success.  pcall
+-- the require so dns_manager.lua doesn't fail to load and cascade-
+-- break api.lua's `require("dns_manager")` at line 17 (which would
+-- take the entire admin server offline).  cf_request() below checks
+-- `http` is non-nil and surfaces a structured io_error if missing.
+local _http_ok, http = pcall(require, "resty.http")
+if not _http_ok then
+    ngx.log(ngx.ERR, "dns_manager: resty.http not available — DNS ",
+        "provisioning will return io_error.  Run: luarocks install ",
+        "lua-resty-http (then reload openresty).  pcall error: ",
+        tostring(http))
+    http = nil
+end
 local cjson = Cjson or require("cjson")
 local Helper = require("helpers")
 local AuditLogger = require("audit_logger")
@@ -184,6 +199,19 @@ end
 --- errors.  Retries on 429 with exponential backoff up to
 --- MAX_RETRIES_ON_429 attempts; everything else fails fast.
 local function cf_request(provider, method, path, body)
+    -- Defensive check matching the pcall guard at module load: if
+    -- lua-resty-http failed to install, return a clear actionable
+    -- error rather than letting the missing global trip a Lua
+    -- runtime error that would surface as a generic 500 HTML page.
+    if not http then
+        return nil, {
+            code = "io_error",
+            message = "lua-resty-http is not installed on this host.  " ..
+                "DNS provisioning cannot reach Cloudflare until it is.  " ..
+                "Run: luarocks install lua-resty-http (then reload " ..
+                "openresty).  See deploy_deps.yml.",
+        }
+    end
     local url = CF_BASE .. path
     local attempt = 0
     while true do
