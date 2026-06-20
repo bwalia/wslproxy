@@ -88,6 +88,21 @@ jobs:
     timeout-minutes: 30
 
     steps:
+      # Self-hosted runners reuse their workspace between jobs. A prior
+      # job (e.g. a Dockerized build) can leave root-owned files such as
+      # openresty-admin-next/.next, which actions/checkout — running as
+      # the runner user — cannot delete when it cleans the workspace.
+      # That fails the whole job at "Checkout code" (EACCES unlink). The
+      # runner deploys sequentially on a shared host, so the failure
+      # recurs every time a Next.js build precedes another deploy on the
+      # same runner. Reclaim ownership before checkout so the clean step
+      # always succeeds. No-op on a fresh/empty workspace.
+      - name: Reclaim runner workspace ownership
+        run: |
+          if [ -n "$GITHUB_WORKSPACE" ] && [ -d "$GITHUB_WORKSPACE" ]; then
+            sudo chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE" 2>/dev/null || true
+          fi
+
       - name: Checkout code
         uses: actions/checkout@v5
         with:
