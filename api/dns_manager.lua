@@ -492,6 +492,15 @@ function _M.lookup(opts)
             pop_id = extract_pop_id(r),
         })
     end
+    -- Force array encoding: an empty Lua table serialises as `{}` (a
+    -- JSON object) by default, which makes the dashboard's
+    -- `records.filter(...)` throw "filter is not a function".  This
+    -- fires whenever a zone resolves but has no records of the queried
+    -- type (e.g. a CNAME host with no A records).  array_mt pins it to
+    -- `[]`.  Guarded for older cjson builds without array_mt.
+    if cjson.array_mt then
+        setmetatable(annotated, cjson.array_mt)
+    end
     return {
         domain = domain,
         zone_id = zone.zone_id,
