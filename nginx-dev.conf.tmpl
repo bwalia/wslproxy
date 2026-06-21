@@ -1152,10 +1152,19 @@ server {
             if ok then
               CacheHandler.process_response_headers()
             end
+
+            -- LLM protocol translation: normalise response headers
+            local ok_llm, Llm = pcall(require, "llm_translator")
+            if ok_llm then Llm.header_filter() end
           }
 
           # WSL Cache: Capture response body for caching
           body_filter_by_lua_block {
+            -- LLM protocol translation: rewrite Anthropic body/SSE -> OpenAI.
+            -- No-op unless gateway_resp.lua armed ngx.ctx.llm for this request.
+            local ok_llm, Llm = pcall(require, "llm_translator")
+            if ok_llm then Llm.body_filter() end
+
             local ok, CacheHandler = pcall(require, "cache_handler")
             if ok and ngx.ctx.should_cache then
               CacheHandler.collect_response_body()
