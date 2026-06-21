@@ -4,8 +4,8 @@
     <meta charset="utf-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="WSL Proxy - Enterprise-grade reverse proxy, load balancer, and edge computing platform. Build your own CDN with multi-region failover, edge caching, and WAF protection." />
-    <meta name="keywords" content="CDN, reverse proxy, load balancer, edge computing, WAF, SSL, cache, API gateway, OpenResty, Lua, nginx" />
+    <meta name="description" content="WSL Proxy - Enterprise-grade reverse proxy, load balancer, AI gateway, and edge computing platform. Build your own CDN with multi-region failover, edge caching, WAF protection, and an OpenAI-compatible LLM gateway in front of Anthropic, OpenAI, and self-hosted models." />
+    <meta name="keywords" content="CDN, reverse proxy, load balancer, edge computing, WAF, SSL, cache, API gateway, AI gateway, LLM gateway, OpenAI-compatible, Anthropic, OpenAI, Ollama, OpenResty, Lua, nginx" />
     <meta name="author" content="Workstation Solutions Limited" />
     <meta property="og:title" content="WSL Proxy - Build Your Own CDN" />
     <meta property="og:description" content="Enterprise-grade reverse proxy, load balancer, and edge computing platform with multi-region failover, edge caching, and WAF protection." />
@@ -478,6 +478,7 @@
         </a>
         <div class="d-flex align-items-center">
           <a class="nav-link-custom d-none d-md-inline" href="#features">Features</a>
+          <a class="nav-link-custom d-none d-md-inline" href="#ai-gateway">AI Gateway</a>
           <a class="nav-link-custom d-none d-md-inline" href="#flow">Architecture</a>
           <a class="nav-link-custom d-none d-md-inline" href="#api">API</a>
           <a class="nav-link-custom d-none d-md-inline" href="https://github.com/bwalia/wslproxy" target="_blank">Docs</a>
@@ -651,6 +652,102 @@
               <p>Fully-featured Web UI Administrator to manage entire cluster configuration from a single place securely.</p>
             </div>
           </div>
+          <div class="col-md-6 col-lg-4">
+            <div class="feature-card">
+              <div class="feature-icon purple"><i class="fas fa-robot"></i></div>
+              <h4>AI Gateway (OpenAI-Compatible)</h4>
+              <p>Front Anthropic, OpenAI, or self-hosted models behind one OpenAI-compatible endpoint — with live SSE token streaming, per-route API keys, rate limits, and metrics. <a href="#ai-gateway">Learn more →</a></p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- AI Gateway Section -->
+    <section class="features" id="ai-gateway" style="background: var(--light);">
+      <div class="container">
+        <div class="text-center mb-5">
+          <span class="section-badge"><i class="fas fa-robot"></i> New &middot; AI Gateway</span>
+          <h2 class="section-title">OpenAI-Compatible Edge for LLMs</h2>
+          <p class="section-description">
+            Put one secure, observable gateway in front of every model provider. Your apps speak the
+            standard OpenAI API; WSL Proxy translates, routes, secures, and meters the traffic —
+            Anthropic, OpenAI, or self-hosted Ollama behind a single endpoint.
+          </p>
+        </div>
+
+        <div class="row g-4 align-items-stretch mb-4">
+          <div class="col-lg-6">
+            <div class="feature-card" style="height: 100%;">
+              <div class="feature-icon purple"><i class="fas fa-language"></i></div>
+              <h4>What it is</h4>
+              <p>
+                A protocol-translating LLM gateway built into the proxy. Clients call the familiar
+                <strong>OpenAI Chat Completions</strong> API; WSL Proxy rewrites each request into the
+                target provider's native API (e.g. <strong>Anthropic Messages</strong>) and converts the
+                reply back — including <strong>live token streaming (SSE)</strong> — so you never rewrite
+                application code to switch or mix providers.
+              </p>
+            </div>
+          </div>
+          <div class="col-lg-6">
+            <div class="feature-card" style="height: 100%;">
+              <div class="feature-icon green"><i class="fas fa-terminal"></i></div>
+              <h4>One endpoint, any model</h4>
+              <p>Path-based rules route each call to the right backend, each with its own keys, rate limits, and WAF:</p>
+              <pre style="background: var(--dark); color: #e2e8f0; padding: 1rem 1.25rem; border-radius: 12px; font-size: 0.85rem; line-height: 1.7; overflow-x: auto; margin: 0;"><code>POST /api/claude  &rarr; api.anthropic.com   <span style="color:#10b981;"># OpenAI &harr; Anthropic</span>
+POST /api/openai  &rarr; api.openai.com
+POST /api/llm     &rarr; ollama            <span style="color:#10b981;"># self-hosted</span></code></pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="text-center mb-4">
+          <h3 style="font-size: 1.4rem; font-weight: 700; color: var(--dark);">Use Cases &amp; Benefits</h3>
+        </div>
+        <div class="row g-4">
+          <div class="col-md-6 col-lg-4">
+            <div class="feature-card">
+              <div class="feature-icon blue"><i class="fas fa-cubes"></i></div>
+              <h4>Vendor-neutral apps</h4>
+              <p>Write once to the OpenAI API and swap or blend Claude, GPT, and local models by configuration — no SDK changes, no lock-in.</p>
+            </div>
+          </div>
+          <div class="col-md-6 col-lg-4">
+            <div class="feature-card">
+              <div class="feature-icon red"><i class="fas fa-user-shield"></i></div>
+              <h4>Govern &amp; secure centrally</h4>
+              <p>Provider keys never touch client apps. Enforce JWT / API-key auth, WAF, and rate limits at the edge — per route, per team.</p>
+            </div>
+          </div>
+          <div class="col-md-6 col-lg-4">
+            <div class="feature-card">
+              <div class="feature-icon orange"><i class="fas fa-route"></i></div>
+              <h4>Control cost &amp; latency</h4>
+              <p>Route by model, weight, or canary; fail over between providers; send cheap/private work to self-hosted models and hard tasks to frontier models.</p>
+            </div>
+          </div>
+          <div class="col-md-6 col-lg-4">
+            <div class="feature-card">
+              <div class="feature-icon pink"><i class="fas fa-chart-line"></i></div>
+              <h4>Observability &amp; spend</h4>
+              <p>Every prompt and response flows through one place — Prometheus metrics, audit logs, and per-model traffic stats for usage and cost visibility.</p>
+            </div>
+          </div>
+          <div class="col-md-6 col-lg-4">
+            <div class="feature-card">
+              <div class="feature-icon cyan"><i class="fas fa-bolt"></i></div>
+              <h4>Streaming-native</h4>
+              <p>Server-Sent Event token streams are translated chunk-by-chunk, so chat UIs stay real-time and responsive across providers.</p>
+            </div>
+          </div>
+          <div class="col-md-6 col-lg-4">
+            <div class="feature-card">
+              <div class="feature-icon green"><i class="fas fa-plug"></i></div>
+              <h4>Drop-in migration</h4>
+              <p>Point your existing OpenAI base URL at the gateway. No payload rewrites — start mixing providers without touching client code.</p>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -778,6 +875,7 @@
             <h5>Product</h5>
             <ul>
               <li><a href="#features">Features</a></li>
+              <li><a href="#ai-gateway">AI Gateway</a></li>
               <li><a href="#flow">Architecture</a></li>
               <li><a href="#api">API</a></li>
               <li><a href="https://github.com/bwalia/wslproxy">Documentation</a></li>
