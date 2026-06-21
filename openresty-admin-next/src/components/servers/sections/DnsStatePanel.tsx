@@ -109,7 +109,13 @@ export default function DnsStatePanel({
     setError(null);
     try {
       const res = await dataProvider.lookupDns(serverName, "A");
-      setLookup(res?.data ?? null);
+      const data = (res?.data ?? null) as LookupResult | null;
+      if (data && !Array.isArray(data.records)) {
+        // Backend may serialise an empty record set as `{}` (JSON object)
+        // rather than `[]`; coerce so `records.filter/map/length` are safe.
+        data.records = [];
+      }
+      setLookup(data);
     } catch (err) {
       setError(err as ApiError);
       setLookup(null);

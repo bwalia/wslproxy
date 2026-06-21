@@ -154,7 +154,14 @@ export default function DnsProvisionDialog({
         profile_id: profileId,
         dry_run: true,
       });
-      setPlan(res?.data ?? null);
+      const planData = (res?.data ?? null) as Plan | null;
+      if (planData) {
+        // Empty actions/skipped may arrive as `{}` (JSON object) from the
+        // Lua backend; coerce so renderActions/renderSkipped `.map` is safe.
+        if (!Array.isArray(planData.actions)) planData.actions = [];
+        if (!Array.isArray(planData.skipped)) planData.skipped = [];
+      }
+      setPlan(planData);
     } catch (err) {
       // Surface the structured error message from the Lua module
       // verbatim — it's already designed to be operator-facing.
@@ -184,7 +191,11 @@ export default function DnsProvisionDialog({
         profile_id: profileId,
         dry_run: false,
       });
-      const result = res?.data ?? null;
+      const result = (res?.data ?? null) as Plan | null;
+      if (result) {
+        if (!Array.isArray(result.actions)) result.actions = [];
+        if (!Array.isArray(result.skipped)) result.skipped = [];
+      }
       setAppliedResult(result);
       const errorCount = (result?.actions ?? []).filter(
         (a) => a.action === "error",
