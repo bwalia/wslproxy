@@ -283,6 +283,21 @@ elseif selectedRule.statusCode == 305 then
         ngx.req.set_uri(redirectPath .. currentUri)
     end
 
+    -- LLM protocol translation (e.g. OpenAI-in -> Anthropic-out).  Runs
+    -- last so its request rewrite (body + /v1/messages URI) wins over the
+    -- generic path handling above.  Per-rule, fails open.  Response-side
+    -- translation is driven by ngx.ctx.llm in the header/body filters.
+    local llm_cfg = selectedRule.rule_data and selectedRule.rule_data.response
+        and selectedRule.rule_data.response.llm_translate
+    if llm_cfg then
+        local ok_llm, LlmTranslator = pcall(require, "llm_translator")
+        if ok_llm then
+            LlmTranslator.apply_request(llm_cfg)
+        else
+            ngx.log(ngx.ERR, "llm_translate: module load failed: ", tostring(LlmTranslator))
+        end
+    end
+
     ngx.var.proxy_host_scheme = origin_serverScheme
 
     -- Per-server proxy timeouts: pass to balancer_by_lua via ngx.ctx
