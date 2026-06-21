@@ -931,6 +931,13 @@ function _M.provision_for_server(opts)
     end
 
     -- 6. Execute (or just plan)
+    -- Pin to array encoding: empty `actions`/`skipped` would otherwise
+    -- serialise as `{}` (JSON object) and break the dashboard's
+    -- `.map(...)` over them (e.g. a CNAME create has an empty skipped).
+    if cjson.array_mt then
+        setmetatable(actions, cjson.array_mt)
+        setmetatable(skipped, cjson.array_mt)
+    end
     if opts.dry_run then
         return {
             dry_run = true,
@@ -1031,6 +1038,10 @@ function _M.provision_for_server(opts)
         })
     end)
 
+    if cjson.array_mt then
+        setmetatable(executed, cjson.array_mt)
+        setmetatable(skipped, cjson.array_mt)
+    end
     return {
         domain = domain,
         zone_id = zone.zone_id,
