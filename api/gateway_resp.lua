@@ -298,6 +298,21 @@ elseif selectedRule.statusCode == 305 then
         end
     end
 
+    -- MCP gateway: govern JSON-RPC traffic to an upstream MCP server
+    -- (tool/method allow-deny, rate limit, audit, auth bridging).  May
+    -- finalise the request with a JSON-RPC error on a denied tools/call;
+    -- otherwise it arms ngx.ctx.mcp_gateway and proxying continues.
+    local mcp_cfg = selectedRule.rule_data and selectedRule.rule_data.response
+        and selectedRule.rule_data.response.mcp_gateway
+    if mcp_cfg and mcp_cfg.enabled then
+        local ok_mcp, McpGateway = pcall(require, "mcp_gateway")
+        if ok_mcp then
+            McpGateway.enforce(mcp_cfg)
+        else
+            ngx.log(ngx.ERR, "mcp_gateway: module load failed: ", tostring(McpGateway))
+        end
+    end
+
     ngx.var.proxy_host_scheme = origin_serverScheme
 
     -- Per-server proxy timeouts: pass to balancer_by_lua via ngx.ctx
