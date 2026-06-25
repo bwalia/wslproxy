@@ -558,8 +558,15 @@ jobs:
         run: |
           curl -sf -X POST "${{ secrets.SLACK_WEBHOOK }}" \
             -H 'Content-Type: application/json' \
-            -d "$(jq -n --arg text ":white_check_mark: *WSLProxy ${{ inputs.env_label }} — Success*\n*Mode:* ${{ inputs.deploy_mode }} | *Host:* ${{ inputs.host_ip }}\n*Branch:* ${{ github.ref_name }} | *Commit:* \`${{ github.sha }}\`\n*Triggered by:* ${{ github.actor }} (${{ github.event_name }})" \
-              '{channel: "github-updates", username: "GitHub Actions", text: $text}')"
+            -d "$(jq -n \
+              --arg envlabel "${{ inputs.env_label }}" \
+              --arg mode "${{ inputs.deploy_mode }}" \
+              --arg host "${{ inputs.host_ip }}" \
+              --arg branch "${{ github.ref_name }}" \
+              --arg commit "${{ github.sha }}" \
+              --arg actor "${{ github.actor }}" \
+              --arg event "${{ github.event_name }}" \
+              '{channel: "github-updates", username: "GitHub Actions", text: (":white_check_mark: *WSLProxy \($envlabel) — Success*\n*Mode:* \($mode) | *Host:* \($host)\n*Branch:* \($branch) | *Commit:* `\($commit)`\n*Triggered by:* \($actor) (\($event))")}')"
 
       - name: Slack notify - deploy failed
         if: failure()
@@ -568,5 +575,14 @@ jobs:
         run: |
           curl -sf -X POST "${{ secrets.SLACK_WEBHOOK }}" \
             -H 'Content-Type: application/json' \
-            -d "$(jq -n --arg text ":x: *Stage ${{ inputs.stage_number }} FAILED: ${{ inputs.env_label }}*\nDeploy or health check failed — pipeline stopped.\n*Mode:* ${{ inputs.deploy_mode }} | *Host:* ${{ inputs.host_ip }}\n*Branch:* ${{ github.ref_name }} | *Commit:* \`${{ github.sha }}\`\n*Triggered by:* ${{ github.actor }} (${{ github.event_name }})\n*Logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
-              '{channel: "github-updates", username: "GitHub Actions", text: $text}')"
+            -d "$(jq -n \
+              --arg stage "${{ inputs.stage_number }}" \
+              --arg envlabel "${{ inputs.env_label }}" \
+              --arg mode "${{ inputs.deploy_mode }}" \
+              --arg host "${{ inputs.host_ip }}" \
+              --arg branch "${{ github.ref_name }}" \
+              --arg commit "${{ github.sha }}" \
+              --arg actor "${{ github.actor }}" \
+              --arg event "${{ github.event_name }}" \
+              --arg logs "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+              '{channel: "github-updates", username: "GitHub Actions", text: (":x: *Stage \($stage) FAILED: \($envlabel)*\nDeploy or health check failed — pipeline stopped.\n*Mode:* \($mode) | *Host:* \($host)\n*Branch:* \($branch) | *Commit:* `\($commit)`\n*Triggered by:* \($actor) (\($event))\n*Logs:* \($logs)")}')"

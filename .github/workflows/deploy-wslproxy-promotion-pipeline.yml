@@ -99,8 +99,10 @@ jobs:
         run: |
           curl -sf -X POST "${{ secrets.SLACK_WEBHOOK }}" \
             -H 'Content-Type: application/json' \
-            -d "$(jq -n --arg text ":x: *Promotion Pipeline: Validation FAILED*\nConfig validation errors on main — promotion stopped.\n*Triggered by:* ${{ github.actor }}\n*Logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
-              '{channel: "github-updates", username: "GitHub Actions", text: $text}')"
+            -d "$(jq -n \
+              --arg actor "${{ github.actor }}" \
+              --arg logs "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+              '{channel: "github-updates", username: "GitHub Actions", text: (":x: *Promotion Pipeline: Validation FAILED*\nConfig validation errors on main — promotion stopped.\n*Triggered by:* \($actor)\n*Logs:* \($logs)")}')"
 
   # ──────────────────────────────────────────────────────
   # Stage 2: Deploy to Int (always runs)
@@ -194,8 +196,10 @@ jobs:
         run: |
           curl -sf -X POST "${{ secrets.SLACK_WEBHOOK }}" \
             -H 'Content-Type: application/json' \
-            -d "$(jq -n --arg text ":x: *Promotion Pipeline: Smoke Test FAILED on Int*\nPromotion stopped before test environment.\n*Triggered by:* ${{ github.actor }}\n*Logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
-              '{channel: "github-updates", username: "GitHub Actions", text: $text}')"
+            -d "$(jq -n \
+              --arg actor "${{ github.actor }}" \
+              --arg logs "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+              '{channel: "github-updates", username: "GitHub Actions", text: (":x: *Promotion Pipeline: Smoke Test FAILED on Int*\nPromotion stopped before test environment.\n*Triggered by:* \($actor)\n*Logs:* \($logs)")}')"
 
   # ──────────────────────────────────────────────────────
   # Stage 4: Deploy to Test (final stage in this pipeline —

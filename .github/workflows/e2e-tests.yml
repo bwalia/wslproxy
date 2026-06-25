@@ -184,8 +184,17 @@ jobs:
         run: |
           curl -sf -X POST "${{ secrets.SLACK_WEBHOOK }}" \
             -H 'Content-Type: application/json' \
-            -d "$(jq -n --arg text "WSL Proxy E2E Tests passed :white_check_mark:\n*Environment:* ${{ matrix.environment }}\n*Tests:* ${{ steps.results.outputs.passed }}/${{ steps.results.outputs.total }} passed (${{ steps.results.outputs.skipped }} skipped)\n*Target:* ${{ steps.creds.outputs.gateway_url || steps.env_config.outputs.base_url }}\n*Branch:* ${{ github.ref_name }}\n*Commit:* \`${{ github.sha }}\`\n*Triggered by:* ${{ github.event_name }} (${{ github.actor }})" \
-              '{channel: "github-updates", username: "GitHub Actions", text: $text}')"
+            -d "$(jq -n \
+              --arg env "${{ matrix.environment }}" \
+              --arg passed "${{ steps.results.outputs.passed }}" \
+              --arg total "${{ steps.results.outputs.total }}" \
+              --arg skipped "${{ steps.results.outputs.skipped }}" \
+              --arg target "${{ steps.creds.outputs.gateway_url || steps.env_config.outputs.base_url }}" \
+              --arg branch "${{ github.ref_name }}" \
+              --arg commit "${{ github.sha }}" \
+              --arg event "${{ github.event_name }}" \
+              --arg actor "${{ github.actor }}" \
+              '{channel: "github-updates", username: "GitHub Actions", text: ("WSL Proxy E2E Tests passed :white_check_mark:\n*Environment:* \($env)\n*Tests:* \($passed)/\($total) passed (\($skipped) skipped)\n*Target:* \($target)\n*Branch:* \($branch)\n*Commit:* `\($commit)`\n*Triggered by:* \($event) (\($actor))")}')"
 
       - name: Slack notification - Tests Failed
         if: failure()
@@ -194,8 +203,19 @@ jobs:
         run: |
           curl -sf -X POST "${{ secrets.SLACK_WEBHOOK }}" \
             -H 'Content-Type: application/json' \
-            -d "$(jq -n --arg text "WSL Proxy E2E Tests FAILED :x:\n*Environment:* ${{ matrix.environment }}\n*Tests:* ${{ steps.results.outputs.failed }} failed, ${{ steps.results.outputs.passed }} passed out of ${{ steps.results.outputs.total }} (${{ steps.results.outputs.skipped }} skipped)\n*Target:* ${{ steps.creds.outputs.gateway_url || steps.env_config.outputs.base_url }}\n*Branch:* ${{ github.ref_name }}\n*Commit:* \`${{ github.sha }}\`\n*Triggered by:* ${{ github.event_name }} (${{ github.actor }})\n*Screenshots & Traces:* Download from workflow artifacts\n*Workflow logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
-              '{channel: "github-updates", username: "GitHub Actions", text: $text}')"
+            -d "$(jq -n \
+              --arg env "${{ matrix.environment }}" \
+              --arg failed "${{ steps.results.outputs.failed }}" \
+              --arg passed "${{ steps.results.outputs.passed }}" \
+              --arg total "${{ steps.results.outputs.total }}" \
+              --arg skipped "${{ steps.results.outputs.skipped }}" \
+              --arg target "${{ steps.creds.outputs.gateway_url || steps.env_config.outputs.base_url }}" \
+              --arg branch "${{ github.ref_name }}" \
+              --arg commit "${{ github.sha }}" \
+              --arg event "${{ github.event_name }}" \
+              --arg actor "${{ github.actor }}" \
+              --arg logs "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+              '{channel: "github-updates", username: "GitHub Actions", text: ("WSL Proxy E2E Tests FAILED :x:\n*Environment:* \($env)\n*Tests:* \($failed) failed, \($passed) passed out of \($total) (\($skipped) skipped)\n*Target:* \($target)\n*Branch:* \($branch)\n*Commit:* `\($commit)`\n*Triggered by:* \($event) (\($actor))\n*Screenshots & Traces:* Download from workflow artifacts\n*Workflow logs:* \($logs)")}')"
 
       - name: Upload screenshot to Slack
         if: failure() && env.SLACK_BOT_TOKEN != ''
