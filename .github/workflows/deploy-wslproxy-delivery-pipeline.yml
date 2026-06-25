@@ -146,8 +146,13 @@ jobs:
         run: |
           curl -sf -X POST "${{ secrets.SLACK_WEBHOOK }}" \
             -H 'Content-Type: application/json' \
-            -d "$(jq -n --arg text ":x: *Stage 1 FAILED: Build & Validate*\nConfig validation errors found — pipeline stopped.\n*Branch:* ${{ github.ref_name }} | *Commit:* \`${{ github.sha }}\`\n*Triggered by:* ${{ github.actor }} (${{ github.event_name }})\n*Logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
-              '{channel: "github-updates", username: "GitHub Actions", text: $text}')"
+            -d "$(jq -n \
+              --arg branch "${{ github.ref_name }}" \
+              --arg commit "${{ github.sha }}" \
+              --arg actor "${{ github.actor }}" \
+              --arg event "${{ github.event_name }}" \
+              --arg logs "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+              '{channel: "github-updates", username: "GitHub Actions", text: (":x: *Stage 1 FAILED: Build & Validate*\nConfig validation errors found — pipeline stopped.\n*Branch:* \($branch) | *Commit:* `\($commit)`\n*Triggered by:* \($actor) (\($event))\n*Logs:* \($logs)")}')"
 
   # ──────────────────────────────────────────────────────
   # Stage 2: Deploy Int (192.168.1.193)
@@ -248,8 +253,13 @@ jobs:
         run: |
           curl -sf -X POST "${{ secrets.SLACK_WEBHOOK }}" \
             -H 'Content-Type: application/json' \
-            -d "$(jq -n --arg text ":x: *Stage 3 FAILED: Smoke Test Int*\nHealth check or API endpoint tests failed — pipeline stopped before test environment.\n*Branch:* ${{ github.ref_name }} | *Commit:* \`${{ github.sha }}\`\n*Triggered by:* ${{ github.actor }} (${{ github.event_name }})\n*Logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
-              '{channel: "github-updates", username: "GitHub Actions", text: $text}')"
+            -d "$(jq -n \
+              --arg branch "${{ github.ref_name }}" \
+              --arg commit "${{ github.sha }}" \
+              --arg actor "${{ github.actor }}" \
+              --arg event "${{ github.event_name }}" \
+              --arg logs "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+              '{channel: "github-updates", username: "GitHub Actions", text: (":x: *Stage 3 FAILED: Smoke Test Int*\nHealth check or API endpoint tests failed — pipeline stopped before test environment.\n*Branch:* \($branch) | *Commit:* `\($commit)`\n*Triggered by:* \($actor) (\($event))\n*Logs:* \($logs)")}')"
 
   # ──────────────────────────────────────────────────────
   # Stage 4: Deploy Test (192.168.1.140)

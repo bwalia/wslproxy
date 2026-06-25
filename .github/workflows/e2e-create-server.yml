@@ -195,8 +195,16 @@ jobs:
         run: |
           curl -sf -X POST "${{ secrets.SLACK_WEBHOOK }}" \
             -H 'Content-Type: application/json' \
-            -d "$(jq -n --arg text "WSL Proxy Create Server test passed :white_check_mark:\n*Profile:* ${PROFILE}\n*Tests:* ${{ steps.results.outputs.passed }}/${{ steps.results.outputs.total }} passed\n*Target:* ${TARGET_URL}/servers\n*Note:* A new test server was created and is visible on the servers list.\n*Branch:* ${{ github.ref_name }}\n*Commit:* \`${{ github.sha }}\`\n*Triggered by:* ${{ github.event_name }} (${{ github.actor }})" \
-              '{channel: "github-updates", username: "GitHub Actions", text: $text}')"
+            -d "$(jq -n \
+              --arg profile "$PROFILE" \
+              --arg passed "${{ steps.results.outputs.passed }}" \
+              --arg total "${{ steps.results.outputs.total }}" \
+              --arg target "$TARGET_URL" \
+              --arg branch "${{ github.ref_name }}" \
+              --arg commit "${{ github.sha }}" \
+              --arg event "${{ github.event_name }}" \
+              --arg actor "${{ github.actor }}" \
+              '{channel: "github-updates", username: "GitHub Actions", text: ("WSL Proxy Create Server test passed :white_check_mark:\n*Profile:* \($profile)\n*Tests:* \($passed)/\($total) passed\n*Target:* \($target)/servers\n*Note:* A new test server was created and is visible on the servers list.\n*Branch:* \($branch)\n*Commit:* `\($commit)`\n*Triggered by:* \($event) (\($actor))")}')"
 
       - name: Slack notification - Create Server Failed
         if: failure()
@@ -205,5 +213,15 @@ jobs:
         run: |
           curl -sf -X POST "${{ secrets.SLACK_WEBHOOK }}" \
             -H 'Content-Type: application/json' \
-            -d "$(jq -n --arg text "WSL Proxy Create Server test FAILED :x:\n*Profile:* ${PROFILE}\n*Tests:* ${{ steps.results.outputs.failed }} failed, ${{ steps.results.outputs.passed }} passed out of ${{ steps.results.outputs.total }}\n*Target:* ${TARGET_URL}/servers\n*Branch:* ${{ github.ref_name }}\n*Commit:* \`${{ github.sha }}\`\n*Triggered by:* ${{ github.event_name }} (${{ github.actor }})\n*Screenshots & Traces:* Download from workflow artifacts\n*Workflow logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
-              '{channel: "github-updates", username: "GitHub Actions", text: $text}')"
+            -d "$(jq -n \
+              --arg profile "$PROFILE" \
+              --arg failed "${{ steps.results.outputs.failed }}" \
+              --arg passed "${{ steps.results.outputs.passed }}" \
+              --arg total "${{ steps.results.outputs.total }}" \
+              --arg target "$TARGET_URL" \
+              --arg branch "${{ github.ref_name }}" \
+              --arg commit "${{ github.sha }}" \
+              --arg event "${{ github.event_name }}" \
+              --arg actor "${{ github.actor }}" \
+              --arg logs "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+              '{channel: "github-updates", username: "GitHub Actions", text: ("WSL Proxy Create Server test FAILED :x:\n*Profile:* \($profile)\n*Tests:* \($failed) failed, \($passed) passed out of \($total)\n*Target:* \($target)/servers\n*Branch:* \($branch)\n*Commit:* `\($commit)`\n*Triggered by:* \($event) (\($actor))\n*Screenshots & Traces:* Download from workflow artifacts\n*Workflow logs:* \($logs)")}')"
