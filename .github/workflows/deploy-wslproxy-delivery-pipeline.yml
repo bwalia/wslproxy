@@ -420,8 +420,11 @@ jobs:
       # redeploy it (idempotent), instead of decoding an empty GH secret.
       secrets_mode: runner_file
       seed_from_host: true
-      settings_file_path: "/home/bwalia/.secrets/wslproxy/pop0/settings.json"
-      env_file_path: "/home/bwalia/.secrets/wslproxy/pop0/.env"
+      # Seed target on the runner — /tmp is always writable (same place
+      # the old github_secret mode wrote to). The .secrets tree is locked
+      # down and the runner can't mkdir new subdirs there.
+      settings_file_path: "/tmp/wslproxy-pop0/settings.json"
+      env_file_path: "/tmp/wslproxy-pop0/.env"
       health_endpoint: "https://prod-our-v1.wslproxy.com/health"
       health_check_mode: external
       docker_prune: true
