@@ -128,8 +128,10 @@ jobs:
         run: |
           curl -sf -X POST "${{ secrets.SLACK_WEBHOOK }}" \
             -H 'Content-Type: application/json' \
-            -d "$(jq -n --arg text ":x: *Nightly Pipeline: Validation FAILED*\nConfig or template errors on \`${{ env.NIGHTLY_BRANCH }}\` — nightly stopped.\n*Logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
-              '{channel: "github-updates", username: "GitHub Actions (Nightly)", text: $text}')"
+            -d "$(jq -n \
+              --arg branch "${{ env.NIGHTLY_BRANCH }}" \
+              --arg logs "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+              '{channel: "github-updates", username: "GitHub Actions (Nightly)", text: (":x: *Nightly Pipeline: Validation FAILED*\nConfig or template errors on `\($branch)` — nightly stopped.\n*Logs:* \($logs)")}')"
 
   # ──────────────────────────────────────────────────────
   # Stage 2: Deploy to Int (192.168.1.193)
@@ -245,8 +247,11 @@ jobs:
         run: |
           curl -sf -X POST "${{ secrets.SLACK_WEBHOOK }}" \
             -H 'Content-Type: application/json' \
-            -d "$(jq -n --arg text ":x: *Nightly Pipeline: Smoke Test FAILED on Int*\nHealth check or API tests failed — nightly stopped before Test environment.\n*Branch:* \`${{ env.NIGHTLY_BRANCH }}\` | *Mode:* ${{ env.NIGHTLY_DEPLOY_MODE }}\n*Logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
-              '{channel: "github-updates", username: "GitHub Actions (Nightly)", text: $text}')"
+            -d "$(jq -n \
+              --arg branch "${{ env.NIGHTLY_BRANCH }}" \
+              --arg mode "${{ env.NIGHTLY_DEPLOY_MODE }}" \
+              --arg logs "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+              '{channel: "github-updates", username: "GitHub Actions (Nightly)", text: (":x: *Nightly Pipeline: Smoke Test FAILED on Int*\nHealth check or API tests failed — nightly stopped before Test environment.\n*Branch:* `\($branch)` | *Mode:* \($mode)\n*Logs:* \($logs)")}')"
 
   # ──────────────────────────────────────────────────────
   # Stage 4: Deploy to Test (192.168.1.140) — automatic
@@ -324,8 +329,12 @@ jobs:
         run: |
           curl -sf -X POST "${{ secrets.SLACK_WEBHOOK }}" \
             -H 'Content-Type: application/json' \
-            -d "$(jq -n --arg text ":white_check_mark: *Nightly Integration Pipeline PASSED*\nAll stages succeeded — \`${{ env.NIGHTLY_BRANCH }}\` deployed through Int and Test.\n*Mode:* ${{ env.NIGHTLY_DEPLOY_MODE }} | *Commit:* \`${{ github.sha }}\`\n*Logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
-              '{channel: "github-updates", username: "GitHub Actions (Nightly)", text: $text}')"
+            -d "$(jq -n \
+              --arg branch "${{ env.NIGHTLY_BRANCH }}" \
+              --arg mode "${{ env.NIGHTLY_DEPLOY_MODE }}" \
+              --arg commit "${{ github.sha }}" \
+              --arg logs "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+              '{channel: "github-updates", username: "GitHub Actions (Nightly)", text: (":white_check_mark: *Nightly Integration Pipeline PASSED*\nAll stages succeeded — `\($branch)` deployed through Int and Test.\n*Mode:* \($mode) | *Commit:* `\($commit)`\n*Logs:* \($logs)")}')"
 
       - name: Slack notify - Nightly failed
         if: >
@@ -338,8 +347,15 @@ jobs:
         run: |
           curl -sf -X POST "${{ secrets.SLACK_WEBHOOK }}" \
             -H 'Content-Type: application/json' \
-            -d "$(jq -n --arg text ":x: *Nightly Integration Pipeline FAILED*\nValidate: ${{ needs.validate.result }} | Int: ${{ needs.deploy-int.result }} | Smoke: ${{ needs.smoke-test-int.result }} | Test: ${{ needs.deploy-test.result }}\n*Branch:* \`${{ env.NIGHTLY_BRANCH }}\` | *Mode:* ${{ env.NIGHTLY_DEPLOY_MODE }}\n*Logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
-              '{channel: "github-updates", username: "GitHub Actions (Nightly)", text: $text}')"
+            -d "$(jq -n \
+              --arg validate "${{ needs.validate.result }}" \
+              --arg int "${{ needs.deploy-int.result }}" \
+              --arg smoke "${{ needs.smoke-test-int.result }}" \
+              --arg test "${{ needs.deploy-test.result }}" \
+              --arg branch "${{ env.NIGHTLY_BRANCH }}" \
+              --arg mode "${{ env.NIGHTLY_DEPLOY_MODE }}" \
+              --arg logs "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+              '{channel: "github-updates", username: "GitHub Actions (Nightly)", text: (":x: *Nightly Integration Pipeline FAILED*\nValidate: \($validate) | Int: \($int) | Smoke: \($smoke) | Test: \($test)\n*Branch:* `\($branch)` | *Mode:* \($mode)\n*Logs:* \($logs)")}')"
 
       - name: Fail pipeline if any stage failed
         if: >

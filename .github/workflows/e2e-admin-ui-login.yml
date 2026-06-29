@@ -246,8 +246,17 @@ jobs:
         run: |
           curl -sf -X POST "${{ secrets.SLACK_WEBHOOK }}" \
             -H 'Content-Type: application/json' \
-            -d "$(jq -n --arg text "WSL Proxy Admin UI Login tests passed :white_check_mark:\n*Environment:* ${{ matrix.environment }}\n*Tests:* ${{ steps.results.outputs.passed }}/${{ steps.results.outputs.total }} passed (${{ steps.results.outputs.skipped }} skipped)\n*Target:* ${{ matrix.url }}\n*Branch:* ${{ github.ref_name }}\n*Commit:* \`${{ github.sha }}\`\n*Triggered by:* ${{ github.event_name }} (${{ github.actor }})" \
-              '{channel: "github-updates", username: "GitHub Actions", text: $text}')"
+            -d "$(jq -n \
+              --arg env "${{ matrix.environment }}" \
+              --arg passed "${{ steps.results.outputs.passed }}" \
+              --arg total "${{ steps.results.outputs.total }}" \
+              --arg skipped "${{ steps.results.outputs.skipped }}" \
+              --arg url "${{ matrix.url }}" \
+              --arg branch "${{ github.ref_name }}" \
+              --arg commit "${{ github.sha }}" \
+              --arg event "${{ github.event_name }}" \
+              --arg actor "${{ github.actor }}" \
+              '{channel: "github-updates", username: "GitHub Actions", text: (":white_check_mark: *WSL Proxy — Admin UI login is working*\nThe automated login tests just ran against the *\($env)* environment and everything passed, so admins can sign in normally.\n\n*What we checked:* \($passed) of \($total) login tests passed (\($skipped) skipped)\n*Where:* \($url)\n*From code:* branch `\($branch)` at commit `\($commit)`\n*Started by:* \($event) (\($actor))")}')"
 
       - name: Slack notification - Login Tests Failed
         if: failure()
@@ -256,5 +265,16 @@ jobs:
         run: |
           curl -sf -X POST "${{ secrets.SLACK_WEBHOOK }}" \
             -H 'Content-Type: application/json' \
-            -d "$(jq -n --arg text "WSL Proxy Admin UI Login tests FAILED :x:\n*Environment:* ${{ matrix.environment }}\n*Tests:* ${{ steps.results.outputs.failed }} failed, ${{ steps.results.outputs.passed }} passed out of ${{ steps.results.outputs.total }} (${{ steps.results.outputs.skipped }} skipped)\n*Target:* ${{ matrix.url }}\n*Branch:* ${{ github.ref_name }}\n*Commit:* \`${{ github.sha }}\`\n*Triggered by:* ${{ github.event_name }} (${{ github.actor }})\n*Screenshots & Traces:* Download from workflow artifacts\n*Workflow logs:* ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
-              '{channel: "github-updates", username: "GitHub Actions", text: $text}')"
+            -d "$(jq -n \
+              --arg env "${{ matrix.environment }}" \
+              --arg failed "${{ steps.results.outputs.failed }}" \
+              --arg passed "${{ steps.results.outputs.passed }}" \
+              --arg total "${{ steps.results.outputs.total }}" \
+              --arg skipped "${{ steps.results.outputs.skipped }}" \
+              --arg url "${{ matrix.url }}" \
+              --arg branch "${{ github.ref_name }}" \
+              --arg commit "${{ github.sha }}" \
+              --arg event "${{ github.event_name }}" \
+              --arg actor "${{ github.actor }}" \
+              --arg logs "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+              '{channel: "github-updates", username: "GitHub Actions", text: (":x: *WSL Proxy — Admin UI login may be broken*\nThe automated login tests just ran against the *\($env)* environment and some of them failed, so admins might not be able to sign in. Please take a look.\n\n*What we found:* \($failed) failed and \($passed) passed out of \($total) login tests (\($skipped) skipped)\n*Where:* \($url)\n*From code:* branch `\($branch)` at commit `\($commit)`\n*Started by:* \($event) (\($actor))\n*To debug:* screenshots and traces are attached to the workflow artifacts\n*Full logs:* \($logs)")}')"
