@@ -432,6 +432,10 @@ jobs:
           if [[ "${{ inputs.connection_mode }}" == "local" ]]; then
             if [[ "${{ inputs.secrets_mode }}" == "vault" ]]; then
               CMD_PREFIX="sudo --preserve-env=VAULT_ADDR,VAULT_TOKEN"
+            elif [[ "${{ inputs.secrets_mode }}" == "sops" ]]; then
+              # sudo scrubs env by default; the community.sops lookup in
+              # deploy_data.yml needs SOPS_AGE_KEY to decrypt, so preserve it.
+              CMD_PREFIX="sudo --preserve-env=SOPS_AGE_KEY"
             else
               CMD_PREFIX="sudo"
             fi
