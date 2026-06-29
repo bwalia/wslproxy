@@ -123,7 +123,7 @@ mc --version
 # ip2location_download_url).  `install` does fetch + chmod + chown +
 # create-parent-dir in a single atomic step, so an interrupted run
 # never leaves a partial file at the target path.
-cd /tmp/ && wget -q --show-progress "{{ ip2location_download_url }}" -O /tmp/IP2LOCATION-LITE-DB11.IPV6.BIN
+cd /tmp/ && wget -q --tries=3 --timeout=60 --waitretry=10 "{{ ip2location_download_url }}" -O /tmp/IP2LOCATION-LITE-DB11.IPV6.BIN
 install -D -m 0775 -o www-data -g root /tmp/IP2LOCATION-LITE-DB11.IPV6.BIN "{{ ip2location_db_path }}"
 rm -f /tmp/IP2LOCATION-LITE-DB11.IPV6.BIN
 
