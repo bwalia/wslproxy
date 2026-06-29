@@ -66,7 +66,11 @@
 - name: Execute the cdn-dependencies.sh script
   shell: /tmp/cdn-dependencies.sh 2>&1
   register: cdn_deps_result
-  async: 300
+  # Download-bound (IP2Location LITE DB is hundreds of MB from S3, plus
+  # git clones / opm gets). 300s sat right at the edge and timed out on
+  # the test host; the wget calls inside the script now have their own
+  # --timeout/--tries so a true stall fails fast rather than eating this.
+  async: 900
   poll: 15
   tags: [build]
 
