@@ -150,7 +150,7 @@
       - target_env is defined and target_env | length > 0
     fail_msg: >-
       sops_secrets_enabled=true requires SOPS_AGE_KEY env var to be
-      set on the runner (export SOPS_AGE_KEY=AGE-SECRET-KEY-1…),
+      set on the runner (export SOPS_AGE_KEY=AGE_SECRET_KEY-1…),
       and target_env to be set on the host.  See
       infra/secrets/README.md for setup.
   when: _use_sops_secrets
