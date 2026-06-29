@@ -41,6 +41,23 @@ on:
         description: "Path to .env on runner (only for secrets_mode=runner_file)"
         type: string
         default: ""
+      seed_from_host:
+        description: >-
+          When true (with secrets_mode=runner_file + connection_mode=ssh_key),
+          pull the host's CURRENT live settings.json (+ .env) over SSH into
+          settings_file_path/env_file_path before validating. Lets a host
+          redeploy its own live config without storing a copy in a GH secret
+          or SOPS file. The deploy is idempotent (writes the same config back).
+        type: boolean
+        default: false
+      host_settings_path:
+        description: "On-host path to the live settings.json (used only when seed_from_host=true)"
+        type: string
+        default: "/opt/nginx/data/settings.json"
+      host_env_path:
+        description: "On-host path to the live .env (used only when seed_from_host=true; best-effort)"
+        type: string
+        default: "/opt/nginx/data/.env"
       health_endpoint:
         description: "URL to curl for health check (e.g. http://localhost:8080/health)"
         type: string
@@ -339,6 +356,51 @@ jobs:
           fi
           echo "settings_path=/tmp/settings_${{ inputs.host_ip }}.json" >> $GITHUB_ENV
           echo "env_path=/tmp/.env_${{ inputs.host_ip }}" >> $GITHUB_ENV
+
+      # ── Secrets: self-seed from the live host over SSH ──
+      # Pulls the target's CURRENT settings.json (+ .env) into the
+      # runner_file paths so the host redeploys its own live config.
+      # Runs before the runner_file validation below, which then sees a
+      # populated, valid file. Only used by hosts that opt in via
+      # seed_from_host (e.g. prod pop0, which has no GH-secret/SOPS copy).
+      - name: Seed settings from live host (SSH self-seed)
+        if: inputs.secrets_mode == 'runner_file' && inputs.seed_from_host
+        run: |
+          set -euo pipefail
+          if [[ "${{ inputs.connection_mode }}" != "ssh_key" ]]; then
+            echo "::error::seed_from_host requires connection_mode=ssh_key"; exit 1
+          fi
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          ssh-keyscan -H "${{ inputs.host_ip }}" >> ~/.ssh/known_hosts 2>/dev/null || true
+          SSH_OPTS="-o BatchMode=yes -o ConnectTimeout=10 -i ~/.ssh/id_rsa"
+          SETTINGS="${{ inputs.settings_file_path }}"
+          ENVFILE="${{ inputs.env_file_path }}"
+          if [[ -z "$SETTINGS" ]]; then
+            echo "::error::settings_file_path must be set when seed_from_host=true"; exit 1
+          fi
+          mkdir -p "$(dirname "$SETTINGS")"
+          echo "Pulling live settings.json from ${{ inputs.ssh_user }}@${{ inputs.host_ip }}:${{ inputs.host_settings_path }}"
+          ssh $SSH_OPTS "${{ inputs.ssh_user }}@${{ inputs.host_ip }}" \
+            "cat '${{ inputs.host_settings_path }}'" > "$SETTINGS" || {
+            echo "::error::Failed to read live settings from host"; exit 1; }
+          if [[ ! -s "$SETTINGS" ]]; then
+            echo "::error::Live settings.json on host is empty: ${{ inputs.host_settings_path }}"; exit 1
+          fi
+          python3 -m json.tool "$SETTINGS" > /dev/null 2>&1 || {
+            echo "::error::Live settings.json pulled from host is not valid JSON"; exit 1; }
+          echo "Seeded $(wc -c < "$SETTINGS") bytes of valid settings.json"
+          # .env is best-effort: try the configured host path, fall back to
+          # the deploy-time /tmp/.env, else leave empty (non-fatal warning).
+          if [[ -n "$ENVFILE" ]]; then
+            mkdir -p "$(dirname "$ENVFILE")"
+            ssh $SSH_OPTS "${{ inputs.ssh_user }}@${{ inputs.host_ip }}" \
+              "cat '${{ inputs.host_env_path }}' 2>/dev/null || cat /tmp/.env 2>/dev/null || true" > "$ENVFILE" || true
+            if [[ -s "$ENVFILE" ]]; then
+              echo "Seeded $(wc -c < "$ENVFILE") bytes of .env"
+            else
+              echo "::warning::No live .env found on host (looked at ${{ inputs.host_env_path }} and /tmp/.env) — continuing with empty env"
+            fi
+          fi
 
       # ── Secrets: validate from runner file ──
       - name: Validate settings from runner file
