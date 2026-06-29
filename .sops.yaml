@@ -1,0 +1,24 @@
+# SOPS encryption rules for wslproxy.
+#
+# Files matched by `path_regex` are auto-encrypted with the public
+# keys listed under `age`.  Decryption requires the matching age
+# PRIVATE key (held by operators locally; held by CI as the
+# SOPS_AGE_KEY GitHub Secret).
+#
+# To add an operator: append their `age1…` public key to the list
+# below (comma-separated within one entry, or one entry per key).
+# Then run `sops updatekeys` on every existing encrypted file so the
+# new operator can decrypt them.  See infra/secrets/README.md.
+#
+# NEVER paste an `AGE_SECRET_KEY-1…` (private key) into this file.
+
+creation_rules:
+  # Matches: .sops.json / .sops.env / .sops.yaml / .sops.yml
+  #          ALSO: bare .sops suffix (e.g. env.sops) — used for our
+  #          dotenv-formatted .env secret, which is conventionally
+  #          named `env.sops` rather than `env.sops.env` to avoid the
+  #          stutter.  The optional `(\..+)?` keeps the rule from
+  #          accidentally matching unrelated files like `data.sopsbak`.
+  - path_regex: infra/secrets/.+\.sops(\.(json|env|yaml|yml))?$
+    age: >-
+      age1n5h080hae9czwpsgfgz4vapxd86ud2742maxc5gezurlwzs9ee7s07e0k4
