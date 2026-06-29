@@ -287,6 +287,19 @@ jobs:
     timeout-minutes: 15
 
     steps:
+      # actions/checkout's git-clean cannot unlink root-owned build
+      # artifacts left in the persistent self-hosted workspace (e.g.
+      # openresty-admin-next/.next/BUILD_ID created by a prior root/sudo
+      # Next.js build), which fails the Checkout step with EACCES and
+      # blocks promotion. Reclaim ownership before checkout runs.
+      - name: Pre-checkout cleanup (reclaim runner workspace)
+        run: |
+          if [ -n "$GITHUB_WORKSPACE" ] && [ -d "$GITHUB_WORKSPACE" ]; then
+            sudo chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE" 2>/dev/null || true
+            sudo rm -rf "$GITHUB_WORKSPACE/openresty-admin-next/.next" 2>/dev/null || true
+          fi
+        shell: bash
+
       - name: Checkout code
         uses: actions/checkout@v5
         with:
