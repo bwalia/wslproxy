@@ -35,6 +35,23 @@
 - name: Determine secrets source mode
   ansible.builtin.set_fact:
     _use_vault_secrets: "{{ vault_secrets_enabled | default(false) | bool }}"
+    # SOPS mode is opt-in via `sops_secrets_enabled: true` (set by
+    # the workflow when `secrets_mode: sops`).  When neither vault
+    # nor sops is enabled, the role falls back to the legacy
+    # file-copy path (settings.json + .env already on the runner,
+    # decoded from GitHub Secrets one step earlier).
+    _use_sops_secrets: "{{ sops_secrets_enabled | default(false) | bool }}"
+  tags: [servers, code]
+
+- name: "Assert exactly one secrets mode is active"
+  ansible.builtin.assert:
+    that:
+      - not (_use_vault_secrets and _use_sops_secrets)
+    fail_msg: >-
+      Both vault_secrets_enabled and sops_secrets_enabled are true.
+      Pick exactly one: vault for HashiCorp Vault fetches, sops for
+      SOPS+age-encrypted files committed to Git, or neither (legacy
+      file-copy mode).
   tags: [servers, code]
 
 # ── Vault mode ─────────────────────────────────────────────────────────────
@@ -107,7 +124,71 @@
   when: _use_vault_secrets
   tags: [servers, code]
 
+# ── SOPS + age mode ────────────────────────────────────────────────────────
+#
+# Decrypts files committed to the repo at infra/secrets/<env>/.  No
+# network calls — the runner already has the age private key in
+# $SOPS_AGE_KEY (exported from the GitHub Secret SOPS_AGE_KEY).
+# Eliminates the entire class of "Vault token expired" / "Vault
+# returned non-JSON" failures since the secret material travels
+# encrypted-at-rest with the code.
+#
+# Why we use `community.sops.sops` lookup (not load_vars):
+#  - settings.json must be written verbatim to the target (the file
+#    *is* the secret), not re-rendered through Jinja
+#  - load_vars would parse the JSON into Ansible vars which would
+#    then need re-encoding, losing key ordering / number precision
+#
+# Both lookups run on localhost (the runner) — that's where the
+# encrypted files live (in the checked-out repo) and where the
+# decryption key is available.
+
+- name: "SOPS: assert SOPS_AGE_KEY is set"
+  ansible.builtin.assert:
+    that:
+      - lookup('env', 'SOPS_AGE_KEY') | length > 0
+      - target_env is defined and target_env | length > 0
+    fail_msg: >-
+      sops_secrets_enabled=true requires SOPS_AGE_KEY env var to be
+      set on the runner (export SOPS_AGE_KEY=AGE-SECRET-KEY-1…),
+      and target_env to be set on the host.  See
+      infra/secrets/README.md for setup.
+  when: _use_sops_secrets
+  tags: [servers, code]
+
+- name: "SOPS: decrypt + write settings.json to target"
+  ansible.builtin.copy:
+    # Use the `community.sops.sops` lookup to decrypt at task time.
+    # Path is resolved relative to the playbook_dir on the runner;
+    # the encrypted file lives in the repo under infra/secrets/.
+    content: "{{ lookup('community.sops.sops', sops_settings_path) }}"
+    dest: /opt/nginx/data/settings.json
+    mode: 0777
+    owner: "www-data"
+    group: root
+  vars:
+    sops_settings_path: >-
+      {{ playbook_dir }}/../../infra/secrets/{{ target_env }}/settings.sops.json
+  no_log: true
+  when: _use_sops_secrets
+  tags: [servers, code]
+
+- name: "SOPS: decrypt + write env file to target"
+  ansible.builtin.copy:
+    content: "{{ lookup('community.sops.sops', sops_env_path) }}"
+    dest: "/tmp/.env"
+    mode: 0777
+  vars:
+    sops_env_path: >-
+      {{ playbook_dir }}/../../infra/secrets/{{ target_env }}/env.sops.env
+  no_log: true
+  when: _use_sops_secrets
+  tags: [servers, code]
+
 # ── Legacy file mode (existing behaviour, unchanged) ───────────────────────
+# Only runs when NEITHER vault nor sops is enabled.  Reads the
+# settings.json and .env that an earlier workflow step decoded from
+# GitHub Secrets into the runner's filesystem.
 
 - name: "File: copy settings.json from controller"
   ansible.builtin.copy:
@@ -117,7 +198,7 @@
     owner: "www-data"
     group: root
     remote_src: no
-  when: not _use_vault_secrets
+  when: not _use_vault_secrets and not _use_sops_secrets
   tags: [servers, code]
 
 - name: "File: copy env file from controller"
@@ -126,5 +207,5 @@
     dest: "/tmp/.env"
     mode: 0777
     remote_src: no
-  when: not _use_vault_secrets
+  when: not _use_vault_secrets and not _use_sops_secrets
   tags: [servers, code]

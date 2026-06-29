@@ -252,11 +252,10 @@ jobs:
       host_ip: "192.168.1.193"
       ssh_user: bwalia
       connection_mode: local
-      # Vault-backed secrets. Matches the promotion pipeline int stage.
-      # Pulls settings.json and .env from
-      #   secret/data/wslproxy/int/{settings.json,env}
-      # via VAULT_ADDR/VAULT_TOKEN (both supplied from repo secrets).
-      secrets_mode: vault
+      # Secrets decrypted from committed SOPS+age files
+      # (infra/secrets/<env>/) using the SOPS_AGE_KEY repo secret.
+      # Matches the promotion pipeline int stage.
+      secrets_mode: sops
       health_endpoint: "http://localhost:8080/health"
       health_check_mode: local
       docker_prune: true
@@ -265,8 +264,7 @@ jobs:
       deploy_mode: ${{ github.event.inputs.DEPLOY_MODE || 'full' }}
     secrets:
       SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-      VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
-      VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
+      SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
       # Kept so emergency rollback to secrets_mode: github_secret is a
       # one-line revert — no secrets need to be re-added.
       SETTINGS_SECRET: ${{ secrets.DOT_WSLPROXY_SETTINGS_INT }}
