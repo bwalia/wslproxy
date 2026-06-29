@@ -81,7 +81,7 @@ on:
       VAULT_TOKEN:
         required: false
       # SOPS_AGE_KEY: the FULL age private key value (one line, starts
-      # with `AGE-SECRET-KEY-1…`).  Required when secrets_mode=sops.
+      # with `AGE_SECRET_KEY-1…`).  Required when secrets_mode=sops.
       # See infra/secrets/README.md for how to generate + rotate it.
       SOPS_AGE_KEY:
         required: false

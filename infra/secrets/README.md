@@ -81,11 +81,11 @@ The file looks like:
 ```
 # created: 2026-06-29T12:34:56+00:00
 # public key: age1qabcdefg…   ← share this freely (in .sops.yaml below)
-AGE-SECRET-KEY-1XYZ123ABC…    ← NEVER share this
+AGE_SECRET_KEY-1XYZ123ABC…    ← NEVER share this
 ```
 
 **You will use the `age1…` public key in step 3 and the
-`AGE-SECRET-KEY-1…` private key in step 5.**
+`AGE_SECRET_KEY-1…` private key in step 5.**
 
 ### 3. Wire the public key into `.sops.yaml`
 
@@ -134,7 +134,7 @@ Commit the `.sops.json` / `.sops` files to Git — they're encrypted.
 ```bash
 gh secret set SOPS_AGE_KEY \
     --repo bwalia/wslproxy \
-    --body "$(cat ~/.config/sops/age/wslproxy.txt | grep AGE-SECRET-KEY-)"
+    --body "$(cat ~/.config/sops/age/wslproxy.txt | grep AGE_SECRET_KEY-)"
 ```
 
 Verify it's there:

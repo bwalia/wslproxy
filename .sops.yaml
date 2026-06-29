@@ -10,7 +10,7 @@
 # Then run `sops updatekeys` on every existing encrypted file so the
 # new operator can decrypt them.  See infra/secrets/README.md.
 #
-# NEVER paste an `AGE-SECRET-KEY-1…` (private key) into this file.
+# NEVER paste an `AGE_SECRET_KEY-1…` (private key) into this file.
 
 creation_rules:
   # Matches: .sops.json / .sops.env / .sops.yaml / .sops.yml
