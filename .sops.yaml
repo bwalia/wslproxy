@@ -1,0 +1,18 @@
+# SOPS encryption rules for wslproxy.
+#
+# Files matched by `path_regex` are auto-encrypted with the public
+# keys listed under `age`.  Decryption requires the matching age
+# PRIVATE key (held by operators locally; held by CI as the
+# SOPS_AGE_KEY GitHub Secret).
+#
+# To add an operator: append their `age1…` public key to the list
+# below (comma-separated within one entry, or one entry per key).
+# Then run `sops updatekeys` on every existing encrypted file so the
+# new operator can decrypt them.  See infra/secrets/README.md.
+#
+# NEVER paste an `AGE-SECRET-KEY-1…` (private key) into this file.
+
+creation_rules:
+  - path_regex: infra/secrets/.+\.sops\.(json|env|yaml|yml)$
+    age: >-
+      REPLACE_WITH_YOUR_AGE_PUBLIC_KEY_age1abc...
