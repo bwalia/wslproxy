@@ -367,6 +367,65 @@ export default function RuleDetailPage() {
   const showTokenFields = !!form.jwt_token_validation_value;
   const showS3Fields = isS3 && !!form.jwt_token_validation_key;
 
+  // Field labels + hints adapt to the chosen validation type so the
+  // operator sees field semantics that match the mode they picked.
+  // Without this, "Token Value" / "Token Secret Key" was ambiguous —
+  // an operator might paste their raw API key into "Token Secret Key"
+  // expecting clients to send THAT, when actually the field is a JWT
+  // SIGNING SECRET and clients must send JWTs signed with it.
+  const validationFieldLabels = useMemo<{
+    valueLabel: string;
+    valueHint: string;
+    keyLabel: string;
+    keyHint: string;
+  }>(() => {
+    switch (form.jwt_token_validation) {
+      case "header_jwt_token_validation":
+        return {
+          valueLabel: "HTTP Header Name",
+          valueHint:
+            "Name of the request header that carries the JWT (e.g. \"x-api-key\", \"Authorization\"). Clients must send the JWT as this header's value.",
+          keyLabel: "JWT Signing Secret",
+          keyHint:
+            "Secret used to sign the JWT (HS256). Clients sign their tokens with this same value; wslproxy verifies the signature on each request. Treat like a password — anyone who has it can mint valid tokens.",
+        };
+      case "cookie_jwt_token_validation":
+        return {
+          valueLabel: "Cookie Name",
+          valueHint:
+            "Name of the cookie that carries the JWT (e.g. \"session\", \"auth_token\"). Clients must set this cookie with a JWT as its value.",
+          keyLabel: "JWT Signing Secret",
+          keyHint:
+            "Secret used to sign the JWT (HS256). Same secret used by whoever issues the cookie. Treat like a password.",
+        };
+      case "cookie_key_value":
+        return {
+          valueLabel: "Cookie Name",
+          valueHint:
+            "Name of the cookie to check. wslproxy compares the cookie's value to the \"Expected Value\" below — no JWT involved, just plain string equality.",
+          keyLabel: "Expected Cookie Value",
+          keyHint:
+            "Plain string the cookie must contain to pass. Less secure than JWT (no expiry, no per-client identity); use only for simple gating.",
+        };
+      case "amazon_s3_signed_header_validation":
+        return {
+          valueLabel: "S3 Bucket Name",
+          valueHint:
+            "Name of the S3 bucket this rule proxies to. wslproxy signs the outgoing request with AWS Signature V4 so S3 accepts it.",
+          keyLabel: "S3 Object Path / Prefix",
+          keyHint:
+            "Path or prefix inside the bucket the rule should access. Combined with the AWS access/secret keys below.",
+        };
+      default:
+        return {
+          valueLabel: "Token Value",
+          valueHint: "",
+          keyLabel: "Token Secret Key",
+          keyHint: "",
+        };
+    }
+  }, [form.jwt_token_validation]);
+
   const redirectLabel = useMemo(() => {
     if (form.code === 305) return "Proxy Pass URL";
     if (form.code === 301 || form.code === 302) return "Redirect URL";
@@ -745,13 +804,15 @@ export default function RuleDetailPage() {
             {form.jwt_token_validation !== "equals" && (
               <>
                 <Input
-                  label={isS3 ? "Bucket Name" : "Token Value"}
+                  label={validationFieldLabels.valueLabel}
+                  hint={validationFieldLabels.valueHint}
                   value={form.jwt_token_validation_value}
                   onChange={(e) => set("jwt_token_validation_value", e.target.value)}
                 />
                 {showTokenFields && (
                   <Input
-                    label={isS3 ? "Bucket File Paths" : "Token Secret Key"}
+                    label={validationFieldLabels.keyLabel}
+                    hint={validationFieldLabels.keyHint}
                     type={isS3 ? "text" : "password"}
                     value={form.jwt_token_validation_key}
                     onChange={(e) => set("jwt_token_validation_key", e.target.value)}
