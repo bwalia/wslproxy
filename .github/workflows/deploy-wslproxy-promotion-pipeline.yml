@@ -59,7 +59,12 @@ jobs:
   # ──────────────────────────────────────────────────────
   validate:
     name: "Validate Configs (main)"
-    runs-on: [self-hosted, Linux, int]
+    # Was [self-hosted, Linux, int] — but this job only runs git
+    # checkout + `python -m json.tool` over data/, neither of which
+    # needs the int runner.  Moving to ubuntu-latest means the
+    # promotion pipeline no longer gets STUCK AT STAGE 1 when int
+    # is offline (which is what happened on run 28359601509).
+    runs-on: ubuntu-latest
     timeout-minutes: 5
 
     steps:
@@ -105,10 +110,72 @@ jobs:
               '{channel: "github-updates", username: "GitHub Actions", text: (":x: *Promotion Pipeline: Validation FAILED*\nConfig validation errors on main — promotion stopped.\n*Triggered by:* \($actor)\n*Logs:* \($logs)")}')"
 
   # ──────────────────────────────────────────────────────
-  # Stage 2: Deploy to Int (always runs)
+  # Stage 1.5: Probe the int self-hosted runner.
+  # Same pattern as the delivery pipeline — see that file for the
+  # rationale.  Runs on ubuntu-latest (always available); falls back
+  # to "assume online" on API failure so a permissions hiccup never
+  # silently skips a real deploy.
+  # ──────────────────────────────────────────────────────
+  preflight-int:
+    name: "Stage 1.5: Probe Int Runner"
+    needs: [validate]
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+    outputs:
+      runner_online: ${{ steps.probe.outputs.online }}
+    steps:
+      - name: Check if int self-hosted runner is online
+        id: probe
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -uo pipefail
+          ONLINE=true
+          REASON="(fail-safe default — API not queried)"
+          if API_OUT=$(gh api "/repos/${{ github.repository }}/actions/runners" 2>&1); then
+            ONLINE_COUNT=$(printf '%s' "$API_OUT" | jq '
+              [ .runners[]
+                | select(any(.labels[]; .name == "int"))
+                | select(.status == "online")
+              ] | length
+            ')
+            if [ "${ONLINE_COUNT:-0}" -gt 0 ]; then
+              ONLINE=true
+              REASON="$ONLINE_COUNT online int runner(s) found"
+            else
+              ONLINE=false
+              REASON="no online int runner — skipping deploy-int + smoke-test-int"
+            fi
+          else
+            REASON="API query failed; assuming runner online. Response: $(printf '%s' "$API_OUT" | head -c 200)"
+          fi
+          echo "Decision: online=$ONLINE — $REASON"
+          if [ "$ONLINE" = "false" ]; then
+            echo "::warning::Int runner offline — deploy-int + smoke-test-int will be skipped. Pipeline will continue to test stage. Reason: $REASON"
+          else
+            echo "::notice::Int runner check passed — $REASON"
+          fi
+          echo "online=$ONLINE" >> "$GITHUB_OUTPUT"
+
+      - name: Slack notify - Int skipped (runner offline)
+        if: steps.probe.outputs.online == 'false'
+        continue-on-error: true
+        shell: bash
+        run: |
+          curl -sf -X POST "${{ secrets.SLACK_WEBHOOK }}" \
+            -H 'Content-Type: application/json' \
+            -d "$(jq -n \
+              --arg actor "${{ github.actor }}" \
+              --arg logs "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+              '{channel: "github-updates", username: "GitHub Actions", text: (":warning: *Promotion Pipeline — Int (192.168.1.193) SKIPPED*\nInt self-hosted runner is offline; deploy + smoke-test skipped, promotion continuing to test.\n*Triggered by:* \($actor)\n*Logs:* \($logs)")}')"
+
+  # ──────────────────────────────────────────────────────
+  # Stage 2: Deploy to Int (skipped when int runner is offline)
   # ──────────────────────────────────────────────────────
   deploy-int:
-    needs: [validate]
+    needs: [validate, preflight-int]
+    if: needs.preflight-int.outputs.runner_online == 'true'
     uses: ./.github/workflows/deploy-environment.yml
     with:
       env_name: int
@@ -142,10 +209,17 @@ jobs:
   # ──────────────────────────────────────────────────────
   # Stage 3: Smoke Test Int
   # ──────────────────────────────────────────────────────
+  # Skipped automatically when preflight-int says the runner is
+  # offline (otherwise this job would also queue forever waiting
+  # for the same offline runner).
   smoke-test-int:
     name: "Smoke Test Int"
     runs-on: [self-hosted, Linux, int]
-    needs: [deploy-int]
+    needs: [deploy-int, preflight-int]
+    if: |
+      always() && !failure() && !cancelled() &&
+      needs.preflight-int.outputs.runner_online == 'true' &&
+      needs.deploy-int.result == 'success'
     timeout-minutes: 10
 
     steps:
@@ -208,9 +282,15 @@ jobs:
   # ──────────────────────────────────────────────────────
   deploy-test:
     needs: [smoke-test-int]
+    # `always() && !failure() && !cancelled()` lets test run when
+    # smoke-test-int was SKIPPED (because the int runner was
+    # offline) but NOT when it actually failed.  Without this, a
+    # skipped int would cascade-skip test too — defeating the
+    # whole point of the preflight gate above.
     if: >
-      github.event_name != 'workflow_dispatch' ||
-      github.event.inputs.TARGET_ENV == 'test'
+      always() && !failure() && !cancelled() &&
+      (github.event_name != 'workflow_dispatch' ||
+       github.event.inputs.TARGET_ENV == 'test')
     uses: ./.github/workflows/deploy-environment.yml
     with:
       env_name: test
