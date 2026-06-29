@@ -13,6 +13,12 @@
 # NEVER paste an `AGE-SECRET-KEY-1…` (private key) into this file.
 
 creation_rules:
-  - path_regex: infra/secrets/.+\.sops\.(json|env|yaml|yml)$
+  # Matches: .sops.json / .sops.env / .sops.yaml / .sops.yml
+  #          ALSO: bare .sops suffix (e.g. env.sops) — used for our
+  #          dotenv-formatted .env secret, which is conventionally
+  #          named `env.sops` rather than `env.sops.env` to avoid the
+  #          stutter.  The optional `(\..+)?` keeps the rule from
+  #          accidentally matching unrelated files like `data.sopsbak`.
+  - path_regex: infra/secrets/.+\.sops(\.(json|env|yaml|yml))?$
     age: >-
-      REPLACE_WITH_YOUR_AGE_PUBLIC_KEY_age1abc...
+      age1n5h080hae9czwpsgfgz4vapxd86ud2742maxc5gezurlwzs9ee7s07e0k4

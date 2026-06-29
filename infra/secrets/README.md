@@ -9,23 +9,23 @@ infra/secrets/
 ├── README.md                ← you are here
 ├── int/
 │   ├── settings.sops.json   ← becomes /opt/nginx/data/settings.json on int
-│   └── env.sops             ← becomes /tmp/.env on int
+│   └── env.sops.env             ← becomes /tmp/.env on int
 ├── test/
 │   ├── settings.sops.json
-│   └── env.sops
+│   └── env.sops.env
 ├── acc/
 │   ├── settings.sops.json
-│   └── env.sops
+│   └── env.sops.env
 └── prod/
     ├── settings.sops.json
-    └── env.sops
+    └── env.sops.env
 ```
 
 The runtime flow:
 
 ```
                   ┌─→ infra/secrets/<env>/settings.sops.json  (in Git)
-GitHub Actions ───┤   infra/secrets/<env>/env.sops            (in Git)
+GitHub Actions ───┤   infra/secrets/<env>/env.sops.env            (in Git)
                   │              ↓
                   └─→ runner exports SOPS_AGE_KEY from GH secret
                                  ↓
@@ -115,11 +115,11 @@ sops --encrypt data/settings.json > infra/secrets/int/settings.sops.json
 
 # Encrypt .env file
 sops --encrypt --input-type env --output-type env \
-    /path/to/your/.env > infra/secrets/int/env.sops
+    /path/to/your/.env > infra/secrets/int/env.sops.env
 
 # Sanity check: can you decrypt them back?
 sops --decrypt infra/secrets/int/settings.sops.json | jq . | head -10
-sops --decrypt infra/secrets/int/env.sops | head -5
+sops --decrypt infra/secrets/int/env.sops.env | head -5
 ```
 
 Commit the `.sops.json` / `.sops` files to Git — they're encrypted.
@@ -201,7 +201,7 @@ The new operator generates their own age key (step 2), shares their
 
 ```bash
 sops updatekeys infra/secrets/int/settings.sops.json
-sops updatekeys infra/secrets/int/env.sops
+sops updatekeys infra/secrets/int/env.sops.env
 # (etc for every encrypted file)
 ```
 

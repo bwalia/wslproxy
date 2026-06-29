@@ -180,7 +180,7 @@
     mode: 0777
   vars:
     sops_env_path: >-
-      {{ playbook_dir }}/../../infra/secrets/{{ target_env }}/env.sops
+      {{ playbook_dir }}/../../infra/secrets/{{ target_env }}/env.sops.env
   no_log: true
   when: _use_sops_secrets
   tags: [servers, code]
