@@ -94,8 +94,20 @@ function M.authenticate(rule)
     if token_source == "header_jwt_token_validation" then
         local token = ngx.req.get_headers()[token_value_name]
         if not token then
-            return true  -- no header present → pass (existing behavior)
+            -- Fail-closed: an operator who configured header JWT
+            -- validation means "only requests carrying this header
+            -- should pass."  Earlier versions returned true here on
+            -- missing header — that was a footgun that left a
+            -- supposedly-authenticated endpoint fully open.  Behaviour
+            -- now matches the cookie paths above which already return
+            -- false on missing cookie.
+            return false
         end
+        -- Some clients send "Bearer <jwt>"; the cookie path strips
+        -- this and the header path didn't.  Strip it here too so an
+        -- operator who configures Header JWT doesn't have to know
+        -- which client convention they'll see.
+        token = string.gsub(tostring(token), "^[Bb]earer%s+", "")
         token = trim(ngx.unescape_uri(token))
         local verified = jwt:verify(passphrase, token)
         return verified and true or false
