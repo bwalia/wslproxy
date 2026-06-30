@@ -42,6 +42,7 @@ on:
           # 187.77.179.206 (acc) was decommissioned.
           - 187.124.112.155
           - 72.62.211.28
+          - 18.133.126.242
 
       DEPLOY_MODE:
         type: choice
@@ -464,6 +465,46 @@ jobs:
       SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
   # ──────────────────────────────────────────────────────
+  # Stage 5c: Deploy Prod pop1 (18.133.126.242)
+  # Brand-new pop. Has no live config of its own, so it SEEDS its
+  # settings.json from pop0 (187.124.112.155) over SSH — an identity
+  # clone — then deploys it. The prod runner's ~/.ssh/id_rsa must be
+  # authorized as admin@18.133.126.242 AND (already is) root@pop0.
+  # ──────────────────────────────────────────────────────
+  deploy-prod-pop1:
+    needs: [deploy-prod-lon1]
+    if: >
+      always() && !failure() && !cancelled() &&
+      ((github.event_name == 'push' && (github.ref == 'refs/heads/release' || github.ref == 'refs/heads/main')) ||
+      (github.event_name == 'workflow_dispatch' &&
+      (github.event.inputs.TARGET_HOST == '18.133.126.242' || github.event.inputs.TARGET_HOST == 'all')))
+    uses: ./.github/workflows/deploy-environment.yml
+    with:
+      env_name: prod
+      env_label: "Prod pop1 (18.133.126.242)"
+      stage_number: "5c"
+      host_ip: "18.133.126.242"
+      ssh_user: admin
+      connection_mode: ssh_key
+      # Seed pop1's settings from pop0's live config (identity clone).
+      secrets_mode: runner_file
+      seed_from_host: true
+      seed_source_ip: "187.124.112.155"
+      seed_source_user: root
+      settings_file_path: "/tmp/wslproxy-pop1/settings.json"
+      env_file_path: "/tmp/wslproxy-pop1/.env"
+      # Fresh host: no DNS/cert and inbound ports likely closed, so check
+      # health over the deploy SSH connection against the local admin API.
+      health_endpoint: "http://127.0.0.1:8099/health"
+      health_check_mode: ssh
+      docker_prune: true
+      notify_success: true
+      deploy_branch: ${{ github.event.inputs.DEPLOY_BRANCH || github.ref_name }}
+      deploy_mode: ${{ github.event.inputs.DEPLOY_MODE || 'full' }}
+    secrets:
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+
+  # ──────────────────────────────────────────────────────
   # Pipeline Summary (always runs — final report)
   # ──────────────────────────────────────────────────────
   pipeline-summary:
@@ -477,6 +518,7 @@ jobs:
         deploy-test,
         deploy-prod-pop0,
         deploy-prod-lon1,
+        deploy-prod-pop1,
       ]
     if: always()
     steps:
@@ -492,6 +534,7 @@ jobs:
           echo "  Stage 4  — Deploy Test:          ${{ needs.deploy-test.result }}"
           echo "  Stage 5a — Deploy Prod (pop0):   ${{ needs.deploy-prod-pop0.result }}"
           echo "  Stage 5b — Deploy Prod (lon1):   ${{ needs.deploy-prod-lon1.result }}"
+          echo "  Stage 5c — Deploy Prod (pop1):   ${{ needs.deploy-prod-pop1.result }}"
           echo ""
           echo "  Commit:  ${{ github.sha }}"
           echo "  Branch:  ${{ github.ref_name }}"
@@ -503,7 +546,8 @@ jobs:
              [[ "${{ needs.test-int.result }}" == "failure" ]] || \
              [[ "${{ needs.deploy-test.result }}" == "failure" ]] || \
              [[ "${{ needs.deploy-prod-pop0.result }}" == "failure" ]] || \
-             [[ "${{ needs.deploy-prod-lon1.result }}" == "failure" ]]; then
+             [[ "${{ needs.deploy-prod-lon1.result }}" == "failure" ]] || \
+             [[ "${{ needs.deploy-prod-pop1.result }}" == "failure" ]]; then
               echo "::error::Pipeline failed — see stage results above"
               exit 1
           fi

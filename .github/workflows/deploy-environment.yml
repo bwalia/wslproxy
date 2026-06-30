@@ -58,6 +58,19 @@ on:
         description: "On-host path to the live .env (used only when seed_from_host=true; best-effort)"
         type: string
         default: "/opt/nginx/data/.env"
+      seed_source_ip:
+        description: >-
+          Host to PULL the live settings.json FROM when seed_from_host=true.
+          Defaults to host_ip (self-seed). Set to a DIFFERENT host (e.g. seed a
+          brand-new pop from an existing one) to clone another host's live
+          config onto this deploy target. The runner's ~/.ssh/id_rsa must be
+          authorized on this source host.
+        type: string
+        default: ""
+      seed_source_user:
+        description: "SSH user for seed_source_ip (defaults to ssh_user)."
+        type: string
+        default: ""
       health_endpoint:
         description: "URL to curl for health check (e.g. http://localhost:8080/health)"
         type: string
@@ -371,7 +384,11 @@ jobs:
             echo "::error::seed_from_host requires connection_mode=ssh_key"; exit 1
           fi
           mkdir -p ~/.ssh && chmod 700 ~/.ssh
-          ssh-keyscan -H "${{ inputs.host_ip }}" >> ~/.ssh/known_hosts 2>/dev/null || true
+          # Seed SOURCE host: defaults to the deploy target (self-seed), but can
+          # be overridden to clone another host's live config (e.g. pop1 from pop0).
+          SEED_IP="${{ inputs.seed_source_ip || inputs.host_ip }}"
+          SEED_USER="${{ inputs.seed_source_user || inputs.ssh_user }}"
+          ssh-keyscan -H "$SEED_IP" >> ~/.ssh/known_hosts 2>/dev/null || true
           SSH_OPTS="-o BatchMode=yes -o ConnectTimeout=10 -i ~/.ssh/id_rsa"
           SETTINGS="${{ inputs.settings_file_path }}"
           ENVFILE="${{ inputs.env_file_path }}"
@@ -379,10 +396,10 @@ jobs:
             echo "::error::settings_file_path must be set when seed_from_host=true"; exit 1
           fi
           mkdir -p "$(dirname "$SETTINGS")"
-          echo "Pulling live settings.json from ${{ inputs.ssh_user }}@${{ inputs.host_ip }}:${{ inputs.host_settings_path }}"
-          ssh $SSH_OPTS "${{ inputs.ssh_user }}@${{ inputs.host_ip }}" \
+          echo "Pulling live settings.json from ${SEED_USER}@${SEED_IP}:${{ inputs.host_settings_path }}"
+          ssh $SSH_OPTS "${SEED_USER}@${SEED_IP}" \
             "cat '${{ inputs.host_settings_path }}'" > "$SETTINGS" || {
-            echo "::error::Failed to read live settings from host"; exit 1; }
+            echo "::error::Failed to read live settings from seed source host"; exit 1; }
           if [[ ! -s "$SETTINGS" ]]; then
             echo "::error::Live settings.json on host is empty: ${{ inputs.host_settings_path }}"; exit 1
           fi
@@ -393,7 +410,7 @@ jobs:
           # the deploy-time /tmp/.env, else leave empty (non-fatal warning).
           if [[ -n "$ENVFILE" ]]; then
             mkdir -p "$(dirname "$ENVFILE")"
-            ssh $SSH_OPTS "${{ inputs.ssh_user }}@${{ inputs.host_ip }}" \
+            ssh $SSH_OPTS "${SEED_USER}@${SEED_IP}" \
               "cat '${{ inputs.host_env_path }}' 2>/dev/null || cat /tmp/.env 2>/dev/null || true" > "$ENVFILE" || true
             if [[ -s "$ENVFILE" ]]; then
               echo "Seeded $(wc -c < "$ENVFILE") bytes of .env"
