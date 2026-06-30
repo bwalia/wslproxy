@@ -1,4 +1,4 @@
-name: Deploy WSLProxy Delivery Pipeline
+name: Full Build and Deploy WSLProxy Delivery Pipeline
 # Pipeline: Validate → Int → Smoke Test → Test → Acc → Prod (pop0 + lon1)
 # Promotion pipeline: each environment must pass before the next deploys
 # Deploy modes: code (default for manual) | nginx | servers | dashboard | os_deps | build | full (default for push)
@@ -6,7 +6,7 @@ name: Deploy WSLProxy Delivery Pipeline
 on:
   push:
     branches:
-      - release
+      - build
   pull_request:
     branches:
       - dummy-branch-for-wslproxy-deploy
@@ -16,7 +16,7 @@ on:
       DEPLOY_BRANCH:
         type: string
         description: "Branch to deploy (type any existing branch name)"
-        default: "release"
+        default: "build"
         required: true
 
       TARGET_ENV:
@@ -46,7 +46,7 @@ on:
       DEPLOY_MODE:
         type: choice
         description: "What to deploy"
-        default: "code"
+        default: "full"
         required: true
         options:
           - code
@@ -180,7 +180,7 @@ jobs:
     needs: [build-validate]
     runs-on: ubuntu-latest
     permissions:
-      actions: read   # required to list self-hosted runners
+      actions: read # required to list self-hosted runners
     outputs:
       runner_online: ${{ steps.probe.outputs.online }}
     steps:
@@ -285,7 +285,6 @@ jobs:
       needs.preflight-int.outputs.runner_online == 'true' &&
       needs.deploy-int.result == 'success'
     timeout-minutes: 15
-
     steps:
       # actions/checkout's git-clean cannot unlink root-owned build
       # artifacts left in the persistent self-hosted workspace (e.g.
@@ -308,7 +307,7 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.19'
+          go-version: "1.19"
           cache: false
 
       - name: Run health check tests (Go)
@@ -470,7 +469,15 @@ jobs:
   pipeline-summary:
     name: Pipeline Summary
     runs-on: ubuntu-latest
-    needs: [build-validate, deploy-int, test-int, deploy-test, deploy-prod-pop0, deploy-prod-lon1]
+    needs:
+      [
+        build-validate,
+        deploy-int,
+        test-int,
+        deploy-test,
+        deploy-prod-pop0,
+        deploy-prod-lon1,
+      ]
     if: always()
     steps:
       - name: Pipeline Summary
