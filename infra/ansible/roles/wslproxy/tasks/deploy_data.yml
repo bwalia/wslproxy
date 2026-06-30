@@ -83,6 +83,24 @@
   when: _use_vault_secrets
   tags: [servers, code]
 
+- name: "Vault: refuse deploy if settings.env_profile != target_env"
+  # See the comment block above the SOPS guard task for the full rationale.
+  ansible.builtin.assert:
+    that:
+      - (_vault_settings.json.data.data.env_profile | default('')) == target_env
+    fail_msg: >-
+      ABORTING DEPLOY — env_profile mismatch.  Vault path
+      secret/data/wslproxy/{{ target_env }}/settings.json contains
+      env_profile='{{ _vault_settings.json.data.data.env_profile | default('<missing>') }}'
+      but the workflow's target_env='{{ target_env }}'.  Writing this file
+      to the target would overwrite the host's profile with the wrong
+      environment's data (rules under data/{rules,servers}/<profile>/
+      are looked up by env_profile at request time).  This is the check
+      that would have prevented the 2026-06-29 prod outage; fix the
+      Vault payload or the workflow before retrying.
+  when: _use_vault_secrets
+  tags: [servers, code]
+
 - name: "Vault: write settings.json to target"
   ansible.builtin.copy:
     content: "{{ _vault_settings.json.data.data | to_nice_json }}"
@@ -156,6 +174,35 @@
   when: _use_sops_secrets
   tags: [servers, code]
 
+- name: "SOPS: refuse deploy if settings.env_profile != target_env"
+  # ENV PROFILE GUARD — prevent the 2026-06-29 outage shape from
+  # recurring.  On that day a workflow ran with target_env=int but
+  # rsynced int's settings.json onto the prod host, flipping
+  # env_profile to 'int' and pointing the gateway at the wrong
+  # rules/servers tree.  The guard reads the file we're about to
+  # write, parses out env_profile, and refuses to continue if it
+  # doesn't match target_env.  Single source of truth — runs in all
+  # three secret-paths (vault / sops / file) before the write.
+  ansible.builtin.assert:
+    that:
+      - ((lookup('community.sops.sops', sops_settings_path) | from_json).env_profile | default('')) == target_env
+    fail_msg: >-
+      ABORTING DEPLOY — env_profile mismatch.  infra/secrets/{{ target_env }}/settings.sops.json
+      decrypts to env_profile='{{ (lookup("community.sops.sops", sops_settings_path) | from_json).env_profile | default("<missing>") }}'
+      but the workflow's target_env='{{ target_env }}'.  Writing this file
+      to the target would overwrite the host's profile with the wrong
+      environment's data (rules under data/{rules,servers}/<profile>/
+      are looked up by env_profile at request time).  This is the check
+      that would have prevented the 2026-06-29 prod outage; fix the
+      encrypted file (sops infra/secrets/{{ target_env }}/settings.sops.json)
+      or the workflow target_env before retrying.
+  vars:
+    sops_settings_path: >-
+      {{ playbook_dir }}/../../infra/secrets/{{ target_env }}/settings.sops.json
+  no_log: true
+  when: _use_sops_secrets
+  tags: [servers, code]
+
 - name: "SOPS: decrypt + write settings.json to target"
   ansible.builtin.copy:
     # Use the `community.sops.sops` lookup to decrypt at task time.
@@ -189,6 +236,24 @@
 # Only runs when NEITHER vault nor sops is enabled.  Reads the
 # settings.json and .env that an earlier workflow step decoded from
 # GitHub Secrets into the runner's filesystem.
+
+- name: "File: refuse deploy if settings.env_profile != target_env"
+  # See the comment block above the SOPS guard task for the full rationale.
+  ansible.builtin.assert:
+    that:
+      - ((lookup('file', local_settings_file_path) | from_json).env_profile | default('')) == target_env
+    fail_msg: >-
+      ABORTING DEPLOY — env_profile mismatch.  The staged settings file
+      at {{ local_settings_file_path }} contains
+      env_profile='{{ (lookup("file", local_settings_file_path) | from_json).env_profile | default("<missing>") }}'
+      but the workflow's target_env='{{ target_env }}'.  Writing this file
+      to the target would overwrite the host's profile with the wrong
+      environment's data (rules under data/{rules,servers}/<profile>/
+      are looked up by env_profile at request time).  This is the check
+      that would have prevented the 2026-06-29 prod outage; fix the
+      staged file or the workflow target_env before retrying.
+  when: not _use_vault_secrets and not _use_sops_secrets
+  tags: [servers, code]
 
 - name: "File: copy settings.json from controller"
   ansible.builtin.copy:
