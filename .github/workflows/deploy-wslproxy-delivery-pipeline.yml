@@ -465,11 +465,9 @@ jobs:
       SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
   # ──────────────────────────────────────────────────────
-  # Stage 5c: Deploy Prod pop1 (18.133.126.242)
-  # Brand-new pop. Has no live config of its own, so it SEEDS its
-  # settings.json from pop0 (187.124.112.155) over SSH — an identity
-  # clone — then deploys it. The prod runner's ~/.ssh/id_rsa must be
-  # authorized as admin@18.133.126.242 AND (already is) root@pop0.
+  # Stage 5c: Deploy Prod pop1 (18.133.126.242) — AWS eu-west-2, ssh user admin
+  # Runs LAST, after pop0 + lon1, only when they (and all prior stages) pass.
+  # Dashboard domain: pop1.diytaxreturn.co.uk
   # ──────────────────────────────────────────────────────
   deploy-prod-pop1:
     needs: [deploy-prod-lon1]
@@ -486,17 +484,17 @@ jobs:
       host_ip: "18.133.126.242"
       ssh_user: admin
       connection_mode: ssh_key
-      # Seed pop1's settings from pop0's live config (identity clone).
+      # pop1 self-seeds: pull its own live settings.json over SSH and
+      # redeploy it (idempotent), instead of decoding an empty GH secret.
+      # The FIRST deploy is done from local ansible (which seeds the host);
+      # thereafter pipeline runs reuse the host's live config.
       secrets_mode: runner_file
       seed_from_host: true
-      seed_source_ip: "187.124.112.155"
-      seed_source_user: root
       settings_file_path: "/tmp/wslproxy-pop1/settings.json"
       env_file_path: "/tmp/wslproxy-pop1/.env"
-      # Fresh host: no DNS/cert and inbound ports likely closed, so check
-      # health over the deploy SSH connection against the local admin API.
-      health_endpoint: "http://127.0.0.1:8099/health"
-      health_check_mode: ssh
+      # IP-based health gate — no dependency on DNS/cert for pop1.diytaxreturn.co.uk
+      health_endpoint: "http://18.133.126.242:7691/health"
+      health_check_mode: external
       docker_prune: true
       notify_success: true
       deploy_branch: ${{ github.event.inputs.DEPLOY_BRANCH || github.ref_name }}

@@ -1,0 +1,40 @@
+# ──────────────────────────────────────────────────────────────────────────
+# POP1 — AWS EC2 eu-west-2 (London), EIP 18.133.126.242, ssh user `admin`
+# Dashboard (Next.js) domain: pop1.diytaxreturn.co.uk
+#   (the per-pop dashboard host, cf. prod-our.wslproxy.com on pop0)
+#
+# Deployed primarily via LOCAL ansible (GitHub workflows are being retired in
+# favour of Argo). The delivery pipeline also carries a pop1 stage so a
+# release-branch run still reaches this host LAST, after every other stage
+# passes — see deploy-wslproxy-delivery-pipeline.yml (Stage 5c).
+# ──────────────────────────────────────────────────────────────────────────
+
+# Secrets (file mode). Populate these on the controller before deploying —
+# e.g. decrypt the prod SOPS secrets or drop plaintext here. /tmp mirrors the
+# pipeline's pop0 seed convention. See infra/POP1_DEPLOY.md.
+local_settings_file_path: "/tmp/wslproxy-pop1/settings.json"
+local_env_file_path: "/tmp/wslproxy-pop1/.env"
+
+nginx_user_password: "!!REDACTED!!" # www-data password — encrypt via Ansible Vault
+host_lan_ip: "18.133.126.242"
+nginx_web_ui_enabled: "yes"
+nginx_rest_api_server_enabled: ""
+nginx_data_sync_enabled: ""
+nginx_s3_proxy_pass_host_ip: "127.0.0.1"
+nginx_s3_server_name: "dummy-s3.workstation.co.uk"
+nginx_s3_cli_server_name: "dummy-s3-cli.workstation.co.uk"
+nginx_k3s_dashboard_server_name: "k3s-dashboard.workstation.co.uk"
+
+# Public domains. pop1 exposes ONLY the Next.js dashboard; frontend + legacy
+# react-admin blocks are left empty so there's no :443 server_name collision
+# (each non-empty var renders its own auto-ssl 443 block in default.conf.j2).
+#
+# auto-ssl issues a Let's Encrypt cert for this name on the first HTTPS hit —
+# REQUIRES DNS: pop1.diytaxreturn.co.uk -> 18.133.126.242, and ports 80+443 open.
+nginx_default_server_frontend: ""
+nginx_default_server_backend: ""
+nginx_default_server_backend_port: 7691
+nginx_default_server_backend_nextjs: "pop1.diytaxreturn.co.uk"
+
+letsencrypt_email: "balinder.walia@gmail.com"
+openresty_admin_secondary_color: "#D91656"
