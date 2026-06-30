@@ -836,6 +836,14 @@ server {
               end
             end
 
+            -- Surface the matched rule's NAME (not id) on the response.
+            -- Reads from ngx.ctx.gateway populated by gateway_ack.lua on
+            -- cache MISS, or replayed by cache_handler.check_cache on HIT.
+            local _gw = ngx.ctx.gateway
+            if _gw and _gw.executableRule and _gw.executableRule.name then
+              ngx.header["X-WSL-Rule"] = _gw.executableRule.name
+            end
+
             -- LLM protocol translation: normalise response headers
             local ok_llm, Llm = pcall(require, "llm_translator")
             if ok_llm then Llm.header_filter() end
@@ -1052,6 +1060,14 @@ server {
                   ngx.header[header.header_key] = header.header_value
                 end
               end
+            end
+
+            -- Surface the matched rule's NAME (not id) on the response.
+            -- Reads from ngx.ctx.gateway populated by gateway_ack.lua on
+            -- cache MISS, or replayed by cache_handler.check_cache on HIT.
+            local _gw = ngx.ctx.gateway
+            if _gw and _gw.executableRule and _gw.executableRule.name then
+              ngx.header["X-WSL-Rule"] = _gw.executableRule.name
             end
 
             -- LLM protocol translation: normalise response headers

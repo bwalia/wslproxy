@@ -379,6 +379,12 @@ function _M.check_cache(server_name, config)
         end
     end
     
+    if cached.rule_name then
+        ngx.ctx.gateway = ngx.ctx.gateway or {}
+        ngx.ctx.gateway.executableRule = ngx.ctx.gateway.executableRule or {}
+        ngx.ctx.gateway.executableRule.name = cached.rule_name
+    end
+
     ngx.status = cached.status or 200
     ngx.print(cached.body or "")
     ngx.flush(true)
@@ -569,7 +575,9 @@ function _M.store_in_cache()
         headers = ngx.ctx.cache_headers,
         body = body,
         cached_at = ngx.now(),
-        server_name = ngx.ctx.cache_server_name
+        server_name = ngx.ctx.cache_server_name,
+        rule_name = (ngx.ctx.gateway and ngx.ctx.gateway.executableRule
+                       and ngx.ctx.gateway.executableRule.name) or nil
     }
     
     local ok, json = pcall(cjson.encode, cache_entry)
