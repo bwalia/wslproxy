@@ -120,6 +120,7 @@ if winner then
         redirectUri = winner.redirect_uri,
         message = winner.message,
         priority = winner.priority,
+        name = winner.rule_name,
         rule_data = winner.rule_match,
     }
 
