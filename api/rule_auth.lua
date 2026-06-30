@@ -76,8 +76,16 @@ function M.authenticate(rule)
         if not token then return false end
         token = string.gsub(token, "Bearer", "")
         token = trim(ngx.unescape_uri(token))
-        local verified = jwt:verify(passphrase, token)
-        return verified and true or false
+        local jwt_obj = jwt:verify(passphrase, token)
+        -- `jwt:verify` returns a TABLE { verified = bool, reason =
+        -- string, payload = table, ... }.  The TABLE itself is always
+        -- truthy in Lua, so the previous `return verified and true
+        -- or false` always returned true — silently disabling
+        -- signature verification.  Read the `.verified` field
+        -- instead.  Reproduced on prod 2026-06-30:
+        --   curl -H 'x-api-key: literally-anything-here' <url>
+        -- returned 200 from the protected backend.
+        return jwt_obj ~= nil and jwt_obj.verified == true
     end
 
     -- ── Cookie key-value ──
@@ -109,8 +117,16 @@ function M.authenticate(rule)
         -- which client convention they'll see.
         token = string.gsub(tostring(token), "^[Bb]earer%s+", "")
         token = trim(ngx.unescape_uri(token))
-        local verified = jwt:verify(passphrase, token)
-        return verified and true or false
+        local jwt_obj = jwt:verify(passphrase, token)
+        -- `jwt:verify` returns a TABLE { verified = bool, reason =
+        -- string, payload = table, ... }.  The TABLE itself is always
+        -- truthy in Lua, so the previous `return verified and true
+        -- or false` always returned true — silently disabling
+        -- signature verification.  Read the `.verified` field
+        -- instead.  Reproduced on prod 2026-06-30:
+        --   curl -H 'x-api-key: literally-anything-here' <url>
+        -- returned 200 from the protected backend.
+        return jwt_obj ~= nil and jwt_obj.verified == true
     end
 
     -- ── AWS S3 Signature V4 ──
