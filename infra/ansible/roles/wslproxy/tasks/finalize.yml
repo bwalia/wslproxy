@@ -145,6 +145,63 @@
   when: nginx_preflight is defined
   tags: [nginx, code, dashboard, servers]
 
+# ── ATOMIC GUARD: rollback conf.d on pre-flight failure ───────────────────
+#
+# Paired with the snapshot taken at the top of nginx_config.yml.  If
+# the pre-flight openresty -t fails, swap conf.d/ back to the
+# pre-deploy snapshot and abort BEFORE the restart task — otherwise
+# systemd's openresty restart fails, workers die, and the host is
+# down until manual recovery.  The failed conf.d/ is preserved (just
+# renamed) so operators can compare against the snapshot and figure
+# out what the templates rendered wrong.
+#
+# Only acts when the snapshot exists (i.e. nginx_config.yml ran in
+# this play — partial deploys with --tags servers may skip it, in
+# which case there's nothing to roll back to and we fall through to
+# the existing error-display behaviour).
+- name: "Atomic guard: roll back conf.d/ if pre-flight failed"
+  ansible.builtin.shell: |
+    set -euo pipefail
+    SNAPSHOT=/opt/nginx/conf.d.predeploy
+    if [ ! -d "$SNAPSHOT" ]; then
+      echo "no-snapshot"
+      exit 0
+    fi
+    FAILED=/opt/nginx/conf.d.failed-{{ ansible_date_time.iso8601_basic_short }}
+    rm -rf "$FAILED"
+    mv /opt/nginx/conf.d "$FAILED"
+    mv "$SNAPSHOT" /opt/nginx/conf.d
+    echo "rolled-back-to:$SNAPSHOT  failed-preserved-at:$FAILED"
+  register: _confd_rollback
+  changed_when: "'rolled-back-to' in _confd_rollback.stdout"
+  when: nginx_preflight is defined and nginx_preflight.rc != 0
+  tags: [nginx, code, dashboard, servers]
+
+- name: "Atomic guard: abort deploy after rollback"
+  ansible.builtin.fail:
+    msg: |
+      ABORTING DEPLOY — openresty -t failed after nginx role modifications.
+
+      stderr from openresty -t:
+      {{ nginx_preflight.stderr | default('(no stderr)') }}
+
+      conf.d/ rollback status: {{ _confd_rollback.stdout | default('(no snapshot to roll back to)') }}
+
+      A subsequent systemd restart with this broken config would have
+      taken the host down.  Either the rolled-back conf.d/ is back to
+      its pre-deploy state, OR (if no snapshot was taken — partial
+      deploy with insufficient tags) the broken state is preserved
+      for inspection.  Either way: investigate and re-run.
+  when: nginx_preflight is defined and nginx_preflight.rc != 0
+  tags: [nginx, code, dashboard, servers]
+
+- name: "Atomic guard: clean up successful snapshot"
+  ansible.builtin.file:
+    path: /opt/nginx/conf.d.predeploy
+    state: absent
+  when: nginx_preflight is defined and nginx_preflight.rc == 0
+  tags: [nginx, code, dashboard, servers]
+
 - name: Stop existing OpenResty service before restart
   systemd:
     name: openresty
