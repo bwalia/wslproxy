@@ -581,6 +581,16 @@ local function removeServerFromRule(oldRuleId, serverId, envProfile)
         end
         if loadRules and loadRules ~= "null" and type(loadRules) == "string" then
             loadRules = cjson.decode(loadRules)
+            -- Guard: rule JSON may not have a `.servers` field yet if
+            -- no server has ever been linked to it.  Without this
+            -- check, `#loadRules.servers` raises "attempt to get
+            -- length of field 'servers' (a nil value)" and aborts
+            -- the whole PUT /api/servers/... request.  Sibling
+            -- function updateServerInRules already handles this
+            -- shape (see the `if not getRules.servers` branch).
+            if type(loadRules.servers) ~= "table" then
+                return
+            end
             local valueToRemove = serverId
             local i = 1
             while i <= #loadRules.servers do
