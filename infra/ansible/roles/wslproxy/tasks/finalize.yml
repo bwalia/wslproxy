@@ -36,21 +36,31 @@
   register: sync_tenants
   tags: [nginx, servers]
 
-- name: Deploy default.conf when frontend or backend is configured
+- name: Deploy default.conf when a frontend, backend or dashboard domain is configured
   template:
     src: default.conf.j2
     dest: /opt/nginx/conf.d/default.conf
     mode: 0664
     owner: www-data
     group: root
-  when: (nginx_default_server_frontend | default('') | length > 0) or (nginx_default_server_backend | default('') | length > 0)
+  # nginx_default_server_backend_nextjs renders the public 443 dashboard
+  # vhost; on dashboard-only POPs (e.g. pop1) it's the ONLY public domain,
+  # so it must keep default.conf (otherwise requests fall through to the
+  # catch-all gateway and the dashboard is unreachable at /).
+  when: >
+    (nginx_default_server_frontend | default('') | length > 0) or
+    (nginx_default_server_backend | default('') | length > 0) or
+    (nginx_default_server_backend_nextjs | default('') | length > 0)
   tags: [nginx, servers]
 
-- name: Remove default.conf when no frontend/backend configured
+- name: Remove default.conf when no public domain is configured
   file:
     path: /opt/nginx/conf.d/default.conf
     state: absent
-  when: (nginx_default_server_frontend | default('') | length == 0) and (nginx_default_server_backend | default('') | length == 0)
+  when: >
+    (nginx_default_server_frontend | default('') | length == 0) and
+    (nginx_default_server_backend | default('') | length == 0) and
+    (nginx_default_server_backend_nextjs | default('') | length == 0)
   tags: [nginx, servers]
 
 - name: Ensure SSL domain directory exists
