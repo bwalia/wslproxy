@@ -9,28 +9,38 @@ SECRETS_BASE="/home/bwalia/.secrets/wslproxy"
 # `acc` was decommissioned along with 187.77.179.206 — secrets
 # directory at ${SECRETS_BASE}/acc on the runner can be removed
 # manually after this script no longer references it.
-ENVS=(int test lon1)
+#
+# The set of envs is overridable so the same script provisions any runner:
+#   - the int runner (192.168.1.193) handles int/test/lon1 (the default)
+#   - the prod runner (srv1467484) handles prod
+#     → run with: RUNNER_ENVS="prod" ./setup-runner-secrets.sh
+# shellcheck disable=SC2206
+ENVS=(${RUNNER_ENVS:-int test lon1})
 
 # Environment-specific configuration
 declare -A ENV_PROFILE
 ENV_PROFILE[int]="int"
 ENV_PROFILE[test]="test"
 ENV_PROFILE[lon1]="prod"
+ENV_PROFILE[prod]="prod"
 
 declare -A INSTANCE_NAME
 INSTANCE_NAME[int]="wslproxy-int"
 INSTANCE_NAME[test]="wslproxy-test"
 INSTANCE_NAME[lon1]="wslproxy-lon1"
+INSTANCE_NAME[prod]="wslproxy-prod"
 
 declare -A FRONT_URL
 FRONT_URL[int]="https://int.wslproxy.com"
 FRONT_URL[test]="https://test.wslproxy.com"
 FRONT_URL[lon1]="http://72.62.211.28"
+FRONT_URL[prod]="https://prod-our.wslproxy.com"
 
 declare -A HOSTNAME_VAL
 HOSTNAME_VAL[int]="int.wslproxy.com"
 HOSTNAME_VAL[test]="test.wslproxy.com"
 HOSTNAME_VAL[lon1]="72.62.211.28"
+HOSTNAME_VAL[prod]="prod-our.wslproxy.com"
 
 echo "============================================"
 echo "  WSLProxy Runner Secrets Setup"
@@ -50,6 +60,14 @@ for env in "${ENVS[@]}"; do
     echo "── Setting up: ${env} ──"
     mkdir -p "${DIR}"
     chmod 700 "${DIR}"
+
+    # prod settings/.env are managed via the DOT_WSLPROXY_SETTINGS_PROD GitHub
+    # Secret (SOPS-decrypted at deploy time), not this runner-local seed — so
+    # for prod we skip the settings.json/.env seed and only provision
+    # login-creds.json (the file the e2e login workflows read).
+    if [ "${env}" = "prod" ]; then
+        echo "  settings.json/.env managed via GitHub Secrets — skipping seed"
+    else
 
     # Generate unique hashes for this environment
     SERIAL=$(echo -n "wslproxy-${env}-$(date +%s)" | md5sum | cut -d' ' -f1)
@@ -151,12 +169,54 @@ ENVEOF
         chmod 600 "${ENVFILE}"
         echo "  Created: ${ENVFILE}"
     fi
+    fi  # end: non-prod settings.json/.env seed
 
-    # Validate JSON
-    if python3 -m json.tool "${SETTINGS}" > /dev/null 2>&1; then
-        echo "  JSON valid"
+    # ── login-creds.json (consumed by the e2e login/API workflows) ──
+    # The e2e workflows (e2e-admin-ui-login.yml, e2e-tests.yml,
+    # e2e-create-server.yml, backup-wslproxy-data.yml) read the admin
+    # login from ${DIR}/login-creds.json as {"ADMIN_EMAIL","ADMIN_PASSWORD"}.
+    # This file was previously created by hand on each runner, so it drifted
+    # or went missing — causing the login workflows to fail (or silently fall
+    # back to the fleet-wide LOGIN_EMAIL/LOGIN_PASSWORD repo secrets, which can
+    # point at a different host after a per-POP password rotation).
+    #
+    # The password must be the PLAINTEXT admin password (it is POSTed to
+    # /api/user/login); it cannot be derived from settings.json, which only
+    # stores the sha256 hash. Supply it per-env via env vars, e.g. for prod:
+    #   PROD_ADMIN_EMAIL=admin@wslproxy.com \
+    #   PROD_ADMIN_PASSWORD='...' \
+    #   RUNNER_ENVS="prod" ./setup-runner-secrets.sh
+    CREDS="${DIR}/login-creds.json"
+    ENV_UP="${env^^}"
+    CRED_EMAIL_VAR="${ENV_UP}_ADMIN_EMAIL"
+    CRED_PASS_VAR="${ENV_UP}_ADMIN_PASSWORD"
+    CRED_EMAIL="${!CRED_EMAIL_VAR:-admin@wslproxy.com}"
+    CRED_PASS="${!CRED_PASS_VAR:-}"
+
+    creds_valid() {
+        [ -f "$1" ] && python3 -c "import json,sys; d=json.load(open(sys.argv[1])); sys.exit(0 if (d.get('ADMIN_EMAIL') and d.get('ADMIN_PASSWORD')) else 1)" "$1" 2>/dev/null
+    }
+
+    if creds_valid "${CREDS}" && [ "${FORCE_CREDS:-0}" != "1" ]; then
+        echo "  login-creds.json already present & valid — skipping (set FORCE_CREDS=1 to rewrite)"
+    elif [ -n "${CRED_PASS}" ]; then
+        CRED_EMAIL="${CRED_EMAIL}" CRED_PASS="${CRED_PASS}" python3 -c \
+          "import json,os; json.dump({'ADMIN_EMAIL':os.environ['CRED_EMAIL'],'ADMIN_PASSWORD':os.environ['CRED_PASS']}, open('${CREDS}','w'))"
+        chmod 600 "${CREDS}"
+        echo "  Wrote: ${CREDS} (ADMIN_EMAIL=${CRED_EMAIL})"
     else
-        echo "  WARNING: Invalid JSON in ${SETTINGS}!"
+        echo "  WARNING: ${CREDS} is missing/invalid and no ${CRED_PASS_VAR} provided —"
+        echo "           e2e login tests for '${env}' will fail. Re-run with:"
+        echo "           ${CRED_EMAIL_VAR}='${CRED_EMAIL}' ${CRED_PASS_VAR}='<plaintext-password>' RUNNER_ENVS=\"${env}\" $0"
+    fi
+
+    # Validate JSON (prod has no runner-local settings.json to validate)
+    if [ -f "${SETTINGS}" ]; then
+        if python3 -m json.tool "${SETTINGS}" > /dev/null 2>&1; then
+            echo "  JSON valid"
+        else
+            echo "  WARNING: Invalid JSON in ${SETTINGS}!"
+        fi
     fi
 
     echo ""
@@ -170,10 +230,19 @@ echo "  Setup complete!"
 echo ""
 echo "  Created secrets for: ${ENVS[*]}"
 echo ""
-echo "  NOTE: prod secrets are managed via GitHub"
+echo "  NOTE: prod settings are managed via GitHub"
 echo "  Secrets (DOT_WSLPROXY_SETTINGS_PROD)."
 echo ""
 echo "  IMPORTANT: Update the super_user password"
 echo "  and JWT_SECURITY_PASSPHRASE in each"
 echo "  settings.json for production use."
+echo ""
+echo "  login-creds.json (used by the e2e login/API"
+echo "  workflows) is written only when a plaintext"
+echo "  <ENV>_ADMIN_PASSWORD is supplied — it cannot"
+echo "  be derived from the hashed settings.json."
+echo "  On the prod runner (srv1467484) run e.g.:"
+echo "    PROD_ADMIN_EMAIL=admin@wslproxy.com \\"
+echo "    PROD_ADMIN_PASSWORD='<plaintext>' \\"
+echo "    RUNNER_ENVS=\"prod\" FORCE_CREDS=1 $0"
 echo "============================================"
