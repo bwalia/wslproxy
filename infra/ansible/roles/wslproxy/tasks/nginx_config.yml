@@ -42,6 +42,9 @@
       # rollback path is unambiguous.
       mkdir -p /opt/nginx/conf.d.predeploy
     fi
+  # /bin/sh is dash on Debian, which lacks `set -o pipefail` — force bash.
+  args:
+    executable: /bin/bash
   changed_when: false
   tags: [nginx, code, dashboard, servers]
 

@@ -67,6 +67,10 @@
 # ~30 seconds and removes the silent-stale-bundle class of bugs.
 - name: Wipe previous Next.js build output
   delegate_to: localhost
+  # Local build steps run on the control machine and never need root;
+  # inheriting the play's become would try to sudo locally (fails on a
+  # workstation deploy where sudo needs a password — see POP1_DEPLOY.md).
+  become: false
   file:
     path: "{{ playbook_dir }}/../../openresty-admin-next/.next"
     state: absent
@@ -74,6 +78,7 @@
 
 - name: Build Next.js dashboard locally
   delegate_to: localhost
+  become: false
   block:
     - name: Install Next.js dependencies
       shell: npm install --legacy-peer-deps
