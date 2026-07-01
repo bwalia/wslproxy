@@ -33,11 +33,24 @@ jobs:
       MODE: ${{ inputs.mode }}
     steps:
       - name: Patch / inspect prod super_user
+        env:
+          PROD_SSH_KEY: ${{ secrets.PROD_SSH_KEY }}
         run: |
           set -euo pipefail
-          mkdir -p ~/.ssh
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
           ssh-keyscan -H "$HOST_IP" >> ~/.ssh/known_hosts 2>/dev/null || true
-          SSH="ssh -i $HOME/.ssh/id_rsa -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 $SSH_USER@$HOST_IP"
+          # The runner's ~/.ssh/id_rsa is stale (rejected by pop0). Use the
+          # PROD_SSH_KEY secret directly. Accept raw PEM or base64-wrapped.
+          KEY=/tmp/prod_ssh_key
+          printf '%s\n' "$PROD_SSH_KEY" > "$KEY"
+          chmod 600 "$KEY"
+          if ! ssh-keygen -y -f "$KEY" >/dev/null 2>&1; then
+            printf '%s' "$PROD_SSH_KEY" | base64 -d > "$KEY" 2>/dev/null || true
+            chmod 600 "$KEY"
+          fi
+          ssh-keygen -y -f "$KEY" >/dev/null 2>&1 && echo "prod key parsed OK" || echo "::warning::prod key did not parse"
+          SSH="ssh -i $KEY -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 $SSH_USER@$HOST_IP"
+          trap 'rm -f "$KEY"' EXIT
 
           cat > /tmp/patch_su.py <<'PY'
           import json, shutil, time, os
