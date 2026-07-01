@@ -62,10 +62,10 @@
     group: root
   tags: [nginx, servers]
 
-- name: Generate SSL domain files for default server frontend/backend domains
+- name: Generate SSL domain files for default server frontend/backend/dashboard domains
   shell: |
     CREATED=0
-    for domain in {{ nginx_default_server_frontend | default('') }} {{ nginx_default_server_backend | default('') }}; do
+    for domain in {{ nginx_default_server_frontend | default('') }} {{ nginx_default_server_backend | default('') }} {{ nginx_default_server_backend_nextjs | default('') }}; do
       [ -z "$domain" ] && continue
       ssl_file="/opt/nginx/data/ssl/${domain}.json"
       if [ ! -f "$ssl_file" ]; then
@@ -79,13 +79,21 @@
     echo "Default server SSL domain files created: $CREATED"
   register: default_ssl_gen
   changed_when: "'Created:' in default_ssl_gen.stdout"
-  when: (nginx_default_server_frontend | default('') | length > 0) or (nginx_default_server_backend | default('') | length > 0)
+  # nginx_default_server_backend_nextjs is the per-pop dashboard domain; on
+  # dashboard-only POPs (e.g. pop1) it's the ONLY public domain, so without
+  # it auto-ssl's allow_domain gate rejects the cert ("domain not allowed").
+  when: >
+    (nginx_default_server_frontend | default('') | length > 0) or
+    (nginx_default_server_backend | default('') | length > 0) or
+    (nginx_default_server_backend_nextjs | default('') | length > 0)
   tags: [nginx, servers]
 
 - name: Show default server SSL domain generation
   debug:
     msg: "{{ default_ssl_gen.stdout_lines }}"
-  when: default_ssl_gen is defined and default_ssl_gen.stdout_lines | length > 0
+  # default_ssl_gen is skipped (no stdout_lines) when a host exposes only
+  # the dashboard and both frontend/backend domains are empty (e.g. pop1).
+  when: default_ssl_gen is defined and default_ssl_gen.stdout_lines is defined and default_ssl_gen.stdout_lines | length > 0
   tags: [nginx, servers]
 
 - name: Generate SSL domain files from server configs
@@ -172,6 +180,9 @@
     mv /opt/nginx/conf.d "$FAILED"
     mv "$SNAPSHOT" /opt/nginx/conf.d
     echo "rolled-back-to:$SNAPSHOT  failed-preserved-at:$FAILED"
+  # /bin/sh is dash on Debian, which lacks `set -o pipefail` — force bash.
+  args:
+    executable: /bin/bash
   register: _confd_rollback
   changed_when: "'rolled-back-to' in _confd_rollback.stdout"
   when: nginx_preflight is defined and nginx_preflight.rc != 0

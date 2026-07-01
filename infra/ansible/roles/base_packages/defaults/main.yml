@@ -48,7 +48,9 @@ _os_packages:
       Debian:
         - python3-apt
         - libpcre2-dev
-        - openjdk-21-jdk
+        # default-jdk resolves to the distro's supported JDK (17 on bookworm,
+        # 21 on trixie); openjdk-21-jdk isn't packaged on Debian 12.
+        - default-jdk
         - netcat-openbsd
 
   Suse:
