@@ -12,48 +12,72 @@
 
 # ── Step 1: Ensure Node.js is available on the target ────────────────────
 
-- name: Check if Node.js is installed
+- name: Check installed Node.js version
   shell: node --version 2>/dev/null || echo "NOT_INSTALLED"
   register: node_check
   changed_when: false
   failed_when: false
   tags: [dashboard-next]
 
-- name: Install Node.js via system package manager if missing
-  when: "'NOT_INSTALLED' in node_check.stdout"
+- name: Determine installed Node.js major version
+  set_fact:
+    node_major: >-
+      {{ ((node_check.stdout | regex_replace('^v', '')).split('.')[0] | int)
+         if 'NOT_INSTALLED' not in node_check.stdout else 0 }}
+  tags: [dashboard-next]
+
+# The Next.js dashboard's /api reverse-proxy forwards the httpOnly auth
+# cookie (wslproxy_token) via Headers.getSetCookie(). That method is
+# `undefined` on Node < 20's global fetch — Debian 12 ships Node 18 — so the
+# proxy silently drops the login cookie and the dashboard bounces users back
+# to /login. Pin Node 20 LTS (NodeSource) so cookie-based auth works.
+- name: Node.js needs (re)install to reach >= 20?
+  set_fact:
+    node_needs_install: "{{ ('NOT_INSTALLED' in node_check.stdout) or (node_major | int < 20) }}"
+  tags: [dashboard-next]
+
+- name: Ensure Node.js >= 20 LTS
+  when: node_needs_install | bool
   block:
-    - name: Install Node.js (Debian/Ubuntu)
+    - name: Configure NodeSource Node 20 repository (Debian/Ubuntu)
+      shell: curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+      when: ansible_os_family == "Debian"
+
+    - name: Install/upgrade Node.js 20 (Debian/Ubuntu)
       apt:
-        name: [nodejs, npm]
-        state: present
+        name: nodejs
+        state: latest
         update_cache: yes
       when: ansible_os_family == "Debian"
 
-    - name: Install Node.js (SUSE)
+    - name: Configure NodeSource Node 20 repository (RedHat/Rocky)
+      shell: curl -fsSL https://rpm.nodesource.com/setup_20.x | bash -
+      when: ansible_os_family == "RedHat"
+
+    - name: Install/upgrade Node.js 20 (RedHat/Rocky)
+      yum:
+        name: nodejs
+        state: latest
+      when: ansible_os_family == "RedHat"
+
+    - name: Install Node.js 20 (SUSE)
       zypper:
         name: [nodejs20, npm20]
         state: present
       when: ansible_os_family == "Suse"
 
-    - name: Install Node.js (RedHat/Rocky)
-      yum:
-        name: [nodejs, npm]
-        state: present
-      when: ansible_os_family == "RedHat"
-
-    - name: Verify Node.js is now available
+    - name: Verify Node.js is now >= 20
       shell: node --version
       register: node_version_after
       changed_when: false
 
     - debug:
-        msg: "Node.js installed: {{ node_version_after.stdout }}"
+        msg: "Node.js ensured: {{ node_version_after.stdout }}"
   tags: [dashboard-next]
 
 - name: Report Node.js version
   debug:
-    msg: "Node.js version: {{ node_check.stdout }}"
-  when: "'NOT_INSTALLED' not in node_check.stdout"
+    msg: "Node.js version: {{ node_check.stdout }} (needs install: {{ node_needs_install | default('n/a') }})"
   tags: [dashboard-next]
 
 # ── Step 2: Build Next.js on the control machine (if not pre-built) ──────
