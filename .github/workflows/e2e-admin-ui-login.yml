@@ -139,16 +139,35 @@ jobs:
         working-directory: .
         env:
           TEST_CREDS_FILE: ${{ steps.env_config.outputs.creds_file }}
+          # Canonical prod admin login, also used by the API test workflows.
+          # Only wired as a fallback for prod (the matrix is prod-only today);
+          # other envs keep relying solely on their on-runner creds file.
+          FALLBACK_EMAIL: ${{ matrix.environment == 'prod' && secrets.LOGIN_EMAIL || '' }}
+          FALLBACK_PASSWORD: ${{ matrix.environment == 'prod' && secrets.LOGIN_PASSWORD || '' }}
         run: |
-          if [ ! -f "$TEST_CREDS_FILE" ]; then
-            echo "::error::Test credentials file not found at $TEST_CREDS_FILE"
-            echo "Create it with: echo '{\"ADMIN_EMAIL\":\"...\",\"ADMIN_PASSWORD\":\"...\"}' > $TEST_CREDS_FILE"
-            exit 1
+          # Only credentials are required from the file; the URL under test comes
+          # from the ADMIN_LOGIN_URLS repo variable, not the creds file.
+          valid_creds() {
+            [ -f "$TEST_CREDS_FILE" ] && python3 -c "import json,sys; d=json.load(open('$TEST_CREDS_FILE')); sys.exit(0 if ('ADMIN_EMAIL' in d and 'ADMIN_PASSWORD' in d) else 1)" 2>/dev/null
+          }
+          # Self-heal: if the on-runner file is missing or malformed (e.g. after a
+          # credential rotation that only updated the GitHub secret), rebuild it
+          # from LOGIN_EMAIL/LOGIN_PASSWORD so the hourly smoke test stays green
+          # without anyone hand-editing login-creds.json on the runner.
+          if ! valid_creds; then
+            if [ -n "$FALLBACK_EMAIL" ] && [ -n "$FALLBACK_PASSWORD" ]; then
+              echo "On-runner creds file missing/invalid — rebuilding from repo secrets."
+              mkdir -p "$(dirname "$TEST_CREDS_FILE")"
+              TEST_CREDS_FILE="$TEST_CREDS_FILE" python3 -c "import json,os; json.dump({'ADMIN_EMAIL':os.environ['FALLBACK_EMAIL'],'ADMIN_PASSWORD':os.environ['FALLBACK_PASSWORD']}, open(os.environ['TEST_CREDS_FILE'],'w'))"
+              chmod 600 "$TEST_CREDS_FILE" 2>/dev/null || true
+            else
+              echo "::error::Test credentials file at $TEST_CREDS_FILE is missing/invalid and no LOGIN_EMAIL/LOGIN_PASSWORD fallback is available for ${{ matrix.environment }}."
+              echo "Create it with: echo '{\"ADMIN_EMAIL\":\"...\",\"ADMIN_PASSWORD\":\"...\"}' > $TEST_CREDS_FILE"
+              exit 1
+            fi
           fi
-          # Only credentials are required from the file now; the URL under test
-          # comes from the ADMIN_LOGIN_URLS repo variable, not the creds file.
-          if ! python3 -c "import json; d=json.load(open('$TEST_CREDS_FILE')); assert 'ADMIN_EMAIL' in d and 'ADMIN_PASSWORD' in d" 2>/dev/null; then
-            echo "::error::Test credentials file is missing required keys (ADMIN_EMAIL, ADMIN_PASSWORD)"
+          if ! valid_creds; then
+            echo "::error::Test credentials still invalid after fallback for ${{ matrix.environment }} (ADMIN_EMAIL, ADMIN_PASSWORD required)."
             exit 1
           fi
           echo "Test credentials validated for ${{ matrix.environment }}."
