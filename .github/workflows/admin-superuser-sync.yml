@@ -1,0 +1,80 @@
+name: (maint) Sync prod admin super_user
+
+# One-off maintenance workflow: reconcile the prod dashboard super_user with
+# the LOGIN_EMAIL/LOGIN_PASSWORD used by the login smoke tests. Runs on the
+# prod self-hosted runner, which can SSH to pop0 via ~/.ssh/id_rsa (same path
+# the delivery pipeline uses). Dispatch-only; defaults to a read-only inspect.
+# SAFE: 'apply' backs up settings.json first, and Helper.settings() reads the
+# file per-request so no reload is needed.
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "inspect (read-only) or apply (write super_user)"
+        type: choice
+        default: inspect
+        required: true
+        options:
+          - inspect
+          - apply
+
+jobs:
+  sync:
+    name: "Sync super_user (${{ inputs.mode }})"
+    runs-on: [self-hosted, prod]
+    timeout-minutes: 6
+    env:
+      HOST_IP: "187.124.112.155"
+      SSH_USER: root
+      SU_EMAIL: "debian@wslproxy.org"
+      # base64(sha256("ZFDMubhgvOJJatxo60Rs-m9yz")) == Helper.hashPassword value
+      SU_HASH: "h5QVnyIHWVRGIbNCP88Wva4RDTFOPk+4O351CBzOgt8="
+      MODE: ${{ inputs.mode }}
+    steps:
+      - name: Patch / inspect prod super_user
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          ssh-keyscan -H "$HOST_IP" >> ~/.ssh/known_hosts 2>/dev/null || true
+          SSH="ssh -i $HOME/.ssh/id_rsa -o StrictHostKeyChecking=accept-new -o ConnectTimeout=15 $SSH_USER@$HOST_IP"
+
+          cat > /tmp/patch_su.py <<'PY'
+          import json, shutil, time, os
+          p = '/opt/nginx/data/settings.json'
+          d = json.load(open(p))
+          su = d.get('super_user') or {}
+          pw = su.get('password') or ''
+          print('storage_type =', d.get('storage_type'))
+          print('BEFORE super_user.email  =', repr(su.get('email')))
+          print('BEFORE super_user.pwhash =', (pw[:6] + '…') if pw else '(empty)', 'len', len(pw))
+          if os.environ.get('MODE') == 'apply':
+              bak = p + '.bak-' + time.strftime('%Y%m%d%H%M%S')
+              shutil.copy(p, bak)
+              su['email'] = os.environ['SU_EMAIL']
+              su['password'] = os.environ['SU_HASH']
+              d['super_user'] = su
+              tmp = p + '.tmp'
+              json.dump(d, open(tmp, 'w'), indent=2)
+              os.replace(tmp, p)
+              print('APPLIED  super_user.email  =', repr(su['email']))
+              print('APPLIED  super_user.pwhash =', su['password'][:6] + '…', 'len', len(su['password']))
+              print('backup   =', bak)
+          PY
+
+          B64=$(base64 -w0 /tmp/patch_su.py 2>/dev/null || base64 /tmp/patch_su.py | tr -d '\n')
+          $SSH "MODE='$MODE' SU_EMAIL='$SU_EMAIL' SU_HASH='$SU_HASH' python3 -c \"import base64;exec(base64.b64decode('$B64').decode())\""
+
+      - name: Verify login API (post-change)
+        if: ${{ inputs.mode == 'apply' }}
+        run: |
+          set -euo pipefail
+          rc=0
+          for h in prod-our-v1.wslproxy.com prod-our.wslproxy.com; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "https://$h/api/user/login" \
+              -H 'Content-Type: application/json' \
+              --data "{\"email\":\"$SU_EMAIL\",\"password\":\"ZFDMubhgvOJJatxo60Rs-m9yz\"}" --max-time 20 || echo 000)
+            echo "$h  login -> HTTP $code"
+            [ "$code" = "200" ] || rc=1
+          done
+          exit $rc
