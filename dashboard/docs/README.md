@@ -1,13 +1,17 @@
-# WSL Proxy — Backend Health (Grafana)
+# WSL Proxy — Grafana Dashboards
 
-Production-grade Grafana dashboard + Prometheus rules for monitoring **WSL Proxy**
-backend health. Built **only** from metrics that actually exist on
+Production-grade Grafana dashboards + Prometheus rules for monitoring **WSL Proxy**.
+Built **only** from metrics that actually exist on
 `https://prod-our.wslproxy.com/metrics` (OpenResty `lua-prometheus`). No metric
 names are invented — see [`METRICS_INVENTORY.md`](./METRICS_INVENTORY.md).
 
-- **Dashboard:** `WSL Proxy - Backend Health` (uid `wslproxy-backend-health`)
-- **91 panels** across 16 rows + info header · **8 template variables** · 2 annotations
+- **Dashboard 1:** `WSL Proxy - Backend Health` (uid `wslproxy-backend-health`)
+  — 91 panels across 16 rows + info header · 8 template variables · 2 annotations
+- **Dashboard 2:** `WSL Proxy - Cache` (uid `wslproxy-cache`)
+  — static-content cache hit ratio, per-host/-extension breakdown, bypass reasons,
+  stores by content-type · 6 template variables · 1 annotation
 - Colour convention: 🟢 healthy · 🟡 warning · 🔴 critical · ⚪ unknown
+- Cache hit-ratio convention: 🔴 <50% · 🟡 50–80% · 🟢 ≥80%
 
 ## Folder structure
 ```
@@ -19,17 +23,30 @@ dashboard/
 │   └── VARIABLES.md           ← template variable definitions
 ├── grafana/
 │   ├── dashboards/
-│   │   └── wsl-proxy-backend-health.json   ← the dashboard (import this)
+│   │   ├── wsl-proxy-backend-health.json   ← backend-health dashboard
+│   │   └── wsl-proxy-cache.json            ← cache dashboard
 │   └── provisioning/
-│       ├── dashboards/wslproxy.yaml        ← dashboard provider
+│       ├── dashboards/wslproxy.yaml        ← dashboard provider (loads the whole folder)
 │       └── datasources/prometheus.yaml     ← Prometheus datasource
 ├── prometheus/
 │   ├── rules/
-│   │   ├── recording-rules.yaml            ← pre-computed aggregations
-│   │   └── alert-rules.yaml                ← SRE alerts (mirrors thresholds)
+│   │   ├── recording-rules.yaml            ← pre-computed aggregations (backend)
+│   │   ├── alert-rules.yaml                ← SRE alerts (backend, mirrors thresholds)
+│   │   └── cache-rules.yaml                ← cache recording + alert rules
 │   └── scrape/scrape-config.yaml           ← scrape_config for the endpoint
 └── scripts/
-    └── build_dashboard.py                  ← regenerates the dashboard JSON
+    ├── build_dashboard.py                  ← regenerates the backend-health JSON
+    └── build_cache_dashboard.py            ← regenerates the cache JSON
+```
+
+Both dashboards live in the same `grafana/dashboards/` folder, so the provisioning
+provider picks up the cache dashboard automatically — no config change needed. Add
+the cache rules alongside the others:
+```yaml
+rule_files:
+  - /etc/prometheus/rules/recording-rules.yaml
+  - /etc/prometheus/rules/alert-rules.yaml
+  - /etc/prometheus/rules/cache-rules.yaml
 ```
 
 ## Architecture
