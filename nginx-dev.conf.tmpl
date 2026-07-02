@@ -324,7 +324,10 @@ http {
             content_by_lua_file /usr/local/openresty/nginx/html/api/ping.lua;
         }
 
-        location /health {
+        # Canonical /healthz (Kubernetes-standard).  /health kept as an
+        # alias so external monitors and legacy pipeline health_endpoint
+        # values (http://.../health) keep working during the migration.
+        location ~ ^/(health|healthz)$ {
             default_type 'application/json';
             add_header 'Access-Control-Allow-Origin' '*';
             add_header 'Access-Control-Allow-Methods' 'GET';
@@ -834,7 +837,10 @@ http {
             content_by_lua_file /usr/local/openresty/nginx/html/api/api.lua;
         }
 
-        location /health {
+        # Canonical /healthz (Kubernetes-standard).  /health kept as an
+        # alias so external monitors and legacy pipeline health_endpoint
+        # values (http://.../health) keep working during the migration.
+        location ~ ^/(health|healthz)$ {
             default_type 'application/json';
             add_header 'Access-Control-Allow-Origin' '*';
             add_header 'Access-Control-Allow-Methods' 'GET';
@@ -866,7 +872,10 @@ http {
         client_body_buffer_size 128k;
 
         # Health and ping — served by OpenResty Lua
-        location /health {
+        # Canonical /healthz (Kubernetes-standard).  /health kept as an
+        # alias so external monitors and legacy pipeline health_endpoint
+        # values (http://.../health) keep working during the migration.
+        location ~ ^/(health|healthz)$ {
             default_type 'application/json';
             add_header 'Access-Control-Allow-Origin' '*';
             add_header 'Access-Control-Allow-Methods' 'GET';

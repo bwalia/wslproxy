@@ -71,7 +71,7 @@ jobs:
       ssh_user: bwalia
       connection_mode: local
       secrets_mode: sops
-      health_endpoint: "http://localhost:8080/health"
+      health_endpoint: "http://localhost:8080/healthz"
       health_check_mode: local
       docker_prune: true
       notify_success: true
@@ -101,7 +101,7 @@ jobs:
       secrets_mode: runner_file
       settings_file_path: "/home/bwalia/.secrets/wslproxy/test/settings.json"
       env_file_path: "/home/bwalia/.secrets/wslproxy/test/.env"
-      health_endpoint: "http://localhost:8080/health"
+      health_endpoint: "http://localhost:8080/healthz"
       health_check_mode: ssh
       docker_prune: false
       notify_success: true
@@ -127,7 +127,7 @@ jobs:
       seed_from_host: true
       settings_file_path: "/tmp/wslproxy-pop0/settings.json"
       env_file_path: "/tmp/wslproxy-pop0/.env"
-      health_endpoint: "https://prod-our-v1.wslproxy.com/health"
+      health_endpoint: "https://prod-our-v1.wslproxy.com/healthz"
       health_check_mode: external
       docker_prune: true
       notify_success: true
@@ -153,7 +153,7 @@ jobs:
       secrets_mode: runner_file
       settings_file_path: "/home/bwalia/.secrets/wslproxy/lon1/settings.json"
       env_file_path: "/home/bwalia/.secrets/wslproxy/lon1/.env"
-      health_endpoint: "http://72.62.211.28:7691/health"
+      health_endpoint: "http://72.62.211.28:7691/healthz"
       health_check_mode: external
       docker_prune: true
       notify_success: true
@@ -180,7 +180,7 @@ jobs:
       seed_from_host: true
       settings_file_path: "/tmp/wslproxy-pop1/settings.json"
       env_file_path: "/tmp/wslproxy-pop1/.env"
-      health_endpoint: "http://18.133.126.242:7691/health"
+      health_endpoint: "http://18.133.126.242:7691/healthz"
       health_check_mode: external
       docker_prune: true
       notify_success: true

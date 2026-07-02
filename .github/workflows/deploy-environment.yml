@@ -78,7 +78,7 @@ on:
         type: string
         default: ""
       health_endpoint:
-        description: "URL to curl for health check (e.g. http://localhost:8080/health)"
+        description: "URL to curl for health check (e.g. http://localhost:8080/healthz)"
         type: string
         required: true
       health_check_mode:

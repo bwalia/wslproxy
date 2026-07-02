@@ -257,7 +257,7 @@ jobs:
       # (infra/secrets/<env>/) using the SOPS_AGE_KEY repo secret.
       # Matches the promotion pipeline int stage.
       secrets_mode: sops
-      health_endpoint: "http://localhost:8080/health"
+      health_endpoint: "http://localhost:8080/healthz"
       health_check_mode: local
       docker_prune: true
       notify_success: false
@@ -326,7 +326,7 @@ jobs:
       - name: Verify API endpoints
         run: |
           FAILED=0
-          for ENDPOINT in /health; do
+          for ENDPOINT in /healthz; do
             STATUS=$(curl -sf -o /dev/null -w "%{http_code}" "http://localhost:8080${ENDPOINT}" 2>/dev/null || echo "000")
             if [ "$STATUS" = "200" ]; then
               printf "  GET :8080%-20s OK (%s)\n" "$ENDPOINT" "$STATUS"
@@ -335,7 +335,7 @@ jobs:
               FAILED=$((FAILED+1))
             fi
           done
-          for ENDPOINT in /health /api/servers /api/rules /api/waf_rules /api/waf_policies; do
+          for ENDPOINT in /healthz /api/servers /api/rules /api/waf_rules /api/waf_policies; do
             STATUS=$(curl -sf -o /dev/null -w "%{http_code}" "http://localhost:8080${ENDPOINT}" 2>/dev/null || echo "000")
             if [ "$STATUS" = "200" ]; then
               printf "  GET :8080%-20s OK (%s)\n" "$ENDPOINT" "$STATUS"
@@ -385,7 +385,7 @@ jobs:
       secrets_mode: runner_file
       settings_file_path: "/home/bwalia/.secrets/wslproxy/test/settings.json"
       env_file_path: "/home/bwalia/.secrets/wslproxy/test/.env"
-      health_endpoint: "http://localhost:8080/health"
+      health_endpoint: "http://localhost:8080/healthz"
       health_check_mode: ssh
       docker_prune: false
       notify_success: false
@@ -425,7 +425,7 @@ jobs:
       # SSH key stopped authenticating against the prod host (root@…
       # permission denied) and there was no fallback.
       secrets_mode: vault_or_sops
-      health_endpoint: "https://prod-our-v1.wslproxy.com/health"
+      health_endpoint: "https://prod-our-v1.wslproxy.com/healthz"
       health_check_mode: external
       docker_prune: true
       notify_success: true
@@ -461,7 +461,7 @@ jobs:
       secrets_mode: runner_file
       settings_file_path: "/home/bwalia/.secrets/wslproxy/lon1/settings.json"
       env_file_path: "/home/bwalia/.secrets/wslproxy/lon1/.env"
-      health_endpoint: "http://72.62.211.28:7691/health"
+      health_endpoint: "http://72.62.211.28:7691/healthz"
       health_check_mode: external
       docker_prune: true
       notify_success: true
@@ -495,7 +495,7 @@ jobs:
       # take the pipeline down.
       secrets_mode: vault_or_sops
       # IP-based health gate — no dependency on DNS/cert for pop1.diytaxreturn.co.uk
-      health_endpoint: "http://18.133.126.242:7691/health"
+      health_endpoint: "http://18.133.126.242:7691/healthz"
       health_check_mode: external
       docker_prune: true
       notify_success: true

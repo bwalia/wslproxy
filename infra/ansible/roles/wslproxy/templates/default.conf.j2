@@ -122,7 +122,10 @@
         # ping.lua returns a JSON status document (worker state, cache
         # counters, etc).  Used by external monitors that need a stable
         # public URL on the dashboard host.
-        location = /health {
+        # Canonical /healthz (Kubernetes-standard).  /health kept as an
+        # alias so external monitors and legacy pipeline health_endpoint
+        # values (http://.../health) keep working during the migration.
+        location ~ ^/(health|healthz)$ {
             default_type 'application/json';
             add_header 'Access-Control-Allow-Origin' '*';
             add_header 'Access-Control-Allow-Methods' 'GET';
@@ -204,7 +207,10 @@
         # added, external monitors hitting {{ nginx_default_server_backend_nextjs }}/health
         # got 404 from the Next.js server; now they get the same JSON
         # status document as ping.lua serves on the admin port.
-        location = /health {
+        # Canonical /healthz (Kubernetes-standard).  /health kept as an
+        # alias so external monitors and legacy pipeline health_endpoint
+        # values (http://.../health) keep working during the migration.
+        location ~ ^/(health|healthz)$ {
             default_type 'application/json';
             add_header 'Access-Control-Allow-Origin' '*';
             add_header 'Access-Control-Allow-Methods' 'GET';
