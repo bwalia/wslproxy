@@ -1,0 +1,84 @@
+# WSL Proxy — Metrics Inventory
+
+> Source of truth: live scrape of **https://prod-our.wslproxy.com/metrics**
+> Exporter type: **OpenResty `lua-prometheus`** (embedded in nginx). This is **not**
+> a Go exporter, so there are **no** `go_*`, `process_*`, `promhttp_*` metrics on the
+> endpoint itself. `instance` / `job` / `namespace` labels are **not** emitted by the
+> endpoint — they are attached by the Prometheus scrape job (`relabel_configs`).
+>
+> Every metric name below was verified to exist on the endpoint. Nothing here is invented.
+
+## Categorised metric list
+
+### Backend (primary — used for Backend Health)
+| Metric | Type | Labels | Notes |
+|---|---|---|---|
+| `wslproxy_backend_healthy` | gauge | `rule_id`, `backend_label`, `address` | `1`=healthy, `0`=unhealthy. Written by the traffic-router passive/active health tracker. |
+| `wslproxy_backend_requests_total` | counter | `rule_id`, `backend_label`, `status` | Requests routed to each backend, per HTTP status. |
+| `wslproxy_backend_response_seconds` | histogram | `rule_id`, `backend_label`, `le` | Backend latency. Buckets: `.005 .01 .025 .05 .1 .25 .5 1 2.5 +Inf`. |
+
+### Proxy (upstream layer)
+| Metric | Type | Labels |
+|---|---|---|
+| `nginx_proxy_requests_total` | counter | `upstream`, `status` |
+| `nginx_proxy_response_time_seconds` | histogram | `upstream`, `le` (buckets `.005 … 10 +Inf`) |
+
+### Requests / HTTP
+| Metric | Type | Labels |
+|---|---|---|
+| `nginx_http_requests_total` | counter | `host`, `status`, `method`, `endpoint` |
+| `nginx_http_request_duration_seconds` | histogram | `host`, `method`, `endpoint`, `le` (buckets `.005 … 10 +Inf`) |
+| `nginx_http_request_size_bytes` | histogram | `host`, `method`, `le` |
+| `nginx_http_response_size_bytes` | histogram | `host`, `method`, `status`, `le` |
+| `nginx_http_connections` | gauge | `state` (`reading`/`writing`/`waiting`/`active`) |
+| `nginx_http_requests_by_ip_total` | counter | `ip`, `host` |
+
+### Errors
+| Metric | Type | Labels |
+|---|---|---|
+| `nginx_http_errors_total` | counter | `host`, `status`, `endpoint` |
+| `nginx_http_4xx_errors_total` | counter | `host`, `status`, `endpoint` |
+| `nginx_http_5xx_errors_total` | counter | `host`, `status`, `endpoint` |
+| `nginx_http_suspicious_requests_total` | counter | `host`, `reason` |
+| `nginx_metric_errors_total` | counter | (none) |
+
+### Cache
+| Metric | Type | Labels |
+|---|---|---|
+| `nginx_cache_hits_total` | counter | `host`, `extension` |
+| `nginx_cache_misses_total` | counter | `host`, `extension` |
+| `nginx_cache_stores_total` | counter | `host`, `extension` |
+| `nginx_cache_bypasses_total` | counter | `host`, `extension` |
+| `nginx_cache_enabled` | gauge | `host` |
+
+### API / Auth
+| Metric | Type | Labels |
+|---|---|---|
+| `api_calls_total` | counter | `endpoint`, `method`, `status` |
+| `api_auth_attempts_total` | counter | `result` (`success`/`failure`), `type` |
+| `api_auth_failures_total` | counter | `reason` |
+
+### WAF / Security
+| Metric | Type | Labels |
+|---|---|---|
+| `nginx_waf_inspection_duration_seconds` | histogram | `le` (+ host) |
+| `nginx_http_suspicious_requests_total` | counter | `host`, `reason` |
+
+## Deliberately NOT built (no backing metric on this endpoint)
+
+These rows from the brief have **no real metric** on the OpenResty exporter. Rather
+than invent names, the dashboard substitutes the closest real signal and the panel
+carries a note. See `PANELS.md` for the substitution used in each case.
+
+| Requested row | Missing metric family | Substitution used |
+|---|---|---|
+| Row 11 Go Runtime (goroutines, heap, GC…) | `go_*` | Text note — not exported by lua-prometheus. |
+| Row 13 Prometheus Scrape | `scrape_*` / `promhttp_*` | `up` + `scrape_duration_seconds` — **synthesised by the scraping Prometheus**, so they render only when this endpoint is a scrape target. |
+| Row 14 Resource Usage (CPU/RSS/FD) | `process_*` | `nginx_http_connections` (closest available) + text note. |
+| Var `namespace` | no `namespace` label | Kept as a query var; resolves to *None* on this endpoint (populates if scraped inside k8s with relabeling). |
+
+## Cardinality snapshot (at build time)
+- `wslproxy_backend_healthy`: 4 series
+- `wslproxy_backend_requests_total`: 126 series / 38 `rule_id` / 30 `backend_label` / 20 distinct statuses
+- `nginx_proxy_requests_total`: 631 distinct `upstream`
+- `nginx_http_requests_total`: many `host` values (per-vhost)

@@ -1,0 +1,27 @@
+# Prometheus scrape config for WSL Proxy.
+# Add under scrape_configs: in prometheus.yml. HTTPS + long-ish interval because
+# the endpoint is large (~5MB, high-cardinality per-vhost/per-ip series).
+scrape_configs:
+  - job_name: wslproxy
+    scheme: https
+    metrics_path: /metrics
+    scrape_interval: 30s
+    scrape_timeout: 20s
+    static_configs:
+      - targets:
+          - prod-our.wslproxy.com        # port 443 implied by scheme https
+        labels:
+          env: production
+          service: wslproxy
+    # The endpoint emits no instance/job/namespace labels itself; Prometheus
+    # attaches instance=<target> and job=wslproxy automatically. Uncomment to
+    # trim the very high-cardinality per-IP series if it strains TSDB:
+    # metric_relabel_configs:
+    #   - source_labels: [__name__]
+    #     regex: nginx_http_requests_by_ip_total
+    #     action: drop
+
+# Wire the rules into prometheus.yml:
+# rule_files:
+#   - /etc/prometheus/rules/recording-rules.yaml
+#   - /etc/prometheus/rules/alert-rules.yaml

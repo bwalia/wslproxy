@@ -1,0 +1,109 @@
+# Prometheus alerting rules for WSL Proxy - Backend Health
+# Thresholds mirror the dashboard: Error 1%/5%, Latency p95 100ms/300ms, Availability 99%.
+# Load via rule_files: in prometheus.yml (Alertmanager routes on severity label).
+groups:
+  - name: wslproxy_backend.alerts
+    rules:
+      # ---- Backend health -----------------------------------------------
+      - alert: WSLProxyBackendUnhealthy
+        expr: wslproxy_backend_healthy == 0
+        for: 2m
+        labels: {severity: critical, service: wslproxy}
+        annotations:
+          summary: "Backend {{ $labels.backend_label }} is UNHEALTHY"
+          description: "Backend {{ $labels.backend_label }} (rule {{ $labels.rule_id }}) has reported unhealthy for >2m."
+
+      - alert: WSLProxyAllBackendsUnhealthy
+        expr: count(wslproxy_backend_healthy == 1) == 0 and count(wslproxy_backend_healthy) > 0
+        for: 1m
+        labels: {severity: critical, service: wslproxy, page: "true"}
+        annotations:
+          summary: "ALL WSL Proxy backends are unhealthy"
+          description: "No backend is reporting healthy. Total outage risk."
+
+      # ---- Error rate (dashboard thresholds 1% / 5%) ---------------------
+      - alert: WSLProxyHighErrorRateWarning
+        expr: |
+          100 * sum(rate(nginx_http_errors_total[5m]))
+            / clamp_min(sum(rate(nginx_http_requests_total[5m])), 1) > 1
+        for: 10m
+        labels: {severity: warning, service: wslproxy}
+        annotations:
+          summary: "Edge error rate >1% for 10m"
+          description: "Cluster HTTP error rate is {{ printf \"%.2f\" $value }}% (warn >1%)."
+
+      - alert: WSLProxyHighErrorRateCritical
+        expr: |
+          100 * sum(rate(nginx_http_errors_total[5m]))
+            / clamp_min(sum(rate(nginx_http_requests_total[5m])), 1) > 5
+        for: 5m
+        labels: {severity: critical, service: wslproxy}
+        annotations:
+          summary: "Edge error rate >5% for 5m"
+          description: "Cluster HTTP error rate is {{ printf \"%.2f\" $value }}% (crit >5%)."
+
+      - alert: WSLProxyBackend5xxSpike
+        expr: |
+          100 * sum by (backend_label) (rate(wslproxy_backend_requests_total{status=~"5.."}[5m]))
+            / clamp_min(sum by (backend_label) (rate(wslproxy_backend_requests_total[5m])), 0.0001) > 5
+        for: 5m
+        labels: {severity: warning, service: wslproxy}
+        annotations:
+          summary: "Backend {{ $labels.backend_label }} 5xx >5%"
+          description: "Backend {{ $labels.backend_label }} 5xx ratio is {{ printf \"%.2f\" $value }}%."
+
+      # ---- Latency (dashboard thresholds 100ms / 300ms) -----------------
+      - alert: WSLProxyBackendLatencyWarning
+        expr: |
+          histogram_quantile(0.95, sum by (backend_label, le) (rate(wslproxy_backend_response_seconds_bucket[5m]))) > 0.1
+        for: 10m
+        labels: {severity: warning, service: wslproxy}
+        annotations:
+          summary: "Backend {{ $labels.backend_label }} p95 latency >100ms"
+          description: "p95 latency is {{ printf \"%.3f\" $value }}s (warn >0.1s)."
+
+      - alert: WSLProxyBackendLatencyCritical
+        expr: |
+          histogram_quantile(0.95, sum by (backend_label, le) (rate(wslproxy_backend_response_seconds_bucket[5m]))) > 0.3
+        for: 5m
+        labels: {severity: critical, service: wslproxy}
+        annotations:
+          summary: "Backend {{ $labels.backend_label }} p95 latency >300ms"
+          description: "p95 latency is {{ printf \"%.3f\" $value }}s (crit >0.3s)."
+
+      # ---- Availability (dashboard threshold 99%) -----------------------
+      - alert: WSLProxyAvailabilityBelow99
+        expr: |
+          100 * (1 - sum(rate(nginx_http_5xx_errors_total[5m]))
+            / clamp_min(sum(rate(nginx_http_requests_total[5m])), 1)) < 99
+        for: 10m
+        labels: {severity: critical, service: wslproxy}
+        annotations:
+          summary: "Availability below 99%"
+          description: "Non-5xx availability is {{ printf \"%.2f\" $value }}% (SLO 99%)."
+
+  - name: wslproxy_edge.alerts
+    rules:
+      - alert: WSLProxyTargetDown
+        expr: up{job=~".*wslproxy.*"} == 0
+        for: 2m
+        labels: {severity: critical, service: wslproxy}
+        annotations:
+          summary: "WSL Proxy scrape target down"
+          description: "Prometheus cannot scrape {{ $labels.instance }} for >2m."
+
+      - alert: WSLProxyAuthBruteForce
+        expr: sum(rate(api_auth_failures_total[5m])) > 1
+        for: 5m
+        labels: {severity: warning, service: wslproxy, category: security}
+        annotations:
+          summary: "Elevated admin auth failures"
+          description: "Auth failure rate is {{ printf \"%.2f\" $value }}/s — possible brute force."
+
+      - alert: WSLProxySuspiciousTraffic
+        expr: sum(rate(nginx_http_suspicious_requests_total[5m])) > 1
+        for: 10m
+        labels: {severity: warning, service: wslproxy, category: security}
+        annotations:
+          summary: "Elevated suspicious request rate"
+          description: "Suspicious request rate {{ printf \"%.2f\" $value }}/s."

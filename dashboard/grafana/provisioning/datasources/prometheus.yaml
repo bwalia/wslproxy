@@ -1,0 +1,27 @@
+# Grafana datasource provisioning — WSL Proxy Prometheus
+# Drop into /etc/grafana/provisioning/datasources/ (or mount via Helm/compose).
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    uid: wslproxy-prometheus          # referenced by the dashboard's ${datasource} var default
+    type: prometheus
+    access: proxy
+    # Point this at the Prometheus SERVER that scrapes prod-our.wslproxy.com/metrics,
+    # NOT at the raw /metrics endpoint. Grafana needs a PromQL API (/api/v1/query).
+    url: http://prometheus:9090
+    isDefault: true
+    jsonData:
+      httpMethod: POST
+      timeInterval: "15s"            # match your scrape_interval
+      manageAlerts: true
+      prometheusType: Prometheus
+      cacheLevel: "Low"
+      incrementalQuerying: true
+    editable: true
+
+# --------------------------------------------------------------------------
+# If you have NO Prometheus server and want Grafana to read the endpoint
+# directly, install the Infinity datasource instead — but note that PromQL
+# functions (rate/histogram_quantile/increase) will NOT work against raw text.
+# A real Prometheus server scraping the endpoint is strongly recommended.
