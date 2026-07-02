@@ -420,14 +420,14 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "observed error ratio \u00f7 error budget (0.1%). >1 = burning budget faster than allowed; >10 = fast-burn, page-worthy.",
+      "description": "5xx ratio \u00f7 error budget (0.1%), 5m window. >1 = burning budget faster than allowed; >10 = fast-burn, page-worthy. Multi-window burn alerts ship in prometheus/rules/sre-rules.yaml.",
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "(100 * sum(rate(nginx_http_errors_total{env=~\"$env\",host=~\"$host\"}[5m])) / clamp_min(sum(rate(nginx_http_requests_total{env=~\"$env\",host=~\"$host\"}[5m])), 1) / 100) / 0.001",
+          "expr": "sum(rate(nginx_http_5xx_errors_total{env=~\"$env\",host=~\"$host\"}[5m])) / clamp_min(sum(rate(nginx_http_requests_total{env=~\"$env\",host=~\"$host\"}[5m])), 1) / 0.001",
           "legendFormat": "",
           "instant": true,
           "range": false,

@@ -38,7 +38,8 @@ dashboard/
 │   ├── rules/
 │   │   ├── recording-rules.yaml            ← pre-computed aggregations (backend)
 │   │   ├── alert-rules.yaml                ← SRE alerts (backend, mirrors thresholds)
-│   │   └── cache-rules.yaml                ← cache recording + alert rules
+│   │   ├── cache-rules.yaml                ← cache recording + alert rules
+│   │   └── sre-rules.yaml                  ← SLO error-budget burn + golden-signal alerts
 │   └── scrape/scrape-config.yaml           ← scrape_config for the endpoint
 └── scripts/
     ├── build_dashboard.py                  ← regenerates the backend-health JSON
@@ -54,7 +55,17 @@ rule_files:
   - /etc/prometheus/rules/recording-rules.yaml
   - /etc/prometheus/rules/alert-rules.yaml
   - /etc/prometheus/rules/cache-rules.yaml
+  - /etc/prometheus/rules/sre-rules.yaml
 ```
+
+**SLO error-budget alerts** (`sre-rules.yaml`) back the SRE dashboard. SLI = success
+ratio `1 - 5xx/total`; SLO = 99.9% → budget 0.1%. Burn rate = `(5xx/total) / 0.001`.
+Multi-window/multi-burn-rate alerts (Google SRE Workbook) fire only when a long AND a
+short window both exceed the threshold: **14.4×** (page, 2% budget/1h), **6×** (page, 5%/6h),
+**3×** (ticket, 10%/1d), **1×** (ticket, trending). Plus p95-latency, metric-emit-error,
+and auth-failure/suspicious-surge alerts. The rules aggregate cluster-wide — add
+`{env="prod"}` to the `nginx_http_*` selectors if you scrape multiple envs and want the
+SLO to track prod only.
 
 ## Architecture
 ```

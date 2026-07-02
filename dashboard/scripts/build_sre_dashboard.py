@@ -237,6 +237,10 @@ ERR_RATIO = ("100 * sum(rate(nginx_http_errors_total%s[5m])) "
              "/ clamp_min(sum(rate(nginx_http_requests_total%s[5m])), 1)" % (HF, HF))
 AVAIL = ("100 * (1 - sum(rate(nginx_http_5xx_errors_total%s[5m])) "
          "/ clamp_min(sum(rate(nginx_http_requests_total%s[5m])), 1))" % (HF, HF))
+# SLI = 5xx (server-side failures) ÷ total. Burn rate = that ratio ÷ error budget.
+# Same definition backs prometheus/rules/sre-rules.yaml so dashboard and alerts agree.
+BURN_5M = ("sum(rate(nginx_http_5xx_errors_total%s[5m])) "
+           "/ clamp_min(sum(rate(nginx_http_requests_total%s[5m])), 1) / %s" % (HF, HF, BUDGET))
 
 
 def bq(p):   # backend latency quantile
@@ -282,10 +286,11 @@ L.add(gauge("Availability % (non-5xx, 5m)", [target(AVAIL, "", instant=True)],
             thr=AVAIL_THR, minv=95, maxv=100,
             desc="Share of requests not returning 5xx"), w=5, h=7, x=0)
 L.add(stat("Error-Budget Burn Rate (99.9% SLO)",
-           [target("(%s / 100) / %s" % (ERR_RATIO, BUDGET), "", instant=True)],
+           [target(BURN_5M, "", instant=True)],
            unit="none", decimals=2, thr=BURN_THR, color_mode="background", graph=True,
-           desc="observed error ratio ÷ error budget (%.1f%%). >1 = burning budget faster than "
-                "allowed; >10 = fast-burn, page-worthy." % (BUDGET * 100)), w=5, h=7, x=5)
+           desc="5xx ratio ÷ error budget (%.1f%%), 5m window. >1 = burning budget faster than "
+                "allowed; >10 = fast-burn, page-worthy. Multi-window burn alerts ship in "
+                "prometheus/rules/sre-rules.yaml." % (BUDGET * 100)), w=5, h=7, x=5)
 L.add(stat("Requests / sec", [target(RATE_REQ, "", instant=True)],
            unit="reqps", decimals=1, graph=True, desc="TRAFFIC golden signal"), w=3, h=7, x=10)
 L.add(stat("Error Rate %", [target(ERR_RATIO, "", instant=True)],
