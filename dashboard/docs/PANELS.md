@@ -20,10 +20,10 @@ Colour convention throughout: 🟢 healthy · 🟡 warning · 🔴 critical · �
 ## Row 1 · Executive Overview
 | Panel | Type | PromQL |
 |---|---|---|
-| Total Backends | Stat | `count(count by (backend_label) (wslproxy_backend_requests_total))` |
+| Backends (observed) | Stat | `count(count by (backend_label) (wslproxy_backend_requests_total))` — counts backends that have **served traffic**; lower than the admin UI's configured count because zero-traffic backends emit no metric and a shared address dedupes to one label. |
 | Healthy Backends | Stat | `count(wslproxy_backend_healthy == 1) or vector(0)` |
 | Unhealthy Backends | Stat (bg) | `count(wslproxy_backend_healthy == 0) or vector(0)` |
-| Total Rules | Stat | `count(count by (rule_id) (wslproxy_backend_requests_total))` |
+| Rules (observed) | Stat | `count(count by (rule_id) (wslproxy_backend_requests_total))` — rules that routed ≥1 request. |
 | Active Rules (5m) | Stat | `count(count by (rule_id) (rate(wslproxy_backend_requests_total[5m]) > 0)) or vector(0)` |
 | Total Requests | Stat | `sum(nginx_http_requests_total)` |
 | Requests / sec | Stat+spark | `sum(rate(nginx_http_requests_total[5m]))` |

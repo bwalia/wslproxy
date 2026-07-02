@@ -88,3 +88,10 @@ The OpenResty exporter does **not** emit Go-runtime, process, or Prometheus-inte
 metrics. Rows 11 (Go Runtime), 13 (Prometheus Scrape) and 14 (Resource Usage) therefore
 carry explanatory notes and use the closest real signal (connection state, `up`,
 `scrape_duration_seconds`). This is intentional — see `METRICS_INVENTORY.md`.
+
+**Observed vs configured backends.** The Executive Overview shows **Backends (observed)** —
+distinct backends that have actually served traffic (`wslproxy_backend_requests_total`
+creates a series lazily on first request). This is normally **lower** than the admin UI's
+configured-backend count: zero-traffic backends emit no metric and are invisible to
+Prometheus, and one address shared by several rules dedupes to a single `backend_label`.
+Prometheus cannot report the config-level total — that number lives in the admin API.

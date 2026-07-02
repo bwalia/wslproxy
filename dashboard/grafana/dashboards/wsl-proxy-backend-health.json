@@ -496,12 +496,12 @@
     },
     {
       "type": "stat",
-      "title": "Total Backends",
+      "title": "Backends (observed)",
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "",
+      "description": "Distinct backends that have SERVED traffic (a `wslproxy_backend_requests_total` series exists). This is lower than the admin UI's configured-backend count: backends with zero traffic emit no metric and are invisible to Prometheus, and the same address shared by multiple rules counts once.",
       "targets": [
         {
           "datasource": {
@@ -693,12 +693,12 @@
     },
     {
       "type": "stat",
-      "title": "Total Rules",
+      "title": "Rules (observed)",
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "",
+      "description": "Rules that have routed at least one request (config may define more).",
       "targets": [
         {
           "datasource": {

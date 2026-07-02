@@ -240,18 +240,22 @@ L.newline(6)
 # ==========================================================================
 L.row("1 · Executive Overview")
 ov = [
-    ("Total Backends", "count(count by (backend_label) (wslproxy_backend_requests_total))", "short", None, "value"),
-    ("Healthy Backends", "count(wslproxy_backend_healthy == 1) or vector(0)", "short", HEALTH_THR, "value"),
+    ("Backends (observed)", "count(count by (backend_label) (wslproxy_backend_requests_total))", "short", None, "value",
+     "Distinct backends that have SERVED traffic (a `wslproxy_backend_requests_total` series exists). "
+     "This is lower than the admin UI's configured-backend count: backends with zero traffic emit no "
+     "metric and are invisible to Prometheus, and the same address shared by multiple rules counts once."),
+    ("Healthy Backends", "count(wslproxy_backend_healthy == 1) or vector(0)", "short", HEALTH_THR, "value", ""),
     ("Unhealthy Backends", "count(wslproxy_backend_healthy == 0) or vector(0)",
-     "short", thresholds([{"color": "green", "value": None}, {"color": "red", "value": 1}]), "background"),
-    ("Total Rules", "count(count by (rule_id) (wslproxy_backend_requests_total))", "short", None, "value"),
+     "short", thresholds([{"color": "green", "value": None}, {"color": "red", "value": 1}]), "background", ""),
+    ("Rules (observed)", "count(count by (rule_id) (wslproxy_backend_requests_total))", "short", None, "value",
+     "Rules that have routed at least one request (config may define more)."),
     ("Active Rules (5m)",
-     "count(count by (rule_id) (rate(wslproxy_backend_requests_total[5m]) > 0)) or vector(0)", "short", None, "value"),
-    ("Total Requests", "sum(nginx_http_requests_total)", "short", None, "value"),
+     "count(count by (rule_id) (rate(wslproxy_backend_requests_total[5m]) > 0)) or vector(0)", "short", None, "value", ""),
+    ("Total Requests", "sum(nginx_http_requests_total)", "short", None, "value", ""),
 ]
 x = 0
-for title, expr, unit, thr, cm in ov:
-    L.add(stat(title, [target(expr, "", instant=True)], unit=unit, thr=thr, color_mode=cm), w=4, h=4, x=x)
+for title, expr, unit, thr, cm, desc in ov:
+    L.add(stat(title, [target(expr, "", instant=True)], unit=unit, thr=thr, color_mode=cm, desc=desc), w=4, h=4, x=x)
     x += 4
 L.newline(4)
 # second line of executive stats
