@@ -1,27 +1,81 @@
-# Prometheus scrape config for WSL Proxy.
-# Add under scrape_configs: in prometheus.yml. HTTPS + long-ish interval because
-# the endpoint is large (~5MB, high-cardinality per-vhost/per-ip series).
+# Prometheus scrape config for WSL Proxy — ALL environments.
+#
+# The `/metrics` endpoint lives on the MAIN proxy server block (that is why
+# prod-our.wslproxy.com/metrics answers on 443). It is IP-allowlisted to
+# 127.0.0.1, ::1, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, Cloudflare
+# (172.71.0.0/16) and 193.237.176.232. Whatever host runs this Prometheus must
+# fall inside one of those ranges for each target, or the target returns 403.
+#
+# Each job below tags its series with an `env` label. The Grafana cache /
+# backend dashboards read that label via the `env` template variable — leave it
+# on "All" to aggregate every environment, or pick one to scope the view.
+#
+# ── Reachability notes ────────────────────────────────────────────────────
+#  • int / test are on the LAN (192.168.1.0/24) → scrape by IP over http.
+#  • prod pop0 is Cloudflare-fronted as prod-our.wslproxy.com → scrape by
+#    hostname over https (Cloudflare IP is allowlisted).
+#  • prod lon1 (72.62.211.28) has no public metrics hostname here; scrape it
+#    only from a host inside its allowlist (adjust the target/scheme to match
+#    your network, or drop the job if it is unreachable).
 scrape_configs:
-  - job_name: wslproxy
+  # ---- Integration (LAN) ------------------------------------------------
+  - job_name: wslproxy-int
+    scheme: http
+    metrics_path: /metrics
+    scrape_interval: 30s
+    scrape_timeout: 20s
+    static_configs:
+      - targets: ["192.168.1.193"]        # http → port 80
+        labels: {env: int, service: wslproxy}
+
+  # ---- Test (LAN) -------------------------------------------------------
+  - job_name: wslproxy-test
+    scheme: http
+    metrics_path: /metrics
+    scrape_interval: 30s
+    scrape_timeout: 20s
+    static_configs:
+      - targets: ["192.168.1.140"]        # http → port 80
+        labels: {env: test, service: wslproxy}
+
+  # ---- Production pop0 (Cloudflare-fronted) -----------------------------
+  - job_name: wslproxy-prod-pop0
     scheme: https
     metrics_path: /metrics
     scrape_interval: 30s
     scrape_timeout: 20s
     static_configs:
-      - targets:
-          - prod-our.wslproxy.com        # port 443 implied by scheme https
-        labels:
-          env: production
-          service: wslproxy
-    # The endpoint emits no instance/job/namespace labels itself; Prometheus
-    # attaches instance=<target> and job=wslproxy automatically. Uncomment to
-    # trim the very high-cardinality per-IP series if it strains TSDB:
-    # metric_relabel_configs:
-    #   - source_labels: [__name__]
-    #     regex: nginx_http_requests_by_ip_total
-    #     action: drop
+      - targets: ["prod-our.wslproxy.com"]   # https → port 443
+        labels: {env: prod, region: pop0, service: wslproxy}
+
+  # ---- Production lon1 --------------------------------------------------
+  #   Enable once you have a reachable, allowlisted route to this node.
+  #   Scraping a public IP directly needs your Prometheus egress IP added to
+  #   the /metrics allow list, and `tls_config.insecure_skip_verify` if you
+  #   hit the IP over https without a matching cert/SNI.
+  # - job_name: wslproxy-prod-lon1
+  #   scheme: https
+  #   metrics_path: /metrics
+  #   scrape_interval: 30s
+  #   scrape_timeout: 20s
+  #   tls_config:
+  #     insecure_skip_verify: true
+  #   static_configs:
+  #     - targets: ["72.62.211.28"]
+  #       labels: {env: prod, region: lon1, service: wslproxy}
+
+# The endpoint emits no instance/job/env labels itself — Prometheus attaches
+# instance=<target> and job=<job_name>, and the static `labels:` above add env.
+#
+# The endpoint is large (~5 MB, high-cardinality per-vhost / per-IP series). To
+# trim the heaviest series if TSDB strains, add per-job:
+#   metric_relabel_configs:
+#     - source_labels: [__name__]
+#       regex: nginx_http_requests_by_ip_total
+#       action: drop
 
 # Wire the rules into prometheus.yml:
 # rule_files:
 #   - /etc/prometheus/rules/recording-rules.yaml
 #   - /etc/prometheus/rules/alert-rules.yaml
+#   - /etc/prometheus/rules/cache-rules.yaml

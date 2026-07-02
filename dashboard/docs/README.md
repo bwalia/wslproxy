@@ -106,6 +106,21 @@ metrics. Rows 11 (Go Runtime), 13 (Prometheus Scrape) and 14 (Resource Usage) th
 carry explanatory notes and use the closest real signal (connection state, `up`,
 `scrape_duration_seconds`). This is intentional — see `METRICS_INVENTORY.md`.
 
+## Cache dashboard: all environments + snapshot vs counters
+- **Show all environments, not just one.** `prometheus/scrape/scrape-config.yaml` now
+  defines one job per environment (int / test / prod-pop0, plus a commented prod-lon1),
+  each tagging its series with an `env` label. Apply it to the Prometheus your Grafana
+  datasource points at, then use the dashboard's **Environment** variable — leave it on
+  **All** to aggregate every env, or pick one. If a dashboard only shows one env's data,
+  its Prometheus is only scraping that one target (check `…:9090/api/v1/targets`).
+- **The cache dashboard will not match the admin UI's Cache page — by design.** Grafana
+  shows cumulative *event counters* (`nginx_cache_{hits,misses,stores,bypasses}_total`);
+  the admin UI's `GET /api/cache/stats` shows a *live snapshot of current cache contents*
+  (entry count, bytes, top URLs, Docker-blob disk cache). One stored object served 500×
+  = 1 admin-UI entry but 1 store + 500 hits here. No cache size/entry/eviction/TTL metric
+  exists on `/metrics`, so Grafana can't reproduce those numbers. The dashboard's top
+  "read me" callout panel explains this and links to the admin UI.
+
 **Observed vs configured backends.** The Executive Overview shows **Backends (observed)** —
 distinct backends that have actually served traffic (`wslproxy_backend_requests_total`
 creates a series lazily on first request). This is normally **lower** than the admin UI's

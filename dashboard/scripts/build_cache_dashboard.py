@@ -24,7 +24,11 @@ import json
 import os
 
 DS = {"type": "prometheus", "uid": "${datasource}"}
-HF = '{host=~"$host"}'  # host template filter, applied to every cache selector
+# host + env template filter, applied to every cache selector. `env` comes from the
+# per-target label set in scrape-config.yaml; `=~".*"` (the All value) also matches
+# series that carry no `env` label, so this is safe against a single-target Prometheus.
+HF = '{host=~"$host",env=~"$env"}'
+CE = 'nginx_cache_enabled{env=~"$env"}'  # cache-enabled gauge, env-filtered
 
 
 # ---------------------------------------------------------------- layout helper
@@ -220,7 +224,7 @@ L.add(text("Overview", info_md), w=10, h=6, x=0)
 L.add(stat("Last Refresh", [target("vector(time()*1000)", "", instant=True)],
            unit="dateTimeAsIso", text_mode="value", desc="Server time at last refresh"), w=4, h=6, x=10)
 L.add(stat("Cache-Enabled Hosts",
-           [target("count(nginx_cache_enabled == 1) or vector(0)", "", instant=True)],
+           [target("count(nginx_cache_enabled{env=~\"$env\"} == 1) or vector(0)", "", instant=True)],
            unit="short", desc="vHosts with caching turned on (nginx_cache_enabled == 1)"), w=4, h=6, x=14)
 L.add(stat("Scrape Target Up", [target("up{instance=~\"$instance\"}", "", instant=True)],
            mappings=[{"type": "value", "options": {"0": {"text": "DOWN", "color": "red"},
@@ -228,6 +232,32 @@ L.add(stat("Scrape Target Up", [target("up{instance=~\"$instance\"}", "", instan
            thr=ENABLED_THR, color_mode="background", text_mode="value",
            desc="Prometheus-synthesised `up` for this endpoint"), w=6, h=6, x=18)
 L.newline(6)
+
+# ==========================================================================
+# CALLOUT — LIVE CACHE CONTENTS vs COUNTERS
+# ==========================================================================
+L.row("📸  Live Cache Contents vs. Counters — read me")
+L.add(text("Why this dashboard does NOT match the admin UI 'Cache' page",
+           "This dashboard shows **cumulative cache *event* counters** from Prometheus "
+           "(`nginx_cache_{hits,misses,stores,bypasses}_total`) — *how many times* each event "
+           "happened over the selected time range.\n\n"
+           "The admin UI cache page (`GET /api/cache/stats` on the proxy) shows a **live snapshot "
+           "of what is currently stored** — entry count, total size in bytes, entries by host/"
+           "extension, top URLs, and the Docker-blob disk cache. It is a *gauge of present contents*, "
+           "not a counter of events.\n\n"
+           "**They are not meant to be equal.** One cached object that is stored once and then served "
+           "500 times = **1 entry** in the admin UI but **1 store + 500 hits** here. The shared dict is "
+           "also wiped on every OpenResty reload and entries expire by TTL, so the admin UI shrinks while "
+           "these counters only grow. There is **no** cache-size / entry-count / eviction / TTL metric on "
+           "the `/metrics` endpoint, so Grafana cannot reproduce the admin UI's numbers.\n\n"
+           "➡️ For **current cache size & contents**, use the admin UI: "
+           "`https://prod-our.wslproxy.com/#/` → Cache (or `GET /api/cache/stats`).  \n"
+           "➡️ For **cache effectiveness over time** (hit ratio, bypass reasons, per-host/-extension "
+           "trends), use this dashboard.\n\n"
+           "Use the **Environment** variable (top-left) to scope to one env, or leave it on **All** to "
+           "aggregate every scraped environment (int / test / prod)."),
+      w=24, h=9, x=0)
+L.newline(9)
 
 # ==========================================================================
 # ROW 1 — CACHE OVERVIEW
@@ -252,7 +282,7 @@ for title, expr, unit in ov:
     L.add(stat(title, [target(expr, "", instant=True)], unit=unit, decimals=0), w=4, h=4, x=x)
     x += 4
 L.add(stat("Hosts Caching Enabled",
-           [target("count(nginx_cache_enabled == 1) or vector(0)", "", instant=True)],
+           [target("count(nginx_cache_enabled{env=~\"$env\"} == 1) or vector(0)", "", instant=True)],
            unit="short", thr=ENABLED_THR, color_mode="value"), w=4, h=4, x=20)
 L.newline(4)
 # second line
@@ -299,7 +329,7 @@ L.newline(8)
 # ==========================================================================
 L.row("3 · Per-Host Cache Performance")
 ph_targets = [
-    target("max by (host) (nginx_cache_enabled)", "", instant=True, fmt="table", ref="A"),
+    target("max by (host) (nginx_cache_enabled{env=~\"$env\"})", "", instant=True, fmt="table", ref="A"),
     target("sum by (host) (increase(nginx_cache_hits_total%s[$__range]))" % HF,
            "", instant=True, fmt="table", ref="B"),
     target("sum by (host) (increase(nginx_cache_misses_total%s[$__range]))" % HF,
@@ -424,12 +454,12 @@ L.newline(8)
 # ==========================================================================
 L.row("8 · Cache Enablement")
 L.add(statetimeline("Caching Enabled by Host",
-                    [target("nginx_cache_enabled", "{{host}}")],
+                    [target("nginx_cache_enabled{env=~\"$env\"}", "{{host}}")],
                     mappings=ENABLED_MAP, thr=ENABLED_THR,
                     desc="Green=caching enabled(1) Red=disabled(0) per vHost over time"), w=16, h=8, x=0)
-L.add(stat("Enabled Hosts", [target("count(nginx_cache_enabled == 1) or vector(0)", "", instant=True)],
+L.add(stat("Enabled Hosts", [target("count(nginx_cache_enabled{env=~\"$env\"} == 1) or vector(0)", "", instant=True)],
            thr=ENABLED_THR, color_mode="background"), w=4, h=8, x=16)
-L.add(stat("Disabled Hosts", [target("count(nginx_cache_enabled == 0) or vector(0)", "", instant=True)],
+L.add(stat("Disabled Hosts", [target("count(nginx_cache_enabled{env=~\"$env\"} == 0) or vector(0)", "", instant=True)],
            thr=thresholds([{"color": "green", "value": None}, {"color": "yellow", "value": 1}]),
            color_mode="background"), w=4, h=8, x=20)
 L.newline(8)
@@ -502,9 +532,7 @@ def qvar(name, label, query, multi=True, allv=True, includeAll=True, regex=""):
 templating = {"list": [
     {"name": "datasource", "label": "Datasource", "type": "datasource",
      "query": "prometheus", "refresh": 1, "current": {}, "hide": 0, "regex": ""},
-    {"name": "environment", "label": "Environment", "type": "custom",
-     "query": "Production", "current": {"text": "Production", "value": "Production"},
-     "options": [{"text": "Production", "value": "Production", "selected": True}], "hide": 0},
+    qvar("env", "Environment", "label_values(nginx_cache_misses_total, env)"),
     qvar("job", "Job", "label_values(nginx_cache_misses_total, job)"),
     qvar("instance", "Instance", "label_values(nginx_cache_misses_total, instance)"),
     qvar("host", "Host (vHost)", "label_values(nginx_cache_misses_total, host)"),
