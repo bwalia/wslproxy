@@ -678,7 +678,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(rate(nginx_http_requests_total{env=~\"$env\",host=~\"$host\"}[5m]))",
+          "expr": "sum(rate(nginx_http_requests_total{env=~\"$env\",host=~\"$host\"}[5m])) or vector(0)",
           "legendFormat": "",
           "instant": true,
           "range": false,
@@ -879,14 +879,14 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "SATURATION golden signal",
+      "description": "SATURATION golden signal \u2014 reading+writing+waiting (the exporter emits no separate 'active' state)",
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(nginx_http_connections{env=~\"$env\",state=\"active\"})",
+          "expr": "sum(nginx_http_connections{env=~\"$env\"}) or vector(0)",
           "legendFormat": "",
           "instant": true,
           "range": false,
@@ -1164,7 +1164,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(rate(nginx_http_5xx_errors_total{env=~\"$env\",host=~\"$host\"}[5m]))",
+          "expr": "sum(rate(nginx_http_5xx_errors_total{env=~\"$env\",host=~\"$host\"}[5m])) or vector(0)",
           "legendFormat": "",
           "instant": true,
           "range": false,
@@ -1862,7 +1862,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(rate(nginx_http_requests_total{env=~\"$env\",host=~\"$host\"}[5m]))",
+          "expr": "sum(rate(nginx_http_requests_total{env=~\"$env\",host=~\"$host\"}[5m])) or vector(0)",
           "legendFormat": "edge requests/s",
           "instant": false,
           "range": true,
@@ -1874,7 +1874,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(rate(nginx_proxy_requests_total{env=~\"$env\"}[5m]))",
+          "expr": "sum(rate(nginx_proxy_requests_total{env=~\"$env\"}[5m])) or vector(0)",
           "legendFormat": "proxied responses/s",
           "instant": false,
           "range": true,
@@ -2234,7 +2234,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(rate(nginx_http_4xx_errors_total{env=~\"$env\",host=~\"$host\"}[5m]))",
+          "expr": "sum(rate(nginx_http_4xx_errors_total{env=~\"$env\",host=~\"$host\"}[5m])) or vector(0)",
           "legendFormat": "4xx",
           "instant": false,
           "range": true,
@@ -2246,7 +2246,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(rate(nginx_http_5xx_errors_total{env=~\"$env\",host=~\"$host\"}[5m]))",
+          "expr": "sum(rate(nginx_http_5xx_errors_total{env=~\"$env\",host=~\"$host\"}[5m])) or vector(0)",
           "legendFormat": "5xx",
           "instant": false,
           "range": true,
@@ -2258,7 +2258,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(rate(nginx_http_errors_total{env=~\"$env\",host=~\"$host\"}[5m]))",
+          "expr": "sum(rate(nginx_http_errors_total{env=~\"$env\",host=~\"$host\"}[5m])) or vector(0)",
           "legendFormat": "all errors",
           "instant": false,
           "range": true,
@@ -3786,15 +3786,15 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "",
+      "description": "Total in-flight connections = reading+writing+waiting (nginx emits no separate 'active' gauge)",
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "nginx_http_connections{env=~\"$env\",state=\"active\"}",
-          "legendFormat": "active",
+          "expr": "sum(nginx_http_connections{env=~\"$env\"}) or vector(0)",
+          "legendFormat": "active (r+w+waiting)",
           "instant": false,
           "range": true,
           "format": "time_series",
@@ -4227,7 +4227,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "max_over_time(sum(nginx_http_connections{env=~\"$env\",state=\"active\"})[$__range:1m])",
+          "expr": "max_over_time(sum(nginx_http_connections{env=~\"$env\"})[$__range:1m]) or vector(0)",
           "legendFormat": "",
           "instant": true,
           "range": false,
@@ -4303,7 +4303,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(rate(nginx_cache_hits_total{env=~\"$env\"}[5m]))",
+          "expr": "sum(rate(nginx_cache_hits_total{env=~\"$env\"}[5m])) or vector(0)",
           "legendFormat": "hits/s",
           "instant": false,
           "range": true,
@@ -4315,7 +4315,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(rate(nginx_cache_misses_total{env=~\"$env\"}[5m]))",
+          "expr": "sum(rate(nginx_cache_misses_total{env=~\"$env\"}[5m])) or vector(0)",
           "legendFormat": "misses/s",
           "instant": false,
           "range": true,
@@ -4327,7 +4327,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(rate(nginx_cache_bypasses_total{env=~\"$env\"}[5m]))",
+          "expr": "sum(rate(nginx_cache_bypasses_total{env=~\"$env\"}[5m])) or vector(0)",
           "legendFormat": "bypasses/s",
           "instant": false,
           "range": true,

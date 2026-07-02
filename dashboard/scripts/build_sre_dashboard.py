@@ -339,7 +339,7 @@ L.add(stat("Error-Budget Burn Rate (99.9% SLO)",
            desc="5xx ratio ÷ error budget (%.1f%%), 5m window. >1 = burning budget faster than "
                 "allowed; >10 = fast-burn, page-worthy. Multi-window burn alerts ship in "
                 "prometheus/rules/sre-rules.yaml." % (BUDGET * 100)), w=5, h=7, x=5)
-L.add(stat("Requests / sec", [target(RATE_REQ, "", instant=True)],
+L.add(stat("Requests / sec", [target(RATE_REQ + " or vector(0)", "", instant=True)],
            unit="reqps", decimals=1, graph=True, desc="TRAFFIC golden signal"), w=3, h=7, x=10)
 L.add(stat("Error Rate %", [target(ERR_RATIO, "", instant=True)],
            unit="percent", decimals=2, thr=ERR_THR, color_mode="background", graph=True,
@@ -348,8 +348,10 @@ L.add(stat("Backend p95 Latency", [target(bq("0.95"), "", instant=True)],
            unit="s", decimals=3, thr=LAT_THR, color_mode="background", graph=True,
            desc="LATENCY golden signal"), w=4, h=7, x=16)
 L.add(stat("Active Connections",
-           [target("sum(nginx_http_connections{state=\"active\"})", "", instant=True)],
-           unit="short", graph=True, desc="SATURATION golden signal"), w=4, h=7, x=20)
+           [target("sum(nginx_http_connections) or vector(0)", "", instant=True)],
+           unit="short", graph=True,
+           desc="SATURATION golden signal — reading+writing+waiting (the exporter emits no "
+                "separate 'active' state)"), w=4, h=7, x=20)
 L.newline(7)
 L.add(stat("Backend Fleet",
            [target("min(wslproxy_backend_healthy)", "", instant=True)],
@@ -362,7 +364,7 @@ L.add(stat("Healthy Backends", [target("count(wslproxy_backend_healthy == 1) or 
 L.add(stat("Unhealthy Backends", [target("count(wslproxy_backend_healthy == 0) or vector(0)", "", instant=True)],
            thr=thresholds([{"color": "green", "value": None}, {"color": "red", "value": 1}]),
            color_mode="background"), w=4, h=4, x=8)
-L.add(stat("5xx / sec", [target("sum(rate(nginx_http_5xx_errors_total%s[5m]))" % HF, "", instant=True)],
+L.add(stat("5xx / sec", [target("sum(rate(nginx_http_5xx_errors_total%s[5m])) or vector(0)" % HF, "", instant=True)],
            unit="reqps", decimals=2, color_mode="background",
            thr=thresholds([{"color": "green", "value": None}, {"color": "red", "value": 0.1}])), w=4, h=4, x=12)
 L.add(stat("Cache Hit Ratio %",
@@ -399,8 +401,8 @@ L.newline(4)
 # ==========================================================================
 L.row("Layer 3 · Traffic (golden signal)")
 L.add(timeseries("Request & Proxied-Response Rate",
-                 [target(RATE_REQ, "edge requests/s"),
-                  target("sum(rate(nginx_proxy_requests_total[5m]))", "proxied responses/s")],
+                 [target(RATE_REQ + " or vector(0)", "edge requests/s"),
+                  target("sum(rate(nginx_proxy_requests_total[5m])) or vector(0)", "proxied responses/s")],
                  unit="reqps", legend_table=True), w=12, h=8, x=0)
 L.add(timeseries("Throughput (in / out bytes)",
                  [target("sum(rate(nginx_http_request_size_bytes_sum%s[5m]))" % HF, "incoming"),
@@ -423,9 +425,9 @@ L.newline(8)
 # ==========================================================================
 L.row("Layer 4 · Errors (golden signal)")
 L.add(timeseries("Error Rates by Class",
-                 [target("sum(rate(nginx_http_4xx_errors_total%s[5m]))" % HF, "4xx"),
-                  target("sum(rate(nginx_http_5xx_errors_total%s[5m]))" % HF, "5xx"),
-                  target("sum(rate(nginx_http_errors_total%s[5m]))" % HF, "all errors")],
+                 [target("sum(rate(nginx_http_4xx_errors_total%s[5m])) or vector(0)" % HF, "4xx"),
+                  target("sum(rate(nginx_http_5xx_errors_total%s[5m])) or vector(0)" % HF, "5xx"),
+                  target("sum(rate(nginx_http_errors_total%s[5m])) or vector(0)" % HF, "all errors")],
                  unit="reqps", legend_table=True, spike=0.5), w=12, h=8, x=0)
 L.add(timeseries("Backend Failures (5xx) by Backend",
                  [target("sum by (backend_label) (rate(wslproxy_backend_requests_total{status=~\"5..\"}[5m]))",
@@ -557,8 +559,11 @@ L.newline(7)
 # LAYER 8 — SATURATION & CAPACITY
 # ==========================================================================
 L.row("Layer 8 · Saturation & Capacity (golden signal)")
-L.add(timeseries("Active Connections", [target("nginx_http_connections{state=\"active\"}", "active")],
-                 unit="short", fill=20), w=8, h=8, x=0)
+L.add(timeseries("Active Connections",
+                 [target("sum(nginx_http_connections) or vector(0)", "active (r+w+waiting)")],
+                 unit="short", fill=20,
+                 desc="Total in-flight connections = reading+writing+waiting (nginx emits no "
+                      "separate 'active' gauge)"), w=8, h=8, x=0)
 L.add(timeseries("Connection States (stacked)",
                  [target("nginx_http_connections{state=\"waiting\"}", "waiting"),
                   target("nginx_http_connections{state=\"reading\"}", "reading"),
@@ -579,7 +584,7 @@ L.add(stat("Peak Req/s (range)",
            [target("max_over_time(sum(rate(nginx_http_requests_total%s[5m]))[$__range:1m])" % HF, "", instant=True)],
            unit="reqps", decimals=1), w=4, h=7, x=16)
 L.add(stat("Peak Active Conns (range)",
-           [target("max_over_time(sum(nginx_http_connections{state=\"active\"})[$__range:1m])", "", instant=True)],
+           [target("max_over_time(sum(nginx_http_connections)[$__range:1m]) or vector(0)", "", instant=True)],
            unit="short"), w=4, h=7, x=20)
 L.newline(7)
 
@@ -588,9 +593,9 @@ L.newline(7)
 # ==========================================================================
 L.row("Layer 9 · Cache Efficiency")
 L.add(timeseries("Cache Activity Rate",
-                 [target("sum(rate(nginx_cache_hits_total[5m]))", "hits/s"),
-                  target("sum(rate(nginx_cache_misses_total[5m]))", "misses/s"),
-                  target("sum(rate(nginx_cache_bypasses_total[5m]))", "bypasses/s")],
+                 [target("sum(rate(nginx_cache_hits_total[5m])) or vector(0)", "hits/s"),
+                  target("sum(rate(nginx_cache_misses_total[5m])) or vector(0)", "misses/s"),
+                  target("sum(rate(nginx_cache_bypasses_total[5m])) or vector(0)", "bypasses/s")],
                  unit="reqps", legend_table=True), w=12, h=8, x=0)
 L.add(gauge("Cache Hit Ratio % (5m)",
             [target("100 * sum(rate(nginx_cache_hits_total[5m])) / clamp_min(sum(rate(nginx_cache_hits_total[5m])) "
