@@ -10,8 +10,13 @@ names are invented — see [`METRICS_INVENTORY.md`](./METRICS_INVENTORY.md).
 - **Dashboard 2:** `WSL Proxy - Cache` (uid `wslproxy-cache`)
   — static-content cache hit ratio, per-host/-extension breakdown, bypass reasons,
   stores by content-type · 6 template variables · 1 annotation
+- **Dashboard 3:** `WSL Proxy - SRE (10 Layers)` (uid `wslproxy-sre`)
+  — top-down SRE view in 10 layers: SLO + error-budget burn, the four golden signals
+  (traffic/errors/latency/saturation), then edge → routing → backend → cache → security.
+  A single at-a-glance "is the service healthy, and if not, which layer?" board.
 - Colour convention: 🟢 healthy · 🟡 warning · 🔴 critical · ⚪ unknown
 - Cache hit-ratio convention: 🔴 <50% · 🟡 50–80% · 🟢 ≥80%
+- SLO for the SRE dashboard's error-budget math: **99.9%** (edit `SLO` in `build_sre_dashboard.py`)
 
 ## Folder structure
 ```
@@ -24,7 +29,8 @@ dashboard/
 ├── grafana/
 │   ├── dashboards/
 │   │   ├── wsl-proxy-backend-health.json   ← backend-health dashboard
-│   │   └── wsl-proxy-cache.json            ← cache dashboard
+│   │   ├── wsl-proxy-cache.json            ← cache dashboard
+│   │   └── wsl-proxy-sre.json              ← 10-layer SRE dashboard
 │   └── provisioning/
 │       ├── dashboards/wslproxy.yaml        ← dashboard provider (loads the whole folder)
 │       └── datasources/prometheus.yaml     ← Prometheus datasource
@@ -36,7 +42,8 @@ dashboard/
 │   └── scrape/scrape-config.yaml           ← scrape_config for the endpoint
 └── scripts/
     ├── build_dashboard.py                  ← regenerates the backend-health JSON
-    └── build_cache_dashboard.py            ← regenerates the cache JSON
+    ├── build_cache_dashboard.py            ← regenerates the cache JSON
+    └── build_sre_dashboard.py              ← regenerates the 10-layer SRE JSON
 ```
 
 Both dashboards live in the same `grafana/dashboards/` folder, so the provisioning
