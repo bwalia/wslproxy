@@ -13,8 +13,9 @@ on:
       - "openresty-admin/package*.json"
       - ".github/workflows/e2e-admin-ui-login.yml"
   schedule:
-    # Hourly smoke check that the admin login is healthy
-    - cron: "0 * * * *"
+    # Thrice-daily smoke check that the admin login is healthy
+    # (00:00, 08:00, 16:00 UTC).
+    - cron: "0 0,8,16 * * *"
   workflow_dispatch:
     inputs:
       TARGET_ENV:
