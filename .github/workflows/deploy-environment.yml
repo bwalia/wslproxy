@@ -121,6 +121,12 @@ on:
       # See infra/secrets/README.md for how to generate + rotate it.
       SOPS_AGE_KEY:
         required: false
+      # SSH_PRIVATE_KEY: private key used to reach the target host in
+      # connection_mode=ssh_key. Optional — if empty, the runner is
+      # expected to already have a usable key at ~/.ssh/id_rsa (the
+      # historical behaviour for pre-provisioned runners).
+      SSH_PRIVATE_KEY:
+        required: false
 
 jobs:
   deploy:
@@ -589,6 +595,8 @@ jobs:
       # ── SSH setup (remote connections only) ──
       - name: Setup SSH and test connectivity
         if: inputs.connection_mode != 'local'
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         run: |
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
@@ -596,8 +604,14 @@ jobs:
 
           SSH_OPTS="-o BatchMode=yes -o ConnectTimeout=10"
           if [[ "${{ inputs.connection_mode }}" == "ssh_key" ]]; then
+            # If a key was passed via secret, materialise it. Otherwise
+            # fall back to a key already provisioned on the runner.
+            if [[ -n "${SSH_PRIVATE_KEY:-}" ]]; then
+              printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+              chmod 600 ~/.ssh/id_rsa
+            fi
             if [[ ! -f ~/.ssh/id_rsa ]]; then
-              echo "::error::SSH key not found at ~/.ssh/id_rsa"
+              echo "::error::SSH key not found at ~/.ssh/id_rsa and secrets.SSH_PRIVATE_KEY is empty. Set it with: gh secret set SSH_PRIVATE_KEY --repo bwalia/wslproxy < /path/to/deploy-key"
               exit 1
             fi
             SSH_OPTS="$SSH_OPTS -i ~/.ssh/id_rsa"

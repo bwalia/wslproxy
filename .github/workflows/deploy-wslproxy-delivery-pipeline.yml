@@ -265,6 +265,7 @@ jobs:
       deploy_mode: ${{ github.event.inputs.DEPLOY_MODE || 'full' }}
     secrets:
       SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
       SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
       # Kept so emergency rollback to secrets_mode: github_secret is a
       # one-line revert — no secrets need to be re-added.
@@ -393,6 +394,7 @@ jobs:
       deploy_mode: ${{ github.event.inputs.DEPLOY_MODE || 'full' }}
     secrets:
       SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
 
   # Stage 5 (acc / 187.77.179.206) was decommissioned.  Prod stages
   # below now depend directly on `deploy-test` so the pipeline still
@@ -433,6 +435,7 @@ jobs:
       deploy_mode: ${{ github.event.inputs.DEPLOY_MODE || 'full' }}
     secrets:
       SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
       # Provide BOTH — the resolver picks Vault if VAULT_ADDR/VAULT_TOKEN
       # are set AND the settings path is populated; otherwise it uses
       # SOPS_AGE_KEY.  Deploy only fails if BOTH are unavailable.
@@ -469,6 +472,7 @@ jobs:
       deploy_mode: ${{ github.event.inputs.DEPLOY_MODE || 'full' }}
     secrets:
       SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
 
   # ──────────────────────────────────────────────────────
   # Stage 5c: Deploy Prod pop1 (18.133.126.242) — AWS eu-west-2, ssh user admin
@@ -503,6 +507,7 @@ jobs:
       deploy_mode: ${{ github.event.inputs.DEPLOY_MODE || 'full' }}
     secrets:
       SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
       VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
       VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
       SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}

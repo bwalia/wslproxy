@@ -199,6 +199,7 @@ jobs:
       deploy_mode: ${{ github.event.inputs.DEPLOY_MODE || 'full' }}
     secrets:
       SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
       SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
       # Kept so emergency rollback to secrets_mode: github_secret works
       # without another commit.
@@ -324,6 +325,7 @@ jobs:
       deploy_mode: ${{ github.event.inputs.DEPLOY_MODE || 'code' }}
     secrets:
       SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
 
   # ──────────────────────────────────────────────────────
   # Summary
