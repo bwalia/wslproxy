@@ -160,7 +160,7 @@
     {
       "id": 1,
       "type": "row",
-      "title": "\u2139\ufe0f  WSL Proxy \u2014 SRE (10 Layers)",
+      "title": "\u2139\ufe0f  Dashboard Info \u2014 datasource, endpoint & what you're looking at",
       "collapsed": false,
       "gridPos": {
         "h": 1,
@@ -172,29 +172,208 @@
     },
     {
       "type": "text",
-      "title": "How to read this dashboard",
+      "title": "About \u2014 where this data comes from",
       "datasource": null,
       "options": {
         "mode": "markdown",
-        "content": "A **top-down SRE view** in 10 layers. Start at the top (SLO), and only descend when a golden signal turns yellow/red:\n\n**1** SLO & golden-signal summary \u00b7 **2** Edge / HTTP front door \u00b7 **3** Traffic \u00b7 **4** Errors \u00b7 **5** Latency \u00b7 **6** Routing & rules \u00b7 **7** Backend / upstream health \u00b7 **8** Saturation & capacity \u00b7 **9** Cache \u00b7 **10** Security, auth & observability.\n\nScope with **Environment** / **Host** (top-left); both default to **All**. SLO target for the error-budget math = **99.9%**."
+        "content": "| | |\n|---|---|\n| **Project** | WSL Proxy (OpenResty API gateway / reverse proxy) |\n| **Dashboard** | SRE \u2014 10 Layers (`uid: wslproxy-sre`) |\n| **Datasource** | `${datasource}` (Prometheus \u2014 PromQL API) |\n| **Metrics endpoint** | https://prod-our.wslproxy.com/metrics |\n| **Exporter** | OpenResty `lua-prometheus` (embedded in nginx) |\n| **Collected by** | Prometheus scraping `/metrics` every 30s \u2192 this Grafana |\n| **Scrape config** | `dashboard/prometheus/scrape/scrape-config.yaml` (one job per env) |\n| **SLO target** | 99.9% availability (error budget 0.1%) |\n"
       },
       "transparent": false,
       "id": 2,
       "gridPos": {
-        "h": 5,
-        "w": 16,
+        "h": 8,
+        "w": 9,
         "x": 0,
         "y": 1
       }
     },
     {
-      "type": "stat",
-      "title": "Scrape Up",
+      "type": "text",
+      "title": "Current scope",
+      "datasource": null,
+      "options": {
+        "mode": "markdown",
+        "content": "**You are currently viewing:**\n\n| Scope | Value |\n|---|---|\n| \ud83c\udf0d Environment | **${env:text}** |\n| \ud83d\udda5\ufe0f Instance(s) | **${instance:text}** |\n| \ud83d\udd17 Host / vHost | **${host:text}** |\n| \ud83d\uddc4\ufe0f Datasource | **${datasource:text}** |\n\n_\u201cAll\u201d = every scraped target aggregated. Change these with the variables at the very top of the dashboard. Data flows: **client \u2192 WSL Proxy (this env) \u2192 `/metrics` \u2192 Prometheus \u2192 Grafana**._"
+      },
+      "transparent": false,
+      "id": 3,
+      "gridPos": {
+        "h": 8,
+        "w": 7,
+        "x": 9,
+        "y": 1
+      }
+    },
+    {
+      "type": "table",
+      "title": "Scrape Targets (data sources feeding this dashboard)",
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "",
+      "description": "Every Prometheus target scraped for WSL Proxy. `Env`/`Region`/`Job`/`Instance` come from scrape-config.yaml labels and tell you exactly which environment / node each metric originates from. Up=1 (green) means that source is currently reporting.",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "up",
+          "legendFormat": "",
+          "instant": true,
+          "range": false,
+          "format": "table",
+          "refId": "A"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "renameByName": {
+              "env": "Env",
+              "region": "Region",
+              "service": "Service",
+              "job": "Job",
+              "instance": "Instance",
+              "Value": "Up"
+            },
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "service": true
+            }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": {
+            "sort": [
+              {
+                "field": "Env"
+              }
+            ]
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "filterable": true,
+            "inspect": false
+          },
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Up"
+            },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "0": {
+                        "text": "DOWN",
+                        "color": "red"
+                      },
+                      "1": {
+                        "text": "UP",
+                        "color": "green"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "red",
+                      "value": null
+                    },
+                    {
+                      "color": "green",
+                      "value": 1
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "fields": ""
+        }
+      },
+      "id": 4,
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 1
+      }
+    },
+    {
+      "type": "text",
+      "title": "How to read the 10 layers",
+      "datasource": null,
+      "options": {
+        "mode": "markdown",
+        "content": "Top-down: start at **Layer 1 (SLO)** and only descend when a golden signal turns yellow/red. **1** SLO summary \u00b7 **2** Edge \u00b7 **3** Traffic \u00b7 **4** Errors \u00b7 **5** Latency \u00b7 **6** Routing \u00b7 **7** Backends \u00b7 **8** Saturation \u00b7 **9** Cache \u00b7 **10** Security & observability."
+      },
+      "transparent": false,
+      "id": 5,
+      "gridPos": {
+        "h": 4,
+        "w": 16,
+        "x": 0,
+        "y": 9
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Selected Targets Up",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "description": "`up` for the instance(s) selected above",
       "targets": [
         {
           "datasource": {
@@ -260,12 +439,12 @@
         "justifyMode": "auto",
         "textMode": "value"
       },
-      "id": 3,
+      "id": 6,
       "gridPos": {
-        "h": 5,
+        "h": 4,
         "w": 4,
         "x": 16,
-        "y": 1
+        "y": 9
       }
     },
     {
@@ -275,7 +454,7 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Distinct proxied hosts seen",
+      "description": "Distinct proxied hosts seen in the current scope",
       "targets": [
         {
           "datasource": {
@@ -323,16 +502,16 @@
         "justifyMode": "auto",
         "textMode": "auto"
       },
-      "id": 4,
+      "id": 7,
       "gridPos": {
-        "h": 5,
+        "h": 4,
         "w": 4,
         "x": 20,
-        "y": 1
+        "y": 9
       }
     },
     {
-      "id": 5,
+      "id": 8,
       "type": "row",
       "title": "Layer 1 \u00b7 Service Level (SLO) & Golden-Signal Summary",
       "collapsed": false,
@@ -340,7 +519,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 6
+        "y": 13
       },
       "panels": []
     },
@@ -405,12 +584,12 @@
         "showThresholdLabels": false,
         "showThresholdMarkers": true
       },
-      "id": 6,
+      "id": 9,
       "gridPos": {
         "h": 7,
         "w": 5,
         "x": 0,
-        "y": 7
+        "y": 14
       }
     },
     {
@@ -477,12 +656,12 @@
         "justifyMode": "auto",
         "textMode": "auto"
       },
-      "id": 7,
+      "id": 10,
       "gridPos": {
         "h": 7,
         "w": 5,
         "x": 5,
-        "y": 7
+        "y": 14
       }
     },
     {
@@ -541,12 +720,12 @@
         "justifyMode": "auto",
         "textMode": "auto"
       },
-      "id": 8,
+      "id": 11,
       "gridPos": {
         "h": 7,
         "w": 3,
         "x": 10,
-        "y": 7
+        "y": 14
       }
     },
     {
@@ -613,12 +792,12 @@
         "justifyMode": "auto",
         "textMode": "auto"
       },
-      "id": 9,
+      "id": 12,
       "gridPos": {
         "h": 7,
         "w": 3,
         "x": 13,
-        "y": 7
+        "y": 14
       }
     },
     {
@@ -685,12 +864,12 @@
         "justifyMode": "auto",
         "textMode": "auto"
       },
-      "id": 10,
+      "id": 13,
       "gridPos": {
         "h": 7,
         "w": 4,
         "x": 16,
-        "y": 7
+        "y": 14
       }
     },
     {
@@ -748,12 +927,12 @@
         "justifyMode": "auto",
         "textMode": "auto"
       },
-      "id": 11,
+      "id": 14,
       "gridPos": {
         "h": 7,
         "w": 4,
         "x": 20,
-        "y": 7
+        "y": 14
       }
     },
     {
@@ -829,12 +1008,12 @@
         "justifyMode": "auto",
         "textMode": "value"
       },
-      "id": 12,
+      "id": 15,
       "gridPos": {
         "h": 4,
         "w": 4,
         "x": 0,
-        "y": 14
+        "y": 21
       }
     },
     {
@@ -896,12 +1075,12 @@
         "justifyMode": "auto",
         "textMode": "auto"
       },
-      "id": 13,
+      "id": 16,
       "gridPos": {
         "h": 4,
         "w": 4,
         "x": 4,
-        "y": 14
+        "y": 21
       }
     },
     {
@@ -963,12 +1142,12 @@
         "justifyMode": "auto",
         "textMode": "auto"
       },
-      "id": 14,
+      "id": 17,
       "gridPos": {
         "h": 4,
         "w": 4,
         "x": 8,
-        "y": 14
+        "y": 21
       }
     },
     {
@@ -1031,12 +1210,12 @@
         "justifyMode": "auto",
         "textMode": "auto"
       },
-      "id": 15,
+      "id": 18,
       "gridPos": {
         "h": 4,
         "w": 4,
         "x": 12,
-        "y": 14
+        "y": 21
       }
     },
     {
@@ -1103,12 +1282,12 @@
         "justifyMode": "auto",
         "textMode": "auto"
       },
-      "id": 16,
+      "id": 19,
       "gridPos": {
         "h": 4,
         "w": 4,
         "x": 16,
-        "y": 14
+        "y": 21
       }
     },
     {
@@ -1171,16 +1350,16 @@
         "justifyMode": "auto",
         "textMode": "auto"
       },
-      "id": 17,
+      "id": 20,
       "gridPos": {
         "h": 4,
         "w": 4,
         "x": 20,
-        "y": 14
+        "y": 21
       }
     },
     {
-      "id": 18,
+      "id": 21,
       "type": "row",
       "title": "Layer 2 \u00b7 Edge / HTTP Front Door",
       "collapsed": false,
@@ -1188,7 +1367,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 18
+        "y": 25
       },
       "panels": []
     },
@@ -1258,12 +1437,12 @@
           "sort": "desc"
         }
       },
-      "id": 19,
+      "id": 22,
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 19
+        "y": 26
       }
     },
     {
@@ -1332,12 +1511,12 @@
           "sort": "desc"
         }
       },
-      "id": 20,
+      "id": 23,
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 19
+        "y": 26
       }
     },
     {
@@ -1395,12 +1574,12 @@
         "justifyMode": "auto",
         "textMode": "auto"
       },
-      "id": 21,
+      "id": 24,
       "gridPos": {
         "h": 4,
         "w": 4,
         "x": 0,
-        "y": 27
+        "y": 34
       }
     },
     {
@@ -1458,12 +1637,12 @@
         "justifyMode": "auto",
         "textMode": "auto"
       },
-      "id": 22,
+      "id": 25,
       "gridPos": {
         "h": 4,
         "w": 4,
         "x": 4,
-        "y": 27
+        "y": 34
       }
     },
     {
@@ -1521,12 +1700,12 @@
         "justifyMode": "auto",
         "textMode": "auto"
       },
-      "id": 23,
+      "id": 26,
       "gridPos": {
         "h": 4,
         "w": 4,
         "x": 8,
-        "y": 27
+        "y": 34
       }
     },
     {
@@ -1584,12 +1763,12 @@
         "justifyMode": "auto",
         "textMode": "auto"
       },
-      "id": 24,
+      "id": 27,
       "gridPos": {
         "h": 4,
         "w": 4,
         "x": 12,
-        "y": 27
+        "y": 34
       }
     },
     {
@@ -1648,16 +1827,16 @@
         "justifyMode": "auto",
         "textMode": "auto"
       },
-      "id": 25,
+      "id": 28,
       "gridPos": {
         "h": 4,
         "w": 8,
         "x": 16,
-        "y": 27
+        "y": 34
       }
     },
     {
-      "id": 26,
+      "id": 29,
       "type": "row",
       "title": "Layer 3 \u00b7 Traffic (golden signal)",
       "collapsed": false,
@@ -1665,7 +1844,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 31
+        "y": 38
       },
       "panels": []
     },
@@ -1747,12 +1926,12 @@
           "sort": "desc"
         }
       },
-      "id": 27,
+      "id": 30,
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 32
+        "y": 39
       }
     },
     {
@@ -1833,12 +2012,12 @@
           "sort": "desc"
         }
       },
-      "id": 28,
+      "id": 31,
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 32
+        "y": 39
       }
     },
     {
@@ -1894,12 +2073,12 @@
         "showUnfilled": true,
         "valueMode": "color"
       },
-      "id": 29,
+      "id": 32,
       "gridPos": {
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 40
+        "y": 47
       }
     },
     {
@@ -1959,12 +2138,12 @@
           "sort": "desc"
         }
       },
-      "id": 30,
+      "id": 33,
       "gridPos": {
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 40
+        "y": 47
       }
     },
     {
@@ -2020,16 +2199,16 @@
         "showUnfilled": true,
         "valueMode": "color"
       },
-      "id": 31,
+      "id": 34,
       "gridPos": {
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 40
+        "y": 47
       }
     },
     {
-      "id": 32,
+      "id": 35,
       "type": "row",
       "title": "Layer 4 \u00b7 Errors (golden signal)",
       "collapsed": false,
@@ -2037,7 +2216,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 48
+        "y": 55
       },
       "panels": []
     },
@@ -2147,12 +2326,12 @@
           "sort": "desc"
         }
       },
-      "id": 33,
+      "id": 36,
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 49
+        "y": 56
       }
     },
     {
@@ -2221,12 +2400,12 @@
           "sort": "desc"
         }
       },
-      "id": 34,
+      "id": 37,
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 49
+        "y": 56
       }
     },
     {
@@ -2313,12 +2492,12 @@
           "fields": ""
         }
       },
-      "id": 35,
+      "id": 38,
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 57
+        "y": 64
       }
     },
     {
@@ -2393,16 +2572,16 @@
           "fields": ""
         }
       },
-      "id": 36,
+      "id": 39,
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 57
+        "y": 64
       }
     },
     {
-      "id": 37,
+      "id": 40,
       "type": "row",
       "title": "Layer 5 \u00b7 Latency (golden signal)",
       "collapsed": false,
@@ -2410,7 +2589,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 65
+        "y": 72
       },
       "panels": []
     },
@@ -2544,12 +2723,12 @@
           "sort": "desc"
         }
       },
-      "id": 38,
+      "id": 41,
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 66
+        "y": 73
       }
     },
     {
@@ -2658,12 +2837,12 @@
           "sort": "desc"
         }
       },
-      "id": 39,
+      "id": 42,
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 66
+        "y": 73
       }
     },
     {
@@ -2716,12 +2895,12 @@
         },
         "overrides": []
       },
-      "id": 40,
+      "id": 43,
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 74
+        "y": 81
       }
     },
     {
@@ -2774,16 +2953,16 @@
         },
         "overrides": []
       },
-      "id": 41,
+      "id": 44,
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 74
+        "y": 81
       }
     },
     {
-      "id": 42,
+      "id": 45,
       "type": "row",
       "title": "Layer 6 \u00b7 Routing & Rules",
       "collapsed": false,
@@ -2791,7 +2970,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 82
+        "y": 89
       },
       "panels": []
     },
@@ -2989,12 +3168,12 @@
           "fields": ""
         }
       },
-      "id": 43,
+      "id": 46,
       "gridPos": {
         "h": 9,
         "w": 16,
         "x": 0,
-        "y": 83
+        "y": 90
       }
     },
     {
@@ -3054,12 +3233,12 @@
           "sort": "desc"
         }
       },
-      "id": 44,
+      "id": 47,
       "gridPos": {
         "h": 9,
         "w": 8,
         "x": 16,
-        "y": 83
+        "y": 90
       }
     },
     {
@@ -3115,16 +3294,16 @@
         "showUnfilled": true,
         "valueMode": "color"
       },
-      "id": 45,
+      "id": 48,
       "gridPos": {
         "h": 7,
         "w": 24,
         "x": 0,
-        "y": 92
+        "y": 99
       }
     },
     {
-      "id": 46,
+      "id": 49,
       "type": "row",
       "title": "Layer 7 \u00b7 Backend / Upstream Health",
       "collapsed": false,
@@ -3132,7 +3311,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 99
+        "y": 106
       },
       "panels": []
     },
@@ -3426,12 +3605,12 @@
           "fields": ""
         }
       },
-      "id": 47,
+      "id": 50,
       "gridPos": {
         "h": 9,
         "w": 16,
         "x": 0,
-        "y": 100
+        "y": 107
       }
     },
     {
@@ -3495,12 +3674,12 @@
         "showThresholdLabels": false,
         "showThresholdMarkers": true
       },
-      "id": 48,
+      "id": 51,
       "gridPos": {
         "h": 9,
         "w": 8,
         "x": 16,
-        "y": 100
+        "y": 107
       }
     },
     {
@@ -3579,16 +3758,16 @@
           "placement": "bottom"
         }
       },
-      "id": 49,
+      "id": 52,
       "gridPos": {
         "h": 7,
         "w": 24,
         "x": 0,
-        "y": 109
+        "y": 116
       }
     },
     {
-      "id": 50,
+      "id": 53,
       "type": "row",
       "title": "Layer 8 \u00b7 Saturation & Capacity (golden signal)",
       "collapsed": false,
@@ -3596,7 +3775,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 116
+        "y": 123
       },
       "panels": []
     },
@@ -3662,12 +3841,12 @@
           "sort": "desc"
         }
       },
-      "id": 51,
+      "id": 54,
       "gridPos": {
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 117
+        "y": 124
       }
     },
     {
@@ -3760,12 +3939,12 @@
           "sort": "desc"
         }
       },
-      "id": 52,
+      "id": 55,
       "gridPos": {
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 117
+        "y": 124
       }
     },
     {
@@ -3821,12 +4000,12 @@
         "showUnfilled": true,
         "valueMode": "color"
       },
-      "id": 53,
+      "id": 56,
       "gridPos": {
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 117
+        "y": 124
       }
     },
     {
@@ -3895,12 +4074,12 @@
           "sort": "desc"
         }
       },
-      "id": 54,
+      "id": 57,
       "gridPos": {
         "h": 7,
         "w": 12,
         "x": 0,
-        "y": 125
+        "y": 132
       }
     },
     {
@@ -3962,12 +4141,12 @@
         "justifyMode": "auto",
         "textMode": "auto"
       },
-      "id": 55,
+      "id": 58,
       "gridPos": {
         "h": 7,
         "w": 4,
         "x": 12,
-        "y": 125
+        "y": 132
       }
     },
     {
@@ -4026,12 +4205,12 @@
         "justifyMode": "auto",
         "textMode": "auto"
       },
-      "id": 56,
+      "id": 59,
       "gridPos": {
         "h": 7,
         "w": 4,
         "x": 16,
-        "y": 125
+        "y": 132
       }
     },
     {
@@ -4089,16 +4268,16 @@
         "justifyMode": "auto",
         "textMode": "auto"
       },
-      "id": 57,
+      "id": 60,
       "gridPos": {
         "h": 7,
         "w": 4,
         "x": 20,
-        "y": 125
+        "y": 132
       }
     },
     {
-      "id": 58,
+      "id": 61,
       "type": "row",
       "title": "Layer 9 \u00b7 Cache Efficiency",
       "collapsed": false,
@@ -4106,7 +4285,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 132
+        "y": 139
       },
       "panels": []
     },
@@ -4200,12 +4379,12 @@
           "sort": "desc"
         }
       },
-      "id": 59,
+      "id": 62,
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 133
+        "y": 140
       }
     },
     {
@@ -4269,12 +4448,12 @@
         "showThresholdLabels": false,
         "showThresholdMarkers": true
       },
-      "id": 60,
+      "id": 63,
       "gridPos": {
         "h": 8,
         "w": 6,
         "x": 12,
-        "y": 133
+        "y": 140
       }
     },
     {
@@ -4334,12 +4513,12 @@
           "sort": "desc"
         }
       },
-      "id": 61,
+      "id": 64,
       "gridPos": {
         "h": 8,
         "w": 6,
         "x": 18,
-        "y": 133
+        "y": 140
       }
     },
     {
@@ -4403,16 +4582,16 @@
         "showUnfilled": true,
         "valueMode": "color"
       },
-      "id": 62,
+      "id": 65,
       "gridPos": {
         "h": 7,
         "w": 24,
         "x": 0,
-        "y": 141
+        "y": 148
       }
     },
     {
-      "id": 63,
+      "id": 66,
       "type": "row",
       "title": "Layer 10 \u00b7 Security, Auth & Observability",
       "collapsed": false,
@@ -4420,7 +4599,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 148
+        "y": 155
       },
       "panels": []
     },
@@ -4490,12 +4669,12 @@
           "sort": "desc"
         }
       },
-      "id": 64,
+      "id": 67,
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 149
+        "y": 156
       }
     },
     {
@@ -4576,12 +4755,12 @@
           "sort": "desc"
         }
       },
-      "id": 65,
+      "id": 68,
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 149
+        "y": 156
       }
     },
     {
@@ -4668,12 +4847,12 @@
           "fields": ""
         }
       },
-      "id": 66,
+      "id": 69,
       "gridPos": {
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 157
+        "y": 164
       }
     },
     {
@@ -4742,12 +4921,12 @@
           "sort": "desc"
         }
       },
-      "id": 67,
+      "id": 70,
       "gridPos": {
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 157
+        "y": 164
       }
     },
     {
@@ -4759,12 +4938,12 @@
         "content": "**Scrape health** is below. `up` / `scrape_*` are synthesised by the scraping Prometheus, not by the endpoint.\n\n**Not exported** by lua-prometheus (so not shown): `go_*`, `process_*` (CPU/RSS/FD), cache size/evictions, health-check duration. Saturation uses connection state + metric-emit errors as the closest real signals.\n\nCompanion dashboards: **WSL Proxy - Backend Health** and **WSL Proxy - Cache**."
       },
       "transparent": false,
-      "id": 68,
+      "id": 71,
       "gridPos": {
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 157
+        "y": 164
       }
     },
     {
@@ -4840,12 +5019,12 @@
         "justifyMode": "auto",
         "textMode": "value"
       },
-      "id": 69,
+      "id": 72,
       "gridPos": {
         "h": 5,
         "w": 6,
         "x": 0,
-        "y": 165
+        "y": 172
       }
     },
     {
@@ -4912,12 +5091,12 @@
         "justifyMode": "auto",
         "textMode": "auto"
       },
-      "id": 70,
+      "id": 73,
       "gridPos": {
         "h": 5,
         "w": 6,
         "x": 6,
-        "y": 165
+        "y": 172
       }
     },
     {
@@ -4975,12 +5154,12 @@
         "justifyMode": "auto",
         "textMode": "auto"
       },
-      "id": 71,
+      "id": 74,
       "gridPos": {
         "h": 5,
         "w": 6,
         "x": 12,
-        "y": 165
+        "y": 172
       }
     },
     {
@@ -5001,12 +5180,12 @@
           "noData": false
         }
       },
-      "id": 72,
+      "id": 75,
       "gridPos": {
         "h": 5,
         "w": 6,
         "x": 18,
-        "y": 165
+        "y": 172
       }
     }
   ],

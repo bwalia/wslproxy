@@ -259,24 +259,72 @@ def eq(p):   # edge (http) latency quantile
 L = Layout()
 
 # ==========================================================================
-# HEADER
+# HEADER — DASHBOARD INFO (datasource, endpoint, data source, current scope)
 # ==========================================================================
-L.row("ℹ️  WSL Proxy — SRE (10 Layers)")
-L.add(text("How to read this dashboard",
-           "A **top-down SRE view** in 10 layers. Start at the top (SLO), and only descend when a "
-           "golden signal turns yellow/red:\n\n"
-           "**1** SLO & golden-signal summary · **2** Edge / HTTP front door · **3** Traffic · "
-           "**4** Errors · **5** Latency · **6** Routing & rules · **7** Backend / upstream health · "
-           "**8** Saturation & capacity · **9** Cache · **10** Security, auth & observability.\n\n"
-           "Scope with **Environment** / **Host** (top-left); both default to **All**. "
-           "SLO target for the error-budget math = **%.1f%%**." % (SLO * 100)),
-      w=16, h=5, x=0)
-L.add(stat("Scrape Up", [target("up{instance=~\"$instance\"}", "", instant=True)],
-           mappings=UP_MAP, thr=HEALTH_THR, color_mode="background", text_mode="value"), w=4, h=5, x=16)
+L.row("ℹ️  Dashboard Info — datasource, endpoint & what you're looking at")
+# --- static "about" table: where the data comes from ----------------------
+about_md = (
+    "| | |\n|---|---|\n"
+    "| **Project** | WSL Proxy (OpenResty API gateway / reverse proxy) |\n"
+    "| **Dashboard** | SRE — 10 Layers (`uid: wslproxy-sre`) |\n"
+    "| **Datasource** | `${datasource}` (Prometheus — PromQL API) |\n"
+    "| **Metrics endpoint** | https://prod-our.wslproxy.com/metrics |\n"
+    "| **Exporter** | OpenResty `lua-prometheus` (embedded in nginx) |\n"
+    "| **Collected by** | Prometheus scraping `/metrics` every 30s → this Grafana |\n"
+    "| **Scrape config** | `dashboard/prometheus/scrape/scrape-config.yaml` (one job per env) |\n"
+    "| **SLO target** | %.1f%% availability (error budget %.1f%%) |\n"
+) % (SLO * 100, BUDGET * 100)
+L.add(text("About — where this data comes from", about_md), w=9, h=8, x=0)
+
+# --- current selection / scope (interpolated variable values) -------------
+scope_md = (
+    "**You are currently viewing:**\n\n"
+    "| Scope | Value |\n|---|---|\n"
+    "| 🌍 Environment | **${env:text}** |\n"
+    "| 🖥️ Instance(s) | **${instance:text}** |\n"
+    "| 🔗 Host / vHost | **${host:text}** |\n"
+    "| 🗄️ Datasource | **${datasource:text}** |\n\n"
+    "_“All” = every scraped target aggregated. Change these with the variables at the very "
+    "top of the dashboard. Data flows: **client → WSL Proxy (this env) → `/metrics` → "
+    "Prometheus → Grafana**._"
+)
+L.add(text("Current scope", scope_md), w=7, h=8, x=9)
+
+# --- live scrape-target inventory: which env/project each series is from ---
+tgt_targets = [target("up", "", instant=True, fmt="table", ref="A")]
+tgt_transforms = [
+    {"id": "organize", "options": {
+        "renameByName": {"env": "Env", "region": "Region", "service": "Service",
+                         "job": "Job", "instance": "Instance", "Value": "Up"},
+        "excludeByName": {"Time": True, "__name__": True, "service": True}}},
+    {"id": "sortBy", "options": {"sort": [{"field": "Env"}]}},
+]
+tgt_overrides = [
+    {"matcher": {"id": "byName", "options": "Up"},
+     "properties": [{"id": "mappings", "value": UP_MAP},
+                    {"id": "custom.cellOptions", "value": {"type": "color-background"}},
+                    {"id": "thresholds", "value": HEALTH_THR}]}]
+L.add(table("Scrape Targets (data sources feeding this dashboard)", tgt_targets,
+            transformations=tgt_transforms, overrides=tgt_overrides,
+            desc="Every Prometheus target scraped for WSL Proxy. `Env`/`Region`/`Job`/`Instance` "
+                 "come from scrape-config.yaml labels and tell you exactly which environment / node "
+                 "each metric originates from. Up=1 (green) means that source is currently reporting."),
+      w=8, h=8, x=16)
+L.newline(8)
+
+# --- quick "how to read the layers" strip + live KPIs ---------------------
+L.add(text("How to read the 10 layers",
+           "Top-down: start at **Layer 1 (SLO)** and only descend when a golden signal turns "
+           "yellow/red. **1** SLO summary · **2** Edge · **3** Traffic · **4** Errors · **5** Latency · "
+           "**6** Routing · **7** Backends · **8** Saturation · **9** Cache · **10** Security & observability."),
+      w=16, h=4, x=0)
+L.add(stat("Selected Targets Up", [target("up{instance=~\"$instance\"}", "", instant=True)],
+           mappings=UP_MAP, thr=HEALTH_THR, color_mode="background", text_mode="value",
+           desc="`up` for the instance(s) selected above"), w=4, h=4, x=16)
 L.add(stat("Active vHosts",
            [target("count(count by (host) (nginx_http_requests_total%s))" % HF, "", instant=True)],
-           desc="Distinct proxied hosts seen"), w=4, h=5, x=20)
-L.newline(5)
+           desc="Distinct proxied hosts seen in the current scope"), w=4, h=4, x=20)
+L.newline(4)
 
 # ==========================================================================
 # LAYER 1 — SLO & GOLDEN-SIGNAL SUMMARY
