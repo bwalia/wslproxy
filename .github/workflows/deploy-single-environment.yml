@@ -1,23 +1,27 @@
 name: Deploy Single Environment
-# Deploys ONE environment (int | test | prod) in isolation, with NO cascade to
-# other environments. It reuses the same tested reusable workflow
-# (deploy-environment.yml) and the exact per-host settings as the full delivery
-# pipeline — it just drops the int→test→prod chaining.
+# Deploys ONE environment in isolation, with NO cascade to any other. It reuses
+# the tested reusable workflow (deploy-environment.yml) with the same per-host
+# settings as the full delivery pipeline — it just drops the promotion chaining.
+#
+# Environments (Integration -> Test -> Acceptance -> Production):
+#   int  -> 192.168.1.193   (Integration)
+#   test -> 192.168.1.140   (Test)
+#   acc  -> 187.124.112.155 (Acceptance — "pop0")
+#   prod -> 18.133.126.242  (Production  — "pop1")
+#
+# Each ENV maps to exactly ONE host, so acceptance (pop0) and production (pop1)
+# deploy independently. (The former lon1 host, 72.62.211.28, is no longer used.)
 #
 # WHY THIS EXISTS
-#   deploy-wslproxy-delivery-pipeline.yml is a cumulative promotion cascade:
-#   `deploy-int` runs on every dispatch and each later stage `needs:` the
-#   previous, gated by TARGET_HOST. That is correct for a "build → promote all
-#   the way up" release, but it cannot deploy a single environment on its own.
+#   deploy-wslproxy-delivery-pipeline.yml is a cumulative promotion cascade and
+#   cannot deploy a single environment on its own. Ring Promoter
+#   (github.com/bwalia/ring-promoter) models each ring as an INDEPENDENT
+#   environment: it promotes one ring at a time and, on a failed post-deploy
+#   health check, auto-rolls-back THAT ring only — so it needs to deploy exactly
+#   one environment per dispatch, which is what this workflow provides.
 #
-#   Ring Promoter (github.com/bwalia/ring-promoter) models each ring as an
-#   INDEPENDENT environment: it promotes one ring at a time and, on a failed
-#   post-deploy health check, auto-rolls-back THAT ring only. For that it needs
-#   to deploy exactly one environment per dispatch — which is what this workflow
-#   provides. Ring Promoter dispatches it with ENV = the ring's environment.
-#
-# Selecting ENV=prod deploys all three prod hosts (pop0 → lon1 → pop1) in order,
-# stopping if any host fails — but never touches int or test.
+# NOTE: acc and prod both run with env_name=prod (they are prod-profile hosts
+# served by the `prod` self-hosted runner); the ENV input selects which host.
 
 on:
   workflow_dispatch:
@@ -30,6 +34,7 @@ on:
         options:
           - int
           - test
+          - acc
           - prod
       DEPLOY_BRANCH:
         type: string
@@ -58,14 +63,14 @@ concurrency:
 
 jobs:
   # ──────────────────────────────────────────────────────
-  # int (192.168.1.193) — local sudo deploy, SOPS-decrypted secrets
+  # Integration — int (192.168.1.193), local sudo deploy, SOPS secrets
   # ──────────────────────────────────────────────────────
   int:
     if: ${{ inputs.ENV == 'int' }}
     uses: ./.github/workflows/deploy-environment.yml
     with:
       env_name: int
-      env_label: "Int (192.168.1.193)"
+      env_label: "Integration — int (192.168.1.193)"
       stage_number: "int"
       host_ip: "192.168.1.193"
       ssh_user: bwalia
@@ -86,14 +91,14 @@ jobs:
       ENV_CREDS_SECRET: ${{ secrets.DOT_WSLPROXY_ENV_CREDS_INT }}
 
   # ──────────────────────────────────────────────────────
-  # test (192.168.1.140) — SSH deploy, secrets read from the runner
+  # Test — test (192.168.1.140), SSH deploy, secrets read from the runner
   # ──────────────────────────────────────────────────────
   test:
     if: ${{ inputs.ENV == 'test' }}
     uses: ./.github/workflows/deploy-environment.yml
     with:
       env_name: test
-      env_label: "Test (192.168.1.140)"
+      env_label: "Test — test (192.168.1.140)"
       stage_number: "test"
       host_ip: "192.168.1.140"
       ssh_user: bwalia
@@ -111,22 +116,20 @@ jobs:
       SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
   # ──────────────────────────────────────────────────────
-  # prod pop0 (187.124.112.155) — first prod host; self-seeds live config
+  # Acceptance — acc / "pop0" (187.124.112.155). vault-first with SOPS fallback
+  # (matches the delivery pipeline post-#1125; seed_from_host retired).
   # ──────────────────────────────────────────────────────
-  prod-pop0:
-    if: ${{ inputs.ENV == 'prod' }}
+  acc:
+    if: ${{ inputs.ENV == 'acc' }}
     uses: ./.github/workflows/deploy-environment.yml
     with:
-      env_name: prod
-      env_label: "Prod pop0 (187.124.112.155)"
-      stage_number: "prod-5a"
+      env_name: prod            # prod-profile host, served by the `prod` runner
+      env_label: "Acceptance — pop0 (187.124.112.155)"
+      stage_number: "acc"
       host_ip: "187.124.112.155"
       ssh_user: root
       connection_mode: ssh_key
-      secrets_mode: runner_file
-      seed_from_host: true
-      settings_file_path: "/tmp/wslproxy-pop0/settings.json"
-      env_file_path: "/tmp/wslproxy-pop0/.env"
+      secrets_mode: vault_or_sops
       health_endpoint: "https://prod-our-v1.wslproxy.com/healthz"
       health_check_mode: external
       docker_prune: true
@@ -135,51 +138,25 @@ jobs:
       deploy_mode: ${{ inputs.DEPLOY_MODE }}
     secrets:
       SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
+      VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
+      SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
 
   # ──────────────────────────────────────────────────────
-  # prod lon1 (72.62.211.28) — runs after pop0 succeeds
+  # Production — prod / "pop1" (18.133.126.242, AWS eu-west-2, ssh user admin).
+  # vault-first with SOPS fallback (matches the delivery pipeline post-#1125).
   # ──────────────────────────────────────────────────────
-  prod-lon1:
-    needs: [prod-pop0]
-    if: ${{ always() && !failure() && !cancelled() && inputs.ENV == 'prod' }}
+  prod:
+    if: ${{ inputs.ENV == 'prod' }}
     uses: ./.github/workflows/deploy-environment.yml
     with:
       env_name: prod
-      env_label: "Prod lon1 (72.62.211.28)"
-      stage_number: "prod-5b"
-      host_ip: "72.62.211.28"
-      ssh_user: root
-      connection_mode: ssh_key
-      secrets_mode: runner_file
-      settings_file_path: "/home/bwalia/.secrets/wslproxy/lon1/settings.json"
-      env_file_path: "/home/bwalia/.secrets/wslproxy/lon1/.env"
-      health_endpoint: "http://72.62.211.28:7691/healthz"
-      health_check_mode: external
-      docker_prune: true
-      notify_success: true
-      deploy_branch: ${{ inputs.DEPLOY_BRANCH }}
-      deploy_mode: ${{ inputs.DEPLOY_MODE }}
-    secrets:
-      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-
-  # ──────────────────────────────────────────────────────
-  # prod pop1 (18.133.126.242, AWS eu-west-2, ssh user admin) — runs last
-  # ──────────────────────────────────────────────────────
-  prod-pop1:
-    needs: [prod-lon1]
-    if: ${{ always() && !failure() && !cancelled() && inputs.ENV == 'prod' }}
-    uses: ./.github/workflows/deploy-environment.yml
-    with:
-      env_name: prod
-      env_label: "Prod pop1 (18.133.126.242)"
-      stage_number: "prod-5c"
+      env_label: "Production — pop1 (18.133.126.242)"
+      stage_number: "prod"
       host_ip: "18.133.126.242"
       ssh_user: admin
       connection_mode: ssh_key
-      secrets_mode: runner_file
-      seed_from_host: true
-      settings_file_path: "/tmp/wslproxy-pop1/settings.json"
-      env_file_path: "/tmp/wslproxy-pop1/.env"
+      secrets_mode: vault_or_sops
       health_endpoint: "http://18.133.126.242:7691/healthz"
       health_check_mode: external
       docker_prune: true
@@ -188,3 +165,6 @@ jobs:
       deploy_mode: ${{ inputs.DEPLOY_MODE }}
     secrets:
       SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
+      VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
+      SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
