@@ -114,6 +114,25 @@
             }
         }
 
+        # Fast-path public health check — served by nginx/openresty Lua
+        # directly with no proxy hop.  Exact-match `= /health` beats the
+        # `location /` catch-all below it, so the request never reaches
+        # the admin backend on :{{ nginx_default_server_backend_port }}.
+        # Same handler as the admin server on port {{ nginx_default_server_backend_port }} —
+        # ping.lua returns a JSON status document (worker state, cache
+        # counters, etc).  Used by external monitors that need a stable
+        # public URL on the dashboard host.
+        # Canonical /healthz (Kubernetes-standard).  /health kept as an
+        # alias so external monitors and legacy pipeline health_endpoint
+        # values (http://.../health) keep working during the migration.
+        location ~ ^/(health|healthz)$ {
+            default_type 'application/json';
+            add_header 'Access-Control-Allow-Origin' '*';
+            add_header 'Access-Control-Allow-Methods' 'GET';
+            add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, X-Requested-With';
+            content_by_lua_file /usr/local/openresty/nginx/html/api/ping.lua;
+        }
+
         location / {
             proxy_pass http://127.0.0.1:{{ nginx_default_server_backend_port }};
             proxy_set_header Host $host;
@@ -178,6 +197,25 @@
             content_by_lua_block {
                 auto_ssl:challenge_server()
             }
+        }
+
+        # Fast-path public health check — served by nginx/openresty Lua
+        # directly, bypassing the Next.js dashboard on
+        # :{{ nginx_nextjs_node_port }} (which has no /health route and
+        # would return 404).  Exact-match `= /health` beats the
+        # `location /` catch-all below it.  Before this location was
+        # added, external monitors hitting {{ nginx_default_server_backend_nextjs }}/health
+        # got 404 from the Next.js server; now they get the same JSON
+        # status document as ping.lua serves on the admin port.
+        # Canonical /healthz (Kubernetes-standard).  /health kept as an
+        # alias so external monitors and legacy pipeline health_endpoint
+        # values (http://.../health) keep working during the migration.
+        location ~ ^/(health|healthz)$ {
+            default_type 'application/json';
+            add_header 'Access-Control-Allow-Origin' '*';
+            add_header 'Access-Control-Allow-Methods' 'GET';
+            add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, X-Requested-With';
+            content_by_lua_file /usr/local/openresty/nginx/html/api/ping.lua;
         }
 
         location / {
