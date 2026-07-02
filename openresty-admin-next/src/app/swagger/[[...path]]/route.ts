@@ -43,6 +43,21 @@ async function handler(
       .includes("text/html");
   if (!isEntryHtml) return upstreamResponse;
 
+  // Defence-in-depth: even for the entry HTML path, don't try to
+  // rewrite null-body responses.  `proxyToUpstream` already returns
+  // these with a null body, but if the upstream ever preserves
+  // `content-type: text/html` on a 304/205 (nginx does), the
+  // `new Response(rewritten, { status: 304 })` at the bottom of this
+  // function would throw the same TypeError as the proxy did before
+  // its fix.
+  if (
+    upstreamResponse.status === 204 ||
+    upstreamResponse.status === 205 ||
+    upstreamResponse.status === 304
+  ) {
+    return upstreamResponse;
+  }
+
   const html = await upstreamResponse.text();
   // If the upstream ever starts emitting its own <base> tag, leave it
   // alone — avoids accidentally adding a conflicting second tag.

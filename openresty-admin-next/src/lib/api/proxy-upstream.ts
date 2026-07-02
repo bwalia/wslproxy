@@ -114,7 +114,25 @@ export async function proxyToUpstream(
       : [];
   for (const cookie of setCookies) respHeaders.append("set-cookie", cookie);
 
-  const respBody = await upstream.arrayBuffer();
+  // 204 No Content and 304 Not Modified are "null-body statuses" per
+  // the Fetch spec — `new Response(body, { status: 304 })` throws
+  // `TypeError: Response constructor: Invalid response status code
+  // 304`, even if the body is an empty ArrayBuffer.  When the upstream
+  // (loopback openresty on the admin port) answers a conditional GET
+  // with 304 — trivially reproducible by hitting /swagger, cacheing
+  // the ETag, then refreshing — this line used to crash with an
+  // unhandled exception and Next.js surfaced it as HTTP 500.
+  //
+  // Repro before this fix (from journal on prod 187.124.112.155):
+  //   TypeError: Response constructor: Invalid response status code 304
+  //     at lJ (src_lib_api_proxy-upstream_ts_46e1c0ba._.js:38:2235)
+  //     at async m (server/app/swagger/[[...path]]/route.ts)
+  //
+  // Fix: pass `null` as the body when the status forbids one; the
+  // response's status + headers still forward verbatim.
+  const isNullBodyStatus =
+    upstream.status === 204 || upstream.status === 304;
+  const respBody = isNullBodyStatus ? null : await upstream.arrayBuffer();
   return new Response(respBody, {
     status: upstream.status,
     statusText: upstream.statusText,
