@@ -13,8 +13,9 @@ on:
       - "openresty-admin/package*.json"
       - ".github/workflows/e2e-admin-ui-login.yml"
   schedule:
-    # Hourly smoke check that the admin login is healthy
-    - cron: "0 * * * *"
+    # Thrice-daily smoke check that the admin login is healthy
+    # (00:00, 08:00, 16:00 UTC).
+    - cron: "0 0,8,16 * * *"
   workflow_dispatch:
     inputs:
       TARGET_ENV:
@@ -213,6 +214,52 @@ jobs:
           done
           echo "::error::Admin UI not reachable at $TARGET_URL after 60s"
           exit 1
+
+      - name: Preflight - verify login credentials against the backend
+        # The browser tests below fail cryptically ("Parse test results") when
+        # the *credentials* are stale rather than the login being down — e.g.
+        # after the 2026-06-29 secrets migration re-wrote prod's
+        # settings.super_user without updating this test's creds file/secret.
+        # Hit /api/user/login directly with the exact creds the tests will use
+        # and classify the outcome, so the failure is actionable and the Slack
+        # message doesn't wrongly cry "Admin UI login may be broken".
+        working-directory: .
+        env:
+          TARGET_URL: ${{ matrix.url }}
+          E2E_TEST_EMAIL: ${{ steps.creds.outputs.email }}
+          E2E_TEST_PASSWORD: ${{ steps.creds.outputs.password }}
+        run: |
+          # Body is masked by ::add-mask:: on email/password already; only the
+          # HTTP status is echoed here.
+          STATUS=$(EMAIL="$E2E_TEST_EMAIL" PASSWORD="$E2E_TEST_PASSWORD" python3 - "$TARGET_URL" <<'PY'
+          import json, os, sys, urllib.request, urllib.error
+          url = sys.argv[1].rstrip('/') + '/api/user/login'
+          body = json.dumps({'email': os.environ['EMAIL'], 'password': os.environ['PASSWORD']}).encode()
+          req = urllib.request.Request(url, data=body, method='POST',
+                                       headers={'Content-Type': 'application/json'})
+          try:
+              with urllib.request.urlopen(req, timeout=15) as r:
+                  print(r.status)
+          except urllib.error.HTTPError as e:
+              print(e.code)
+          except Exception:
+              print('000')
+          PY
+          )
+          echo "Login API responded HTTP $STATUS for ${{ matrix.url }}"
+          case "$STATUS" in
+            200)
+              echo "Credentials accepted by the backend — proceeding to UI tests." ;;
+            401|403)
+              echo "::error::Login credentials REJECTED (HTTP $STATUS) by ${{ matrix.url }}. This is a credential mismatch, not a UI outage: the backend settings.super_user no longer matches this job's test creds (on-runner login-creds.json / LOGIN_EMAIL+LOGIN_PASSWORD secrets). Reconcile the two — see api/api.lua login handler and infra/ansible/.../deploy_data.yml."
+              exit 1 ;;
+            000)
+              echo "::error::Could not reach the login API at ${{ matrix.url }}/api/user/login (network/TLS/timeout)."
+              exit 1 ;;
+            *)
+              echo "::error::Login API returned unexpected HTTP $STATUS for ${{ matrix.url }} — the admin login backend may be broken."
+              exit 1 ;;
+          esac
 
       - name: Run Admin UI Login tests
         id: tests
