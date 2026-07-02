@@ -253,7 +253,7 @@ L.add(stat("p95 Latency",
            unit="s", decimals=3, thr=LAT_THR, color_mode="background", graph=True), w=4, h=4, x=16)
 L.add(stat("Cache Hit %",
            [target("100 * sum(rate(nginx_cache_hits_total%s[5m])) / clamp_min(sum(rate(nginx_cache_hits_total%s[5m])) "
-                   "+ sum(rate(nginx_cache_misses_total%s[5m])), 0.0001)" % (HF, HF, HF), "", instant=True)],
+                   "+ sum(rate(nginx_cache_misses_total%s[5m])), 0.0001) or vector(0)" % (HF, HF, HF), "", instant=True)],
            unit="percent", decimals=1, thr=RATIO_THR), w=4, h=4, x=20)
 L.newline(4)
 
@@ -360,7 +360,7 @@ L.newline(9)
 L.row("6 · Cache (this domain)")
 L.add(gauge("Cache Hit Ratio %",
             [target("100 * sum(rate(nginx_cache_hits_total%s[5m])) / clamp_min(sum(rate(nginx_cache_hits_total%s[5m])) "
-                    "+ sum(rate(nginx_cache_misses_total%s[5m])), 0.0001)" % (HF, HF, HF), "", instant=True)],
+                    "+ sum(rate(nginx_cache_misses_total%s[5m])), 0.0001) or vector(0)" % (HF, HF, HF), "", instant=True)],
             thr=RATIO_THR, minv=0, maxv=100), w=6, h=8, x=0)
 L.add(timeseries("Cache Activity Rate",
                  [target("sum(rate(nginx_cache_hits_total%s[5m])) or vector(0)" % HF, "hits/s"),
@@ -409,19 +409,23 @@ L.newline(5)
 # ==========================================================================
 # TEMPLATING
 # ==========================================================================
-def qvar(name, label, query, multi, includeAll):
+def qvar(name, label, query, multi, includeAll, regex=""):
     return {"name": name, "label": label, "type": "query", "datasource": DS,
             "definition": query, "query": {"query": query, "refId": name},
             "refresh": 2, "sort": 1, "multi": multi, "includeAll": includeAll,
-            "allValue": ".*" if includeAll else None, "regex": "",
+            "allValue": ".*" if includeAll else None, "regex": regex,
             "current": {}, "options": [], "hide": 0}
 
 templating = {"list": [
     {"name": "datasource", "label": "Datasource", "type": "datasource",
      "query": "prometheus", "refresh": 1, "current": {}, "hide": 0, "regex": ""},
     qvar("env", "Environment", "label_values(nginx_http_requests_total, env)", multi=True, includeAll=True),
-    # host is single-select — this is a per-DOMAIN deep-dive
-    qvar("host", "Host (domain)", "label_values(nginx_http_requests_total, host)", multi=False, includeAll=False),
+    # host is single-select — this is a per-DOMAIN deep-dive. The regex drops junk
+    # "hosts" (the "-" no-Host-header bucket and bare IP addresses) so the dashboard
+    # defaults to a real domain instead of loading on an empty one. Keep = a value must
+    # contain a letter, then a dot, then a letter (i.e. an actual domain name).
+    qvar("host", "Host (domain)", "label_values(nginx_http_requests_total, host)",
+         multi=False, includeAll=False, regex="/[a-zA-Z].*\\.[a-zA-Z]/"),
 ]}
 
 annotations = {"list": [

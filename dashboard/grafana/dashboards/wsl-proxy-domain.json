@@ -85,7 +85,7 @@
         "multi": false,
         "includeAll": false,
         "allValue": null,
-        "regex": "",
+        "regex": "/[a-zA-Z].*\\.[a-zA-Z]/",
         "current": {},
         "options": [],
         "hide": 0
@@ -730,7 +730,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "100 * sum(rate(nginx_cache_hits_total{env=~\"$env\",host=\"$host\"}[5m])) / clamp_min(sum(rate(nginx_cache_hits_total{env=~\"$env\",host=\"$host\"}[5m])) + sum(rate(nginx_cache_misses_total{env=~\"$env\",host=\"$host\"}[5m])), 0.0001)",
+          "expr": "100 * sum(rate(nginx_cache_hits_total{env=~\"$env\",host=\"$host\"}[5m])) / clamp_min(sum(rate(nginx_cache_hits_total{env=~\"$env\",host=\"$host\"}[5m])) + sum(rate(nginx_cache_misses_total{env=~\"$env\",host=\"$host\"}[5m])), 0.0001) or vector(0)",
           "legendFormat": "",
           "instant": true,
           "range": false,
@@ -2077,7 +2077,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "100 * sum(rate(nginx_cache_hits_total{env=~\"$env\",host=\"$host\"}[5m])) / clamp_min(sum(rate(nginx_cache_hits_total{env=~\"$env\",host=\"$host\"}[5m])) + sum(rate(nginx_cache_misses_total{env=~\"$env\",host=\"$host\"}[5m])), 0.0001)",
+          "expr": "100 * sum(rate(nginx_cache_hits_total{env=~\"$env\",host=\"$host\"}[5m])) / clamp_min(sum(rate(nginx_cache_hits_total{env=~\"$env\",host=\"$host\"}[5m])) + sum(rate(nginx_cache_misses_total{env=~\"$env\",host=\"$host\"}[5m])), 0.0001) or vector(0)",
           "legendFormat": "",
           "instant": true,
           "range": false,
