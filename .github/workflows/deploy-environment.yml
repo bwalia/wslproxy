@@ -30,7 +30,13 @@ on:
         type: string
         required: true
       secrets_mode:
-        description: "Secrets source: vault (HashiCorp Vault), sops (SOPS+age-encrypted files in Git), github_secret (decode from GH secret), or runner_file (read from disk)"
+        description: >-
+          Secrets source: vault (HashiCorp Vault), sops (SOPS+age-encrypted
+          files in Git), vault_or_sops (probe Vault first, fall back to SOPS
+          if Vault is unreachable / has no secret at the expected path —
+          prevents deploy failure when Vault is temporarily down or a host
+          hasn't been onboarded to Vault yet), github_secret (decode from
+          GH secret), or runner_file (read from disk).
         type: string
         required: true
       settings_file_path:
@@ -211,13 +217,93 @@ jobs:
             ls -la .next/standalone/ || true
           fi
 
+      # ── Secrets: resolve vault_or_sops fallback ───────────────────────
+      # For every mode except `vault_or_sops`, this step is a passthrough:
+      # steps.resolve_mode.outputs.mode = inputs.secrets_mode.  For
+      # `vault_or_sops` we probe Vault (fetch the actual settings.json
+      # path — NOT /sys/health, which is often blocked on hosted Vaults
+      # even when the KV endpoints work) and pick:
+      #   - vault  when the fetch returns HTTP 200 and non-empty data
+      #   - sops   for any other outcome (no creds, curl failure, non-2xx,
+      #            empty payload, JSON parse failure)
+      # The probe is INFORMATIONAL: if it picks vault but Vault flakes
+      # during the real fetch inside Ansible, the deploy fails loudly at
+      # that stage — same as any single-mode setup.  The value here is
+      # preventing a failure BEFORE Ansible even starts, when we can
+      # confidently see Vault won't answer.
+      #
+      # Every downstream mode-specific step reads
+      # `steps.resolve_mode.outputs.mode` instead of `inputs.secrets_mode`,
+      # so an existing caller passing `secrets_mode: sops` (etc.) keeps
+      # exactly its current behaviour.
+      - name: Resolve secrets mode (vault_or_sops fallback)
+        id: resolve_mode
+        shell: bash
+        env:
+          VAULT_ADDR_SECRET: ${{ secrets.VAULT_ADDR }}
+          VAULT_TOKEN_SECRET: ${{ secrets.VAULT_TOKEN }}
+        run: |
+          set -uo pipefail
+          RAW="${{ inputs.secrets_mode }}"
+          if [ "$RAW" != "vault_or_sops" ]; then
+            echo "  mode is '$RAW' (passthrough — no fallback logic)"
+            echo "mode=$RAW" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "  mode is 'vault_or_sops' — probing Vault..."
+
+          # No creds → SOPS.  Explicit reason so the log line answers
+          # "why didn't it use Vault?" without a bug report.
+          if [ -z "${VAULT_ADDR_SECRET:-}" ] || [ -z "${VAULT_TOKEN_SECRET:-}" ]; then
+            echo "  Vault creds missing (VAULT_ADDR or VAULT_TOKEN empty) — using SOPS"
+            echo "mode=sops" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Same whitespace-stripping the vault step does, for the same
+          # reasons (accidental echo/printf padding when the secret was
+          # set).  Applied to a local copy — don't leak into env.
+          VA="$(printf '%s' "$VAULT_ADDR_SECRET" | tr -d '[:space:]')"
+          VT="$(printf '%s' "$VAULT_TOKEN_SECRET" | tr -d '[:space:]')"
+
+          # Fetch the actual secret the deploy would use — that's the
+          # only useful probe.  /sys/health is unreliable (see the
+          # comment on the vault step below).  KV v2 path shape:
+          #   /v1/secret/data/wslproxy/<env>/settings.json
+          PROBE_URL="${VA}/v1/secret/data/wslproxy/${{ inputs.env_name }}/settings.json"
+          STATUS="$(curl -sSL --max-time 10 -o /tmp/vault_probe.json -w '%{http_code}' \
+            -H "X-Vault-Token: $VT" "$PROBE_URL" 2>/dev/null || echo 000)"
+
+          if [ "$STATUS" != "200" ]; then
+            echo "  Vault probe returned HTTP $STATUS — using SOPS"
+            echo "mode=sops" >> "$GITHUB_OUTPUT"
+            rm -f /tmp/vault_probe.json
+            exit 0
+          fi
+
+          # HTTP 200 with an empty `data.data` (i.e. Vault knows the
+          # path but there's nothing there) is a "not really usable"
+          # response.  Fall back to SOPS.  jq -e sets non-zero if the
+          # filter yields false/null/nothing, which is exactly the
+          # semantic we want.
+          if ! jq -e '.data.data | length > 0' /tmp/vault_probe.json >/dev/null 2>&1; then
+            echo "  Vault returned 200 but data.data is empty/malformed — using SOPS"
+            echo "mode=sops" >> "$GITHUB_OUTPUT"
+            rm -f /tmp/vault_probe.json
+            exit 0
+          fi
+
+          rm -f /tmp/vault_probe.json
+          echo "  Vault has secret at $PROBE_URL — using Vault"
+          echo "mode=vault" >> "$GITHUB_OUTPUT"
+
       # ── Secrets: Vault ─────────────────────────────────────────────────
       # The actual fetch happens inside ansible (deploy_data.yml uri tasks)
       # so the same code path works for both workflow and local-machine runs.
       # This step just makes VAULT_ADDR / VAULT_TOKEN available to the
       # ansible-playbook process via $GITHUB_ENV.
       - name: Export Vault credentials
-        if: inputs.secrets_mode == 'vault'
+        if: steps.resolve_mode.outputs.mode == 'vault'
         shell: bash
         env:
           VAULT_ADDR_SECRET: ${{ secrets.VAULT_ADDR }}
@@ -294,7 +380,7 @@ jobs:
       # path uses these — irrelevant in sops mode but defined to avoid
       # an "undefined" surprise downstream).
       - name: Install SOPS + age + community.sops collection
-        if: inputs.secrets_mode == 'sops'
+        if: steps.resolve_mode.outputs.mode == 'sops'
         shell: bash
         run: |
           set -euo pipefail
@@ -326,7 +412,7 @@ jobs:
           ansible-galaxy collection install community.sops --force
 
       - name: Export SOPS age key
-        if: inputs.secrets_mode == 'sops'
+        if: steps.resolve_mode.outputs.mode == 'sops'
         shell: bash
         env:
           SOPS_AGE_KEY_SECRET: ${{ secrets.SOPS_AGE_KEY }}
@@ -353,7 +439,7 @@ jobs:
 
       # ── Secrets: decode from GitHub Secret ──
       - name: Decode settings from GitHub Secret
-        if: inputs.secrets_mode == 'github_secret'
+        if: steps.resolve_mode.outputs.mode == 'github_secret'
         run: |
           echo "${{ secrets.SETTINGS_SECRET }}" | base64 -d > /tmp/settings_${{ inputs.host_ip }}.json
           if [ ! -s /tmp/settings_${{ inputs.host_ip }}.json ]; then
@@ -377,7 +463,7 @@ jobs:
       # populated, valid file. Only used by hosts that opt in via
       # seed_from_host (e.g. prod pop0, which has no GH-secret/SOPS copy).
       - name: Seed settings from live host (SSH self-seed)
-        if: inputs.secrets_mode == 'runner_file' && inputs.seed_from_host
+        if: steps.resolve_mode.outputs.mode == 'runner_file' && inputs.seed_from_host
         run: |
           set -euo pipefail
           if [[ "${{ inputs.connection_mode }}" != "ssh_key" ]]; then
@@ -421,7 +507,7 @@ jobs:
 
       # ── Secrets: validate from runner file ──
       - name: Validate settings from runner file
-        if: inputs.secrets_mode == 'runner_file'
+        if: steps.resolve_mode.outputs.mode == 'runner_file'
         run: |
           SETTINGS="${{ inputs.settings_file_path }}"
           ENVFILE="${{ inputs.env_file_path }}"
@@ -506,12 +592,18 @@ jobs:
           # through sudo; by default sudo scrubs env vars, so ansible's
           # lookup('env', 'VAULT_TOKEN') in deploy_data.yml would see an
           # empty string and the vault_secrets_enabled assertion would fail.
+          # Use the RESOLVED mode from the resolve_mode step, not the raw
+          # input.  For `vault_or_sops`, this may be `vault` or `sops`
+          # depending on what the probe found; for every other input value
+          # the resolved mode equals the input.
+          RESOLVED_MODE="${{ steps.resolve_mode.outputs.mode }}"
+
           CMD_PREFIX=""
           CONN_FLAGS=""
           if [[ "${{ inputs.connection_mode }}" == "local" ]]; then
-            if [[ "${{ inputs.secrets_mode }}" == "vault" ]]; then
+            if [[ "$RESOLVED_MODE" == "vault" ]]; then
               CMD_PREFIX="sudo --preserve-env=VAULT_ADDR,VAULT_TOKEN"
-            elif [[ "${{ inputs.secrets_mode }}" == "sops" ]]; then
+            elif [[ "$RESOLVED_MODE" == "sops" ]]; then
               # sudo scrubs env by default; the community.sops lookup in
               # deploy_data.yml needs SOPS_AGE_KEY to decrypt, so preserve it.
               CMD_PREFIX="sudo --preserve-env=SOPS_AGE_KEY"
@@ -527,9 +619,11 @@ jobs:
 
           # Force the role's mode-toggle from the workflow side, so an
           # operator picking `secrets_mode: <x>` in the call site always
-          # wins regardless of any host_vars defaults.
+          # wins regardless of any host_vars defaults.  Uses RESOLVED_MODE
+          # so vault_or_sops correctly translates to whichever branch the
+          # probe selected.
           SECRETS_FLAG=""
-          case "${{ inputs.secrets_mode }}" in
+          case "$RESOLVED_MODE" in
             vault) SECRETS_FLAG="vault_secrets_enabled=true sops_secrets_enabled=false" ;;
             sops)  SECRETS_FLAG="vault_secrets_enabled=false sops_secrets_enabled=true" ;;
             *)     SECRETS_FLAG="vault_secrets_enabled=false sops_secrets_enabled=false" ;;

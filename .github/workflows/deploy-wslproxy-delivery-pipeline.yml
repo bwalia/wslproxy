@@ -416,15 +416,15 @@ jobs:
       host_ip: "187.124.112.155"
       ssh_user: root
       connection_mode: ssh_key
-      # pop0 self-seeds: pull its own live settings.json over SSH and
-      # redeploy it (idempotent), instead of decoding an empty GH secret.
-      secrets_mode: runner_file
-      seed_from_host: true
-      # Seed target on the runner — /tmp is always writable (same place
-      # the old github_secret mode wrote to). The .secrets tree is locked
-      # down and the runner can't mkdir new subdirs there.
-      settings_file_path: "/tmp/wslproxy-pop0/settings.json"
-      env_file_path: "/tmp/wslproxy-pop0/.env"
+      # vault_or_sops: probe Vault first (see the resolve_mode step in
+      # deploy-environment.yml).  If Vault has the settings at
+      # secret/data/wslproxy/prod/settings.json, use it; otherwise fall
+      # back to the SOPS-encrypted infra/secrets/prod/settings.sops.json
+      # already committed to the repo.  Replaces the old runner_file +
+      # seed_from_host mode that failed on 2026-07-02 when the runner's
+      # SSH key stopped authenticating against the prod host (root@…
+      # permission denied) and there was no fallback.
+      secrets_mode: vault_or_sops
       health_endpoint: "https://prod-our-v1.wslproxy.com/health"
       health_check_mode: external
       docker_prune: true
@@ -433,6 +433,12 @@ jobs:
       deploy_mode: ${{ github.event.inputs.DEPLOY_MODE || 'full' }}
     secrets:
       SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      # Provide BOTH — the resolver picks Vault if VAULT_ADDR/VAULT_TOKEN
+      # are set AND the settings path is populated; otherwise it uses
+      # SOPS_AGE_KEY.  Deploy only fails if BOTH are unavailable.
+      VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
+      VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
+      SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
 
   # ──────────────────────────────────────────────────────
   # Stage 5b: Deploy Prod lon1 (72.62.211.28)
@@ -484,14 +490,10 @@ jobs:
       host_ip: "18.133.126.242"
       ssh_user: admin
       connection_mode: ssh_key
-      # pop1 self-seeds: pull its own live settings.json over SSH and
-      # redeploy it (idempotent), instead of decoding an empty GH secret.
-      # The FIRST deploy is done from local ansible (which seeds the host);
-      # thereafter pipeline runs reuse the host's live config.
-      secrets_mode: runner_file
-      seed_from_host: true
-      settings_file_path: "/tmp/wslproxy-pop1/settings.json"
-      env_file_path: "/tmp/wslproxy-pop1/.env"
+      # Same rationale as pop0 (Stage 5a) — Vault-first with SOPS
+      # fallback so a broken runner SSH key or an offline Vault can't
+      # take the pipeline down.
+      secrets_mode: vault_or_sops
       # IP-based health gate — no dependency on DNS/cert for pop1.diytaxreturn.co.uk
       health_endpoint: "http://18.133.126.242:7691/health"
       health_check_mode: external
@@ -501,6 +503,9 @@ jobs:
       deploy_mode: ${{ github.event.inputs.DEPLOY_MODE || 'full' }}
     secrets:
       SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
+      VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
+      SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
 
   # ──────────────────────────────────────────────────────
   # Pipeline Summary (always runs — final report)
