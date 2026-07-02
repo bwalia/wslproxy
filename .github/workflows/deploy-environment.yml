@@ -254,8 +254,13 @@ jobs:
           NEXT_PUBLIC_DEPLOYMENT_TIME=${DEPLOY_TIME}
           NEXT_PUBLIC_TARGET_PLATFORM=BARE_METAL
           ENVEOF
-          # Strip leading whitespace from env file
-          sed -i 's/^[[:space:]]*//' .env.production
+          # Strip leading whitespace from env file.
+          # Use a temp file + mv rather than `sed -i` — BSD/macOS sed
+          # requires an explicit backup-suffix arg for -i (`sed -i ''`),
+          # so bare `sed -i` fails on the macOS runner. This form is
+          # portable across GNU (Linux) and BSD (macOS) sed.
+          sed 's/^[[:space:]]*//' .env.production > .env.production.tmp \
+            && mv .env.production.tmp .env.production
 
           echo "Generated .env.production:"
           cat .env.production
