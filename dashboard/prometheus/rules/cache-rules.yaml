@@ -1,0 +1,71 @@
+# Prometheus recording + alerting rules for WSL Proxy - Cache
+# Feeds the "WSL Proxy - Cache" Grafana dashboard. Load via rule_files: in prometheus.yml.
+#
+# All expressions use ONLY cache metrics that exist on prod-our.wslproxy.com/metrics:
+#   nginx_cache_hits_total     {host, extension}
+#   nginx_cache_misses_total   {host, extension}
+#   nginx_cache_stores_total   {host, extension, content_type}
+#   nginx_cache_bypasses_total {host, reason}
+#   nginx_cache_enabled        {host}
+groups:
+  - name: wslproxy_cache.recording
+    interval: 30s
+    rules:
+      # ---- event rates ---------------------------------------------------
+      - record: wslproxy:cache_hits:rate5m
+        expr: sum(rate(nginx_cache_hits_total[5m]))
+
+      - record: wslproxy:cache_misses:rate5m
+        expr: sum(rate(nginx_cache_misses_total[5m]))
+
+      - record: wslproxy:cache_hits_by_host:rate5m
+        expr: sum by (host) (rate(nginx_cache_hits_total[5m]))
+
+      - record: wslproxy:cache_misses_by_host:rate5m
+        expr: sum by (host) (rate(nginx_cache_misses_total[5m]))
+
+      # ---- hit ratio (cluster) ------------------------------------------
+      - record: wslproxy:cache_hit_ratio:5m
+        expr: |
+          100 * sum(rate(nginx_cache_hits_total[5m]))
+            / clamp_min(sum(rate(nginx_cache_hits_total[5m])) + sum(rate(nginx_cache_misses_total[5m])), 0.0001)
+
+      # ---- hit ratio (per host) — 0-filled so miss-only hosts show 0% ----
+      - record: wslproxy:cache_hit_ratio_by_host:5m
+        expr: |
+          100 * (sum by (host) (rate(nginx_cache_hits_total[5m])) or (sum by (host) (rate(nginx_cache_misses_total[5m])) * 0))
+            / clamp_min(
+                (sum by (host) (rate(nginx_cache_hits_total[5m])) or (sum by (host) (rate(nginx_cache_misses_total[5m])) * 0))
+                + (sum by (host) (rate(nginx_cache_misses_total[5m])) or (sum by (host) (rate(nginx_cache_hits_total[5m])) * 0)),
+                0.0001)
+
+  - name: wslproxy_cache.alerts
+    rules:
+      # ---- low hit ratio: only alert on hosts with real cache traffic ----
+      - alert: WSLProxyCacheLowHitRatioWarning
+        expr: |
+          wslproxy:cache_hit_ratio_by_host:5m < 50
+            and on (host) (sum by (host) (rate(nginx_cache_hits_total[5m])) + sum by (host) (rate(nginx_cache_misses_total[5m])) > 0.05)
+        for: 30m
+        labels: {severity: warning, service: wslproxy, component: cache}
+        annotations:
+          summary: "Cache hit ratio <50% on {{ $labels.host }}"
+          description: "Hit ratio for {{ $labels.host }} is {{ printf \"%.1f\" $value }}% (warn <50%) — cacheable content may not be served from cache."
+
+      # ---- caching turned off on a host that had it on -------------------
+      - alert: WSLProxyCacheDisabled
+        expr: nginx_cache_enabled == 0
+        for: 5m
+        labels: {severity: info, service: wslproxy, component: cache}
+        annotations:
+          summary: "Caching disabled on {{ $labels.host }}"
+          description: "nginx_cache_enabled == 0 for {{ $labels.host }} for >5m."
+
+      # ---- bypass surge: many requests skipping the cache ----------------
+      - alert: WSLProxyCacheBypassSurge
+        expr: sum(rate(nginx_cache_bypasses_total[5m])) > 20
+        for: 15m
+        labels: {severity: warning, service: wslproxy, component: cache}
+        annotations:
+          summary: "High cache-bypass rate ({{ printf \"%.1f\" $value }}/s)"
+          description: "Cache bypasses >20/s for 15m — check for a misconfigured cached_extensions list or a surge of dynamic traffic."
