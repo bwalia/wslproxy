@@ -10,10 +10,14 @@ names are invented — see [`METRICS_INVENTORY.md`](./METRICS_INVENTORY.md).
 - **Dashboard 2:** `WSL Proxy - Cache` (uid `wslproxy-cache`)
   — static-content cache hit ratio, per-host/-extension breakdown, bypass reasons,
   stores by content-type · 6 template variables · 1 annotation
-- **Dashboard 3:** `WSL Proxy - SRE (10 Layers)` (uid `wslproxy-sre`)
+- **Dashboard 3:** `WSL Proxy - SRE (10 Layers)` (uid `wslproxy-sre-10layer`)
   — top-down SRE view in 10 layers: SLO + error-budget burn, the four golden signals
   (traffic/errors/latency/saturation), then edge → routing → backend → cache → security.
   A single at-a-glance "is the service healthy, and if not, which layer?" board.
+- **Dashboard 4:** `WSL Proxy - Domain Deep-Dive` (uid `wslproxy-domain`)
+  — developer view: pick one **Host** and see its whole story (traffic, errors, latency
+  percentiles, top/slowest endpoints, cache, top client IPs) on one page. Backend/rule
+  attribution isn't host-labelled in metrics, so that's a pointer to Backend Health + admin UI.
 - Colour convention: 🟢 healthy · 🟡 warning · 🔴 critical · ⚪ unknown
 - Cache hit-ratio convention: 🔴 <50% · 🟡 50–80% · 🟢 ≥80%
 - SLO for the SRE dashboard's error-budget math: **99.9%** (edit `SLO` in `build_sre_dashboard.py`)
@@ -30,7 +34,8 @@ dashboard/
 │   ├── dashboards/
 │   │   ├── wsl-proxy-backend-health.json   ← backend-health dashboard
 │   │   ├── wsl-proxy-cache.json            ← cache dashboard
-│   │   └── wsl-proxy-sre.json              ← 10-layer SRE dashboard
+│   │   ├── wsl-proxy-sre.json              ← 10-layer SRE dashboard
+│   │   └── wsl-proxy-domain.json           ← per-domain deep-dive dashboard
 │   └── provisioning/
 │       ├── dashboards/wslproxy.yaml        ← dashboard provider (loads the whole folder)
 │       └── datasources/prometheus.yaml     ← Prometheus datasource
@@ -44,7 +49,8 @@ dashboard/
 └── scripts/
     ├── build_dashboard.py                  ← regenerates the backend-health JSON
     ├── build_cache_dashboard.py            ← regenerates the cache JSON
-    └── build_sre_dashboard.py              ← regenerates the 10-layer SRE JSON
+    ├── build_sre_dashboard.py              ← regenerates the 10-layer SRE JSON
+    └── build_domain_dashboard.py           ← regenerates the domain deep-dive JSON
 ```
 
 Both dashboards live in the same `grafana/dashboards/` folder, so the provisioning
