@@ -63,12 +63,14 @@ jobs:
           echo "Checking for required tools..."
           if ! command -v jq &> /dev/null; then
             echo "jq is required but not installed. Installing..."
-            if command -v zypper &> /dev/null; then
+            if command -v brew &> /dev/null; then
+              brew install jq
+            elif command -v zypper &> /dev/null; then
               sudo zypper install -y jq
             elif command -v apt-get &> /dev/null; then
               sudo apt-get update && sudo apt-get install -y jq
             else
-              echo "::error::No supported package manager found"; exit 1
+              echo "::error::No supported package manager found (brew, zypper or apt-get)"; exit 1
             fi
           fi
           command -v curl >/dev/null 2>&1 || { echo "curl is required but not installed."; exit 1; }
