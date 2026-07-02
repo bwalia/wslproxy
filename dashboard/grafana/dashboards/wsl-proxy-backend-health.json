@@ -3206,14 +3206,14 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "Share of backends currently healthy",
+      "description": "Share of backends currently healthy. Shows 0% (not 'No data') when every backend is unhealthy \u2014 the `count(... == 1)` numerator is empty in that case.",
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "100 * count(wslproxy_backend_healthy{env=~\"$env\"} == 1) / clamp_min(count(wslproxy_backend_healthy{env=~\"$env\"}),1)",
+          "expr": "100 * (count(wslproxy_backend_healthy{env=~\"$env\"} == 1) or vector(0)) / clamp_min(count(wslproxy_backend_healthy{env=~\"$env\"}), 1)",
           "legendFormat": "",
           "instant": true,
           "range": false,
@@ -4951,15 +4951,15 @@
         "type": "prometheus",
         "uid": "${datasource}"
       },
-      "description": "",
+      "description": "In-flight connections = reading+writing+waiting (the exporter emits no separate 'active' state)",
       "targets": [
         {
           "datasource": {
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "nginx_http_connections{env=~\"$env\",state=\"active\"}",
-          "legendFormat": "active",
+          "expr": "sum(nginx_http_connections{env=~\"$env\"}) or vector(0)",
+          "legendFormat": "active (r+w+waiting)",
           "instant": false,
           "range": true,
           "format": "time_series",

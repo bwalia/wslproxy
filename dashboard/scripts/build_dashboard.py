@@ -494,9 +494,12 @@ L.add(statetimeline("Backend Health State Timeline",
                     mappings=HEALTH_MAP, thr=HEALTH_THR,
                     desc="Green=healthy(1) Red=unhealthy(0) over time"), w=16, h=8, x=0)
 L.add(gauge("Fleet Availability %",
-            [target("100 * count(wslproxy_backend_healthy == 1) / clamp_min(count(wslproxy_backend_healthy),1)",
+            [target("100 * (count(wslproxy_backend_healthy == 1) or vector(0)) "
+                    "/ clamp_min(count(wslproxy_backend_healthy), 1)",
                     "", instant=True)], unit="percent", thr=AVAIL_THR, minv=0, maxv=100,
-            desc="Share of backends currently healthy"), w=8, h=8, x=16)
+            desc="Share of backends currently healthy. Shows 0% (not 'No data') when every "
+                 "backend is unhealthy — the `count(... == 1)` numerator is empty in that case."),
+      w=8, h=8, x=16)
 L.newline(8)
 
 # ==========================================================================
@@ -636,8 +639,11 @@ L.add(text("Resource usage note",
            "exported by lua-prometheus. The nearest real signals are connection state and "
            "metric-emit errors below."), w=24, h=3, x=0)
 L.newline(3)
-L.add(timeseries("Active Connections", [target("nginx_http_connections{state=\"active\"}", "active")],
-                 unit="short", fill=20), w=8, h=7, x=0)
+L.add(timeseries("Active Connections",
+                 [target("sum(nginx_http_connections) or vector(0)", "active (r+w+waiting)")],
+                 unit="short", fill=20,
+                 desc="In-flight connections = reading+writing+waiting (the exporter emits no "
+                      "separate 'active' state)"), w=8, h=7, x=0)
 L.add(stat("Waiting Connections", [target("sum(nginx_http_connections{state=\"waiting\"})", "", instant=True)],
            unit="short", graph=True), w=4, h=7, x=8)
 L.add(stat("Metric Emit Errors", [target("nginx_metric_errors_total", "", instant=True)],
