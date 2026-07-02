@@ -84,6 +84,7 @@ jobs:
       deploy_mode: ${{ inputs.DEPLOY_MODE }}
     secrets:
       SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
       SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
       # Kept so an emergency revert to secrets_mode: github_secret needs no
       # secret re-add (mirrors the delivery pipeline's int stage).
@@ -114,6 +115,7 @@ jobs:
       deploy_mode: ${{ inputs.DEPLOY_MODE }}
     secrets:
       SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
 
   # ──────────────────────────────────────────────────────
   # Acceptance — acc / "pop0" (187.124.112.155). vault-first with SOPS fallback
@@ -138,6 +140,7 @@ jobs:
       deploy_mode: ${{ inputs.DEPLOY_MODE }}
     secrets:
       SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
       VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
       VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
       SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
@@ -165,6 +168,7 @@ jobs:
       deploy_mode: ${{ inputs.DEPLOY_MODE }}
     secrets:
       SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
       VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
       VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
       SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
