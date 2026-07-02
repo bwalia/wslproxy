@@ -699,7 +699,7 @@ for _p in L.panels:
             _t["expr"] = inject_env(_t["expr"])
 
 dashboard = {
-    "uid": "wslproxy-sre",
+    "uid": "wslproxy-sre-10layer",
     "title": "WSL Proxy - SRE (10 Layers)",
     "tags": ["wslproxy", "sre", "golden-signals", "production", "openresty"],
     "timezone": "browser", "schemaVersion": 39, "version": 1, "editable": True,
