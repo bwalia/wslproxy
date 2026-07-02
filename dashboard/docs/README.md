@@ -26,7 +26,8 @@ names are invented — see [`METRICS_INVENTORY.md`](./METRICS_INVENTORY.md).
 ```
 dashboard/
 ├── docs/
-│   ├── README.md              ← this file
+│   ├── README.md              ← this file (build/structure/provisioning)
+│   ├── DASHBOARD_GUIDE.md     ← reader's guide: what each dashboard is for + troubleshooting
 │   ├── METRICS_INVENTORY.md   ← every real metric, categorised
 │   ├── PANELS.md              ← every panel + its PromQL
 │   └── VARIABLES.md           ← template variable definitions
