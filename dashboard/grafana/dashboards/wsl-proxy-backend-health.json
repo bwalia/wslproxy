@@ -44,21 +44,26 @@
         "regex": ""
       },
       {
-        "name": "environment",
+        "name": "env",
         "label": "Environment",
-        "type": "custom",
-        "query": "Production",
-        "current": {
-          "text": "Production",
-          "value": "Production"
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${datasource}"
         },
-        "options": [
-          {
-            "text": "Production",
-            "value": "Production",
-            "selected": true
-          }
-        ],
+        "definition": "label_values(nginx_http_requests_total, env)",
+        "query": {
+          "query": "label_values(nginx_http_requests_total, env)",
+          "refId": "env"
+        },
+        "refresh": 2,
+        "sort": 1,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "regex": "",
+        "current": {},
+        "options": [],
         "hide": 0
       },
       {
@@ -351,7 +356,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "count(count by (host) (nginx_http_requests_total))",
+          "expr": "count(count by (host) (nginx_http_requests_total{env=~\"$env\"}))",
           "legendFormat": "",
           "instant": true,
           "range": false,
@@ -508,7 +513,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "count(count by (backend_label) (wslproxy_backend_requests_total))",
+          "expr": "count(count by (backend_label) (wslproxy_backend_requests_total{env=~\"$env\"}))",
           "legendFormat": "",
           "instant": true,
           "range": false,
@@ -571,7 +576,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "count(wslproxy_backend_healthy == 1) or vector(0)",
+          "expr": "count(wslproxy_backend_healthy{env=~\"$env\"} == 1) or vector(0)",
           "legendFormat": "",
           "instant": true,
           "range": false,
@@ -638,7 +643,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "count(wslproxy_backend_healthy == 0) or vector(0)",
+          "expr": "count(wslproxy_backend_healthy{env=~\"$env\"} == 0) or vector(0)",
           "legendFormat": "",
           "instant": true,
           "range": false,
@@ -705,7 +710,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "count(count by (rule_id) (wslproxy_backend_requests_total))",
+          "expr": "count(count by (rule_id) (wslproxy_backend_requests_total{env=~\"$env\"}))",
           "legendFormat": "",
           "instant": true,
           "range": false,
@@ -768,7 +773,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "count(count by (rule_id) (rate(wslproxy_backend_requests_total[5m]) > 0)) or vector(0)",
+          "expr": "count(count by (rule_id) (rate(wslproxy_backend_requests_total{env=~\"$env\"}[5m]) > 0)) or vector(0)",
           "legendFormat": "",
           "instant": true,
           "range": false,
@@ -831,7 +836,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(nginx_http_requests_total)",
+          "expr": "sum(nginx_http_requests_total{env=~\"$env\"})",
           "legendFormat": "",
           "instant": true,
           "range": false,
@@ -894,7 +899,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(rate(nginx_http_requests_total[5m]))",
+          "expr": "sum(rate(nginx_http_requests_total{env=~\"$env\"}[5m]))",
           "legendFormat": "",
           "instant": true,
           "range": false,
@@ -958,7 +963,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "100 * sum(rate(nginx_http_errors_total[5m])) / clamp_min(sum(rate(nginx_http_requests_total[5m])),1)",
+          "expr": "100 * sum(rate(nginx_http_errors_total{env=~\"$env\"}[5m])) / clamp_min(sum(rate(nginx_http_requests_total{env=~\"$env\"}[5m])),1)",
           "legendFormat": "",
           "instant": true,
           "range": false,
@@ -1030,7 +1035,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "100 * (1 - sum(rate(nginx_http_5xx_errors_total[5m])) / clamp_min(sum(rate(nginx_http_requests_total[5m])),1))",
+          "expr": "100 * (1 - sum(rate(nginx_http_5xx_errors_total{env=~\"$env\"}[5m])) / clamp_min(sum(rate(nginx_http_requests_total{env=~\"$env\"}[5m])),1))",
           "legendFormat": "",
           "instant": true,
           "range": false,
@@ -1099,7 +1104,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "min(wslproxy_backend_healthy)",
+          "expr": "min(wslproxy_backend_healthy{env=~\"$env\"})",
           "legendFormat": "",
           "instant": true,
           "range": false,
@@ -1193,7 +1198,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum by (backend_label) (wslproxy_backend_requests_total)",
+          "expr": "sum by (backend_label) (wslproxy_backend_requests_total{env=~\"$env\"})",
           "legendFormat": "",
           "instant": true,
           "range": false,
@@ -1205,7 +1210,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum by (backend_label) (increase(wslproxy_backend_requests_total{status=~\"5..\"}[$__range]))",
+          "expr": "sum by (backend_label) (increase(wslproxy_backend_requests_total{env=~\"$env\",status=~\"5..\"}[$__range]))",
           "legendFormat": "",
           "instant": true,
           "range": false,
@@ -1217,7 +1222,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "100 * sum by (backend_label) (rate(wslproxy_backend_requests_total{status=~\"5..\"}[5m])) / clamp_min(sum by (backend_label) (rate(wslproxy_backend_requests_total[5m])),0.0001)",
+          "expr": "100 * sum by (backend_label) (rate(wslproxy_backend_requests_total{env=~\"$env\",status=~\"5..\"}[5m])) / clamp_min(sum by (backend_label) (rate(wslproxy_backend_requests_total{env=~\"$env\"}[5m])),0.0001)",
           "legendFormat": "",
           "instant": true,
           "range": false,
@@ -1229,7 +1234,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "histogram_quantile(0.95, sum by (backend_label, le) (rate(wslproxy_backend_response_seconds_bucket[5m])))",
+          "expr": "histogram_quantile(0.95, sum by (backend_label, le) (rate(wslproxy_backend_response_seconds_bucket{env=~\"$env\"}[5m])))",
           "legendFormat": "",
           "instant": true,
           "range": false,
@@ -1241,7 +1246,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "max by (backend_label) (wslproxy_backend_healthy)",
+          "expr": "max by (backend_label) (wslproxy_backend_healthy{env=~\"$env\"})",
           "legendFormat": "",
           "instant": true,
           "range": false,
@@ -1253,7 +1258,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum by (backend_label) (rate(wslproxy_backend_requests_total[5m]))",
+          "expr": "sum by (backend_label) (rate(wslproxy_backend_requests_total{env=~\"$env\"}[5m]))",
           "legendFormat": "",
           "instant": true,
           "range": false,
@@ -1517,7 +1522,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum by (rule_id, backend_label) (wslproxy_backend_requests_total)",
+          "expr": "sum by (rule_id, backend_label) (wslproxy_backend_requests_total{env=~\"$env\"})",
           "legendFormat": "",
           "instant": true,
           "range": false,
@@ -1529,7 +1534,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum by (rule_id, backend_label) (increase(wslproxy_backend_requests_total{status=~\"[45]..\"}[$__range]))",
+          "expr": "sum by (rule_id, backend_label) (increase(wslproxy_backend_requests_total{env=~\"$env\",status=~\"[45]..\"}[$__range]))",
           "legendFormat": "",
           "instant": true,
           "range": false,
@@ -1541,7 +1546,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "histogram_quantile(0.95, sum by (rule_id, backend_label, le) (rate(wslproxy_backend_response_seconds_bucket[5m])))",
+          "expr": "histogram_quantile(0.95, sum by (rule_id, backend_label, le) (rate(wslproxy_backend_response_seconds_bucket{env=~\"$env\"}[5m])))",
           "legendFormat": "",
           "instant": true,
           "range": false,
@@ -1553,7 +1558,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "max by (rule_id, backend_label) (wslproxy_backend_healthy)",
+          "expr": "max by (rule_id, backend_label) (wslproxy_backend_healthy{env=~\"$env\"})",
           "legendFormat": "",
           "instant": true,
           "range": false,
@@ -1565,7 +1570,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "100 * sum by (rule_id, backend_label) (rate(wslproxy_backend_requests_total[5m])) / scalar(clamp_min(sum(rate(wslproxy_backend_requests_total[5m])),0.0001))",
+          "expr": "100 * sum by (rule_id, backend_label) (rate(wslproxy_backend_requests_total{env=~\"$env\"}[5m])) / scalar(clamp_min(sum(rate(wslproxy_backend_requests_total{env=~\"$env\"}[5m])),0.0001))",
           "legendFormat": "",
           "instant": true,
           "range": false,
@@ -1771,7 +1776,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(rate(nginx_http_requests_total{host=~\"$host\"}[5m]))",
+          "expr": "sum(rate(nginx_http_requests_total{env=~\"$env\",host=~\"$host\"}[5m]))",
           "legendFormat": "requests/s",
           "instant": false,
           "range": true,
@@ -1783,7 +1788,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(rate(nginx_proxy_requests_total[5m]))",
+          "expr": "sum(rate(nginx_proxy_requests_total{env=~\"$env\"}[5m]))",
           "legendFormat": "proxied responses/s",
           "instant": false,
           "range": true,
@@ -1857,7 +1862,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(rate(nginx_http_request_size_bytes_sum{host=~\"$host\"}[5m]))",
+          "expr": "sum(rate(nginx_http_request_size_bytes_sum{env=~\"$env\",host=~\"$host\"}[5m]))",
           "legendFormat": "incoming",
           "instant": false,
           "range": true,
@@ -1869,7 +1874,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(rate(nginx_http_response_size_bytes_sum{host=~\"$host\"}[5m]))",
+          "expr": "sum(rate(nginx_http_response_size_bytes_sum{env=~\"$env\",host=~\"$host\"}[5m]))",
           "legendFormat": "outgoing",
           "instant": false,
           "range": true,
@@ -1943,7 +1948,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "max_over_time(sum(rate(nginx_http_requests_total[5m]))[$__range:1m])",
+          "expr": "max_over_time(sum(rate(nginx_http_requests_total{env=~\"$env\"}[5m]))[$__range:1m])",
           "legendFormat": "",
           "instant": true,
           "range": false,
@@ -2007,7 +2012,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "avg_over_time(sum(rate(nginx_http_requests_total[5m]))[$__range:1m])",
+          "expr": "avg_over_time(sum(rate(nginx_http_requests_total{env=~\"$env\"}[5m]))[$__range:1m])",
           "legendFormat": "",
           "instant": true,
           "range": false,
@@ -2071,7 +2076,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "max_over_time(sum(rate(wslproxy_backend_requests_total[5m]))[$__range:1m])",
+          "expr": "max_over_time(sum(rate(wslproxy_backend_requests_total{env=~\"$env\"}[5m]))[$__range:1m])",
           "legendFormat": "",
           "instant": true,
           "range": false,
@@ -2135,7 +2140,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(nginx_http_requests_total)",
+          "expr": "sum(nginx_http_requests_total{env=~\"$env\"})",
           "legendFormat": "",
           "instant": true,
           "range": false,
@@ -2211,7 +2216,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(rate(nginx_http_4xx_errors_total{host=~\"$host\"}[5m]))",
+          "expr": "sum(rate(nginx_http_4xx_errors_total{env=~\"$env\",host=~\"$host\"}[5m]))",
           "legendFormat": "4xx",
           "instant": false,
           "range": true,
@@ -2223,7 +2228,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(rate(nginx_http_5xx_errors_total{host=~\"$host\"}[5m]))",
+          "expr": "sum(rate(nginx_http_5xx_errors_total{env=~\"$env\",host=~\"$host\"}[5m]))",
           "legendFormat": "5xx",
           "instant": false,
           "range": true,
@@ -2235,7 +2240,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(rate(nginx_http_errors_total{host=~\"$host\"}[5m]))",
+          "expr": "sum(rate(nginx_http_errors_total{env=~\"$env\",host=~\"$host\"}[5m]))",
           "legendFormat": "all errors",
           "instant": false,
           "range": true,
@@ -2309,7 +2314,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum by (backend_label) (rate(wslproxy_backend_requests_total{status=~\"5..\"}[5m]))",
+          "expr": "sum by (backend_label) (rate(wslproxy_backend_requests_total{env=~\"$env\",status=~\"5..\"}[5m]))",
           "legendFormat": "{{backend_label}}",
           "instant": false,
           "range": true,
@@ -2383,7 +2388,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(rate(nginx_http_4xx_errors_total[5m]))",
+          "expr": "sum(rate(nginx_http_4xx_errors_total{env=~\"$env\"}[5m]))",
           "legendFormat": "",
           "instant": true,
           "range": false,
@@ -2451,7 +2456,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(rate(nginx_http_5xx_errors_total[5m]))",
+          "expr": "sum(rate(nginx_http_5xx_errors_total{env=~\"$env\"}[5m]))",
           "legendFormat": "",
           "instant": true,
           "range": false,
@@ -2519,7 +2524,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "100 * (1 - sum(rate(nginx_http_errors_total[5m]))/clamp_min(sum(rate(nginx_http_requests_total[5m])),1))",
+          "expr": "100 * (1 - sum(rate(nginx_http_errors_total{env=~\"$env\"}[5m]))/clamp_min(sum(rate(nginx_http_requests_total{env=~\"$env\"}[5m])),1))",
           "legendFormat": "",
           "instant": true,
           "range": false,
@@ -2588,7 +2593,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(rate(nginx_http_suspicious_requests_total[5m]))",
+          "expr": "sum(rate(nginx_http_suspicious_requests_total{env=~\"$env\"}[5m]))",
           "legendFormat": "",
           "instant": true,
           "range": false,
@@ -2656,7 +2661,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(rate(api_auth_failures_total[5m]))",
+          "expr": "sum(rate(api_auth_failures_total{env=~\"$env\"}[5m]))",
           "legendFormat": "",
           "instant": true,
           "range": false,
@@ -2724,7 +2729,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(rate(wslproxy_backend_requests_total{status=\"499\"}[5m]))",
+          "expr": "sum(rate(wslproxy_backend_requests_total{env=~\"$env\",status=\"499\"}[5m]))",
           "legendFormat": "",
           "instant": true,
           "range": false,
@@ -2801,7 +2806,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "histogram_quantile(0.50, sum by (le) (rate(wslproxy_backend_response_seconds_bucket[5m])))",
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(wslproxy_backend_response_seconds_bucket{env=~\"$env\"}[5m])))",
           "legendFormat": "p50",
           "instant": false,
           "range": true,
@@ -2813,7 +2818,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "histogram_quantile(0.90, sum by (le) (rate(wslproxy_backend_response_seconds_bucket[5m])))",
+          "expr": "histogram_quantile(0.90, sum by (le) (rate(wslproxy_backend_response_seconds_bucket{env=~\"$env\"}[5m])))",
           "legendFormat": "p90",
           "instant": false,
           "range": true,
@@ -2825,7 +2830,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(wslproxy_backend_response_seconds_bucket[5m])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(wslproxy_backend_response_seconds_bucket{env=~\"$env\"}[5m])))",
           "legendFormat": "p95",
           "instant": false,
           "range": true,
@@ -2837,7 +2842,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "histogram_quantile(0.99, sum by (le) (rate(wslproxy_backend_response_seconds_bucket[5m])))",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(wslproxy_backend_response_seconds_bucket{env=~\"$env\"}[5m])))",
           "legendFormat": "p99",
           "instant": false,
           "range": true,
@@ -2849,7 +2854,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(rate(wslproxy_backend_response_seconds_sum[5m]))/clamp_min(sum(rate(wslproxy_backend_response_seconds_count[5m])),0.0001)",
+          "expr": "sum(rate(wslproxy_backend_response_seconds_sum{env=~\"$env\"}[5m]))/clamp_min(sum(rate(wslproxy_backend_response_seconds_count{env=~\"$env\"}[5m])),0.0001)",
           "legendFormat": "avg",
           "instant": false,
           "range": true,
@@ -2939,7 +2944,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "histogram_quantile(0.50, sum by (le) (rate(nginx_proxy_response_time_seconds_bucket[5m])))",
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(nginx_proxy_response_time_seconds_bucket{env=~\"$env\"}[5m])))",
           "legendFormat": "p50",
           "instant": false,
           "range": true,
@@ -2951,7 +2956,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(nginx_proxy_response_time_seconds_bucket[5m])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(nginx_proxy_response_time_seconds_bucket{env=~\"$env\"}[5m])))",
           "legendFormat": "p95",
           "instant": false,
           "range": true,
@@ -2963,7 +2968,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "histogram_quantile(0.99, sum by (le) (rate(nginx_proxy_response_time_seconds_bucket[5m])))",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(nginx_proxy_response_time_seconds_bucket{env=~\"$env\"}[5m])))",
           "legendFormat": "p99",
           "instant": false,
           "range": true,
@@ -3053,7 +3058,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum by (le) (rate(wslproxy_backend_response_seconds_bucket[5m]))",
+          "expr": "sum by (le) (rate(wslproxy_backend_response_seconds_bucket{env=~\"$env\"}[5m]))",
           "legendFormat": "{{le}}",
           "instant": false,
           "range": true,
@@ -3124,7 +3129,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "wslproxy_backend_healthy",
+          "expr": "wslproxy_backend_healthy{env=~\"$env\"}",
           "legendFormat": "{{backend_label}}",
           "instant": false,
           "range": true,
@@ -3208,7 +3213,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "100 * count(wslproxy_backend_healthy == 1) / clamp_min(count(wslproxy_backend_healthy),1)",
+          "expr": "100 * count(wslproxy_backend_healthy{env=~\"$env\"} == 1) / clamp_min(count(wslproxy_backend_healthy{env=~\"$env\"}),1)",
           "legendFormat": "",
           "instant": true,
           "range": false,
@@ -3290,7 +3295,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum by (backend_label) (wslproxy_backend_requests_total)",
+          "expr": "sum by (backend_label) (wslproxy_backend_requests_total{env=~\"$env\"})",
           "legendFormat": "{{backend_label}}",
           "instant": true,
           "range": false,
@@ -3351,7 +3356,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum by (backend_label) (rate(wslproxy_backend_requests_total[5m]))",
+          "expr": "sum by (backend_label) (rate(wslproxy_backend_requests_total{env=~\"$env\"}[5m]))",
           "legendFormat": "{{backend_label}}",
           "instant": true,
           "range": false,
@@ -3412,7 +3417,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "topk(1, sum by (backend_label) (wslproxy_backend_requests_total))",
+          "expr": "topk(1, sum by (backend_label) (wslproxy_backend_requests_total{env=~\"$env\"}))",
           "legendFormat": "{{backend_label}}",
           "instant": true,
           "range": false,
@@ -3475,7 +3480,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "topk(1, sum by (backend_label) (rate(wslproxy_backend_requests_total[5m])))",
+          "expr": "topk(1, sum by (backend_label) (rate(wslproxy_backend_requests_total{env=~\"$env\"}[5m])))",
           "legendFormat": "{{backend_label}}",
           "instant": true,
           "range": false,
@@ -3539,7 +3544,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "bottomk(1, sum by (backend_label) (wslproxy_backend_requests_total))",
+          "expr": "bottomk(1, sum by (backend_label) (wslproxy_backend_requests_total{env=~\"$env\"}))",
           "legendFormat": "{{backend_label}}",
           "instant": true,
           "range": false,
@@ -3615,7 +3620,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "wslproxy_backend_healthy",
+          "expr": "wslproxy_backend_healthy{env=~\"$env\"}",
           "legendFormat": "{{backend_label}}",
           "instant": false,
           "range": true,
@@ -3699,7 +3704,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "count(wslproxy_backend_healthy == 1) or vector(0)",
+          "expr": "count(wslproxy_backend_healthy{env=~\"$env\"} == 1) or vector(0)",
           "legendFormat": "",
           "instant": true,
           "range": false,
@@ -3766,7 +3771,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "count(wslproxy_backend_healthy == 0) or vector(0)",
+          "expr": "count(wslproxy_backend_healthy{env=~\"$env\"} == 0) or vector(0)",
           "legendFormat": "",
           "instant": true,
           "range": false,
@@ -3863,7 +3868,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum by (backend_label) (wslproxy_backend_requests_total)",
+          "expr": "sum by (backend_label) (wslproxy_backend_requests_total{env=~\"$env\"})",
           "legendFormat": "{{backend_label}}",
           "instant": true,
           "range": false,
@@ -3928,7 +3933,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum by (rule_id) (wslproxy_backend_requests_total)",
+          "expr": "sum by (rule_id) (wslproxy_backend_requests_total{env=~\"$env\"})",
           "legendFormat": "{{rule_id}}",
           "instant": true,
           "range": false,
@@ -3993,7 +3998,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum by (backend_label) (increase(wslproxy_backend_requests_total{status=~\"[45]..\"}[$__range]))",
+          "expr": "sum by (backend_label) (increase(wslproxy_backend_requests_total{env=~\"$env\",status=~\"[45]..\"}[$__range]))",
           "legendFormat": "{{backend_label}}",
           "instant": true,
           "range": false,
@@ -4058,7 +4063,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum by (status) (wslproxy_backend_requests_total)",
+          "expr": "sum by (status) (wslproxy_backend_requests_total{env=~\"$env\"})",
           "legendFormat": "{{status}}",
           "instant": true,
           "range": false,
@@ -4123,7 +4128,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum by (method) (nginx_http_requests_total)",
+          "expr": "sum by (method) (nginx_http_requests_total{env=~\"$env\"})",
           "legendFormat": "{{method}}",
           "instant": true,
           "range": false,
@@ -4188,7 +4193,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(nginx_cache_hits_total)",
+          "expr": "sum(nginx_cache_hits_total{env=~\"$env\"})",
           "legendFormat": "hits",
           "instant": true,
           "range": false,
@@ -4200,7 +4205,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(nginx_cache_misses_total)",
+          "expr": "sum(nginx_cache_misses_total{env=~\"$env\"})",
           "legendFormat": "misses",
           "instant": true,
           "range": false,
@@ -4308,7 +4313,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum by (status) (rate(nginx_http_requests_total{host=~\"$host\"}[5m]))",
+          "expr": "sum by (status) (rate(nginx_http_requests_total{env=~\"$env\",host=~\"$host\"}[5m]))",
           "legendFormat": "{{status}}",
           "instant": false,
           "range": true,
@@ -4382,7 +4387,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "nginx_http_connections",
+          "expr": "nginx_http_connections{env=~\"$env\"}",
           "legendFormat": "{{state}}",
           "instant": false,
           "range": true,
@@ -4456,7 +4461,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "topk(10, sum by (endpoint) (nginx_http_requests_total))",
+          "expr": "topk(10, sum by (endpoint) (nginx_http_requests_total{env=~\"$env\"}))",
           "legendFormat": "{{endpoint}}",
           "instant": true,
           "range": false,
@@ -4517,7 +4522,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum by (status) (nginx_http_requests_total)",
+          "expr": "sum by (status) (nginx_http_requests_total{env=~\"$env\"})",
           "legendFormat": "",
           "instant": true,
           "range": false,
@@ -4953,7 +4958,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "nginx_http_connections{state=\"active\"}",
+          "expr": "nginx_http_connections{env=~\"$env\",state=\"active\"}",
           "legendFormat": "active",
           "instant": false,
           "range": true,
@@ -5023,7 +5028,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(nginx_http_connections{state=\"waiting\"})",
+          "expr": "sum(nginx_http_connections{env=~\"$env\",state=\"waiting\"})",
           "legendFormat": "",
           "instant": true,
           "range": false,
@@ -5086,7 +5091,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "nginx_metric_errors_total",
+          "expr": "nginx_metric_errors_total{env=~\"$env\"}",
           "legendFormat": "",
           "instant": true,
           "range": false,
@@ -5153,7 +5158,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum by (status) (rate(api_calls_total[5m]))",
+          "expr": "sum by (status) (rate(api_calls_total{env=~\"$env\"}[5m]))",
           "legendFormat": "{{status}}",
           "instant": false,
           "range": true,
@@ -5292,7 +5297,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "topk(10, sum by (backend_label) (increase(wslproxy_backend_requests_total{status=~\"5..\"}[$__range])))",
+          "expr": "topk(10, sum by (backend_label) (increase(wslproxy_backend_requests_total{env=~\"$env\",status=~\"5..\"}[$__range])))",
           "legendFormat": "",
           "instant": true,
           "range": false,
@@ -5372,7 +5377,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "topk(10, histogram_quantile(0.95, sum by (backend_label, le) (rate(wslproxy_backend_response_seconds_bucket[5m]))))",
+          "expr": "topk(10, histogram_quantile(0.95, sum by (backend_label, le) (rate(wslproxy_backend_response_seconds_bucket{env=~\"$env\"}[5m]))))",
           "legendFormat": "",
           "instant": true,
           "range": false,
@@ -5469,7 +5474,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "topk(10, sum by (rule_id) (rate(wslproxy_backend_requests_total[5m])))",
+          "expr": "topk(10, sum by (rule_id) (rate(wslproxy_backend_requests_total{env=~\"$env\"}[5m])))",
           "legendFormat": "",
           "instant": true,
           "range": false,
@@ -5566,7 +5571,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum by (le) (rate(nginx_http_request_duration_seconds_bucket{host=~\"$host\"}[5m]))",
+          "expr": "sum by (le) (rate(nginx_http_request_duration_seconds_bucket{env=~\"$env\",host=~\"$host\"}[5m]))",
           "legendFormat": "{{le}}",
           "instant": false,
           "range": true,
@@ -5624,7 +5629,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum by (le) (rate(nginx_proxy_response_time_seconds_bucket[5m]))",
+          "expr": "sum by (le) (rate(nginx_proxy_response_time_seconds_bucket{env=~\"$env\"}[5m]))",
           "legendFormat": "{{le}}",
           "instant": false,
           "range": true,
@@ -5682,7 +5687,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum by (backend_label) (rate(wslproxy_backend_requests_total[5m]))",
+          "expr": "sum by (backend_label) (rate(wslproxy_backend_requests_total{env=~\"$env\"}[5m]))",
           "legendFormat": "{{backend_label}}",
           "instant": true,
           "range": false,
@@ -5743,7 +5748,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "100 * sum by (host) (rate(nginx_cache_hits_total[5m])) / clamp_min(sum by (host) (rate(nginx_cache_hits_total[5m]) + rate(nginx_cache_misses_total[5m])),0.0001)",
+          "expr": "100 * sum by (host) (rate(nginx_cache_hits_total{env=~\"$env\"}[5m])) / clamp_min(sum by (host) (rate(nginx_cache_hits_total{env=~\"$env\"}[5m]) + rate(nginx_cache_misses_total{env=~\"$env\"}[5m])),0.0001)",
           "legendFormat": "{{host}}",
           "instant": true,
           "range": false,

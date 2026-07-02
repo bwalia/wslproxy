@@ -11,8 +11,43 @@ Out:  grafana/dashboards/wsl-proxy-backend-health.json
 """
 import json
 import os
+import re
 
 DS = {"type": "prometheus", "uid": "${datasource}"}
+
+# --------------------------------------------------------------- env filtering
+# Every metric emitted by the endpoint inherits the scrape target's `env` label
+# (set per-job in scrape-config.yaml). We inject `env=~"$env"` into each metric
+# selector at build time so the dashboard scopes to the Environment variable and
+# defaults to All. `up` / `scrape_*` are Prometheus-synthesised and keep their
+# own `instance` filter, so they are deliberately excluded.
+ENV_METRICS = [
+    "wslproxy_backend_requests_total", "wslproxy_backend_healthy",
+    "wslproxy_backend_response_seconds_bucket", "wslproxy_backend_response_seconds_sum",
+    "wslproxy_backend_response_seconds_count",
+    "nginx_http_requests_total", "nginx_http_errors_total",
+    "nginx_http_4xx_errors_total", "nginx_http_5xx_errors_total",
+    "nginx_http_suspicious_requests_total", "nginx_http_request_size_bytes_sum",
+    "nginx_http_response_size_bytes_sum", "nginx_http_request_duration_seconds_bucket",
+    "nginx_http_connections", "nginx_proxy_requests_total",
+    "nginx_proxy_response_time_seconds_bucket", "nginx_cache_hits_total",
+    "nginx_cache_misses_total", "api_calls_total", "api_auth_failures_total",
+    "nginx_metric_errors_total",
+]
+_ENV_RE = re.compile(
+    r"\b(" + "|".join(sorted(map(re.escape, ENV_METRICS), key=len, reverse=True))
+    + r")\b(\s*\{)?")
+
+
+def _env_sub(m):
+    metric, brace = m.group(1), m.group(2)
+    if brace:                                   # already has a { ... } selector
+        return metric + brace + 'env=~"$env",'
+    return metric + '{env=~"$env"}'             # bare metric → add a selector
+
+
+def inject_env(expr):
+    return _ENV_RE.sub(_env_sub, expr)
 
 # ---------------------------------------------------------------- layout helper
 class Layout:
@@ -693,9 +728,7 @@ def qvar(name, label, query, multi=True, allv=True, includeAll=True, regex=""):
 templating = {"list": [
     {"name": "datasource", "label": "Datasource", "type": "datasource",
      "query": "prometheus", "refresh": 1, "current": {}, "hide": 0, "regex": ""},
-    {"name": "environment", "label": "Environment", "type": "custom",
-     "query": "Production", "current": {"text": "Production", "value": "Production"},
-     "options": [{"text": "Production", "value": "Production", "selected": True}], "hide": 0},
+    qvar("env", "Environment", "label_values(nginx_http_requests_total, env)"),
     qvar("job", "Job", "label_values(nginx_http_requests_total, job)"),
     qvar("instance", "Instance", "label_values(nginx_http_requests_total, instance)"),
     qvar("host", "Host (vHost)", "label_values(nginx_http_requests_total, host)"),
@@ -719,6 +752,14 @@ annotations = {"list": [
      "expr": "sum(rate(nginx_http_5xx_errors_total[2m])) > 0.5",
      "titleFormat": "5xx spike", "textFormat": "cluster 5xx rate elevated", "step": "1m"},
 ]}
+
+# ==========================================================================
+# APPLY ENV FILTER TO EVERY PANEL TARGET
+# ==========================================================================
+for _p in L.panels:
+    for _t in _p.get("targets", []):
+        if "expr" in _t:
+            _t["expr"] = inject_env(_t["expr"])
 
 # ==========================================================================
 # DASHBOARD ROOT
