@@ -97,8 +97,14 @@
 - name: Add bwalia public key to authorized_keys
   authorized_key:
     user: bwalia
-    key: "{{ lookup('file', '/home/bwalia/.ssh/id_rsa.pub', errors='ignore') | default('') }}"
+    key: "{{ lookup('file', '/home/bwalia/.ssh/id_rsa.pub', errors='ignore') | default('', true) }}"
     state: present
-  when: lookup('file', '/home/bwalia/.ssh/id_rsa.pub', errors='ignore') | default('') | length > 0
+  # `default('', true)` (not bare `default('')`) — when the pubkey file is
+  # absent the file lookup returns None, and Jinja's `default('')` only
+  # replaces *undefined*, not None, so `None | length` raised
+  # "object of type 'NoneType' has no len()". The `true` second arg makes
+  # the default apply to None/empty too. Seen on the macOS runner where
+  # /home/bwalia/.ssh/id_rsa.pub does not exist.
+  when: (lookup('file', '/home/bwalia/.ssh/id_rsa.pub', errors='ignore') | default('', true) | length) > 0
   ignore_errors: true
   tags: [always]
