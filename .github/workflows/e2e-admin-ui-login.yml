@@ -280,9 +280,14 @@ jobs:
           # a fully-passing run ("6 passed") parsed as 0/0 and tripped the
           # "No tests executed" guard below. -oE matches the summary line even
           # with Playwright's ANSI prefixes.
-          PASSED=$(echo "$OUTPUT" | grep -oE '[0-9]+ passed' | grep -oE '[0-9]+' | tail -1); [ -z "$PASSED" ] && PASSED=0
-          FAILED=$(echo "$OUTPUT" | grep -oE '[0-9]+ failed' | grep -oE '[0-9]+' | tail -1); [ -z "$FAILED" ] && FAILED=0
-          SKIPPED=$(echo "$OUTPUT" | grep -oE '[0-9]+ skipped' | grep -oE '[0-9]+' | tail -1); [ -z "$SKIPPED" ] && SKIPPED=0
+          # `|| true` keeps the pipeline exit 0 (grep -oE returns 1 on no match,
+          # which would abort this step under bash -e -o pipefail); the ${x:-0}
+          # defaults then fill in a count. Avoid `[ -z x ] && x=0` here: it
+          # returns 1 when x is set and trips set -e.
+          PASSED=$(echo "$OUTPUT" | grep -oE '[0-9]+ passed' | grep -oE '[0-9]+' | tail -1 || true)
+          FAILED=$(echo "$OUTPUT" | grep -oE '[0-9]+ failed' | grep -oE '[0-9]+' | tail -1 || true)
+          SKIPPED=$(echo "$OUTPUT" | grep -oE '[0-9]+ skipped' | grep -oE '[0-9]+' | tail -1 || true)
+          PASSED="${PASSED:-0}"; FAILED="${FAILED:-0}"; SKIPPED="${SKIPPED:-0}"
           TOTAL=$((PASSED + FAILED))
           echo "passed=$PASSED" >> "$GITHUB_OUTPUT"
           echo "failed=$FAILED" >> "$GITHUB_OUTPUT"
