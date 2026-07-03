@@ -494,8 +494,11 @@ jobs:
       # fallback so a broken runner SSH key or an offline Vault can't
       # take the pipeline down.
       secrets_mode: vault_or_sops
-      # IP-based health gate — no dependency on DNS/cert for pop1.diytaxreturn.co.uk
-      health_endpoint: "http://18.133.126.242:7691/healthz"
+      # pop1 is DASHBOARD-ONLY: nginx_default_server_backend is empty, so no
+      # admin block listens on :7691 (lon1 differs — it sets that var, so its
+      # :7691 gate is fine). The old IP:7691 gate could never pass here. Health-
+      # check the public dashboard domain on 443 — valid LE cert, /healthz 200.
+      health_endpoint: "https://pop1.diytaxreturn.co.uk/healthz"
       health_check_mode: external
       docker_prune: true
       notify_success: true
