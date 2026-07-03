@@ -275,9 +275,14 @@ jobs:
         if: always()
         run: |
           OUTPUT=$(cat playwright-output.txt 2>/dev/null || echo "No output")
-          PASSED=$(echo "$OUTPUT" | grep -oP '\d+ passed' | grep -oP '\d+' || echo "0")
-          FAILED=$(echo "$OUTPUT" | grep -oP '\d+ failed' | grep -oP '\d+' || echo "0")
-          SKIPPED=$(echo "$OUTPUT" | grep -oP '\d+ skipped' | grep -oP '\d+' || echo "0")
+          # Use grep -oE (POSIX), not -oP: the prod runner is macOS, whose BSD
+          # grep has no -P (Perl) flag — -oP silently yields nothing there, so
+          # a fully-passing run ("6 passed") parsed as 0/0 and tripped the
+          # "No tests executed" guard below. -oE matches the summary line even
+          # with Playwright's ANSI prefixes.
+          PASSED=$(echo "$OUTPUT" | grep -oE '[0-9]+ passed' | grep -oE '[0-9]+' | tail -1); [ -z "$PASSED" ] && PASSED=0
+          FAILED=$(echo "$OUTPUT" | grep -oE '[0-9]+ failed' | grep -oE '[0-9]+' | tail -1); [ -z "$FAILED" ] && FAILED=0
+          SKIPPED=$(echo "$OUTPUT" | grep -oE '[0-9]+ skipped' | grep -oE '[0-9]+' | tail -1); [ -z "$SKIPPED" ] && SKIPPED=0
           TOTAL=$((PASSED + FAILED))
           echo "passed=$PASSED" >> "$GITHUB_OUTPUT"
           echo "failed=$FAILED" >> "$GITHUB_OUTPUT"
