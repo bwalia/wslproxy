@@ -160,7 +160,11 @@ jobs:
       ssh_user: admin
       connection_mode: ssh_key
       secrets_mode: vault_or_sops
-      health_endpoint: "http://18.133.126.242:7691/healthz"
+      # pop1 is a DASHBOARD-ONLY pop: nginx_default_server_backend is empty,
+      # so no admin block listens on :7691 (unlike lon1, which does). Health-
+      # check the public dashboard domain on 443 instead — valid LE cert,
+      # serves /healthz 200. (cf. acc/pop0 uses https://prod-our-v1…/healthz.)
+      health_endpoint: "https://pop1.diytaxreturn.co.uk/healthz"
       health_check_mode: external
       docker_prune: true
       notify_success: true
