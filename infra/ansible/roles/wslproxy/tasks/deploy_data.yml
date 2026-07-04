@@ -78,6 +78,11 @@
     return_content: yes
     status_code: 200
   delegate_to: localhost
+  # HTTP GET on the runner — must NOT inherit the play's `become: yes`, or
+  # ansible tries to sudo on the (self-hosted) runner to fetch the secret and
+  # dies with "Premature end of stream waiting for become success". Only the
+  # *write* tasks below need root, and those run on the target host.
+  become: false
   no_log: true
   register: _vault_settings
   when: _use_vault_secrets
@@ -121,6 +126,8 @@
     return_content: yes
     status_code: 200
   delegate_to: localhost
+  # See the settings.json fetch above — no become on the runner-side GET.
+  become: false
   no_log: true
   register: _vault_env
   when: _use_vault_secrets
