@@ -349,20 +349,27 @@ jobs:
             exit 0
           fi
 
-          # HTTP 200 with an empty `data.data` (i.e. Vault knows the
-          # path but there's nothing there) is a "not really usable"
-          # response.  Fall back to SOPS.  jq -e sets non-zero if the
-          # filter yields false/null/nothing, which is exactly the
-          # semantic we want.
-          if ! jq -e '.data.data | length > 0' /tmp/vault_probe.json >/dev/null 2>&1; then
-            echo "  Vault returned 200 but data.data is empty/malformed — using SOPS"
+          # Only trust Vault if the secret is COMPLETE and for the RIGHT env.
+          # A 200 with empty data.data, or data missing super_user, or an
+          # env_profile that doesn't match this environment, means Vault is
+          # holding partial/stale/wrong data (observed 2026-07-04: a broken
+          # Vault KV mount kept prod as a leftover `{probe}` write). Selecting
+          # Vault in those cases makes ansible's env_profile guard abort the
+          # deploy mid-flight; falling back to SOPS (the in-repo source of
+          # truth) keeps the deploy green. jq -e is non-zero unless every
+          # condition holds.
+          if ! jq -e --arg env "${{ inputs.env_name }}" \
+               '.data.data | (length > 0) and (.super_user != null) and (.env_profile == $env)' \
+               /tmp/vault_probe.json >/dev/null 2>&1; then
+            VEP="$(jq -r '.data.data.env_profile // "<missing>"' /tmp/vault_probe.json 2>/dev/null)"
+            echo "  Vault 200 but data is incomplete or env_profile ('$VEP') != '${{ inputs.env_name }}' — using SOPS"
             echo "mode=sops" >> "$GITHUB_OUTPUT"
             rm -f /tmp/vault_probe.json
             exit 0
           fi
 
           rm -f /tmp/vault_probe.json
-          echo "  Vault has secret at $PROBE_URL — using Vault"
+          echo "  Vault has a complete secret for '${{ inputs.env_name }}' at $PROBE_URL — using Vault"
           echo "mode=vault" >> "$GITHUB_OUTPUT"
 
       # ── Secrets: Vault ─────────────────────────────────────────────────
