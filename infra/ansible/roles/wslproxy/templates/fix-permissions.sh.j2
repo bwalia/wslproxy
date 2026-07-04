@@ -42,6 +42,16 @@ fi
 chmod -R 777 /opt/nginx/data/ \
     && chown -R www-data:root /opt/nginx/data/
 
+# settings.json holds secrets (JWT passphrase, super_user password hash,
+# redis/pgsql creds). The broad `chmod -R 777` above (needed so www-data can
+# write the rules/servers/ssl data trees) must NOT leave the secret file
+# world-readable/writable. Re-lock it to 0640 www-data:root — the openresty
+# workers (www-data) and the root master can still read it; nobody else can.
+if [ -f /opt/nginx/data/settings.json ]; then
+    chown www-data:root /opt/nginx/data/settings.json
+    chmod 640 /opt/nginx/data/settings.json
+fi
+
 # Create SSL config directory for Let's Encrypt certificate management
 mkdir -p /opt/nginx/data/ssl/ \
     && chmod 775 -R /opt/nginx/data/ssl/ \
