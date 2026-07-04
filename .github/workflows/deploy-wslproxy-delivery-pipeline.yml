@@ -369,7 +369,14 @@ jobs:
   # Stage 4: Deploy Test (192.168.1.140)
   # ──────────────────────────────────────────────────────
   deploy-test:
-    needs: [test-int]
+    # List the WHOLE upstream chain, not just the immediate predecessor:
+    # GitHub's failure() only sees direct needs, so with needs:[test-int] a
+    # hard failure of build-validate or deploy-int (which makes test-int
+    # merely *skip*) slipped past the `!failure()` guard and Test/Prod still
+    # deployed. Naming the full chain makes any upstream FAILURE block
+    # promotion, while always() still lets legitimate SKIPS (offline int
+    # runner, host-mismatched stages) pass through.
+    needs: [build-validate, deploy-int, test-int]
     if: >
       always() && !failure() && !cancelled() &&
       ((github.event_name == 'push' && (github.ref == 'refs/heads/release' || github.ref == 'refs/heads/main')) ||
@@ -404,7 +411,8 @@ jobs:
   # Stage 5a: Deploy Prod pop0 (187.124.112.155)
   # ──────────────────────────────────────────────────────
   deploy-prod-pop0:
-    needs: [deploy-test]
+    # Full upstream chain — see deploy-test. Any failure up to here blocks prod.
+    needs: [build-validate, deploy-int, test-int, deploy-test]
     if: >
       always() && !failure() && !cancelled() &&
       ((github.event_name == 'push' && (github.ref == 'refs/heads/release' || github.ref == 'refs/heads/main')) ||
@@ -447,7 +455,8 @@ jobs:
   # Stage 5b: Deploy Prod lon1 (72.62.211.28)
   # ──────────────────────────────────────────────────────
   deploy-prod-lon1:
-    needs: [deploy-prod-pop0]
+    # Full upstream chain — see deploy-test.
+    needs: [build-validate, deploy-int, test-int, deploy-test, deploy-prod-pop0]
     if: >
       always() && !failure() && !cancelled() &&
       ((github.event_name == 'push' && (github.ref == 'refs/heads/release' || github.ref == 'refs/heads/main')) ||
@@ -480,7 +489,8 @@ jobs:
   # Dashboard domain: pop1.diytaxreturn.co.uk
   # ──────────────────────────────────────────────────────
   deploy-prod-pop1:
-    needs: [deploy-prod-lon1]
+    # Full upstream chain — see deploy-test.
+    needs: [build-validate, deploy-int, test-int, deploy-test, deploy-prod-pop0, deploy-prod-lon1]
     if: >
       always() && !failure() && !cancelled() &&
       ((github.event_name == 'push' && (github.ref == 'refs/heads/release' || github.ref == 'refs/heads/main')) ||
