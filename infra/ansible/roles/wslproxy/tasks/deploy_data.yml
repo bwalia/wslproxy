@@ -110,7 +110,11 @@
   ansible.builtin.copy:
     content: "{{ _vault_settings.json.data.data | to_nice_json }}"
     dest: /opt/nginx/data/settings.json
-    mode: 0777
+    # settings.json holds the JWT passphrase, super_user password hash and
+    # redis/pgsql creds — must NOT be world-readable/writable. 0640
+    # www-data:root lets the openresty workers (www-data) read it and the
+    # root master read it at init, nothing else.
+    mode: "0640"
     owner: "www-data"
     group: root
   no_log: true
@@ -217,7 +221,11 @@
     # the encrypted file lives in the repo under infra/secrets/.
     content: "{{ lookup('community.sops.sops', sops_settings_path) }}"
     dest: /opt/nginx/data/settings.json
-    mode: 0777
+    # settings.json holds the JWT passphrase, super_user password hash and
+    # redis/pgsql creds — must NOT be world-readable/writable. 0640
+    # www-data:root lets the openresty workers (www-data) read it and the
+    # root master read it at init, nothing else.
+    mode: "0640"
     owner: "www-data"
     group: root
   vars:
@@ -266,7 +274,11 @@
   ansible.builtin.copy:
     src: "{{ local_settings_file_path }}"
     dest: /opt/nginx/data/settings.json
-    mode: 0777
+    # settings.json holds the JWT passphrase, super_user password hash and
+    # redis/pgsql creds — must NOT be world-readable/writable. 0640
+    # www-data:root lets the openresty workers (www-data) read it and the
+    # root master read it at init, nothing else.
+    mode: "0640"
     owner: "www-data"
     group: root
     remote_src: no
