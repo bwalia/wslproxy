@@ -72,11 +72,14 @@ jobs:
         id: creds
         env:
           BACKUP_LOGIN_CREDS: ${{ secrets.BACKUP_LOGIN_CREDS }}
+          LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
+          LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
           DEFAULT_GATEWAY_URL: ${{ steps.set-env.outputs.ENVIRONMENT == 'prod' && 'https://prod-our-v1.wslproxy.com' || 'https://test.wslproxy.com' }}
         run: |
           ENV="${{ steps.set-env.outputs.ENVIRONMENT }}"
           RUNNER_FILE="/home/bwalia/.secrets/wslproxy/${ENV}/login-creds.json"
           SECRET_FILE="/tmp/login-creds-${ENV}.json"
+          FLEET_FILE="/tmp/login-creds-fleet-${ENV}.json"
 
           # Try the file's own GATEWAY_URL first, then the default gateway —
           # the BACKUP_LOGIN_CREDS secret carries valid creds but a retired
@@ -114,6 +117,14 @@ jobs:
             printf '%s' "$BACKUP_LOGIN_CREDS" > "$SECRET_FILE"
             chmod 600 "$SECRET_FILE"
             CANDIDATES+=("$SECRET_FILE")
+          fi
+          # Fleet-wide login secrets (used by the e2e workflows) as a last
+          # resort — rotated more recently than BACKUP_LOGIN_CREDS.
+          if [ -n "$LOGIN_EMAIL" ] && [ -n "$LOGIN_PASSWORD" ]; then
+            jq -n --arg e "$LOGIN_EMAIL" --arg p "$LOGIN_PASSWORD" \
+              '{ADMIN_EMAIL:$e,ADMIN_PASSWORD:$p}' > "$FLEET_FILE"
+            chmod 600 "$FLEET_FILE"
+            CANDIDATES+=("$FLEET_FILE")
           fi
 
           if [ ${#CANDIDATES[@]} -eq 0 ]; then
