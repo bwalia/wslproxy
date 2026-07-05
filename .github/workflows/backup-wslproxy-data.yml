@@ -45,26 +45,6 @@ jobs:
             echo "ENVIRONMENT=prod" >> $GITHUB_OUTPUT
           fi
 
-      - name: Resolve credentials
-        id: creds
-        run: |
-          ENV="${{ steps.set-env.outputs.ENVIRONMENT }}"
-          CREDS_FILE="/home/bwalia/.secrets/wslproxy/${ENV}/login-creds.json"
-
-          # Try runner file first, fall back to GitHub Actions secret
-          if [ -f "$CREDS_FILE" ]; then
-            echo "Using credentials from runner file: $CREDS_FILE"
-            echo "creds_file=$CREDS_FILE" >> $GITHUB_OUTPUT
-          elif [ -n "${{ secrets.BACKUP_LOGIN_CREDS }}" ]; then
-            echo "Using credentials from GitHub Actions secret"
-            echo '${{ secrets.BACKUP_LOGIN_CREDS }}' > /tmp/login-creds-${ENV}.json
-            echo "creds_file=/tmp/login-creds-${ENV}.json" >> $GITHUB_OUTPUT
-          else
-            echo "::error::No credentials found. Set BACKUP_LOGIN_CREDS secret or create $CREDS_FILE on the runner."
-            echo "Expected format: {\"ADMIN_EMAIL\": \"admin@wslproxy.org\", \"ADMIN_PASSWORD\": \"...\", \"GATEWAY_URL\": \"http://localhost:8080\"}"
-            exit 1
-          fi
-
       - name: Check required tools
         run: |
           echo "Checking for required tools..."
@@ -82,6 +62,64 @@ jobs:
           fi
           command -v curl >/dev/null 2>&1 || { echo "curl is required but not installed."; exit 1; }
           echo "All required tools are available"
+
+      # Runs after the tools check (needs jq/curl). Rather than trusting
+      # whichever source exists, each candidate is verified with a real
+      # /api/user/login — runner files have drifted before (re-provisioned
+      # without GATEWAY_URL / with a stale password) and silently using bad
+      # creds just moves the failure into the backup script.
+      - name: Resolve credentials
+        id: creds
+        env:
+          BACKUP_LOGIN_CREDS: ${{ secrets.BACKUP_LOGIN_CREDS }}
+          DEFAULT_GATEWAY_URL: ${{ steps.set-env.outputs.ENVIRONMENT == 'prod' && 'https://prod-our-v1.wslproxy.com' || 'https://test.wslproxy.com' }}
+        run: |
+          ENV="${{ steps.set-env.outputs.ENVIRONMENT }}"
+          RUNNER_FILE="/home/bwalia/.secrets/wslproxy/${ENV}/login-creds.json"
+          SECRET_FILE="/tmp/login-creds-${ENV}.json"
+
+          probe() {
+            local file="$1" email pass url code
+            email=$(jq -r '.ADMIN_EMAIL // empty' "$file" 2>/dev/null)
+            pass=$(jq -r '.ADMIN_PASSWORD // empty' "$file" 2>/dev/null)
+            url=$(jq -r '.GATEWAY_URL // empty' "$file" 2>/dev/null)
+            url="${url:-$DEFAULT_GATEWAY_URL}"
+            if [ -z "$email" ] || [ -z "$pass" ]; then
+              echo "  $file: missing ADMIN_EMAIL/ADMIN_PASSWORD — skipping"
+              return 1
+            fi
+            code=$(jq -n --arg e "$email" --arg p "$pass" '{email:$e,password:$p}' \
+              | curl -s -o /dev/null -w '%{http_code}' --connect-timeout 10 --max-time 30 \
+                  -X POST "$url/api/user/login" -H "Content-Type: application/json" -d @-)
+            echo "  $file: login as $email at $url -> HTTP $code"
+            [ "$code" = "200" ]
+          }
+
+          CANDIDATES=()
+          [ -f "$RUNNER_FILE" ] && CANDIDATES+=("$RUNNER_FILE")
+          if [ -n "$BACKUP_LOGIN_CREDS" ]; then
+            printf '%s' "$BACKUP_LOGIN_CREDS" > "$SECRET_FILE"
+            chmod 600 "$SECRET_FILE"
+            CANDIDATES+=("$SECRET_FILE")
+          fi
+
+          if [ ${#CANDIDATES[@]} -eq 0 ]; then
+            echo "::error::No credentials found. Set BACKUP_LOGIN_CREDS secret or create $RUNNER_FILE on the runner."
+            echo "Expected format: {\"ADMIN_EMAIL\": \"...\", \"ADMIN_PASSWORD\": \"...\", \"GATEWAY_URL\": \"https://...\"}"
+            exit 1
+          fi
+
+          echo "Probing credential sources:"
+          for c in "${CANDIDATES[@]}"; do
+            if probe "$c"; then
+              echo "Using credentials from: $c"
+              echo "creds_file=$c" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          done
+
+          echo "::error::No credential source could log in to the $ENV gateway. Fix $RUNNER_FILE on the runner (or update the BACKUP_LOGIN_CREDS secret) with the current super_user email/password and GATEWAY_URL."
+          exit 1
 
       - name: Create backup directory
         run: |
