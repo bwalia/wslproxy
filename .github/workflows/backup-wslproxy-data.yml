@@ -9,11 +9,11 @@ on:
         required: true
         default: "prod"
         type: choice
+        # Options map to runner labels (prod → pop0). dev/acc removed: dev has
+        # no registered runner and the acc tier is decommissioned.
         options:
           - prod
-          - dev
           - test
-          - acc
 
   # Scheduled backup - runs every night at 2 AM UTC for prod
   schedule:
@@ -22,7 +22,14 @@ on:
 jobs:
   backup:
     name: Backup WSLProxy Data
-    runs-on: self-hosted
+    # Pin to the runner that lives on the target environment's host (same
+    # convention as deploy-environment.yml). A bare `self-hosted` lets any
+    # runner grab the job: the macOS runner has no passwordless sudo and no
+    # /home/bwalia, and the test runner can't reach the prod gateway — both
+    # failed nightly. Scheduled runs back up prod, which lives on pop0.
+    runs-on:
+      - self-hosted
+      - ${{ (github.event_name == 'schedule' || github.event.inputs.environment == 'prod') && 'pop0' || github.event.inputs.environment }}
 
     steps:
       - name: Checkout repository
@@ -79,8 +86,13 @@ jobs:
       - name: Create backup directory
         run: |
           BACKUP_DIR="/home/bwalia/backups/wslproxy/${{ steps.set-env.outputs.ENVIRONMENT }}"
-          sudo mkdir -p "$BACKUP_DIR"
-          sudo chown -R $(whoami) /home/bwalia/backups
+          # The runner user owns /home/bwalia, so plain mkdir works. Only fall
+          # back to sudo (non-interactively: -n, so a password prompt fails
+          # fast instead of hanging) if a past root-owned dir blocks it.
+          if ! mkdir -p "$BACKUP_DIR" 2>/dev/null; then
+            sudo -n mkdir -p "$BACKUP_DIR"
+            sudo -n chown -R "$(whoami)" /home/bwalia/backups
+          fi
           echo "Backup directory created: $BACKUP_DIR"
 
       - name: Run backup script
