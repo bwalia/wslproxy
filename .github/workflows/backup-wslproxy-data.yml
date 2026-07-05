@@ -99,6 +99,11 @@ jobs:
         env:
           CREDS_FILE: ${{ steps.creds.outputs.creds_file }}
           BACKUP_BASE_DIR: /home/bwalia/backups/wslproxy
+          # Fallback when the creds file lacks GATEWAY_URL (a value in the
+          # file wins — config.sh applies file > env > default). Without this
+          # the script defaults to http://localhost:8080, which is wrong on
+          # every runner. Same URLs as e2e-tests.yml's env_config.
+          GATEWAY_URL: ${{ steps.set-env.outputs.ENVIRONMENT == 'prod' && 'https://prod-our-v1.wslproxy.com' || 'https://test.wslproxy.com' }}
         run: |
           chmod +x ./api-scripts/backup/backup-data.sh
           ./api-scripts/backup/backup-data.sh "${{ steps.set-env.outputs.ENVIRONMENT }}"

@@ -42,6 +42,15 @@ HOSTNAME_VAL[test]="test.wslproxy.com"
 HOSTNAME_VAL[lon1]="72.62.211.28"
 HOSTNAME_VAL[prod]="prod-our.wslproxy.com"
 
+# Admin-API gateway written into login-creds.json (overridable via
+# <ENV>_GATEWAY_URL). Must match e2e-tests.yml's env_config base URLs —
+# the e2e and backup workflows POST /api/user/login against this.
+declare -A GATEWAY_URL_MAP
+GATEWAY_URL_MAP[int]="https://int-our.wslproxy.com"
+GATEWAY_URL_MAP[test]="https://test.wslproxy.com"
+GATEWAY_URL_MAP[lon1]="http://72.62.211.28"
+GATEWAY_URL_MAP[prod]="https://prod-our-v1.wslproxy.com"
+
 echo "============================================"
 echo "  WSLProxy Runner Secrets Setup"
 echo "  Base path: ${SECRETS_BASE}"
@@ -174,7 +183,10 @@ ENVEOF
     # ── login-creds.json (consumed by the e2e login/API workflows) ──
     # The e2e workflows (e2e-admin-ui-login.yml, e2e-tests.yml,
     # e2e-create-server.yml, backup-wslproxy-data.yml) read the admin
-    # login from ${DIR}/login-creds.json as {"ADMIN_EMAIL","ADMIN_PASSWORD"}.
+    # login from ${DIR}/login-creds.json as
+    # {"ADMIN_EMAIL","ADMIN_PASSWORD","GATEWAY_URL"} — e2e-tests.yml hard-fails
+    # if any of the three keys is missing, and backup-data.sh falls back to
+    # http://localhost:8080 without GATEWAY_URL (broke the nightly backup).
     # This file was previously created by hand on each runner, so it drifted
     # or went missing — causing the login workflows to fail (or silently fall
     # back to the fleet-wide LOGIN_EMAIL/LOGIN_PASSWORD repo secrets, which can
@@ -190,20 +202,32 @@ ENVEOF
     ENV_UP="${env^^}"
     CRED_EMAIL_VAR="${ENV_UP}_ADMIN_EMAIL"
     CRED_PASS_VAR="${ENV_UP}_ADMIN_PASSWORD"
+    CRED_URL_VAR="${ENV_UP}_GATEWAY_URL"
     CRED_EMAIL="${!CRED_EMAIL_VAR:-admin@wslproxy.com}"
     CRED_PASS="${!CRED_PASS_VAR:-}"
+    CRED_URL="${!CRED_URL_VAR:-${GATEWAY_URL_MAP[$env]}}"
 
     creds_valid() {
+        [ -f "$1" ] && python3 -c "import json,sys; d=json.load(open(sys.argv[1])); sys.exit(0 if (d.get('ADMIN_EMAIL') and d.get('ADMIN_PASSWORD') and d.get('GATEWAY_URL')) else 1)" "$1" 2>/dev/null
+    }
+    # email+password present but GATEWAY_URL missing — repairable in place
+    # without knowing the plaintext password
+    creds_has_login() {
         [ -f "$1" ] && python3 -c "import json,sys; d=json.load(open(sys.argv[1])); sys.exit(0 if (d.get('ADMIN_EMAIL') and d.get('ADMIN_PASSWORD')) else 1)" "$1" 2>/dev/null
     }
 
     if creds_valid "${CREDS}" && [ "${FORCE_CREDS:-0}" != "1" ]; then
         echo "  login-creds.json already present & valid — skipping (set FORCE_CREDS=1 to rewrite)"
-    elif [ -n "${CRED_PASS}" ]; then
-        CRED_EMAIL="${CRED_EMAIL}" CRED_PASS="${CRED_PASS}" python3 -c \
-          "import json,os; json.dump({'ADMIN_EMAIL':os.environ['CRED_EMAIL'],'ADMIN_PASSWORD':os.environ['CRED_PASS']}, open('${CREDS}','w'))"
+    elif creds_has_login "${CREDS}" && [ "${FORCE_CREDS:-0}" != "1" ]; then
+        CRED_URL="${CRED_URL}" python3 -c \
+          "import json,os; p='${CREDS}'; d=json.load(open(p)); d['GATEWAY_URL']=os.environ['CRED_URL']; json.dump(d, open(p,'w'))"
         chmod 600 "${CREDS}"
-        echo "  Wrote: ${CREDS} (ADMIN_EMAIL=${CRED_EMAIL})"
+        echo "  Patched GATEWAY_URL=${CRED_URL} into existing ${CREDS}"
+    elif [ -n "${CRED_PASS}" ]; then
+        CRED_EMAIL="${CRED_EMAIL}" CRED_PASS="${CRED_PASS}" CRED_URL="${CRED_URL}" python3 -c \
+          "import json,os; json.dump({'ADMIN_EMAIL':os.environ['CRED_EMAIL'],'ADMIN_PASSWORD':os.environ['CRED_PASS'],'GATEWAY_URL':os.environ['CRED_URL']}, open('${CREDS}','w'))"
+        chmod 600 "${CREDS}"
+        echo "  Wrote: ${CREDS} (ADMIN_EMAIL=${CRED_EMAIL}, GATEWAY_URL=${CRED_URL})"
     else
         echo "  WARNING: ${CREDS} is missing/invalid and no ${CRED_PASS_VAR} provided —"
         echo "           e2e login tests for '${env}' will fail. Re-run with:"
