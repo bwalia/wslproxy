@@ -4,7 +4,8 @@ name: Sync Configs to Environments
 # to the matching WSLProxy instances via Ansible (SSH).
 # S3 data is populated by the daily sync-prod-data-to-s3 workflow at 04:00.
 #
-# Pipeline:  int (self-hosted) → test (self-hosted)
+# Environments: int + test, synced in parallel via one matrix job (they were
+# previously two copy-pasted jobs that drifted).
 # (The `acc` tier on 187.77.179.206 was decommissioned.)
 
 on:
@@ -30,18 +31,50 @@ env:
 
 jobs:
   # ──────────────────────────────────────────────────────
-  # Stage 1: Deploy int configs (self-hosted runner —
-  #           int host is on local network)
+  # Stage 0: Build the environment matrix from the trigger
   # ──────────────────────────────────────────────────────
-  sync-int:
-    name: "Sync configs → Int"
-    runs-on: [self-hosted, Linux, int]
-    if: >-
-      github.event.inputs.TARGET_ENVS == 'all'
-      || github.event.inputs.TARGET_ENVS == 'int'
-      || github.event_name == 'schedule'
+  setup:
+    name: "Select environments"
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.build.outputs.matrix }}
+    steps:
+      - name: Build matrix
+        id: build
+        run: |
+          INT='{"env":"int","host":"192.168.1.193"}'
+          TEST='{"env":"test","host":"192.168.1.140"}'
+          case "${{ github.event.inputs.TARGET_ENVS || 'all' }}" in
+            int)  INCLUDE="[$INT]" ;;
+            test) INCLUDE="[$TEST]" ;;
+            *)    INCLUDE="[$INT,$TEST]" ;;
+          esac
+          echo "matrix={\"include\":$INCLUDE}" >> "$GITHUB_OUTPUT"
+          echo "Selected: $INCLUDE"
+
+  # ──────────────────────────────────────────────────────
+  # Sync configs (one matrix leg per environment; each runs
+  # on the self-hosted runner local to that environment)
+  # ──────────────────────────────────────────────────────
+  sync:
+    name: "Sync configs → ${{ matrix.env }}"
+    needs: setup
+    runs-on: [self-hosted, Linux, "${{ matrix.env }}"]
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.setup.outputs.matrix) }}
     timeout-minutes: 10
     steps:
+      # Deploys on these shared runners build openresty-admin-next as
+      # root, leaving root-owned .next/ artifacts in the workspace that
+      # make actions/checkout's clean fail with EACCES (run 28733700187).
+      # Same guard as deploy-environment.yml. No-op on a fresh workspace.
+      - name: Reclaim runner workspace ownership
+        run: |
+          if [ -n "$GITHUB_WORKSPACE" ] && [ -d "$GITHUB_WORKSPACE" ]; then
+            sudo chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE" 2>/dev/null || true
+          fi
+
       - name: Checkout code
         uses: actions/checkout@v5
 
@@ -72,7 +105,7 @@ jobs:
       - name: Setup SSH known hosts
         run: |
           mkdir -p ~/.ssh && chmod 700 ~/.ssh
-          ssh-keyscan -H 192.168.1.193 >> ~/.ssh/known_hosts 2>/dev/null || true
+          ssh-keyscan -H "${{ matrix.host }}" >> ~/.ssh/known_hosts 2>/dev/null || true
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v5
@@ -81,37 +114,41 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Download int configs from S3
+      - name: Download ${{ matrix.env }} configs from S3
         run: |
           S3_BUCKET="${{ secrets.WSLPROXY_S3_BUCKET }}"
-          mkdir -p s3-data/servers/int s3-data/rules/int
+          ENV="${{ matrix.env }}"
+          mkdir -p "s3-data/servers/$ENV" "s3-data/rules/$ENV"
 
-          echo "Downloading int configs from s3://${S3_BUCKET}/data/"
-          aws s3 sync "s3://${S3_BUCKET}/data/servers/int/" s3-data/servers/int/
-          aws s3 sync "s3://${S3_BUCKET}/data/rules/int/"   s3-data/rules/int/
+          echo "Downloading $ENV configs from s3://${S3_BUCKET}/data/"
+          aws s3 sync "s3://${S3_BUCKET}/data/servers/$ENV/" "s3-data/servers/$ENV/"
+          aws s3 sync "s3://${S3_BUCKET}/data/rules/$ENV/"   "s3-data/rules/$ENV/"
 
-          S3_SERVERS=$(find s3-data/servers/int -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
-          S3_RULES=$(find s3-data/rules/int -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
+          S3_SERVERS=$(find "s3-data/servers/$ENV" -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
+          S3_RULES=$(find "s3-data/rules/$ENV" -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
           echo "Downloaded from S3: ${S3_SERVERS} server(s), ${S3_RULES} rule(s)"
 
       - name: Merge S3 configs on top of repo configs
         run: |
-          REPO_SERVERS=$(find data/servers/int -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
-          REPO_RULES=$(find data/rules/int -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
+          ENV="${{ matrix.env }}"
+          mkdir -p "data/servers/$ENV" "data/rules/$ENV"
+          REPO_SERVERS=$(find "data/servers/$ENV" -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
+          REPO_RULES=$(find "data/rules/$ENV" -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
           echo "Repo baseline: ${REPO_SERVERS} server(s), ${REPO_RULES} rule(s)"
 
           # Merge S3 configs on top of repo data (S3 wins on conflict, no delete)
-          rsync -av s3-data/servers/int/ data/servers/int/
-          rsync -av s3-data/rules/int/   data/rules/int/
+          rsync -av "s3-data/servers/$ENV/" "data/servers/$ENV/"
+          rsync -av "s3-data/rules/$ENV/"   "data/rules/$ENV/"
 
-          MERGED_SERVERS=$(find data/servers/int -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
-          MERGED_RULES=$(find data/rules/int -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
+          MERGED_SERVERS=$(find "data/servers/$ENV" -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
+          MERGED_RULES=$(find "data/rules/$ENV" -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
           echo "After merge: ${MERGED_SERVERS} server(s), ${MERGED_RULES} rule(s) to deploy"
 
-      - name: Validate int JSON configs
+      - name: Validate ${{ matrix.env }} JSON configs
         run: |
+          ENV="${{ matrix.env }}"
           ERRORS=0
-          for file in data/servers/int/*.json data/rules/int/*.json; do
+          for file in "data/servers/$ENV"/*.json "data/rules/$ENV"/*.json; do
             [ -f "$file" ] || continue
             if ! python3 -m json.tool "$file" > /dev/null 2>&1; then
               echo "::error::Invalid JSON: $(basename "$file")"
@@ -122,16 +159,16 @@ jobs:
             echo "::error::$ERRORS invalid JSON file(s) — aborting"
             exit 1
           fi
-          echo "All int JSON configs valid"
+          echo "All $ENV JSON configs valid"
 
-      - name: Deploy int configs via Ansible
+      - name: Deploy ${{ matrix.env }} configs via Ansible
         run: |
-          echo "Deploying int configs to 192.168.1.193"
+          echo "Deploying ${{ matrix.env }} configs to ${{ matrix.host }}"
           export ANSIBLE_HOST_KEY_CHECKING=False
           ansible-playbook infra/ansible/deploy-configs.yml \
             -i infra/ansible/hosts \
-            -l 192.168.1.193 \
-            -e "target_env=int" \
+            -l "${{ matrix.host }}" \
+            -e "target_env=${{ matrix.env }}" \
             -e "local_data_dir=${{ github.workspace }}/data" \
             -e "reload_nginx=true"
         env:
@@ -139,145 +176,25 @@ jobs:
           # Suppress diff output to avoid leaking secret values in logs
           ANSIBLE_DISPLAY_ARGS_TO_STDOUT: "False"
 
-      - name: Verify deployed files on int
+      - name: Verify deployed files on ${{ matrix.env }}
         run: |
-          echo "=== Deployed server configs on int ==="
-          ssh -o BatchMode=yes -o ConnectTimeout=10 bwalia@192.168.1.193 \
-            "ls -la /opt/nginx/data/servers/int/" 2>&1
+          echo "=== Deployed server configs on ${{ matrix.env }} ==="
+          ssh -o BatchMode=yes -o ConnectTimeout=10 "bwalia@${{ matrix.host }}" \
+            "ls -la /opt/nginx/data/servers/${{ matrix.env }}/" 2>&1
           echo ""
-          echo "=== Deployed rule configs on int ==="
-          ssh -o BatchMode=yes -o ConnectTimeout=10 bwalia@192.168.1.193 \
-            "ls -la /opt/nginx/data/rules/int/" 2>&1
+          echo "=== Deployed rule configs on ${{ matrix.env }} ==="
+          ssh -o BatchMode=yes -o ConnectTimeout=10 "bwalia@${{ matrix.host }}" \
+            "ls -la /opt/nginx/data/rules/${{ matrix.env }}/" 2>&1
 
-      - name: Health check int
+      - name: Health check ${{ matrix.env }}
         run: |
-          HTTP_CODE=$(ssh -o BatchMode=yes -o ConnectTimeout=10 bwalia@192.168.1.193 \
+          HTTP_CODE=$(ssh -o BatchMode=yes -o ConnectTimeout=10 "bwalia@${{ matrix.host }}" \
             "curl -sf -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/ping" 2>&1) || true
           if [ "$HTTP_CODE" != "200" ]; then
-            echo "::error::Int health check failed (HTTP $HTTP_CODE)"
+            echo "::error::${{ matrix.env }} health check failed (HTTP $HTTP_CODE)"
             exit 1
           fi
-          echo "Int health check passed (HTTP 200)"
-
-  # ──────────────────────────────────────────────────────
-  # Stage 2: Deploy test configs (self-hosted runner —
-  #           test host is on local network)
-  # ──────────────────────────────────────────────────────
-  sync-test:
-    name: "Sync configs → Test"
-    runs-on: [self-hosted, Linux, test]
-    if: >-
-      github.event.inputs.TARGET_ENVS == 'all'
-      || github.event.inputs.TARGET_ENVS == 'test'
-      || github.event_name == 'schedule'
-    timeout-minutes: 10
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
-
-      - name: Install Ansible and AWS CLI
-        run: |
-          if command -v ansible &> /dev/null; then
-            echo "Ansible already installed: $(ansible --version | head -1)"
-          elif command -v brew &> /dev/null; then
-            brew install ansible
-          elif command -v zypper &> /dev/null; then
-            sudo zypper install -y ansible
-          elif command -v apt-get &> /dev/null; then
-            sudo apt-get update && sudo apt-get install -y ansible
-          else
-            echo "::error::No supported package manager found (brew, zypper or apt-get)"
-            exit 1
-          fi
-          # Install AWS CLI if not present
-          if ! command -v aws &> /dev/null; then
-            echo "Installing AWS CLI..."
-            curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
-            unzip -qo /tmp/awscliv2.zip -d /tmp
-            sudo /tmp/aws/install --update
-            rm -rf /tmp/awscliv2.zip /tmp/aws
-          fi
-          echo "AWS CLI version: $(aws --version)"
-
-      - name: Setup SSH known hosts
-        run: |
-          mkdir -p ~/.ssh && chmod 700 ~/.ssh
-          ssh-keyscan -H 192.168.1.140 >> ~/.ssh/known_hosts 2>/dev/null || true
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v5
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-
-      - name: Download test configs from S3
-        run: |
-          S3_BUCKET="${{ secrets.WSLPROXY_S3_BUCKET }}"
-          mkdir -p s3-data/servers/test s3-data/rules/test
-
-          echo "Downloading test configs from s3://${S3_BUCKET}/data/"
-          aws s3 sync "s3://${S3_BUCKET}/data/servers/test/" s3-data/servers/test/
-          aws s3 sync "s3://${S3_BUCKET}/data/rules/test/"   s3-data/rules/test/
-
-          S3_SERVERS=$(find s3-data/servers/test -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
-          S3_RULES=$(find s3-data/rules/test -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
-          echo "Downloaded from S3: ${S3_SERVERS} server(s), ${S3_RULES} rule(s)"
-
-      - name: Merge S3 configs on top of repo configs
-        run: |
-          mkdir -p data/servers/test data/rules/test
-          REPO_SERVERS=$(find data/servers/test -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
-          REPO_RULES=$(find data/rules/test -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
-          echo "Repo baseline: ${REPO_SERVERS} server(s), ${REPO_RULES} rule(s)"
-
-          # Merge S3 configs on top of repo data (S3 wins on conflict, no delete)
-          rsync -av s3-data/servers/test/ data/servers/test/
-          rsync -av s3-data/rules/test/   data/rules/test/
-
-          MERGED_SERVERS=$(find data/servers/test -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
-          MERGED_RULES=$(find data/rules/test -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
-          echo "After merge: ${MERGED_SERVERS} server(s), ${MERGED_RULES} rule(s) to deploy"
-
-      - name: Validate test JSON configs
-        run: |
-          ERRORS=0
-          for file in data/servers/test/*.json data/rules/test/*.json; do
-            [ -f "$file" ] || continue
-            if ! python3 -m json.tool "$file" > /dev/null 2>&1; then
-              echo "::error::Invalid JSON: $(basename "$file")"
-              ERRORS=$((ERRORS+1))
-            fi
-          done
-          if [ "$ERRORS" -gt 0 ]; then
-            echo "::error::$ERRORS invalid JSON file(s) — aborting"
-            exit 1
-          fi
-          echo "All test JSON configs valid"
-
-      - name: Deploy test configs via Ansible
-        run: |
-          echo "Deploying test configs to 192.168.1.140"
-          export ANSIBLE_HOST_KEY_CHECKING=False
-          ansible-playbook infra/ansible/deploy-configs.yml \
-            -i infra/ansible/hosts \
-            -l 192.168.1.140 \
-            -e "target_env=test" \
-            -e "local_data_dir=${{ github.workspace }}/data" \
-            -e "reload_nginx=true"
-        env:
-          ANSIBLE_PRIVATE_KEY_FILE: ~/.ssh/id_rsa
-          ANSIBLE_DISPLAY_ARGS_TO_STDOUT: "False"
-
-      - name: Health check test
-        run: |
-          HTTP_CODE=$(ssh -o BatchMode=yes -o ConnectTimeout=10 bwalia@192.168.1.140 \
-            "curl -sf -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/ping" 2>&1) || true
-          if [ "$HTTP_CODE" != "200" ]; then
-            echo "::error::Test health check failed (HTTP $HTTP_CODE)"
-            exit 1
-          fi
-          echo "Test health check passed (HTTP 200)"
+          echo "${{ matrix.env }} health check passed (HTTP 200)"
 
   # Stage 3 (acc / 187.77.179.206) was decommissioned along with
   # the underlying host — int + test remain.
@@ -288,7 +205,7 @@ jobs:
   summary:
     name: "Sync Summary"
     runs-on: ubuntu-latest
-    needs: [sync-int, sync-test]
+    needs: [setup, sync]
     if: always()
     steps:
       - name: Results
@@ -296,7 +213,10 @@ jobs:
           echo "=========================================="
           echo "Sync Configs to Environments — Summary"
           echo "=========================================="
-          echo "Int sync:  ${{ needs.sync-int.result }}"
-          echo "Test sync: ${{ needs.sync-test.result }}"
+          echo "Sync result (all legs): ${{ needs.sync.result }}"
           echo "Timestamp: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
           echo "=========================================="
+          if [ "${{ needs.sync.result }}" != "success" ]; then
+            echo "::error::One or more environment syncs did not succeed"
+            exit 1
+          fi
