@@ -155,7 +155,16 @@ jobs:
             sudo -n mkdir -p "$BACKUP_DIR"
             sudo -n chown -R "$(whoami)" /home/bwalia/backups
           fi
-          echo "Backup directory created: $BACKUP_DIR"
+          echo "Runner user: $(id)"
+          ls -ld /home/bwalia/backups /home/bwalia/backups/wslproxy "$BACKUP_DIR" 2>/dev/null || true
+          # Entries left behind by runs under a different account block
+          # ln -sf replacing the *_latest.json symlinks — reclaim them.
+          if find "$BACKUP_DIR" ! -user "$(whoami)" | grep -q .; then
+            echo "Reclaiming entries not owned by $(whoami):"
+            find "$BACKUP_DIR" ! -user "$(whoami)" -ls || true
+            sudo -n chown -h -R "$(whoami)" "$BACKUP_DIR" || echo "WARNING: could not chown; _latest symlink updates may fail"
+          fi
+          echo "Backup directory ready: $BACKUP_DIR"
 
       - name: Run backup script
         env:
