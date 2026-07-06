@@ -55,7 +55,7 @@ const TopologyCanvas = dynamic(
   },
 );
 import type { Server as ServerType, WafPolicy, Rule, Pop } from "@/types";
-import type { ServerFormState, VarnishConfig, VarnishSnippet } from "@/components/servers/types";
+import type { ServerFormState, VarnishConfig, VarnishSnippet, ProxyTimeouts } from "@/components/servers/types";
 import type { LocationEntry } from "@/components/servers/sections/LocationBlockEditor";
 import {
   runValidationGate,
@@ -95,6 +95,26 @@ const DEFAULT_FORM: ServerFormState = {
   cache_bypass_cookie: "",
   cached_mime_types: [],
 
+  // Docker registry blob caching (opt-in — feature only makes sense
+  // for servers fronting a container registry backend).  TTL defaults
+  // mirror the old dashboard: 30d blobs (immutable), 1h manifests
+  // (tags can be re-pushed), 365d stale (long fallback window).
+  cache_docker_blobs: false,
+  cache_docker_blobs_ttl: "2592000",
+  cache_docker_manifests: false,
+  cache_docker_manifests_ttl: "3600",
+  cache_docker_serve_stale: false,
+  cache_docker_stale_ttl: "31536000",
+
+  // Upstream timeouts — empty string means "use nginx default (60s)".
+  // Setting these fixes the 504-at-60s footgun documented in
+  // CLAUDE.md §15 point 4.
+  proxy_timeouts: {
+    connect_timeout: "",
+    send_timeout: "",
+    read_timeout: "",
+  },
+
   waf_enabled: false,
   waf_policy_id: "",
   waf_mode_override: "",
@@ -112,6 +132,10 @@ const DEFAULT_FORM: ServerFormState = {
   custom_http_block: [],
 
   config: "",
+  // Default OFF so a newly-created server exists in the data store
+  // but is inactive on the host until the operator explicitly
+  // enables it (same defaults as the old dashboard).
+  config_status: false,
 
   varnish_enabled: false,
   varnish_config: {
@@ -210,6 +234,34 @@ function hydrateForm(data: ServerType): ServerFormState {
     cache_bypass_cookie: data.cache_bypass_cookie ?? "",
     cached_mime_types: Array.isArray(data.cached_mime_types) ? data.cached_mime_types : [],
 
+    // Docker blob caching — booleans default false, TTLs preserve
+    // any operator-set value; empty string means "use default".
+    cache_docker_blobs: (data as unknown as Record<string, unknown>).cache_docker_blobs as boolean ?? false,
+    cache_docker_blobs_ttl:
+      String((data as unknown as Record<string, unknown>).cache_docker_blobs_ttl ?? "2592000"),
+    cache_docker_manifests: (data as unknown as Record<string, unknown>).cache_docker_manifests as boolean ?? false,
+    cache_docker_manifests_ttl:
+      String((data as unknown as Record<string, unknown>).cache_docker_manifests_ttl ?? "3600"),
+    cache_docker_serve_stale: (data as unknown as Record<string, unknown>).cache_docker_serve_stale as boolean ?? false,
+    cache_docker_stale_ttl:
+      String((data as unknown as Record<string, unknown>).cache_docker_stale_ttl ?? "31536000"),
+
+    // Upstream timeouts.  A missing / partial `proxy_timeouts` on
+    // disk falls through to the "" (nginx default) sentinel so the
+    // form doesn't display "60" as if the operator set it.
+    proxy_timeouts: (() => {
+      const pt = (data as unknown as Record<string, unknown>).proxy_timeouts as
+        | Partial<ProxyTimeouts>
+        | undefined;
+      const norm = (v: unknown): number | string =>
+        v === undefined || v === null || v === "" ? "" : v as number | string;
+      return {
+        connect_timeout: norm(pt?.connect_timeout),
+        send_timeout: norm(pt?.send_timeout),
+        read_timeout: norm(pt?.read_timeout),
+      };
+    })(),
+
     waf_enabled: data.waf_enabled ?? false,
     waf_policy_id: data.waf_policy_id ?? "",
     waf_mode_override: data.waf_mode_override ?? "",
@@ -236,6 +288,12 @@ function hydrateForm(data: ServerType): ServerFormState {
     custom_http_block: Array.isArray(data.custom_http_block) ? data.custom_http_block : [],
 
     config: data.config ?? "",
+    // config_status may be absent on old records — default false so the
+    // server stays inert until the operator flips it on and saves.
+    // Cast via unknown because the Server type in @/types still marks
+    // it optional and we want to accept either shape from disk.
+    config_status:
+      (data as unknown as Record<string, unknown>).config_status === true,
 
     varnish_enabled: data.varnish_enabled ?? false,
     varnish_config: { ...DEFAULT_FORM.varnish_config, ...vc },
@@ -292,6 +350,17 @@ function buildPayload(form: ServerFormState): Record<string, unknown> {
     cache_bypass_auth: form.cache_bypass_auth,
     cache_bypass_cookie: form.cache_bypass_cookie,
     cached_mime_types: form.cached_mime_types,
+    // Docker blob cache — send flat like the old dashboard did so
+    // api.lua's CreateUpdateRecord persists them at the top level.
+    cache_docker_blobs: form.cache_docker_blobs,
+    cache_docker_blobs_ttl: form.cache_docker_blobs_ttl,
+    cache_docker_manifests: form.cache_docker_manifests,
+    cache_docker_manifests_ttl: form.cache_docker_manifests_ttl,
+    cache_docker_serve_stale: form.cache_docker_serve_stale,
+    cache_docker_stale_ttl: form.cache_docker_stale_ttl,
+    // Upstream timeouts — nested object matches the on-disk shape
+    // gateway_resp.lua reads with `settings.proxy_timeouts.*`.
+    proxy_timeouts: form.proxy_timeouts,
     waf_enabled: form.waf_enabled,
     waf_policy_id: form.waf_policy_id,
     waf_mode_override: form.waf_mode_override,
@@ -311,6 +380,10 @@ function buildPayload(form: ServerFormState): Record<string, unknown> {
     // `parse_rule_ids` accepts both, but existing records are arrays.
     rules: form.rules ? [form.rules] : [],
     match_cases: form.match_cases,
+    // config_status flips the server from "stored" to "live" — see
+    // api.lua:CreateUpdateRecord.  When true, the compiled nginx
+    // block is copied to /opt/nginx/conf.d/ and reload is scheduled.
+    config_status: form.config_status,
   };
 }
 
