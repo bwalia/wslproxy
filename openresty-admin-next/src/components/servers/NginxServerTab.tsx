@@ -13,6 +13,7 @@ import ConfigPreview from "./sections/ConfigPreview";
 import PopMultiSelect from "./sections/PopMultiSelect";
 import DnsRecordTypeCard from "./sections/DnsRecordTypeCard";
 import DnsStatePanel from "./sections/DnsStatePanel";
+import { generateNginxServerConfig } from "./lib/generateNginxConfig";
 import type { ServerFormState } from "./types";
 import type { LocationEntry } from "./sections/LocationBlockEditor";
 import type { Pop } from "@/types";
@@ -211,6 +212,19 @@ const NginxServerTab: React.FC<NginxServerTabProps> = ({
       );
     },
     [handleChange],
+  );
+
+  /* -- Live-generated nginx config for the preview -- */
+  //
+  // Regenerate from the current form state on every relevant change.
+  // Same source-of-truth model as the old dashboard's CreateServerText:
+  // the preview always reflects what buildPayload() will send on save,
+  // NOT the last-persisted (base64-encoded) `data.config` we hydrated
+  // from — which is what showed up as gibberish in the new UI before
+  // this wire-up.
+  const generatedConfig = useMemo(
+    () => generateNginxServerConfig(form),
+    [form],
   );
 
   /* -- Custom blocks -- */
@@ -626,6 +640,180 @@ const NginxServerTab: React.FC<NginxServerTabProps> = ({
         </Card.Body>
       </Card>
 
+      {/* ── Docker / OCI Registry Blob Caching ──────────────────────── */}
+      <Card>
+        <Card.Header>
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+              Docker Registry Blob Caching
+            </h2>
+            <p className="text-sm text-slate-500">
+              Cache Docker/OCI image blobs and manifests on disk for
+              faster pulls.  Only enable when this server fronts a
+              container registry backend (e.g. NebulaCR).
+            </p>
+          </div>
+        </Card.Header>
+        <Card.Body>
+          <div className="space-y-4">
+            <label className="flex items-center gap-3 text-sm text-slate-700 dark:text-slate-300">
+              <input
+                type="checkbox"
+                checked={form.cache_docker_blobs}
+                onChange={(e) =>
+                  handleChange("cache_docker_blobs", e.target.checked)
+                }
+                className="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+              />
+              Cache Docker blobs
+            </label>
+
+            {form.cache_docker_blobs && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <Input
+                    label="Blob cache TTL (seconds)"
+                    type="number"
+                    value={form.cache_docker_blobs_ttl}
+                    onChange={(e) =>
+                      handleChange("cache_docker_blobs_ttl", e.target.value)
+                    }
+                    hint="Default 2592000 (30 days) — blobs are content-addressed and immutable, safe to cache long."
+                  />
+                  <div className="space-y-2 self-end pb-1">
+                    <label className="flex items-center gap-3 text-sm text-slate-700 dark:text-slate-300">
+                      <input
+                        type="checkbox"
+                        checked={form.cache_docker_manifests}
+                        onChange={(e) =>
+                          handleChange(
+                            "cache_docker_manifests",
+                            e.target.checked,
+                          )
+                        }
+                        className="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+                      />
+                      Also cache manifests
+                    </label>
+                  </div>
+                </div>
+
+                {form.cache_docker_manifests && (
+                  <Input
+                    label="Manifest cache TTL (seconds)"
+                    type="number"
+                    value={form.cache_docker_manifests_ttl}
+                    onChange={(e) =>
+                      handleChange(
+                        "cache_docker_manifests_ttl",
+                        e.target.value,
+                      )
+                    }
+                    hint="Default 3600 (1 hour) — tags can be re-pushed, so keep this short."
+                  />
+                )}
+
+                <label className="flex items-center gap-3 text-sm text-slate-700 dark:text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={form.cache_docker_serve_stale}
+                    onChange={(e) =>
+                      handleChange(
+                        "cache_docker_serve_stale",
+                        e.target.checked,
+                      )
+                    }
+                    className="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+                  />
+                  Serve stale images when the registry is unreachable
+                </label>
+
+                {form.cache_docker_serve_stale && (
+                  <Input
+                    label="Stale cache TTL (seconds)"
+                    type="number"
+                    value={form.cache_docker_stale_ttl}
+                    onChange={(e) =>
+                      handleChange("cache_docker_stale_ttl", e.target.value)
+                    }
+                    hint="Default 31536000 (365 days) — how long to keep expired blobs around for fallback."
+                  />
+                )}
+
+                <div className="rounded-lg bg-blue-50 p-3 text-xs text-blue-700 dark:bg-blue-900/20 dark:text-blue-300">
+                  Only GET/HEAD requests to <code>/v2/*/blobs/*</code> and
+                  {" "}
+                  <code>/v2/*/manifests/*</code> are cached — pushes are
+                  never cached.  When "serve stale" is on, cached images
+                  are served during 5xx errors from the upstream registry
+                  or after the cache TTL expires.
+                </div>
+              </div>
+            )}
+          </div>
+        </Card.Body>
+      </Card>
+
+      {/* ── Proxy Timeouts ───────────────────────────────────────────── */}
+      <Card>
+        <Card.Header>
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+              Proxy Timeouts
+            </h2>
+            <p className="text-sm text-slate-500">
+              Upstream (proxy_pass) timeouts in seconds.  Leave a field
+              blank to use nginx's default of 60s.  Setting these fixes
+              the classic 504-at-60s problem for long-running backends
+              (LLM APIs, slow S3 objects, etc).
+            </p>
+          </div>
+        </Card.Header>
+        <Card.Body>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <Input
+              label="Connect timeout (s)"
+              type="number"
+              value={String(form.proxy_timeouts.connect_timeout)}
+              onChange={(e) =>
+                handleChange("proxy_timeouts", {
+                  ...form.proxy_timeouts,
+                  connect_timeout: e.target.value,
+                })
+              }
+              placeholder="60"
+              hint="Time to establish the TCP connection with the backend."
+            />
+            <Input
+              label="Send timeout (s)"
+              type="number"
+              value={String(form.proxy_timeouts.send_timeout)}
+              onChange={(e) =>
+                handleChange("proxy_timeouts", {
+                  ...form.proxy_timeouts,
+                  send_timeout: e.target.value,
+                })
+              }
+              placeholder="60"
+              hint="Time to transmit the request body to the backend."
+            />
+            <Input
+              label="Read timeout (s)"
+              type="number"
+              value={String(form.proxy_timeouts.read_timeout)}
+              onChange={(e) =>
+                handleChange("proxy_timeouts", {
+                  ...form.proxy_timeouts,
+                  read_timeout: e.target.value,
+                })
+              }
+              placeholder="60"
+              hint="Time to wait for the backend to respond.  Bump this for slow backends."
+            />
+          </div>
+        </Card.Body>
+      </Card>
+
       {/* ── WAF (Nginx-level) ────────────────────────────────────────── */}
       <Card>
         <Card.Header>
@@ -815,15 +1003,52 @@ const NginxServerTab: React.FC<NginxServerTabProps> = ({
         </Card.Body>
       </Card>
 
-      {/* ── Config Preview ───────────────────────────────────────────── */}
+      {/* ── Config Preview + Activate toggle ─────────────────────────── */}
       <Card>
         <Card.Header>
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
-            Configuration Preview
-          </h2>
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+              Configuration Preview
+            </h2>
+            <p className="text-sm text-slate-500">
+              The composed nginx server block that will be written to
+              disk.  Toggle <em>Active</em> below to actually load it
+              into <code>/opt/nginx/conf.d/</code> — leaving it off
+              keeps the server as a draft in the data store without
+              serving any traffic.
+            </p>
+          </div>
         </Card.Header>
         <Card.Body>
-          <ConfigPreview config={form.config} />
+          <div className="space-y-4">
+            <ConfigPreview config={generatedConfig} />
+
+            {/* config_status controls whether api.lua copies the
+                compiled .conf to /opt/nginx/conf.d/ and touches the
+                reload flag.  This is the missing "publish" switch
+                that the old dashboard had under the same preview. */}
+            <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm dark:border-slate-700 dark:bg-slate-800/50">
+              <input
+                type="checkbox"
+                checked={form.config_status}
+                onChange={(e) =>
+                  handleChange("config_status", e.target.checked)
+                }
+                className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+              />
+              <div>
+                <div className="font-medium text-slate-900 dark:text-slate-100">
+                  Active — write to <code>/opt/nginx/conf.d/</code> and reload
+                </div>
+                <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                  On save, wslproxy runs <code>openresty -t</code> against
+                  the new config and (if it passes) schedules a reload.
+                  Turn this off to stage changes without touching live
+                  traffic.
+                </div>
+              </div>
+            </label>
+          </div>
         </Card.Body>
       </Card>
     </div>
