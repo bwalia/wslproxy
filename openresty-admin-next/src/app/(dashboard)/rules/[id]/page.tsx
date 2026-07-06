@@ -835,14 +835,19 @@ export default function RuleDetailPage() {
                 onChange={(e) => set("country", e.target.value)}
                 options={COUNTRIES}
               />
-              {form.country && (
-                <Select
-                  label="Match mode"
-                  value={form.country_key}
-                  onChange={(e) => set("country_key", e.target.value)}
-                  options={[{ value: "equals", label: "Equals" }]}
-                />
-              )}
+              <Select
+                label="Match mode"
+                value={form.country_key}
+                onChange={(e) => set("country_key", e.target.value)}
+                options={[{ value: "equals", label: "Equals" }]}
+                disabled={!form.country}
+                hint={!form.country ? "Pick a country above to enable." : undefined}
+              />
+              {/* The subsection stays 2-col; when no country is set, the
+                  right-hand Match mode is a disabled placeholder rather
+                  than absent, so the layout doesn't jump when the user
+                  selects a country.  Same logic in "Restrict by client
+                  IP" below. */}
               {form.country === "EU" && (
                 <div className="col-span-full rounded-lg bg-blue-50 p-3 text-xs text-blue-700 dark:bg-blue-900/20 dark:text-blue-300">
                   “EU” expands to: AT, BE, BG, HR, CY, CZ, DK, EE, FI, FR,
@@ -871,19 +876,22 @@ export default function RuleDetailPage() {
                     : "IPv4, IPv6, a CIDR range, or a comma-separated list of any of the above."
                 }
               />
-              {form.client_ip && (
-                <Select
-                  label="Match mode"
-                  value={form.client_ip_key}
-                  onChange={(e) => set("client_ip_key", e.target.value)}
-                  options={[
-                    { value: "equals", label: "Equals" },
-                    { value: "starts_with", label: "Starts with" },
-                    { value: "ipheader", label: "Read IP from header" },
-                  ]}
-                  hint="“Read IP from header” trusts an upstream proxy to tell wslproxy the real client IP."
-                />
-              )}
+              <Select
+                label="Match mode"
+                value={form.client_ip_key}
+                onChange={(e) => set("client_ip_key", e.target.value)}
+                options={[
+                  { value: "equals", label: "Equals" },
+                  { value: "starts_with", label: "Starts with" },
+                  { value: "ipheader", label: "Read IP from header" },
+                ]}
+                disabled={!form.client_ip}
+                hint={
+                  !form.client_ip
+                    ? "Enter an IP or range on the left to enable."
+                    : "“Read IP from header” trusts an upstream proxy to tell wslproxy the real client IP."
+                }
+              />
             </Subsection>
 
             {/* Auth — optional */}
