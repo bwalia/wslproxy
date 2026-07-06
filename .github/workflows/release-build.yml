@@ -1,0 +1,168 @@
+name: Release Build Versioning
+
+# This workflow runs when code is pushed to the release branch.
+# It creates a unique "middle incremental" build version for each release deployment.
+#
+# Version scheme for release branch:
+#   Base version (from main tags): v1.0.16
+#   Release build: v1.0.16-build.1, v1.0.16-build.2, v1.0.16-build.3, etc.
+#
+# Each push to release branch increments the build counter, ensuring
+# unique version identifiers for each release candidate deployment.
+
+on:
+  push:
+    branches:
+      - release
+  workflow_dispatch:
+    inputs:
+      base_version:
+        type: string
+        description: "Base version to use (e.g., v1.0.16). Defaults to latest main tag."
+        required: false
+      reset_build:
+        type: boolean
+        description: "Reset build counter to 1 (for new base version)"
+        required: false
+        default: false
+
+permissions:
+  contents: write  # Required to push tags
+  pull-requests: read
+
+jobs:
+  version-release:
+    name: Create Release Build Version
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/release' && github.event_name != 'pull_request'
+
+    steps:
+      - name: Checkout repository with full history
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Determine base version
+        id: base_version
+        run: |
+          # If manually specified via workflow_dispatch, use that
+          if [ -n "${{ github.event.inputs.base_version }}" ]; then
+            BASE_VERSION="${{ github.event.inputs.base_version }}"
+            echo "Using manual base version: $BASE_VERSION"
+          else
+            # Get latest base version tag from main (non-build tags)
+            BASE_VERSION=$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | grep -v '\-build\.' | head -1)
+            if [ -z "$BASE_VERSION" ]; then
+              BASE_VERSION="v1.0.0"
+              echo "No base tags found, defaulting to v1.0.0"
+            else
+              echo "Latest base version from main: $BASE_VERSION"
+            fi
+          fi
+
+          # Validate format
+          if ! echo "$BASE_VERSION" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::Invalid base version format: $BASE_VERSION (expected vX.Y.Z)"
+            exit 1
+          fi
+
+          echo "base_version=$BASE_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Calculate next build number
+        id: calc_build
+        run: |
+          BASE_VERSION="${{ steps.base_version.outputs.base_version }}"
+
+          # Check if we should reset the build counter
+          if [ "${{ github.event.inputs.reset_build }}" = "true" ]; then
+            NEXT_BUILD=1
+            echo "Build counter reset (manual trigger)"
+          else
+            # Find existing build tags for this base version
+            EXISTING_BUILDS=$(git tag -l "${BASE_VERSION}-build.*" --sort=-v:refname 2>/dev/null || true)
+
+            if [ -z "$EXISTING_BUILDS" ]; then
+              NEXT_BUILD=1
+              echo "No existing builds for $BASE_VERSION, starting at 1"
+            else
+              # Extract highest build number
+              LAST_BUILD=$(echo "$EXISTING_BUILDS" | head -1 | sed -E 's/.*-build\.([0-9]+)$/\1/')
+              NEXT_BUILD=$((LAST_BUILD + 1))
+              echo "Last build for $BASE_VERSION was $LAST_BUILD, next is $NEXT_BUILD"
+            fi
+          fi
+
+          RELEASE_VERSION="${BASE_VERSION}-build.${NEXT_BUILD}"
+          echo "release_version=$RELEASE_VERSION" >> $GITHUB_OUTPUT
+          echo "build_number=$NEXT_BUILD" >> $GITHUB_OUTPUT
+
+      - name: Create and push release build tag
+        id: create_tag
+        run: |
+          RELEASE_VERSION="${{ steps.calc_build.outputs.release_version }}"
+
+          # Check if tag already exists (shouldn't happen but safety check)
+          if git tag -l "$RELEASE_VERSION" | grep -q "^$RELEASE_VERSION$"; then
+            echo "Tag $RELEASE_VERSION already exists"
+            echo "tag_created=false" >> $GITHUB_OUTPUT
+          else
+            echo "Creating release build tag: $RELEASE_VERSION"
+            git tag -a "$RELEASE_VERSION" -m "Release build $RELEASE_VERSION (from ${{ github.sha }})"
+            git push origin "$RELEASE_VERSION"
+            echo "tag_created=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Update system/app.json with release version
+        if: steps.create_tag.outputs.tag_created == 'true'
+        run: |
+          RELEASE_VERSION="${{ steps.calc_build.outputs.release_version }}"
+          BASE_VERSION="${{ steps.base_version.outputs.base_version }}"
+          BUILD_NUMBER="${{ steps.calc_build.outputs.build_number }}"
+          DEPLOY_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+          # Store the full release version (e.g., v1.0.16-build.3)
+          cat > system/app.json <<EOF
+{
+  "name": "wslproxy",
+  "version": {
+    "version": "${RELEASE_VERSION#v}",
+    "base_version": "${BASE_VERSION#v}",
+    "build_number": ${BUILD_NUMBER},
+    "deployment_timestamp": "${DEPLOY_TIME}"
+  }
+}
+EOF
+
+          git add system/app.json
+          git commit -m "chore: update version to $RELEASE_VERSION [skip ci]"
+          git push origin release
+
+      - name: Notify Slack of new release build
+        if: steps.create_tag.outputs.tag_created == 'true'
+        continue-on-error: true
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+        run: |
+          RELEASE_VERSION="${{ steps.calc_build.outputs.release_version }}"
+          BASE_VERSION="${{ steps.base_version.outputs.base_version }}"
+          BUILD_NUMBER="${{ steps.calc_build.outputs.build_number }}"
+          COMMIT_SHA="${{ github.sha }}"
+          ACTOR="${{ github.actor }}"
+          LOGS_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          curl -sf -X POST "$SLACK_WEBHOOK" \
+            -H 'Content-Type: application/json' \
+            -d "$(jq -n \
+              --arg version "$RELEASE_VERSION" \
+              --arg base "$BASE_VERSION" \
+              --arg build "$BUILD_NUMBER" \
+              --arg commit "$COMMIT_SHA" \
+              --arg actor "$ACTOR" \
+              --arg logs "$LOGS_URL" \
+              '{channel: "github-updates", username: "GitHub Actions", text: (":rocket: *New Release Build*\nVersion: `\($version)`\nBase: `\($base)` | Build: #\($build)\nCommit: `\($commit)`\nTriggered by: \($actor)\nLogs: \($logs)")}')"
