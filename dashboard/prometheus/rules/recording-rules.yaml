@@ -1,0 +1,53 @@
+# Prometheus recording rules for WSL Proxy - Backend Health
+# Pre-computes the expensive aggregations used by the dashboard so heavy panels
+# (per-backend p95, error ratios) stay fast. Load via rule_files: in prometheus.yml.
+#
+# All expressions use ONLY metrics that exist on prod-our.wslproxy.com/metrics.
+groups:
+  - name: wslproxy_backend.recording
+    interval: 30s
+    rules:
+      # ---- request rates -------------------------------------------------
+      - record: wslproxy:backend_requests:rate5m
+        expr: sum by (backend_label) (rate(wslproxy_backend_requests_total[5m]))
+
+      - record: wslproxy:backend_requests_by_rule:rate5m
+        expr: sum by (rule_id, backend_label) (rate(wslproxy_backend_requests_total[5m]))
+
+      # ---- error rates ---------------------------------------------------
+      - record: wslproxy:backend_5xx:rate5m
+        expr: sum by (backend_label) (rate(wslproxy_backend_requests_total{status=~"5.."}[5m]))
+
+      - record: wslproxy:backend_error_ratio:5m
+        expr: |
+          sum by (backend_label) (rate(wslproxy_backend_requests_total{status=~"5.."}[5m]))
+            / clamp_min(sum by (backend_label) (rate(wslproxy_backend_requests_total[5m])), 0.0001)
+
+      # ---- latency percentiles ------------------------------------------
+      - record: wslproxy:backend_latency_p95:5m
+        expr: histogram_quantile(0.95, sum by (backend_label, le) (rate(wslproxy_backend_response_seconds_bucket[5m])))
+
+      - record: wslproxy:backend_latency_p99:5m
+        expr: histogram_quantile(0.99, sum by (backend_label, le) (rate(wslproxy_backend_response_seconds_bucket[5m])))
+
+  - name: wslproxy_edge.recording
+    interval: 30s
+    rules:
+      - record: wslproxy:http_requests:rate5m
+        expr: sum(rate(nginx_http_requests_total[5m]))
+
+      - record: wslproxy:http_error_ratio:5m
+        expr: |
+          sum(rate(nginx_http_errors_total[5m]))
+            / clamp_min(sum(rate(nginx_http_requests_total[5m])), 1)
+
+      - record: wslproxy:http_5xx_ratio:5m
+        expr: |
+          sum(rate(nginx_http_5xx_errors_total[5m]))
+            / clamp_min(sum(rate(nginx_http_requests_total[5m])), 1)
+
+      - record: wslproxy:availability:5m
+        expr: 100 * (1 - (sum(rate(nginx_http_5xx_errors_total[5m])) / clamp_min(sum(rate(nginx_http_requests_total[5m])), 1)))
+
+      - record: wslproxy:fleet_availability:ratio
+        expr: 100 * count(wslproxy_backend_healthy == 1) / clamp_min(count(wslproxy_backend_healthy), 1)

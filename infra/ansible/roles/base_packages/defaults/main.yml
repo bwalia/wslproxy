@@ -34,7 +34,6 @@ _os_packages:
       - gcc
       - g++
       - python3
-      - npm
       - openssh-server
       - ca-certificates
       - luarocks
@@ -45,10 +44,18 @@ _os_packages:
         - libpcre3-dev
         - openjdk-21-jdk
         - netcat-traditional
+        # npm from the distro repo installs cleanly on Ubuntu, but on
+        # Debian 13 (trixie) the packaged npm (9.2.0~ds1-3) is uninstallable
+        # (unmet nodejs dependency chain). Node/npm come from NodeSource
+        # (deploy_nextjs_admin_ui.yml) / nvm (install-build-npm-yarn.sh.j2)
+        # on all distros anyway, so keep the distro npm Ubuntu-only.
+        - npm
       Debian:
         - python3-apt
         - libpcre2-dev
-        - openjdk-21-jdk
+        # default-jdk resolves to the distro's supported JDK (17 on bookworm,
+        # 21 on trixie); openjdk-21-jdk isn't packaged on Debian 12.
+        - default-jdk
         - netcat-openbsd
 
   Suse:

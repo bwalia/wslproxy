@@ -113,7 +113,10 @@ echo -e "${GREEN}Login successful!${NC}"
 
 # Backup servers - extract just the data array for easy import
 echo -e "${YELLOW}Fetching servers...${NC}"
-SERVERS_RESPONSE=$(api_request "GET" "/api/servers" "$TOKEN")
+# profile_id must be explicit: without it the API falls back to the
+# instance's settings.env_profile, and a drifted default silently turns the
+# backup into an empty list (seen after the Jul 2026 prod settings redeploy).
+SERVERS_RESPONSE=$(api_request "GET" "/api/servers?profile_id=${ENVIRONMENT}" "$TOKEN")
 
 if [ $? -ne 0 ]; then
     echo -e "${RED}Failed to fetch servers!${NC}"
@@ -132,7 +135,7 @@ ln -sf "servers_${TIMESTAMP}.json" "$BACKUP_DIR/servers_latest.json"
 
 # Backup rules - extract just the data array for easy import
 echo -e "${YELLOW}Fetching rules...${NC}"
-RULES_RESPONSE=$(api_request "GET" "/api/rules" "$TOKEN")
+RULES_RESPONSE=$(api_request "GET" "/api/rules?profile_id=${ENVIRONMENT}" "$TOKEN")
 
 if [ $? -ne 0 ]; then
     echo -e "${RED}Failed to fetch rules!${NC}"
@@ -145,6 +148,15 @@ echo "$RULES_RESPONSE" | jq '.data // []' > "$RULES_FILE"
 
 RULES_COUNT=$(jq 'length' "$RULES_FILE" 2>/dev/null || echo "0")
 echo -e "${GREEN}Backed up $RULES_COUNT rules to: $RULES_FILE${NC}"
+
+# An empty prod backup is a failure, not a success — prod always has servers.
+# (A run on 2026-07-05 went green while writing 0 servers/0 rules because the
+# instance's default env_profile had drifted.)
+if [ "$ENVIRONMENT" = "prod" ] && [ "$SERVERS_COUNT" -eq 0 ]; then
+    echo -e "${RED}ERROR: prod backup returned 0 servers — refusing to report an empty backup as success.${NC}"
+    echo -e "${RED}Check the gateway's env_profile and the profile_id filter.${NC}"
+    exit 1
+fi
 
 # Create latest symlink for rules
 ln -sf "rules_${TIMESTAMP}.json" "$BACKUP_DIR/rules_latest.json"

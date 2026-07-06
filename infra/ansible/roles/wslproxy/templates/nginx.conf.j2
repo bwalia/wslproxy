@@ -345,7 +345,10 @@ http {
           }
       }
 
-      location /health {
+      # Canonical /healthz (Kubernetes-standard).  /health kept as an
+      # alias so external monitors and legacy pipeline health_endpoint
+      # values (http://.../health) keep working during the migration.
+      location ~ ^/(health|healthz)$ {
           default_type 'application/json';
           more_set_headers 'Access-Control-Allow-Origin: *';
           content_by_lua_file /usr/local/openresty/nginx/html/api/ping.lua;
@@ -591,7 +594,10 @@ http {
         client_body_buffer_size 128k;
 
         # Health and ping — served by OpenResty Lua (same as legacy dashboard)
-        location /health {
+        # Canonical /healthz (Kubernetes-standard).  /health kept as an
+        # alias so external monitors and legacy pipeline health_endpoint
+        # values (http://.../health) keep working during the migration.
+        location ~ ^/(health|healthz)$ {
             default_type 'application/json';
             more_set_headers 'Access-Control-Allow-Origin: *';
             more_set_headers 'Access-Control-Allow-Methods: GET';
@@ -836,6 +842,14 @@ server {
               end
             end
 
+            -- Surface the matched rule's NAME (not id) on the response.
+            -- Reads from ngx.ctx.gateway populated by gateway_ack.lua on
+            -- cache MISS, or replayed by cache_handler.check_cache on HIT.
+            local _gw = ngx.ctx.gateway
+            if _gw and _gw.executableRule and _gw.executableRule.name then
+              ngx.header["X-WSL-Rule"] = _gw.executableRule.name
+            end
+
             -- LLM protocol translation: normalise response headers
             local ok_llm, Llm = pcall(require, "llm_translator")
             if ok_llm then Llm.header_filter() end
@@ -1052,6 +1066,14 @@ server {
                   ngx.header[header.header_key] = header.header_value
                 end
               end
+            end
+
+            -- Surface the matched rule's NAME (not id) on the response.
+            -- Reads from ngx.ctx.gateway populated by gateway_ack.lua on
+            -- cache MISS, or replayed by cache_handler.check_cache on HIT.
+            local _gw = ngx.ctx.gateway
+            if _gw and _gw.executableRule and _gw.executableRule.name then
+              ngx.header["X-WSL-Rule"] = _gw.executableRule.name
             end
 
             -- LLM protocol translation: normalise response headers

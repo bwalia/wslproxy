@@ -1,0 +1,17 @@
+# Grafana dashboard provisioning — WSL Proxy
+# Drop into /etc/grafana/provisioning/dashboards/
+apiVersion: 1
+
+providers:
+  - name: WSL Proxy
+    orgId: 1
+    folder: WSL Proxy
+    folderUid: wslproxy
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      # Mount the JSON dashboards here (see README for compose/helm mounts).
+      path: /var/lib/grafana/dashboards/wslproxy
+      foldersFromFilesStructure: false

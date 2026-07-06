@@ -13,8 +13,9 @@ on:
       - "openresty-admin/package*.json"
       - ".github/workflows/e2e-admin-ui-login.yml"
   schedule:
-    # Hourly smoke check that the admin login is healthy
-    - cron: "0 * * * *"
+    # Thrice-daily smoke check that the admin login is healthy
+    # (00:00, 08:00, 16:00 UTC).
+    - cron: "0 0,8,16 * * *"
   workflow_dispatch:
     inputs:
       TARGET_ENV:
@@ -136,28 +137,56 @@ jobs:
         run: npx playwright install chromium
 
       - name: Validate test credentials
+        id: validate
         working-directory: .
         env:
           TEST_CREDS_FILE: ${{ steps.env_config.outputs.creds_file }}
+          # Canonical prod admin login, also used by the API test workflows.
+          # Only wired as a fallback for prod (the matrix is prod-only today);
+          # other envs keep relying solely on their on-runner creds file.
+          FALLBACK_EMAIL: ${{ matrix.environment == 'prod' && secrets.LOGIN_EMAIL || '' }}
+          FALLBACK_PASSWORD: ${{ matrix.environment == 'prod' && secrets.LOGIN_PASSWORD || '' }}
         run: |
-          if [ ! -f "$TEST_CREDS_FILE" ]; then
-            echo "::error::Test credentials file not found at $TEST_CREDS_FILE"
-            echo "Create it with: echo '{\"ADMIN_EMAIL\":\"...\",\"ADMIN_PASSWORD\":\"...\"}' > $TEST_CREDS_FILE"
+          # Only credentials are required from the file; the URL under test comes
+          # from the ADMIN_LOGIN_URLS repo variable, not the creds file.
+          valid_creds() {
+            [ -f "$1" ] && python3 -c "import json,sys; d=json.load(open(sys.argv[1])); sys.exit(0 if ('ADMIN_EMAIL' in d and 'ADMIN_PASSWORD' in d) else 1)" "$1" 2>/dev/null
+          }
+          # Prefer the on-runner file; self-heal from LOGIN_EMAIL/LOGIN_PASSWORD
+          # repo secrets when it is missing or malformed (e.g. after a credential
+          # rotation that only updated the secret). The healed creds go to a
+          # writable temp file — the on-runner login-creds.json is often root-owned
+          # (left by a prior deploy) and not writable by the runner user.
+          EFFECTIVE="$TEST_CREDS_FILE"
+          if ! valid_creds "$TEST_CREDS_FILE"; then
+            if [ -n "$FALLBACK_EMAIL" ] && [ -n "$FALLBACK_PASSWORD" ]; then
+              echo "On-runner creds file missing/invalid — using LOGIN_EMAIL/LOGIN_PASSWORD repo secrets."
+              EFFECTIVE="${RUNNER_TEMP:-/tmp}/wslproxy-login-creds.json"
+              EFFECTIVE="$EFFECTIVE" python3 -c "import json,os; json.dump({'ADMIN_EMAIL':os.environ['FALLBACK_EMAIL'],'ADMIN_PASSWORD':os.environ['FALLBACK_PASSWORD']}, open(os.environ['EFFECTIVE'],'w'))"
+              chmod 600 "$EFFECTIVE" 2>/dev/null || true
+              # Best-effort: refresh the on-runner file too so other workflows
+              # (e2e-tests.yml) benefit. Ignore failure if it isn't writable.
+              cp "$EFFECTIVE" "$TEST_CREDS_FILE" 2>/dev/null || true
+            else
+              echo "::error::Test credentials file at $TEST_CREDS_FILE is missing/invalid and no LOGIN_EMAIL/LOGIN_PASSWORD fallback is available for ${{ matrix.environment }}."
+              echo "Create it with: echo '{\"ADMIN_EMAIL\":\"...\",\"ADMIN_PASSWORD\":\"...\"}' > $TEST_CREDS_FILE"
+              exit 1
+            fi
+          fi
+          if ! valid_creds "$EFFECTIVE"; then
+            echo "::error::Test credentials still invalid after fallback for ${{ matrix.environment }} (ADMIN_EMAIL, ADMIN_PASSWORD required)."
             exit 1
           fi
-          # Only credentials are required from the file now; the URL under test
-          # comes from the ADMIN_LOGIN_URLS repo variable, not the creds file.
-          if ! python3 -c "import json; d=json.load(open('$TEST_CREDS_FILE')); assert 'ADMIN_EMAIL' in d and 'ADMIN_PASSWORD' in d" 2>/dev/null; then
-            echo "::error::Test credentials file is missing required keys (ADMIN_EMAIL, ADMIN_PASSWORD)"
-            exit 1
-          fi
+          # Downstream steps read from the resolved path (on-runner file or the
+          # temp fallback), not the raw env_config path.
+          echo "creds_file=$EFFECTIVE" >> "$GITHUB_OUTPUT"
           echo "Test credentials validated for ${{ matrix.environment }}."
 
       - name: Load test credentials
         id: creds
         working-directory: .
         env:
-          TEST_CREDS_FILE: ${{ steps.env_config.outputs.creds_file }}
+          TEST_CREDS_FILE: ${{ steps.validate.outputs.creds_file }}
         run: |
           EMAIL=$(python3 -c "import json; print(json.load(open('$TEST_CREDS_FILE'))['ADMIN_EMAIL'])")
           PASSWORD=$(python3 -c "import json; print(json.load(open('$TEST_CREDS_FILE'))['ADMIN_PASSWORD'])")
@@ -186,6 +215,52 @@ jobs:
           echo "::error::Admin UI not reachable at $TARGET_URL after 60s"
           exit 1
 
+      - name: Preflight - verify login credentials against the backend
+        # The browser tests below fail cryptically ("Parse test results") when
+        # the *credentials* are stale rather than the login being down — e.g.
+        # after the 2026-06-29 secrets migration re-wrote prod's
+        # settings.super_user without updating this test's creds file/secret.
+        # Hit /api/user/login directly with the exact creds the tests will use
+        # and classify the outcome, so the failure is actionable and the Slack
+        # message doesn't wrongly cry "Admin UI login may be broken".
+        working-directory: .
+        env:
+          TARGET_URL: ${{ matrix.url }}
+          E2E_TEST_EMAIL: ${{ steps.creds.outputs.email }}
+          E2E_TEST_PASSWORD: ${{ steps.creds.outputs.password }}
+        run: |
+          # Body is masked by ::add-mask:: on email/password already; only the
+          # HTTP status is echoed here.
+          STATUS=$(EMAIL="$E2E_TEST_EMAIL" PASSWORD="$E2E_TEST_PASSWORD" python3 - "$TARGET_URL" <<'PY'
+          import json, os, sys, urllib.request, urllib.error
+          url = sys.argv[1].rstrip('/') + '/api/user/login'
+          body = json.dumps({'email': os.environ['EMAIL'], 'password': os.environ['PASSWORD']}).encode()
+          req = urllib.request.Request(url, data=body, method='POST',
+                                       headers={'Content-Type': 'application/json'})
+          try:
+              with urllib.request.urlopen(req, timeout=15) as r:
+                  print(r.status)
+          except urllib.error.HTTPError as e:
+              print(e.code)
+          except Exception:
+              print('000')
+          PY
+          )
+          echo "Login API responded HTTP $STATUS for ${{ matrix.url }}"
+          case "$STATUS" in
+            200)
+              echo "Credentials accepted by the backend — proceeding to UI tests." ;;
+            401|403)
+              echo "::error::Login credentials REJECTED (HTTP $STATUS) by ${{ matrix.url }}. This is a credential mismatch, not a UI outage: the backend settings.super_user no longer matches this job's test creds (on-runner login-creds.json / LOGIN_EMAIL+LOGIN_PASSWORD secrets). Reconcile the two — see api/api.lua login handler and infra/ansible/.../deploy_data.yml."
+              exit 1 ;;
+            000)
+              echo "::error::Could not reach the login API at ${{ matrix.url }}/api/user/login (network/TLS/timeout)."
+              exit 1 ;;
+            *)
+              echo "::error::Login API returned unexpected HTTP $STATUS for ${{ matrix.url }} — the admin login backend may be broken."
+              exit 1 ;;
+          esac
+
       - name: Run Admin UI Login tests
         id: tests
         env:
@@ -200,9 +275,19 @@ jobs:
         if: always()
         run: |
           OUTPUT=$(cat playwright-output.txt 2>/dev/null || echo "No output")
-          PASSED=$(echo "$OUTPUT" | grep -oP '\d+ passed' | grep -oP '\d+' || echo "0")
-          FAILED=$(echo "$OUTPUT" | grep -oP '\d+ failed' | grep -oP '\d+' || echo "0")
-          SKIPPED=$(echo "$OUTPUT" | grep -oP '\d+ skipped' | grep -oP '\d+' || echo "0")
+          # Use grep -oE (POSIX), not -oP: the prod runner is macOS, whose BSD
+          # grep has no -P (Perl) flag — -oP silently yields nothing there, so
+          # a fully-passing run ("6 passed") parsed as 0/0 and tripped the
+          # "No tests executed" guard below. -oE matches the summary line even
+          # with Playwright's ANSI prefixes.
+          # `|| true` keeps the pipeline exit 0 (grep -oE returns 1 on no match,
+          # which would abort this step under bash -e -o pipefail); the ${x:-0}
+          # defaults then fill in a count. Avoid `[ -z x ] && x=0` here: it
+          # returns 1 when x is set and trips set -e.
+          PASSED=$(echo "$OUTPUT" | grep -oE '[0-9]+ passed' | grep -oE '[0-9]+' | tail -1 || true)
+          FAILED=$(echo "$OUTPUT" | grep -oE '[0-9]+ failed' | grep -oE '[0-9]+' | tail -1 || true)
+          SKIPPED=$(echo "$OUTPUT" | grep -oE '[0-9]+ skipped' | grep -oE '[0-9]+' | tail -1 || true)
+          PASSED="${PASSED:-0}"; FAILED="${FAILED:-0}"; SKIPPED="${SKIPPED:-0}"
           TOTAL=$((PASSED + FAILED))
           echo "passed=$PASSED" >> "$GITHUB_OUTPUT"
           echo "failed=$FAILED" >> "$GITHUB_OUTPUT"

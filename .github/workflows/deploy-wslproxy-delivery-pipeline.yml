@@ -1,4 +1,4 @@
-name: Deploy WSLProxy Delivery Pipeline
+name: Full Build and Deploy WSLProxy Delivery Pipeline
 # Pipeline: Validate → Int → Smoke Test → Test → Acc → Prod (pop0 + lon1)
 # Promotion pipeline: each environment must pass before the next deploys
 # Deploy modes: code (default for manual) | nginx | servers | dashboard | os_deps | build | full (default for push)
@@ -6,7 +6,7 @@ name: Deploy WSLProxy Delivery Pipeline
 on:
   push:
     branches:
-      - release
+      - build
   pull_request:
     branches:
       - dummy-branch-for-wslproxy-deploy
@@ -16,7 +16,7 @@ on:
       DEPLOY_BRANCH:
         type: string
         description: "Branch to deploy (type any existing branch name)"
-        default: "release"
+        default: "build"
         required: true
 
       TARGET_ENV:
@@ -42,11 +42,12 @@ on:
           # 187.77.179.206 (acc) was decommissioned.
           - 187.124.112.155
           - 72.62.211.28
+          - 18.133.126.242
 
       DEPLOY_MODE:
         type: choice
         description: "What to deploy"
-        default: "code"
+        default: "full"
         required: true
         options:
           - code
@@ -180,7 +181,7 @@ jobs:
     needs: [build-validate]
     runs-on: ubuntu-latest
     permissions:
-      actions: read   # required to list self-hosted runners
+      actions: read # required to list self-hosted runners
     outputs:
       runner_online: ${{ steps.probe.outputs.online }}
     steps:
@@ -256,7 +257,7 @@ jobs:
       # (infra/secrets/<env>/) using the SOPS_AGE_KEY repo secret.
       # Matches the promotion pipeline int stage.
       secrets_mode: sops
-      health_endpoint: "http://localhost:8080/health"
+      health_endpoint: "http://localhost:8080/healthz"
       health_check_mode: local
       docker_prune: true
       notify_success: false
@@ -264,6 +265,7 @@ jobs:
       deploy_mode: ${{ github.event.inputs.DEPLOY_MODE || 'full' }}
     secrets:
       SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
       SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
       # Kept so emergency rollback to secrets_mode: github_secret is a
       # one-line revert — no secrets need to be re-added.
@@ -285,7 +287,6 @@ jobs:
       needs.preflight-int.outputs.runner_online == 'true' &&
       needs.deploy-int.result == 'success'
     timeout-minutes: 15
-
     steps:
       # actions/checkout's git-clean cannot unlink root-owned build
       # artifacts left in the persistent self-hosted workspace (e.g.
@@ -308,7 +309,7 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.19'
+          go-version: "1.19"
           cache: false
 
       - name: Run health check tests (Go)
@@ -326,7 +327,7 @@ jobs:
       - name: Verify API endpoints
         run: |
           FAILED=0
-          for ENDPOINT in /health; do
+          for ENDPOINT in /healthz; do
             STATUS=$(curl -sf -o /dev/null -w "%{http_code}" "http://localhost:8080${ENDPOINT}" 2>/dev/null || echo "000")
             if [ "$STATUS" = "200" ]; then
               printf "  GET :8080%-20s OK (%s)\n" "$ENDPOINT" "$STATUS"
@@ -335,7 +336,7 @@ jobs:
               FAILED=$((FAILED+1))
             fi
           done
-          for ENDPOINT in /health /api/servers /api/rules /api/waf_rules /api/waf_policies; do
+          for ENDPOINT in /healthz /api/servers /api/rules /api/waf_rules /api/waf_policies; do
             STATUS=$(curl -sf -o /dev/null -w "%{http_code}" "http://localhost:8080${ENDPOINT}" 2>/dev/null || echo "000")
             if [ "$STATUS" = "200" ]; then
               printf "  GET :8080%-20s OK (%s)\n" "$ENDPOINT" "$STATUS"
@@ -368,7 +369,14 @@ jobs:
   # Stage 4: Deploy Test (192.168.1.140)
   # ──────────────────────────────────────────────────────
   deploy-test:
-    needs: [test-int]
+    # List the WHOLE upstream chain, not just the immediate predecessor:
+    # GitHub's failure() only sees direct needs, so with needs:[test-int] a
+    # hard failure of build-validate or deploy-int (which makes test-int
+    # merely *skip*) slipped past the `!failure()` guard and Test/Prod still
+    # deployed. Naming the full chain makes any upstream FAILURE block
+    # promotion, while always() still lets legitimate SKIPS (offline int
+    # runner, host-mismatched stages) pass through.
+    needs: [build-validate, deploy-int, test-int]
     if: >
       always() && !failure() && !cancelled() &&
       ((github.event_name == 'push' && (github.ref == 'refs/heads/release' || github.ref == 'refs/heads/main')) ||
@@ -385,7 +393,7 @@ jobs:
       secrets_mode: runner_file
       settings_file_path: "/home/bwalia/.secrets/wslproxy/test/settings.json"
       env_file_path: "/home/bwalia/.secrets/wslproxy/test/.env"
-      health_endpoint: "http://localhost:8080/health"
+      health_endpoint: "http://localhost:8080/healthz"
       health_check_mode: ssh
       docker_prune: false
       notify_success: false
@@ -393,6 +401,7 @@ jobs:
       deploy_mode: ${{ github.event.inputs.DEPLOY_MODE || 'full' }}
     secrets:
       SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
 
   # Stage 5 (acc / 187.77.179.206) was decommissioned.  Prod stages
   # below now depend directly on `deploy-test` so the pipeline still
@@ -402,7 +411,8 @@ jobs:
   # Stage 5a: Deploy Prod pop0 (187.124.112.155)
   # ──────────────────────────────────────────────────────
   deploy-prod-pop0:
-    needs: [deploy-test]
+    # Full upstream chain — see deploy-test. Any failure up to here blocks prod.
+    needs: [build-validate, deploy-int, test-int, deploy-test]
     if: >
       always() && !failure() && !cancelled() &&
       ((github.event_name == 'push' && (github.ref == 'refs/heads/release' || github.ref == 'refs/heads/main')) ||
@@ -416,16 +426,16 @@ jobs:
       host_ip: "187.124.112.155"
       ssh_user: root
       connection_mode: ssh_key
-      # pop0 self-seeds: pull its own live settings.json over SSH and
-      # redeploy it (idempotent), instead of decoding an empty GH secret.
-      secrets_mode: runner_file
-      seed_from_host: true
-      # Seed target on the runner — /tmp is always writable (same place
-      # the old github_secret mode wrote to). The .secrets tree is locked
-      # down and the runner can't mkdir new subdirs there.
-      settings_file_path: "/tmp/wslproxy-pop0/settings.json"
-      env_file_path: "/tmp/wslproxy-pop0/.env"
-      health_endpoint: "https://prod-our-v1.wslproxy.com/health"
+      # vault_or_sops: probe Vault first (see the resolve_mode step in
+      # deploy-environment.yml).  If Vault has the settings at
+      # secret/data/wslproxy/prod/settings.json, use it; otherwise fall
+      # back to the SOPS-encrypted infra/secrets/prod/settings.sops.json
+      # already committed to the repo.  Replaces the old runner_file +
+      # seed_from_host mode that failed on 2026-07-02 when the runner's
+      # SSH key stopped authenticating against the prod host (root@…
+      # permission denied) and there was no fallback.
+      secrets_mode: vault_or_sops
+      health_endpoint: "https://prod-our-v1.wslproxy.com/healthz"
       health_check_mode: external
       docker_prune: true
       notify_success: true
@@ -433,12 +443,20 @@ jobs:
       deploy_mode: ${{ github.event.inputs.DEPLOY_MODE || 'full' }}
     secrets:
       SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      # Provide BOTH — the resolver picks Vault if VAULT_ADDR/VAULT_TOKEN
+      # are set AND the settings path is populated; otherwise it uses
+      # SOPS_AGE_KEY.  Deploy only fails if BOTH are unavailable.
+      VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
+      VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
+      SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
 
   # ──────────────────────────────────────────────────────
   # Stage 5b: Deploy Prod lon1 (72.62.211.28)
   # ──────────────────────────────────────────────────────
   deploy-prod-lon1:
-    needs: [deploy-prod-pop0]
+    # Full upstream chain — see deploy-test.
+    needs: [build-validate, deploy-int, test-int, deploy-test, deploy-prod-pop0]
     if: >
       always() && !failure() && !cancelled() &&
       ((github.event_name == 'push' && (github.ref == 'refs/heads/release' || github.ref == 'refs/heads/main')) ||
@@ -455,7 +473,7 @@ jobs:
       secrets_mode: runner_file
       settings_file_path: "/home/bwalia/.secrets/wslproxy/lon1/settings.json"
       env_file_path: "/home/bwalia/.secrets/wslproxy/lon1/.env"
-      health_endpoint: "http://72.62.211.28:7691/health"
+      health_endpoint: "http://72.62.211.28:7691/healthz"
       health_check_mode: external
       docker_prune: true
       notify_success: true
@@ -463,6 +481,49 @@ jobs:
       deploy_mode: ${{ github.event.inputs.DEPLOY_MODE || 'full' }}
     secrets:
       SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+
+  # ──────────────────────────────────────────────────────
+  # Stage 5c: Deploy Prod pop1 (18.133.126.242) — AWS eu-west-2, ssh user admin
+  # Runs LAST, after pop0 + lon1, only when they (and all prior stages) pass.
+  # Dashboard domain: pop1.diytaxreturn.co.uk
+  # ──────────────────────────────────────────────────────
+  deploy-prod-pop1:
+    # Full upstream chain — see deploy-test.
+    needs: [build-validate, deploy-int, test-int, deploy-test, deploy-prod-pop0, deploy-prod-lon1]
+    if: >
+      always() && !failure() && !cancelled() &&
+      ((github.event_name == 'push' && (github.ref == 'refs/heads/release' || github.ref == 'refs/heads/main')) ||
+      (github.event_name == 'workflow_dispatch' &&
+      (github.event.inputs.TARGET_HOST == '18.133.126.242' || github.event.inputs.TARGET_HOST == 'all')))
+    uses: ./.github/workflows/deploy-environment.yml
+    with:
+      env_name: prod
+      env_label: "Prod pop1 (18.133.126.242)"
+      stage_number: "5c"
+      host_ip: "18.133.126.242"
+      ssh_user: admin
+      connection_mode: ssh_key
+      # Same rationale as pop0 (Stage 5a) — Vault-first with SOPS
+      # fallback so a broken runner SSH key or an offline Vault can't
+      # take the pipeline down.
+      secrets_mode: vault_or_sops
+      # pop1 is DASHBOARD-ONLY: nginx_default_server_backend is empty, so no
+      # admin block listens on :7691 (lon1 differs — it sets that var, so its
+      # :7691 gate is fine). The old IP:7691 gate could never pass here. Health-
+      # check the public dashboard domain on 443 — valid LE cert, /healthz 200.
+      health_endpoint: "https://pop1.diytaxreturn.co.uk/healthz"
+      health_check_mode: external
+      docker_prune: true
+      notify_success: true
+      deploy_branch: ${{ github.event.inputs.DEPLOY_BRANCH || github.ref_name }}
+      deploy_mode: ${{ github.event.inputs.DEPLOY_MODE || 'full' }}
+    secrets:
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
+      VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
+      SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
 
   # ──────────────────────────────────────────────────────
   # Pipeline Summary (always runs — final report)
@@ -470,7 +531,16 @@ jobs:
   pipeline-summary:
     name: Pipeline Summary
     runs-on: ubuntu-latest
-    needs: [build-validate, deploy-int, test-int, deploy-test, deploy-prod-pop0, deploy-prod-lon1]
+    needs:
+      [
+        build-validate,
+        deploy-int,
+        test-int,
+        deploy-test,
+        deploy-prod-pop0,
+        deploy-prod-lon1,
+        deploy-prod-pop1,
+      ]
     if: always()
     steps:
       - name: Pipeline Summary
@@ -485,6 +555,7 @@ jobs:
           echo "  Stage 4  — Deploy Test:          ${{ needs.deploy-test.result }}"
           echo "  Stage 5a — Deploy Prod (pop0):   ${{ needs.deploy-prod-pop0.result }}"
           echo "  Stage 5b — Deploy Prod (lon1):   ${{ needs.deploy-prod-lon1.result }}"
+          echo "  Stage 5c — Deploy Prod (pop1):   ${{ needs.deploy-prod-pop1.result }}"
           echo ""
           echo "  Commit:  ${{ github.sha }}"
           echo "  Branch:  ${{ github.ref_name }}"
@@ -496,7 +567,8 @@ jobs:
              [[ "${{ needs.test-int.result }}" == "failure" ]] || \
              [[ "${{ needs.deploy-test.result }}" == "failure" ]] || \
              [[ "${{ needs.deploy-prod-pop0.result }}" == "failure" ]] || \
-             [[ "${{ needs.deploy-prod-lon1.result }}" == "failure" ]]; then
+             [[ "${{ needs.deploy-prod-lon1.result }}" == "failure" ]] || \
+             [[ "${{ needs.deploy-prod-pop1.result }}" == "failure" ]]; then
               echo "::error::Pipeline failed — see stage results above"
               exit 1
           fi

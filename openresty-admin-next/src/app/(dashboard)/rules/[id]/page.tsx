@@ -13,6 +13,12 @@ import {
   Network,
   ChevronDown,
   ChevronRight,
+  Route,
+  MapPin,
+  Wifi,
+  ShieldCheck,
+  Settings,
+  Zap,
 } from "lucide-react";
 import { useOne, useList, useDataProvider } from "@/hooks/useResource";
 import { useNotification } from "@/contexts/NotificationContext";
@@ -177,13 +183,61 @@ function safeBase64Encode(str: string): string {
   }
 }
 
-// ── Section heading component ───────────────────────────────────────────
-
-function SectionLabel({ children }: { children: React.ReactNode }) {
+// ── Subsection: a labelled group of related fields ─────────────────────
+//
+// Renders as a visually-distinct panel with an icon, a plain-language
+// title, and a one-sentence intro explaining WHAT the fields do and
+// WHY the user might configure them.  Fields inside stack in a single
+// column on mobile and land in a 2-col grid on tablet and up.
+//
+// The intro text is deliberately different from the `hint` shown under
+// each Input — the intro answers "what is this section for?" while the
+// hint answers "what do I type here?".  Users lost inside the form
+// asked us "what is the Match Type for?" and "what happens if I don't
+// fill Client IP?".  Both are questions the section-level intro is
+// meant to preempt.
+function Subsection({
+  title,
+  intro,
+  icon,
+  optional,
+  children,
+}: {
+  title: string;
+  intro?: string;
+  icon?: React.ReactNode;
+  optional?: boolean;
+  children: React.ReactNode;
+}) {
   return (
-    <p className="col-span-full mt-2 mb-1 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-      {children}
-    </p>
+    <div className="rounded-lg border border-slate-200 bg-slate-50/60 p-4 dark:border-slate-700/60 dark:bg-slate-800/30 sm:p-5">
+      <div className="mb-4">
+        <div className="flex items-center gap-2">
+          {icon && (
+            <span
+              aria-hidden
+              className="text-slate-500 dark:text-slate-400"
+            >
+              {icon}
+            </span>
+          )}
+          <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+            {title}
+          </h3>
+          {optional && (
+            <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+              Optional
+            </span>
+          )}
+        </div>
+        {intro && (
+          <p className="mt-1.5 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+            {intro}
+          </p>
+        )}
+      </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">{children}</div>
+    </div>
   );
 }
 
@@ -722,111 +776,208 @@ export default function RuleDetailPage() {
       <Card>
         <Card.Header>
           <div>
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Match Rules</h2>
-            <p className="text-sm text-slate-500">Define conditions for when this rule should be applied</p>
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+              Match rules
+            </h2>
+            <p className="text-sm text-slate-500">
+              When should this rule fire?  Configure one or more conditions
+              below — the rule only runs when <em>every</em> condition you
+              set matches the incoming request.
+            </p>
           </div>
         </Card.Header>
         <Card.Body>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            {/* URL Path */}
-            <SectionLabel>URL Path Matching</SectionLabel>
-            <Select
-              label="Match Type *"
-              value={form.path_key}
-              onChange={(e) => set("path_key", e.target.value)}
-              options={[
-                { value: "starts_with", label: "Starts With" },
-                { value: "ends_with", label: "Ends With" },
-                { value: "equals", label: "Exact Match" },
-              ]}
-              hint="How the path below is compared against the incoming request URL."
-            />
-            <Input
-              label="Path (URL pattern) *"
-              value={form.path}
-              placeholder="/"
-              onChange={(e) => set("path", e.target.value)}
-              error={fieldErrors.path}
-              hint={
-                form.path_key === "equals"
-                  ? `Match the exact request path.  Example: "/api/health" matches "/api/health" only.  Use "/" to match the homepage.`
-                  : form.path_key === "ends_with"
-                    ? `Match URLs ending with this value.  Example: ".jpg" matches "/photos/cat.jpg".`
-                    : `Match URLs starting with this value.  Example: "/api" matches "/api", "/api/v1/users", "/api?q=…".  Use "/" to match every request.`
-              }
-            />
+          <div className="space-y-4">
 
-            {/* Geographic */}
-            <SectionLabel>Geographic Filtering</SectionLabel>
-            <Select label="Country" value={form.country} onChange={(e) => set("country", e.target.value)} options={COUNTRIES} />
-            {form.country && (
-              <Select label="Country Match" value={form.country_key} onChange={(e) => set("country_key", e.target.value)} options={[
-                { value: "equals", label: "Equals" },
-              ]} />
-            )}
-            {form.country === "EU" && (
-              <div className="col-span-full rounded-lg bg-blue-50 p-3 text-xs text-blue-700 dark:bg-blue-900/20 dark:text-blue-300">
-                EU includes: AT, BE, BG, HR, CY, CZ, DK, EE, FI, FR, DE, GR, HU, IE, IT, LV, LT, LU, MT, NL, PL, PT, RO, SK, SI, ES, SE
-              </div>
-            )}
+            {/* URL path — always required */}
+            <Subsection
+              icon={<Route className="h-4 w-4" />}
+              title="URL path"
+              intro='This rule only runs when the request URL matches the pattern below.  Use "/" to match every request.'
+            >
+              <Select
+                label="How to compare"
+                value={form.path_key}
+                onChange={(e) => set("path_key", e.target.value)}
+                options={[
+                  { value: "starts_with", label: "Starts with" },
+                  { value: "ends_with", label: "Ends with" },
+                  { value: "equals", label: "Exact match" },
+                ]}
+                hint="Choose how the URL path below is compared against the request."
+              />
+              <Input
+                label="URL path"
+                value={form.path}
+                placeholder="/"
+                onChange={(e) => set("path", e.target.value)}
+                error={fieldErrors.path}
+                hint={
+                  form.path_key === "equals"
+                    ? 'Only the exact path matches.  Example: "/api/health" matches "/api/health" and nothing else.'
+                    : form.path_key === "ends_with"
+                      ? 'URLs ending with this value match.  Example: ".jpg" matches "/photos/cat.jpg".'
+                      : 'URLs starting with this value match.  Example: "/api" matches "/api", "/api/v1/users", "/api?q=…".  Use "/" to match every request.'
+                }
+              />
+            </Subsection>
 
-            {/* Client IP */}
-            <SectionLabel>Client IP Filtering</SectionLabel>
-            <Input
-              label="Client IP"
-              value={form.client_ip}
-              placeholder="e.g. 192.168.1.0/24"
-              onChange={(e) => set("client_ip", e.target.value)}
-              error={fieldErrors.client_ip}
-              hint={
-                fieldErrors.client_ip
-                  ? undefined
-                  : "IPv4, IPv6, CIDR, or comma-separated list"
-              }
-            />
-            {form.client_ip && (
-              <Select label="IP Match Type" value={form.client_ip_key} onChange={(e) => set("client_ip_key", e.target.value)} options={[
-                { value: "equals", label: "Equals" },
-                { value: "starts_with", label: "Starts With" },
-                { value: "ipheader", label: "IP Header" },
-              ]} />
-            )}
+            {/* Country — optional */}
+            <Subsection
+              icon={<MapPin className="h-4 w-4" />}
+              title="Restrict by country"
+              optional
+              intro="Only fire this rule for visitors from a specific country (based on their IP).  Leave the dropdown on “None” to allow every country."
+            >
+              <Select
+                label="Country"
+                value={form.country}
+                onChange={(e) => set("country", e.target.value)}
+                options={COUNTRIES}
+              />
+              <Select
+                label="Match mode"
+                value={form.country_key}
+                onChange={(e) => set("country_key", e.target.value)}
+                options={[{ value: "equals", label: "Equals" }]}
+                disabled={!form.country}
+                hint={!form.country ? "Pick a country above to enable." : undefined}
+              />
+              {/* The subsection stays 2-col; when no country is set, the
+                  right-hand Match mode is a disabled placeholder rather
+                  than absent, so the layout doesn't jump when the user
+                  selects a country.  Same logic in "Restrict by client
+                  IP" below. */}
+              {form.country === "EU" && (
+                <div className="col-span-full rounded-lg bg-blue-50 p-3 text-xs text-blue-700 dark:bg-blue-900/20 dark:text-blue-300">
+                  “EU” expands to: AT, BE, BG, HR, CY, CZ, DK, EE, FI, FR,
+                  DE, GR, HU, IE, IT, LV, LT, LU, MT, NL, PL, PT, RO, SK,
+                  SI, ES, SE.
+                </div>
+              )}
+            </Subsection>
 
-            {/* Token Validation */}
-            <SectionLabel>Token Validation</SectionLabel>
-            <Select label="Validation Type" value={form.jwt_token_validation} onChange={(e) => set("jwt_token_validation", e.target.value)} options={[
-              { value: "equals", label: "None" },
-              { value: "cookie_jwt_token_validation", label: "Cookie JWT Token" },
-              { value: "cookie_key_value", label: "Cookie Key Value" },
-              { value: "header_jwt_token_validation", label: "Header JWT Token" },
-              { value: "amazon_s3_signed_header_validation", label: "Amazon S3 Signed Header" },
-            ]} />
-            {form.jwt_token_validation !== "equals" && (
-              <>
-                <Input
-                  label={validationFieldLabels.valueLabel}
-                  hint={validationFieldLabels.valueHint}
-                  value={form.jwt_token_validation_value}
-                  onChange={(e) => set("jwt_token_validation_value", e.target.value)}
-                />
-                {showTokenFields && (
+            {/* Client IP — optional */}
+            <Subsection
+              icon={<Wifi className="h-4 w-4" />}
+              title="Restrict by client IP"
+              optional
+              intro="Only fire this rule when the incoming request comes from a specific IP or CIDR range.  Handy for allow-listing office networks or blocking known abusers.  Leave the field empty to allow every IP."
+            >
+              <Input
+                label="Client IP or range"
+                value={form.client_ip}
+                placeholder="e.g. 192.168.1.0/24"
+                onChange={(e) => set("client_ip", e.target.value)}
+                error={fieldErrors.client_ip}
+                hint={
+                  fieldErrors.client_ip
+                    ? undefined
+                    : "IPv4, IPv6, a CIDR range, or a comma-separated list of any of the above."
+                }
+              />
+              <Select
+                label="Match mode"
+                value={form.client_ip_key}
+                onChange={(e) => set("client_ip_key", e.target.value)}
+                options={[
+                  { value: "equals", label: "Equals" },
+                  { value: "starts_with", label: "Starts with" },
+                  { value: "ipheader", label: "Read IP from header" },
+                ]}
+                disabled={!form.client_ip}
+                hint={
+                  !form.client_ip
+                    ? "Enter an IP or range on the left to enable."
+                    : "“Read IP from header” trusts an upstream proxy to tell wslproxy the real client IP."
+                }
+              />
+            </Subsection>
+
+            {/* Auth — optional */}
+            <Subsection
+              icon={<ShieldCheck className="h-4 w-4" />}
+              title="Require authentication"
+              optional
+              intro="Reject the request unless it carries a valid JWT, session cookie, or S3 signature.  Use this to protect internal APIs.  Leave on “None” to accept every request."
+            >
+              <Select
+                label="Authentication method"
+                value={form.jwt_token_validation}
+                onChange={(e) =>
+                  set("jwt_token_validation", e.target.value)
+                }
+                options={[
+                  { value: "equals", label: "None (no auth required)" },
+                  {
+                    value: "cookie_jwt_token_validation",
+                    label: "JWT in a cookie",
+                  },
+                  {
+                    value: "cookie_key_value",
+                    label: "Static value in a cookie",
+                  },
+                  {
+                    value: "header_jwt_token_validation",
+                    label: "JWT in a request header",
+                  },
+                  {
+                    value: "amazon_s3_signed_header_validation",
+                    label: "Amazon S3 signed request",
+                  },
+                ]}
+              />
+              {form.jwt_token_validation !== "equals" && (
+                <>
                   <Input
-                    label={validationFieldLabels.keyLabel}
-                    hint={validationFieldLabels.keyHint}
-                    type={isS3 ? "text" : "password"}
-                    value={form.jwt_token_validation_key}
-                    onChange={(e) => set("jwt_token_validation_key", e.target.value)}
+                    label={validationFieldLabels.valueLabel}
+                    hint={validationFieldLabels.valueHint}
+                    value={form.jwt_token_validation_value}
+                    onChange={(e) =>
+                      set("jwt_token_validation_value", e.target.value)
+                    }
                   />
-                )}
-                {showS3Fields && (
-                  <>
-                    <Input label="S3 Region" value={form.amazon_s3_region} onChange={(e) => set("amazon_s3_region", e.target.value)} />
-                    <Input label="AWS Access Key" type="password" value={form.amazon_s3_access_key} onChange={(e) => set("amazon_s3_access_key", e.target.value)} />
-                    <Input label="AWS Secret Key" type="password" value={form.amazon_s3_secret_key} onChange={(e) => set("amazon_s3_secret_key", e.target.value)} />
-                  </>
-                )}
-              </>
-            )}
+                  {showTokenFields && (
+                    <Input
+                      label={validationFieldLabels.keyLabel}
+                      hint={validationFieldLabels.keyHint}
+                      type={isS3 ? "text" : "password"}
+                      value={form.jwt_token_validation_key}
+                      onChange={(e) =>
+                        set("jwt_token_validation_key", e.target.value)
+                      }
+                    />
+                  )}
+                  {showS3Fields && (
+                    <>
+                      <Input
+                        label="S3 region"
+                        value={form.amazon_s3_region}
+                        onChange={(e) =>
+                          set("amazon_s3_region", e.target.value)
+                        }
+                      />
+                      <Input
+                        label="AWS access key"
+                        type="password"
+                        value={form.amazon_s3_access_key}
+                        onChange={(e) =>
+                          set("amazon_s3_access_key", e.target.value)
+                        }
+                      />
+                      <Input
+                        label="AWS secret key"
+                        type="password"
+                        value={form.amazon_s3_secret_key}
+                        onChange={(e) =>
+                          set("amazon_s3_secret_key", e.target.value)
+                        }
+                      />
+                    </>
+                  )}
+                </>
+              )}
+            </Subsection>
           </div>
         </Card.Body>
       </Card>
@@ -835,52 +986,125 @@ export default function RuleDetailPage() {
       <Card>
         <Card.Header>
           <div>
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Response Configuration</h2>
-            <p className="text-sm text-slate-500">Define the response behavior when this rule matches</p>
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+              Response
+            </h2>
+            <p className="text-sm text-slate-500">
+              What should wslproxy do with the request when this rule matches?
+            </p>
           </div>
         </Card.Header>
         <Card.Body>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <Toggle label="Allow Request" checked={form.allow} onChange={(v) => set("allow", v)} />
-            <Select label="Response Code *" value={String(form.code)} onChange={(e) => set("code", Number(e.target.value))} options={[
-              { value: "200", label: "200 — Custom Response" },
-              { value: "301", label: "301 — Permanent Redirect" },
-              { value: "302", label: "302 — Temporary Redirect" },
-              { value: "305", label: "305 — Proxy Pass / Traffic Split" },
-              { value: "403", label: "403 — Forbidden" },
-            ]} />
+          <div className="space-y-4">
 
-            {showRedirectUri && (
-              <Input
-                label={`${redirectLabel} *`}
-                value={form.redirect_uri}
-                placeholder="https://example.com"
-                onChange={(e) => set("redirect_uri", e.target.value)}
-                error={fieldErrors.redirect_uri}
+            {/* Rule status + response type — top of the section, always shown */}
+            <Subsection
+              icon={<Zap className="h-4 w-4" />}
+              title="Response type"
+              intro="Pick what the client will see when this rule fires.  The rest of the form adapts to your choice — proxy pass shows a URL field, redirects show a target URL, custom responses show an HTML editor."
+            >
+              <Select
+                label="Response type"
+                value={String(form.code)}
+                onChange={(e) => set("code", Number(e.target.value))}
+                options={[
+                  { value: "305", label: "Proxy to a backend (305)" },
+                  { value: "301", label: "Permanent redirect (301)" },
+                  { value: "302", label: "Temporary redirect (302)" },
+                  { value: "200", label: "Return custom HTML (200)" },
+                  { value: "403", label: "Block the request (403)" },
+                ]}
+                hint="Numbers in brackets are the underlying HTTP status codes wslproxy sends."
               />
+              <div className="flex items-start pt-1 sm:pt-6">
+                <Toggle
+                  label="Rule enabled"
+                  checked={form.allow}
+                  onChange={(v) => set("allow", v)}
+                />
+              </div>
+              {showRedirectUri && (
+                <div className="sm:col-span-2">
+                  <Input
+                    label={`${redirectLabel} *`}
+                    value={form.redirect_uri}
+                    placeholder={
+                      form.code === 305
+                        ? "http://backend.example.com:8080"
+                        : "https://example.com"
+                    }
+                    onChange={(e) => set("redirect_uri", e.target.value)}
+                    error={fieldErrors.redirect_uri}
+                    hint={
+                      form.code === 305
+                        ? "The internal backend wslproxy will proxy this request to.  Include the scheme and port."
+                        : "The URL the client will be redirected to."
+                    }
+                  />
+                </div>
+              )}
+            </Subsection>
+
+            {/* Proxy options — only when it's a proxy pass */}
+            {form.code === 305 && (
+              <Subsection
+                icon={<Settings className="h-4 w-4" />}
+                title="Proxy options"
+                intro="Fine-tune how the request is forwarded to the backend."
+              >
+                <div className="sm:col-span-2 flex flex-col gap-3">
+                  <Toggle
+                    label="Strip the matched path prefix before proxying"
+                    checked={form.strip_path}
+                    onChange={(v) => set("strip_path", v)}
+                  />
+                  <Toggle
+                    label="Force HTTPS on the incoming request"
+                    checked={form.auto_redirect_https}
+                    onChange={(v) => set("auto_redirect_https", v)}
+                  />
+                  <Toggle
+                    label="Resolve backend via Consul service discovery"
+                    checked={form.is_consul}
+                    onChange={(v) => set("is_consul", v)}
+                  />
+                </div>
+                {form.is_consul && (
+                  <div className="sm:col-span-2">
+                    <Input
+                      label="Consul service name"
+                      value={form.consul_domain_name}
+                      onChange={(e) =>
+                        set("consul_domain_name", e.target.value)
+                      }
+                      hint="wslproxy will resolve this name via Consul SRV records at request time."
+                    />
+                  </div>
+                )}
+              </Subsection>
             )}
 
-            <SectionLabel>Proxy Options</SectionLabel>
-            <Toggle label="Strip matched path prefix before proxying" checked={form.strip_path} onChange={(v) => set("strip_path", v)} />
-            <Toggle label="Auto-redirect HTTP to HTTPS" checked={form.auto_redirect_https} onChange={(v) => set("auto_redirect_https", v)} />
-            <Toggle label="Consul Service Discovery" checked={form.is_consul} onChange={(v) => set("is_consul", v)} />
-            {form.is_consul && (
-              <Input label="Consul Domain Name *" value={form.consul_domain_name} onChange={(e) => set("consul_domain_name", e.target.value)} />
-            )}
-
+            {/* Custom HTML editor — 200/403 codes */}
             {showMessage && (
-              <>
-                <SectionLabel>Response Body (HTML)</SectionLabel>
-                <div className="col-span-full">
+              <Subsection
+                icon={<Route className="h-4 w-4" />}
+                title="Custom response body"
+                intro={
+                  form.code === 403
+                    ? "The HTML shown to blocked visitors.  Keep it short and explain who to contact."
+                    : "The HTML wslproxy returns to the client.  Any valid HTML fragment works."
+                }
+              >
+                <div className="sm:col-span-2">
                   <Textarea
-                    label="HTML Message"
+                    label="Response HTML"
                     value={form.message}
                     onChange={(e) => set("message", e.target.value)}
                     rows={8}
-                    hint="This will be Base64-encoded before saving"
+                    hint="Saved as Base64 behind the scenes — you edit plain HTML here."
                   />
                 </div>
-              </>
+              </Subsection>
             )}
           </div>
         </Card.Body>

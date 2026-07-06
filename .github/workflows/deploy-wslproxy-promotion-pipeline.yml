@@ -21,7 +21,7 @@ name: CI/CD Promotion Pipeline (main → int → test)
 on:
   push:
     branches:
-      - main
+      - build
   workflow_dispatch:
     inputs:
       DEPLOY_MODE:
@@ -187,7 +187,7 @@ jobs:
       # Secrets decrypted from committed SOPS+age files
       # (infra/secrets/<env>/) using the SOPS_AGE_KEY repo secret.
       secrets_mode: sops
-      health_endpoint: "http://localhost:8080/health"
+      health_endpoint: "http://localhost:8080/healthz"
       health_check_mode: local
       docker_prune: false
       notify_success: false
@@ -199,6 +199,7 @@ jobs:
       deploy_mode: ${{ github.event.inputs.DEPLOY_MODE || 'full' }}
     secrets:
       SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
       SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
       # Kept so emergency rollback to secrets_mode: github_secret works
       # without another commit.
@@ -220,7 +221,6 @@ jobs:
       needs.preflight-int.outputs.runner_online == 'true' &&
       needs.deploy-int.result == 'success'
     timeout-minutes: 10
-
     steps:
       # actions/checkout's git-clean cannot unlink root-owned build
       # artifacts left in the persistent self-hosted workspace (e.g.
@@ -260,7 +260,7 @@ jobs:
       - name: Verify core endpoints
         run: |
           FAILED=0
-          for ENDPOINT in /health; do
+          for ENDPOINT in /healthz; do
             STATUS=$(curl -sf -o /dev/null -w "%{http_code}" "http://localhost:8080${ENDPOINT}" 2>/dev/null || echo "000")
             if [ "$STATUS" = "200" ]; then
               printf "  GET :8080%-20s OK (%s)\n" "$ENDPOINT" "$STATUS"
@@ -314,7 +314,7 @@ jobs:
       secrets_mode: runner_file
       settings_file_path: "/home/bwalia/.secrets/wslproxy/test/settings.json"
       env_file_path: "/home/bwalia/.secrets/wslproxy/test/.env"
-      health_endpoint: "http://localhost:8080/health"
+      health_endpoint: "http://localhost:8080/healthz"
       health_check_mode: ssh
       docker_prune: false
       notify_success: true
@@ -325,6 +325,7 @@ jobs:
       deploy_mode: ${{ github.event.inputs.DEPLOY_MODE || 'code' }}
     secrets:
       SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
 
   # ──────────────────────────────────────────────────────
   # Summary

@@ -1,0 +1,178 @@
+name: Deploy Single Environment
+# Deploys ONE environment in isolation, with NO cascade to any other. It reuses
+# the tested reusable workflow (deploy-environment.yml) with the same per-host
+# settings as the full delivery pipeline — it just drops the promotion chaining.
+#
+# Environments (Integration -> Test -> Acceptance -> Production):
+#   int  -> 192.168.1.193   (Integration)
+#   test -> 192.168.1.140   (Test)
+#   acc  -> 187.124.112.155 (Acceptance — "pop0")
+#   prod -> 18.133.126.242  (Production  — "pop1")
+#
+# Each ENV maps to exactly ONE host, so acceptance (pop0) and production (pop1)
+# deploy independently. (The former lon1 host, 72.62.211.28, is no longer used.)
+#
+# WHY THIS EXISTS
+#   deploy-wslproxy-delivery-pipeline.yml is a cumulative promotion cascade and
+#   cannot deploy a single environment on its own. Ring Promoter
+#   (github.com/bwalia/ring-promoter) models each ring as an INDEPENDENT
+#   environment: it promotes one ring at a time and, on a failed post-deploy
+#   health check, auto-rolls-back THAT ring only — so it needs to deploy exactly
+#   one environment per dispatch, which is what this workflow provides.
+#
+# NOTE: acc and prod both run with env_name=prod (they are prod-profile hosts
+# served by the `prod` self-hosted runner); the ENV input selects which host.
+
+on:
+  workflow_dispatch:
+    inputs:
+      ENV:
+        type: choice
+        description: "Which single environment to deploy (no cascade to others)"
+        required: true
+        default: "int"
+        options:
+          - int
+          - test
+          - acc
+          - prod
+      DEPLOY_BRANCH:
+        type: string
+        description: "Git ref to deploy (branch, tag or commit SHA)"
+        required: true
+        default: "build"
+      DEPLOY_MODE:
+        type: choice
+        description: "What to deploy"
+        required: true
+        default: "full"
+        options:
+          - full
+          - code
+          - nginx
+          - servers
+          - dashboard
+          - dashboard-next
+          - os_deps
+          - build
+
+# Serialize deploys to the same environment; don't cancel an in-flight deploy.
+concurrency:
+  group: deploy-single-${{ inputs.ENV }}
+  cancel-in-progress: false
+
+jobs:
+  # ──────────────────────────────────────────────────────
+  # Integration — int (192.168.1.193), local sudo deploy, SOPS secrets
+  # ──────────────────────────────────────────────────────
+  int:
+    if: ${{ inputs.ENV == 'int' }}
+    uses: ./.github/workflows/deploy-environment.yml
+    with:
+      env_name: int
+      env_label: "Integration — int (192.168.1.193)"
+      stage_number: "int"
+      host_ip: "192.168.1.193"
+      ssh_user: bwalia
+      connection_mode: local
+      secrets_mode: sops
+      health_endpoint: "http://localhost:8080/healthz"
+      health_check_mode: local
+      docker_prune: true
+      notify_success: true
+      deploy_branch: ${{ inputs.DEPLOY_BRANCH }}
+      deploy_mode: ${{ inputs.DEPLOY_MODE }}
+    secrets:
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
+      # Kept so an emergency revert to secrets_mode: github_secret needs no
+      # secret re-add (mirrors the delivery pipeline's int stage).
+      SETTINGS_SECRET: ${{ secrets.DOT_WSLPROXY_SETTINGS_INT }}
+      ENV_CREDS_SECRET: ${{ secrets.DOT_WSLPROXY_ENV_CREDS_INT }}
+
+  # ──────────────────────────────────────────────────────
+  # Test — test (192.168.1.140), SSH deploy, secrets read from the runner
+  # ──────────────────────────────────────────────────────
+  test:
+    if: ${{ inputs.ENV == 'test' }}
+    uses: ./.github/workflows/deploy-environment.yml
+    with:
+      env_name: test
+      env_label: "Test — test (192.168.1.140)"
+      stage_number: "test"
+      host_ip: "192.168.1.140"
+      ssh_user: bwalia
+      connection_mode: ssh
+      secrets_mode: runner_file
+      settings_file_path: "/home/bwalia/.secrets/wslproxy/test/settings.json"
+      env_file_path: "/home/bwalia/.secrets/wslproxy/test/.env"
+      health_endpoint: "http://localhost:8080/healthz"
+      health_check_mode: ssh
+      docker_prune: false
+      notify_success: true
+      deploy_branch: ${{ inputs.DEPLOY_BRANCH }}
+      deploy_mode: ${{ inputs.DEPLOY_MODE }}
+    secrets:
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+
+  # ──────────────────────────────────────────────────────
+  # Acceptance — acc / "pop0" (187.124.112.155). vault-first with SOPS fallback
+  # (matches the delivery pipeline post-#1125; seed_from_host retired).
+  # ──────────────────────────────────────────────────────
+  acc:
+    if: ${{ inputs.ENV == 'acc' }}
+    uses: ./.github/workflows/deploy-environment.yml
+    with:
+      env_name: prod            # prod-profile host, served by the `prod` runner
+      env_label: "Acceptance — pop0 (187.124.112.155)"
+      stage_number: "acc"
+      host_ip: "187.124.112.155"
+      ssh_user: root
+      connection_mode: ssh_key
+      secrets_mode: vault_or_sops
+      health_endpoint: "https://prod-our-v1.wslproxy.com/healthz"
+      health_check_mode: external
+      docker_prune: true
+      notify_success: true
+      deploy_branch: ${{ inputs.DEPLOY_BRANCH }}
+      deploy_mode: ${{ inputs.DEPLOY_MODE }}
+    secrets:
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
+      VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
+      SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
+
+  # ──────────────────────────────────────────────────────
+  # Production — prod / "pop1" (18.133.126.242, AWS eu-west-2, ssh user admin).
+  # vault-first with SOPS fallback (matches the delivery pipeline post-#1125).
+  # ──────────────────────────────────────────────────────
+  prod:
+    if: ${{ inputs.ENV == 'prod' }}
+    uses: ./.github/workflows/deploy-environment.yml
+    with:
+      env_name: prod
+      env_label: "Production — pop1 (18.133.126.242)"
+      stage_number: "prod"
+      host_ip: "18.133.126.242"
+      ssh_user: admin
+      connection_mode: ssh_key
+      secrets_mode: vault_or_sops
+      # pop1 is a DASHBOARD-ONLY pop: nginx_default_server_backend is empty,
+      # so no admin block listens on :7691 (unlike lon1, which does). Health-
+      # check the public dashboard domain on 443 instead — valid LE cert,
+      # serves /healthz 200. (cf. acc/pop0 uses https://prod-our-v1…/healthz.)
+      health_endpoint: "https://pop1.diytaxreturn.co.uk/healthz"
+      health_check_mode: external
+      docker_prune: true
+      notify_success: true
+      deploy_branch: ${{ inputs.DEPLOY_BRANCH }}
+      deploy_mode: ${{ inputs.DEPLOY_MODE }}
+    secrets:
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
+      VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
+      SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}

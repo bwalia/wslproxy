@@ -1,0 +1,124 @@
+# Prometheus recording + alerting rules for the "WSL Proxy - SRE (10 Layers)" dashboard.
+# Load via rule_files: in prometheus.yml. All expressions use ONLY metrics that exist
+# on prod-our.wslproxy.com/metrics.
+#
+# ── SLI / SLO ──────────────────────────────────────────────────────────────
+#  SLI  = success ratio = 1 - (5xx / total)        (server-side failures only)
+#  SLO  = 99.9%  →  error budget = 0.1% = 0.001
+#  Burn rate = (5xx / total) / 0.001. A burn rate of 1 exhausts the 30-day
+#  budget in exactly 30 days; 14.4 exhausts 2% of it in 1 hour.
+#
+#  Multi-window / multi-burn-rate alerts (Google SRE Workbook) fire only when a
+#  long AND a short window both exceed the threshold — fast to fire on real
+#  incidents, slow to fire on blips, and auto-resolving.
+#
+#  SCOPE: these aggregate cluster-wide (all envs). If your Prometheus scrapes
+#  int/test as well as prod and you want the SLO to track prod only, add
+#  {env="prod"} to each nginx_http_* selector below.
+groups:
+  - name: wslproxy_sre.recording
+    interval: 30s
+    rules:
+      # ---- error-budget burn rate over the standard windows --------------
+      - record: wslproxy:error_budget_burn:5m
+        expr: sum(rate(nginx_http_5xx_errors_total[5m]))  / clamp_min(sum(rate(nginx_http_requests_total[5m])),  1) / 0.001
+      - record: wslproxy:error_budget_burn:30m
+        expr: sum(rate(nginx_http_5xx_errors_total[30m])) / clamp_min(sum(rate(nginx_http_requests_total[30m])), 1) / 0.001
+      - record: wslproxy:error_budget_burn:1h
+        expr: sum(rate(nginx_http_5xx_errors_total[1h]))  / clamp_min(sum(rate(nginx_http_requests_total[1h])),  1) / 0.001
+      - record: wslproxy:error_budget_burn:2h
+        expr: sum(rate(nginx_http_5xx_errors_total[2h]))  / clamp_min(sum(rate(nginx_http_requests_total[2h])),  1) / 0.001
+      - record: wslproxy:error_budget_burn:6h
+        expr: sum(rate(nginx_http_5xx_errors_total[6h]))  / clamp_min(sum(rate(nginx_http_requests_total[6h])),  1) / 0.001
+      - record: wslproxy:error_budget_burn:1d
+        expr: sum(rate(nginx_http_5xx_errors_total[1d]))  / clamp_min(sum(rate(nginx_http_requests_total[1d])),  1) / 0.001
+      - record: wslproxy:error_budget_burn:3d
+        expr: sum(rate(nginx_http_5xx_errors_total[3d]))  / clamp_min(sum(rate(nginx_http_requests_total[3d])),  1) / 0.001
+
+      # ---- golden-signal helpers (used by dashboard + alerts) -----------
+      - record: wslproxy:availability_ratio:5m
+        expr: 1 - sum(rate(nginx_http_5xx_errors_total[5m])) / clamp_min(sum(rate(nginx_http_requests_total[5m])), 1)
+      - record: wslproxy:backend_latency_p95:5m
+        expr: histogram_quantile(0.95, sum by (le) (rate(wslproxy_backend_response_seconds_bucket[5m])))
+      - record: wslproxy:backend_latency_p99:5m
+        expr: histogram_quantile(0.99, sum by (le) (rate(wslproxy_backend_response_seconds_bucket[5m])))
+      - record: wslproxy:cache_hit_ratio:5m
+        expr: |
+          100 * sum(rate(nginx_cache_hits_total[5m]))
+            / clamp_min(sum(rate(nginx_cache_hits_total[5m])) + sum(rate(nginx_cache_misses_total[5m])), 0.0001)
+
+  - name: wslproxy_sre.slo_burn.alerts
+    rules:
+      # ---- PAGE: 2% of budget in 1h (fast burn) -------------------------
+      - alert: WSLProxyErrorBudgetFastBurn
+        expr: wslproxy:error_budget_burn:1h > 14.4 and wslproxy:error_budget_burn:5m > 14.4
+        for: 2m
+        labels: {severity: critical, service: wslproxy, page: "true", slo: availability}
+        annotations:
+          summary: "Error budget FAST burn (>14.4×) — 2% of 30d budget in 1h"
+          description: "5xx SLI is burning at {{ printf \"%.1f\" $value }}× budget over 1h AND 5m. At this rate the 30-day budget is gone in ~2 days."
+
+      # ---- PAGE: 5% of budget in 6h -------------------------------------
+      - alert: WSLProxyErrorBudgetBurn6h
+        expr: wslproxy:error_budget_burn:6h > 6 and wslproxy:error_budget_burn:30m > 6
+        for: 15m
+        labels: {severity: critical, service: wslproxy, page: "true", slo: availability}
+        annotations:
+          summary: "Error budget burn >6× — 5% of 30d budget in 6h"
+          description: "5xx SLI burning at {{ printf \"%.1f\" $value }}× budget over 6h AND 30m."
+
+      # ---- TICKET: 10% of budget in 1d ----------------------------------
+      - alert: WSLProxyErrorBudgetBurn1d
+        expr: wslproxy:error_budget_burn:1d > 3 and wslproxy:error_budget_burn:2h > 3
+        for: 1h
+        labels: {severity: warning, service: wslproxy, slo: availability}
+        annotations:
+          summary: "Error budget slow burn >3× — 10% of 30d budget in 1d"
+          description: "5xx SLI burning at {{ printf \"%.1f\" $value }}× budget over 1d AND 2h. Open a ticket."
+
+      # ---- TICKET: 10% of budget in 3d ----------------------------------
+      - alert: WSLProxyErrorBudgetBurn3d
+        expr: wslproxy:error_budget_burn:3d > 1 and wslproxy:error_budget_burn:6h > 1
+        for: 3h
+        labels: {severity: warning, service: wslproxy, slo: availability}
+        annotations:
+          summary: "Error budget slow burn >1× — trending to budget exhaustion"
+          description: "5xx SLI burning at {{ printf \"%.1f\" $value }}× budget over 3d AND 6h."
+
+  - name: wslproxy_sre.golden_signals.alerts
+    rules:
+      # ---- Latency (dashboard thresholds p95 100ms / 300ms) -------------
+      - alert: WSLProxyBackendLatencyP95High
+        expr: wslproxy:backend_latency_p95:5m > 0.3
+        for: 10m
+        labels: {severity: warning, service: wslproxy, signal: latency}
+        annotations:
+          summary: "Backend p95 latency >300ms for 10m"
+          description: "Backend p95 is {{ printf \"%.3f\" $value }}s (warn >0.3s)."
+
+      # ---- Saturation: lua-prometheus dropping metrics ------------------
+      - alert: WSLProxyMetricEmitErrors
+        expr: increase(nginx_metric_errors_total[10m]) > 0
+        for: 0m
+        labels: {severity: warning, service: wslproxy, signal: saturation}
+        annotations:
+          summary: "nginx lua-prometheus metric-emit errors"
+          description: "{{ printf \"%.0f\" $value }} metric errors in 10m — metrics may be under-reported (shared dict pressure?)."
+
+      # ---- Security: auth-failure / brute-force spike -------------------
+      - alert: WSLProxyAuthFailureSpike
+        expr: sum(rate(api_auth_failures_total[5m])) > 0.5
+        for: 10m
+        labels: {severity: warning, service: wslproxy, signal: security}
+        annotations:
+          summary: "Admin auth failures >0.5/s for 10m"
+          description: "Auth-failure rate is {{ printf \"%.2f\" $value }}/s — possible credential brute-force against the admin plane."
+
+      # ---- Security: suspicious-request surge ---------------------------
+      - alert: WSLProxySuspiciousRequestSurge
+        expr: sum(rate(nginx_http_suspicious_requests_total[5m])) > 1
+        for: 10m
+        labels: {severity: info, service: wslproxy, signal: security}
+        annotations:
+          summary: "Suspicious-request rate >1/s for 10m"
+          description: "Suspicious requests at {{ printf \"%.2f\" $value }}/s — check Layer 10 for the reason breakdown."

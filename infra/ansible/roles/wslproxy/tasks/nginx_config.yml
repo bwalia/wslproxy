@@ -1,6 +1,53 @@
 ---
 # Nginx configuration directories and base configs
 
+# ── ATOMIC GUARD: snapshot conf.d before role-driven modifications ────────
+#
+# Why this exists:
+# The 2026-06-29 prod outage left /opt/nginx/conf.d/ holding a
+# default.conf (and missing tenant .confs) from a different env, and
+# none of the subsequent tasks caught it — the only validation was
+# the systemctl restart at the very end, by which time the wrong
+# files were already live.
+#
+# What it does:
+# Hardlinks the current conf.d/ to /opt/nginx/conf.d.predeploy/ at
+# the start of the role's nginx tasks.  Because cp -al only creates
+# hardlinks (zero data copy, ~10ms for thousands of files), the
+# snapshot is effectively free.  Any Ansible task that *replaces* a
+# file in conf.d/ goes through write-temp + rename, which creates a
+# new inode — the snapshot keeps the OLD inode under conf.d.predeploy.
+# At the end of finalize.yml an openresty -t check decides whether to
+# promote the new state or restore the snapshot.
+#
+# Coverage:
+# Catches any syntax-level breakage from changes to default.conf, the
+# rsynced nginx-conf.d/ files, the synchronized nginx-tenants.d/
+# files, or anything else the role writes to conf.d/.  Does NOT catch
+# *semantically* wrong configs that still parse (env_profile mismatch
+# is handled separately in deploy_data.yml).
+- name: "Atomic guard: snapshot conf.d/ before nginx role modifications"
+  ansible.builtin.shell: |
+    set -euo pipefail
+    rm -rf /opt/nginx/conf.d.predeploy
+    if [ -d /opt/nginx/conf.d ]; then
+      # cp -al = hardlink copy.  Modifications inside conf.d/ via
+      # write-then-rename (Ansible copy/template/synchronize default)
+      # leave the snapshot pointing at the old inodes.  In-place
+      # writes (rare in this role) would leak through — none of the
+      # existing tasks do that.
+      cp -al /opt/nginx/conf.d /opt/nginx/conf.d.predeploy
+    else
+      # First-ever deploy on this host — make an empty snapshot so the
+      # rollback path is unambiguous.
+      mkdir -p /opt/nginx/conf.d.predeploy
+    fi
+  # /bin/sh is dash on Debian, which lacks `set -o pipefail` — force bash.
+  args:
+    executable: /bin/bash
+  changed_when: false
+  tags: [nginx, code, dashboard, servers]
+
 - name: Ensure base nginx conf directory exists
   ansible.builtin.file:
     path: /opt/nginx/base.d/

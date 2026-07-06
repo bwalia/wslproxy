@@ -4,6 +4,19 @@
 
 import type { LocationEntry } from "./sections/LocationBlockEditor";
 
+/** Upstream (nginx `proxy_pass`) timeouts.  Each value is a number in
+ *  seconds; an empty string means "use the nginx default (60s)" so
+ *  the operator can partially override without setting all three.
+ *
+ *  Persisted on disk as `proxy_timeouts: {connect_timeout, send_timeout,
+ *  read_timeout}` — read by api/gateway_resp.lua and applied to the
+ *  balancer via `balancer.set_timeouts()`.  See CLAUDE.md §15 point 4. */
+export interface ProxyTimeouts {
+  connect_timeout: number | string;
+  send_timeout: number | string;
+  read_timeout: number | string;
+}
+
 export interface VarnishConfig {
   listen_address: string;
   listen_port: string;
@@ -65,6 +78,22 @@ export interface ServerFormState {
   cache_bypass_cookie: string;
   cached_mime_types: string[];
 
+  // Docker / OCI registry blob caching — separate from static-content
+  // cache above.  Only applies when this server is fronting a
+  // container registry.  Stored on disk with the same field names via
+  // /v2/(name)/blobs/(digest) + /v2/(name)/manifests/(ref) handling in
+  // nginx.  Empty-string TTLs mean "use nginx defaults"
+  // (see cache_manager.lua).
+  cache_docker_blobs: boolean;
+  cache_docker_blobs_ttl: string;
+  cache_docker_manifests: boolean;
+  cache_docker_manifests_ttl: string;
+  cache_docker_serve_stale: boolean;
+  cache_docker_stale_ttl: string;
+
+  /* Upstream (proxy_pass) timeouts.  See ProxyTimeouts docs above. */
+  proxy_timeouts: ProxyTimeouts;
+
   /* WAF */
   waf_enabled: boolean;
   waf_policy_id: string;
@@ -88,6 +117,12 @@ export interface ServerFormState {
 
   /* Generated config */
   config: string;
+  /** Whether the compiled nginx config for this server is active in
+   *  `/opt/nginx/conf.d/`.  Toggling this triggers the api.lua
+   *  `CreateUpdateRecord` path that runs `openresty -t` and touches
+   *  the reload flag.  Without it, the server exists in the data
+   *  store but no traffic is served for it. */
+  config_status: boolean;
 
   /* Varnish */
   varnish_enabled: boolean;

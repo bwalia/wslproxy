@@ -30,7 +30,13 @@ on:
         type: string
         required: true
       secrets_mode:
-        description: "Secrets source: vault (HashiCorp Vault), sops (SOPS+age-encrypted files in Git), github_secret (decode from GH secret), or runner_file (read from disk)"
+        description: >-
+          Secrets source: vault (HashiCorp Vault), sops (SOPS+age-encrypted
+          files in Git), vault_or_sops (probe Vault first, fall back to SOPS
+          if Vault is unreachable / has no secret at the expected path —
+          prevents deploy failure when Vault is temporarily down or a host
+          hasn't been onboarded to Vault yet), github_secret (decode from
+          GH secret), or runner_file (read from disk).
         type: string
         required: true
       settings_file_path:
@@ -58,8 +64,21 @@ on:
         description: "On-host path to the live .env (used only when seed_from_host=true; best-effort)"
         type: string
         default: "/opt/nginx/data/.env"
+      seed_source_ip:
+        description: >-
+          Host to PULL the live settings.json FROM when seed_from_host=true.
+          Defaults to host_ip (self-seed). Set to a DIFFERENT host (e.g. seed a
+          brand-new pop from an existing one) to clone another host's live
+          config onto this deploy target. The runner's ~/.ssh/id_rsa must be
+          authorized on this source host.
+        type: string
+        default: ""
+      seed_source_user:
+        description: "SSH user for seed_source_ip (defaults to ssh_user)."
+        type: string
+        default: ""
       health_endpoint:
-        description: "URL to curl for health check (e.g. http://localhost:8080/health)"
+        description: "URL to curl for health check (e.g. http://localhost:8080/healthz)"
         type: string
         required: true
       health_check_mode:
@@ -102,11 +121,20 @@ on:
       # See infra/secrets/README.md for how to generate + rotate it.
       SOPS_AGE_KEY:
         required: false
+      # SSH_PRIVATE_KEY: private key used to reach the target host in
+      # connection_mode=ssh_key. Optional — if empty, the runner is
+      # expected to already have a usable key at ~/.ssh/id_rsa (the
+      # historical behaviour for pre-provisioned runners).
+      SSH_PRIVATE_KEY:
+        required: false
 
 jobs:
   deploy:
     name: "Deploy ${{ inputs.env_label }}"
-    runs-on: [self-hosted, Linux, "${{ inputs.env_name }}"]
+    # OS-agnostic: match any self-hosted runner carrying the env label,
+    # whether it is Linux or macOS. Hardcoding `Linux` here left the `acc`
+    # job queued forever because the only `acc` runner is macOS.
+    runs-on: [self-hosted, "${{ inputs.env_name }}"]
     timeout-minutes: 30
 
     steps:
@@ -129,15 +157,27 @@ jobs:
         uses: actions/checkout@v5
         with:
           ref: ${{ inputs.deploy_branch }}
+          # Need tags so `git describe --tags --abbrev=0` resolves the
+          # release version at build time.  `fetch-depth: 0` pulls the
+          # full history — required because a shallow clone (the default
+          # depth 1) doesn't include ANY tag refs even with
+          # `fetch-tags: true`.  Cost is small (few MB extra) and this
+          # is the reusable workflow that runs once per deploy.
+          fetch-depth: 0
+          fetch-tags: true
 
       - name: Install Ansible
         run: |
-          if command -v zypper &> /dev/null; then
+          if command -v ansible &> /dev/null; then
+            echo "Ansible already installed: $(ansible --version | head -1)"
+          elif command -v brew &> /dev/null; then
+            brew install ansible
+          elif command -v zypper &> /dev/null; then
             sudo zypper install -y ansible
           elif command -v apt-get &> /dev/null; then
             sudo apt-get install -y ansible
           else
-            echo "::error::No supported package manager found"
+            echo "::error::No supported package manager found (brew, zypper or apt-get)"
             exit 1
           fi
 
@@ -159,10 +199,52 @@ jobs:
           fi
           echo "Node.js version: $(node --version)"
 
-          # Read version info from system/app.json
-          APP_VERSION=$(python3 -c "import json; print(json.load(open('system/app.json'))['version']['version'])" 2>/dev/null || echo "1.0.0")
-          APP_BUILD=$(python3 -c "import json; print(json.load(open('system/app.json'))['version']['build'])" 2>/dev/null || echo "unknown")
+          # Resolve the release version.  Priority:
+          #   1. `git describe --tags --abbrev=0` — the most recent
+          #      annotated OR lightweight tag reachable from HEAD.
+          #      This is the source of truth for a released build.
+          #   2. `system/app.json:version.version` — fallback for
+          #      untagged branches, forks, and any repo state where a
+          #      tag was never created (or the checkout is somehow
+          #      missing them).
+          #   3. `1.0.0` — hard fallback if BOTH sources fail (a bare
+          #      repo with no tags AND no app.json).  Should never
+          #      trigger in practice; kept so the build can't error
+          #      out on a missing version.
+          #
+          # Historical bug this fixes: on 2026-07-02 int deployed a
+          # 1.0.13-tagged build but showed 1.0.10 in the dashboard
+          # footer because someone bumped the tag without touching
+          # system/app.json.  Git tags are now authoritative.
+          APP_VERSION="$(git describe --tags --abbrev=0 2>/dev/null || true)"
+          if [ -n "$APP_VERSION" ]; then
+              echo "  version source: git tag ($APP_VERSION)"
+          else
+              APP_VERSION=$(python3 -c "import json; print(json.load(open('system/app.json'))['version']['version'])" 2>/dev/null || echo "")
+              if [ -n "$APP_VERSION" ]; then
+                  echo "  version source: system/app.json ($APP_VERSION) — no git tag reachable from HEAD"
+              else
+                  APP_VERSION="1.0.0"
+                  echo "  version source: default 1.0.0 — no git tag AND no system/app.json"
+              fi
+          fi
+
+          # Build number: keep sourcing from app.json for continuity
+          # with existing dashboards.  If it's missing, use the commit
+          # SHA so operators always have SOMETHING to correlate a
+          # deploy against a build.
+          APP_BUILD=$(python3 -c "import json; print(json.load(open('system/app.json'))['version']['build'])" 2>/dev/null || echo "${GITHUB_SHA:-unknown}")
           DEPLOY_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+          # Export the resolved version so the Ansible-playbook step
+          # (a separate shell) can pass it as `wslproxy_version=…` in
+          # --extra-vars.  Without this, Ansible falls back to its own
+          # defaults/main.yml lookup of system/app.json — same bug this
+          # step just fixed.
+          {
+            echo "WSLPROXY_VERSION=${APP_VERSION}"
+            echo "WSLPROXY_BUILD=${APP_BUILD}"
+          } >> "$GITHUB_ENV"
 
           cd openresty-admin-next
 
@@ -178,8 +260,13 @@ jobs:
           NEXT_PUBLIC_DEPLOYMENT_TIME=${DEPLOY_TIME}
           NEXT_PUBLIC_TARGET_PLATFORM=BARE_METAL
           ENVEOF
-          # Strip leading whitespace from env file
-          sed -i 's/^[[:space:]]*//' .env.production
+          # Strip leading whitespace from env file.
+          # Use a temp file + mv rather than `sed -i` — BSD/macOS sed
+          # requires an explicit backup-suffix arg for -i (`sed -i ''`),
+          # so bare `sed -i` fails on the macOS runner. This form is
+          # portable across GNU (Linux) and BSD (macOS) sed.
+          sed 's/^[[:space:]]*//' .env.production > .env.production.tmp \
+            && mv .env.production.tmp .env.production
 
           echo "Generated .env.production:"
           cat .env.production
@@ -198,13 +285,100 @@ jobs:
             ls -la .next/standalone/ || true
           fi
 
+      # ── Secrets: resolve vault_or_sops fallback ───────────────────────
+      # For every mode except `vault_or_sops`, this step is a passthrough:
+      # steps.resolve_mode.outputs.mode = inputs.secrets_mode.  For
+      # `vault_or_sops` we probe Vault (fetch the actual settings.json
+      # path — NOT /sys/health, which is often blocked on hosted Vaults
+      # even when the KV endpoints work) and pick:
+      #   - vault  when the fetch returns HTTP 200 and non-empty data
+      #   - sops   for any other outcome (no creds, curl failure, non-2xx,
+      #            empty payload, JSON parse failure)
+      # The probe is INFORMATIONAL: if it picks vault but Vault flakes
+      # during the real fetch inside Ansible, the deploy fails loudly at
+      # that stage — same as any single-mode setup.  The value here is
+      # preventing a failure BEFORE Ansible even starts, when we can
+      # confidently see Vault won't answer.
+      #
+      # Every downstream mode-specific step reads
+      # `steps.resolve_mode.outputs.mode` instead of `inputs.secrets_mode`,
+      # so an existing caller passing `secrets_mode: sops` (etc.) keeps
+      # exactly its current behaviour.
+      - name: Resolve secrets mode (vault_or_sops fallback)
+        id: resolve_mode
+        shell: bash
+        env:
+          VAULT_ADDR_SECRET: ${{ secrets.VAULT_ADDR }}
+          VAULT_TOKEN_SECRET: ${{ secrets.VAULT_TOKEN }}
+        run: |
+          set -uo pipefail
+          RAW="${{ inputs.secrets_mode }}"
+          if [ "$RAW" != "vault_or_sops" ]; then
+            echo "  mode is '$RAW' (passthrough — no fallback logic)"
+            echo "mode=$RAW" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "  mode is 'vault_or_sops' — probing Vault..."
+
+          # No creds → SOPS.  Explicit reason so the log line answers
+          # "why didn't it use Vault?" without a bug report.
+          if [ -z "${VAULT_ADDR_SECRET:-}" ] || [ -z "${VAULT_TOKEN_SECRET:-}" ]; then
+            echo "  Vault creds missing (VAULT_ADDR or VAULT_TOKEN empty) — using SOPS"
+            echo "mode=sops" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Same whitespace-stripping the vault step does, for the same
+          # reasons (accidental echo/printf padding when the secret was
+          # set).  Applied to a local copy — don't leak into env.
+          VA="$(printf '%s' "$VAULT_ADDR_SECRET" | tr -d '[:space:]')"
+          VT="$(printf '%s' "$VAULT_TOKEN_SECRET" | tr -d '[:space:]')"
+
+          # Fetch the actual secret the deploy would use — that's the
+          # only useful probe.  /sys/health is unreliable (see the
+          # comment on the vault step below).  KV v2 path shape:
+          #   /v1/secret/data/wslproxy/<env>/settings.json
+          PROBE_URL="${VA}/v1/secret/data/wslproxy/${{ inputs.env_name }}/settings.json"
+          STATUS="$(curl -sSL --max-time 10 -o /tmp/vault_probe.json -w '%{http_code}' \
+            -H "X-Vault-Token: $VT" "$PROBE_URL" 2>/dev/null || echo 000)"
+
+          if [ "$STATUS" != "200" ]; then
+            echo "  Vault probe returned HTTP $STATUS — using SOPS"
+            echo "mode=sops" >> "$GITHUB_OUTPUT"
+            rm -f /tmp/vault_probe.json
+            exit 0
+          fi
+
+          # Only trust Vault if the secret is COMPLETE and for the RIGHT env.
+          # A 200 with empty data.data, or data missing super_user, or an
+          # env_profile that doesn't match this environment, means Vault is
+          # holding partial/stale/wrong data (observed 2026-07-04: a broken
+          # Vault KV mount kept prod as a leftover `{probe}` write). Selecting
+          # Vault in those cases makes ansible's env_profile guard abort the
+          # deploy mid-flight; falling back to SOPS (the in-repo source of
+          # truth) keeps the deploy green. jq -e is non-zero unless every
+          # condition holds.
+          if ! jq -e --arg env "${{ inputs.env_name }}" \
+               '.data.data | (length > 0) and (.super_user != null) and (.env_profile == $env)' \
+               /tmp/vault_probe.json >/dev/null 2>&1; then
+            VEP="$(jq -r '.data.data.env_profile // "<missing>"' /tmp/vault_probe.json 2>/dev/null)"
+            echo "  Vault 200 but data is incomplete or env_profile ('$VEP') != '${{ inputs.env_name }}' — using SOPS"
+            echo "mode=sops" >> "$GITHUB_OUTPUT"
+            rm -f /tmp/vault_probe.json
+            exit 0
+          fi
+
+          rm -f /tmp/vault_probe.json
+          echo "  Vault has a complete secret for '${{ inputs.env_name }}' at $PROBE_URL — using Vault"
+          echo "mode=vault" >> "$GITHUB_OUTPUT"
+
       # ── Secrets: Vault ─────────────────────────────────────────────────
       # The actual fetch happens inside ansible (deploy_data.yml uri tasks)
       # so the same code path works for both workflow and local-machine runs.
       # This step just makes VAULT_ADDR / VAULT_TOKEN available to the
       # ansible-playbook process via $GITHUB_ENV.
       - name: Export Vault credentials
-        if: inputs.secrets_mode == 'vault'
+        if: steps.resolve_mode.outputs.mode == 'vault'
         shell: bash
         env:
           VAULT_ADDR_SECRET: ${{ secrets.VAULT_ADDR }}
@@ -281,7 +455,7 @@ jobs:
       # path uses these — irrelevant in sops mode but defined to avoid
       # an "undefined" surprise downstream).
       - name: Install SOPS + age + community.sops collection
-        if: inputs.secrets_mode == 'sops'
+        if: steps.resolve_mode.outputs.mode == 'sops'
         shell: bash
         run: |
           set -euo pipefail
@@ -313,7 +487,7 @@ jobs:
           ansible-galaxy collection install community.sops --force
 
       - name: Export SOPS age key
-        if: inputs.secrets_mode == 'sops'
+        if: steps.resolve_mode.outputs.mode == 'sops'
         shell: bash
         env:
           SOPS_AGE_KEY_SECRET: ${{ secrets.SOPS_AGE_KEY }}
@@ -340,7 +514,7 @@ jobs:
 
       # ── Secrets: decode from GitHub Secret ──
       - name: Decode settings from GitHub Secret
-        if: inputs.secrets_mode == 'github_secret'
+        if: steps.resolve_mode.outputs.mode == 'github_secret'
         run: |
           echo "${{ secrets.SETTINGS_SECRET }}" | base64 -d > /tmp/settings_${{ inputs.host_ip }}.json
           if [ ! -s /tmp/settings_${{ inputs.host_ip }}.json ]; then
@@ -364,14 +538,18 @@ jobs:
       # populated, valid file. Only used by hosts that opt in via
       # seed_from_host (e.g. prod pop0, which has no GH-secret/SOPS copy).
       - name: Seed settings from live host (SSH self-seed)
-        if: inputs.secrets_mode == 'runner_file' && inputs.seed_from_host
+        if: steps.resolve_mode.outputs.mode == 'runner_file' && inputs.seed_from_host
         run: |
           set -euo pipefail
           if [[ "${{ inputs.connection_mode }}" != "ssh_key" ]]; then
             echo "::error::seed_from_host requires connection_mode=ssh_key"; exit 1
           fi
           mkdir -p ~/.ssh && chmod 700 ~/.ssh
-          ssh-keyscan -H "${{ inputs.host_ip }}" >> ~/.ssh/known_hosts 2>/dev/null || true
+          # Seed SOURCE host: defaults to the deploy target (self-seed), but can
+          # be overridden to clone another host's live config (e.g. pop1 from pop0).
+          SEED_IP="${{ inputs.seed_source_ip || inputs.host_ip }}"
+          SEED_USER="${{ inputs.seed_source_user || inputs.ssh_user }}"
+          ssh-keyscan -H "$SEED_IP" >> ~/.ssh/known_hosts 2>/dev/null || true
           SSH_OPTS="-o BatchMode=yes -o ConnectTimeout=10 -i ~/.ssh/id_rsa"
           SETTINGS="${{ inputs.settings_file_path }}"
           ENVFILE="${{ inputs.env_file_path }}"
@@ -379,10 +557,10 @@ jobs:
             echo "::error::settings_file_path must be set when seed_from_host=true"; exit 1
           fi
           mkdir -p "$(dirname "$SETTINGS")"
-          echo "Pulling live settings.json from ${{ inputs.ssh_user }}@${{ inputs.host_ip }}:${{ inputs.host_settings_path }}"
-          ssh $SSH_OPTS "${{ inputs.ssh_user }}@${{ inputs.host_ip }}" \
+          echo "Pulling live settings.json from ${SEED_USER}@${SEED_IP}:${{ inputs.host_settings_path }}"
+          ssh $SSH_OPTS "${SEED_USER}@${SEED_IP}" \
             "cat '${{ inputs.host_settings_path }}'" > "$SETTINGS" || {
-            echo "::error::Failed to read live settings from host"; exit 1; }
+            echo "::error::Failed to read live settings from seed source host"; exit 1; }
           if [[ ! -s "$SETTINGS" ]]; then
             echo "::error::Live settings.json on host is empty: ${{ inputs.host_settings_path }}"; exit 1
           fi
@@ -393,7 +571,7 @@ jobs:
           # the deploy-time /tmp/.env, else leave empty (non-fatal warning).
           if [[ -n "$ENVFILE" ]]; then
             mkdir -p "$(dirname "$ENVFILE")"
-            ssh $SSH_OPTS "${{ inputs.ssh_user }}@${{ inputs.host_ip }}" \
+            ssh $SSH_OPTS "${SEED_USER}@${SEED_IP}" \
               "cat '${{ inputs.host_env_path }}' 2>/dev/null || cat /tmp/.env 2>/dev/null || true" > "$ENVFILE" || true
             if [[ -s "$ENVFILE" ]]; then
               echo "Seeded $(wc -c < "$ENVFILE") bytes of .env"
@@ -404,7 +582,7 @@ jobs:
 
       # ── Secrets: validate from runner file ──
       - name: Validate settings from runner file
-        if: inputs.secrets_mode == 'runner_file'
+        if: steps.resolve_mode.outputs.mode == 'runner_file'
         run: |
           SETTINGS="${{ inputs.settings_file_path }}"
           ENVFILE="${{ inputs.env_file_path }}"
@@ -424,6 +602,8 @@ jobs:
       # ── SSH setup (remote connections only) ──
       - name: Setup SSH and test connectivity
         if: inputs.connection_mode != 'local'
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         run: |
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
@@ -431,8 +611,14 @@ jobs:
 
           SSH_OPTS="-o BatchMode=yes -o ConnectTimeout=10"
           if [[ "${{ inputs.connection_mode }}" == "ssh_key" ]]; then
+            # If a key was passed via secret, materialise it. Otherwise
+            # fall back to a key already provisioned on the runner.
+            if [[ -n "${SSH_PRIVATE_KEY:-}" ]]; then
+              printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+              chmod 600 ~/.ssh/id_rsa
+            fi
             if [[ ! -f ~/.ssh/id_rsa ]]; then
-              echo "::error::SSH key not found at ~/.ssh/id_rsa"
+              echo "::error::SSH key not found at ~/.ssh/id_rsa and secrets.SSH_PRIVATE_KEY is empty. Set it with: gh secret set SSH_PRIVATE_KEY --repo bwalia/wslproxy < /path/to/deploy-key"
               exit 1
             fi
             SSH_OPTS="$SSH_OPTS -i ~/.ssh/id_rsa"
@@ -489,12 +675,18 @@ jobs:
           # through sudo; by default sudo scrubs env vars, so ansible's
           # lookup('env', 'VAULT_TOKEN') in deploy_data.yml would see an
           # empty string and the vault_secrets_enabled assertion would fail.
+          # Use the RESOLVED mode from the resolve_mode step, not the raw
+          # input.  For `vault_or_sops`, this may be `vault` or `sops`
+          # depending on what the probe found; for every other input value
+          # the resolved mode equals the input.
+          RESOLVED_MODE="${{ steps.resolve_mode.outputs.mode }}"
+
           CMD_PREFIX=""
           CONN_FLAGS=""
           if [[ "${{ inputs.connection_mode }}" == "local" ]]; then
-            if [[ "${{ inputs.secrets_mode }}" == "vault" ]]; then
+            if [[ "$RESOLVED_MODE" == "vault" ]]; then
               CMD_PREFIX="sudo --preserve-env=VAULT_ADDR,VAULT_TOKEN"
-            elif [[ "${{ inputs.secrets_mode }}" == "sops" ]]; then
+            elif [[ "$RESOLVED_MODE" == "sops" ]]; then
               # sudo scrubs env by default; the community.sops lookup in
               # deploy_data.yml needs SOPS_AGE_KEY to decrypt, so preserve it.
               CMD_PREFIX="sudo --preserve-env=SOPS_AGE_KEY"
@@ -510,9 +702,11 @@ jobs:
 
           # Force the role's mode-toggle from the workflow side, so an
           # operator picking `secrets_mode: <x>` in the call site always
-          # wins regardless of any host_vars defaults.
+          # wins regardless of any host_vars defaults.  Uses RESOLVED_MODE
+          # so vault_or_sops correctly translates to whichever branch the
+          # probe selected.
           SECRETS_FLAG=""
-          case "${{ inputs.secrets_mode }}" in
+          case "$RESOLVED_MODE" in
             vault) SECRETS_FLAG="vault_secrets_enabled=true sops_secrets_enabled=false" ;;
             sops)  SECRETS_FLAG="vault_secrets_enabled=false sops_secrets_enabled=true" ;;
             *)     SECRETS_FLAG="vault_secrets_enabled=false sops_secrets_enabled=false" ;;
@@ -523,7 +717,7 @@ jobs:
             -l ${{ inputs.host_ip }} \
             $CONN_FLAGS \
             $TAGS_FLAG \
-            --extra-vars "nginx_user_password=THISCOMESFROMSECRETS target_env=${{ inputs.env_name }} local_settings_file_path=${{ env.settings_path }} local_env_file_path=${{ env.env_path }} wslproxy_build_number=${{ github.run_id }} wslproxy_git_sha=${{ github.sha }} wslproxy_git_repo=${{ github.repository }} wslproxy_deployment_time=$(date -u +%Y-%m-%dT%H:%M:%SZ) $SECRETS_FLAG"
+            --extra-vars "nginx_user_password=THISCOMESFROMSECRETS target_env=${{ inputs.env_name }} local_settings_file_path=${{ env.settings_path }} local_env_file_path=${{ env.env_path }} wslproxy_version=${WSLPROXY_VERSION} wslproxy_build_number=${{ github.run_id }} wslproxy_git_sha=${{ github.sha }} wslproxy_git_repo=${{ github.repository }} wslproxy_deployment_time=$(date -u +%Y-%m-%dT%H:%M:%SZ) $SECRETS_FLAG"
 
       # ── Deploy server/rule configs ──
       - name: Deploy server configs and rules

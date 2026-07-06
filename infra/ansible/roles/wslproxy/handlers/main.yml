@@ -2,7 +2,11 @@
   service:
    name: openresty
    state: restarted
-  tags: [ luarocks, openresty ]
+  # Must carry every tag used by a task that notifies it (finalize.yml /
+  # nginx_config.yml notify on nginx/servers/code/dashboard changes), or a
+  # tagged run (e.g. --tags servers) filters the handler out and the reload
+  # silently never happens.
+  tags: [ luarocks, openresty, nginx, servers, code, dashboard, dashboard-next ]
 
 - name: Reload systemd
   systemd:

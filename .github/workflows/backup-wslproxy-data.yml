@@ -9,11 +9,11 @@ on:
         required: true
         default: "prod"
         type: choice
+        # Options map to runner labels (prod → pop0). dev/acc removed: dev has
+        # no registered runner and the acc tier is decommissioned.
         options:
           - prod
-          - dev
           - test
-          - acc
 
   # Scheduled backup - runs every night at 2 AM UTC for prod
   schedule:
@@ -22,7 +22,14 @@ on:
 jobs:
   backup:
     name: Backup WSLProxy Data
-    runs-on: self-hosted
+    # Pin to the runner that lives on the target environment's host (same
+    # convention as deploy-environment.yml). A bare `self-hosted` lets any
+    # runner grab the job: the macOS runner has no passwordless sudo and no
+    # /home/bwalia, and the test runner can't reach the prod gateway — both
+    # failed nightly. Scheduled runs back up prod, which lives on pop0.
+    runs-on:
+      - self-hosted
+      - ${{ (github.event_name == 'schedule' || github.event.inputs.environment == 'prod') && 'pop0' || github.event.inputs.environment }}
 
     steps:
       - name: Checkout repository
@@ -38,53 +45,136 @@ jobs:
             echo "ENVIRONMENT=prod" >> $GITHUB_OUTPUT
           fi
 
-      - name: Resolve credentials
-        id: creds
-        run: |
-          ENV="${{ steps.set-env.outputs.ENVIRONMENT }}"
-          CREDS_FILE="/home/bwalia/.secrets/wslproxy/${ENV}/login-creds.json"
-
-          # Try runner file first, fall back to GitHub Actions secret
-          if [ -f "$CREDS_FILE" ]; then
-            echo "Using credentials from runner file: $CREDS_FILE"
-            echo "creds_file=$CREDS_FILE" >> $GITHUB_OUTPUT
-          elif [ -n "${{ secrets.BACKUP_LOGIN_CREDS }}" ]; then
-            echo "Using credentials from GitHub Actions secret"
-            echo '${{ secrets.BACKUP_LOGIN_CREDS }}' > /tmp/login-creds-${ENV}.json
-            echo "creds_file=/tmp/login-creds-${ENV}.json" >> $GITHUB_OUTPUT
-          else
-            echo "::error::No credentials found. Set BACKUP_LOGIN_CREDS secret or create $CREDS_FILE on the runner."
-            echo "Expected format: {\"ADMIN_EMAIL\": \"admin@wslproxy.org\", \"ADMIN_PASSWORD\": \"...\", \"GATEWAY_URL\": \"http://localhost:8080\"}"
-            exit 1
-          fi
-
       - name: Check required tools
         run: |
           echo "Checking for required tools..."
           if ! command -v jq &> /dev/null; then
             echo "jq is required but not installed. Installing..."
-            if command -v zypper &> /dev/null; then
+            if command -v brew &> /dev/null; then
+              brew install jq
+            elif command -v zypper &> /dev/null; then
               sudo zypper install -y jq
             elif command -v apt-get &> /dev/null; then
               sudo apt-get update && sudo apt-get install -y jq
             else
-              echo "::error::No supported package manager found"; exit 1
+              echo "::error::No supported package manager found (brew, zypper or apt-get)"; exit 1
             fi
           fi
           command -v curl >/dev/null 2>&1 || { echo "curl is required but not installed."; exit 1; }
           echo "All required tools are available"
 
+      # Runs after the tools check (needs jq/curl). Rather than trusting
+      # whichever source exists, each candidate is verified with a real
+      # /api/user/login — runner files have drifted before (re-provisioned
+      # without GATEWAY_URL / with a stale password) and silently using bad
+      # creds just moves the failure into the backup script.
+      - name: Resolve credentials
+        id: creds
+        env:
+          BACKUP_LOGIN_CREDS: ${{ secrets.BACKUP_LOGIN_CREDS }}
+          LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
+          LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
+          DEFAULT_GATEWAY_URL: ${{ steps.set-env.outputs.ENVIRONMENT == 'prod' && 'https://prod-our-v1.wslproxy.com' || 'https://test.wslproxy.com' }}
+        run: |
+          ENV="${{ steps.set-env.outputs.ENVIRONMENT }}"
+          RUNNER_FILE="/home/bwalia/.secrets/wslproxy/${ENV}/login-creds.json"
+          SECRET_FILE="/tmp/login-creds-${ENV}.json"
+          FLEET_FILE="/tmp/login-creds-fleet-${ENV}.json"
+
+          # Try the file's own GATEWAY_URL first, then the default gateway —
+          # the BACKUP_LOGIN_CREDS secret carries valid creds but a retired
+          # gateway domain, and the creds may still work on the current one.
+          # On success, writes a normalized creds file (with the URL that
+          # worked) and echoes its path on stdout.
+          probe() {
+            local file="$1" email pass fileurl code url
+            email=$(jq -r '.ADMIN_EMAIL // empty' "$file" 2>/dev/null)
+            pass=$(jq -r '.ADMIN_PASSWORD // empty' "$file" 2>/dev/null)
+            fileurl=$(jq -r '.GATEWAY_URL // empty' "$file" 2>/dev/null)
+            if [ -z "$email" ] || [ -z "$pass" ]; then
+              echo "  $file (keys: $(jq -r 'keys|join(",")' "$file" 2>/dev/null || echo 'unparseable')): missing ADMIN_EMAIL/ADMIN_PASSWORD — skipping" >&2
+              return 1
+            fi
+            for url in $fileurl "$DEFAULT_GATEWAY_URL"; do
+              code=$(jq -n --arg e "$email" --arg p "$pass" '{email:$e,password:$p}' \
+                | curl -s -o /dev/null -w '%{http_code}' --connect-timeout 10 --max-time 30 \
+                    -X POST "$url/api/user/login" -H "Content-Type: application/json" -d @-)
+              echo "  $file: login as $email at $url -> HTTP $code" >&2
+              if [ "$code" = "200" ]; then
+                jq --arg url "$url" '.GATEWAY_URL = $url' "$file" > "/tmp/resolved-creds-${ENV}.json"
+                chmod 600 "/tmp/resolved-creds-${ENV}.json"
+                echo "/tmp/resolved-creds-${ENV}.json"
+                return 0
+              fi
+              [ "$fileurl" = "$DEFAULT_GATEWAY_URL" ] && break
+            done
+            return 1
+          }
+
+          CANDIDATES=()
+          [ -f "$RUNNER_FILE" ] && CANDIDATES+=("$RUNNER_FILE")
+          if [ -n "$BACKUP_LOGIN_CREDS" ]; then
+            printf '%s' "$BACKUP_LOGIN_CREDS" > "$SECRET_FILE"
+            chmod 600 "$SECRET_FILE"
+            CANDIDATES+=("$SECRET_FILE")
+          fi
+          # Fleet-wide login secrets (used by the e2e workflows) as a last
+          # resort — rotated more recently than BACKUP_LOGIN_CREDS.
+          if [ -n "$LOGIN_EMAIL" ] && [ -n "$LOGIN_PASSWORD" ]; then
+            jq -n --arg e "$LOGIN_EMAIL" --arg p "$LOGIN_PASSWORD" \
+              '{ADMIN_EMAIL:$e,ADMIN_PASSWORD:$p}' > "$FLEET_FILE"
+            chmod 600 "$FLEET_FILE"
+            CANDIDATES+=("$FLEET_FILE")
+          fi
+
+          if [ ${#CANDIDATES[@]} -eq 0 ]; then
+            echo "::error::No credentials found. Set BACKUP_LOGIN_CREDS secret or create $RUNNER_FILE on the runner."
+            echo "Expected format: {\"ADMIN_EMAIL\": \"...\", \"ADMIN_PASSWORD\": \"...\", \"GATEWAY_URL\": \"https://...\"}"
+            exit 1
+          fi
+
+          echo "Probing credential sources:"
+          for c in "${CANDIDATES[@]}"; do
+            if RESOLVED=$(probe "$c"); then
+              echo "Using credentials from: $c (resolved to $RESOLVED)"
+              echo "creds_file=$RESOLVED" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          done
+
+          echo "::error::No credential source could log in to the $ENV gateway. Fix $RUNNER_FILE on the runner (or update the BACKUP_LOGIN_CREDS secret) with the current super_user email/password and GATEWAY_URL."
+          exit 1
+
       - name: Create backup directory
         run: |
           BACKUP_DIR="/home/bwalia/backups/wslproxy/${{ steps.set-env.outputs.ENVIRONMENT }}"
-          sudo mkdir -p "$BACKUP_DIR"
-          sudo chown -R $(whoami) /home/bwalia/backups
-          echo "Backup directory created: $BACKUP_DIR"
+          # The runner user owns /home/bwalia, so plain mkdir works. Only fall
+          # back to sudo (non-interactively: -n, so a password prompt fails
+          # fast instead of hanging) if a past root-owned dir blocks it.
+          if ! mkdir -p "$BACKUP_DIR" 2>/dev/null; then
+            sudo -n mkdir -p "$BACKUP_DIR"
+            sudo -n chown -R "$(whoami)" /home/bwalia/backups
+          fi
+          echo "Runner user: $(id)"
+          ls -ld /home/bwalia/backups /home/bwalia/backups/wslproxy "$BACKUP_DIR" 2>/dev/null || true
+          # Entries left behind by runs under a different account block
+          # ln -sf replacing the *_latest.json symlinks — reclaim them.
+          if find "$BACKUP_DIR" ! -user "$(whoami)" | grep -q .; then
+            echo "Reclaiming entries not owned by $(whoami):"
+            find "$BACKUP_DIR" ! -user "$(whoami)" -ls || true
+            sudo -n chown -h -R "$(whoami)" "$BACKUP_DIR" || echo "WARNING: could not chown; _latest symlink updates may fail"
+          fi
+          echo "Backup directory ready: $BACKUP_DIR"
 
       - name: Run backup script
         env:
           CREDS_FILE: ${{ steps.creds.outputs.creds_file }}
           BACKUP_BASE_DIR: /home/bwalia/backups/wslproxy
+          # Fallback when the creds file lacks GATEWAY_URL (a value in the
+          # file wins — config.sh applies file > env > default). Without this
+          # the script defaults to http://localhost:8080, which is wrong on
+          # every runner. Same URLs as e2e-tests.yml's env_config.
+          GATEWAY_URL: ${{ steps.set-env.outputs.ENVIRONMENT == 'prod' && 'https://prod-our-v1.wslproxy.com' || 'https://test.wslproxy.com' }}
         run: |
           chmod +x ./api-scripts/backup/backup-data.sh
           ./api-scripts/backup/backup-data.sh "${{ steps.set-env.outputs.ENVIRONMENT }}"
