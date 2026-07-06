@@ -56,6 +56,7 @@ const TopologyCanvas = dynamic(
 );
 import type { Server as ServerType, WafPolicy, Rule, Pop } from "@/types";
 import type { ServerFormState, VarnishConfig, VarnishSnippet, ProxyTimeouts } from "@/components/servers/types";
+import { generateNginxServerConfig } from "@/components/servers/lib/generateNginxConfig";
 import type { LocationEntry } from "@/components/servers/sections/LocationBlockEditor";
 import {
   runValidationGate,
@@ -384,6 +385,14 @@ function buildPayload(form: ServerFormState): Record<string, unknown> {
     // api.lua:CreateUpdateRecord.  When true, the compiled nginx
     // block is copied to /opt/nginx/conf.d/ and reload is scheduled.
     config_status: form.config_status,
+    // Regenerate `config` from the current form state at save time
+    // rather than trusting form.config (which is either empty on
+    // create or the base64 blob we hydrated from disk).  This is the
+    // same contract the old dashboard used — dataProvider's
+    // handleConfigField() overwrote data.config with a freshly-
+    // composed nginx block before every PUT/POST.  Keeps the preview
+    // and the persisted config in lockstep.
+    config: generateNginxServerConfig(form),
   };
 }
 

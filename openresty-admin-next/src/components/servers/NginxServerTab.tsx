@@ -13,6 +13,7 @@ import ConfigPreview from "./sections/ConfigPreview";
 import PopMultiSelect from "./sections/PopMultiSelect";
 import DnsRecordTypeCard from "./sections/DnsRecordTypeCard";
 import DnsStatePanel from "./sections/DnsStatePanel";
+import { generateNginxServerConfig } from "./lib/generateNginxConfig";
 import type { ServerFormState } from "./types";
 import type { LocationEntry } from "./sections/LocationBlockEditor";
 import type { Pop } from "@/types";
@@ -211,6 +212,19 @@ const NginxServerTab: React.FC<NginxServerTabProps> = ({
       );
     },
     [handleChange],
+  );
+
+  /* -- Live-generated nginx config for the preview -- */
+  //
+  // Regenerate from the current form state on every relevant change.
+  // Same source-of-truth model as the old dashboard's CreateServerText:
+  // the preview always reflects what buildPayload() will send on save,
+  // NOT the last-persisted (base64-encoded) `data.config` we hydrated
+  // from — which is what showed up as gibberish in the new UI before
+  // this wire-up.
+  const generatedConfig = useMemo(
+    () => generateNginxServerConfig(form),
+    [form],
   );
 
   /* -- Custom blocks -- */
@@ -1007,7 +1021,7 @@ const NginxServerTab: React.FC<NginxServerTabProps> = ({
         </Card.Header>
         <Card.Body>
           <div className="space-y-4">
-            <ConfigPreview config={form.config} />
+            <ConfigPreview config={generatedConfig} />
 
             {/* config_status controls whether api.lua copies the
                 compiled .conf to /opt/nginx/conf.d/ and touches the
