@@ -126,14 +126,13 @@ jobs:
 
       - name: Create GitHub Release
         if: steps.create_tag.outputs.tag_created == 'true'
-        uses: actions/create-release@v1
+        uses: softprops/action-gh-release@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ steps.calc_version.outputs.next_version }}
-          release_name: Release ${{ steps.calc_version.outputs.next_version }}
-          draft: false
-          prerelease: false
+          name: Release ${{ steps.calc_version.outputs.next_version }}
+          generate_release_notes: true
 
       - name: Update system/app.json with new version
         if: steps.create_tag.outputs.tag_created == 'true'
@@ -143,16 +142,12 @@ jobs:
           BUILD_NUMBER=$(date -u +"%Y%m%d%H%M%S")
           DEPLOY_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-          cat > system/app.json <<EOF
-{
-  "name": "wslproxy",
-  "version": {
-    "version": "$VERSION_NUM",
-    "build": "$BUILD_NUMBER",
-    "deployment_timestamp": "$DEPLOY_TIME"
-  }
-}
-EOF
+          jq -n \
+            --arg version "$VERSION_NUM" \
+            --arg build "$BUILD_NUMBER" \
+            --arg deployed "$DEPLOY_TIME" \
+            '{name: "wslproxy", version: {version: $version, build: $build, deployment_timestamp: $deployed}}' \
+            > system/app.json
 
           git add system/app.json
           git commit -m "chore: bump version to $NEXT_VERSION [skip ci]"

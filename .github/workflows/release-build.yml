@@ -127,17 +127,13 @@ jobs:
           DEPLOY_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
           # Store the full release version (e.g., v1.0.16-build.3)
-          cat > system/app.json <<EOF
-{
-  "name": "wslproxy",
-  "version": {
-    "version": "${RELEASE_VERSION#v}",
-    "base_version": "${BASE_VERSION#v}",
-    "build_number": ${BUILD_NUMBER},
-    "deployment_timestamp": "${DEPLOY_TIME}"
-  }
-}
-EOF
+          jq -n \
+            --arg version "${RELEASE_VERSION#v}" \
+            --arg base "${BASE_VERSION#v}" \
+            --argjson build "$BUILD_NUMBER" \
+            --arg deployed "$DEPLOY_TIME" \
+            '{name: "wslproxy", version: {version: $version, base_version: $base, build_number: $build, deployment_timestamp: $deployed}}' \
+            > system/app.json
 
           git add system/app.json
           git commit -m "chore: update version to $RELEASE_VERSION [skip ci]"
