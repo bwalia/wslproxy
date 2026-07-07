@@ -80,13 +80,14 @@ jobs:
 
       - name: Validate JSON files
         run: |
-          sudo apt-get install -y jq
-          ERRORS=0
+          command -v jq >/dev/null 2>&1 || sudo apt-get install -y jq
+          ERR_FILE="${RUNNER_TEMP}/json_errors"
+          rm -f "${ERR_FILE}"
           echo "=== Validating all server configs ==="
           find staging/servers -name '*.json' | while read -r file; do
             if ! jq empty "$file" 2>/dev/null; then
               echo "❌ Invalid JSON: $file"
-              echo "FAIL" >> /tmp/json_errors
+              echo "FAIL" >> "${ERR_FILE}"
             else
               echo "✅ Valid: $file"
             fi
@@ -96,13 +97,13 @@ jobs:
           find staging/rules -name '*.json' | while read -r file; do
             if ! jq empty "$file" 2>/dev/null; then
               echo "❌ Invalid JSON: $file"
-              echo "FAIL" >> /tmp/json_errors
+              echo "FAIL" >> "${ERR_FILE}"
             else
               echo "✅ Valid: $file"
             fi
           done
-          if [[ -f /tmp/json_errors ]]; then
-            ERRORS=$(wc -l < /tmp/json_errors | tr -d ' ')
+          if [[ -f "${ERR_FILE}" ]]; then
+            ERRORS=$(wc -l < "${ERR_FILE}" | tr -d ' ')
             echo "::warning::Found $ERRORS invalid JSON file(s)"
           fi
 
@@ -188,7 +189,7 @@ jobs:
         run: |
           S3_BUCKET="${{ secrets.WSLPROXY_S3_BUCKET }}"
 
-          cat > /tmp/lifecycle.json <<'LIFECYCLE'
+          cat > "${RUNNER_TEMP}/lifecycle.json" <<'LIFECYCLE'
           {
             "Rules": [
               {
@@ -207,7 +208,7 @@ jobs:
 
           aws s3api put-bucket-lifecycle-configuration \
             --bucket "${S3_BUCKET}" \
-            --lifecycle-configuration file:///tmp/lifecycle.json
+            --lifecycle-configuration "file://${RUNNER_TEMP}/lifecycle.json"
 
           echo "✅ Lifecycle policy set: backups/ objects expire after 60 days"
 
