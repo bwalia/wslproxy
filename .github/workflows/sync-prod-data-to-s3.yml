@@ -1,8 +1,13 @@
 name: Sync Prod Data to S3
 
-# Pulls servers and rules configs from the live prod server and uploads
-# them to an S3 bucket.  This keeps sensitive data (e.g. AWS keys in rules)
-# out of the git repo while still making them available to the deploy pipeline.
+# Reads servers and rules configs from the live prod host's local disk and
+# uploads them to an S3 bucket.  This keeps sensitive data (e.g. AWS keys in
+# rules) out of the git repo while still making them available to the deploy
+# pipeline.
+#
+# The self-hosted `prod` runner runs ON the prod host, so data is read from
+# local disk with sudo — no SSH.  To sync a *different* prod host, register a
+# self-hosted runner on that host and target it.
 #
 # - Live data sync: ALL environment subdirs (prod, int, acc, test, etc.)
 # - Backup tarball: prod only (timestamped, 60-day retention)
@@ -26,7 +31,7 @@ on:
 
 env:
   PROD_HOST: ${{ github.event.inputs.PROD_HOST || '187.124.112.155' }}
-  REMOTE_DATA_DIR: /opt/nginx/data
+  PROD_DATA_DIR: /opt/nginx/data
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
@@ -35,64 +40,54 @@ jobs:
     runs-on: [self-hosted, Linux, prod]
 
     steps:
-      - name: Setup SSH
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      # The self-hosted `prod` runner runs ON the prod host itself, so the
+      # data lives on local disk — no SSH needed (SSH-ing to root@self is
+      # fragile and was the cause of repeated "Permission denied" failures).
+      # We read PROD_DATA_DIR directly with sudo, mirroring how the int
+      # deploy uses connection_mode=local.  This step just asserts the
+      # runner really is the selected host and that the data is readable.
+      - name: Verify runner is the target prod host
         run: |
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
-          # If a key was passed via secret, materialise it. Otherwise fall
-          # back to the key already provisioned on the prod runner. Do NOT
-          # overwrite the runner's working key with an empty/stale secret —
-          # that clobbers auth and yields "Permission denied (publickey)".
-          if [[ -n "${SSH_PRIVATE_KEY:-}" ]]; then
-            printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
-            chmod 600 ~/.ssh/id_rsa
-          fi
-          if [[ ! -f ~/.ssh/id_rsa ]]; then
-            echo "::error::SSH key not found at ~/.ssh/id_rsa and secrets.SSH_PRIVATE_KEY is empty. Set it with: gh secret set SSH_PRIVATE_KEY --repo bwalia/wslproxy < /path/to/deploy-key"
-            exit 1
-          fi
-          ssh-keyscan -H ${{ env.PROD_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
+          echo "Runner: $(whoami)@$(hostname)"
+          echo "Selected PROD_HOST: ${PROD_HOST}"
 
-      - name: Test SSH connectivity
-        run: |
-          echo "Testing SSH to ${{ env.PROD_HOST }}..."
-          if ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10 root@${{ env.PROD_HOST }} "echo 'SSH OK'" 2>&1; then
-            echo "✅ SSH connection successful"
-          else
-            echo "::error::SSH connection failed to root@${{ env.PROD_HOST }}"
+          if ! hostname -I 2>/dev/null | tr ' ' '\n' | grep -qx "${PROD_HOST}"; then
+            echo "::error::This runner ($(hostname), $(hostname -I 2>/dev/null)) is not the selected PROD_HOST ${PROD_HOST}. Run this workflow on a self-hosted runner located on ${PROD_HOST}."
             exit 1
           fi
+
+          if ! sudo -n test -d "${PROD_DATA_DIR}/servers"; then
+            echo "::error::${PROD_DATA_DIR}/servers not found or not readable with passwordless sudo on this host."
+            exit 1
+          fi
+          echo "✅ Confirmed: runner is ${PROD_HOST} and ${PROD_DATA_DIR} is readable"
 
       - name: Create local staging directory
         run: mkdir -p staging/servers staging/rules
 
       - name: Sync all server configs from prod (all environments)
         run: |
-          echo "Syncing all servers from ${{ env.PROD_HOST }}:${{ env.REMOTE_DATA_DIR }}/servers/"
-          rsync -avz --delete \
-            -e "ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10" \
-            root@${{ env.PROD_HOST }}:${{ env.REMOTE_DATA_DIR }}/servers/ \
-            staging/servers/
+          echo "Copying all servers from local ${PROD_DATA_DIR}/servers/"
+          sudo rsync -a --delete "${PROD_DATA_DIR}/servers/" staging/servers/
+          # Hand ownership to the runner user so later steps (jq, aws) can read.
+          sudo chown -R "$(id -u):$(id -g)" staging/servers
 
       - name: Sync all rule configs from prod (all environments)
         run: |
-          echo "Syncing all rules from ${{ env.PROD_HOST }}:${{ env.REMOTE_DATA_DIR }}/rules/"
-          rsync -avz --delete \
-            -e "ssh -i ~/.ssh/id_rsa -o BatchMode=yes -o ConnectTimeout=10" \
-            root@${{ env.PROD_HOST }}:${{ env.REMOTE_DATA_DIR }}/rules/ \
-            staging/rules/
+          echo "Copying all rules from local ${PROD_DATA_DIR}/rules/"
+          sudo rsync -a --delete "${PROD_DATA_DIR}/rules/" staging/rules/
+          sudo chown -R "$(id -u):$(id -g)" staging/rules
 
       - name: Validate JSON files
         run: |
-          sudo apt-get install -y jq
-          ERRORS=0
+          command -v jq >/dev/null 2>&1 || sudo apt-get install -y jq
+          ERR_FILE="${RUNNER_TEMP}/json_errors"
+          rm -f "${ERR_FILE}"
           echo "=== Validating all server configs ==="
           find staging/servers -name '*.json' | while read -r file; do
             if ! jq empty "$file" 2>/dev/null; then
               echo "❌ Invalid JSON: $file"
-              echo "FAIL" >> /tmp/json_errors
+              echo "FAIL" >> "${ERR_FILE}"
             else
               echo "✅ Valid: $file"
             fi
@@ -102,13 +97,13 @@ jobs:
           find staging/rules -name '*.json' | while read -r file; do
             if ! jq empty "$file" 2>/dev/null; then
               echo "❌ Invalid JSON: $file"
-              echo "FAIL" >> /tmp/json_errors
+              echo "FAIL" >> "${ERR_FILE}"
             else
               echo "✅ Valid: $file"
             fi
           done
-          if [[ -f /tmp/json_errors ]]; then
-            ERRORS=$(wc -l < /tmp/json_errors | tr -d ' ')
+          if [[ -f "${ERR_FILE}" ]]; then
+            ERRORS=$(wc -l < "${ERR_FILE}" | tr -d ' ')
             echo "::warning::Found $ERRORS invalid JSON file(s)"
           fi
 
@@ -194,7 +189,7 @@ jobs:
         run: |
           S3_BUCKET="${{ secrets.WSLPROXY_S3_BUCKET }}"
 
-          cat > /tmp/lifecycle.json <<'LIFECYCLE'
+          cat > "${RUNNER_TEMP}/lifecycle.json" <<'LIFECYCLE'
           {
             "Rules": [
               {
@@ -213,7 +208,7 @@ jobs:
 
           aws s3api put-bucket-lifecycle-configuration \
             --bucket "${S3_BUCKET}" \
-            --lifecycle-configuration file:///tmp/lifecycle.json
+            --lifecycle-configuration "file://${RUNNER_TEMP}/lifecycle.json"
 
           echo "✅ Lifecycle policy set: backups/ objects expire after 60 days"
 
