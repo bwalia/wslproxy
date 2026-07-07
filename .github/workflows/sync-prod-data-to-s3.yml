@@ -36,11 +36,23 @@ jobs:
 
     steps:
       - name: Setup SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         run: |
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
+          # If a key was passed via secret, materialise it. Otherwise fall
+          # back to the key already provisioned on the prod runner. Do NOT
+          # overwrite the runner's working key with an empty/stale secret —
+          # that clobbers auth and yields "Permission denied (publickey)".
+          if [[ -n "${SSH_PRIVATE_KEY:-}" ]]; then
+            printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+            chmod 600 ~/.ssh/id_rsa
+          fi
+          if [[ ! -f ~/.ssh/id_rsa ]]; then
+            echo "::error::SSH key not found at ~/.ssh/id_rsa and secrets.SSH_PRIVATE_KEY is empty. Set it with: gh secret set SSH_PRIVATE_KEY --repo bwalia/wslproxy < /path/to/deploy-key"
+            exit 1
+          fi
           ssh-keyscan -H ${{ env.PROD_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
 
       - name: Test SSH connectivity
