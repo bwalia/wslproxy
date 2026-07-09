@@ -32,6 +32,55 @@
     mode: 0775
   tags: [servers, code]
 
+# ─── Default POSIX ACL on /opt/nginx/data ──────────────────────────────────
+# Any tool that later writes into this tree — the WSL Proxy admin UI (as
+# www-data), Ansible (as root), CI rsync (as admin/root), or a human via
+# scp — will produce files that ALL other tools can still overwrite. The
+# default ACL is inherited by every child directory and file created inside
+# and does not depend on the writer's umask, so we do not need to remember
+# any `--chmod=F666`-style flag anywhere.
+#
+# Why this fixes a real class of bug: without the default ACL, an admin-user
+# rsync creates files as `admin:admin 644`, which the OpenResty process
+# running as www-data then cannot rewrite → the admin UI fails with
+# "permission denied" the moment anyone tries to edit an rsync'd server or
+# rule. Applying the default ACL on the parent solves it once for every
+# subdirectory, forever, on any host this role touches.
+#
+# See getfacl(1) / setfacl(1); "default:" entries under `getfacl` output
+# are the inheritance markers we check for.
+- name: Ensure acl utility is installed (needed for setfacl / default POSIX ACLs)
+  ansible.builtin.package:
+    name: acl
+    state: present
+  tags: [servers, code]
+
+- name: Read current default ACL on /opt/nginx/data
+  ansible.builtin.command:
+    cmd: getfacl --absolute-names /opt/nginx/data
+  register: _nginx_data_acl
+  changed_when: false
+  check_mode: false
+  tags: [servers, code]
+
+- name: Set default POSIX ACL so any file under /opt/nginx/data is world-writable (666)
+  ansible.builtin.command:
+    cmd: setfacl -R -d -m u::rw-,g::rw-,o::rw- /opt/nginx/data
+  when: "'default:other::rw-' not in _nginx_data_acl.stdout"
+  tags: [servers, code]
+
+- name: Normalise pre-existing JSON file modes to 666 (backfill for files created before the ACL landed)
+  # The default ACL only applies to files created AFTER it is set. Any
+  # pre-existing file keeps whatever mode it had at creation. This one-shot
+  # backfill catches the "admin rsync'd server JSONs at 644 before the role
+  # was rerun" case; on every subsequent Ansible run it is a no-op because
+  # the ! -perm 666 predicate matches nothing.
+  ansible.builtin.command:
+    cmd: find /opt/nginx/data -type f -name '*.json' ! -perm 666 -print -exec chmod 666 {} +
+  register: _acl_normalize
+  changed_when: _acl_normalize.stdout != ""
+  tags: [servers, code]
+
 - name: Determine secrets source mode
   ansible.builtin.set_fact:
     _use_vault_secrets: "{{ vault_secrets_enabled | default(false) | bool }}"
