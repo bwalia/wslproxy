@@ -36,21 +36,57 @@ function Conf.compareFiles(sourceFile, destinationFile)
     end
 end
 
-function Conf.CreateNginxFlag(rebootFilePath)
-    local filePath = rebootFilePath
+local DEFAULT_REBOOT_FLAG = "/tmp/nginx/nginx-reboot-required"
+local LEGACY_REBOOT_FLAG = "/var/run/nginx/nginx-reboot-required"
+
+local function ensureParentDir(filePath)
+    local parent = string.match(filePath, "(.+)/[^/]+$")
+    if not parent or isDirectoryExists(parent) then
+        return
+    end
+    local grandparent = parent:match("^(.*)/[^/]+/?$")
+    if grandparent and not isDir(grandparent) then
+        createDirectoryRecursive(grandparent)
+    end
+    createDirectoryRecursive(parent)
+end
+
+local function writeRebootFlag(filePath)
     local file, fileErr = io.open(filePath, "w")
     if file == nil then
-        ngx.status = ngx.HTTP_BAD_REQUEST
-        ngx.say(Cjson.encode({
-            data = {
-                message = fileErr .. " while creating " .. rebootFilePath
-            }
-        }))
-        ngx.exit(ngx.HTTP_BAD_REQUEST)
-    else
-        file:write("nginx restart")
-        file:close()
+        return false, fileErr
     end
+    file:write("nginx restart")
+    file:close()
+    return true
+end
+
+function Conf.CreateNginxFlag(rebootFilePath)
+    -- nginx_restart_if_required.sh polls /tmp/nginx/; legacy settings used
+    -- /var/run/nginx/ which is often root-owned and not writable by workers.
+    if rebootFilePath == LEGACY_REBOOT_FLAG or rebootFilePath == nil or rebootFilePath == "" then
+        rebootFilePath = DEFAULT_REBOOT_FLAG
+    end
+
+    ensureParentDir(rebootFilePath)
+    local ok, fileErr = writeRebootFlag(rebootFilePath)
+    if not ok and rebootFilePath ~= DEFAULT_REBOOT_FLAG then
+        ensureParentDir(DEFAULT_REBOOT_FLAG)
+        ok, fileErr = writeRebootFlag(DEFAULT_REBOOT_FLAG)
+        if ok then
+            return
+        end
+    elseif ok then
+        return
+    end
+
+    ngx.status = ngx.HTTP_BAD_REQUEST
+    ngx.say(Cjson.encode({
+        data = {
+            message = fileErr .. " while creating " .. rebootFilePath
+        }
+    }))
+    ngx.exit(ngx.HTTP_BAD_REQUEST)
 end
 
 local function cleanString(input)
