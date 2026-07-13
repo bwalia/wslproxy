@@ -32,6 +32,17 @@
     mode: 0775
   tags: [servers, code]
 
+# Workers touch this flag when config_status=true; the cron watcher polls the
+# same path (nginx_restart_if_required.sh). Must be writable by www-data.
+- name: Ensure nginx reboot-flag directory exists and is worker-writable
+  ansible.builtin.file:
+    path: /tmp/nginx
+    state: directory
+    owner: www-data
+    group: root
+    mode: "0777"
+  tags: [servers, code]
+
 # ─── Default POSIX ACL on /opt/nginx/data ──────────────────────────────────
 # Any tool that later writes into this tree — the WSL Proxy admin UI (as
 # www-data), Ansible (as root), CI rsync (as admin/root), or a human via

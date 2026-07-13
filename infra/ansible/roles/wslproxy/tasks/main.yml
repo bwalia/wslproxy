@@ -175,6 +175,15 @@
   when: nginx_web_ui_enabled is defined and nginx_web_ui_enabled == "yes"
   tags: [dashboard-next, dashboard]
 
+# Step 10.9: Fix runtime directory ownership/permissions for the www-data
+# worker. Included separately (and tagged `always` inside) so it runs on
+# EVERY deploy mode — including `--tags build` version upgrades, which skip
+# finalize.yml below. This is what keeps auto-ssl able to write privkeys
+# under /opt/nginx/data/ssl-certs after an upgrade.
+- name: Fix runtime directory permissions
+  include_tasks: fix_permissions.yml
+  tags: [always]
+
 # Step 11: Final config, permissions, SSL, tenants, service start, verification
 - name: Finalize deployment
   include_tasks: finalize.yml

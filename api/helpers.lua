@@ -122,10 +122,15 @@ function Helper.isIpAddress(str)
     return false
 end
 
--- Test Nginx server block
+-- Test Nginx server block. Workers run as www-data; fix-permissions grants
+-- execute on /usr/local/openresty/nginx/sbin/nginx so sudo is not required
+-- (and often fails with "a password is required" on prod hosts).
 function Helper.testNginxConfig()
-    local openrestyPath = "sudo openresty"
-    local command = openrestyPath .. " -t 2>&1"
+    local nginxBin = "/usr/local/openresty/nginx/sbin/nginx"
+    if not Helper.isFileExists(nginxBin) then
+        nginxBin = "openresty"
+    end
+    local command = nginxBin .. " -t 2>&1"
 
     local handle = io.popen(command)
     if handle then

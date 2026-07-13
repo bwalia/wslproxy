@@ -2211,15 +2211,6 @@ CreateUpdateRecord = function(json_val, uuid, key_name, folder_name, method)
     end
 
     local filePathDir = configPath .. "data/" .. folder_name .. "/" .. envProfile
-    local nginxTenantConfDir = settings.nginx.tenant_conf_path or "/opt/nginx/conf.d"
-    local rebootFilePath = settings.nginx.reboot_file_path or "/tmp/nginx/nginx-reboot-required"
-    local trimmed_path = string.match(rebootFilePath, "(.+)/[^/]+$")
-    if not Helper.isDirectoryExists(trimmed_path) then
-        local isDirCreated, errDir = Helper.createDirectoryRecursive(trimmed_path)
-        if not isDirCreated and errDir then
-            Errors.throwError(errDir .. " while creating " .. trimmed_path, ngx.HTTP_INTERNAL_SERVER_ERROR)
-        end
-    end
     -- HS 28/08/2024 This part of the code need to be refactor or optimise
     if useRemoteStorage then
         redis_json[uuid] = cjson.encode(json_val)
@@ -2230,49 +2221,9 @@ CreateUpdateRecord = function(json_val, uuid, key_name, folder_name, method)
         local configString = Base64.decode(json_val.config)
         Helper.setDataToFile(filePathDir .. "/conf/" .. json_val.server_name .. ".conf", Helper.cleanString(configString),
             filePathDir .. "/conf", "conf")
-        json_val.nginx_status_check = "error"
-        if json_val.config_status then
-            if Helper.isFileExists(nginxTenantConfDir .. "/" .. json_val.server_name .. ".conf") == false then
-                Conf.saveConfFiles(nginxTenantConfDir, Helper.cleanString(configString), json_val.server_name .. ".conf")
-                local nginxStatus, commandStatus = Helper.testNginxConfig()
-                local isSuccess = Helper.isStringContains("nginx.conf syntax is ok", nginxStatus)
-                json_val.nginx_status = nginxStatus
-                if isSuccess then
-                    json_val.nginx_status_check = "success"
-                    Conf.CreateNginxFlag(rebootFilePath)
-                else
-                    json_val.config_status = false
-                    Helper.setDataToFile(filePathDir .. "/" .. uuid .. ".json", json_val, filePathDir)
-                    os.remove(nginxTenantConfDir .. "/" .. json_val.server_name .. ".conf")
-                    Conf.CreateNginxFlag(rebootFilePath)
-                end
-            else
-                local sourceFilePath = filePathDir .. "/conf/" .. json_val.server_name .. ".conf"
-                local destinationFilePath = nginxTenantConfDir .. "/" .. json_val.server_name .. ".conf"
-                local isFilesSame = Conf.compareFiles(sourceFilePath, destinationFilePath)
-                if isFilesSame == false then
-                    Conf.saveConfFiles(nginxTenantConfDir, Helper.cleanString(configString),
-                        json_val.server_name .. ".conf")
-                    local nginxStatus, commandStatus = Helper.testNginxConfig()
-                    local isSuccess = Helper.isStringContains("nginx.conf syntax is ok", nginxStatus)
-                    json_val.nginx_status = nginxStatus
-                    if isSuccess then
-                        json_val.nginx_status_check = "success"
-                        Conf.CreateNginxFlag(rebootFilePath)
-                    else
-                        json_val.config_status = false
-                        Helper.setDataToFile(filePathDir .. "/" .. uuid .. ".json", json_val, filePathDir)
-                        os.remove(nginxTenantConfDir .. "/" .. json_val.server_name .. ".conf")
-                        Conf.CreateNginxFlag(rebootFilePath)
-                    end
-                end
-            end
-        else
-            if Helper.isFileExists(nginxTenantConfDir .. "/" .. json_val.server_name .. ".conf") then
-                os.remove(nginxTenantConfDir .. "/" .. json_val.server_name .. ".conf")
-                Conf.CreateNginxFlag(rebootFilePath)
-            end
-        end
+        -- OpenResty routes per-request from data/servers/*.json (gateway_ack.lua).
+        -- config_status is stored metadata for the admin UI only — no conf.d copy,
+        -- nginx -t, or reload; those do not affect the Lua routing pipeline.
     end
     ngx.status = ngx.HTTP_OK
     return json_val

@@ -36,20 +36,48 @@ function Conf.compareFiles(sourceFile, destinationFile)
     end
 end
 
-function Conf.CreateNginxFlag(rebootFilePath)
-    local filePath = rebootFilePath
+local DEFAULT_REBOOT_FLAG = "/tmp/nginx/nginx-reboot-required"
+local LEGACY_REBOOT_FLAG = "/var/run/nginx/nginx-reboot-required"
+
+local function ensureParentDir(filePath)
+    local parent = string.match(filePath, "(.+)/[^/]+$")
+    if not parent or isDirectoryExists(parent) then
+        return
+    end
+    local grandparent = parent:match("^(.*)/[^/]+/?$")
+    if grandparent and not isDir(grandparent) then
+        createDirectoryRecursive(grandparent)
+    end
+    createDirectoryRecursive(parent)
+end
+
+local function writeRebootFlag(filePath)
     local file, fileErr = io.open(filePath, "w")
     if file == nil then
-        ngx.status = ngx.HTTP_BAD_REQUEST
-        ngx.say(Cjson.encode({
-            data = {
-                message = fileErr .. " while creating " .. rebootFilePath
-            }
-        }))
-        ngx.exit(ngx.HTTP_BAD_REQUEST)
-    else
-        file:write("nginx restart")
-        file:close()
+        return false, fileErr
+    end
+    file:write("nginx restart")
+    file:close()
+    return true
+end
+
+function Conf.CreateNginxFlag(rebootFilePath)
+    -- Optional signal for the cron watcher to restart openresty. Routing
+    -- (rules + server JSON) is already live per-request without this.
+    if rebootFilePath == LEGACY_REBOOT_FLAG or rebootFilePath == nil or rebootFilePath == "" then
+        rebootFilePath = DEFAULT_REBOOT_FLAG
+    end
+
+    ensureParentDir(rebootFilePath)
+    local ok, fileErr = writeRebootFlag(rebootFilePath)
+    if not ok and rebootFilePath ~= DEFAULT_REBOOT_FLAG then
+        ensureParentDir(DEFAULT_REBOOT_FLAG)
+        ok, fileErr = writeRebootFlag(DEFAULT_REBOOT_FLAG)
+    end
+    if not ok then
+        ngx.log(ngx.WARN, "CreateNginxFlag: ", fileErr or "unknown error",
+            " while creating ", rebootFilePath,
+            " — server data saved; reload is optional and can be done separately")
     end
 end
 

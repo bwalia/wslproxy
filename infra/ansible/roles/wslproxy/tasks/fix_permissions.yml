@@ -1,0 +1,28 @@
+---
+# Ensure OpenResty/wslproxy runtime directories are owned by the www-data
+# worker and are writable.
+#
+# Tagged `always` ON PURPOSE: this must run on EVERY ansible invocation —
+# a fresh install, a `--tags code`/`servers`/`dashboard` deploy, AND an
+# OpenResty version upgrade (`--tags build`) or an `--tags os_deps` run.
+# Previously these two tasks lived inside finalize.yml, which is only
+# included for [nginx, code, dashboard, servers]; a `--tags build` upgrade
+# therefore skipped the permission fix and left ownership drift under
+# /opt/nginx/data uncorrected. The most common casualty is auto-ssl /
+# dehydrated, which runs as www-data and must create privkeys under
+# /opt/nginx/data/ssl-certs/letsencrypt/certs/<domain>/ — a root-owned
+# domain dir there makes cert issuance fail with "Permission denied".
+#
+# The referenced script is fully idempotent (mkdir -p + chmod/chown), so
+# running it on every play is safe and cheap.
+
+- name: Copy fix-permissions script
+  template:
+    src: fix-permissions.sh.j2
+    dest: /usr/sbin/fix-permissions.sh
+    mode: 0775
+  tags: [always]
+
+- name: Fix nginx related directory permissions
+  shell: /usr/sbin/fix-permissions.sh
+  tags: [always]
