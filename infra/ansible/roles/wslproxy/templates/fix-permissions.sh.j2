@@ -42,6 +42,21 @@ fi
 chmod -R 777 /opt/nginx/data/ \
     && chown -R www-data:root /opt/nginx/data/
 
+# Strip any stale POSIX ACLs on the data tree. A default ACL missing the
+# execute bit (default:user::rw-) silently propagates to every newly created
+# subdirectory — most damagingly the per-domain cert dirs that auto-ssl/
+# dehydrated (running as www-data) creates on the fly. Those land as 0666
+# (no search bit), so writing privkey.pem fails with "Permission denied" and
+# certificate issuance breaks. The chmod above is the single source of truth
+# for permissions; ACLs must not shadow it. Idempotent + guarded so hosts
+# without the `acl` package are unaffected.
+if command -v setfacl >/dev/null 2>&1; then
+    setfacl -R -b /opt/nginx/data/ 2>/dev/null || true
+    # setfacl -b derives the mode from the removed ACL entries, which can
+    # drop the directory execute bit — re-assert search bits on directories.
+    find /opt/nginx/data/ -type d -exec chmod ug+rwx,o+rx {} + 2>/dev/null || true
+fi
+
 # settings.json holds secrets (JWT passphrase, super_user password hash,
 # redis/pgsql creds). The broad `chmod -R 777` above (needed so www-data can
 # write the rules/servers/ssl data trees) must NOT leave the secret file

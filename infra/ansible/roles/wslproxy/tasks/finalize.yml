@@ -8,16 +8,10 @@
   notify: Restart openresty
   tags: [nginx, code, dashboard, servers]
 
-- name: Copy fix-permissions script
-  template:
-    src: fix-permissions.sh.j2
-    dest: /usr/sbin/fix-permissions.sh
-    mode: 0775
-  tags: [nginx, code, dashboard, servers]
-
-- name: Fix nginx related directory permissions
-  shell: /usr/sbin/fix-permissions.sh
-  tags: [nginx, code, dashboard, servers]
+# NOTE: The fix-permissions script (formerly copied+run here) now lives in
+# tasks/fix_permissions.yml, included from main.yml with `tags: [always]` so
+# ownership is corrected on every run — including `--tags build` upgrades,
+# which skip finalize.yml. See that file for the full rationale.
 
 - name: Deploy Let's Encrypt contact email configuration
   template:
