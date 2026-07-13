@@ -62,8 +62,8 @@ local function writeRebootFlag(filePath)
 end
 
 function Conf.CreateNginxFlag(rebootFilePath)
-    -- nginx_restart_if_required.sh polls /tmp/nginx/; legacy settings used
-    -- /var/run/nginx/ which is often root-owned and not writable by workers.
+    -- Optional signal for the cron watcher to restart openresty. Routing
+    -- (rules + server JSON) is already live per-request without this.
     if rebootFilePath == LEGACY_REBOOT_FLAG or rebootFilePath == nil or rebootFilePath == "" then
         rebootFilePath = DEFAULT_REBOOT_FLAG
     end
@@ -73,20 +73,12 @@ function Conf.CreateNginxFlag(rebootFilePath)
     if not ok and rebootFilePath ~= DEFAULT_REBOOT_FLAG then
         ensureParentDir(DEFAULT_REBOOT_FLAG)
         ok, fileErr = writeRebootFlag(DEFAULT_REBOOT_FLAG)
-        if ok then
-            return
-        end
-    elseif ok then
-        return
     end
-
-    ngx.status = ngx.HTTP_BAD_REQUEST
-    ngx.say(Cjson.encode({
-        data = {
-            message = fileErr .. " while creating " .. rebootFilePath
-        }
-    }))
-    ngx.exit(ngx.HTTP_BAD_REQUEST)
+    if not ok then
+        ngx.log(ngx.WARN, "CreateNginxFlag: ", fileErr or "unknown error",
+            " while creating ", rebootFilePath,
+            " — server data saved; reload is optional and can be done separately")
+    end
 end
 
 local function cleanString(input)
