@@ -37,6 +37,12 @@ _os_packages:
       - openssh-server
       - ca-certificates
       - luarocks
+      # Rotates openresty/nginx logs so error.log doesn't grow to
+      # 1.9 GB and swallow the disk (observed on prod 2026-07-14).
+      # /etc/logrotate.d/openresty is templated by the wslproxy
+      # role; this just ensures the binary + /etc/cron.daily/logrotate
+      # hook are present.
+      - logrotate
     distro_specific:
       Ubuntu:
         - software-properties-common
@@ -91,6 +97,7 @@ _os_packages:
       - openssh
       - ca-certificates
       - pcre-devel
+      - logrotate
     distro_specific: {}
 
   RedHat:
@@ -127,4 +134,5 @@ _os_packages:
       - ca-certificates
       - pcre-devel
       - luarocks
+      - logrotate
     distro_specific: {}
