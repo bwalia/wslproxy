@@ -153,7 +153,12 @@ elseif selectedRule.statusCode == 305 then
         selectedRule.redirectUri = string.sub(selectedRule.redirectUri, 1, slashPos - 1)
     end
     local extracted = nil
-    local extractedPort = 80
+    -- Default upstream port follows the scheme: an https:// backend given
+    -- without an explicit port must go to 443, not 80. Previously this was
+    -- hardcoded to 80, so `redirect_uri: "https://<ip>"` proxied a TLS
+    -- handshake to the origin's :80 (HTTP) entrypoint. An explicit ":port"
+    -- in the redirect_uri still overrides this below.
+    local extractedPort = (origin_serverScheme == "https") and 443 or 80
     -- if not isIpAddress(selectedRule.redirectUri) then
     local continueDnsResolve = true
     if selectedRule.rule_data.isConsul then
@@ -255,13 +260,23 @@ elseif selectedRule.statusCode == 305 then
     end
 
     ngx.var.proxy_host = finalProxyHost
-    -- S3 signed requests need s3.<region>.amazonaws.com as Host header
+    -- Upstream Host header selection (drives `proxy_set_header Host $proxy_host_override`).
     if ngx.ctx.s3_host_override then
+        -- S3 signed requests need s3.<region>.amazonaws.com as Host header
         ngx.var.proxy_host_override = ngx.ctx.s3_host_override
     elseif proxy_server_name ~= nil and proxy_server_name ~= "" then
+        -- Operator explicitly pinned the upstream Host on the server config.
         ngx.var.proxy_host_override = proxy_server_name
     else
-        ngx.var.proxy_host_override = selectedRule.redirectUri
+        -- Default: forward the ORIGINAL client Host (e.g. vault.workstation.co.uk).
+        -- By this point selectedRule.redirectUri has been DNS-resolved to a bare IP
+        -- (see the resolver block above), so using it as the Host header would send
+        -- `Host: <ip>` — which host-routing origins (Traefik/nginx Ingress, matching
+        -- Ingress Host() rules) map to no vhost and answer 404. Forwarding the client's
+        -- own Host makes host-routed HTTPS backends work, stays per-request dynamic (no
+        -- hardcoded hostname, so every served host forwards its own Host), and is
+        -- harmless for backends that ignore Host. `proxy_server_name` still overrides.
+        ngx.var.proxy_host_override = ngx.var.host
     end
 
     -- Upstream backend request headers (forwarded to the backend server)

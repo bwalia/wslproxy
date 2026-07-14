@@ -890,6 +890,10 @@ server {
           proxy_ssl_session_reuse on;
           proxy_set_header X-Real-IP $remote_addr;
           proxy_ssl_server_name on;
+          # SNI = the same hostname we forward as Host, so host-routed HTTPS
+          # origins (Traefik/nginx Ingress) see a matching SNI + Host. Without
+          # this, proxy_ssl_name defaults to the upstream block name.
+          proxy_ssl_name $proxy_host_override;
 
           # WebSocket support
           proxy_http_version 1.1;
@@ -1120,6 +1124,8 @@ server {
           proxy_ssl_session_reuse on;
           proxy_set_header X-Real-IP $remote_addr;
           proxy_ssl_server_name on;
+          # SNI = the same hostname we forward as Host (see the block above).
+          proxy_ssl_name $proxy_host_override;
 
           chunked_transfer_encoding off;
           proxy_set_header x-route-server $proxy_route_server;
