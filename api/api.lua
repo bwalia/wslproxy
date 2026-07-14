@@ -1404,6 +1404,58 @@ local function listInstance(args, id)
 end
 
 
+-- Sync SSL side effects for a persisted server record.  Single
+-- source of truth called from BOTH the interactive save path
+-- (`createUpdateServer`, i.e. POST/PUT /api/servers) and the bulk
+-- import path (`importProjects`, i.e. POST /api/projects/import).
+--
+-- Before this helper existed the SSL wire-up (create
+-- data/ssl/<domain>.json + populate ngx.shared.ssl_domains +
+-- trigger initial cert issuance) lived only inline in
+-- createUpdateServer.  Any code path that wrote a server record
+-- via a different route — most notably the beaconpulse bulk-import
+-- workflow — silently left the ssl_enabled=true server without a
+-- matching ssl config file, so auto-ssl denied the domain until
+-- the next worker restart triggered ssl_init.reconcile_disk_ssl_configs.
+-- `int.workstation.academy` was stuck on the self-signed fallback
+-- cert for weeks because of this drift (2026-07-14).
+--
+-- The helper is idempotent: safe to call for a record that already
+-- has the ssl config file (SslManager.store_ssl_config overwrites
+-- with the current values).  Non-fatal — an SSL wire-up failure
+-- MUST NOT block the save; it's logged as ERR and the record
+-- persists.
+local function syncServerSslConfig(server_name, payloads)
+    if not server_name or server_name == "" then
+        return
+    end
+    if payloads.ssl_enabled then
+        local ssl_config = {
+            ssl_enabled = true,
+            ssl_email = payloads.ssl_email,
+            ssl_auto_renew = payloads.ssl_auto_renew ~= false,   -- default true
+            ssl_force_https = payloads.ssl_force_https ~= false, -- default true
+            ssl_staging = payloads.ssl_staging ~= false          -- default true for safety
+        }
+        local ssl_ok, ssl_err = SslManager.store_ssl_config(server_name, ssl_config)
+        if not ssl_ok then
+            ngx.log(ngx.ERR, "syncServerSslConfig: failed to store SSL config for ",
+                server_name, ": ", tostring(ssl_err))
+        else
+            ngx.log(ngx.INFO, "syncServerSslConfig: SSL configured + activated for ", server_name)
+            -- Trigger initial ACME issuance in the background.  Idempotent —
+            -- auto-ssl returns fast if a valid cert already exists.
+            SslManager.trigger_certificate_issuance(server_name)
+        end
+    else
+        local ssl_ok, ssl_err = SslManager.remove_ssl_config(server_name)
+        if not ssl_ok then
+            ngx.log(ngx.WARN, "syncServerSslConfig: failed to remove SSL config for ",
+                server_name, ": ", tostring(ssl_err))
+        end
+    end
+end
+
 local function createUpdateServer(body, uuid)
     local payloads, response = Helper.GetPayloads(body), {}
 
@@ -1455,40 +1507,21 @@ local function createUpdateServer(body, uuid)
         response = CreateUpdateRecord(payloads, payloads.id, "servers", "servers", "create")
     end
 
-    -- Handle SSL certificate configuration if ssl_enabled is set
-    if payloads.ssl_enabled then
-        local ssl_config = {
-            ssl_enabled = payloads.ssl_enabled,
-            ssl_email = payloads.ssl_email,
-            ssl_auto_renew = payloads.ssl_auto_renew ~= false,   -- default true
-            ssl_force_https = payloads.ssl_force_https ~= false, -- default true
-            ssl_staging = payloads.ssl_staging ~= false          -- default true for safety
-        }
-        local ssl_ok, ssl_err = SslManager.store_ssl_config(payloads.server_name, ssl_config)
-        if not ssl_ok then
-            ngx.log(ngx.ERR, "Failed to store SSL config for ", payloads.server_name, ": ", ssl_err)
-        else
-            ngx.log(ngx.INFO, "SSL configuration stored for domain: ", payloads.server_name)
-            -- Add domain to SSL cache for immediate availability
-            if AddSslDomainToCache then
-                AddSslDomainToCache(payloads.server_name)
-            end
-            -- Trigger certificate readiness check
-            SslManager.trigger_certificate_issuance(payloads.server_name)
-        end
-    else
-        -- If SSL is disabled, clear force HTTPS — can't redirect to HTTPS without a certificate
+    -- Handle SSL certificate configuration if ssl_enabled is set.
+    -- Delegates to syncServerSslConfig so this exact wire-up also
+    -- fires from bulk-import paths (importProjects) — see
+    -- syncServerSslConfig definition above.  Without that shared
+    -- helper, imported records with ssl_enabled=true silently landed
+    -- on disk without a matching data/ssl/*.json + shared-dict entry;
+    -- auto-ssl then denied the domain until the next worker restart
+    -- (`int.workstation.academy`, 2026-07-14).
+    if not payloads.ssl_enabled then
+        -- HTTPS-force is nonsense without a certificate.  Clear it
+        -- BEFORE syncServerSslConfig so the persisted disk record
+        -- doesn't hold a stale true from a prior save.
         payloads.ssl_force_https = false
-        -- If SSL is disabled, remove SSL config
-        local ssl_ok, ssl_err = SslManager.remove_ssl_config(payloads.server_name)
-        if not ssl_ok then
-            ngx.log(ngx.WARN, "Failed to remove SSL config for ", payloads.server_name, ": ", ssl_err)
-        end
-        -- Remove domain from SSL cache
-        if RemoveSslDomainFromCache then
-            RemoveSslDomainFromCache(payloads.server_name)
-        end
     end
+    syncServerSslConfig(payloads.server_name, payloads)
 
     -- Handle static content caching configuration if cache_enabled is set
     if payloads.cache_enabled ~= nil then
@@ -3296,6 +3329,19 @@ local function importProjects(args)
         else
             response = Helper.setDataToFile(
                 pathDir .. "/" .. value.id .. ".json", value, pathDir)
+        end
+
+        -- Bulk-import SSL wire-up.  Before this call, importing a
+        -- server record with ssl_enabled=true silently landed on
+        -- disk without a matching data/ssl/<domain>.json file — so
+        -- ssl_init's allow_domain check denied the domain and the
+        -- self-signed fallback cert was served for weeks.  Now the
+        -- import fires the same side-effects the interactive
+        -- POST/PUT /api/servers path does (see syncServerSslConfig).
+        -- Only relevant for the 'servers' import type; rules /
+        -- upstreams / etc don't carry SSL config.
+        if args.dataType == "servers" and value.server_name then
+            syncServerSslConfig(value.server_name, value)
         end
     end
     ngx.say(cjson.encode({
