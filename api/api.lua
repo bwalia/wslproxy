@@ -4135,25 +4135,47 @@ local function handle_get_request(args, path)
     end
 
     -- ── Structured logs for dashboard ────────────────────────────────
+    --
+    -- BOUNDED tail-read only.  Previous implementation slurped the
+    -- ENTIRE access.log into a Lua table per request (352 MB / 1.4 M
+    -- lines on prod as of 2026-07-14), blocking every other request
+    -- through the gateway under the single-worker prod topology
+    -- (CLAUDE.md §15 #2).  Now uses Helper.readTailLines which caps
+    -- the read at MAX_LOG_TAIL_BYTES bytes regardless of file size.
+    --
+    -- Trade-off: `total` is an ESTIMATE when the file is larger than
+    -- the read window.  Frontend already treats `total` as
+    -- informational.  The estimate is derived from file_size /
+    -- avg_line_bytes so it tracks reality closely enough for the
+    -- "showing N of ~M" display.
     if path == "logs/access" then
         local args = ngx.req.get_uri_args()
-        local limit = tonumber(args.limit) or 200
+        local limit = math.min(tonumber(args.limit) or 200, 1000)
         local offset = tonumber(args.offset) or 0
         local logFile = "/usr/local/openresty/nginx/logs/access.log"
-        local f = io.open(logFile, "r")
+
+        -- Read enough bytes to comfortably serve `limit` lines even
+        -- after filters knock out most of them.  200 lines * ~800
+        -- avg bytes = 160 KB nominal; multiply by 25 for filter
+        -- headroom + safety = 4 MB cap.  Hard cap so a huge limit
+        -- can't turn this into a whole-file read.
+        local MAX_LOG_TAIL_BYTES = 5 * 1024 * 1024
+        local lines, file_size, truncated = Helper.readTailLines(logFile, MAX_LOG_TAIL_BYTES)
         -- Tag as an array so cjson always emits `[]` for an empty
         -- result — otherwise `{}` gets returned and the frontend's
-        -- `.filter()` / `.map()` blow up.  See lua-cjson docs on
-        -- `empty_array_mt`.
+        -- `.filter()` / `.map()` blow up.
         local entries = setmetatable({}, cjson.empty_array_mt)
-        local total = 0
-        if f then
-            local lines = {}
-            for line in f:lines() do
-                lines[#lines + 1] = line
-            end
-            f:close()
+        -- Estimate total: if truncated, extrapolate from what we
+        -- read; if not, #lines IS the total.  Never lie about the
+        -- shape (frontend just displays this).
+        local total
+        if truncated and #lines > 0 then
+            local avg = math.max(1, math.floor(#(lines[1] or "") + 100))
+            total = math.floor(file_size / avg)
+        else
             total = #lines
+        end
+        if #lines > 0 then
             -- Read from end (most recent first), apply offset and limit
             local startIdx = math.max(1, #lines - offset - limit + 1)
             local endIdx = math.max(1, #lines - offset)
@@ -4257,20 +4279,26 @@ local function handle_get_request(args, path)
 
     if path == "logs/errors" then
         local args = ngx.req.get_uri_args()
-        local limit = tonumber(args.limit) or 200
+        local limit = math.min(tonumber(args.limit) or 200, 1000)
         local logFile = "/usr/local/openresty/nginx/logs/error.log"
-        local f = io.open(logFile, "r")
+
+        -- Same bounded tail-read as /logs/access.  error.log is
+        -- typically much larger than access.log (1.9 GB / 6.2M lines
+        -- on prod 2026-07-14) — before this cap the handler slurped
+        -- the whole thing every request and hard-blocked the gateway.
+        local MAX_LOG_TAIL_BYTES = 5 * 1024 * 1024
+        local lines, file_size, truncated = Helper.readTailLines(logFile, MAX_LOG_TAIL_BYTES)
         -- Tag as an array so an empty result serializes as `[]` not
         -- `{}` — matches the `logs/access` handler above.
         local entries = setmetatable({}, cjson.empty_array_mt)
-        local total = 0
-        if f then
-            local lines = {}
-            for line in f:lines() do
-                lines[#lines + 1] = line
-            end
-            f:close()
+        local total
+        if truncated and #lines > 0 then
+            local avg = math.max(1, math.floor(#(lines[1] or "") + 100))
+            total = math.floor(file_size / avg)
+        else
             total = #lines
+        end
+        if #lines > 0 then
             for i = #lines, math.max(1, #lines - limit * 2 + 1), -1 do
                 local line = lines[i]
                 local timestamp, level, message =

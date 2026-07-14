@@ -2,6 +2,81 @@ local ApiErrors = require("errors")
 local configPath = os.getenv("NGINX_CONFIG_DIR") or "/opt/nginx/"
 local Helper = {}
 
+-- ── Bounded tail-of-file reader ───────────────────────────────────────
+-- Reads the last `max_bytes` of a file without slurping the whole thing
+-- into memory.  Returns:
+--   lines      : array of the last complete lines within the window
+--                (most recent LAST, oldest FIRST — natural log order)
+--   file_size  : total bytes of the file
+--   truncated  : true if only a suffix of the file was read (i.e., the
+--                caller wants to know the returned lines are NOT the
+--                entire file)
+--
+-- Why this exists: the prior implementation of /api/logs/access and
+-- /api/logs/errors did `for line in f:lines() do lines[#lines+1] = line`
+-- to slurp the WHOLE log file (1.4M lines / 352 MB access, 6.2M lines /
+-- 1.9 GB error on prod, growing) into a Lua table before slicing the
+-- last 200.  On prod (worker_processes = 1) that blocked every other
+-- request through the gateway while the read completed — repeatedly
+-- brought the whole proxy down whenever an operator opened /logs.
+--
+-- Contract:
+--   * Never allocates more than `max_bytes` bytes for the read buffer.
+--   * Never touches the file if it doesn't exist / can't be opened.
+--   * Skips the FIRST partial line in the buffer (since we started
+--     mid-line unless we happened to seek exactly to a newline).
+--   * Small files (< max_bytes) are read whole — no truncation, no
+--     partial-line skip.
+--
+-- Caller is responsible for further filtering / slicing after this
+-- returns.  The reader stays dumb; it just gives you a bounded window
+-- of complete log lines.
+function Helper.readTailLines(path, max_bytes)
+    max_bytes = tonumber(max_bytes) or (5 * 1024 * 1024) -- default 5 MiB
+    local f, open_err = io.open(path, "rb")
+    if not f then
+        return {}, 0, false, open_err
+    end
+
+    -- Seek to end to learn the size, then seek back at most max_bytes.
+    -- Using seek("end") + seek("set", size - N) avoids reading past the
+    -- window and avoids the O(N) cost of iterating with f:lines().
+    local size, seek_err = f:seek("end")
+    if not size then
+        f:close()
+        return {}, 0, false, seek_err
+    end
+    local truncated = false
+    local read_bytes = size
+    if size > max_bytes then
+        read_bytes = max_bytes
+        f:seek("set", size - max_bytes)
+        truncated = true
+    else
+        f:seek("set", 0)
+    end
+
+    local buf = f:read(read_bytes) or ""
+    f:close()
+
+    -- Split into lines.  If we started mid-line (truncated == true),
+    -- the first entry is a partial line — discard it so the caller
+    -- doesn't get a corrupted record.  A trailing empty entry from a
+    -- terminal "\n" is naturally handled by the filter below.
+    local lines = {}
+    for line in buf:gmatch("([^\n]*)\n?") do
+        if line ~= "" then
+            lines[#lines + 1] = line
+        end
+    end
+    if truncated and #lines > 0 then
+        table.remove(lines, 1)
+    end
+
+    return lines, size, truncated
+end
+
+
 -- Load Global Settings
 
 
