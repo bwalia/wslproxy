@@ -36,6 +36,28 @@ function Conf.compareFiles(sourceFile, destinationFile)
     end
 end
 
+-- The reboot flag is an optional signal for the cron watcher
+-- (nginx_restart_if_required.sh.j2) that a config change wants a
+-- reload.  Routing (rules + server JSON) is already live per-request
+-- via the gateway lua chain, so a failure to write this file MUST NOT
+-- block the API save — it only delays the reload.
+--
+-- History: the flag originally lived at /var/run/nginx/... but that
+-- directory is root-owned tmpfs on modern Debian/systemd — the
+-- www-data openresty worker can't create files there without a chmod.
+-- A pre-2026-07 CreateNginxFlag threw HTTP 400 into the API response
+-- on this write failure, breaking every server-update on prod for
+-- weeks.  Two mitigations layered so the class-of-bug can't return:
+--
+--   1. CreateNginxFlag below silently REWRITES the legacy path to the
+--      /tmp default before io.open, and treats any remaining write
+--      failure as a non-fatal WARN (never propagates to the caller).
+--   2. fix-permissions.sh.j2 relaxes /var/run/nginx to mode 775 as
+--      belt-and-braces — even a hypothetical direct-io caller that
+--      skipped the rewrite would still succeed.
+--
+-- init.lua also emits a WARN at startup if settings.reboot_file_path
+-- is still the legacy value so operators notice the source drift.
 local DEFAULT_REBOOT_FLAG = "/tmp/nginx/nginx-reboot-required"
 local LEGACY_REBOOT_FLAG = "/var/run/nginx/nginx-reboot-required"
 
