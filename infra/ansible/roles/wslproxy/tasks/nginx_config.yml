@@ -95,3 +95,34 @@
     mode: "0644"
   notify: Restart openresty
   tags: [nginx, code, dashboard, servers]
+
+# ── Log rotation ─────────────────────────────────────────────────────────
+# Prod 2026-07-14: error.log grew to 1.9 GB / 6.2 M lines because there
+# was no rotation at all — every /api/logs/* request (which slurped the
+# whole file into memory, separately fixed in api/api.lua) blocked the
+# single-worker gateway for 10+ seconds AND the disk was headed for
+# fill.  The template writes /etc/logrotate.d/openresty; the daily cron
+# hook that ships with the `logrotate` package (added to base_packages)
+# picks it up and runs it via /etc/cron.daily/logrotate.
+#
+# Config is idempotent (template copy).  A subsequent `logrotate --force`
+# is intentionally NOT run — waiting for the natural cron cadence
+# means we don't rotate mid-request if this happens to run during a
+# heavy log burst.  Operators who need to trim NOW can:
+#   sudo logrotate --force /etc/logrotate.d/openresty
+- name: Install openresty log rotation config
+  ansible.builtin.template:
+    src: openresty-logrotate.j2
+    dest: /etc/logrotate.d/openresty
+    owner: root
+    group: root
+    mode: "0644"
+    # Validate the config before it lands so a template typo can't
+    # leave the host with a broken rotation policy.  `logrotate -d`
+    # runs in debug/dry-run mode against the temp file (%s) —
+    # doesn't touch any real logs.  Requires the `logrotate` binary
+    # (added to base_packages defaults); a first-ever run on a host
+    # without base_packages already applied will fail here with a
+    # clear "command not found" — install logrotate + re-run.
+    validate: "logrotate -d %s"
+  tags: [nginx, code, dashboard, servers]

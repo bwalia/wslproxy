@@ -1,0 +1,62 @@
+# Rotate openresty/nginx logs so a busy proxy doesn't fill the disk.
+#
+# Managed by wslproxy Ansible (infra/ansible/roles/wslproxy/templates/openresty-logrotate.j2).
+# Any edits made here directly will be overwritten by the next `nginx`
+# tag deploy — edit the template in the repo instead.
+#
+# Why the numbers we chose:
+#   daily        : rotate at least once per day.
+#   maxsize 500M : ALSO rotate if the file grows past 500M before the
+#                  daily cron runs — bounds worst-case-disk-fill on
+#                  hosts with very verbose error.log noise (auto-ssl
+#                  OCSP stapling warnings, fallback-cert notices for
+#                  every unknown-domain request, etc.).  Prod hit
+#                  1.9 GB / 6.2 M lines before this config existed;
+#                  500M is a compromise between "rotate too often"
+#                  (fragments useful history across many files) and
+#                  "grow too large" (disk pressure + long
+#                  /api/logs/* read times even after the tail-only
+#                  cap in api/api.lua).
+#   rotate 14    : keep two weeks of rotated logs.  Enough history
+#                  for an incident post-mortem, gzip'd so each file
+#                  is ~10-30x smaller than its 500M source (OCSP
+#                  spam compresses very well — 1.9 GB error.log
+#                  → 53 MB gzipped on prod).
+#   compress + delaycompress : compress OLD rotations but NOT the
+#                  most-recently-rotated file, so anything still
+#                  holding an open fd on it (e.g. a slow tail -f
+#                  from an operator debugging) doesn't get
+#                  corrupted mid-read.
+#   create 664 www-data root : the file that gets recreated after
+#                  rotation is owned by the openresty worker user.
+#                  Matches what fix-permissions.sh.j2 sets for
+#                  everything else in this directory.
+#   postrotate USR1 → nginx master : nginx reopens its log fds on
+#                  USR1 (documented signal).  Without this the
+#                  workers keep writing to the rotated (already-
+#                  renamed) file's inode and no new log entries
+#                  appear in the fresh access.log / error.log until
+#                  the workers restart.  Fallback to `systemctl
+#                  reload` if the PID file is stale (e.g. right
+#                  after a systemd restart before the master has
+#                  written its pid).
+{{ wslproxy_openresty_log_dir | default('/usr/local/openresty/nginx/logs') }}/*.log {
+    daily
+    rotate 14
+    maxsize 500M
+    compress
+    delaycompress
+    notifempty
+    missingok
+    create 664 www-data root
+    sharedscripts
+    postrotate
+        if [ -s {{ wslproxy_openresty_log_dir | default('/usr/local/openresty/nginx/logs') }}/nginx.pid ]; then
+            kill -USR1 "$(cat {{ wslproxy_openresty_log_dir | default('/usr/local/openresty/nginx/logs') }}/nginx.pid)" 2>/dev/null \
+                || systemctl reload openresty >/dev/null 2>&1 \
+                || true
+        else
+            systemctl reload openresty >/dev/null 2>&1 || true
+        fi
+    endscript
+}
