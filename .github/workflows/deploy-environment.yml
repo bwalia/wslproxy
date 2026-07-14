@@ -26,7 +26,11 @@ on:
         type: string
         default: "root"
       connection_mode:
-        description: "Connection mode: local (sudo, int only), ssh (test), ssh_key (acc/prod)"
+        description: >-
+          Connection mode: local (sudo, no SSH), ssh (password/agent), ssh_key
+          (deploy key). Auto-downgraded to `local` at runtime when host_ip is
+          one of the runner's own IPs (co-located runner+target) — see the
+          "Resolve effective connection mode" step.
         type: string
         required: true
       secrets_mode:
@@ -165,6 +169,41 @@ jobs:
           # is the reusable workflow that runs once per deploy.
           fetch-depth: 0
           fetch-tags: true
+
+      # ── Auto-detect a co-located target ──
+      # If the deploy TARGET (host_ip) is one of THIS runner's own IP
+      # addresses, the runner and the target are the SAME machine. SSHing
+      # to yourself needs a self-authorized key and normally just fails
+      # with "Permission denied (publickey,password)" — which is exactly
+      # how the acc/pop0 deploy broke: env_name=prod pins the job to the
+      # `prod` self-hosted runner, and that runner IS pop0
+      # (187.124.112.155), so `ssh root@187.124.112.155` from the box to
+      # itself was rejected. When co-located we transparently downgrade to
+      # a LOCAL Ansible connection (--connection=local + sudo): every role
+      # task in wslproxy-ops.yml runs on this host directly, no SSH hop and
+      # no key needed. Downgrade only — a genuinely remote target keeps its
+      # configured ssh/ssh_key mode. Portable across Linux and macOS
+      # runners (hostname -I / ip / ifconfig).
+      - name: Resolve effective connection mode
+        id: conn
+        run: |
+          MODE="${{ inputs.connection_mode }}"
+          HOST="${{ inputs.host_ip }}"
+          if [[ "$MODE" != "local" ]]; then
+            LOCAL_IPS="127.0.0.1 ::1"
+            command -v hostname >/dev/null 2>&1 && LOCAL_IPS="$LOCAL_IPS $(hostname -I 2>/dev/null || true)"
+            command -v ip       >/dev/null 2>&1 && LOCAL_IPS="$LOCAL_IPS $(ip -o addr show 2>/dev/null | awk '{print $4}' | cut -d/ -f1)"
+            command -v ifconfig >/dev/null 2>&1 && LOCAL_IPS="$LOCAL_IPS $(ifconfig 2>/dev/null | awk '/inet /{print $2}')"
+            if printf ' %s ' $LOCAL_IPS | grep -qFw "$HOST"; then
+              echo "::notice::Target $HOST is this runner ($MODE requested) — using a LOCAL Ansible connection (no SSH)."
+              MODE="local"
+            else
+              echo "Target $HOST is remote from this runner — using '$MODE' connection."
+            fi
+          else
+            echo "connection_mode=local requested — no SSH."
+          fi
+          echo "mode=$MODE" >> "$GITHUB_OUTPUT"
 
       - name: Install Ansible
         run: |
@@ -601,7 +640,7 @@ jobs:
 
       # ── SSH setup (remote connections only) ──
       - name: Setup SSH and test connectivity
-        if: inputs.connection_mode != 'local'
+        if: steps.conn.outputs.mode != 'local'
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         run: |
@@ -610,7 +649,7 @@ jobs:
           ssh-keyscan -H ${{ inputs.host_ip }} >> ~/.ssh/known_hosts 2>/dev/null || true
 
           SSH_OPTS="-o BatchMode=yes -o ConnectTimeout=10"
-          if [[ "${{ inputs.connection_mode }}" == "ssh_key" ]]; then
+          if [[ "${{ steps.conn.outputs.mode }}" == "ssh_key" ]]; then
             # If a key was passed via secret, materialise it. Otherwise
             # fall back to a key already provisioned on the runner.
             if [[ -n "${SSH_PRIVATE_KEY:-}" ]]; then
@@ -632,7 +671,7 @@ jobs:
       - name: Clean up Docker resources
         if: inputs.docker_prune
         run: |
-          if [[ "${{ inputs.connection_mode }}" == "local" ]]; then
+          if [[ "${{ steps.conn.outputs.mode }}" == "local" ]]; then
             if command -v docker &> /dev/null; then
               echo "Pruning Docker on ${{ inputs.host_ip }}..."
               sudo docker system prune -y 2>&1 || true
@@ -641,7 +680,7 @@ jobs:
             fi
           else
             SSH_OPTS="-o BatchMode=yes -o ConnectTimeout=10"
-            [[ "${{ inputs.connection_mode }}" == "ssh_key" ]] && SSH_OPTS="$SSH_OPTS -i ~/.ssh/id_rsa"
+            [[ "${{ steps.conn.outputs.mode }}" == "ssh_key" ]] && SSH_OPTS="$SSH_OPTS -i ~/.ssh/id_rsa"
             ssh $SSH_OPTS ${{ inputs.ssh_user }}@${{ inputs.host_ip }} \
               'if command -v docker &> /dev/null; then echo "Pruning Docker..."; docker system prune -y; else echo "Docker not installed — skipping prune"; fi' 2>&1 || true
           fi
@@ -683,7 +722,7 @@ jobs:
 
           CMD_PREFIX=""
           CONN_FLAGS=""
-          if [[ "${{ inputs.connection_mode }}" == "local" ]]; then
+          if [[ "${{ steps.conn.outputs.mode }}" == "local" ]]; then
             if [[ "$RESOLVED_MODE" == "vault" ]]; then
               CMD_PREFIX="sudo --preserve-env=VAULT_ADDR,VAULT_TOKEN"
             elif [[ "$RESOLVED_MODE" == "sops" ]]; then
@@ -694,7 +733,7 @@ jobs:
               CMD_PREFIX="sudo"
             fi
             CONN_FLAGS="--connection=local"
-          elif [[ "${{ inputs.connection_mode }}" == "ssh_key" ]]; then
+          elif [[ "${{ steps.conn.outputs.mode }}" == "ssh_key" ]]; then
             CONN_FLAGS="--private-key ~/.ssh/id_rsa --timeout 30"
           else
             CONN_FLAGS="--timeout 30"
@@ -728,10 +767,10 @@ jobs:
 
           CMD_PREFIX=""
           CONN_FLAGS=""
-          if [[ "${{ inputs.connection_mode }}" == "local" ]]; then
+          if [[ "${{ steps.conn.outputs.mode }}" == "local" ]]; then
             CMD_PREFIX="sudo"
             CONN_FLAGS="--connection=local"
-          elif [[ "${{ inputs.connection_mode }}" == "ssh_key" ]]; then
+          elif [[ "${{ steps.conn.outputs.mode }}" == "ssh_key" ]]; then
             CONN_FLAGS="--private-key ~/.ssh/id_rsa"
           fi
 
@@ -747,10 +786,10 @@ jobs:
           echo "Verifying deployment on ${{ inputs.env_label }}..."
 
           SSH_OPTS="-o BatchMode=yes -o ConnectTimeout=10"
-          [[ "${{ inputs.connection_mode }}" == "ssh_key" ]] && SSH_OPTS="$SSH_OPTS -i ~/.ssh/id_rsa"
+          [[ "${{ steps.conn.outputs.mode }}" == "ssh_key" ]] && SSH_OPTS="$SSH_OPTS -i ~/.ssh/id_rsa"
 
           # Nginx config test
-          if [[ "${{ inputs.connection_mode }}" == "local" ]]; then
+          if [[ "${{ steps.conn.outputs.mode }}" == "local" ]]; then
             sudo /usr/local/openresty/bin/openresty -t 2>&1 || {
               echo "::error::Nginx config test failed"; exit 1;
             }
@@ -816,10 +855,10 @@ jobs:
           echo "Verifying Next.js dashboard on ${{ inputs.env_label }} (port ${PORT})..."
 
           SSH_OPTS="-o BatchMode=yes -o ConnectTimeout=10"
-          [[ "${{ inputs.connection_mode }}" == "ssh_key" ]] && SSH_OPTS="$SSH_OPTS -i ~/.ssh/id_rsa"
+          [[ "${{ steps.conn.outputs.mode }}" == "ssh_key" ]] && SSH_OPTS="$SSH_OPTS -i ~/.ssh/id_rsa"
 
           # 1) systemd service must be active
-          if [[ "${{ inputs.connection_mode }}" == "local" ]]; then
+          if [[ "${{ steps.conn.outputs.mode }}" == "local" ]]; then
             sudo systemctl is-active "$SVC" >/dev/null 2>&1 || {
               echo "::error::$SVC is not active on ${{ inputs.host_ip }}"
               sudo systemctl status "$SVC" --no-pager -l 2>&1 | tail -30 || true
@@ -841,7 +880,7 @@ jobs:
           # helper: run a curl either locally or over SSH
           probe() {
             local u="$1"
-            if [[ "${{ inputs.connection_mode }}" == "local" ]]; then
+            if [[ "${{ steps.conn.outputs.mode }}" == "local" ]]; then
               curl -s -o /dev/null -w "%{http_code}" "$u" 2>/dev/null || echo "000"
             else
               ssh $SSH_OPTS ${{ inputs.ssh_user }}@${{ inputs.host_ip }} \
