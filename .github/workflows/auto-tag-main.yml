@@ -32,6 +32,14 @@ permissions:
   contents: write  # Required to push tags
   pull-requests: read  # Required to detect PR merges
 
+concurrency:
+  # Serialize tagging so two quick merges can't race to the same
+  # version number.  `cancel-in-progress: false` so a burst of PR
+  # merges each get their own tag (the second waits for the first
+  # to finish rather than being cancelled and losing its bump).
+  group: auto-tag-main
+  cancel-in-progress: false
+
 jobs:
   auto-tag:
     name: Create Incremental Tag
@@ -54,15 +62,30 @@ jobs:
       - name: Get latest tag
         id: get_latest_tag
         run: |
-          # Get the latest semantic version tag (vX.Y.Z format)
-          LATEST_TAG=$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -1)
+          # Union of both tag conventions used in this repo:
+          #   - v[0-9]*.[0-9]*.[0-9]*   (current — e.g. v1.0.1)
+          #   - [0-9]*.[0-9]*.[0-9]*    (legacy — e.g. 1.0.15, manually
+          #                              created before auto-tag existed)
+          # Normalise by stripping the leading "v" so semver-sort works
+          # across both, then re-emit with the "v" prefix.  Without
+          # this the workflow would ignore legacy 1.0.15 and try to
+          # auto-bump from v1.0.1 → v1.0.2, silently regressing past
+          # every manual tag operators created between v1.0.1 and now.
+          ALL_TAGS=$(
+            {
+              git tag -l 'v[0-9]*.[0-9]*.[0-9]*' | sed 's/^v//'
+              git tag -l '[0-9]*.[0-9]*.[0-9]*'
+            } | sort -u -V
+          )
+          LATEST_BARE=$(echo "$ALL_TAGS" | tail -1)
 
-          if [ -z "$LATEST_TAG" ]; then
-            # No tags exist yet - start at v1.0.0
+          if [ -z "$LATEST_BARE" ]; then
+            # No tags exist yet — start at v1.0.0.
             LATEST_TAG="v1.0.0"
             echo "No existing tags found, starting at v1.0.0"
           else
-            echo "Latest tag: $LATEST_TAG"
+            LATEST_TAG="v${LATEST_BARE}"
+            echo "Latest tag (union of v-prefixed + bare): $LATEST_TAG"
           fi
 
           echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
@@ -76,8 +99,19 @@ jobs:
           if [ -n "${{ github.event.inputs.custom_version }}" ]; then
             NEXT_VERSION="${{ github.event.inputs.custom_version }}"
             echo "Using custom version: $NEXT_VERSION"
-          elif [ "${{ github.event.inputs.version_type }}" != "patch" ]; then
-            # Manual minor/major bump via workflow_dispatch
+          elif [ "${{ github.event.inputs.version_type }}" != "patch" ] \
+              && [ -n "${{ github.event.inputs.version_type }}" ]; then
+            # Manual minor/major bump via workflow_dispatch.
+            # The `-n` guard is load-bearing — on `push` events,
+            # `github.event.inputs.version_type` is the empty string.
+            # Without the guard, `"" != "patch"` is TRUE, we entered
+            # this branch with an EMPTY VERSION_TYPE, neither the
+            # major nor minor if-branch matched, MAJOR/MINOR/PATCH
+            # never got incremented, and NEXT_VERSION ended up ==
+            # LATEST_TAG.  The "tag already exists, skip" branch
+            # below then silently no-op'd EVERY push to main from
+            # PR #1143 (2026-07-08) through 2026-07-14 — 30+ merges
+            # produced zero new tags before this fix landed.
             VERSION_TYPE="${{ github.event.inputs.version_type }}"
             # Strip 'v' prefix if present
             BASE_VERSION="${LATEST_TAG#v}"
