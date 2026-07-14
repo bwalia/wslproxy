@@ -48,6 +48,27 @@
     delaycompress
     notifempty
     missingok
+    # `su` tells logrotate which user/group to run rotation as, and
+    # bypasses the "parent directory has insecure permissions" safety
+    # check that otherwise refuses to rotate any log whose directory
+    # is group-writable AND owned by anyone other than root.
+    # fix-permissions.sh.j2 sets the log dir to `www-data:root 0775`
+    # so the openresty worker (running as www-data) can write to it.
+    # Without `su www-data root`, logrotate fails validation with:
+    #   error: skipping "/usr/local/openresty/nginx/logs/access.log"
+    #   because parent directory has insecure permissions (It's world
+    #   writable or writable by group which is not "root")
+    # Setting `su` opts us out — logrotate now knows the effective
+    # owner and does the rotation as www-data (the file owner) with
+    # group root (the dir group), matching the actual filesystem
+    # perms.  Documented behaviour in logrotate(8).
+    #
+    # Historical note: prod was rotated manually as root before this
+    # workflow enforcement existed, so this validation gate never
+    # fired there.  int hit it on the first deploy of this config
+    # (run 29335683255, 2026-07-14) — that's the failure this line
+    # closes.
+    su www-data root
     create 664 www-data root
     sharedscripts
     postrotate
