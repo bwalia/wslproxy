@@ -51,6 +51,26 @@ end
 -- Determine storage type at init time (not in callback)
 local use_redis_storage = settings and settings.storage_type == "redis"
 
+-- Actionable operator warning when settings.json still holds the legacy
+-- reboot-flag path.  api/server-conf.lua rewrites LEGACY_REBOOT_FLAG →
+-- DEFAULT_REBOOT_FLAG at call time so this alone doesn't break saves —
+-- but it's a signal that the deployed settings file drifted from the
+-- current default (/tmp/nginx/nginx-reboot-required) and should be
+-- corrected in the source (SOPS / Vault) so future deploys don't keep
+-- re-writing the stale value onto the host.  Prod 2026-07-14 hit this
+-- exact drift and every server-update returned HTTP 400 for weeks
+-- because the older server-conf.lua deployed there didn't have the
+-- rewrite.
+if settings and settings.nginx and settings.nginx.reboot_file_path
+    and settings.nginx.reboot_file_path:sub(1, 14) == "/var/run/nginx" then
+    ngx.log(ngx.WARN,
+        "startup: settings.nginx.reboot_file_path is legacy '",
+        settings.nginx.reboot_file_path,
+        "' — server-conf.lua rewrites this to /tmp/nginx/... at runtime, ",
+        "but update the source (SOPS / Vault) to '/tmp/nginx/nginx-reboot-required' ",
+        "so deploys stop re-writing the stale value onto the host")
+end
+
 -- Export IP2Location path as global variable for use in log_handler
 -- and geo_lookup.  This is loaded at init time when file I/O is
 -- allowed.

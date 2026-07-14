@@ -2,10 +2,21 @@
 
 set -x
 
+  # /var/run/nginx historically hosted the reboot flag
+  # (/var/run/nginx/nginx-reboot-required).  The canonical path moved to
+  # /tmp/nginx/... in api/server-conf.lua (LEGACY_REBOOT_FLAG →
+  # DEFAULT_REBOOT_FLAG rewrite), but any host whose settings.json still
+  # points at the legacy path — or any future caller that bypasses the
+  # rewrite — will attempt to create /var/run/nginx/... as the www-data
+  # worker.  Mode 755 blocks that with EACCES, which the old api/server-
+  # conf.lua then surfaced into the API response body as HTTP 400 on
+  # every server-edit.  775 keeps the dir root-owned but writable by the
+  # www-data group — belt-and-braces so a marker-write can never fail
+  # even if the /tmp rewrite is somehow skipped.
   mkdir -p "/var/run/nginx/" \
     && chmod +x "/var/run/nginx/" \
     && chown www-data:root "/var/run/nginx/" \
-    && chmod 755 -R "/var/run/nginx/"
+    && chmod 775 -R "/var/run/nginx/"
 
 mkdir -p "/tmp/nginx/" \
     && chmod +x "/tmp/nginx/" \
