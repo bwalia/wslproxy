@@ -130,6 +130,13 @@ jobs:
       stage_number: "acc"
       host_ip: "187.124.112.155"
       ssh_user: root
+      # The `prod` self-hosted runner IS pop0 (187.124.112.155), so this is a
+      # co-located deploy. deploy-environment.yml auto-detects host_ip == a
+      # local IP and downgrades this to a LOCAL connection (--connection=local
+      # + sudo, no SSH) — SSHing root@pop0 to itself was rejected with
+      # "Permission denied (publickey,password)". Kept as ssh_key so the same
+      # call site still works verbatim if this job ever moves to a runner that
+      # is genuinely remote from pop0.
       connection_mode: ssh_key
       secrets_mode: vault_or_sops
       health_endpoint: "https://prod-our-v1.wslproxy.com/healthz"
