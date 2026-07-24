@@ -1,0 +1,27 @@
+{
+  "id": "int-nebuladb-rule",
+  "created_at": 1784867812,
+  "name": "int-nebuladb",
+  "profile_id": "int",
+  "priority": 100,
+  "match": {
+    "rules": {
+      "path": "/",
+      "path_key": "starts_with",
+      "client_ip_key": "equals",
+      "country_key": "equals",
+      "jwt_token_validation": "equals"
+    },
+    "response": {
+      "code": 305,
+      "redirect_uri": "10.8.0.16:30976",
+      "allow": false,
+      "message": "undefined",
+      "is_consul": false
+    }
+  },
+  "version": 1,
+  "servers": [
+    "host:int-nebuladb.nebuladb.net"
+  ]
+}

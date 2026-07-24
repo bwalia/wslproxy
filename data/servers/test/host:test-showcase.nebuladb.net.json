@@ -1,0 +1,28 @@
+{
+  "id": "host:test-showcase.nebuladb.net",
+  "server_name": "test-showcase.nebuladb.net",
+  "proxy_server_name": "test-showcase.nebuladb.net",
+  "root": "/var/www/html",
+  "index": "index.html",
+  "access_log": "logs/access.log",
+  "error_log": "logs/error.log",
+  "config_status": false,
+  "profile_id": "test",
+  "proxy_pass": "http://10.8.0.16:30976",
+  "rules": "test-showcase-rule",
+  "created_at": 1784867812,
+  "listens": [
+    {
+      "listen": "80"
+    }
+  ],
+  "ssl_enabled": true,
+  "ssl_force_https": true,
+  "ssl_staging": false,
+  "ssl_auto_renew": true,
+  "ssl_email": "balinder.walia@gmail.com",
+  "cache_enabled": false,
+  "cache_bypass_auth": false,
+  "match_cases": {},
+  "custom_headers": []
+}
