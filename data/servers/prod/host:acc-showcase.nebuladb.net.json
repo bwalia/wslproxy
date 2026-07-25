@@ -1,15 +1,13 @@
 {
   "access_log": "logs/access.log",
-  "cache_bypass_auth": false,
-  "cache_docker_blobs": false,
   "cache_enabled": false,
   "config_status": true,
-  "created_at": 1778320659,
+  "created_at": 1784959501,
   "custom_headers": {},
   "dns_cname_target": "pop0.wslproxy.com",
   "dns_record_type": "CNAME",
   "error_log": "logs/error.log",
-  "id": "host:showcase.nebuladb.net",
+  "id": "host:acc-showcase.nebuladb.net",
   "index": "index.html",
   "listens": [
     {
@@ -18,17 +16,14 @@
   ],
   "match_cases": {},
   "profile_id": "prod",
-  "proxy_pass": null,
-  "proxy_server_name": null,
-  "rate_limit_enabled": false,
+  "proxy_pass": "http://localhost",
+  "proxy_server_name": "acc-showcase.nebuladb.net",
   "root": "/var/www/html",
   "rules": "04152bcb-b3ae-e831-2a07-9d38cca77688",
-  "server_name": "showcase.nebuladb.net",
+  "server_name": "acc-showcase.nebuladb.net",
   "ssl_auto_renew": true,
   "ssl_email": "balinder.walia@gmail.com",
   "ssl_enabled": true,
   "ssl_force_https": true,
-  "ssl_staging": false,
-  "varnish_enabled": false,
-  "waf_enabled": false
+  "ssl_staging": false
 }
