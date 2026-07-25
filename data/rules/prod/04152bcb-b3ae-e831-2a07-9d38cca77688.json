@@ -1,0 +1,40 @@
+{
+  "_schema_version": 2,
+  "created_at": 1784959468,
+  "id": "04152bcb-b3ae-e831-2a07-9d38cca77688",
+  "match": {
+    "response": {
+      "backends": [
+        {
+          "address": "13.42.188.136:80",
+          "label": "k3s1 traefik ingress (wslproxy class)",
+          "weight": 100
+        }
+      ],
+      "code": 305,
+      "redirect_uri": "13.42.188.136:80",
+      "routing": {
+        "mode": "least_conn"
+      },
+      "strip_path": false
+    },
+    "rules": {
+      "jwt_token_validation": "equals",
+      "path": "/",
+      "path_key": "starts_with"
+    }
+  },
+  "name": "nebuladb-prod-default",
+  "priority": 1,
+  "profile_id": "prod",
+  "rules_tags": [
+    "nebuladb",
+    "prod"
+  ],
+  "servers": [
+    "host:int-nebuladb.nebuladb.net",
+    "host:test-showcase.nebuladb.net",
+    "host:acc-showcase.nebuladb.net",
+    "host:showcase.nebuladb.net"
+  ]
+}
