@@ -1,8 +1,8 @@
 name: Sync Prod Data to S3
 
-# Reads servers and rules configs from the live prod POP (pop1) and uploads
-# them to an S3 bucket.  This keeps sensitive data (e.g. AWS keys in rules)
-# out of the git repo while still making them available to the deploy pipeline.
+# Reads gateway data trees from the live prod POP (pop1) and uploads them to
+# an S3 bucket.  Keeps sensitive data out of git while making it available to
+# deploys / disaster recovery.
 #
 # ONLY source host (all other VMs are decommissioned):
 #   admin@18.133.126.242  (pop1 — AWS eu-west-2)
@@ -10,15 +10,17 @@ name: Sync Prod Data to S3
 # The self-hosted `prod` runner must run ON that host so data is read from
 # local disk with sudo — no SSH.  Do not point this workflow at any other IP.
 #
-# - Live data sync: ALL environment subdirs (prod, int, acc, test, etc.)
-# - Backup tarball: prod only (timestamped, 60-day retention)
+# Live sync trees (under /opt/nginx/data/ → s3://…/data/):
+#   servers, rules, ssl, ssl-certs, upstreams, varnish, waf_policies, waf_rules, pops
+# Excluded: settings.json (host secrets), audit, cache, versions, change_requests,
+#           bookmarks, server/ (dead singular staging dir)
+#
+# Backup tarball: same trees (prod-scoped where env subdirs exist) + full ssl/
 
 on:
-  # Every day at 4:00 AM UTC
   schedule:
     - cron: "0 4 * * *"
 
-  # Allow manual trigger (host is fixed — no choice of decommissioned VMs)
   workflow_dispatch:
 
 env:
@@ -26,6 +28,8 @@ env:
   PROD_HOST: "18.133.126.242"
   PROD_SSH_USER: admin
   PROD_DATA_DIR: /opt/nginx/data
+  # Space-separated trees under PROD_DATA_DIR to sync/backup
+  SYNC_TREES: "servers rules ssl ssl-certs upstreams varnish waf_policies waf_rules pops"
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
@@ -34,15 +38,13 @@ jobs:
     runs-on: [self-hosted, Linux, prod]
 
     steps:
-      # The self-hosted `prod` runner must run ON pop1 (18.133.126.242).
-      # Data is read from local disk with sudo — no SSH to other hosts.
       - name: Verify runner is pop1 (18.133.126.242)
         run: |
           set -euo pipefail
           echo "Runner: $(whoami)@$(hostname)"
           echo "Required PROD_HOST: ${PROD_HOST} (ssh ${PROD_SSH_USER}@${PROD_HOST})"
+          echo "SYNC_TREES: ${SYNC_TREES}"
 
-          # Reject any other host — decommissioned VMs must not sync to S3.
           if ! hostname -I 2>/dev/null | tr ' ' '\n' | grep -qx "${PROD_HOST}"; then
             echo "::error::This runner ($(hostname), IPs: $(hostname -I 2>/dev/null)) is not pop1 ${PROD_HOST}."
             echo "::error::Sync-to-S3 is only allowed from admin@${PROD_HOST}. Move/register the self-hosted prod runner on that host."
@@ -53,73 +55,65 @@ jobs:
             echo "::error::${PROD_DATA_DIR}/servers not found or not readable with passwordless sudo on pop1."
             exit 1
           fi
-          echo "✅ Confirmed: runner is pop1 (${PROD_HOST}) and ${PROD_DATA_DIR} is readable"
+          if ! sudo -n test -d "${PROD_DATA_DIR}/ssl"; then
+            echo "::error::${PROD_DATA_DIR}/ssl not found — SSL allow-list must be synced or certs will break on restore."
+            exit 1
+          fi
+          echo "✅ Confirmed: runner is pop1 (${PROD_HOST}) and required data dirs are readable"
 
-      - name: Create local staging directory
-        run: mkdir -p staging/servers staging/rules
-
-      - name: Sync all server configs from prod (all environments)
+      - name: Stage all sync trees from local disk
         run: |
-          echo "Copying all servers from local ${PROD_DATA_DIR}/servers/"
-          sudo rsync -a --delete "${PROD_DATA_DIR}/servers/" staging/servers/
-          # Hand ownership to the runner user so later steps (jq, aws) can read.
-          sudo chown -R "$(id -u):$(id -g)" staging/servers
-
-      - name: Sync all rule configs from prod (all environments)
-        run: |
-          echo "Copying all rules from local ${PROD_DATA_DIR}/rules/"
-          sudo rsync -a --delete "${PROD_DATA_DIR}/rules/" staging/rules/
-          sudo chown -R "$(id -u):$(id -g)" staging/rules
+          set -euo pipefail
+          rm -rf staging
+          mkdir -p staging
+          for tree in ${SYNC_TREES}; do
+            src="${PROD_DATA_DIR}/${tree}"
+            if ! sudo -n test -d "${src}"; then
+              echo "::warning::Skipping missing tree: ${src}"
+              continue
+            fi
+            echo "Copying ${src}/ → staging/${tree}/"
+            mkdir -p "staging/${tree}"
+            sudo rsync -a --delete "${src}/" "staging/${tree}/"
+          done
+          sudo chown -R "$(id -u):$(id -g)" staging
 
       - name: Validate JSON files
         run: |
+          set -euo pipefail
           command -v jq >/dev/null 2>&1 || sudo apt-get install -y jq
           ERR_FILE="${RUNNER_TEMP}/json_errors"
           rm -f "${ERR_FILE}"
-          echo "=== Validating all server configs ==="
-          find staging/servers -name '*.json' | while read -r file; do
-            if ! jq empty "$file" 2>/dev/null; then
-              echo "❌ Invalid JSON: $file"
-              echo "FAIL" >> "${ERR_FILE}"
-            else
-              echo "✅ Valid: $file"
-            fi
-          done
-          echo ""
-          echo "=== Validating all rule configs ==="
-          find staging/rules -name '*.json' | while read -r file; do
-            if ! jq empty "$file" 2>/dev/null; then
-              echo "❌ Invalid JSON: $file"
-              echo "FAIL" >> "${ERR_FILE}"
-            else
-              echo "✅ Valid: $file"
-            fi
+          # Validate JSON under trees that are expected to be JSON-heavy
+          for tree in servers rules ssl upstreams varnish waf_policies waf_rules pops; do
+            [ -d "staging/${tree}" ] || continue
+            echo "=== Validating staging/${tree} ==="
+            find "staging/${tree}" -name '*.json' -print0 | while IFS= read -r -d '' file; do
+              if ! jq empty "$file" 2>/dev/null; then
+                echo "❌ Invalid JSON: $file"
+                echo "FAIL" >> "${ERR_FILE}"
+              fi
+            done
+            COUNT=$(find "staging/${tree}" -name '*.json' | wc -l | tr -d ' ')
+            echo "  ${COUNT} JSON file(s) checked"
           done
           if [[ -f "${ERR_FILE}" ]]; then
             ERRORS=$(wc -l < "${ERR_FILE}" | tr -d ' ')
             echo "::warning::Found $ERRORS invalid JSON file(s)"
+          else
+            echo "✅ All checked JSON files are valid"
           fi
 
-      - name: List synced environment directories
+      - name: List staged trees
         run: |
-          echo "=== Server environment directories ==="
-          ls -la staging/servers/ 2>/dev/null || echo "No server configs"
-          echo ""
-          echo "=== Rule environment directories ==="
-          ls -la staging/rules/ 2>/dev/null || echo "No rule configs"
-          echo ""
-          echo "=== File counts per environment ==="
-          for dir in staging/servers/*/; do
-            if [[ -d "$dir" ]]; then
-              COUNT=$(find "$dir" -name '*.json' | wc -l | tr -d ' ')
-              echo "  servers/$(basename "$dir"): $COUNT files"
-            fi
-          done
-          for dir in staging/rules/*/; do
-            if [[ -d "$dir" ]]; then
-              COUNT=$(find "$dir" -name '*.json' | wc -l | tr -d ' ')
-              echo "  rules/$(basename "$dir"): $COUNT files"
-            fi
+          set -euo pipefail
+          echo "=== Staged tree sizes / file counts ==="
+          for tree in ${SYNC_TREES}; do
+            [ -d "staging/${tree}" ] || { echo "  ${tree}: (missing)"; continue; }
+            BYTES=$(du -sh "staging/${tree}" | cut -f1)
+            JSON=$(find "staging/${tree}" -name '*.json' | wc -l | tr -d ' ')
+            ALL=$(find "staging/${tree}" -type f | wc -l | tr -d ' ')
+            echo "  ${tree}: ${BYTES}, ${JSON} json, ${ALL} files"
           done
 
       - name: Configure AWS credentials
@@ -129,57 +123,107 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Upload all environments to S3 (live data)
+      - name: Upload live data trees to S3
         run: |
+          set -euo pipefail
           S3_BUCKET="${{ secrets.WSLPROXY_S3_BUCKET }}"
-          echo "Uploading all environments to s3://${S3_BUCKET}/data/"
+          echo "Uploading trees to s3://${S3_BUCKET}/data/"
 
-          aws s3 sync staging/servers/ "s3://${S3_BUCKET}/data/servers/" --delete
-          aws s3 sync staging/rules/  "s3://${S3_BUCKET}/data/rules/"   --delete
+          for tree in ${SYNC_TREES}; do
+            [ -d "staging/${tree}" ] || continue
+            echo "→ s3://${S3_BUCKET}/data/${tree}/"
+            aws s3 sync "staging/${tree}/" "s3://${S3_BUCKET}/data/${tree}/" --delete
+          done
 
           echo ""
           echo "=========================================="
           echo "S3 Upload Summary (live data)"
           echo "=========================================="
-          TOTAL_SERVERS=0
-          TOTAL_RULES=0
-          for dir in staging/servers/*/; do
-            if [[ -d "$dir" ]]; then
-              ENV=$(basename "$dir")
-              SC=$(find "$dir" -name '*.json' | wc -l | tr -d ' ')
-              RC=$(find "staging/rules/${ENV}" -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
-              echo "  ${ENV}: ${SC} server(s), ${RC} rule(s)"
-              TOTAL_SERVERS=$((TOTAL_SERVERS + SC))
-              TOTAL_RULES=$((TOTAL_RULES + RC))
-            fi
+          for tree in ${SYNC_TREES}; do
+            [ -d "staging/${tree}" ] || continue
+            FILES=$(find "staging/${tree}" -type f | wc -l | tr -d ' ')
+            JSON=$(find "staging/${tree}" -name '*.json' | wc -l | tr -d ' ')
+            echo "  ${tree}: ${FILES} file(s), ${JSON} json"
           done
-          echo "------------------------------------------"
-          echo "  TOTAL: ${TOTAL_SERVERS} server(s), ${TOTAL_RULES} rule(s)"
+          if [ -d staging/servers/prod ] || [ -d staging/rules/prod ]; then
+            SC=$(find staging/servers/prod -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
+            RC=$(find staging/rules/prod -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
+            SSL=$(find staging/ssl -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
+            echo "------------------------------------------"
+            echo "  prod profile: ${SC} servers, ${RC} rules; ssl allow-list: ${SSL}"
+          fi
           echo "=========================================="
 
-      - name: Create and upload prod backup tarball
+      - name: Create and upload backup tarball
+        id: backup
         run: |
+          set -euo pipefail
           S3_BUCKET="${{ secrets.WSLPROXY_S3_BUCKET }}"
           TIMESTAMP=$(date -u +"%Y%m%d_%H%M%S")
           BACKUP_FILE="prod_backup_${TIMESTAMP}.tar.gz"
 
-          PROD_SERVERS=$(find staging/servers/prod -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
-          PROD_RULES=$(find staging/rules/prod -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
+          # Archive every staged tree (servers/rules env dirs + flat ssl/ etc.)
+          TAR_ARGS=()
+          for tree in ${SYNC_TREES}; do
+            [ -d "staging/${tree}" ] || continue
+            TAR_ARGS+=("${tree}/")
+          done
 
-          echo "Creating prod-only backup tarball: ${BACKUP_FILE}"
-          echo "  Backing up: ${PROD_SERVERS} server(s), ${PROD_RULES} rule(s)"
-          tar -czf "${BACKUP_FILE}" \
-            -C staging \
-            servers/prod/ \
-            rules/prod/
+          echo "Creating backup tarball: ${BACKUP_FILE}"
+          echo "  Paths: ${TAR_ARGS[*]}"
+          tar -czf "${BACKUP_FILE}" -C staging "${TAR_ARGS[@]}"
 
-          echo "Uploading to s3://${S3_BUCKET}/backups/${BACKUP_FILE}"
+          SIZE=$(du -h "${BACKUP_FILE}" | cut -f1)
+          echo "Uploading to s3://${S3_BUCKET}/backups/${BACKUP_FILE} (${SIZE})"
           aws s3 cp "${BACKUP_FILE}" "s3://${S3_BUCKET}/backups/${BACKUP_FILE}"
 
-          echo "✅ Backup uploaded: ${BACKUP_FILE} ($(du -h "${BACKUP_FILE}" | cut -f1)) — ${PROD_SERVERS} server(s), ${PROD_RULES} rule(s)"
+          # Prove the object exists and is non-empty
+          REMOTE_SIZE=$(aws s3api head-object --bucket "${S3_BUCKET}" --key "backups/${BACKUP_FILE}" --query ContentLength --output text)
+          if [[ -z "${REMOTE_SIZE}" || "${REMOTE_SIZE}" -lt 100 ]]; then
+            echo "::error::Backup object missing or too small (${REMOTE_SIZE} bytes)"
+            exit 1
+          fi
+
+          echo "backup_key=backups/${BACKUP_FILE}" >> "${GITHUB_OUTPUT}"
+          echo "backup_file=${BACKUP_FILE}" >> "${GITHUB_OUTPUT}"
+          echo "✅ Backup uploaded: ${BACKUP_FILE} (${SIZE}, ${REMOTE_SIZE} bytes remote)"
+
+      - name: Verify backup download round-trip
+        run: |
+          set -euo pipefail
+          S3_BUCKET="${{ secrets.WSLPROXY_S3_BUCKET }}"
+          KEY="${{ steps.backup.outputs.backup_key }}"
+          FILE="${{ steps.backup.outputs.backup_file }}"
+          VERIFY_DIR="${RUNNER_TEMP}/backup-verify"
+          rm -rf "${VERIFY_DIR}"
+          mkdir -p "${VERIFY_DIR}"
+
+          echo "Downloading s3://${S3_BUCKET}/${KEY} for verification"
+          aws s3 cp "s3://${S3_BUCKET}/${KEY}" "${VERIFY_DIR}/${FILE}"
+          tar -tzf "${VERIFY_DIR}/${FILE}" | head -40
+          echo "..."
+          ENTRIES=$(tar -tzf "${VERIFY_DIR}/${FILE}" | wc -l | tr -d ' ')
+
+          # Must contain the critical trees
+          for must in servers/ rules/ ssl/; do
+            if ! tar -tzf "${VERIFY_DIR}/${FILE}" | grep -q "^${must}"; then
+              echo "::error::Backup tarball missing required path prefix: ${must}"
+              exit 1
+            fi
+          done
+
+          # Spot-check: at least one ssl allow-list JSON and one prod server
+          SSL_JSON=$(tar -tzf "${VERIFY_DIR}/${FILE}" | grep -E '^ssl/[^/]+\.json$' | wc -l | tr -d ' ')
+          if [[ "${SSL_JSON}" -lt 1 ]]; then
+            echo "::error::Backup has no ssl/*.json allow-list files"
+            exit 1
+          fi
+
+          echo "✅ Round-trip OK: ${ENTRIES} archive entries, ${SSL_JSON} ssl/*.json files"
 
       - name: Set S3 lifecycle policy (60-day retention on backups)
         run: |
+          set -euo pipefail
           S3_BUCKET="${{ secrets.WSLPROXY_S3_BUCKET }}"
 
           cat > "${RUNNER_TEMP}/lifecycle.json" <<'LIFECYCLE'
@@ -207,11 +251,17 @@ jobs:
 
       - name: Verify S3 contents
         run: |
+          set -euo pipefail
           S3_BUCKET="${{ secrets.WSLPROXY_S3_BUCKET }}"
-          echo "=== S3 data/ structure ==="
-          aws s3 ls "s3://${S3_BUCKET}/data/" --recursive --summarize | tail -5
+          echo "=== S3 data/ top-level prefixes ==="
+          aws s3 ls "s3://${S3_BUCKET}/data/"
           echo ""
-          echo "=== S3 backups/ ==="
+          for tree in ${SYNC_TREES}; do
+            echo "--- data/${tree}/ (sample) ---"
+            aws s3 ls "s3://${S3_BUCKET}/data/${tree}/" 2>/dev/null | head -5 || echo "(empty/missing)"
+          done
+          echo ""
+          echo "=== S3 backups/ (latest) ==="
           aws s3 ls "s3://${S3_BUCKET}/backups/" | tail -5
 
       - name: Summary
@@ -221,7 +271,7 @@ jobs:
           echo "=========================================="
           echo "Source Host:   ${PROD_SSH_USER}@${PROD_HOST} (pop1 only)"
           echo "S3 Bucket:     ${{ secrets.WSLPROXY_S3_BUCKET }}"
-          echo "Live data:     data/{servers,rules}/{prod,int,acc,test,...}/"
-          echo "Backup:        backups/prod_backup_*.tar.gz (prod only)"
+          echo "Live trees:    ${SYNC_TREES}"
+          echo "Backup key:    ${{ steps.backup.outputs.backup_key }}"
           echo "Timestamp:     $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
           echo "=========================================="
