@@ -224,8 +224,19 @@
   ignore_errors: true
   tags: [nginx, code, dashboard, servers]
 
-- name: Kill any stale nginx processes
-  shell: killall nginx 2>/dev/null || true
+# A bare `killall nginx` matches every process named "nginx" in the HOST pid
+# namespace — which on a k3s node includes the nginx masters running inside
+# containers (longhorn-ui, beacon-nginx, any ingress/app pod built on nginx).
+# They take the SIGTERM, exit 0 ("Completed"), and kubelet restarts them, so a
+# nightly deploy silently racked up a restart per pod per night on whichever
+# node hosts this runner. Scope the kill to host processes by skipping anything
+# whose cgroup says it belongs to a container runtime.
+- name: Kill any stale host nginx processes (never container nginx)
+  shell: |
+    for pid in $(pgrep -x nginx 2>/dev/null || true); do
+      grep -qE 'kubepods|containerd|docker|libpod|crio' "/proc/$pid/cgroup" 2>/dev/null && continue
+      kill -TERM "$pid" 2>/dev/null || true
+    done
   changed_when: false
   tags: [nginx, code, dashboard, servers]
 
