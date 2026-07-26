@@ -32,7 +32,9 @@ env:
 jobs:
   sync-prod-data-to-s3:
     name: "Sync prod data to S3 (pop1 only)"
-    runs-on: [self-hosted, Linux, prod]
+    # GitHub-hosted: the legacy self-hosted `prod` runner cannot reach pop1:22
+    # (connection timed out). SSH_PRIVATE_KEY must authorize admin@18.133.126.242.
+    runs-on: ubuntu-latest
 
     steps:
       - name: Guard — only pop1 is allowed as source
@@ -98,7 +100,9 @@ jobs:
       - name: Validate JSON files
         run: |
           set -euo pipefail
+          sudo apt-get update -qq
           command -v jq >/dev/null 2>&1 || sudo apt-get install -y jq
+          command -v rsync >/dev/null 2>&1 || sudo apt-get install -y rsync
           ERR_FILE="${RUNNER_TEMP}/json_errors"
           rm -f "${ERR_FILE}"
           for tree in servers rules ssl upstreams varnish waf_policies waf_rules pops; do
