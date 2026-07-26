@@ -1,21 +1,19 @@
 name: Sync Prod Data to S3
 
-# Reads gateway data trees from the live prod POP (pop1) and uploads them to
-# an S3 bucket.  Keeps sensitive data out of git while making it available to
-# deploys / disaster recovery.
+# Pulls gateway data trees from the sole production POP and uploads them to S3.
 #
 # ONLY source host (all other VMs are decommissioned):
 #   admin@18.133.126.242  (pop1 — AWS eu-west-2)
 #
-# The self-hosted `prod` runner must run ON that host so data is read from
-# local disk with sudo — no SSH.  Do not point this workflow at any other IP.
+# Data is fetched over SSH as admin (rsync). The self-hosted `prod` runner
+# does not need to live on pop1, but SSH_PRIVATE_KEY must reach that host.
 #
-# Live sync trees (under /opt/nginx/data/ → s3://…/data/):
+# Live sync trees (/opt/nginx/data/ → s3://…/data/):
 #   servers, rules, ssl, ssl-certs, upstreams, varnish, waf_policies, waf_rules, pops
 # Excluded: settings.json (host secrets), audit, cache, versions, change_requests,
 #           bookmarks, server/ (dead singular staging dir)
 #
-# Backup tarball: same trees (prod-scoped where env subdirs exist) + full ssl/
+# Backup tarball: all SYNC_TREES; verified with download round-trip.
 
 on:
   schedule:
@@ -24,11 +22,10 @@ on:
   workflow_dispatch:
 
 env:
-  # pop1 — sole remaining production POP (admin@18.133.126.242)
+  # pop1 — sole remaining production POP
   PROD_HOST: "18.133.126.242"
   PROD_SSH_USER: admin
   PROD_DATA_DIR: /opt/nginx/data
-  # Space-separated trees under PROD_DATA_DIR to sync/backup
   SYNC_TREES: "servers rules ssl ssl-certs upstreams varnish waf_policies waf_rules pops"
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
@@ -38,45 +35,65 @@ jobs:
     runs-on: [self-hosted, Linux, prod]
 
     steps:
-      - name: Verify runner is pop1 (18.133.126.242)
+      - name: Guard — only pop1 is allowed as source
         run: |
           set -euo pipefail
-          echo "Runner: $(whoami)@$(hostname)"
-          echo "Required PROD_HOST: ${PROD_HOST} (ssh ${PROD_SSH_USER}@${PROD_HOST})"
+          echo "Source: ${PROD_SSH_USER}@${PROD_HOST}:${PROD_DATA_DIR}"
           echo "SYNC_TREES: ${SYNC_TREES}"
-
-          if ! hostname -I 2>/dev/null | tr ' ' '\n' | grep -qx "${PROD_HOST}"; then
-            echo "::error::This runner ($(hostname), IPs: $(hostname -I 2>/dev/null)) is not pop1 ${PROD_HOST}."
-            echo "::error::Sync-to-S3 is only allowed from admin@${PROD_HOST}. Move/register the self-hosted prod runner on that host."
+          if [[ "${PROD_HOST}" != "18.133.126.242" ]]; then
+            echo "::error::PROD_HOST must be 18.133.126.242 (pop1). Refusing ${PROD_HOST}."
             exit 1
           fi
 
-          if ! sudo -n test -d "${PROD_DATA_DIR}/servers"; then
-            echo "::error::${PROD_DATA_DIR}/servers not found or not readable with passwordless sudo on pop1."
-            exit 1
-          fi
-          if ! sudo -n test -d "${PROD_DATA_DIR}/ssl"; then
-            echo "::error::${PROD_DATA_DIR}/ssl not found — SSL allow-list must be synced or certs will break on restore."
-            exit 1
-          fi
-          echo "✅ Confirmed: runner is pop1 (${PROD_HOST}) and required data dirs are readable"
+      - name: Setup SSH to admin@pop1
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          ssh-keyscan -H "${PROD_HOST}" >> ~/.ssh/known_hosts 2>/dev/null || true
 
-      - name: Stage all sync trees from local disk
+          if [[ -n "${SSH_PRIVATE_KEY:-}" ]]; then
+            printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+            chmod 600 ~/.ssh/id_rsa
+          elif [[ -f ~/.ssh/id_rsa ]]; then
+            echo "Using existing ~/.ssh/id_rsa on runner"
+            chmod 600 ~/.ssh/id_rsa
+          else
+            echo "::error::SSH key not found. Set secrets.SSH_PRIVATE_KEY (admin@${PROD_HOST})."
+            exit 1
+          fi
+
+          ssh -o BatchMode=yes -o ConnectTimeout=20 \
+            "${PROD_SSH_USER}@${PROD_HOST}" \
+            "test -d ${PROD_DATA_DIR}/servers && test -d ${PROD_DATA_DIR}/ssl && echo ok_dirs"
+          echo "✅ SSH to ${PROD_SSH_USER}@${PROD_HOST} works; servers/ + ssl/ present"
+
+      - name: Stage all sync trees via SSH rsync
         run: |
           set -euo pipefail
           rm -rf staging
           mkdir -p staging
+          RSH="ssh -o BatchMode=yes -o ConnectTimeout=20"
           for tree in ${SYNC_TREES}; do
-            src="${PROD_DATA_DIR}/${tree}"
-            if ! sudo -n test -d "${src}"; then
-              echo "::warning::Skipping missing tree: ${src}"
-              continue
-            fi
-            echo "Copying ${src}/ → staging/${tree}/"
+            remote="${PROD_SSH_USER}@${PROD_HOST}:${PROD_DATA_DIR}/${tree}/"
+            echo "rsync ${remote} → staging/${tree}/"
             mkdir -p "staging/${tree}"
-            sudo rsync -a --delete "${src}/" "staging/${tree}/"
+            # Prefer direct read as admin; if permission denied on ssl/, retry via remote sudo+rsync daemon-less tar
+            if ! rsync -az --delete -e "$RSH" "${remote}" "staging/${tree}/"; then
+              echo "::warning::Direct rsync failed for ${tree}; trying sudo tar over ssh"
+              ssh -o BatchMode=yes "${PROD_SSH_USER}@${PROD_HOST}" \
+                "sudo tar -C ${PROD_DATA_DIR} -cf - ${tree}" \
+                | tar -C staging -xf -
+            fi
+            COUNT=$(find "staging/${tree}" -type f 2>/dev/null | wc -l | tr -d ' ')
+            echo "  staged ${COUNT} file(s)"
+            if [[ "${COUNT}" -eq 0 && "${tree}" =~ ^(servers|rules|ssl)$ ]]; then
+              echo "::error::Critical tree ${tree} staged 0 files"
+              exit 1
+            fi
           done
-          sudo chown -R "$(id -u):$(id -g)" staging
 
       - name: Validate JSON files
         run: |
@@ -84,7 +101,6 @@ jobs:
           command -v jq >/dev/null 2>&1 || sudo apt-get install -y jq
           ERR_FILE="${RUNNER_TEMP}/json_errors"
           rm -f "${ERR_FILE}"
-          # Validate JSON under trees that are expected to be JSON-heavy
           for tree in servers rules ssl upstreams varnish waf_policies waf_rules pops; do
             [ -d "staging/${tree}" ] || continue
             echo "=== Validating staging/${tree} ==="
@@ -145,13 +161,11 @@ jobs:
             JSON=$(find "staging/${tree}" -name '*.json' | wc -l | tr -d ' ')
             echo "  ${tree}: ${FILES} file(s), ${JSON} json"
           done
-          if [ -d staging/servers/prod ] || [ -d staging/rules/prod ]; then
-            SC=$(find staging/servers/prod -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
-            RC=$(find staging/rules/prod -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
-            SSL=$(find staging/ssl -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
-            echo "------------------------------------------"
-            echo "  prod profile: ${SC} servers, ${RC} rules; ssl allow-list: ${SSL}"
-          fi
+          SC=$(find staging/servers/prod -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
+          RC=$(find staging/rules/prod -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
+          SSL=$(find staging/ssl -name '*.json' 2>/dev/null | wc -l | tr -d ' ')
+          echo "------------------------------------------"
+          echo "  prod profile: ${SC} servers, ${RC} rules; ssl allow-list: ${SSL}"
           echo "=========================================="
 
       - name: Create and upload backup tarball
@@ -162,7 +176,6 @@ jobs:
           TIMESTAMP=$(date -u +"%Y%m%d_%H%M%S")
           BACKUP_FILE="prod_backup_${TIMESTAMP}.tar.gz"
 
-          # Archive every staged tree (servers/rules env dirs + flat ssl/ etc.)
           TAR_ARGS=()
           for tree in ${SYNC_TREES}; do
             [ -d "staging/${tree}" ] || continue
@@ -177,7 +190,6 @@ jobs:
           echo "Uploading to s3://${S3_BUCKET}/backups/${BACKUP_FILE} (${SIZE})"
           aws s3 cp "${BACKUP_FILE}" "s3://${S3_BUCKET}/backups/${BACKUP_FILE}"
 
-          # Prove the object exists and is non-empty
           REMOTE_SIZE=$(aws s3api head-object --bucket "${S3_BUCKET}" --key "backups/${BACKUP_FILE}" --query ContentLength --output text)
           if [[ -z "${REMOTE_SIZE}" || "${REMOTE_SIZE}" -lt 100 ]]; then
             echo "::error::Backup object missing or too small (${REMOTE_SIZE} bytes)"
@@ -204,7 +216,6 @@ jobs:
           echo "..."
           ENTRIES=$(tar -tzf "${VERIFY_DIR}/${FILE}" | wc -l | tr -d ' ')
 
-          # Must contain the critical trees
           for must in servers/ rules/ ssl/; do
             if ! tar -tzf "${VERIFY_DIR}/${FILE}" | grep -q "^${must}"; then
               echo "::error::Backup tarball missing required path prefix: ${must}"
@@ -212,7 +223,6 @@ jobs:
             fi
           done
 
-          # Spot-check: at least one ssl allow-list JSON and one prod server
           SSL_JSON=$(tar -tzf "${VERIFY_DIR}/${FILE}" | grep -E '^ssl/[^/]+\.json$' | wc -l | tr -d ' ')
           if [[ "${SSL_JSON}" -lt 1 ]]; then
             echo "::error::Backup has no ssl/*.json allow-list files"
@@ -269,7 +279,7 @@ jobs:
           echo "=========================================="
           echo "Sync Prod Data to S3 — Summary"
           echo "=========================================="
-          echo "Source Host:   ${PROD_SSH_USER}@${PROD_HOST} (pop1 only)"
+          echo "Source Host:   ${PROD_SSH_USER}@${PROD_HOST} (pop1 only, via SSH)"
           echo "S3 Bucket:     ${{ secrets.WSLPROXY_S3_BUCKET }}"
           echo "Live trees:    ${SYNC_TREES}"
           echo "Backup key:    ${{ steps.backup.outputs.backup_key }}"
