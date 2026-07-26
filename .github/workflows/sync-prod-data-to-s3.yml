@@ -32,9 +32,12 @@ env:
 jobs:
   sync-prod-data-to-s3:
     name: "Sync prod data to S3 (pop1 only)"
-    # GitHub-hosted: the legacy self-hosted `prod` runner cannot reach pop1:22
-    # (connection timed out). SSH_PRIVATE_KEY must authorize admin@18.133.126.242.
-    runs-on: ubuntu-latest
+# Prefer a self-hosted runner that can SSH to admin@18.133.126.242.
+    # - macOS `prod` studio can reach pop1
+    # - Linux `prod`/`pop0` runner (187.124.112.155) times out on pop1:22
+    # - GitHub-hosted ubuntu-latest also times out (SG/firewall)
+    # When a runner is registered ON pop1 with label `pop1`, prefer that for local disk.
+    runs-on: [self-hosted, prod, macOS]
 
     steps:
       - name: Guard — only pop1 is allowed as source
@@ -52,22 +55,36 @@ jobs:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         run: |
           set -euo pipefail
+          # Homebrew tools on macOS runners
+          export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+          command -v rsync >/dev/null || { echo "::error::rsync required"; exit 1; }
+          command -v jq >/dev/null || { echo "::error::jq required"; exit 1; }
+
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
           ssh-keyscan -H "${PROD_HOST}" >> ~/.ssh/known_hosts 2>/dev/null || true
 
+          KEY_FILE=""
           if [[ -n "${SSH_PRIVATE_KEY:-}" ]]; then
-            printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
-            chmod 600 ~/.ssh/id_rsa
-          elif [[ -f ~/.ssh/id_rsa ]]; then
+            KEY_FILE=$(mktemp)
+            printf '%s\n' "$SSH_PRIVATE_KEY" > "$KEY_FILE"
+            chmod 600 "$KEY_FILE"
+          elif [[ -f "$HOME/.ssh/id_rsa" ]]; then
+            KEY_FILE="$HOME/.ssh/id_rsa"
             echo "Using existing ~/.ssh/id_rsa on runner"
-            chmod 600 ~/.ssh/id_rsa
+          elif [[ -f "$HOME/.ssh/id_ed25519" ]]; then
+            KEY_FILE="$HOME/.ssh/id_ed25519"
+            echo "Using existing ~/.ssh/id_ed25519 on runner"
           else
             echo "::error::SSH key not found. Set secrets.SSH_PRIVATE_KEY (admin@${PROD_HOST})."
             exit 1
           fi
 
-          ssh -o BatchMode=yes -o ConnectTimeout=20 \
+          export RSYNC_RSH="ssh -o BatchMode=yes -o ConnectTimeout=20 -i ${KEY_FILE}"
+          echo "RSYNC_RSH=${RSYNC_RSH}" >> "$GITHUB_ENV"
+          echo "SSH_KEY_FILE=${KEY_FILE}" >> "$GITHUB_ENV"
+
+          ssh -o BatchMode=yes -o ConnectTimeout=20 -i "${KEY_FILE}" \
             "${PROD_SSH_USER}@${PROD_HOST}" \
             "test -d ${PROD_DATA_DIR}/servers && test -d ${PROD_DATA_DIR}/ssl && echo ok_dirs"
           echo "✅ SSH to ${PROD_SSH_USER}@${PROD_HOST} works; servers/ + ssl/ present"
@@ -75,17 +92,17 @@ jobs:
       - name: Stage all sync trees via SSH rsync
         run: |
           set -euo pipefail
+          export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
           rm -rf staging
           mkdir -p staging
-          RSH="ssh -o BatchMode=yes -o ConnectTimeout=20"
           for tree in ${SYNC_TREES}; do
             remote="${PROD_SSH_USER}@${PROD_HOST}:${PROD_DATA_DIR}/${tree}/"
             echo "rsync ${remote} → staging/${tree}/"
             mkdir -p "staging/${tree}"
-            # Prefer direct read as admin; if permission denied on ssl/, retry via remote sudo+rsync daemon-less tar
-            if ! rsync -az --delete -e "$RSH" "${remote}" "staging/${tree}/"; then
+            if ! rsync -az --delete -e "${RSYNC_RSH}" "${remote}" "staging/${tree}/"; then
               echo "::warning::Direct rsync failed for ${tree}; trying sudo tar over ssh"
-              ssh -o BatchMode=yes "${PROD_SSH_USER}@${PROD_HOST}" \
+              # shellcheck disable=SC2086
+              ${RSYNC_RSH} "${PROD_SSH_USER}@${PROD_HOST}" \
                 "sudo tar -C ${PROD_DATA_DIR} -cf - ${tree}" \
                 | tar -C staging -xf -
             fi
@@ -100,10 +117,8 @@ jobs:
       - name: Validate JSON files
         run: |
           set -euo pipefail
-          sudo apt-get update -qq
-          command -v jq >/dev/null 2>&1 || sudo apt-get install -y jq
-          command -v rsync >/dev/null 2>&1 || sudo apt-get install -y rsync
-          ERR_FILE="${RUNNER_TEMP}/json_errors"
+          export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+          ERR_FILE="${RUNNER_TEMP:-/tmp}/json_errors"
           rm -f "${ERR_FILE}"
           for tree in servers rules ssl upstreams varnish waf_policies waf_rules pops; do
             [ -d "staging/${tree}" ] || continue
@@ -142,6 +157,16 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Ensure AWS CLI
+        run: |
+          set -euo pipefail
+          export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+          if ! command -v aws >/dev/null; then
+            curl -fsSL "https://awscli.amazonaws.com/AWSCLIV2.pkg" -o /tmp/AWSCLIV2.pkg
+            sudo installer -pkg /tmp/AWSCLIV2.pkg -target /
+          fi
+          aws --version
 
       - name: Upload live data trees to S3
         run: |
