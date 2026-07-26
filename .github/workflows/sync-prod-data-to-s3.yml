@@ -1,13 +1,14 @@
 name: Sync Prod Data to S3
 
-# Reads servers and rules configs from the live prod host's local disk and
-# uploads them to an S3 bucket.  This keeps sensitive data (e.g. AWS keys in
-# rules) out of the git repo while still making them available to the deploy
-# pipeline.
+# Reads servers and rules configs from the live prod POP (pop1) and uploads
+# them to an S3 bucket.  This keeps sensitive data (e.g. AWS keys in rules)
+# out of the git repo while still making them available to the deploy pipeline.
 #
-# The self-hosted `prod` runner runs ON the prod host, so data is read from
-# local disk with sudo — no SSH.  To sync a *different* prod host, register a
-# self-hosted runner on that host and target it.
+# ONLY source host (all other VMs are decommissioned):
+#   admin@18.133.126.242  (pop1 — AWS eu-west-2)
+#
+# The self-hosted `prod` runner must run ON that host so data is read from
+# local disk with sudo — no SSH.  Do not point this workflow at any other IP.
 #
 # - Live data sync: ALL environment subdirs (prod, int, acc, test, etc.)
 # - Backup tarball: prod only (timestamped, 60-day retention)
@@ -17,50 +18,42 @@ on:
   schedule:
     - cron: "0 4 * * *"
 
-  # Allow manual trigger
+  # Allow manual trigger (host is fixed — no choice of decommissioned VMs)
   workflow_dispatch:
-    inputs:
-      PROD_HOST:
-        type: choice
-        description: "Production host to sync from"
-        default: "187.124.112.155"
-        required: true
-        options:
-          - 187.124.112.155
-          - 72.62.211.28
 
 env:
-  PROD_HOST: ${{ github.event.inputs.PROD_HOST || '187.124.112.155' }}
+  # pop1 — sole remaining production POP (admin@18.133.126.242)
+  PROD_HOST: "18.133.126.242"
+  PROD_SSH_USER: admin
   PROD_DATA_DIR: /opt/nginx/data
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   sync-prod-data-to-s3:
-    name: "Sync prod data to S3"
+    name: "Sync prod data to S3 (pop1 only)"
     runs-on: [self-hosted, Linux, prod]
 
     steps:
-      # The self-hosted `prod` runner runs ON the prod host itself, so the
-      # data lives on local disk — no SSH needed (SSH-ing to root@self is
-      # fragile and was the cause of repeated "Permission denied" failures).
-      # We read PROD_DATA_DIR directly with sudo, mirroring how the int
-      # deploy uses connection_mode=local.  This step just asserts the
-      # runner really is the selected host and that the data is readable.
-      - name: Verify runner is the target prod host
+      # The self-hosted `prod` runner must run ON pop1 (18.133.126.242).
+      # Data is read from local disk with sudo — no SSH to other hosts.
+      - name: Verify runner is pop1 (18.133.126.242)
         run: |
+          set -euo pipefail
           echo "Runner: $(whoami)@$(hostname)"
-          echo "Selected PROD_HOST: ${PROD_HOST}"
+          echo "Required PROD_HOST: ${PROD_HOST} (ssh ${PROD_SSH_USER}@${PROD_HOST})"
 
+          # Reject any other host — decommissioned VMs must not sync to S3.
           if ! hostname -I 2>/dev/null | tr ' ' '\n' | grep -qx "${PROD_HOST}"; then
-            echo "::error::This runner ($(hostname), $(hostname -I 2>/dev/null)) is not the selected PROD_HOST ${PROD_HOST}. Run this workflow on a self-hosted runner located on ${PROD_HOST}."
+            echo "::error::This runner ($(hostname), IPs: $(hostname -I 2>/dev/null)) is not pop1 ${PROD_HOST}."
+            echo "::error::Sync-to-S3 is only allowed from admin@${PROD_HOST}. Move/register the self-hosted prod runner on that host."
             exit 1
           fi
 
           if ! sudo -n test -d "${PROD_DATA_DIR}/servers"; then
-            echo "::error::${PROD_DATA_DIR}/servers not found or not readable with passwordless sudo on this host."
+            echo "::error::${PROD_DATA_DIR}/servers not found or not readable with passwordless sudo on pop1."
             exit 1
           fi
-          echo "✅ Confirmed: runner is ${PROD_HOST} and ${PROD_DATA_DIR} is readable"
+          echo "✅ Confirmed: runner is pop1 (${PROD_HOST}) and ${PROD_DATA_DIR} is readable"
 
       - name: Create local staging directory
         run: mkdir -p staging/servers staging/rules
@@ -226,7 +219,7 @@ jobs:
           echo "=========================================="
           echo "Sync Prod Data to S3 — Summary"
           echo "=========================================="
-          echo "Source Host:   ${{ env.PROD_HOST }}"
+          echo "Source Host:   ${PROD_SSH_USER}@${PROD_HOST} (pop1 only)"
           echo "S3 Bucket:     ${{ secrets.WSLPROXY_S3_BUCKET }}"
           echo "Live data:     data/{servers,rules}/{prod,int,acc,test,...}/"
           echo "Backup:        backups/prod_backup_*.tar.gz (prod only)"
