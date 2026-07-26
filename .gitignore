@@ -30,3 +30,8 @@ html/.DS_Store
 
 # Dashboard build artifacts
 dashboard/bin/
+
+# Local POP migration dumps (do not commit live host data)
+Source POP/
+Target POP/
+Migration-to-copy/
