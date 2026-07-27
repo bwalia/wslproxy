@@ -124,10 +124,13 @@ jobs:
   # Acceptance — acc (192.168.1.48, LAN). vault-first with SOPS fallback
   # (matches the delivery pipeline post-#1125; seed_from_host retired).
   # ──────────────────────────────────────────────────────
-  # Migrated off 187.124.112.155 (which was co-located with prod-pop0) — acc
-  # is now a dedicated host on the LAN, mirroring the int/test topology
-  # (self-hosted runner labeled `acc` on the target box, local ansible
-  # connection, local health check).
+  # Migrated off 187.124.112.155 (which was co-located with prod-pop0). acc
+  # now runs on a dedicated LAN box (192.168.1.48 / debian002); the `acc`
+  # self-hosted runner lives on the shared mac (hh193 / BalindeacStudio,
+  # LAN peer) and SSHes into acc as bwalia — its ~/.ssh/id_rsa is already
+  # trusted on the target. connection_mode=local would have `sudo`'d on
+  # the runner box (macOS, no passwordless sudo) instead of on acc, which
+  # is what failed run 30267669485.
   acc:
     if: ${{ inputs.ENV == 'acc' }}
     uses: ./.github/workflows/deploy-environment.yml
@@ -137,15 +140,13 @@ jobs:
       stage_number: "acc"
       host_ip: "192.168.1.48"
       ssh_user: bwalia
-      # Mirrors int/test: a self-hosted runner labeled `acc` runs on
-      # 192.168.1.48 itself, so ansible connects with --connection=local
-      # (no SSH). If this ever moves to a runner remote from the target,
-      # switch connection_mode to ssh_key and provision an SSH key trust
-      # from that runner to bwalia@192.168.1.48.
-      connection_mode: local
+      # ssh_key: ansible SSHes from the runner (mac, LAN peer) into acc
+      # using the runner's ~/.ssh/id_rsa. If the `acc` runner is ever
+      # moved onto 192.168.1.48 itself, drop this to `local`.
+      connection_mode: ssh_key
       secrets_mode: vault_or_sops
       health_endpoint: "http://localhost:8080/healthz"
-      health_check_mode: local
+      health_check_mode: ssh
       docker_prune: true
       notify_success: true
       deploy_branch: ${{ inputs.DEPLOY_BRANCH }}
