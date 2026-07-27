@@ -850,6 +850,20 @@ server {
               ngx.header["X-WSL-Rule"] = _gw.executableRule.name
             end
 
+            -- Surface WHICH backend the traffic router picked, so an
+            -- operator watching a multi-backend rule (weighted / round-
+            -- robin / least-conn / cookie-sticky) can see per-request
+            -- which endpoint actually served it — critical for
+            -- verifying canary weights, sticky sessions, and failover.
+            -- Populated by gateway_resp.lua whether the rule has one
+            -- backend or many; falls back to the redirect URI when the
+            -- rule has no named label.  Absent on cache HIT (that path
+            -- short-circuits before backend selection — check
+            -- X-WSL-Cache: HIT for that case).
+            if ngx.ctx.selected_backend_label then
+              ngx.header["X-WSL-Backend"] = ngx.ctx.selected_backend_label
+            end
+
             -- LLM protocol translation: normalise response headers
             local ok_llm, Llm = pcall(require, "llm_translator")
             if ok_llm then Llm.header_filter() end
@@ -1078,6 +1092,20 @@ server {
             local _gw = ngx.ctx.gateway
             if _gw and _gw.executableRule and _gw.executableRule.name then
               ngx.header["X-WSL-Rule"] = _gw.executableRule.name
+            end
+
+            -- Surface WHICH backend the traffic router picked, so an
+            -- operator watching a multi-backend rule (weighted / round-
+            -- robin / least-conn / cookie-sticky) can see per-request
+            -- which endpoint actually served it — critical for
+            -- verifying canary weights, sticky sessions, and failover.
+            -- Populated by gateway_resp.lua whether the rule has one
+            -- backend or many; falls back to the redirect URI when the
+            -- rule has no named label.  Absent on cache HIT (that path
+            -- short-circuits before backend selection — check
+            -- X-WSL-Cache: HIT for that case).
+            if ngx.ctx.selected_backend_label then
+              ngx.header["X-WSL-Backend"] = ngx.ctx.selected_backend_label
             end
 
             -- LLM protocol translation: normalise response headers
