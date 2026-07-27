@@ -1,0 +1,229 @@
+---
+# Reverse of the wslproxy install path (wslproxy-ops / deploy-wslproxy).
+# Included by infra/ansible/wslproxy-uninstall.yml
+#
+# Order: stop services → remove automation → remove units → remove files.
+# Safe defaults: keeps /opt/nginx/data unless purge_data=true.
+
+# ── 1. Services ────────────────────────────────────────────────────────────
+
+- name: "Uninstall: stop and disable OpenResty"
+  ansible.builtin.systemd:
+    name: openresty
+    state: stopped
+    enabled: false
+  failed_when: false
+  tags: [services, all]
+
+- name: "Uninstall: stop and disable Next.js dashboard"
+  ansible.builtin.systemd:
+    name: wslproxy-nextjs-dashboard
+    state: stopped
+    enabled: false
+  failed_when: false
+  tags: [services, all]
+
+- name: "Uninstall: stop and disable IP2Location refresh timer"
+  ansible.builtin.systemd:
+    name: wslproxy-ip2location-refresh.timer
+    state: stopped
+    enabled: false
+  failed_when: false
+  tags: [services, all]
+
+- name: "Uninstall: stop IP2Location refresh service (if running)"
+  ansible.builtin.systemd:
+    name: wslproxy-ip2location-refresh.service
+    state: stopped
+  failed_when: false
+  tags: [services, all]
+
+- name: "Uninstall: stop and disable Varnish (if present)"
+  ansible.builtin.systemd:
+    name: varnish
+    state: stopped
+    enabled: false
+  failed_when: false
+  tags: [services, all]
+
+- name: "Uninstall: kill leftover nginx/openresty processes"
+  ansible.builtin.shell: |
+    set +e
+    # Prefer graceful stop via binary; fall back to pkill of our install only.
+    if [ -x /usr/local/openresty/bin/openresty ]; then
+      /usr/local/openresty/bin/openresty -s quit 2>/dev/null || true
+      sleep 1
+      /usr/local/openresty/bin/openresty -s stop 2>/dev/null || true
+    fi
+    # Do NOT use killall nginx — that can kill k3s/container nginx on the same host.
+    pkill -f '/usr/local/openresty/nginx/sbin/nginx' 2>/dev/null || true
+    exit 0
+  args:
+    executable: /bin/bash
+  changed_when: false
+  tags: [services, all]
+
+# ── 2. Cron ────────────────────────────────────────────────────────────────
+
+- name: "Uninstall: remove nginx_restart cron"
+  ansible.builtin.cron:
+    name: nginx_restart
+    user: root
+    state: absent
+  tags: [cron, all]
+
+- name: "Uninstall: remove nginx_data_sync cron"
+  ansible.builtin.cron:
+    name: nginx_data_sync
+    user: root
+    state: absent
+  tags: [cron, all]
+
+- name: "Uninstall: remove helper scripts"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /usr/sbin/nginx_restart_if_required.sh
+    - /usr/sbin/nginx-data-sync-required.sh
+    - /usr/sbin/fix-permissions.sh
+    - /usr/local/bin/wslproxy-ip2location-refresh.sh
+  tags: [cron, all]
+
+# ── 3. Systemd units ───────────────────────────────────────────────────────
+
+- name: "Uninstall: remove systemd unit files"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/systemd/system/openresty.service
+    - /etc/systemd/system/openresty.service.d
+    - /etc/systemd/system/wslproxy-nextjs-dashboard.service
+    - /etc/systemd/system/wslproxy-ip2location-refresh.service
+    - /etc/systemd/system/wslproxy-ip2location-refresh.timer
+    - /etc/systemd/system/varnish.service
+  tags: [systemd, all]
+
+- name: "Uninstall: systemd daemon-reload"
+  ansible.builtin.systemd:
+    daemon_reload: true
+  tags: [systemd, all]
+
+# ── 4. Config / OS tweaks (reverse of nginx_config + systemd_limits) ───────
+
+- name: "Uninstall: remove openresty logrotate"
+  ansible.builtin.file:
+    path: /etc/logrotate.d/openresty
+    state: absent
+  tags: [config, all]
+
+- name: "Uninstall: remove openresty sysctl drop-in"
+  ansible.builtin.file:
+    path: /etc/sysctl.d/99-openresty.conf
+    state: absent
+  tags: [config, all]
+
+- name: "Uninstall: reload sysctl after drop-in removal"
+  ansible.builtin.command: sysctl --system
+  failed_when: false
+  changed_when: false
+  tags: [config, all]
+
+- name: "Uninstall: remove OpenResty block from limits.conf"
+  ansible.builtin.blockinfile:
+    path: /etc/security/limits.conf
+    marker: "# {mark} ANSIBLE MANAGED - OpenResty file descriptor limits"
+    state: absent
+  failed_when: false
+  tags: [config, all]
+
+- name: "Uninstall: remove nginx config dirs under /opt/nginx (not data)"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "{{ nginx_config_dir }}/conf.d"
+    - "{{ nginx_config_dir }}/base.d"
+    - "{{ nginx_config_dir }}/conf.d.predeploy"
+    - "{{ nginx_config_dir }}/prod_cache"
+  tags: [config, all]
+
+- name: "Uninstall: remove runtime/cache/log dirs"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /tmp/nginx
+    - /var/run/nginx
+    - /var/cache/nginx
+    - /var/log/nginx
+  tags: [config, all]
+
+# ── 5. Binaries / app tree ─────────────────────────────────────────────────
+
+- name: "Uninstall: remove OpenResty install prefix {{ openresty_prefix }}"
+  ansible.builtin.file:
+    path: "{{ openresty_prefix }}"
+    state: absent
+  tags: [binaries, all]
+
+- name: "Uninstall: remove leftover build scripts in /tmp"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /tmp/bootstrap.sh
+    - /tmp/openresty.sh
+    - /tmp/.env
+  tags: [binaries, all]
+
+# ── 6. Data (opt-in) ───────────────────────────────────────────────────────
+
+- name: "Uninstall: remove {{ nginx_config_dir }}/data (purge_data=true)"
+  ansible.builtin.file:
+    path: "{{ nginx_config_dir }}/data"
+    state: absent
+  when: purge_data | bool
+  tags: [data, all]
+
+- name: "Uninstall: remove {{ nginx_config_dir }} root (purge_data + purge_nginx_root)"
+  ansible.builtin.file:
+    path: "{{ nginx_config_dir }}"
+    state: absent
+  when:
+    - purge_data | bool
+    - purge_nginx_root | default(true) | bool
+  tags: [data, all]
+
+- name: "Uninstall: note data preserved"
+  ansible.builtin.debug:
+    msg: >-
+      Kept {{ nginx_config_dir }}/data (and parent if non-empty).
+      Re-run with -e purge_data=true to delete live servers/rules/ssl/certs.
+  when: not (purge_data | bool)
+  tags: [data, all]
+
+# ── 7. Verify ──────────────────────────────────────────────────────────────
+
+- name: "Uninstall: verify openresty binary gone"
+  ansible.builtin.stat:
+    path: "{{ openresty_prefix }}/bin/openresty"
+  register: _openresty_bin
+  tags: [verify, all]
+
+- name: "Uninstall: verify openresty service inactive"
+  ansible.builtin.command: systemctl is-active openresty
+  register: _openresty_active
+  failed_when: false
+  changed_when: false
+  tags: [verify, all]
+
+- name: "Uninstall: summary"
+  ansible.builtin.debug:
+    msg:
+      - "openresty binary present: {{ _openresty_bin.stat.exists | default(false) }}"
+      - "openresty systemd active: {{ _openresty_active.stdout | default('unknown') }}"
+      - "purge_data: {{ purge_data | bool }}"
+      - "Done. OS packages / Node.js / www-data user were intentionally left in place."
+  tags: [verify, all]

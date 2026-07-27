@@ -1,0 +1,44 @@
+---
+# Uninstall WSL Proxy / OpenResty — reverse of wslproxy-ops.yml / deploy-wslproxy.yml
+#
+# Stops services, removes cron/systemd/scripts/binaries, and optionally purges
+# /opt/nginx data. Does NOT remove OS packages, Node.js, or the www-data user
+# (those may be shared with other workloads).
+#
+# Usage:
+#   ansible-playbook -i hosts -l <host> wslproxy-uninstall.yml \
+#     -e confirm_uninstall=true
+#
+#   # Also delete /opt/nginx (servers, rules, ssl, certs):
+#   ansible-playbook -i hosts -l <host> wslproxy-uninstall.yml \
+#     -e confirm_uninstall=true -e purge_data=true
+#
+# Tags (optional filters):
+#   services | cron | systemd | config | binaries | data | verify | all
+
+- name: Uninstall WSL Proxy / OpenResty
+  hosts: openresty_native_cluster
+  become: yes
+  gather_facts: yes
+
+  vars:
+    openresty_prefix: /usr/local/openresty
+    nginx_config_dir: /opt/nginx
+    # Safety gate — must pass confirm_uninstall=true on the CLI
+    confirm_uninstall: false
+    # Delete live data under /opt/nginx/data (servers, rules, ssl, certs)
+    purge_data: false
+    # When purge_data=true, also remove the /opt/nginx directory itself
+    purge_nginx_root: true
+
+  tasks:
+    - name: Refuse to run without confirm_uninstall=true
+      ansible.builtin.assert:
+        that:
+          - confirm_uninstall | bool
+        fail_msg: >-
+          Refusing to uninstall. Re-run with -e confirm_uninstall=true
+          (and optionally -e purge_data=true to delete /opt/nginx/data).
+
+    - name: Run uninstall tasks (reverse of wslproxy role install)
+      ansible.builtin.include_tasks: roles/wslproxy/tasks/uninstall.yml
