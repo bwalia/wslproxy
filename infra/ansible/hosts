@@ -1,12 +1,14 @@
 # ──────────────────────────────────────────────────────
 # WSLProxy Ansible Inventory
-# Pipeline: int → test → prod
-# (The `acc` tier on 187.77.179.206 was decommissioned.)
+# Pipeline: int → test → acc → prod
+# (acc historically shared pop0 on 187.124.112.155 and was earlier
+#  decommissioned on 187.77.179.206; it now lives on its own LAN box.)
 # ──────────────────────────────────────────────────────
 
 [openresty_native_cluster]
 192.168.1.193 ansible_user=bwalia
 192.168.1.140 ansible_user=bwalia
+192.168.1.48 ansible_user=bwalia
 187.124.112.155 ansible_user=root
 72.62.211.28 ansible_user=root
 18.133.126.242 ansible_user=admin
@@ -19,6 +21,9 @@
 [openresty_test]
 192.168.1.140 ansible_user=bwalia
 
+[openresty_acc]
+192.168.1.48 ansible_user=bwalia
+
 [openresty_prod]
 187.124.112.155 ansible_user=root
 72.62.211.28 ansible_user=root
@@ -29,4 +34,5 @@
 [openresty_servers:children]
 openresty_int
 openresty_test
+openresty_acc
 openresty_prod
