@@ -58,13 +58,18 @@
   notify: Restart openresty
   tags: [nginx, code, dashboard, servers]
 
-- name: Add nginx base configuration
-  copy:
-    src: ../../nginx-base.d/
-    dest: /opt/nginx/base.d/
+- name: Render nginx base TCP stream config
+  # Single stream{} block: k3s0 (9443) on every pop; k3s1api (6443) only on the
+  # pop whose host_vars sets k3s1api_lb_listen (pop1 / ip-10-0-0-207). Was a
+  # static copy of nginx-base.d/; templated so the pop-specific k3s1api LB can
+  # be gated by a host var instead of shipping a host-specific listen IP to all.
+  ansible.builtin.template:
+    src: nginx_tcp_streams.conf.j2
+    dest: /opt/nginx/base.d/nginx_tcp_streams.conf
     owner: "www-data"
     group: root
     mode: "0644"
+  notify: Restart openresty
   tags: [nginx, code, dashboard, servers]
 
 - name: Ensure tenants nginx conf directory exists

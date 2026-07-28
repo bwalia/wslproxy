@@ -45,3 +45,15 @@ nginx_default_server_backend_nextjs: "pop1.diytaxreturn.co.uk"
 
 letsencrypt_email: "balinder.walia@gmail.com"
 openresty_admin_secondary_color: "#D91656"
+
+# ── k3s1 (AWS) API failover LB ─────────────────────────────────────────────
+# ONLY this pop (ip-10-0-0-207) fronts https://k3s1api.diytaxreturn.co.uk:6443.
+# These vars render the k3s1 stream block in nginx_tcp_streams.conf.j2 — no
+# other pop sets them, so no other host ships the .207-specific listen IP.
+# k3s here binds :6443 on the mesh IP + loopback, so nginx takes the ENI IP
+# (the public EIP NATs to it). Update the upstreams when the k3s1 CP set changes.
+k3s1api_lb_listen: "10.0.0.207:6443"
+k3s1api_lb_upstreams:
+  - "10.8.0.9:6443"     # ip-10-0-0-207 (self)
+  - "10.8.0.15:6443"    # debian009 (on-prem CP)
+  - "10.8.0.3:6443"     # ip-10-0-0-51 (AWS CP)
