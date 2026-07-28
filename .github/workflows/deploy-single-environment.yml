@@ -107,9 +107,11 @@ jobs:
       host_ip: "192.168.1.140"
       ssh_user: bwalia
       connection_mode: ssh
-      secrets_mode: runner_file
-      settings_file_path: "/home/bwalia/.secrets/wslproxy/test/settings.json"
-      env_file_path: "/home/bwalia/.secrets/wslproxy/test/.env"
+      # vault_or_sops so the deploy works from ANY runner — the previous
+      # runner_file mode read /home/bwalia/.secrets/wslproxy/test/{...}
+      # which only exists on the LAN test runner; moving the job to the
+      # mac-studio runner (as we did for prod-pop1) would have broken it.
+      secrets_mode: vault_or_sops
       health_endpoint: "http://localhost:8080/healthz"
       health_check_mode: ssh
       docker_prune: false
@@ -119,6 +121,9 @@ jobs:
     secrets:
       SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
       SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
+      VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
+      SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
 
   # ──────────────────────────────────────────────────────
   # Acceptance — acc (192.168.1.48, LAN). vault-first with SOPS fallback
@@ -162,11 +167,20 @@ jobs:
   # Production — prod / "pop1" (18.133.126.242, AWS eu-west-2, ssh user admin).
   # vault-first with SOPS fallback (matches the delivery pipeline post-#1125).
   # ──────────────────────────────────────────────────────
+  # Runner: the historical `prod` runner lives on pop0 (Linux) and has no
+  # SSH trust to pop1 — every prod dispatch failed at "SSH connection
+  # failed to admin@18.133.126.242" (run 30341173054). Schedule this job
+  # on the mac-studio runner tagged `acc` instead — it already has an
+  # id_rsa that pop1 trusts (verified: `ssh admin@18.133.126.242 hostname`
+  # returns ip-10-0-0-207 with passwordless sudo). env_name stays `prod`
+  # so ansible target_env, Vault secret path, and SOPS payload profile
+  # all remain prod.
   prod:
     if: ${{ inputs.ENV == 'prod' }}
     uses: ./.github/workflows/deploy-environment.yml
     with:
       env_name: prod
+      runner_label: acc
       env_label: "Production — pop1 (18.133.126.242)"
       stage_number: "prod"
       host_ip: "18.133.126.242"
