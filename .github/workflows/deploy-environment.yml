@@ -9,6 +9,17 @@ on:
         description: "Ansible target_env value (int, test, acc, prod)"
         type: string
         required: true
+      runner_label:
+        description: >-
+          Self-hosted runner label to schedule this job on.  Defaults to
+          env_name so the historical "one runner per env, labelled after
+          the env" convention still works.  Set explicitly when the box
+          that has SSH+key access to the target isn't the box tagged
+          with env_name — e.g. prod (pop1, AWS eu-west-2) is deployed
+          from the mac-studio runner tagged `acc` because the historical
+          `prod` runner on pop0 has no SSH trust to pop1.
+        type: string
+        default: ""
       env_label:
         description: "Human-readable label for logs and Slack (e.g. 'Int (192.168.1.193)')"
         type: string
@@ -135,10 +146,14 @@ on:
 jobs:
   deploy:
     name: "Deploy ${{ inputs.env_label }}"
-    # OS-agnostic: match any self-hosted runner carrying the env label,
-    # whether it is Linux or macOS. Hardcoding `Linux` here left the `acc`
-    # job queued forever because the only `acc` runner is macOS.
-    runs-on: [self-hosted, "${{ inputs.env_name }}"]
+    # OS-agnostic: match any self-hosted runner carrying the target
+    # label, whether it is Linux or macOS. Hardcoding `Linux` here left
+    # the `acc` job queued forever because the only `acc` runner is
+    # macOS.  The label defaults to env_name (historical convention:
+    # one runner per env, labelled after the env), but the caller can
+    # override via `runner_label` when the box with the right SSH keys
+    # / network reach doesn't match the env — see input docs.
+    runs-on: [self-hosted, "${{ inputs.runner_label != '' && inputs.runner_label || inputs.env_name }}"]
     timeout-minutes: 30
 
     steps:

@@ -390,9 +390,11 @@ jobs:
       host_ip: "192.168.1.140"
       ssh_user: bwalia
       connection_mode: ssh
-      secrets_mode: runner_file
-      settings_file_path: "/home/bwalia/.secrets/wslproxy/test/settings.json"
-      env_file_path: "/home/bwalia/.secrets/wslproxy/test/.env"
+      # vault_or_sops so any runner can deploy; runner_file (previous
+      # value) required /home/bwalia/.secrets/wslproxy/test/{...} to
+      # exist on the runner FS, which pinned the job to the LAN test
+      # runner and broke portability.
+      secrets_mode: vault_or_sops
       health_endpoint: "http://localhost:8080/healthz"
       health_check_mode: ssh
       docker_prune: false
@@ -402,6 +404,9 @@ jobs:
     secrets:
       SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
       SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
+      VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
+      SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
 
   # Stage 5 (acc / 187.77.179.206) was decommissioned.  Prod stages
   # below now depend directly on `deploy-test` so the pipeline still
@@ -499,6 +504,12 @@ jobs:
     uses: ./.github/workflows/deploy-environment.yml
     with:
       env_name: prod
+      # Schedule on the mac-studio runner (labelled `acc`) rather than the
+      # historical `prod` runner on pop0 — pop0 has no SSH trust to pop1
+      # and every dispatch failed at "SSH connection failed to
+      # admin@18.133.126.242" (run 30341173054). env_name stays `prod` so
+      # ansible target_env / Vault path / SOPS payload profile are prod.
+      runner_label: acc
       env_label: "Prod pop1 (18.133.126.242)"
       stage_number: "5c"
       host_ip: "18.133.126.242"
