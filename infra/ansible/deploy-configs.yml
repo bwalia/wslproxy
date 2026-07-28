@@ -61,8 +61,8 @@
     - name: Validate target environment
       assert:
         that:
-          - target_env in ['dev', 'int', 'test', 'prod', 'lon1', 'diytaxreturn', 'diytaxreturn_wsl1']
-        fail_msg: "Invalid target_env: {{ target_env }}. Must be one of: dev, int, test, prod, lon1, diytaxreturn, diytaxreturn_wsl1"
+          - target_env in ['dev', 'int', 'test', 'acc', 'prod', 'lon1', 'diytaxreturn', 'diytaxreturn_wsl1']
+        fail_msg: "Invalid target_env: {{ target_env }}. Must be one of: dev, int, test, acc, prod, lon1, diytaxreturn, diytaxreturn_wsl1"
         success_msg: "Target environment validated: {{ target_env }}"
 
     - name: Ensure remote directories exist
