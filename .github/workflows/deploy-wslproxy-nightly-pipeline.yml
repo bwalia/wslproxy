@@ -281,9 +281,9 @@ jobs:
       host_ip: "192.168.1.140"
       ssh_user: bwalia
       connection_mode: ssh
-      secrets_mode: runner_file
-      settings_file_path: "/home/bwalia/.secrets/wslproxy/test/settings.json"
-      env_file_path: "/home/bwalia/.secrets/wslproxy/test/.env"
+      # vault_or_sops so any runner can deploy — see delivery pipeline
+      # test stage for the full rationale.
+      secrets_mode: vault_or_sops
       health_endpoint: "http://localhost:8080/healthz"
       health_check_mode: ssh
       docker_prune: false
@@ -293,6 +293,9 @@ jobs:
     secrets:
       SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
       SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
+      VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
+      SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
 
   # ──────────────────────────────────────────────────────
   # Stage 5: Nightly Summary (always runs)

@@ -6,11 +6,13 @@ name: Deploy Single Environment
 # Environments (Integration -> Test -> Acceptance -> Production):
 #   int  -> 192.168.1.193   (Integration)
 #   test -> 192.168.1.140   (Test)
-#   acc  -> 187.124.112.155 (Acceptance — "pop0")
+#   acc  -> 192.168.1.48    (Acceptance — LAN)
 #   prod -> 18.133.126.242  (Production  — "pop1")
 #
-# Each ENV maps to exactly ONE host, so acceptance (pop0) and production (pop1)
-# deploy independently. (The former lon1 host, 72.62.211.28, is no longer used.)
+# Each ENV maps to exactly ONE host, so acceptance and production deploy
+# independently. (The former acc/pop0 host, 187.124.112.155, is now used only
+# for prod-pop0 in the delivery pipeline; the former lon1 host, 72.62.211.28,
+# is no longer used.)
 #
 # WHY THIS EXISTS
 #   deploy-wslproxy-delivery-pipeline.yml is a cumulative promotion cascade and
@@ -20,8 +22,9 @@ name: Deploy Single Environment
 #   health check, auto-rolls-back THAT ring only — so it needs to deploy exactly
 #   one environment per dispatch, which is what this workflow provides.
 #
-# NOTE: acc and prod both run with env_name=prod (they are prod-profile hosts
-# served by the `prod` self-hosted runner); the ENV input selects which host.
+# NOTE: prod runs with env_name=prod (served by the `prod` self-hosted runner);
+# acc runs with env_name=acc on a dedicated LAN host with its own runner. int
+# and test also use env_name matching their runner labels.
 
 on:
   workflow_dispatch:
@@ -104,9 +107,11 @@ jobs:
       host_ip: "192.168.1.140"
       ssh_user: bwalia
       connection_mode: ssh
-      secrets_mode: runner_file
-      settings_file_path: "/home/bwalia/.secrets/wslproxy/test/settings.json"
-      env_file_path: "/home/bwalia/.secrets/wslproxy/test/.env"
+      # vault_or_sops so the deploy works from ANY runner — the previous
+      # runner_file mode read /home/bwalia/.secrets/wslproxy/test/{...}
+      # which only exists on the LAN test runner; moving the job to the
+      # mac-studio runner (as we did for prod-pop1) would have broken it.
+      secrets_mode: vault_or_sops
       health_endpoint: "http://localhost:8080/healthz"
       health_check_mode: ssh
       docker_prune: false
@@ -116,31 +121,37 @@ jobs:
     secrets:
       SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
       SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
+      VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
+      SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
 
   # ──────────────────────────────────────────────────────
-  # Acceptance — acc / "pop0" (187.124.112.155). vault-first with SOPS fallback
+  # Acceptance — acc (192.168.1.48, LAN). vault-first with SOPS fallback
   # (matches the delivery pipeline post-#1125; seed_from_host retired).
   # ──────────────────────────────────────────────────────
+  # Migrated off 187.124.112.155 (which was co-located with prod-pop0). acc
+  # now runs on a dedicated LAN box (192.168.1.48 / debian002); the `acc`
+  # self-hosted runner lives on the shared mac (hh193 / BalindeacStudio,
+  # LAN peer) and SSHes into acc as bwalia — its ~/.ssh/id_rsa is already
+  # trusted on the target. connection_mode=local would have `sudo`'d on
+  # the runner box (macOS, no passwordless sudo) instead of on acc, which
+  # is what failed run 30267669485.
   acc:
     if: ${{ inputs.ENV == 'acc' }}
     uses: ./.github/workflows/deploy-environment.yml
     with:
-      env_name: prod            # prod-profile host, served by the `prod` runner
-      env_label: "Acceptance — pop0 (187.124.112.155)"
+      env_name: acc
+      env_label: "Acceptance (192.168.1.48)"
       stage_number: "acc"
-      host_ip: "187.124.112.155"
-      ssh_user: root
-      # The `prod` self-hosted runner IS pop0 (187.124.112.155), so this is a
-      # co-located deploy. deploy-environment.yml auto-detects host_ip == a
-      # local IP and downgrades this to a LOCAL connection (--connection=local
-      # + sudo, no SSH) — SSHing root@pop0 to itself was rejected with
-      # "Permission denied (publickey,password)". Kept as ssh_key so the same
-      # call site still works verbatim if this job ever moves to a runner that
-      # is genuinely remote from pop0.
+      host_ip: "192.168.1.48"
+      ssh_user: bwalia
+      # ssh_key: ansible SSHes from the runner (mac, LAN peer) into acc
+      # using the runner's ~/.ssh/id_rsa. If the `acc` runner is ever
+      # moved onto 192.168.1.48 itself, drop this to `local`.
       connection_mode: ssh_key
       secrets_mode: vault_or_sops
-      health_endpoint: "https://prod-our-v1.wslproxy.com/healthz"
-      health_check_mode: external
+      health_endpoint: "http://localhost:8080/healthz"
+      health_check_mode: ssh
       docker_prune: true
       notify_success: true
       deploy_branch: ${{ inputs.DEPLOY_BRANCH }}
@@ -156,11 +167,20 @@ jobs:
   # Production — prod / "pop1" (18.133.126.242, AWS eu-west-2, ssh user admin).
   # vault-first with SOPS fallback (matches the delivery pipeline post-#1125).
   # ──────────────────────────────────────────────────────
+  # Runner: the historical `prod` runner lives on pop0 (Linux) and has no
+  # SSH trust to pop1 — every prod dispatch failed at "SSH connection
+  # failed to admin@18.133.126.242" (run 30341173054). Schedule this job
+  # on the mac-studio runner tagged `acc` instead — it already has an
+  # id_rsa that pop1 trusts (verified: `ssh admin@18.133.126.242 hostname`
+  # returns ip-10-0-0-207 with passwordless sudo). env_name stays `prod`
+  # so ansible target_env, Vault secret path, and SOPS payload profile
+  # all remain prod.
   prod:
     if: ${{ inputs.ENV == 'prod' }}
     uses: ./.github/workflows/deploy-environment.yml
     with:
       env_name: prod
+      runner_label: acc
       env_label: "Production — pop1 (18.133.126.242)"
       stage_number: "prod"
       host_ip: "18.133.126.242"
