@@ -482,10 +482,15 @@ jobs:
       host_ip: "72.62.211.28"
       ssh_user: root
       connection_mode: ssh_key
-      secrets_mode: runner_file
-      settings_file_path: "/home/bwalia/.secrets/wslproxy/lon1/settings.json"
-      env_file_path: "/home/bwalia/.secrets/wslproxy/lon1/.env"
-      health_endpoint: "http://72.62.211.28:7691/healthz"
+      # Same as pop0/pop1 — runner_file required
+      # /home/bwalia/.secrets/wslproxy/lon1/ on the runner FS, which the
+      # mac-studio / non-LAN runners do not have (lon1-only dispatch
+      # 31281185587 failed at "Settings file not found"). Vault-first
+      # with SOPS prod fallback keeps lon1-only nginx deploys portable.
+      secrets_mode: vault_or_sops
+      # Prefer public dashboard health over IP:7691 so external checks
+      # match https://lon1.pop0.uk (admin UI behind public 443).
+      health_endpoint: "https://lon1.pop0.uk/healthz"
       health_check_mode: external
       docker_prune: true
       notify_success: true
@@ -494,6 +499,9 @@ jobs:
     secrets:
       SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
       SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
+      VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
+      SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
 
   # ──────────────────────────────────────────────────────
   # Stage 5c: Deploy Prod pop1 (18.133.126.242) — AWS eu-west-2, ssh user admin
