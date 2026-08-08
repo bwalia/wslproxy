@@ -220,6 +220,32 @@ jobs:
           fi
           echo "mode=$MODE" >> "$GITHUB_OUTPUT"
 
+      # Lon1 (72.62.211.28) is reachable from MacStudio (`acc`) but NOT from
+      # the historical `prod` runner on pop0 (srv1467484 / 187.124.112.155):
+      # run 31281281402 → "Permission denied (publickey)" for root@72.62.211.28.
+      # Callers must pass runner_label=acc. This guard fails fast if the job
+      # still lands on pop0 (e.g. forgotten override + shared `prod` label).
+      # Do NOT install a runner on lon1 unless you also switch this host to
+      # connection_mode=local — MacStudio SSH is the supported path.
+      - name: Guard — lon1 must run on MacStudio (acc), not pop0 prod runner
+        if: ${{ inputs.host_ip == '72.62.211.28' }}
+        run: |
+          set -euo pipefail
+          RUNNER_HOST="$(hostname 2>/dev/null || echo unknown)"
+          LOCAL_IPS="127.0.0.1"
+          command -v hostname >/dev/null 2>&1 && LOCAL_IPS="$LOCAL_IPS $(hostname -I 2>/dev/null || true)"
+          command -v ip       >/dev/null 2>&1 && LOCAL_IPS="$LOCAL_IPS $(ip -o addr show 2>/dev/null | awk '{print $4}' | cut -d/ -f1)"
+          command -v ifconfig >/dev/null 2>&1 && LOCAL_IPS="$LOCAL_IPS $(ifconfig 2>/dev/null | awk '/inet /{print $2}')"
+          if printf ' %s ' $LOCAL_IPS | grep -qFw '187.124.112.155' \
+             || [[ "$RUNNER_HOST" == "srv1467484" ]]; then
+            echo "::error::lon1 (72.62.211.28) deploy is running on the pop0 prod runner ($RUNNER_HOST)."
+            echo "::error::That runner has no SSH trust to root@72.62.211.28."
+            echo "::error::Fix: set runner_label=acc so the job lands on BalindeacStudio (MacStudio)."
+            echo "::error::See delivery deploy-prod-lon1 / single-env prod-lon1 (already set on main)."
+            exit 1
+          fi
+          echo "OK — lon1 deploy on runner host '$RUNNER_HOST' (not pop0)."
+
       - name: Install Ansible
         run: |
           if command -v ansible &> /dev/null; then

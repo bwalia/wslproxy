@@ -477,9 +477,12 @@ jobs:
     uses: ./.github/workflows/deploy-environment.yml
     with:
       env_name: prod
-      # Schedule on mac-studio (`acc`) — same rationale as pop1: the
-      # historical `prod` runner on pop0 has no SSH trust to lon1
-      # (dispatch 31281281402: "SSH connection failed to root@72.62.211.28").
+      # REQUIRED: MacStudio (`acc` / BalindeacStudio). Without this override
+      # runs-on falls back to [self-hosted, prod] and GitHub may pick the
+      # pop0 runner (srv1467484), which cannot SSH to lon1 — job
+      # 93162974348 / run 31281281402: Permission denied (publickey).
+      # Do not move this job to a runner on 72.62.211.28 unless you also
+      # switch connection_mode to local; MacStudio SSH is the supported path.
       runner_label: acc
       env_label: "Prod lon1 (72.62.211.28)"
       stage_number: "5b"
