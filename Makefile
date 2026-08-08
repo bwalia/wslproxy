@@ -6,7 +6,10 @@ COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo none)
 DATE ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 LDFLAGS := -s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(DATE)
 
-.PHONY: build test vet tidy cli install clean
+IMAGE ?= ghcr.io/bwalia/wslproxy-cli
+DOCKERFILE := cmd/wslproxy-cli/Dockerfile
+
+.PHONY: build test vet tidy cli install clean docker docker-push
 
 build cli:
 	mkdir -p bin
@@ -23,6 +26,20 @@ vet:
 
 tidy:
 	go mod tidy
+
+docker:
+	docker build \
+		-f $(DOCKERFILE) \
+		--build-arg VERSION=$(VERSION) \
+		--build-arg COMMIT=$(COMMIT) \
+		--build-arg DATE=$(DATE) \
+		-t $(IMAGE):$(VERSION) \
+		-t $(IMAGE):latest \
+		.
+
+docker-push: docker
+	docker push $(IMAGE):$(VERSION)
+	docker push $(IMAGE):latest
 
 clean:
 	rm -rf bin
