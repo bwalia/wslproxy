@@ -1,0 +1,117 @@
+name: Build wslproxy-cli
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'cmd/wslproxy-cli/**'
+      - 'internal/cli/**'
+      - 'internal/api/**'
+      - 'internal/mcp/**'
+      - 'html/swagger/openapi.yaml'
+      - 'go.mod'
+      - 'go.sum'
+      - 'Makefile'
+      - '.github/workflows/build-wslproxy-cli.yml'
+  pull_request:
+    paths:
+      - 'cmd/wslproxy-cli/**'
+      - 'internal/cli/**'
+      - 'internal/api/**'
+      - 'internal/mcp/**'
+      - 'html/swagger/openapi.yaml'
+      - 'go.mod'
+      - 'go.sum'
+      - 'Makefile'
+      - '.github/workflows/build-wslproxy-cli.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Vet & test
+        run: |
+          go mod tidy
+          go vet ./cmd/wslproxy-cli/... ./internal/...
+          go test ./internal/...
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+          - goos: linux
+            goarch: arm64
+          - goos: darwin
+            goarch: amd64
+          - goos: darwin
+            goarch: arm64
+          - goos: windows
+            goarch: amd64
+            ext: .exe
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Build
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: '0'
+        run: |
+          VERSION="${GITHUB_REF_NAME}-${GITHUB_SHA::7}"
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            VERSION="main-${GITHUB_SHA::7}"
+          fi
+          EXT="${{ matrix.ext }}"
+          OUT="wslproxy-cli_${VERSION}_${{ matrix.goos }}_${{ matrix.goarch }}${EXT}"
+          go build -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${GITHUB_SHA::7} -X main.date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            -o "${OUT}" ./cmd/wslproxy-cli
+          echo "ARTIFACT=${OUT}" >> "$GITHUB_ENV"
+          ls -la "${OUT}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wslproxy-cli-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: wslproxy-cli_*
+          if-no-files-found: error
+
+  release-latest:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: wslproxy-cli-*
+          merge-multiple: true
+      - name: Prepare assets
+        run: |
+          mkdir -p release
+          find dist -type f -name 'wslproxy-cli_*' -exec cp {} release/ \;
+          cd release && sha256sum wslproxy-cli_* > SHA256SUMS.txt
+          ls -la
+      - name: Update rolling release wslproxy-cli-latest
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: wslproxy-cli-latest
+          name: wslproxy-cli (latest main)
+          prerelease: true
+          generate_release_notes: true
+          files: release/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
