@@ -477,6 +477,10 @@ jobs:
     uses: ./.github/workflows/deploy-environment.yml
     with:
       env_name: prod
+      # Schedule on mac-studio (`acc`) — same rationale as pop1: the
+      # historical `prod` runner on pop0 has no SSH trust to lon1
+      # (dispatch 31281281402: "SSH connection failed to root@72.62.211.28").
+      runner_label: acc
       env_label: "Prod lon1 (72.62.211.28)"
       stage_number: "5b"
       host_ip: "72.62.211.28"
