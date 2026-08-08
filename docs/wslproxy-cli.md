@@ -7,9 +7,52 @@ Go CLI to administer WSLProxy over the Admin REST API and MCP HTTP surface. Pref
 ```bash
 make build          # → bin/wslproxy-cli
 make test
+make docker         # → ghcr.io/bwalia/wslproxy-cli:latest (local tag)
 ```
 
-CI: [`.github/workflows/build-wslproxy-cli.yml`](../.github/workflows/build-wslproxy-cli.yml) builds multi-arch artifacts on `main` (path-filtered) and updates the rolling release `wslproxy-cli-latest`.
+CI: [`.github/workflows/build-wslproxy-cli.yml`](../.github/workflows/build-wslproxy-cli.yml) builds multi-arch binaries **and** publishes the container image to GHCR on `main` / `workflow_dispatch`. Rolling binary release tag: `wslproxy-cli-latest`.
+
+## Docker image (CI/CD)
+
+Published image (linux/amd64 + linux/arm64):
+
+```text
+ghcr.io/bwalia/wslproxy-cli:latest
+ghcr.io/bwalia/wslproxy-cli:main
+ghcr.io/bwalia/wslproxy-cli:sha-<short>
+```
+
+Contents: `wslproxy-cli` on `PATH`, plus `bash`, `jq`, `curl`, `git`, and example scripts under `/opt/wslproxy-cli/examples/`.
+
+```bash
+# one-shot CLI
+docker run --rm \
+  -e WSLPROXY_BASE_URL=https://lon1.pop0.uk \
+  -e WSLPROXY_TOKEN \
+  ghcr.io/bwalia/wslproxy-cli:latest check nginx -o json
+
+# bash automation (override entrypoint)
+docker run --rm -it \
+  -e WSLPROXY_BASE_URL -e WSLPROXY_TOKEN -e WSLPROXY_ASSUME_YES=1 \
+  -v "$PWD:/work" \
+  --entrypoint bash \
+  ghcr.io/bwalia/wslproxy-cli:latest \
+  -lc 'wslproxy-cli pull -d /work/cfg --resources rules && jq . /work/cfg/rules/*/*.json | head'
+```
+
+Pipeline examples:
+
+- GitHub Actions: [`examples/wslproxy-cli/ci-github-actions.yml`](../examples/wslproxy-cli/ci-github-actions.yml)
+- GitLab CI: [`examples/wslproxy-cli/ci-gitlab-ci.yml`](../examples/wslproxy-cli/ci-gitlab-ci.yml)
+
+Local image build (repo root; uses CLI-scoped ignorefile so the main app `.dockerignore` stays untouched):
+
+```bash
+make docker
+# or:
+docker build -f cmd/wslproxy-cli/Dockerfile --ignorefile cmd/wslproxy-cli/dockerignore \
+  -t ghcr.io/bwalia/wslproxy-cli:dev .
+```
 
 ## Auth
 

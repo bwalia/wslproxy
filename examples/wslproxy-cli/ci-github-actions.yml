@@ -1,0 +1,58 @@
+# Example: use the published wslproxy-cli image in a GitHub Actions job.
+# Image: ghcr.io/bwalia/wslproxy-cli:latest
+#
+# Required secrets/vars:
+#   WSLPROXY_BASE_URL  — e.g. https://lon1.pop0.uk
+#   WSLPROXY_TOKEN     — admin JWT (or login with WSLPROXY_EMAIL + WSLPROXY_PASSWORD)
+
+name: WSLProxy config check
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 */6 * * *'
+
+jobs:
+  check-nginx:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/bwalia/wslproxy-cli:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+      env:
+        WSLPROXY_BASE_URL: ${{ vars.WSLPROXY_BASE_URL }}
+        WSLPROXY_TOKEN: ${{ secrets.WSLPROXY_TOKEN }}
+        WSLPROXY_ASSUME_YES: '1'
+    steps:
+      - name: Health + nginx check
+        run: |
+          wslproxy-cli status health -o json
+          wslproxy-cli check nginx -o json
+
+  pull-push-dry-run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Pull → jq tweak → dry-run push
+        run: |
+          docker run --rm \
+            -e WSLPROXY_BASE_URL \
+            -e WSLPROXY_TOKEN \
+            -e WSLPROXY_ASSUME_YES=1 \
+            -v "$PWD/cfg:/work/cfg" \
+            --entrypoint bash \
+            ghcr.io/bwalia/wslproxy-cli:latest \
+            -lc '
+              set -euo pipefail
+              wslproxy-cli pull -d /work/cfg --resources rules -o json
+              # example mutate (noop if no files)
+              shopt -s nullglob
+              for f in /work/cfg/rules/*/*.json; do
+                jq "." "$f" > "$f.tmp" && mv "$f.tmp" "$f"
+              done
+              wslproxy-cli push -d /work/cfg --resources rules --dry-run -o json
+            '
+        env:
+          WSLPROXY_BASE_URL: ${{ vars.WSLPROXY_BASE_URL }}
+          WSLPROXY_TOKEN: ${{ secrets.WSLPROXY_TOKEN }}

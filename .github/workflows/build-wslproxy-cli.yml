@@ -12,6 +12,8 @@ on:
       - 'go.mod'
       - 'go.sum'
       - 'Makefile'
+      - 'cmd/wslproxy-cli/Dockerfile'
+      - 'cmd/wslproxy-cli/dockerignore'
       - '.github/workflows/build-wslproxy-cli.yml'
   pull_request:
     paths:
@@ -23,11 +25,15 @@ on:
       - 'go.mod'
       - 'go.sum'
       - 'Makefile'
+      - 'cmd/wslproxy-cli/Dockerfile'
+      - 'cmd/wslproxy-cli/dockerignore'
       - '.github/workflows/build-wslproxy-cli.yml'
   workflow_dispatch:
 
 permissions:
   contents: write
+  packages: write
+  id-token: write
 
 jobs:
   test:
@@ -88,9 +94,101 @@ jobs:
           path: wslproxy-cli_*
           if-no-files-found: error
 
+  docker:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      IMAGE: ghcr.io/${{ github.repository_owner }}/wslproxy-cli
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Login to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build args
+        id: args
+        run: |
+          SHORT_SHA="${GITHUB_SHA::7}"
+          echo "version=${GITHUB_REF_NAME}-${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+          echo "commit=${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+          echo "date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
+            type=sha,prefix=sha-,format=short
+            type=raw,value=main,enable=${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
+            type=ref,event=pr
+      - name: Use CLI-scoped dockerignore for this build
+        run: |
+          cp .dockerignore .dockerignore.wslproxy-main.bak
+          cp cmd/wslproxy-cli/dockerignore .dockerignore
+      - name: Build and push multi-arch (main / dispatch)
+        if: github.event_name != 'pull_request'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: cmd/wslproxy-cli/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VERSION=${{ steps.args.outputs.version }}
+            COMMIT=${{ steps.args.outputs.commit }}
+            DATE=${{ steps.args.outputs.date }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Build PR image (amd64, local load)
+        if: github.event_name == 'pull_request'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: cmd/wslproxy-cli/Dockerfile
+          platforms: linux/amd64
+          push: false
+          load: true
+          tags: ${{ env.IMAGE }}:pr
+          build-args: |
+            VERSION=${{ steps.args.outputs.version }}
+            COMMIT=${{ steps.args.outputs.commit }}
+            DATE=${{ steps.args.outputs.date }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Restore root dockerignore
+        if: always()
+        run: |
+          if [ -f .dockerignore.wslproxy-main.bak ]; then
+            mv .dockerignore.wslproxy-main.bak .dockerignore
+          fi
+      - name: Smoke test image
+        if: github.event_name == 'pull_request'
+        run: |
+          docker run --rm "${IMAGE}:pr" version
+          docker run --rm --entrypoint bash "${IMAGE}:pr" -lc \
+            'command -v jq && command -v curl && wslproxy-cli version && ls /opt/wslproxy-cli/examples'
+      - name: Smoke test published image
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        run: |
+          docker pull "${IMAGE}:sha-${GITHUB_SHA::7}"
+          docker run --rm "${IMAGE}:sha-${GITHUB_SHA::7}" version
+
   release-latest:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: build
+    needs: [build, docker]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
