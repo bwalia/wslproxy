@@ -30,6 +30,7 @@ tidy:
 docker:
 	docker build \
 		-f $(DOCKERFILE) \
+		--ignorefile cmd/wslproxy-cli/dockerignore \
 		--build-arg VERSION=$(VERSION) \
 		--build-arg COMMIT=$(COMMIT) \
 		--build-arg DATE=$(DATE) \

@@ -45,10 +45,13 @@ Pipeline examples:
 - GitHub Actions: [`examples/wslproxy-cli/ci-github-actions.yml`](../examples/wslproxy-cli/ci-github-actions.yml)
 - GitLab CI: [`examples/wslproxy-cli/ci-gitlab-ci.yml`](../examples/wslproxy-cli/ci-gitlab-ci.yml)
 
-Local image build (repo root):
+Local image build (repo root; uses CLI-scoped ignorefile so the main app `.dockerignore` stays untouched):
 
 ```bash
-docker build -f cmd/wslproxy-cli/Dockerfile -t ghcr.io/bwalia/wslproxy-cli:dev .
+make docker
+# or:
+docker build -f cmd/wslproxy-cli/Dockerfile --ignorefile cmd/wslproxy-cli/dockerignore \
+  -t ghcr.io/bwalia/wslproxy-cli:dev .
 ```
 
 ## Auth
