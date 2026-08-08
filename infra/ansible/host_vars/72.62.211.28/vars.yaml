@@ -2,6 +2,8 @@ local_settings_file_path: "/home/bwalia/.secrets/wslproxy/lon1/settings.json"
 local_env_file_path: "/home/bwalia/.secrets/wslproxy/lon1/.env"
 nginx_user_password: "!!REDACTED!!" # This is the password for the user www-data but must be encrypted using Ansible Vault
 host_lan_ip: "72.62.211.28"
+# Public eth0 only — Traefik-edge-lon1 keeps 127.0.0.1:80/443 for ingressClass traefik-edge
+nginx_public_bind_ip: "72.62.211.28"
 nginx_web_ui_enabled: "yes"
 nginx_rest_api_server_enabled: ""
 nginx_data_sync_enabled: ""

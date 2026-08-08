@@ -740,9 +740,14 @@ http {
   # Internal server running on port 8999 for handling certificate tasks.
 
 # server any host 443 ssl and http2 port, http below this server block will be redirected to https
+{# nginx_public_bind_ip: bind public IP only (coexist with Traefik on 127.0.0.1) #}
 server {
+{% if nginx_public_bind_ip | default('') | length > 0 %}
+    listen {{ nginx_public_bind_ip }}:443 ssl default_server;
+{% else %}
     listen *:443 ssl default_server;
     listen [::]:443 ssl default_server;
+{% endif %}
     server_name _; # catch-all server block for HTTPS
     server_tokens off;
     http2 on;
@@ -991,7 +996,11 @@ server {
 
 # server any host http port 80
 server {
+{% if nginx_public_bind_ip | default('') | length > 0 %}
+        listen       {{ nginx_public_bind_ip }}:80 default_server;
+{% else %}
         listen       80 default_server;
+{% endif %}
         server_name _; # catch-all server block for HTTP requests (redirect to HTTPS or serve ACME challenges)
         server_tokens off;
         # enable

@@ -1,0 +1,90 @@
+# Lon1-only Traefik edge: bind loopback so public 72.62.211.28:80/443
+# can be used by OpenResty / wslproxy (lon1.pop0.uk).
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: traefik-edge-lon1
+  namespace: kube-system
+  labels:
+    app.kubernetes.io/component: ingress
+    app.kubernetes.io/name: traefik-edge-lon1
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: traefik-edge-lon1
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: ingress
+        app.kubernetes.io/name: traefik-edge-lon1
+    spec:
+      serviceAccountName: traefik
+      automountServiceAccountToken: true
+      priorityClassName: system-node-critical
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      nodeSelector:
+        kubernetes.io/hostname: cloud001
+      tolerations:
+        - effect: NoSchedule
+          key: node-role.kubernetes.io/edge
+          operator: Equal
+          value: "true"
+      containers:
+        - name: traefik
+          image: rancher/mirrored-library-traefik:3.7.4
+          imagePullPolicy: IfNotPresent
+          args:
+            - --global.checknewversion=false
+            - --global.sendanonymoususage=false
+            # Loopback only — frees 72.62.211.28:80/443 for wslproxy
+            - --entryPoints.web.address=127.0.0.1:80/tcp
+            - --entryPoints.websecure.address=127.0.0.1:443/tcp
+            - --entryPoints.traefik.address=127.0.0.1:9080/tcp
+            - --api.dashboard=false
+            - --ping=true
+            - --providers.kubernetesingress
+            - --providers.kubernetesingress.ingressclass=traefik-edge
+            - --log.level=INFO
+            - --accesslog=true
+            - --entryPoints.web.transport.respondingTimeouts.readTimeout=1800s
+            - --entryPoints.websecure.transport.respondingTimeouts.readTimeout=1800s
+          ports:
+            - name: web
+              containerPort: 80
+              protocol: TCP
+            - name: websecure
+              containerPort: 443
+              protocol: TCP
+            - name: traefik
+              containerPort: 9080
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: 9080
+              host: 127.0.0.1
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: 9080
+              host: 127.0.0.1
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            limits:
+              cpu: "1"
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+          securityContext:
+            capabilities:
+              add: ["NET_BIND_SERVICE"]
+              drop: ["ALL"]
+            runAsNonRoot: false
+            runAsUser: 0
