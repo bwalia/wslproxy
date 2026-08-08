@@ -4,15 +4,14 @@ name: Deploy Single Environment
 # settings as the full delivery pipeline — it just drops the promotion chaining.
 #
 # Environments (Integration -> Test -> Acceptance -> Production):
-#   int  -> 192.168.1.193   (Integration)
-#   test -> 192.168.1.140   (Test)
-#   acc  -> 192.168.1.48    (Acceptance — LAN)
-#   prod -> 18.133.126.242  (Production  — "pop1")
+#   int       -> 192.168.1.193   (Integration)
+#   test      -> 192.168.1.140   (Test)
+#   acc       -> 192.168.1.48    (Acceptance — LAN)
+#   prod      -> 18.133.126.242  (Production — "pop1", AWS)
+#   prod-lon1 -> 72.62.211.28    (Production — "lon1" / lon1.pop0.uk)
+#   prod-pop0 -> 187.124.112.155 (Production — "pop0"; also in delivery pipeline)
 #
-# Each ENV maps to exactly ONE host, so acceptance and production deploy
-# independently. (The former acc/pop0 host, 187.124.112.155, is now used only
-# for prod-pop0 in the delivery pipeline; the former lon1 host, 72.62.211.28,
-# is no longer used.)
+# Each ENV maps to exactly ONE host, so rings deploy independently.
 #
 # WHY THIS EXISTS
 #   deploy-wslproxy-delivery-pipeline.yml is a cumulative promotion cascade and
@@ -39,11 +38,13 @@ on:
           - test
           - acc
           - prod
+          - prod-lon1
+          - prod-pop0
       DEPLOY_BRANCH:
         type: string
         description: "Git ref to deploy (branch, tag or commit SHA)"
         required: true
-        default: "build"
+        default: "main"
       DEPLOY_MODE:
         type: choice
         description: "What to deploy"
@@ -192,6 +193,63 @@ jobs:
       # check the public dashboard domain on 443 instead — valid LE cert,
       # serves /healthz 200. (cf. acc/pop0 uses https://prod-our-v1…/healthz.)
       health_endpoint: "https://pop1.diytaxreturn.co.uk/healthz"
+      health_check_mode: external
+      docker_prune: true
+      notify_success: true
+      deploy_branch: ${{ inputs.DEPLOY_BRANCH }}
+      deploy_mode: ${{ inputs.DEPLOY_MODE }}
+    secrets:
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
+      VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
+      SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
+
+  # ──────────────────────────────────────────────────────
+  # Production — prod / "lon1" (72.62.211.28, Hostinger, ssh root).
+  # Same prod secrets (Vault/SOPS) as pop0/pop1; UI https://lon1.pop0.uk
+  # ──────────────────────────────────────────────────────
+  prod-lon1:
+    if: ${{ inputs.ENV == 'prod-lon1' }}
+    uses: ./.github/workflows/deploy-environment.yml
+    with:
+      env_name: prod
+      runner_label: acc
+      env_label: "Production — lon1 (72.62.211.28)"
+      stage_number: "prod-lon1"
+      host_ip: "72.62.211.28"
+      ssh_user: root
+      connection_mode: ssh_key
+      secrets_mode: vault_or_sops
+      health_endpoint: "https://lon1.pop0.uk/healthz"
+      health_check_mode: external
+      docker_prune: true
+      notify_success: true
+      deploy_branch: ${{ inputs.DEPLOY_BRANCH }}
+      deploy_mode: ${{ inputs.DEPLOY_MODE }}
+    secrets:
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
+      VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
+      SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
+
+  # ──────────────────────────────────────────────────────
+  # Production — prod / "pop0" (187.124.112.155). Single-host entry for
+  # the same target as delivery Stage 5a (no cascade).
+  # ──────────────────────────────────────────────────────
+  prod-pop0:
+    if: ${{ inputs.ENV == 'prod-pop0' }}
+    uses: ./.github/workflows/deploy-environment.yml
+    with:
+      env_name: prod
+      env_label: "Production — pop0 (187.124.112.155)"
+      stage_number: "prod-pop0"
+      host_ip: "187.124.112.155"
+      ssh_user: root
+      connection_mode: ssh_key
+      secrets_mode: vault_or_sops
+      health_endpoint: "https://prod-our-v1.wslproxy.com/healthz"
       health_check_mode: external
       docker_prune: true
       notify_success: true

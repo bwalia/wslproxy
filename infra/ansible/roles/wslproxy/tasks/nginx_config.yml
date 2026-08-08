@@ -115,6 +115,15 @@
 # means we don't rotate mid-request if this happens to run during a
 # heavy log burst.  Operators who need to trim NOW can:
 #   sudo logrotate --force /etc/logrotate.d/openresty
+#
+# Ensure the binary exists even when deploy_mode=nginx skips the
+# base_packages role (lon1 2026-08-08: validate failed "command not found").
+- name: Ensure logrotate is installed (for openresty rotation validate)
+  ansible.builtin.package:
+    name: logrotate
+    state: present
+  tags: [nginx, code, dashboard, servers]
+
 - name: Install openresty log rotation config
   ansible.builtin.template:
     src: openresty-logrotate.j2
@@ -125,9 +134,6 @@
     # Validate the config before it lands so a template typo can't
     # leave the host with a broken rotation policy.  `logrotate -d`
     # runs in debug/dry-run mode against the temp file (%s) —
-    # doesn't touch any real logs.  Requires the `logrotate` binary
-    # (added to base_packages defaults); a first-ever run on a host
-    # without base_packages already applied will fail here with a
-    # clear "command not found" — install logrotate + re-run.
+    # doesn't touch any real logs.
     validate: "logrotate -d %s"
   tags: [nginx, code, dashboard, servers]
