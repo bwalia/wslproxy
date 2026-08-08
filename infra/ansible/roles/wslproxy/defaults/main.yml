@@ -1,5 +1,10 @@
 nginx_port: 80
 
+# When set (e.g. "72.62.211.28"), public HTTP/HTTPS listeners bind that IP
+# only — so Traefik (or anything else) can keep 127.0.0.1:80/443 on the same
+# host without EADDRINUSE. Empty = bind all interfaces (0.0.0.0 / *).
+nginx_public_bind_ip: ""
+
 # Default server frontend/backend hostnames for nginx
 # Override these in host_vars or group_vars for each environment
 # Frontend: public landing page (static HTML)
