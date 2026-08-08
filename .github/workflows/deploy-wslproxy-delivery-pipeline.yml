@@ -244,7 +244,14 @@ jobs:
   # ──────────────────────────────────────────────────────
   deploy-int:
     needs: [build-validate, preflight-int]
-    if: needs.preflight-int.outputs.runner_online == 'true'
+    # Honor TARGET_HOST on workflow_dispatch (same as test/prod stages) so a
+    # lon1-only / pop0-only / pop1-only run never touches int. Push events
+    # still deploy int when the runner is online.
+    if: >
+      needs.preflight-int.outputs.runner_online == 'true' &&
+      (github.event_name != 'workflow_dispatch' ||
+       github.event.inputs.TARGET_HOST == '192.168.1.193' ||
+       github.event.inputs.TARGET_HOST == 'all')
     uses: ./.github/workflows/deploy-environment.yml
     with:
       env_name: int
