@@ -14,3 +14,9 @@ nginx_default_server_backend: "lon1.pop0.uk"
 nginx_default_server_backend_port: 7691
 letsencrypt_email: "balinder.walia@gmail.com"
 openresty_admin_secondary_color: "#D91656"
+# lon1 shares its netns with the k3s loopback Traefik (DaemonSet
+# traefik-edge-lon1 binds 127.0.0.1:80/:443). OpenResty must therefore bind
+# the public IP explicitly or the two race for :80/:443 (EADDRINUSE).
+# Owned end-to-end by diy-tax-return-infra: ansible/traefik-edge.yml +
+# clusters/k3s/edge/README.md.
+nginx_public_bind_ip: "72.62.211.28"

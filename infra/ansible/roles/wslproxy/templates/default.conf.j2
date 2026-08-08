@@ -1,3 +1,9 @@
+{# nginx_public_bind_ip: when set (e.g. lon1 = 72.62.211.28), public 80/443
+   server blocks bind that IP explicitly instead of the wildcard, leaving
+   127.0.0.1:80/:443 free for the loopback Traefik (traefik-edge-lon1) that
+   coexists on the node. Empty (default) keeps wildcard binds. #}
+{% set pub_bind = nginx_public_bind_ip | default('') %}
+{% set pub_prefix = (pub_bind ~ ':') if pub_bind else '' %}
     # Default server configuration — works independently of Lua gateway
     # Frontend: {{ nginx_default_server_frontend | default('') }}
     # Backend:  {{ nginx_default_server_backend | default('') }}
@@ -10,7 +16,7 @@
 
     # HTTP (port 80) — serves landing page + ACME challenge
     server {
-        listen       80;
+        listen       {{ pub_prefix }}80;
         server_name  {{ nginx_default_server_frontend }} {{ host_lan_ip | default('') }};
 
         location /.well-known/acme-challenge/ {
@@ -27,7 +33,7 @@
 
     # HTTPS (port 443) — landing page with auto-ssl
     server {
-        listen       443 ssl;
+        listen       {{ pub_prefix }}443 ssl;
         server_name  {{ nginx_default_server_frontend }};
 
         http2 on;
@@ -70,7 +76,7 @@
 
     # HTTP (port 80) — redirect to HTTPS + ACME challenge
     server {
-        listen       80;
+        listen       {{ pub_prefix }}80;
         server_name  {{ nginx_default_server_backend }};
 
         location /.well-known/acme-challenge/ {
@@ -86,7 +92,7 @@
 
     # HTTPS (port 443) — admin UI with auto-ssl
     server {
-        listen       443 ssl;
+        listen       {{ pub_prefix }}443 ssl;
         server_name  {{ nginx_default_server_backend }};
 
         http2 on;
@@ -155,7 +161,7 @@
 
     # HTTP (port 80) — redirect to HTTPS + ACME challenge
     server {
-        listen       80;
+        listen       {{ pub_prefix }}80;
         server_name  {{ nginx_default_server_backend_nextjs }};
 
         location /.well-known/acme-challenge/ {
@@ -171,7 +177,7 @@
 
     # HTTPS (port 443) — Next.js dashboard with auto-ssl
     server {
-        listen       443 ssl;
+        listen       {{ pub_prefix }}443 ssl;
         server_name  {{ nginx_default_server_backend_nextjs }};
 
         http2 on;

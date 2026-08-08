@@ -113,3 +113,9 @@ wslproxy_pops:
       - production
       - secondary
     metadata: {}
+
+# When set to a host public IP, nginx binds its public 80/443 server blocks to
+# that IP only (no wildcard, no [::] catch-all). Used on nodes where a loopback
+# Traefik shares the host network namespace (see lon1 / cloud001). Empty keeps
+# the historical wildcard binds.
+nginx_public_bind_ip: ""

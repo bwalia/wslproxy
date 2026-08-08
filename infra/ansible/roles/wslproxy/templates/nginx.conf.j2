@@ -1,3 +1,9 @@
+{# nginx_public_bind_ip: when set (e.g. lon1 = 72.62.211.28), public 80/443
+   server blocks bind that IP explicitly instead of the wildcard, leaving
+   127.0.0.1:80/:443 free for the loopback Traefik (traefik-edge-lon1) that
+   coexists on the node. Empty (default) keeps wildcard binds. #}
+{% set pub_bind = nginx_public_bind_ip | default('') %}
+{% set pub_prefix = (pub_bind ~ ':') if pub_bind else '' %}
 # source: infra/ansible/roles/luarocks/templates/nginx.conf.j2
 user  www-data;
 worker_processes  1;
@@ -741,8 +747,10 @@ http {
 
 # server any host 443 ssl and http2 port, http below this server block will be redirected to https
 server {
-    listen *:443 ssl default_server;
+    listen {{ pub_bind if pub_bind else '*' }}:443 ssl default_server;
+{% if not pub_bind %}
     listen [::]:443 ssl default_server;
+{% endif %}
     server_name _; # catch-all server block for HTTPS
     server_tokens off;
     http2 on;
@@ -991,7 +999,7 @@ server {
 
 # server any host http port 80
 server {
-        listen       80 default_server;
+        listen       {{ pub_prefix }}80 default_server;
         server_name _; # catch-all server block for HTTP requests (redirect to HTTPS or serve ACME challenges)
         server_tokens off;
         # enable
