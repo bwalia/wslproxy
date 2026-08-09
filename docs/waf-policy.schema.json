@@ -1,0 +1,171 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://wslproxy/waf-policy.schema.json",
+  "title": "WSLProxy WAF Policy (v2)",
+  "description": "Declarative WAF policy for the WSLProxy OpenResty engine. v1 policies (id + waf_rules + mode) remain valid; every v2 field is optional and additive.",
+  "type": "object",
+  "required": ["id", "enabled"],
+  "additionalProperties": true,
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-zA-Z0-9._-]+$" },
+    "name": { "type": "string" },
+    "description": { "type": "string" },
+    "profile_id": { "type": "string" },
+    "schema_version": { "type": "integer", "enum": [1, 2] },
+    "enabled": { "type": "boolean" },
+    "mode": { "type": "string", "enum": ["block", "monitor"], "description": "v1 mode; enforcementMode is the v2 alias." },
+    "enforcementMode": { "type": "string", "enum": ["blocking", "transparent"] },
+    "service": { "type": "string", "description": "Logical application label; recorded on findings." },
+    "anomaly_threshold": { "type": "integer", "minimum": 1, "default": 5 },
+    "paranoia_level": { "type": "integer", "minimum": 1, "maximum": 4 },
+    "body_inspection": { "type": "boolean", "default": true },
+    "max_body_size": { "type": "integer", "minimum": 0, "default": 1048576 },
+
+    "waf_rules": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Signature IDs bound to this policy."
+    },
+    "signatureSets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^SET_[A-Z0-9_]+$" },
+          "alarm": { "type": "boolean", "default": true },
+          "block": { "type": "boolean", "default": true, "description": "false downgrades the whole set to alarm-only." }
+        },
+        "additionalProperties": false
+      }
+    },
+    "signatures": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enable": { "type": "array", "items": { "type": "string" } },
+        "disable": { "type": "array", "items": { "type": "string" } },
+        "stage": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id"],
+            "additionalProperties": false,
+            "properties": {
+              "id": { "type": "string" },
+              "until": { "type": "string", "format": "date-time", "description": "ISO-8601; alarm-only until this instant, then enforce. Omit for indefinite staging." }
+            }
+          }
+        }
+      }
+    },
+
+    "methods": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "allow": { "type": "array", "items": { "type": "string", "enum": ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "TRACE", "CONNECT"] } }
+      }
+    },
+    "filetypes": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": { "deny": { "type": "array", "items": { "type": "string" } } }
+    },
+    "geo": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "denyCountries": { "type": "array", "items": { "type": "string", "pattern": "^[A-Z]{2}$" } },
+        "db": { "type": "string", "description": "Path to the IP2Location binary DB." }
+      }
+    },
+    "ipLists": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "allow": { "type": "array", "items": { "type": "string" }, "description": "IPv4 addresses or CIDRs; membership bypasses IP/geo checks." },
+        "deny": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "jwt": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "header": { "type": "string", "default": "Authorization" },
+        "denyAlg": { "type": "array", "items": { "type": "string" } },
+        "requireAlg": { "type": "array", "items": { "type": "string" } },
+        "verifySignature": { "type": "boolean", "default": false, "description": "JWKS verify is P2; v1 checks the alg header only." }
+      }
+    },
+    "jsonProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "maxDepth": { "type": "integer", "minimum": 1 },
+        "maxBytes": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "bruteForce": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path"],
+        "additionalProperties": false,
+        "properties": {
+          "path": { "type": "string" },
+          "windowSec": { "type": "integer", "minimum": 1, "default": 60 },
+          "maxAttempts": { "type": "integer", "minimum": 1, "default": 5 },
+          "action": { "type": "string", "enum": ["block", "alarm"], "default": "block" },
+          "keyBy": { "type": "array", "items": { "type": "string", "enum": ["ip", "usernameParam"] } },
+          "usernameParam": { "type": "string" }
+        }
+      }
+    },
+
+    "routeOverrides": {
+      "type": "array",
+      "description": "Per-route enforcement overrides. Longest matching path wins (route > server > domain).",
+      "items": {
+        "type": "object",
+        "required": ["path"],
+        "additionalProperties": false,
+        "properties": {
+          "path": { "type": "string" },
+          "methods": { "type": "array", "items": { "type": "string" }, "description": "'*' or specific methods; omit to match all." },
+          "mode": { "type": "string", "enum": ["block", "monitor"] },
+          "enforcementMode": { "type": "string", "enum": ["blocking", "transparent"] }
+        }
+      }
+    },
+
+    "logging": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "profile": { "type": "string", "enum": ["minimal", "standard", "verbose"] },
+        "destination": { "type": "string" }
+      }
+    },
+    "blocked_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "status_code": { "type": "integer", "default": 403 },
+        "content_type": { "type": "string", "default": "text/html" },
+        "body_base64": { "type": "string", "description": "Base64 block page; a {{support_id}} placeholder is substituted at block time." }
+      }
+    },
+    "whitelist": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "ips": { "type": "array", "items": { "type": "string" } },
+        "paths": { "type": "array", "items": { "type": "string" } },
+        "user_agents": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "created_at": { "type": "integer" },
+    "updated_at": { "type": "integer" }
+  }
+}

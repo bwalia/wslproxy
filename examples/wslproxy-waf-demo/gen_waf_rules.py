@@ -117,8 +117,9 @@ def main():
         ".f{color:#6b7280;font-size:13px;margin-top:1.5rem}</style>"
         "<div class=c><div class=s>&#128737;</div><h1>403 &mdash; Request blocked</h1>"
         "<p>This request matched a Web Application Firewall rule and was stopped before "
-        "reaching the application.</p><p class=f>Protected by <b>WSLProxy WAF</b> &middot; "
-        "modern &amp; API threat rules</p></div>"
+        "reaching the application.</p>"
+        "<p class=f>Support ID: <code style='color:#93c5fd'>{{support_id}}</code></p>"
+        "<p class=f>Protected by <b>WSLProxy WAF</b> &middot; modern &amp; API threat rules</p></div>"
     )
     import base64
     policy = {
@@ -127,10 +128,48 @@ def main():
         "description": "F5-competitive WAF policy: OWASP Top 10 plus SSTI, Log4Shell, Spring4Shell, "
                        "SSRF, NoSQLi, XXE, JWT alg:none, prototype pollution, GraphQL introspection, "
                        "open redirect and scanner detection. Block mode.",
-        "profile_id": "prod", "enabled": True, "mode": "block",
+        "profile_id": "prod", "enabled": True,
+        # v2: enforcementMode is the F5-style alias; `mode` kept for back-compat.
+        "schema_version": 2, "enforcementMode": "blocking", "mode": "block",
+        "service": "payments",
         "waf_rules": BASE_OWASP + ids,
         "paranoia_level": 2, "anomaly_threshold": 6,
         "body_inspection": True, "max_body_size": 1048576,
+
+        # --- v2: signature governance -------------------------------------
+        "signatureSets": [
+            {"id": "SET_SQLI", "alarm": True, "block": True},
+            {"id": "SET_XSS", "alarm": True, "block": True},
+            {"id": "SET_RCE", "alarm": True, "block": True},
+            {"id": "SET_SSRF", "alarm": True, "block": True},
+            {"id": "SET_SSTI", "alarm": True, "block": True},
+        ],
+        "signatures": {
+            # Newly-added rules ship in "staging": they alarm (log-only) until the
+            # date, then enforce — the safe-rollout pattern F5 operators expect.
+            "stage": [{"id": "waf-rule-openredirect-001", "until": "2026-12-31T00:00:00Z"}],
+            "disable": [],
+        },
+
+        # --- v2: positive-security & protocol stages ----------------------
+        "methods": {"allow": ["GET", "POST", "HEAD", "OPTIONS"]},
+        "filetypes": {"deny": [".env", ".sql", ".bak", ".git", ".ini", ".pem", ".key"]},
+        "geo": {"denyCountries": ["KP"]},
+        "ipLists": {"allow": ["127.0.0.1"], "deny": []},
+
+        # --- v2: API controls ---------------------------------------------
+        "jwt": {"header": "Authorization", "denyAlg": ["none", "HS256"],
+                "requireAlg": ["RS256", "ES256"], "verifySignature": False},
+        "jsonProfile": {"maxDepth": 8, "maxBytes": 16384},
+        "bruteForce": [{"path": "/api/login", "windowSec": 60, "maxAttempts": 5,
+                        "action": "block", "keyBy": ["ip"]}],
+
+        # --- v2: binding precedence (route > service > domain) ------------
+        # /preview runs transparent (alarm-only) even though the policy blocks —
+        # demonstrating a route override lowering enforcement for one path.
+        "routeOverrides": [{"path": "/preview", "enforcementMode": "transparent"}],
+
+        "logging": {"profile": "verbose", "destination": "syslog"},
         "blocked_response": {
             "status_code": 403, "content_type": "text/html",
             "body_base64": base64.b64encode(block_html.encode()).decode(),

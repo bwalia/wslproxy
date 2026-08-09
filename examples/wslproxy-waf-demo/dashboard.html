@@ -134,6 +134,22 @@
   .chain .host { color: var(--ink); font-weight: 600; }
   .chain .arrow { color: var(--faint); }
 
+  /* v2 capability grid */
+  .caps { display: grid; grid-template-columns: repeat(3, 1fr); gap: .8rem; }
+  .cap { background: var(--surface); border: 1px solid var(--line); border-radius: 13px; padding: 1rem 1.1rem;
+    box-shadow: var(--shadow); display: flex; flex-direction: column; gap: .5rem; }
+  .cap .top { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+  .cap .name { font-weight: 650; font-size: .95rem; }
+  .cap .pass { font-family: var(--mono); font-size: .66rem; color: var(--safe-ink); background: var(--safe-soft);
+    padding: .2rem .45rem; border-radius: 6px; white-space: nowrap; }
+  .cap .desc { font-size: .82rem; color: var(--muted); }
+  .cap .meta { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: auto; }
+  .cap .field { font-family: var(--mono); font-size: .7rem; color: var(--accent); background: var(--accent-soft);
+    padding: .16rem .45rem; border-radius: 6px; }
+  .cap .viol { font-family: var(--mono); font-size: .7rem; color: var(--muted); background: var(--surface-2);
+    padding: .16rem .45rem; border-radius: 6px; }
+  @media (max-width: 720px) { .caps { grid-template-columns: 1fr; } }
+
   .bugfix { background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--accent);
     border-radius: 12px; padding: 1.1rem 1.3rem; box-shadow: var(--shadow); }
   .bugfix code { font-family: var(--mono); font-size: .82em; background: var(--surface-2); padding: .1rem .35rem; border-radius: 5px; color: var(--accent); }
@@ -245,6 +261,18 @@ before reaching the application.
     </div>
   </section>
 
+  <section class="reveal" style="animation-delay:.15s">
+    <p class="kicker">Beyond signatures — v2 enforcement stages · 12/12 golden tests pass</p>
+    <div class="caps" id="caps"></div>
+    <div class="note" style="background:var(--accent-soft);border-color:color-mix(in srgb,var(--accent) 30%,transparent)">
+      <span class="ic" style="color:var(--accent)">✦</span>
+      <div>Signatures are one stage. A real WAF also enforces <b>positive security</b> (methods, filetypes,
+      JSON shape), <b>API auth</b> (JWT algorithm policy), <b>velocity</b> (brute-force), and
+      <b>governance</b> (per-ID staging, set toggles, route-level binding precedence) — every decision
+      carrying a <b>support ID</b> and a structured <code style="font-family:var(--mono)">wafsec</code> log line.</div>
+    </div>
+  </section>
+
   <section class="reveal" style="animation-delay:.16s">
     <p class="kicker">How it's wired</p>
     <div class="flow">
@@ -328,4 +356,22 @@ before reaching the application.
       <td class="center">${openCell(o)}</td>
       <td class="center">${secCell(s,rule)}</td>
     </tr>`).join("");
+
+  const caps = [
+    ["Method allow-list", "Reject any method outside the allow-list.", "methods.allow", "VIOL_METHOD"],
+    ["Filetype deny", "Block source, backup, secret & VCS artefacts.", "filetypes.deny", "VIOL_FILETYPE"],
+    ["JWT algorithm policy", "Deny alg:none / HS256 — decoded, not regex-matched.", "jwt.denyAlg", "VIOL_JWT_ALG"],
+    ["JSON body profile", "Cap request-body depth and size.", "jsonProfile", "VIOL_JSON_DEPTH/SIZE"],
+    ["Brute-force velocity", "Per-IP attempt ceiling on login paths.", "bruteForce[]", "VIOL_BRUTE_FORCE"],
+    ["IP / geo lists", "Allow-list bypass, deny-list & country block.", "ipLists · geo", "VIOL_IP_DENY/GEO"],
+    ["Signature staging", "New rules alarm-only until a date, then enforce.", "signatures.stage", "log-only"],
+    ["Set & per-ID governance", "Toggle a whole set or disable one signature.", "signatureSets", "policy-as-code"],
+    ["Binding precedence", "route &gt; server &gt; domain — most specific wins.", "routeOverrides[]", "per-route mode"],
+  ];
+  document.getElementById("caps").innerHTML = caps.map(([n,d,f,v]) => `
+    <div class="cap">
+      <div class="top"><span class="name">${n}</span><span class="pass">✓ PASS</span></div>
+      <div class="desc">${d}</div>
+      <div class="meta"><span class="field">${f}</span><span class="viol">${v}</span></div>
+    </div>`).join("");
 </script>

@@ -168,7 +168,7 @@
       "secure_blocked": true,
       "secure_exploited": false,
       "secure_status": 403,
-      "secure_rule": "waf-rule-nosqli-001"
+      "secure_rule": "VIOL_BRUTE_FORCE"
     },
     {
       "name": "XXE file disclosure",
@@ -224,7 +224,7 @@
       "secure_blocked": true,
       "secure_exploited": false,
       "secure_status": 403,
-      "secure_rule": "waf-rule-jwt-none-001"
+      "secure_rule": "VIOL_JWT_ALG"
     },
     {
       "name": "Mass assignment (privilege)",
