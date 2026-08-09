@@ -1,0 +1,137 @@
+---
+# Sample origin apps for wslproxy demo routing via https://lon1.pop0.uk/
+# Deployed to k3s1; exposed as NodePorts so the lon1 edge (cloud001,
+# 72.62.211.28 — a node in this cluster) reaches them on 127.0.0.1:<nodePort>.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: wslproxy-demo
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: whoami
+  namespace: wslproxy-demo
+  labels: {app: whoami}
+spec:
+  replicas: 2
+  selector:
+    matchLabels: {app: whoami}
+  template:
+    metadata:
+      labels: {app: whoami}
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: cloud001
+      tolerations:
+        - key: node-role.kubernetes.io/edge
+          operator: Equal
+          value: "true"
+          effect: NoSchedule
+      containers:
+        - name: whoami
+          image: traefik/whoami:v1.10.2
+          ports: [{containerPort: 80}]
+          resources:
+            requests: {cpu: 10m, memory: 16Mi}
+            limits: {memory: 64Mi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: whoami
+  namespace: wslproxy-demo
+spec:
+  type: NodePort
+  selector: {app: whoami}
+  ports:
+    - port: 80
+      targetPort: 80
+      nodePort: 30081
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: podinfo
+  namespace: wslproxy-demo
+  labels: {app: podinfo}
+spec:
+  replicas: 2
+  selector:
+    matchLabels: {app: podinfo}
+  template:
+    metadata:
+      labels: {app: podinfo}
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: cloud001
+      tolerations:
+        - key: node-role.kubernetes.io/edge
+          operator: Equal
+          value: "true"
+          effect: NoSchedule
+      containers:
+        - name: podinfo
+          image: stefanprodan/podinfo:6.7.1
+          command: ["./podinfo", "--port=9898"]
+          ports: [{containerPort: 9898}]
+          resources:
+            requests: {cpu: 10m, memory: 32Mi}
+            limits: {memory: 128Mi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: podinfo
+  namespace: wslproxy-demo
+spec:
+  type: NodePort
+  selector: {app: podinfo}
+  ports:
+    - port: 80
+      targetPort: 9898
+      nodePort: 30082
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: echo
+  namespace: wslproxy-demo
+  labels: {app: echo}
+spec:
+  replicas: 2
+  selector:
+    matchLabels: {app: echo}
+  template:
+    metadata:
+      labels: {app: echo}
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: cloud001
+      tolerations:
+        - key: node-role.kubernetes.io/edge
+          operator: Equal
+          value: "true"
+          effect: NoSchedule
+      containers:
+        - name: echo
+          image: ealen/echo-server:0.9.2
+          ports: [{containerPort: 80}]
+          env:
+            - {name: PORT, value: "80"}
+          resources:
+            requests: {cpu: 10m, memory: 16Mi}
+            limits: {memory: 64Mi}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: echo
+  namespace: wslproxy-demo
+spec:
+  type: NodePort
+  selector: {app: echo}
+  ports:
+    - port: 80
+      targetPort: 80
+      nodePort: 30083

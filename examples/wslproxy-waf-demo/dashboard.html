@@ -1,0 +1,331 @@
+<title>wslproxy WAF — Before / After</title>
+<style>
+  :root {
+    --bg: #eef1f6; --surface: #ffffff; --surface-2: #f6f8fc; --line: #dde3ee;
+    --ink: #1a2032; --muted: #5a6377; --faint: #8a93a8;
+    --accent: #5b5ef0; --accent-soft: #ecebfd;
+    --danger: #d33b41; --danger-soft: #fdecec; --danger-ink: #a92329;
+    --safe: #0f9d70; --safe-soft: #e6f6ef; --safe-ink: #0a6f50;
+    --warn: #b5730a; --warn-soft: #fbf0dc; --warn-ink: #8a5606;
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    --shadow: 0 1px 2px rgba(20,26,45,.05), 0 8px 24px rgba(20,26,45,.06);
+  }
+  :root:not([data-theme="light"]) {
+    @media (prefers-color-scheme: dark) {
+      --bg: #090c15; --surface: #121728; --surface-2: #0e1322; --line: #232b41;
+      --ink: #e7ebf6; --muted: #9aa4bd; --faint: #6b7691;
+      --accent: #8b8dff; --accent-soft: #1e2140;
+      --danger: #ff6b6f; --danger-soft: #2a1518; --danger-ink: #ff8f92;
+      --safe: #3ddca0; --safe-soft: #0f2620; --safe-ink: #5fe6b4;
+      --warn: #e2a53c; --warn-soft: #2a2110; --warn-ink: #f0bd63;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #090c15; --surface: #121728; --surface-2: #0e1322; --line: #232b41;
+    --ink: #e7ebf6; --muted: #9aa4bd; --faint: #6b7691;
+    --accent: #8b8dff; --accent-soft: #1e2140;
+    --danger: #ff6b6f; --danger-soft: #2a1518; --danger-ink: #ff8f92;
+    --safe: #3ddca0; --safe-soft: #0f2620; --safe-ink: #5fe6b4;
+    --warn: #e2a53c; --warn-soft: #2a2110; --warn-ink: #f0bd63;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: var(--sans); line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1060px; margin: 0 auto; padding: clamp(1.2rem, 4vw, 3rem) clamp(1rem, 4vw, 2rem) 4rem; }
+  .eyebrow {
+    font-family: var(--mono); font-size: .72rem; letter-spacing: .16em;
+    text-transform: uppercase; color: var(--accent); font-weight: 600;
+    display: flex; align-items: center; gap: .55rem;
+  }
+  .eyebrow .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--safe);
+    box-shadow: 0 0 0 3px var(--safe-soft); }
+  h1 { font-size: clamp(2rem, 5.5vw, 3.1rem); line-height: 1.04; letter-spacing: -.02em;
+    margin: .7rem 0 .5rem; text-wrap: balance; font-weight: 750; }
+  h1 .g { color: var(--danger); } h1 .b { color: var(--safe); }
+  .lede { font-size: clamp(1rem, 2.2vw, 1.15rem); color: var(--muted); max-width: 62ch; margin: 0; }
+  .lede b { color: var(--ink); font-weight: 600; }
+
+  section { margin-top: clamp(1.8rem, 4vw, 2.8rem); }
+  .kicker { font-family: var(--mono); font-size: .7rem; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--faint); margin: 0 0 .9rem; font-weight: 600; }
+
+  /* stat tiles */
+  .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: .8rem; }
+  .tile { background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+    padding: 1.1rem 1.2rem; box-shadow: var(--shadow); position: relative; overflow: hidden; }
+  .tile .n { font-size: 2.3rem; font-weight: 760; letter-spacing: -.03em; font-variant-numeric: tabular-nums;
+    line-height: 1; display: flex; align-items: baseline; gap: .25rem; }
+  .tile .n .u { font-size: .95rem; color: var(--faint); font-weight: 600; }
+  .tile .l { font-size: .82rem; color: var(--muted); margin-top: .45rem; }
+  .tile.danger .n { color: var(--danger); } .tile.safe .n { color: var(--safe); }
+  .tile.warn .n { color: var(--warn); }
+  .tile .stripe { position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+  .tile.danger .stripe { background: var(--danger); } .tile.safe .stripe { background: var(--safe); }
+  .tile.warn .stripe { background: var(--warn); } .tile.base .stripe { background: var(--accent); }
+
+  /* coverage chips */
+  .cov { display: flex; flex-wrap: wrap; gap: .5rem; }
+  .cov .c { font-size: .8rem; border: 1px solid var(--line); background: var(--surface);
+    border-radius: 999px; padding: .34rem .8rem; color: var(--muted); display: inline-flex; gap: .45rem; align-items: center; }
+  .cov .c b { color: var(--ink); font-weight: 600; } .cov .c .k { font-family: var(--mono); font-size: .72rem; color: var(--accent); }
+
+  /* matrix */
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 16px;
+    box-shadow: var(--shadow); overflow: hidden; }
+  .scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; min-width: 640px; }
+  thead th { font-family: var(--mono); font-size: .68rem; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--faint); font-weight: 600; text-align: left; padding: .8rem 1rem; border-bottom: 1px solid var(--line);
+    background: var(--surface-2); position: sticky; top: 0; }
+  thead th.center { text-align: center; }
+  tbody td { padding: .72rem 1rem; border-bottom: 1px solid var(--line); vertical-align: middle; font-size: .9rem; }
+  tbody tr:last-child td { border-bottom: 0; }
+  tbody tr:hover { background: var(--surface-2); }
+  .atk { font-weight: 600; display: flex; align-items: center; gap: .6rem; }
+  .sev { width: 3px; height: 20px; border-radius: 2px; flex: none; }
+  .sev.critical { background: var(--danger); } .sev.high { background: #e0863a; }
+  .sev.medium { background: var(--warn); }
+  .cls { font-family: var(--mono); font-size: .74rem; color: var(--muted); white-space: nowrap; }
+  .cls .cve { color: var(--accent); }
+  td.center { text-align: center; }
+  .badge { display: inline-flex; align-items: center; gap: .35rem; font-size: .76rem; font-weight: 650;
+    padding: .26rem .6rem; border-radius: 7px; font-family: var(--mono); letter-spacing: .02em; white-space: nowrap; }
+  .badge.exploit { background: var(--danger-soft); color: var(--danger-ink); }
+  .badge.block { background: var(--safe-soft); color: var(--safe-ink); }
+  .badge.none { background: var(--surface-2); color: var(--faint); }
+  .badge.gap { background: var(--warn-soft); color: var(--warn-ink); }
+  .rule { font-family: var(--mono); font-size: .72rem; color: var(--muted); margin-top: .28rem; display: block; }
+  tr.gap-row { background: linear-gradient(90deg, var(--warn-soft), transparent 60%); }
+  tr.gap-row:hover { background: linear-gradient(90deg, var(--warn-soft), var(--surface-2) 60%); }
+
+  .note { display: flex; gap: .7rem; padding: .9rem 1.1rem; background: var(--warn-soft);
+    border: 1px solid color-mix(in srgb, var(--warn) 30%, transparent); border-radius: 12px; margin-top: .9rem;
+    font-size: .9rem; color: var(--ink); }
+  .note .ic { color: var(--warn); font-weight: 700; }
+  .note b { color: var(--warn-ink); }
+
+  /* evidence cards */
+  .ev { display: grid; grid-template-columns: 1fr 1fr; gap: .9rem; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; box-shadow: var(--shadow); }
+  .card h3 { margin: 0; padding: .8rem 1rem; font-size: .82rem; display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid var(--line); }
+  .card h3 .tag { font-family: var(--mono); font-size: .7rem; padding: .18rem .5rem; border-radius: 6px; }
+  .card.bad h3 .tag { background: var(--danger-soft); color: var(--danger-ink); }
+  .card.good h3 .tag { background: var(--safe-soft); color: var(--safe-ink); }
+  pre { margin: 0; padding: .9rem 1rem; font-family: var(--mono); font-size: .76rem; line-height: 1.5;
+    overflow-x: auto; color: var(--ink); background: var(--surface-2); }
+  pre .r { color: var(--danger); } pre .g { color: var(--safe); } pre .c { color: var(--faint); } pre .a { color: var(--accent); }
+
+  /* flow */
+  .flow { display: grid; grid-template-columns: 1fr 1fr; gap: .9rem; }
+  .flowcol { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 1.1rem 1.2rem; box-shadow: var(--shadow); }
+  .flowcol .h { font-weight: 650; display: flex; align-items: center; gap: .5rem; margin-bottom: .5rem; }
+  .flowcol .pill { font-family: var(--mono); font-size: .68rem; padding: .16rem .5rem; border-radius: 6px; }
+  .flowcol.off .pill { background: var(--danger-soft); color: var(--danger-ink); }
+  .flowcol.on .pill { background: var(--safe-soft); color: var(--safe-ink); }
+  .chain { font-family: var(--mono); font-size: .78rem; color: var(--muted); line-height: 1.9; }
+  .chain .host { color: var(--ink); font-weight: 600; }
+  .chain .arrow { color: var(--faint); }
+
+  .bugfix { background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--accent);
+    border-radius: 12px; padding: 1.1rem 1.3rem; box-shadow: var(--shadow); }
+  .bugfix code { font-family: var(--mono); font-size: .82em; background: var(--surface-2); padding: .1rem .35rem; border-radius: 5px; color: var(--accent); }
+  .bugfix .t { font-weight: 650; margin-bottom: .35rem; }
+  .bugfix p { margin: .4rem 0 0; color: var(--muted); font-size: .92rem; }
+
+  footer { margin-top: 2.6rem; padding-top: 1.4rem; border-top: 1px solid var(--line);
+    display: flex; flex-wrap: wrap; gap: 1rem 2rem; align-items: center; justify-content: space-between; }
+  .hosts { display: flex; flex-wrap: wrap; gap: .5rem; }
+  .hosts a { font-family: var(--mono); font-size: .78rem; text-decoration: none; color: var(--ink);
+    border: 1px solid var(--line); border-radius: 8px; padding: .4rem .7rem; display: inline-flex; gap: .5rem; align-items: center; background: var(--surface); }
+  .hosts a .s { width: 6px; height: 6px; border-radius: 50%; }
+  .hosts a.off .s { background: var(--danger); } .hosts a.on .s { background: var(--safe); }
+  .hosts a:hover { border-color: var(--accent); }
+  footer .fine { color: var(--faint); font-size: .78rem; font-family: var(--mono); }
+
+  @media (max-width: 720px) {
+    .tiles { grid-template-columns: repeat(2, 1fr); }
+    .ev, .flow { grid-template-columns: 1fr; }
+  }
+  .reveal { opacity: 0; transform: translateY(8px); animation: rise .5s ease forwards; }
+  @keyframes rise { to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .reveal { animation: none; opacity: 1; transform: none; } }
+</style>
+
+<div class="wrap">
+  <header class="reveal">
+    <div class="eyebrow"><span class="dot"></span> wslproxy WAF · edge security · payments API</div>
+    <h1>Same origin, two doors:<br><span class="g">exposed</span> vs <span class="b">protected</span></h1>
+    <p class="lede">A deliberately vulnerable payments API sits behind two wslproxy hostnames — one
+      with the WAF off, one with it on in block mode. We fired <b>19 modern attacks</b> at both.
+      Without the WAF, <b>18 exploited the origin</b>. With it, <b>the same 18 were blocked</b> at the edge —
+      OWASP Top 10 <b>and</b> the API-era classes a signature WAF is really judged on.</p>
+  </header>
+
+  <section class="reveal" style="animation-delay:.05s">
+    <div class="tiles">
+      <div class="tile base"><span class="stripe"></span><div class="n">19</div><div class="l">attacks fired at each host</div></div>
+      <div class="tile danger"><span class="stripe"></span><div class="n">18<span class="u">/19</span></div><div class="l">exploited the origin — <b style="color:var(--danger)">no WAF</b></div></div>
+      <div class="tile safe"><span class="stripe"></span><div class="n">18<span class="u">/19</span></div><div class="l">blocked at the edge — <b style="color:var(--safe)">wslproxy WAF</b></div></div>
+      <div class="tile warn"><span class="stripe"></span><div class="n">1</div><div class="l">honest gap: BOLA needs authz, not signatures</div></div>
+    </div>
+  </section>
+
+  <section class="reveal" style="animation-delay:.1s">
+    <p class="kicker">Threat coverage — beyond the Top 10</p>
+    <div class="cov">
+      <span class="c"><span class="k">OWASP</span> <b>Injection</b> · XSS, SQLi, cmdi</span>
+      <span class="c"><span class="k">OWASP</span> <b>Path traversal</b> + encoded evasion</span>
+      <span class="c"><span class="k">CVE</span> <b>Log4Shell</b> 2021-44228</span>
+      <span class="c"><span class="k">CVE</span> <b>Spring4Shell</b> 2022-22965</span>
+      <span class="c"><span class="k">MODERN</span> <b>SSTI</b> · <b>SSRF</b> → metadata</span>
+      <span class="c"><span class="k">API</span> <b>NoSQLi</b> · <b>XXE</b> · <b>GraphQL</b></span>
+      <span class="c"><span class="k">API</span> <b>JWT alg:none</b> · <b>proto pollution</b></span>
+      <span class="c"><span class="k">API</span> <b>Mass assignment</b></span>
+      <span class="c"><span class="k">BOT</span> <b>Scanner recon</b></span>
+    </div>
+  </section>
+
+  <section class="reveal" style="animation-delay:.12s">
+    <p class="kicker">The before / after matrix — 36-rule policy, block mode</p>
+    <div class="panel"><div class="scroll">
+      <table>
+        <thead><tr>
+          <th>Attack</th><th>Class</th>
+          <th class="center">Open — no WAF</th>
+          <th class="center">Secure — wslproxy WAF</th>
+        </tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div></div>
+    <div class="note">
+      <span class="ic">△</span>
+      <div><b>BOLA / IDOR is the one attack the WAF doesn't stop</b> — and that's the honest truth about
+      every signature WAF, F5 included. <code style="font-family:var(--mono)">GET /api/accounts/9999</code> carries
+      no malicious pattern; object-level authorization is business logic. The fix is app-side authz or a
+      positive-security model — a WAF is necessary, not sufficient.</div>
+    </div>
+  </section>
+
+  <section class="reveal" style="animation-delay:.14s">
+    <p class="kicker">Evidence — captured from the live hosts</p>
+    <div class="ev">
+      <div class="card bad">
+        <h3>SSRF → cloud metadata <span class="tag">OPEN · exploited</span></h3>
+        <pre><span class="c"># GET /fetch?url=http://169.254.169.254/latest/meta-data/iam/</span>
+{
+  "url": "http://169.254.169.254/…",
+  <span class="r">"ssrf": true</span>,
+  "leaked": {
+    "AccessKeyId": <span class="r">"ASIA...STOLEN"</span>,
+    "SecretAccessKey": <span class="r">"wJalr..."</span>,
+    "Token": "IQoJb3JpZ2…"
+  }
+}</pre>
+      </div>
+      <div class="card good">
+        <h3>Same request, WAF on <span class="tag">SECURE · blocked</span></h3>
+<pre><span class="c"># same GET, on payments-secure</span>
+HTTP/2 <span class="g">403</span>
+x-waf-block: <span class="g">true</span>
+x-waf-rule: <span class="a">waf-rule-ssrf-001</span>
+
+<span class="g">🛡  403 — Request blocked</span>
+Matched a WAF rule and was stopped
+before reaching the application.
+        <span class="c">— Protected by WSLProxy WAF</span></pre>
+      </div>
+    </div>
+  </section>
+
+  <section class="reveal" style="animation-delay:.16s">
+    <p class="kicker">How it's wired</p>
+    <div class="flow">
+      <div class="flowcol off">
+        <div class="h"><span class="pill">WAF OFF</span> payments-open.fictionally.org</div>
+        <div class="chain">
+          <span class="host">client</span> <span class="arrow">→</span> wslproxy (lon1)<br>
+          <span class="arrow">→</span> Acme Pay <span class="host">k3s1 · :30084</span><br>
+          <span class="arrow" style="color:var(--danger)">→ payload reaches the app ✕</span>
+        </div>
+      </div>
+      <div class="flowcol on">
+        <div class="h"><span class="pill">WAF ON · block</span> payments-secure.fictionally.org</div>
+        <div class="chain">
+          <span class="host">client</span> <span class="arrow">→</span> wslproxy (lon1) <span class="host">+ WAF</span><br>
+          <span class="arrow" style="color:var(--safe)">→ 403 at the edge ✓</span><br>
+          <span class="arrow">→</span> Acme Pay never sees it
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="reveal" style="animation-delay:.18s">
+    <p class="kicker">A real bug this demo surfaced</p>
+    <div class="bugfix">
+      <div class="t">The WAF had never actually blocked anything on this edge.</div>
+      <p>The engine called <code>ngx.re.compile()</code> — which OpenResty doesn't have. Every regex rule
+      threw <code>attempt to call field 'compile'</code>, the fail-open wrapper swallowed it, and all traffic
+      passed. It went unnoticed because no vhost had a policy bound until now. Fix: pass the pattern straight
+      to <code>ngx.re.find(v, pattern, "jois")</code> — the <code>o</code> flag compiles once and caches per
+      worker. Only <code>waf_enabled</code> vhosts are affected, so the blast radius is this demo.</p>
+    </div>
+  </section>
+
+  <footer class="reveal" style="animation-delay:.2s">
+    <div class="hosts">
+      <a class="off" href="https://payments-open.fictionally.org/" target="_blank" rel="noopener"><span class="s"></span>payments-open · no WAF</a>
+      <a class="on" href="https://payments-secure.fictionally.org/" target="_blank" rel="noopener"><span class="s"></span>payments-secure · WAF</a>
+    </div>
+    <div class="fine">wslproxy WAF · 36 rules · block mode · fail-open</div>
+  </footer>
+</div>
+
+<script>
+  const rows = [
+    ["Reflected XSS","OWASP","A03","injection","critical","exploit","block","waf-rule-xss-001"],
+    ["SQL injection (UNION)","OWASP","A03","injection","critical","exploit","block","waf-rule-sqli-001"],
+    ["Path traversal","OWASP","A01","traversal","high","exploit","block","waf-rule-lfi-001"],
+    ["Encoded traversal (evasion)","OWASP","A01","traversal","high","exploit","block","waf-rule-lfi-001"],
+    ["OS command injection","OWASP","A03","injection","critical","exploit","block","waf-rule-cmdi-001"],
+    ["SSTI — arithmetic","MODERN","","ssti","high","exploit","block","waf-rule-ssti-001"],
+    ["SSTI — secret exfiltration","MODERN","","ssti","high","exploit","block","waf-rule-ssti-001"],
+    ["Log4Shell JNDI","CVE","2021-44228","rce","critical","exploit","block","waf-rule-log4shell-001"],
+    ["Log4Shell obfuscated (evasion)","CVE","2021-44228","rce","critical","none","block","waf-rule-log4shell-002"],
+    ["Spring4Shell","CVE","2022-22965","rce","critical","exploit","block","waf-rule-spring4shell-001"],
+    ["SSRF → cloud metadata","MODERN","","ssrf","high","exploit","block","waf-rule-ssrf-001"],
+    ["NoSQL injection auth bypass","API","","nosqli","high","exploit","block","waf-rule-nosqli-001"],
+    ["XXE file disclosure","API","","xxe","high","exploit","block","waf-rule-ssrf-002"],
+    ["GraphQL introspection","API","","graphql","medium","exploit","block","waf-rule-graphql-introspection-001"],
+    ["Prototype pollution","API","","proto","high","exploit","block","waf-rule-protopollute-001"],
+    ["JWT alg:none forgery","API","","jwt","high","exploit","block","waf-rule-jwt-none-001"],
+    ["Mass assignment (privilege)","API","","mass-assignment","high","exploit","block","waf-rule-massassign-001"],
+    ["Scanner recon (sqlmap UA)","BOT","","scanner","medium","exploit","block","waf-rule-scanner-ua-001"],
+    ["BOLA / IDOR","API","","bola","high","exploit","gap",""],
+  ];
+  const openCell = (v) => v === "exploit"
+    ? '<span class="badge exploit">● EXPLOITED</span>'
+    : '<span class="badge none">○ no-effect</span>';
+  const secCell = (v, rule) => v === "block"
+    ? `<span class="badge block">✓ BLOCKED</span><span class="rule">${rule}</span>`
+    : '<span class="badge gap">△ not blocked</span><span class="rule">needs object-level authz</span>';
+  const clsLabel = (grp, ref) => {
+    if (grp === "CVE") return `<span class="cls"><span class="cve">CVE-${ref}</span></span>`;
+    if (grp === "OWASP") return `<span class="cls">OWASP ${ref}</span>`;
+    return `<span class="cls">${grp}</span>`;
+  };
+  document.getElementById("rows").innerHTML = rows.map(([name,grp,ref,cat,sev,o,s,rule]) => `
+    <tr class="${s==='gap'?'gap-row':''}">
+      <td><div class="atk"><span class="sev ${sev}"></span>${name}</div></td>
+      <td>${clsLabel(grp,ref)}</td>
+      <td class="center">${openCell(o)}</td>
+      <td class="center">${secCell(s,rule)}</td>
+    </tr>`).join("");
+</script>

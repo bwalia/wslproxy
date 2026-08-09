@@ -1,0 +1,68 @@
+---
+# Acme Pay — deliberately vulnerable payments API origin for the wslproxy WAF
+# before/after demo. Pinned to cloud001 (the lon1 edge node, 72.62.211.28) so the
+# lon1 wslproxy reaches it on 127.0.0.1:30084 (edge<->LAN pod overlay is not
+# routable from the edge nodes). App source is carried in a ConfigMap and run on a
+# stock python image — no image build/registry push needed.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: wslproxy-waf-demo
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payments-api
+  namespace: wslproxy-waf-demo
+  labels: {app: payments-api}
+spec:
+  replicas: 2
+  selector:
+    matchLabels: {app: payments-api}
+  template:
+    metadata:
+      labels: {app: payments-api}
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: cloud001
+      tolerations:
+        - key: node-role.kubernetes.io/edge
+          operator: Equal
+          value: "true"
+          effect: NoSchedule
+      containers:
+        - name: app
+          image: python:3.12-alpine
+          command: ["python3", "/app/app.py"]
+          env:
+            - {name: PORT, value: "8080"}
+            - {name: STMT_DIR, value: "/srv/statements"}
+          ports: [{containerPort: 8080}]
+          volumeMounts:
+            - {name: app, mountPath: /app}
+            - {name: srv, mountPath: /srv}
+          readinessProbe:
+            httpGet: {path: /health, port: 8080}
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          resources:
+            requests: {cpu: 25m, memory: 32Mi}
+            limits: {memory: 128Mi}
+      volumes:
+        - name: app
+          configMap: {name: payments-api-src}
+        - name: srv
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: payments-api
+  namespace: wslproxy-waf-demo
+spec:
+  type: NodePort
+  selector: {app: payments-api}
+  ports:
+    - port: 80
+      targetPort: 8080
+      nodePort: 30084

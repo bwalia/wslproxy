@@ -1,0 +1,22 @@
+{
+  "id": "waf-rule-jwt-none-001",
+  "name": "Broken Auth - JWT alg:none Forgery",
+  "description": "Detects a forged JWT whose header declares alg:none (base64url eyJhbGciOiJub25l...), accepted only by servers that skip signature verification.",
+  "category": "jwt",
+  "severity": "high",
+  "enabled": true,
+  "target": "all",
+  "pattern": "eyJhbGciOiJ(?:ub25l|Ob25l|OT05F)",
+  "pattern_type": "regex",
+  "action": "block",
+  "score": 8,
+  "tags": [
+    "api-security",
+    "jwt",
+    "broken-auth",
+    "beyond-owasp"
+  ],
+  "profile_id": "prod",
+  "created_at": 1740000000,
+  "updated_at": 1740000000
+}

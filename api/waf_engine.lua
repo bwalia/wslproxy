@@ -17,31 +17,18 @@ if configPath:sub(-1) ~= "/" then
 end
 
 -- Per-worker caches (persist across requests when lua_code_cache is ON)
-local compiled_patterns = {}
 local policy_cache = {}
 local rule_cache = {}
 local CACHE_TTL = 30 -- seconds
 
 -- ============================================================================
--- PATTERN COMPILATION & MATCHING
+-- PATTERN MATCHING
 -- ============================================================================
 
--- Get or compile a PCRE regex pattern (JIT compiled, cached per-worker)
-local function get_compiled_pattern(pattern_str)
-    local cached = compiled_patterns[pattern_str]
-    if cached then
-        return cached
-    end
-    local compiled, err = ngx.re.compile(pattern_str, "jois")
-    if compiled then
-        compiled_patterns[pattern_str] = compiled
-    else
-        ngx.log(ngx.WARN, "WAF: Failed to compile pattern: ", err, " pattern=", pattern_str)
-    end
-    return compiled, err
-end
-
--- Inspect a single string value against a rule pattern
+-- Inspect a single string value against a rule pattern.
+-- ngx.re has no compile() step: the "o" flag tells OpenResty to compile the
+-- pattern once and cache the compiled form per-worker, so passing the pattern
+-- string directly to ngx.re.find is both correct and JIT-cached.
 local function inspect_single(value, rule)
     if not value or value == "" then
         return false
@@ -49,12 +36,12 @@ local function inspect_single(value, rule)
     if rule.pattern_type == "string" then
         return ngx.re.find(value, rule.pattern, "joi") ~= nil
     end
-    -- Default: regex matching
-    local compiled, compile_err = get_compiled_pattern(rule.pattern)
-    if not compiled then
+    -- Default: regex matching (j=JIT, o=compile-once/cache, i=case-insensitive, s=dotall)
+    local from, _, err = ngx.re.find(value, rule.pattern, "jois")
+    if err then
+        ngx.log(ngx.WARN, "WAF: regex error for rule ", tostring(rule.id), ": ", err)
         return false
     end
-    local from = ngx.re.find(value, compiled, "jois")
     return from ~= nil
 end
 

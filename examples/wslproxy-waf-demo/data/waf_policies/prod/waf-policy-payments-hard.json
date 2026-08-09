@@ -1,0 +1,67 @@
+{
+  "id": "waf-policy-payments-hard",
+  "name": "Payments API \u2014 Hardened (modern + API)",
+  "description": "F5-competitive WAF policy: OWASP Top 10 plus SSTI, Log4Shell, Spring4Shell, SSRF, NoSQLi, XXE, JWT alg:none, prototype pollution, GraphQL introspection, open redirect and scanner detection. Block mode.",
+  "profile_id": "prod",
+  "enabled": true,
+  "mode": "block",
+  "waf_rules": [
+    "waf-rule-sqli-001",
+    "waf-rule-sqli-002",
+    "waf-rule-sqli-003",
+    "waf-rule-sqli-004",
+    "waf-rule-sqli-005",
+    "waf-rule-sqli-006",
+    "waf-rule-sqli-007",
+    "waf-rule-xss-001",
+    "waf-rule-xss-002",
+    "waf-rule-xss-003",
+    "waf-rule-xss-004",
+    "waf-rule-xss-005",
+    "waf-rule-cmdi-001",
+    "waf-rule-cmdi-002",
+    "waf-rule-cmdi-003",
+    "waf-rule-cmdi-004",
+    "waf-rule-lfi-001",
+    "waf-rule-lfi-002",
+    "waf-rule-proto-001",
+    "waf-rule-proto-002",
+    "waf-rule-ssti-001",
+    "waf-rule-log4shell-001",
+    "waf-rule-log4shell-002",
+    "waf-rule-ssrf-001",
+    "waf-rule-ssrf-002",
+    "waf-rule-nosqli-001",
+    "waf-rule-jwt-none-001",
+    "waf-rule-protopollute-001",
+    "waf-rule-xxe-001",
+    "waf-rule-graphql-introspection-001",
+    "waf-rule-openredirect-001",
+    "waf-rule-spring4shell-001",
+    "waf-rule-scanner-ua-001",
+    "waf-rule-lfi-003",
+    "waf-rule-cmdi-json-001",
+    "waf-rule-massassign-001"
+  ],
+  "paranoia_level": 2,
+  "anomaly_threshold": 6,
+  "body_inspection": true,
+  "max_body_size": 1048576,
+  "blocked_response": {
+    "status_code": 403,
+    "content_type": "text/html",
+    "body_base64": "PCFkb2N0eXBlIGh0bWw+PG1ldGEgY2hhcnNldD11dGYtOD48dGl0bGU+UmVxdWVzdCBibG9ja2VkPC90aXRsZT48c3R5bGU+Ym9keXtmb250OjE2cHgvMS42IHN5c3RlbS11aSxzYW5zLXNlcmlmO2JhY2tncm91bmQ6IzBiMTAyMDtjb2xvcjojZTVlN2ViO2Rpc3BsYXk6Z3JpZDtwbGFjZS1pdGVtczpjZW50ZXI7aGVpZ2h0OjEwMHZoO21hcmdpbjowfS5je21heC13aWR0aDozNHJlbTt0ZXh0LWFsaWduOmNlbnRlcjtwYWRkaW5nOjIuNXJlbTtiYWNrZ3JvdW5kOiMxMTE4Mjc7Ym9yZGVyOjFweCBzb2xpZCAjMWYyOTM3O2JvcmRlci1yYWRpdXM6MTZweH0uc3tmb250LXNpemU6NTZweH1oMXtjb2xvcjojZjg3MTcxO21hcmdpbjouNHJlbSAwfWNvZGV7Y29sb3I6IzkzYzVmZH0uZntjb2xvcjojNmI3MjgwO2ZvbnQtc2l6ZToxM3B4O21hcmdpbi10b3A6MS41cmVtfTwvc3R5bGU+PGRpdiBjbGFzcz1jPjxkaXYgY2xhc3M9cz4mIzEyODczNzs8L2Rpdj48aDE+NDAzICZtZGFzaDsgUmVxdWVzdCBibG9ja2VkPC9oMT48cD5UaGlzIHJlcXVlc3QgbWF0Y2hlZCBhIFdlYiBBcHBsaWNhdGlvbiBGaXJld2FsbCBydWxlIGFuZCB3YXMgc3RvcHBlZCBiZWZvcmUgcmVhY2hpbmcgdGhlIGFwcGxpY2F0aW9uLjwvcD48cCBjbGFzcz1mPlByb3RlY3RlZCBieSA8Yj5XU0xQcm94eSBXQUY8L2I+ICZtaWRkb3Q7IG1vZGVybiAmYW1wOyBBUEkgdGhyZWF0IHJ1bGVzPC9wPjwvZGl2Pg=="
+  },
+  "whitelist": {
+    "ips": [
+      "127.0.0.1"
+    ],
+    "paths": [
+      "/health",
+      "/.well-known/acme-challenge/"
+    ],
+    "user_agents": []
+  },
+  "created_at": 1740000000,
+  "updated_at": 1740000000
+}

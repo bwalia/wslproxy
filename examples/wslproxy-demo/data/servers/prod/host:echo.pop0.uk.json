@@ -1,0 +1,25 @@
+{
+  "id": "host:echo.pop0.uk",
+  "server_name": "echo.pop0.uk",
+  "proxy_server_name": "echo.pop0.uk",
+  "root": "/var/www/html",
+  "index": "index.html",
+  "access_log": "logs/echo.pop0.uk.access.log",
+  "error_log": "logs/echo.pop0.uk.error.log",
+  "config_status": false,
+  "profile_id": "prod",
+  "rules": "echo-demo-default",
+  "listens": [
+    {
+      "listen": "80"
+    }
+  ],
+  "ssl_enabled": true,
+  "ssl_force_https": true,
+  "ssl_staging": false,
+  "ssl_auto_renew": true,
+  "ssl_email": "balinder.walia@gmail.com",
+  "cache_enabled": false,
+  "match_cases": {},
+  "custom_headers": []
+}
