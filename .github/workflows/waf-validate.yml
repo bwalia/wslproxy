@@ -1,0 +1,72 @@
+name: WAF — validate & golden tests
+
+# Guards the WAF: on every change to the engine, rules, policies or schema we
+# (1) syntax-check the Lua modules and (2) validate every policy against the
+# JSON Schema + check signature referential integrity. The live golden tests
+# (waf_features.py) run on demand against a deployed edge via a self-hosted
+# runner — they need a reachable gateway, so they are not gated on hosted CI.
+
+on:
+  push:
+    paths:
+      - "api/waf_*.lua"
+      - "data/waf_rules/**"
+      - "data/waf_policies/**"
+      - "docs/waf-policy.schema.json"
+      - "tools/waf_validate.py"
+      - "examples/wslproxy-waf-demo/**"
+      - ".github/workflows/waf-validate.yml"
+  pull_request:
+    paths:
+      - "api/waf_*.lua"
+      - "data/waf_rules/**"
+      - "data/waf_policies/**"
+      - "docs/waf-policy.schema.json"
+      - "tools/waf_validate.py"
+      - "examples/wslproxy-waf-demo/**"
+  workflow_dispatch:
+    inputs:
+      SMOKE_HOST:
+        description: "Run live golden tests against this protected host (blank = skip)."
+        required: false
+        default: ""
+
+jobs:
+  validate:
+    name: Lua syntax + policy schema
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install LuaJIT + jsonschema
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends luajit >/dev/null
+          python3 -m pip install --quiet jsonschema
+
+      - name: Lua syntax check (all WAF modules)
+        run: |
+          set -e
+          fail=0
+          for f in api/waf_engine.lua api/waf_stages.lua api/waf_support.lua; do
+            if luajit -bl "$f" >/dev/null 2>err.txt; then
+              echo "  ok   $f"
+            else
+              echo "::error file=$f::Lua syntax error"; cat err.txt; fail=1
+            fi
+          done
+          exit $fail
+
+      - name: Validate policies + signatures
+        run: python3 tools/waf_validate.py
+
+  golden:
+    name: Live golden tests (self-hosted, on demand)
+    needs: validate
+    if: github.event_name == 'workflow_dispatch' && inputs.SMOKE_HOST != ''
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run golden feature tests
+        run: |
+          python3 examples/wslproxy-waf-demo/waf_features.py --host "${{ inputs.SMOKE_HOST }}"

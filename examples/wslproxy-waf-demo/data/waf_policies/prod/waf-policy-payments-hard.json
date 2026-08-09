@@ -143,6 +143,53 @@
       ]
     }
   ],
+  "openapi": {
+    "basePath": "/api",
+    "paths": [
+      {
+        "path": "/api/login",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/api/accounts/{id}",
+        "methods": [
+          "GET"
+        ]
+      },
+      {
+        "path": "/api/profile",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/api/me",
+        "methods": [
+          "GET"
+        ]
+      },
+      {
+        "path": "/api/import",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/api/merge",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/api/redirect",
+        "methods": [
+          "GET"
+        ]
+      }
+    ]
+  },
   "routeOverrides": [
     {
       "path": "/preview",

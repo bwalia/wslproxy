@@ -58,10 +58,28 @@ const Form = () => {
                   { id: 'cmdi', name: 'Command Injection' },
                   { id: 'lfi', name: 'Local File Inclusion' },
                   { id: 'rfi', name: 'Remote File Inclusion' },
+                  { id: 'ssti', name: 'Server-Side Template Injection' },
+                  { id: 'ssrf', name: 'Server-Side Request Forgery' },
+                  { id: 'rce', name: 'Remote Code Execution (CVE)' },
+                  { id: 'nosqli', name: 'NoSQL Injection' },
+                  { id: 'xxe', name: 'XML External Entity' },
+                  { id: 'jwt', name: 'JWT / Broken Auth' },
+                  { id: 'graphql', name: 'GraphQL' },
+                  { id: 'proto-pollution', name: 'Prototype Pollution' },
+                  { id: 'mass-assignment', name: 'Mass Assignment' },
+                  { id: 'scanner', name: 'Scanner / Bot' },
                   { id: 'protocol', name: 'Protocol Violation' },
                   { id: 'custom', name: 'Custom Rule' },
                 ]}
                 helperText="Attack category this rule detects"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={4}>
+              <TextInput
+                source="signature_set"
+                label="Signature Set"
+                fullWidth
+                helperText="Set this rule belongs to (e.g. SET_SQLI). Defaults to SET_<CATEGORY>."
               />
             </Grid>
             <Grid item xs={12} sm={6} md={4}>
@@ -186,6 +204,15 @@ const Form = () => {
                 label="Tag"
                 helperText="Rule tag"
               />
+            </SimpleFormIterator>
+          </ArrayInput>
+        </SectionCard>
+
+        {/* References */}
+        <SectionCard title="References" subtitle="Standards references for this signature (CWE / OWASP / CVE)">
+          <ArrayInput source="references" label="">
+            <SimpleFormIterator inline disableReordering>
+              <TextInput source="" label="Reference" helperText="e.g. CWE-89, OWASP-A03, CVE-2021-44228" />
             </SimpleFormIterator>
           </ArrayInput>
         </SectionCard>
