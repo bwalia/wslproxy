@@ -1,29 +1,6 @@
 import React from "react";
 
-/* ──────────────────────────────────────────────────────────────────────────
-   WSL Proxy Logo — TypeScript port of openresty-admin/src/component/Logo.jsx.
-
-   Two variants:
-     - "full"  (default)  shield + WSL Proxy wordmark + ADMIN pill (200×44)
-     - "icon"             shield only, square aspect for collapsed sidebar
-
-   Theme controls only the wordmark colour ("WSL" half).  The shield gradient
-   and accent ("Proxy" + ADMIN pill) are theme-invariant because the brand
-   purple/indigo holds contrast against both light and dark surfaces.
-
-   Gradient ID is intentionally STATIC (not `useId()`):
-     - The brand gradient is the same across every Logo instance, so a
-       per-instance unique ID has no visual purpose.
-     - `url(#id)` resolves to the first element with that ID in document
-       order; since each `<linearGradient>` definition we emit is
-       byte-identical, every Logo paints the same fill regardless of
-       which definition the browser happens to reach first.
-     - `useId()` can produce different counter values for the same
-       Logo across SSR vs. CSR when the component straddles a Suspense
-       streaming boundary (Sidebar + WelcomeBanner are an exact example),
-       producing a hydration mismatch on the `id` / `fill="url(#…)"`
-       attributes.  Static ID dodges that entirely.
-   ────────────────────────────────────────────────────────────────────────── */
+/* WSLProxy logo — copper brand aligned with the public landing page. */
 
 const GRADIENT_ID = "wslproxy-logo-gradient";
 
@@ -32,7 +9,6 @@ export interface LogoProps {
   height?: number;
   variant?: "full" | "icon";
   theme?: "light" | "dark";
-  /** Optional accessible name; defaults to "WSL Proxy". */
   title?: string;
   className?: string;
 }
@@ -42,12 +18,11 @@ const Logo: React.FC<LogoProps> = ({
   height = 40,
   variant = "full",
   theme = "dark",
-  title = "WSL Proxy",
+  title = "WSLProxy",
   className,
 }) => {
-  const wordmarkColor = theme === "dark" ? "#ffffff" : "#0f172a";
-  const accentColor = "#6366f1"; // Indigo-500 — matches Tailwind primary
-
+  const wordmarkColor = theme === "dark" ? "#eef2f6" : "#0b1c2c";
+  const accentColor = "#c45c26";
   const gradientId = GRADIENT_ID;
 
   if (variant === "icon") {
@@ -64,8 +39,8 @@ const Logo: React.FC<LogoProps> = ({
         <title>{title}</title>
         <defs>
           <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#6366f1" />
-            <stop offset="100%" stopColor="#8b5cf6" />
+            <stop offset="0%" stopColor="#c45c26" />
+            <stop offset="100%" stopColor="#1a7a6d" />
           </linearGradient>
         </defs>
         <path
@@ -100,11 +75,10 @@ const Logo: React.FC<LogoProps> = ({
       <title>{title}</title>
       <defs>
         <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#6366f1" />
-          <stop offset="100%" stopColor="#8b5cf6" />
+          <stop offset="0%" stopColor="#c45c26" />
+          <stop offset="100%" stopColor="#1a7a6d" />
         </linearGradient>
       </defs>
-      {/* Shield + network nodes (matches the icon variant scaled to 40px) */}
       <g transform="translate(2, 2)">
         <path
           d="M20 2L4 8v10c0 9 6.5 17 16 20 9.5-3 16-11 16-20V8L20 2z"
@@ -122,11 +96,10 @@ const Logo: React.FC<LogoProps> = ({
           opacity="0.7"
         />
       </g>
-      {/* Wordmark — "WSL" in theme colour, "Proxy" in brand accent */}
       <text
         x="48"
         y="28"
-        fontFamily="Inter, system-ui, -apple-system, sans-serif"
+        fontFamily="Fraunces, Georgia, serif"
         fontSize="20"
         fontWeight="700"
         fill={wordmarkColor}
@@ -137,15 +110,14 @@ const Logo: React.FC<LogoProps> = ({
       <text
         x="92"
         y="28"
-        fontFamily="Inter, system-ui, -apple-system, sans-serif"
+        fontFamily="Fraunces, Georgia, serif"
         fontSize="20"
-        fontWeight="400"
+        fontWeight="500"
         fill={accentColor}
         letterSpacing="-0.5"
       >
         Proxy
       </text>
-      {/* Admin pill — soft fill to keep visual weight on the wordmark */}
       <rect
         x="148"
         y="12"
@@ -153,12 +125,12 @@ const Logo: React.FC<LogoProps> = ({
         height="20"
         rx="4"
         fill={`url(#${gradientId})`}
-        opacity="0.15"
+        opacity="0.18"
       />
       <text
         x="172"
         y="26"
-        fontFamily="Inter, system-ui, -apple-system, sans-serif"
+        fontFamily="Outfit, system-ui, sans-serif"
         fontSize="10"
         fontWeight="600"
         fill={accentColor}

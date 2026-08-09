@@ -2,29 +2,30 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Brand tokens aligned with the public landing page (html/index.html). */
 @theme {
-  --color-primary-50: #eef2ff;
-  --color-primary-100: #e0e7ff;
-  --color-primary-200: #c7d2fe;
-  --color-primary-300: #a5b4fc;
-  --color-primary-400: #818cf8;
-  --color-primary-500: #6366f1;
-  --color-primary-600: #4f46e5;
-  --color-primary-700: #4338ca;
-  --color-primary-800: #3730a3;
-  --color-primary-900: #312e81;
-  --color-primary-950: #1e1b4e;
+  --color-primary-50: #fdf4ef;
+  --color-primary-100: #fbe6d9;
+  --color-primary-200: #f5c9b0;
+  --color-primary-300: #eba67d;
+  --color-primary-400: #dc7d4a;
+  --color-primary-500: #c45c26;
+  --color-primary-600: #9a4519;
+  --color-primary-700: #7a3715;
+  --color-primary-800: #652f15;
+  --color-primary-900: #542914;
+  --color-primary-950: #2d1409;
 
-  --color-accent-50: #ecfdf5;
-  --color-accent-100: #d1fae5;
-  --color-accent-200: #a7f3d0;
-  --color-accent-300: #6ee7b7;
-  --color-accent-400: #34d399;
-  --color-accent-500: #10b981;
-  --color-accent-600: #059669;
-  --color-accent-700: #047857;
-  --color-accent-800: #065f46;
-  --color-accent-900: #064e3b;
+  --color-accent-50: #ecf8f6;
+  --color-accent-100: #d0efe9;
+  --color-accent-200: #a2ddd3;
+  --color-accent-300: #6bc4b5;
+  --color-accent-400: #3dbaa8;
+  --color-accent-500: #1a7a6d;
+  --color-accent-600: #156257;
+  --color-accent-700: #124e46;
+  --color-accent-800: #103f39;
+  --color-accent-900: #0e352f;
 
   --color-danger-50: #fef2f2;
   --color-danger-500: #ef4444;
@@ -35,46 +36,27 @@
   --color-warn-500: #f59e0b;
   --color-warn-600: #d97706;
 
-  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-sans: var(--font-outfit), "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-fraunces), "Fraunces", Georgia, serif;
+  --font-mono: var(--font-jetbrains), "JetBrains Mono", ui-monospace, monospace;
 
-  /* ── Typography scale tune-up ─────────────────────────────────────────
-     Lift the smallest text from 12px → 13px so eyebrow labels (sidebar
-     section headings, footer build-info labels, form field hints,
-     small badge text) stop straining the eye.  Body text stays at
-     14px (text-sm) which is the industry-standard admin density —
-     bumping that would feel "consumer app" instead of "operator
-     console".  text-sm and above are unchanged.
-     Line heights tuned together so the new size still snaps to the
-     8px vertical rhythm. */
-  --text-xs: 0.8125rem;        /* 13px (was 0.75rem / 12px) */
-  --text-xs--line-height: 1.125rem; /* 18px */
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: 1.125rem;
 }
-
-/* ── Base resets ─────────────────────────────────────────────────────────── */
 
 html {
   @apply scroll-smooth antialiased;
 }
 
 body {
-  @apply bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100;
-
-  /* Inter's OpenType features that make it read like a polished
-     design system instead of the default Google Fonts look:
-       cv02 — clearer `1` (less ambiguous next to `l`/`I`)
-       cv03 — improved `4` (open shape, no closed counter)
-       cv04 — clearer `6` and `9`
-       cv11 — single-story `a` and `g` (design-system feel)
-       ss03 — cleaner numerals (matters for dashboards full of stats)
-       cv01 — alternate `l` (less ambiguous next to `1` and `I`)
-     Plus `tabular-nums` so numbers in tables, stats, badges, and
-     log timestamps align column-wise rather than wandering.  This is
-     usually the single biggest "professional" tell on an admin UI. */
-  font-feature-settings: "cv02", "cv03", "cv04", "cv11", "ss03", "cv01";
+  @apply bg-[#f7f9fc] text-[#0b1c2c] dark:bg-[#0b1c2c] dark:text-[#eef2f6];
+  font-family: var(--font-sans);
   font-variant-numeric: tabular-nums;
 }
 
-/* ── Scrollbar ───────────────────────────────────────────────────────────── */
+.font-display {
+  font-family: var(--font-display);
+}
 
 ::-webkit-scrollbar {
   @apply w-1.5;
@@ -86,8 +68,6 @@ body {
   @apply rounded-full bg-slate-300 dark:bg-slate-700;
 }
 
-/* ── Focus ring ──────────────────────────────────────────────────────────── */
-
 *:focus-visible {
-  @apply ring-2 ring-primary-500/50 ring-offset-2 ring-offset-white outline-none dark:ring-offset-slate-900;
+  @apply ring-2 ring-primary-500/50 ring-offset-2 ring-offset-[#f7f9fc] outline-none dark:ring-offset-[#0b1c2c];
 }

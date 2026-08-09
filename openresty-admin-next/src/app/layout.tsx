@@ -1,18 +1,30 @@
 import type { Metadata, Viewport } from "next";
 import { Suspense } from "react";
-import { Inter } from "next/font/google";
+import { Fraunces, JetBrains_Mono, Outfit } from "next/font/google";
 import Providers from "./providers";
 import "./globals.css";
 
-const inter = Inter({
+const outfit = Outfit({
   subsets: ["latin"],
   display: "swap",
-  variable: "--font-inter",
+  variable: "--font-outfit",
 });
 
-const siteName = "WSL Proxy Admin";
+const fraunces = Fraunces({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-fraunces",
+});
+
+const jetbrains = JetBrains_Mono({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-jetbrains",
+});
+
+const siteName = "WSLProxy Admin";
 const siteDescription =
-  "Administration dashboard for WSL Proxy — manage servers, rules, upstreams, WAF policies, SSL certificates, and more.";
+  "Administration dashboard for WSLProxy — manage servers, rules, upstreams, WAF policies, SSL certificates, and more.";
 
 export const metadata: Metadata = {
   title: {
@@ -51,8 +63,8 @@ export const viewport: Viewport = {
   maximumScale: 5,
   colorScheme: "light dark",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f8fafc" },
-    { media: "(prefers-color-scheme: dark)", color: "#0f172a" },
+    { media: "(prefers-color-scheme: light)", color: "#f7f9fc" },
+    { media: "(prefers-color-scheme: dark)", color: "#0b1c2c" },
   ],
 };
 
@@ -62,8 +74,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning className={inter.variable}>
-      <body className={inter.className}>
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={`${outfit.variable} ${fraunces.variable} ${jetbrains.variable}`}
+    >
+      <body className="font-sans">
+        {/* Prevent theme FOUC — key must match STORAGE_KEYS.theme */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var k="wslproxy.theme";var t=localStorage.getItem(k);if(t!=="light"&&t!=="dark"){t=window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.classList.toggle("dark",t==="dark");document.documentElement.style.colorScheme=t}catch(e){}})();`,
+          }}
+        />
         <a
           href="#main-content"
           className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:rounded-lg focus:bg-primary-600 focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-white focus:shadow-lg focus:outline-none"
@@ -74,11 +96,11 @@ export default function RootLayout({
           <Suspense
             fallback={
               <div
-                className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-950"
+                className="flex min-h-screen items-center justify-center bg-[#f7f9fc] dark:bg-[#0b1c2c]"
                 role="status"
                 aria-label="Loading"
               >
-                <div className="h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-primary-600 dark:border-slate-700 dark:border-t-primary-500" />
+                <div className="h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-primary-600 dark:border-slate-700 dark:border-t-primary-400" />
                 <span className="sr-only">Loading&hellip;</span>
               </div>
             }

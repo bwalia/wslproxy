@@ -44,6 +44,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   // Sync class whenever theme changes
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
+    document.documentElement.style.colorScheme = theme;
     set(STORAGE_KEYS.theme, theme);
   }, [theme]);
 

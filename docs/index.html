@@ -9,6 +9,21 @@
   <meta property="og:description" content="Route, secure, and observe traffic from JSON and MCP — without reloading nginx for every rule change." />
   <meta property="og:type" content="website" />
   <title>WSLProxy — Live-config API gateway &amp; edge control plane</title>
+  <meta name="color-scheme" content="light dark" />
+  <script>
+    (function () {
+      try {
+        var key = "wslproxy.theme";
+        var t = localStorage.getItem(key);
+        if (t !== "light" && t !== "dark") {
+          t = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        }
+        document.documentElement.setAttribute("data-theme", t);
+        document.documentElement.classList.toggle("dark", t === "dark");
+        document.documentElement.style.colorScheme = t;
+      } catch (e) {}
+    })();
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -23,11 +38,37 @@
       --copper: #c45c26;
       --copper-deep: #9a4519;
       --signal: #1a7a6d;
+      --surface: #ffffff;
+      --band: #0b1c2c;
+      --band-ink: #eef2f6;
+      --band-muted: rgba(238, 242, 246, 0.72);
+      --code-bg: #07131f;
+      --code-ink: #d7e2ec;
       --mono: "JetBrains Mono", ui-monospace, monospace;
       --sans: "Outfit", system-ui, sans-serif;
       --display: "Fraunces", Georgia, serif;
       --radius: 6px;
       --max: 1120px;
+      color-scheme: light;
+    }
+
+    html.dark {
+      --ink: #eef2f6;
+      --ink-soft: #b7c4d4;
+      --steel: #8fa3b8;
+      --mist: #122233;
+      --paper: #0b1c2c;
+      --line: #2a3d52;
+      --copper: #e07a3d;
+      --copper-deep: #f0a06a;
+      --signal: #3dbaa8;
+      --surface: #122233;
+      --band: #152838;
+      --band-ink: #f7f9fc;
+      --band-muted: rgba(247, 249, 252, 0.7);
+      --code-bg: #061018;
+      --code-ink: #d7e2ec;
+      color-scheme: dark;
     }
 
     *, *::before, *::after { box-sizing: border-box; }
@@ -108,7 +149,30 @@
       font-size: 0.9rem;
       border-radius: var(--radius);
     }
+    html.dark .nav-cta {
+      background: var(--copper);
+      color: #fff !important;
+    }
     .nav-cta:hover { background: var(--ink-soft); }
+    html.dark .nav-cta:hover { background: var(--copper-deep); }
+    .theme-toggle {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 2.25rem;
+      height: 2.25rem;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+      color: var(--ink-soft);
+      cursor: pointer;
+      padding: 0;
+    }
+    .theme-toggle:hover { color: var(--ink); border-color: var(--steel); }
+    .theme-toggle svg { width: 1.1rem; height: 1.1rem; }
+    .theme-toggle .icon-sun { display: none; }
+    html.dark .theme-toggle .icon-sun { display: block; }
+    html.dark .theme-toggle .icon-moon { display: none; }
     .nav-toggle {
       display: none;
       background: none;
@@ -117,6 +181,7 @@
       padding: 0.35rem 0.6rem;
       font: inherit;
       cursor: pointer;
+      color: var(--ink);
     }
     @media (max-width: 760px) {
       .nav-toggle { display: block; }
@@ -145,7 +210,7 @@
       overflow: hidden;
       background:
         radial-gradient(1200px 500px at 70% -10%, color-mix(in srgb, var(--steel) 18%, transparent), transparent 60%),
-        linear-gradient(165deg, var(--mist) 0%, var(--paper) 45%, #e4ebe7 100%);
+        linear-gradient(165deg, var(--mist) 0%, var(--paper) 45%, color-mix(in srgb, var(--signal) 12%, var(--paper)) 100%);
     }
     .hero::before {
       content: "";
@@ -300,12 +365,12 @@
     .strip p { margin: 0; color: var(--ink-soft); }
 
     .band {
-      background: var(--ink);
-      color: var(--mist);
+      background: var(--band);
+      color: var(--band-ink);
     }
-    .band .section-kicker { color: color-mix(in srgb, var(--mist) 55%, transparent); }
-    .band .section-title { color: #fff; max-width: none; }
-    .band .section-lede { color: color-mix(in srgb, var(--mist) 75%, transparent); }
+    .band .section-kicker { color: color-mix(in srgb, var(--band-ink) 55%, transparent); }
+    .band .section-title { color: var(--band-ink); max-width: none; }
+    .band .section-lede { color: var(--band-muted); }
 
     .ops-list {
       list-style: none;
@@ -323,20 +388,20 @@
       font-family: var(--display);
       font-size: 1.15rem;
       margin-bottom: 0.2rem;
-      color: #fff;
+      color: var(--band-ink);
     }
-    .ops-list span { color: color-mix(in srgb, var(--mist) 72%, transparent); font-size: 0.98rem; }
+    .ops-list span { color: var(--band-muted); font-size: 0.98rem; }
 
     .code-panel {
-      background: #07131f;
-      color: #d7e2ec;
+      background: var(--code-bg);
+      color: var(--code-ink);
       border-radius: var(--radius);
       padding: 1.15rem 1.25rem;
       font-family: var(--mono);
       font-size: 0.8rem;
       line-height: 1.65;
       overflow-x: auto;
-      border: 1px solid #1c3348;
+      border: 1px solid var(--line);
     }
     .code-panel .cmt { color: #6d8499; }
     .code-panel .cmd { color: #e8a87c; }
@@ -347,7 +412,11 @@
       border: 1px solid var(--line);
       border-radius: var(--radius);
       overflow: hidden;
-      background: #fff;
+      background: var(--surface);
+    }
+    .surface-panel {
+      background: var(--surface);
+      border-block: 1px solid var(--line);
     }
     .flow-step {
       display: grid;
@@ -428,6 +497,17 @@
         <li><a href="#capabilities">Capabilities</a></li>
         <li><a href="#operate">Operate</a></li>
         <li><a href="#start">Start</a></li>
+        <li>
+          <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode" title="Toggle theme">
+            <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M21 14.5A8.5 8.5 0 0 1 9.5 3 7 7 0 1 0 21 14.5z" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <circle cx="12" cy="12" r="4"/>
+              <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" stroke-linecap="round"/>
+            </svg>
+          </button>
+        </li>
         <li><a class="nav-cta" href="https://github.com/bwalia/wslproxy">GitHub</a></li>
       </ul>
     </div>
@@ -503,7 +583,7 @@
       </div>
     </section>
 
-    <section id="capabilities" style="background: #fff; border-block: 1px solid var(--line);">
+    <section id="capabilities" class="surface-panel">
       <div class="wrap">
         <p class="section-kicker">Platform</p>
         <h2 class="section-title">Built for real edge ops</h2>
@@ -634,11 +714,33 @@
     (function () {
       var btn = document.getElementById("nav-toggle");
       var menu = document.getElementById("nav-menu");
-      if (!btn || !menu) return;
-      btn.addEventListener("click", function () {
-        var open = menu.classList.toggle("open");
-        btn.setAttribute("aria-expanded", open ? "true" : "false");
-      });
+      if (btn && menu) {
+        btn.addEventListener("click", function () {
+          var open = menu.classList.toggle("open");
+          btn.setAttribute("aria-expanded", open ? "true" : "false");
+        });
+      }
+
+      var key = "wslproxy.theme";
+      var themeBtn = document.getElementById("theme-toggle");
+      function applyTheme(t) {
+        document.documentElement.setAttribute("data-theme", t);
+        document.documentElement.classList.toggle("dark", t === "dark");
+        document.documentElement.style.colorScheme = t;
+        try { localStorage.setItem(key, t); } catch (e) {}
+        if (themeBtn) {
+          themeBtn.setAttribute(
+            "aria-label",
+            t === "dark" ? "Switch to light mode" : "Switch to dark mode"
+          );
+        }
+      }
+      if (themeBtn) {
+        themeBtn.addEventListener("click", function () {
+          var next = document.documentElement.classList.contains("dark") ? "light" : "dark";
+          applyTheme(next);
+        });
+      }
     })();
   </script>
 </body>
