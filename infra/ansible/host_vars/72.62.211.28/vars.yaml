@@ -4,7 +4,9 @@ nginx_user_password: "!!REDACTED!!" # This is the password for the user www-data
 host_lan_ip: "72.62.211.28"
 # LON1 ONLY — do not set nginx_public_bind_ip in group_vars or other host_vars.
 # Public eth0 only so Traefik-edge-lon1 can keep 127.0.0.1:80/443 (traefik-edge).
-# Admin UI: https://lon1.pop0.uk → this bind → proxy to :7691
+# Admin UI: https://lon1.pop0.uk → this bind → Next.js dashboard on :3099
+# (same new dashboard as pop1). The legacy React-Admin stays internal on
+# :7691 (nginx_default_server_backend_port) but is no longer the public domain.
 nginx_public_bind_ip: "72.62.211.28"
 nginx_web_ui_enabled: "yes"
 nginx_rest_api_server_enabled: ""
@@ -14,7 +16,11 @@ nginx_s3_server_name: "dummy-s3.workstation.co.uk"
 nginx_s3_cli_server_name: "dummy-s3-cli.workstation.co.uk"
 nginx_k3s_dashboard_server_name: "k3s-dashboard.workstation.co.uk"
 nginx_default_server_frontend: "www1.pop0.uk"
-nginx_default_server_backend: "lon1.pop0.uk"
+# Public admin domain now serves the Next.js dashboard (mirrors pop1). Leaving
+# nginx_default_server_backend empty drops the legacy React-Admin public vhost
+# so it doesn't conflict with the Next.js server_name on lon1.pop0.uk.
+nginx_default_server_backend: ""
+nginx_default_server_backend_nextjs: "lon1.pop0.uk"
 nginx_default_server_backend_port: 7691
 letsencrypt_email: "balinder.walia@gmail.com"
 openresty_admin_secondary_color: "#D91656"
