@@ -1,585 +1,233 @@
 # WSLProxy
 
-**Enterprise-Grade API Gateway & Reverse Proxy with Automated Management**
+**Dynamic API gateway & reverse proxy** on OpenResty — route, secure, and observe traffic from JSON/MCP configs that take effect **without reloading nginx** for rules.
 
-WSLProxy is a high-performance, cloud-native API gateway and reverse proxy built on OpenResty (Nginx with Lua scripting). Designed for modern DevOps workflows, it provides automatic SSL/TLS management, dynamic routing configuration, and comprehensive monitoring capabilities—all fully API-driven for seamless CI/CD integration.
+Operators manage virtual hosts, rules, WAF, cache, traffic splits, and edge POPs from an Admin UI, REST API, MCP tools, or the `wslproxy-cli` container. Built for multi-POP edges, GitOps-style config, and AI agents.
 
-## Key Features
+| | |
+|---|---|
+| Site | [wslproxy.com](https://wslproxy.com) |
+| Swagger | [/swagger/](https://wslproxy.com/swagger/) |
+| Repo | [github.com/bwalia/wslproxy](https://github.com/bwalia/wslproxy) |
+| CLI image | `ghcr.io/bwalia/wslproxy-cli:latest` |
 
-- **🔒 Automatic SSL/TLS Management** - Let's Encrypt integration with zero-downtime certificate renewal
-- **⚙️ API-First Architecture** - Configure everything via REST API, perfect for infrastructure-as-code and pipelines
-- **🚀 High Performance** - OpenResty-based with Lua scripting for custom logic without proxy limitations
-- **📊 Built-in Monitoring** - Prometheus metrics, traffic analytics, and admin dashboard out of the box
-- **🔄 Dynamic Routing** - Hot-reload configuration without restarting the proxy
-- **🏗️ Multi-Deployment Ready** - Docker, Kubernetes, Docker Swarm, and bare metal support
-- **🔌 Service Mesh Ready** - Consul integration for service discovery and health checks
-- **📦 Zero Dependencies** - Lightweight container (~150MB) with everything included
-- **🌍 POPs + Cloudflare DNS** - Declare your edge locations once, provision A records automatically — with safety guardrails so wslproxy never touches a record it didn't create. See **[POPS_AND_DNS_GUIDE.md](POPS_AND_DNS_GUIDE.md)**
-- **🤖 MCP / AI Agent Integration** - Manage servers, rules, POPs, and DNS via natural language from Claude Desktop / Claude Code / Cursor. See **[api/mcp/README.md](api/mcp/README.md)**
+---
 
-## Quick Start (Choose Your Deployment)
+## What it is
 
-### Option 1: Docker (Fastest Way)
+WSLProxy sits in front of your origins and decides **per request** what happens: proxy (305), redirect, static block, CAPTCHA, WAF, cache, canary split, geo/IP/JWT match — using rules loaded live from disk or Redis.
 
-```bash
-# Pull latest image
-docker pull bwalia/wslproxy:latest
-
-# Run with default config
-docker run -d \
-  --name wslproxy \
-  -p 80:80 \
-  -p 443:443 \
-  -p 8080:8080 \
-  bwalia/wslproxy:latest
-
-# Access admin dashboard
-open http://localhost:8080
+```mermaid
+flowchart LR
+  C[Clients] --> E[WSLProxy edge<br/>OpenResty + Lua]
+  E --> O[Origins / k3s / APIs]
+  A[Admin UI · REST · MCP · CLI] -.-> E
+  subgraph live["Hot path — no nginx reload"]
+    R[Rules JSON]
+    W[WAF policies]
+    T[Traffic split]
+  end
+  R -.-> E
+  W -.-> E
+  T -.-> E
 ```
 
-### Option 2: Docker Compose (Development)
+**Reload only when server-level nginx conf changes** (new listen/SSL block). Rules, WAF, and most routing are evaluated every request.
 
-```bash
-# Clone and start
-git clone https://github.com/wslproxy/wslproxy.git && cd wslproxy
-docker-compose -f docker-compose-dev.yml up
+---
 
-# Access dashboard
-open http://localhost:8080
+## Capabilities (today)
 
-# Hot-reload changes to Lua API files instantly
+| Area | What you get |
+|------|----------------|
+| **Routing** | Path / IP / country / JWT / S3 / cookie match → proxy, redirect, HTML, CAPTCHA; priority + specificity tie-break |
+| **Traffic** | Weighted / RR / header canary / cookie sticky / least-conn; promote & rollback backends |
+| **WAF** | Policy packs, anomaly scoring, monitor/block, events API — see [docs/WAF_ENGINE_V2.md](docs/WAF_ENGINE_V2.md) |
+| **SSL** | auto-ssl / Let's Encrypt, per-domain SSL JSON, force HTTPS |
+| **Cache** | Edge static cache + optional Docker blob cache; Varnish hooks |
+| **POPs + DNS** | Declare edge locations; Cloudflare A-record provisioning with safety guardrails — [POPS_AND_DNS_GUIDE.md](POPS_AND_DNS_GUIDE.md) |
+| **Control plane** | React Admin + Next.js dashboard, Swagger REST, MCP (Claude/Cursor), `wslproxy-cli` |
+| **Deploy** | Docker Compose (dev), Ansible (bare metal / VM), Helm ingress-controller (k3s) |
+| **Observability** | `/health` `/healthz` `/ready` `/metrics`, traffic stats, AI log analysis hooks |
+
+---
+
+## Architecture
+
+```mermaid
+flowchart TB
+  subgraph clients["Clients"]
+    B[Browser / API / Agents]
+  end
+
+  subgraph edge["WSLProxy POP"]
+    direction TB
+    NGX[OpenResty]
+    ACK[gateway_ack.lua<br/>match rules]
+    RESP[gateway_resp.lua<br/>backend + timeouts]
+    BAL[balancer_by_lua]
+    NGX --> ACK --> RESP --> BAL
+  end
+
+  subgraph control["Control plane"]
+    UI[Admin UI]
+    API["/api/*"]
+    MCP["/mcp/*"]
+    CLI[wslproxy-cli]
+    UI --> API
+    CLI --> API
+    CLI --> MCP
+    MCP --> API
+  end
+
+  subgraph data["Config store"]
+    D["data/servers · rules · waf_* · ssl"]
+  end
+
+  B --> NGX
+  control --> D
+  ACK --> D
+  BAL --> ORG[Origins / ingress / apps]
 ```
 
-### Option 3: Kubernetes Helm (Production)
+**Two-layer prod pattern (common):** public POP → k3s NodePort → `wslproxy-ingress` Helm chart → app pods. Tune timeouts on **both** layers.
+
+More diagrams (Draw.io): [docs/diagrams/](docs/diagrams/).
+
+---
+
+## Quick start
+
+### Docker (local)
 
 ```bash
-# Deploy to K8s cluster
-helm install wslproxy ./infra/helm-charts/wslproxy \
-  -n wslproxy \
-  --create-namespace \
-  -f values-prod.yaml
-
-# Monitor deployment
-kubectl -n wslproxy get pods -w
+git clone https://github.com/bwalia/wslproxy.git && cd wslproxy
+./dev.sh -n -j "$(openssl rand -hex 24)"
+# Admin: http://localhost:8280   API: http://localhost:8280/api   Health: /health
 ```
 
-## Local Development
+Or compose: `docker-compose -f docker-compose-local.yml up` (see [DOCKER.md](DOCKER.md)).
 
-Single command to start the entire development environment with hot-reload and unique ports (no conflicts with common local services).
-
-### Prerequisites
-
-- Docker (with Docker Compose)
-- Node.js 16+
-- Yarn (`npm install -g yarn`)
-
-### Quick Start
+### CLI in CI (no Go install)
 
 ```bash
-# Start everything - prompts for JWT secret, builds admin inside container, attaches to logs
-./start.sh
-
-# Pass JWT secret directly (skips interactive prompt)
-./start.sh --jwt-secret YOUR_SECRET_KEY
-
-# With auto git stash + pull (no prompts)
-./start.sh -a
-
-# Skip git prompts entirely
-./start.sh -n
-
-# With admin dashboard auto-rebuild on file save
-./start.sh -w
-
-# Combine flags
-./start.sh -n -j YOUR_SECRET_KEY -w
-
-# Press Ctrl+C to stop everything
+docker run --rm \
+  -e WSLPROXY_BASE_URL=https://your-pop.example \
+  -e WSLPROXY_TOKEN \
+  ghcr.io/bwalia/wslproxy-cli:latest check nginx -o json
 ```
 
-### JWT Secret Key
+Docs: [docs/wslproxy-cli.md](docs/wslproxy-cli.md) · examples under `examples/wslproxy-cli/`.
 
-The JWT secret is required for token signing/validation. The script will always ask for it interactively unless provided via CLI argument:
+### Login + pull / push config
 
 ```bash
-# Option 1: Pass as argument (recommended for CI/scripts)
-./start.sh --jwt-secret YOUR_SECRET_KEY
-
-# Option 2: Interactive prompt (press Enter to auto-generate a random key)
-./start.sh
-# > Enter JWT secret key (or press Enter to generate a random one):
+wslproxy-cli auth login --base-url https://lon1.pop0.uk -u you@example.com
+wslproxy-cli pull -d ./cfg --resources servers,rules,waf_rules,waf_policies
+# edit JSON or jq …
+wslproxy-cli push -d ./cfg --dry-run --diff
+wslproxy-cli push -d ./cfg --yes --verify
 ```
 
-The script injects the JWT secret into `openresty-admin/.env` as `VITE_JWT_SECURITY_PASSPHRASE` before the Vite build runs inside the container.
+---
 
-### Environment Variables
+## Request pipeline (simplified)
 
-The admin dashboard uses Vite environment variables defined in `openresty-admin/.env`. This file is committed to the repo with safe defaults for local Docker development. The JWT secret is the only value injected at runtime by `start.sh`.
+```mermaid
+sequenceDiagram
+  participant C as Client
+  participant N as OpenResty
+  participant A as gateway_ack
+  participant R as gateway_resp
+  participant U as Upstream
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `VITE_API_URL` | Backend API URL | `http://localhost:8280/api` |
-| `VITE_FRONT_URL` | Frontend URL | `http://localhost:8280` |
-| `VITE_APP_NAME` | Application identifier | `wslproxy` |
-| `VITE_APP_DISPLAY_NAME` | Display name in UI | `WSL Proxy` |
-| `VITE_APP_VERSION` | App version | `dev` |
-| `VITE_APP_BUILD_NUMBER` | Build number | `local` |
-| `VITE_DEPLOYMENT_TIME` | Deployment timestamp | `local-dev` |
-| `VITE_THEME_PRIMARY_COLOR` | Primary theme color (hex without #) | `2E3A3C` |
-| `VITE_THEME_SECONDARY_COLOR` | Secondary theme color (hex without #) | `45A049` |
-| `VITE_THEME_HOVER_COLOR` | Hover state color (hex without #) | `036408` |
-| `VITE_TARGET_PLATFORM` | Platform type (`DOCKER` or `KUBERNETES`) | `DOCKER` |
-| `VITE_JWT_SECURITY_PASSPHRASE` | JWT secret key (injected by `start.sh`) | *(empty - set at runtime)* |
+  C->>N: HTTPS request
+  N->>A: rewrite_by_lua
+  A->>A: load server + rules<br/>match + WAF / rate limit
+  A->>R: selectedRule in ngx.ctx
+  R->>R: 200/301/302/305/306/403
+  alt code 305 proxy
+    R->>U: balancer peer + timeouts
+    U-->>C: origin response
+  else redirect / block / captcha
+    R-->>C: terminal response
+  end
+```
 
-> **Note:** `VITE_JWT_SECURITY_PASSPHRASE` is left empty in the committed `.env` file. Never hardcode secrets in files pushed to GitHub. The `start.sh` script handles injecting this value at runtime.
+---
 
-### Access URLs
+## Repository map
+
+| Path | Role |
+|------|------|
+| `api/` | Lua gateway + REST + MCP (hot-reloaded) |
+| `data/` | Servers, rules, WAF, SSL JSON (per env profile) |
+| `openresty-admin/` | React Admin UI |
+| `openresty-admin-next/` | Next.js ops dashboard |
+| `html/` | Public landing + swagger |
+| `cmd/wslproxy-cli/` | Go CLI + Dockerfile |
+| `infra/ansible/` | Production deploy (OpenResty build, nginx, data, UIs) |
+| `ingress-controller/` | k3s Helm ingress chart |
+| `docs/` | Guides (MCP, WAF, CLI, diagrams) |
+
+Developer deep-dive: [CLAUDE.md](CLAUDE.md).
+
+---
+
+## Deploy paths
+
+```mermaid
+flowchart LR
+  DEV[Docker Compose<br/>./dev.sh] --> INT[Ansible → int]
+  INT --> TEST[Ansible → test]
+  TEST --> PROD[Ansible → prod POPs]
+  K3S[Helm wslproxy-ingress<br/>manual upgrade] --> APPS[App Ingresses]
+  PROD --> K3S
+```
+
+- **Delivery pipeline:** `.github/workflows/deploy-wslproxy-delivery-pipeline.yml` (int → smoke → test → prod)
+- **CLI binaries + image:** `.github/workflows/build-wslproxy-cli.yml` → GHCR + release `wslproxy-cli-latest`
+- Ansible playbook: `infra/ansible/wslproxy-ops.yml`
+
+---
+
+## MCP (AI agents)
+
+Enable in `data/settings.json` → `mcp`. Endpoints: `/mcp/manifest`, `/mcp/tools`, `/mcp/jsonrpc`.
+
+Tools include `validate_config`, CRUD for servers/rules, WAF bind, traffic promote/rollback, POPs/DNS — see [docs/mcp.md](docs/mcp.md) and [api/mcp/README.md](api/mcp/README.md).
+
+---
+
+## Documentation index
+
+| Doc | Topic |
+|-----|--------|
+| [docs/wslproxy-cli.md](docs/wslproxy-cli.md) | CLI + Docker CI usage |
+| [docs/WAF_ENGINE_V2.md](docs/WAF_ENGINE_V2.md) | WAF engine |
+| [docs/mcp.md](docs/mcp.md) / [mcp-gateway.md](docs/mcp-gateway.md) | MCP |
+| [POPS_AND_DNS_GUIDE.md](POPS_AND_DNS_GUIDE.md) | POPs & Cloudflare DNS |
+| [DOCKER.md](DOCKER.md) / [DOCKER-DEPLOYMENT.md](DOCKER-DEPLOYMENT.md) | Containers |
+| [docs/diagrams/](docs/diagrams/) | Draw.io architecture set |
+| [examples/wslproxy-waf-demo/](examples/wslproxy-waf-demo/) | WAF demo pack |
+
+---
+
+## Local URLs (`./dev.sh`)
 
 | Service | URL |
 |---------|-----|
-| Admin Dashboard | http://localhost:8280 |
-| API | http://localhost:8280/api |
-| Health Check | http://localhost:8280/health |
-| Health Check (detailed) | http://localhost:8280/health?detailed=true |
-| HTTP Proxy | http://localhost:8180 |
-| HTTPS Proxy | https://localhost:8443 |
-| Prometheus Metrics | http://localhost:8280/metrics |
-| Demo Node App | http://localhost:3009 |
-| Redis | localhost:6479 |
+| Admin | http://localhost:8280 |
+| API / Swagger | http://localhost:8280/api · /swagger/ |
+| Health | http://localhost:8280/health |
+| Proxy HTTP/HTTPS | http://localhost:8180 · https://localhost:8443 |
 
-### Options
+---
 
-| Flag | Description |
-|------|-------------|
-| `-n, --no-git` | Skip git stash/pull prompts |
-| `-a, --auto` | Auto mode: stash + pull without prompts |
-| `-j, --jwt-secret KEY` | Set JWT secret key (skips interactive prompt) |
-| `-w, --watch` | Auto-rebuild admin dashboard on file changes |
-| `-s, --skip-build` | Skip admin build (use existing dist) |
-| `-r, --reset` | Fresh start - remove all volumes/data |
-| `-d, --detach` | Run in background (don't attach to logs) |
-| `--stop` | Stop all running services |
-| `--reload` | Reload nginx config without restart |
-| `--status` | Show running services |
-| `--clean` | Stop and remove all volumes |
+## Contributing
 
-### Hot-Reload (No Restart Needed)
+PRs against `main`. Prefer small, focused changes. Do not commit real `settings.json` secrets or `.env` credentials.
 
-| Component | How it syncs |
-|-----------|-------------|
-| Lua API files (`./api/`) | Volume-mounted, OpenResty re-reads per request |
-| Static HTML (`./html/`) | Volume-mounted, changes reflect immediately |
-| Nginx config | Volume-mounted, run `./start.sh --reload` to apply |
-| Admin dashboard | Use `-w` flag for auto-rebuild on save |
+## License
 
-## Documentation
-
-- **[Docker Deployment Guide](./DOCKER-DEPLOYMENT.md)** - Step-by-step deployment for all scenarios
-- **[Docker Reference](./DOCKER.md)** - Configuration, monitoring, troubleshooting
-- **[Kubernetes Helm Charts](./infra/helm-charts/wslproxy/)** - K8s deployment manifests
-
-## Use Cases
-
-### API Gateway for Microservices
-Route, authenticate, and monitor traffic to multiple backend services with automatic certificate management and request/response transformation.
-
-### CDN & Reverse Proxy
-Cache static content, optimize images, and serve from edge locations with dynamic routing rules and traffic analytics.
-
-### Service Mesh Ingress
-Integrate with Consul for automatic service discovery, health checks, and dynamic upstream configuration.
-
-### Multi-Tenant Platform
-Isolate and manage multiple tenants with per-tenant SSL certificates, rate limiting, and traffic rules.
-
-## Development Environment Requirements
-
-- **Bash** - For deployment scripts
-- **Docker** - For containerized deployment
-- **Node.js** - Version 16+ (for admin dashboard development)
-- **Yarn** - For package management
-
-## Advanced Deployment
-
-### Docker - Full Automation Script
-
-For complete automated setup with environment configuration:
-
-```bash
-# Development environment
-sudo ./deploy-to-docker.sh "dev" "wslproxy" "$JWT_TOKEN" && ./show.sh
-
-# Production environment
-sudo ./deploy-to-docker.sh "prod" "wslproxy" "$JWT_TOKEN"
-```
-
-**Windows Users** (with Git Bash):
-
-```bash
-bash ./deploy-to-docker-windows.sh "dev" "wslproxy" "$JWT_TOKEN"
-```
-
-### Docker - Build Locally
-
-To build the Docker image from source:
-
-```bash
-./build.sh "dev" "wslproxy" "$JWT_TOKEN"
-```
-
-### Docker - Bootstrap Deployment
-
-For fresh deployments with automatic configuration:
-
-```bash
-./bootstrap.sh "dev" "wslproxy" "$JWT_TOKEN" "DOCKER"
-```
-
-### Kubernetes Deployment
-
-**Prerequisites:**
-- Kubernetes cluster 1.20+ running
-- Helm 3+ installed
-- KubeSeal installed for secret management (optional but recommended)
-
-**Step 1: Create environment configuration**
-
-Create a `.env` file with your deployment details:
-
-```
-VITE_API_URL=https://YOUR-DOMAIN/api
-VITE_FRONT_URL=https://YOUR-FRONT-DOMAIN
-VITE_NGINX_CONFIG_DIR=/opt/nginx/
-VITE_APP_NAME=YOUR_APP_NAME
-VITE_APP_DISPLAY_NAME="YOUR APP NAME TO DISPLAY"
-VITE_APP_VERSION: 1.0.0
-VITE_DEPLOYMENT_TIME=20231206025957
-VITE_APP_BUILD_NUMBER=025957
-VITE_JWT_SECURITY_PASSPHRASE=YOUR-JWT-TOKEN
-VITE_TARGET_PLATFORM=KUBERNETES
-MINIO_ENDPOINT=<MINIO_ENDPOINT>
-MINIO_ACCESS_KEY=<MINIO_ACCESS_KEY>
-MINIO_SECRET_KEY=<MINIO_SECRET_KEY>
-```
-
-**Step 2: Create Kubernetes secrets**
-
-Encode and create the secret manifests:
-
-```bash
-# Encode the .env file
-cat .env | base64 > env.b64
-```
-
-**Step 3: Create secret manifests**
-
-Create `api-secrets.yaml`:
-
-```
-apiVersion: v1
-kind: Secret
-metadata:
-  name: wf-api-secret-<NAMESPACE>
-  namespace: <NAMESPACE>
-data:
-  env_file: <BASE64 ENCODED ENV FILE>
-```
-
-Also create `front-secrets.yaml` for the admin dashboard:
-
-```
-apiVersion: v1
-kind: Secret
-metadata:
-  name: wf-front-secret-<NAMESPACE>
-  namespace: <NAMESPACE>
-data:
-  env_file: <BASE64 ENCODED ENV FILE>
-```
-
-**Step 4: Seal secrets (optional, for enhanced security)**
-
-```bash
-kubeseal --format=yaml < api-secrets.yaml > api-sealed-secret.yaml
-kubeseal --format=yaml < front-secrets.yaml > front-sealed-secret.yaml
-# Use the sealed secrets in your Helm values instead
-```
-
-**Step 5: Create settings.json for backend configuration**
-
-The WSLProxy backend requires a `settings.json` file for initialization. Here's a minimal working example:
-
-```json
-{
-  "instance_id": "prod-wslproxy-01",
-  "instance_name": "Production WSLProxy",
-  "env_profile": "prod",
-  "redis_host": "redis-service.svc.cluster.local",
-  "redis_port": 6379,
-  "roles": [
-    "release_manager",
-    "admin",
-    "read_only",
-    "read_write"
-  ],
-  "env_vars": {
-    "FRONT_URL": "https://your-domain.com",
-    "CONTROL_PLANE_API_URL": "https://api.your-domain.com",
-    "JWT_SECURITY_PASSPHRASE": "your-jwt-token",
-    "APP_NAME": "WSLProxy"
-  },
-  "storage_type": "disk",
-  "instance_locked": false,
-    "ip2location_path": "<ADD IP2LOCATION-LITE-DB11.IPV6.BIN file Path>",
-    "dns_resolver": {
-      "nameservers": {
-        "primary": "8.8.8.8",
-        "secondary": "8.8.4.4",
-        "port": "53"
-      }
-    },
-    "super_user": {
-      "username": "<username>",
-      "email": "<email for login into the gateway>",
-      "password": "<Password for gateway must be SHA256>"
-    },
-    "storage_type": "disk",
-    "redis_host": "<REDIS_HOST>",
-    "redis_port": "<REDIS_PORT>",
-    "consul": {
-      "dns_server_host": "<Consul DNS Resolver host>",
-      "dns_server_port": <Consule DNS Resolver Port>
-    },
-    "nginx": {
-      "default": {
-        "no_server": "PCFET0NUWVBFIGh0bWw+CjxodG1sPgo8aGVhZD4KICA8dGl0bGU+Tm8gUnVsZXM8L3RpdGxlPgogIDxzdHlsZT4KICAgIGJvZHkgewogICAgICBmb250LWZhbWlseTogQXJpYWwsIHNhbnMtc2VyaWY7CiAgICAgIGJhY2tncm91bmQtY29sb3I6ICNmNGY0ZjQ7CiAgICAgIG1hcmdpbjogMDsKICAgICAgcGFkZGluZzogMDsKICAgICAgZGlzcGxheTogZmxleDsKICAgICAgYWxpZ24taXRlbXM6IGNlbnRlcjsKICAgICAganVzdGlmeS1jb250ZW50OiBjZW50ZXI7CiAgICAgIGhlaWdodDogMTAwdmg7CiAgICB9CiAgICAKICAgIC5jb250YWluZXIgewogICAgICBtYXgtd2lkdGg6IDQwMHB4OwogICAgICBwYWRkaW5nOiA0MHB4OwogICAgICBiYWNrZ3JvdW5kLWNvbG9yOiAjZmZmOwogICAgICBib3gtc2hhZG93OiAwIDAgMTBweCByZ2JhKDAsIDAsIDAsIDAuMSk7CiAgICAgIHRleHQtYWxpZ246IGNlbnRlcjsKICAgIH0KICAgIAogICAgaDEgewogICAgICBmb250LXNpemU6IDI0cHg7CiAgICAgIG1hcmdpbi1ib3R0b206IDIwcHg7CiAgICAgIGNvbG9yOiAjMzMzOwogICAgfQogICAgCiAgICBwIHsKICAgICAgZm9udC1zaXplOiAxOHB4OwogICAgICBjb2xvcjogIzY2NjsKICAgICAgbWFyZ2luLWJvdHRvbTogMzBweDsKICAgIH0KICAgIAogICAgLmJ0biB7CiAgICAgIGRpc3BsYXk6IGlubGluZS1ibG9jazsKICAgICAgcGFkZGluZzogMTBweCAyMHB4OwogICAgICBiYWNrZ3JvdW5kLWNvbG9yOiAjMDA3YmZmOwogICAgICBjb2xvcjogI2ZmZjsKICAgICAgZm9udC1zaXplOiAxNnB4OwogICAgICB0ZXh0LWRlY29yYXRpb246IG5vbmU7CiAgICAgIGJvcmRlci1yYWRpdXM6IDRweDsKICAgICAgdHJhbnNpdGlvbjogYmFja2dyb3VuZC1jb2xvciAwLjNzIGVhc2U7CiAgICB9CiAgICAKICAgIC5idG46aG92ZXIgewogICAgICBiYWNrZ3JvdW5kLWNvbG9yOiAjMDA1NmIzOwogICAgfQogIDwvc3R5bGU+CjwvaGVhZD4KPGJvZHk+CiAgPGRpdiBjbGFzcz0iY29udGFpbmVyIj4KICAgIDxoMT5ObyBOZ2lueCBTZXJ2ZXIgQ29uZmlnIGZvdW5kITwvaDE+CiAgICA8cD5QbGVhc2UgYXNrIFdlYk9wcyB0byBDb25maWd1cmUgaXQuPC9wPgogICAgPGEgaHJlZj0iIyIgY2xhc3M9ImJ0biI+Q29udGFjdCBBZG1pbmlzdHJhdG9yPC9hPgogIDwvZGl2Pgo8L2JvZHk+CjwvaHRtbD4K",
-        "conf_mismatch": "PCFET0NUWVBFIGh0bWw+CjxodG1sPgo8aGVhZD4KICA8dGl0bGU+Tm8gUnVsZXM8L3RpdGxlPgogIDxzdHlsZT4KICAgIGJvZHkgewogICAgICBmb250LWZhbWlseTogQXJpYWwsIHNhbnMtc2VyaWY7CiAgICAgIGJhY2tncm91bmQtY29sb3I6ICNmNGY0ZjQ7CiAgICAgIG1hcmdpbjogMDsKICAgICAgcGFkZGluZzogMDsKICAgICAgZGlzcGxheTogZmxleDsKICAgICAgYWxpZ24taXRlbXM6IGNlbnRlcjsKICAgICAganVzdGlmeS1jb250ZW50OiBjZW50ZXI7CiAgICAgIGhlaWdodDogMTAwdmg7CiAgICB9CiAgICAKICAgIC5jb250YWluZXIgewogICAgICBtYXgtd2lkdGg6IDQwMHB4OwogICAgICBwYWRkaW5nOiA0MHB4OwogICAgICBiYWNrZ3JvdW5kLWNvbG9yOiAjZmZmOwogICAgICBib3gtc2hhZG93OiAwIDAgMTBweCByZ2JhKDAsIDAsIDAsIDAuMSk7CiAgICAgIHRleHQtYWxpZ246IGNlbnRlcjsKICAgIH0KICAgIAogICAgaDEgewogICAgICBmb250LXNpemU6IDI0cHg7CiAgICAgIG1hcmdpbi1ib3R0b206IDIwcHg7CiAgICAgIGNvbG9yOiAjMzMzOwogICAgfQogICAgCiAgICBwIHsKICAgICAgZm9udC1zaXplOiAxOHB4OwogICAgICBjb2xvcjogIzY2NjsKICAgICAgbWFyZ2luLWJvdHRvbTogMzBweDsKICAgIH0KICAgIAogICAgLmJ0biB7CiAgICAgIGRpc3BsYXk6IGlubGluZS1ibG9jazsKICAgICAgcGFkZGluZzogMTBweCAyMHB4OwogICAgICBiYWNrZ3JvdW5kLWNvbG9yOiAjMDA3YmZmOwogICAgICBjb2xvcjogI2ZmZjsKICAgICAgZm9udC1zaXplOiAxNnB4OwogICAgICB0ZXh0LWRlY29yYXRpb246IG5vbmU7CiAgICAgIGJvcmRlci1yYWRpdXM6IDRweDsKICAgICAgdHJhbnNpdGlvbjogYmFja2dyb3VuZC1jb2xvciAwLjNzIGVhc2U7CiAgICB9CiAgICAKICAgIC5idG46aG92ZXIgewogICAgICBiYWNrZ3JvdW5kLWNvbG9yOiAjMDA1NmIzOwogICAgfQogIDwvc3R5bGU+CjwvaGVhZD4KPGJvZHk+CiAgPGRpdiBjbGFzcz0iY29udGFpbmVyIj4KICAgIDxoMT5Db25maWd1cmF0aW9uIG5vdCBtYXRjaCE8L2gxPgogICAgPHA+UGxlYXNlIGNoZWNrIHlvdXIgY29uZmlndXJhdGlvbnMgb3IgYXNrIFdlYk9wcyB0byBDb25maWd1cmUgaXQgcmlnaHQuPC9wPgogICAgPGEgaHJlZj0iIyIgY2xhc3M9ImJ0biI+Q29udGFjdCBBZG1pbmlzdHJhdG9yPC9hPgogIDwvZGl2Pgo8L2JvZHk+CjwvaHRtbD4K",
-        "no_rule": "PCFET0NUWVBFIGh0bWw+CjxodG1sPgo8aGVhZD4KICA8dGl0bGU+Tm8gUnVsZXM8L3RpdGxlPgogIDxzdHlsZT4KICAgIGJvZHkgewogICAgICBmb250LWZhbWlseTogQXJpYWwsIHNhbnMtc2VyaWY7CiAgICAgIGJhY2tncm91bmQtY29sb3I6ICNmNGY0ZjQ7CiAgICAgIG1hcmdpbjogMDsKICAgICAgcGFkZGluZzogMDsKICAgICAgZGlzcGxheTogZmxleDsKICAgICAgYWxpZ24taXRlbXM6IGNlbnRlcjsKICAgICAganVzdGlmeS1jb250ZW50OiBjZW50ZXI7CiAgICAgIGhlaWdodDogMTAwdmg7CiAgICB9CiAgICAKICAgIC5jb250YWluZXIgewogICAgICBtYXgtd2lkdGg6IDQwMHB4OwogICAgICBwYWRkaW5nOiA0MHB4OwogICAgICBiYWNrZ3JvdW5kLWNvbG9yOiAjZmZmOwogICAgICBib3gtc2hhZG93OiAwIDAgMTBweCByZ2JhKDAsIDAsIDAsIDAuMSk7CiAgICAgIHRleHQtYWxpZ246IGNlbnRlcjsKICAgIH0KICAgIAogICAgaDEgewogICAgICBmb250LXNpemU6IDI0cHg7CiAgICAgIG1hcmdpbi1ib3R0b206IDIwcHg7CiAgICAgIGNvbG9yOiAjMzMzOwogICAgfQogICAgCiAgICBwIHsKICAgICAgZm9udC1zaXplOiAxOHB4OwogICAgICBjb2xvcjogIzY2NjsKICAgICAgbWFyZ2luLWJvdHRvbTogMzBweDsKICAgIH0KICAgIAogICAgLmJ0biB7CiAgICAgIGRpc3BsYXk6IGlubGluZS1ibG9jazsKICAgICAgcGFkZGluZzogMTBweCAyMHB4OwogICAgICBiYWNrZ3JvdW5kLWNvbG9yOiAjMDA3YmZmOwogICAgICBjb2xvcjogI2ZmZjsKICAgICAgZm9udC1zaXplOiAxNnB4OwogICAgICB0ZXh0LWRlY29yYXRpb246IG5vbmU7CiAgICAgIGJvcmRlci1yYWRpdXM6IDRweDsKICAgICAgdHJhbnNpdGlvbjogYmFja2dyb3VuZC1jb2xvciAwLjNzIGVhc2U7CiAgICB9CiAgICAKICAgIC5idG46aG92ZXIgewogICAgICBiYWNrZ3JvdW5kLWNvbG9yOiAjMDA1NmIzOwogICAgfQogIDwvc3R5bGU+CjwvaGVhZD4KPGJvZHk+CiAgPGRpdiBjbGFzcz0iY29udGFpbmVyIj4KICAgIDxoMT5Db25maWd1cmF0aW9uIE1pc3NpbmchPC9oMT4KICAgIDxwPlBsZWFzZSBhc2sgV2ViT3BzIHRvIENvbmZpZ3VyZSB0aGlzIEFQSSBHYXRld2F5LjwvcD4KICAgIDxhIGhyZWY9IiMiIGNsYXNzPSJidG4iPkNvbnRhY3QgQWRtaW5pc3RyYXRvcjwvYT4KICA8L2Rpdj4KPC9ib2R5Pgo8L2h0bWw+Cg=="
-      },
-      "content_type": "text/html"
-    }
-  }
-```
-
-9. After creating settings.json you need to encode this file to base64.
-10. Create a new file with name api-setings-secrets.yaml with following details:
-
-```
-apiVersion: v1
-kind: Secret
-metadata:
-  name: wf-api-settings-<NAMESPACE>
-  namespace: <NAMESPACE>
-data:
-  env_file: <BASE64 ENCODED ENV FILE>
-```
-
-11. Now, Run this command to generate the settings-sealed-secrets
-
-```
-kubeseal --format=yaml < api-setings-secrets.yaml > api-settings-sealed-secret.yaml
-```
-
-12. Open the api-settings-sealed-secret.yaml file copy the env_file: encrypted data.
-13. Put that encrypted data into the k3s values files under the 'settings_sec_env_file:'.
-
-14. After the secrets, you also need to update some following secrets in k3s api and front values file:
-
-```
-# NOTE: This is example when you are running kubernates clusters on local, For production you can put your domains of api and front door.
-
-api_url: http://wf-api-svc-<NAMESPACE>.<NAMESPACE>.svc.cluster.local/api
-front_url: http://wf-front-svc-<NAMESPACE>.<NAMESPACE>.svc.cluster.local
-```
-
-15. After updating env secrets, now you have to run these helm commands to run api-gateway on your kubernates:
-
-```
-helm upgrade -i wslproxy-api-<NAMESPACE> ./infra/helm-charts/wslproxy/ -f infra/helm-charts/wslproxy/values-<NAMESPACE>-api-<TARGET_CLUSTER>.yaml --set TARGET_ENV=<NAMESPACE> --namespace <NAMESPACE> --create-namespace
-helm upgrade -i wslproxy-front-<NAMESPACE> ./infra/helm-charts/wslproxy/ -f infra/helm-charts/wslproxy/values-<NAMESPACE>-front-<TARGET_CLUSTER>.yaml --set TARGET_ENV=<NAMESPACE> --namespace <NAMESPACE> --create-namespace
-helm upgrade -i wslproxy-nodeapp ./infra/helm-charts/node-app/ -f infra/helm-charts/node-app/values-<TARGET_CLUSTER>.yaml
-```
-
-16. Disaster Recovery
-
-```
-# NOTE: The nginx openresty configuration is backed on to S3 using kubernetes cronjob manifests. See online DR process documentation for more information.
-```
-
-## Usage
-
-To develop the admin dashboard locally, use the `start.sh` script which builds inside the Docker container. For watch mode (auto-rebuild on save):
-
-```bash
-./start.sh -w
-```
-
-Manual rebuild inside the running container:
-
-```bash
-docker exec wslproxy-local sh -c 'cd /usr/local/openresty/nginx/html/openresty-admin && yarn build'
-```
-
-## List of the environments:-
-
-| Environment | Link                             | Credentials         | IP addresses                                                                                                                                            | Ports         |
-| :---------- | :------------------------------- | :------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------ | :------------ |
-| `dev`       | `http://localhost:8081/`         | `Ask administrator` | `wslproxy API :- localhost(127.0.0.1) `                                                                                                                 | ` 8081->8080` |
-|             |                                  |                     | `wslproxy Front :- localhost(127.0.0.1)`                                                                                                                | `8069->80`    |
-|             |                                  |                     | `Docker nodeapp :-localhost(127.0.0.1) -> host.docker.internal if using extra_hosts: - "host.docker.internal:host-gateway" in docker or docker compose` | `3009->3009`  |
-| `int`       | `http://api-int.wslproxy.com/`   | `Ask administrator` | `wslproxy API :- api-int.wslproxy.com`                                                                                                                  | `80 443`      |
-|             |                                  |                     | `wslproxy Front :- front-int.wslproxy.com`                                                                                                              | `80 443`      |
-|             |                                  |                     | `Node-app :-     `                                                                                                                                      | `3009->3009`  |
-|             | `http://api-int.wslproxy.com/`   | `Ask administrator` | `wslproxy API :- api-int.wslproxy.com`                                                                                                                  | `80 443`      |
-|             |                                  |                     | `wslproxy Front :- frontdoor-int.wslproxy.com`                                                                                                          | `80 443`      |
-|             |                                  |                     | `Node-app :- 	 `                                                                                                                                         | `3009->3009`  |
-|             | `http://api-int.wslproxy.com/`   | `Ask administrator` | `wslproxy API :- api-int.wslproxy.com`                                                                                                                  | `80 443`      |
-|             |                                  |                     | `wslproxy Front :- frontdoor-int.wslproxy.com`                                                                                                          | `80 443`      |
-|             |                                  |                     | `Node-app :-     `                                                                                                                                      | `3009->3009`  |
-| `test`      | `http://api.test2.wslproxy.com/` | `Ask administrator` | `wslproxy API :- api.test2.wslproxy.com`                                                                                                                | `80 443`      |
-|             |                                  |                     | `wslproxy Front :- front.test2.wslproxy.com`                                                                                                            | `80 443`      |
-|             |                                  |                     | `Node-app :-      `                                                                                                                                     | `3009->3009`  |
-|             | `http://api.test6.wslproxy.com/` | `Ask administrator` | `wslproxy API :- api.test6.wslproxy.com`                                                                                                                | `80 443`      |
-|             |                                  |                     | `wslproxy Front :- front.wslproxy.com`                                                                                                                  | `80 443`      |
-|             |                                  |                     | `Node-app :-      	`                                                                                                                                     | `3009->3009`  |
-
-## CI/CD Pipeline
-
-WSLProxy has two separate pipelines:
-
-| Pipeline | File | Purpose | Triggers |
-|----------|------|---------|----------|
-| **Promotion** | `deploy-wslproxy-promotion-pipeline.yml` | Deploys `main` → `int` → `test` (non-production) | Push to `main`, PRs, manual |
-| **Delivery** | `deploy-wslproxy-delivery-pipeline.yml` | Production releases from the `release` branch | Separate — not covered here |
-
-> The `acc` tier on 187.77.179.206 was decommissioned. Both pipelines now go test → prod directly.
-
-### Promotion Pipeline
-
-```
-main branch
-    │
-    ▼
-[Stage 1] Validate JSON configs (data/servers, data/rules, data/waf_rules, data/waf_policies)
-    │
-    ▼
-[Stage 2] Deploy → Int (192.168.1.193)   ← self-hosted runner, local connection
-    │
-    ▼
-[Stage 3] Smoke Test Int (Go tests + /health curl)
-    │         └─ fails here → stops, test never touched
-    ▼
-[Stage 4] Deploy → Test (192.168.1.140)  ← SSH
-    │
-    ▼
-[Summary] Print all stage results
-```
-
-Promotions are **sequential with a gate at each stage** — a failed health check or failed smoke test stops all subsequent environments. Concurrent pipeline runs are queued (not cancelled).
-
-### How to Trigger Manually
-
-Go to **Actions → CI/CD Promotion Pipeline → Run workflow** and choose:
-
-| Input | Options | Default | Description |
-|-------|---------|---------|-------------|
-| `DEPLOY_MODE` | `servers`, `nginx` | `servers` | What to deploy (see modes below) |
-| `TARGET_ENV` | `int`, `test` | `test` | How far to promote (stops after this env) |
-
-On a **push to `main`** or **PR**, the pipeline always runs with `deploy_mode=servers` all the way to `test`.
-
-### Deploy Modes
-
-| Mode | What it deploys |
-|------|----------------|
-| `servers` *(default)* | nginx `.j2` templates + virtual server/rule JSON configs |
-| `nginx` | nginx `.j2` templates + cron jobs + systemd limits + PAM config |
-| `dashboard` | nginx `.j2` templates + Lua API code + admin UI rebuild |
-| `full` | Everything above combined |
-| `build` | OS dependencies + compile OpenResty from source |
-
-> **Note:** The `deploy-configs.yml` playbook (server/rule JSON files) **always runs** on every deploy regardless of mode.
-
-### What Gets Deployed
-
-Each environment deploy runs two Ansible playbooks back-to-back:
-
-#### Playbook 1 — `wslproxy-ops.yml` (mode-controlled)
-
-Deploys nginx configuration and application code via the `wslproxy` Ansible role:
-
-| File / Task | Deployed when |
-|------------|---------------|
-| `nginx.conf.j2` → `/usr/local/openresty/nginx/conf/nginx.conf` | `servers`, `nginx`, `dashboard`, `code` |
-| `default.conf.j2` → `/opt/nginx/conf.d/default.conf` | `servers`, `nginx`, `dashboard`, `code` |
-| `servers-mixed-nginx.conf.j2` → `/opt/nginx/conf.d/servers-mixed-nginx.conf` | `servers`, `nginx`, `dashboard`, `code` |
-| Tenant nginx configs from `nginx-conf.d/` → `/opt/nginx/conf.d/` | `servers`, `nginx`, `dashboard`, `code` |
-| Lua API files (`api/`) | `code`, `dashboard` |
-| Admin dashboard (React build) | `dashboard` |
-| Cron jobs, systemd limits, PAM config | `nginx` |
-
-**Yes — `.j2` templates are deployed with the default `servers` mode.** They are rendered by Ansible (variables substituted) and written to the target host on every run.
-
-#### Playbook 2 — `deploy-configs.yml` (always runs)
-
-Syncs virtual server and routing rule JSON files from the repo to the target host:
-
-1. Validates all JSON with `jq` before copying (fails fast on syntax errors)
-2. Creates a timestamped backup at `/opt/nginx/backups/configs-<env>-<epoch>.tar.gz`
-3. Copies `data/servers/<env>/*.json` → `/opt/nginx/data/servers/<env>/`
-4. Copies `data/rules/<env>/*.json` → `/opt/nginx/data/rules/<env>/`
-5. Auto-generates SSL domain files for servers with `ssl_enabled: true`
-6. Runs `fix-permissions.sh` if any files changed
-7. Reloads OpenResty if server configs or SSL files changed
-8. Cleans up backups older than 7 days
-
-### Secrets Management
-
-| Environment | Connection | Secrets source |
-|-------------|-----------|----------------|
-| Int | Local (runner on same machine) | GitHub Secrets (`DOT_WSLPROXY_SETTINGS_INT`, `DOT_WSLPROXY_ENV_CREDS_INT`) decoded from base64 |
-| Test | SSH (password) | Runner filesystem at `/home/bwalia/.secrets/wslproxy/test/` |
-
-### Health Gate
-
-After each deploy, the pipeline:
-1. Runs `openresty -t` to validate the nginx config syntax
-2. Checks `systemctl is-active openresty` to confirm the service is running
-3. Polls `http://localhost:8080/health` (up to 12 retries × 5s = 60s) for HTTP 200
-
-If any of these fail, the stage fails and subsequent environments are not deployed.
-
-### Slack Notifications
-
-Failures at any stage send an alert to `#github-updates`. Success notifications are sent for **Test** and **ACC** only (Int is silent on success).
-
-### Running Ansible Manually
-
-```bash
-# Deploy server/rule configs to a specific environment
-ansible-playbook infra/ansible/deploy-configs.yml \
-  -i infra/ansible/hosts \
-  -l 192.168.1.193 \
-  -e "target_env=int local_data_dir=$(pwd)/data"
-
-# Full wslproxy deploy (all tags)
-ansible-playbook infra/ansible/wslproxy-ops.yml \
-  -i infra/ansible/hosts \
-  -l 192.168.1.193 \
-  -e "target_env=int local_settings_file_path=/path/to/settings.json local_env_file_path=/path/to/.env"
-
-# nginx configs only
-ansible-playbook infra/ansible/wslproxy-ops.yml \
-  -i infra/ansible/hosts \
-  -l 192.168.1.193 \
-  --tags nginx \
-  -e "target_env=int local_settings_file_path=/path/to/settings.json local_env_file_path=/path/to/.env"
-```
-
-## How to run Ansible for a workflow
-
-ansible-playbook infra/ansible/deploy-wslproxy.yml -i infra/ansible/hosts -l target_host_ip
-
-### Replace 'infra/ansible/hosts' with the required host file
-
-### Replace target_host_ip with the target host which you want to run the playbook
+See repository license file.
