@@ -4,7 +4,10 @@
   "description": "F5-competitive WAF policy: OWASP Top 10 plus SSTI, Log4Shell, Spring4Shell, SSRF, NoSQLi, XXE, JWT alg:none, prototype pollution, GraphQL introspection, open redirect and scanner detection. Block mode.",
   "profile_id": "prod",
   "enabled": true,
+  "schema_version": 2,
+  "enforcementMode": "blocking",
   "mode": "block",
+  "service": "payments",
   "waf_rules": [
     "waf-rule-sqli-001",
     "waf-rule-sqli-002",
@@ -47,10 +50,113 @@
   "anomaly_threshold": 6,
   "body_inspection": true,
   "max_body_size": 1048576,
+  "signatureSets": [
+    {
+      "id": "SET_SQLI",
+      "alarm": true,
+      "block": true
+    },
+    {
+      "id": "SET_XSS",
+      "alarm": true,
+      "block": true
+    },
+    {
+      "id": "SET_RCE",
+      "alarm": true,
+      "block": true
+    },
+    {
+      "id": "SET_SSRF",
+      "alarm": true,
+      "block": true
+    },
+    {
+      "id": "SET_SSTI",
+      "alarm": true,
+      "block": true
+    }
+  ],
+  "signatures": {
+    "stage": [
+      {
+        "id": "waf-rule-openredirect-001",
+        "until": "2026-12-31T00:00:00Z"
+      }
+    ],
+    "disable": []
+  },
+  "methods": {
+    "allow": [
+      "GET",
+      "POST",
+      "HEAD",
+      "OPTIONS"
+    ]
+  },
+  "filetypes": {
+    "deny": [
+      ".env",
+      ".sql",
+      ".bak",
+      ".git",
+      ".ini",
+      ".pem",
+      ".key"
+    ]
+  },
+  "geo": {
+    "denyCountries": [
+      "KP"
+    ]
+  },
+  "ipLists": {
+    "allow": [
+      "127.0.0.1"
+    ],
+    "deny": []
+  },
+  "jwt": {
+    "header": "Authorization",
+    "denyAlg": [
+      "none",
+      "HS256"
+    ],
+    "requireAlg": [
+      "RS256",
+      "ES256"
+    ],
+    "verifySignature": false
+  },
+  "jsonProfile": {
+    "maxDepth": 8,
+    "maxBytes": 16384
+  },
+  "bruteForce": [
+    {
+      "path": "/api/login",
+      "windowSec": 60,
+      "maxAttempts": 5,
+      "action": "block",
+      "keyBy": [
+        "ip"
+      ]
+    }
+  ],
+  "routeOverrides": [
+    {
+      "path": "/preview",
+      "enforcementMode": "transparent"
+    }
+  ],
+  "logging": {
+    "profile": "verbose",
+    "destination": "syslog"
+  },
   "blocked_response": {
     "status_code": 403,
     "content_type": "text/html",
-    "body_base64": "PCFkb2N0eXBlIGh0bWw+PG1ldGEgY2hhcnNldD11dGYtOD48dGl0bGU+UmVxdWVzdCBibG9ja2VkPC90aXRsZT48c3R5bGU+Ym9keXtmb250OjE2cHgvMS42IHN5c3RlbS11aSxzYW5zLXNlcmlmO2JhY2tncm91bmQ6IzBiMTAyMDtjb2xvcjojZTVlN2ViO2Rpc3BsYXk6Z3JpZDtwbGFjZS1pdGVtczpjZW50ZXI7aGVpZ2h0OjEwMHZoO21hcmdpbjowfS5je21heC13aWR0aDozNHJlbTt0ZXh0LWFsaWduOmNlbnRlcjtwYWRkaW5nOjIuNXJlbTtiYWNrZ3JvdW5kOiMxMTE4Mjc7Ym9yZGVyOjFweCBzb2xpZCAjMWYyOTM3O2JvcmRlci1yYWRpdXM6MTZweH0uc3tmb250LXNpemU6NTZweH1oMXtjb2xvcjojZjg3MTcxO21hcmdpbjouNHJlbSAwfWNvZGV7Y29sb3I6IzkzYzVmZH0uZntjb2xvcjojNmI3MjgwO2ZvbnQtc2l6ZToxM3B4O21hcmdpbi10b3A6MS41cmVtfTwvc3R5bGU+PGRpdiBjbGFzcz1jPjxkaXYgY2xhc3M9cz4mIzEyODczNzs8L2Rpdj48aDE+NDAzICZtZGFzaDsgUmVxdWVzdCBibG9ja2VkPC9oMT48cD5UaGlzIHJlcXVlc3QgbWF0Y2hlZCBhIFdlYiBBcHBsaWNhdGlvbiBGaXJld2FsbCBydWxlIGFuZCB3YXMgc3RvcHBlZCBiZWZvcmUgcmVhY2hpbmcgdGhlIGFwcGxpY2F0aW9uLjwvcD48cCBjbGFzcz1mPlByb3RlY3RlZCBieSA8Yj5XU0xQcm94eSBXQUY8L2I+ICZtaWRkb3Q7IG1vZGVybiAmYW1wOyBBUEkgdGhyZWF0IHJ1bGVzPC9wPjwvZGl2Pg=="
+    "body_base64": "PCFkb2N0eXBlIGh0bWw+PG1ldGEgY2hhcnNldD11dGYtOD48dGl0bGU+UmVxdWVzdCBibG9ja2VkPC90aXRsZT48c3R5bGU+Ym9keXtmb250OjE2cHgvMS42IHN5c3RlbS11aSxzYW5zLXNlcmlmO2JhY2tncm91bmQ6IzBiMTAyMDtjb2xvcjojZTVlN2ViO2Rpc3BsYXk6Z3JpZDtwbGFjZS1pdGVtczpjZW50ZXI7aGVpZ2h0OjEwMHZoO21hcmdpbjowfS5je21heC13aWR0aDozNHJlbTt0ZXh0LWFsaWduOmNlbnRlcjtwYWRkaW5nOjIuNXJlbTtiYWNrZ3JvdW5kOiMxMTE4Mjc7Ym9yZGVyOjFweCBzb2xpZCAjMWYyOTM3O2JvcmRlci1yYWRpdXM6MTZweH0uc3tmb250LXNpemU6NTZweH1oMXtjb2xvcjojZjg3MTcxO21hcmdpbjouNHJlbSAwfWNvZGV7Y29sb3I6IzkzYzVmZH0uZntjb2xvcjojNmI3MjgwO2ZvbnQtc2l6ZToxM3B4O21hcmdpbi10b3A6MS41cmVtfTwvc3R5bGU+PGRpdiBjbGFzcz1jPjxkaXYgY2xhc3M9cz4mIzEyODczNzs8L2Rpdj48aDE+NDAzICZtZGFzaDsgUmVxdWVzdCBibG9ja2VkPC9oMT48cD5UaGlzIHJlcXVlc3QgbWF0Y2hlZCBhIFdlYiBBcHBsaWNhdGlvbiBGaXJld2FsbCBydWxlIGFuZCB3YXMgc3RvcHBlZCBiZWZvcmUgcmVhY2hpbmcgdGhlIGFwcGxpY2F0aW9uLjwvcD48cCBjbGFzcz1mPlN1cHBvcnQgSUQ6IDxjb2RlIHN0eWxlPSdjb2xvcjojOTNjNWZkJz57e3N1cHBvcnRfaWR9fTwvY29kZT48L3A+PHAgY2xhc3M9Zj5Qcm90ZWN0ZWQgYnkgPGI+V1NMUHJveHkgV0FGPC9iPiAmbWlkZG90OyBtb2Rlcm4gJmFtcDsgQVBJIHRocmVhdCBydWxlczwvcD48L2Rpdj4="
   },
   "whitelist": {
     "ips": [

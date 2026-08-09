@@ -323,6 +323,86 @@ function _M.record_event(event_type, rule, server_config, request_data)
 end
 
 -- ============================================================================
+-- BINDING PRECEDENCE & SIGNATURE GOVERNANCE (WAF v2)
+-- ============================================================================
+
+-- Lazy loads for the optional v2 modules; nil if absent (fail-open).
+local function support_mod() local ok, m = pcall(require, "waf_support"); return ok and m or nil end
+local function stages_mod() local ok, m = pcall(require, "waf_stages"); return ok and m or nil end
+
+-- Normalize an F5-style enforcementMode alias to the internal block/monitor.
+local function norm_mode(m, fallback)
+    if m == "blocking" then return "block" end
+    if m == "transparent" then return "monitor" end
+    return m or fallback
+end
+
+-- Resolve the effective enforcement mode with binding precedence:
+--   route override > per-server override > policy default.
+-- Returns (mode, binding_label). Longest matching route path wins.
+local function resolve_mode(policy, server_config, ctx)
+    local mode = norm_mode(policy.enforcementMode, policy.mode or "monitor")
+    local binding = "domain"
+    if server_config.waf_mode_override and server_config.waf_mode_override ~= "" then
+        mode = server_config.waf_mode_override
+        binding = "server"
+    end
+    if policy.routeOverrides then
+        local best = -1
+        for _, ro in ipairs(policy.routeOverrides) do
+            local p = ro.path or "/"
+            local method_ok = true
+            if ro.methods then
+                method_ok = false
+                for _, mm in ipairs(ro.methods) do
+                    if mm == "*" or mm == ctx.method then method_ok = true break end
+                end
+            end
+            if method_ok and ctx.path:sub(1, #p) == p and #p > best then
+                best = #p
+                mode = norm_mode(ro.enforcementMode, ro.mode or mode)
+                binding = "route:" .. p
+            end
+        end
+    end
+    return mode, binding
+end
+
+-- Is a staged value still in its staging window (→ alarm-only)?
+-- true means indefinitely staged; an ISO-8601 string stages until that instant.
+local function staged_active(v)
+    if v == true then return true end
+    if type(v) == "string" then
+        local y, mo, d, h, mi, s = v:match("(%d+)-(%d+)-(%d+)T(%d+):(%d+):(%d+)")
+        if y then
+            return ngx.time() < os.time({ year = y, month = mo, day = d, hour = h, min = mi, sec = s })
+        end
+        return true
+    end
+    return false
+end
+
+-- Build governance lookups from the policy: disabled ids, staged ids, and the
+-- per-signature-set block toggle. Absence of a key means "default on".
+local function governance(policy)
+    local disabled, staged, set_block = {}, {}, nil
+    local sig = policy.signatures
+    if sig then
+        for _, id in ipairs(sig.disable or {}) do disabled[id] = true end
+        for _, s in ipairs(sig.stage or {}) do staged[s.id] = s["until"] or s.until_field or true end
+    end
+    if policy.signatureSets then
+        set_block = {}
+        for _, s in ipairs(policy.signatureSets) do set_block[s.id] = (s.block ~= false) end
+    end
+    return disabled, staged, set_block
+end
+
+local function rule_set_id(rule)
+    return rule.signature_set or ("SET_" .. tostring(rule.category or "misc"):upper())
+end
+
+-- ============================================================================
 -- MAIN INSPECTION
 -- ============================================================================
 
@@ -337,83 +417,131 @@ function _M._inspect_impl(server_config, profile_id)
         return nil
     end
 
-    -- Apply per-Virtual Server mode override (does not mutate cached policy)
-    local effective_mode = policy.mode
-    if server_config.waf_mode_override and server_config.waf_mode_override ~= "" then
-        effective_mode = server_config.waf_mode_override
-    end
+    local support = support_mod()
+    local stages = stages_mod()
 
     local request_data = get_request_data()
-
     if is_whitelisted(policy, request_data) then
         return nil
     end
 
-    local rules = _M.load_rules(policy, profile_id)
-    if not rules or #rules == 0 then
-        return nil
-    end
-
-    -- Load body if enabled in policy
+    -- Load body up front: both the JSON profile stage and body signatures need it.
     if policy.body_inspection ~= false then
         request_data.body = load_body(policy.max_body_size or 1048576)
     end
 
-    local total_score = 0
-    local matched_rules = {}
+    local ctx = {
+        method = request_data.method,
+        path = ngx.var.uri or "",
+        url = request_data.url,
+        headers = request_data.headers,
+        args = request_data.args,
+        body = request_data.body,
+        ip = ngx.var.remote_addr or "",
+    }
 
-    for _, rule in ipairs(rules) do
-        if rule.enabled then
-            local targets = resolve_targets(rule.target, request_data)
-            for target_name, target_value in pairs(targets) do
-                local matched, detail = inspect_target(target_value, rule)
-                if matched then
-                    total_score = total_score + (rule.score or 0)
-                    table.insert(matched_rules, {
-                        rule_id = rule.id,
-                        rule_name = rule.name,
-                        category = rule.category,
-                        severity = rule.severity,
-                        action = rule.action,
-                        target = target_name,
-                        detail = detail
-                    })
+    local effective_mode, binding = resolve_mode(policy, server_config, ctx)
+    local service = server_config.waf_service or policy.service
 
-                    -- Immediate block for "block" action rules in "block" effective mode
-                    if rule.action == "block" and effective_mode == "block" then
-                        _M.record_event("blocked", rule, server_config, request_data)
-                        return {
-                            action = "block",
-                            rule = rule,
-                            matched_rules = matched_rules,
-                            score = total_score
-                        }
-                    end
-                    break -- one match per rule is enough, move to next rule
-                end
+    -- Turn a finding into either a block result or a logged alarm (transparent
+    -- mode, or a staged signature). Returns a block result table, or nil.
+    local function decide(f, staged)
+        local block = (effective_mode == "block") and not staged
+        local action = block and "block" or "alarm"
+        local sid = support and support.support_id() or nil
+        local rec = support and support.finding({
+            support_id = sid, stage = f.stage, action = action, code = f.code,
+            sig_id = f.sig_id, sig_set = f.sig_set, category = f.category,
+            severity = f.severity, target = f.target, detail = f.detail,
+            policy = policy.name, service = service, binding = binding,
+        }) or nil
+        if support and rec then support.log_security(server_config, rec, nil) end
+        _M.record_event(block and "blocked" or "monitored",
+            { id = f.sig_id or f.code, name = f.detail, category = f.category, severity = f.severity },
+            server_config, request_data)
+        if block then
+            return { action = "block", support_id = sid, finding = rec,
+                     rule = { id = f.sig_id or f.code, category = f.category, severity = f.severity } }
+        end
+        return nil
+    end
+
+    -- Stage 1..N: positive-security / protocol / API checks before signatures.
+    if stages then
+        for _, stage in ipairs(stages.PIPELINE) do
+            local ok, finding = pcall(stage.fn, policy, ctx)
+            if ok and finding then
+                local res = decide({
+                    stage = finding.stage, code = finding.code, sig_id = finding.code,
+                    category = finding.category, severity = finding.severity,
+                    target = finding.target, detail = finding.detail,
+                }, false)
+                if res then return res end
+            elseif not ok then
+                ngx.log(ngx.WARN, "WAF: stage ", stage.name, " error (skipped): ", tostring(finding))
             end
         end
     end
 
-    -- Anomaly score threshold check
-    if #matched_rules > 0 and total_score >= (policy.anomaly_threshold or 5) and effective_mode == "block" then
-        _M.record_event("blocked_anomaly", matched_rules[1], server_config, request_data)
-        return {
-            action = "block",
-            matched_rules = matched_rules,
-            score = total_score
-        }
-    end
+    -- Stage N+1: attack-signature matching with set/disable/stage governance.
+    local rules = _M.load_rules(policy, profile_id)
+    if rules and #rules > 0 then
+        local disabled, staged, set_block = governance(policy)
+        local total_score = 0
+        local matched_rules = {}
+        for _, rule in ipairs(rules) do
+            if rule.enabled and not disabled[rule.id] then
+                local set_id = rule_set_id(rule)
+                local set_blocks = true
+                if set_block and set_block[set_id] ~= nil then set_blocks = set_block[set_id] end
+                local targets = resolve_targets(rule.target, request_data)
+                for target_name, target_value in pairs(targets) do
+                    local matched = inspect_target(target_value, rule)
+                    if matched then
+                        local is_staged = staged_active(staged[rule.id]) or (not set_blocks)
+                        -- Staged / set-disabled signatures alarm only; they must
+                        -- not contribute to the blocking anomaly score.
+                        if not is_staged then
+                            total_score = total_score + (rule.score or 0)
+                        end
+                        matched_rules[#matched_rules + 1] = {
+                            rule_id = rule.id, category = rule.category, severity = rule.severity,
+                        }
+                        local f = {
+                            stage = "signature", code = "VIOL_ATTACK_SIGNATURE", sig_id = rule.id,
+                            sig_set = set_id, category = rule.category, severity = rule.severity,
+                            target = target_name, detail = rule.name,
+                        }
+                        if rule.action == "block" then
+                            local res = decide(f, is_staged)
+                            if res then
+                                res.rule = rule
+                                res.score = total_score
+                                res.matched_rules = matched_rules
+                                return res
+                            end
+                        else
+                            decide(f, true) -- alarm-only rule: always log, never block
+                        end
+                        break -- one match per rule
+                    end
+                end
+            end
+        end
 
-    -- Monitor mode: log but don't block
-    if #matched_rules > 0 then
-        for _, mr in ipairs(matched_rules) do
-            _M.record_event("monitored", {
-                id = mr.rule_id,
-                name = mr.rule_name,
-                category = mr.category,
-                severity = mr.severity
-            }, server_config, request_data)
+        -- Anomaly score threshold (independent of any single block-action rule).
+        if #matched_rules > 0 and total_score >= (policy.anomaly_threshold or 5)
+            and effective_mode == "block" then
+            local res = decide({
+                stage = "anomaly", code = "VIOL_ANOMALY_SCORE", category = "anomaly",
+                severity = "high", target = "all",
+                detail = "anomaly score " .. total_score .. " >= " .. (policy.anomaly_threshold or 5),
+            }, false)
+            if res then
+                res.matched_rules = matched_rules
+                res.score = total_score
+                return res
+            end
         end
     end
 
@@ -485,20 +613,36 @@ function _M.block_request(policy, matched_result)
     ngx.status = status_code
     ngx.header["Content-Type"] = content_type
     ngx.header["X-WAF-Block"] = "true"
+    local support_id = matched_result and matched_result.support_id
     if matched_result and matched_result.rule then
         ngx.header["X-WAF-Rule"] = matched_result.rule.id or "unknown"
     end
+    if matched_result and matched_result.finding then
+        ngx.header["X-WAF-Violation"] = matched_result.finding.code or "unknown"
+    end
+    if support_id then
+        -- Echo the correlation id so a user can quote it in a support request.
+        ngx.header["X-Support-ID"] = support_id
+    end
 
+    local page
     if body_b64 then
         local decode_ok, decoded = pcall(Base64.decode, body_b64)
-        if decode_ok and decoded then
-            ngx.say(decoded)
-        else
-            ngx.say(_M.DEFAULT_BLOCK_PAGE)
-        end
+        page = (decode_ok and decoded) or _M.DEFAULT_BLOCK_PAGE
     else
-        ngx.say(_M.DEFAULT_BLOCK_PAGE)
+        page = _M.DEFAULT_BLOCK_PAGE
     end
+    -- Surface the support id inside the page too (replace a {{support_id}}
+    -- placeholder if present, else append a small reference line).
+    if support_id then
+        if page:find("{{support_id}}", 1, true) then
+            page = page:gsub("{{support_id}}", support_id)
+        else
+            page = page:gsub("</body>", '<div style="font:12px monospace;color:#8a93a8;margin-top:16px">Support ID: '
+                .. support_id .. "</div></body>", 1)
+        end
+    end
+    ngx.say(page)
 
     return ngx.exit(status_code)
 end

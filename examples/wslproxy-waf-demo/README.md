@@ -89,3 +89,38 @@ python3 examples/wslproxy-waf-demo/attack_suite.py \
   --open   https://payments-open.fictionally.org \
   --secure https://payments-secure.fictionally.org
 ```
+
+## WAF v2 — enterprise enforcement (beyond signatures)
+
+The same policy also exercises the v2 engine (`api/waf_engine.lua` +
+`api/waf_stages.lua` + `api/waf_support.lua`) — the controls a signature list
+can't express. Design reference: [`docs/WAF_ENGINE_V2.md`](../../docs/WAF_ENGINE_V2.md);
+policy JSON Schema: [`docs/waf-policy.schema.json`](../../docs/waf-policy.schema.json).
+
+| Capability | Policy field | Demo behaviour | Violation |
+|---|---|---|---|
+| Method allow-list | `methods.allow` | `PUT /api/profile` → 403 | `VIOL_METHOD` |
+| Filetype deny | `filetypes.deny` | `/config.env`, `/.git/config` → 403 | `VIOL_FILETYPE` |
+| JWT algorithm policy | `jwt.denyAlg`/`requireAlg` | `alg:none` & `HS256` bearer → 403 (first-class, not a regex) | `VIOL_JWT_ALG` |
+| JSON body profile | `jsonProfile.maxDepth`/`maxBytes` | deep or oversized JSON → 403 | `VIOL_JSON_DEPTH` / `VIOL_JSON_SIZE` |
+| Brute-force velocity | `bruteForce[]` | 6th `POST /api/login` in 60s → 403 | `VIOL_BRUTE_FORCE` |
+| IP / geo lists | `ipLists`, `geo.denyCountries` | allow-list bypass; country deny | `VIOL_IP_DENY` / `VIOL_GEO` |
+| Signature staging | `signatures.stage[]` | open-redirect rule alarms (302), never blocks, until its date | — |
+| Set / per-ID governance | `signatureSets`, `signatures.disable` | toggle a whole set to alarm-only, or disable one ID | — |
+| Binding precedence | `routeOverrides[]` | `/preview` runs transparent while the domain blocks (route > server > domain) | — |
+| Correlation IDs | (always) | every block returns `X-Support-ID` + prints it on the block page | — |
+| Structured security log | `logging` | one `wafsec {...}` JSON line per decision (support_id, code, stage, signature_id, policy, binding, latency_us) | — |
+
+Every one of these is proved by a golden test:
+
+```bash
+python3 examples/wslproxy-waf-demo/waf_features.py \
+  --host https://payments-secure.fictionally.org
+# → 12/12 golden tests passed
+```
+
+### The engine bug this depended on
+
+v2 only works because the signature matcher works — and it didn't. See the
+callout above: the engine called the non-existent `ngx.re.compile()`, so every
+regex rule failed open. Fixed to `ngx.re.find(v, pattern, "jois")`.
