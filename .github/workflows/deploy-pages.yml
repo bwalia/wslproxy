@@ -1,0 +1,121 @@
+name: Deploy landing page (GitHub Pages)
+
+# Publishes the static marketing site from html/ to GitHub Pages
+# (https://wslproxy.org / project URL). Landing + Swagger only —
+# Admin UI and gateway are served by OpenResty, not Pages.
+#
+# Custom domain → site root; project page → /<repo>. Domain is resolved
+# at build time (override var, CNAME file, then Pages API) — same pattern
+# as ring-promoter / vantiq. Uses GitHub-hosted runners so it does not
+# queue behind self-hosted deploy runners.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "html/index.html"
+      - "html/404.html"
+      - "html/403.html"
+      - "html/swagger/**"
+      - "html/css/**"
+      - "html/js/**"
+      - "html/images/**"
+      - "CNAME"
+      - ".github/workflows/deploy-pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # In order: explicit override, the repo's own CNAME file, the Pages API.
+      # Worked out in bash rather than a `${{ a && b || c }}` expression:
+      # GitHub treats an empty string as falsy, so that idiom silently falls
+      # through to the default in exactly the custom-domain case where the
+      # base path must be "".
+      - name: Resolve deploy domain and base path
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DOMAIN_OVERRIDE: ${{ vars.PAGES_CUSTOM_DOMAIN }}
+        run: |
+          domain="$DOMAIN_OVERRIDE"
+          if [ -z "$domain" ] && [ -f CNAME ]; then
+            domain=$(tr -d '[:space:]' < CNAME)
+          fi
+          if [ -z "$domain" ]; then
+            domain=$(gh api "repos/${{ github.repository }}/pages" --jq '.cname // empty' 2>/dev/null || true)
+          fi
+
+          if [ -n "$domain" ]; then
+            echo "Custom domain: $domain (serving from root)"
+            echo "PAGES_DOMAIN=$domain" >> "$GITHUB_ENV"
+            echo "PAGES_BASE_PATH=" >> "$GITHUB_ENV"
+          else
+            echo "Project page (serving from /${{ github.event.repository.name }})"
+            echo "PAGES_DOMAIN=" >> "$GITHUB_ENV"
+            echo "PAGES_BASE_PATH=/${{ github.event.repository.name }}" >> "$GITHUB_ENV"
+          fi
+
+      - name: Assemble static site
+        run: |
+          set -euo pipefail
+          mkdir -p site
+
+          # Canonical landing (html/ is source of truth; docs/index.html is a mirror)
+          cp html/index.html site/index.html
+          cp html/404.html site/404.html 2>/dev/null || true
+          cp html/403.html site/403.html 2>/dev/null || true
+
+          # Swagger UI referenced from the landing (/swagger/)
+          if [ -d html/swagger ]; then
+            cp -R html/swagger site/swagger
+          fi
+
+          # Optional local assets (landing mostly uses CDN + inline CSS)
+          for d in css js images; do
+            if [ -d "html/$d" ]; then
+              cp -R "html/$d" "site/$d"
+            fi
+          done
+
+          # Pages runs Jekyll by default, which can drop underscore paths; opt out.
+          touch site/.nojekyll
+
+          # An Actions deploy replaces the whole site, so the CNAME has to be
+          # part of the artifact or the custom domain binding is dropped.
+          if [ -n "${PAGES_DOMAIN:-}" ]; then
+            echo "$PAGES_DOMAIN" > site/CNAME
+          fi
+
+          echo "Assembled site:"
+          find site -type f | sort | head -80
+          du -sh site
+
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

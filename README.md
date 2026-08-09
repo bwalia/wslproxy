@@ -6,10 +6,12 @@ Operators manage virtual hosts, rules, WAF, cache, traffic splits, and edge POPs
 
 | | |
 |---|---|
-| Site | [wslproxy.com](https://wslproxy.com) |
-| Swagger | [/swagger/](https://wslproxy.com/swagger/) |
+| Site | [wslproxy.org](https://wslproxy.org) (GitHub Pages) · [wslproxy.com](https://wslproxy.com) |
+| Swagger | [wslproxy.org/swagger/](https://wslproxy.org/swagger/) |
 | Repo | [github.com/bwalia/wslproxy](https://github.com/bwalia/wslproxy) |
 | CLI image | `ghcr.io/bwalia/wslproxy-cli:latest` |
+
+Landing + Swagger are published from `html/` by [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml) on every `main` change to those paths (same pattern as ring-promoter).
 
 ---
 
