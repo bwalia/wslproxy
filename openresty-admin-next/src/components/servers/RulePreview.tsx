@@ -151,7 +151,7 @@ const RulePreview: React.FC<RulePreviewProps> = ({ ruleId, className }) => {
   if (error || !summary) {
     return (
       <div
-        className={`mt-2 flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200 ${className ?? ""}`}
+        className={`mt-2 flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200 ${className ?? ""}`}
         role="alert"
       >
         <ShieldAlert className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
@@ -179,7 +179,7 @@ const RulePreview: React.FC<RulePreviewProps> = ({ ruleId, className }) => {
         <div className="min-w-0 flex-1 space-y-0.5">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-slate-700 dark:text-slate-300">
             {summary.pathLine && (
-              <span className="truncate font-mono text-xs">
+              <span className="truncate font-mono text-sm">
                 {summary.pathLine}
               </span>
             )}
@@ -190,18 +190,18 @@ const RulePreview: React.FC<RulePreviewProps> = ({ ruleId, className }) => {
               />
             )}
             {summary.targetLine && (
-              <span className="truncate font-mono text-xs text-slate-600 dark:text-slate-400">
+              <span className="truncate font-mono text-sm text-slate-700 dark:text-slate-300">
                 {summary.targetLine}
               </span>
             )}
             {!summary.pathLine && !summary.targetLine && (
-              <span className="text-xs italic text-slate-400">
+              <span className="text-sm italic text-slate-600 dark:text-slate-400">
                 {summary.meta.description}
               </span>
             )}
           </div>
           {summary.conditionsLine && (
-            <div className="truncate text-xs text-slate-500 dark:text-slate-400">
+            <div className="truncate text-sm text-slate-600 dark:text-slate-400">
               {summary.conditionsLine}
             </div>
           )}
@@ -211,7 +211,7 @@ const RulePreview: React.FC<RulePreviewProps> = ({ ruleId, className }) => {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="mt-0.5 inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-primary-600 hover:bg-primary-50 hover:text-primary-700 dark:text-primary-400 dark:hover:bg-primary-900/20 dark:hover:text-primary-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30"
+          className="mt-0.5 inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-sm font-medium text-primary-600 hover:bg-primary-50 hover:text-primary-700 dark:text-primary-400 dark:hover:bg-primary-900/20 dark:hover:text-primary-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30"
           aria-label={`View details for rule ${rule?.name ?? ruleId}`}
         >
           <Eye className="h-3.5 w-3.5" aria-hidden="true" />

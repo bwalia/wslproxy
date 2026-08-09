@@ -177,7 +177,7 @@ export default function PopMultiSelect({
         <div className="space-y-4">
           {grouped.map(([region, regionPops]) => (
             <div key={region}>
-              <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+              <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-600 dark:text-slate-300">
                 {region}
                 <span className="text-slate-400">·</span>
                 <span className="font-normal normal-case">

@@ -82,10 +82,10 @@ const QuickStat = React.memo(function QuickStat({
 }) {
   return (
     <div className={cn("flex items-center gap-3 rounded-xl border-l-4 bg-white px-4 py-3 dark:bg-slate-800", color)}>
-      <Icon className="h-5 w-5 text-slate-400" />
+      <Icon className="h-5 w-5 text-slate-500 dark:text-slate-400" />
       <div>
         <p className="text-lg font-bold text-slate-900 dark:text-slate-100">{value}</p>
-        <p className="text-xs text-slate-500 dark:text-slate-400">{label}</p>
+        <p className="text-sm text-slate-600 dark:text-slate-300">{label}</p>
       </div>
     </div>
   );
@@ -353,7 +353,7 @@ export default function LogsPage() {
           <QuickStat icon={Activity} label="Requests (24h)" value={quickStats.totalRequests.toLocaleString()} color="border-l-blue-500" />
           <QuickStat icon={AlertCircle} label="Errors (24h)" value={quickStats.errorCount.toLocaleString()} color="border-l-red-500" />
           <QuickStat icon={Clock} label="Avg Latency" value={quickStats.avgLatency > 0 ? `${quickStats.avgLatency.toFixed(1)}ms` : "—"} color="border-l-amber-500" />
-          <QuickStat icon={TrendingUp} label="P95 Latency" value={quickStats.p95Latency > 0 ? `${quickStats.p95Latency.toFixed(1)}ms` : "—"} color="border-l-purple-500" />
+          <QuickStat icon={TrendingUp} label="P95 Latency" value={quickStats.p95Latency > 0 ? `${quickStats.p95Latency.toFixed(1)}ms` : "—"} color="border-l-primary-500" />
         </div>
       )}
 
