@@ -60,7 +60,7 @@ function SubmitButton() {
       type="submit"
       disabled={pending}
       aria-disabled={pending}
-      className="group relative flex w-full items-center justify-center gap-2 rounded-lg bg-linear-to-br from-primary-600 to-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-primary-500/30 transition-all hover:from-primary-500 hover:to-violet-500 hover:shadow-primary-500/40 focus-visible:ring-2 focus-visible:ring-primary-500/50 focus-visible:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:from-slate-400 disabled:to-slate-400 disabled:opacity-70 disabled:shadow-none dark:focus-visible:ring-offset-slate-900"
+      className="group relative flex w-full items-center justify-center gap-2 rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-primary-600/25 transition-all hover:bg-primary-500 hover:shadow-primary-500/35 focus-visible:ring-2 focus-visible:ring-primary-500/50 focus-visible:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-400 disabled:opacity-70 disabled:shadow-none dark:focus-visible:ring-offset-slate-900"
     >
       {pending ? (
         <>
@@ -156,8 +156,8 @@ export default function LoginPage() {
         aria-hidden="true"
         className="pointer-events-none fixed inset-0 z-0 overflow-hidden"
       >
-        <div className="absolute -top-32 -right-32 h-120 w-120 rounded-full bg-primary-500/15 blur-3xl dark:bg-primary-500/10" />
-        <div className="absolute -bottom-32 -left-32 h-105 w-105 rounded-full bg-emerald-500/10 blur-3xl dark:bg-emerald-500/10" />
+        <div className="absolute -top-32 -right-32 h-120 w-120 rounded-full bg-primary-500/15 blur-3xl dark:bg-primary-400/10" />
+        <div className="absolute -bottom-32 -left-32 h-105 w-105 rounded-full bg-accent-500/10 blur-3xl dark:bg-accent-400/10" />
       </div>
 
       {/* ── Theme toggle (top-right) ────────────────────────────────── */}
@@ -179,7 +179,7 @@ export default function LoginPage() {
               <div className="mb-6 flex justify-center">
                 <Logo width={200} height={44} variant="full" theme={theme} />
               </div>
-              <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-slate-100">
+              <h1 className="font-display text-2xl font-semibold tracking-tight text-slate-900 dark:text-slate-100">
                 Welcome back
               </h1>
               <p className="mt-1.5 text-sm text-slate-500 dark:text-slate-400">
