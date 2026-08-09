@@ -9,7 +9,7 @@ name: Deploy Single Environment
 #   acc       -> 192.168.1.48    (Acceptance — LAN)
 #   prod      -> 18.133.126.242  (Production — "pop1", AWS)
 #   prod-lon1 -> 72.62.211.28    (Production — "lon1" / lon1.pop0.uk)
-#   prod-pop0 -> 187.124.112.155 (Production — "pop0"; also in delivery pipeline)
+#   (prod-pop0 / 187.124.112.155 retired: k3s/traefik node, not a wslproxy edge)
 #
 # Each ENV maps to exactly ONE host, so rings deploy independently.
 #
@@ -39,7 +39,6 @@ on:
           - acc
           - prod
           - prod-lon1
-          - prod-pop0
       DEPLOY_BRANCH:
         type: string
         description: "Git ref to deploy (branch, tag or commit SHA)"
@@ -234,30 +233,5 @@ jobs:
       VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
       SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
 
-  # ──────────────────────────────────────────────────────
-  # Production — prod / "pop0" (187.124.112.155). Single-host entry for
-  # the same target as delivery Stage 5a (no cascade).
-  # ──────────────────────────────────────────────────────
-  prod-pop0:
-    if: ${{ inputs.ENV == 'prod-pop0' }}
-    uses: ./.github/workflows/deploy-environment.yml
-    with:
-      env_name: prod
-      env_label: "Production — pop0 (187.124.112.155)"
-      stage_number: "prod-pop0"
-      host_ip: "187.124.112.155"
-      ssh_user: root
-      connection_mode: ssh_key
-      secrets_mode: vault_or_sops
-      health_endpoint: "https://prod-our-v1.wslproxy.com/healthz"
-      health_check_mode: external
-      docker_prune: true
-      notify_success: true
-      deploy_branch: ${{ inputs.DEPLOY_BRANCH }}
-      deploy_mode: ${{ inputs.DEPLOY_MODE }}
-    secrets:
-      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-      VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
-      VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
-      SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
+  # (Production "pop0" / 187.124.112.155 retired — that host is a k3s/traefik
+  #  node, not a wslproxy edge, so it was removed as a deploy target.)

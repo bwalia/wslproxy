@@ -1,5 +1,8 @@
 name: Full Build and Deploy WSLProxy Delivery Pipeline
-# Pipeline: Validate → Int → Smoke Test → Test → Acc → Prod (pop0 + lon1)
+# Pipeline: Validate → Int → Smoke Test → Test → Prod (lon1 + pop1)
+# NOTE: the former "pop0" edge (187.124.112.155) was retired — that host is a
+# k3s node where traefik owns :80/:443, no DNS points to it, and it has no
+# wslproxy data dir, so it is not a live edge. Live prod edges are lon1 + pop1.
 # Promotion pipeline: each environment must pass before the next deploys
 # Deploy modes: code (default for manual) | nginx | servers | dashboard | os_deps | build | full (default for push)
 
@@ -39,8 +42,8 @@ on:
           - all
           - 192.168.1.193
           - 192.168.1.140
-          # 187.77.179.206 (acc) was decommissioned.
-          - 187.124.112.155
+          # 187.77.179.206 (acc) and 187.124.112.155 (pop0) were retired.
+          # pop0 is a k3s/traefik node, not a wslproxy edge.
           - 72.62.211.28
           - 18.133.126.242
 
@@ -420,55 +423,14 @@ jobs:
   # gates production behind a successful non-prod deploy.
 
   # ──────────────────────────────────────────────────────
-  # Stage 5a: Deploy Prod pop0 (187.124.112.155)
-  # ──────────────────────────────────────────────────────
-  deploy-prod-pop0:
-    # Full upstream chain — see deploy-test. Any failure up to here blocks prod.
-    needs: [build-validate, deploy-int, test-int, deploy-test]
-    if: >
-      always() && !failure() && !cancelled() &&
-      ((github.event_name == 'push' && (github.ref == 'refs/heads/release' || github.ref == 'refs/heads/main')) ||
-      (github.event_name == 'workflow_dispatch' &&
-      (github.event.inputs.TARGET_HOST == '187.124.112.155' || github.event.inputs.TARGET_HOST == 'all')))
-    uses: ./.github/workflows/deploy-environment.yml
-    with:
-      env_name: prod
-      env_label: "Prod pop0 (187.124.112.155)"
-      stage_number: "5a"
-      host_ip: "187.124.112.155"
-      ssh_user: root
-      connection_mode: ssh_key
-      # vault_or_sops: probe Vault first (see the resolve_mode step in
-      # deploy-environment.yml).  If Vault has the settings at
-      # secret/data/wslproxy/prod/settings.json, use it; otherwise fall
-      # back to the SOPS-encrypted infra/secrets/prod/settings.sops.json
-      # already committed to the repo.  Replaces the old runner_file +
-      # seed_from_host mode that failed on 2026-07-02 when the runner's
-      # SSH key stopped authenticating against the prod host (root@…
-      # permission denied) and there was no fallback.
-      secrets_mode: vault_or_sops
-      health_endpoint: "https://prod-our-v1.wslproxy.com/healthz"
-      health_check_mode: external
-      docker_prune: true
-      notify_success: true
-      deploy_branch: ${{ github.event.inputs.DEPLOY_BRANCH || github.ref_name }}
-      deploy_mode: ${{ github.event.inputs.DEPLOY_MODE || 'full' }}
-    secrets:
-      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-      # Provide BOTH — the resolver picks Vault if VAULT_ADDR/VAULT_TOKEN
-      # are set AND the settings path is populated; otherwise it uses
-      # SOPS_AGE_KEY.  Deploy only fails if BOTH are unavailable.
-      VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
-      VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
-      SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
-
-  # ──────────────────────────────────────────────────────
-  # Stage 5b: Deploy Prod lon1 (72.62.211.28)
+  # Stage 5a: Deploy Prod lon1 (72.62.211.28)
+  # (The former Stage 5a "pop0" / 187.124.112.155 was retired: that host is a
+  #  k3s/traefik node with no wslproxy edge and no DNS, so it never served
+  #  prod traffic. Live prod edges are lon1 (5a) and pop1 (5b).)
   # ──────────────────────────────────────────────────────
   deploy-prod-lon1:
     # Full upstream chain — see deploy-test.
-    needs: [build-validate, deploy-int, test-int, deploy-test, deploy-prod-pop0]
+    needs: [build-validate, deploy-int, test-int, deploy-test]
     if: >
       always() && !failure() && !cancelled() &&
       ((github.event_name == 'push' && (github.ref == 'refs/heads/release' || github.ref == 'refs/heads/main')) ||
@@ -482,7 +444,7 @@ jobs:
       # (dispatch 31281281402: "SSH connection failed to root@72.62.211.28").
       runner_label: acc
       env_label: "Prod lon1 (72.62.211.28)"
-      stage_number: "5b"
+      stage_number: "5a"
       host_ip: "72.62.211.28"
       ssh_user: root
       connection_mode: ssh_key
@@ -508,13 +470,13 @@ jobs:
       SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
 
   # ──────────────────────────────────────────────────────
-  # Stage 5c: Deploy Prod pop1 (18.133.126.242) — AWS eu-west-2, ssh user admin
-  # Runs LAST, after pop0 + lon1, only when they (and all prior stages) pass.
+  # Stage 5b: Deploy Prod pop1 (18.133.126.242) — AWS eu-west-2, ssh user admin
+  # Runs LAST, after lon1, only when it (and all prior stages) pass.
   # Dashboard domain: pop1.diytaxreturn.co.uk
   # ──────────────────────────────────────────────────────
   deploy-prod-pop1:
     # Full upstream chain — see deploy-test.
-    needs: [build-validate, deploy-int, test-int, deploy-test, deploy-prod-pop0, deploy-prod-lon1]
+    needs: [build-validate, deploy-int, test-int, deploy-test, deploy-prod-lon1]
     if: >
       always() && !failure() && !cancelled() &&
       ((github.event_name == 'push' && (github.ref == 'refs/heads/release' || github.ref == 'refs/heads/main')) ||
@@ -530,7 +492,7 @@ jobs:
       # ansible target_env / Vault path / SOPS payload profile are prod.
       runner_label: acc
       env_label: "Prod pop1 (18.133.126.242)"
-      stage_number: "5c"
+      stage_number: "5b"
       host_ip: "18.133.126.242"
       ssh_user: admin
       connection_mode: ssh_key
@@ -567,7 +529,6 @@ jobs:
         deploy-int,
         test-int,
         deploy-test,
-        deploy-prod-pop0,
         deploy-prod-lon1,
         deploy-prod-pop1,
       ]
@@ -583,9 +544,8 @@ jobs:
           echo "  Stage 2  — Deploy Int:           ${{ needs.deploy-int.result }}"
           echo "  Stage 3  — Smoke Test Int:       ${{ needs.test-int.result }}"
           echo "  Stage 4  — Deploy Test:          ${{ needs.deploy-test.result }}"
-          echo "  Stage 5a — Deploy Prod (pop0):   ${{ needs.deploy-prod-pop0.result }}"
-          echo "  Stage 5b — Deploy Prod (lon1):   ${{ needs.deploy-prod-lon1.result }}"
-          echo "  Stage 5c — Deploy Prod (pop1):   ${{ needs.deploy-prod-pop1.result }}"
+          echo "  Stage 5a — Deploy Prod (lon1):   ${{ needs.deploy-prod-lon1.result }}"
+          echo "  Stage 5b — Deploy Prod (pop1):   ${{ needs.deploy-prod-pop1.result }}"
           echo ""
           echo "  Commit:  ${{ github.sha }}"
           echo "  Branch:  ${{ github.ref_name }}"
@@ -596,7 +556,6 @@ jobs:
              [[ "${{ needs.deploy-int.result }}" == "failure" ]] || \
              [[ "${{ needs.test-int.result }}" == "failure" ]] || \
              [[ "${{ needs.deploy-test.result }}" == "failure" ]] || \
-             [[ "${{ needs.deploy-prod-pop0.result }}" == "failure" ]] || \
              [[ "${{ needs.deploy-prod-lon1.result }}" == "failure" ]] || \
              [[ "${{ needs.deploy-prod-pop1.result }}" == "failure" ]]; then
               echo "::error::Pipeline failed — see stage results above"
