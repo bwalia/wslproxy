@@ -94,6 +94,12 @@ def main():
          lambda: req(H, "GET", "/search?q=<script>alert(1)</script>")),
         ("Staged signature (open-redirect) alarms, not blocks", ("allow", None),
          lambda: req(H, "GET", "/api/redirect?to=https://evil.example/x")),
+        ("OpenAPI: undeclared /api endpoint", ("block", "VIOL_OPENAPI_PATH"),
+         lambda: req(H, "GET", "/api/does-not-exist")),
+        ("OpenAPI: wrong method on declared path", ("block", "VIOL_OPENAPI_METHOD"),
+         lambda: req(H, "POST", "/api/accounts/1001", '{"x":1}', ctype="application/json")),
+        ("OpenAPI: declared endpoint passes", ("code", 200),
+         lambda: req(H, "GET", "/api/accounts/1001")),
         ("Legit request passes", ("code", 200),
          lambda: req(H, "GET", "/products?cat=deposit")),
     ]

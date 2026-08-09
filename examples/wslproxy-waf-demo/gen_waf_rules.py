@@ -164,6 +164,22 @@ def main():
         "bruteForce": [{"path": "/api/login", "windowSec": 60, "maxAttempts": 5,
                         "action": "block", "keyBy": ["ip"]}],
 
+        # --- v2 (P2): OpenAPI positive security on the API surface --------
+        # Only declared path+method pairs under /api are allowed; an undeclared
+        # endpoint or wrong method is rejected before it reaches the app.
+        "openapi": {
+            "basePath": "/api",
+            "paths": [
+                {"path": "/api/login", "methods": ["POST"]},
+                {"path": "/api/accounts/{id}", "methods": ["GET"]},
+                {"path": "/api/profile", "methods": ["POST"]},
+                {"path": "/api/me", "methods": ["GET"]},
+                {"path": "/api/import", "methods": ["POST"]},
+                {"path": "/api/merge", "methods": ["POST"]},
+                {"path": "/api/redirect", "methods": ["GET"]},
+            ],
+        },
+
         # --- v2: binding precedence (route > service > domain) ------------
         # /preview runs transparent (alarm-only) even though the policy blocks —
         # demonstrating a route override lowering enforcement for one path.

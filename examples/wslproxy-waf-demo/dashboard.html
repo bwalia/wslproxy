@@ -262,7 +262,7 @@ before reaching the application.
   </section>
 
   <section class="reveal" style="animation-delay:.15s">
-    <p class="kicker">Beyond signatures — v2 enforcement stages · 12/12 golden tests pass</p>
+    <p class="kicker">Beyond signatures — v2 enforcement stages · 15/15 golden tests pass</p>
     <div class="caps" id="caps"></div>
     <div class="note" style="background:var(--accent-soft);border-color:color-mix(in srgb,var(--accent) 30%,transparent)">
       <span class="ic" style="color:var(--accent)">✦</span>
@@ -367,6 +367,7 @@ before reaching the application.
     ["Signature staging", "New rules alarm-only until a date, then enforce.", "signatures.stage", "log-only"],
     ["Set & per-ID governance", "Toggle a whole set or disable one signature.", "signatureSets", "policy-as-code"],
     ["Binding precedence", "route &gt; server &gt; domain — most specific wins.", "routeOverrides[]", "per-route mode"],
+    ["OpenAPI positive security", "Allow only declared path+method pairs under /api.", "openapi.paths", "VIOL_OPENAPI_PATH/METHOD"],
   ];
   document.getElementById("caps").innerHTML = caps.map(([n,d,f,v]) => `
     <div class="cap">

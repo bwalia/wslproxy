@@ -223,7 +223,64 @@ function _M.brute_force_check(policy, ctx)
     return nil
 end
 
--- Ordered list the engine walks. Order matters: cheap/structural checks first.
+-- OpenAPI positive security: allow only request path+method pairs declared in
+-- the policy's OpenAPI surface; everything else under basePath is rejected.
+-- This is the inverse of signatures — a request is denied unless it is known.
+-- Path templates support {param} segments (matched as a single path segment).
+--
+-- policy.openapi = {
+--   basePath = "/api",                         -- only enforce under this prefix
+--   paths = { {path="/api/accounts/{id}", methods={"GET"}}, ... },
+-- }
+local function template_to_pattern(tpl)
+    local segs = {}
+    -- Only non-empty segments, so a leading "/" does not create an empty first
+    -- element (which would produce a spurious "//" in the anchored pattern).
+    for seg in tpl:gmatch("[^/]+") do
+        if seg:match("^{.-}$") then
+            segs[#segs + 1] = "[^/]+"
+        else
+            -- escape Lua-pattern magic chars in the literal segment
+            segs[#segs + 1] = seg:gsub("[%^%$%(%)%%%.%[%]%*%+%-%?]", "%%%1")
+        end
+    end
+    return "^/" .. table.concat(segs, "/") .. "$"
+end
+
+function _M.openapi_check(policy, ctx)
+    local spec = policy.openapi
+    if not spec or not spec.paths then return nil end
+    local base = spec.basePath
+    local path = ctx.path or "/"
+    if base and path:sub(1, #base) ~= base then return nil end -- outside the API surface
+
+    local path_known, method_ok = false, false
+    for _, p in ipairs(spec.paths) do
+        local pat = p._pattern
+        if not pat then pat = template_to_pattern(p.path); p._pattern = pat end
+        if path:match(pat) then
+            path_known = true
+            for _, m in ipairs(p.methods or {}) do
+                if m == "*" or m == ctx.method then method_ok = true break end
+            end
+            if method_ok then break end
+        end
+    end
+
+    if not path_known then
+        return { stage = "openapi", code = "VIOL_OPENAPI_PATH", category = "positive-security",
+                 severity = "medium", target = "url", detail = "undeclared endpoint: " .. path }
+    end
+    if not method_ok then
+        return { stage = "openapi", code = "VIOL_OPENAPI_METHOD", category = "positive-security",
+                 severity = "medium", target = "url",
+                 detail = ctx.method .. " not declared for " .. path }
+    end
+    return nil
+end
+
+-- Ordered list the engine walks. Order matters: cheap/structural checks first,
+-- then positive-security (OpenAPI), then signatures (in the engine).
 _M.PIPELINE = {
     { name = "method", fn = _M.method_check },
     { name = "filetype", fn = _M.filetype_check },
@@ -231,6 +288,7 @@ _M.PIPELINE = {
     { name = "jwt", fn = _M.jwt_check },
     { name = "json", fn = _M.json_profile_check },
     { name = "bruteforce", fn = _M.brute_force_check },
+    { name = "openapi", fn = _M.openapi_check },
 }
 
 return _M

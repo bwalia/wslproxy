@@ -54,6 +54,7 @@ rewrite_by_lua  gateway_ack.lua      select route rule
                   │  4 jwt alg policy         VIOL_JWT_ALG               │
                   │  5 json body profile      VIOL_JSON_SIZE/DEPTH       │
                   │  6 brute-force velocity   VIOL_BRUTE_FORCE           │
+                  │  7 openapi positive-sec   VIOL_OPENAPI_PATH/METHOD   │
                   └──────────────────────────────────────────────────────┘
                   ┌── SIGNATURE MATCHING (governed) ─────────────────────┐
                   │  per rule: disabled? set-disabled? staged?           │
@@ -205,6 +206,7 @@ anomaly score**, so staging can never cause a block indirectly. A rule's set is
 | `VIOL_JWT_ALG` | jwt algorithm policy |
 | `VIOL_JSON_SIZE` / `VIOL_JSON_DEPTH` | json body profile |
 | `VIOL_BRUTE_FORCE` | velocity control |
+| `VIOL_OPENAPI_PATH` / `VIOL_OPENAPI_METHOD` | OpenAPI positive security |
 | `VIOL_ATTACK_SIGNATURE` | signature match |
 | `VIOL_ANOMALY_SCORE` | cumulative score ≥ threshold |
 
@@ -215,13 +217,17 @@ anomaly score**, so staging can never cause a block indirectly. A rule's set is
 ### MVP — **done**
 Policy bind per domain + per route · signature sets / per-ID enable-disable-stage ·
 method & filetype allow/deny · IP allow-deny + geo country deny · JWT alg policy ·
-JSON body depth/size profile · brute-force velocity · structured security log +
+JSON body depth/size profile · brute-force velocity · **OpenAPI positive security**
+(declared path+method allow-list, path templating) · structured security log +
 support IDs · Prometheus metrics · block page with support ID · golden tests
-(`waf_features.py`) proving per-binding actions.
+(`examples/wslproxy-waf-demo/waf_features.py`, 15/15) proving per-binding actions ·
+**CI validation** (`tools/waf_validate.py` + `.github/workflows/waf-validate.yml`:
+Lua syntax + JSON-Schema policy validation + signature referential integrity) ·
+**admin UI** (react-admin WafPolicies/WafRules forms cover every v2 field).
 
 ### Phase 2
 - Service → policy binding map (logical app selection), not just a label.
-- OpenAPI-derived **positive security** (paths/methods/params/types from a spec).
+- OpenAPI **parameter/type** validation from a full spec (today: path+method surface).
 - XML profile (DTD/entity off, depth/size) as a first-class stage (today XXE is
   caught by the `<!ENTITY>` + `file://` signatures).
 - GraphQL depth/batch/introspection **profile** (today introspection is a signature).
