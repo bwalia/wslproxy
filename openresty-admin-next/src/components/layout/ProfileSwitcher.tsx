@@ -159,7 +159,7 @@ export default function ProfileSwitcher() {
         )}
       >
         <Layers className="h-4 w-4 text-slate-400" aria-hidden="true" />
-        <span className="font-mono text-xs uppercase tracking-wide">{profile}</span>
+        <span className="font-mono text-sm font-semibold uppercase tracking-wide">{profile}</span>
         <ChevronDown
           className={cn(
             "h-3.5 w-3.5 text-slate-400 transition-transform",

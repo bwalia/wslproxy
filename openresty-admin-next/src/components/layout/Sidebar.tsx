@@ -143,7 +143,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   return (
     <aside
       className={cn(
-        "fixed left-0 top-0 z-30 flex h-screen flex-col border-r border-slate-200 bg-white transition-all duration-300 dark:border-slate-800 dark:bg-slate-900",
+        "fixed left-0 top-0 z-30 flex h-screen flex-col border-r border-slate-200 bg-white transition-all duration-300 dark:border-slate-700 dark:bg-[#122233]",
         collapsed ? "w-[72px]" : "w-64",
       )}
     >
@@ -195,7 +195,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
             {!collapsed && (
               <p
                 className={cn(
-                  "mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-slate-400",
+                  "mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400",
                   sIdx > 0 ? "mt-6" : "mt-0",
                 )}
               >
@@ -215,17 +215,19 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
                       href={item.href}
                       title={collapsed ? item.label : undefined}
                       className={cn(
-                        "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                        "flex items-center gap-3 rounded-lg px-3 py-2.5 text-[0.9375rem] font-medium transition-colors",
                         active
-                          ? "border-l-2 border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-300"
-                          : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800",
+                          ? "border-l-2 border-primary-500 bg-primary-50 text-primary-800 dark:bg-primary-900/30 dark:text-primary-200"
+                          : "text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800/80",
                         collapsed && "justify-center px-0",
                       )}
                     >
                       <Icon
                         className={cn(
                           "h-5 w-5 shrink-0",
-                          active && "text-primary-600 dark:text-primary-400",
+                          active
+                            ? "text-primary-600 dark:text-primary-300"
+                            : "text-slate-500 dark:text-slate-400",
                         )}
                       />
                       {!collapsed && <span>{item.label}</span>}
@@ -241,7 +243,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
       {/* Version footer */}
       {!collapsed && (
         <div className="border-t border-slate-200 px-4 py-3 dark:border-slate-800">
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-slate-500 dark:text-slate-400">
             v{env.appVersion} &middot; Build {env.buildNumber}
           </p>
         </div>
