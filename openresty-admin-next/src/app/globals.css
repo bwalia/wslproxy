@@ -40,8 +40,11 @@
   --font-display: var(--font-fraunces), "Fraunces", Georgia, serif;
   --font-mono: var(--font-jetbrains), "JetBrains Mono", ui-monospace, monospace;
 
+  /* Slightly larger floor so labels and table chrome stay readable */
   --text-xs: 0.8125rem;
-  --text-xs--line-height: 1.125rem;
+  --text-xs--line-height: 1.25rem;
+  --text-sm: 0.9375rem; /* 15px */
+  --text-sm--line-height: 1.4rem;
 }
 
 html {
@@ -51,11 +54,21 @@ html {
 body {
   @apply bg-[#f7f9fc] text-[#0b1c2c] dark:bg-[#0b1c2c] dark:text-[#eef2f6];
   font-family: var(--font-sans);
+  font-size: 0.9375rem;
+  line-height: 1.55;
   font-variant-numeric: tabular-nums;
 }
 
 .font-display {
   font-family: var(--font-display);
+}
+
+/* Readable muted text — prefer these over raw slate-400 in new code */
+.text-muted {
+  @apply text-slate-600 dark:text-slate-300;
+}
+.text-subtle {
+  @apply text-slate-500 dark:text-slate-400;
 }
 
 ::-webkit-scrollbar {

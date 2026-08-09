@@ -37,7 +37,7 @@ export default function AppBar({ sidebarCollapsed }: AppBarProps) {
     // bump, equal z-index → DOM order wins → the page header covers
     // dropdowns that open from this AppBar (env switcher, user menu)
     // the moment you're on a page that has its own sticky header.
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-slate-200 bg-white px-6 dark:border-slate-800 dark:bg-slate-900">
+    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-slate-200 bg-white/95 px-6 backdrop-blur-sm dark:border-slate-700 dark:bg-[#122233]/95">
       {/* Left side - breadcrumb placeholder */}
       <div className="text-sm text-slate-500 dark:text-slate-400" />
 

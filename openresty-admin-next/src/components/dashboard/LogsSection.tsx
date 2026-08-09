@@ -104,7 +104,7 @@ const LogCard = React.memo(function LogCard({
         </div>
         <Link
           href={expandHref}
-          className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[11px] font-medium text-slate-500 transition-colors hover:border-slate-300 hover:text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:border-slate-600 dark:hover:text-slate-200"
+          className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700 transition-colors hover:border-slate-300 hover:text-slate-900 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-slate-600 dark:hover:text-slate-100"
           aria-label={`Expand ${title} in full-screen viewer`}
           title="Expand + search (server-side grep)"
         >
@@ -118,7 +118,7 @@ const LogCard = React.memo(function LogCard({
             <Skeleton variant="rectangular" className="h-48 w-full" />
           </div>
         ) : hasContent ? (
-          <pre className="max-h-96 overflow-auto bg-slate-950 p-4 font-mono text-[11px] leading-relaxed text-slate-300">
+          <pre className="max-h-96 overflow-auto bg-slate-950 p-4 font-mono text-xs leading-relaxed text-slate-200">
             {content}
           </pre>
         ) : (

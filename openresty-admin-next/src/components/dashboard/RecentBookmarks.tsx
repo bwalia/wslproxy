@@ -124,7 +124,7 @@ const BookmarkRow = React.memo(function BookmarkRow({
           </p>
         </div>
         {bookmark.host && (
-          <p className="truncate font-mono text-xs text-slate-400 dark:text-slate-500">
+          <p className="truncate font-mono text-xs text-slate-600 dark:text-slate-300">
             {bookmark.host}
           </p>
         )}
@@ -132,7 +132,7 @@ const BookmarkRow = React.memo(function BookmarkRow({
       {bookmark.category && (
         <span
           className={cn(
-            "shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold",
+            "shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold",
             accent.pill,
           )}
         >
