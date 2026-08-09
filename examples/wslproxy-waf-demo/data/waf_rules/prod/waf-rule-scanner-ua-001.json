@@ -1,0 +1,21 @@
+{
+  "id": "waf-rule-scanner-ua-001",
+  "name": "Recon - Security Scanner User-Agent",
+  "description": "Blocks requests whose User-Agent identifies an automated vulnerability scanner or fuzzing tool.",
+  "category": "scanner",
+  "severity": "medium",
+  "enabled": true,
+  "target": "user_agent",
+  "pattern": "(?i)\\b(?:sqlmap|nikto|nmap|masscan|nuclei|acunetix|nessus|whatweb|dirbuster|gobuster|ffuf|feroxbuster|wpscan|havij|zgrab|arachni|xsser|commix)\\b",
+  "pattern_type": "regex",
+  "action": "block",
+  "score": 10,
+  "tags": [
+    "bot-defense",
+    "scanner",
+    "recon"
+  ],
+  "profile_id": "prod",
+  "created_at": 1740000000,
+  "updated_at": 1740000000
+}

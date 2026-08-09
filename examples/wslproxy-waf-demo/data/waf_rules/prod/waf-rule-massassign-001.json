@@ -1,0 +1,21 @@
+{
+  "id": "waf-rule-massassign-001",
+  "name": "API - Mass Assignment of Privileged Field",
+  "description": "Detects mass-assignment payloads that set privileged fields (role, isAdmin, grant) in a request body \u2014 fields a client must never control on this API.",
+  "category": "mass-assignment",
+  "severity": "high",
+  "enabled": true,
+  "target": "body",
+  "pattern": "(?i)\\\"(?:role|isadmin|is_admin|admin|grant|privilege|is_superuser)\\\"\\s*:\\s*\\\"?(?:admin|true|root|superuser|1)\\\"?",
+  "pattern_type": "regex",
+  "action": "block",
+  "score": 7,
+  "tags": [
+    "api-security",
+    "mass-assignment",
+    "beyond-owasp"
+  ],
+  "profile_id": "prod",
+  "created_at": 1740000000,
+  "updated_at": 1740000000
+}

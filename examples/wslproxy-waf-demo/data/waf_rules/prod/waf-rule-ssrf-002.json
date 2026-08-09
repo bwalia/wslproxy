@@ -1,0 +1,20 @@
+{
+  "id": "waf-rule-ssrf-002",
+  "name": "SSRF - Dangerous URL Scheme",
+  "description": "Detects non-HTTP URL schemes (gopher/dict/file/ftp/ldap) commonly used to pivot SSRF into internal services or file reads.",
+  "category": "ssrf",
+  "severity": "medium",
+  "enabled": true,
+  "target": "all",
+  "pattern": "(?i)\\b(?:gopher|dict|file|ftp|ldap)://",
+  "pattern_type": "regex",
+  "action": "block",
+  "score": 6,
+  "tags": [
+    "api-security",
+    "ssrf"
+  ],
+  "profile_id": "prod",
+  "created_at": 1740000000,
+  "updated_at": 1740000000
+}

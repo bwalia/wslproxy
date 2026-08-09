@@ -1,0 +1,15 @@
+{
+  "id": "host:payments-open.fictionally.org",
+  "server_name": "payments-open.fictionally.org",
+  "proxy_server_name": "payments-open.fictionally.org",
+  "root": "/var/www/html", "index": "index.html",
+  "access_log": "logs/payments-open.access.log",
+  "error_log": "logs/payments-open.error.log",
+  "config_status": false, "profile_id": "prod",
+  "rules": "payments-demo-default",
+  "listens": [{ "listen": "80" }],
+  "ssl_enabled": true, "ssl_force_https": true, "ssl_staging": false,
+  "ssl_auto_renew": true, "ssl_email": "balinder.walia@gmail.com",
+  "cache_enabled": false, "match_cases": {}, "custom_headers": [],
+  "waf_enabled": false
+}

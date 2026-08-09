@@ -1,0 +1,21 @@
+{
+  "id": "waf-rule-cmdi-json-001",
+  "name": "Command Injection - Substitution / Chaining",
+  "description": "Detects command substitution $(...) / backticks and shell chaining (||, &&, ;) into common binaries, in body or query.",
+  "category": "cmdi",
+  "severity": "critical",
+  "enabled": true,
+  "target": "all",
+  "pattern": "(?:\\$\\([^)]{0,80}\\)|`[^`]{0,80}`|(?:\\|\\||&&|;)\\s*(?:id|cat|curl|wget|nc|bash|sh|python|whoami)\\b)",
+  "pattern_type": "regex",
+  "action": "block",
+  "score": 9,
+  "tags": [
+    "owasp-top10",
+    "cmdi",
+    "a03"
+  ],
+  "profile_id": "prod",
+  "created_at": 1740000000,
+  "updated_at": 1740000000
+}

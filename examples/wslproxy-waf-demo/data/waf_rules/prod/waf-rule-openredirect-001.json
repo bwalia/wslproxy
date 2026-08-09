@@ -1,0 +1,21 @@
+{
+  "id": "waf-rule-openredirect-001",
+  "name": "Open Redirect",
+  "description": "Detects open-redirect payloads where a redirect parameter points to an absolute external URL, enabling phishing and token theft.",
+  "category": "redirect",
+  "severity": "medium",
+  "enabled": true,
+  "target": "url",
+  "pattern": "(?i)[?&](?:to|url|next|redirect|return|dest|continue|goto)=(?:https?%3a|https?:|//|%2f%2f)",
+  "pattern_type": "regex",
+  "action": "block",
+  "score": 6,
+  "tags": [
+    "owasp-top10",
+    "open-redirect",
+    "a01"
+  ],
+  "profile_id": "prod",
+  "created_at": 1740000000,
+  "updated_at": 1740000000
+}

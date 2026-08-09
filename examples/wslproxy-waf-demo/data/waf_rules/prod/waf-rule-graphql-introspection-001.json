@@ -1,0 +1,22 @@
+{
+  "id": "waf-rule-graphql-introspection-001",
+  "name": "API - GraphQL Introspection",
+  "description": "Detects GraphQL introspection queries that map the full schema, including hidden mutations, aiding targeted attacks.",
+  "category": "graphql",
+  "severity": "medium",
+  "enabled": true,
+  "target": "all",
+  "pattern": "(?i)__schema\\b|IntrospectionQuery|__typename\\b|\\bqueryType\\b",
+  "pattern_type": "regex",
+  "action": "block",
+  "score": 5,
+  "tags": [
+    "api-security",
+    "graphql",
+    "recon",
+    "beyond-owasp"
+  ],
+  "profile_id": "prod",
+  "created_at": 1740000000,
+  "updated_at": 1740000000
+}
