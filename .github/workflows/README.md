@@ -6,7 +6,7 @@ WSLProxy uses two deployment pipelines and a shared reusable workflow:
 
 | Pipeline | File | Branch | Environments | Purpose |
 |----------|------|--------|-------------|---------|
-| **Delivery** | `deploy-wslproxy-delivery-pipeline.yml` | `release` | int → test → prod (pop0 + lon1) | Production releases |
+| **Delivery** | `deploy-wslproxy-delivery-pipeline.yml` | `release` | int → test → prod (lon1 + pop1) | Production releases |
 | **Promotion** | `deploy-wslproxy-promotion-pipeline.yml` | `main` | int → test | CI/CD for config/server changes |
 | **Reusable** | `deploy-environment.yml` | — | (called by both pipelines) | Parameterized per-environment deploy logic |
 
@@ -26,13 +26,13 @@ WSLProxy uses two deployment pipelines and a shared reusable workflow:
 
 ## Delivery Pipeline (`deploy-wslproxy-delivery-pipeline.yml`)
 
-Full production release pipeline with fail-fast behavior and Slack notifications at every gate. Code promotes through **int → test → prod (pop0 + lon1)** — each environment must pass before the next deploys.
+Full production release pipeline with fail-fast behavior and Slack notifications at every gate. Code promotes through **int → test → prod (lon1 + pop1)** — each environment must pass before the next deploys.
 
 ### Triggers
 
 | Trigger | Branches | Behavior |
 |---------|----------|----------|
-| Push | `release` | Runs full pipeline: int → test → prod (pop0 + lon1) |
+| Push | `release` | Runs full pipeline: int → test → prod (lon1 + pop1) |
 | Manual (`workflow_dispatch`) | any | Choose target host, environment, and deploy mode |
 
 ### Deploy Modes
@@ -88,9 +88,9 @@ Selected via `DEPLOY_MODE` dropdown (default: `code` for manual, `full` for push
                             │ pass
                             ▼
  ┌──────────────────────────────────────────────────────────────────────┐
- │  STAGE 5a: Deploy Prod pop0             [self-hosted, SSH+key]      │
+ │  STAGE 5a: Deploy Prod lon1             [self-hosted, SSH+key]      │
  │  Uses deploy-environment.yml (connection_mode: ssh_key)             │
- │  ✓ Success → Slack: "deployed to production (pop0)"                 │
+ │  ✓ Success → Slack: "deployed to production (lon1)"                 │
  │  ✗ Failure → Slack alert + manual rollback                          │
  └──────────────────────────┬───────────────────────────────────────────┘
                             │ pass
@@ -184,8 +184,10 @@ Shared parameterized workflow called by both pipelines via `workflow_call`. Hand
 |-------------|---------|----------|--------------------|----------------|---------------------|-----------------|
 | int | 192.168.1.193 | (local) | `local` | `github_secret` | `local` | `http://localhost:8080/health` |
 | test | 192.168.1.140 | bwalia | `ssh` | `runner_file` | `ssh` | `http://localhost:8080/health` |
-| prod (pop0) | 187.124.112.155 | root | `ssh_key` | `github_secret` | `external` | `https://prod-our-v1.wslproxy.com/health` |
-| prod (lon1) | 72.62.211.28 | root | `ssh_key` | `runner_file` | `external` | `http://72.62.211.28:7691/health` |
+| prod (lon1) | 72.62.211.28 | root | `ssh_key` | `vault_or_sops` | `external` | `https://lon1.pop0.uk/healthz` |
+| prod (pop1) | 18.133.126.242 | admin | `ssh_key` | `vault_or_sops` | `external` | `https://pop1.diytaxreturn.co.uk/healthz` |
+
+> **Retired:** `prod (pop0)` / `187.124.112.155` was removed as a deploy target — that host is a k3s node where traefik owns `:80`/`:443` (no wslproxy edge, no DNS). Live prod edges are lon1 + pop1.
 
 ### Steps (conditional per environment)
 
@@ -224,8 +226,8 @@ The `DEPLOY_MODE` value maps to Ansible tags that control which tasks run:
 |--------|---------|-------------|
 | `DOT_WSLPROXY_SETTINGS_INT` | Int deploy | Base64-encoded settings.json for int |
 | `DOT_WSLPROXY_ENV_CREDS_INT` | Int deploy | Base64-encoded .env for int |
-| `DOT_WSLPROXY_SETTINGS_PROD` | Prod pop0 deploy | Base64-encoded settings.json for prod |
-| `DOT_WSLPROXY_ENV_CREDS_PROD` | Prod pop0 deploy | Base64-encoded .env for prod |
+| `DOT_WSLPROXY_SETTINGS_PROD` | Prod deploy (lon1/pop1) | Base64-encoded settings.json for prod |
+| `DOT_WSLPROXY_ENV_CREDS_PROD` | Prod deploy (lon1/pop1) | Base64-encoded .env for prod |
 | `SLACK_WEBHOOK` | All stages | Slack incoming webhook URL |
 
 Runner-local secrets (on 192.168.1.193):
@@ -291,8 +293,8 @@ Stage 1 fails  → "Build & Validate FAILED"              → pipeline stops
 Stage 2 fails  → "Deploy Int FAILED"                    → pipeline stops
 Stage 3 fails  → "Smoke Test Int FAILED"                → pipeline stops (before test)
 Stage 4 fails  → "Deploy Test FAILED"                   → pipeline stops (before prod)
-Stage 5a fails → "Production Deployment FAILED (pop0)"  → alert + manual rollback
-Stage 5b fails → "LON1 Deployment FAILED"               → alert + manual rollback
+Stage 5a fails → "Production Deployment FAILED (lon1)"  → alert + manual rollback
+Stage 5b fails → "Production Deployment FAILED (pop1)"  → alert + manual rollback
 ```
 
 ### Promotion Pipeline
