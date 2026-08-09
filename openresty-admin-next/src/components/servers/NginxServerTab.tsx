@@ -647,7 +647,7 @@ const NginxServerTab: React.FC<NginxServerTabProps> = ({
             <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
               Docker Registry Blob Caching
             </h2>
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-slate-600 dark:text-slate-300">
               Cache Docker/OCI image blobs and manifests on disk for
               faster pulls.  Only enable when this server fronts a
               container registry backend (e.g. NebulaCR).
@@ -761,7 +761,7 @@ const NginxServerTab: React.FC<NginxServerTabProps> = ({
             <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
               Proxy Timeouts
             </h2>
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-slate-600 dark:text-slate-300">
               Upstream (proxy_pass) timeouts in seconds.  Leave a field
               blank to use nginx's default of 60s.  Setting these fixes
               the classic 504-at-60s problem for long-running backends
@@ -1010,7 +1010,7 @@ const NginxServerTab: React.FC<NginxServerTabProps> = ({
             <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
               Configuration Preview
             </h2>
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-slate-600 dark:text-slate-300">
               The composed nginx server block that will be written to
               disk.  Toggle <em>Active</em> below to actually load it
               into <code>/opt/nginx/conf.d/</code> — leaving it off
@@ -1040,7 +1040,7 @@ const NginxServerTab: React.FC<NginxServerTabProps> = ({
                 <div className="font-medium text-slate-900 dark:text-slate-100">
                   Active — write to <code>/opt/nginx/conf.d/</code> and reload
                 </div>
-                <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                <div className="mt-1 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
                   On save, wslproxy runs <code>openresty -t</code> against
                   the new config and (if it passes) schedules a reload.
                   Turn this off to stage changes without touching live

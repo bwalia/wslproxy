@@ -159,25 +159,25 @@ const WafProtectionTab: React.FC<WafProtectionTabProps> = ({
 
                   <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
                     <div>
-                      <dt className="text-xs text-slate-500 dark:text-slate-400">Anomaly Threshold</dt>
+                      <dt className="text-sm text-slate-600 dark:text-slate-300">Anomaly Threshold</dt>
                       <dd className="text-sm font-medium text-slate-900 dark:text-slate-100">
                         {selectedPolicy.anomaly_threshold ?? "N/A"}
                       </dd>
                     </div>
                     <div>
-                      <dt className="text-xs text-slate-500 dark:text-slate-400">Paranoia Level</dt>
+                      <dt className="text-sm text-slate-600 dark:text-slate-300">Paranoia Level</dt>
                       <dd className="text-sm font-medium text-slate-900 dark:text-slate-100">
                         {selectedPolicy.paranoia_level ?? "N/A"}
                       </dd>
                     </div>
                     <div>
-                      <dt className="text-xs text-slate-500 dark:text-slate-400">Body Inspection</dt>
+                      <dt className="text-sm text-slate-600 dark:text-slate-300">Body Inspection</dt>
                       <dd className="text-sm font-medium text-slate-900 dark:text-slate-100">
                         {selectedPolicy.body_inspection ? "Yes" : "No"}
                       </dd>
                     </div>
                     <div>
-                      <dt className="text-xs text-slate-500 dark:text-slate-400">Rules Count</dt>
+                      <dt className="text-sm text-slate-600 dark:text-slate-300">Rules Count</dt>
                       <dd className="text-sm font-medium text-slate-900 dark:text-slate-100">
                         {selectedPolicy.waf_rules?.length ?? 0}
                       </dd>

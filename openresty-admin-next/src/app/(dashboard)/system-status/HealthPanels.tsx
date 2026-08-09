@@ -107,9 +107,9 @@ function StatusBadge({ tone, label }: { tone: StatusTone; label: string }) {
   const s = STATUS_STYLES[tone];
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${s.bg} ${s.text}`}
+      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${s.bg} ${s.text}`}
     >
-      <s.Icon className="h-3 w-3" aria-hidden="true" />
+      <s.Icon className="h-3.5 w-3.5" aria-hidden="true" />
       {label}
     </span>
   );
@@ -125,11 +125,11 @@ function DefRow({
   mono?: boolean;
 }) {
   return (
-    <div className="flex items-start justify-between gap-4 border-b border-slate-100 py-1.5 text-sm last:border-b-0 dark:border-slate-800">
-      <span className="text-slate-500 dark:text-slate-400">{label}</span>
+    <div className="flex items-start justify-between gap-4 border-b border-slate-100 py-2 text-sm last:border-b-0 dark:border-slate-800">
+      <span className="text-slate-600 dark:text-slate-300">{label}</span>
       <span
-        className={`text-right font-medium text-slate-800 dark:text-slate-200 ${
-          mono ? "font-mono text-[12px]" : ""
+        className={`text-right font-medium text-slate-900 dark:text-slate-100 ${
+          mono ? "font-mono text-sm" : ""
         }`}
       >
         {children}
@@ -177,8 +177,8 @@ function PanelCard({
     <Card>
       <CardHeader>
         <div className="flex min-w-0 items-center gap-2">
-          <Icon className="h-4 w-4 shrink-0 text-slate-400" aria-hidden="true" />
-          <h2 className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
+          <Icon className="h-4 w-4 shrink-0 text-slate-500 dark:text-slate-400" aria-hidden="true" />
+          <h2 className="truncate text-base font-semibold text-slate-900 dark:text-slate-100">
             {title}
           </h2>
         </div>
@@ -217,7 +217,7 @@ function OverallBanner({ bundle }: { bundle: HealthBundle }) {
         <s.Icon className="h-5 w-5" aria-hidden="true" />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+        <p className="text-sm font-medium text-slate-600 dark:text-slate-300">
           System Status
         </p>
         <p className={`text-lg font-bold ${s.text}`}>{label}</p>
@@ -265,7 +265,7 @@ function ServicesPanel({ health }: { health: HealthData }) {
         <DefRow label="OpenResty">
           <span className="inline-flex items-center gap-2">
             <StatusBadge tone={openrestyTone} label={s?.openresty?.status ?? "unknown"} />
-            <span className="font-mono text-[12px]">
+            <span className="font-mono text-sm">
               <Empty value={s?.openresty?.version} />
             </span>
           </span>
@@ -334,12 +334,12 @@ function ApiHealthPanel({ bundle }: { bundle: HealthBundle }) {
           />
         </DefRow>
         <DefRow label="Storage Type">
-          <span className="font-mono text-[12px] uppercase">
+          <span className="font-mono text-sm">
             <Empty value={bundle.health.settings?.storage_type ?? bundle.health.system?.storage_type} />
           </span>
         </DefRow>
         <DefRow label="Env Profile">
-          <span className="font-mono text-[12px] uppercase">
+          <span className="font-mono text-sm">
             <Empty value={bundle.health.settings?.env_profile ?? bundle.health.system?.env_profile} />
           </span>
         </DefRow>
@@ -458,7 +458,7 @@ function BuildVersionPanel({ health }: { health: HealthData }) {
           <Empty value={sys?.deployment_time ?? clientEnv.deploymentTime} />
         </DefRow>
         <DefRow label="Platform">
-          <span className="font-mono text-[12px] uppercase">
+          <span className="font-mono text-sm">
             <Empty value={clientEnv.targetPlatform} />
           </span>
         </DefRow>
@@ -513,7 +513,7 @@ function SettingsValidationPanel({ health }: { health: HealthData }) {
       </dl>
       {s?.missing_keys && s.missing_keys.length > 0 && (
         <div className="mt-3">
-          <p className="mb-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">
+          <p className="mb-1.5 text-sm font-medium text-slate-600 dark:text-slate-300">
             Missing Keys
           </p>
           <div className="flex flex-wrap gap-1.5">
@@ -560,7 +560,7 @@ function FrontendEnvPanel({ health }: { health: HealthData }) {
       </dl>
       {fe?.missing && fe.missing.length > 0 && (
         <div className="mt-3">
-          <p className="mb-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">
+          <p className="mb-1.5 text-sm font-medium text-slate-600 dark:text-slate-300">
             Missing Variables
           </p>
           <div className="flex flex-wrap gap-1.5">
@@ -573,7 +573,7 @@ function FrontendEnvPanel({ health }: { health: HealthData }) {
         </div>
       )}
       {fe?.note && (
-        <p className="mt-3 text-xs italic text-slate-400 dark:text-slate-500">
+        <p className="mt-3 text-sm italic leading-relaxed text-slate-600 dark:text-slate-400">
           {fe.note}
         </p>
       )}
@@ -621,13 +621,13 @@ function DataDirectoriesPanel({ health }: { health: HealthData }) {
     <PanelCard title="Data Directories" icon={FolderTree}>
       {entries.length > 0 ? (
         <div className="overflow-x-auto">
-          <table className="w-full text-xs">
+          <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-200 text-[11px] uppercase tracking-wide text-slate-500 dark:border-slate-700">
-                <th className="py-1.5 text-left font-semibold">Path</th>
-                <th className="py-1.5 text-center font-semibold">Exists</th>
-                <th className="py-1.5 text-center font-semibold">Read</th>
-                <th className="py-1.5 text-center font-semibold">Write</th>
+              <tr className="border-b border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300">
+                <th className="py-2 text-left font-semibold">Path</th>
+                <th className="py-2 text-center font-semibold">Exists</th>
+                <th className="py-2 text-center font-semibold">Read</th>
+                <th className="py-2 text-center font-semibold">Write</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -708,7 +708,7 @@ function NetworkPanel({ bundle }: { bundle: HealthBundle }) {
     <PanelCard title="Network" icon={Network}>
       <div className="space-y-3">
         <div>
-          <p className="mb-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">
+          <p className="mb-1.5 text-sm font-medium text-slate-600 dark:text-slate-300">
             IP Addresses
           </p>
           {ips.length > 0 ? (
@@ -716,15 +716,15 @@ function NetworkPanel({ bundle }: { bundle: HealthBundle }) {
               {ips.map((ip) => (
                 <span
                   key={ip}
-                  className="inline-flex items-center gap-1 rounded-md bg-primary-50 px-2 py-0.5 font-mono text-[11px] font-semibold text-primary-700 dark:bg-primary-900/30 dark:text-primary-300"
+                  className="inline-flex items-center gap-1 rounded-md bg-primary-50 px-2.5 py-1 font-mono text-sm font-semibold text-primary-700 dark:bg-primary-900/30 dark:text-primary-300"
                 >
-                  <Wifi className="h-3 w-3" aria-hidden="true" />
+                  <Wifi className="h-3.5 w-3.5" aria-hidden="true" />
                   {ip}
                 </span>
               ))}
             </div>
           ) : (
-            <p className="text-xs italic text-slate-400 dark:text-slate-500">
+            <p className="text-sm italic text-slate-600 dark:text-slate-400">
               No interfaces reported
             </p>
           )}

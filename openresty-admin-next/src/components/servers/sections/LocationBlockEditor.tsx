@@ -186,7 +186,7 @@ const LocationBlockEditor: React.FC<LocationBlockEditorProps> = ({
             {/* Directives */}
             <div className="space-y-2 pl-6">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+                <span className="text-sm font-medium text-slate-600 dark:text-slate-300">
                   Directives
                 </span>
                 <Button

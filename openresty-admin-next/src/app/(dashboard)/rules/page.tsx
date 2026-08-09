@@ -72,7 +72,7 @@ export default function RulesListPage() {
         field: "match.rules.path",
         label: "Path",
         render: (r) => (
-          <span className="font-mono text-xs">
+          <span className="font-mono text-sm text-slate-700 dark:text-slate-300">
             {r.match?.rules?.path ?? "-"}
           </span>
         ),

@@ -221,17 +221,17 @@ function Subsection({
               {icon}
             </span>
           )}
-          <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+          <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
             {title}
           </h3>
           {optional && (
-            <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+            <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-600 dark:bg-slate-700 dark:text-slate-300">
               Optional
             </span>
           )}
         </div>
         {intro && (
-          <p className="mt-1.5 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+          <p className="mt-1.5 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
             {intro}
           </p>
         )}
@@ -707,7 +707,7 @@ export default function RuleDetailPage() {
         <Card.Header>
           <div>
             <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Basic Rule Information</h2>
-            <p className="text-sm text-slate-500">Configure the rule name, profile, and metadata</p>
+            <p className="text-sm text-slate-600 dark:text-slate-300">Configure the rule name, profile, and metadata</p>
           </div>
         </Card.Header>
         <Card.Body>
@@ -779,7 +779,7 @@ export default function RuleDetailPage() {
             <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
               Match rules
             </h2>
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-slate-600 dark:text-slate-300">
               When should this rule fire?  Configure one or more conditions
               below — the rule only runs when <em>every</em> condition you
               set matches the incoming request.
@@ -849,7 +849,7 @@ export default function RuleDetailPage() {
                   selects a country.  Same logic in "Restrict by client
                   IP" below. */}
               {form.country === "EU" && (
-                <div className="col-span-full rounded-lg bg-blue-50 p-3 text-xs text-blue-700 dark:bg-blue-900/20 dark:text-blue-300">
+                <div className="col-span-full rounded-lg bg-blue-50 p-3 text-sm leading-relaxed text-blue-800 dark:bg-blue-900/20 dark:text-blue-200">
                   “EU” expands to: AT, BE, BG, HR, CY, CZ, DK, EE, FI, FR,
                   DE, GR, HU, IE, IT, LV, LT, LU, MT, NL, PL, PT, RO, SK,
                   SI, ES, SE.
@@ -989,7 +989,7 @@ export default function RuleDetailPage() {
             <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
               Response
             </h2>
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-slate-600 dark:text-slate-300">
               What should wslproxy do with the request when this rule matches?
             </p>
           </div>
@@ -1116,7 +1116,7 @@ export default function RuleDetailPage() {
           <Card.Header>
             <div>
               <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Traffic Splitting</h2>
-              <p className="text-sm text-slate-500">Configure multi-backend routing for canary releases, A/B testing, or weighted load balancing</p>
+              <p className="text-sm text-slate-600 dark:text-slate-300">Configure multi-backend routing for canary releases, A/B testing, or weighted load balancing</p>
             </div>
           </Card.Header>
           <Card.Body>

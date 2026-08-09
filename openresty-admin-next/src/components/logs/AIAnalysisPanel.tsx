@@ -125,7 +125,7 @@ const AnalysisResult = React.memo(function AnalysisResult({
           {/* Root causes */}
           {result.root_causes && result.root_causes.length > 0 && (
             <div>
-              <h4 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              <h4 className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-slate-700 dark:text-slate-200">
                 <Bug className="h-3.5 w-3.5" /> Root Causes
               </h4>
               <ul className="space-y-1.5">
@@ -142,7 +142,7 @@ const AnalysisResult = React.memo(function AnalysisResult({
           {/* Recommendations */}
           {result.recommendations && result.recommendations.length > 0 && (
             <div>
-              <h4 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              <h4 className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-slate-700 dark:text-slate-200">
                 <Lightbulb className="h-3.5 w-3.5" /> Recommendations
               </h4>
               <ul className="space-y-1.5">
@@ -263,14 +263,14 @@ const AIAnalysisPanel: React.FC<AIAnalysisPanelProps> = ({
         <Card.Header>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-purple-600">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary-600">
                 <Brain className="h-5 w-5 text-white" />
               </div>
               <div>
                 <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
                   AI Troubleshooting Assistant
                 </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
+                <p className="text-sm text-slate-600 dark:text-slate-300">
                   Powered by local LLM (Ollama) &middot; {selectedLogs.length} logs selected
                 </p>
               </div>
@@ -285,10 +285,10 @@ const AIAnalysisPanel: React.FC<AIAnalysisPanelProps> = ({
                 type="button"
                 onClick={() => setChatMode(!chatMode)}
                 className={cn(
-                  "rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
+                  "rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
                   chatMode
-                    ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300"
-                    : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800",
+                    ? "bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300"
+                    : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800",
                 )}
               >
                 <MessageSquare className="mr-1 inline h-3.5 w-3.5" />
@@ -313,12 +313,12 @@ const AIAnalysisPanel: React.FC<AIAnalysisPanelProps> = ({
                   disabled={analyzing || selectedLogs.length === 0}
                   onClick={() => runAnalysis(qp.prompt)}
                   className={cn(
-                    "flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2.5 text-left text-xs font-medium transition-all",
-                    "hover:border-purple-300 hover:bg-purple-50 hover:shadow-sm dark:border-slate-700 dark:hover:border-purple-700 dark:hover:bg-purple-900/20",
+                    "flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2.5 text-left text-sm font-medium transition-all",
+                    "hover:border-primary-300 hover:bg-primary-50 hover:shadow-sm dark:border-slate-700 dark:hover:border-primary-700 dark:hover:bg-primary-900/20",
                     "disabled:opacity-50 disabled:cursor-not-allowed",
                   )}
                 >
-                  <Icon className="h-4 w-4 shrink-0 text-purple-500" />
+                  <Icon className="h-4 w-4 shrink-0 text-primary-600 dark:text-primary-400" />
                   <span className="text-slate-700 dark:text-slate-300">{qp.label}</span>
                 </button>
               );
@@ -334,7 +334,6 @@ const AIAnalysisPanel: React.FC<AIAnalysisPanelProps> = ({
                 loading={analyzing}
                 disabled={selectedLogs.length === 0}
                 onClick={() => runAnalysis()}
-                className="bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700"
               >
                 {analyzing ? "Analyzing..." : `Analyze ${selectedLogs.length} Log Entries`}
               </Button>
@@ -351,7 +350,7 @@ const AIAnalysisPanel: React.FC<AIAnalysisPanelProps> = ({
             <div className="space-y-3">
               <div className="max-h-80 space-y-3 overflow-y-auto rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-800/50">
                 {chatMessages.length === 0 ? (
-                  <p className="py-8 text-center text-sm text-slate-400">
+                  <p className="py-8 text-center text-sm text-slate-600 dark:text-slate-400">
                     Ask questions about the selected logs. The AI will analyze them in context.
                   </p>
                 ) : (
@@ -393,14 +392,13 @@ const AIAnalysisPanel: React.FC<AIAnalysisPanelProps> = ({
                   onChange={(e) => setChatInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleChat()}
                   placeholder="Ask about the logs... e.g., 'Why are 502s spiking?'"
-                  className="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-purple-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100"
+                  className="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-500 focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-400"
                 />
                 <Button
                   variant="primary"
                   icon={<Send className="h-4 w-4" />}
                   onClick={handleChat}
                   disabled={!chatInput.trim() || analyzing}
-                  className="bg-gradient-to-r from-violet-600 to-purple-600"
                 >
                   Send
                 </Button>

@@ -53,7 +53,7 @@ export default async function SettingsPanels() {
           <dl className="divide-y divide-slate-100 dark:divide-slate-800">
             {entries.map(([label, value]) => (
               <div key={label} className="flex justify-between py-3">
-                <dt className="text-sm font-medium text-slate-500 dark:text-slate-400">
+                <dt className="text-sm font-medium text-slate-600 dark:text-slate-300">
                   {label}
                 </dt>
                 <dd className="text-sm text-slate-900 dark:text-slate-100">
@@ -76,7 +76,7 @@ export default async function SettingsPanels() {
             <dl className="divide-y divide-slate-100 dark:divide-slate-800">
               {envVars.map(([key, val]) => (
                 <div key={key} className="flex justify-between py-3">
-                  <dt className="font-mono text-xs text-slate-500 dark:text-slate-400">
+                  <dt className="font-mono text-sm text-slate-600 dark:text-slate-300">
                     {key}
                   </dt>
                   <dd className="text-sm text-slate-900 dark:text-slate-100">

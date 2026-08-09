@@ -111,7 +111,9 @@ export default function ServersListPage() {
           const ids = Array.isArray(r.pop_ids) ? r.pop_ids : [];
           if (ids.length === 0) {
             return (
-              <span className="text-xs text-slate-400">profile default</span>
+              <span className="text-sm text-slate-600 dark:text-slate-400">
+                profile default
+              </span>
             );
           }
           const visible = ids.slice(0, 3);
