@@ -4,6 +4,25 @@ JWT = require "resty.jwt"
 LFS = require("lfs")
 Base64 = require "base64"
 
+-- Base64.decode throws ("attempt to perform arithmetic on a nil value")
+-- on input whose "=" padding was lost in transit, which would turn one
+-- corrupt rule field into a 500 on every request of the vhost. Re-pad to
+-- a multiple of 4 and pcall so request-path callers can never crash on
+-- stored data; returns nil when the value is genuinely undecodable.
+function Base64DecodeSafe(s)
+  s = tostring(s or "")
+  local rem = #s % 4
+  if rem > 0 then
+    s = s .. string.rep("=", 4 - rem)
+  end
+  local ok, decoded = pcall(Base64.decode, s)
+  if ok then
+    return decoded
+  end
+  ngx.log(ngx.WARN, "Base64DecodeSafe: undecodable base64 value")
+  return nil
+end
+
 local configPath = os.getenv("NGINX_CONFIG_DIR") or "/opt/nginx/"
 -- Ensure trailing slash for path concatenation
 if configPath:sub(-1) ~= "/" then
