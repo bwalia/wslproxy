@@ -2,19 +2,19 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* Brand tokens aligned with the public landing page (html/index.html). */
+/* Brand tokens — corporate blue primary for the Next.js admin. */
 @theme {
-  --color-primary-50: #fdf4ef;
-  --color-primary-100: #fbe6d9;
-  --color-primary-200: #f5c9b0;
-  --color-primary-300: #eba67d;
-  --color-primary-400: #dc7d4a;
-  --color-primary-500: #c45c26;
-  --color-primary-600: #9a4519;
-  --color-primary-700: #7a3715;
-  --color-primary-800: #652f15;
-  --color-primary-900: #542914;
-  --color-primary-950: #2d1409;
+  --color-primary-50: #eef5fc;
+  --color-primary-100: #d6e8f8;
+  --color-primary-200: #b5d4f1;
+  --color-primary-300: #87b7e6;
+  --color-primary-400: #5493d6;
+  --color-primary-500: #3476c2;
+  --color-primary-600: #255fa8;
+  --color-primary-700: #1e4c88;
+  --color-primary-800: #1c4171;
+  --color-primary-900: #1b385f;
+  --color-primary-950: #12233f;
 
   --color-accent-50: #ecf8f6;
   --color-accent-100: #d0efe9;

@@ -1,9 +1,18 @@
 import type { NextConfig } from "next";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import bundleAnalyzer from "@next/bundle-analyzer";
 
 const withBundleAnalyzer = bundleAnalyzer({
   enabled: process.env.ANALYZE === "true",
 });
+
+// Pin the app root so a stray package-lock.json in a parent directory
+// (e.g. $HOME) cannot pull Turbopack / standalone tracing up the tree.
+// Without this, `output: "standalone"` nests server.js under
+// `.next/standalone/<relative-path>/server.js` and Ansible's verify
+// step fails looking for `.next/standalone/server.js`.
+const appRoot = path.dirname(fileURLToPath(import.meta.url));
 
 // ─── Content Security Policy ────────────────────────────────────────────
 // Admin is a first-party app — no third-party scripts, no inline JS
@@ -80,6 +89,10 @@ function buildSwaggerCsp(): string {
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  outputFileTracingRoot: appRoot,
+  turbopack: {
+    root: appRoot,
+  },
 
   // Build-time type checking of <Link href>, useRouter().push() etc.
   // All hrefs must resolve to real app-router routes — typos become
