@@ -504,6 +504,10 @@ Local URLs:
 
 14. **`config_status: true` is required** for a server's generated nginx config to actually be active in `/opt/nginx/conf.d/`. Rules work even without config_status.
 
+15. **JSON bodies must not be rebuilt from `ngx.req.get_post_args()`** (2026-08-10 diytaxreturn outage): form parsing splits the body at the first literal `=` and `GetPayloads`' `k .. v` re-concatenation silently deleted it, stripping base64 padding from rule fields (`jwt_token_validation_key: "L2luZGV4Lmh0bWw=" → "L2luZGV4Lmh0bWw"`) for any plain-JSON client (curl, the diy-tax-return-uk `wslproxy-register-domains` import workflow). The shipped `base64.lua` then crashed on the unpadded value on every request → recurring 500s that "came back" after every rules re-import. Fixed: `GetPayloads` now prefers the raw body (`ngx.req.get_body_data`/`get_body_file`), and request-path decodes use the `Base64DecodeSafe` global (init.lua: re-pad + pcall, self-heals unpadded input). The react-admin `=` escaping (frontend gotcha 2) is a workaround for the old behavior — still harmless, no longer required.
+
+16. **Rules for diytaxreturn (and other app domains) are owned by the app repo** (`diy-tax-return-uk/.github/wslproxy/data/{rules,servers}/<env>/`), pushed via `/api/projects/import` which preserves committed rule ids. Re-creating a rule in the admin UI mints a NEW uuid and repoints servers to it, forking live from git (live-only duplicate `93893825-…` vs canonical `5c63f6fa-…` caused exactly this). Fix drift by repointing servers to the committed id, not by minting new rules.
+
 ### Conventions
 
 - **Lua modules** return a table `_M`. Public functions on `_M`; file-scoped locals outside.
