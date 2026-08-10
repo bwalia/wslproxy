@@ -59,7 +59,7 @@ function M.authenticate(rule)
         return true
     end
 
-    local passphrase = Base64.decode(tostring(rule.jwt_token_validation_key))
+    local passphrase = Base64DecodeSafe(rule.jwt_token_validation_key)
     local token_source = rule.jwt_token_validation
     local token_value_name = tostring(rule.jwt_token_validation_value)
 

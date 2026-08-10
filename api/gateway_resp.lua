@@ -56,7 +56,7 @@ if selectedRule.statusCode == nil then
 elseif selectedRule.statusCode == 200 or selectedRule.statusCode == 403 then
     ngx.header["Content-Type"] = "text/html"
     ngx.status = selectedRule.statusCode
-    ngx.say(Base64.decode(selectedRule.message))
+    ngx.say(Base64DecodeSafe(selectedRule.message) or "")
 elseif selectedRule.statusCode == 301 then
     if selectedRule.redirectUri == nil then
         ngx.say("Redirect url not found: ")

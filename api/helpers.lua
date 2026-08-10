@@ -600,6 +600,32 @@ end
 
 -- Convert payloads to Lua table
 function Helper.GetPayloads(body)
+    -- Prefer the raw request body over ngx.req.get_post_args():
+    -- form parsing splits the body at the first literal "=" (and decodes
+    -- "+" to space), so rebuilding JSON from key .. value silently drops
+    -- that "=" — corrupting any base64 field (e.g. a rule's
+    -- jwt_token_validation_key losing its padding) for clients that send
+    -- plain JSON without the admin UI's = escaping. get_body_data()
+    -- is nil unless the dispatcher already called ngx.req.read_body(),
+    -- so GET handlers passing uri_args fall through to the legacy path.
+    local raw = ngx.req.get_body_data()
+    if not raw then
+        local body_file = ngx.req.get_body_file()
+        if body_file then
+            local f = io.open(body_file, "rb")
+            if f then
+                raw = f:read("*a")
+                f:close()
+            end
+        end
+    end
+    if raw then
+        local ok, decoded = pcall(Cjson.decode, raw)
+        if ok and type(decoded) == "table" then
+            return decoded
+        end
+    end
+
     local keyset = {}
     local n = 0
     for k, v in pairs(body) do
