@@ -82,8 +82,8 @@ const TrafficChart: React.FC<TrafficChartProps> = ({ chartData, loading }) => {
           <AreaChart data={data}>
             <defs>
               <linearGradient id="colorRequests" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
-                <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                <stop offset="5%" stopColor="#255fa8" stopOpacity={0.3} />
+                <stop offset="95%" stopColor="#255fa8" stopOpacity={0} />
               </linearGradient>
               <linearGradient id="colorSuccess" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
@@ -112,7 +112,7 @@ const TrafficChart: React.FC<TrafficChartProps> = ({ chartData, loading }) => {
               type="monotone"
               dataKey="requests"
               name="Requests"
-              stroke="#6366f1"
+              stroke="#255fa8"
               fill="url(#colorRequests)"
               strokeWidth={2}
             />
