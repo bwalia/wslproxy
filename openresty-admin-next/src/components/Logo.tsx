@@ -1,6 +1,6 @@
 import React from "react";
 
-/* WSLProxy logo — copper brand aligned with the public landing page. */
+/* WSLProxy logo — corporate blue brand for the Next.js admin. */
 
 const GRADIENT_ID = "wslproxy-logo-gradient";
 
@@ -22,7 +22,7 @@ const Logo: React.FC<LogoProps> = ({
   className,
 }) => {
   const wordmarkColor = theme === "dark" ? "#eef2f6" : "#0b1c2c";
-  const accentColor = "#c45c26";
+  const accentColor = "#255fa8";
   const gradientId = GRADIENT_ID;
 
   if (variant === "icon") {
@@ -39,8 +39,8 @@ const Logo: React.FC<LogoProps> = ({
         <title>{title}</title>
         <defs>
           <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#c45c26" />
-            <stop offset="100%" stopColor="#1a7a6d" />
+            <stop offset="0%" stopColor="#5493d6" />
+            <stop offset="100%" stopColor="#1e4c88" />
           </linearGradient>
         </defs>
         <path
@@ -75,8 +75,8 @@ const Logo: React.FC<LogoProps> = ({
       <title>{title}</title>
       <defs>
         <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#c45c26" />
-          <stop offset="100%" stopColor="#1a7a6d" />
+          <stop offset="0%" stopColor="#5493d6" />
+          <stop offset="100%" stopColor="#1e4c88" />
         </linearGradient>
       </defs>
       <g transform="translate(2, 2)">

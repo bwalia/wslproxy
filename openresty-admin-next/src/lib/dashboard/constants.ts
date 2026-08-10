@@ -13,12 +13,12 @@
    ────────────────────────────────────────────────────────────────────────── */
 
 export const COLORS = {
-  primary: "#6366f1", // indigo
+  primary: "#255fa8", // corporate blue
   success: "#10b981", // emerald
   warning: "#f59e0b", // amber
   error: "#ef4444", // red
   orange: "#f97316", // orange — latency 500-1000
-  secondary: "#8b5cf6", // violet
+  secondary: "#1a7a6d", // teal accent
   cyan: "#06b6d4",
   pink: "#ec4899",
   lime: "#84cc16",

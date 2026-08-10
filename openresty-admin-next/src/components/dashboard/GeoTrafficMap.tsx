@@ -227,7 +227,7 @@ const GEO_URL =
 const COLOR_SCALE = [
   "#e0e7ff", // primary-100 equivalent
   "#a5b4fc", // primary-300
-  "#6366f1", // primary-500
+  "#255fa8", // primary-600 corporate blue
   "#4338ca", // primary-700
 ];
 
