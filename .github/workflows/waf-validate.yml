@@ -108,8 +108,10 @@ jobs:
       - name: Preflight connectivity
         run: |
           set -e
-          for url in "${{ steps.hosts.outputs.secure }}/health" \
-                     "${{ steps.hosts.outputs.open }}/health"; do
+          # Use / (not /health): payments.fictionally.org has no /health route.
+          for base in "${{ steps.hosts.outputs.secure }}" \
+                      "${{ steps.hosts.outputs.open }}"; do
+            url="${base}/"
             code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 "$url" || echo 000)
             echo "$url → $code"
             if [ "$code" != "200" ]; then

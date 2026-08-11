@@ -193,8 +193,7 @@ CASES: list[Case] = [
     # Controls
     Case("benign-products", "none", "GET", "/products?cat=deposit",
          expect="allow"),
-    Case("benign-health", "none", "GET", "/health", expect="allow",
-         check_open=True),
+    Case("benign-home", "none", "GET", "/", expect="allow"),
     Case("bola-idor-business-logic", "none", "GET", "/api/accounts/9999",
          expect="allow",
          notes="signature WAF cannot stop object-level authz flaws"),
@@ -251,11 +250,12 @@ class WafLiveTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         # Connectivity smoke — fail fast if DNS/TLS is broken.
-        st, _, _ = fire(cls.secure, "GET", "/health", None, {}, None)
+        # Prefer / over /health: payments.fictionally.org has no /health route.
+        st, _, _ = fire(cls.secure, "GET", "/", None, {}, None)
         if st == 0:
             raise unittest.SkipTest(f"secure host unreachable: {cls.secure}")
         if not cls.skip_open:
-            st2, _, _ = fire(cls.open_host, "GET", "/health", None, {}, None)
+            st2, _, _ = fire(cls.open_host, "GET", "/", None, {}, None)
             if st2 == 0:
                 raise unittest.SkipTest(f"open host unreachable: {cls.open_host}")
 
