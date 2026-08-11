@@ -53,6 +53,7 @@ attribution), and the published dashboard for the visual before/after.
 | `data/rules/prod/payments-demo-default.json` | wslproxy routing rule (305 proxy → `127.0.0.1:30084`). |
 | `data/servers/prod/host:payments-{open,secure}.fictionally.org.json` | The two vhosts — identical except `waf_enabled` / `waf_policy_id` / `waf_mode_override`. |
 | `attack_suite.py` | Fires the 19 attacks at both hosts and prints the before/after matrix (`--json` for machine output). |
+| `test_waf_live.py` | CI-oriented live matrix — **every** payments-hard signature + v2 stage. Asserts secure blocks / open does not. Used by `.github/workflows/waf-validate.yml` on main + `workflow_dispatch`. |
 
 ## How it was deployed
 
@@ -89,6 +90,20 @@ python3 examples/wslproxy-waf-demo/attack_suite.py \
   --open   https://payments-open.fictionally.org \
   --secure https://payments-secure.fictionally.org
 ```
+
+## CI live matrix (all rules)
+
+```bash
+# Defaults: payments-secure (must block) + payments.fictionally.org (must not)
+python3 examples/wslproxy-waf-demo/test_waf_live.py -v
+
+# Custom hosts / secure-only
+WAF_SECURE_HOST=https://payments-secure.fictionally.org \
+WAF_OPEN_HOST=https://payments.fictionally.org \
+  python3 examples/wslproxy-waf-demo/test_waf_live.py -v
+```
+
+GitHub Actions: **WAF — validate & live attack matrix** runs offline schema checks on every WAF-touched PR/push, and the live matrix on **merge to `main`**, PRs that touch WAF paths, and **workflow_dispatch** (hosts overridable).
 
 ## WAF v2 — enterprise enforcement (beyond signatures)
 

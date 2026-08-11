@@ -1,21 +1,18 @@
-name: WAF — validate & golden tests
+name: WAF — validate & live attack matrix
 
-# Guards the WAF: on every change to the engine, rules, policies or schema we
-# (1) syntax-check the Lua modules and (2) validate every policy against the
-# JSON Schema + check signature referential integrity. The live golden tests
-# (waf_features.py) run on demand against a deployed edge via a self-hosted
-# runner — they need a reachable gateway, so they are not gated on hosted CI.
+# Offline: Lua syntax + policy/schema integrity.
+# Live: fire every payments-hard signature / v2 stage at fictionally.org
+#        (secure must block; open must not).
+#
+# Triggers:
+#   - push / PR touching WAF code or this suite
+#   - push to main (always run live matrix — regression gate)
+#   - workflow_dispatch (manual; hosts overridable)
 
 on:
+  # Every merge to main — live matrix is the regression gate for payments WAF.
   push:
-    paths:
-      - "api/waf_*.lua"
-      - "data/waf_rules/**"
-      - "data/waf_policies/**"
-      - "docs/waf-policy.schema.json"
-      - "tools/waf_validate.py"
-      - "examples/wslproxy-waf-demo/**"
-      - ".github/workflows/waf-validate.yml"
+    branches: [main]
   pull_request:
     paths:
       - "api/waf_*.lua"
@@ -24,12 +21,25 @@ on:
       - "docs/waf-policy.schema.json"
       - "tools/waf_validate.py"
       - "examples/wslproxy-waf-demo/**"
+      - ".github/workflows/waf-validate.yml"
   workflow_dispatch:
     inputs:
-      SMOKE_HOST:
-        description: "Run live golden tests against this protected host (blank = skip)."
+      SECURE_HOST:
+        description: "WAF-protected host"
         required: false
-        default: ""
+        default: "https://payments-secure.fictionally.org"
+      OPEN_HOST:
+        description: "Unprotected control host (WAF off)"
+        required: false
+        default: "https://payments.fictionally.org"
+      SKIP_OPEN:
+        description: "Skip open-host control assertions (true/false)"
+        required: false
+        default: "false"
+
+concurrency:
+  group: waf-validate-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   validate:
@@ -60,13 +70,63 @@ jobs:
       - name: Validate policies + signatures
         run: python3 tools/waf_validate.py
 
-  golden:
-    name: Live golden tests (self-hosted, on demand)
+  live-matrix:
+    name: Live WAF attack matrix
     needs: validate
-    if: github.event_name == 'workflow_dispatch' && inputs.SMOKE_HOST != ''
-    runs-on: self-hosted
+    # Run on main pushes, manual dispatch, and PRs that touch WAF paths.
+    # Public HTTPS endpoints — hosted runners are fine.
+    if: >
+      always() && needs.validate.result == 'success' && (
+        github.event_name == 'workflow_dispatch' ||
+        github.event_name == 'pull_request' ||
+        (github.event_name == 'push' && github.ref == 'refs/heads/main')
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - name: Run golden feature tests
+
+      - name: Resolve hosts
+        id: hosts
         run: |
-          python3 examples/wslproxy-waf-demo/waf_features.py --host "${{ inputs.SMOKE_HOST }}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            SECURE='${{ inputs.SECURE_HOST }}'
+            OPEN='${{ inputs.OPEN_HOST }}'
+            SKIP='${{ inputs.SKIP_OPEN }}'
+          else
+            SECURE='https://payments-secure.fictionally.org'
+            OPEN='https://payments.fictionally.org'
+            SKIP='false'
+          fi
+          echo "secure=$SECURE" >> "$GITHUB_OUTPUT"
+          echo "open=$OPEN" >> "$GITHUB_OUTPUT"
+          echo "skip_open=$SKIP" >> "$GITHUB_OUTPUT"
+          echo "Secure: $SECURE"
+          echo "Open:   $OPEN"
+          echo "Skip open control: $SKIP"
+
+      - name: Preflight connectivity
+        run: |
+          set -e
+          for url in "${{ steps.hosts.outputs.secure }}/health" \
+                     "${{ steps.hosts.outputs.open }}/health"; do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 "$url" || echo 000)
+            echo "$url → $code"
+            if [ "$code" != "200" ]; then
+              echo "::error::$url not healthy (HTTP $code)"
+              exit 1
+            fi
+          done
+
+      - name: Run live WAF matrix (all rules)
+        run: |
+          set -e
+          ARGS=(
+            --secure "${{ steps.hosts.outputs.secure }}"
+            --open "${{ steps.hosts.outputs.open }}"
+            -v
+          )
+          if [ "${{ steps.hosts.outputs.skip_open }}" = "true" ]; then
+            ARGS+=(--skip-open)
+          fi
+          python3 examples/wslproxy-waf-demo/test_waf_live.py "${ARGS[@]}"
