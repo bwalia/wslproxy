@@ -1,0 +1,66 @@
+# Deploys the WSLProxy Grafana dashboard suite (observability/grafana/)
+# to the central obs Grafana whenever dashboard code lands on main.
+#
+# Secrets / variables (repo-level):
+#   GRAFANA_ADMIN_PASSWORD  (secret)  admin password for the target Grafana
+#   GRAFANA_URL             (variable, optional) defaults to the central
+#                           obs Grafana at grafana.workstation.co.uk
+#
+# The deploy script is idempotent (stable dashboard uids + overwrite), so
+# re-runs and manual dispatches are always safe.
+name: Deploy Grafana Dashboards
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "observability/grafana/**"
+      - ".github/workflows/deploy-grafana-dashboards.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: grafana-dashboards
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy dashboards to Grafana
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Verify generated dashboards are in sync with the generator
+        run: |
+          python3 observability/grafana/generate_dashboards.py
+          if ! git diff --exit-code observability/grafana/dashboards/; then
+            echo "::error::observability/grafana/dashboards/*.json is stale — run generate_dashboards.py and commit the result"
+            exit 1
+          fi
+
+      - name: Deploy to Grafana
+        env:
+          GRAFANA_URL: ${{ vars.GRAFANA_URL || 'https://grafana.workstation.co.uk' }}
+          GRAFANA_USER: admin
+          GRAFANA_PASSWORD: ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
+        run: ./observability/grafana/deploy.sh
+
+      - name: Smoke-check deployed dashboards
+        env:
+          GRAFANA_URL: ${{ vars.GRAFANA_URL || 'https://grafana.workstation.co.uk' }}
+          GRAFANA_PASSWORD: ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
+        run: |
+          fail=0
+          for f in observability/grafana/dashboards/*.json; do
+            uid=$(basename "$f" .json)
+            code=$(curl -sS -o /dev/null -w '%{http_code}' -u "admin:${GRAFANA_PASSWORD}" \
+              "${GRAFANA_URL%/}/api/dashboards/uid/${uid}")
+            if [ "$code" = "200" ]; then
+              echo "✓ ${uid}"
+            else
+              echo "::error::dashboard ${uid} not retrievable (HTTP ${code})"
+              fail=1
+            fi
+          done
+          exit $fail
