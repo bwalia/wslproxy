@@ -15,6 +15,7 @@ import {
   History,
   Network,
   Bookmark,
+  FileJson,
 } from "lucide-react";
 import { useOne, useList, useDataProvider } from "@/hooks/useResource";
 import { useNotification } from "@/contexts/NotificationContext";
@@ -24,6 +25,7 @@ import Button from "@/components/ui/Button";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import Skeleton from "@/components/ui/Skeleton";
 import FetchErrorState from "@/components/ui/FetchErrorState";
+import JsonConfigTab from "@/components/ui/JsonConfigTab";
 import NginxServerTab from "@/components/servers/NginxServerTab";
 import CachePurgeButton from "@/components/servers/CachePurgeButton";
 import BookmarkFromServerDialog from "@/components/servers/BookmarkFromServerDialog";
@@ -55,7 +57,12 @@ const TopologyCanvas = dynamic(
   },
 );
 import type { Server as ServerType, WafPolicy, Rule, Pop } from "@/types";
-import type { ServerFormState, VarnishConfig, VarnishSnippet, ProxyTimeouts } from "@/components/servers/types";
+import type {
+  ServerFormState,
+  VarnishConfig,
+  VarnishSnippet,
+  ProxyTimeouts,
+} from "@/components/servers/types";
 import { generateNginxServerConfig } from "@/components/servers/lib/generateNginxConfig";
 import type { LocationEntry } from "@/components/servers/sections/LocationBlockEditor";
 import {
@@ -164,7 +171,14 @@ const DEFAULT_FORM: ServerFormState = {
 
 /* ── Tab definitions ──────────────────────────────────────────────────── */
 
-type TabKey = "nginx" | "varnish" | "rules" | "waf" | "history" | "topology";
+type TabKey =
+  | "nginx"
+  | "varnish"
+  | "rules"
+  | "waf"
+  | "history"
+  | "topology"
+  | "configuration";
 
 /**
  * Which tab owns each top-level field — used to auto-jump to the tab
@@ -190,20 +204,26 @@ interface TabDef {
 }
 
 const TABS: TabDef[] = [
-  { key: "nginx", label: "Nginx Server", icon: Globe },
+  { key: "nginx", label: "Nginx", icon: Globe },
   { key: "varnish", label: "Varnish", icon: Database },
   { key: "rules", label: "Server Rules", icon: ListFilter },
-  { key: "waf", label: "WAF Protection", icon: Shield },
-  { key: "history", label: "Version History", icon: History },
+  { key: "waf", label: "WAF", icon: Shield },
+  { key: "history", label: "Version", icon: History },
   { key: "topology", label: "Topology", icon: Network },
+  { key: "configuration", label: "Configuration", icon: FileJson },
 ];
 
 /* ── Hydrate helper ───────────────────────────────────────────────────── */
 
 function hydrateForm(data: ServerType): ServerFormState {
-  const vc = (data as unknown as Record<string, unknown>).varnish_config as Partial<VarnishConfig> | undefined;
-  const vs = (data as unknown as Record<string, unknown>).varnish_snippets as VarnishSnippet[] | undefined;
-  const vvcl = (data as unknown as Record<string, unknown>).varnish_vcl_config as string | undefined;
+  const vc = (data as unknown as Record<string, unknown>).varnish_config as
+    | Partial<VarnishConfig>
+    | undefined;
+  const vs = (data as unknown as Record<string, unknown>).varnish_snippets as
+    | VarnishSnippet[]
+    | undefined;
+  const vvcl = (data as unknown as Record<string, unknown>)
+    .varnish_vcl_config as string | undefined;
 
   return {
     server_name: data.server_name ?? "",
@@ -213,7 +233,8 @@ function hydrateForm(data: ServerType): ServerFormState {
     // Defaults preserve backwards compatibility: an existing server
     // saved before this field existed reads as `"A"` (the previous
     // behaviour) so its DNS provisioning is unchanged on first edit.
-    dns_record_type: (data.dns_record_type as "A" | "AAAA" | "BOTH" | "CNAME") ?? "A",
+    dns_record_type:
+      (data.dns_record_type as "A" | "AAAA" | "BOTH" | "CNAME") ?? "A",
     dns_cname_target: data.dns_cname_target ?? "",
     servers_tags: Array.isArray(data.servers_tags) ? data.servers_tags : [],
     root: data.root ?? "/var/www/html",
@@ -221,7 +242,9 @@ function hydrateForm(data: ServerType): ServerFormState {
     access_log: data.access_log ?? "logs/access.log",
     error_log: data.error_log ?? "logs/error.log",
 
-    listens: Array.isArray(data.listens) ? data.listens.map((l) => ({ listen: String(l.listen ?? "") })) : [{ listen: "80" }],
+    listens: Array.isArray(data.listens)
+      ? data.listens.map((l) => ({ listen: String(l.listen ?? "") }))
+      : [{ listen: "80" }],
 
     ssl_enabled: data.ssl_enabled ?? false,
     ssl_email: data.ssl_email ?? "",
@@ -231,21 +254,37 @@ function hydrateForm(data: ServerType): ServerFormState {
 
     cache_enabled: data.cache_enabled ?? false,
     cache_ttl: data.cache_ttl ?? 3600,
-    cache_bypass_auth: (data as unknown as Record<string, unknown>).cache_bypass_auth as boolean ?? true,
+    cache_bypass_auth:
+      ((data as unknown as Record<string, unknown>)
+        .cache_bypass_auth as boolean) ?? true,
     cache_bypass_cookie: data.cache_bypass_cookie ?? "",
-    cached_mime_types: Array.isArray(data.cached_mime_types) ? data.cached_mime_types : [],
+    cached_mime_types: Array.isArray(data.cached_mime_types)
+      ? data.cached_mime_types
+      : [],
 
     // Docker blob caching — booleans default false, TTLs preserve
     // any operator-set value; empty string means "use default".
-    cache_docker_blobs: (data as unknown as Record<string, unknown>).cache_docker_blobs as boolean ?? false,
-    cache_docker_blobs_ttl:
-      String((data as unknown as Record<string, unknown>).cache_docker_blobs_ttl ?? "2592000"),
-    cache_docker_manifests: (data as unknown as Record<string, unknown>).cache_docker_manifests as boolean ?? false,
-    cache_docker_manifests_ttl:
-      String((data as unknown as Record<string, unknown>).cache_docker_manifests_ttl ?? "3600"),
-    cache_docker_serve_stale: (data as unknown as Record<string, unknown>).cache_docker_serve_stale as boolean ?? false,
-    cache_docker_stale_ttl:
-      String((data as unknown as Record<string, unknown>).cache_docker_stale_ttl ?? "31536000"),
+    cache_docker_blobs:
+      ((data as unknown as Record<string, unknown>)
+        .cache_docker_blobs as boolean) ?? false,
+    cache_docker_blobs_ttl: String(
+      (data as unknown as Record<string, unknown>).cache_docker_blobs_ttl ??
+        "2592000",
+    ),
+    cache_docker_manifests:
+      ((data as unknown as Record<string, unknown>)
+        .cache_docker_manifests as boolean) ?? false,
+    cache_docker_manifests_ttl: String(
+      (data as unknown as Record<string, unknown>).cache_docker_manifests_ttl ??
+        "3600",
+    ),
+    cache_docker_serve_stale:
+      ((data as unknown as Record<string, unknown>)
+        .cache_docker_serve_stale as boolean) ?? false,
+    cache_docker_stale_ttl: String(
+      (data as unknown as Record<string, unknown>).cache_docker_stale_ttl ??
+        "31536000",
+    ),
 
     // Upstream timeouts.  A missing / partial `proxy_timeouts` on
     // disk falls through to the "" (nginx default) sentinel so the
@@ -255,7 +294,7 @@ function hydrateForm(data: ServerType): ServerFormState {
         | Partial<ProxyTimeouts>
         | undefined;
       const norm = (v: unknown): number | string =>
-        v === undefined || v === null || v === "" ? "" : v as number | string;
+        v === undefined || v === null || v === "" ? "" : (v as number | string);
       return {
         connect_timeout: norm(pt?.connect_timeout),
         send_timeout: norm(pt?.send_timeout),
@@ -270,11 +309,17 @@ function hydrateForm(data: ServerType): ServerFormState {
     rate_limit_enabled: data.rate_limit_enabled ?? false,
     rate_limit: {
       requests_per_second: data.rate_limit_requests ?? 100,
-      burst: (data as unknown as Record<string, unknown>).rate_limit_burst as number ?? 50,
+      burst:
+        ((data as unknown as Record<string, unknown>)
+          .rate_limit_burst as number) ?? 50,
     },
 
-    custom_headers: Array.isArray(data.custom_headers) ? data.custom_headers : [],
-    custom_response_headers: Array.isArray(data.custom_response_headers) ? data.custom_response_headers : [],
+    custom_headers: Array.isArray(data.custom_headers)
+      ? data.custom_headers
+      : [],
+    custom_response_headers: Array.isArray(data.custom_response_headers)
+      ? data.custom_response_headers
+      : [],
 
     locations: Array.isArray(data.locations)
       ? data.locations.map((l) => ({
@@ -285,8 +330,12 @@ function hydrateForm(data: ServerType): ServerFormState {
       : [],
 
     custom_block: Array.isArray(data.custom_block) ? data.custom_block : [],
-    custom_location_block: Array.isArray(data.custom_location_block) ? data.custom_location_block : [],
-    custom_http_block: Array.isArray(data.custom_http_block) ? data.custom_http_block : [],
+    custom_location_block: Array.isArray(data.custom_location_block)
+      ? data.custom_location_block
+      : [],
+    custom_http_block: Array.isArray(data.custom_http_block)
+      ? data.custom_http_block
+      : [],
 
     config: data.config ?? "",
     // config_status may be absent on old records — default false so the
@@ -307,17 +356,19 @@ function hydrateForm(data: ServerType): ServerFormState {
       : typeof data.rules === "string"
         ? data.rules
         : "",
-    match_cases: (Array.isArray(data.match_cases) ? data.match_cases : []).map((mc) => ({
-      condition: mc.condition ?? "",
-      // Backend stores a single rule_id as `statement`.  Older records
-      // may have been serialized as a single-element array; flatten.
-      statement:
-        typeof mc.statement === "string"
-          ? mc.statement
-          : Array.isArray(mc.statement)
-            ? (mc.statement[0] ?? "")
-            : "",
-    })),
+    match_cases: (Array.isArray(data.match_cases) ? data.match_cases : []).map(
+      (mc) => ({
+        condition: mc.condition ?? "",
+        // Backend stores a single rule_id as `statement`.  Older records
+        // may have been serialized as a single-element array; flatten.
+        statement:
+          typeof mc.statement === "string"
+            ? mc.statement
+            : Array.isArray(mc.statement)
+              ? (mc.statement[0] ?? "")
+              : "",
+      }),
+    ),
   };
 }
 
@@ -417,7 +468,7 @@ export default function ServerDetailPage() {
      creates a new file at `host:<name>-clone.json` instead of
      overwriting the original. */
   const searchParams = useSearchParams();
-  const sourceId = isCreate ? searchParams?.get("source") ?? null : null;
+  const sourceId = isCreate ? (searchParams?.get("source") ?? null) : null;
   const isClone = isCreate && Boolean(sourceId);
   // Single fetch key — populated for both edit and clone paths.  When
   // it's null (pure create) `useOne` is a no-op and returns null data.
@@ -431,7 +482,8 @@ export default function ServerDetailPage() {
   );
 
   const { data: profiles } = useList<{ id: string; name: string }>("profiles");
-  const { data: wafPolicies, isLoading: wafPoliciesLoading } = useList<WafPolicy>("waf_policies");
+  const { data: wafPolicies, isLoading: wafPoliciesLoading } =
+    useList<WafPolicy>("waf_policies");
   const { data: rulesData } = useList<Rule>("rules");
   // POPs feed the PopMultiSelect picker.  Fetched once and passed
   // straight through — the picker handles its own filtering /
@@ -446,7 +498,8 @@ export default function ServerDetailPage() {
   /* ── Derived option lists ────────────────────────────────────────── */
 
   const profileOptions = useMemo(
-    () => (profiles ?? []).map((p) => ({ value: p.id ?? p.name, label: p.name })),
+    () =>
+      (profiles ?? []).map((p) => ({ value: p.id ?? p.name, label: p.name })),
     [profiles],
   );
 
@@ -460,7 +513,8 @@ export default function ServerDetailPage() {
   );
 
   const ruleOptions = useMemo(
-    () => (rulesData ?? []).map((r) => ({ value: r.id ?? r.name, label: r.name })),
+    () =>
+      (rulesData ?? []).map((r) => ({ value: r.id ?? r.name, label: r.name })),
     [rulesData],
   );
 
@@ -519,62 +573,67 @@ export default function ServerDetailPage() {
   // state AND mount the new active tab before we query the DOM.
   const scrollToFirstError = useScrollToFirstFieldError();
 
-  const handleSubmit = useCallback(guardSubmit(async () => {
-    // Structured submit-time validation via the shared Zod schema.
-    // Mirrors what the Lua backend enforces + what the old react-admin
-    // Form.jsx checked, so the user sees a precise error before the
-    // PUT round-trip.
-    const gate = runValidationGate(serverInputSchema, form);
-    if (!gate.ok && gate.firstError) {
-      // Surface every field error inline (Wave 11.6) so the user
-      // sees the offending input(s) highlighted in red, plus a red
-      // dot on every tab that has errors.  The toast gives the
-      // headline; the tab-jump moves them to the first issue and
-      // the scroll lands them on the exact input.
-      setFieldErrors(gate.fieldErrors);
-      notify(gate.firstError.message, { type: "error" });
-      setActiveTab(findTabForError(gate.firstError.field, FIELD_TO_TAB, "nginx"));
-      scrollToFirstError();
-      return;
-    }
-    // Clear stale errors from a previous failed submit attempt.
-    setFieldErrors({});
+  const handleSubmit = useCallback(
+    guardSubmit(async () => {
+      // Structured submit-time validation via the shared Zod schema.
+      // Mirrors what the Lua backend enforces + what the old react-admin
+      // Form.jsx checked, so the user sees a precise error before the
+      // PUT round-trip.
+      const gate = runValidationGate(serverInputSchema, form);
+      if (!gate.ok && gate.firstError) {
+        // Surface every field error inline (Wave 11.6) so the user
+        // sees the offending input(s) highlighted in red, plus a red
+        // dot on every tab that has errors.  The toast gives the
+        // headline; the tab-jump moves them to the first issue and
+        // the scroll lands them on the exact input.
+        setFieldErrors(gate.fieldErrors);
+        notify(gate.firstError.message, { type: "error" });
+        setActiveTab(
+          findTabForError(gate.firstError.field, FIELD_TO_TAB, "nginx"),
+        );
+        scrollToFirstError();
+        return;
+      }
+      // Clear stale errors from a previous failed submit attempt.
+      setFieldErrors({});
 
-    setSaving(true);
-    try {
-      const payload = buildPayload(form);
-      if (isCreate) {
-        await dataProvider.create("servers", payload);
-        notify("Server created successfully", { type: "success" });
-      } else {
-        await dataProvider.update("servers", id, payload);
-        notify("Server updated successfully", { type: "success" });
+      setSaving(true);
+      try {
+        const payload = buildPayload(form);
+        if (isCreate) {
+          await dataProvider.create("servers", payload);
+          notify("Server created successfully", { type: "success" });
+        } else {
+          await dataProvider.update("servers", id, payload);
+          notify("Server updated successfully", { type: "success" });
+        }
+        // Sync the active environment profile to the saved server's
+        // profile so the list page (which filters by the active profile)
+        // shows the record the user just created or updated.
+        if (form.profile_id) {
+          setProfile(form.profile_id);
+        }
+        router.push("/servers");
+      } catch (err) {
+        notify((err as Error).message || "Failed to save server", {
+          type: "error",
+        });
+      } finally {
+        setSaving(false);
       }
-      // Sync the active environment profile to the saved server's
-      // profile so the list page (which filters by the active profile)
-      // shows the record the user just created or updated.
-      if (form.profile_id) {
-        setProfile(form.profile_id);
-      }
-      router.push("/servers");
-    } catch (err) {
-      notify((err as Error).message || "Failed to save server", {
-        type: "error",
-      });
-    } finally {
-      setSaving(false);
-    }
-  }), [
-    isCreate,
-    form,
-    id,
-    dataProvider,
-    notify,
-    router,
-    guardSubmit,
-    setProfile,
-    scrollToFirstError,
-  ]);
+    }),
+    [
+      isCreate,
+      form,
+      id,
+      dataProvider,
+      notify,
+      router,
+      guardSubmit,
+      setProfile,
+      scrollToFirstError,
+    ],
+  );
 
   const handleDelete = useCallback(async () => {
     setDeleting(true);
@@ -642,126 +701,132 @@ export default function ServerDetailPage() {
           last child of its parent (sticky needs room below to anchor
           against), so we rely on this top-pinned copy instead. */}
       <div className="sticky top-0 z-20 -mx-6 -mt-6 mb-6 bg-slate-50/95 px-6 pt-6 pb-2 backdrop-blur-sm dark:bg-slate-950/95">
-      {/* ── Page Header ──────────────────────────────────────────────── */}
-      <PageHeader
-        title={
-          isClone
-            ? `Clone of ${data?.server_name ?? "server"}`
-            : isCreate
-              ? "Create Server"
-              : `Server: ${data?.server_name ?? id}`
-        }
-        subtitle={
-          isClone
-            ? "Rename and tweak fields, then Save to create a new server"
-            : isCreate
-              ? "Configure a new nginx server block"
-              : "Edit server configuration"
-        }
-        icon={Server}
-        actions={
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              onClick={() => router.push("/servers")}
-              icon={<ArrowLeft className="h-4 w-4" />}
-            >
-              Back
-            </Button>
-            {/* Cache purge only meaningful for saved servers that have
+        {/* ── Page Header ──────────────────────────────────────────────── */}
+        <PageHeader
+          title={
+            isClone
+              ? `Clone of ${data?.server_name ?? "server"}`
+              : isCreate
+                ? "Create Server"
+                : `Server: ${data?.server_name ?? id}`
+          }
+          subtitle={
+            isClone
+              ? "Rename and tweak fields, then Save to create a new server"
+              : isCreate
+                ? "Configure a new nginx server block"
+                : "Edit server configuration"
+          }
+          icon={Server}
+          actions={
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                onClick={() => router.push("/servers")}
+                icon={<ArrowLeft className="h-4 w-4" />}
+              >
+                Back
+              </Button>
+              {/* Cache purge only meaningful for saved servers that have
                 caching enabled — disabled otherwise to avoid confusion. */}
-            {!isCreate && (
-              <CachePurgeButton
-                serverName={form.server_name}
-                disabled={!form.cache_enabled || !form.server_name}
-              />
-            )}
-            {/* Bookmark only after Save — pre-fill needs a real
+              {!isCreate && (
+                <CachePurgeButton
+                  serverName={form.server_name}
+                  disabled={!form.cache_enabled || !form.server_name}
+                />
+              )}
+              {/* Bookmark only after Save — pre-fill needs a real
                 `server_name` and creating a bookmark for a record
                 that doesn't exist yet would orphan it.  Hidden on
                 Create / Clone for the same reason the Delete button
                 is. */}
-            {!isCreate && (
-              <Button
-                variant="ghost"
-                onClick={() => setShowBookmark(true)}
-                disabled={!form.server_name}
-                icon={<Bookmark className="h-4 w-4" />}
-                title={
-                  form.server_name
-                    ? `Create a bookmark for ${form.server_name}`
-                    : "Save the server first to enable bookmarking"
-                }
-              >
-                Bookmark
-              </Button>
-            )}
-            {!isCreate && (
-              <Button
-                variant="danger"
-                onClick={() => setShowDelete(true)}
-                icon={<Trash2 className="h-4 w-4" />}
-              >
-                Delete
-              </Button>
-            )}
-            {/* Header Save — same label whether the user arrived via
+              {!isCreate && (
+                <Button
+                  variant="ghost"
+                  onClick={() => setShowBookmark(true)}
+                  disabled={!form.server_name}
+                  icon={<Bookmark className="h-4 w-4" />}
+                  title={
+                    form.server_name
+                      ? `Create a bookmark for ${form.server_name}`
+                      : "Save the server first to enable bookmarking"
+                  }
+                >
+                  Bookmark
+                </Button>
+              )}
+              {!isCreate && (
+                <Button
+                  variant="danger"
+                  onClick={() => setShowDelete(true)}
+                  icon={<Trash2 className="h-4 w-4" />}
+                >
+                  Delete
+                </Button>
+              )}
+              {/* Header Save — same label whether the user arrived via
                 Create or via Clone (both create a new record).  The
                 page title says "Clone of <name>" so the user still
                 knows they're working from a copy; the button just
                 needs to be a clear "do the thing" action. */}
-            <Button
-              onClick={handleSubmit}
-              loading={saving}
-              icon={<Save className="h-4 w-4" />}
-            >
-              {isCreate ? "Create Server" : "Save Changes"}
-            </Button>
-          </div>
-        }
-      />
-
-      {/* ── Tab Bar ──────────────────────────────────────────────────── */}
-      <div className="border-b border-slate-200 dark:border-slate-800">
-        <nav className="-mb-px flex gap-x-1 overflow-x-auto" aria-label="Server configuration tabs">
-          {TABS.map((tab) => {
-            const Icon = tab.icon;
-            const active = activeTab === tab.key;
-            const hasError = tabsWithErrors.has(tab.key);
-            return (
-              <button
-                key={tab.key}
-                type="button"
-                onClick={() => handleTabChange(tab.key)}
-                className={cn(
-                  "inline-flex items-center gap-2 whitespace-nowrap border-b-2 px-4 py-3 text-sm font-medium transition-colors",
-                  active
-                    ? "border-primary-500 text-primary-600 dark:text-primary-400"
-                    : "border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700 dark:text-slate-400 dark:hover:border-slate-600 dark:hover:text-slate-300",
-                )}
-                aria-current={active ? "page" : undefined}
-                aria-label={
-                  hasError ? `${tab.label} (has validation errors)` : tab.label
-                }
+              <Button
+                onClick={handleSubmit}
+                loading={saving}
+                icon={<Save className="h-4 w-4" />}
               >
-                <Icon className="h-4 w-4" />
-                {tab.label}
-                {hasError && (
-                  // Red dot indicates one or more fields on this tab
-                  // failed the validation gate.  Disappears as the
-                  // user fixes them (per-field errors clear in NginxServerTab's
-                  // setForm wrapper).
-                  <span
-                    className="ml-1 inline-block h-1.5 w-1.5 rounded-full bg-red-500"
-                    aria-hidden="true"
-                  />
-                )}
-              </button>
-            );
-          })}
-        </nav>
+                {isCreate ? "Create Server" : "Save Changes"}
+              </Button>
+            </div>
+          }
+        />
+
+        {/* ── Tab Bar ──────────────────────────────────────────────────── */}
+        <div className="border-b border-slate-200 dark:border-slate-800">
+          <nav
+            className="-mb-px flex gap-x-1 overflow-x-auto"
+            aria-label="Server configuration tabs"
+          >
+            {TABS.map((tab) => {
+              const Icon = tab.icon;
+              const active = activeTab === tab.key;
+              const hasError = tabsWithErrors.has(tab.key);
+              return (
+                <button
+                  key={tab.key}
+                  type="button"
+                  onClick={() => handleTabChange(tab.key)}
+                  className={cn(
+                    "inline-flex items-center gap-2 whitespace-nowrap border-b-2 px-4 py-3 text-sm font-medium transition-colors",
+                    active
+                      ? "border-primary-500 text-primary-600 dark:text-primary-400"
+                      : "border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700 dark:text-slate-400 dark:hover:border-slate-600 dark:hover:text-slate-300",
+                  )}
+                  aria-current={active ? "page" : undefined}
+                  aria-label={
+                    hasError
+                      ? `${tab.label} (has validation errors)`
+                      : tab.label
+                  }
+                >
+                  <Icon className="h-4 w-4" />
+                  {tab.label}
+                  {hasError && (
+                    // Red dot indicates one or more fields on this tab
+                    // failed the validation gate.  Disappears as the
+                    // user fixes them (per-field errors clear in NginxServerTab's
+                    // setForm wrapper).
+                    <span
+                      className="ml-1 inline-block h-1.5 w-1.5 rounded-full bg-red-500"
+                      aria-hidden="true"
+                    />
+                  )}
+                </button>
+              );
+            })}
+          </nav>
+        </div>
       </div>
-      </div>{/* end sticky header wrapper */}
+      {/* end sticky header wrapper */}
 
       {/* ── Tab Content ──────────────────────────────────────────────── */}
       {activeTab === "nginx" && (
@@ -778,9 +843,7 @@ export default function ServerDetailPage() {
         />
       )}
 
-      {activeTab === "varnish" && (
-        <VarnishTab form={form} setForm={setForm} />
-      )}
+      {activeTab === "varnish" && <VarnishTab form={form} setForm={setForm} />}
 
       {activeTab === "rules" && (
         <ServerRulesTab
@@ -800,14 +863,21 @@ export default function ServerDetailPage() {
       )}
 
       {activeTab === "history" && (
-        <VersionHistoryTab
-          serverName={form.server_name}
-          serverId={id}
-        />
+        <VersionHistoryTab serverName={form.server_name} serverId={id} />
       )}
 
       {activeTab === "topology" && (
         <TopologyCanvas filterServerId={id} compact />
+      )}
+
+      {activeTab === "configuration" && (
+        <JsonConfigTab
+          data={data}
+          downloadName={`server-${data?.server_name ?? id}`}
+          // api.lua:listServer base64-decodes these two fields before
+          // returning them.  Everything else is byte-for-byte on-disk.
+          decodedFields={["config", "varnish_vcl_config"]}
+        />
       )}
 
       {/* ── Bottom Action Bar ──────────────────────────────────────────
@@ -817,28 +887,30 @@ export default function ServerDetailPage() {
           of the form and is far below the viewport — the user has to
           scroll thousands of pixels to find Save, and easily concludes
           the button is missing entirely. */}
-      {activeTab !== "history" && activeTab !== "topology" && (
-        <div className="sticky bottom-0 z-20 -mx-6 -mb-6 mt-8 flex items-center justify-between border-t border-slate-200 bg-white/95 px-6 py-4 backdrop-blur-sm dark:border-slate-800 dark:bg-slate-950/95">
-          <div>
-            {!isCreate && (
-              <Button
-                variant="danger"
-                onClick={() => setShowDelete(true)}
-                icon={<Trash2 className="h-4 w-4" />}
-              >
-                Delete Server
-              </Button>
-            )}
+      {activeTab !== "history" &&
+        activeTab !== "topology" &&
+        activeTab !== "configuration" && (
+          <div className="sticky bottom-0 z-20 -mx-6 -mb-6 mt-8 flex items-center justify-between border-t border-slate-200 bg-white/95 px-6 py-4 backdrop-blur-sm dark:border-slate-800 dark:bg-slate-950/95">
+            <div>
+              {!isCreate && (
+                <Button
+                  variant="danger"
+                  onClick={() => setShowDelete(true)}
+                  icon={<Trash2 className="h-4 w-4" />}
+                >
+                  Delete Server
+                </Button>
+              )}
+            </div>
+            <Button
+              onClick={handleSubmit}
+              loading={saving}
+              icon={<Save className="h-4 w-4" />}
+            >
+              {isCreate ? "Create Server" : "Save Changes"}
+            </Button>
           </div>
-          <Button
-            onClick={handleSubmit}
-            loading={saving}
-            icon={<Save className="h-4 w-4" />}
-          >
-            {isCreate ? "Create Server" : "Save Changes"}
-          </Button>
-        </div>
-      )}
+        )}
 
       {/* ── Quick Bookmark Dialog ────────────────────────────────────── */}
       <BookmarkFromServerDialog
