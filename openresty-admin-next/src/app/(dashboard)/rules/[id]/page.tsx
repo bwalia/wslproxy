@@ -19,6 +19,8 @@ import {
   ShieldCheck,
   Settings,
   Zap,
+  FileJson,
+  Pencil,
 } from "lucide-react";
 import { useOne, useList, useDataProvider } from "@/hooks/useResource";
 import { useNotification } from "@/contexts/NotificationContext";
@@ -32,6 +34,8 @@ import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import Skeleton from "@/components/ui/Skeleton";
 import FetchErrorState from "@/components/ui/FetchErrorState";
 import Badge from "@/components/ui/Badge";
+import JsonConfigTab from "@/components/ui/JsonConfigTab";
+import { cn } from "@/lib/utils/cn";
 import type { Rule, Backend } from "@/types";
 import {
   runValidationGate,
@@ -311,6 +315,11 @@ export default function RuleDetailPage() {
   const [showDelete, setShowDelete] = useState(false);
   const [newTag, setNewTag] = useState("");
   const [showTopology, setShowTopology] = useState(false);
+  // "editor" shows the form, "configuration" shows the on-disk JSON.
+  // "configuration" is hidden on create (no record exists yet).
+  const [activeTab, setActiveTab] = useState<"editor" | "configuration">(
+    "editor",
+  );
   // Per-field validation errors surfaced from `runValidationGate`.
   // Populated in handleSubmit; cleared per-field as the user edits
   // the offending input via the `set` helper below.
@@ -373,6 +382,7 @@ export default function RuleDetailPage() {
     setFieldErrors({});
     setShowTopology(false);
     setNewTag("");
+    setActiveTab("editor");
   }, [fetchKey, isCreate]);
 
   const set = useCallback(
@@ -682,6 +692,56 @@ export default function RuleDetailPage() {
         }
       />
 
+      {/* ── Tab bar ──────────────────────────────────────────────────
+          Configuration tab is hidden on Create — no on-disk record
+          exists yet.  On existing / clone-source records it lets the
+          operator inspect the persisted JSON alongside the form. */}
+      {!isCreate && (
+        <div className="border-b border-slate-200 dark:border-slate-800">
+          <nav className="-mb-px flex gap-x-1 overflow-x-auto" aria-label="Rule tabs">
+            {(
+              [
+                { key: "editor" as const, label: "Editor", icon: Pencil },
+                { key: "configuration" as const, label: "Configuration", icon: FileJson },
+              ]
+            ).map(({ key, label, icon: Icon }) => {
+              const active = activeTab === key;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setActiveTab(key)}
+                  className={cn(
+                    "inline-flex items-center gap-2 whitespace-nowrap border-b-2 px-4 py-3 text-sm font-medium transition-colors",
+                    active
+                      ? "border-primary-500 text-primary-600 dark:text-primary-400"
+                      : "border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700 dark:text-slate-400 dark:hover:border-slate-600 dark:hover:text-slate-300",
+                  )}
+                  aria-current={active ? "page" : undefined}
+                >
+                  <Icon className="h-4 w-4" />
+                  {label}
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+      )}
+
+      {/* ── Configuration tab: raw on-disk JSON ─────────────────────── */}
+      {!isCreate && activeTab === "configuration" && (
+        <JsonConfigTab
+          data={data}
+          downloadName={`rule-${data?.name ?? id}`}
+          // api.lua:listRule base64-decodes this one field before
+          // returning; every other field matches the on-disk record.
+          decodedFields={["jwt_token_validation_key"]}
+        />
+      )}
+
+      {/* ── Editor tab (or Create) ──────────────────────────────────── */}
+      {(isCreate || activeTab === "editor") && (
+        <>
       {/* ── Topology (existing rules only) ──────────────────────────── */}
       {!isCreate && (
         <div className="rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
@@ -1235,6 +1295,8 @@ export default function RuleDetailPage() {
           {isCreate ? "Create Rule" : "Save Changes"}
         </Button>
       </div>
+        </>
+      )}
 
       <ConfirmDialog
         open={showDelete}
