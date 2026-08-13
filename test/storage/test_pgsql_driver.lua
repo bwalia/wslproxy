@@ -28,6 +28,11 @@ if not ok_pg then
     os.exit(0)
 end
 
+if not (os.getenv("WSLPROXY_PG_PASSWORD") or os.getenv("PGPASSWORD")) then
+    print("skip: set WSLPROXY_PG_PASSWORD or PGPASSWORD")
+    os.exit(0)
+end
+
 local Pgsql = require("storage.pgsql_driver")
 local drv = Pgsql.new({
     settings = {
@@ -36,7 +41,7 @@ local drv = Pgsql.new({
             port = tonumber(os.getenv("WSLPROXY_PG_PORT") or "5436"),
             database = os.getenv("WSLPROXY_PG_DB") or "wslproxy",
             user = os.getenv("WSLPROXY_PG_USER") or "wslproxy",
-            password = os.getenv("WSLPROXY_PG_PASSWORD") or "wslproxy_local_dev",
+            password = os.getenv("WSLPROXY_PG_PASSWORD") or os.getenv("PGPASSWORD"),
         }
     }
 })
