@@ -110,11 +110,13 @@ Resources (each has list/get/create/update/delete): **servers, rules, secrets, i
 
 Special endpoints: `/api/user/login`, `/api/cache/*`, `/api/varnish/*`, `/api/traffic/*`, `/api/ai/analyze`, `/api/logs/{access,errors}`, `/api/topology/graph`, `/api/openresty_status`, `/api/push-data`, `/api/mcp/*`.
 
-The core persister is `CreateUpdateRecord(json_val, uuid, key_name, folder_name, method)` around **api.lua:1918**. It:
+The core persister is `CreateUpdateRecord(json_val, uuid, key_name, folder_name, method)`. It:
 1. Strips empty values, base64-encodes sensitive fields (secrets, JWT key, server `.config`, `varnish_vcl_config`)
-2. Writes to both Redis (if `storage_type: redis`) AND disk (`data/{folder_name}/{envProfile}/{uuid}.json`)
+2. Persists via `Repo.save` (`api/repo/` + `api/storage/` drivers). `storage_type: disk` writes JSON files; `redis` and `pgsql` dual-write to the remote store **and** on-disk JSON. Disk JSON remains the request-path source of truth (`rule_loader.lua` still reads files).
 3. For servers: also writes compiled conf to `data/servers/{env}/conf/{server_name}.conf`
 4. If `config_status: true`, copies conf to `/opt/nginx/conf.d/{server_name}.conf`, runs `openresty -t`, creates reboot flag file
+
+**Storage layer:** `api/storage/{driver,disk_driver,redis_driver,pgsql_driver,dual_writer}.lua` plus `api/repo/{servers,rules,secrets,generic}.lua`. PostgreSQL uses typed tables + `raw_json` (see `infra/pgsql/migrations/`). Apply with `scripts/pg-migrate.sh`; import existing disk JSON with `scripts/pg-import-from-disk.sh`. Do not auto-migrate on boot. `pgsql_storage.lua` remains a Redis-hash facade over `config_store` for leftover callers.
 
 ---
 

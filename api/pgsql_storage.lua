@@ -1,5 +1,8 @@
 -- pgsql_storage.lua
--- PostgreSQL storage backend for WSLProxy
+-- LEGACY Redis-hash facade over config_store JSONB.
+-- Admin CRUD now goes through api/storage/pgsql_driver.lua (typed tables +
+-- raw_json) via api/repo. Keep this module so any leftover hash-API caller
+-- still works; do not add new call sites.
 --
 -- Provides a Redis-compatible hash interface so it can replace the `red`
 -- object in api.lua without changing any call-site code.
