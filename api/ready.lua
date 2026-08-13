@@ -30,13 +30,24 @@ if sf then
     end
 end
 
-local ready = settings_ok
+local storage_health = { ok = true, storage_type = "disk" }
+local ok_store, store_h = pcall(function()
+    return require("storage").health()
+end)
+if ok_store and type(store_h) == "table" then
+    storage_health = store_h
+elseif not ok_store then
+    storage_health = { ok = false, detail = tostring(store_h) }
+end
+
+local ready = settings_ok and storage_health.ok ~= false
 
 if ready then
     ngx.status = 200
     ngx.say(cjson.encode({
         ready = true,
         config_version = config_version,
+        storage = storage_health,
         timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
     }))
 else
@@ -44,7 +55,8 @@ else
     ngx.say(cjson.encode({
         ready = false,
         config_version = config_version,
-        reason = "settings not loaded",
+        reason = settings_ok and (storage_health.detail or "storage unhealthy") or "settings not loaded",
+        storage = storage_health,
         timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
     }))
 end

@@ -70,6 +70,17 @@ end
 -- Determine storage type at init time (not in callback)
 local use_redis_storage = settings and settings.storage_type == "redis"
 
+-- pgsql is fail-loud at worker init: refuse to start if Postgres is down.
+if settings and settings.storage_type == "pgsql" then
+  local ok, err = pcall(function()
+    require("storage").init(settings)
+  end)
+  if not ok then
+    ngx.log(ngx.EMERG, "pgsql storage init failed: ", err)
+    error("pgsql storage unavailable: " .. tostring(err))
+  end
+end
+
 -- Actionable operator warning when settings.json still holds the legacy
 -- reboot-flag path.  api/server-conf.lua rewrites LEGACY_REBOOT_FLAG →
 -- DEFAULT_REBOOT_FLAG at call time so this alone doesn't break saves —

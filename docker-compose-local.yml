@@ -177,6 +177,7 @@ services:
       - postgres-data-local:/var/lib/postgresql/data
       # Schema is applied automatically on first start
       - ./infra/db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./infra/pgsql/migrations/0001_baseline.sql:/docker-entrypoint-initdb.d/02-typed.sql
 
     networks:
       wslproxy-local-network:
