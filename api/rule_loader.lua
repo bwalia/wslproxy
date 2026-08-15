@@ -223,7 +223,58 @@ function M.load_all_rules(server_config, config_path, profile)
         end
     end
 
+    -- 3. Expand the server's access profile, if it declares one.
+    if server_config.access_profile and type(server_config.access_profile) ~= "userdata"
+        and server_config.access_profile ~= "" then
+        local AccessProfile = require("access_profile")
+        local expanded, err = AccessProfile.load_and_expand(
+            server_config.access_profile, config_path, profile, server_config)
+        if expanded then
+            for _, entry in ipairs(expanded) do
+                table.insert(loaded_rules, entry)
+            end
+        else
+            -- Fail closed. A server that asks for an access profile has
+            -- endpoints it means to restrict; if the profile cannot be
+            -- expanded, serving them unprotected is the worst outcome. Deny
+            -- everything instead, loudly, so a typo is fixed rather than
+            -- quietly exposing what it was meant to protect.
+            if ngx and ngx.log then
+                ngx.log(ngx.ERR, "access_profile failed, denying all requests for ",
+                    tostring(server_config.server_name), ": ", tostring(err))
+            end
+            table.insert(loaded_rules, M.deny_all_rule(server_config.access_profile, err))
+        end
+    end
+
     return loaded_rules
+end
+
+--- A catch-all deny used when an access profile cannot be expanded.
+--- Priority is far above anything else so it wins outright.
+---
+--- @param profile_name string
+--- @param reason       string|nil
+--- @return table  {rule_data=table, condition_mode="and"}
+function M.deny_all_rule(profile_name, reason)
+    local AccessProfile = require("access_profile")
+    return {
+        condition_mode = "and",
+        rule_data = {
+            id = "ap:" .. tostring(profile_name) .. ":failed",
+            name = "access profile failed to load",
+            priority = AccessProfile.DEFAULT_PRIORITY_BASE + 100000,
+            _access_profile_error = reason or "unknown",
+            match = {
+                rules = { path_key = "starts_with", path = "/" },
+                response = {
+                    allow = false,
+                    code = 403,
+                    message = AccessProfile.DEFAULT_DENY_MESSAGE,
+                },
+            },
+        },
+    }
 end
 
 -- Export for migration script
