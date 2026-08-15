@@ -123,6 +123,15 @@
       }
     },
 
+    "smuggling": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "HTTP request-smuggling / desync guard (VIOL_SMUGGLING). First-class header-relationship stage: rejects Content-Length together with Transfer-Encoding, duplicate/obfuscated Transfer-Encoding, and malformed Content-Length. Presence of this block enables the stage; it complements the waf-rule-smuggling-001 signature that catches a request line embedded in the body.",
+      "properties": {
+        "enforce": { "type": "boolean", "default": true, "description": "false disables the stage without removing the config." },
+        "allowChunked": { "type": "boolean", "default": true, "description": "false additionally rejects a clean 'Transfer-Encoding: chunked' for edges that never expect a chunked upstream request." }
+      }
+    },
     "routeOverrides": {
       "type": "array",
       "description": "Per-route enforcement overrides. Longest matching path wins (route > server > domain).",

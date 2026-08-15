@@ -179,6 +179,16 @@ CASES: list[Case] = [
     Case("mass-assignment", "waf-rule-massassign-001", "POST",
          "/api/profile", body='{"user":"me","role":"admin"}',
          content_type="application/json"),
+    # HTTP request smuggling — a request line pipelined inside the body
+    # (the visible CL.TE/TE.CL desync artefact). The header-relationship
+    # primitive (CL+TE) is rejected by nginx before Lua and by the first-class
+    # `smuggling` stage; this case exercises the signature that a normal HTTP
+    # client can actually put on the wire.
+    Case("http-request-smuggling", "waf-rule-smuggling-001", "POST",
+         "/api/batch",
+         body='{"batch":"noop"}\r\n0\r\n\r\nGET /api/accounts/9999 HTTP/1.1\r\nHost: x\r\n\r\n',
+         content_type="text/plain",
+         notes="smuggled request line embedded in the body (CWE-444)"),
     # Staged signature — alarm only until 2026-12-31
     Case("open-redirect-staged", "waf-rule-openredirect-001", "GET",
          "/products?redirect=https://evil.example/phish",

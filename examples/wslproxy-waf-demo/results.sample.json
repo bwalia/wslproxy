@@ -255,6 +255,20 @@
       "secure_rule": "waf-rule-scanner-ua-001"
     },
     {
+      "name": "HTTP request smuggling",
+      "label": "CWE-444",
+      "cls": "smuggling",
+      "method": "POST",
+      "status": 200,
+      "blocked": false,
+      "exploited": true,
+      "waf_rule": "",
+      "secure_blocked": true,
+      "secure_exploited": false,
+      "secure_status": 403,
+      "secure_rule": "waf-rule-smuggling-001"
+    },
+    {
       "name": "BOLA / IDOR",
       "label": "API security",
       "cls": "bola",
@@ -270,8 +284,8 @@
     }
   ],
   "summary": {
-    "total": 19,
-    "exploited_open": 18,
-    "blocked_secure": 18
+    "total": 20,
+    "exploited_open": 19,
+    "blocked_secure": 19
   }
 }

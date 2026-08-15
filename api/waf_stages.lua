@@ -55,7 +55,67 @@ local function json_depth(v, cap, d)
     return maxd
 end
 
+local function smuggling_finding(detail)
+    return { stage = "smuggling", code = "VIOL_SMUGGLING", category = "protocol",
+             severity = "high", target = "headers", detail = detail }
+end
+
 -- ---- stages ----------------------------------------------------------------
+
+-- HTTP request-smuggling / desync guard (RFC 7230 §3.3.3, CWE-444).
+-- Request smuggling works by making a front-end proxy and a back-end server
+-- disagree on where one request ends and the next begins. The primitives are
+-- all header *ambiguity*: a Content-Length together with a Transfer-Encoding
+-- (CL.TE / TE.CL), duplicate Transfer-Encoding or Content-Length headers
+-- (TE.TE), or a Transfer-Encoding value obfuscated so one hop treats it as
+-- chunked and the other does not. A single-target signature cannot express a
+-- relationship *between* headers, so this is a first-class stage; it complements
+-- waf-rule-smuggling-001, which catches a smuggled request line embedded in the
+-- body. nginx's own strict parser rejects the crudest CL+TE frame before Lua
+-- runs, so this is defence-in-depth — most valuable at the inner edge of a
+-- two-proxy topology, where a forwarded Transfer-Encoding header can still
+-- reach this layer.
+--
+--   policy.smuggling = { enforce = true, allowChunked = true }
+--
+-- Presence of the block enables the stage; enforce:false disables it without
+-- removing the config. allowChunked:false additionally rejects a clean chunked
+-- upload for edges that never expect one.
+function _M.smuggling_check(policy, ctx)
+    local s = policy.smuggling
+    if not s or s.enforce == false then return nil end
+    local h = ctx.headers or {}
+    local te = h["transfer-encoding"]
+    local cl = h["content-length"]
+
+    -- Duplicate headers arrive from ngx.req.get_headers as an array value.
+    if type(te) == "table" then
+        return smuggling_finding("duplicate Transfer-Encoding header")
+    end
+    if type(cl) == "table" then
+        return smuggling_finding("duplicate Content-Length header")
+    end
+    -- Content-Length AND Transfer-Encoding together — the CL.TE/TE.CL primitive.
+    if te and te ~= "" and cl and cl ~= "" then
+        return smuggling_finding("Content-Length with Transfer-Encoding")
+    end
+    if te and te ~= "" then
+        local norm = te:lower():gsub("^%s+", ""):gsub("%s+$", "")
+        -- Anything that is not a clean "chunked" is obfuscation: "xchunked",
+        -- "chunked, identity", a leading tab/space, a trailing comma, etc.
+        if norm ~= "chunked" then
+            return smuggling_finding("obfuscated Transfer-Encoding: " .. te)
+        end
+        if s.allowChunked == false then
+            return smuggling_finding("Transfer-Encoding: chunked not permitted on this edge")
+        end
+    end
+    -- Multi-valued or non-numeric Content-Length (e.g. "5, 6", " 5 x").
+    if cl and cl ~= "" and not cl:match("^%s*%d+%s*$") then
+        return smuggling_finding("malformed Content-Length: " .. cl)
+    end
+    return nil
+end
 
 -- Method allow-list: any method not in policy.methods.allow is rejected.
 function _M.method_check(policy, ctx)
@@ -284,6 +344,7 @@ end
 _M.PIPELINE = {
     { name = "method", fn = _M.method_check },
     { name = "filetype", fn = _M.filetype_check },
+    { name = "smuggling", fn = _M.smuggling_check },
     { name = "ip_geo", fn = _M.ip_geo_check },
     { name = "jwt", fn = _M.jwt_check },
     { name = "json", fn = _M.json_profile_check },

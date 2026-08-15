@@ -180,16 +180,16 @@
     <div class="eyebrow"><span class="dot"></span> wslproxy WAF · edge security · payments API</div>
     <h1>Same origin, two doors:<br><span class="g">exposed</span> vs <span class="b">protected</span></h1>
     <p class="lede">A deliberately vulnerable payments API sits behind two wslproxy hostnames — one
-      with the WAF off, one with it on in block mode. We fired <b>19 modern attacks</b> at both.
-      Without the WAF, <b>18 exploited the origin</b>. With it, <b>the same 18 were blocked</b> at the edge —
+      with the WAF off, one with it on in block mode. We fired <b>20 modern attacks</b> at both.
+      Without the WAF, <b>19 exploited the origin</b>. With it, <b>the same 19 were blocked</b> at the edge —
       OWASP Top 10 <b>and</b> the API-era classes a signature WAF is really judged on.</p>
   </header>
 
   <section class="reveal" style="animation-delay:.05s">
     <div class="tiles">
-      <div class="tile base"><span class="stripe"></span><div class="n">19</div><div class="l">attacks fired at each host</div></div>
-      <div class="tile danger"><span class="stripe"></span><div class="n">18<span class="u">/19</span></div><div class="l">exploited the origin — <b style="color:var(--danger)">no WAF</b></div></div>
-      <div class="tile safe"><span class="stripe"></span><div class="n">18<span class="u">/19</span></div><div class="l">blocked at the edge — <b style="color:var(--safe)">wslproxy WAF</b></div></div>
+      <div class="tile base"><span class="stripe"></span><div class="n">20</div><div class="l">attacks fired at each host</div></div>
+      <div class="tile danger"><span class="stripe"></span><div class="n">19<span class="u">/20</span></div><div class="l">exploited the origin — <b style="color:var(--danger)">no WAF</b></div></div>
+      <div class="tile safe"><span class="stripe"></span><div class="n">19<span class="u">/20</span></div><div class="l">blocked at the edge — <b style="color:var(--safe)">wslproxy WAF</b></div></div>
       <div class="tile warn"><span class="stripe"></span><div class="n">1</div><div class="l">honest gap: BOLA needs authz, not signatures</div></div>
     </div>
   </section>
@@ -205,12 +205,13 @@
       <span class="c"><span class="k">API</span> <b>NoSQLi</b> · <b>XXE</b> · <b>GraphQL</b></span>
       <span class="c"><span class="k">API</span> <b>JWT alg:none</b> · <b>proto pollution</b></span>
       <span class="c"><span class="k">API</span> <b>Mass assignment</b></span>
+      <span class="c"><span class="k">DESYNC</span> <b>HTTP request smuggling</b> CWE-444</span>
       <span class="c"><span class="k">BOT</span> <b>Scanner recon</b></span>
     </div>
   </section>
 
   <section class="reveal" style="animation-delay:.12s">
-    <p class="kicker">The before / after matrix — 36-rule policy, block mode</p>
+    <p class="kicker">The before / after matrix — 37-rule policy, block mode</p>
     <div class="panel"><div class="scroll">
       <table>
         <thead><tr>
@@ -262,7 +263,7 @@ before reaching the application.
   </section>
 
   <section class="reveal" style="animation-delay:.15s">
-    <p class="kicker">Beyond signatures — v2 enforcement stages · 15/15 golden tests pass</p>
+    <p class="kicker">Beyond signatures — v2 enforcement stages · 16/16 golden tests pass</p>
     <div class="caps" id="caps"></div>
     <div class="note" style="background:var(--accent-soft);border-color:color-mix(in srgb,var(--accent) 30%,transparent)">
       <span class="ic" style="color:var(--accent)">✦</span>
@@ -312,7 +313,8 @@ before reaching the application.
       <a class="off" href="https://payments-open.fictionally.org/" target="_blank" rel="noopener"><span class="s"></span>payments-open · no WAF</a>
       <a class="on" href="https://payments-secure.fictionally.org/" target="_blank" rel="noopener"><span class="s"></span>payments-secure · WAF</a>
     </div>
-    <div class="fine">wslproxy WAF · 36 rules · block mode · fail-open</div>
+    <div class="fine">wslproxy WAF · 37 rules · block mode · fail-open ·
+      <a href="waf-rules.html" style="color:var(--accent-ink,#8aa0ff)">browse the full rule library →</a></div>
   </footer>
 </div>
 
@@ -336,6 +338,7 @@ before reaching the application.
     ["JWT alg:none forgery","API","","jwt","high","exploit","block","waf-rule-jwt-none-001"],
     ["Mass assignment (privilege)","API","","mass-assignment","high","exploit","block","waf-rule-massassign-001"],
     ["Scanner recon (sqlmap UA)","BOT","","scanner","medium","exploit","block","waf-rule-scanner-ua-001"],
+    ["HTTP request smuggling","CWE","444","smuggling","critical","exploit","block","waf-rule-smuggling-001"],
     ["BOLA / IDOR","API","","bola","high","exploit","gap",""],
   ];
   const openCell = (v) => v === "exploit"
@@ -346,6 +349,7 @@ before reaching the application.
     : '<span class="badge gap">△ not blocked</span><span class="rule">needs object-level authz</span>';
   const clsLabel = (grp, ref) => {
     if (grp === "CVE") return `<span class="cls"><span class="cve">CVE-${ref}</span></span>`;
+    if (grp === "CWE") return `<span class="cls"><span class="cve">CWE-${ref}</span></span>`;
     if (grp === "OWASP") return `<span class="cls">OWASP ${ref}</span>`;
     return `<span class="cls">${grp}</span>`;
   };
@@ -368,6 +372,7 @@ before reaching the application.
     ["Set & per-ID governance", "Toggle a whole set or disable one signature.", "signatureSets", "policy-as-code"],
     ["Binding precedence", "route &gt; server &gt; domain — most specific wins.", "routeOverrides[]", "per-route mode"],
     ["OpenAPI positive security", "Allow only declared path+method pairs under /api.", "openapi.paths", "VIOL_OPENAPI_PATH/METHOD"],
+    ["HTTP request smuggling", "Reject CL+TE / obfuscated Transfer-Encoding header desync.", "smuggling", "VIOL_SMUGGLING"],
   ];
   document.getElementById("caps").innerHTML = caps.map(([n,d,f,v]) => `
     <div class="cap">

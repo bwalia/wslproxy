@@ -78,6 +78,10 @@ NEW_RULES = [
      r"(?i)\"(?:role|isadmin|is_admin|admin|grant|privilege|is_superuser)\"\s*:\s*\"?(?:admin|true|root|superuser|1)\"?",
      "block", 7, ["api-security", "mass-assignment", "beyond-owasp"],
      "Detects mass-assignment payloads that set privileged fields (role, isAdmin, grant) in a request body — fields a client must never control on this API."),
+    ("waf-rule-smuggling-001", "HTTP Request Smuggling - Desync / Embedded Request (CWE-444)", "smuggling", "critical", "all",
+     r"(?i)(?:(?:\r\n|\n|\r|^)[\t ]*(?:GET|POST|PUT|DELETE|HEAD|OPTIONS|PATCH|CONNECT|TRACE)[\t ]+\S+[\t ]+HTTP/\d(?:\.\d)?|transfer-encoding[\t ]*:[\t ]*(?:x?chunked\b|[^\r\n:,]*[\t ]chunked\b|chunked[^\r\n]*,))",
+     "block", 9, ["owasp", "http-request-smuggling", "desync", "cwe-444", "beyond-owasp"],
+     "Detects HTTP request-smuggling artefacts: a second HTTP request line pipelined inside the body (the CL.TE/TE.CL desync payload) or an obfuscated Transfer-Encoding token. Pairs with the first-class `smuggling` stage, which rejects Content-Length/Transfer-Encoding header ambiguity that a single-target signature cannot express."),
 ]
 
 POLICY_ID = "waf-policy-payments-hard"
@@ -127,7 +131,7 @@ def main():
         "name": "Payments API — Hardened (modern + API)",
         "description": "F5-competitive WAF policy: OWASP Top 10 plus SSTI, Log4Shell, Spring4Shell, "
                        "SSRF, NoSQLi, XXE, JWT alg:none, prototype pollution, GraphQL introspection, "
-                       "open redirect and scanner detection. Block mode.",
+                       "open redirect, HTTP request smuggling and scanner detection. Block mode.",
         "profile_id": "prod", "enabled": True,
         # v2: enforcementMode is the F5-style alias; `mode` kept for back-compat.
         "schema_version": 2, "enforcementMode": "blocking", "mode": "block",
@@ -157,6 +161,14 @@ def main():
         "geo": {"denyCountries": ["KP"]},
         "ipLists": {"allow": ["127.0.0.1"], "deny": []},
 
+        # --- v2: HTTP request-smuggling / desync guard --------------------
+        # First-class header-relationship check (CL+TE, duplicate/obfuscated
+        # Transfer-Encoding, malformed Content-Length) → VIOL_SMUGGLING. Pairs
+        # with waf-rule-smuggling-001, which catches a request line smuggled in
+        # the body. enforce toggles it; allowChunked keeps legitimate chunked
+        # uploads working.
+        "smuggling": {"enforce": True, "allowChunked": True},
+
         # --- v2: API controls ---------------------------------------------
         "jwt": {"header": "Authorization", "denyAlg": ["none", "HS256"],
                 "requireAlg": ["RS256", "ES256"], "verifySignature": False},
@@ -177,6 +189,7 @@ def main():
                 {"path": "/api/import", "methods": ["POST"]},
                 {"path": "/api/merge", "methods": ["POST"]},
                 {"path": "/api/redirect", "methods": ["GET"]},
+                {"path": "/api/batch", "methods": ["POST"]},
             ],
         },
 

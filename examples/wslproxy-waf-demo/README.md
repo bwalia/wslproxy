@@ -4,14 +4,15 @@ A self-contained demonstration that puts a deliberately-vulnerable **payments AP
 behind the wslproxy WAF and shows, side by side, what a WAF stops. It covers the
 OWASP Top 10 **and** modern classes an API-era WAF must handle — SSTI, Log4Shell,
 Spring4Shell, SSRF, NoSQL injection, XXE, JWT `alg:none`, prototype pollution,
-GraphQL introspection, mass assignment and scanner recon.
+GraphQL introspection, mass assignment, HTTP request smuggling (CWE-444) and
+scanner recon.
 
 ```
                          ┌─────────────────────────── same origin ───────────────────────────┐
  payments-open.…    ───► wslproxy (lon1 edge)  ──►  Acme Pay (k3s1, cloud001, NodePort 30084)
    (WAF OFF)              proxy only
  payments-secure.… ───► wslproxy (lon1 edge)  ──►  Acme Pay
-   (WAF ON, block)        WAF: waf-policy-payments-hard (36 rules, block mode)
+   (WAF ON, block)        WAF: waf-policy-payments-hard (37 rules, block mode)
 ```
 
 Both hostnames point at the **same** vulnerable origin. The only difference is
@@ -24,11 +25,11 @@ whether the wslproxy WAF is bound — so every "before/after" pair is apples-to-
 | https://payments-open.fictionally.org   | off            | BEFORE — origin fully exposed |
 | https://payments-secure.fictionally.org | on, block mode | AFTER — wslproxy WAF in front  |
 
-## Result (19 attacks)
+## Result (20 attacks)
 
 ```
-OPEN   (no WAF):        18/19 attacks exploit the origin
-SECURE (wslproxy WAF):  18/19 of those blocked (403 + X-WAF-Rule)
+OPEN   (no WAF):        19/20 attacks exploit the origin
+SECURE (wslproxy WAF):  19/20 of those blocked (403 + X-WAF-Rule)
 ```
 
 The single attack the WAF does **not** block is **BOLA / IDOR**
@@ -37,6 +38,32 @@ authorization is a business-logic flaw with no malicious signature in the
 request — no signature WAF (F5 included) blocks it by payload inspection. The
 mitigation is app-side authz or a positive-security/allow-list model, not a
 signature. Showing this gap is the point: a WAF is necessary, not sufficient.
+
+### Honest scope of the request-smuggling defence
+
+Classic **CL.TE / TE.CL** smuggling is a *wire-framing* attack: it depends on how
+raw bytes are split between the front-end and back-end, so the malicious frame is
+constructed at the TCP layer, and a modern OpenResty/nginx front-end rejects the
+crudest ambiguity (Content-Length *and* Transfer-Encoding together) with a `400`
+before any Lua runs. So the WAF is not the *only* line of defence here, and the
+demo does not pretend a Python HTTP client can put a true byte-level desync on the
+wire. What the WAF layer adds — and what this demo actually exercises — is two
+real controls:
+
+1. **Signature (`waf-rule-smuggling-001`, `target: all`)** catches the visible
+   artefact of a smuggling payload: a *second* HTTP request line pipelined inside
+   a request body (the `0⏎⏎GET /admin HTTP/1.1…` that Examples 1–3 of the PortSwigger/
+   OWASP write-ups embed). A normal client can send this as a plain body, so it is
+   what the live matrix fires — `POST /api/batch` with a smuggled `GET
+   /api/accounts/9999`. WAF off → the origin desyncs and leaks the treasury
+   account; WAF on → `403` + `X-WAF-Rule: waf-rule-smuggling-001`.
+2. **Stage (`smuggling`, `VIOL_SMUGGLING`)** is a first-class header-relationship
+   check — `Content-Length`+`Transfer-Encoding`, duplicate/obfuscated
+   `Transfer-Encoding`, malformed `Content-Length`. It is belt-and-suspenders at
+   the outer edge (nginx pre-empts the worst) but genuinely load-bearing at the
+   **inner** edge of the two-proxy topology (§10 of the top-level `CLAUDE.md`),
+   where an upstream proxy can forward a `Transfer-Encoding` header that only this
+   layer sees.
 
 See `results.sample.json` for the full machine-readable matrix (per-attack rule
 attribution), and the published dashboard for the visual before/after.
@@ -48,12 +75,13 @@ attribution), and the published dashboard for the visual before/after.
 | `app/app.py` | Acme Pay — the vulnerable payments API (Python stdlib, no deps). Each handler genuinely *processes* the payload — safely simulated in-process (no real shell/egress/secrets) — so "before" shows real impact. |
 | `k3s1-payments-api.yaml` | Namespace + Deployment (pinned to **cloud001**, the lon1 edge node) + NodePort 30084. App source is carried in a ConfigMap on a stock `python:3.12-alpine` image — no image build/registry push. |
 | `gen_waf_rules.py` | Generates the 16 modern/API `waf_rules` + the hardened `waf-policy-payments-hard` policy. Patterns are authored as Python strings so JSON escaping is correct. |
-| `data/waf_rules/prod/*.json` | The new rule set (SSTI, Log4Shell ×2, Spring4Shell, SSRF ×2, NoSQLi, XXE, JWT-none, prototype pollution, GraphQL, open-redirect, scanner-UA, encoded-traversal, cmdi, mass-assignment). |
-| `data/waf_policies/prod/waf-policy-payments-hard.json` | Block-mode policy referencing the 20 base OWASP rules + these 16 = 36 rules, anomaly threshold 6, branded 403 block page. |
+| `data/waf_rules/prod/*.json` | The new rule set (SSTI, Log4Shell ×2, Spring4Shell, SSRF ×2, NoSQLi, XXE, JWT-none, prototype pollution, GraphQL, open-redirect, scanner-UA, encoded-traversal, cmdi, mass-assignment, **HTTP request smuggling**). |
+| `data/waf_policies/prod/waf-policy-payments-hard.json` | Block-mode policy referencing the 20 base OWASP rules + these 17 = 37 rules, anomaly threshold 6, branded 403 block page. Also carries the `smuggling` stage config. |
 | `data/rules/prod/payments-demo-default.json` | wslproxy routing rule (305 proxy → `127.0.0.1:30084`). |
 | `data/servers/prod/host:payments-{open,secure}.fictionally.org.json` | The two vhosts — identical except `waf_enabled` / `waf_policy_id` / `waf_mode_override`. |
-| `attack_suite.py` | Fires the 19 attacks at both hosts and prints the before/after matrix (`--json` for machine output). |
+| `attack_suite.py` | Fires the 20 attacks at both hosts and prints the before/after matrix (`--json` for machine output). |
 | `test_waf_live.py` | CI-oriented live matrix — **every** payments-hard signature + v2 stage. Asserts secure blocks / open does not. Used by `.github/workflows/waf-validate.yml` on main + `workflow_dispatch`. |
+| `gen_waf_landing.py` → `waf-rules.html` | **WAF rule-library landing page** — a searchable/filterable catalogue of all 50 rules (37 signatures + 13 enforcement stages), each expandable to what it detects, how the attack works, an example payload, the detection pattern/stage, mitigation and references. Opens on an HTTP request-smuggling explainer. Generated from the shipped rule JSON so it can't drift; edit the generator, not the HTML. |
 
 ## How it was deployed
 
@@ -120,6 +148,7 @@ policy JSON Schema: [`docs/waf-policy.schema.json`](../../docs/waf-policy.schema
 | JSON body profile | `jsonProfile.maxDepth`/`maxBytes` | deep or oversized JSON → 403 | `VIOL_JSON_DEPTH` / `VIOL_JSON_SIZE` |
 | Brute-force velocity | `bruteForce[]` | 6th `POST /api/login` in 60s → 403 | `VIOL_BRUTE_FORCE` |
 | IP / geo lists | `ipLists`, `geo.denyCountries` | allow-list bypass; country deny | `VIOL_IP_DENY` / `VIOL_GEO` |
+| HTTP request smuggling | `smuggling` (stage) + `waf-rule-smuggling-001` (signature) | body-embedded `GET /admin HTTP/1.1` → 403; `Content-Length`+`Transfer-Encoding` / obfuscated TE header → 403 | `VIOL_SMUGGLING` / signature |
 | Signature staging | `signatures.stage[]` | open-redirect rule alarms (302), never blocks, until its date | — |
 | Set / per-ID governance | `signatureSets`, `signatures.disable` | toggle a whole set to alarm-only, or disable one ID | — |
 | Binding precedence | `routeOverrides[]` | `/preview` runs transparent while the domain blocks (route > server > domain) | — |
@@ -131,7 +160,7 @@ Every one of these is proved by a golden test:
 ```bash
 python3 examples/wslproxy-waf-demo/waf_features.py \
   --host https://payments-secure.fictionally.org
-# → 12/12 golden tests passed
+# → 16/16 golden tests passed
 ```
 
 ### The engine bug this depended on
