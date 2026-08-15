@@ -9,7 +9,11 @@ LDFLAGS := -s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.dat
 IMAGE ?= ghcr.io/bwalia/wslproxy-cli
 DOCKERFILE := cmd/wslproxy-cli/Dockerfile
 
-.PHONY: build test vet tidy cli install clean docker docker-push
+.PHONY: build test test-lua vet tidy cli install clean docker docker-push
+
+# Lua contract tests run on plain Lua; override for luajit or OpenResty's resty:
+#   make test-lua LUA=/usr/local/openresty/luajit/bin/luajit
+LUA ?= lua
 
 build cli:
 	mkdir -p bin
@@ -20,6 +24,12 @@ install: build
 
 test:
 	go test ./internal/...
+
+test-lua:
+	@for f in test/storage/*.lua test/rules/*.lua; do \
+		printf '%s: ' "$$f"; \
+		$(LUA) "$$f" || exit 1; \
+	done
 
 vet:
 	go vet ./cmd/wslproxy-cli/... ./internal/...
