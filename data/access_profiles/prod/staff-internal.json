@@ -1,0 +1,25 @@
+{
+  "name": "staff-internal",
+
+  "allow_cidrs": "10.8.1.0/24",
+
+  "endpoints": [
+    {
+      "path": "/admin",
+      "path_key": "starts_with"
+    },
+    {
+      "path": "/api/internal",
+      "path_key": "starts_with"
+    },
+    {
+      "path": "/metrics",
+      "path_key": "equals"
+    },
+    {
+      "path": "/admin/billing",
+      "path_key": "starts_with",
+      "allow_cidrs": "10.8.1.16/28"
+    }
+  ]
+}

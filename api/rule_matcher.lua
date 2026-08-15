@@ -6,6 +6,7 @@ local M = {}
 
 local Helper = require("helpers")
 local RuleAuth = require("rule_auth")
+local IpCidr = require("ip_cidr")
 
 -- ─── String helpers (match existing gateway_ack.lua behavior) ───────────────
 
@@ -109,6 +110,17 @@ local function match_client_ip(rules, hostname, settings)
         return { pass = req_addr:startswith(client_ip) }
     elseif client_ip_key == "equals" then
         return { pass = (req_addr == client_ip) }
+    elseif client_ip_key == "cidr" then
+        -- Subnet match against one CIDR or a comma-separated list, e.g.
+        -- "10.8.1.0/24". This is what VPN-only rules use: string prefix
+        -- matching cannot express a subnet ("10.8.1." also matches
+        -- 10.8.10.0/24), and it is an access decision, so it needs to be
+        -- exact. See docs/VPN_ACCESS.md.
+        --
+        -- Note this reads ngx.var.remote_addr. Behind a reverse proxy that is
+        -- the proxy's address until real_ip is configured to recover the
+        -- client's — data/real_ip/README.md covers the setup.
+        return { pass = IpCidr.contains_any(client_ip, req_addr) }
     end
 
     return { pass = false }

@@ -81,6 +81,13 @@ http {
     # Include dynamic upstream configurations
     include /opt/nginx/data/upstreams/*/upstreams.conf;
 
+    # Trusted reverse-proxy hops, per deployment. Empty by default: with no
+    # file here, remote_addr stays the directly-connected peer, so a rule that
+    # allowlists an IP range fails closed behind an untrusted proxy rather than
+    # trusting a forwarded header. Required for VPN-only rules when anything
+    # sits in front of WSLProxy — see data/real_ip/README.md.
+    include /opt/nginx/data/real_ip/*.conf;
+
    # Storage for challenge token and cert cache
 
     lua_shared_dict auto_ssl 100m;
