@@ -16,7 +16,7 @@ Covers OWASP Top 10 AND modern / API-specific classes:
   ssrf: cloud-metadata credential theft
   api:  NoSQL injection auth bypass, BOLA/IDOR, mass assignment,
         JWT alg:none forgery, XXE, GraphQL introspection, prototype pollution,
-        open redirect
+        open redirect, HTTP request smuggling (CWE-444 desync)
 """
 import base64
 import html
@@ -82,6 +82,7 @@ LANDING = page(f"""
 <li>GraphQL introspection — <code>POST /graphql</code></li>
 <li>Prototype pollution — <code>POST /api/merge</code> {{"__proto__":{{"admin":true}}}}</li>
 <li>Open redirect — <code>/api/redirect?to=https://evil.example</code></li>
+<li>HTTP request smuggling — <code>POST /api/batch</code> with a pipelined <code>GET /admin HTTP/1.1</code></li>
 </ul>
 """)
 
@@ -296,6 +297,31 @@ def h_api_redirect(to):
     return 302, to, None  # open redirect: unvalidated Location
 
 
+_SMUGGLE = re.compile(
+    r"(?:\r?\n|^)\s*(GET|POST|PUT|DELETE|HEAD|OPTIONS|PATCH|CONNECT|TRACE)\s+(\S+)\s+HTTP/\d",
+    re.I,
+)
+
+
+def h_api_batch(body):
+    # HTTP request smuggling (CWE-444): a naive "batch" endpoint that treats
+    # trailing pipelined bytes as a second request and processes it with no auth.
+    # This simulates a front-end/back-end desync in-process — the back-end runs
+    # the smuggled request line as if it were a fresh, trusted request.
+    m = _SMUGGLE.search(body or "")
+    if m:
+        method, target = m.group(1).upper(), m.group(2)
+        acc = ACCOUNTS.get(target.rsplit("/", 1)[-1])
+        return js({
+            "batch": "accepted", "smuggled": True, "desync": True,
+            "smuggled_request": f"{method} {target}",
+            "note": "trailing pipelined request processed as a second, "
+                    "unauthenticated request — front/back-end desync",
+            "leaked": acc or {"admin_panel": "/admin reached via desync, no auth"},
+        })
+    return js({"batch": "accepted", "items": 0})
+
+
 # ------------------------------------------------------------------- router
 class H(BaseHTTPRequestHandler):
     server_version = "AcmePay/1.0"
@@ -346,6 +372,7 @@ class H(BaseHTTPRequestHandler):
         if p == "/api/import":  return self._send(*h_api_import(b))
         if p == "/graphql":     return self._send(*h_graphql(b))
         if p == "/api/merge":   return self._send(*h_api_merge(b))
+        if p == "/api/batch":   return self._send(*h_api_batch(b))
         return self._send(*js({"error": "not found"}, 404))
 
     def log_message(self, *a):

@@ -1,7 +1,7 @@
 {
   "id": "waf-policy-payments-hard",
   "name": "Payments API \u2014 Hardened (modern + API)",
-  "description": "F5-competitive WAF policy: OWASP Top 10 plus SSTI, Log4Shell, Spring4Shell, SSRF, NoSQLi, XXE, JWT alg:none, prototype pollution, GraphQL introspection, open redirect and scanner detection. Block mode.",
+  "description": "F5-competitive WAF policy: OWASP Top 10 plus SSTI, Log4Shell, Spring4Shell, SSRF, NoSQLi, XXE, JWT alg:none, prototype pollution, GraphQL introspection, open redirect, HTTP request smuggling and scanner detection. Block mode.",
   "profile_id": "prod",
   "enabled": true,
   "schema_version": 2,
@@ -44,7 +44,8 @@
     "waf-rule-scanner-ua-001",
     "waf-rule-lfi-003",
     "waf-rule-cmdi-json-001",
-    "waf-rule-massassign-001"
+    "waf-rule-massassign-001",
+    "waf-rule-smuggling-001"
   ],
   "paranoia_level": 2,
   "anomaly_threshold": 6,
@@ -116,6 +117,10 @@
     ],
     "deny": []
   },
+  "smuggling": {
+    "enforce": true,
+    "allowChunked": true
+  },
   "jwt": {
     "header": "Authorization",
     "denyAlg": [
@@ -186,6 +191,12 @@
         "path": "/api/redirect",
         "methods": [
           "GET"
+        ]
+      },
+      {
+        "path": "/api/batch",
+        "methods": [
+          "POST"
         ]
       }
     ]

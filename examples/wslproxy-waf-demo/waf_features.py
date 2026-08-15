@@ -100,6 +100,10 @@ def main():
          lambda: req(H, "POST", "/api/accounts/1001", '{"x":1}', ctype="application/json")),
         ("OpenAPI: declared endpoint passes", ("code", 200),
          lambda: req(H, "GET", "/api/accounts/1001")),
+        ("Request smuggling (body-embedded request line)", ("block", "VIOL_ATTACK_SIGNATURE"),
+         lambda: req(H, "POST", "/api/batch",
+                     '{"batch":"noop"}\r\n0\r\n\r\nGET /api/accounts/9999 HTTP/1.1\r\nHost: x\r\n\r\n',
+                     ctype="text/plain")),
         ("Legit request passes", ("code", 200),
          lambda: req(H, "GET", "/products?cat=deposit")),
     ]

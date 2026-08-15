@@ -71,6 +71,10 @@ ATTACKS = [
      "/api/profile", '{"user":"me","role":"admin"}', "\"escalated\": true"),
     ("Scanner recon (sqlmap UA)", "Bot defense", "scanner", "GET",
      "/products?cat=deposit", None, "sqlmap-signature"),  # detection via UA, see below
+    ("HTTP request smuggling", "CWE-444", "smuggling", "POST",
+     "/api/batch",
+     '{"batch":"noop"}\r\n0\r\n\r\nGET /api/accounts/9999 HTTP/1.1\r\nHost: acme\r\n\r\n',
+     "\"smuggled\": true"),
     ("BOLA / IDOR", "API security", "bola", "GET",
      "/api/accounts/9999", None, "71230411"),
 ]

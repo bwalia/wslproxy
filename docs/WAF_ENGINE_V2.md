@@ -50,11 +50,12 @@ rewrite_by_lua  gateway_ack.lua      select route rule
                   ┌── STAGE PIPELINE (waf_stages.PIPELINE) ──────────────┐
                   │  1 method allow-list      VIOL_METHOD                │
                   │  2 filetype deny          VIOL_FILETYPE              │
-                  │  3 ip lists → geo         VIOL_IP_DENY / VIOL_GEO    │
-                  │  4 jwt alg policy         VIOL_JWT_ALG               │
-                  │  5 json body profile      VIOL_JSON_SIZE/DEPTH       │
-                  │  6 brute-force velocity   VIOL_BRUTE_FORCE           │
-                  │  7 openapi positive-sec   VIOL_OPENAPI_PATH/METHOD   │
+                  │  3 smuggling / desync     VIOL_SMUGGLING             │
+                  │  4 ip lists → geo         VIOL_IP_DENY / VIOL_GEO    │
+                  │  5 jwt alg policy         VIOL_JWT_ALG               │
+                  │  6 json body profile      VIOL_JSON_SIZE/DEPTH       │
+                  │  7 brute-force velocity   VIOL_BRUTE_FORCE           │
+                  │  8 openapi positive-sec   VIOL_OPENAPI_PATH/METHOD   │
                   └──────────────────────────────────────────────────────┘
                   ┌── SIGNATURE MATCHING (governed) ─────────────────────┐
                   │  per rule: disabled? set-disabled? staged?           │
@@ -98,6 +99,7 @@ the same rule set behaves differently per binding without duplication.
 
   "methods":   { "allow": ["GET","POST","HEAD","OPTIONS"] },
   "filetypes": { "deny": [".env",".sql",".bak",".git",".pem"] },
+  "smuggling": { "enforce": true, "allowChunked": true },   // CL/TE desync guard → VIOL_SMUGGLING
   "geo":       { "denyCountries": ["KP"], "db": "/tmp/IP2LOCATION-LITE-DB11.IPV6.BIN" },
   "ipLists":   { "allow": ["10.0.0.0/8"], "deny": ["5.6.7.0/24"] },
   "jwt":       { "header": "Authorization", "denyAlg": ["none","HS256"], "requireAlg": ["RS256","ES256"] },
@@ -202,6 +204,7 @@ anomaly score**, so staging can never cause a block indirectly. A rule's set is
 |---|---|
 | `VIOL_METHOD` | method allow-list |
 | `VIOL_FILETYPE` | filetype deny |
+| `VIOL_SMUGGLING` | HTTP request-smuggling / desync guard (CL+TE, obfuscated/duplicate Transfer-Encoding, malformed Content-Length) |
 | `VIOL_IP_DENY` / `VIOL_GEO` | ip lists / geo |
 | `VIOL_JWT_ALG` | jwt algorithm policy |
 | `VIOL_JSON_SIZE` / `VIOL_JSON_DEPTH` | json body profile |
@@ -218,9 +221,11 @@ anomaly score**, so staging can never cause a block indirectly. A rule's set is
 Policy bind per domain + per route · signature sets / per-ID enable-disable-stage ·
 method & filetype allow/deny · IP allow-deny + geo country deny · JWT alg policy ·
 JSON body depth/size profile · brute-force velocity · **OpenAPI positive security**
-(declared path+method allow-list, path templating) · structured security log +
+(declared path+method allow-list, path templating) · **HTTP request-smuggling /
+desync guard** (`smuggling` stage → `VIOL_SMUGGLING`, plus `waf-rule-smuggling-001`
+for body-embedded request lines) · structured security log +
 support IDs · Prometheus metrics · block page with support ID · golden tests
-(`examples/wslproxy-waf-demo/waf_features.py`, 15/15) proving per-binding actions ·
+(`examples/wslproxy-waf-demo/waf_features.py`, 16/16) proving per-binding actions ·
 **CI validation** (`tools/waf_validate.py` + `.github/workflows/waf-validate.yml`:
 Lua syntax + JSON-Schema policy validation + signature referential integrity) ·
 **admin UI** (react-admin WafPolicies/WafRules forms cover every v2 field).

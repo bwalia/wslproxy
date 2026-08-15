@@ -457,13 +457,21 @@ local function validateWafRulePayload(payloads)
     if not payloads.category or payloads.category == "" then
         table.insert(errors, { field = "category", message = "WAF rule category is required" })
     else
-        local valid_categories = { sqli = true, xss = true, cmdi = true, lfi = true, rfi = true, protocol = true, custom = true }
+        local valid_categories = {
+            sqli = true, xss = true, cmdi = true, lfi = true, rfi = true, protocol = true, custom = true,
+            -- Modern / API-era categories shipped by the extended rule library.
+            ssti = true, ssrf = true, nosqli = true, rce = true, xxe = true, jwt = true,
+            graphql = true, redirect = true, scanner = true, ["proto-pollution"] = true,
+            ["mass-assignment"] = true, smuggling = true,
+        }
         if not valid_categories[payloads.category] then
             table.insert(errors,
                 {
                     field = "category",
                     message =
-                    "Invalid category. Must be one of: sqli, xss, cmdi, lfi, rfi, protocol, custom"
+                    "Invalid category. Must be one of: sqli, xss, cmdi, lfi, rfi, protocol, custom, " ..
+                    "ssti, ssrf, nosqli, rce, xxe, jwt, graphql, redirect, scanner, proto-pollution, " ..
+                    "mass-assignment, smuggling"
                 })
         end
     end
@@ -471,7 +479,10 @@ local function validateWafRulePayload(payloads)
     if not payloads.pattern or payloads.pattern == "" then
         table.insert(errors, { field = "pattern", message = "WAF rule pattern is required" })
     elseif payloads.pattern_type ~= "string" then
-        local ok, compile_err = pcall(ngx.re.compile, payloads.pattern, "ijo")
+        -- OpenResty has no ngx.re.compile; test-compile by matching the pattern
+        -- against an empty subject (the "o" flag caches the compiled regex per
+        -- worker, exactly as the engine does at request time).
+        local ok, compile_err = pcall(ngx.re.find, "", payloads.pattern, "jo")
         if not ok then
             table.insert(errors, { field = "pattern", message = "Invalid regex pattern: " .. tostring(compile_err) })
         end
