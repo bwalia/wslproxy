@@ -119,6 +119,36 @@ assert_true(broad_allow ~= nil and narrow_deny ~= nil, "found both rules")
 assert_true(narrow_deny.priority > broad_allow.priority,
     "narrower deny outranks broader allow")
 
+-- ─── the ordering documented in docs/VPN_ACCESS.md ──────────────────────────
+
+-- The generated-rule listing in the docs is only useful if it matches reality.
+-- This mirrors the example profile in data/access_profiles/prod/staff-internal.json.
+local documented = AP.expand(AP.normalise(profile({
+    { path = "/admin" },
+    { path = "/api/internal" },
+    { path = "/metrics", path_key = "equals" },
+    { path = "/admin/billing", allow_cidrs = "10.8.1.16/28" },
+})), SERVER)
+
+assert_eq(#documented, 8, "four endpoints expand to eight rules")
+
+-- Ranked least specific first, so rank 1 is the broadest path. `equals` outranks
+-- every `starts_with` regardless of length, matching rule_matcher's scoring.
+local order = {}
+for i = 1, #documented, 2 do
+    table.insert(order, documented[i].rule_data.match.rules.path)
+end
+assert_eq(order[1], "/admin", "rank 1 is the least specific path")
+assert_eq(order[2], "/api/internal", "rank 2")
+assert_eq(order[3], "/admin/billing", "rank 3 is longer than /api/internal")
+assert_eq(order[4], "/metrics", "equals ranks above every starts_with")
+
+assert_eq(documented[1].rule_data.priority, 1000, "first deny sits at the priority base")
+assert_eq(documented[2].rule_data.priority, 1001, "its allow sits one above")
+assert_eq(documented[5].rule_data.priority, 1004, "narrower /admin/billing deny")
+assert_true(documented[5].rule_data.priority > documented[2].rule_data.priority,
+    "narrower deny outranks broader allow — the whole point of the ordering")
+
 -- ─── selection: end to end ──────────────────────────────────────────────────
 
 package.preload["helpers"] = function() return { isEU = function() return false end } end
