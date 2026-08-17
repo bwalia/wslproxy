@@ -30,12 +30,28 @@ export default async function SettingsPanels() {
     );
   }
 
+  const pg = settings?.pgsql as
+    | {
+        pg_host?: string;
+        pg_port?: number | string;
+        pg_database?: string;
+        host?: string;
+        port?: number | string;
+        database?: string;
+      }
+    | undefined;
   const entries: [string, string][] = [
     ["Instance ID", settings?.instance_id ?? "-"],
     ["Instance Name", settings?.instance_name ?? "-"],
     ["Storage Type", settings?.storage_type ?? "-"],
     ["Environment Profile", settings?.env_profile ?? "-"],
   ];
+  if (settings?.storage_type === "pgsql" && pg) {
+    entries.push([
+      "PostgreSQL destination",
+      `${pg.pg_host ?? pg.host ?? "-"}:${pg.pg_port ?? pg.port ?? "-"}/${pg.pg_database ?? pg.database ?? "-"}`,
+    ]);
+  }
 
   const envVars = settings?.env_vars
     ? Object.entries(settings.env_vars as Record<string, unknown>)

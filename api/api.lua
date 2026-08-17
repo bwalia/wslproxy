@@ -941,39 +941,108 @@ local function userMe()
     ngx.exit(ngx.HTTP_OK)
 end
 
-local function setStorage(body)
-    local storageType = ""
-    if settings then
-        if type(body) == "table" then
-            local keyset = {}
-            local n = 0
-            for k, v in pairs(body) do
-                n = n + 1
-                if type(v) == "string" then
-                    table.insert(keyset, cjson.decode(k .. v))
-                else
-                    table.insert(keyset, cjson.decode(k))
-                end
-            end
-            local payloads = keyset[1]
-            storageType = payloads.storage
-        else
-            storageType = body
-        end
-        local writableFile, writableErr = io.open(configPath .. "data/settings.json", "w")
-        settings.storage_type = storageType
-        if writableFile == nil then
-            Errors.throwError("Couldn't write file: " .. writableErr, ngx.HTTP_INTERNAL_SERVER_ERROR)
-        else
-            writableFile:write(cjson.encode(settings))
-            writableFile:close()
-            ngx.say(cjson.encode({
-                data = {
-                    storage = settings.storage_type
-                }
-            }))
-        end
+local ALLOWED_STORAGE = { disk = true, redis = true, pgsql = true }
+
+local function merge_pgsql_destination(existing, incoming)
+    existing = type(existing) == "table" and existing or {}
+    incoming = type(incoming) == "table" and incoming or {}
+    local password = incoming.pg_password or incoming.password
+    if password == nil or password == "" then
+        password = existing.pg_password or existing.password or ""
     end
+    local ssl = existing.ssl
+    if incoming.ssl ~= nil then
+        ssl = incoming.ssl
+    end
+    return {
+        pg_host     = incoming.pg_host or incoming.host or existing.pg_host or existing.host,
+        pg_port     = tonumber(incoming.pg_port or incoming.port or existing.pg_port or existing.port) or 5432,
+        pg_database = incoming.pg_database or incoming.database or existing.pg_database or existing.database,
+        pg_user     = incoming.pg_user or incoming.user or existing.pg_user or existing.user,
+        pg_password = password,
+        ssl         = ssl,
+    }
+end
+
+local function probe_pgsql(pg_cfg)
+    local ok_req, PgsqlDriver = pcall(require, "storage.pgsql_driver")
+    if not ok_req or not PgsqlDriver then
+        return nil, "pgsql driver unavailable"
+    end
+    local drv = PgsqlDriver.new({ settings = { pgsql = pg_cfg } })
+    local pg, err = drv:connect()
+    if not pg then
+        return nil, err or "pgsql connect failed"
+    end
+    return true
+end
+
+local function public_pgsql(pg_cfg)
+    if type(pg_cfg) ~= "table" then
+        return nil
+    end
+    return {
+        pg_host     = pg_cfg.pg_host or pg_cfg.host,
+        pg_port     = pg_cfg.pg_port or pg_cfg.port,
+        pg_database = pg_cfg.pg_database or pg_cfg.database,
+        pg_user     = pg_cfg.pg_user or pg_cfg.user,
+        ssl         = pg_cfg.ssl,
+    }
+end
+
+local function setStorage(body)
+    if not settings then
+        Errors.throwError("Settings not loaded", ngx.HTTP_INTERNAL_SERVER_ERROR)
+        return
+    end
+    local payloads
+    if type(body) == "string" then
+        payloads = { storage = body }
+    else
+        payloads = Helper.GetPayloads(body)
+    end
+    if type(payloads) ~= "table" then
+        Errors.throwError("Invalid storage payload", ngx.HTTP_BAD_REQUEST)
+        return
+    end
+    local storageType = payloads.storage or payloads.storage_type
+    if not ALLOWED_STORAGE[tostring(storageType)] then
+        Errors.throwError("Invalid storage type. Must be disk, redis, or pgsql", ngx.HTTP_BAD_REQUEST)
+        return
+    end
+    if storageType == "pgsql" then
+        local pg_cfg = merge_pgsql_destination(settings.pgsql, payloads.pgsql)
+        if not pg_cfg.pg_host or pg_cfg.pg_host == "" then
+            Errors.throwError("PostgreSQL host is required", ngx.HTTP_BAD_REQUEST)
+            return
+        end
+        if not pg_cfg.pg_database or pg_cfg.pg_database == "" then
+            Errors.throwError("PostgreSQL database is required", ngx.HTTP_BAD_REQUEST)
+            return
+        end
+        if not pg_cfg.pg_user or pg_cfg.pg_user == "" then
+            Errors.throwError("PostgreSQL user is required", ngx.HTTP_BAD_REQUEST)
+            return
+        end
+        local ok, err = probe_pgsql(pg_cfg)
+        if not ok then
+            Errors.throwError("PostgreSQL unreachable: " .. tostring(err), ngx.HTTP_BAD_GATEWAY)
+            return
+        end
+        settings.pgsql = pg_cfg
+    end
+    settings.storage_type = storageType
+    local updateSettings, msg = Helper.writeSettingsFile(configPath .. "data/settings.json", settings)
+    if not updateSettings then
+        Errors.throwError("Couldn't save settings: " .. (msg or "unknown error"), ngx.HTTP_INTERNAL_SERVER_ERROR)
+        return
+    end
+    ngx.say(cjson.encode({
+        data = {
+            storage = settings.storage_type,
+            pgsql = storageType == "pgsql" and public_pgsql(settings.pgsql) or nil,
+        }
+    }))
 end
 if storageTypeOverride and storageTypeOverride ~= nil then
     setStorage(storageTypeOverride)
@@ -4509,7 +4578,10 @@ local function handle_get_request(args, path)
     end
 
     if path == "global/settings" then
-        local settingsData = settings
+        local settingsData = {}
+        for k, v in pairs(settings) do
+            settingsData[k] = v
+        end
         settingsData.dns_resolver = nil
         settingsData.env_vars = nil
         settingsData.consul = nil
@@ -4517,6 +4589,8 @@ local function handle_get_request(args, path)
         settingsData.nginx = nil
         settingsData.redis_host = nil
         settingsData.redis_port = nil
+        -- Never return the Postgres password to the admin UI.
+        settingsData.pgsql = public_pgsql(settings.pgsql)
         ngx.say(cjson.encode({
             data = settingsData
         }))

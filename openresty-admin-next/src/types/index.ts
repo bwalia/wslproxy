@@ -661,6 +661,16 @@ export interface AppSettings {
   env_profile?: string;
   storage_type?: string;
   env_vars?: Record<string, string>;
+  pgsql?: {
+    pg_host?: string;
+    pg_port?: number | string;
+    pg_database?: string;
+    pg_user?: string;
+    host?: string;
+    port?: number | string;
+    database?: string;
+    user?: string;
+  };
   [key: string]: unknown;
 }
 
