@@ -25,6 +25,40 @@ whether the wslproxy WAF is bound — so every "before/after" pair is apples-to-
 | https://payments-open.fictionally.org   | off            | BEFORE — origin fully exposed |
 | https://payments-secure.fictionally.org | on, block mode | AFTER — wslproxy WAF in front  |
 
+## WAF Efficacy Lab — test every rule from the browser
+
+Both hosts serve an interactive lab at **`/lab`** that fires every shipped WAF test
+case (GET **and** POST) at *itself* and shows, live, what the WAF stops — matched rule,
+violation code and support id, plus a pass/fail verdict per attack:
+
+- **https://payments-secure.fictionally.org/lab** — WAF on → attacks are blocked; the
+  banner reads *“WAF active — protected”*.
+- **https://payments-open.fictionally.org/lab** — WAF off → the same payloads reach the
+  origin; the banner reads *“exposed”*. A switch link flips between the two.
+
+Click **Run all** (or fire a single row), filter by category, and expand any row to see
+the exact payload. POST-only classes (NoSQLi, XXE, mass-assignment, **HTTP request
+smuggling**) are tested here — they can't be done from the address bar.
+
+**Why it lives on the demo hosts (and the design rule for any WAF test UI):** a browser
+can only read a WAF **`403` block and the `x-waf-*` headers when the page is
+*same-origin* with the target** — a WAF block page carries no CORS headers, so a
+cross-origin `fetch()` can't tell “blocked” from “network error”. That’s why the lab is
+served by each host itself. The one case it can’t run in-browser is scanner detection
+(scripts may not set the `User-Agent` header) — run that with `curl`.
+
+> **Adding a WAF test lab to the admin WAF dashboard?** The dashboard is a *different
+> origin* from the tenant hosts, so it can’t read their blocks directly. The correct
+> architecture there is a small **server-side test endpoint** on the admin API
+> (e.g. `POST /api/waf/test {target, method, path, headers, body}` that performs the
+> request from OpenResty and returns the status + `x-waf-*` headers), which the dashboard
+> calls same-origin — no CORS, and it can target any host/rule (with auth + SSRF guards).
+> The self-contained `/lab` here is the right tool for *these* demo hosts; the endpoint is
+> the right tool for a general operator lab. (Not built yet — a natural follow-up.)
+
+The lab page is generated from `test_waf_live.py`'s cases (`gen_waf_lab.py` → `lab.html`)
+so it never drifts from the shipped rules, and served by `app/app.py` at `/lab`.
+
 ## Test payments-secure.fictionally.org — the simplest way
 
 **One curl** — fire an attack and look for `403` + `x-waf-block: true`:
@@ -158,14 +192,19 @@ attribution), and the published dashboard for the visual before/after.
 | `attack_suite.py` | Fires the 20 attacks at both hosts and prints the before/after matrix (`--json` for machine output). |
 | `test_waf_live.py` | CI-oriented live matrix — **every** payments-hard signature + v2 stage. Asserts secure blocks / open does not. Used by `.github/workflows/waf-validate.yml` on main + `workflow_dispatch`. |
 | `test-secure.sh` | Simplest smoke test — pure `curl`, no deps. Fires a few attacks (incl. smuggling) + a benign control at `payments-secure` and asserts `403`+`X-WAF-Block` / `200`. See *"Test payments-secure — the simplest way"* above. |
+| `gen_waf_lab.py` → `lab.html` | **WAF Efficacy Lab** — the interactive browser UI served at `/lab` on both hosts. Fires every `test_waf_live.py` case (GET + POST) same-origin and shows the live block/verdict matrix. Generated from the test cases; served by `app/app.py`. |
 | `gen_waf_landing.py` → `waf-rules.html` | **WAF rule-library landing page** — a searchable/filterable catalogue of all 50 rules (37 signatures + 13 enforcement stages), each expandable to what it detects, how the attack works, an example payload, the detection pattern/stage, mitigation and references. Opens on an HTTP request-smuggling explainer. Generated from the shipped rule JSON so it can't drift; edit the generator, not the HTML. |
 
 ## How it was deployed
 
-1. **Origin** → `kubectl apply -f k3s1-payments-api.yaml` then load the app source:
-   `kubectl -n wslproxy-waf-demo create configmap payments-api-src --from-file=app.py=app/app.py -o yaml --dry-run=client | kubectl apply -f -`.
+1. **Origin** → `kubectl apply -f k3s1-payments-api.yaml` then load the app source
+   **and the lab page** into the ConfigMap (both land in `/app`, so `app.py` serves
+   `lab.html` at `/lab`):
+   `kubectl -n wslproxy-waf-demo create configmap payments-api-src --from-file=app.py=app/app.py --from-file=lab.html=lab.html -o yaml --dry-run=client | kubectl apply -f -`
+   then `kubectl -n wslproxy-waf-demo rollout restart deploy/payments-api`.
    Pods are pinned to **cloud001** because the edge↔LAN pod overlay isn't routable
    from the edge nodes, so the lon1 wslproxy reaches the app on `127.0.0.1:30084`.
+   Regenerate `lab.html` with `python3 gen_waf_lab.py` before re-creating the ConfigMap.
 2. **WAF rules/policy/route/servers** → pushed to the lon1 control plane via
    `POST /api/projects/import` (dataType `waf_rules`, `waf_policies`, `rules`,
    `servers`). **Gotcha:** that endpoint form-parses the JSON body
