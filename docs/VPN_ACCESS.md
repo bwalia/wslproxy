@@ -187,8 +187,10 @@ which names the bundle.
 | `endpoints[].path` | yes | — | Path to protect |
 | `endpoints[].path_key` | no | `starts_with` | `starts_with`, `ends_with` or `equals` |
 | `endpoints[].allow_cidrs` | no | profile `allow_cidrs` | Ranges allowed to reach this endpoint |
+| `endpoints[].groups` | no | profile `groups` | wslvpn groups allowed; any-of. See [identity](#per-user-access-identity) |
 | `endpoints[].origin` | no | profile `origin`, else server `proxy_pass` | Where allowed requests are proxied |
 | `allow_cidrs` | no | — | Default range for every endpoint |
+| `groups` | no | — | Default groups for every endpoint |
 | `origin` | no | server `proxy_pass` | Default origin for every endpoint |
 | `priority_base` | no | `1000` | Base priority for generated rules |
 | `deny_code` | no | `403` | Status for denied requests |
@@ -269,20 +271,111 @@ curl -sI https://internal.example.com/admin | grep -i x-origin-ip
 Check both. An allow rule that works while the deny rule is misconfigured looks
 identical to a working setup from the VPN side.
 
+## Per-user access: identity
+
+Everything above answers *"did this arrive over the VPN"*. That is a network
+boundary — any device on the overlay reaches every VPN-only endpoint. Identity
+resolution answers *"who sent this, and what are they in"*, which is what makes
+it Zero Trust.
+
+The proxy resolves the client address against the control plane and matches on
+group membership.
+
+### Configure
+
+Two values, from the environment or per rule:
+
+```bash
+WSL_CONTROL_URL=https://control.internal.example.com
+WSL_CONTROL_SERVICE_TOKEN=<service token>
+```
+
+The identity cache needs a shared dict, declared in `nginx-dev.conf.tmpl`:
+
+```nginx
+lua_shared_dict vpn_identity 10m;
+```
+
+### Use
+
+On a rule:
+
+```json
+"vpn_groups": "platform-admins"
+```
+
+Or on an access-profile endpoint, which generates the rule for you:
+
+```json
+{ "path": "/admin", "groups": "platform-admins" }
+```
+
+- `vpn_groups` — any-of; `"staff,platform-admins"` passes for either
+- `vpn_required: true` — demands a resolvable session without naming a group
+- Group names are matched exactly, and are case sensitive
+
+`vpn_groups` implies `vpn_required`: naming a group requires an identity to
+check it against.
+
+### Keep the CIDR condition too
+
+Access profiles emit **both** the CIDR and the group condition, and you should
+do the same by hand. They defend different things: the CIDR proves the request
+came over the tunnel, the group proves who sent it. Keeping both means a leaked
+service token does not by itself grant access from off the overlay.
+
+### Fail closed
+
+Every failure denies:
+
+| Situation | Result |
+|-----------|--------|
+| Control plane unreachable, times out, or returns 5xx | deny |
+| No active session at that address (404) | deny |
+| Malformed response, or one without `groups` | deny |
+| `WSL_CONTROL_URL` or service token unset | deny |
+| Identity resolves but lacks the group | deny |
+
+An unresolvable identity never degrades to "a user in no groups" — that would
+let a rule requiring no particular group pass.
+
+**The gate is ANDed even in `or` condition mode.** For every other condition,
+`or` means "any of these may match". For the VPN gate it does not: an OR-mode
+rule whose path matched would otherwise pass while its identity check failed,
+which is an access-control bypass that looks like ordinary rule configuration.
+
+### Caching and revocation lag
+
+Lookups are cached per address in the `vpn_identity` shared dict:
+
+| Entry | TTL | Why |
+|-------|-----|-----|
+| Resolved identity | 15s | This is the revocation lag |
+| Definitive "no session" | 5s | Shorter, so a newly connected user is not locked out |
+| Transient failure | not cached | One blip must not deny a user for a whole TTL |
+
+**Cache TTL is the revocation lag.** A session revoked in the control plane
+keeps proxy access until its entry expires — up to 15s by default. Group changes
+propagate on the same delay. If that is too long, call
+`vpn_identity.invalidate(ip)` from a revocation webhook.
+
+Identity is resolved **once per request** and reused across every rule
+evaluated, so a domain with many protected paths makes one lookup, not one per
+rule.
+
 ## Not yet covered
 
-**Which user.** Any device on the overlay reaches every VPN-only endpoint. Group
-and posture enforcement needs identity resolution — resolving the source IP to a
-wslvpn session and its user's groups. Until then this is a network boundary, not
-a Zero Trust one.
+**Posture.** wslvpn evaluates device posture at session creation, but the proxy
+does not re-check it per request. A device that falls out of compliance
+mid-session keeps access until its session ends.
 
 **Non-HTTP services.** Databases, SSH and anything else WSLProxy does not proxy
 are unaffected by these rules. Restrict those on the wslvpn gateway with network
 routes and the nftables allowlist.
 
-**Revocation.** A revoked wslvpn session loses its tunnel, and with it the
-overlay address, so proxy access ends when the peer is removed from the gateway
-— there is no separate state to expire here.
+**Tunnel-level revocation.** Separately from the cache above, a revoked wslvpn
+session loses its tunnel and with it the overlay address, so network-level
+access ends when the peer is removed from the gateway.
 
 ## Related
 

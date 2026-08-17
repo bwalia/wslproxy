@@ -119,6 +119,39 @@ assert_true(broad_allow ~= nil and narrow_deny ~= nil, "found both rules")
 assert_true(narrow_deny.priority > broad_allow.priority,
     "narrower deny outranks broader allow")
 
+-- ─── groups ─────────────────────────────────────────────────────────────────
+
+-- An endpoint naming groups emits the identity condition alongside the CIDR:
+-- the CIDR proves the request came over the tunnel, the group proves who sent
+-- it. Dropping either would weaken the other.
+local with_groups = AP.expand(AP.normalise(profile({
+    { path = "/admin", groups = "platform-admins" },
+})), SERVER)
+assert_eq(with_groups[2].rule_data.match.rules.vpn_groups, "platform-admins",
+    "allow rule carries the group requirement")
+assert_eq(with_groups[2].rule_data.match.rules.client_ip, OVERLAY,
+    "allow rule keeps the cidr condition alongside groups")
+assert_nil(with_groups[1].rule_data.match.rules.vpn_groups,
+    "deny rule has no group condition — it must catch everyone the allow drops")
+
+-- Profile-level groups apply to every endpoint; an endpoint can override.
+local inherited = AP.expand(AP.normalise(profile({
+    { path = "/admin" },
+    { path = "/admin/billing", groups = "finance" },
+}, { groups = "staff" })), SERVER)
+local by_path = {}
+for _, e in ipairs(inherited) do
+    local r = e.rule_data.match.rules
+    if r.client_ip then by_path[r.path] = r.vpn_groups end
+end
+assert_eq(by_path["/admin"], "staff", "endpoint inherits profile groups")
+assert_eq(by_path["/admin/billing"], "finance", "endpoint groups override profile groups")
+
+-- No groups anywhere means network-only protection, as before.
+local no_groups = AP.expand(AP.normalise(profile({ { path = "/admin" } })), SERVER)
+assert_nil(no_groups[2].rule_data.match.rules.vpn_groups,
+    "no group condition emitted when none configured")
+
 -- ─── the ordering documented in docs/VPN_ACCESS.md ──────────────────────────
 
 -- The generated-rule listing in the docs is only useful if it matches reality.

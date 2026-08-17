@@ -98,6 +98,10 @@ http {
     # SSL domains cache - shared across all workers for allow_domain callback
     lua_shared_dict ssl_domains 1m;
 
+    # VPN session identity cache (address → user + groups).
+    # Entry TTL is the revocation lag, so keep it short — see docs/VPN_ACCESS.md.
+    lua_shared_dict vpn_identity 10m;
+
     # Static content cache (WSL Proxy caching system)
     lua_shared_dict wsl_cache 100m;
     lua_shared_dict wsl_cache_keys 10m;

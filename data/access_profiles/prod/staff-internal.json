@@ -19,7 +19,8 @@
     {
       "path": "/admin/billing",
       "path_key": "starts_with",
-      "allow_cidrs": "10.8.1.16/28"
+      "allow_cidrs": "10.8.1.16/28",
+      "groups": "finance,platform-admins"
     }
   ]
 }

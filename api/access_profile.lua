@@ -85,6 +85,7 @@ function M.normalise(doc)
     end
 
     local default_cidrs = opt(doc.allow_cidrs)
+    local default_groups = opt(doc.groups)
 
     local endpoints = {}
     for i, ep in ipairs(doc.endpoints) do
@@ -107,6 +108,7 @@ function M.normalise(doc)
             path_key = path_key,
             allow_cidrs = cidrs,
             origin = opt(ep.origin),
+            groups = opt(ep.groups) or default_groups,
             weight = path_weight(ep.path, path_key),
         })
     end
@@ -186,7 +188,20 @@ function M.expand(profile, server_config)
             },
         })
 
-        -- allow: same path plus the CIDR condition, one step higher
+        -- allow: same path plus the CIDR condition, one step higher.
+        -- When the endpoint names groups, identity is required too — the CIDR
+        -- stays as defence in depth, so a leaked service token alone does not
+        -- grant access from off the overlay.
+        local allow_rules = {
+            path_key = ep.path_key,
+            path = ep.path,
+            client_ip_key = "cidr",
+            client_ip = ep.allow_cidrs,
+        }
+        if ep.groups then
+            allow_rules.vpn_groups = ep.groups
+        end
+
         table.insert(expanded, {
             condition_mode = "and",
             rule_data = {
@@ -195,12 +210,7 @@ function M.expand(profile, server_config)
                 priority = base + 1,
                 _access_profile = profile.name,
                 match = {
-                    rules = {
-                        path_key = ep.path_key,
-                        path = ep.path,
-                        client_ip_key = "cidr",
-                        client_ip = ep.allow_cidrs,
-                    },
+                    rules = allow_rules,
                     response = {
                         allow = true,
                         code = 305,

@@ -25,6 +25,49 @@ whether the wslproxy WAF is bound — so every "before/after" pair is apples-to-
 | https://payments-open.fictionally.org   | off            | BEFORE — origin fully exposed |
 | https://payments-secure.fictionally.org | on, block mode | AFTER — wslproxy WAF in front  |
 
+## Test payments-secure.fictionally.org — the simplest way
+
+**One curl** — fire an attack and look for `403` + `x-waf-block: true`:
+
+```bash
+curl -i "https://payments-secure.fictionally.org/search?q=%3Cscript%3Ealert(1)%3C/script%3E"
+# → HTTP/2 403 ... x-waf-block: true ... x-waf-rule: waf-rule-xss-001
+```
+
+The **HTTP request smuggling** rule — a second request line pipelined in the body:
+
+```bash
+printf '%b' '{"batch":"noop"}\r\n0\r\n\r\nGET /api/accounts/9999 HTTP/1.1\r\nHost: x\r\n\r\n' \
+| curl -i -H 'Content-Type: text/plain' --data-binary @- \
+    https://payments-secure.fictionally.org/api/batch
+# → HTTP/2 403 ... x-waf-block: true
+#   x-waf-rule: VIOL_OPENAPI_PATH  (becomes waf-rule-smuggling-001 once the updated policy is imported — see note)
+```
+
+**One command, several checks** — the bundled `curl`-only smoke test (no Python/deps),
+which asserts the secure host blocks attacks (`403` + `X-WAF-Block`) and passes benign
+traffic (`200`):
+
+```bash
+./test-secure.sh
+# ── WAF smoke test → https://payments-secure.fictionally.org
+#   [PASS] XSS <script>          expect=block status=403  rule=waf-rule-xss-001
+#   [PASS] SQLi UNION            expect=block status=403  rule=waf-rule-sqli-001
+#   [PASS] Path traversal        expect=block status=403  rule=waf-rule-lfi-001
+#   [PASS] Log4Shell JNDI        expect=block status=403  rule=waf-rule-ssrf-002
+#   [PASS] HTTP req smuggling    expect=block status=403  rule=VIOL_OPENAPI_PATH
+#   [PASS] Benign request        expect=allow status=200
+#   6 passed, 0 failed
+./test-secure.sh https://payments-secure.fictionally.org   # or pass an explicit host
+```
+
+> Note: the smoke test only asserts *blocked* (`403` + `X-WAF-Block`), not which rule.
+> Until the updated policy is (re-)imported to the edge, the smuggling payload is stopped
+> by the OpenAPI positive-security stage (`/api/batch` is an undeclared endpoint,
+> `VIOL_OPENAPI_PATH`); once imported, the same request is stopped by `waf-rule-smuggling-001`.
+> Both are a `403` block, so the test passes either way. For the full assertion matrix
+> (which rule fired, plus the open-host control) use `test_waf_live.py` below.
+
 ## Result (20 attacks)
 
 ```
@@ -81,6 +124,7 @@ attribution), and the published dashboard for the visual before/after.
 | `data/servers/prod/host:payments-{open,secure}.fictionally.org.json` | The two vhosts — identical except `waf_enabled` / `waf_policy_id` / `waf_mode_override`. |
 | `attack_suite.py` | Fires the 20 attacks at both hosts and prints the before/after matrix (`--json` for machine output). |
 | `test_waf_live.py` | CI-oriented live matrix — **every** payments-hard signature + v2 stage. Asserts secure blocks / open does not. Used by `.github/workflows/waf-validate.yml` on main + `workflow_dispatch`. |
+| `test-secure.sh` | Simplest smoke test — pure `curl`, no deps. Fires a few attacks (incl. smuggling) + a benign control at `payments-secure` and asserts `403`+`X-WAF-Block` / `200`. See *"Test payments-secure — the simplest way"* above. |
 | `gen_waf_landing.py` → `waf-rules.html` | **WAF rule-library landing page** — a searchable/filterable catalogue of all 50 rules (37 signatures + 13 enforcement stages), each expandable to what it detects, how the attack works, an example payload, the detection pattern/stage, mitigation and references. Opens on an HTTP request-smuggling explainer. Generated from the shipped rule JSON so it can't drift; edit the generator, not the HTML. |
 
 ## How it was deployed
