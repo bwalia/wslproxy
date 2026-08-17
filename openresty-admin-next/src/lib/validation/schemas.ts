@@ -192,6 +192,19 @@ export const appSettingsSchema = z
     env_profile: zOptStr,
     storage_type: zOptStr,
     env_vars: z.record(z.string(), z.unknown()).optional(),
+    pgsql: z
+      .object({
+        pg_host: zOptStr,
+        pg_port: zNumish,
+        pg_database: zOptStr,
+        pg_user: zOptStr,
+        host: zOptStr,
+        port: zNumish,
+        database: zOptStr,
+        user: zOptStr,
+      })
+      .passthrough()
+      .optional(),
   })
   .passthrough();
 
