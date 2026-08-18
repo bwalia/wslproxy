@@ -3426,6 +3426,197 @@ local function isMutationAllowed()
     return platform and ALLOWED_MUTATION_PLATFORMS[platform] == true
 end
 
+-- ============================================================================
+-- WAF Test Lab — server-side request relay (POST /api/waf/test)
+-- ============================================================================
+-- The admin dashboard is a different origin from the tenant hosts, so a browser
+-- there cannot read their WAF blocks (a 403 block page carries no CORS headers).
+-- This endpoint fires ONE request at an allow-listed target from OpenResty and
+-- returns the status + x-waf-* headers, letting the dashboard measure WAF
+-- efficacy against any managed host or rule (POST included). Because it is a
+-- server-side relay it is strictly guarded:
+--   * only http/https, only hosts on the allow-list (settings.waf.test_targets),
+--   * never a private/loopback/link-local/CGNAT/metadata address,
+--   * bounded timeout and a truncated response body.
+-- The allow-list is the hard SSRF boundary; the IP-range check is defence in depth.
+local WAF_TEST_DEFAULT_TARGETS = {
+    "https://payments-secure.fictionally.org",
+    "https://payments-open.fictionally.org",
+    "https://payments.fictionally.org",
+}
+
+local function waf_test_target_list()
+    local w = (settings and settings.waf) or {}
+    local list = w.test_targets or (settings and settings.waf_test_targets) or WAF_TEST_DEFAULT_TARGETS
+    if type(list) ~= "table" or #list == 0 then list = WAF_TEST_DEFAULT_TARGETS end
+    return list
+end
+
+local function waf_parse_target(url)
+    if type(url) ~= "string" then return nil end
+    local scheme, host, port = url:match("^(https?)://([^:/%?#]+):?(%d*)")
+    if not scheme or not host or host == "" then return nil end
+    port = (port ~= "" and tonumber(port)) or (scheme == "https" and 443 or 80)
+    return { scheme = scheme, host = host:lower(), port = port }
+end
+
+-- Match a requested target against the allow-list by host; the scheme/port come
+-- from the allow-list entry so they can't be swapped to reach something else.
+local function waf_match_target(url)
+    local want = waf_parse_target(url)
+    if not want then return nil end
+    for _, entry in ipairs(waf_test_target_list()) do
+        local raw = (type(entry) == "table" and (entry.url or entry.target)) or entry
+        local e = waf_parse_target(raw)
+        if e and e.host == want.host then return e end
+    end
+    return nil
+end
+
+-- Block obvious SSRF targets: metadata/localhost names and private / loopback /
+-- link-local / CGNAT / multicast IP literals (v4 and v6).
+local function waf_host_blocked(host)
+    host = tostring(host or ""):lower()
+    local names = { localhost = true, ["ip6-localhost"] = true, metadata = true,
+                    ["metadata.google.internal"] = true, ["instance-data"] = true }
+    if names[host] then return true end
+    local o1, o2 = host:match("^(%d+)%.(%d+)%.%d+%.%d+$")
+    if o1 then
+        o1, o2 = tonumber(o1), tonumber(o2)
+        if o1 == 0 or o1 == 10 or o1 == 127 then return true end
+        if o1 == 169 and o2 == 254 then return true end            -- link-local + cloud metadata
+        if o1 == 172 and o2 >= 16 and o2 <= 31 then return true end
+        if o1 == 192 and o2 == 168 then return true end
+        if o1 == 100 and o2 >= 64 and o2 <= 127 then return true end -- CGNAT
+        if o1 >= 224 then return true end                            -- multicast / reserved
+    end
+    if host == "::1" or host == "::" or host:match("^fe80:") or host:match("^fc") or host:match("^fd") then
+        return true
+    end
+    return false
+end
+
+-- Keep the URL valid while letting the WAF's decoded args still see the payload:
+-- percent-encode only whitespace and the few bytes that break a request target.
+local function waf_encode_path(p)
+    p = tostring(p or "/")
+    if p == "" then p = "/" end
+    if p:sub(1, 1) ~= "/" then p = "/" .. p end
+    return (p:gsub("[%s\"<>\\%^`{|}]", function(c) return string.format("%%%02X", string.byte(c)) end))
+end
+
+local function waf_header_ci(headers, name)
+    if type(headers) ~= "table" then return nil end
+    name = name:lower()
+    for k, v in pairs(headers) do
+        if type(k) == "string" and k:lower() == name then
+            if type(v) == "table" then return v[1] end
+            return v
+        end
+    end
+    return nil
+end
+
+local function waf_test_json(code, tbl)
+    ngx.status = code
+    ngx.header["Content-Type"] = "application/json"
+    ngx.say(cjson.encode(tbl))
+    ngx.exit(ngx.HTTP_OK)
+end
+
+local function handle_waf_test()
+    ngx.req.read_body()
+    local raw = ngx.req.get_body_data()
+    local ok, req = pcall(cjson.decode, raw or "{}")
+    if not ok or type(req) ~= "table" then
+        waf_test_json(400, { ok = false, error = "Invalid JSON body" })
+    end
+
+    -- Guard rejections are expected outcomes the UI renders inline, so they come
+    -- back as 200 {ok=false, error=...} rather than 4xx (which the client's
+    -- apiFetch would throw on). Only a genuinely malformed body is a 400.
+    local method = tostring(req.method or "GET"):upper()
+    local ALLOWED = { GET = true, POST = true, PUT = true, DELETE = true,
+                      HEAD = true, OPTIONS = true, PATCH = true }
+    if not ALLOWED[method] then
+        waf_test_json(200, { ok = false, error = "method not allowed: " .. method })
+    end
+
+    local entry = waf_match_target(req.target)
+    if not entry then
+        waf_test_json(200, { ok = false,
+            error = "target host is not on the WAF test allow-list",
+            allow_list = waf_test_target_list() })
+    end
+    if waf_host_blocked(entry.host) then
+        waf_test_json(200, { ok = false, error = "target resolves to a blocked address range" })
+    end
+
+    local portpart = ((entry.port ~= 80 and entry.port ~= 443) and (":" .. entry.port)) or ""
+    local url = entry.scheme .. "://" .. entry.host .. portpart .. waf_encode_path(req.path or "/")
+
+    -- Pass caller headers through, minus hop-by-hop / framing headers the client
+    -- must not control (Host/Content-Length/Connection are set by resty.http).
+    local out_headers = {}
+    if type(req.headers) == "table" then
+        for k, v in pairs(req.headers) do
+            local lk = tostring(k):lower()
+            if lk ~= "host" and lk ~= "content-length" and lk ~= "connection"
+                and lk ~= "transfer-encoding" and type(v) == "string" then
+                out_headers[k] = v
+            end
+        end
+    end
+    if req.content_type and not waf_header_ci(out_headers, "content-type") then
+        out_headers["Content-Type"] = tostring(req.content_type)
+    end
+    if not waf_header_ci(out_headers, "user-agent") then
+        out_headers["User-Agent"] = "wslproxy-waf-testlab/1.0"
+    end
+
+    local http_ok, http = pcall(require, "resty.http")
+    if not http_ok then
+        waf_test_json(200, { ok = false, error = "resty.http unavailable on this node" })
+    end
+    local httpc = http.new()
+    local timeout = tonumber(req.timeout_ms) or 10000
+    if timeout < 1000 then timeout = 1000 elseif timeout > 20000 then timeout = 20000 end
+    httpc:set_timeout(timeout)
+
+    local t0 = ngx.now()
+    local res, err = httpc:request_uri(url, {
+        method = method,
+        headers = out_headers,
+        body = (type(req.body) == "string" and req.body) or nil,
+        ssl_verify = false, -- test tool: we read WAF headers, not establish trust
+    })
+    local latency_ms = math.floor((ngx.now() - t0) * 1000 + 0.5)
+
+    if not res then
+        waf_test_json(200, { ok = false, error = "request failed: " .. tostring(err),
+            target = entry.host, path = req.path, method = method, latency_ms = latency_ms })
+    end
+
+    local block = tostring(waf_header_ci(res.headers, "x-waf-block") or ""):lower() == "true"
+    waf_test_json(200, {
+        ok = true,
+        status = res.status,
+        blocked = (res.status == 403 and block),
+        waf_block = block,
+        waf_rule = waf_header_ci(res.headers, "x-waf-rule"),
+        waf_violation = waf_header_ci(res.headers, "x-waf-violation"),
+        support_id = waf_header_ci(res.headers, "x-support-id"),
+        server = waf_header_ci(res.headers, "server"),
+        content_type = waf_header_ci(res.headers, "content-type"),
+        latency_ms = latency_ms,
+        target = entry.host,
+        scheme = entry.scheme,
+        path = req.path,
+        method = method,
+        body_snippet = (res.body or ""):sub(1, 2000),
+    })
+end
+
 -- AI log analysis handler shared by GET and POST dispatch.
 -- Request body (JSON): { logs: [<log_entry>], question?: string, context?: string }
 -- Response envelope:   { data: { analysis, root_causes[], recommendations[],
@@ -4556,6 +4747,10 @@ local function handle_get_request(args, path)
     if path == "waf_events" then
         listWafEvents(args)
     end
+    -- WAF Test Lab: the allow-listed target hosts the dashboard may fire at.
+    if path == "waf/test/targets" then
+        waf_test_json(200, { targets = waf_test_target_list() })
+    end
 
     -- Topology graph endpoint (nodes + edges for canvas visualization)
     if path == "topology/graph" then
@@ -4778,6 +4973,11 @@ local function handle_post_request(args, path)
     if path == "push-data" then
         local body = Helper.GetPayloads(args)
         PushData.sendData(body, Helper, configPath, Errors)
+    end
+    -- WAF Test Lab relay (read-only action; guarded by the target allow-list, so
+    -- it sits outside the mutation gate and works from any admin UI/platform).
+    if path == "waf/test" then
+        handle_waf_test()
     end
     if isMutationAllowed() then
         if path == "servers" then

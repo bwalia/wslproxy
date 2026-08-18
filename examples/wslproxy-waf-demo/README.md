@@ -47,14 +47,20 @@ cross-origin `fetch()` can't tell “blocked” from “network error”. That�
 served by each host itself. The one case it can’t run in-browser is scanner detection
 (scripts may not set the `User-Agent` header) — run that with `curl`.
 
-> **Adding a WAF test lab to the admin WAF dashboard?** The dashboard is a *different
-> origin* from the tenant hosts, so it can’t read their blocks directly. The correct
-> architecture there is a small **server-side test endpoint** on the admin API
-> (e.g. `POST /api/waf/test {target, method, path, headers, body}` that performs the
-> request from OpenResty and returns the status + `x-waf-*` headers), which the dashboard
-> calls same-origin — no CORS, and it can target any host/rule (with auth + SSRF guards).
-> The self-contained `/lab` here is the right tool for *these* demo hosts; the endpoint is
-> the right tool for a general operator lab. (Not built yet — a natural follow-up.)
+> **WAF test lab in the admin dashboard.** The dashboard is a *different origin* from the
+> tenant hosts, so it can’t read their blocks directly. The solution is a **server-side
+> test endpoint** on the admin API — **`POST /api/waf/test {target, method, path, headers,
+> body}`** (`api/api.lua` `handle_waf_test`) performs the request from OpenResty and returns
+> the status + `x-waf-*` headers, which the dashboard calls same-origin (no CORS) and can
+> target any allow-listed host/rule. It is SSRF-guarded: only hosts on
+> `settings.waf.test_targets` (defaulting to these demo hosts), never a
+> private/loopback/metadata address, http/https only, bounded timeout. The UI is the
+> **“WAF Test Lab”** page in `openresty-admin-next` (`/waf-test-lab`) — an attack catalogue
+> (GET + POST), a “Run all”, per-rule fire, a protection banner and a custom request
+> builder. Unlike the browser lab it can set forbidden headers (e.g. `User-Agent`), so
+> scanner detection is testable too. `GET /api/waf/test/targets` returns the allow-list.
+> The self-contained `/lab` here is still the right tool for *these* demo hosts (no auth,
+> no allow-list to maintain); the admin endpoint is the general operator tool.
 
 The lab page is generated from `test_waf_live.py`'s cases (`gen_waf_lab.py` → `lab.html`)
 so it never drifts from the shipped rules, and served by `app/app.py` at `/lab`.
