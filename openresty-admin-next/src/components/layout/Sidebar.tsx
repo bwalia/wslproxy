@@ -26,6 +26,7 @@ import {
   ShieldAlert,
   ShieldCheck,
   Siren,
+  FlaskConical,
   ChevronLeft,
   ChevronRight,
   ScrollText,
@@ -118,6 +119,8 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
           { label: "WAF Rules", href: "/waf-rules", icon: ShieldAlert },
           { label: "WAF Policies", href: "/waf-policies", icon: ShieldCheck },
           { label: "WAF Events", href: "/waf-events", icon: Siren },
+          // Cast: typedRoutes union is regenerated on the next build.
+          { label: "WAF Test Lab", href: "/waf-test-lab" as Route, icon: FlaskConical },
         ],
       },
       {
