@@ -329,9 +329,25 @@ function RuleDetailDialog({ rule, open, onClose }: RuleDetailDialogProps) {
 
         {/* ── Response ─────────────────────────────────────────────────── */}
         <Section icon={Code2} title="Response">
-          {(r.code === 301 || r.code === 302 || r.code === 305) && (
+          {(r.code === 301 || r.code === 302) && (
             <DetailRow label="Target" value={r.redirect_uri || null} mono />
           )}
+          {r.code === 305 && (() => {
+            const bes: Backend[] | undefined = r.backends ?? r.routing?.backends;
+            if (bes && bes.length > 1) {
+              return (
+                <DetailRow
+                  label="Target"
+                  value={`${bes.length} backends · ${r.routing?.mode ?? "weighted"}`}
+                />
+              );
+            }
+            if (bes && bes.length === 1) {
+              return <DetailRow label="Target" value={bes[0].address} mono />;
+            }
+            // Legacy: rule saved before the backends migration.
+            return <DetailRow label="Target" value={r.redirect_uri || null} mono />;
+          })()}
           {r.code === 305 && (
             <>
               <DetailRow

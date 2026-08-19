@@ -25,8 +25,6 @@ services:
       - "18443:443"
       # Admin Dashboard & API (default 8080 → 18280 to avoid conflicts)
       - "18280:8080"
-      # Legacy Vite Admin fallback (port 8090 → 18290 externally)
-      - "18290:8090"
       # Next.js Admin Dashboard (port 8099 → 18299 externally)
       - "18299:8099"
 
@@ -36,20 +34,6 @@ services:
 
       # Hot-reload HTML/static files
       - ./html:/usr/local/openresty/nginx/html
-
-      # Real openresty-admin source — layered on top of ./html to hide the
-      # empty stub files at html/openresty-admin/ (legacy).  node_modules
-      # and dist live in a named volume so yarn install/build inside the
-      # container doesn't pollute the host filesystem.
-      - ./openresty-admin/src:/usr/local/openresty/nginx/html/openresty-admin/src
-      - ./openresty-admin/public:/usr/local/openresty/nginx/html/openresty-admin/public
-      - ./openresty-admin/index.html:/usr/local/openresty/nginx/html/openresty-admin/index.html
-      - ./openresty-admin/package.json:/usr/local/openresty/nginx/html/openresty-admin/package.json
-      - ./openresty-admin/package-lock.json:/usr/local/openresty/nginx/html/openresty-admin/package-lock.json
-      - ./openresty-admin/vite.config.js:/usr/local/openresty/nginx/html/openresty-admin/vite.config.js
-      - ./openresty-admin/.env:/usr/local/openresty/nginx/html/openresty-admin/.env
-      - admin-wslproxy-node-modules:/usr/local/openresty/nginx/html/openresty-admin/node_modules
-      - admin-wslproxy-dist:/usr/local/openresty/nginx/html/openresty-admin/dist
 
       # Configuration files
       - ./data:/opt/nginx/data
@@ -211,53 +195,9 @@ services:
       wslproxy-local-network:
         ipv4_address: 172.177.0.7
 
-  # ── Vite Admin Dashboard (old) ────────────────────────────────────────────
-  # Legacy React-Admin (Vite) dashboard — runs alongside the new Next.js one
-  # Vite dev server proxy eliminates CORS: browser → /api → wslproxy-local
-  openresty-admin:
-    build:
-      context: ./openresty-admin
-      dockerfile: Dockerfile
-    container_name: wslproxy-admin-vite-local
-    restart: unless-stopped
-
-    ports:
-      - "5173:5173"
-
-    volumes:
-      # Bind-mount source for hot-reload (Vite Fast Refresh)
-      - ./openresty-admin/src:/app/src
-      - ./openresty-admin/public:/app/public
-      - ./openresty-admin/index.html:/app/index.html
-      - ./openresty-admin/vite.config.js:/app/vite.config.js
-      - ./openresty-admin/.env:/app/.env
-      # Persist node_modules inside the container (avoid Mac ↔ Linux ABI issues)
-      - vite-admin-node-modules:/app/node_modules
-
-    environment:
-      # Proxy target: Vite dev server forwards /api and /health here server-side
-      PROXY_TARGET: http://wslproxy-local:8080
-      # Signal Docker mode so Vite binds to 0.0.0.0 and picks up PORT
-      DOCKER_ENV: "true"
-      PORT: 5173
-
-    depends_on:
-      wslproxy:
-        condition: service_healthy
-
-    networks:
-      wslproxy-local-network:
-        ipv4_address: 172.177.0.6
-
-    healthcheck:
-      test: ["CMD-SHELL", "wget --spider -q http://localhost:5173 || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-
-  # ── Next.js Admin Dashboard (new) ────────────────────────────────────────
-  # Standalone Next.js app — replaces the Vite build in openresty-admin
+  # ── Next.js Admin Dashboard ──────────────────────────────────────────────
+  # Standalone Next.js app — the sole admin UI (legacy Vite/React-Admin
+  # retired from local dev; see `openresty-admin/` for the archived source).
   # Runs on port 7619 (internal and external) with hot-reload in dev mode
   openresty-admin-next:
     build:
@@ -313,6 +253,3 @@ volumes:
   redis-data-local:
   postgres-data-local:
   next-admin-node-modules:
-  vite-admin-node-modules:
-  admin-wslproxy-node-modules:
-  admin-wslproxy-dist:

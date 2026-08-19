@@ -351,22 +351,16 @@ export const ruleInputSchema = z
       message: "Must be a full http(s):// URL",
     },
   )
-  // 305 = proxy pass.  The Lua gateway accepts EITHER a single
-  // `redirect_uri` (the legacy one-target shape) OR a `backends`
-  // array (weighted / canary routing) — having one is sufficient.
-  // Previously this required `backends.length > 0` unconditionally,
-  // which forced anyone routing to a single host to type the same
-  // address twice (once in Proxy URL, once as a backend) and made
-  // the form actively confusing.
+  // 305 = proxy pass.  Backends[] is now the only target shape the UI
+  // writes — the Lua router overwrites redirect_uri whenever backends
+  // is non-empty, so a single-target rule is just backends[0] with
+  // weight 100.  Legacy rules that still carry only redirect_uri get
+  // auto-migrated on load in the rule editor (seeded as backends[0]).
   .refine(
-    (v) =>
-      v.code !== 305 ||
-      v.redirect_uri.length > 0 ||
-      v.backends.length > 0,
+    (v) => v.code !== 305 || v.backends.length > 0,
     {
       path: ["backends"],
-      message:
-        "Proxy-pass (305) needs either a Proxy URL or at least one backend",
+      message: "Proxy-pass (305) needs at least one backend",
     },
   )
   // Each backend in a 305 rule needs an address — empty entries produce

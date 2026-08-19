@@ -265,8 +265,19 @@ export const dataProvider: DataProvider = {
     // The Lua backend reads `json_val.id` out of the body (not the URL
     // path) — see api.lua:CreateUpdateRecord.  Always include it so
     // callers don't have to remember to echo the id back.
+    //
+    // `id` is the raw route segment from Next.js `useParams()`, which
+    // returns it URL-encoded when it contains reserved chars (e.g.
+    // `host:localhost` → `host%3Alocalhost`). The body must carry the
+    // semantic id — the backend compares it verbatim against
+    // `"host:" .. server_name` and a bare `%3A` there triggers a false
+    // rename → 409 conflict.  Decode once here.
     if (!payload.id) {
-      payload.id = id;
+      try {
+        payload.id = decodeURIComponent(id);
+      } catch {
+        payload.id = id;
+      }
     }
     return apiFetch<SingleResult<T>>(`/${resource}/${id}`, {
       method: "PUT",
