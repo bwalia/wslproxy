@@ -368,7 +368,23 @@ export default function RuleDetailPage() {
       routing_header_value: rt.header_value ?? "true",
       routing_cookie_name: rt.cookie_name ?? "canary_session",
       routing_sticky: rt.sticky ?? false,
-      backends: Array.isArray(r.backends) ? r.backends : Array.isArray((rt as Record<string, unknown>).backends) ? (rt as { backends: Backend[] }).backends : [],
+      backends: (() => {
+        const existing = Array.isArray(r.backends)
+          ? r.backends
+          : Array.isArray((rt as Record<string, unknown>).backends)
+            ? (rt as { backends: Backend[] }).backends
+            : [];
+        if (existing.length > 0) return existing;
+        // Legacy migration: for 305 rules that only had `redirect_uri`
+        // (the old single-target shape), seed backends[0] so the operator
+        // sees their existing target as row 1. The Lua router already
+        // ignores redirect_uri whenever backends is non-empty, so this is
+        // a UI-side visual migration only — no runtime change.
+        if ((r.code ?? 403) === 305 && typeof r.redirect_uri === "string" && r.redirect_uri.length > 0) {
+          return [{ address: r.redirect_uri, weight: 100, label: "primary" }];
+        }
+        return [];
+      })(),
       rules_tags: Array.isArray(data.rules_tags) ? data.rules_tags : [],
     });
   }, [data, isClone]);
@@ -418,8 +434,12 @@ export default function RuleDetailPage() {
 
   // ── Conditional visibility ──────────────────────────────────────────
 
+  // 305 proxy-pass uses backends[] exclusively — the Lua router
+  // overwrites redirect_uri whenever backends is non-empty, so the
+  // form hides that field for 305 to stop operators typing the same
+  // target twice. See traffic_router.lua + gateway_resp.lua:88-112.
   const showRedirectUri = useMemo(
-    () => [301, 302, 305].includes(form.code),
+    () => [301, 302].includes(form.code),
     [form.code],
   );
   const showMessage = useMemo(
@@ -491,7 +511,6 @@ export default function RuleDetailPage() {
   }, [form.jwt_token_validation]);
 
   const redirectLabel = useMemo(() => {
-    if (form.code === 305) return "Proxy Pass URL";
     if (form.code === 301 || form.code === 302) return "Redirect URL";
     return "Target URL";
   }, [form.code]);
@@ -1088,18 +1107,10 @@ export default function RuleDetailPage() {
                   <Input
                     label={`${redirectLabel} *`}
                     value={form.redirect_uri}
-                    placeholder={
-                      form.code === 305
-                        ? "http://backend.example.com:8080"
-                        : "https://example.com"
-                    }
+                    placeholder="https://example.com"
                     onChange={(e) => set("redirect_uri", e.target.value)}
                     error={fieldErrors.redirect_uri}
-                    hint={
-                      form.code === 305
-                        ? "The internal backend wslproxy will proxy this request to.  Include the scheme and port."
-                        : "The URL the client will be redirected to."
-                    }
+                    hint="The URL the client will be redirected to."
                   />
                 </div>
               )}

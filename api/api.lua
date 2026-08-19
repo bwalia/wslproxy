@@ -380,12 +380,31 @@ local function validateRulePayload(payloads)
                     })
                 end
 
-                -- Validate redirect_uri for redirect/proxy codes
-                if code == 301 or code == 302 or code == 305 then
+                -- 301/302 need a redirect_uri (goes into the Location: header).
+                if code == 301 or code == 302 then
                     if not payloads.match.response.redirect_uri or payloads.match.response.redirect_uri == "" then
                         table.insert(errors, {
                             field = "match.response.redirect_uri",
-                            message = "Redirect URI is required for response codes 301, 302, and 305 (proxy)"
+                            message = "Redirect URI is required for response codes 301 and 302"
+                        })
+                    end
+                end
+
+                -- 305 (proxy pass) accepts EITHER a `backends` array (the current
+                -- shape written by the Next.js admin — traffic_router picks one)
+                -- OR a plain `redirect_uri` (legacy single-target rules on disk).
+                -- The Lua router overwrites redirect_uri whenever backends is
+                -- non-empty; either shape is a valid target, so we require one
+                -- of them but not both.  See gateway_resp.lua:88-114.
+                if code == 305 then
+                    local backends = payloads.match.response.backends
+                    local has_backends = type(backends) == "table" and #backends > 0
+                    local has_uri = payloads.match.response.redirect_uri
+                        and payloads.match.response.redirect_uri ~= ""
+                    if not has_backends and not has_uri then
+                        table.insert(errors, {
+                            field = "match.response.backends",
+                            message = "Proxy-pass (305) needs at least one backend or a redirect_uri"
                         })
                     end
                 end
@@ -1900,6 +1919,13 @@ CreateUpdateRecord = function(json_val, uuid, key_name, folder_name, method)
 
     local redis_json, domainJson = {}, {}
     if key_name == 'servers' and json_val.server_name then
+        -- Defensive: some clients (Next.js `useParams()` in particular)
+        -- echo the id back URL-encoded (e.g. "host%3Alocalhost").  Every
+        -- comparison + lookup below expects the semantic form
+        -- ("host:localhost"), so decode once here.
+        if type(json_val.id) == "string" then
+            json_val.id = ngx.unescape_uri(json_val.id)
+        end
         local getDomain = Repo.get("servers", envProfile, json_val.id)
         if type(getDomain) == "table" and method == "create" then
             ngx.status = ngx.HTTP_CONFLICT

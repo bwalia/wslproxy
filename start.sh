@@ -14,7 +14,6 @@ NC='\033[0m' # No Color
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 COMPOSE_FILE="$SCRIPT_DIR/docker-compose-local.yml"
 ENV_LOCAL_FILE="$SCRIPT_DIR/.env.local"
-ADMIN_DIR="$SCRIPT_DIR/openresty-admin"
 CONTAINER_NAME="wslproxy-local"
 
 # Ports
@@ -25,7 +24,6 @@ REDIS_PORT=6479
 NODE_APP_PORT=3009
 PG_PORT=5436
 NEXT_ADMIN_PORT=7619
-VITE_ADMIN_PORT=5173
 ADMINER_PORT=8380
 
 # ============================================
@@ -38,10 +36,8 @@ show_help() {
     echo "  ./dev.sh [OPTIONS]"
     echo ""
     echo -e "${BLUE}Options:${NC}"
-    echo "  -s, --skip-build      Skip admin dashboard build (use existing dist)"
     echo "  -r, --reset           Reset environment (removes volumes and wipes data)"
     echo "  -d, --detach          Run in detached mode (don't attach to logs)"
-    echo "  -w, --watch           Enable admin dashboard watch mode (auto-rebuild on changes)"
     echo "  -n, --no-git          Skip all git operations (stash=n, pull=n)"
     echo "  -a, --auto            Auto mode: stash=y, pull=y (no prompts)"
     echo "  -j, --jwt-secret KEY  Set JWT secret key (skips interactive prompt)"
@@ -55,8 +51,6 @@ show_help() {
     echo "  ./dev.sh                        # Start everything (interactive)"
     echo "  ./dev.sh -n                     # Start without git operations"
     echo "  ./dev.sh -a                     # Auto mode (stash + pull + start)"
-    echo "  ./dev.sh -w                     # Start with admin watch mode"
-    echo "  ./dev.sh -s                     # Start without rebuilding admin"
     echo "  ./dev.sh -r                     # Fresh start (reset volumes)"
     echo "  ./dev.sh -d                     # Start detached (background)"
     echo "  ./dev.sh --stop                 # Stop everything"
@@ -64,9 +58,8 @@ show_help() {
     echo ""
     echo -e "${BLUE}Access URLs:${NC}"
     echo "  Admin Dashboard:  http://localhost:$ADMIN_PORT"
-    echo "  Next.js Admin:    http://localhost:$NEXT_ADMIN_PORT  (new dashboard)"
-  echo "  Vite Admin:       http://localhost:$VITE_ADMIN_PORT  (old dashboard)"
-  echo "  Adminer:          http://localhost:$ADMINER_PORT  (database UI)"
+    echo "  Next.js Admin:    http://localhost:$NEXT_ADMIN_PORT"
+    echo "  Adminer:          http://localhost:$ADMINER_PORT  (database UI)"
     echo "  API:              http://localhost:$ADMIN_PORT/api"
     echo "  HTTP Proxy:       http://localhost:$HTTP_PORT"
     echo "  HTTPS Proxy:      https://localhost:$HTTPS_PORT"
@@ -77,7 +70,7 @@ show_help() {
     echo -e "${BLUE}Hot-Reload (no restart needed):${NC}"
     echo "  Lua API files (./api/)      Changes reflect per-request automatically"
     echo "  Static HTML (./html/)       Changes reflect immediately"
-    echo "  Admin dashboard             Use -w flag for auto-rebuild on save"
+    echo "  Next.js Admin               Hot-reloads on save (Next.js Fast Refresh)"
     echo "  Nginx config                Run ./dev.sh --reload"
     echo ""
 }
@@ -85,10 +78,8 @@ show_help() {
 # ============================================
 # Parse Arguments
 # ============================================
-SKIP_BUILD=false
 RESET=false
 DETACH=false
-WATCH_ADMIN=false
 STASH_ARG=""
 PULL_ARG=""
 JWT_ARG=""
@@ -96,20 +87,12 @@ ACTION=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        -s|--skip-build)
-            SKIP_BUILD=true
-            shift
-            ;;
         -r|--reset)
             RESET=true
             shift
             ;;
         -d|--detach)
             DETACH=true
-            shift
-            ;;
-        -w|--watch)
-            WATCH_ADMIN=true
             shift
             ;;
         -a|--auto)
@@ -233,18 +216,6 @@ if ! command -v docker &> /dev/null; then
     missing=1
 fi
 
-if ! command -v node &> /dev/null; then
-    echo -e "${RED}[!] Node.js is not installed. Install Node.js 16+ from https://nodejs.org/${NC}"
-    missing=1
-fi
-
-if ! command -v yarn &> /dev/null; then
-    echo -e "${YELLOW}[!] Yarn not found, will use npm instead${NC}"
-    USE_NPM=true
-else
-    USE_NPM=false
-fi
-
 if ! docker info &> /dev/null 2>&1; then
     echo -e "${RED}[!] Docker daemon is not running. Start Docker Desktop or the Docker service.${NC}"
     missing=1
@@ -260,8 +231,8 @@ echo ""
 # ============================================
 # Step 2: Load/Set JWT Secret
 # ============================================
-# JWT_SECRET_KEY is required by the demo-node-app and injected into openresty-admin/.env
-# for Vite builds (VITE_JWT_SECURITY_PASSPHRASE).
+# JWT_SECRET_KEY is required by the demo-node-app container (docker-compose
+# fails to start without it).  Passed through the environment only.
 #
 # If passed via --jwt-secret, use it directly. Otherwise always prompt the user.
 
@@ -285,20 +256,6 @@ else
 fi
 
 export JWT_SECRET_KEY
-
-# Inject JWT secret into openresty-admin/.env for Vite build
-ADMIN_ENV_FILE="$ADMIN_DIR/.env"
-if [ -f "$ADMIN_ENV_FILE" ]; then
-    if grep -q "^VITE_JWT_SECURITY_PASSPHRASE=" "$ADMIN_ENV_FILE" 2>/dev/null; then
-        # Update existing line
-        sed -i.bak "s|^VITE_JWT_SECURITY_PASSPHRASE=.*|VITE_JWT_SECURITY_PASSPHRASE=$JWT_SECRET_KEY|" "$ADMIN_ENV_FILE"
-        rm -f "${ADMIN_ENV_FILE}.bak"
-    else
-        # Append if not present
-        echo "VITE_JWT_SECURITY_PASSPHRASE=$JWT_SECRET_KEY" >> "$ADMIN_ENV_FILE"
-    fi
-    echo -e "${GREEN}[+] JWT secret injected into openresty-admin/.env${NC}"
-fi
 echo ""
 
 # ============================================
@@ -364,19 +321,7 @@ fi
 echo ""
 
 # ============================================
-# Step 4: Build Admin Dashboard (deferred to after container start)
-# ============================================
-if $SKIP_BUILD; then
-    echo -e "${YELLOW}[+] Skipping admin dashboard build (--skip-build)${NC}"
-else
-    echo -e "${GREEN}[+] Admin dashboard will be built inside the container after startup${NC}"
-    echo -e "${BLUE}[i] Source files are bind-mounted, .env is bind-mounted${NC}"
-fi
-
-echo ""
-
-# ============================================
-# Step 5: Create Required Directories & Files
+# Step 4: Create Required Directories & Files
 # ============================================
 echo -e "${GREEN}[+] Setting up data directories and permissions...${NC}"
 
@@ -475,31 +420,7 @@ fi
 echo ""
 
 # ============================================
-# Step 9: Build Admin Dashboard Inside Container
-# ============================================
-if ! $SKIP_BUILD; then
-    echo -e "${GREEN}[+] Installing dependencies and building admin dashboard inside container...${NC}"
-    echo -e "${BLUE}[i] This uses the container's Node/Yarn with bind-mounted source and .env${NC}"
-
-    docker exec "$CONTAINER_NAME" sh -c "\
-        cd /usr/local/openresty/nginx/html/openresty-admin && \
-        yarn install --network-timeout 300000 && \
-        yarn build" 2>&1
-
-    if [ $? -eq 0 ]; then
-        echo -e "${GREEN}[+] Admin dashboard built successfully inside container${NC}"
-    else
-        echo -e "${RED}[!] Admin dashboard build failed. You can retry manually:${NC}"
-        echo -e "${YELLOW}    docker exec $CONTAINER_NAME sh -c 'cd /usr/local/openresty/nginx/html/openresty-admin && yarn build'${NC}"
-    fi
-else
-    echo -e "${BLUE}[i] Skipped admin build (--skip-build)${NC}"
-fi
-
-echo ""
-
-# ============================================
-# Step 10: Fix Container Permissions
+# Step 9: Fix Container Permissions
 # ============================================
 echo -e "${GREEN}[+] Fixing container permissions (logs, data)...${NC}"
 
@@ -520,32 +441,14 @@ echo -e "${GREEN}[+] Container permissions set${NC}"
 echo ""
 
 # ============================================
-# Step 11: Start Admin Watch Mode (if requested)
-# ============================================
-WATCH_PID=""
-
-if $WATCH_ADMIN; then
-    echo -e "${GREEN}[+] Starting admin dashboard watch mode inside container (auto-rebuild on changes)...${NC}"
-    echo -e "${BLUE}[i] Source files are bind-mounted — saves on your Mac trigger rebuilds in the container${NC}"
-
-    docker exec -d "$CONTAINER_NAME" sh -c "\
-        cd /usr/local/openresty/nginx/html/openresty-admin && \
-        npx vite build --watch"
-
-    echo -e "${GREEN}[+] Watch mode running inside container${NC}"
-    echo ""
-fi
-
-# ============================================
-# Step 12: Print URLs and Attach to Logs
+# Step 10: Print URLs and Attach to Logs
 # ============================================
 echo -e "${CYAN}========================================${NC}"
 echo -e "${CYAN}   WSLProxy is running!                ${NC}"
 echo -e "${CYAN}========================================${NC}"
 echo ""
 echo -e "  Admin Dashboard:  ${GREEN}http://localhost:$ADMIN_PORT${NC}"
-echo -e "  Next.js Admin:    ${GREEN}http://localhost:$NEXT_ADMIN_PORT${NC}  (new dashboard)"
-echo -e "  Vite Admin:       ${GREEN}http://localhost:$VITE_ADMIN_PORT${NC}  (old dashboard)"
+echo -e "  Next.js Admin:    ${GREEN}http://localhost:$NEXT_ADMIN_PORT${NC}"
 echo -e "  Adminer:          ${GREEN}http://localhost:$ADMINER_PORT${NC}  (database UI)"
 echo -e "  API:              ${GREEN}http://localhost:$ADMIN_PORT/api${NC}"
 echo -e "  HTTP Proxy:       ${GREEN}http://localhost:$HTTP_PORT${NC}"
@@ -558,11 +461,7 @@ echo ""
 echo -e "${CYAN}  Hot-Reload (no restart needed):${NC}"
 echo -e "  Lua API files (./api/)      → changes reflect per-request"
 echo -e "  Static HTML (./html/)       → changes reflect immediately"
-if $WATCH_ADMIN; then
-echo -e "  Admin dashboard (src/)      → ${GREEN}watch mode active, auto-rebuilds on save${NC}"
-else
-echo -e "  Admin dashboard             → restart with ${YELLOW}-w${NC} flag for auto-rebuild"
-fi
+echo -e "  Next.js Admin (src/)        → Next.js Fast Refresh auto-updates"
 echo -e "  Demo Node App (server.js)   → nodemon auto-restarts on file changes"
 echo -e "  Nginx config                → run ${YELLOW}./dev.sh --reload${NC} to apply"
 echo ""
@@ -575,15 +474,9 @@ echo ""
 echo -e "${CYAN}========================================${NC}"
 echo ""
 
-# Cleanup function for watch mode
 cleanup() {
     echo ""
     echo -e "${GREEN}[+] Shutting down...${NC}"
-    if [[ -n "$WATCH_PID" ]] && kill -0 "$WATCH_PID" 2>/dev/null; then
-        echo -e "${GREEN}[+] Stopping admin watch mode...${NC}"
-        kill "$WATCH_PID" 2>/dev/null
-        wait "$WATCH_PID" 2>/dev/null
-    fi
     echo -e "${GREEN}[+] Stopping containers...${NC}"
     docker compose -f "$COMPOSE_FILE" down
     echo -e "${GREEN}[+] Done. Goodbye!${NC}"
