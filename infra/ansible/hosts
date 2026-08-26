@@ -8,7 +8,7 @@
 [openresty_native_cluster]
 192.168.1.193 ansible_user=bwalia
 192.168.1.140 ansible_user=bwalia
-192.168.1.48 ansible_user=bwalia
+192.168.1.47 ansible_user=bwalia
 187.124.112.155 ansible_user=root
 72.62.211.28 ansible_user=root
 18.133.126.242 ansible_user=admin
@@ -22,7 +22,7 @@
 192.168.1.140 ansible_user=bwalia
 
 [openresty_acc]
-192.168.1.48 ansible_user=bwalia
+192.168.1.47 ansible_user=bwalia
 
 [openresty_prod]
 187.124.112.155 ansible_user=root

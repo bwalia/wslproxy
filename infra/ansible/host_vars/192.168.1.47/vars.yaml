@@ -1,4 +1,5 @@
-# Acceptance (acc) — LAN host.
+# Acceptance (acc) — LAN host (debian002; was 192.168.1.48 until DHCP
+# drift on 2026-08-19, now 192.168.1.47).
 #
 # Mirrors the test host_vars pattern (LAN peer, bwalia SSH user, vault-or-sops
 # secrets). Populated when acc was migrated off 187.124.112.155 (which
@@ -10,7 +11,7 @@
 local_settings_file_path: "/home/bwalia/.secrets/wslproxy/acc/settings.json"
 local_env_file_path: "/home/bwalia/.secrets/wslproxy/acc/.env"
 nginx_user_password: "!!REDACTED!!" # For www-data — encrypt via Ansible Vault before use.
-host_lan_ip: "192.168.1.48"
+host_lan_ip: "192.168.1.47"
 nginx_web_ui_enabled: "yes"
 nginx_rest_api_server_enabled: ""
 nginx_data_sync_enabled: ""
@@ -20,7 +21,7 @@ nginx_s3_server_name: "s3.workstation.co.uk"
 nginx_s3_cli_server_name: "s3-cli.workstation.co.uk"
 nginx_k3s_dashboard_server_name: "k3s-dashboard.workstation.co.uk"
 nginx_default_server_frontend: "acc.wslproxy.com www.acc.wslproxy.com acc.wslproxy.org www.acc.wslproxy.org"
-nginx_default_server_backend: "192.168.1.48"
+nginx_default_server_backend: "192.168.1.47"
 nginx_default_server_backend_port: 8080
 letsencrypt_email: "balinder.walia@gmail.com"
 openresty_admin_secondary_color: "#D91656"
