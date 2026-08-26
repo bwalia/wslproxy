@@ -920,6 +920,16 @@ server {
           proxy_set_header Connection $connection_upgrade;
 
           proxy_set_header x-route-server $proxy_route_server;
+          # Failover for multi-backend rules: re-enter the balancer not just on
+          # connect error/timeout (the nginx default) but also when a backend is
+          # up-but-broken (its edge answers 404/5xx for a dead origin), and allow
+          # non-idempotent methods (docker push POST/PATCH) to retry too — without
+          # non_idempotent a push cannot fail over at all. http_404 is safe here
+          # because retries only ever target backends of the SAME rule, which by
+          # contract serve identical content; a genuine 404 stays a 404, it just
+          # costs one extra hop. Single-backend vhosts are unaffected: the
+          # balancer only calls set_more_tries() when a rule has >1 backend.
+          proxy_next_upstream error timeout http_502 http_503 http_504 http_404 non_idempotent;
           proxy_set_header Host $proxy_host_override;
           proxy_pass $proxy_host_scheme://$upstream_server;
         
@@ -1166,6 +1176,16 @@ server {
 
           chunked_transfer_encoding off;
           proxy_set_header x-route-server $proxy_route_server;
+          # Failover for multi-backend rules: re-enter the balancer not just on
+          # connect error/timeout (the nginx default) but also when a backend is
+          # up-but-broken (its edge answers 404/5xx for a dead origin), and allow
+          # non-idempotent methods (docker push POST/PATCH) to retry too — without
+          # non_idempotent a push cannot fail over at all. http_404 is safe here
+          # because retries only ever target backends of the SAME rule, which by
+          # contract serve identical content; a genuine 404 stays a 404, it just
+          # costs one extra hop. Single-backend vhosts are unaffected: the
+          # balancer only calls set_more_tries() when a rule has >1 backend.
+          proxy_next_upstream error timeout http_502 http_503 http_504 http_404 non_idempotent;
           proxy_set_header Host $proxy_host_override;
           proxy_pass $proxy_host_scheme://$upstream_server;
         
