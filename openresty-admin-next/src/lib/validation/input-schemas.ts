@@ -165,6 +165,15 @@ export const serverInputSchema = z
         (v) => v.length === 0 || hostnameRegex.test(v),
         "Must be a valid hostname (letters, digits, dot, hyphen)",
       ),
+    mirror_host_header: z
+      .string()
+      .trim()
+      .default("")
+      // Only validated when set — empty means "no mirror Host override".
+      .refine(
+        (v) => v.length === 0 || hostnameRegex.test(v),
+        "Must be a valid hostname (letters, digits, dot, hyphen)",
+      ),
     profile_id: z.string().trim().min(1, "Profile is required"),
     listens: z
       .array(

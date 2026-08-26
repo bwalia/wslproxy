@@ -240,6 +240,36 @@ http {
                     ngx.ctx.selected_backend_label = new_backend.label
                     ngx.log(ngx.WARN, "balancer: retrying with backend ", host, ":", port,
                         " after failure on ", tostring(failed_addr))
+
+                    -- Per-backend Host override on retry (backends[].host_header):
+                    -- the replacement peer may need a different upstream Host than
+                    -- the failed one — or none, in which case the base Host from
+                    -- the access phase is restored. recreate_request() rebuilds
+                    -- the proxied request so proxy_set_header re-evaluates
+                    -- $proxy_host_override (and proxy_ssl_name follows for SNI).
+                    -- S3-signed requests are exempt: Host is part of the signature.
+                    local desired_host
+                    if ngx.ctx.s3_host_override then
+                        desired_host = ngx.ctx._base_host_override
+                    elseif new_backend.host_header and new_backend.host_header ~= "" then
+                        desired_host = new_backend.host_header
+                    elseif ngx.ctx._server_mirror_host
+                        and ngx.ctx._primary_backend_address
+                        and new_backend.address ~= ngx.ctx._primary_backend_address then
+                        -- Server-level mirror_host_header: this retry landed on
+                        -- a non-primary (mirror) backend of a shared rule.
+                        desired_host = ngx.ctx._server_mirror_host
+                    else
+                        desired_host = ngx.ctx._base_host_override
+                    end
+                    if desired_host and desired_host ~= ""
+                        and desired_host ~= ngx.var.proxy_host_override then
+                        ngx.var.proxy_host_override = desired_host
+                        local rok, rerr = balancer.recreate_request()
+                        if not rok then
+                            ngx.log(ngx.ERR, "balancer: recreate_request failed: ", rerr)
+                        end
+                    end
                 end
             end
         end
@@ -920,6 +950,16 @@ server {
           proxy_set_header Connection $connection_upgrade;
 
           proxy_set_header x-route-server $proxy_route_server;
+          # Failover for multi-backend rules: re-enter the balancer not just on
+          # connect error/timeout (the nginx default) but also when a backend is
+          # up-but-broken (its edge answers 404/5xx for a dead origin), and allow
+          # non-idempotent methods (docker push POST/PATCH) to retry too — without
+          # non_idempotent a push cannot fail over at all. http_404 is safe here
+          # because retries only ever target backends of the SAME rule, which by
+          # contract serve identical content; a genuine 404 stays a 404, it just
+          # costs one extra hop. Single-backend vhosts are unaffected: the
+          # balancer only calls set_more_tries() when a rule has >1 backend.
+          proxy_next_upstream error timeout http_502 http_503 http_504 http_404 non_idempotent;
           proxy_set_header Host $proxy_host_override;
           proxy_pass $proxy_host_scheme://$upstream_server;
         
@@ -1166,6 +1206,16 @@ server {
 
           chunked_transfer_encoding off;
           proxy_set_header x-route-server $proxy_route_server;
+          # Failover for multi-backend rules: re-enter the balancer not just on
+          # connect error/timeout (the nginx default) but also when a backend is
+          # up-but-broken (its edge answers 404/5xx for a dead origin), and allow
+          # non-idempotent methods (docker push POST/PATCH) to retry too — without
+          # non_idempotent a push cannot fail over at all. http_404 is safe here
+          # because retries only ever target backends of the SAME rule, which by
+          # contract serve identical content; a genuine 404 stays a 404, it just
+          # costs one extra hop. Single-backend vhosts are unaffected: the
+          # balancer only calls set_more_tries() when a rule has >1 backend.
+          proxy_next_upstream error timeout http_502 http_503 http_504 http_404 non_idempotent;
           proxy_set_header Host $proxy_host_override;
           proxy_pass $proxy_host_scheme://$upstream_server;
         
