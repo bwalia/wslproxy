@@ -240,6 +240,29 @@ http {
                     ngx.ctx.selected_backend_label = new_backend.label
                     ngx.log(ngx.WARN, "balancer: retrying with backend ", host, ":", port,
                         " after failure on ", tostring(failed_addr))
+
+                    -- Per-backend Host override on retry (backends[].host_header):
+                    -- the replacement peer may need a different upstream Host than
+                    -- the failed one — or none, in which case the base Host from
+                    -- the access phase is restored. recreate_request() rebuilds
+                    -- the proxied request so proxy_set_header re-evaluates
+                    -- $proxy_host_override (and proxy_ssl_name follows for SNI).
+                    -- S3-signed requests are exempt: Host is part of the signature.
+                    local desired_host
+                    if new_backend.host_header and new_backend.host_header ~= ""
+                        and not ngx.ctx.s3_host_override then
+                        desired_host = new_backend.host_header
+                    else
+                        desired_host = ngx.ctx._base_host_override
+                    end
+                    if desired_host and desired_host ~= ""
+                        and desired_host ~= ngx.var.proxy_host_override then
+                        ngx.var.proxy_host_override = desired_host
+                        local rok, rerr = balancer.recreate_request()
+                        if not rok then
+                            ngx.log(ngx.ERR, "balancer: recreate_request failed: ", rerr)
+                        end
+                    end
                 end
             end
         end

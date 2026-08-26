@@ -36,12 +36,12 @@ local function weighted_select(backends)
     for i, b in ipairs(backends) do
         cumulative = cumulative + (b.weight or 1)
         if rand <= cumulative then
-            return { address = b.address, label = b.label or ("backend_" .. i), backend_index = i }
+            return { address = b.address, label = b.label or ("backend_" .. i), backend_index = i, host_header = b.host_header }
         end
     end
 
     -- Fallback (should not reach here)
-    return { address = backends[1].address, label = backends[1].label or "backend_1", backend_index = 1 }
+    return { address = backends[1].address, label = backends[1].label or "backend_1", backend_index = 1, host_header = backends[1].host_header }
 end
 
 -- Round-robin selection using a shared dict counter
@@ -59,7 +59,7 @@ local function round_robin_select(rule_id, backends)
 
     local selected_idx = (idx % #backends) + 1
     local b = backends[selected_idx]
-    return { address = b.address, label = b.label or ("backend_" .. selected_idx), backend_index = selected_idx }
+    return { address = b.address, label = b.label or ("backend_" .. selected_idx), backend_index = selected_idx, host_header = b.host_header }
 end
 
 -- Header-based routing: if a specific header matches, route to "canary" backends
@@ -124,7 +124,7 @@ local function least_conn_select(rule_id, backends)
         return nil
     end
 
-    return { address = min_backend.address, label = min_backend.label or ("backend_" .. min_index), backend_index = min_index }
+    return { address = min_backend.address, label = min_backend.label or ("backend_" .. min_index), backend_index = min_index, host_header = min_backend.host_header }
 end
 
 -- Cookie-based routing with optional stickiness
@@ -150,7 +150,7 @@ local function cookie_select(backends, routing, request_ctx)
         if sticky_addr then
             for i, b in ipairs(backends) do
                 if b.address == sticky_addr then
-                    return { address = b.address, label = b.label or ("backend_" .. i), backend_index = i }, false
+                    return { address = b.address, label = b.label or ("backend_" .. i), backend_index = i, host_header = b.host_header }, false
                 end
             end
         end
@@ -173,7 +173,7 @@ end
 -- @param rule_response table: the match.response from the rule JSON
 -- @param request_ctx table: { remote_addr, headers, cookies }
 -- @param opts table: optional { exclude = "host:port" } for retry
--- @return table { address, label, backend_index } or nil
+-- @return table { address, label, backend_index, host_header? } or nil
 function _M.select_backend(rule_response, request_ctx, opts)
     if not rule_response then return nil end
 

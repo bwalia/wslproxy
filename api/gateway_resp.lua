@@ -100,6 +100,9 @@ elseif selectedRule.statusCode == 305 then
                 selectedRule.redirectUri = backend.address
                 ngx.ctx.selected_backend_label = backend.label
                 ngx.ctx.selected_backend_rule_id = response.rule_id
+                -- Optional per-backend upstream Host (rule backends[].host_header),
+                -- applied below once the base Host override has been computed.
+                ngx.ctx._selected_backend_host_header = backend.host_header
                 -- Cache for potential retry in balancer_by_lua
                 ngx.ctx._router_response_cache = response
                 ngx.ctx._router_ctx_cache = ctx
@@ -277,6 +280,21 @@ elseif selectedRule.statusCode == 305 then
         -- hardcoded hostname, so every served host forwards its own Host), and is
         -- harmless for backends that ignore Host. `proxy_server_name` still overrides.
         ngx.var.proxy_host_override = ngx.var.host
+    end
+
+    -- Remember the Host this request would use WITHOUT any per-backend
+    -- override — the balancer restores it when a retry lands on a backend
+    -- that has no host_header of its own.
+    ngx.ctx._base_host_override = ngx.var.proxy_host_override
+
+    -- Optional per-backend Host override (rule backends[].host_header): for
+    -- a backend that is host-routed under a DIFFERENT name than the served
+    -- host (e.g. a mirror published behind its own ingress hostname). More
+    -- specific than the server-level proxy_server_name, so it wins over it;
+    -- S3-signed requests are exempt because Host is part of the signature.
+    local backend_host = ngx.ctx._selected_backend_host_header
+    if backend_host and backend_host ~= "" and not ngx.ctx.s3_host_override then
+        ngx.var.proxy_host_override = backend_host
     end
 
     -- Upstream backend request headers (forwarded to the backend server)
