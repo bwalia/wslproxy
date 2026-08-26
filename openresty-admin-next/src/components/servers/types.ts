@@ -46,6 +46,11 @@ export interface ServerFormState {
   /* Basic */
   server_name: string;
   proxy_server_name: string;
+  /** Upstream Host header used when traffic is served by a NON-primary
+   *  (failover/mirror) backend of the assigned rule. Rules are shared
+   *  across many domains, so the domain-specific mirror hostname lives
+   *  here on the server, not on the rule. Empty = no override. */
+  mirror_host_header: string;
   profile_id: string;
   /** POPs (Points of Presence) this server should be served from.
    *  Empty array = unassigned; the DNS provisioner falls back to a

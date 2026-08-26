@@ -103,6 +103,21 @@ elseif selectedRule.statusCode == 305 then
                 -- Optional per-backend upstream Host (rule backends[].host_header),
                 -- applied below once the base Host override has been computed.
                 ngx.ctx._selected_backend_host_header = backend.host_header
+                ngx.ctx._selected_backend_address = backend.address
+                -- The rule's PRIMARY backend is the highest-weight one (first
+                -- wins a tie). The server-level mirror_host_header applies
+                -- only to the OTHER (failover/mirror) backends — a rule is
+                -- shared across many domains, so the domain-specific mirror
+                -- hostname lives on each server row, not on the rule.
+                local primary_addr, primary_w = nil, -1
+                for _, pb in ipairs(response.backends) do
+                    local w = tonumber(pb.weight) or 1
+                    if w > primary_w then
+                        primary_w = w
+                        primary_addr = pb.address
+                    end
+                end
+                ngx.ctx._primary_backend_address = primary_addr
                 -- Cache for potential retry in balancer_by_lua
                 ngx.ctx._router_response_cache = response
                 ngx.ctx._router_ctx_cache = ctx
@@ -287,14 +302,28 @@ elseif selectedRule.statusCode == 305 then
     -- that has no host_header of its own.
     ngx.ctx._base_host_override = ngx.var.proxy_host_override
 
-    -- Optional per-backend Host override (rule backends[].host_header): for
-    -- a backend that is host-routed under a DIFFERENT name than the served
-    -- host (e.g. a mirror published behind its own ingress hostname). More
-    -- specific than the server-level proxy_server_name, so it wins over it;
-    -- S3-signed requests are exempt because Host is part of the signature.
+    -- Server-level mirror Host (server row `mirror_host_header`): rules are
+    -- shared across many domains, so a rule cannot carry a domain-specific
+    -- hostname — each server declares its own. It applies whenever the
+    -- selected backend is NOT the rule's primary (highest-weight) backend.
+    local mirror_host = proxyServer and proxyServer.mirror_host_header
+    if type(mirror_host) ~= "string" or mirror_host == "" then mirror_host = nil end
+    ngx.ctx._server_mirror_host = mirror_host
+
+    -- Upstream Host precedence on top of the base above: the rule backend's
+    -- own host_header (most specific) > the server's mirror_host_header (for
+    -- non-primary backends) > the base. S3-signed requests are exempt
+    -- because Host is part of the signature.
     local backend_host = ngx.ctx._selected_backend_host_header
-    if backend_host and backend_host ~= "" and not ngx.ctx.s3_host_override then
-        ngx.var.proxy_host_override = backend_host
+    if not ngx.ctx.s3_host_override then
+        if backend_host and backend_host ~= "" then
+            ngx.var.proxy_host_override = backend_host
+        elseif mirror_host
+            and ngx.ctx._selected_backend_address
+            and ngx.ctx._primary_backend_address
+            and ngx.ctx._selected_backend_address ~= ngx.ctx._primary_backend_address then
+            ngx.var.proxy_host_override = mirror_host
+        end
     end
 
     -- Upstream backend request headers (forwarded to the backend server)

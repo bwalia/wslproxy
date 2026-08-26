@@ -79,6 +79,7 @@ import { cn } from "@/lib/utils/cn";
 const DEFAULT_FORM: ServerFormState = {
   server_name: "",
   proxy_server_name: "",
+  mirror_host_header: "",
   profile_id: "",
   pop_ids: [],
   dns_record_type: "A",
@@ -194,6 +195,7 @@ const FIELD_TO_TAB: Array<{ prefix: string; tab: TabKey }> = [
   { prefix: "waf_policy_id", tab: "waf" },
   { prefix: "waf_mode_override", tab: "waf" },
   { prefix: "rules", tab: "rules" },
+  { prefix: "mirror_host_header", tab: "rules" },
   { prefix: "match_cases", tab: "rules" },
 ];
 
@@ -228,6 +230,10 @@ function hydrateForm(data: ServerType): ServerFormState {
   return {
     server_name: data.server_name ?? "",
     proxy_server_name: data.proxy_server_name ?? "",
+    mirror_host_header:
+      (data as unknown as Record<string, unknown>).mirror_host_header as
+        | string
+        | undefined ?? "",
     profile_id: data.profile_id ?? "",
     pop_ids: Array.isArray(data.pop_ids) ? data.pop_ids : [],
     // Defaults preserve backwards compatibility: an existing server
@@ -378,6 +384,7 @@ function buildPayload(form: ServerFormState): Record<string, unknown> {
   return {
     server_name: form.server_name,
     proxy_server_name: form.proxy_server_name,
+    mirror_host_header: form.mirror_host_header,
     profile_id: form.profile_id,
     pop_ids: form.pop_ids,
     dns_record_type: form.dns_record_type,

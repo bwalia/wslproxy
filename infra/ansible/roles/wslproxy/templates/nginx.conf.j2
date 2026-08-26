@@ -249,9 +249,16 @@ http {
                     -- $proxy_host_override (and proxy_ssl_name follows for SNI).
                     -- S3-signed requests are exempt: Host is part of the signature.
                     local desired_host
-                    if new_backend.host_header and new_backend.host_header ~= ""
-                        and not ngx.ctx.s3_host_override then
+                    if ngx.ctx.s3_host_override then
+                        desired_host = ngx.ctx._base_host_override
+                    elseif new_backend.host_header and new_backend.host_header ~= "" then
                         desired_host = new_backend.host_header
+                    elseif ngx.ctx._server_mirror_host
+                        and ngx.ctx._primary_backend_address
+                        and new_backend.address ~= ngx.ctx._primary_backend_address then
+                        -- Server-level mirror_host_header: this retry landed on
+                        -- a non-primary (mirror) backend of a shared rule.
+                        desired_host = ngx.ctx._server_mirror_host
                     else
                         desired_host = ngx.ctx._base_host_override
                     end

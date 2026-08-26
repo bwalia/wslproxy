@@ -4,6 +4,7 @@ import React, { useCallback, useMemo } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { Plus, Trash2, ListFilter } from "lucide-react";
 import Card from "@/components/ui/Card";
+import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import Combobox from "@/components/ui/Combobox";
 import Button from "@/components/ui/Button";
@@ -150,6 +151,42 @@ const ServerRulesTab: React.FC<ServerRulesTabProps> = ({
           )}
         </Card.Body>
       </Card>
+
+      {/* ── Failover Host Override ───────────────────────────────────── */}
+      {/* Only meaningful once a rule is assigned — the override applies
+          to traffic served by the rule's NON-primary (failover/mirror)
+          backends. It lives on the server, not the rule, because rules
+          are shared across many domains and each domain's mirror is
+          published under its own hostname. */}
+      {form.rules && (
+        <Card>
+          <Card.Header>
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                Failover Host Override
+              </h2>
+              <p className="mt-0.5 text-sm text-slate-600 dark:text-slate-300">
+                Host header sent upstream when this server&apos;s traffic is
+                served by a non-primary (mirror) backend of the assigned rule.
+                Leave empty to forward the same Host on every backend.
+              </p>
+            </div>
+          </Card.Header>
+          <Card.Body>
+            <Input
+              label="Mirror Host Header"
+              placeholder="e.g. spectoncr-mirror.diytaxreturn.co.uk"
+              value={form.mirror_host_header}
+              onChange={(e) =>
+                setForm((prev) => ({
+                  ...prev,
+                  mirror_host_header: e.target.value,
+                }))
+              }
+            />
+          </Card.Body>
+        </Card>
+      )}
 
       {/* ── Match Conditions ─────────────────────────────────────────── */}
       {showMatchCases && (
