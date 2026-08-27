@@ -775,7 +775,7 @@ jobs:
 
       # ── Deploy server/rule configs ──
       - name: Deploy server configs and rules
-        timeout-minutes: 5
+        timeout-minutes: 20
         run: |
           echo "Deploying server configs for env: ${{ inputs.env_name }} to ${{ inputs.host_ip }}"
           export ANSIBLE_HOST_KEY_CHECKING=False
