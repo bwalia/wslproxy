@@ -513,7 +513,7 @@ export default function PopDetailPage() {
               }
               hint="Control-plane DNS name for this POP (used internally — not customer-facing)."
               error={fieldErrors.internal_hostname}
-              placeholder="pop0.wslproxy.com"
+              placeholder="lon1.pop0.uk"
             />
             <Input
               label="Latitude (optional)"
