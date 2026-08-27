@@ -56,7 +56,16 @@
       /usr/local/openresty/bin/openresty -s stop 2>/dev/null || true
     fi
     # Do NOT use killall nginx — that can kill k3s/container nginx on the same host.
-    pkill -f '/usr/local/openresty/nginx/sbin/nginx' 2>/dev/null || true
+    # [/] bracket trick: without it pkill -f matches THIS shell's own command
+    # line (the pattern is part of it) and SIGTERMs the Ansible task itself
+    # (rc -15, seen on the 2026-08-27 lon1 decommission). Also skip PIDs in
+    # kubepods cgroups — pkill -f sees containerised openresty (e.g. the
+    # wslproxy-ingress-controller pods) in the host PID namespace.
+    for pid in $(pgrep -f '[/]usr/local/openresty/nginx/sbin/nginx' 2>/dev/null); do
+      if ! grep -q kubepods "/proc/$pid/cgroup" 2>/dev/null; then
+        kill "$pid" 2>/dev/null || true
+      fi
+    done
     exit 0
   args:
     executable: /bin/bash
