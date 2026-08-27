@@ -1,0 +1,39 @@
+# Zalando Postgres for the WSLProxy system instance on k3s1.
+#
+# Namespace wslproxy-system hosts the ingress-controller Helm release
+# (wslproxy-ingress). This cluster is the admin/config store when
+# settings.storage_type = pgsql (disk JSON is still dual-written).
+#
+# Apply:  kubectl apply -f deploy/postgres/wslproxy-db.yaml
+# Watch:  kubectl get postgresql wslproxy-db -n wslproxy-system -w
+#
+# Service:  wslproxy-db.wslproxy-system.svc.cluster.local:5432
+# Database: wslproxy  (owner: wslproxy)
+# Secret:   wslproxy.wslproxy-db.credentials.postgresql.acid.zalan.do
+apiVersion: acid.zalan.do/v1
+kind: postgresql
+metadata:
+  name: wslproxy-db
+  namespace: wslproxy-system
+  labels:
+    app.kubernetes.io/part-of: wslproxy
+    app.kubernetes.io/component: storage
+spec:
+  teamId: ops
+  numberOfInstances: 1
+  postgresql:
+    version: "15"
+  databases:
+    wslproxy: wslproxy
+  users:
+    wslproxy: []
+  volume:
+    size: 5Gi
+    storageClass: longhorn
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
