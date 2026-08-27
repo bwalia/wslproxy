@@ -6,7 +6,7 @@
   "config_status": true,
   "created_at": 1778320659,
   "custom_headers": {},
-  "dns_cname_target": "pop0.wslproxy.com",
+  "dns_cname_target": "lon1.pop0.uk",
   "dns_record_type": "CNAME",
   "error_log": "logs/error.log",
   "id": "host:showcase.nebuladb.net",
