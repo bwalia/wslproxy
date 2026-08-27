@@ -1,0 +1,82 @@
+# Ring Promoter app config — helm-deploy WSLProxy Ingress onto k3s1.
+#
+# There is no existing k3s1.yaml. The VM app `wslproxy` still deploys via the
+# GitHub Actions `github` deployer (deploy-single-environment.yml). This file
+# is a second app: each seed/promote/rollback creates a Kubernetes Job in
+# `ring-exec` on k3s1 that `helm upgrade --install`s
+# `ingress-controller/deploy/helm` (release `wslproxy-ingress` in
+# `wslproxy-system` for prod; `wslproxy-<ring>` + ingressClass `wslproxy-<ring>`
+# for int/test/acc so they do not steal the live class).
+#
+# Paste the `apps:` entry into the owning Ring Promoter ConfigMap, then:
+#   kubectl apply -f deploy/ring-promoter/k3s1-rbac.yaml
+#   kubectl apply -f <configmap>
+#   kubectl rollout restart deploy/ring-promoter -n ring-system   # diytaxreturn
+#   # or -n workstation-ring-promoter for the workstation instance
+#
+# Ring Promoter injects RP_APP, RP_RING, RP_VERSION, RP_TARGET_ENV,
+# RP_EXECUTION_ID. Seed an image tag that exists on Docker Hub
+# (e.g. latest, sha-<7chars>, or an ingress-v* tag). A 40-char git SHA is
+# mapped to sha-<7chars>.
+#
+# Requires: ring-exec namespace, ring-deploy-job SA, k3s1-rbac.yaml applied.
+apps:
+  - name: wslproxy-k3s1
+    display_name: "WSLProxy Ingress (k3s1)"
+    location: { lat: 51.5074, lng: -0.1278, city: London, region: GB }
+    deployer: k8sjob
+    k8sjob:
+      namespace: ring-exec
+      image: docker.io/dtzar/helm-kubectl:3.15.4
+      service_account: ring-deploy-job
+      command: ["/bin/sh", "-c"]
+      args:
+        - |
+          set -eu
+          env="${RP_TARGET_ENV}"
+          ver="${RP_VERSION}"
+          tag="${ver}"
+          if [ "${#ver}" -eq 40 ]; then
+            tag="sha-$(printf '%s' "${ver}" | cut -c1-7)"
+          fi
+          if [ "${env}" = "prod" ]; then
+            ns="wslproxy-system"
+            release="wslproxy-ingress"
+            fullname="wslproxy-ingress"
+            class="wslproxy"
+            extra=""
+          else
+            ns="wslproxy-${env}"
+            release="wslproxy-ingress-${env}"
+            fullname="wslproxy-ingress-${env}"
+            class="wslproxy-${env}"
+            extra="--set openresty.autoscaling.enabled=false --set openresty.replicas=1 --set controller.replicas=1 --set openresty.podDisruptionBudget.enabled=false --set openresty.service.type=ClusterIP"
+          fi
+          echo "deploy wslproxy-ingress ${tag} -> ns ${ns} class ${class} (ring ${RP_RING})"
+          rm -rf /src
+          git clone https://github.com/bwalia/wslproxy /src
+          cd /src
+          git checkout "${ver}" || echo "RP_VERSION ${ver} is not a git ref; chart from default branch, image tag ${tag}"
+          kubectl apply -f ingress-controller/deploy/crds/
+          # No --create-namespace: ring-deploy-job has no cluster-scoped
+          # namespace rights. Namespaces come from k3s1-rbac.yaml.
+          # shellcheck disable=SC2086
+          helm upgrade --install "${release}" ./ingress-controller/deploy/helm \
+            --namespace "${ns}" \
+            --set fullnameOverride="${fullname}" \
+            --set ingressClass.name="${class}" \
+            --set ingressClass.isDefaultClass=false \
+            --set controller.image.tag="${tag}" \
+            --set openresty.image.tag="${tag}" \
+            ${extra} \
+            --wait --timeout 5m
+          echo "wslproxy-ingress ${tag} live in ${ns}"
+      resources: { cpu_request: 100m, memory_limit: 512Mi }
+      timeout: 15m
+      retries: 0
+      ttl_after_finished: 1h
+    rings:
+      int:  { target_env: int,  health_url: "http://wslproxy-ingress-int-openresty.wslproxy-int.svc.cluster.local:8080/healthz" }
+      test: { target_env: test, health_url: "http://wslproxy-ingress-test-openresty.wslproxy-test.svc.cluster.local:8080/healthz" }
+      acc:  { target_env: acc,  health_url: "http://wslproxy-ingress-acc-openresty.wslproxy-acc.svc.cluster.local:8080/healthz" }
+      prod: { target_env: prod, health_url: "http://wslproxy-ingress-openresty.wslproxy-system.svc.cluster.local:8080/healthz" }

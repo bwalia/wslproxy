@@ -271,7 +271,7 @@ Three completely independent deploy mechanisms — they don't share configuratio
   - `templates/ingressclass.yaml` — `ingressClassName: wslproxy`
   - `templates/openresty-{service,hpa,pdb}.yaml`, `tls-secret.yaml`, `rbac.yaml`, `servicemonitor.yaml`
 - The helm chart's `files/nginx.conf` is what gets deployed into the ConfigMap. `ingress-controller/deploy/openresty/nginx.conf` is kept in sync but not directly used by helm.
-- **This chart is NOT deployed by any automated pipeline** — you must run `helm upgrade wslproxy-ingress ingress-controller/deploy/helm/ -n wslproxy-system` manually.
+- Helm on k3s1 is Ring Promoter app `wslproxy-k3s1` (`deploy/ring-promoter/k3s1.yaml`): a `k8sjob` in `ring-exec` runs `helm upgrade --install`. One-time RBAC: `kubectl apply -f deploy/ring-promoter/k3s1-rbac.yaml`. Manual equivalent: `helm upgrade wslproxy-ingress ingress-controller/deploy/helm/ -n wslproxy-system`.
 
 ---
 
@@ -488,7 +488,7 @@ Local URLs:
 
 5. **Two-layer timeout:** fixing timeouts on the outer wslproxy doesn't help if k3s ingress has lower. Raise both. `ingress-controller/deploy/helm/files/nginx.conf` now has `proxy_{connect,send,read}_timeout 300s`.
 
-6. **k3s ingress helm chart requires manual `helm upgrade`** — not in any CI pipeline. Changes to `ingress-controller/deploy/helm/files/nginx.conf` won't deploy automatically.
+6. **k3s ingress helm chart** — promote via Ring Promoter app `wslproxy-k3s1` (k8sjob on k3s1) or `helm upgrade wslproxy-ingress ingress-controller/deploy/helm/ -n wslproxy-system`. Changes to `ingress-controller/deploy/helm/files/nginx.conf` only go live after that helm upgrade.
 
 7. **Missing `/var/cache/nginx/docker_blobs` parent** in Docker image → nginx won't start (proxy_cache_path directive fails). Dockerfile creates it explicitly.
 

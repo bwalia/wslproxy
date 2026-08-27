@@ -1,0 +1,221 @@
+# RBAC so Ring Promoter's k8sjob runner can helm-deploy WSLProxy Ingress on k3s1.
+#
+# Apply against k3s1 (once):
+#   kubectl apply -f deploy/ring-promoter/k3s1-rbac.yaml
+#
+# Assumes the shared platform already exists (owned by diy-tax-return-uk /
+# ring-promoter, not this file):
+#   * namespace ring-exec
+#   * ServiceAccount ring-exec/ring-deploy-job
+#
+# This file adds:
+#   * namespaces wslproxy-system (prod) and wslproxy-{int,test,acc}
+#   * namespaced helm-deploy rights in those namespaces
+#   * cluster-scoped rights the chart needs (IngressClass, controller
+#     ClusterRole/Binding, WSLProxy CRDs)
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: wslproxy-system
+  labels:
+    app.kubernetes.io/part-of: wslproxy
+    app.kubernetes.io/component: ingress
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: wslproxy-int
+  labels:
+    app.kubernetes.io/part-of: wslproxy
+    app.kubernetes.io/component: ingress
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: wslproxy-test
+  labels:
+    app.kubernetes.io/part-of: wslproxy
+    app.kubernetes.io/component: ingress
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: wslproxy-acc
+  labels:
+    app.kubernetes.io/part-of: wslproxy
+    app.kubernetes.io/component: ingress
+---
+# Namespaced kinds the ingress Helm chart creates/updates, plus Helm release Secrets.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: rp-deploy-wslproxy-ingress
+  labels:
+    app.kubernetes.io/part-of: wslproxy
+    app.kubernetes.io/managed-by: ring-promoter
+rules:
+  - apiGroups: [""]
+    resources: ["services", "configmaps", "secrets", "serviceaccounts", "pods", "persistentvolumeclaims", "events"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "replicasets", "statefulsets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["autoscaling"]
+    resources: ["horizontalpodautoscalers"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["policy"]
+    resources: ["poddisruptionbudgets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["monitoring.coreos.com"]
+    resources: ["servicemonitors"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: rp-deploy-wslproxy-ingress
+  namespace: wslproxy-system
+  labels:
+    app.kubernetes.io/part-of: wslproxy
+subjects:
+  - kind: ServiceAccount
+    name: ring-deploy-job
+    namespace: ring-exec
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rp-deploy-wslproxy-ingress
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: rp-deploy-wslproxy-ingress
+  namespace: wslproxy-int
+  labels:
+    app.kubernetes.io/part-of: wslproxy
+subjects:
+  - kind: ServiceAccount
+    name: ring-deploy-job
+    namespace: ring-exec
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rp-deploy-wslproxy-ingress
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: rp-deploy-wslproxy-ingress
+  namespace: wslproxy-test
+  labels:
+    app.kubernetes.io/part-of: wslproxy
+subjects:
+  - kind: ServiceAccount
+    name: ring-deploy-job
+    namespace: ring-exec
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rp-deploy-wslproxy-ingress
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: rp-deploy-wslproxy-ingress
+  namespace: wslproxy-acc
+  labels:
+    app.kubernetes.io/part-of: wslproxy
+subjects:
+  - kind: ServiceAccount
+    name: ring-deploy-job
+    namespace: ring-exec
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rp-deploy-wslproxy-ingress
+---
+# Cluster-scoped objects the chart + CRD apply need. IngressClass names and
+# controller ClusterRole names are pinned to the four ring fullnames.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: rp-deploy-wslproxy-ingress-cluster
+  labels:
+    app.kubernetes.io/part-of: wslproxy
+    app.kubernetes.io/managed-by: ring-promoter
+rules:
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingressclasses"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources: ["customresourcedefinitions"]
+    resourceNames:
+      - wslproxybackends.wslproxy.io
+      - wslproxyroutes.wslproxy.io
+    verbs: ["get", "list", "watch", "update", "patch"]
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources: ["customresourcedefinitions"]
+    verbs: ["create"]
+  - apiGroups: ["rbac.authorization.k8s.io"]
+    resources: ["clusterroles", "clusterrolebindings"]
+    resourceNames:
+      - wslproxy-ingress
+      - wslproxy-ingress-int
+      - wslproxy-ingress-test
+      - wslproxy-ingress-acc
+    verbs: ["get", "list", "watch", "update", "patch", "delete"]
+  - apiGroups: ["rbac.authorization.k8s.io"]
+    resources: ["clusterroles", "clusterrolebindings"]
+    verbs: ["create"]
+  # Mirror the controller ClusterRole the chart templates (rbac.yaml) so Helm
+  # can create it without escalate/bind. Keep this in sync with
+  # ingress-controller/deploy/helm/templates/rbac.yaml.
+  - apiGroups: ["wslproxy.io"]
+    resources: ["wslproxybackends", "wslproxyroutes"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["wslproxy.io"]
+    resources: ["wslproxybackends/status", "wslproxyroutes/status"]
+    verbs: ["get", "update", "patch"]
+  - apiGroups: ["wslproxy.io"]
+    resources: ["wslproxybackends/finalizers", "wslproxyroutes/finalizers"]
+    verbs: ["update"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses", "ingressclasses"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses/status"]
+    verbs: ["get", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["services", "endpoints", "secrets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["discovery.k8s.io"]
+    resources: ["endpointslices"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["cert-manager.io"]
+    resources: ["certificates"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch"]
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: rp-deploy-wslproxy-ingress-cluster
+  labels:
+    app.kubernetes.io/part-of: wslproxy
+    app.kubernetes.io/managed-by: ring-promoter
+subjects:
+  - kind: ServiceAccount
+    name: ring-deploy-job
+    namespace: ring-exec
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rp-deploy-wslproxy-ingress-cluster
