@@ -30,12 +30,12 @@ on:
       TARGET_HOST:
         type: choice
         description: "Target host"
-        default: "72.62.211.28"
+        default: "195.20.255.201"
         required: true
         options:
           # 187.77.179.206 (acc) and 187.124.112.155 (pop0) were retired —
           # pop0 is a k3s/traefik node, not a wslproxy edge.
-          - 72.62.211.28
+          - 195.20.255.201
           - 18.133.126.242
           - 192.168.1.193
 
@@ -51,7 +51,7 @@ on:
 
 env:
   TARGET_ENV: ${{ github.event.inputs.TARGET_ENV || 'prod' }}
-  TARGET_HOST: ${{ github.event.inputs.TARGET_HOST || '72.62.211.28' }}
+  TARGET_HOST: ${{ github.event.inputs.TARGET_HOST || '195.20.255.201' }}
   DEPLOY_NGINX_CONF: ${{ github.event.inputs.DEPLOY_NGINX_CONF || 'false' }}
   DRY_RUN: ${{ github.event.inputs.DRY_RUN || 'false' }}
   INT_HOST: 192.168.1.193

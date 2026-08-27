@@ -279,8 +279,8 @@ Three completely independent deploy mechanisms — they don't share configuratio
 
 Main pipeline: `.github/workflows/deploy-wslproxy-delivery-pipeline.yml`
 
-**Promotion chain:** Build & Validate → Int (192.168.1.193) → Smoke Test Int → Test (192.168.1.140) → Prod pop0 (187.124.112.155) → Prod lon1 (72.62.211.28)
-(The `acc` tier on 187.77.179.206 was decommissioned; the delivery pipeline now goes test → prod directly.)
+**Promotion chain:** Build & Validate → Int (192.168.1.193) → Smoke Test Int → Test (192.168.1.140) → Prod lon1 (195.20.255.201) → Prod pop1 (18.133.126.242)
+(The `acc` tier on 187.77.179.206 and the pop0 edge on 187.124.112.155 were decommissioned; the delivery pipeline goes test → prod directly. The old lon1 host 72.62.211.28 is a k3s worker only since 2026-08-27 — the lon1 edge lives on 195.20.255.201, which reaches the k3s demo apps via NodePorts 30081-30085 on 72.62.211.28.)
 
 **Inputs:** `DEPLOY_BRANCH`, `TARGET_ENV`, `TARGET_HOST`, `DEPLOY_MODE` (code/nginx/servers/dashboard/dashboard-next/os_deps/build/full).
 

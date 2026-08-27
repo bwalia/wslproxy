@@ -8,7 +8,7 @@ name: Deploy Single Environment
 #   test      -> 192.168.1.140   (Test)
 #   acc       -> 192.168.1.47    (Acceptance — LAN)
 #   prod      -> 18.133.126.242  (Production — "pop1", AWS)
-#   prod-lon1 -> 72.62.211.28    (Production — "lon1" / lon1.pop0.uk)
+#   prod-lon1 -> 195.20.255.201    (Production — "lon1" / lon1.pop0.uk)
 #   (prod-pop0 / 187.124.112.155 retired: k3s/traefik node, not a wslproxy edge)
 #
 # Each ENV maps to exactly ONE host, so rings deploy independently.
@@ -206,7 +206,7 @@ jobs:
       SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
 
   # ──────────────────────────────────────────────────────
-  # Production — prod / "lon1" (72.62.211.28, Hostinger, ssh root).
+  # Production — prod / "lon1" (195.20.255.201, IONOS, ssh root).
   # Same prod secrets (Vault/SOPS) as pop0/pop1; UI https://lon1.pop0.uk
   # ──────────────────────────────────────────────────────
   prod-lon1:
@@ -215,9 +215,9 @@ jobs:
     with:
       env_name: prod
       runner_label: acc
-      env_label: "Production — lon1 (72.62.211.28)"
+      env_label: "Production — lon1 (195.20.255.201)"
       stage_number: "prod-lon1"
-      host_ip: "72.62.211.28"
+      host_ip: "195.20.255.201"
       ssh_user: root
       connection_mode: ssh_key
       secrets_mode: vault_or_sops

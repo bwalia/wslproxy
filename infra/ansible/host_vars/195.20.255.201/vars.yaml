@@ -1,13 +1,17 @@
 local_settings_file_path: "/home/bwalia/.secrets/wslproxy/lon1/settings.json"
 local_env_file_path: "/home/bwalia/.secrets/wslproxy/lon1/.env"
 nginx_user_password: "!!REDACTED!!" # This is the password for the user www-data but must be encrypted using Ansible Vault
-host_lan_ip: "72.62.211.28"
-# LON1 ONLY — do not set nginx_public_bind_ip in group_vars or other host_vars.
-# Public eth0 only so Traefik-edge-lon1 can keep 127.0.0.1:80/443 (traefik-edge).
-# Admin UI: https://lon1.pop0.uk → this bind → Next.js dashboard on :3099
+host_lan_ip: "195.20.255.201"
+# lon1 edge relocated 2026-08-27: wslproxy moved off 72.62.211.28 (that host is
+# now a k3s worker only; traefik-edge-lon1 keeps 127.0.0.1:80/443 there). This
+# box is a dedicated wslproxy edge, so no nginx_public_bind_ip is needed —
+# OpenResty binds :80/:443 on all interfaces (same as pop1).
+# Admin UI: https://lon1.pop0.uk → Next.js dashboard on :3099
 # (same new dashboard as pop1). The legacy React-Admin stays internal on
 # :7691 (nginx_default_server_backend_port) but is no longer the public domain.
-nginx_public_bind_ip: "72.62.211.28"
+# Demo apps (echo/podinfo/whoami/waf/payments *.pop0.uk / fictionally.org) are
+# reached via NodePorts 30081-30085 on the k3s node 72.62.211.28 (host-local
+# rule JSONs on this edge, not in the repo).
 nginx_web_ui_enabled: "yes"
 nginx_rest_api_server_enabled: ""
 nginx_data_sync_enabled: ""
