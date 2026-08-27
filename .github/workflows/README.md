@@ -184,7 +184,7 @@ Shared parameterized workflow called by both pipelines via `workflow_call`. Hand
 |-------------|---------|----------|--------------------|----------------|---------------------|-----------------|
 | int | 192.168.1.193 | (local) | `local` | `github_secret` | `local` | `http://localhost:8080/health` |
 | test | 192.168.1.140 | bwalia | `ssh` | `runner_file` | `ssh` | `http://localhost:8080/health` |
-| prod (lon1) | 72.62.211.28 | root | `ssh_key` | `vault_or_sops` | `external` | `https://lon1.pop0.uk/healthz` |
+| prod (lon1) | 195.20.255.201 | root | `ssh_key` | `vault_or_sops` | `external` | `https://lon1.pop0.uk/healthz` |
 | prod (pop1) | 18.133.126.242 | admin | `ssh_key` | `vault_or_sops` | `external` | `https://pop1.diytaxreturn.co.uk/healthz` |
 
 > **Retired:** `prod (pop0)` / `187.124.112.155` was removed as a deploy target — that host is a k3s node where traefik owns `:80`/`:443` (no wslproxy edge, no DNS). Live prod edges are lon1 + pop1.
@@ -236,7 +236,7 @@ Runner-local secrets (on 192.168.1.193):
 /home/bwalia/.secrets/wslproxy/
 ├── int/     → settings.json + .env (BACKEND_HOST=192.168.1.193)
 ├── test/    → settings.json + .env (BACKEND_HOST=192.168.1.140)
-└── lon1/    → settings.json + .env (BACKEND_HOST=72.62.211.28)
+└── lon1/    → settings.json + .env (BACKEND_HOST=195.20.255.201)
 ```
 
 ---

@@ -1,6 +1,6 @@
 nginx_port: 80
 
-# When set (e.g. "72.62.211.28"), public HTTP/HTTPS listeners bind that IP
+# When set (e.g. "192.0.2.10"), public HTTP/HTTPS listeners bind that IP
 # only — so Traefik (or anything else) can keep 127.0.0.1:80/443 on the same
 # host without EADDRINUSE. Empty = bind all interfaces (0.0.0.0 / *).
 nginx_public_bind_ip: ""
@@ -107,8 +107,8 @@ wslproxy_pops:
     metadata: {}
   - id: lon1
     display_name: "London POP 1"
-    public_ipv4: "72.62.211.28"
-    provider: vultr
+    public_ipv4: "195.20.255.201"
+    provider: ionos
     region: eu-west
     city: London
     country_code: GB
