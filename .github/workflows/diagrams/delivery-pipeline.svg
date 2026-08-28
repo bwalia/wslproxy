@@ -74,7 +74,7 @@
   <!-- Stage 6a -->
   <rect x="200" y="500" width="500" height="55" rx="8" fill="url(#prodGrad)" stroke="#e03131" stroke-width="1"/>
   <text x="220" y="523" font-weight="bold" fill="#c92a2a">Stage 6a</text>
-  <text x="310" y="523" fill="#212529">Deploy Prod pop0 (187.124.112.155)</text>
+  <text x="310" y="523" fill="#212529">Deploy Prod pop0 (85.190.106.189)</text>
   <text x="680" y="523" text-anchor="end" font-size="11" fill="#868e96">self-hosted, SSH+key</text>
   <text x="220" y="543" font-size="11" fill="#495057">Health: https://prod-our.wslproxy.com/health</text>
 

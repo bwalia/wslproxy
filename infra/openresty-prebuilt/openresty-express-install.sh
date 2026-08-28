@@ -35,22 +35,22 @@
 #     extract  build/pull + extract the tree to a local tarball (no target)
 #
 # CONFIG (override via env):
-#   TARGET=bwalia@187.124.112.155   # pop0 (user@host)
+#   TARGET=administrator@85.190.106.189   # pop0 (user@host)
 #   IMAGE=wslproxy-openresty:1.29.2.1
 #   BASE_IMAGE=debian:13            # MUST match the target OS/glibc
 #   PULL=0                          # 1 = docker pull IMAGE instead of build
 #   SSH_OPTS="-o ConnectTimeout=15"
 #
 # EXAMPLES:
-#   TARGET=bwalia@187.124.112.155 ./openresty-express-install.sh full
-#   TARGET=bwalia@187.124.112.155 ./openresty-express-install.sh code
+#   TARGET=administrator@85.190.106.189 ./openresty-express-install.sh full
+#   TARGET=administrator@85.190.106.189 ./openresty-express-install.sh code
 # ----------------------------------------------------------------------------
 set -euo pipefail
 
 MODE="${1:-full}"
 
 # ── Config ──
-TARGET="${TARGET:-bwalia@187.124.112.155}"          # pop0
+TARGET="${TARGET:-administrator@85.190.106.189}"          # pop0
 IMAGE="${IMAGE:-wslproxy-openresty:1.29.2.1}"
 BASE_IMAGE="${BASE_IMAGE:-debian:13}"
 OPENRESTY_VERSION="${OPENRESTY_VERSION:-1.29.2.1}"

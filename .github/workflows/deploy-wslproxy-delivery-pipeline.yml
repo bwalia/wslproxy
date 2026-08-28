@@ -1,8 +1,10 @@
 name: Full Build and Deploy WSLProxy Delivery Pipeline
 # Pipeline: Validate → Int → Smoke Test → Test → Prod (lon1 + pop1)
-# NOTE: the former "pop0" edge (187.124.112.155) was retired — that host is a
-# k3s node where traefik owns :80/:443, no DNS points to it, and it has no
-# wslproxy data dir, so it is not a live edge. Live prod edges are lon1 + pop1.
+# NOTE: pop0 was rebuilt on a NEW VPS (85.190.106.189, ssh user `administrator`)
+# on 2026-08-28. The OLD pop0 host 187.124.112.155 was retired — it is a k3s node
+# where traefik owns :80/:443. The new pop0 is a DISPATCH-ONLY stage (5c): it is
+# not deployed by a push to main/release until DNS is repointed at it and it has
+# proven itself. Push-driven prod edges remain lon1 (5a) + pop1 (5b).
 # Promotion pipeline: each environment must pass before the next deploys
 # Deploy modes: code (default for manual) | nginx | servers | dashboard | os_deps | build | full (default for push)
 
@@ -42,12 +44,14 @@ on:
           - all
           - 192.168.1.193
           - 192.168.1.140
-          # 187.77.179.206 (acc) and 187.124.112.155 (pop0) were retired.
-          # pop0 is a k3s/traefik node, not a wslproxy edge.
+          # 187.77.179.206 (acc) and the OLD pop0 187.124.112.155 were retired.
           # 72.62.211.28 (old lon1) is now a k3s worker only — the lon1 edge
           # moved to 195.20.255.201 on 2026-08-27.
           - 195.20.255.201
           - 18.133.126.242
+          # pop0 rebuilt on a new VPS 2026-08-28 — dispatch-only (Stage 5c),
+          # never reached by `all` or by a push to main/release.
+          - 85.190.106.189
 
       DEPLOY_MODE:
         type: choice
@@ -429,7 +433,7 @@ jobs:
   # (lon1 relocated 2026-08-27: the old lon1 host 72.62.211.28 is now a k3s
   #  worker only. The former Stage 5a "pop0" / 187.124.112.155 was retired:
   #  that host is a k3s/traefik node with no wslproxy edge and no DNS, so it
-  #  never served prod traffic. Live prod edges are lon1 (5a) and pop1 (5b).)
+  #  never served prod traffic. pop0 was rebuilt on a new VPS — see Stage 5c.)
   # ──────────────────────────────────────────────────────
   deploy-prod-lon1:
     # Full upstream chain — see deploy-test.
@@ -520,6 +524,52 @@ jobs:
       SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
 
   # ──────────────────────────────────────────────────────
+  # Stage 5c: Deploy Prod pop0 (85.190.106.189) — new VPS, ssh user
+  # `administrator`, commissioned 2026-08-28 to replace the retired
+  # 187.124.112.155.
+  #
+  # DISPATCH-ONLY BY DESIGN: unlike 5a/5b there is no `push` clause and it is
+  # NOT included in TARGET_HOST == 'all'. A brand-new edge with no DNS should
+  # not be dragged into every release; select it explicitly. Promote it to the
+  # push chain (copy 5a's `if:`) once DNS points here and it has run clean.
+  #
+  # health_check_mode is `ssh` because nothing resolves to this IP yet — an
+  # external check on prod-our.wslproxy.com would green on lon1 instead.
+  # ──────────────────────────────────────────────────────
+  deploy-prod-pop0:
+    # Same upstream gate as the other prod stages — prod is never reached
+    # without a green int + smoke test + test.
+    needs: [build-validate, deploy-int, test-int, deploy-test]
+    if: >
+      always() && !failure() && !cancelled() &&
+      github.event_name == 'workflow_dispatch' &&
+      github.event.inputs.TARGET_HOST == '85.190.106.189'
+    uses: ./.github/workflows/deploy-environment.yml
+    with:
+      env_name: prod
+      # mac-studio runner (`acc`) — the old `prod` runner lived ON the retired
+      # pop0 box and is gone; `acc` is the runner holding the prod SSH key.
+      runner_label: acc
+      env_label: "Prod pop0 (85.190.106.189)"
+      stage_number: "5c"
+      host_ip: "85.190.106.189"
+      ssh_user: administrator
+      connection_mode: ssh_key
+      secrets_mode: vault_or_sops
+      health_endpoint: "http://127.0.0.1:7691/healthz"
+      health_check_mode: ssh
+      docker_prune: true
+      notify_success: true
+      deploy_branch: ${{ github.event.inputs.DEPLOY_BRANCH || github.ref_name }}
+      deploy_mode: ${{ github.event.inputs.DEPLOY_MODE || 'full' }}
+    secrets:
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
+      VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
+      SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
+
+  # ──────────────────────────────────────────────────────
   # Pipeline Summary (always runs — final report)
   # ──────────────────────────────────────────────────────
   pipeline-summary:
@@ -533,6 +583,7 @@ jobs:
         deploy-test,
         deploy-prod-lon1,
         deploy-prod-pop1,
+        deploy-prod-pop0,
       ]
     if: always()
     steps:
@@ -548,6 +599,7 @@ jobs:
           echo "  Stage 4  — Deploy Test:          ${{ needs.deploy-test.result }}"
           echo "  Stage 5a — Deploy Prod (lon1):   ${{ needs.deploy-prod-lon1.result }}"
           echo "  Stage 5b — Deploy Prod (pop1):   ${{ needs.deploy-prod-pop1.result }}"
+          echo "  Stage 5c — Deploy Prod (pop0):   ${{ needs.deploy-prod-pop0.result }}"
           echo ""
           echo "  Commit:  ${{ github.sha }}"
           echo "  Branch:  ${{ github.ref_name }}"
@@ -559,7 +611,8 @@ jobs:
              [[ "${{ needs.test-int.result }}" == "failure" ]] || \
              [[ "${{ needs.deploy-test.result }}" == "failure" ]] || \
              [[ "${{ needs.deploy-prod-lon1.result }}" == "failure" ]] || \
-             [[ "${{ needs.deploy-prod-pop1.result }}" == "failure" ]]; then
+             [[ "${{ needs.deploy-prod-pop1.result }}" == "failure" ]] || \
+             [[ "${{ needs.deploy-prod-pop0.result }}" == "failure" ]]; then
               echo "::error::Pipeline failed — see stage results above"
               exit 1
           fi

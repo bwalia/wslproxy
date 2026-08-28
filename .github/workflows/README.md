@@ -187,7 +187,9 @@ Shared parameterized workflow called by both pipelines via `workflow_call`. Hand
 | prod (lon1) | 195.20.255.201 | root | `ssh_key` | `vault_or_sops` | `external` | `https://lon1.pop0.uk/healthz` |
 | prod (pop1) | 18.133.126.242 | admin | `ssh_key` | `vault_or_sops` | `external` | `https://pop1.diytaxreturn.co.uk/healthz` |
 
-> **Retired:** `prod (pop0)` / `187.124.112.155` was removed as a deploy target — that host is a k3s node where traefik owns `:80`/`:443` (no wslproxy edge, no DNS). Live prod edges are lon1 + pop1.
+| prod (pop0) | 85.190.106.189 | administrator | `ssh_key` | `vault_or_sops` | `ssh` | `http://127.0.0.1:7691/healthz` |
+
+> **pop0 rebuilt (2026-08-28):** the old pop0 host `187.124.112.155` was retired (it is a k3s node where traefik owns `:80`/`:443`). pop0 now lives on a new VPS, `85.190.106.189`, SSH user `administrator` (passwordless sudo, no root login). It is **dispatch-only** — Stage 5c of the delivery pipeline and `ENV=prod-pop0` in `deploy-single-environment.yml`; a push to `main`/`release` and `TARGET_HOST=all` both skip it. Its health gate runs over SSH against `127.0.0.1:7691` because no DNS points at the new IP yet (`prod-our.wslproxy.com` still resolves to lon1) — switch it to `external` after repointing DNS.
 
 ### Steps (conditional per environment)
 

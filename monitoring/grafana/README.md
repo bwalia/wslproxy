@@ -69,7 +69,7 @@ JSON by hand (it will be overwritten).
 | Variable | Meaning | Notes |
 |----------|---------|-------|
 | `$datasource` | **Environment** | pick the int / prod Prometheus |
-| `$instance` | **Node / Region** | Prometheus `instance` label — pop0 (187.124.112.155), lon1 (195.20.255.201) |
+| `$instance` | **Node / Region** | Prometheus `instance` label — pop0 (85.190.106.189), lon1 (195.20.255.201) |
 | `$host` | Service / Domain | `host` label (tenant vhost) |
 | `$backend` | Backend | `backend_label` from the traffic router |
 | `$endpoint`, `$status_code` | Route / Status filters | used by the Failed Requests Explorer |

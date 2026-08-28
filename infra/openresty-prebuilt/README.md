@@ -18,10 +18,10 @@ runs on every host. No registry/artifact push: local `docker build` →
 cd infra/openresty-prebuilt
 
 # Full: build image -> extract -> install OpenResty on pop0 -> sync api/+html/ -> reload
-TARGET=bwalia@187.124.112.155 ./openresty-express-install.sh full
+TARGET=administrator@85.190.106.189 ./openresty-express-install.sh full
 
 # Frequent path: only Lua/HTML changed -> sync + reload (no OpenResty reinstall)
-TARGET=bwalia@187.124.112.155 ./openresty-express-install.sh code
+TARGET=administrator@85.190.106.189 ./openresty-express-install.sh code
 
 # Just build the image / just extract a tarball
 ./openresty-express-install.sh build

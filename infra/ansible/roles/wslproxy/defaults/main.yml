@@ -94,7 +94,7 @@ ip2location_refresh_schedule: "*-*-01 03:30:00"
 wslproxy_pops:
   - id: pop0
     display_name: "London POP 0"
-    public_ipv4: "187.124.112.155"
+    public_ipv4: "85.190.106.189"
     provider: hetzner
     region: eu-west
     city: London

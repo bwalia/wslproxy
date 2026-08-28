@@ -20,7 +20,7 @@ scrape_configs:
   # Optional but recommended — drives the Infrastructure row (CPU/mem/disk/net).
   # - job_name: wslproxy-node
   #   static_configs:
-  #     - targets: ["187.124.112.155:9100", "195.20.255.201:9100"]
+  #     - targets: ["85.190.106.189:9100", "195.20.255.201:9100"]
 
   # Optional but recommended — drives SSL cert-expiry panels + alerts.
   # - job_name: blackbox-ssl

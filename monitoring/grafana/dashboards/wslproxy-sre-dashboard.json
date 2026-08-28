@@ -8470,7 +8470,7 @@
             },
             "overrides": []
           },
-          "description": "pop0 = 187.124.112.155 \u00b7 lon1 = 195.20.255.201 (instance label from the Prometheus scrape config).",
+          "description": "pop0 = 85.190.106.189 \u00b7 lon1 = 195.20.255.201 (instance label from the Prometheus scrape config).",
           "options": {
             "mergeValues": true,
             "showValue": "never",

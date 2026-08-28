@@ -9,7 +9,7 @@ name: Deploy Single Environment
 #   acc       -> 192.168.1.47    (Acceptance — LAN)
 #   prod      -> 18.133.126.242  (Production — "pop1", AWS)
 #   prod-lon1 -> 195.20.255.201    (Production — "lon1" / lon1.pop0.uk)
-#   (prod-pop0 / 187.124.112.155 retired: k3s/traefik node, not a wslproxy edge)
+#   prod-pop0 -> 85.190.106.189  (Production — "pop0", new VPS, ssh administrator)
 #
 # Each ENV maps to exactly ONE host, so rings deploy independently.
 #
@@ -39,6 +39,7 @@ on:
           - acc
           - prod
           - prod-lon1
+          - prod-pop0
       DEPLOY_BRANCH:
         type: string
         description: "Git ref to deploy (branch, tag or commit SHA)"
@@ -129,7 +130,7 @@ jobs:
   # Acceptance — acc (192.168.1.47, LAN). vault-first with SOPS fallback
   # (matches the delivery pipeline post-#1125; seed_from_host retired).
   # ──────────────────────────────────────────────────────
-  # Migrated off 187.124.112.155 (which was co-located with prod-pop0). acc
+  # Migrated off 187.124.112.155 (the old pop0 host). acc
   # now runs on a dedicated LAN box (192.168.1.47 / debian002 — was .48
   # until DHCP drift on 2026-08-19); the `acc`
   # self-hosted runner lives on the shared mac (hh193 / BalindeacStudio,
@@ -234,5 +235,42 @@ jobs:
       VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
       SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
 
-  # (Production "pop0" / 187.124.112.155 retired — that host is a k3s/traefik
-  #  node, not a wslproxy edge, so it was removed as a deploy target.)
+  # ──────────────────────────────────────────────────────
+  # Production — prod / "pop0" (85.190.106.189, ssh user `administrator`).
+  #
+  # New VPS commissioned 2026-08-28, replacing the retired pop0 host
+  # 187.124.112.155 (that box became a k3s/traefik node). Same prod secrets
+  # (Vault/SOPS) as lon1/pop1.
+  #
+  # Scheduled on the mac-studio runner (`acc`) — same rationale as lon1/pop1:
+  # it is the runner that holds an SSH key trusted by the prod edges. The old
+  # `prod` runner lived ON the retired pop0 box and no longer exists.
+  #
+  # health_check_mode is `ssh` (not `external`): no DNS points at this VPS yet
+  # (prod-our.wslproxy.com still resolves to lon1), so an external check would
+  # green on the WRONG host. Switch to `external` once DNS is repointed.
+  # ──────────────────────────────────────────────────────
+  prod-pop0:
+    if: ${{ inputs.ENV == 'prod-pop0' }}
+    uses: ./.github/workflows/deploy-environment.yml
+    with:
+      env_name: prod
+      runner_label: acc
+      env_label: "Production — pop0 (85.190.106.189)"
+      stage_number: "prod-pop0"
+      host_ip: "85.190.106.189"
+      ssh_user: administrator
+      connection_mode: ssh_key
+      secrets_mode: vault_or_sops
+      health_endpoint: "http://127.0.0.1:7691/healthz"
+      health_check_mode: ssh
+      docker_prune: true
+      notify_success: true
+      deploy_branch: ${{ inputs.DEPLOY_BRANCH }}
+      deploy_mode: ${{ inputs.DEPLOY_MODE }}
+    secrets:
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
+      VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
+      SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
