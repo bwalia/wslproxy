@@ -148,24 +148,36 @@
       register: rule_validation
       changed_when: false
 
-    # Bulk rsync replaces per-file copy loops (~300 SSH round-trips → 2 transfers).
-    # Remote tar backup above covers rollback; omit per-file backup: yes.
+    # Bulk rsync from the controller (runner) → target. delegate_to: localhost is
+    # required: without it, synchronize runs rsync ON the inventory host and looks
+    # for local_data_dir there (breaks self-hosted runner → same-host SSH deploy).
+    # Skip when find returned nothing (e.g. no data/servers/<env> in repo).
     - name: Sync server config files
       ansible.posix.synchronize:
         src: "{{ local_data_dir }}/servers/{{ source_subdir }}/"
         dest: "{{ remote_data_dir }}/servers/{{ target_env }}/"
+        mode: push
+        rsync_path: "sudo rsync"
         rsync_opts:
           - "--include=*.json"
           - "--exclude=*"
+      delegate_to: localhost
+      become: false
+      when: server_config_files.files | length > 0
       register: server_copy_result
 
     - name: Sync rule config files
       ansible.posix.synchronize:
         src: "{{ local_data_dir }}/rules/{{ source_subdir }}/"
         dest: "{{ remote_data_dir }}/rules/{{ target_env }}/"
+        mode: push
+        rsync_path: "sudo rsync"
         rsync_opts:
           - "--include=*.json"
           - "--exclude=*"
+      delegate_to: localhost
+      become: false
+      when: rule_config_files.files | length > 0
       register: rule_copy_result
 
     - name: Ensure SSL domain directory exists
@@ -200,7 +212,7 @@
 
     - name: Run fix-permissions to ensure nginx worker can access all files
       command: /usr/sbin/fix-permissions.sh
-      when: server_copy_result.changed or rule_copy_result.changed
+      when: (server_copy_result is defined and server_copy_result.changed) or (rule_copy_result is defined and rule_copy_result.changed)
       ignore_errors: yes
 
     - name: Display deployment summary
@@ -236,7 +248,7 @@
       service:
         name: "{{ nginx_service }}"
         state: reloaded
-      when: server_copy_result.changed or ssl_domain_result.changed
+      when: (server_copy_result is defined and server_copy_result.changed) or ssl_domain_result.changed
       ignore_errors: yes
 
   handlers:
