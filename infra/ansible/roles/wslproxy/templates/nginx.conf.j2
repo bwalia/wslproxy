@@ -890,6 +890,13 @@ server {
           proxy_set_header Upgrade $http_upgrade;
           proxy_set_header Connection $connection_upgrade;
 
+          # Floor for long uploads (Docker registry blob PUTs, etc.).
+          # Nginx defaults these to 60s. balancer.set_timeouts still wins
+          # when the vhost JSON sets proxy_timeouts.
+          proxy_connect_timeout 600s;
+          proxy_send_timeout 600s;
+          proxy_read_timeout 600s;
+
           proxy_set_header x-route-server $proxy_route_server;
           proxy_set_header Host $proxy_host_override;
           proxy_pass $proxy_host_scheme://$upstream_server;
@@ -1094,7 +1101,9 @@ server {
           proxy_cache_lock_timeout 300s;
           add_header X-WSL-Docker-Cache $upstream_cache_status;
 
-          proxy_connect_timeout 300;
+          proxy_connect_timeout 600s;
+          proxy_send_timeout 600s;
+          proxy_read_timeout 600s;
           # WebSocket support
           proxy_http_version 1.1;
           proxy_set_header Upgrade $http_upgrade;
