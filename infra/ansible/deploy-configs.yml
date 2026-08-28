@@ -148,11 +148,14 @@
       register: rule_validation
       changed_when: false
 
-    # Bulk rsync from the controller (runner) → target. delegate_to: localhost is
-    # required: without it, synchronize runs rsync ON the inventory host and looks
-    # for local_data_dir there (breaks self-hosted runner → same-host SSH deploy).
+    # Bulk rsync for config deploy. Two paths:
+    # - ansible_connection != 'local': push from controller (delegate_to: localhost).
+    #   Required for SSH targets — without it, rsync runs on the inventory host and
+    #   looks for local_data_dir there (breaks self-hosted runner → same-host SSH).
+    # - ansible_connection == 'local': rsync on the managed host (int runner deploy).
+    #   delegate_to: localhost would SSH back to the host and fail without keys.
     # Skip when find returned nothing (e.g. no data/servers/<env> in repo).
-    - name: Sync server config files
+    - name: Sync server config files (push from controller)
       ansible.posix.synchronize:
         src: "{{ local_data_dir }}/servers/{{ source_subdir }}/"
         dest: "{{ remote_data_dir }}/servers/{{ target_env }}/"
@@ -163,10 +166,25 @@
           - "--exclude=*"
       delegate_to: localhost
       become: false
-      when: server_config_files.files | length > 0
+      when:
+        - server_config_files.files | length > 0
+        - ansible_connection != 'local'
       register: server_copy_result
 
-    - name: Sync rule config files
+    - name: Sync server config files (local connection)
+      ansible.posix.synchronize:
+        src: "{{ local_data_dir }}/servers/{{ source_subdir }}/"
+        dest: "{{ remote_data_dir }}/servers/{{ target_env }}/"
+        rsync_path: "sudo rsync"
+        rsync_opts:
+          - "--include=*.json"
+          - "--exclude=*"
+      when:
+        - server_config_files.files | length > 0
+        - ansible_connection == 'local'
+      register: server_copy_result
+
+    - name: Sync rule config files (push from controller)
       ansible.posix.synchronize:
         src: "{{ local_data_dir }}/rules/{{ source_subdir }}/"
         dest: "{{ remote_data_dir }}/rules/{{ target_env }}/"
@@ -177,7 +195,22 @@
           - "--exclude=*"
       delegate_to: localhost
       become: false
-      when: rule_config_files.files | length > 0
+      when:
+        - rule_config_files.files | length > 0
+        - ansible_connection != 'local'
+      register: rule_copy_result
+
+    - name: Sync rule config files (local connection)
+      ansible.posix.synchronize:
+        src: "{{ local_data_dir }}/rules/{{ source_subdir }}/"
+        dest: "{{ remote_data_dir }}/rules/{{ target_env }}/"
+        rsync_path: "sudo rsync"
+        rsync_opts:
+          - "--include=*.json"
+          - "--exclude=*"
+      when:
+        - rule_config_files.files | length > 0
+        - ansible_connection == 'local'
       register: rule_copy_result
 
     - name: Ensure SSL domain directory exists
