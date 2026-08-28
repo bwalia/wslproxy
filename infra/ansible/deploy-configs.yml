@@ -127,8 +127,8 @@
     - name: Display files to be deployed
       debug:
         msg: |
-          Server configs: {{ server_config_files.files | map(attribute='path') | list }}
-          Rule configs: {{ rule_config_files.files | map(attribute='path') | list }}
+          Server configs: {{ server_config_files.files | length }} file(s)
+          Rule configs: {{ rule_config_files.files | length }} file(s)
 
     - name: Validate server config JSON syntax
       shell: "jq empty {{ item.path }}"
@@ -148,28 +148,24 @@
       register: rule_validation
       changed_when: false
 
-    - name: Copy server config files
-      copy:
-        src: "{{ item.path }}"
-        dest: "{{ remote_data_dir }}/servers/{{ target_env }}/{{ item.path | basename }}"
-        mode: '0664'
-        owner: www-data
-        group: root
-        backup: yes
-      loop: "{{ server_config_files.files }}"
+    # Bulk rsync replaces per-file copy loops (~300 SSH round-trips → 2 transfers).
+    # Remote tar backup above covers rollback; omit per-file backup: yes.
+    - name: Sync server config files
+      ansible.posix.synchronize:
+        src: "{{ local_data_dir }}/servers/{{ source_subdir }}/"
+        dest: "{{ remote_data_dir }}/servers/{{ target_env }}/"
+        rsync_opts:
+          - "--include=*.json"
+          - "--exclude=*"
       register: server_copy_result
-      no_log: true
 
-    - name: Copy rule config files
-      copy:
-        src: "{{ item.path }}"
-        dest: "{{ remote_data_dir }}/rules/{{ target_env }}/{{ item.path | basename }}"
-        mode: '0664'
-        owner: www-data
-        group: root
-        backup: yes
-      loop: "{{ rule_config_files.files }}"
-      no_log: true
+    - name: Sync rule config files
+      ansible.posix.synchronize:
+        src: "{{ local_data_dir }}/rules/{{ source_subdir }}/"
+        dest: "{{ remote_data_dir }}/rules/{{ target_env }}/"
+        rsync_opts:
+          - "--include=*.json"
+          - "--exclude=*"
       register: rule_copy_result
 
     - name: Ensure SSL domain directory exists
