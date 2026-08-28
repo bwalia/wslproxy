@@ -33,10 +33,12 @@ on:
         default: "195.20.255.201"
         required: true
         options:
-          # 187.77.179.206 (acc) and 187.124.112.155 (pop0) were retired —
-          # pop0 is a k3s/traefik node, not a wslproxy edge.
+          # 187.77.179.206 (acc) and the OLD pop0 187.124.112.155 were retired.
+          # pop0 was rebuilt on a new VPS (85.190.106.189, ssh administrator)
+          # on 2026-08-28 — the SSH user comes from infra/ansible/hosts.
           - 195.20.255.201
           - 18.133.126.242
+          - 85.190.106.189
           - 192.168.1.193
 
       DEPLOY_NGINX_CONF:

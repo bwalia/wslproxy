@@ -18,7 +18,7 @@ disk at request time — no `nginx -t` / reboot is required for servers+rules.
 
 | Input | Example |
 |-------|---------|
-| Source SSH | `root@187.124.112.155` (pop0) |
+| Source SSH | `administrator@85.190.106.189` (pop0) |
 | Target SSH | `admin@18.133.126.242` (pop1) |
 | Remote data root | `/opt/nginx/data` (default) |
 | Local work dirs | `Source POP/`, `Target POP/` under repo root |
@@ -52,7 +52,7 @@ Prefer the script (low freedom / consistent):
 ```bash
 # From repo:
 .cursor/skills/wslproxy-pop-migrate/scripts/migrate-pop-data.sh \
-  --source root@187.124.112.155 \
+  --source administrator@85.190.106.189 \
   --target admin@18.133.126.242 \
   --reload
 

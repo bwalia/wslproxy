@@ -470,7 +470,7 @@ export default function PopDetailPage() {
               onChange={(e) => handleChange("public_ipv4", e.target.value)}
               hint="The IP DNS records will point at for traffic to reach this POP."
               error={fieldErrors.public_ipv4}
-              placeholder="187.124.112.155"
+              placeholder="85.190.106.189"
             />
             <Input
               label="Public IPv6 (optional)"

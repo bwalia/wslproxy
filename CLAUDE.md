@@ -230,7 +230,7 @@ Key fields (not exhaustive):
 - `{nginx_nextjs_dashboard_port}` — Next.js admin
 - `9443` — TCP stream load balancer for k3s API (prod-only, `nginx-base.d/nginx_tcp_streams.conf`)
 
-### Host 187.124.112.155 (prod)
+### Host 85.190.106.189 (prod — pop0, ssh user `administrator`)
 - `curl http://127.0.0.1:8099/health` returns 200 when healthy
 - The Ansible template's admin server listens on 8099 (NOT 8080) — use this for health checks.
 
@@ -245,7 +245,7 @@ Three completely independent deploy mechanisms — they don't share configuratio
 - `./dev.sh` is the orchestrator (`start.sh`). Accepts `-n` (skip git), `-w` (admin watch), `-a` (auto), `--stash`, `--pull`, JWT arg.
 - Hot-reload: `api/` and `html/` bind-mounted. React admin requires rebuild.
 
-### B. Ansible (bare metal / VM — this is how **prod on 187.124.112.155** is deployed)
+### B. Ansible (bare metal / VM — this is how **prod on 85.190.106.189** is deployed)
 - Playbook: `infra/ansible/wslproxy-ops.yml`
 - Role: `infra/ansible/roles/wslproxy/`
 - Task files (orchestrated by `tasks/main.yml`):
@@ -280,7 +280,7 @@ Three completely independent deploy mechanisms — they don't share configuratio
 Main pipeline: `.github/workflows/deploy-wslproxy-delivery-pipeline.yml`
 
 **Promotion chain:** Build & Validate → Int (192.168.1.193) → Smoke Test Int → Test (192.168.1.140) → Prod lon1 (195.20.255.201) → Prod pop1 (18.133.126.242)
-(The `acc` tier on 187.77.179.206 and the pop0 edge on 187.124.112.155 were decommissioned; the delivery pipeline goes test → prod directly. The old lon1 host 72.62.211.28 is a k3s worker only since 2026-08-27 — the lon1 edge lives on 195.20.255.201, which reaches the k3s demo apps via NodePorts 30081-30085 on 72.62.211.28.)
+(The `acc` tier on 187.77.179.206 and the OLD pop0 edge on 187.124.112.155 were decommissioned; pop0 was rebuilt 2026-08-28 on a new VPS, 85.190.106.189 (ssh user `administrator`), wired in as dispatch-only Stage 5c; the delivery pipeline goes test → prod directly. The old lon1 host 72.62.211.28 is a k3s worker only since 2026-08-27 — the lon1 edge lives on 195.20.255.201, which reaches the k3s demo apps via NodePorts 30081-30085 on 72.62.211.28.)
 
 **Inputs:** `DEPLOY_BRANCH`, `TARGET_ENV`, `TARGET_HOST`, `DEPLOY_MODE` (code/nginx/servers/dashboard/dashboard-next/os_deps/build/full).
 
@@ -295,7 +295,7 @@ Reusable workflow: `deploy-environment.yml` (per-environment deploy). Supports `
 Many production requests flow through **two** wslproxy layers:
 
 ```
-Client → wslproxy on 187.124.112.155 (Ansible deploy)
+Client → wslproxy on 195.20.255.201 / 85.190.106.189 (Ansible deploy)
        → k3s NodePort 32100 on 193.237.176.232
        → wslproxy-ingress-controller pod in k3s (Helm deploy)
        → FastAPI / Lapis / other app pods

@@ -14,6 +14,28 @@
   poll: 20
   shell: |
     export PATH="/usr/local/openresty/luajit/bin:/usr/local/openresty/bin:/usr/local/bin:$PATH"
+
+    # ── GCC 14+ compatibility shim ────────────────────────────────────────
+    # lua-resty-auto-ssl vendors juce/sockproc, whose Makefile hardcodes
+    #   gcc -Wall -Werror -o sockproc sockproc.c
+    # with no CC/CFLAGS override. GCC 14 promoted -Wincompatible-pointer-types
+    # from a warning to an error, so sockproc.c:154 (the signal() handler
+    # signature) turns that -Werror into a hard build failure. First hit on
+    # pop0's Ubuntu 26.04 / GCC 15 rebuild (2026-08-28): the rock failed to
+    # install and OpenResty then died at init.lua:223 `require "resty.auto-ssl"`.
+    # Shim `gcc` on PATH and append the demotion flags AFTER the caller's args
+    # so they win over the hardcoded -Werror. No-op on older toolchains.
+    _REAL_GCC=$(command -v gcc 2>/dev/null || true)
+    if [ -n "$_REAL_GCC" ]; then
+      GCC_SHIM_DIR=$(mktemp -d)
+      printf '#!/bin/sh\nexec "%s" "$@" -Wno-incompatible-pointer-types -Wno-error=incompatible-pointer-types\n' \
+        "$_REAL_GCC" > "$GCC_SHIM_DIR/gcc"
+      chmod +x "$GCC_SHIM_DIR/gcc"
+      export PATH="$GCC_SHIM_DIR:$PATH"
+      echo "gcc shim active: $GCC_SHIM_DIR/gcc -> $_REAL_GCC"
+      echo "gcc version: $($_REAL_GCC -dumpversion 2>&1)"
+    fi
+
     LUAROCKS_BIN=$(which luarocks 2>/dev/null)
     echo "luarocks binary: $LUAROCKS_BIN"
     echo "luarocks version: $(luarocks --version 2>&1 | head -1)"

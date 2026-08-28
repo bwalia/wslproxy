@@ -24,7 +24,7 @@ Usage: migrate-pop-data.sh --source USER@HOST --target USER@HOST [options]
 
 Example:
   ./migrate-pop-data.sh \
-    --source root@187.124.112.155 \
+    --source administrator@85.190.106.189 \
     --target admin@18.133.126.242 \
     --reload
 EOF
