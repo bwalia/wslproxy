@@ -1,0 +1,39 @@
+{
+ "id": "wslvault-region-a-cloud001",
+ "name": "wslvault-region-a-cloud001",
+ "priority": 1,
+ "version": 1,
+ "profile_id": "prod",
+ "created_at": 1788033540,
+ "rules_tags": {},
+ "servers": [
+  "host:vault-a.workstation.co.uk",
+  "host:vault.workstation.co.uk",
+  "host:vault-ui.workstation.co.uk"
+ ],
+ "match": {
+  "rules": {
+   "path": "/",
+   "path_key": "starts_with",
+   "jwt_token_validation": "equals"
+  },
+  "response": {
+   "code": 305,
+   "redirect_uri": "http://72.62.211.28",
+   "allow": false,
+   "strip_path": false,
+   "auto_redirect_https": false,
+   "is_consul": false,
+   "routing": {
+    "mode": "least_conn"
+   },
+   "backends": [
+    {
+     "address": "http://72.62.211.28",
+     "weight": 100,
+     "label": "wslvault region-a, cloud001, traefik-edge :80"
+    }
+   ]
+  }
+ }
+}

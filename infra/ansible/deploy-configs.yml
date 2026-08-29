@@ -149,6 +149,17 @@
       changed_when: false
 
     # Bulk rsync for config deploy. Two paths:
+    #
+    # NOTE on the conditionals: they read the connection from
+    # hostvars[inventory_hostname], NOT the bare `ansible_connection`.
+    # Inside a `delegate_to: localhost` task, `ansible_connection` resolves to
+    # the DELEGATE's connection ('local'), so the push branch evaluated
+    # `'local' != 'local'` and skipped, while the non-delegated branch saw
+    # 'ssh' and also skipped — neither sync ever ran, for any host in this
+    # inventory, and the play still reported success because a skip is not a
+    # failure. hostvars[] is the inventory host's own view and delegation does
+    # not rewrite it; no host here sets ansible_connection, hence the 'ssh'
+    # default.
     # - ansible_connection != 'local': push from controller (delegate_to: localhost).
     #   Required for SSH targets — without it, rsync runs on the inventory host and
     #   looks for local_data_dir there (breaks self-hosted runner → same-host SSH).
@@ -168,7 +179,7 @@
       become: false
       when:
         - server_config_files.files | length > 0
-        - ansible_connection != 'local'
+        - hostvars[inventory_hostname].ansible_connection | default('ssh') != 'local'
       register: server_copy_result
 
     - name: Sync server config files (local connection)
@@ -181,7 +192,7 @@
           - "--exclude=*"
       when:
         - server_config_files.files | length > 0
-        - ansible_connection == 'local'
+        - hostvars[inventory_hostname].ansible_connection | default('ssh') == 'local'
       register: server_copy_result
 
     - name: Sync rule config files (push from controller)
@@ -197,7 +208,7 @@
       become: false
       when:
         - rule_config_files.files | length > 0
-        - ansible_connection != 'local'
+        - hostvars[inventory_hostname].ansible_connection | default('ssh') != 'local'
       register: rule_copy_result
 
     - name: Sync rule config files (local connection)
@@ -210,7 +221,7 @@
           - "--exclude=*"
       when:
         - rule_config_files.files | length > 0
-        - ansible_connection == 'local'
+        - hostvars[inventory_hostname].ansible_connection | default('ssh') == 'local'
       register: rule_copy_result
 
     - name: Ensure SSL domain directory exists

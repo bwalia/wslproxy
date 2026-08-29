@@ -1,0 +1,38 @@
+{
+ "id": "wslvault-region-b-cloud003",
+ "name": "wslvault-region-b-cloud003",
+ "priority": 1,
+ "version": 1,
+ "profile_id": "prod",
+ "created_at": 1788033540,
+ "rules_tags": {},
+ "servers": [
+  "host:vault-b.workstation.co.uk",
+  "host:vault-ui-b.workstation.co.uk"
+ ],
+ "match": {
+  "rules": {
+   "path": "/",
+   "path_key": "starts_with",
+   "jwt_token_validation": "equals"
+  },
+  "response": {
+   "code": 305,
+   "redirect_uri": "http://77.68.126.63",
+   "allow": false,
+   "strip_path": false,
+   "auto_redirect_https": false,
+   "is_consul": false,
+   "routing": {
+    "mode": "least_conn"
+   },
+   "backends": [
+    {
+     "address": "http://77.68.126.63",
+     "weight": 100,
+     "label": "wslvault region-b, cloud003, traefik-edge :80"
+    }
+   ]
+  }
+ }
+}
