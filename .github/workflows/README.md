@@ -324,3 +324,5 @@ Deploy Test fails  → alert
 | API Test Suite | `automated-api-test-suite.yml` | Go-based API integration tests |
 | UI Smoke Test | `automated-ui-smoke-test.yml` | Cypress UI smoke tests |
 | Backup Data | `backup-wslproxy-data.yml` | Backup WSLProxy data from production |
+| Sync Prod to S3 | `sync-prod-data-to-s3.yml` | Daily SSH rsync from lon1 → S3 + backup tarball |
+| Restore S3 to Git | `restore-prod-data-from-s3-to-git.yml` | After S3 backup: test runner refreshes `data/` and opens a review PR (manual merge) |
