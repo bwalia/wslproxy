@@ -1,8 +1,8 @@
 # ──────────────────────────────────────────────────────
 # WSLProxy Ansible Inventory
 # Pipeline: int → test → acc → prod
-# (acc historically shared pop0 on 187.124.112.155 and was earlier
-#  decommissioned on 187.77.179.206; it now lives on its own LAN box.)
+# (acc historically shared the old pop0 host 187.124.112.155; pop0 was rebuilt
+#  2026-08-28 on 85.190.106.189 and acc now lives on its own LAN box.)
 # ──────────────────────────────────────────────────────
 
 [openresty_native_cluster]

@@ -1,7 +1,9 @@
+# pop0 — new VPS commissioned 2026-08-28 (replaces retired 187.124.112.155).
+# SSH: administrator@85.190.106.189. env_name stays `prod` in CI/Ansible.
 local_settings_file_path: "/home/bwalia/.secrets/wslproxy/prod/settings.json"
 local_env_file_path: "/home/bwalia/.secrets/wslproxy/prod/.env"
 nginx_user_password: "!!REDACTED!!" # This is the password for the user www-data but must be encrypted using Ansible Vault
-host_lan_ip: "187.124.112.155"
+host_lan_ip: "85.190.106.189"
 nginx_web_ui_enabled: "yes"
 nginx_rest_api_server_enabled: ""
 nginx_data_sync_enabled: ""
