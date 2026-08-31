@@ -1,17 +1,1 @@
-{
-  "id": "waf-rule-sqli-007",
-  "name": "SQL Injection - Time-Based (SLEEP/BENCHMARK)",
-  "description": "Detects time-based blind SQL injection attempts using SLEEP, BENCHMARK, WAITFOR DELAY, or pg_sleep functions.",
-  "category": "sqli",
-  "severity": "critical",
-  "enabled": true,
-  "target": "url",
-  "pattern": "(?i)(?:benchmark\\s*\\(|sleep\\s*\\(|waitfor\\s+delay|pg_sleep)",
-  "pattern_type": "regex",
-  "action": "block",
-  "score": 10,
-  "tags": ["owasp-top10", "sqli", "a03", "blind"],
-  "profile_id": "prod",
-  "created_at": 1740000000,
-  "updated_at": 1740000000
-}
+{"id":"waf-rule-sqli-007","pattern_type":"regex","updated_at":1740000000,"severity":"critical","enabled":true,"created_at":1740000000,"target":"url","score":10,"profile_id":"prod","pattern":"(?i)(?:benchmark\\s*\\(|sleep\\s*\\(|waitfor\\s+delay|pg_sleep)","tags":["owasp-top10","sqli","a03","blind"],"action":"block","name":"SQL Injection - Time-Based (SLEEP\/BENCHMARK)","category":"sqli","description":"Detects time-based blind SQL injection attempts using SLEEP, BENCHMARK, WAITFOR DELAY, or pg_sleep functions."}

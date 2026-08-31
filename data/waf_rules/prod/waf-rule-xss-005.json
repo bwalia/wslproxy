@@ -1,17 +1,1 @@
-{
-  "id": "waf-rule-xss-005",
-  "name": "XSS - DOM Manipulation",
-  "description": "Detects cross-site scripting attempts using DOM manipulation methods (document.cookie, document.write, window.location, eval) to access or modify page content.",
-  "category": "xss",
-  "severity": "high",
-  "enabled": true,
-  "target": "url",
-  "pattern": "(?i)(?:document\\.(?:cookie|location|write|domain)|window\\.(?:location|open)|eval\\s*\\()",
-  "pattern_type": "regex",
-  "action": "block",
-  "score": 8,
-  "tags": ["owasp-top10", "xss", "a07", "dom"],
-  "profile_id": "prod",
-  "created_at": 1740000000,
-  "updated_at": 1740000000
-}
+{"id":"waf-rule-xss-005","pattern_type":"regex","updated_at":1740000000,"severity":"high","enabled":true,"created_at":1740000000,"target":"url","score":8,"profile_id":"prod","pattern":"(?i)(?:document\\.(?:cookie|location|write|domain)|window\\.(?:location|open)|eval\\s*\\()","tags":["owasp-top10","xss","a07","dom"],"action":"block","name":"XSS - DOM Manipulation","category":"xss","description":"Detects cross-site scripting attempts using DOM manipulation methods (document.cookie, document.write, window.location, eval) to access or modify page content."}

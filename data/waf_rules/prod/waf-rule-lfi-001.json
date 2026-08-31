@@ -1,17 +1,1 @@
-{
-  "id": "waf-rule-lfi-001",
-  "name": "Path Traversal - Directory Traversal",
-  "description": "Detects path traversal attempts using repeated ../ sequences to navigate outside the intended directory structure.",
-  "category": "lfi",
-  "severity": "high",
-  "enabled": true,
-  "target": "url",
-  "pattern": "(?:\\.\\./){2,}",
-  "pattern_type": "regex",
-  "action": "block",
-  "score": 8,
-  "tags": ["owasp-top10", "lfi", "a01"],
-  "profile_id": "prod",
-  "created_at": 1740000000,
-  "updated_at": 1740000000
-}
+{"id":"waf-rule-lfi-001","pattern_type":"regex","updated_at":1740000000,"severity":"high","enabled":true,"created_at":1740000000,"target":"url","score":8,"profile_id":"prod","pattern":"(?:\\.\\.\/){2,}","tags":["owasp-top10","lfi","a01"],"action":"block","name":"Path Traversal - Directory Traversal","category":"lfi","description":"Detects path traversal attempts using repeated ..\/ sequences to navigate outside the intended directory structure."}
