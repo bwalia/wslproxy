@@ -1,7 +1,7 @@
 local_settings_file_path: "/home/bwalia/.secrets/wslproxy/lon1/settings.json"
 local_env_file_path: "/home/bwalia/.secrets/wslproxy/lon1/.env"
 nginx_user_password: "!!REDACTED!!" # This is the password for the user www-data but must be encrypted using Ansible Vault
-host_lan_ip: "195.20.255.201"
+host_lan_ip: "lon1.pop0.uk"
 # lon1 edge relocated 2026-08-27: wslproxy moved off 72.62.211.28 (that host is
 # now a k3s worker only; traefik-edge-lon1 keeps 127.0.0.1:80/443 there). This
 # box is a dedicated wslproxy edge, so no nginx_public_bind_ip is needed —

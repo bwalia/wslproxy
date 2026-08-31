@@ -28,7 +28,7 @@ kubectl apply -f traefik-edge-lon1-daemonset.yaml
 Or: `./apply.sh` on a host with admin kubeconfig.
 
 > **2026-08-27:** wslproxy has moved OFF this node — the lon1 edge now runs on
-> 195.20.255.201 (outside the cluster) and reaches cluster apps via NodePorts on
+> lon1.pop0.uk (outside the cluster) and reaches cluster apps via NodePorts on
 > 72.62.211.28. Public `:80`/`:443` on cloud001 are now free; if desired, cloud001
 > can rejoin the cluster-wide `traefik-edge` DaemonSet (revert the affinity patch
 > and delete `traefik-edge-lon1`). Until then the loopback-only setup below stays.

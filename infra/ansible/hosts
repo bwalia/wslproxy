@@ -10,7 +10,7 @@
 192.168.1.140 ansible_user=bwalia
 192.168.1.47 ansible_user=bwalia
 85.190.106.189 ansible_user=administrator
-195.20.255.201 ansible_user=root
+lon1.pop0.uk ansible_user=root
 18.133.126.242 ansible_user=admin
 
 # ── Environment groups ─────────────────────────────────
@@ -26,7 +26,7 @@
 
 [openresty_prod]
 85.190.106.189 ansible_user=administrator
-195.20.255.201 ansible_user=root
+lon1.pop0.uk ansible_user=root
 18.133.126.242 ansible_user=admin
 
 # ── Group all openresty servers ────────────────────────

@@ -1,7 +1,7 @@
 ---
 # Acme Pay — deliberately vulnerable payments API origin for the wslproxy WAF
 # before/after demo. Pinned to cloud001 (the k3s worker, 72.62.211.28) so the
-# lon1 wslproxy edge (195.20.255.201) reaches it on 72.62.211.28:30084 (edge<->LAN pod overlay is not
+# lon1 wslproxy edge (lon1.pop0.uk) reaches it on 72.62.211.28:30084 (edge<->LAN pod overlay is not
 # routable from the edge nodes). App source AND the WAF Efficacy Lab page (lab.html,
 # served same-origin at /lab) are carried in the payments-api-src ConfigMap and run on
 # a stock python image — no image build/registry push needed. Create the ConfigMap with

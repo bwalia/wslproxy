@@ -3,7 +3,7 @@ name: Sync Prod Data to S3
 # Pulls gateway data trees from a production edge and uploads them to S3.
 #
 # Default source (scheduled + workflow_dispatch default):
-#   root@195.20.255.201  (lon1 — live prod edge, public traffic)
+#   root@lon1.pop0.uk  (lon1 — live prod edge, public traffic)
 #
 # Optional workflow_dispatch override: 85.190.106.189 (pop0), 18.133.126.242 (pop1).
 # pop1 is dashboard-only and often unreachable from the macOS runner (SG/firewall).
@@ -25,24 +25,24 @@ on:
   workflow_dispatch:
     inputs:
       prod_host:
-        description: "Prod edge IP to pull data from"
+        description: "Prod edge host to pull data from"
         required: false
-        default: "195.20.255.201"
+        default: "lon1.pop0.uk"
         type: choice
         options:
-          - "195.20.255.201"
+          - "lon1.pop0.uk"
           - "85.190.106.189"
           - "18.133.126.242"
 
 env:
-  PROD_HOST: ${{ github.event.inputs.prod_host || '195.20.255.201' }}
+  PROD_HOST: ${{ github.event.inputs.prod_host || 'lon1.pop0.uk' }}
   PROD_DATA_DIR: /opt/nginx/data
   SYNC_TREES: "servers rules ssl ssl-certs upstreams varnish waf_policies waf_rules pops"
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   sync-prod-data-to-s3:
-    name: "Sync prod data to S3 (${{ github.event.inputs.prod_host || '195.20.255.201' }})"
+    name: "Sync prod data to S3 (${{ github.event.inputs.prod_host || 'lon1.pop0.uk' }})"
     # macOS `prod` studio runner (BalindeacStudio) — SSH key trusted by lon1/pop0.
     runs-on: [self-hosted, prod, macOS]
 
@@ -52,7 +52,7 @@ jobs:
         run: |
           set -euo pipefail
           case "${PROD_HOST}" in
-            195.20.255.201)
+            lon1.pop0.uk)
               PROD_SSH_USER=root
               PROD_LABEL=lon1
               ;;

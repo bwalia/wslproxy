@@ -46,8 +46,8 @@ on:
           - 192.168.1.140
           # 187.77.179.206 (acc) and the OLD pop0 187.124.112.155 were retired.
           # 72.62.211.28 (old lon1) is now a k3s worker only — the lon1 edge
-          # moved to 195.20.255.201 on 2026-08-27.
-          - 195.20.255.201
+          # moved to lon1.pop0.uk on 2026-08-27.
+          - lon1.pop0.uk
           - 18.133.126.242
           # pop0 rebuilt on a new VPS 2026-08-28 — dispatch-only (Stage 5c),
           # never reached by `all` or by a push to main/release.
@@ -429,7 +429,7 @@ jobs:
   # gates production behind a successful non-prod deploy.
 
   # ──────────────────────────────────────────────────────
-  # Stage 5a: Deploy Prod lon1 (195.20.255.201)
+  # Stage 5a: Deploy Prod lon1 (lon1.pop0.uk)
   # (lon1 relocated 2026-08-27: the old lon1 host 72.62.211.28 is now a k3s
   #  worker only. The former Stage 5a "pop0" / 187.124.112.155 was retired:
   #  that host is a k3s/traefik node with no wslproxy edge and no DNS, so it
@@ -442,16 +442,16 @@ jobs:
       always() && !failure() && !cancelled() &&
       ((github.event_name == 'push' && (github.ref == 'refs/heads/release' || github.ref == 'refs/heads/main')) ||
       (github.event_name == 'workflow_dispatch' &&
-      (github.event.inputs.TARGET_HOST == '195.20.255.201' || github.event.inputs.TARGET_HOST == 'all')))
+      (github.event.inputs.TARGET_HOST == 'lon1.pop0.uk' || github.event.inputs.TARGET_HOST == 'all')))
     uses: ./.github/workflows/deploy-environment.yml
     with:
       env_name: prod
       # Schedule on mac-studio (`acc`) — same rationale as pop1: the
       # historical `prod` runner on pop0 has no SSH trust to lon1.
       runner_label: acc
-      env_label: "Prod lon1 (195.20.255.201)"
+      env_label: "Prod lon1 (lon1.pop0.uk)"
       stage_number: "5a"
-      host_ip: "195.20.255.201"
+      host_ip: "lon1.pop0.uk"
       ssh_user: root
       connection_mode: ssh_key
       # Same as pop0/pop1 — runner_file required
