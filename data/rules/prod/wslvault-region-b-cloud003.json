@@ -19,7 +19,7 @@
   },
   "response": {
    "code": 305,
-   "redirect_uri": "http://77.68.126.63",
+   "redirect_uri": "http://origin-uk-003.pop0.uk",
    "allow": false,
    "strip_path": false,
    "auto_redirect_https": false,
@@ -29,7 +29,7 @@
    },
    "backends": [
     {
-     "address": "http://77.68.126.63",
+     "address": "http://origin-uk-003.pop0.uk",
      "weight": 100,
      "label": "wslvault region-b, cloud003, traefik-edge :80"
     }
