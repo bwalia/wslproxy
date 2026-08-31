@@ -337,4 +337,5 @@ jobs:
           echo "Live trees:    ${SYNC_TREES}"
           echo "Backup key:    ${{ steps.backup.outputs.backup_key }}"
           echo "Timestamp:     $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
+          echo "Next step:     Restore Prod Data from S3 to Git (workflow_run on success)"
           echo "=========================================="

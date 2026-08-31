@@ -1,0 +1,170 @@
+name: Restore Prod Data from S3 to Git
+
+# After a successful "Sync Prod Data to S3" backup, download the latest tarball
+# on the test runner, refresh data/servers|rules|waf_*|upstreams|pops (prod), and
+# open (or update) a PR for human review. Does NOT auto-merge — merge manually
+# after approving the diff.
+#
+# Trigger chain:
+#   Sync Prod Data to S3 (04:00 UTC) → this workflow (workflow_run)
+
+on:
+  workflow_run:
+    workflows: ["Sync Prod Data to S3"]
+    types: [completed]
+    branches: [main]
+
+  workflow_dispatch:
+    inputs:
+      backup_file:
+        description: "S3 backup tarball name under backups/ (default: latest prod_backup_*.tar.gz)"
+        required: false
+        type: string
+
+concurrency:
+  group: dr-s3-restore-to-git
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  restore-and-pr:
+    name: "DR: S3 backup → data/ PR (test runner)"
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+    runs-on: [self-hosted, test]
+    timeout-minutes: 30
+
+    steps:
+      - name: Reclaim runner workspace ownership
+        run: |
+          if [ -n "$GITHUB_WORKSPACE" ] && [ -d "$GITHUB_WORKSPACE" ]; then
+            sudo chown -R "$(id -u):$(id -g)" "$GITHUB_WORKSPACE" 2>/dev/null || true
+          fi
+
+      - name: Checkout main
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Ensure AWS CLI and jq
+        run: |
+          set -euo pipefail
+          command -v aws >/dev/null || { echo "::error::aws CLI required on test runner"; exit 1; }
+          command -v jq >/dev/null || { echo "::error::jq required on test runner"; exit 1; }
+          aws --version
+
+      - name: Resolve backup tarball from S3
+        id: backup
+        env:
+          INPUT_BACKUP: ${{ github.event.inputs.backup_file }}
+        run: |
+          set -euo pipefail
+          S3_BUCKET="${{ secrets.WSLPROXY_S3_BUCKET }}"
+          if [[ -n "${INPUT_BACKUP}" ]]; then
+            BACKUP_FILE="${INPUT_BACKUP}"
+          else
+            BACKUP_FILE=$(aws s3 ls "s3://${S3_BUCKET}/backups/" \
+              | awk '/prod_backup_[0-9_]+\.tar\.gz$/ {print $4}' \
+              | sort \
+              | tail -1)
+          fi
+          if [[ -z "${BACKUP_FILE}" ]]; then
+            echo "::error::No prod_backup_*.tar.gz found in s3://${S3_BUCKET}/backups/"
+            exit 1
+          fi
+          echo "backup_file=${BACKUP_FILE}" >> "${GITHUB_OUTPUT}"
+          echo "backup_key=backups/${BACKUP_FILE}" >> "${GITHUB_OUTPUT}"
+          echo "Using s3://${S3_BUCKET}/backups/${BACKUP_FILE}"
+
+      - name: Download and extract backup
+        run: |
+          set -euo pipefail
+          S3_BUCKET="${{ secrets.WSLPROXY_S3_BUCKET }}"
+          KEY="${{ steps.backup.outputs.backup_key }}"
+          FILE="${{ steps.backup.outputs.backup_file }}"
+          WORK="${RUNNER_TEMP}/dr-restore"
+          rm -rf "${WORK}"
+          mkdir -p "${WORK}"
+          aws s3 cp "s3://${S3_BUCKET}/${KEY}" "${WORK}/${FILE}"
+          mkdir -p "${WORK}/extracted"
+          tar -xzf "${WORK}/${FILE}" -C "${WORK}/extracted"
+          echo "DR_RESTORE_ROOT=${WORK}/extracted" >> "${GITHUB_ENV}"
+          echo "Extracted $(tar -tzf "${WORK}/${FILE}" | wc -l | tr -d ' ') entries"
+
+      - name: Sync backup trees into data/
+        run: |
+          set -euo pipefail
+          chmod +x scripts/dr-sync-s3-backup-to-data.sh
+          ./scripts/dr-sync-s3-backup-to-data.sh "${DR_RESTORE_ROOT}" data
+
+      - name: Summarize diff
+        id: diff
+        run: |
+          set -euo pipefail
+          git add data/servers/prod data/rules/prod data/waf_policies/prod \
+            data/waf_rules/prod data/upstreams/prod data/pops 2>/dev/null || true
+          if git diff --staged --quiet; then
+            echo "has_changes=false" >> "${GITHUB_OUTPUT}"
+            echo "No changes vs main — skipping PR"
+          else
+            echo "has_changes=true" >> "${GITHUB_OUTPUT}"
+            echo "=== Staged summary ==="
+            git diff --staged --stat
+          fi
+
+      - name: Create or update DR pull request
+        if: steps.diff.outputs.has_changes == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: dr/prod-data-from-s3
+          delete-branch: true
+          base: main
+          title: "dr(prod): sync gateway data from S3 backup"
+          commit-message: "dr(prod): sync servers, rules, WAF, upstreams, pops from S3"
+          body: |
+            ## Automated DR sync from S3
+
+            This PR was opened by [Restore Prod Data from S3 to Git](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}).
+
+            | Field | Value |
+            |-------|-------|
+            | Backup | `${{ steps.backup.outputs.backup_file }}` |
+            | Trigger | `${{ github.event_name }}` |
+            | Source workflow | ${{ github.event.workflow_run.html_url || 'manual' }} |
+
+            ### Trees updated
+            - `data/servers/prod/`
+            - `data/rules/prod/`
+            - `data/waf_policies/prod/`, `data/waf_rules/prod/`
+            - `data/upstreams/prod/`
+            - `data/pops/` (when present in backup)
+
+            S3 signing keys in rules are redacted to `REDACTED_S3_*` for git safety.
+
+            ### Required: manual approval
+            **Review the diff and merge this PR when satisfied.** There is no auto-merge — merging updates `main` with the live prod snapshot from S3.
+
+            After merge, deploy with `DEPLOY_MODE=servers` to lon1 (or your usual promotion path).
+          labels: |
+            dr
+            automated
+
+      - name: No changes notice
+        if: steps.diff.outputs.has_changes != 'true'
+        run: echo "✅ Backup processed; git data/ already matches — no PR opened."
