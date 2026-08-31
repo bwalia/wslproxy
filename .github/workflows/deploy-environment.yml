@@ -113,7 +113,7 @@ on:
         type: string
         required: true
       deploy_mode:
-        description: "Deploy mode: code, nginx, servers, dashboard, dashboard-next, os_deps, build, full"
+        description: "Deploy mode: code, nginx, servers, dashboard, dashboard-next, os_deps, build, full, permissions"
         type: string
         required: true
       nextjs_dashboard_port:
@@ -717,6 +717,16 @@ jobs:
           elif [[ "$DEPLOY_MODE" == "dashboard-next" ]]; then
             TAGS_FLAG="--tags dashboard-next"
             echo "Next.js dashboard deploy to ${{ inputs.env_label }}"
+          elif [[ "$DEPLOY_MODE" == "permissions" ]]; then
+            # Surgical repair: run only tasks tagged `always` (fix_permissions,
+            # OS/host probes). A non-existent tag skips every other task while
+            # ansible still runs `always`-tagged ones — which includes
+            # fix_permissions.yml → /usr/sbin/fix-permissions.sh, the single
+            # source of truth for /opt/nginx/data ownership. Use when the
+            # admin API returns "Permission denied" on a rule/server file
+            # (root-owned files that www-data cannot read).
+            TAGS_FLAG="--tags __permissions_only__"
+            echo "Permissions-only repair on ${{ inputs.env_label }}"
           else
             TAGS_FLAG="--tags $DEPLOY_MODE"
             echo "$DEPLOY_MODE deploy to ${{ inputs.env_label }}"
@@ -774,7 +784,12 @@ jobs:
             --extra-vars "nginx_user_password=THISCOMESFROMSECRETS target_env=${{ inputs.env_name }} local_settings_file_path=${{ env.settings_path }} local_env_file_path=${{ env.env_path }} wslproxy_version=${WSLPROXY_VERSION} wslproxy_build_number=${{ github.run_id }} wslproxy_git_sha=${{ github.sha }} wslproxy_git_repo=${{ github.repository }} wslproxy_deployment_time=$(date -u +%Y-%m-%dT%H:%M:%SZ) $SECRETS_FLAG"
 
       # ── Deploy server/rule configs ──
+      # Skipped in `permissions` mode: that mode's whole point is a
+      # perms-only repair with zero data changes. Pushing wslproxy's own
+      # data/servers/<env>/ + data/rules/<env>/ would overwrite whatever
+      # drift the operator is currently debugging.
       - name: Deploy server configs and rules
+        if: ${{ inputs.deploy_mode != 'permissions' }}
         timeout-minutes: 20
         run: |
           echo "Deploying server configs for env: ${{ inputs.env_name }} to ${{ inputs.host_ip }}"
