@@ -1,12 +1,15 @@
 name: Sync Prod Data to S3
 
-# Pulls gateway data trees from the sole production POP and uploads them to S3.
+# Pulls gateway data trees from a production edge and uploads them to S3.
 #
-# ONLY source host (all other VMs are decommissioned):
-#   admin@18.133.126.242  (pop1 — AWS eu-west-2)
+# Default source (scheduled + workflow_dispatch default):
+#   root@195.20.255.201  (lon1 — live prod edge, public traffic)
 #
-# Data is fetched over SSH as admin (rsync). The self-hosted `prod` runner
-# does not need to live on pop1, but SSH_PRIVATE_KEY must reach that host.
+# Optional workflow_dispatch override: 85.190.106.189 (pop0), 18.133.126.242 (pop1).
+# pop1 is dashboard-only and often unreachable from the macOS runner (SG/firewall).
+#
+# Data is fetched over SSH (rsync). SSH_PRIVATE_KEY on the self-hosted runner
+# must reach the chosen host.
 #
 # Live sync trees (/opt/nginx/data/ → s3://…/data/):
 #   servers, rules, ssl, ssl-certs, upstreams, varnish, waf_policies, waf_rules, pops
@@ -20,37 +23,58 @@ on:
     - cron: "0 4 * * *"
 
   workflow_dispatch:
+    inputs:
+      prod_host:
+        description: "Prod edge IP to pull data from"
+        required: false
+        default: "195.20.255.201"
+        type: choice
+        options:
+          - "195.20.255.201"
+          - "85.190.106.189"
+          - "18.133.126.242"
 
 env:
-  # pop1 — sole remaining production POP
-  PROD_HOST: "18.133.126.242"
-  PROD_SSH_USER: admin
+  PROD_HOST: ${{ github.event.inputs.prod_host || '195.20.255.201' }}
   PROD_DATA_DIR: /opt/nginx/data
   SYNC_TREES: "servers rules ssl ssl-certs upstreams varnish waf_policies waf_rules pops"
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   sync-prod-data-to-s3:
-    name: "Sync prod data to S3 (pop1 only)"
-# Prefer a self-hosted runner that can SSH to admin@18.133.126.242.
-    # - macOS `prod` studio can reach pop1
-    # - Linux `prod`/`pop0` runner (187.124.112.155) times out on pop1:22
-    # - GitHub-hosted ubuntu-latest also times out (SG/firewall)
-    # When a runner is registered ON pop1 with label `pop1`, prefer that for local disk.
+    name: "Sync prod data to S3 (${{ github.event.inputs.prod_host || '195.20.255.201' }})"
+    # macOS `prod` studio runner (BalindeacStudio) — SSH key trusted by lon1/pop0.
     runs-on: [self-hosted, prod, macOS]
 
     steps:
-      - name: Guard — only pop1 is allowed as source
+      - name: Resolve prod SSH user
+        id: prod
         run: |
           set -euo pipefail
-          echo "Source: ${PROD_SSH_USER}@${PROD_HOST}:${PROD_DATA_DIR}"
+          case "${PROD_HOST}" in
+            195.20.255.201)
+              PROD_SSH_USER=root
+              PROD_LABEL=lon1
+              ;;
+            85.190.106.189)
+              PROD_SSH_USER=administrator
+              PROD_LABEL=pop0
+              ;;
+            18.133.126.242)
+              PROD_SSH_USER=admin
+              PROD_LABEL=pop1
+              ;;
+            *)
+              echo "::error::Unsupported PROD_HOST ${PROD_HOST}. Use lon1, pop0, or pop1."
+              exit 1
+              ;;
+          esac
+          echo "PROD_SSH_USER=${PROD_SSH_USER}" >> "${GITHUB_ENV}"
+          echo "PROD_LABEL=${PROD_LABEL}" >> "${GITHUB_ENV}"
+          echo "Source: ${PROD_SSH_USER}@${PROD_HOST}:${PROD_DATA_DIR} (${PROD_LABEL})"
           echo "SYNC_TREES: ${SYNC_TREES}"
-          if [[ "${PROD_HOST}" != "18.133.126.242" ]]; then
-            echo "::error::PROD_HOST must be 18.133.126.242 (pop1). Refusing ${PROD_HOST}."
-            exit 1
-          fi
 
-      - name: Setup SSH to admin@pop1
+      - name: Setup SSH to prod edge
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         run: |
@@ -308,7 +332,7 @@ jobs:
           echo "=========================================="
           echo "Sync Prod Data to S3 — Summary"
           echo "=========================================="
-          echo "Source Host:   ${PROD_SSH_USER}@${PROD_HOST} (pop1 only, via SSH)"
+          echo "Source Host:   ${PROD_SSH_USER}@${PROD_HOST} (${PROD_LABEL}, via SSH)"
           echo "S3 Bucket:     ${{ secrets.WSLPROXY_S3_BUCKET }}"
           echo "Live trees:    ${SYNC_TREES}"
           echo "Backup key:    ${{ steps.backup.outputs.backup_key }}"
