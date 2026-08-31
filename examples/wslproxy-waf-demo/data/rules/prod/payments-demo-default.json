@@ -12,12 +12,12 @@
       "allow": true,
       "routing": { "mode": "least_conn" },
       "is_consul": false,
-      "redirect_uri": "127.0.0.1:30084",
+      "redirect_uri": "origin-uk-001.pop0.uk:30084",
       "backends": [
-        { "address": "127.0.0.1:30084", "weight": 100, "label": "payments-api-k3s1-nodeport" }
+        { "address": "origin-uk-001.pop0.uk:30084", "weight": 100, "label": "payments-api-k3s1-nodeport" }
       ]
     },
     "rules": { "path_key": "starts_with", "path": "/", "jwt_token_validation": "equals" }
   },
-  "servers": ["host:payments-open.fictionally.org", "host:payments-secure.fictionally.org"]
+  "servers": ["host:payments.fictionally.org", "host:payments-open.fictionally.org", "host:payments-secure.fictionally.org"]
 }
