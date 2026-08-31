@@ -59,6 +59,7 @@ on:
           - dashboard-next
           - os_deps
           - build
+          - permissions
 
 # Serialize deploys to the same environment; don't cancel an in-flight deploy.
 concurrency:
