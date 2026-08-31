@@ -33,13 +33,13 @@ INSTANCE_NAME[prod]="wslproxy-prod"
 declare -A FRONT_URL
 FRONT_URL[int]="https://int.wslproxy.com"
 FRONT_URL[test]="https://test.wslproxy.com"
-FRONT_URL[lon1]="http://195.20.255.201"
+FRONT_URL[lon1]="http://lon1.pop0.uk"
 FRONT_URL[prod]="https://prod-our.wslproxy.com"
 
 declare -A HOSTNAME_VAL
 HOSTNAME_VAL[int]="int.wslproxy.com"
 HOSTNAME_VAL[test]="test.wslproxy.com"
-HOSTNAME_VAL[lon1]="195.20.255.201"
+HOSTNAME_VAL[lon1]="lon1.pop0.uk"
 HOSTNAME_VAL[prod]="prod-our.wslproxy.com"
 
 # Admin-API gateway written into login-creds.json (overridable via
@@ -48,7 +48,7 @@ HOSTNAME_VAL[prod]="prod-our.wslproxy.com"
 declare -A GATEWAY_URL_MAP
 GATEWAY_URL_MAP[int]="https://int-our.wslproxy.com"
 GATEWAY_URL_MAP[test]="https://test.wslproxy.com"
-GATEWAY_URL_MAP[lon1]="http://195.20.255.201"
+GATEWAY_URL_MAP[lon1]="http://lon1.pop0.uk"
 GATEWAY_URL_MAP[prod]="https://prod-our-v1.wslproxy.com"
 
 echo "============================================"

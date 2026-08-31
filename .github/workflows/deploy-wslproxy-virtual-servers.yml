@@ -30,13 +30,13 @@ on:
       TARGET_HOST:
         type: choice
         description: "Target host"
-        default: "195.20.255.201"
+        default: "lon1.pop0.uk"
         required: true
         options:
           # 187.77.179.206 (acc) and the OLD pop0 187.124.112.155 were retired.
           # pop0 was rebuilt on a new VPS (85.190.106.189, ssh administrator)
           # on 2026-08-28 — the SSH user comes from infra/ansible/hosts.
-          - 195.20.255.201
+          - lon1.pop0.uk
           - 18.133.126.242
           - 85.190.106.189
           - 192.168.1.193
@@ -53,7 +53,7 @@ on:
 
 env:
   TARGET_ENV: ${{ github.event.inputs.TARGET_ENV || 'prod' }}
-  TARGET_HOST: ${{ github.event.inputs.TARGET_HOST || '195.20.255.201' }}
+  TARGET_HOST: ${{ github.event.inputs.TARGET_HOST || 'lon1.pop0.uk' }}
   DEPLOY_NGINX_CONF: ${{ github.event.inputs.DEPLOY_NGINX_CONF || 'false' }}
   DRY_RUN: ${{ github.event.inputs.DRY_RUN || 'false' }}
   INT_HOST: 192.168.1.193

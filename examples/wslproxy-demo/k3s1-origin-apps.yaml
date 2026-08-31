@@ -1,6 +1,6 @@
 ---
 # Sample origin apps for wslproxy demo routing via https://lon1.pop0.uk/
-# Deployed to k3s1; exposed as NodePorts so the lon1 edge (195.20.255.201,
+# Deployed to k3s1; exposed as NodePorts so the lon1 edge (lon1.pop0.uk,
 # outside the cluster since 2026-08-27) reaches them on 72.62.211.28:<nodePort>
 # (cloud001, the k3s worker that used to co-host the edge).
 apiVersion: v1

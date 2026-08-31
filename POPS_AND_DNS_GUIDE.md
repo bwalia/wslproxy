@@ -84,7 +84,7 @@ pop_ids: [pop0, lon1]
 
 Cloudflare A records:
   api.example.com → 85.190.106.189  (pop=pop0)
-  api.example.com → 195.20.255.201     (pop=lon1)
+  api.example.com → lon1.pop0.uk     (pop=lon1)
 ```
 
 ---
@@ -452,7 +452,7 @@ You: Provision DNS for host:api.example.com in prod.
 Claude: [calls provision_dns (dry_run defaults to true)]
         Here's what would change in Cloudflare:
           - CREATE A api.example.com → 85.190.106.189  (pop=pop0)
-          - CREATE A api.example.com → 195.20.255.201    (pop=lon1)
+          - CREATE A api.example.com → lon1.pop0.uk    (pop=lon1)
         Should I apply these?
 
 You: yes
@@ -460,7 +460,7 @@ You: yes
 Claude: [calls provision_dns with dry_run=false]
         Applied:
           - Created A record api.example.com → 85.190.106.189
-          - Created A record api.example.com → 195.20.255.201
+          - Created A record api.example.com → lon1.pop0.uk
         Both records are now live in Cloudflare.
 
 You: What DNS records exist for api.example.com right now?
@@ -468,7 +468,7 @@ You: What DNS records exist for api.example.com right now?
 Claude: [calls lookup_dns]
         Cloudflare has 2 A records:
           - 85.190.106.189  (managed by wslproxy, pop=pop0)
-          - 195.20.255.201    (managed by wslproxy, pop=lon1)
+          - lon1.pop0.uk    (managed by wslproxy, pop=lon1)
         No hand-curated records.
 ```
 

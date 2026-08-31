@@ -184,7 +184,7 @@ Shared parameterized workflow called by both pipelines via `workflow_call`. Hand
 |-------------|---------|----------|--------------------|----------------|---------------------|-----------------|
 | int | 192.168.1.193 | (local) | `local` | `github_secret` | `local` | `http://localhost:8080/health` |
 | test | 192.168.1.140 | bwalia | `ssh` | `runner_file` | `ssh` | `http://localhost:8080/health` |
-| prod (lon1) | 195.20.255.201 | root | `ssh_key` | `vault_or_sops` | `external` | `https://lon1.pop0.uk/healthz` |
+| prod (lon1) | lon1.pop0.uk | root | `ssh_key` | `vault_or_sops` | `external` | `https://lon1.pop0.uk/healthz` |
 | prod (pop1) | 18.133.126.242 | admin | `ssh_key` | `vault_or_sops` | `external` | `https://pop1.diytaxreturn.co.uk/healthz` |
 
 | prod (pop0) | 85.190.106.189 | administrator | `ssh_key` | `vault_or_sops` | `ssh` | `http://127.0.0.1:7691/healthz` |
@@ -238,7 +238,7 @@ Runner-local secrets (on 192.168.1.193):
 /home/bwalia/.secrets/wslproxy/
 ├── int/     → settings.json + .env (BACKEND_HOST=192.168.1.193)
 ├── test/    → settings.json + .env (BACKEND_HOST=192.168.1.140)
-└── lon1/    → settings.json + .env (BACKEND_HOST=195.20.255.201)
+└── lon1/    → settings.json + .env (BACKEND_HOST=lon1.pop0.uk)
 ```
 
 ---

@@ -14,7 +14,7 @@
 #  • int / test are on the LAN (192.168.1.0/24) → scrape by IP over http.
 #  • prod pop0 is Cloudflare-fronted as prod-our.wslproxy.com → scrape by
 #    hostname over https (Cloudflare IP is allowlisted).
-#  • prod lon1 (195.20.255.201) has no public metrics hostname here; scrape it
+#  • prod lon1 (lon1.pop0.uk) has no public metrics hostname here; scrape it
 #    only from a host inside its allowlist (adjust the target/scheme to match
 #    your network, or drop the job if it is unreachable).
 scrape_configs:
@@ -61,7 +61,7 @@ scrape_configs:
   #   tls_config:
   #     insecure_skip_verify: true
   #   static_configs:
-  #     - targets: ["195.20.255.201"]
+  #     - targets: ["lon1.pop0.uk"]
   #       labels: {env: prod, region: lon1, service: wslproxy}
 
 # The endpoint emits no instance/job/env labels itself — Prometheus attaches
