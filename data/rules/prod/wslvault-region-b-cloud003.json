@@ -8,7 +8,8 @@
  "rules_tags": {},
  "servers": [
   "host:vault-b.workstation.co.uk",
-  "host:vault-ui-b.workstation.co.uk"
+  "host:vault-ui-b.workstation.co.uk",
+  "host:vault-ha.workstation.co.uk"
  ],
  "match": {
   "rules": {

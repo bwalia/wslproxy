@@ -1,0 +1,84 @@
+{
+ "proxy_server_name": "vault-ha.workstation.co.uk",
+ "cache_docker_blobs_ttl": "2592000",
+ "cache_docker_manifests_ttl": "3600",
+ "cache_docker_serve_stale": false,
+ "cache_docker_stale_ttl": "31536000",
+ "cache_docker_blobs": false,
+ "locations": {},
+ "custom_block": {},
+ "custom_response_headers": {},
+ "rules": [
+  "wslvault-region-b-cloud003"
+ ],
+ "rate_limit": {
+  "requests_per_second": 100,
+  "burst": 50
+ },
+ "servers_tags": {},
+ "custom_location_block": {},
+ "cache_docker_manifests": false,
+ "cache_enabled": false,
+ "config": "CnNlcnZlciB7CiAgICBsaXN0ZW4gODA7CiAgICBzZXJ2ZXJfbmFtZSB2YXVsdC1oYS53b3Jrc3RhdGlvbi5jby51azsKICAgIGxvY2F0aW9uIC8ud2VsbC1rbm93bi9hY21lLWNoYWxsZW5nZS8geyBjb250ZW50X2J5X2x1YV9ibG9jayB7IGF1dG9fc3NsOmNoYWxsZW5nZV9zZXJ2ZXIoKSB9IH0KICAgIGxvY2F0aW9uIC8geyByZXR1cm4gMzAxIGh0dHBzOi8vJGhvc3QkcmVxdWVzdF91cmk7IH0KfQpzZXJ2ZXIgewogICAgICBsaXN0ZW4gODA7CiAgICAgIAogICAgICBsaXN0ZW4gNDQzIHNzbCBodHRwMjsKICAgICAgc3NsX2NlcnRpZmljYXRlX2J5X2x1YV9ibG9jayB7IGF1dG9fc3NsOnNzbF9jZXJ0aWZpY2F0ZSgpIH0KICAgICAgc3NsX2NlcnRpZmljYXRlIC9ldGMvc3NsL3Jlc3R5LWF1dG8tc3NsLWZhbGxiYWNrLmNydDsKICAgICAgc3NsX2NlcnRpZmljYXRlX2tleSAvZXRjL3NzbC9yZXN0eS1hdXRvLXNzbC1mYWxsYmFjay5rZXk7CiAgICAgIHNzbF9zZXNzaW9uX3RpbWVvdXQgMWQ7CiAgICAgIHNzbF9zZXNzaW9uX2NhY2hlIHNoYXJlZDpTU0w6NTBtOwogICAgICBzc2xfc2Vzc2lvbl90aWNrZXRzIG9mZjsKICAgICAgc3NsX3Byb3RvY29scyBUTFN2MS4yIFRMU3YxLjM7CiAgICAgIHNzbF9jaXBoZXJzIEVDREhFLUVDRFNBLUFFUzEyOC1HQ00tU0hBMjU2OkVDREhFLVJTQS1BRVMxMjgtR0NNLVNIQTI1NjpFQ0RIRS1FQ0RTQS1BRVMyNTYtR0NNLVNIQTM4NDpFQ0RIRS1SU0EtQUVTMjU2LUdDTS1TSEEzODQ6RUNESEUtRUNEU0EtQ0hBQ0hBMjAtUE9MWTEzMDU6RUNESEUtUlNBLUNIQUNIQTIwLVBPTFkxMzA1OkRIRS1SU0EtQUVTMTI4LUdDTS1TSEEyNTY6REhFLVJTQS1BRVMyNTYtR0NNLVNIQTM4NDsKICAgICAgc3NsX3ByZWZlcl9zZXJ2ZXJfY2lwaGVycyBvZmY7CiAgICAgIGFkZF9oZWFkZXIgU3RyaWN0LVRyYW5zcG9ydC1TZWN1cml0eSAibWF4LWFnZT0zMTUzNjAwMDsgaW5jbHVkZVN1YkRvbWFpbnMiIGFsd2F5czsKICAgICAgc2VydmVyX25hbWUgdmF1bHQtaGEud29ya3N0YXRpb24uY28udWs7CiAgICAgIHJvb3QgL3Zhci93d3cvaHRtbDsKICAgICAgaW5kZXggaW5kZXguaHRtbDsKICAgICAgYWNjZXNzX2xvZyBsb2dzL3ZhdWx0LWhhLndvcmtzdGF0aW9uLmNvLnVrLmFjY2Vzcy5sb2c7CiAgICAgIGVycm9yX2xvZyBsb2dzL3ZhdWx0LWhhLndvcmtzdGF0aW9uLmNvLnVrLmVycm9yLmxvZzsKICAgICAgCiAgICAgIGxvY2F0aW9uIC8ud2VsbC1rbm93bi9hY21lLWNoYWxsZW5nZS8gewogICAgICAgICAgY29udGVudF9ieV9sdWFfYmxvY2sgeyBhdXRvX3NzbDpjaGFsbGVuZ2Vfc2VydmVyKCkgfQogICAgICB9CiAgICAgIAogICAgICAKICB9CiAgCiAg",
+ "proxy_timeouts": {
+  "connect_timeout": "30",
+  "send_timeout": "300",
+  "read_timeout": "300"
+ },
+ "match_cases": [
+  {
+   "statement": "c01433b8-52b8-5f21-e38f-f0726e4f6597",
+   "condition": "and"
+  },
+  {
+   "statement": "9e6caceb-c963-a51a-ad4a-36005b13f665",
+   "condition": "and"
+  }
+ ],
+ "cache_ttl": 3600,
+ "rate_limit_enabled": false,
+ "custom_http_block": {},
+ "index": "index.html",
+ "ssl_enabled": true,
+ "ssl_staging": false,
+ "varnish_snippets": {},
+ "cached_mime_types": {},
+ "server_name": "vault-ha.workstation.co.uk",
+ "varnish_config": {
+  "admin_listen_port": "6082",
+  "listen_port": "6081",
+  "health_check_enabled": false,
+  "health_check_url": "/health",
+  "cache_grace": 3600,
+  "backend_first_byte_timeout": 60,
+  "health_check_timeout": 2,
+  "backend_between_bytes_timeout": 10,
+  "cache_ttl_default": 120,
+  "listen_address": "0.0.0.0",
+  "cache_keep": 7200,
+  "cache_size": "256m",
+  "health_check_interval": 5,
+  "backend_connect_timeout": 5
+ },
+ "dns_record_type": "CNAME",
+ "error_log": "logs/vault-ha.workstation.co.uk.error.log",
+ "varnish_enabled": false,
+ "cache_bypass_auth": true,
+ "config_status": false,
+ "waf_enabled": false,
+ "ssl_force_https": true,
+ "custom_headers": {},
+ "listens": [
+  {
+   "listen": "80"
+  }
+ ],
+ "ssl_email": "balinder.walia@gmail.com",
+ "id": "host:vault-ha.workstation.co.uk",
+ "pop_ids": {},
+ "access_log": "logs/vault-ha.workstation.co.uk.access.log",
+ "ssl_auto_renew": true,
+ "profile_id": "prod",
+ "root": "/var/www/html",
+ "dns_cname_target": "pop0.wslproxy.com"
+}
