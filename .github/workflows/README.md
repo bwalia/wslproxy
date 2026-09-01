@@ -12,6 +12,13 @@ WSLProxy uses two deployment pipelines and a shared reusable workflow:
 
 > The `acc` tier on 187.77.179.206 was decommissioned. Both pipelines now go test → prod (delivery) or stop at test (promotion).
 
+> `deploy-diytaxreturn-configs.yml` was retired on 2026-09-01. It targeted the
+> decommissioned 187.77.179.206 and an `[openresty_diytaxreturn]` inventory group
+> that no commit ever added, so all 12 of its runs failed — while firing on every
+> merge that touched `data/servers/**` or `data/rules/**`. diytaxreturn config is
+> owned by the app repo (`diy-tax-return-uk/.github/wslproxy/data/`) and imported
+> through `/api/projects/import`.
+
 ---
 
 ## Pipeline Flow Diagrams
@@ -231,6 +238,14 @@ The `DEPLOY_MODE` value maps to Ansible tags that control which tasks run:
 | `DOT_WSLPROXY_SETTINGS_PROD` | Prod deploy (lon1/pop1) | Base64-encoded settings.json for prod |
 | `DOT_WSLPROXY_ENV_CREDS_PROD` | Prod deploy (lon1/pop1) | Base64-encoded .env for prod |
 | `SLACK_WEBHOOK` | All stages | Slack incoming webhook URL |
+| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_REGION` | `sync-prod-data-to-s3`, `sync-configs-to-environments`, `deploy-wslproxy-virtual-servers` | IAM user credentials for the S3 data bucket |
+| `WSLPROXY_S3_BUCKET` | Same three workflows | Bucket holding `data/servers/<env>/` and `data/rules/<env>/` |
+
+Those three workflows run `.github/actions/aws-s3-preflight` before any transfer.
+It probes `sts:GetCallerIdentity` and one `s3 ls`, so a rotated, revoked or
+AWS-quarantined key is named as such instead of surfacing as a bare `AccessDenied`
+from inside `aws s3 sync`. It fails the job where S3 is the source of truth and
+only warns where the S3 step is a best-effort overlay.
 
 Runner-local secrets (on 192.168.1.193):
 

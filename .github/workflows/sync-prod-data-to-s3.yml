@@ -47,6 +47,15 @@ jobs:
     runs-on: [self-hosted, prod, macOS]
 
     steps:
+      # This job stages its data over SSH and never needed the repo, but the
+      # S3 preflight below is a local composite action. Sparse-checkout keeps
+      # it to .github/ on the macOS runner, and it has to run BEFORE anything
+      # stages into the workspace: actions/checkout cleans what it finds.
+      - name: Check out composite actions
+        uses: actions/checkout@v5
+        with:
+          sparse-checkout: .github/actions
+
       - name: Resolve prod SSH user
         id: prod
         run: |
@@ -191,6 +200,14 @@ jobs:
             sudo installer -pkg /tmp/AWSCLIV2.pkg -target /
           fi
           aws --version
+
+      # Same guard as sync-configs-to-environments: name the credential
+      # problem here rather than mid-transfer (run 33469263818).
+      - name: Verify S3 access
+        uses: ./.github/actions/aws-s3-preflight
+        with:
+          bucket: ${{ secrets.WSLPROXY_S3_BUCKET }}
+          prefix: data/
 
       - name: Upload live data trees to S3
         run: |
