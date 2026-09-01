@@ -114,6 +114,15 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
+      # Without this, a rotated or quarantined key surfaces as a bare
+      # `fatal error: ... AccessDenied ...` from inside `aws s3 sync` (run
+      # 33470603400), which reads like a bucket-policy problem.
+      - name: Verify S3 access
+        uses: ./.github/actions/aws-s3-preflight
+        with:
+          bucket: ${{ secrets.WSLPROXY_S3_BUCKET }}
+          prefix: data/servers/${{ matrix.env }}/
+
       - name: Download ${{ matrix.env }} configs from S3
         run: |
           S3_BUCKET="${{ secrets.WSLPROXY_S3_BUCKET }}"
