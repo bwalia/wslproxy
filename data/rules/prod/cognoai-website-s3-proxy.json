@@ -1,1 +1,36 @@
-{"id":"cognoai-website-s3-proxy","profile_id":"prod","rules_tags":{},"servers":{},"priority":1,"created_at":1786284613,"version":1,"name":"cognoai-website-s3-proxy","_schema_version":2,"match":{"rules":{"amazon_s3_secret_key":"REDACTED_S3_SECRET_KEY","path":"/","jwt_token_validation":"amazon_s3_signed_header_validation","jwt_token_validation_value":"cognoai-website","path_key":"starts_with","amazon_s3_region":"eu-west-2","jwt_token_validation_key":"L2luZGV4Lmh0bWw=","amazon_s3_access_key":"REDACTED_S3_ACCESS_KEY"},"response":{"redirect_uri":"http://s3.eu-west-2.amazonaws.com","message":"","is_consul":false,"code":305,"routing":{"mode":"weighted"},"strip_path":false,"auto_redirect_https":false,"allow":false,"backends":{}}}}
+{
+  "id": "cognoai-website-s3-proxy",
+  "profile_id": "prod",
+  "rules_tags": {},
+  "servers": {},
+  "priority": 1,
+  "created_at": 1786284613,
+  "version": 1,
+  "name": "cognoai-website-s3-proxy",
+  "_schema_version": 2,
+  "match": {
+    "rules": {
+      "amazon_s3_secret_key": "REDACTED_S3_SECRET_KEY",
+      "path": "/",
+      "jwt_token_validation": "amazon_s3_signed_header_validation",
+      "jwt_token_validation_value": "cognoai-website",
+      "path_key": "starts_with",
+      "amazon_s3_region": "eu-west-2",
+      "jwt_token_validation_key": "L2luZGV4Lmh0bWw=",
+      "amazon_s3_access_key": "REDACTED_S3_ACCESS_KEY"
+    },
+    "response": {
+      "redirect_uri": "http://s3.eu-west-2.amazonaws.com",
+      "message": "",
+      "is_consul": false,
+      "code": 305,
+      "routing": {
+        "mode": "weighted"
+      },
+      "strip_path": false,
+      "auto_redirect_https": false,
+      "allow": false,
+      "backends": {}
+    }
+  }
+}

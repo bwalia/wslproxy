@@ -1,0 +1,23 @@
+{
+  "id": "waf-rule-smuggling-001",
+  "name": "HTTP Request Smuggling - Desync / Embedded Request (CWE-444)",
+  "description": "Detects HTTP request-smuggling artefacts: a second HTTP request line pipelined inside the body (the CL.TE/TE.CL desync payload) or an obfuscated Transfer-Encoding token. Pairs with the first-class `smuggling` stage, which rejects Content-Length/Transfer-Encoding header ambiguity that a single-target signature cannot express.",
+  "category": "smuggling",
+  "severity": "critical",
+  "enabled": true,
+  "target": "all",
+  "pattern": "(?i)(?:(?:\\r\\n|\\n|\\r|^)[\\t ]*(?:GET|POST|PUT|DELETE|HEAD|OPTIONS|PATCH|CONNECT|TRACE)[\\t ]+\\S+[\\t ]+HTTP/\\d(?:\\.\\d)?|transfer-encoding[\\t ]*:[\\t ]*(?:x?chunked\\b|[^\\r\\n:,]*[\\t ]chunked\\b|chunked[^\\r\\n]*,))",
+  "pattern_type": "regex",
+  "action": "block",
+  "score": 9,
+  "tags": [
+    "owasp",
+    "http-request-smuggling",
+    "desync",
+    "cwe-444",
+    "beyond-owasp"
+  ],
+  "profile_id": "prod",
+  "created_at": 1740000000,
+  "updated_at": 1740000000
+}
