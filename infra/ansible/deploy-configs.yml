@@ -40,6 +40,12 @@
     # Validation settings
     validate_json: true
 
+    # How config files reach the target:
+    #   auto  - probe at runtime whether the controller IS the target (default)
+    #   push  - always rsync from the controller over SSH
+    #   local - controller and target are the same machine; rsync on the host
+    config_sync_mode: auto
+
     # Nginx reload settings
     reload_nginx: false
     nginx_service: "openresty"
@@ -64,6 +70,13 @@
           - target_env in ['dev', 'int', 'test', 'acc', 'prod', 'lon1', 'diytaxreturn', 'diytaxreturn_wsl1']
         fail_msg: "Invalid target_env: {{ target_env }}. Must be one of: dev, int, test, acc, prod, lon1, diytaxreturn, diytaxreturn_wsl1"
         success_msg: "Target environment validated: {{ target_env }}"
+
+    - name: Validate config sync mode
+      assert:
+        that:
+          - config_sync_mode in ['auto', 'push', 'local']
+        fail_msg: "Invalid config_sync_mode: {{ config_sync_mode }}. Must be one of: auto, push, local"
+        quiet: true
 
     - name: Ensure remote directories exist
       file:
@@ -149,22 +162,73 @@
       changed_when: false
 
     # Bulk rsync for config deploy. Two paths:
+    # - push  : rsync from the controller over SSH (delegate_to: localhost).
+    #           Required for remote targets — without it, rsync runs on the
+    #           inventory host and looks for local_data_dir there.
+    # - local : controller and target are the same machine (a self-hosted
+    #           runner deploying to itself); rsync runs on the host, no SSH
+    #           hop. delegate_to: localhost would SSH back into the host and
+    #           fail without keys.
     #
-    # NOTE on the conditionals: they read the connection from
-    # hostvars[inventory_hostname], NOT the bare `ansible_connection`.
-    # Inside a `delegate_to: localhost` task, `ansible_connection` resolves to
-    # the DELEGATE's connection ('local'), so the push branch evaluated
-    # `'local' != 'local'` and skipped, while the non-delegated branch saw
-    # 'ssh' and also skipped — neither sync ever ran, for any host in this
-    # inventory, and the play still reported success because a skip is not a
-    # failure. hostvars[] is the inventory host's own view and delegation does
-    # not rewrite it; no host here sets ansible_connection, hence the 'ssh'
-    # default.
-    # - ansible_connection != 'local': push from controller (delegate_to: localhost).
-    #   Required for SSH targets — without it, rsync runs on the inventory host and
-    #   looks for local_data_dir there (breaks self-hosted runner → same-host SSH).
-    # - ansible_connection == 'local': rsync on the managed host (int runner deploy).
-    #   delegate_to: localhost would SSH back to the host and fail without keys.
+    # Which one is chosen comes from the runtime probe below, NOT from
+    # `ansible_connection`. That variable cannot answer the question:
+    #   - bare `ansible_connection` inside a `delegate_to: localhost` task
+    #     resolves to the DELEGATE's connection ('local'), so `!= 'local'` was
+    #     false for every host and BOTH branches skipped — no sync ever ran and
+    #     the play still passed, because a skip is not a failure (107f8a66);
+    #   - `hostvars[inventory_hostname].ansible_connection` only sees what the
+    #     INVENTORY sets. `ansible-playbook --connection=local` — how the
+    #     self-hosted int/test runners deploy to themselves — leaves it
+    #     undefined, so the 'ssh' default picked the push branch and rsync tried
+    #     to SSH from the int runner back into itself:
+    #       bwalia@192.168.1.193: Permission denied (publickey,password).
+    #
+    # The probe asks the only question that actually matters — can the target
+    # read local_data_dir at that path? — by creating a randomly named marker on
+    # the controller and stat'ing it on the target. Visible ⇒ same machine (or
+    # shared filesystem) ⇒ rsync locally. Not visible ⇒ push over SSH. Random
+    # name matters: several hosts in this fleet run a runner under the same
+    # user, so a fixed path would false-positive on a sibling's workspace.
+    - name: Create controller-side marker for same-machine detection
+      tempfile:
+        state: file
+        prefix: wslproxy-sync-probe.
+      delegate_to: localhost
+      become: false
+      changed_when: false
+      register: sync_probe_marker
+      when: config_sync_mode == 'auto'
+
+    - name: Probe whether the target can see the controller marker
+      stat:
+        path: "{{ sync_probe_marker.path }}"
+      changed_when: false
+      register: sync_probe
+      when: config_sync_mode == 'auto'
+
+    - name: Remove controller-side marker
+      file:
+        path: "{{ sync_probe_marker.path }}"
+        state: absent
+      delegate_to: localhost
+      become: false
+      changed_when: false
+      when: config_sync_mode == 'auto'
+
+    - name: Resolve effective config sync mode
+      set_fact:
+        effective_sync_mode: >-
+          {{ config_sync_mode if config_sync_mode != 'auto'
+             else ('local' if (sync_probe.stat.exists | default(false)) else 'push') }}
+
+    - name: Display effective config sync mode
+      debug:
+        msg: >-
+          Config sync mode: {{ effective_sync_mode }}
+          (requested: {{ config_sync_mode }},
+          controller marker visible on target:
+          {{ sync_probe.stat.exists | default('n/a') }})
+
     # Skip when find returned nothing (e.g. no data/servers/<env> in repo).
     - name: Sync server config files (push from controller)
       ansible.posix.synchronize:
@@ -179,10 +243,10 @@
       become: false
       when:
         - server_config_files.files | length > 0
-        - hostvars[inventory_hostname].ansible_connection | default('ssh') != 'local'
-      register: server_copy_result
+        - effective_sync_mode == 'push'
+      register: server_copy_push
 
-    - name: Sync server config files (local connection)
+    - name: Sync server config files (controller is the target)
       ansible.posix.synchronize:
         src: "{{ local_data_dir }}/servers/{{ source_subdir }}/"
         dest: "{{ remote_data_dir }}/servers/{{ target_env }}/"
@@ -192,8 +256,8 @@
           - "--exclude=*"
       when:
         - server_config_files.files | length > 0
-        - hostvars[inventory_hostname].ansible_connection | default('ssh') == 'local'
-      register: server_copy_result
+        - effective_sync_mode == 'local'
+      register: server_copy_local
 
     - name: Sync rule config files (push from controller)
       ansible.posix.synchronize:
@@ -208,10 +272,10 @@
       become: false
       when:
         - rule_config_files.files | length > 0
-        - hostvars[inventory_hostname].ansible_connection | default('ssh') != 'local'
-      register: rule_copy_result
+        - effective_sync_mode == 'push'
+      register: rule_copy_push
 
-    - name: Sync rule config files (local connection)
+    - name: Sync rule config files (controller is the target)
       ansible.posix.synchronize:
         src: "{{ local_data_dir }}/rules/{{ source_subdir }}/"
         dest: "{{ remote_data_dir }}/rules/{{ target_env }}/"
@@ -221,8 +285,46 @@
           - "--exclude=*"
       when:
         - rule_config_files.files | length > 0
-        - hostvars[inventory_hostname].ansible_connection | default('ssh') == 'local'
-      register: rule_copy_result
+        - effective_sync_mode == 'local'
+      register: rule_copy_local
+
+    # Insurance against the 107f8a66 failure mode: files found locally but
+    # neither branch ran, and the play reporting success anyway.
+    - name: Assert the config sync actually ran
+      assert:
+        that:
+          - (server_copy_push is defined and not (server_copy_push.skipped | default(false)))
+            or (server_copy_local is defined and not (server_copy_local.skipped | default(false)))
+        fail_msg: >-
+          {{ server_config_files.files | length }} server config(s) found under
+          {{ local_data_dir }}/servers/{{ source_subdir }} but neither sync
+          branch ran (effective_sync_mode={{ effective_sync_mode }}).
+        quiet: true
+      when: server_config_files.files | length > 0
+
+    - name: Assert the rule sync actually ran
+      assert:
+        that:
+          - (rule_copy_push is defined and not (rule_copy_push.skipped | default(false)))
+            or (rule_copy_local is defined and not (rule_copy_local.skipped | default(false)))
+        fail_msg: >-
+          {{ rule_config_files.files | length }} rule config(s) found under
+          {{ local_data_dir }}/rules/{{ source_subdir }} but neither sync
+          branch ran (effective_sync_mode={{ effective_sync_mode }}).
+        quiet: true
+      when: rule_config_files.files | length > 0
+
+    # Both branches register separately: a single shared register name meant the
+    # skipped branch overwrote the one that ran (changed=false), so
+    # fix-permissions below never fired after a successful push.
+    - name: Note what the sync changed
+      set_fact:
+        server_configs_changed: >-
+          {{ (server_copy_push.changed | default(false))
+             or (server_copy_local.changed | default(false)) }}
+        rule_configs_changed: >-
+          {{ (rule_copy_push.changed | default(false))
+             or (rule_copy_local.changed | default(false)) }}
 
     - name: Ensure SSL domain directory exists
       file:
@@ -256,7 +358,7 @@
 
     - name: Run fix-permissions to ensure nginx worker can access all files
       command: /usr/sbin/fix-permissions.sh
-      when: (server_copy_result is defined and server_copy_result.changed) or (rule_copy_result is defined and rule_copy_result.changed)
+      when: (server_configs_changed | default(false) | bool) or (rule_configs_changed | default(false) | bool)
       ignore_errors: yes
 
     - name: Display deployment summary
@@ -292,7 +394,7 @@
       service:
         name: "{{ nginx_service }}"
         state: reloaded
-      when: (server_copy_result is defined and server_copy_result.changed) or ssl_domain_result.changed
+      when: (server_configs_changed | default(false) | bool) or ssl_domain_result.changed
       ignore_errors: yes
 
   handlers:
