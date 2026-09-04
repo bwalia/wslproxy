@@ -34,12 +34,29 @@ end
 local cached_key
 
 local function read_key_env()
-    -- settings.env_vars first (survives init phase reliably),
-    -- os.getenv() as fallback.
-    if _G.settings and type(_G.settings) == "table" then
-        local ev = _G.settings.env_vars
+    -- Try three sources, in order:
+    --   1. _G.settings.env_vars — populated by test harnesses or callers
+    --      that stash the parsed settings globally.
+    --   2. Helper.settings() — the canonical loader used by api.lua and
+    --      the rest of the codebase (reads from disk).
+    --   3. os.getenv() — set via the nginx `env` directive; requires a
+    --      cold container start after adding the var to settings.json.
+    local function from_table(ev)
         if type(ev) == "table" and ev[KEY_ENV] and ev[KEY_ENV] ~= "" then
             return ev[KEY_ENV]
+        end
+        return nil
+    end
+    if _G.settings and type(_G.settings) == "table" then
+        local hit = from_table(_G.settings.env_vars)
+        if hit then return hit end
+    end
+    local ok, Helper = pcall(require, "helpers")
+    if ok and Helper and Helper.settings then
+        local ok2, s = pcall(Helper.settings)
+        if ok2 and type(s) == "table" then
+            local hit = from_table(s.env_vars)
+            if hit then return hit end
         end
     end
     return os.getenv(KEY_ENV)
