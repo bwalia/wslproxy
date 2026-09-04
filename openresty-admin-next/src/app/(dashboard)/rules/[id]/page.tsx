@@ -1009,13 +1009,11 @@ export default function RuleDetailPage() {
               />
               {form.jwt_token_validation !== "equals" && (
                 <>
-                  <Input
+                  <SecretRefField
                     label={validationFieldLabels.valueLabel}
                     hint={validationFieldLabels.valueHint}
                     value={form.jwt_token_validation_value}
-                    onChange={(e) =>
-                      set("jwt_token_validation_value", e.target.value)
-                    }
+                    onChange={(v) => set("jwt_token_validation_value", v)}
                   />
                   {showTokenFields && (
                     <SecretRefField

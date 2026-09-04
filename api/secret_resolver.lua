@@ -133,6 +133,7 @@ end
 --- init.lua) — but the caller almost always has it and should pass it.
 local KNOWN_SECRET_FIELDS = {
     "jwt_token_validation_key",
+    "jwt_token_validation_value",
     "amazon_s3_access_key",
     "amazon_s3_secret_key",
 }
