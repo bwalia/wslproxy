@@ -35,6 +35,7 @@ import Skeleton from "@/components/ui/Skeleton";
 import FetchErrorState from "@/components/ui/FetchErrorState";
 import Badge from "@/components/ui/Badge";
 import JsonConfigTab from "@/components/ui/JsonConfigTab";
+import SecretRefField from "@/components/rules/SecretRefField";
 import { cn } from "@/lib/utils/cn";
 import type { Rule, Backend } from "@/types";
 import {
@@ -1017,14 +1018,12 @@ export default function RuleDetailPage() {
                     }
                   />
                   {showTokenFields && (
-                    <Input
+                    <SecretRefField
                       label={validationFieldLabels.keyLabel}
                       hint={validationFieldLabels.keyHint}
                       type={isS3 ? "text" : "password"}
                       value={form.jwt_token_validation_key}
-                      onChange={(e) =>
-                        set("jwt_token_validation_key", e.target.value)
-                      }
+                      onChange={(v) => set("jwt_token_validation_key", v)}
                     />
                   )}
                   {showS3Fields && (
@@ -1036,21 +1035,17 @@ export default function RuleDetailPage() {
                           set("amazon_s3_region", e.target.value)
                         }
                       />
-                      <Input
+                      <SecretRefField
                         label="AWS access key"
                         type="password"
                         value={form.amazon_s3_access_key}
-                        onChange={(e) =>
-                          set("amazon_s3_access_key", e.target.value)
-                        }
+                        onChange={(v) => set("amazon_s3_access_key", v)}
                       />
-                      <Input
+                      <SecretRefField
                         label="AWS secret key"
                         type="password"
                         value={form.amazon_s3_secret_key}
-                        onChange={(e) =>
-                          set("amazon_s3_secret_key", e.target.value)
-                        }
+                        onChange={(v) => set("amazon_s3_secret_key", v)}
                       />
                     </>
                   )}

@@ -1811,8 +1811,12 @@ local function listRule(args, uuid)
     if exist_value.match and exist_value.match.rules
         and exist_value.match.rules.jwt_token_validation_value ~= nil
         and exist_value.match.rules.jwt_token_validation_key ~= nil then
-        exist_value.match.rules.jwt_token_validation_key =
-            Base64.decode(exist_value.match.rules.jwt_token_validation_key)
+        local jwt_k = exist_value.match.rules.jwt_token_validation_key
+        -- Preserve secret:// refs verbatim — Base64.decoding a ref
+        -- would corrupt it before it reaches the admin UI.
+        if type(jwt_k) == "string" and jwt_k:sub(1, 9) ~= "secret://" then
+            exist_value.match.rules.jwt_token_validation_key = Base64.decode(jwt_k)
+        end
     end
     ngx.say(cjson.encode({
         data = exist_value
@@ -1940,7 +1944,12 @@ CreateUpdateRecord = function(json_val, uuid, key_name, folder_name, method)
     end
     if folder_name == "rules" and json_val.match.rules.jwt_token_validation_value ~= nil and
         json_val.match.rules.jwt_token_validation_key ~= nil then
-        json_val.match.rules.jwt_token_validation_key = Base64.encode(json_val.match.rules.jwt_token_validation_key)
+        local jwt_k = json_val.match.rules.jwt_token_validation_key
+        -- Never Base64-encode a secret:// ref — the resolver expects it
+        -- to reach disk verbatim.
+        if type(jwt_k) == "string" and jwt_k:sub(1, 9) ~= "secret://" then
+            json_val.match.rules.jwt_token_validation_key = Base64.encode(jwt_k)
+        end
         -- S3 keys: store as plaintext (schema v2), only fix URL encoding
         if json_val.match.rules.amazon_s3_access_key then
             json_val.match.rules.amazon_s3_access_key = string.gsub(json_val.match.rules.amazon_s3_access_key, "%%2B",
