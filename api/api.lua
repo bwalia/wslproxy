@@ -1244,8 +1244,27 @@ local function listSecret(args, id)
         return
     end
     if jsonData.secrets then
+        -- Dual-read: new records store `value` as an encrypted blob table
+        -- (see CreateUpdateRecord secrets branch).  Legacy records stored
+        -- `value` as base64.  Handle both so a rollout doesn't break edits.
+        local Crypto = require("secrets_crypto")
         for sIdx, secret in ipairs(jsonData.secrets) do
-            jsonData.secrets[sIdx].value = Base64.decode(jsonData.secrets[sIdx].value)
+            local v = secret.value
+            if type(v) == "table" and v.encrypted then
+                local pt, derr = Crypto.decrypt(v)
+                if pt then
+                    jsonData.secrets[sIdx].value = pt
+                else
+                    ngx.log(ngx.ERR, "secrets decrypt failed for id=", tostring(id),
+                        " key=", tostring(secret.key), ": ", tostring(derr))
+                    -- Return empty rather than the blob, so the UI form
+                    -- shows an empty field and the operator can type in a
+                    -- fresh value.  Rotating a lost key is done by re-entry.
+                    jsonData.secrets[sIdx].value = ""
+                end
+            elseif type(v) == "string" and v ~= "" then
+                jsonData.secrets[sIdx].value = Base64.decode(v)
+            end
         end
     end
     ngx.say(cjson.encode({ data = jsonData }))
@@ -1888,8 +1907,35 @@ CreateUpdateRecord = function(json_val, uuid, key_name, folder_name, method)
     end
 
     if folder_name == "secrets" and json_val.secrets ~= nil then
+        -- Encrypt each secret value at rest with AES-256-GCM before persist
+        -- (see api/secrets_crypto.lua).  Prior behaviour was Base64 (obfuscation
+        -- only — anyone who cloned the git backup could read every value).
+        -- Backward compat: if the crypto key isn't configured OR the value
+        -- is already an encrypted blob (e.g. re-save without editing), we
+        -- do not re-encode.  A missing key on a fresh value → 500 with a
+        -- clear message; we prefer loud failure over silently writing
+        -- plaintext-Base64 that would leak to the git backup.
+        local Crypto = require("secrets_crypto")
         for sIdx, secret in ipairs(json_val.secrets) do
-            json_val.secrets[sIdx].value = Base64.encode(json_val.secrets[sIdx].value)
+            local v = secret.value
+            if type(v) == "table" and v.encrypted then
+                -- already encrypted (unchanged edit) — leave it alone
+            elseif type(v) == "string" then
+                if v == "" then
+                    -- empty value — nothing to encrypt, keep as empty string
+                    json_val.secrets[sIdx].value = ""
+                else
+                    local blob, cerr = Crypto.encrypt(v)
+                    if not blob then
+                        ngx.log(ngx.ERR, "secrets encrypt failed: ", tostring(cerr))
+                        ngx.status = ngx.HTTP_INTERNAL_SERVER_ERROR
+                        return {
+                            message = "Cannot save secret: " .. tostring(cerr),
+                        }
+                    end
+                    json_val.secrets[sIdx].value = blob
+                end
+            end
         end
     end
     if folder_name == "rules" and json_val.match.rules.jwt_token_validation_value ~= nil and
