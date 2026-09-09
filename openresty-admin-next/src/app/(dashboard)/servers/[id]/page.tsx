@@ -870,7 +870,10 @@ export default function ServerDetailPage() {
       )}
 
       {activeTab === "history" && (
-        <VersionHistoryTab serverName={form.server_name} serverId={id} />
+        <VersionHistoryTab
+          serverName={data?.id ?? decodeURIComponent(id)}
+          serverId={id}
+        />
       )}
 
       {activeTab === "topology" && (
