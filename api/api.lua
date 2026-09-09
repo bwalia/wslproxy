@@ -1960,6 +1960,32 @@ CreateUpdateRecord = function(json_val, uuid, key_name, folder_name, method)
     end
 
     local filePathDir = configPath .. "data/" .. folder_name .. "/" .. envProfile
+
+    -- Baseline capture: if this is an update to a resource that has no
+    -- version history yet, snapshot the CURRENT on-disk state so v1 is
+    -- the pre-edit baseline and the new save becomes v2.  Must happen
+    -- BEFORE Repo.save overwrites the file.
+    local pre_save_baseline
+    if (folder_name == "servers" or folder_name == "rules") and method == "update" then
+        local snap_name = (folder_name == "servers") and json_val.id or uuid
+        if snap_name and snap_name ~= "" then
+            local existing_meta = VersionManager.get_meta(folder_name, envProfile, snap_name)
+            if not existing_meta or (existing_meta.latest_version or 0) == 0 then
+                local live_file = configPath .. "data/" .. folder_name .. "/"
+                    .. envProfile .. "/" .. snap_name .. ".json"
+                local f = io.open(live_file, "rb")
+                if f then
+                    local content = f:read("*a")
+                    f:close()
+                    if content and content ~= "" then
+                        local ok, decoded = pcall(cjson.decode, content)
+                        if ok then pre_save_baseline = decoded end
+                    end
+                end
+            end
+        end
+    end
+
     local persist_ok, persist_err = Repo.save(folder_name, envProfile, uuid, json_val, {
         skip_strip = true,
         encode_sensitive = false,
@@ -1977,6 +2003,38 @@ CreateUpdateRecord = function(json_val, uuid, key_name, folder_name, method)
         -- config_status is stored metadata for the admin UI only — no conf.d copy,
         -- nginx -t, or reload; those do not affect the Lua routing pipeline.
     end
+
+    -- Auto-snapshot every save so /versions is populated automatically.
+    -- Fail-open: a snapshot error must never fail the save (log + continue).
+    -- Resource_name: servers use id ("host:foo"), rules use uuid.
+    if folder_name == "servers" or folder_name == "rules" then
+        local snap_name = (folder_name == "servers") and json_val.id or uuid
+        if snap_name and snap_name ~= "" then
+            -- Seed baseline v1 first if this is the first tracked edit of
+            -- an existing resource — so rollback returns to the pre-edit state.
+            if pre_save_baseline then
+                pcall(function()
+                    VersionManager.snapshot_live(
+                        folder_name, envProfile, snap_name,
+                        pre_save_baseline, "system",
+                        "Initial baseline")
+                end)
+            end
+            local user = ngx.req.get_headers()["x-user"]
+                or (json_val.updated_by or json_val.created_by)
+                or "system"
+            local desc = (method == "create") and "Created via admin"
+                or "Edited via admin"
+            local snap_ok, snap_ret = pcall(function()
+                return VersionManager.snapshot_live(
+                    folder_name, envProfile, snap_name, json_val, user, desc)
+            end)
+            if not snap_ok then
+                ngx.log(ngx.ERR, "version_manager.snapshot_live crashed: ", tostring(snap_ret))
+            end
+        end
+    end
+
     ngx.status = ngx.HTTP_OK
     return json_val
 end
@@ -4899,8 +4957,11 @@ local function handle_get_request(args, path)
         if res_type and profile and name then
             local versions = VersionManager.list_versions(res_type, profile, name)
             local meta = VersionManager.get_meta(res_type, profile, name)
+            -- cjson encodes an empty Lua table as `{}` (object), not `[]`.
+            -- Force array semantics so the frontend can call `.sort` on it.
+            local data_out = (#versions == 0) and cjson.empty_array or versions
             ngx.say(cjson.encode({
-                data = versions,
+                data = data_out,
                 total = #versions,
                 meta = meta,
             }))
@@ -5495,7 +5556,12 @@ local function handle_post_request(args, path)
         -- ============================================================
 
         -- POST /api/versions/{type}/{profile}/{name} - Create a new draft version
-        if string.find(path, "^versions/[^/]+/[^/]+/.+$") and not string.find(path, "/rollback$") and not string.find(path, "/initialize$") then
+        -- Guard MUST exclude both /rollback/{N} (not /rollback — the URL
+        -- always has a version suffix) and /initialize$, otherwise the
+        -- greedy `.+` swallows them and creates a bogus draft.
+        if string.find(path, "^versions/[^/]+/[^/]+/.+$")
+            and not string.find(path, "/rollback/")
+            and not string.find(path, "/initialize$") then
             local res_type, profile, name = path:match("^versions/([^/]+)/([^/]+)/(.+)$")
             if res_type and profile and name then
                 local payloads = Helper.GetPayloads(args)
@@ -5534,18 +5600,22 @@ local function handle_post_request(args, path)
             end
         end
 
-        -- POST /api/versions/{type}/{profile}/{name}/rollback/{version} - Create rollback version
+        -- POST /api/versions/{type}/{profile}/{name}/rollback/{version} - Restore target version to live
         if string.find(path, "^versions/[^/]+/[^/]+/.+/rollback/%d+$") then
-            local res_type, profile, name, version = path:match("^versions/([^/]+)/([^/]+)/([^/]+)/rollback/(%d+)$")
+            local res_type, profile, name, version = path:match("^versions/([^/]+)/([^/]+)/(.+)/rollback/(%d+)$")
             if res_type and profile and name and version then
                 local user = ngx.req.get_headers()["x-user"] or "system"
-                local new_version, err = VersionManager.create_rollback_version(
+                local new_version, err = VersionManager.restore_version(
                     res_type, profile, name, tonumber(version), user
                 )
                 if new_version then
-                    ngx.say(cjson.encode({ data = new_version, message = "Rollback version created as draft" }))
+                    ngx.say(cjson.encode({
+                        data = new_version,
+                        message = "Rolled back to v" .. tostring(version)
+                            .. " (now live as v" .. tostring(new_version.version) .. ")"
+                    }))
                 else
-                    Errors.throwError(err or "Failed to create rollback version", ngx.HTTP_BAD_REQUEST)
+                    Errors.throwError(err or "Failed to restore version", ngx.HTTP_BAD_REQUEST)
                 end
                 ngx.exit(ngx.HTTP_OK)
             end
