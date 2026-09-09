@@ -652,4 +652,14 @@ export const dataProvider: DataProvider = {
       `/versions/${encodeURIComponent(resourceType)}/${encodeURIComponent(profile)}/${encodeURIComponent(resourceName)}/rollback/${version}`,
       { method: "POST" },
     ).then((r) => r ?? { data: {} }),
+
+  getVersion: (resourceType, profile, resourceName, version) =>
+    apiFetch<SingleResult>(
+      `/versions/${encodeURIComponent(resourceType)}/${encodeURIComponent(profile)}/${encodeURIComponent(resourceName)}/${version}`,
+    ).then((r) => r ?? { data: null }),
+
+  diffVersions: (resourceType, profile, resourceName, v1, v2) =>
+    apiFetch<SingleResult>(
+      `/versions/${encodeURIComponent(resourceType)}/${encodeURIComponent(profile)}/${encodeURIComponent(resourceName)}/diff/${v1}/${v2}`,
+    ).then((r) => r ?? { data: null }),
 };
