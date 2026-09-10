@@ -37,7 +37,6 @@ on:
           # pop0 was rebuilt on a new VPS (85.190.106.189, ssh administrator)
           # on 2026-08-28 — the SSH user comes from infra/ansible/hosts.
           - lon1.pop0.uk
-          - 18.133.126.242
           - 85.190.106.189
           - 192.168.1.193
 
