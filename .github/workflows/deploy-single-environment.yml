@@ -174,10 +174,12 @@ jobs:
   # SSH trust to pop1 — every prod dispatch failed at "SSH connection
   # failed to admin@18.133.126.242" (run 30341173054). Schedule this job
   # on the mac-studio runner tagged `acc` instead — it already has an
-  # id_rsa that pop1 trusts (verified: `ssh admin@18.133.126.242 hostname`
-  # returns ip-10-0-0-207 with passwordless sudo). env_name stays `prod`
-  # so ansible target_env, Vault secret path, and SOPS payload profile
-  # all remain prod.
+  # id_rsa that pop1 trusts (verified historically: `ssh admin@18.133.126.242
+  # hostname` returned ip-10-0-0-207). **Also requires AWS SG inbound TCP/22
+  # from that runner's egress IP** — run 34477045443 failed with
+  # `Operation timed out` when port 22 was closed (HTTPS still worked).
+  # env_name stays `prod` so ansible target_env, Vault secret path, and SOPS
+  # payload profile all remain prod.
   prod:
     if: ${{ inputs.ENV == 'prod' }}
     uses: ./.github/workflows/deploy-environment.yml

@@ -18,8 +18,13 @@ Run everything below **from the Mac that holds the EC2 SSH key.**
   `admin` must have passwordless sudo (default on Debian cloud AMIs).
 - **DNS:** `pop1.diytaxreturn.co.uk` → `18.133.126.242` (A record). Required for the
   Let's Encrypt cert auto-ssl issues for the dashboard.
-- **Security group:** inbound **80, 443, 7691** open (80/443 for the dashboard +
-  ACME; 7691 is the admin/API + health port).
+- **Security group:** inbound **22, 80, 443** (and historically **7691** for
+  admin/health when that listen is enabled). **TCP/22 is required for CI and
+  Ansible deploys.** GitHub Actions `Deploy Single Environment` / delivery
+  Stage 5b run from the mac-studio (`acc`) runner and will fail with
+  `Operation timed out` if SG does not allow that runner's egress IP on port
+  22. HTTPS-only (80/443) is enough for the dashboard but **not** for deploy.
+  Verify from the runner: `nc -vz 18.133.126.242 22`.
 - EIP `18.133.126.242` associated with the instance.
 
 ## 1. Get the repo on this Mac

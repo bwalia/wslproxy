@@ -678,9 +678,25 @@ jobs:
             SSH_OPTS="$SSH_OPTS -i ~/.ssh/id_rsa"
           fi
 
-          ssh $SSH_OPTS ${{ inputs.ssh_user }}@${{ inputs.host_ip }} "echo 'SSH OK'" 2>&1 || {
-            echo "::error::SSH connection failed to ${{ inputs.ssh_user }}@${{ inputs.host_ip }}"; exit 1;
-          }
+          HOST="${{ inputs.host_ip }}"
+          USER="${{ inputs.ssh_user }}"
+          set +e
+          OUT=$(ssh $SSH_OPTS "${USER}@${HOST}" "echo 'SSH OK'" 2>&1)
+          RC=$?
+          set -e
+          if [[ $RC -eq 0 ]]; then
+            echo "$OUT"
+            exit 0
+          fi
+          echo "$OUT"
+          # Distinguish firewall/SG timeout from auth/key problems.
+          if echo "$OUT" | grep -Eqi 'Operation timed out|Connection timed out|Connection refused|No route to host'; then
+            EGRESS="$(curl -sf --connect-timeout 3 https://ifconfig.me/ip 2>/dev/null || curl -sf --connect-timeout 3 https://api.ipify.org 2>/dev/null || echo unknown)"
+            echo "::error::SSH to ${USER}@${HOST}:22 failed at TCP connect (timeout/refused). This is almost always the host firewall / AWS security group — not the deploy key. Open inbound TCP/22 from this runner's egress IP (${EGRESS}) then re-run. For pop1 (18.133.126.242) see infra/POP1_DEPLOY.md §0 Security group. HTTPS can still work while SSH is blocked."
+          else
+            echo "::error::SSH connection failed to ${USER}@${HOST} (exit ${RC}). If the error is Permission denied, check secrets.SSH_PRIVATE_KEY / runner ~/.ssh/id_rsa matches the host authorized_keys."
+          fi
+          exit 1
 
       # ── Docker prune ──
       - name: Clean up Docker resources
