@@ -690,16 +690,15 @@ function Helper.decodeBase64(data)
 end
 
 function Helper.isUniqueField(folderPath, field, value)
+    local ConfigIO = require("config_io")
     for file_name in LFS.dir(folderPath) do
-        if file_name:match("%.json$") then
+        if ConfigIO.is_config_name(file_name) then
             local filePath = folderPath .. "/" .. file_name
-            local json_content, err = Helper.getDataFromFile(filePath)
-            if err == nil then
-                if json_content then
-                    local existing_data = Cjson.decode(json_content)
-                    if existing_data and existing_data[field] == value then
-                        return false, "Name '" .. value .. "' already exists in " .. file_name
-                    end
+            local content, err = Helper.getDataFromFile(filePath)
+            if err == nil and content then
+                local existing_data = ConfigIO.decode(content, filePath)
+                if existing_data and existing_data[field] == value then
+                    return false, "Name '" .. value .. "' already exists in " .. file_name
                 end
             end
         end

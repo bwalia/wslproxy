@@ -1,0 +1,25 @@
+id: yaml-demo-default
+name: yaml-demo-default
+profile_id: prod
+priority: 1
+_schema_version: 2
+match:
+  rules:
+    path: /
+    path_key: starts_with
+    jwt_token_validation: equals
+  response:
+    code: 305
+    strip_path: false
+    auto_redirect_https: false
+    allow: true
+    is_consul: false
+    routing:
+      mode: least_conn
+    redirect_uri: "http://127.0.0.1:8080"
+    backends:
+      - address: "127.0.0.1:8080"
+        weight: 100
+        label: local-demo
+servers:
+  - host:yaml-demo.example.com
