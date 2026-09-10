@@ -485,6 +485,42 @@
       margin-bottom: 0;
     }
 
+    .video-section {
+      padding: 24px 0 64px;
+    }
+    .video-frame {
+      position: relative;
+      width: 100%;
+      max-width: 920px;
+      margin: 0 auto;
+      aspect-ratio: 16 / 9;
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid rgba(148, 163, 184, 0.15);
+      background: #000;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+    }
+    .video-frame iframe {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: 0;
+    }
+    .video-caption {
+      margin: 14px auto 0;
+      max-width: 920px;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+    .video-caption a {
+      color: var(--secondary);
+      font-weight: 600;
+      text-decoration: none;
+    }
+    .video-caption a:hover { text-decoration: underline; }
+
     /* ── Footer ── */
     .site-footer {
       border-top: 1px solid rgba(148, 163, 184, 0.08);
@@ -597,6 +633,7 @@
       </a>
       <nav aria-label="Main navigation">
         <ul class="nav-list">
+          <li><a href="#intro-video">Watch</a></li>
           <li><a href="#features">Features</a></li>
           <li><a href="#how-it-works">Docs</a></li>
           <li>
@@ -623,15 +660,38 @@
           Enterprise-grade reverse proxy, load balancer, API gateway, and edge computing platform built on OpenResty. Full control, zero vendor lock-in.
         </p>
         <div class="hero-actions">
-          <a href="https://github.com/mrvautin/wslproxy" class="btn btn-primary" target="_blank" rel="noopener noreferrer">
+          <a href="https://github.com/bwalia/wslproxy" class="btn btn-primary" target="_blank" rel="noopener noreferrer">
             <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
             Get Started
+          </a>
+          <a href="#intro-video" class="btn btn-secondary">
+            Watch intro
           </a>
           <a href="#how-it-works" class="btn btn-secondary">
             <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
             View Docs
           </a>
         </div>
+      </div>
+    </section>
+
+    <section class="video-section" id="intro-video" aria-label="WSLProxy introduction video">
+      <div class="container">
+        <div class="video-frame">
+          <iframe
+            src="https://www.youtube.com/embed/7NJulclG5sQ"
+            title="WSLProxy introduction — live-config API gateway on OpenResty"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            referrerpolicy="strict-origin-when-cross-origin"
+            allowfullscreen
+            loading="lazy"
+          ></iframe>
+        </div>
+        <p class="video-caption">
+          <a href="https://youtu.be/7NJulclG5sQ" target="_blank" rel="noopener noreferrer">Watch on YouTube</a>
+          ·
+          <a href="https://wslproxy.org">wslproxy.org</a>
+        </p>
       </div>
     </section>
 
