@@ -2480,7 +2480,11 @@ local function seedWafRules(args)
         envProfile = payloads.profile_id
     end
 
-    local seed_data = WafDefaults.get_seed_data(envProfile)
+    -- get_seed_data returns a flat array of rules; the policy comes from
+    -- get_default_policy. Reading seed_data.rules/.policy off the array gave nil
+    -- and ipairs(nil) raised, so every seed answered 500 with the HTML error page.
+    local seedRules = WafDefaults.get_seed_data(envProfile)
+    local seedPolicy = WafDefaults.get_default_policy(envProfile)
     local rulesDir = configPath .. "data/waf_rules/" .. envProfile
     local policiesDir = configPath .. "data/waf_policies/" .. envProfile
 
@@ -2494,7 +2498,7 @@ local function seedWafRules(args)
 
     -- Write seed rules
     local rulesWritten = 0
-    for _, rule in ipairs(seed_data.rules) do
+    for _, rule in ipairs(seedRules) do
         local filePath = rulesDir .. "/" .. rule.id .. ".json"
         -- Only write if file doesn't exist (don't overwrite customizations)
         if not Helper.isFileExists(filePath) then
@@ -2505,9 +2509,9 @@ local function seedWafRules(args)
 
     -- Write default policy
     local policiesWritten = 0
-    local policyPath = policiesDir .. "/" .. seed_data.policy.id .. ".json"
+    local policyPath = policiesDir .. "/" .. seedPolicy.id .. ".json"
     if not Helper.isFileExists(policyPath) then
-        Helper.setDataToFile(policyPath, seed_data.policy, policiesDir)
+        Helper.setDataToFile(policyPath, seedPolicy, policiesDir)
         policiesWritten = 1
     end
 
@@ -2516,7 +2520,7 @@ local function seedWafRules(args)
             message = "WAF seed data deployed",
             profile_id = envProfile,
             rules_written = rulesWritten,
-            rules_skipped = #seed_data.rules - rulesWritten,
+            rules_skipped = #seedRules - rulesWritten,
             policies_written = policiesWritten
         }
     }))

@@ -563,8 +563,36 @@ function Helper.cleanString(input)
 end
 
 -- Create Directory
+-- Create path and any missing parents, mkdir -p style. LFS.mkdir makes exactly
+-- one level, so this used to fail silently on a nested target and leave callers
+-- writing into a directory that was never created. Callers throughout the code
+-- already assume the name means what it says.
+--
+-- Returns true on success (including when the directory already exists), or
+-- nil plus a message, matching LFS.mkdir's contract.
 function Helper.createDirectoryRecursive(path)
-    return LFS.mkdir(path)
+    if path == nil or path == "" then
+        return nil, "cannot create a directory with an empty path"
+    end
+    local built = ""
+    if path:sub(1, 1) == "/" then
+        built = "/"
+    end
+    for segment in path:gmatch("[^/]+") do
+        if built == "" or built == "/" then
+            built = built .. segment
+        else
+            built = built .. "/" .. segment
+        end
+        if not Helper.isDirectoryExists(built) then
+            local ok, err = LFS.mkdir(built)
+            -- A racing writer may have won; existence is what matters, not who won.
+            if not ok and not Helper.isDirectoryExists(built) then
+                return nil, (err or "mkdir failed") .. " while creating " .. built
+            end
+        end
+    end
+    return true
 end
 
 -- Save data to files
