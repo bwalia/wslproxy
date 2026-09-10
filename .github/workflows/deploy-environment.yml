@@ -15,9 +15,9 @@ on:
           env_name so the historical "one runner per env, labelled after
           the env" convention still works.  Set explicitly when the box
           that has SSH+key access to the target isn't the box tagged
-          with env_name — e.g. prod (pop1, AWS eu-west-2) is deployed
-          from the mac-studio runner tagged `acc` because the historical
-          `prod` runner on pop0 has no SSH trust to pop1.
+          with env_name — e.g. prod / prod-lon1 (lon1.pop0.uk) is deployed
+          from the mac-studio runner labelled `acc` (the historical `prod`
+          runner lived on the retired pop0 box). pop1 is retired.
         type: string
         default: ""
       env_label:
@@ -776,9 +776,31 @@ jobs:
             *)     SECRETS_FLAG="vault_secrets_enabled=false sops_secrets_enabled=false" ;;
           esac
 
-          $CMD_PREFIX ansible-playbook infra/ansible/wslproxy-ops.yml \
-            -i infra/ansible/hosts \
-            -l ${{ inputs.host_ip }} \
+          # Absolute inventory path — self-hosted runners share one workspace
+          # across concurrent jobs; a relative -i can race a mid-checkout wipe
+          # and yield "Could not match supplied host pattern" for lon1.pop0.uk
+          # (run 34495805656). Fail fast with the inventory contents instead.
+          INV="${GITHUB_WORKSPACE}/infra/ansible/hosts"
+          PLAYBOOK="${GITHUB_WORKSPACE}/infra/ansible/wslproxy-ops.yml"
+          HOST="${{ inputs.host_ip }}"
+          if [[ ! -f "$INV" ]]; then
+            echo "::error::Ansible inventory missing at $INV (cwd=$(pwd))"
+            ls -la "${GITHUB_WORKSPACE}/infra/ansible" || true
+            exit 1
+          fi
+          if ! grep -qE "^${HOST}([[:space:]]|$)" "$INV"; then
+            echo "::error::Inventory $INV does not list host '${HOST}' — refusing to deploy"
+            echo "---- inventory ----"
+            cat "$INV"
+            echo "---- ansible-inventory --list (hostnames) ----"
+            ansible-inventory -i "$INV" --list 2>/dev/null | head -c 4000 || true
+            exit 1
+          fi
+          echo "Inventory OK: ${HOST} present in $INV"
+
+          $CMD_PREFIX ansible-playbook "$PLAYBOOK" \
+            -i "$INV" \
+            -l "$HOST" \
             $CONN_FLAGS \
             $TAGS_FLAG \
             --extra-vars "nginx_user_password=THISCOMESFROMSECRETS target_env=${{ inputs.env_name }} local_settings_file_path=${{ env.settings_path }} local_env_file_path=${{ env.env_path }} wslproxy_version=${WSLPROXY_VERSION} wslproxy_build_number=${{ github.run_id }} wslproxy_git_sha=${{ github.sha }} wslproxy_git_repo=${{ github.repository }} wslproxy_deployment_time=$(date -u +%Y-%m-%dT%H:%M:%SZ) $SECRETS_FLAG"
@@ -804,9 +826,9 @@ jobs:
             CONN_FLAGS="--private-key ~/.ssh/id_rsa"
           fi
 
-          $CMD_PREFIX ansible-playbook infra/ansible/deploy-configs.yml \
-            -i infra/ansible/hosts \
-            -l ${{ inputs.host_ip }} \
+          $CMD_PREFIX ansible-playbook "${GITHUB_WORKSPACE}/infra/ansible/deploy-configs.yml" \
+            -i "${GITHUB_WORKSPACE}/infra/ansible/hosts" \
+            -l "${{ inputs.host_ip }}" \
             $CONN_FLAGS \
             -e "target_env=${{ inputs.env_name }} local_data_dir=${{ github.workspace }}/data"
 

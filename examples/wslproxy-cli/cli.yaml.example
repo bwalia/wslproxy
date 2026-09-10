@@ -11,7 +11,7 @@ mcp:
 inventory:
   - name: lon1
     base_url: https://lon1.pop0.uk
-  - name: pop1
-    base_url: https://pop1.diytaxreturn.co.uk
+  - name: lon1
+    base_url: https://lon1.pop0.uk
   - name: pop0
     base_url: https://prod-our-v1.wslproxy.com
