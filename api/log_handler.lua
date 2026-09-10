@@ -51,6 +51,19 @@ end
 
 -- Lookup country code from IP address
 local function get_country_code(ip_address)
+    -- Prefer $geo_country when nginx already resolved it (set_by_lua geo_lookup)
+    -- so we don't open the IP2Location DB twice per request.
+    local from_var = ngx.var.geo_country
+    if from_var and from_var ~= "" and from_var ~= "-" then
+        local cc = tostring(from_var):upper():gsub("%s+", "")
+        if cc == "UK" then cc = "GB" end
+        if cc:match("^[A-Z][A-Z]$") then
+            return cc
+        end
+        -- LOCAL / other non-ISO values: skip geo aggregation
+        return ""
+    end
+
     local ip2loc = get_ip2location()
     if not ip2loc then
         return ""
@@ -61,7 +74,9 @@ local function get_country_code(ip_address)
     end)
 
     if ok and result and result.country_short and result.country_short ~= "-" then
-        return result.country_short
+        local cc = tostring(result.country_short):upper():gsub("%s+", "")
+        if cc == "UK" then cc = "GB" end
+        return cc
     end
 
     return ""

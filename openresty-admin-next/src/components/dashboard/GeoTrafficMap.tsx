@@ -87,6 +87,7 @@ const ALPHA2_TO_NUMERIC: Record<string, string> = {
   UA: "804",
   AE: "784",
   GB: "826",
+  UK: "826", // IP2Location alias — same as GB
   US: "840",
   VN: "704",
   VE: "862",
@@ -214,6 +215,7 @@ const COUNTRY_NAMES: Record<string, string> = {
   UA: "Ukraine",
   AE: "UAE",
   GB: "United Kingdom",
+  UK: "United Kingdom",
   US: "United States",
   VN: "Vietnam",
   VE: "Venezuela",
@@ -312,14 +314,24 @@ const GeoTrafficMap: React.FC<GeoTrafficMapProps> = ({ geoData, loading }) => {
     let maxVal = 0;
 
     for (const entry of entries) {
-      const numeric = ALPHA2_TO_NUMERIC[entry.country_code?.toUpperCase()];
+      const raw = (entry.country_code ?? "").toUpperCase();
+      const alpha2 = raw === "UK" ? "GB" : raw;
+      const numeric = ALPHA2_TO_NUMERIC[alpha2];
       if (numeric) {
-        nMap.set(numeric, (nMap.get(numeric) ?? 0) + entry.requests);
+        nMap.set(String(numeric), (nMap.get(String(numeric)) ?? 0) + entry.requests);
         if (entry.requests > maxVal) maxVal = entry.requests;
       }
     }
 
-    const sortedEntries = [...entries].sort((a, b) => b.requests - a.requests);
+    const sortedEntries = [...entries]
+      .map((e) => ({
+        ...e,
+        country_code:
+          (e.country_code ?? "").toUpperCase() === "UK"
+            ? "GB"
+            : (e.country_code ?? "").toUpperCase(),
+      }))
+      .sort((a, b) => b.requests - a.requests);
     const sum = entries.reduce((s, e) => s + e.requests, 0);
 
     return {
@@ -331,8 +343,9 @@ const GeoTrafficMap: React.FC<GeoTrafficMapProps> = ({ geoData, loading }) => {
   }, [geoData]);
 
   const handleMouseEnter = useCallback(
-    (geo: { properties: { name?: string }; id?: string }) => {
-      const id = geo.id ?? "";
+    (geo: { properties: { name?: string }; id?: string | number }) => {
+      // world-atlas TopoJSON uses numeric `id` (often a number, not a string).
+      const id = String(geo.id ?? "");
       const requests = numericMap.get(id) ?? 0;
       const name = geo.properties.name ?? id;
       setTooltip({ name, requests });
@@ -380,7 +393,8 @@ const GeoTrafficMap: React.FC<GeoTrafficMapProps> = ({ geoData, loading }) => {
                 <Geographies geography={GEO_URL}>
                   {({ geographies }) =>
                     geographies.map((geo) => {
-                      const id = geo.id as string;
+                      // world-atlas country ids are ISO numeric and may be numbers.
+                      const id = String(geo.id ?? "");
                       const requests = numericMap.get(id) ?? 0;
                       const fill =
                         requests > 0
@@ -398,7 +412,7 @@ const GeoTrafficMap: React.FC<GeoTrafficMapProps> = ({ geoData, loading }) => {
                             handleMouseEnter(
                               geo as unknown as {
                                 properties: { name?: string };
-                                id?: string;
+                                id?: string | number;
                               },
                             )
                           }
