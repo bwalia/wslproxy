@@ -133,6 +133,13 @@ function M.load_rule(rule_id, config_path, profile)
     end
     -- Normalize S3 keys based on schema version
     rule_data = normalize_s3_keys(rule_data, rule_data._schema_version)
+    -- Resolve secret:// refs on the known secret fields to their plaintext
+    -- values (see secret_resolver.lua).  Non-ref fields pass through
+    -- unchanged, so existing inline rules keep working.
+    local ok, SecretResolver = pcall(require, "secret_resolver")
+    if ok then
+        rule_data = SecretResolver.resolve_rule_refs(rule_data, config_path, profile)
+    end
     return rule_data
 end
 
