@@ -1,0 +1,92 @@
+WSLProxy in 20 minutes — live-config API gateway & edge control plane on OpenResty
+
+Change routing rules, WAF policy, and traffic splits without reloading nginx. Drive everything from the admin UI, REST + Swagger, MCP (Cursor / Claude), or wslproxy-cli for GitOps.
+
+🌐 Site: https://wslproxy.org
+📦 GitHub: https://github.com/bwalia/wslproxy
+📘 Docs / CLI: https://github.com/bwalia/wslproxy/blob/main/docs/wslproxy-cli.md
+🤖 MCP: https://github.com/bwalia/wslproxy/blob/main/docs/mcp.md
+
+────────────────────────────────────────
+WHAT IS WSLPROXY?
+────────────────────────────────────────
+WSLProxy is a dynamic reverse proxy / API gateway built on OpenResty (nginx + Lua). Operators manage virtual hosts (servers) and rules that decide what happens to each request — proxy, redirect, static HTML, CAPTCHA, or block — evaluated live from JSON (or YAML) on disk (or Redis/Postgres). Only nginx server-block changes need a reload flag; rules and WAF stay hot.
+
+────────────────────────────────────────
+CHAPTERS (edit times to match your cut)
+────────────────────────────────────────
+0:00  Intro — why live-config beats reload-heavy gateways
+1:30  Architecture — client → SSL → rewrite/access → balancer → origin
+3:00  Servers & virtual hosts — domains, listeners, SSL, timeouts
+4:30  Rules engine — path / IP / country / JWT / S3 / cookie match
+6:00  Response codes — 305 proxy, 301/302, 200/403 HTML, 306 CAPTCHA
+7:30  Traffic routing — weighted, round-robin, canary, sticky, least-conn
+9:00  WAF — policies, monitor vs block, events API, body inspection
+10:30 Rate limiting & transforms
+11:30 SSL — auto-ssl / Let’s Encrypt, force HTTPS, multi-POP
+12:30 Cache — edge static cache, Varnish, Docker blob cache
+13:30 Admin UI — React Admin CRUD + Next.js logs & AI analysis
+14:30 REST API + Swagger — JWT auth, same model as the UI
+15:30 MCP for AI agents — resources & tools in Cursor / Claude
+16:30 wslproxy-cli — pull / edit / push, health & nginx checks in CI
+17:30 Deploy — Docker ./dev.sh, Ansible POPs, k3s ingress Helm
+18:30 Multi-POP + DNS guardrails (Cloudflare)
+19:15 Wrap-up & where to start
+
+────────────────────────────────────────
+FEATURES COVERED
+────────────────────────────────────────
+• Live rules — no OpenResty reload for rule / WAF / traffic-split changes
+• Dynamic routing — priority + path specificity; geo, IP, JWT, S3 signing, cookies
+• Response types — proxy (305), redirects, custom HTML, CAPTCHA (306), 403
+• Traffic engineering — weights, canary promote/rollback, sticky cookie/header, least-conn
+• Upstream health — passive (5xx) + active checks; fail-open when all unhealthy
+• Per-server proxy timeouts — connect / send / read via balancer
+• WAF — OWASP-style packs, anomaly scoring, monitor or block, events API
+• Rate limiting — shared-dict burst / RPS on the hot path
+• SSL — Let’s Encrypt auto-ssl, force HTTPS, ACME challenge locations
+• Caching — static MIME/extension TTL, optional Varnish VCL, Docker blob disk cache
+• Storage — disk JSON (request-path truth), optional Redis / PostgreSQL dual-write
+• Config formats — JSON + YAML for servers/rules; admin API writes JSON
+• Admin UI — servers, rules, upstreams, secrets, profiles, WAF policies/rules/events
+• Next.js dashboard — logs, topology, AI-assisted log analysis
+• REST + OpenAPI/Swagger — full CRUD for gateway objects
+• MCP server — AI agents can validate config, CRUD, traffic, POPs/DNS
+• wslproxy-cli — GitOps pull→push; `check nginx` in GitHub Actions / GitLab CI
+• Version history & 4-eyes change requests — draft → pending → live
+• Audit trail — NDJSON audit log
+• Observability — traffic stats, Prometheus metrics, Grafana dashboards
+• Local Docker — ./dev.sh (OpenResty + Redis + admin, hot-reload Lua)
+• Production deploy — Ansible bare-metal/VM POPs; k3s wslproxy-ingress Helm chart
+• Two-layer edge — outer POP + optional k3s ingress (tune timeouts on both)
+
+────────────────────────────────────────
+QUICK START
+────────────────────────────────────────
+# Local
+./dev.sh
+
+# CLI health / nginx check (CI-friendly)
+docker run --rm \
+  -e WSLPROXY_BASE_URL \
+  -e WSLPROXY_TOKEN \
+  ghcr.io/bwalia/wslproxy-cli:latest \
+  check nginx -o json
+
+# Config as files
+wslproxy-cli pull -d ./cfg --resources servers,rules,waf
+wslproxy-cli push -d ./cfg --yes --verify
+
+────────────────────────────────────────
+LINKS
+────────────────────────────────────────
+Website:     https://wslproxy.org
+Source:      https://github.com/bwalia/wslproxy
+Swagger:     (your deployed admin) /swagger/
+CLI docs:    https://github.com/bwalia/wslproxy/blob/main/docs/wslproxy-cli.md
+MCP docs:    https://github.com/bwalia/wslproxy/blob/main/docs/mcp.md
+WAF demos:   examples in the repo (waf-pages / waf demo packs)
+
+Built by Workstation Solutions Limited.
+
+#WSLProxy #OpenResty #APIGateway #Nginx #DevOps #EdgeComputing #WAF #MCP #GitOps #Kubernetes #CDN #ReverseProxy #Lua #SelfHosted
