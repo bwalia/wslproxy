@@ -819,6 +819,23 @@ export interface DataProvider {
     resourceName: string,
     version: number,
   ): Promise<SingleResult>;
+  /** Fetch full version entry incl. config_payload.
+   *  `GET /api/versions/{type}/{profile}/{name}/{version}`. */
+  getVersion(
+    resourceType: string,
+    profile: string,
+    resourceName: string,
+    version: number,
+  ): Promise<SingleResult>;
+  /** Structured diff between two versions.
+   *  `GET /api/versions/{type}/{profile}/{name}/diff/{v1}/{v2}`. */
+  diffVersions(
+    resourceType: string,
+    profile: string,
+    resourceName: string,
+    v1: number,
+    v2: number,
+  ): Promise<SingleResult>;
 }
 
 /** Backend representation of a stored version. */

@@ -21,6 +21,7 @@ import {
   Zap,
   FileJson,
   Pencil,
+  History,
 } from "lucide-react";
 import { useOne, useList, useDataProvider } from "@/hooks/useResource";
 import { useNotification } from "@/contexts/NotificationContext";
@@ -51,6 +52,15 @@ const TopologyCanvas = dynamic(
     ),
   {
     loading: () => <Skeleton variant="rectangular" className="h-96 w-full" />,
+    ssr: false,
+  },
+);
+
+// Deferred — versions tab only loaded when the operator opens it.
+const StoredVersionsList = dynamic(
+  () => import("@/components/servers/StoredVersionsList"),
+  {
+    loading: () => <Skeleton variant="rectangular" className="h-40 w-full" />,
     ssr: false,
   },
 );
@@ -317,9 +327,9 @@ export default function RuleDetailPage() {
   const [showTopology, setShowTopology] = useState(false);
   // "editor" shows the form, "configuration" shows the on-disk JSON.
   // "configuration" is hidden on create (no record exists yet).
-  const [activeTab, setActiveTab] = useState<"editor" | "configuration">(
-    "editor",
-  );
+  const [activeTab, setActiveTab] = useState<
+    "editor" | "configuration" | "history"
+  >("editor");
   // Per-field validation errors surfaced from `runValidationGate`.
   // Populated in handleSubmit; cleared per-field as the user edits
   // the offending input via the `set` helper below.
@@ -722,6 +732,7 @@ export default function RuleDetailPage() {
               [
                 { key: "editor" as const, label: "Editor", icon: Pencil },
                 { key: "configuration" as const, label: "Configuration", icon: FileJson },
+                { key: "history" as const, label: "History", icon: History },
               ]
             ).map(({ key, label, icon: Icon }) => {
               const active = activeTab === key;
@@ -755,6 +766,15 @@ export default function RuleDetailPage() {
           // api.lua:listRule base64-decodes this one field before
           // returning; every other field matches the on-disk record.
           decodedFields={["jwt_token_validation_key"]}
+        />
+      )}
+
+      {/* ── History tab: stored versions + one-click rollback ────────── */}
+      {!isCreate && activeTab === "history" && (
+        <StoredVersionsList
+          resourceType="rules"
+          resourceName={id}
+          profile={form.profile_id || undefined}
         />
       )}
 
