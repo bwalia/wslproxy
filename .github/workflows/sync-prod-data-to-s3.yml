@@ -5,8 +5,8 @@ name: Sync Prod Data to S3
 # Default source (scheduled + workflow_dispatch default):
 #   root@lon1.pop0.uk  (lon1 — live prod edge, public traffic)
 #
-# Optional workflow_dispatch override: 85.190.106.189 (pop0), 18.133.126.242 (pop1).
-# pop1 is dashboard-only and often unreachable from the macOS runner (SG/firewall).
+# Optional workflow_dispatch override: 85.190.106.189 (pop0).
+# Retired: 18.133.126.242 (pop1).
 #
 # Data is fetched over SSH (rsync). SSH_PRIVATE_KEY on the self-hosted runner
 # must reach the chosen host.
@@ -32,7 +32,6 @@ on:
         options:
           - "lon1.pop0.uk"
           - "85.190.106.189"
-          - "18.133.126.242"
 
 env:
   PROD_HOST: ${{ github.event.inputs.prod_host || 'lon1.pop0.uk' }}
@@ -69,12 +68,8 @@ jobs:
               PROD_SSH_USER=administrator
               PROD_LABEL=pop0
               ;;
-            18.133.126.242)
-              PROD_SSH_USER=admin
-              PROD_LABEL=pop1
-              ;;
             *)
-              echo "::error::Unsupported PROD_HOST ${PROD_HOST}. Use lon1, pop0, or pop1."
+              echo "::error::Unsupported PROD_HOST ${PROD_HOST}. Use lon1.pop0.uk or 85.190.106.189 (pop0)."
               exit 1
               ;;
           esac
