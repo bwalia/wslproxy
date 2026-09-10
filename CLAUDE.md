@@ -122,7 +122,11 @@ The core persister is `CreateUpdateRecord(json_val, uuid, key_name, folder_name,
 
 ## 5. Data Model
 
-### Server JSON (`data/servers/{env}/host:{hostname}.json`)
+### Server JSON / YAML (`data/servers/{env}/host:{hostname}.{json,yaml,yml}`)
+
+Same schema in JSON or YAML. Request path tries `.json` then `.yaml` then `.yml`
+(`api/config_io.lua` + vendored `api/tinyyaml.lua`). Admin API writes **`.json` only**
+and removes YAML siblings for that id. See `examples/config-yaml/`.
 
 Key fields (not exhaustive):
 - **Identity:** `id` (= `host:{server_name}`), `server_name`, `proxy_server_name`, `profile_id`
@@ -137,7 +141,7 @@ Key fields (not exhaustive):
 - **Rate limiting:** `rate_limit_enabled`, `rate_limit: {requests_per_second, burst}`
 - **WAF:** `waf_enabled`, `waf_policy_id`, `waf_mode_override` ("block"|"monitor")
 
-### Rule JSON (`data/rules/{env}/{uuid}.json`)
+### Rule JSON / YAML (`data/rules/{env}/{uuid}.{json,yaml,yml}`)
 
 ```json
 {

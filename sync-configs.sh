@@ -80,23 +80,34 @@ validate_local_configs() {
         log_info "Created rules directory: $rules_dir"
     fi
     
-    # Validate JSON files
+    # Validate JSON / YAML config files
     local has_errors=0
-    for json_file in "$servers_dir"/*.json "$rules_dir"/*.json; do
-        if [[ -f "$json_file" ]]; then
-            if ! jq empty "$json_file" 2>/dev/null; then
-                log_error "Invalid JSON: $json_file"
-                has_errors=1
-            fi
+    shopt -s nullglob
+    for config_file in "$servers_dir"/*.{json,yaml,yml} "$rules_dir"/*.{json,yaml,yml}; do
+        if [[ -f "$config_file" ]]; then
+            case "$config_file" in
+                *.json)
+                    if ! jq empty "$config_file" 2>/dev/null; then
+                        log_error "Invalid JSON: $config_file"
+                        has_errors=1
+                    fi
+                    ;;
+                *.yaml|*.yml)
+                    if [[ ! -s "$config_file" ]]; then
+                        log_error "Empty YAML: $config_file"
+                        has_errors=1
+                    fi
+                    ;;
+            esac
         fi
     done
     
     if [[ $has_errors -eq 1 ]]; then
-        log_error "JSON validation failed. Please fix the errors above."
+        log_error "Config validation failed. Please fix the errors above."
         exit 1
     fi
     
-    log_success "All JSON files validated successfully"
+    log_success "All config files validated successfully"
 }
 
 sync_configs() {
@@ -123,7 +134,8 @@ sync_configs() {
     
     # Sync servers
     local server_count=0
-    for server_file in "$servers_dir"/*.json; do
+    shopt -s nullglob
+    for server_file in "$servers_dir"/*.{json,yaml,yml}; do
         if [[ -f "$server_file" ]]; then
             local filename=$(basename "$server_file")
             log_info "Syncing server: $filename"
@@ -134,7 +146,7 @@ sync_configs() {
     
     # Sync rules
     local rule_count=0
-    for rule_file in "$rules_dir"/*.json; do
+    for rule_file in "$rules_dir"/*.{json,yaml,yml}; do
         if [[ -f "$rule_file" ]]; then
             local filename=$(basename "$rule_file")
             log_info "Syncing rule: $filename"

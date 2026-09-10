@@ -1,0 +1,15 @@
+id: host:yaml-demo.example.com
+server_name: yaml-demo.example.com
+proxy_server_name: yaml-demo.example.com
+profile_id: prod
+ssl_enabled: true
+ssl_force_https: true
+ssl_staging: false
+config_status: false
+waf_enabled: false
+cache_enabled: false
+rules: yaml-demo-default
+listens:
+  - listen: "80"
+root: /var/www/html
+index: index.html

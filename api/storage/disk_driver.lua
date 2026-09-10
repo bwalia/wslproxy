@@ -1,10 +1,12 @@
--- Disk JSON driver. Source of truth for the request path (rule_loader
--- still reads these files). Every CRUD write from the dual_writer lands here.
+-- Disk JSON/YAML driver. Source of truth for the request path (rule_loader
+-- still reads these files). Every CRUD write from the dual_writer lands here
+-- as .json; YAML siblings are accepted on read and removed on write.
 
 local cjson = Cjson or require("cjson")
 local Helper = require("helpers")
 local Driver = require("storage.driver")
 local Query = require("storage.query")
+local ConfigIO = require("config_io")
 
 local _M = {}
 
@@ -14,18 +16,18 @@ local function log_err(...)
     end
 end
 
-local function decode_record(raw)
+local function decode_record(raw, path)
     if raw == nil or raw == "" then
         return nil
     end
     if type(raw) == "table" then
         return raw
     end
-    local ok, decoded = pcall(cjson.decode, raw)
-    if ok and type(decoded) == "table" then
+    local decoded, err = ConfigIO.decode(raw, path)
+    if decoded then
         return decoded
     end
-    return nil, "invalid json"
+    return nil, err or "invalid config"
 end
 
 local function record_id(rec, fallback)
@@ -35,21 +37,8 @@ local function record_id(rec, fallback)
     return rec.id or rec.uuid or rec.name or fallback
 end
 
-local function list_json_files(dir)
-    local files = {}
-    local ls = io.popen('ls -a "' .. dir .. '" 2>/dev/null')
-    if not ls then
-        return files
-    end
-    for name in ls:lines() do
-        if name ~= "." and name ~= ".." and name ~= "conf"
-            and not name:match("^%.")
-            and name:match("%.json$") then
-            files[#files + 1] = name
-        end
-    end
-    ls:close()
-    return files
+local function list_config_files(dir)
+    return ConfigIO.list_files(dir)
 end
 
 local function read_array_file(path)
@@ -57,7 +46,7 @@ local function read_array_file(path)
     if not raw or raw == "" then
         return {}
     end
-    local recs = decode_record(raw)
+    local recs = decode_record(raw, path)
     if type(recs) ~= "table" then
         return {}
     end
@@ -110,12 +99,12 @@ function _M:get(resource, env, id)
         return nil
     end
     local dir = Driver.disk_dir(self.config_path, resource, env)
-    local path = dir .. "/" .. tostring(id) .. ".json"
-    local raw = Helper.getDataFromFile(path)
-    if not raw or raw == "" then
+    local base = dir .. "/" .. tostring(id)
+    local path, content = ConfigIO.resolve_and_read(base)
+    if not path then
         return nil
     end
-    return decode_record(raw)
+    return decode_record(content, path)
 end
 
 function _M:list(resource, env, filter, sort, pagination)
@@ -129,11 +118,12 @@ function _M:list(resource, env, filter, sort, pagination)
         records = read_array_file(path)
     else
         local dir = Driver.disk_dir(self.config_path, resource, env)
-        for _, name in ipairs(list_json_files(dir)) do
-            local raw = Helper.getDataFromFile(dir .. "/" .. name)
-            local rec = decode_record(raw)
+        for _, name in ipairs(list_config_files(dir)) do
+            local full = dir .. "/" .. name
+            local raw = Helper.getDataFromFile(full)
+            local rec = decode_record(raw, full)
             if rec then
-                rec.id = rec.id or name:gsub("%.json$", "")
+                rec.id = rec.id or ConfigIO.stem(name)
                 records[#records + 1] = rec
             end
         end
@@ -173,9 +163,13 @@ function _M:update(resource, env, id, record)
         return record
     end
     local dir = Driver.disk_dir(self.config_path, resource, env)
-    local path = dir .. "/" .. tostring(id) .. ".json"
+    local path = ConfigIO.write_path(dir, id)
     -- setDataToFile JSON-encodes tables itself (and throws on IO failure).
     Helper.setDataToFile(path, record, dir, "json")
+    -- JSON is canonical after an admin save — drop YAML siblings to avoid forks.
+    if resource == "servers" or resource == "rules" then
+        ConfigIO.remove_yaml_siblings(dir, id)
+    end
     return record
 end
 
@@ -203,8 +197,10 @@ function _M:delete(resource, env, id)
         return true
     end
     local dir = Driver.disk_dir(self.config_path, resource, env)
-    local path = dir .. "/" .. tostring(id) .. ".json"
-    os.remove(path)
+    local base = dir .. "/" .. tostring(id)
+    for _, ext in ipairs({ ".json", ".yaml", ".yml" }) do
+        os.remove(base .. ext)
+    end
     return true
 end
 

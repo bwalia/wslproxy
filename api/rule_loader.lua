@@ -1,31 +1,10 @@
 -- rule_loader.lua
--- Load server and rule JSON configs from disk, normalize formats
+-- Load server and rule configs from disk (JSON or YAML), normalize formats
 -- Handles legacy data (base64-encoded S3 keys) and format variations
 
 local M = {}
 
-local cjson = Cjson
-
-local function load_file(path)
-    local file, err = io.open(path, "rb")
-    if not file then
-        return nil, err
-    end
-    local content = file:read("*a")
-    file:close()
-    if not content or content == "" then
-        return nil, "empty file"
-    end
-    return content
-end
-
-local function parse_json(content)
-    local ok, result = pcall(cjson.decode, content)
-    if ok then
-        return result
-    end
-    return nil, result
-end
+local ConfigIO = require("config_io")
 
 --- Try to decode a base64-encoded string. Returns decoded if it looks valid, else original.
 local function try_decode_b64(s)
@@ -98,21 +77,21 @@ end
 --- @return table|nil  server config, or nil if not found
 --- @return string|nil error message
 function M.load_server(hostname, config_path, profile)
-    local path = config_path .. "data/servers/" .. profile .. "/host:" .. hostname .. ".json"
-    local content, err = load_file(path)
+    local base = config_path .. "data/servers/" .. profile .. "/host:" .. hostname
+    local server, err = ConfigIO.load(base)
 
     -- Fallback: strip "www." prefix
-    if not content and hostname:sub(1, 4) == "www." then
+    if not server and hostname:sub(1, 4) == "www." then
         local bare = hostname:sub(5)
-        path = config_path .. "data/servers/" .. profile .. "/host:" .. bare .. ".json"
-        content, err = load_file(path)
+        base = config_path .. "data/servers/" .. profile .. "/host:" .. bare
+        server, err = ConfigIO.load(base)
     end
 
-    if not content then
+    if not server then
         return nil, err
     end
 
-    return parse_json(content)
+    return server
 end
 
 --- Load a single rule by ID.
@@ -122,12 +101,8 @@ end
 --- @param profile     string  Environment profile
 --- @return table|nil  rule config, or nil if not found
 function M.load_rule(rule_id, config_path, profile)
-    local path = config_path .. "data/rules/" .. profile .. "/" .. rule_id .. ".json"
-    local content = load_file(path)
-    if not content then
-        return nil
-    end
-    local rule_data = parse_json(content)
+    local base = config_path .. "data/rules/" .. profile .. "/" .. rule_id
+    local rule_data = ConfigIO.load(base)
     if not rule_data then
         return nil
     end

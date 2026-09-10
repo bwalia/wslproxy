@@ -124,7 +124,10 @@
     - name: Find local server config files
       find:
         paths: "{{ local_data_dir }}/servers/{{ source_subdir }}"
-        patterns: "*.json"
+        patterns:
+          - "*.json"
+          - "*.yaml"
+          - "*.yml"
       delegate_to: localhost
       become: no
       register: server_config_files
@@ -132,7 +135,10 @@
     - name: Find local rule config files
       find:
         paths: "{{ local_data_dir }}/rules/{{ source_subdir }}"
-        patterns: "*.json"
+        patterns:
+          - "*.json"
+          - "*.yaml"
+          - "*.yml"
       delegate_to: localhost
       become: no
       register: rule_config_files
@@ -143,8 +149,36 @@
           Server configs: {{ server_config_files.files | length }} file(s)
           Rule configs: {{ rule_config_files.files | length }} file(s)
 
-    - name: Validate server config JSON syntax
-      shell: "jq empty {{ item.path }}"
+    - name: Validate server config syntax (JSON + YAML)
+      shell: |
+        f="{{ item.path }}"
+        case "$f" in
+          *.json) jq empty "$f" ;;
+          *.yaml|*.yml)
+            # Structural parse via vendored tinyyaml (lua) when available;
+            # otherwise require non-empty YAML-looking content.
+            if command -v resty >/dev/null 2>&1; then
+              resty -I "{{ playbook_dir }}/../../api" -e "
+                local ConfigIO = require('config_io')
+                local raw = assert(io.open([[$f]], 'rb')):read('*a')
+                local t, err = ConfigIO.decode(raw, [[$f]])
+                assert(t, err or 'yaml decode failed')
+              "
+            elif command -v lua >/dev/null 2>&1; then
+              LUA_PATH="{{ playbook_dir }}/../../api/?.lua;;" lua -e "
+                local ConfigIO = require('config_io')
+                local raw = assert(io.open([[$f]], 'rb')):read('*a')
+                local t, err = ConfigIO.decode(raw, [[$f]])
+                assert(t, err or 'yaml decode failed')
+              "
+            else
+              test -s "$f"
+            fi
+            ;;
+          *) echo "unsupported config extension: $f"; exit 1 ;;
+        esac
+      args:
+        executable: /bin/bash
       delegate_to: localhost
       become: no
       loop: "{{ server_config_files.files }}"
@@ -152,8 +186,34 @@
       register: server_validation
       changed_when: false
 
-    - name: Validate rule config JSON syntax
-      shell: "jq empty {{ item.path }}"
+    - name: Validate rule config syntax (JSON + YAML)
+      shell: |
+        f="{{ item.path }}"
+        case "$f" in
+          *.json) jq empty "$f" ;;
+          *.yaml|*.yml)
+            if command -v resty >/dev/null 2>&1; then
+              resty -I "{{ playbook_dir }}/../../api" -e "
+                local ConfigIO = require('config_io')
+                local raw = assert(io.open([[$f]], 'rb')):read('*a')
+                local t, err = ConfigIO.decode(raw, [[$f]])
+                assert(t, err or 'yaml decode failed')
+              "
+            elif command -v lua >/dev/null 2>&1; then
+              LUA_PATH="{{ playbook_dir }}/../../api/?.lua;;" lua -e "
+                local ConfigIO = require('config_io')
+                local raw = assert(io.open([[$f]], 'rb')):read('*a')
+                local t, err = ConfigIO.decode(raw, [[$f]])
+                assert(t, err or 'yaml decode failed')
+              "
+            else
+              test -s "$f"
+            fi
+            ;;
+          *) echo "unsupported config extension: $f"; exit 1 ;;
+        esac
+      args:
+        executable: /bin/bash
       delegate_to: localhost
       become: no
       loop: "{{ rule_config_files.files }}"
@@ -238,6 +298,8 @@
         rsync_path: "sudo rsync"
         rsync_opts:
           - "--include=*.json"
+          - "--include=*.yaml"
+          - "--include=*.yml"
           - "--exclude=*"
       delegate_to: localhost
       become: false
@@ -253,6 +315,8 @@
         rsync_path: "sudo rsync"
         rsync_opts:
           - "--include=*.json"
+          - "--include=*.yaml"
+          - "--include=*.yml"
           - "--exclude=*"
       when:
         - server_config_files.files | length > 0
@@ -267,6 +331,8 @@
         rsync_path: "sudo rsync"
         rsync_opts:
           - "--include=*.json"
+          - "--include=*.yaml"
+          - "--include=*.yml"
           - "--exclude=*"
       delegate_to: localhost
       become: false
@@ -282,6 +348,8 @@
         rsync_path: "sudo rsync"
         rsync_opts:
           - "--include=*.json"
+          - "--include=*.yaml"
+          - "--include=*.yml"
           - "--exclude=*"
       when:
         - rule_config_files.files | length > 0
@@ -336,18 +404,57 @@
 
     - name: Generate SSL domain files from server configs with ssl_enabled
       shell: |
-        for config_file in {{ remote_data_dir }}/servers/{{ target_env }}/*.json; do
-          [ -f "$config_file" ] || continue
-          ssl_enabled=$(jq -r '.ssl_enabled // false' "$config_file" 2>/dev/null)
-          server_name=$(jq -r '.server_name // empty' "$config_file" 2>/dev/null)
-          if [ "$ssl_enabled" = "true" ] && [ -n "$server_name" ]; then
+        set -euo pipefail
+        API_LUA="${API_LUA_PATH:-/usr/local/openresty/nginx/html/api}"
+        gen_one() {
+          local config_file="$1"
+          local ssl_enabled server_name
+          case "$config_file" in
+            *.json)
+              ssl_enabled=$(jq -r '.ssl_enabled // false' "$config_file" 2>/dev/null || echo false)
+              server_name=$(jq -r '.server_name // empty' "$config_file" 2>/dev/null || true)
+              ;;
+            *.yaml|*.yml)
+              if command -v resty >/dev/null 2>&1 && [[ -d "$API_LUA" ]]; then
+                eval "$(resty -I "$API_LUA" -e "
+                  local ConfigIO = require('config_io')
+                  local f = assert(io.open([[$config_file]], 'rb'))
+                  local raw = f:read('*a'); f:close()
+                  local t = assert(ConfigIO.decode(raw, [[$config_file]]))
+                  print(string.format(\"ssl_enabled=%s\", tostring(t.ssl_enabled == true)))
+                  print(string.format(\"server_name=%s\", tostring(t.server_name or '')))
+                ")"
+              elif command -v lua >/dev/null 2>&1 && [[ -d "$API_LUA" ]]; then
+                eval "$(LUA_PATH="$API_LUA/?.lua;;" lua -e "
+                  local ConfigIO = require('config_io')
+                  local f = assert(io.open([[$config_file]], 'rb'))
+                  local raw = f:read('*a'); f:close()
+                  local t = assert(ConfigIO.decode(raw, [[$config_file]]))
+                  print(string.format(\"ssl_enabled=%s\", tostring(t.ssl_enabled == true)))
+                  print(string.format(\"server_name=%s\", tostring(t.server_name or '')))
+                ")"
+              else
+                echo "skip yaml ssl extract (no lua/resty): $config_file"
+                return 0
+              fi
+              ;;
+            *) return 0 ;;
+          esac
+          if [ "$ssl_enabled" = "true" ] && [ -n "${server_name:-}" ]; then
             ssl_file="{{ remote_data_dir }}/ssl/${server_name}.json"
             echo "{\"ssl_enabled\": true, \"server_name\": \"${server_name}\"}" > "$ssl_file"
             chown www-data:root "$ssl_file"
             chmod 664 "$ssl_file"
             echo "Created SSL domain file: $ssl_file"
           fi
+        }
+        shopt -s nullglob
+        for config_file in {{ remote_data_dir }}/servers/{{ target_env }}/*.{json,yaml,yml}; do
+          [ -f "$config_file" ] || continue
+          gen_one "$config_file"
         done
+      args:
+        executable: /bin/bash
       register: ssl_domain_result
       changed_when: "'Created SSL domain file' in ssl_domain_result.stdout"
 
