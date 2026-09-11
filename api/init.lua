@@ -105,17 +105,45 @@ end
 -- and geo_lookup.  This is loaded at init time when file I/O is
 -- allowed.
 --
--- Fallback default matches where the ansible role installs the DB
--- (cdn-dependencies.sh.j2 + ip2location_db_path in role defaults).
--- A previous fallback of `/tmp/...` silently broke geographic
--- traffic in prod for weeks: the on-disk file lived at the new
--- path but settings.json (in Vault) still pointed at /tmp/, and
--- the fallback didn't catch the drift because it pointed at the
--- same wrong place.  `/tmp` is also a poor location — some systems
--- clear it on reboot.
-IP2LocationPath = settings and settings.ip2location_path
-    or "/usr/local/openresty/nginx/IP2LOCATION-LITE-DB11.IPV6.BIN"
-ngx.log(ngx.INFO, "IP2Location: Using database path: ", IP2LocationPath)
+-- Canonical install path (ansible cdn-dependencies + role default
+-- ip2location_db_path). Docker still ships the DB under /tmp/.
+-- settings.json / Vault often still say /tmp/... even after ansible
+-- moved the file and deleted the /tmp copy — that produced
+-- INVALIDDATABASEFILE in access logs and an empty Geographic
+-- Traffic Distribution panel (lon1 2026-09-11). Prefer the configured
+-- path only when the file actually exists; otherwise fall through
+-- candidates so a stale setting cannot blank geo forever.
+do
+  local candidates = {
+    settings and settings.ip2location_path,
+    "/usr/local/openresty/nginx/IP2LOCATION-LITE-DB11.IPV6.BIN",
+    "/tmp/IP2LOCATION-LITE-DB11.IPV6.BIN",
+  }
+  local chosen = nil
+  for _, p in ipairs(candidates) do
+    if type(p) == "string" and p ~= "" then
+      local attr = LFS.attributes(p)
+      if attr and attr.mode == "file" then
+        chosen = p
+        break
+      end
+    end
+  end
+  if not chosen then
+    chosen = (settings and settings.ip2location_path)
+        or "/usr/local/openresty/nginx/IP2LOCATION-LITE-DB11.IPV6.BIN"
+    ngx.log(ngx.ERR, "IP2Location: no database file found at configured or fallback paths; ",
+        "using ", chosen, " (lookups will fail until the DB is installed)")
+  elseif settings and settings.ip2location_path
+      and settings.ip2location_path ~= ""
+      and settings.ip2location_path ~= chosen then
+    ngx.log(ngx.ERR, "IP2Location: settings.ip2location_path=", settings.ip2location_path,
+        " missing on disk; using ", chosen,
+        " — update Vault/SOPS settings.json so the next deploy does not reintroduce the stale path")
+  end
+  IP2LocationPath = chosen
+  ngx.log(ngx.INFO, "IP2Location: Using database path: ", IP2LocationPath)
+end
 
 -- Use shared dictionary for SSL domains cache
 -- This ensures the cache is shared across all nginx worker processes

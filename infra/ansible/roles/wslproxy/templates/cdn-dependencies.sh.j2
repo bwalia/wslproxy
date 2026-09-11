@@ -125,7 +125,11 @@ mc --version
 # never leaves a partial file at the target path.
 cd /tmp/ && wget -q --tries=3 --timeout=60 --waitretry=10 "{{ ip2location_download_url }}" -O /tmp/IP2LOCATION-LITE-DB11.IPV6.BIN
 install -D -m 0775 -o www-data -g root /tmp/IP2LOCATION-LITE-DB11.IPV6.BIN "{{ ip2location_db_path }}"
+# Keep /tmp path as a symlink. Older settings.json / Vault / hardcoded
+# Lua still open /tmp/IP2LOCATION-...; ansible used to delete the file
+# after install, which blanked Geographic Traffic on lon1.
 rm -f /tmp/IP2LOCATION-LITE-DB11.IPV6.BIN
+ln -sfn "{{ ip2location_db_path }}" /tmp/IP2LOCATION-LITE-DB11.IPV6.BIN
 
 if [ -f "/tmp/.env" ]; then
   mkdir -p /usr/local/openresty/nginx/html/openresty-admin/

@@ -141,7 +141,9 @@ local function match_country(rules, settings)
 
     -- Resolve country from IP
     local req_addr = ngx.ctx._resolved_ip or ngx.var.remote_addr
-    local ip2loc_path = settings.ip2location_path or "/tmp/IP2LOCATION-LITE-DB11.IPV6.BIN"
+    local ip2loc_path = (IP2LocationPath and IP2LocationPath ~= "" and IP2LocationPath)
+        or settings.ip2location_path
+        or "/usr/local/openresty/nginx/IP2LOCATION-LITE-DB11.IPV6.BIN"
     local ip2loc = IP2location:new(ip2loc_path)
     local result = ip2loc:get_all(req_addr)
     local country = result.country_short or ""
