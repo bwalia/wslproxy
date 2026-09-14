@@ -14,8 +14,10 @@ on:
     branches: [main]
     paths:
       - "html/index.html"
+      - "html/landing.html"
       - "html/404.html"
       - "html/403.html"
+      - "html/blog/**"
       - "html/swagger/**"
       - "html/css/**"
       - "html/js/**"
@@ -76,6 +78,11 @@ jobs:
           cp html/index.html site/index.html
           cp html/404.html site/404.html 2>/dev/null || true
           cp html/403.html site/403.html 2>/dev/null || true
+
+          # Blog (Geographic Traffic Distribution and future posts)
+          if [ -d html/blog ]; then
+            cp -R html/blog site/blog
+          fi
 
           # Swagger UI referenced from the landing (/swagger/)
           if [ -d html/swagger ]; then

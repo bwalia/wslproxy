@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="WSLProxy blog — product features, edge ops, and dashboard walkthroughs." />
+  <title>Blog — WSLProxy</title>
+  <meta name="color-scheme" content="light dark" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #0b1c2c; --ink-soft: #243447; --mist: #eef2f6; --paper: #f7f9fc;
+      --line: #c5d0dc; --copper: #c45c26; --copper-deep: #9a4519; --signal: #1a7a6d;
+      --surface: #ffffff; --sans: "Outfit", system-ui, sans-serif; --display: "Fraunces", Georgia, serif;
+      --max: 800px; --radius: 6px;
+    }
+    html.dark {
+      --ink: #eef2f6; --ink-soft: #b7c4d4; --mist: #122233; --paper: #0b1c2c;
+      --line: #2a3d52; --copper: #e07a3d; --copper-deep: #f0a06a; --signal: #3dbaa8; --surface: #122233;
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    body { margin: 0; font-family: var(--sans); font-size: 1.0625rem; line-height: 1.6; color: var(--ink); background: var(--paper); }
+    a { color: var(--copper-deep); }
+    .wrap { width: min(100% - 2.5rem, var(--max)); margin-inline: auto; }
+    header { border-bottom: 1px solid var(--line); padding: 1rem 0; }
+    .nav { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+    .brand { font-family: var(--display); font-weight: 700; font-size: 1.25rem; color: var(--ink); text-decoration: none; }
+    nav a { margin-left: 1rem; color: var(--ink-soft); text-decoration: none; font-weight: 500; }
+    nav a:hover { color: var(--ink); }
+    main { padding: 3rem 0 4rem; }
+    h1 { font-family: var(--display); font-size: clamp(1.8rem, 4vw, 2.4rem); margin: 0 0 0.5rem; }
+    .lede { color: var(--ink-soft); margin: 0 0 2rem; }
+    .post-card {
+      display: block; padding: 1.25rem 1.35rem; border: 1px solid var(--line); border-radius: var(--radius);
+      background: var(--surface); text-decoration: none; color: inherit; margin-bottom: 1rem;
+    }
+    .post-card:hover { border-color: var(--copper); }
+    .post-card h2 { font-family: var(--display); font-size: 1.35rem; margin: 0 0 0.4rem; }
+    .post-card p { margin: 0; color: var(--ink-soft); font-size: 0.98rem; }
+    .meta { font-size: 0.85rem; color: var(--signal); font-weight: 600; margin-bottom: 0.35rem; }
+    .thumb { width: 100%; border-radius: var(--radius); border: 1px solid var(--line); margin: 0.75rem 0 0; display: block; }
+    footer { border-top: 1px solid var(--line); padding: 1.5rem 0; color: var(--ink-soft); font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap nav">
+      <a class="brand" href="/">WSLProxy</a>
+      <nav>
+        <a href="/">Home</a>
+        <a href="/blog/">Blog</a>
+        <a href="/swagger/">API</a>
+        <a href="https://github.com/bwalia/wslproxy">GitHub</a>
+      </nav>
+    </div>
+  </header>
+  <main>
+    <div class="wrap">
+      <h1>Blog</h1>
+      <p class="lede">Product deep dives and edge ops notes from the WSLProxy control plane.</p>
+      <a class="post-card" href="/blog/geographic-traffic-distribution.html">
+        <div class="meta">Feature · 2-min video</div>
+        <h2>Geographic Traffic Distribution by country</h2>
+        <p>How the admin dashboard maps live requests to Top Countries and a world choropleth — IP2Location on the hot path, traffic_stats, and atlas-ready country codes.</p>
+        <img class="thumb" src="/images/geographic-traffic-distribution-dashboard.jpg" alt="Geographic Traffic Distribution dashboard screenshot" width="960" height="540" loading="lazy" />
+      </a>
+    </div>
+  </main>
+  <footer>
+    <div class="wrap">© Workstation Solutions Limited · <a href="/">wslproxy.org</a></div>
+  </footer>
+</body>
+</html>

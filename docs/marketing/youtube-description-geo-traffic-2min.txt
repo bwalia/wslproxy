@@ -1,0 +1,48 @@
+WSLProxy Geographic Traffic Distribution — see who hits your edge, by country (2 min)
+
+Live Top Countries list + world map on the admin dashboard. Every request is
+tagged with a country from IP2Location on the OpenResty hot path, aggregated in
+shared-dict traffic stats, and painted on the choropleth — so you know where
+traffic (and abuse) is coming from without leaving the control plane.
+
+Watch: https://youtu.be/4G_YPYj3J3k
+Thumbnail: docs/marketing/wslproxy-youtube-thumbnail-geo-traffic-2min.png
+Dashboard screenshot: https://wslproxy.org/images/geographic-traffic-distribution-dashboard.jpg
+
+🌐 Site: https://wslproxy.org
+📝 Article: https://wslproxy.org/blog/geographic-traffic-distribution.html
+📦 GitHub: https://github.com/bwalia/wslproxy
+🖥 Live edge: https://lon1.pop0.uk/
+
+────────────────────────────────────────
+WHAT YOU’LL SEE (≈2 MIN)
+────────────────────────────────────────
+0:00  Why geo traffic matters at the edge
+0:20  Dashboard — Top Countries + Geographic Traffic map
+0:50  How it works — remote_addr → IP2Location → traffic_stats → /api/traffic/stats
+1:20  UK→GB normalization so the world atlas lights up correctly
+1:40  Where to look next — Grafana edges, WAF geo rules, multi-POP
+1:55  Links & wrap-up
+
+────────────────────────────────────────
+HOW IT WORKS (ENGINEERING)
+────────────────────────────────────────
+• Per-request country lookup via IP2Location (settings.ip2location_path /
+  ansible install path under OpenResty)
+• $geo_country for access logs; log_handler aggregates into traffic_stats
+• Admin UI GeoTrafficMap (React Admin + Next.js) colors countries by request volume
+• ISO normalization: IP2Location “UK” → “GB” for atlas matching
+• Prometheus /metrics still exports edge golden signals for Grafana
+  (job=wslproxy-edges) — complementary to the in-product geo panel
+
+────────────────────────────────────────
+RELATED
+────────────────────────────────────────
+Full product walkthrough (20 min): https://youtu.be/7NJulclG5sQ
+Blog (deep dive): https://wslproxy.org/blog/geographic-traffic-distribution.html
+Docs / CLI: https://github.com/bwalia/wslproxy/blob/main/docs/wslproxy-cli.md
+MCP: https://github.com/bwalia/wslproxy/blob/main/docs/mcp.md
+
+Built by Workstation Solutions Limited.
+
+#WSLProxy #OpenResty #APIGateway #GeoIP #TrafficAnalytics #Nginx #DevOps #EdgeComputing #CDN #Observability #IP2Location #SelfHosted

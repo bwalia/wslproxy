@@ -307,6 +307,25 @@
       text-decoration: none;
     }
     .video-caption a:hover { text-decoration: underline; }
+    .product-shot {
+      margin: 1.75rem auto 0;
+      max-width: 960px;
+    }
+    .product-shot img {
+      display: block;
+      width: 100%;
+      height: auto;
+      border-radius: calc(var(--radius) + 4px);
+      border: 1px solid var(--line);
+      box-shadow: 0 18px 50px color-mix(in srgb, var(--ink) 12%, transparent);
+      background: var(--surface);
+    }
+    .product-shot figcaption {
+      margin-top: 0.65rem;
+      text-align: center;
+      font-size: 0.9rem;
+      color: var(--ink-soft);
+    }
 
     /* Request path visual — signature */
     .path-stage {
@@ -533,6 +552,7 @@
         <li><a href="#intro-video">Watch</a></li>
         <li><a href="#pipeline">Pipeline</a></li>
         <li><a href="#capabilities">Capabilities</a></li>
+        <li><a href="/blog/">Blog</a></li>
         <li><a href="#operate">Operate</a></li>
         <li><a href="#start">Start</a></li>
         <li>
@@ -561,7 +581,7 @@
           </p>
           <div class="cta-row">
             <a class="btn btn-primary" href="https://github.com/bwalia/wslproxy#quick-start">Get started</a>
-            <a class="btn btn-ghost" href="#intro-video">Watch the intro</a>
+            <a class="btn btn-ghost" href="#intro-video">Watch geo traffic</a>
             <a class="btn btn-ghost" href="/swagger/">Open API docs</a>
           </div>
         </div>
@@ -589,17 +609,17 @@
       </div>
     </section>
 
-    <section id="intro-video" class="video-section" aria-label="WSLProxy introduction video">
+    <section id="intro-video" class="video-section" aria-label="WSLProxy geographic traffic feature video">
       <div class="wrap">
         <p class="section-kicker">Watch</p>
-        <h2 class="section-title">WSLProxy in 20 minutes</h2>
+        <h2 class="section-title">Traffic by country in 2 minutes</h2>
         <p class="section-lede">
-          Live-config routing, WAF, traffic splits, MCP, and CLI — without reloading nginx for every rule change.
+          Geographic Traffic Distribution on the admin dashboard — Top Countries, live choropleth, and how IP2Location feeds the edge.
         </p>
         <div class="video-frame">
           <iframe
-            src="https://www.youtube.com/embed/7NJulclG5sQ"
-            title="WSLProxy introduction — live-config API gateway on OpenResty"
+            src="https://www.youtube.com/embed/4G_YPYj3J3k"
+            title="WSLProxy Geographic Traffic Distribution — traffic by country dashboard"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             referrerpolicy="strict-origin-when-cross-origin"
             allowfullscreen
@@ -607,11 +627,23 @@
           ></iframe>
         </div>
         <p class="video-caption">
-          Full walkthrough on
-          <a href="https://youtu.be/7NJulclG5sQ" rel="noopener noreferrer" target="_blank">YouTube</a>
-          · Product site
-          <a href="https://wslproxy.org">wslproxy.org</a>
+          Feature walkthrough on
+          <a href="https://youtu.be/4G_YPYj3J3k" rel="noopener noreferrer" target="_blank">YouTube</a>
+          · Deep dive
+          <a href="/blog/geographic-traffic-distribution.html">blog article</a>
+          · Full product intro
+          <a href="https://youtu.be/7NJulclG5sQ" rel="noopener noreferrer" target="_blank">20-minute overview</a>
         </p>
+        <figure class="product-shot">
+          <img
+            src="/images/geographic-traffic-distribution-dashboard.jpg"
+            alt="WSL Proxy admin dashboard showing Geographic Traffic Distribution — world map choropleth and Top Countries list with United Kingdom, United States, Switzerland, and more"
+            width="1280"
+            height="720"
+            loading="lazy"
+          />
+          <figcaption>Geographic Traffic Distribution on the WSL Proxy dashboard — live Top Countries and choropleth heat by request volume.</figcaption>
+        </figure>
       </div>
     </section>
 
@@ -656,6 +688,10 @@
         <div class="split split-2">
           <div>
             <div class="strip">
+              <h3>Geographic traffic</h3>
+              <p>Top Countries + world map on the admin dashboard — every request tagged via IP2Location into live traffic stats. <a href="https://youtu.be/4G_YPYj3J3k">2-min video</a> · <a href="/blog/geographic-traffic-distribution.html">article</a>.</p>
+            </div>
+            <div class="strip">
               <h3>Dynamic routing</h3>
               <p>Priority-aware rules with geo, IP, JWT, and path matching. Attach many rules per virtual host.</p>
             </div>
@@ -695,7 +731,7 @@
           <ul class="ops-list">
             <li>
               <strong>Admin UI</strong>
-              <span>React Admin for day-to-day CRUD; Next.js dashboard for logs and AI-assisted analysis.</span>
+              <span>React Admin for day-to-day CRUD; Next.js dashboard for logs, AI-assisted analysis, and Geographic Traffic Distribution by country.</span>
             </li>
             <li>
               <strong>REST + Swagger</strong>
@@ -768,6 +804,7 @@
       <div>© Workstation Solutions Limited · WSLProxy</div>
       <div class="footer-links">
         <a href="https://github.com/bwalia/wslproxy">GitHub</a>
+        <a href="/blog/">Blog</a>
         <a href="/swagger/">API</a>
         <a href="https://github.com/bwalia/wslproxy/blob/main/docs/wslproxy-cli.md">CLI</a>
         <a href="https://github.com/bwalia/wslproxy/blob/main/docs/mcp.md">MCP</a>

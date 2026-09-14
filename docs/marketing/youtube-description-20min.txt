@@ -56,6 +56,8 @@ FEATURES COVERED
 • Version history & 4-eyes change requests — draft → pending → live
 • Audit trail — NDJSON audit log
 • Observability — traffic stats, Prometheus metrics, Grafana dashboards
+• Geographic traffic — Top Countries + world map on the admin dashboard
+  (IP2Location → traffic_stats); 2-min feature video: https://youtu.be/4G_YPYj3J3k
 • Local Docker — ./dev.sh (OpenResty + Redis + admin, hot-reload Lua)
 • Production deploy — Ansible bare-metal/VM POPs; k3s wslproxy-ingress Helm chart
 • Two-layer edge — outer POP + optional k3s ingress (tune timeouts on both)
@@ -81,6 +83,8 @@ wslproxy-cli push -d ./cfg --yes --verify
 LINKS
 ────────────────────────────────────────
 Website:     https://wslproxy.org
+Blog (geo):  https://wslproxy.org/blog/geographic-traffic-distribution.html
+Geo video:   https://youtu.be/4G_YPYj3J3k
 Source:      https://github.com/bwalia/wslproxy
 Swagger:     (your deployed admin) /swagger/
 CLI docs:    https://github.com/bwalia/wslproxy/blob/main/docs/wslproxy-cli.md
