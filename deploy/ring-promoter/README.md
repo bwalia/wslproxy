@@ -42,8 +42,9 @@ kubectl rollout restart deploy/ring-promoter -n ring-system   # or workstation-r
 3. **prod** → bootstrap pgsql + Vault settings, then helm release
    `wslproxy-ingress` in `wslproxy-system` with IngressClass `wslproxy`,
    OpenResty mounts for settings/pgsql, and **control-plane UI** on
-   `cp.pop0.uk` (Ingress + NodePort `32080`). Lon1 edge server/rule lives in
-   `data/servers|rules/prod/` (`host:cp.pop0.uk` → `72.62.211.28:32080`).
+   `cp.pop0.uk` pinned to **cloud003** (`values-control-plane-cloud003.yaml`,
+   NodePort `32080` / `77.68.126.63`). Edge rule:
+   `data/rules/prod/cp-pop0-control-plane.json`.
 4. **int/test/acc** → helm only (`wslproxy-<ring>`), no central DB bootstrap.
 5. Health: in-cluster `GET /healthz` on OpenResty API port 8080.
 

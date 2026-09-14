@@ -19,12 +19,12 @@
       "allow": true,
       "is_consul": false,
       "routing": { "mode": "least_conn" },
-      "redirect_uri": "72.62.211.28:32080",
+      "redirect_uri": "77.68.126.63:32080",
       "backends": [
         {
-          "address": "72.62.211.28:32080",
+          "address": "77.68.126.63:32080",
           "weight": 100,
-          "label": "wslproxy-k3s1-control-plane-api"
+          "label": "wslproxy-k3s1-control-plane-cloud003"
         }
       ]
     }

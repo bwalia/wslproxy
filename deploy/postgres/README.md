@@ -84,9 +84,11 @@ Prod helm sets `openresty.controlPlane.enabled=true`:
 | Piece | Detail |
 |--|--|
 | K8s Ingress | host `cp.pop0.uk` → Service `…-openresty:8080` (admin UI) |
-| NodePort | `32080` → container `8080` (lon1 edge proxy target) |
+| NodePort | `32080` on **cloud003** (`77.68.126.63`) → container `8080` |
 | Edge server | `data/servers/prod/host:cp.pop0.uk.json` |
-| Edge rule | `data/rules/prod/cp-pop0-control-plane.json` → `72.62.211.28:32080` |
+| Edge rule | `data/rules/prod/cp-pop0-control-plane.json` → `77.68.126.63:32080` |
+| Pin | `values-control-plane-cloud003.yaml` — `kubernetes.io/hostname=cloud003` + edge taint toleration |
 
-DNS: point `cp.pop0.uk` at the lon1 edge (same pattern as `echo.pop0.uk`).
-Deploy the server/rule to lon1 (import / sync), then open https://cp.pop0.uk/ .
+DNS / Cloudflare: origin for `cp.pop0.uk` should be **cloud003** public IP `77.68.126.63`
+(already wired). Deploy the server/rule to lon1 if you also terminate TLS there;
+otherwise CF → cloud003 NodePort/LB is enough.
