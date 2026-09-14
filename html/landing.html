@@ -520,6 +520,42 @@
       text-decoration: none;
     }
     .video-caption a:hover { text-decoration: underline; }
+    .howto-videos {
+      padding: 48px 0 24px;
+    }
+    .howto-videos .section-label { display: block; margin-bottom: 8px; }
+    .howto-videos .section-title { margin-bottom: 8px; }
+    .howto-videos .section-desc { margin-bottom: 24px; }
+    .video-list { display: grid; gap: 20px; }
+    .video-item {
+      display: grid;
+      gap: 16px;
+      padding: 20px;
+      border-radius: 14px;
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      background: rgba(15, 23, 42, 0.45);
+    }
+    @media (min-width: 820px) {
+      .video-item:not(.video-item--link) {
+        grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+        align-items: start;
+      }
+    }
+    .video-item-kicker {
+      margin: 0 0 6px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--secondary);
+    }
+    .video-item h3 { margin: 0 0 8px; font-size: 1.25rem; }
+    .video-item p { margin: 0 0 10px; color: var(--text-muted); }
+    .video-item a { color: var(--secondary); font-weight: 600; text-decoration: none; }
+    .video-item a:hover { text-decoration: underline; }
+    .video-item .video-frame { max-width: none; margin: 0; }
+    .video-item .product-shot { margin: 12px 0 0; max-width: none; }
+    .video-item .product-shot figcaption { text-align: left; }
     .product-shot {
       margin: 1.75rem auto 0;
       max-width: 960px;
@@ -652,6 +688,7 @@
       <nav aria-label="Main navigation">
         <ul class="nav-list">
           <li><a href="#intro-video">Watch</a></li>
+          <li><a href="#how-to-videos">How-to</a></li>
           <li><a href="#features">Features</a></li>
           <li><a href="/blog/">Blog</a></li>
           <li><a href="#how-it-works">Docs</a></li>
@@ -684,7 +721,7 @@
             Get Started
           </a>
           <a href="#intro-video" class="btn btn-secondary">
-            Watch geo traffic
+            Watch intro
           </a>
           <a href="#how-it-works" class="btn btn-secondary">
             <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
@@ -694,12 +731,12 @@
       </div>
     </section>
 
-    <section class="video-section" id="intro-video" aria-label="WSLProxy geographic traffic feature video">
+    <section class="video-section" id="intro-video" aria-label="WSLProxy introduction video">
       <div class="container">
         <div class="video-frame">
           <iframe
-            src="https://www.youtube.com/embed/4G_YPYj3J3k"
-            title="WSLProxy Geographic Traffic Distribution — traffic by country dashboard"
+            src="https://www.youtube.com/embed/7NJulclG5sQ"
+            title="WSLProxy introduction — live-config API gateway on OpenResty"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             referrerpolicy="strict-origin-when-cross-origin"
             allowfullscreen
@@ -707,22 +744,64 @@
           ></iframe>
         </div>
         <p class="video-caption">
-          <a href="https://youtu.be/4G_YPYj3J3k" target="_blank" rel="noopener noreferrer">Traffic by country (2 min)</a>
+          <a href="https://youtu.be/7NJulclG5sQ" target="_blank" rel="noopener noreferrer">Watch on YouTube</a>
           ·
-          <a href="/blog/geographic-traffic-distribution.html">Blog article</a>
+          <a href="#how-to-videos">How-to videos</a>
           ·
-          <a href="https://youtu.be/7NJulclG5sQ" target="_blank" rel="noopener noreferrer">Full intro (20 min)</a>
+          <a href="https://wslproxy.org">wslproxy.org</a>
         </p>
-        <figure class="product-shot">
-          <img
-            src="/images/geographic-traffic-distribution-dashboard.jpg"
-            alt="WSL Proxy dashboard Geographic Traffic Distribution map and Top Countries list"
-            width="1280"
-            height="720"
-            loading="lazy"
-          />
-          <figcaption>Geographic Traffic Distribution — live choropleth and Top Countries on the admin dashboard.</figcaption>
-        </figure>
+      </div>
+    </section>
+
+    <section class="howto-videos section" id="how-to-videos" aria-labelledby="howto-heading">
+      <div class="container">
+        <span class="section-label">How-to videos</span>
+        <h2 class="section-title" id="howto-heading">Learn the platform, feature by feature</h2>
+        <p class="section-desc">Start with the full introduction, then jump into shorter feature walkthroughs.</p>
+        <div class="video-list">
+          <article class="video-item video-item--link">
+            <div>
+              <p class="video-item-kicker">1 · Introduction · 20 min</p>
+              <h3>WSLProxy in 20 minutes</h3>
+              <p>Architecture, live rules, WAF, traffic splits, admin UI, MCP, and CLI — the complete product tour.</p>
+              <a href="#intro-video">Watch on this page</a>
+              ·
+              <a href="https://youtu.be/7NJulclG5sQ" target="_blank" rel="noopener noreferrer">Open on YouTube</a>
+            </div>
+          </article>
+          <article class="video-item">
+            <div>
+              <p class="video-item-kicker">2 · Feature · 2 min</p>
+              <h3>Traffic by country</h3>
+              <p>Geographic Traffic Distribution — Top Countries, live choropleth, and IP2Location on the edge.</p>
+              <a href="https://youtu.be/4G_YPYj3J3k" target="_blank" rel="noopener noreferrer">Open on YouTube</a>
+              ·
+              <a href="/blog/geographic-traffic-distribution.html">Blog article</a>
+            </div>
+            <div>
+              <div class="video-frame">
+                <iframe
+                  src="https://www.youtube.com/embed/4G_YPYj3J3k"
+                  title="WSLProxy Geographic Traffic Distribution"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  referrerpolicy="strict-origin-when-cross-origin"
+                  allowfullscreen
+                  loading="lazy"
+                ></iframe>
+              </div>
+              <figure class="product-shot">
+                <img
+                  src="/images/geographic-traffic-distribution-dashboard.jpg"
+                  alt="WSL Proxy Geographic Traffic Distribution dashboard"
+                  width="1280"
+                  height="720"
+                  loading="lazy"
+                />
+                <figcaption>Dashboard: Top Countries + choropleth heat by request volume.</figcaption>
+              </figure>
+            </div>
+          </article>
+        </div>
       </div>
     </section>
 

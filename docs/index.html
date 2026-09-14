@@ -307,6 +307,68 @@
       text-decoration: none;
     }
     .video-caption a:hover { text-decoration: underline; }
+    .howto-videos {
+      padding: 2.5rem 0 1rem;
+    }
+    .video-list {
+      display: grid;
+      gap: 1.75rem;
+      margin-top: 1.5rem;
+    }
+    .video-item {
+      display: grid;
+      gap: 1rem;
+      padding: 1.15rem 1.25rem 1.35rem;
+      border: 1px solid var(--line);
+      border-radius: calc(var(--radius) + 4px);
+      background: var(--surface);
+    }
+    @media (min-width: 820px) {
+      .video-item:not(.video-item--link) {
+        grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+        align-items: start;
+        gap: 1.35rem;
+      }
+    }
+    .video-item-copy .video-item-kicker {
+      margin: 0 0 0.35rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--signal);
+    }
+    .video-item-copy h3 {
+      font-family: var(--display);
+      font-size: 1.35rem;
+      margin: 0 0 0.45rem;
+    }
+    .video-item-copy p {
+      margin: 0 0 0.75rem;
+      color: var(--ink-soft);
+      font-size: 0.98rem;
+    }
+    .video-item-copy a {
+      font-weight: 600;
+      text-decoration: none;
+      color: var(--copper);
+    }
+    .video-item-copy a:hover { text-decoration: underline; }
+    .video-item .video-frame {
+      max-width: none;
+      margin: 0;
+      box-shadow: none;
+    }
+    .video-item .product-shot {
+      margin: 0.75rem 0 0;
+      max-width: none;
+    }
+    .video-item .product-shot img {
+      box-shadow: none;
+    }
+    .video-item .product-shot figcaption {
+      text-align: left;
+    }
     .product-shot {
       margin: 1.75rem auto 0;
       max-width: 960px;
@@ -550,6 +612,7 @@
       <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="nav-menu" id="nav-toggle">Menu</button>
       <ul class="nav-links" id="nav-menu">
         <li><a href="#intro-video">Watch</a></li>
+        <li><a href="#how-to-videos">How-to</a></li>
         <li><a href="#pipeline">Pipeline</a></li>
         <li><a href="#capabilities">Capabilities</a></li>
         <li><a href="/blog/">Blog</a></li>
@@ -581,7 +644,7 @@
           </p>
           <div class="cta-row">
             <a class="btn btn-primary" href="https://github.com/bwalia/wslproxy#quick-start">Get started</a>
-            <a class="btn btn-ghost" href="#intro-video">Watch geo traffic</a>
+            <a class="btn btn-ghost" href="#intro-video">Watch the intro</a>
             <a class="btn btn-ghost" href="/swagger/">Open API docs</a>
           </div>
         </div>
@@ -609,17 +672,17 @@
       </div>
     </section>
 
-    <section id="intro-video" class="video-section" aria-label="WSLProxy geographic traffic feature video">
+    <section id="intro-video" class="video-section" aria-label="WSLProxy introduction video">
       <div class="wrap">
         <p class="section-kicker">Watch</p>
-        <h2 class="section-title">Traffic by country in 2 minutes</h2>
+        <h2 class="section-title">WSLProxy in 20 minutes</h2>
         <p class="section-lede">
-          Geographic Traffic Distribution on the admin dashboard — Top Countries, live choropleth, and how IP2Location feeds the edge.
+          Live-config routing, WAF, traffic splits, MCP, and CLI — without reloading nginx for every rule change.
         </p>
         <div class="video-frame">
           <iframe
-            src="https://www.youtube.com/embed/4G_YPYj3J3k"
-            title="WSLProxy Geographic Traffic Distribution — traffic by country dashboard"
+            src="https://www.youtube.com/embed/7NJulclG5sQ"
+            title="WSLProxy introduction — live-config API gateway on OpenResty"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             referrerpolicy="strict-origin-when-cross-origin"
             allowfullscreen
@@ -627,23 +690,72 @@
           ></iframe>
         </div>
         <p class="video-caption">
-          Feature walkthrough on
-          <a href="https://youtu.be/4G_YPYj3J3k" rel="noopener noreferrer" target="_blank">YouTube</a>
-          · Deep dive
-          <a href="/blog/geographic-traffic-distribution.html">blog article</a>
-          · Full product intro
-          <a href="https://youtu.be/7NJulclG5sQ" rel="noopener noreferrer" target="_blank">20-minute overview</a>
+          Full walkthrough on
+          <a href="https://youtu.be/7NJulclG5sQ" rel="noopener noreferrer" target="_blank">YouTube</a>
+          · More how-tos below
+          <a href="#how-to-videos">How-to videos</a>
+          · Product site
+          <a href="https://wslproxy.org">wslproxy.org</a>
         </p>
-        <figure class="product-shot">
-          <img
-            src="/images/geographic-traffic-distribution-dashboard.jpg"
-            alt="WSL Proxy admin dashboard showing Geographic Traffic Distribution — world map choropleth and Top Countries list with United Kingdom, United States, Switzerland, and more"
-            width="1280"
-            height="720"
-            loading="lazy"
-          />
-          <figcaption>Geographic Traffic Distribution on the WSL Proxy dashboard — live Top Countries and choropleth heat by request volume.</figcaption>
-        </figure>
+      </div>
+    </section>
+
+    <section id="how-to-videos" class="howto-videos surface-panel" aria-labelledby="howto-videos-heading">
+      <div class="wrap">
+        <p class="section-kicker">How-to videos</p>
+        <h2 class="section-title" id="howto-videos-heading">Learn the platform, feature by feature</h2>
+        <p class="section-lede">
+          Start with the full introduction, then jump into shorter feature walkthroughs as you need them.
+        </p>
+        <div class="video-list">
+          <article class="video-item video-item--link">
+            <div class="video-item-copy">
+              <p class="video-item-kicker">1 · Introduction · 20 min</p>
+              <h3>WSLProxy in 20 minutes</h3>
+              <p>
+                Architecture, live rules, WAF, traffic splits, admin UI, MCP, and CLI — the complete product tour.
+              </p>
+              <a href="#intro-video">Watch on this page</a>
+              ·
+              <a href="https://youtu.be/7NJulclG5sQ" rel="noopener noreferrer" target="_blank">Open on YouTube</a>
+            </div>
+          </article>
+
+          <article class="video-item">
+            <div class="video-item-copy">
+              <p class="video-item-kicker">2 · Feature · 2 min</p>
+              <h3>Traffic by country</h3>
+              <p>
+                Geographic Traffic Distribution on the admin dashboard — Top Countries, live choropleth, and how IP2Location feeds the edge.
+              </p>
+              <a href="https://youtu.be/4G_YPYj3J3k" rel="noopener noreferrer" target="_blank">Open on YouTube</a>
+              ·
+              <a href="/blog/geographic-traffic-distribution.html">Blog article</a>
+            </div>
+            <div>
+              <div class="video-frame">
+                <iframe
+                  src="https://www.youtube.com/embed/4G_YPYj3J3k"
+                  title="WSLProxy Geographic Traffic Distribution — traffic by country"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  referrerpolicy="strict-origin-when-cross-origin"
+                  allowfullscreen
+                  loading="lazy"
+                ></iframe>
+              </div>
+              <figure class="product-shot">
+                <img
+                  src="/images/geographic-traffic-distribution-dashboard.jpg"
+                  alt="WSL Proxy Geographic Traffic Distribution dashboard — world map and Top Countries"
+                  width="1280"
+                  height="720"
+                  loading="lazy"
+                />
+                <figcaption>Dashboard view: Top Countries + choropleth heat by request volume.</figcaption>
+              </figure>
+            </div>
+          </article>
+        </div>
       </div>
     </section>
 
