@@ -5,26 +5,79 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="description" content="WSLProxy — dynamic API gateway and reverse proxy on OpenResty. Live rules, WAF, multi-POP edge, MCP for AI agents, and a CLI for GitOps." />
   <meta name="author" content="Workstation Solutions Limited" />
-    <meta name="theme-color" content="#0c1421" />
-  <meta name="color-scheme" content="dark" />
+  <meta name="theme-color" content="#f7f9fc" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0c1421" media="(prefers-color-scheme: dark)" />
+  <meta name="color-scheme" content="light dark" />
   <meta property="og:title" content="WSLProxy — Live-config API gateway" />
   <meta property="og:description" content="Route, secure, and observe traffic from JSON and MCP — without reloading nginx for every rule change." />
   <meta property="og:type" content="website" />
   <meta property="og:image" content="https://wslproxy.org/images/geographic-traffic-distribution-dashboard.jpg" />
   <title>WSLProxy — Live-config API gateway &amp; edge control plane</title>
+  <script>
+    (function () {
+      try {
+        var key = "wslproxy.theme";
+        var t = localStorage.getItem(key);
+        if (t !== "light" && t !== "dark") {
+          t = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        }
+        document.documentElement.setAttribute("data-theme", t);
+        document.documentElement.classList.toggle("dark", t === "dark");
+        document.documentElement.style.colorScheme = t;
+      } catch (e) {}
+    })();
+  </script>
+  <link rel="icon" href="/images/logo-color.svg" type="image/svg+xml" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Lexend:wght@400;500;600;700&family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet" />
   <style>
     :root {
-      /* Match WSLProxy admin dashboard (dark navy + electric blue + emerald) */
+      /* Light — match admin dashboard light canvas (geo map, cards) */
+      --steel: #f7f9fc;
+      --steel-raised: #ffffff;
+      --steel-line: #c5d0dc;
+      --steel-line-soft: #d8e0ea;
+      --steel-ink: #5b6b7c;
+      --steel-ink-dim: #7a8a9a;
+      --canvas: #eef2f6;
+      --surface: #ffffff;
+      --line: #c5d0dc;
+      --line-strong: #aebccd;
+      --ink: #0b1c2c;
+      --ink-muted: #3d5a80;
+      --on-steel: #0b1c2c;
+      --on-steel-muted: #3d5a80;
+      --on-steel-faint: #5b6b7c;
+      --brass: #255fa8;          /* admin wordmark / corporate blue */
+      --brass-dim: #1e4c88;
+      --brass-glow: #255fa833;
+      --navy: #5493d6;           /* logo gradient start */
+      --unlock: #1a7a6d;
+      --danger: #c45c4a;
+      --warn: #c45c26;
+      --nav-bg: #f7f9fce6;
+      --hero-ring: #c5d0dc;
+      --term-bg: #0b1c2c;
+      --term-bar: #122233;
+      --term-ink: #e2e8f0;
+      --radius: 12px;
+      --maxw: 1120px;
+      --font-display: "Lexend", ui-sans-serif, system-ui, sans-serif;
+      --font-body: "Source Sans 3", ui-sans-serif, system-ui, sans-serif;
+      --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+      color-scheme: light;
+    }
+
+    html.dark {
+      /* Dark — admin navy + electric indigo accents */
       --steel: #0c1421;
       --steel-raised: #162235;
       --steel-line: #243447;
       --steel-line-soft: #1a2738;
       --steel-ink: #94a3b8;
       --steel-ink-dim: #64748b;
-      --canvas: #0f172a;
+      --canvas: #0a1220;
       --surface: #162235;
       --line: #243447;
       --line-strong: #2f425a;
@@ -33,18 +86,19 @@
       --on-steel: #e2e8f0;
       --on-steel-muted: #94a3b8;
       --on-steel-faint: #64748b;
-      --brass: #5865f2;          /* primary accent — electric indigo/blue from dashboard */
+      --brass: #5865f2;
       --brass-dim: #4f46e5;
       --brass-glow: #5865f247;
-      --navy: #38bdf8;           /* secondary accent — sky for icons on dark cards */
-      --unlock: #22c55e;         /* success / API online */
+      --navy: #38bdf8;
+      --unlock: #22c55e;
       --danger: #f87171;
       --warn: #f59e0b;
-      --radius: 12px;
-      --maxw: 1120px;
-      --font-display: "Lexend", ui-sans-serif, system-ui, sans-serif;
-      --font-body: "Source Sans 3", ui-sans-serif, system-ui, sans-serif;
-      --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+      --nav-bg: #0c1421d9;
+      --hero-ring: #243447;
+      --term-bg: #0a1220;
+      --term-bar: #132033;
+      --term-ink: #e2e8f0;
+      color-scheme: dark;
     }
 
     *, *::before, *::after { box-sizing: border-box; }
@@ -82,7 +136,7 @@
     /* Nav */
     .nav {
       position: sticky; top: 0; z-index: 50;
-      background: #0c1421d9;
+      background: var(--nav-bg);
       backdrop-filter: saturate(140%) blur(10px);
       border-bottom: 1px solid var(--steel-line-soft);
     }
@@ -90,23 +144,34 @@
     .brand {
       display: flex; align-items: center; gap: 11px;
       font-family: var(--font-display); font-weight: 600; font-size: 17px;
-      letter-spacing: -0.01em; color: #fff;
+      letter-spacing: -0.01em; color: var(--ink);
     }
     .brand-mark {
-      width: 28px; height: 28px; border-radius: 8px;
-      display: grid; place-items: center;
-      background: linear-gradient(145deg, #5865f2, #4338ca);
-      color: #fff; border: 1px solid #5865f259;
+      width: 28px; height: 28px; flex-shrink: 0;
+      display: block;
     }
+    .brand-mark svg { display: block; width: 100%; height: 100%; }
     .brand-accent { color: var(--brass); }
-    .nav-links { display: flex; align-items: center; gap: 22px; }
+    .nav-links { display: flex; align-items: center; gap: 18px; }
     .nav-links a { color: var(--on-steel-muted); font-size: 14.5px; font-weight: 500; }
-    .nav-links a:hover { color: #fff; }
+    .nav-links a:hover { color: var(--ink); }
     .nav-cta {
       border: 1px solid var(--steel-line); border-radius: 10px;
-      padding: 8px 14px !important; color: #fff !important;
+      padding: 8px 14px !important; color: var(--ink) !important;
+      background: var(--steel-raised);
     }
     .nav-cta:hover { border-color: var(--brass); color: var(--brass) !important; }
+    .theme-toggle {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 36px; height: 36px; padding: 0;
+      border: 1px solid var(--steel-line); border-radius: 10px;
+      background: var(--steel-raised); color: var(--on-steel-muted); cursor: pointer;
+    }
+    .theme-toggle:hover { color: var(--ink); border-color: var(--brass); }
+    .theme-toggle svg { width: 1.1rem; height: 1.1rem; }
+    .theme-toggle .icon-sun { display: none; }
+    html.dark .theme-toggle .icon-sun { display: block; }
+    html.dark .theme-toggle .icon-moon { display: none; }
     .nav-toggle {
       display: none; background: transparent; border: 1px solid var(--steel-line);
       color: var(--on-steel); border-radius: 8px; padding: 8px 12px; font: inherit; cursor: pointer;
@@ -121,6 +186,7 @@
       .nav-links.open { display: flex; }
       .nav-links a { padding: 12px 0; border-bottom: 1px solid var(--steel-line-soft); }
       .nav-cta { margin-top: 8px; text-align: center; }
+      .theme-toggle { margin-top: 10px; align-self: flex-start; }
     }
 
     /* Buttons */
@@ -138,12 +204,11 @@
     }
     .btn-primary:hover {
       background: color-mix(in srgb, var(--brass) 88%, #fff);
-      box-shadow: 0 10px 28px #5865f266;
     }
     .btn-ghost {
       background: transparent; color: var(--on-steel); border-color: var(--steel-line);
     }
-    .btn-ghost:hover { border-color: var(--brass); color: #c7d2fe; }
+    .btn-ghost:hover { border-color: var(--brass); color: var(--brass); }
 
     /* Hero */
     .hero {
@@ -153,7 +218,7 @@
     .hero::before, .hero::after {
       content: ""; position: absolute; top: 42%; left: 58%;
       width: 36rem; height: 36rem; border-radius: 50%;
-      border: 1px solid var(--steel-line); pointer-events: none;
+      border: 1px solid var(--hero-ring); pointer-events: none;
       transform: translate(-50%, -50%);
       animation: 8s ease-in-out infinite ring-breathe;
     }
@@ -162,7 +227,8 @@
       display: inline-flex; align-items: center; gap: 8px;
       font-family: var(--font-mono); font-size: 12.5px; letter-spacing: 0.04em;
       color: var(--brass); border: 1px solid var(--steel-line);
-      background: #1a212bb3; border-radius: 999px; padding: 6px 12px; margin-bottom: 22px;
+      background: color-mix(in srgb, var(--steel-raised) 70%, transparent);
+      border-radius: 999px; padding: 6px 12px; margin-bottom: 22px;
     }
     .eyebrow .dot {
       width: 7px; height: 7px; border-radius: 50%; background: var(--brass);
@@ -170,7 +236,7 @@
     .hero-title {
       font-family: var(--font-display);
       font-size: clamp(34px, 5.5vw, 58px); font-weight: 600; line-height: 1.05;
-      letter-spacing: -0.025em; color: #fff; max-width: 18ch; text-wrap: balance;
+      letter-spacing: -0.025em; color: var(--ink); max-width: 18ch; text-wrap: balance;
       margin: 0 0 20px;
     }
     .hero-title .grad { color: var(--brass); }
@@ -188,41 +254,41 @@
 
     .terminal {
       margin-top: 44px; border: 1px solid var(--steel-line); border-radius: var(--radius);
-      background: linear-gradient(180deg, var(--steel-raised), #0a1220);
-      overflow: hidden; box-shadow: 0 24px 70px #00000073;
+      background: linear-gradient(180deg, var(--term-bar), var(--term-bg));
+      overflow: hidden; box-shadow: 0 24px 70px color-mix(in srgb, #000 18%, transparent);
       animation: 0.85s 0.12s both rise-in; position: relative; z-index: 1;
     }
     .terminal-bar {
       display: flex; align-items: center; gap: 8px;
-      padding: 12px 16px; background: #132033; border-bottom: 1px solid var(--steel-line-soft);
+      padding: 12px 16px; background: var(--term-bar); border-bottom: 1px solid #243447;
     }
     .tdot { width: 10px; height: 10px; border-radius: 50%; }
     .tdot.r { background: #ff5f57; }
     .tdot.y { background: #febc2e; }
     .tdot.g { background: #28c840; }
     .terminal-title {
-      margin-left: 8px; font-family: var(--font-mono); font-size: 12px; color: var(--steel-ink-dim);
+      margin-left: 8px; font-family: var(--font-mono); font-size: 12px; color: #64748b;
     }
     .terminal pre {
       margin: 0; padding: 18px 20px 22px; font-family: var(--font-mono);
-      font-size: 13.5px; line-height: 1.65; color: var(--on-steel); overflow-x: auto;
+      font-size: 13.5px; line-height: 1.65; color: var(--term-ink); overflow-x: auto;
     }
     .c-cmd { color: #60a5fa; }
     .c-flag { color: #a5b4fc; }
     .c-str { color: #4ade80; }
-    .c-ok { color: var(--unlock); }
-    .c-dim { color: var(--steel-ink-dim); }
+    .c-ok { color: #22c55e; }
+    .c-dim { color: #64748b; }
 
     /* Sections */
     section { padding: 72px 0; }
     .band-steel { background: var(--steel); color: var(--on-steel); }
     .band-canvas {
-      background: #0a1220;
+      background: var(--canvas);
       color: var(--ink);
       border-top: 1px solid var(--steel-line);
       border-bottom: 1px solid var(--steel-line);
     }
-    .band-raised { background: #0a1220; }
+    .band-raised { background: var(--canvas); }
 
     .section-head { max-width: 640px; margin-bottom: 40px; }
     .section-head.center { margin-left: auto; margin-right: auto; text-align: center; }
@@ -230,14 +296,11 @@
       font-family: var(--font-mono); font-size: 12.5px; letter-spacing: 0.08em;
       text-transform: uppercase; color: var(--brass); margin-bottom: 12px;
     }
-    .band-canvas .kicker { color: #818cf8; }
     h2 {
       font-family: var(--font-display); font-weight: 600; letter-spacing: -0.02em;
-      font-size: clamp(26px, 3.4vw, 36px); margin: 0 0 14px; color: #fff;
+      font-size: clamp(26px, 3.4vw, 36px); margin: 0 0 14px; color: var(--ink);
     }
-    .band-canvas h2 { color: #fff; }
     .section-sub { margin: 0; color: var(--on-steel-muted); font-size: 16.5px; }
-    .band-canvas .section-sub { color: var(--ink-muted); }
 
     .grid { display: grid; gap: 18px; }
     .grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
@@ -255,35 +318,24 @@
       border-color: color-mix(in srgb, var(--brass) 55%, var(--steel-line));
       box-shadow: 0 0 0 1px color-mix(in srgb, var(--brass) 20%, transparent);
     }
-    .band-canvas .card {
-      background: var(--surface); border-color: var(--line-strong);
-      box-shadow: none;
-    }
-    .band-canvas .card:hover {
-      border-color: color-mix(in srgb, var(--brass) 55%, var(--line-strong));
-    }
     .card-icon {
       width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center;
-      margin-bottom: 14px; color: #a5b4fc;
-      background: #5865f224; border: 1px solid #5865f238;
-    }
-    .band-canvas .card-icon {
-      color: #93c5fd; background: #38bdf814; border-color: #38bdf838;
+      margin-bottom: 14px; color: var(--brass);
+      background: color-mix(in srgb, var(--brass) 12%, transparent);
+      border: 1px solid color-mix(in srgb, var(--brass) 28%, transparent);
     }
     .card h3 {
       font-family: var(--font-display); font-size: 17px; font-weight: 600;
-      margin: 0 0 8px; color: #fff;
+      margin: 0 0 8px; color: var(--ink);
     }
-    .band-canvas .card h3 { color: #fff; }
     .card p { margin: 0; color: var(--on-steel-muted); font-size: 15px; }
-    .band-canvas .card p { color: var(--ink-muted); }
 
     /* Video */
     .video-frame {
       position: relative; width: 100%; max-width: 920px; margin: 0 auto;
       aspect-ratio: 16 / 9; border-radius: var(--radius); overflow: hidden;
       border: 1px solid var(--steel-line); background: #0a0e14;
-      box-shadow: 0 24px 70px #00000066;
+      box-shadow: 0 24px 70px color-mix(in srgb, #000 18%, transparent);
     }
     .video-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
     .video-caption {
@@ -307,21 +359,21 @@
     }
     .media-thumb {
       border-radius: 10px; overflow: hidden; border: 1px solid var(--line);
-      background: #0a0e14; aspect-ratio: 16 / 9;
+      background: var(--canvas); aspect-ratio: 16 / 9;
     }
     .media-thumb img { display: block; width: 100%; height: 100%; object-fit: cover; }
     .media-thumb--yt {
-      display: grid; place-items: center; color: #a5b4fc;
-      background: linear-gradient(145deg, #162235, #0c1421);
+      display: grid; place-items: center; color: var(--brass);
+      background: linear-gradient(145deg, var(--surface), var(--canvas));
       font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.06em;
     }
     .media-copy .tag {
       font-family: var(--font-mono); font-size: 11.5px; letter-spacing: 0.06em;
-      text-transform: uppercase; color: #818cf8; margin: 0 0 6px;
+      text-transform: uppercase; color: var(--brass); margin: 0 0 6px;
     }
     .media-copy h3 {
       font-family: var(--font-display); font-size: 18px; font-weight: 600;
-      margin: 0 0 6px; color: #fff;
+      margin: 0 0 6px; color: var(--ink);
     }
     .media-copy p { margin: 0; color: var(--ink-muted); font-size: 15px; }
     .media-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
@@ -337,7 +389,7 @@
     .btn-outline-ink {
       background: transparent; color: var(--on-steel); border-color: var(--line-strong);
     }
-    .btn-outline-ink:hover { border-color: var(--brass); color: #c7d2fe; }
+    .btn-outline-ink:hover { border-color: var(--brass); color: var(--brass); }
 
     .flow-steps { display: grid; gap: 14px; }
     .flow-step {
@@ -349,7 +401,7 @@
       font-family: var(--font-mono); font-size: 12.5px; color: var(--brass);
       align-self: start; padding-top: 2px;
     }
-    .flow-step strong { display: block; color: #fff; margin-bottom: 4px; font-family: var(--font-display); }
+    .flow-step strong { display: block; color: var(--ink); margin-bottom: 4px; font-family: var(--font-display); }
     .flow-step p { margin: 0; color: var(--on-steel-muted); font-size: 15px; }
     @media (max-width: 640px) {
       .flow-step { grid-template-columns: 1fr; }
@@ -358,7 +410,7 @@
     .cta-box {
       text-align: center; padding: 48px 28px; border-radius: calc(var(--radius) + 4px);
       border: 1px solid var(--steel-line);
-      background: linear-gradient(180deg, var(--steel-raised), #0a1220);
+      background: linear-gradient(180deg, var(--steel-raised), var(--canvas));
     }
     .cta-box h2 { max-width: 18ch; margin-left: auto; margin-right: auto; }
     .cta-box p { color: var(--on-steel-muted); max-width: 36rem; margin: 0 auto 24px; }
@@ -381,7 +433,20 @@
     <div class="wrap nav-inner">
       <a class="brand" href="#top">
         <span class="brand-mark" aria-hidden="true">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1l2.1-2.1M17 7l2.1-2.1"/></svg>
+          <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="wslproxyLogoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#5493d6" />
+                <stop offset="100%" stop-color="#1e4c88" />
+              </linearGradient>
+            </defs>
+            <path d="M24 4L6 12v12c0 11 8 21 18 24 10-3 18-13 18-24V12L24 4z" fill="url(#wslproxyLogoGrad)" />
+            <circle cx="24" cy="18" r="3" fill="white" />
+            <circle cx="16" cy="28" r="2.5" fill="white" opacity="0.9" />
+            <circle cx="32" cy="28" r="2.5" fill="white" opacity="0.9" />
+            <circle cx="24" cy="36" r="2" fill="white" opacity="0.8" />
+            <path d="M24 21v5M18 27l4-4M30 27l-4-4M24 33v-3" stroke="white" stroke-width="1.5" stroke-linecap="round" opacity="0.7" />
+          </svg>
         </span>
         <span>WSL<span class="brand-accent">Proxy</span></span>
       </a>
@@ -393,6 +458,15 @@
         <a href="#blog">Blog</a>
         <a href="#pipeline">Pipeline</a>
         <a href="/swagger/">API</a>
+        <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode" title="Toggle theme">
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M21 14.5A8.5 8.5 0 0 1 9.5 3 7 7 0 1 0 21 14.5z" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" stroke-linecap="round"/>
+          </svg>
+        </button>
         <a class="nav-cta" href="https://github.com/bwalia/wslproxy">GitHub</a>
       </nav>
     </div>
@@ -492,7 +566,7 @@ $ <span class="c-cmd">wslproxy-cli</span> push <span class="c-flag">-d</span> ./
             <div class="media-thumb">
               <img
                 src="/images/geographic-traffic-distribution-dashboard.jpg"
-                alt="Geographic Traffic Distribution dashboard (dark theme)"
+                alt="Geographic Traffic Distribution dashboard"
                 width="440"
                 height="248"
                 loading="lazy"
@@ -657,6 +731,27 @@ $ <span class="c-cmd">wslproxy-cli</span> push <span class="c-flag">-d</span> ./
         btn.addEventListener("click", function () {
           var open = menu.classList.toggle("open");
           btn.setAttribute("aria-expanded", open ? "true" : "false");
+        });
+      }
+
+      var key = "wslproxy.theme";
+      var themeBtn = document.getElementById("theme-toggle");
+      function applyTheme(t) {
+        document.documentElement.setAttribute("data-theme", t);
+        document.documentElement.classList.toggle("dark", t === "dark");
+        document.documentElement.style.colorScheme = t;
+        try { localStorage.setItem(key, t); } catch (e) {}
+        if (themeBtn) {
+          themeBtn.setAttribute(
+            "aria-label",
+            t === "dark" ? "Switch to light mode" : "Switch to dark mode"
+          );
+        }
+      }
+      if (themeBtn) {
+        themeBtn.addEventListener("click", function () {
+          var next = document.documentElement.classList.contains("dark") ? "light" : "dark";
+          applyTheme(next);
         });
       }
     })();
