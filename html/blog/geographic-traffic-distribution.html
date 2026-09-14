@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="WSLProxy Geographic Traffic Distribution — Top Countries and world map on the admin dashboard, powered by IP2Location on the OpenResty hot path." />
+  <meta property="og:title" content="Geographic Traffic Distribution by country — WSLProxy" />
+  <meta property="og:image" content="https://wslproxy.org/images/geographic-traffic-distribution-dashboard.jpg" />
+  <title>Geographic Traffic Distribution by country — WSLProxy</title>
+  <meta name="color-scheme" content="light dark" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #0b1c2c; --ink-soft: #243447; --mist: #eef2f6; --paper: #f7f9fc;
+      --line: #c5d0dc; --copper: #c45c26; --copper-deep: #9a4519; --signal: #1a7a6d;
+      --surface: #ffffff; --code-bg: #07131f; --code-ink: #d7e2ec;
+      --sans: "Outfit", system-ui, sans-serif; --display: "Fraunces", Georgia, serif;
+      --mono: "JetBrains Mono", ui-monospace, monospace; --max: 760px; --radius: 6px;
+    }
+    html.dark {
+      --ink: #eef2f6; --ink-soft: #b7c4d4; --mist: #122233; --paper: #0b1c2c;
+      --line: #2a3d52; --copper: #e07a3d; --copper-deep: #f0a06a; --signal: #3dbaa8;
+      --surface: #122233; --code-bg: #061018;
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    body { margin: 0; font-family: var(--sans); font-size: 1.0625rem; line-height: 1.65; color: var(--ink); background: var(--paper); }
+    a { color: var(--copper-deep); }
+    .wrap { width: min(100% - 2.5rem, var(--max)); margin-inline: auto; }
+    header { border-bottom: 1px solid var(--line); padding: 1rem 0; }
+    .nav { display: flex; justify-content: space-between; align-items: center; }
+    .brand { font-family: var(--display); font-weight: 700; font-size: 1.25rem; color: var(--ink); text-decoration: none; }
+    nav a { margin-left: 1rem; color: var(--ink-soft); text-decoration: none; font-weight: 500; }
+    article { padding: 2.5rem 0 4rem; }
+    .kicker { color: var(--signal); font-weight: 600; font-size: 0.85rem; letter-spacing: 0.04em; text-transform: uppercase; margin: 0 0 0.5rem; }
+    h1 { font-family: var(--display); font-size: clamp(1.9rem, 4.5vw, 2.6rem); line-height: 1.15; margin: 0 0 0.75rem; }
+    .lede { font-size: 1.15rem; color: var(--ink-soft); margin: 0 0 1.5rem; }
+    .meta { font-size: 0.9rem; color: var(--ink-soft); margin-bottom: 1.75rem; }
+    .hero-shot, .inline-shot { margin: 0 0 1.75rem; }
+    .hero-shot img, .inline-shot img {
+      display: block; width: 100%; height: auto; border-radius: calc(var(--radius) + 4px);
+      border: 1px solid var(--line); background: var(--surface);
+      box-shadow: 0 16px 40px color-mix(in srgb, var(--ink) 10%, transparent);
+    }
+    figcaption { margin-top: 0.55rem; font-size: 0.9rem; color: var(--ink-soft); text-align: center; }
+    .video-frame {
+      position: relative; width: 100%; aspect-ratio: 16 / 9; margin: 0 0 1.75rem;
+      border-radius: calc(var(--radius) + 4px); overflow: hidden; border: 1px solid var(--line); background: var(--code-bg);
+    }
+    .video-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+    h2 { font-family: var(--display); font-size: 1.45rem; margin: 2.25rem 0 0.75rem; }
+    h3 { font-size: 1.1rem; margin: 1.5rem 0 0.5rem; }
+    p, ul, ol { margin: 0 0 1rem; }
+    ul, ol { padding-left: 1.25rem; }
+    li { margin-bottom: 0.35rem; }
+    code, pre { font-family: var(--mono); font-size: 0.9em; }
+    code { background: var(--mist); padding: 0.1em 0.35em; border-radius: 4px; }
+    pre {
+      background: var(--code-bg); color: var(--code-ink); padding: 1rem 1.1rem; border-radius: var(--radius);
+      overflow-x: auto; margin: 0 0 1.25rem; line-height: 1.45;
+    }
+    .callout {
+      border-left: 3px solid var(--signal); background: var(--mist); padding: 0.9rem 1rem; margin: 1.25rem 0 1.5rem; border-radius: 0 var(--radius) var(--radius) 0;
+    }
+    .features {
+      display: grid; gap: 0.75rem; margin: 1rem 0 1.5rem;
+    }
+    .features div {
+      border: 1px solid var(--line); border-radius: var(--radius); padding: 0.85rem 1rem; background: var(--surface);
+    }
+    .features strong { display: block; margin-bottom: 0.25rem; }
+    footer { border-top: 1px solid var(--line); padding: 1.5rem 0 2rem; color: var(--ink-soft); font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap nav">
+      <a class="brand" href="/">WSLProxy</a>
+      <nav>
+        <a href="/">Home</a>
+        <a href="/blog/">Blog</a>
+        <a href="https://youtu.be/4G_YPYj3J3k">Video</a>
+        <a href="https://github.com/bwalia/wslproxy">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <article>
+    <div class="wrap">
+      <p class="kicker">Feature deep dive</p>
+      <h1>Geographic Traffic Distribution by country</h1>
+      <p class="lede">
+        See where clients hit your edge — Top Countries ranked by request volume and a live world map — without leaving the WSL Proxy admin dashboard.
+      </p>
+      <p class="meta">2-minute feature video · Dashboard Overview · IP2Location on the OpenResty hot path</p>
+
+      <figure class="hero-shot">
+        <img
+          src="/images/geographic-traffic-distribution-dashboard.jpg"
+          alt="WSL Proxy Geographic Traffic Distribution panel with world map choropleth and Top Countries list (United Kingdom, United States, Switzerland, and more)"
+          width="1280"
+          height="720"
+        />
+        <figcaption>Geographic Traffic Distribution on the WSL Proxy dashboard — choropleth heat and Top Countries.</figcaption>
+      </figure>
+
+      <div class="video-frame">
+        <iframe
+          src="https://www.youtube.com/embed/4G_YPYj3J3k"
+          title="WSLProxy Geographic Traffic Distribution — traffic by country"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          referrerpolicy="strict-origin-when-cross-origin"
+          allowfullscreen
+          loading="lazy"
+        ></iframe>
+      </div>
+      <p><a href="https://youtu.be/4G_YPYj3J3k">Watch on YouTube</a> · <a href="https://youtu.be/7NJulclG5sQ">Full product intro (20 min)</a></p>
+
+      <h2>Why geo traffic belongs in the control plane</h2>
+      <p>
+        Edge operators already know <em>how much</em> traffic they serve. The harder question is <em>from where</em>.
+        Country-level demand drives WAF geo rules, capacity planning, CDN POP placement, and abuse response.
+        Shipping that view into a third-party analytics product means another hop, another identity, and another delay.
+      </p>
+      <p>
+        WSLProxy records country on the request path and surfaces it next to the same Overview KPIs you already use —
+        requests, bandwidth, errors, success rate — so geo context stays inside the gateway control plane.
+      </p>
+
+      <h2>What the dashboard shows</h2>
+      <div class="features">
+        <div>
+          <strong>Top Countries</strong>
+          Ranked list of ISO countries with request counts for the selected window (for example last 24 hours).
+        </div>
+        <div>
+          <strong>World choropleth</strong>
+          Countries shaded by volume so hot regions stand out at a glance — useful when Top Countries is long or skewed.
+        </div>
+        <div>
+          <strong>Overview context</strong>
+          The geo panel sits under the same Overview strip as Requests, Bandwidth, Errors, Active Domains, and Success Rate.
+        </div>
+      </div>
+
+      <figure class="inline-shot">
+        <img
+          src="/images/geographic-traffic-distribution-dashboard.jpg"
+          alt="Close view of WSL Proxy Geographic Traffic Distribution map and Top Countries"
+          width="1280"
+          height="720"
+          loading="lazy"
+        />
+        <figcaption>Same production dashboard view used in the 2-minute walkthrough.</figcaption>
+      </figure>
+
+      <h2>How it works on the hot path</h2>
+      <ol>
+        <li><strong>Client IP</strong> — typically <code>ngx.var.remote_addr</code> (respect real-IP / trusted proxy config when behind Cloudflare or another edge).</li>
+        <li><strong>IP2Location</strong> — <code>geo_lookup</code> / <code>log_handler</code> open the binary DB from <code>settings.ip2location_path</code> (with on-disk fallbacks to the ansible install path under OpenResty).</li>
+        <li><strong>Normalize</strong> — IP2Location’s <code>UK</code> is mapped to ISO <code>GB</code> so world-atlas polygons light correctly.</li>
+        <li><strong>Aggregate</strong> — counts land in the <code>traffic_stats</code> shared dict for hourly / rolling windows.</li>
+        <li><strong>API → UI</strong> — authenticated <code>/api/traffic/stats</code> feeds <code>GeoTrafficMap</code> in React Admin and the Next.js dashboard.</li>
+      </ol>
+
+      <div class="callout">
+        Access logs also emit <code>$geo_country</code>. If you ever see <code>INVALIDDATABASEFILE</code>, the configured DB path is missing —
+        point <code>ip2location_path</code> at the real BIN (or keep the <code>/tmp</code> symlink ansible now maintains).
+      </div>
+
+      <h2>Platform features this sits beside</h2>
+      <p>Geographic Traffic Distribution is one slice of the same live-config edge platform:</p>
+      <ul>
+        <li><strong>Dynamic routing</strong> — path / IP / country / JWT / S3 / cookie match without nginx reloads for rules</li>
+        <li><strong>Traffic engineering</strong> — weighted, canary, sticky, least-conn backends</li>
+        <li><strong>WAF</strong> — policy packs, monitor or block, including geo deny lists</li>
+        <li><strong>SSL &amp; cache</strong> — auto-ssl, edge static cache, optional Varnish</li>
+        <li><strong>Observability</strong> — <code>/metrics</code> for Prometheus/Grafana plus in-product traffic stats</li>
+        <li><strong>Control plane</strong> — Admin UI, Swagger REST, MCP, <code>wslproxy-cli</code></li>
+      </ul>
+
+      <h2>Operate it in production</h2>
+      <ul>
+        <li>Keep the IP2Location BIN installed (ansible <code>cdn-dependencies</code> → <code>/usr/local/openresty/nginx/…</code>).</li>
+        <li>Ensure Vault/SOPS <code>settings.json</code> does not point at a deleted <code>/tmp</code> path after install.</li>
+        <li>Reload OpenResty after fixing the path so workers re-init <code>IP2LocationPath</code>.</li>
+        <li>For fleet charts, scrape <code>job=wslproxy-edges</code> into the obs Prometheus that powers Grafana.</li>
+      </ul>
+
+      <h2>Try it</h2>
+      <pre>https://wslproxy.org
+https://youtu.be/4G_YPYj3J3k
+https://github.com/bwalia/wslproxy</pre>
+      <p>
+        Open the admin Overview tab on your POP (for example <a href="https://lon1.pop0.uk">lon1.pop0.uk</a>),
+        confirm Top Countries fills after traffic, and share the map with whoever owns abuse and capacity.
+      </p>
+    </div>
+  </article>
+
+  <footer>
+    <div class="wrap">
+      © Workstation Solutions Limited ·
+      <a href="/blog/">Blog</a> ·
+      <a href="/">Home</a> ·
+      <a href="https://github.com/bwalia/wslproxy">GitHub</a>
+    </div>
+  </footer>
+</body>
+</html>

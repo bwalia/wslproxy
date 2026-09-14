@@ -520,6 +520,24 @@
       text-decoration: none;
     }
     .video-caption a:hover { text-decoration: underline; }
+    .product-shot {
+      margin: 1.75rem auto 0;
+      max-width: 960px;
+    }
+    .product-shot img {
+      display: block;
+      width: 100%;
+      height: auto;
+      border-radius: 12px;
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      box-shadow: 0 18px 50px rgba(15, 23, 42, 0.35);
+    }
+    .product-shot figcaption {
+      margin-top: 0.65rem;
+      text-align: center;
+      font-size: 0.9rem;
+      color: #94a3b8;
+    }
 
     /* ── Footer ── */
     .site-footer {
@@ -635,6 +653,7 @@
         <ul class="nav-list">
           <li><a href="#intro-video">Watch</a></li>
           <li><a href="#features">Features</a></li>
+          <li><a href="/blog/">Blog</a></li>
           <li><a href="#how-it-works">Docs</a></li>
           <li>
             <a href="https://github.com/mrvautin/wslproxy" target="_blank" rel="noopener noreferrer">
@@ -665,7 +684,7 @@
             Get Started
           </a>
           <a href="#intro-video" class="btn btn-secondary">
-            Watch intro
+            Watch geo traffic
           </a>
           <a href="#how-it-works" class="btn btn-secondary">
             <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>
@@ -675,12 +694,12 @@
       </div>
     </section>
 
-    <section class="video-section" id="intro-video" aria-label="WSLProxy introduction video">
+    <section class="video-section" id="intro-video" aria-label="WSLProxy geographic traffic feature video">
       <div class="container">
         <div class="video-frame">
           <iframe
-            src="https://www.youtube.com/embed/7NJulclG5sQ"
-            title="WSLProxy introduction — live-config API gateway on OpenResty"
+            src="https://www.youtube.com/embed/4G_YPYj3J3k"
+            title="WSLProxy Geographic Traffic Distribution — traffic by country dashboard"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             referrerpolicy="strict-origin-when-cross-origin"
             allowfullscreen
@@ -688,10 +707,22 @@
           ></iframe>
         </div>
         <p class="video-caption">
-          <a href="https://youtu.be/7NJulclG5sQ" target="_blank" rel="noopener noreferrer">Watch on YouTube</a>
+          <a href="https://youtu.be/4G_YPYj3J3k" target="_blank" rel="noopener noreferrer">Traffic by country (2 min)</a>
           ·
-          <a href="https://wslproxy.org">wslproxy.org</a>
+          <a href="/blog/geographic-traffic-distribution.html">Blog article</a>
+          ·
+          <a href="https://youtu.be/7NJulclG5sQ" target="_blank" rel="noopener noreferrer">Full intro (20 min)</a>
         </p>
+        <figure class="product-shot">
+          <img
+            src="/images/geographic-traffic-distribution-dashboard.jpg"
+            alt="WSL Proxy dashboard Geographic Traffic Distribution map and Top Countries list"
+            width="1280"
+            height="720"
+            loading="lazy"
+          />
+          <figcaption>Geographic Traffic Distribution — live choropleth and Top Countries on the admin dashboard.</figcaption>
+        </figure>
       </div>
     </section>
 
@@ -704,6 +735,15 @@
           A single platform to route, cache, protect, and encrypt your traffic across any infrastructure.
         </p>
         <div class="features-grid">
+
+          <!-- Geographic traffic -->
+          <article class="feature-card">
+            <div class="feature-icon feature-icon--blue" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+            </div>
+            <h3>Geographic Traffic</h3>
+            <p>See Top Countries and a live world map on the admin dashboard. Every request is tagged via IP2Location into traffic stats — <a href="https://youtu.be/4G_YPYj3J3k">2-min video</a>.</p>
+          </article>
 
           <!-- Load Balancing -->
           <article class="feature-card">

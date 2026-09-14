@@ -51,6 +51,7 @@ flowchart LR
 | **Control plane** | React Admin + Next.js dashboard, Swagger REST, MCP (Claude/Cursor), `wslproxy-cli` |
 | **Deploy** | Docker Compose (dev), Ansible (bare metal / VM), Helm ingress-controller (k3s) |
 | **Observability** | `/health` `/healthz` `/ready` `/metrics`, traffic stats, AI log analysis hooks |
+| **Geo traffic** | Geographic Traffic Distribution on the admin dashboard (Top Countries + world map via IP2Location) — [2-min video](https://youtu.be/4G_YPYj3J3k) · [article](https://wslproxy.org/blog/geographic-traffic-distribution.html) |
 
 ---
 
