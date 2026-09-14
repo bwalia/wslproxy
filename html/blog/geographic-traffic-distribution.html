@@ -7,87 +7,60 @@
   <meta property="og:title" content="Geographic Traffic Distribution by country — WSLProxy" />
   <meta property="og:image" content="https://wslproxy.org/images/geographic-traffic-distribution-dashboard.jpg" />
   <title>Geographic Traffic Distribution by country — WSLProxy</title>
+  <meta name="theme-color" content="#f7f9fc" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0c1421" media="(prefers-color-scheme: dark)" />
   <meta name="color-scheme" content="light dark" />
+  <script src="/js/theme.js"></script>
+  <link rel="icon" href="/images/logo-color.svg" type="image/svg+xml" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <style>
-    :root {
-      --ink: #0b1c2c; --ink-soft: #243447; --mist: #eef2f6; --paper: #f7f9fc;
-      --line: #c5d0dc; --copper: #c45c26; --copper-deep: #9a4519; --signal: #1a7a6d;
-      --surface: #ffffff; --code-bg: #07131f; --code-ink: #d7e2ec;
-      --sans: "Outfit", system-ui, sans-serif; --display: "Fraunces", Georgia, serif;
-      --mono: "JetBrains Mono", ui-monospace, monospace; --max: 760px; --radius: 6px;
-    }
-    html.dark {
-      --ink: #eef2f6; --ink-soft: #b7c4d4; --mist: #122233; --paper: #0b1c2c;
-      --line: #2a3d52; --copper: #e07a3d; --copper-deep: #f0a06a; --signal: #3dbaa8;
-      --surface: #122233; --code-bg: #061018;
-    }
-    *, *::before, *::after { box-sizing: border-box; }
-    body { margin: 0; font-family: var(--sans); font-size: 1.0625rem; line-height: 1.65; color: var(--ink); background: var(--paper); }
-    a { color: var(--copper-deep); }
-    .wrap { width: min(100% - 2.5rem, var(--max)); margin-inline: auto; }
-    header { border-bottom: 1px solid var(--line); padding: 1rem 0; }
-    .nav { display: flex; justify-content: space-between; align-items: center; }
-    .brand { font-family: var(--display); font-weight: 700; font-size: 1.25rem; color: var(--ink); text-decoration: none; }
-    nav a { margin-left: 1rem; color: var(--ink-soft); text-decoration: none; font-weight: 500; }
-    article { padding: 2.5rem 0 4rem; }
-    .kicker { color: var(--signal); font-weight: 600; font-size: 0.85rem; letter-spacing: 0.04em; text-transform: uppercase; margin: 0 0 0.5rem; }
-    h1 { font-family: var(--display); font-size: clamp(1.9rem, 4.5vw, 2.6rem); line-height: 1.15; margin: 0 0 0.75rem; }
-    .lede { font-size: 1.15rem; color: var(--ink-soft); margin: 0 0 1.5rem; }
-    .meta { font-size: 0.9rem; color: var(--ink-soft); margin-bottom: 1.75rem; }
-    .hero-shot, .inline-shot { margin: 0 0 1.75rem; }
-    .hero-shot img, .inline-shot img {
-      display: block; width: 100%; height: auto; border-radius: calc(var(--radius) + 4px);
-      border: 1px solid var(--line); background: var(--surface);
-      box-shadow: 0 16px 40px color-mix(in srgb, var(--ink) 10%, transparent);
-    }
-    figcaption { margin-top: 0.55rem; font-size: 0.9rem; color: var(--ink-soft); text-align: center; }
-    .video-frame {
-      position: relative; width: 100%; aspect-ratio: 16 / 9; margin: 0 0 1.75rem;
-      border-radius: calc(var(--radius) + 4px); overflow: hidden; border: 1px solid var(--line); background: var(--code-bg);
-    }
-    .video-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
-    h2 { font-family: var(--display); font-size: 1.45rem; margin: 2.25rem 0 0.75rem; }
-    h3 { font-size: 1.1rem; margin: 1.5rem 0 0.5rem; }
-    p, ul, ol { margin: 0 0 1rem; }
-    ul, ol { padding-left: 1.25rem; }
-    li { margin-bottom: 0.35rem; }
-    code, pre { font-family: var(--mono); font-size: 0.9em; }
-    code { background: var(--mist); padding: 0.1em 0.35em; border-radius: 4px; }
-    pre {
-      background: var(--code-bg); color: var(--code-ink); padding: 1rem 1.1rem; border-radius: var(--radius);
-      overflow-x: auto; margin: 0 0 1.25rem; line-height: 1.45;
-    }
-    .callout {
-      border-left: 3px solid var(--signal); background: var(--mist); padding: 0.9rem 1rem; margin: 1.25rem 0 1.5rem; border-radius: 0 var(--radius) var(--radius) 0;
-    }
-    .features {
-      display: grid; gap: 0.75rem; margin: 1rem 0 1.5rem;
-    }
-    .features div {
-      border: 1px solid var(--line); border-radius: var(--radius); padding: 0.85rem 1rem; background: var(--surface);
-    }
-    .features strong { display: block; margin-bottom: 0.25rem; }
-    footer { border-top: 1px solid var(--line); padding: 1.5rem 0 2rem; color: var(--ink-soft); font-size: 0.9rem; }
-  </style>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Lexend:wght@400;500;600;700&family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/site.css" />
 </head>
 <body>
-  <header>
-    <div class="wrap nav">
-      <a class="brand" href="/">WSLProxy</a>
-      <nav>
+  <header class="nav">
+    <div class="wrap nav-inner">
+      <a class="brand" href="/">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="wslproxyLogoGradGeo" x1="6" y1="4" x2="42" y2="44" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#255fa8"/>
+                <stop offset="1" stop-color="#5865f2"/>
+              </linearGradient>
+            </defs>
+            <path d="M24 4L6 12v12c0 11 8 21 18 24 10-3 18-13 18-24V12L24 4z" fill="url(#wslproxyLogoGradGeo)" />
+            <circle cx="24" cy="18" r="3" fill="white" />
+            <circle cx="16" cy="28" r="2.5" fill="white" opacity="0.9" />
+            <circle cx="32" cy="28" r="2.5" fill="white" opacity="0.9" />
+            <circle cx="24" cy="36" r="2" fill="white" opacity="0.8" />
+            <path d="M24 21v5M18 27l4-4M30 27l-4-4M24 33v-3" stroke="white" stroke-width="1.5" stroke-linecap="round" opacity="0.7" />
+          </svg>
+        </span>
+        <span>WSL<span class="brand-accent">Proxy</span></span>
+      </a>
+      <button class="nav-toggle" type="button" id="nav-toggle" aria-expanded="false" aria-controls="nav-menu">Menu</button>
+      <nav class="nav-links" id="nav-menu">
         <a href="/">Home</a>
         <a href="/blog/">Blog</a>
         <a href="https://youtu.be/4G_YPYj3J3k">Video</a>
-        <a href="https://github.com/bwalia/wslproxy">GitHub</a>
+        <a href="/swagger/">API</a>
+        <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode" title="Toggle theme">
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M21 14.5A8.5 8.5 0 0 1 9.5 3 7 7 0 1 0 21 14.5z" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" stroke-linecap="round"/>
+          </svg>
+        </button>
+        <a class="nav-cta" href="https://github.com/bwalia/wslproxy">GitHub</a>
       </nav>
     </div>
   </header>
 
-  <article>
-    <div class="wrap">
+  <article class="blog-article">
+    <div class="wrap wrap--read">
       <p class="kicker">Feature deep dive</p>
       <h1>Geographic Traffic Distribution by country</h1>
       <p class="lede">
@@ -199,13 +172,22 @@ https://github.com/bwalia/wslproxy</pre>
     </div>
   </article>
 
-  <footer>
-    <div class="wrap">
-      © Workstation Solutions Limited ·
-      <a href="/blog/">Blog</a> ·
-      <a href="/">Home</a> ·
-      <a href="https://github.com/bwalia/wslproxy">GitHub</a>
+  <footer class="site-footer">
+    <div class="wrap footer-inner">
+      <div>© Workstation Solutions Limited</div>
+      <div class="footer-links">
+        <a href="/blog/">Blog</a>
+        <a href="/">Home</a>
+        <a href="https://github.com/bwalia/wslproxy">GitHub</a>
+      </div>
     </div>
   </footer>
+
+  <script>
+    if (window.WSLProxyTheme) {
+      WSLProxyTheme.bindNav();
+      WSLProxyTheme.bind();
+    }
+  </script>
 </body>
 </html>
