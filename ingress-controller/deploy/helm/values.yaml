@@ -57,6 +57,17 @@ openresty:
   # Number of proxy replicas
   replicas: 3
 
+  # Control-plane settings.json (from WSLVault via scripts/k3s1-bootstrap-control-plane.sh).
+  # Mounted at /opt/nginx/data/settings.json. Empty = image sample settings.
+  settings:
+    existingSecret: ""
+    secretKey: settings.json
+
+  # Postgres connection for storage_type=pgsql (Secret keys: pg_host, pg_port,
+  # pg_database, pg_user, pg_password). Injected as WSLPROXY_PG_* env vars.
+  pgsql:
+    existingSecret: ""
+
   # Container image
   image:
     repository: bwalia/wslproxy

@@ -1,7 +1,9 @@
-# WSLProxy Postgres (Zalando) on k3s1
+# WSLProxy Postgres (Zalando) on k3s1 — central control-plane store
 
 Creates an in-cluster Postgres for **wslproxy-system** via the Zalando
-operator already running in `postgres`.
+operator already running in `postgres`. The Ring Promoter app
+`wslproxy-k3s1` (prod ring) runs `scripts/k3s1-bootstrap-control-plane.sh`
+before helm so OpenResty mounts Vault settings with `storage_type: pgsql`.
 
 | | |
 |--|--|
@@ -9,34 +11,68 @@ operator already running in `postgres`.
 | Service | `wslproxy-db.wslproxy-system.svc.cluster.local:5432` |
 | Database / user | `wslproxy` / `wslproxy` |
 | Credentials | Secret `wslproxy.wslproxy-db.credentials.postgresql.acid.zalan.do` |
-| App settings Secret | `wslproxy-pgsql` (host/port/db/user/password) |
+| App connection Secret | `wslproxy-pgsql` |
+| Settings Secret | `wslproxy-settings` (from WSLVault prod) |
 
-## Provision
+## WSLVault (prod)
 
-```bash
-export KUBECONFIG=~/.kube/k3s1.yaml
-./scripts/k3s1-provision-pgsql.sh
-```
+UI: https://vault-ui.workstation.co.uk/
 
-That applies the CR, waits until Running, applies `infra/pgsql/migrations`,
-and writes `wslproxy-pgsql`.
+| Path | Purpose |
+|--|--|
+| `secret/data/wslproxy/prod/settings.json` | Full `settings.json` object (`env_profile` must be `prod`) |
+| `secret/data/wslproxy/prod/pgsql` | Optional overlay (`pg_database`, `pg_user`, …) |
 
-## Point WSLProxy at it
+Bootstrap always sets `storage_type: "pgsql"` and points `pgsql.pg_host` at the
+in-cluster Service. The DB password comes from the Zalando-managed secret
+(operator-owned). After first bootstrap, copy that password into the Vault
+`pgsql` secret if VM edges also need to reach Postgres.
 
-Set in `settings.json` (or via the Next.js Storage selector):
+Ensure `settings.json` in Vault is ready for pgsql (you can leave password empty):
 
 ```json
 {
+  "env_profile": "prod",
   "storage_type": "pgsql",
   "pgsql": {
     "pg_host": "wslproxy-db.wslproxy-system.svc.cluster.local",
     "pg_port": 5432,
     "pg_database": "wslproxy",
-    "pg_user": "wslproxy",
-    "pg_password": "<from secret wslproxy-pgsql>"
+    "pg_user": "wslproxy"
   }
 }
 ```
 
-From a VM edge outside the cluster you must expose the Service (NodePort /
-Ingress / VPN); in-cluster pods use the ClusterIP Service name above.
+## One-time: Vault token for the deploy Job
+
+```bash
+export KUBECONFIG=~/.kube/k3s1.yaml
+kubectl -n ring-exec create secret generic wslproxy-vault \
+  --from-literal=VAULT_ADDR=https://vault-ui.workstation.co.uk \
+  --from-literal=VAULT_TOKEN='hvs.…'
+kubectl apply -f deploy/ring-promoter/k3s1-rbac.yaml
+```
+
+## Manual provision (without Ring Promoter)
+
+```bash
+export KUBECONFIG=~/.kube/k3s1.yaml
+export VAULT_ADDR=https://vault-ui.workstation.co.uk
+export VAULT_TOKEN=hvs.…
+./scripts/k3s1-bootstrap-control-plane.sh
+```
+
+Then helm-upgrade with:
+
+```text
+--set openresty.settings.existingSecret=wslproxy-settings
+--set openresty.pgsql.existingSecret=wslproxy-pgsql
+```
+
+Or seed/promote `wslproxy-k3s1` on the **prod** ring — the Job does both.
+
+## Point POP edges at the central DB
+
+Edges outside the cluster need a reachable Postgres endpoint (NodePort /
+Ingress / VPN) and the same `storage_type: pgsql` + credentials (from Vault).
+In-cluster control-plane pods use the ClusterIP Service name above.
