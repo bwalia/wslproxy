@@ -66,6 +66,10 @@ apps:
             chmod +x scripts/k3s1-bootstrap-control-plane.sh
             ./scripts/k3s1-bootstrap-control-plane.sh
             extra="${extra} --set openresty.settings.existingSecret=wslproxy-settings --set openresty.pgsql.existingSecret=wslproxy-pgsql"
+            # Admin UI at https://cp.pop0.uk (Ingress + NodePort 32080 for lon1 edge)
+            extra="${extra} --set openresty.controlPlane.enabled=true --set openresty.controlPlane.host=cp.pop0.uk --set openresty.controlPlane.nodePort=32080"
+            # LoadBalancer + nodePort requires type that allocates node ports
+            extra="${extra} --set openresty.service.type=LoadBalancer"
           fi
           # No --create-namespace: ring-deploy-job has no cluster-scoped
           # namespace rights. Namespaces come from k3s1-rbac.yaml.

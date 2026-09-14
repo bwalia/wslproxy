@@ -68,6 +68,17 @@ openresty:
   pgsql:
     existingSecret: ""
 
+  # Control-plane admin UI (react-admin on :8080). Exposed as Ingress host
+  # and NodePort so the lon1 edge can proxy https://cp.pop0.uk → this Service.
+  controlPlane:
+    enabled: false
+    host: cp.pop0.uk
+    # Fixed NodePort for lon1 edge rules (data/rules/prod/cp-pop0-control-plane.json)
+    nodePort: 32080
+    tls: true
+    # cert-manager ClusterIssuer when certManager.enabled (optional)
+    clusterIssuer: letsencrypt-prod
+
   # Container image
   image:
     repository: bwalia/wslproxy

@@ -40,8 +40,10 @@ kubectl rollout restart deploy/ring-promoter -n ring-system   # or workstation-r
 1. Job `rp-wslproxy-k3s1-<ring>-…` in `ring-exec` (envFrom `wslproxy-vault`).
 2. Clone this repo at `RP_VERSION`, apply CRDs.
 3. **prod** → bootstrap pgsql + Vault settings, then helm release
-   `wslproxy-ingress` in `wslproxy-system` with IngressClass `wslproxy` and
-   OpenResty mounts for settings/pgsql.
+   `wslproxy-ingress` in `wslproxy-system` with IngressClass `wslproxy`,
+   OpenResty mounts for settings/pgsql, and **control-plane UI** on
+   `cp.pop0.uk` (Ingress + NodePort `32080`). Lon1 edge server/rule lives in
+   `data/servers|rules/prod/` (`host:cp.pop0.uk` → `72.62.211.28:32080`).
 4. **int/test/acc** → helm only (`wslproxy-<ring>`), no central DB bootstrap.
 5. Health: in-cluster `GET /healthz` on OpenResty API port 8080.
 

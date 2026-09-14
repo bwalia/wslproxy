@@ -1,0 +1,21 @@
+{
+  "id": "host:cp.pop0.uk",
+  "server_name": "cp.pop0.uk",
+  "proxy_server_name": "cp.pop0.uk",
+  "profile_id": "prod",
+  "index": "index.html",
+  "root": "/var/www/html",
+  "listens": [{ "listen": "80" }],
+  "ssl_enabled": true,
+  "ssl_email": "balinder.walia@gmail.com",
+  "ssl_auto_renew": true,
+  "ssl_force_https": true,
+  "ssl_staging": false,
+  "cache_enabled": false,
+  "config_status": true,
+  "rules": "cp-pop0-control-plane",
+  "match_cases": {},
+  "custom_headers": {},
+  "access_log": "logs/cp.pop0.uk.access.log",
+  "error_log": "logs/cp.pop0.uk.error.log"
+}

@@ -28,6 +28,9 @@ spec:
     port: 8080
     targetPort: api
     protocol: TCP
+    {{- if and .Values.openresty.controlPlane.enabled .Values.openresty.controlPlane.nodePort }}
+    nodePort: {{ .Values.openresty.controlPlane.nodePort }}
+    {{- end }}
   selector:
     {{- include "wslproxy.selectorLabels" . | nindent 4 }}
     app.kubernetes.io/component: proxy
