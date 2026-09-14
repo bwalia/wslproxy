@@ -37,7 +37,10 @@ const PUBLIC_PATHS = new Set<string>([
 // trees (e.g. the (public) route group) where every nested page should
 // be anonymous.  Keep it narrow — anything added here must consciously
 // be safe for the open internet.
-const PUBLIC_PREFIXES = ["/links"];
+//
+// /mcp is the Model Context Protocol surface (JSON-RPC + REST tools).
+// Auth is X-MCP-API-Key on the Lua MCP handler, not the dashboard cookie.
+const PUBLIC_PREFIXES = ["/links", "/mcp"];
 
 function isPublicPath(pathname: string): boolean {
   if (PUBLIC_PATHS.has(pathname)) return true;
@@ -87,11 +90,12 @@ export function proxy(request: NextRequest) {
 /**
  * Run on every request EXCEPT:
  *  - /api/*   (proxied to Lua — it has its own auth gate)
+ *  - /mcp/*   (proxied to Lua MCP — X-MCP-API-Key auth)
  *  - /_next/* (build output)
  *  - Static files (identified by having a file extension)
  */
 export const config = {
   matcher: [
-    "/((?!api|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|.*\\.).*)",
+    "/((?!api|mcp|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|.*\\.).*)",
   ],
 };
