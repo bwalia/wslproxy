@@ -149,8 +149,9 @@ RUN mkdir -p ${NGINX_CONFIG_DIR} && chmod 777 ${NGINX_CONFIG_DIR}
 # Installed early to be cached (before COPY commands that change frequently)
 # TARGETARCH is automatically provided by Docker for multi-platform builds (amd64, arm64, etc.)
 ARG TARGETARCH
+# Classic /client/mc/… URLs now return 410; AIStor client path is the current download.
 RUN ARCH="${TARGETARCH:-amd64}" && \
-    wget https://dl.min.io/client/mc/release/linux-${ARCH}/mc -O /usr/local/bin/mc \
+    wget https://dl.min.io/aistor/mc/release/linux-${ARCH}/mc -O /usr/local/bin/mc \
     --tries=3 --timeout=30 && \
     chmod +x /usr/local/bin/mc && \
     mc --version
