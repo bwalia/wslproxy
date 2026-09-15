@@ -1,6 +1,11 @@
 {
   "serial_number": "4cadeac519161973818e1bce2acdf8e1",
-  "roles": ["release_manager", "admin", "read_only", "read_write"],
+  "roles": [
+    "release_manager",
+    "admin",
+    "read_only",
+    "read_write"
+  ],
   "instance_locked": "true",
   "env_profile": "int",
   "redis_port": "localhost",
@@ -24,7 +29,10 @@
   },
   "redis_host": "",
   "ip2location_path": "/tmp/IP2LOCATION-LITE-DB11.IPV6.BIN",
-  "consul": { "dns_server_port": 8600, "dns_server_host": "127.0.0.1" },
+  "consul": {
+    "dns_server_port": 8600,
+    "dns_server_host": "127.0.0.1"
+  },
   "dns_resolver": {
     "nameservers": {
       "primary": "8.8.8.8",
@@ -52,6 +60,9 @@
     "email": "admin@admin.com",
     "password": "jGl25bVBBBW96Qi9Te4V37Fnqchz/Eu4qB9vKrRIqRg=",
     "username": "admin"
+  },
+  "admin": {
+    "api_url": "/api"
   },
   "mcp": {
     "enabled": true,

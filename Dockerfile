@@ -159,7 +159,6 @@ RUN ARCH="${TARGETARCH:-amd64}" && \
     mc --version
 
 ARG APP_ENV="dev"
-ARG ENV_FILE=".env.dev"
 
 # ==============================================================================
 # COPY commands below - cache will be invalidated when source files change
@@ -172,8 +171,9 @@ COPY ./openresty-admin /usr/local/openresty/nginx/html/openresty-admin
 COPY ./data ${NGINX_CONFIG_DIR}data
 COPY ./data/sample-settings.json ${NGINX_CONFIG_DIR}data/settings.json
 COPY ./api /usr/local/openresty/nginx/html/api
-# Same-origin /api for the baked admin UI (NOT .env.dev — that embeds localhost:4000).
-COPY ./openresty-admin/.env.prod /usr/local/openresty/nginx/html/openresty-admin/.env
+# Neutral same-origin default at build time only — runtime uses /runtime-config.js
+# from WSLPROXY_API_URL or settings.admin.api_url (see write-admin-runtime-config.sh).
+ENV VITE_API_URL=/api
 COPY ./nginx-${APP_ENV}.conf.tmpl /tmp/nginx.conf.tmpl
 COPY ./resolver.conf.tmpl /tmp/resolver.conf.tmpl
 COPY ./html/swagger /usr/local/openresty/nginx/html/swagger
@@ -303,20 +303,10 @@ HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=40s \
 # ============================================================================
 # Container Entry Point
 # ============================================================================
-# Starts OpenResty Nginx in foreground mode (required for proper Docker operation)
-# This allows container to receive signals and manage the process correctly
-#
-# The Nginx process will:
-# 1. Load configuration from NGINX_CONFIG_DIR (default: /opt/nginx)
-# 2. Initialize auto-SSL with Let's Encrypt
-# 3. Load all Lua modules and API handlers
-# 4. Start Admin Dashboard on port 8080
-# 5. Listen for HTTP (80) and HTTPS (443) traffic
-#
-# Signals:
-# - SIGTERM: Graceful shutdown
-# - SIGHUP: Reload configuration
-# - SIGUSR1: Reopen log files
-# - SIGUSR2: Upgrade binary (hot reload)
+# Emit admin runtime-config.js (per-install API URL) then start OpenResty.
+COPY ./scripts/write-admin-runtime-config.sh /usr/local/bin/write-admin-runtime-config.sh
+COPY ./scripts/docker-entrypoint-openresty.sh /usr/local/bin/docker-entrypoint-openresty.sh
+RUN chmod +x /usr/local/bin/write-admin-runtime-config.sh \
+              /usr/local/bin/docker-entrypoint-openresty.sh
 
-CMD ["/usr/local/openresty/nginx/sbin/nginx", "-g", "daemon off;"]
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint-openresty.sh"]

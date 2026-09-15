@@ -33,8 +33,7 @@ import RefreshIcon from "@mui/icons-material/Refresh";
 import SettingsIcon from "@mui/icons-material/Settings";
 import { useNotify } from "react-admin";
 import StatusBadge from "../component/StatusBadge";
-
-const API_URL = import.meta.env.VITE_API_URL;
+import { getApiUrl } from "../apiBase";
 
 const getHeaders = () => {
   const token = localStorage.getItem("token");
@@ -76,7 +75,7 @@ const ChangeRequestList = () => {
   const fetchCRs = useCallback(async () => {
     setLoading(true);
     try {
-      let url = `${API_URL}/change-requests?timestamp=${Date.now()}`;
+      let url = `${getApiUrl()}/change-requests?timestamp=${Date.now()}`;
       if (stateFilter) {
         url += `&params=${encodeURIComponent(JSON.stringify({ filter: { state: stateFilter } }))}`;
       }
@@ -92,7 +91,7 @@ const ChangeRequestList = () => {
 
   const fetchPendingCount = useCallback(async () => {
     try {
-      const url = `${API_URL}/change-requests/pending-count?timestamp=${Date.now()}`;
+      const url = `${getApiUrl()}/change-requests/pending-count?timestamp=${Date.now()}`;
       const response = await fetch(url, { method: "GET", headers: getHeaders() });
       const result = await response.json();
       setPendingCount(result.data?.count || 0);
@@ -103,7 +102,7 @@ const ChangeRequestList = () => {
 
   const fetchCRConfig = useCallback(async () => {
     try {
-      const url = `${API_URL}/change-requests/config?timestamp=${Date.now()}`;
+      const url = `${getApiUrl()}/change-requests/config?timestamp=${Date.now()}`;
       const response = await fetch(url, { method: "GET", headers: getHeaders() });
       const result = await response.json();
       setCrConfig(result.data || {});
@@ -126,7 +125,7 @@ const ChangeRequestList = () => {
   const handleApprove = async () => {
     if (!actionCR || !approverUser) return;
     try {
-      const url = `${API_URL}/change-requests/${actionCR.id}/approve`;
+      const url = `${getApiUrl()}/change-requests/${actionCR.id}/approve`;
       const response = await fetch(url, {
         method: "PUT",
         headers: getHeaders(),
@@ -152,7 +151,7 @@ const ChangeRequestList = () => {
   const handleSetPassphrase = async () => {
     if (!newPassphrase || !passphraseUser) return;
     try {
-      const url = `${API_URL}/change-requests/config/passphrase`;
+      const url = `${getApiUrl()}/change-requests/config/passphrase`;
       const response = await fetch(url, {
         method: "PUT",
         headers: getHeaders(),
@@ -176,7 +175,7 @@ const ChangeRequestList = () => {
   const handleReject = async () => {
     if (!actionCR || !approverUser) return;
     try {
-      const url = `${API_URL}/change-requests/${actionCR.id}/reject`;
+      const url = `${getApiUrl()}/change-requests/${actionCR.id}/reject`;
       const response = await fetch(url, {
         method: "PUT",
         headers: getHeaders(),

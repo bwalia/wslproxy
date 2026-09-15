@@ -28,6 +28,7 @@ import FolderIcon from "@mui/icons-material/FolderRounded";
 import SettingsIcon from "@mui/icons-material/SettingsRounded";
 import CodeIcon from "@mui/icons-material/CodeRounded";
 import InfoIcon from "@mui/icons-material/InfoRounded";
+import { getApiUrl } from "../apiBase";
 import MemoryIcon from "@mui/icons-material/MemoryRounded";
 import CloudIcon from "@mui/icons-material/CloudRounded";
 import LockIcon from "@mui/icons-material/LockRounded";
@@ -231,7 +232,7 @@ const Health = () => {
       setHealth({
         status: "unreachable",
         error: healthRes.reason?.message || "Failed to reach API",
-        _api_url: import.meta.env.VITE_API_URL,
+        _api_url: getApiUrl(),
         _http_status: null,
         _latency: null,
         _authenticated: false,

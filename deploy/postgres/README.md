@@ -92,3 +92,7 @@ Prod helm sets `openresty.controlPlane.enabled=true`:
 DNS / Cloudflare: origin for `cp.pop0.uk` should be **cloud003** public IP `77.68.126.63`
 (already wired). HTTPS is served by `traefik-edge` Ingress
 `deploy/k3s1/wslproxy-cp-traefik-ingress.yaml` (TLS on `:443` + plain `:80`).
+
+Admin API base URL is **not** baked into the image. At start,
+`write-admin-runtime-config.sh` writes `/runtime-config.js` from
+`WSLPROXY_API_URL` or `settings.admin.api_url` (default same-origin `/api`).

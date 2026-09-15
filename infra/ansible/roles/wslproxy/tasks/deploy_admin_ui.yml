@@ -23,3 +23,7 @@
 - name: Execute the npm/yarn build script
   shell: /tmp/install-build-npm-yarn.sh
   tags: [dashboard]
+
+- name: Write admin runtime-config.js from settings/env
+  command: /usr/local/bin/write-admin-runtime-config.sh
+  tags: [dashboard]
