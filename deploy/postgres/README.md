@@ -90,5 +90,5 @@ Prod helm sets `openresty.controlPlane.enabled=true`:
 | Pin | `values-control-plane-cloud003.yaml` — `kubernetes.io/hostname=cloud003` + edge taint toleration |
 
 DNS / Cloudflare: origin for `cp.pop0.uk` should be **cloud003** public IP `77.68.126.63`
-(already wired). Deploy the server/rule to lon1 if you also terminate TLS there;
-otherwise CF → cloud003 NodePort/LB is enough.
+(already wired). HTTPS is served by `traefik-edge` Ingress
+`deploy/k3s1/wslproxy-cp-traefik-ingress.yaml` (TLS on `:443` + plain `:80`).
