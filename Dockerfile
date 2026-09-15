@@ -112,6 +112,8 @@ RUN luarocks install lua-resty-redis-connector
 RUN luarocks install lua-resty-dns
 RUN luarocks install lua-resty-resolver
 RUN luarocks install luafilesystem
+# pgmoon falls back to luasocket outside some ngx phases; required for storage_type=pgsql init
+RUN luarocks install luasocket
 # lua-resty-auto-ssl pulls in the `sockproc` native dependency.  sockproc's
 # source uses legacy C (`void proc_exit()` instead of `void proc_exit(int)`)
 # and its Makefile hardcodes `-Werror`.  Alpine 3.19+ ships GCC 13+ which
