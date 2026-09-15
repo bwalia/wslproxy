@@ -172,7 +172,8 @@ COPY ./openresty-admin /usr/local/openresty/nginx/html/openresty-admin
 COPY ./data ${NGINX_CONFIG_DIR}data
 COPY ./data/sample-settings.json ${NGINX_CONFIG_DIR}data/settings.json
 COPY ./api /usr/local/openresty/nginx/html/api
-COPY .env.dev /usr/local/openresty/nginx/html/openresty-admin/.env
+# Same-origin /api for the baked admin UI (NOT .env.dev — that embeds localhost:4000).
+COPY ./openresty-admin/.env.prod /usr/local/openresty/nginx/html/openresty-admin/.env
 COPY ./nginx-${APP_ENV}.conf.tmpl /tmp/nginx.conf.tmpl
 COPY ./resolver.conf.tmpl /tmp/resolver.conf.tmpl
 COPY ./html/swagger /usr/local/openresty/nginx/html/swagger
