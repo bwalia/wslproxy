@@ -1,4 +1,4 @@
-# RBAC so Ring Promoter's k8sjob runner can helm-deploy WSLProxy Ingress on k3s1.
+# RBAC so Ring Promoter's k8sjob runner can helm-deploy WSLProxy control plane on k3s1.
 #
 # Apply against k3s1 (once):
 #   kubectl apply -f deploy/ring-promoter/k3s1-rbac.yaml

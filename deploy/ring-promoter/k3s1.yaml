@@ -1,4 +1,4 @@
-# Ring Promoter app config — helm-deploy WSLProxy Ingress + pgsql control plane on k3s1.
+# Ring Promoter app config — helm-deploy WSLProxy control plane on k3s1.
 #
 # Owning instance: https://rp.workstation.co.uk/ (namespace workstation-ring-promoter).
 # Canonical copy also lives in bwalia/ring-promoter deploy/k8s/configmap.yaml.
@@ -19,7 +19,7 @@
 # merge to main via POST https://rp.workstation.co.uk/api/apps/wslproxy-k3s1/seed
 apps:
   - name: wslproxy-k3s1
-    display_name: "WSLProxy Ingress (k3s1)"
+    display_name: "WSLProxy Control Plane"
     location: { lat: 51.5074, lng: -0.1278, city: London, region: GB }
     deployer: k8sjob
     k8sjob:
