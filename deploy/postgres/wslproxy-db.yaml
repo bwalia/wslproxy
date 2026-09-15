@@ -27,9 +27,33 @@ spec:
     wslproxy: wslproxy
   users:
     wslproxy: []
+  # Co-locate with OpenResty control plane on cloud003 (edge CNI cannot reach LAN workers).
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - cloud003
+  tolerations:
+    - key: node-role.kubernetes.io/edge
+      operator: Exists
+      effect: NoSchedule
+  # Spilo defaults require TLS; OpenResty pgmoon connects without SSL.
+  # Edge note: postgres-operator on LAN cannot reach cloud003, so after
+  # apply also PATCH Patroni :8008/config with the same pg_hba (pod IP).
+  patroni:
+    pg_hba:
+      - local all all trust
+      - host all all 127.0.0.1/32 trust
+      - host all all ::1/128 trust
+      - host all all 0.0.0.0/0 scram-sha-256
+      - host all all 0.0.0.0/0 md5
   volume:
     size: 5Gi
-    storageClass: longhorn
+    # Edge nodes (cloud003) lack Longhorn CSI; local-path keeps PG co-located with OpenResty.
+    storageClass: local-path
   resources:
     requests:
       cpu: 100m
