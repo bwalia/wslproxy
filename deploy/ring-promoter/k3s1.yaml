@@ -1,9 +1,13 @@
 # Ring Promoter app config — helm-deploy WSLProxy Ingress + pgsql control plane on k3s1.
 #
+# Owning instance: https://rp.workstation.co.uk/ (namespace workstation-ring-promoter).
+# Canonical copy also lives in bwalia/ring-promoter deploy/k8s/configmap.yaml.
+#
 # Prod path:
 #   1) Bootstrap Zalando Postgres + pull settings from WSLVault prod
 #      (https://vault-ui.workstation.co.uk → secret/data/wslproxy/prod/…)
 #   2) helm upgrade ingress chart with settings + pgsql secrets mounted
+#      (pins openresty.image.tag only — controller stays at chart latest)
 #
 # One-time on k3s1 (ring-exec):
 #   kubectl -n ring-exec create secret generic wslproxy-vault \
@@ -11,8 +15,8 @@
 #     --from-literal=VAULT_TOKEN=hvs.…
 #   kubectl apply -f deploy/ring-promoter/k3s1-rbac.yaml
 #
-# Paste the `apps:` entry into the owning Ring Promoter ConfigMap, then roll
-# the Ring Promoter deployment.
+# Auto-deploy: .github/workflows/deploy-control-plane-k3s1.yml seeds prod on
+# merge to main via POST https://rp.workstation.co.uk/api/apps/wslproxy-k3s1/seed
 apps:
   - name: wslproxy-k3s1
     display_name: "WSLProxy Ingress (k3s1)"
@@ -72,14 +76,16 @@ apps:
           fi
           # No --create-namespace: ring-deploy-job has no cluster-scoped
           # namespace rights. Namespaces come from k3s1-rbac.yaml.
+          # Control-plane image is bwalia/wslproxy (openresty). Do not pin
+          # controller.image.tag — that image is not rebuilt on every main merge.
           # shellcheck disable=SC2086
           helm upgrade --install "${release}" ./ingress-controller/deploy/helm \
             --namespace "${ns}" \
             --set fullnameOverride="${fullname}" \
             --set ingressClass.name="${class}" \
             --set ingressClass.isDefaultClass=false \
-            --set controller.image.tag="${tag}" \
             --set openresty.image.tag="${tag}" \
+            --set openresty.image.pullPolicy=Always \
             ${extra} \
             --wait --timeout 10m
           echo "wslproxy-ingress ${tag} live in ${ns}"

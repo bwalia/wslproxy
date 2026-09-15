@@ -1,0 +1,171 @@
+# Deploy WSLProxy control plane to k3s1 via Ring Promoter
+#
+# On merge to main: build/push bwalia/wslproxy:sha-<short>, then seed
+# wslproxy-k3s1 prod on https://rp.workstation.co.uk/ — that creates a
+# ring-exec Job which Vault-bootstraps + helm-upgrades wslproxy-ingress
+# in wslproxy-system (pinned to cloud003 / cp.pop0.uk).
+#
+# Repo secrets:
+#   DOCKER_USER / DOCKER_PASSWD
+#   RP_URL    = https://rp.workstation.co.uk
+#   RP_TOKEN  = workstation ring-promoter RP_API_TOKEN
+#   RP_PROD_PASSWORD (optional; only if RP_PROD_PASSWORD is set on the instance)
+#
+# One-time cluster prereqs (not created by this workflow):
+#   kubectl -n ring-exec create secret generic wslproxy-vault \
+#     --from-literal=VAULT_ADDR=https://vault-ui.workstation.co.uk \
+#     --from-literal=VAULT_TOKEN=hvs.…
+#   kubectl apply -f deploy/ring-promoter/k3s1-rbac.yaml
+#   App registered in workstation ConfigMap (ring-promoter deploy/k8s/configmap.yaml)
+
+name: Deploy control plane (k3s1)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "api/**"
+      - "Dockerfile"
+      - "docker-entrypoint*.sh"
+      - "scripts/write-admin-runtime-config.sh"
+      - "scripts/k3s1*.sh"
+      - "openresty-admin/**"
+      - "ingress-controller/deploy/helm/**"
+      - "deploy/postgres/**"
+      - "deploy/ring-promoter/**"
+      - ".github/workflows/deploy-control-plane-k3s1.yml"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Git ref / SHA to seed (default: this commit SHA)"
+        required: false
+        default: ""
+
+concurrency:
+  group: deploy-control-plane-k3s1
+  cancel-in-progress: false
+
+env:
+  IMAGE: docker.io/bwalia/wslproxy
+  RP_URL_DEFAULT: https://rp.workstation.co.uk
+
+jobs:
+  deploy:
+    name: Build image + seed prod on rp.workstation.co.uk
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Compute tags
+        id: meta
+        run: |
+          set -euo pipefail
+          VER="${{ github.event.inputs.version }}"
+          if [ -z "$VER" ]; then VER="${{ github.sha }}"; fi
+          SHORT="$(printf '%s' "$VER" | cut -c1-7)"
+          if [ "${#VER}" -eq 40 ]; then
+            TAG="sha-${SHORT}"
+          else
+            TAG="$VER"
+          fi
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Deploy version=${VER} image_tag=${TAG}"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_PASSWD }}
+
+      - name: Build and push bwalia/wslproxy
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:${{ steps.meta.outputs.tag }}
+            ${{ env.IMAGE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false
+          sbom: false
+
+      - name: Seed wslproxy-k3s1 prod via Ring Promoter
+        env:
+          RP_URL: ${{ secrets.RP_URL }}
+          RP_TOKEN: ${{ secrets.RP_TOKEN }}
+          RP_PROD_PASSWORD: ${{ secrets.RP_PROD_PASSWORD }}
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          set -euo pipefail
+          RP_URL="${RP_URL:-$RP_URL_DEFAULT}"
+          RP_URL="${RP_URL%/}"
+          case "$RP_URL" in
+            https://rp.workstation.co.uk) ;;
+            *)
+              echo "::error::RP_URL must be https://rp.workstation.co.uk (got: ${RP_URL})"
+              exit 1
+              ;;
+          esac
+          if [ -z "${RP_TOKEN:-}" ]; then
+            echo "::error::secrets.RP_TOKEN is empty — set workstation RP_API_TOKEN on bwalia/wslproxy"
+            exit 1
+          fi
+
+          BODY=$(jq -n \
+            --arg ring prod \
+            --arg version "$VERSION" \
+            --arg password "${RP_PROD_PASSWORD:-}" \
+            '{ring:$ring, version:$version} + (if $password != "" then {password:$password} else {} end)')
+
+          echo "POST ${RP_URL}/api/apps/wslproxy-k3s1/seed"
+          echo "body: $(echo "$BODY" | jq -c 'del(.password) | . + (if .password then {password:"***"} else {} end)' 2>/dev/null || echo "$BODY" | sed 's/"password":"[^"]*"/"password":"***"/')"
+
+          # Sync seed waits for the k8sjob (timeout 25m on the app).
+          HTTP_CODE=$(curl -sS -o /tmp/rp-seed.json -w '%{http_code}' \
+            --max-time 1800 \
+            -X POST "${RP_URL}/api/apps/wslproxy-k3s1/seed" \
+            -H "Authorization: Bearer ${RP_TOKEN}" \
+            -H 'Content-Type: application/json' \
+            -d "$BODY")
+
+          echo "HTTP ${HTTP_CODE}"
+          cat /tmp/rp-seed.json
+          echo
+
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::error::Ring Promoter seed failed (HTTP ${HTTP_CODE}). Is wslproxy-k3s1 registered on https://rp.workstation.co.uk/? Is ring-exec/wslproxy-vault present?"
+            exit 1
+          fi
+
+          echo "seed accepted"
+
+      - name: Smoke check control plane
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            code=$(curl -sS -o /tmp/cp-health.body -w '%{http_code}' \
+              --connect-timeout 5 --max-time 15 \
+              https://cp.pop0.uk/health || true)
+            echo "attempt $i: HTTP ${code}"
+            if [ "$code" = "200" ]; then
+              head -c 200 /tmp/cp-health.body; echo
+              exit 0
+            fi
+            # Admin healthz path used by OpenResty API port via edge
+            code2=$(curl -sS -o /tmp/cp-healthz.body -w '%{http_code}' \
+              --connect-timeout 5 --max-time 15 \
+              https://cp.pop0.uk/healthz || true)
+            if [ "$code2" = "200" ]; then
+              head -c 200 /tmp/cp-healthz.body; echo
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::warning::cp.pop0.uk did not return 200 within ~5m (seed Job may still be running; check https://rp.workstation.co.uk/?app=wslproxy-k3s1)"
+          exit 0

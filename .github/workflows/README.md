@@ -8,6 +8,7 @@ WSLProxy uses two deployment pipelines and a shared reusable workflow:
 |----------|------|--------|-------------|---------|
 | **Delivery** | `deploy-wslproxy-delivery-pipeline.yml` | `release` | int → test → prod (lon1 + pop1) | Production releases |
 | **Promotion** | `deploy-wslproxy-promotion-pipeline.yml` | `main` | int → test | CI/CD for config/server changes |
+| **Control plane (k3s1)** | `deploy-control-plane-k3s1.yml` | `main` | k3s1 `wslproxy-system` / cp.pop0.uk | Build image + seed `wslproxy-k3s1` on [rp.workstation.co.uk](https://rp.workstation.co.uk/) |
 | **Reusable** | `deploy-environment.yml` | — | (called by both pipelines) | Parameterized per-environment deploy logic |
 
 > The `acc` tier on 187.77.179.206 was decommissioned. Both pipelines now go test → prod (delivery) or stop at test (promotion).
