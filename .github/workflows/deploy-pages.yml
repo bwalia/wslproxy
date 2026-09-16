@@ -18,6 +18,7 @@ on:
       - "html/404.html"
       - "html/403.html"
       - "html/blog/**"
+      - "html/waf/**"
       - "html/swagger/**"
       - "html/css/**"
       - "html/js/**"
@@ -82,6 +83,11 @@ jobs:
           # Blog (Geographic Traffic Distribution and future posts)
           if [ -d html/blog ]; then
             cp -R html/blog site/blog
+          fi
+
+          # Feature deep-dives (WAF & security, …)
+          if [ -d html/waf ]; then
+            cp -R html/waf site/waf
           fi
 
           # Swagger UI referenced from the landing (/swagger/)
