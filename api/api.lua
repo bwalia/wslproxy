@@ -3835,6 +3835,18 @@ end
 --                                severity: "low"|"medium"|"high"|"critical",
 --                                related_patterns[] } }
 -- Reads Ollama endpoint from settings.ai_endpoint / settings.ai_model.
+-- Empty/missing ai_endpoint falls back to the Mac Studio NodePort used by
+-- ollama.workstation.co.uk (not localhost — Ansible edges do not run Ollama).
+local DEFAULT_OLLAMA_ENDPOINT = "http://193.237.176.232:31434"
+
+local function resolve_ollama_host(cfg)
+    local host = cfg and cfg.ai_endpoint
+    if type(host) ~= "string" or host:match("^%s*$") then
+        return DEFAULT_OLLAMA_ENDPOINT
+    end
+    return (host:gsub("%s+", ""):gsub("/+$", ""))
+end
+
 local function handle_ai_analyze()
     ngx.req.read_body()
     local body = ngx.req.get_body_data()
@@ -3865,7 +3877,7 @@ local function handle_ai_analyze()
         ..
         '{"analysis": "...", "root_causes": ["..."], "recommendations": ["..."], "severity": "low|medium|high|critical", "related_patterns": ["..."]}'
 
-    local ollama_host = (settings and settings.ai_endpoint) or "http://127.0.0.1:11434"
+    local ollama_host = resolve_ollama_host(settings)
     local ollama_model = (settings and settings.ai_model) or "llama3.2"
     local http = require("resty.http")
     local httpc = http.new()
@@ -3911,11 +3923,11 @@ local function handle_ai_analyze()
         ngx.say(cjson.encode({
             data = {
                 analysis = "Could not reach AI service at " .. ollama_host .. ". " .. (err or ""),
-                root_causes = { "Ollama service not running or not reachable" },
+                root_causes = { "Ollama service not running or not reachable from this host" },
                 recommendations = {
-                    "Start Ollama: ollama serve",
+                    "Verify Ollama at " .. ollama_host .. " (default Mac Studio NodePort 31434)",
                     "Pull a model: ollama pull " .. ollama_model,
-                    "Check firewall settings for port 11434",
+                    "Override settings.ai_endpoint if a different URL is required",
                 },
                 severity = "medium",
             }
@@ -4299,7 +4311,7 @@ local function handle_get_request(args, path)
     end
 
     if path == "ai/models" then
-        local ollama_host = (settings and settings.ai_endpoint) or "http://127.0.0.1:11434"
+        local ollama_host = resolve_ollama_host(settings)
         local http = require("resty.http")
         local httpc = http.new()
         httpc:set_timeout(5000)
