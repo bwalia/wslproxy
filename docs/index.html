@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="description" content="WSLProxy — dynamic API gateway and reverse proxy on OpenResty. Live rules, WAF, multi-POP edge, MCP for AI agents, and a CLI for GitOps." />
   <meta name="author" content="Workstation Solutions Limited" />
-  <meta name="theme-color" content="#f7f9fc" media="(prefers-color-scheme: light)" />
-  <meta name="theme-color" content="#0c1421" media="(prefers-color-scheme: dark)" />
+  <meta name="theme-color" content="#f4f7fb" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#070e18" media="(prefers-color-scheme: dark)" />
   <meta name="color-scheme" content="light dark" />
   <meta property="og:title" content="WSLProxy — Live-config API gateway" />
   <meta property="og:description" content="Route, secure, and observe traffic from JSON and MCP — without reloading nginx for every rule change." />
@@ -39,20 +39,27 @@
     }
     .btn:active { transform: translateY(1px); }
     .btn-primary {
-      background: var(--brass); color: #fff;
-      box-shadow: 0 8px 24px var(--brass-glow);
+      background: linear-gradient(180deg, color-mix(in srgb, var(--brass) 92%, #fff), var(--brass));
+      color: #fff;
+      box-shadow: 0 10px 28px var(--brass-glow);
     }
     .btn-primary:hover {
-      background: color-mix(in srgb, var(--brass) 88%, #fff);
+      background: linear-gradient(180deg, color-mix(in srgb, var(--brass) 80%, #fff), var(--brass-dim));
     }
     .btn-ghost {
-      background: transparent; color: var(--on-steel); border-color: var(--steel-line);
+      background: color-mix(in srgb, var(--steel-raised) 55%, transparent);
+      color: var(--on-steel);
+      border-color: var(--steel-line);
     }
-    .btn-ghost:hover { border-color: var(--brass); color: var(--brass); }
+    .btn-ghost:hover {
+      border-color: var(--signal);
+      color: var(--signal);
+      background: color-mix(in srgb, var(--signal) 8%, transparent);
+    }
 
     /* Hero */
     .hero {
-      padding: 88px 0 72px; position: relative; overflow: hidden;
+      padding: 96px 0 80px; position: relative; overflow: hidden;
       animation: 0.7s both rise-in;
     }
     .hero::before, .hero::after {
@@ -64,30 +71,49 @@
     }
     .hero::after { width: 26rem; height: 26rem; opacity: 0.22; animation-delay: -2.5s; }
     .eyebrow {
-      display: inline-flex; align-items: center; gap: 8px;
-      font-family: var(--font-mono); font-size: 12.5px; letter-spacing: 0.04em;
-      color: var(--brass); border: 1px solid var(--steel-line);
-      background: color-mix(in srgb, var(--steel-raised) 70%, transparent);
-      border-radius: 999px; padding: 6px 12px; margin-bottom: 22px;
+      display: inline-flex; align-items: center; gap: 10px;
+      font-family: var(--font-display);
+      font-size: 14.5px; font-weight: 600;
+      letter-spacing: 0.015em;
+      line-height: 1.2;
+      color: var(--ink);
+      border: 1px solid color-mix(in srgb, var(--signal) 45%, var(--steel-line));
+      background: color-mix(in srgb, var(--signal) 14%, var(--steel-raised));
+      border-radius: 999px; padding: 9px 18px; margin-bottom: 26px;
+      box-shadow:
+        inset 0 1px 0 color-mix(in srgb, #fff 8%, transparent),
+        0 0 0 1px color-mix(in srgb, var(--signal) 10%, transparent);
     }
     .eyebrow .dot {
-      width: 7px; height: 7px; border-radius: 50%; background: var(--brass);
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--signal);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--signal) 30%, transparent);
+      flex-shrink: 0;
     }
     .hero-title {
       font-family: var(--font-display);
-      font-size: clamp(34px, 5.5vw, 58px); font-weight: 600; line-height: 1.05;
-      letter-spacing: -0.025em; color: var(--ink); max-width: 18ch; text-wrap: balance;
+      font-size: clamp(36px, 5.5vw, 60px); font-weight: 700; line-height: 1.04;
+      letter-spacing: -0.03em; color: var(--ink); max-width: 18ch; text-wrap: balance;
       margin: 0 0 20px;
     }
-    .hero-title .grad { color: var(--brass); }
+    .hero-title .grad {
+      color: var(--signal);
+      background-image: linear-gradient(105deg, #7dd3fc 0%, #60a5fa 48%, #3b82f6 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    html:not(.dark) .hero-title .grad {
+      background-image: linear-gradient(105deg, #2f7fc4 0%, #1f5f9e 55%, #174a7c 100%);
+    }
     .hero-sub {
-      color: var(--on-steel-muted); max-width: 620px; margin: 0 0 28px;
-      font-size: clamp(16px, 2vw, 19px);
+      color: var(--on-steel-muted); max-width: 640px; margin: 0 0 28px;
+      font-size: clamp(17px, 2vw, 19.5px); line-height: 1.55;
     }
     .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 22px; }
     .hero-meta {
       display: flex; flex-wrap: wrap; gap: 22px;
-      color: var(--on-steel-faint); font-size: 14px;
+      color: var(--on-steel-faint); font-size: 14.5px; font-weight: 500;
     }
     .hero-meta span { display: inline-flex; align-items: center; gap: 7px; }
     .check { color: var(--unlock); flex-shrink: 0; }
@@ -95,28 +121,28 @@
     .terminal {
       margin-top: 44px; border: 1px solid var(--steel-line); border-radius: var(--radius);
       background: linear-gradient(180deg, var(--term-bar), var(--term-bg));
-      overflow: hidden; box-shadow: 0 24px 70px color-mix(in srgb, #000 18%, transparent);
+      overflow: hidden; box-shadow: 0 28px 80px color-mix(in srgb, #000 28%, transparent);
       animation: 0.85s 0.12s both rise-in; position: relative; z-index: 1;
     }
     .terminal-bar {
       display: flex; align-items: center; gap: 8px;
-      padding: 12px 16px; background: var(--term-bar); border-bottom: 1px solid #243447;
+      padding: 12px 16px; background: var(--term-bar); border-bottom: 1px solid var(--steel-line);
     }
     .tdot { width: 10px; height: 10px; border-radius: 50%; }
     .tdot.r { background: #ff5f57; }
     .tdot.y { background: #febc2e; }
     .tdot.g { background: #28c840; }
     .terminal-title {
-      margin-left: 8px; font-family: var(--font-mono); font-size: 12px; color: #64748b;
+      margin-left: 8px; font-family: var(--font-mono); font-size: 12px; color: #7a8fa6;
     }
     .terminal pre {
       margin: 0; padding: 18px 20px 22px; font-family: var(--font-mono);
       font-size: 13.5px; line-height: 1.65; color: var(--term-ink); overflow-x: auto;
     }
-    .c-cmd { color: #60a5fa; }
-    .c-flag { color: #a5b4fc; }
-    .c-str { color: #4ade80; }
-    .c-ok { color: #22c55e; }
+    .c-cmd { color: #7dd3fc; }
+    .c-flag { color: #93c5fd; }
+    .c-str { color: #86efac; }
+    .c-ok { color: #34d399; }
     .c-dim { color: #64748b; }
 
     /* Sections */
@@ -133,8 +159,9 @@
     .section-head { max-width: 640px; margin-bottom: 40px; }
     .section-head.center { margin-left: auto; margin-right: auto; text-align: center; }
     .kicker {
-      font-family: var(--font-mono); font-size: 12.5px; letter-spacing: 0.08em;
-      text-transform: uppercase; color: var(--brass); margin-bottom: 12px;
+      font-family: var(--font-display); font-size: 13px; font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase; color: var(--signal); margin-bottom: 12px;
     }
     h2 {
       font-family: var(--font-display); font-weight: 600; letter-spacing: -0.02em;
@@ -160,9 +187,9 @@
     }
     .card-icon {
       width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center;
-      margin-bottom: 14px; color: var(--brass);
-      background: color-mix(in srgb, var(--brass) 12%, transparent);
-      border: 1px solid color-mix(in srgb, var(--brass) 28%, transparent);
+      margin-bottom: 14px; color: var(--signal);
+      background: color-mix(in srgb, var(--signal) 12%, transparent);
+      border: 1px solid color-mix(in srgb, var(--signal) 28%, transparent);
     }
     .card h3 {
       font-family: var(--font-display); font-size: 17px; font-weight: 600;
@@ -208,8 +235,9 @@
       font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.06em;
     }
     .media-copy .tag {
-      font-family: var(--font-mono); font-size: 11.5px; letter-spacing: 0.06em;
-      text-transform: uppercase; color: var(--brass); margin: 0 0 6px;
+      font-family: var(--font-display); font-size: 12px; font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase; color: var(--signal); margin: 0 0 6px;
     }
     .media-copy h3 {
       font-family: var(--font-display); font-size: 18px; font-weight: 600;
@@ -238,7 +266,7 @@
       background: var(--steel-raised);
     }
     .flow-step code {
-      font-family: var(--font-mono); font-size: 12.5px; color: var(--brass);
+      font-family: var(--font-mono); font-size: 12.5px; color: var(--signal);
       align-self: start; padding-top: 2px;
     }
     .flow-step strong { display: block; color: var(--ink); margin-bottom: 4px; font-family: var(--font-display); }
@@ -265,8 +293,8 @@
           <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
             <defs>
               <linearGradient id="wslproxyLogoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stop-color="#5493d6" />
-                <stop offset="100%" stop-color="#1e4c88" />
+                <stop offset="0%" stop-color="var(--signal)" />
+                <stop offset="100%" stop-color="var(--brass-dim)" />
               </linearGradient>
             </defs>
             <path d="M24 4L6 12v12c0 11 8 21 18 24 10-3 18-13 18-24V12L24 4z" fill="url(#wslproxyLogoGrad)" />

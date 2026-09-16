@@ -1,36 +1,41 @@
 /* Shared WSLProxy site chrome — tokens, base, nav, theme toggle, blog article.
+   Enterprise steel-blue system locked to the shield mark (#5493d6 → #1e4c88).
    Keep in sync with html/index.html page-specific layout CSS. */
 
 :root {
-  /* Light — match admin dashboard light canvas */
-  --steel: #f7f9fc;
+  /* Light — crisp ops console on cool paper */
+  --steel: #f4f7fb;
   --steel-raised: #ffffff;
-  --steel-line: #c5d0dc;
-  --steel-line-soft: #d8e0ea;
-  --steel-ink: #5b6b7c;
+  --steel-line: #c8d4e3;
+  --steel-line-soft: #dde5ef;
+  --steel-ink: #5a6b7e;
   --steel-ink-dim: #7a8a9a;
-  --canvas: #eef2f6;
+  --canvas: #e8eef5;
   --surface: #ffffff;
-  --line: #c5d0dc;
+  --line: #c8d4e3;
   --line-strong: #aebccd;
-  --ink: #0b1c2c;
-  --ink-muted: #3d5a80;
-  --on-steel: #0b1c2c;
-  --on-steel-muted: #3d5a80;
-  --on-steel-faint: #5b6b7c;
-  --brass: #255fa8;
-  --brass-dim: #1e4c88;
-  --brass-glow: #255fa833;
-  --navy: #5493d6;
-  --unlock: #1a7a6d;
-  --danger: #c45c4a;
-  --warn: #c45c26;
-  --nav-bg: #f7f9fce6;
-  --hero-ring: #c5d0dc;
-  --term-bg: #0b1c2c;
+  --ink: #0a1828;
+  --ink-muted: #3a5470;
+  --on-steel: #0a1828;
+  --on-steel-muted: #3a5470;
+  --on-steel-faint: #5a6b7e;
+  /* Primary CTA / links — deep steel blue (WCAG on white) */
+  --brass: #1f5f9e;
+  --brass-dim: #174a7c;
+  --brass-glow: #1f5f9e33;
+  /* Signal — logo highlight / brand word / eyebrow */
+  --navy: #2f7fc4;
+  --signal: #2f7fc4;
+  --unlock: #0f766e;
+  --danger: #b91c1c;
+  --warn: #c2410c;
+  --nav-bg: #f4f7fbe8;
+  --hero-ring: #c8d4e3;
+  --hero-glow: #2f7fc41a;
+  --term-bg: #0a1828;
   --term-bar: #122233;
   --term-ink: #e2e8f0;
-  --code-bg: #0b1c2c;
+  --code-bg: #0a1828;
   --code-ink: #e2e8f0;
   --radius: 12px;
   --maxw: 1120px;
@@ -42,34 +47,37 @@
 }
 
 html.dark {
-  --steel: #0c1421;
-  --steel-raised: #162235;
+  /* Dark — deep navy ops floor; accents match shield (no purple) */
+  --steel: #070e18;
+  --steel-raised: #101a2a;
   --steel-line: #243447;
-  --steel-line-soft: #1a2738;
+  --steel-line-soft: #182434;
   --steel-ink: #94a3b8;
   --steel-ink-dim: #64748b;
   --canvas: #0a1220;
-  --surface: #162235;
+  --surface: #121c2e;
   --line: #243447;
-  --line-strong: #2f425a;
-  --ink: #f8fafc;
-  --ink-muted: #94a3b8;
-  --on-steel: #e2e8f0;
-  --on-steel-muted: #94a3b8;
-  --on-steel-faint: #64748b;
-  --brass: #5865f2;
-  --brass-dim: #4f46e5;
-  --brass-glow: #5865f247;
-  --navy: #38bdf8;
-  --unlock: #22c55e;
+  --line-strong: #31465f;
+  --ink: #f4f7fb;
+  --ink-muted: #9eb0c4;
+  --on-steel: #e8eef5;
+  --on-steel-muted: #9eb0c4;
+  --on-steel-faint: #7a8fa6;
+  --brass: #3b82f6;
+  --brass-dim: #2563eb;
+  --brass-glow: #3b82f640;
+  --navy: #7dd3fc;
+  --signal: #7dd3fc;
+  --unlock: #34d399;
   --danger: #f87171;
-  --warn: #f59e0b;
-  --nav-bg: #0c1421d9;
+  --warn: #fbbf24;
+  --nav-bg: #070e18e6;
   --hero-ring: #243447;
-  --term-bg: #0a1220;
-  --term-bar: #132033;
-  --term-ink: #e2e8f0;
-  --code-bg: #061018;
+  --hero-glow: #3b82f61f;
+  --term-bg: #060d16;
+  --term-bar: #0e1826;
+  --term-ink: #e8eef5;
+  --code-bg: #050b12;
   --code-ink: #d7e2ec;
   color-scheme: dark;
 }
@@ -90,7 +98,10 @@ body {
   font-size: 16.5px;
   line-height: 1.55;
   color: var(--on-steel);
-  background: var(--steel);
+  background:
+    radial-gradient(ellipse 80% 50% at 70% -10%, var(--hero-glow), transparent 55%),
+    var(--steel);
+  background-attachment: fixed;
 }
 a { color: inherit; text-decoration: none; }
 a:focus-visible { outline: 2px solid var(--brass); outline-offset: 3px; }
@@ -102,21 +113,27 @@ a:focus-visible { outline: 2px solid var(--brass); outline-offset: 3px; }
 .nav {
   position: sticky; top: 0; z-index: 50;
   background: var(--nav-bg);
-  backdrop-filter: saturate(140%) blur(10px);
+  backdrop-filter: saturate(140%) blur(12px);
   border-bottom: 1px solid var(--steel-line-soft);
 }
 .nav-inner { display: flex; align-items: center; justify-content: space-between; height: 64px; gap: 1rem; }
 .brand {
   display: flex; align-items: center; gap: 11px;
   font-family: var(--font-display); font-weight: 600; font-size: 17px;
-  letter-spacing: -0.01em; color: var(--ink);
+  letter-spacing: -0.015em; color: var(--ink);
 }
 .brand-mark {
-  width: 28px; height: 28px; flex-shrink: 0;
+  width: 30px; height: 30px; flex-shrink: 0;
   display: block;
+  filter: drop-shadow(0 2px 6px color-mix(in srgb, var(--brass) 28%, transparent));
 }
 .brand-mark svg { display: block; width: 100%; height: 100%; }
-.brand-accent { color: var(--brass); }
+/* "Proxy" tracks the shield highlight, not the CTA fill */
+.brand-accent {
+  color: var(--signal);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
 .nav-links { display: flex; align-items: center; gap: 18px; }
 .nav-links a { color: var(--on-steel-muted); font-size: 14.5px; font-weight: 500; }
 .nav-links a:hover { color: var(--ink); }
@@ -124,8 +141,13 @@ a:focus-visible { outline: 2px solid var(--brass); outline-offset: 3px; }
   border: 1px solid var(--steel-line); border-radius: 10px;
   padding: 8px 14px !important; color: var(--ink) !important;
   background: var(--steel-raised);
+  font-weight: 600 !important;
 }
-.nav-cta:hover { border-color: var(--brass); color: var(--brass) !important; }
+.nav-cta:hover {
+  border-color: var(--signal);
+  color: var(--signal) !important;
+  background: color-mix(in srgb, var(--signal) 10%, var(--steel-raised));
+}
 .theme-toggle {
   display: inline-flex; align-items: center; justify-content: center;
   width: 36px; height: 36px; padding: 0;
@@ -187,8 +209,8 @@ html.dark .theme-toggle .icon-moon { display: none; }
 }
 .post-card p { margin: 0; color: var(--ink-muted); font-size: 15.5px; }
 .post-card .meta {
-  font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.06em;
-  text-transform: uppercase; color: var(--brass); font-weight: 500; margin: 0 0 6px;
+  font-family: var(--font-display); font-size: 12px; letter-spacing: 0.04em;
+  text-transform: uppercase; color: var(--signal); font-weight: 600; margin: 0 0 6px;
 }
 .post-card .thumb {
   width: 100%; border-radius: 10px; border: 1px solid var(--line);
@@ -198,8 +220,8 @@ html.dark .theme-toggle .icon-moon { display: none; }
 /* Blog article */
 .blog-article { padding: 40px 0 64px; }
 .blog-article .kicker {
-  font-family: var(--font-mono); font-size: 12.5px; letter-spacing: 0.08em;
-  text-transform: uppercase; color: var(--brass); font-weight: 500; margin: 0 0 10px;
+  font-family: var(--font-display); font-size: 13px; letter-spacing: 0.04em;
+  text-transform: uppercase; color: var(--signal); font-weight: 600; margin: 0 0 10px;
 }
 .blog-article h1 {
   font-family: var(--font-display); font-weight: 600; letter-spacing: -0.025em;
