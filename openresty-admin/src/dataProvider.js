@@ -398,21 +398,28 @@ const dataProvider = (apiUrl, settings = {}) => {
           body: JSON.stringify(params),
           headers: getHeaders(),
         });
-        if (response.status < 200 && response.status !== 401) {
-          return Promise.reject(data.error);
-        }
+        const data = await response.json().catch(() => ({}));
         if (response.status === 401) {
           localStorage.removeItem("token");
           localStorage.removeItem("uuid_business_id");
           window.location.href = "/#/login";
+          setIsLoadig(false);
+          return Promise.reject(new Error("Unauthorized"));
         }
-        const data = await response.json();
+        if (response.status < 200 || response.status >= 300) {
+          setIsLoadig(false);
+          const msg =
+            data?.error ||
+            data?.message ||
+            `Storage switch failed (HTTP ${response.status})`;
+          return Promise.reject(new Error(msg));
+        }
         setIsLoadig(false);
         return data;
       } catch (error) {
         console.log({ error });
         setIsLoadig(false);
-        throw new Error(error);
+        throw error instanceof Error ? error : new Error(String(error));
       }
     },
 
