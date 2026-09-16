@@ -1,0 +1,48 @@
+WSLProxy WAF in 10 Minutes: Block Attacks Before They Reach Your Origin
+
+Policy packs, signature stages, monitor vs block, anomaly scoring, and explainable 403s — the edge WAF tour on OpenResty.
+
+🌐 Site: https://wslproxy.org/waf/
+📦 GitHub: https://github.com/bwalia/wslproxy
+📘 Engine docs: https://github.com/bwalia/wslproxy/blob/main/docs/WAF_ENGINE_V2.md
+🎬 Full product intro (20 min): https://youtu.be/7NJulclG5sQ
+
+────────────────────────────────────────
+SUGGESTED YOUTUBE TITLE (pick one)
+────────────────────────────────────────
+PRIMARY:
+WSLProxy WAF in 10 Minutes: Block Attacks Before They Reach Your Origin
+
+ALTERNATES:
+• Stop SQLi & XSS at the Edge — WSLProxy WAF Crash Course (10 Min)
+• Monitor First, Block Later: WSLProxy Edge WAF Explained
+• Edge WAF Operators Can Explain — WSLProxy Security in 10 Minutes
+
+────────────────────────────────────────
+WHAT YOU'LL SEE
+────────────────────────────────────────
+• Bind a WAF policy to a virtual host (and route overrides)
+• Monitor vs block — safe rollout with staged signatures
+• Stage pipeline: method, filetype, smuggling, geo/IP, JWT alg, JSON, brute-force, OpenAPI
+• Signature library — SQLi, XSS, Log4Shell, SSTI, SSRF, and more
+• Explainable blocks — X-Support-ID, X-WAF-Rule, events & metrics
+• Layered edge controls — rate limit, CAPTCHA (306), rule JWT / geo / IP
+
+────────────────────────────────────────
+CHAPTERS (edit times to match your cut)
+────────────────────────────────────────
+0:00  Why edge WAF beats origin-only filters
+1:00  Policy packs & bind to a server
+2:00  Monitor vs block + route overrides
+3:30  Stage pipeline tour
+5:30  Signatures, sets & anomaly score
+7:30  Rate limit, CAPTCHA, JWT / geo
+8:45  Events, support IDs, where to start
+9:30  Wrap-up
+
+────────────────────────────────────────
+TAGS
+────────────────────────────────────────
+WSLProxy, WAF, Web Application Firewall, OpenResty, nginx, API gateway, edge security, SQLi, XSS, OWASP, reverse proxy, CDN, DevOps, cybersecurity, live-config
+
+#WSLProxy #WAF #OpenResty #EdgeSecurity #DevOps #APIGateway
