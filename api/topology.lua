@@ -18,27 +18,23 @@ local _M = {}
 local configPath = os.getenv("NGINX_CONFIG_DIR") or "/opt/nginx/"
 
 -------------------------------------------------------------------------------
--- Helper: read all JSON files from a directory
+-- Helper: load servers/rules via the same storage layer as list APIs
+-- (disk / redis / pgsql). Topology used to scan data/*/ JSON on disk only,
+-- which showed stale image/mount files when storage_type=pgsql and Postgres
+-- was empty — UI lists empty, topology still full. Repo.scan matches CRUD.
 -------------------------------------------------------------------------------
-local function read_json_dir(dir_path)
-    local results = {}
-    local ok, lfs = pcall(require, "lfs")
-    if not ok then return results end
-
-    for file in lfs.dir(dir_path) do
-        if file:match("%.json$") then
-            local fh = io.open(dir_path .. file, "rb")
-            if fh then
-                local content = fh:read("*a")
-                fh:close()
-                local data = cjson.decode(content)
-                if data then
-                    table.insert(results, data)
-                end
-            end
+local function load_records(resource, profile_id)
+    local ok, Repo = pcall(require, "repo")
+    if ok and Repo and Repo.scan then
+        local records, err = Repo.scan(resource, profile_id)
+        if type(records) == "table" then
+            return records
+        end
+        if err and ngx and ngx.log then
+            ngx.log(ngx.WARN, "topology Repo.scan(", resource, ") failed: ", tostring(err))
         end
     end
-    return results
+    return {}
 end
 
 -------------------------------------------------------------------------------
@@ -185,11 +181,9 @@ function _M.get_graph(args)
         end
     end
     local profile_id = args.profile_id or default_profile
-    local servers_dir = configPath .. "data/servers/" .. profile_id .. "/"
-    local rules_dir = configPath .. "data/rules/" .. profile_id .. "/"
 
-    local servers = read_json_dir(servers_dir)
-    local rules = read_json_dir(rules_dir)
+    local servers = load_records("servers", profile_id)
+    local rules = load_records("rules", profile_id)
 
     -- Build rules lookup
     local rules_map = {}
@@ -479,6 +473,13 @@ function _M.get_graph(args)
                 rules = kind_counts.rule,
                 backends = kind_counts.backend,
                 profile_id = profile_id,
+                storage_type = (function()
+                    local ok, Repo = pcall(require, "repo")
+                    if ok and Repo and Repo.storage_type then
+                        return Repo.storage_type()
+                    end
+                    return nil
+                end)(),
             },
         },
     }
