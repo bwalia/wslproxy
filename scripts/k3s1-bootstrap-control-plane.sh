@@ -7,10 +7,11 @@
 #
 # Requires:
 #   KUBECONFIG (or in-cluster SA) with rights from deploy/ring-promoter/k3s1-rbac.yaml
-#   VAULT_ADDR + VAULT_TOKEN  (WSLVault prod — https://vault-ui.workstation.co.uk)
+#   VAULT_ADDR + VAULT_TOKEN  (WSLVault API — https://vault.workstation.co.uk)
+#   Note: vault-ui.workstation.co.uk is the SPA only; /v1/* lives on vault.workstation.co.uk.
 #
-# Vault paths (KV v2):
-#   secret/data/wslproxy/prod/settings.json   — full settings object
+# Vault paths (WSLVault, Vault-compatible URL shape):
+#   secret/data/wslproxy/prod/settings.json   — full settings object (stored as base64 JSON string)
 #   secret/data/wslproxy/prod/pgsql           — optional {pg_host,pg_port,pg_database,pg_user,pg_password}
 #     When present, password/user/db overlay Zalando defaults; in-cluster host is still forced
 #     to wslproxy-db.wslproxy-system.svc.cluster.local for the control-plane pods.
@@ -28,7 +29,7 @@ CRED_SECRET="${USER}.${CLUSTER}.credentials.postgresql.acid.zalan.do"
 APP_SECRET="${WSLPROXY_PGSQL_SECRET:-wslproxy-pgsql}"
 SETTINGS_SECRET="${WSLPROXY_SETTINGS_SECRET:-wslproxy-settings}"
 VAULT_ENV="${WSLPROXY_VAULT_ENV:-prod}"
-VAULT_ADDR="${VAULT_ADDR:-https://vault-ui.workstation.co.uk}"
+VAULT_ADDR="${VAULT_ADDR:-https://vault.workstation.co.uk}"
 VAULT_SETTINGS_PATH="${VAULT_SETTINGS_PATH:-secret/data/wslproxy/${VAULT_ENV}/settings.json}"
 VAULT_PGSQL_PATH="${VAULT_PGSQL_PATH:-secret/data/wslproxy/${VAULT_ENV}/pgsql}"
 IN_CLUSTER_HOST="${CLUSTER}.${NS}.svc.cluster.local"
@@ -39,6 +40,8 @@ if [[ -z "${VAULT_TOKEN:-}" ]]; then
   exit 1
 fi
 
+# WSLVault returns {"data":"<base64-json>"}. HashiCorp KV v2 returns {"data":{"data":{...}}}.
+# Emit the inner JSON object either way.
 vault_get() {
   local path="$1"
   local url="${VAULT_ADDR%/}/v1/${path#/}"
@@ -53,7 +56,17 @@ vault_get() {
     echo >&2
     return 1
   fi
-  jq -e '.data.data' /tmp/vault-body.json
+  jq -e '
+    if (.data | type) == "string" then
+      (.data | @base64d | fromjson)
+    elif (.data.data | type) == "object" then
+      .data.data
+    elif (.data.data | type) == "string" then
+      (.data.data | @base64d | fromjson)
+    else
+      error("unsupported Vault payload shape")
+    end
+  ' /tmp/vault-body.json
 }
 
 echo "==> apply Zalando CR ${CLUSTER}"

@@ -13,7 +13,7 @@
 #
 # One-time cluster prereqs (not created by this workflow):
 #   kubectl -n ring-exec create secret generic wslproxy-vault \
-#     --from-literal=VAULT_ADDR=https://vault-ui.workstation.co.uk \
+#     --from-literal=VAULT_ADDR=https://vault.workstation.co.uk \
 #     --from-literal=VAULT_TOKEN=hvs.…
 #   kubectl apply -f deploy/ring-promoter/k3s1-rbac.yaml
 #   App registered in workstation ConfigMap (ring-promoter deploy/k8s/configmap.yaml)

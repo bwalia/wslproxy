@@ -5,15 +5,16 @@
 #
 # Prod path:
 #   1) Bootstrap Zalando Postgres + pull settings from WSLVault prod
-#      (https://vault-ui.workstation.co.uk → secret/data/wslproxy/prod/…)
+#      (https://vault.workstation.co.uk → secret/data/wslproxy/prod/…)
 #   2) helm upgrade ingress chart with settings + pgsql secrets mounted
 #      (pins openresty.image.tag only — controller stays at chart latest)
 #
 # One-time on k3s1 (ring-exec):
 #   kubectl -n ring-exec create secret generic wslproxy-vault \
-#     --from-literal=VAULT_ADDR=https://vault-ui.workstation.co.uk \
-#     --from-literal=VAULT_TOKEN=hvs.…
+#     --from-literal=VAULT_ADDR=https://vault.workstation.co.uk \
+#     --from-literal=VAULT_TOKEN='<JWT from int/wslvault-token or WSLVault UI>'
 #   kubectl apply -f deploy/ring-promoter/k3s1-rbac.yaml
+#   (vault-ui.workstation.co.uk is the SPA only — jobs must use the API host.)
 #
 # Auto-deploy: .github/workflows/deploy-control-plane-k3s1.yml seeds prod on
 # merge to main via POST https://rp.workstation.co.uk/api/apps/wslproxy-k3s1/seed

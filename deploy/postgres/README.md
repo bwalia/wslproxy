@@ -16,11 +16,12 @@ before helm so OpenResty mounts Vault settings with `storage_type: pgsql`.
 
 ## WSLVault (prod)
 
-UI: https://vault-ui.workstation.co.uk/
+UI: https://vault-ui.workstation.co.uk/  
+API: https://vault.workstation.co.uk/  (Jobs must use this — UI has no `/v1/*`)
 
 | Path | Purpose |
 |--|--|
-| `secret/data/wslproxy/prod/settings.json` | Full `settings.json` object (`env_profile` must be `prod`) |
+| `secret/data/wslproxy/prod/settings.json` | Full `settings.json` (WSLVault stores the JSON as a base64 string in `data`) |
 | `secret/data/wslproxy/prod/pgsql` | Optional overlay (`pg_database`, `pg_user`, …) |
 
 Bootstrap always sets `storage_type: "pgsql"` and points `pgsql.pg_host` at the
@@ -48,8 +49,8 @@ Ensure `settings.json` in Vault is ready for pgsql (you can leave password empty
 ```bash
 export KUBECONFIG=~/.kube/k3s1.yaml
 kubectl -n ring-exec create secret generic wslproxy-vault \
-  --from-literal=VAULT_ADDR=https://vault-ui.workstation.co.uk \
-  --from-literal=VAULT_TOKEN='hvs.…'
+  --from-literal=VAULT_ADDR=https://vault.workstation.co.uk \
+  --from-literal=VAULT_TOKEN='<JWT from int/wslvault-token or WSLVault>'
 kubectl apply -f deploy/ring-promoter/k3s1-rbac.yaml
 ```
 
@@ -57,8 +58,8 @@ kubectl apply -f deploy/ring-promoter/k3s1-rbac.yaml
 
 ```bash
 export KUBECONFIG=~/.kube/k3s1.yaml
-export VAULT_ADDR=https://vault-ui.workstation.co.uk
-export VAULT_TOKEN=hvs.…
+export VAULT_ADDR=https://vault.workstation.co.uk
+export VAULT_TOKEN='<JWT>'
 ./scripts/k3s1-bootstrap-control-plane.sh
 ```
 
