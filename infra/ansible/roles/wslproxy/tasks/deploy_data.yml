@@ -148,15 +148,30 @@
   when: _use_vault_secrets
   tags: [servers, code]
 
+- name: "Vault: normalize settings payload (WSLVault base64 or HashiCorp KV v2)"
+  ansible.builtin.set_fact:
+    # WSLVault: {"data":"<base64-json>"}. KV v2: {"data":{"data":{...}}}.
+    _vault_settings_obj: >-
+      {{
+        (_vault_settings.json.data is string)
+        | ternary(
+            (_vault_settings.json.data | b64decode | from_json),
+            (_vault_settings.json.data.data | default(_vault_settings.json.data, true))
+          )
+      }}
+  no_log: true
+  when: _use_vault_secrets
+  tags: [servers, code]
+
 - name: "Vault: refuse deploy if settings.env_profile != target_env"
   # See the comment block above the SOPS guard task for the full rationale.
   ansible.builtin.assert:
     that:
-      - (_vault_settings.json.data.data.env_profile | default('')) == target_env
+      - (_vault_settings_obj.env_profile | default('')) == target_env
     fail_msg: >-
       ABORTING DEPLOY — env_profile mismatch.  Vault path
       secret/data/wslproxy/{{ target_env }}/settings.json contains
-      env_profile='{{ _vault_settings.json.data.data.env_profile | default('<missing>') }}'
+      env_profile='{{ _vault_settings_obj.env_profile | default('<missing>') }}'
       but the workflow's target_env='{{ target_env }}'.  Writing this file
       to the target would overwrite the host's profile with the wrong
       environment's data (rules under data/{rules,servers}/<profile>/
@@ -168,7 +183,7 @@
 
 - name: "Vault: write settings.json to target"
   ansible.builtin.copy:
-    content: "{{ _vault_settings.json.data.data | to_nice_json }}"
+    content: "{{ _vault_settings_obj | to_nice_json }}"
     dest: /opt/nginx/data/settings.json
     # settings.json holds the JWT passphrase, super_user password hash and
     # redis/pgsql creds — must NOT be world-readable/writable. 0640
@@ -197,13 +212,27 @@
   when: _use_vault_secrets
   tags: [servers, code]
 
+- name: "Vault: normalize env payload (WSLVault base64 or HashiCorp KV v2)"
+  ansible.builtin.set_fact:
+    _vault_env_obj: >-
+      {{
+        (_vault_env.json.data is string)
+        | ternary(
+            (_vault_env.json.data | b64decode | from_json),
+            (_vault_env.json.data.data | default(_vault_env.json.data, true))
+          )
+      }}
+  no_log: true
+  when: _use_vault_secrets
+  tags: [servers, code]
+
 - name: "Vault: write env file to target"
   ansible.builtin.copy:
     content: |
-      {% if _vault_env.json.data.data.value is defined %}
-      {{ _vault_env.json.data.data.value }}
+      {% if _vault_env_obj.value is defined %}
+      {{ _vault_env_obj.value }}
       {% else %}
-      {% for k, v in _vault_env.json.data.data.items() %}
+      {% for k, v in _vault_env_obj.items() %}
       {{ k }}={{ v }}
       {% endfor %}
       {% endif %}

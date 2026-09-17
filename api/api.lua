@@ -965,10 +965,18 @@ local ALLOWED_STORAGE = { disk = true, redis = true, pgsql = true }
 local function merge_pgsql_destination(existing, incoming)
     existing = type(existing) == "table" and existing or {}
     incoming = type(incoming) == "table" and incoming or {}
-    local password = incoming.pg_password or incoming.password
-    if password == nil or password == "" then
-        password = existing.pg_password or existing.password or ""
+    -- Password: explicit UI override wins; otherwise refresh from Vault,
+    -- then SOPS file, then WSLPROXY_PG_PASSWORD. Do NOT silently keep a
+    -- stale settings.json password — that hid missing Vault/SOPS sync.
+    local SecretsResolve = require("secrets_resolve")
+    local password, source, resolve_err = SecretsResolve.resolve_pgsql_password(settings, {
+        override = incoming.pg_password or incoming.password,
+        env_profile = settings and settings.env_profile,
+    })
+    if not password or password == "" then
+        return nil, resolve_err or "PostgreSQL password not found in Vault or SOPS"
     end
+    ngx.log(ngx.NOTICE, "storage/management: pg_password resolved from ", tostring(source))
     local ssl = existing.ssl
     if incoming.ssl ~= nil then
         ssl = incoming.ssl
@@ -980,6 +988,7 @@ local function merge_pgsql_destination(existing, incoming)
         pg_user     = incoming.pg_user or incoming.user or existing.pg_user or existing.user,
         pg_password = password,
         ssl         = ssl,
+        _password_source = source,
     }
 end
 
@@ -1029,8 +1038,13 @@ local function setStorage(body)
         Errors.throwError("Invalid storage type. Must be disk, redis, or pgsql", ngx.HTTP_BAD_REQUEST)
         return
     end
+    local password_source
     if storageType == "pgsql" then
-        local pg_cfg = merge_pgsql_destination(settings.pgsql, payloads.pgsql)
+        local pg_cfg, merge_err = merge_pgsql_destination(settings.pgsql, payloads.pgsql)
+        if not pg_cfg then
+            Errors.throwError(tostring(merge_err), ngx.HTTP_BAD_REQUEST)
+            return
+        end
         if not pg_cfg.pg_host or pg_cfg.pg_host == "" then
             Errors.throwError("PostgreSQL host is required", ngx.HTTP_BAD_REQUEST)
             return
@@ -1043,6 +1057,8 @@ local function setStorage(body)
             Errors.throwError("PostgreSQL user is required", ngx.HTTP_BAD_REQUEST)
             return
         end
+        password_source = pg_cfg._password_source
+        pg_cfg._password_source = nil
         local ok, err = probe_pgsql(pg_cfg)
         if not ok then
             Errors.throwError("PostgreSQL unreachable: " .. tostring(err), ngx.HTTP_BAD_GATEWAY)
@@ -1060,6 +1076,7 @@ local function setStorage(body)
         data = {
             storage = settings.storage_type,
             pgsql = storageType == "pgsql" and public_pgsql(settings.pgsql) or nil,
+            password_source = password_source,
         }
     }))
 end

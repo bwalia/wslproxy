@@ -36,6 +36,11 @@ env MCP_MODE;
 env MCP_API_KEY;
 env MCP_TOOLS_ENABLED;
 env VARNISH_ENABLED;
+env VAULT_ADDR;
+env VAULT_TOKEN;
+env SOPS_SETTINGS_PATH;
+env SOPS_AGE_KEY;
+env WSLPROXY_PG_PASSWORD;
 
 {% if target_env == 'prod' %}
 # TCP stream proxy configs (only on production proxy hosts)

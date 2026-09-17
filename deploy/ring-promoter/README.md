@@ -40,9 +40,8 @@ Ring Promoter app `wslproxy-k3s1` (`deployer: k8sjob`) creates a Job in
 `ring-exec` on k3s1 that:
 
 1. **prod only** — runs `scripts/k3s1-bootstrap-control-plane.sh`:
-   Zalando Postgres, migrations, Secrets `wslproxy-pgsql` +
-   `wslproxy-settings` (settings from **WSLVault prod** at
-   https://vault.workstation.co.uk/, forced `storage_type: pgsql`)
+   Zalando Postgres, migrations, then Secrets `wslproxy-pgsql` +
+   `wslproxy-settings` from **Vault → SOPS fallback** (forced `storage_type: pgsql`)
 2. `helm upgrade --install` of `ingress-controller/deploy/helm`
    (prod mounts those Secrets into OpenResty; pins **`openresty.image.tag`**
    only — ingress controller image stays at chart `latest`)
@@ -62,9 +61,11 @@ export KUBECONFIG=~/.kube/k3s1.yaml
 
 # Vault token for the Job (never commit the token).
 # Use the API host (vault-ui is SPA-only). Token: JWT from int/wslvault-token.
+# Optional SOPS_AGE_KEY enables Vault → SOPS fallback inside the Job.
 kubectl -n ring-exec create secret generic wslproxy-vault \
   --from-literal=VAULT_ADDR=https://vault.workstation.co.uk \
-  --from-literal=VAULT_TOKEN='<JWT>'
+  --from-literal=VAULT_TOKEN='<JWT>' \
+  --from-literal=SOPS_AGE_KEY='<AGE-SECRET-KEY-…>'
 
 kubectl apply -f deploy/ring-promoter/k3s1-rbac.yaml
 ```

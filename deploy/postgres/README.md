@@ -3,7 +3,7 @@
 Creates an in-cluster Postgres for **wslproxy-system** via the Zalando
 operator already running in `postgres`. The Ring Promoter app
 `wslproxy-k3s1` (prod ring) runs `scripts/k3s1-bootstrap-control-plane.sh`
-before helm so OpenResty mounts Vault settings with `storage_type: pgsql`.
+before helm so OpenResty mounts Secrets with `storage_type: pgsql`.
 
 | | |
 |--|--|
@@ -11,46 +11,36 @@ before helm so OpenResty mounts Vault settings with `storage_type: pgsql`.
 | Service | `wslproxy-db.wslproxy-system.svc.cluster.local:5432` |
 | Database / user | `wslproxy` / `wslproxy` |
 | Credentials | Secret `wslproxy.wslproxy-db.credentials.postgresql.acid.zalan.do` |
-| App connection Secret | `wslproxy-pgsql` |
-| Settings Secret | `wslproxy-settings` (from WSLVault prod) |
+| App connection Secret | `wslproxy-pgsql` → helm `openresty.pgsql.existingSecret` |
+| Settings Secret | `wslproxy-settings` → helm `openresty.settings.existingSecret` |
 
-## WSLVault (prod)
+## Secret source order
 
-UI: https://vault-ui.workstation.co.uk/  
-API: https://vault.workstation.co.uk/  (Jobs must use this — UI has no `/v1/*`)
+Same pattern as CI `secrets_mode: vault_or_sops`:
+
+1. **Vault** — `https://vault.workstation.co.uk` (API; UI is vault-ui only)
+2. **SOPS** — `infra/secrets/<env>/settings.sops.json` if Vault miss/unusable
+3. **Kubernetes Secrets** — write `wslproxy-settings` + `wslproxy-pgsql` for helm
 
 | Path | Purpose |
 |--|--|
-| `secret/data/wslproxy/prod/settings.json` | Full `settings.json` (WSLVault stores the JSON as a base64 string in `data`) |
+| `secret/data/wslproxy/prod/settings.json` | Full `settings.json` (WSLVault: base64 string in `data`) |
 | `secret/data/wslproxy/prod/pgsql` | Optional overlay (`pg_database`, `pg_user`, …) |
+| `infra/secrets/prod/settings.sops.json` | SOPS fallback for the same payload |
 
 Bootstrap always sets `storage_type: "pgsql"` and points `pgsql.pg_host` at the
-in-cluster Service. The DB password comes from the Zalando-managed secret
-(operator-owned). After first bootstrap, copy that password into the Vault
-`pgsql` secret if VM edges also need to reach Postgres.
+in-cluster Service. The DB password in `wslproxy-pgsql` comes from the
+Zalando-managed secret (operator-owned). After first bootstrap, sync that
+password into Vault/SOPS if VM edges also need to reach Postgres.
 
-Ensure `settings.json` in Vault is ready for pgsql (you can leave password empty):
-
-```json
-{
-  "env_profile": "prod",
-  "storage_type": "pgsql",
-  "pgsql": {
-    "pg_host": "wslproxy-db.wslproxy-system.svc.cluster.local",
-    "pg_port": 5432,
-    "pg_database": "wslproxy",
-    "pg_user": "wslproxy"
-  }
-}
-```
-
-## One-time: Vault token for the deploy Job
+## One-time: credentials for the deploy Job
 
 ```bash
 export KUBECONFIG=~/.kube/k3s1.yaml
 kubectl -n ring-exec create secret generic wslproxy-vault \
   --from-literal=VAULT_ADDR=https://vault.workstation.co.uk \
-  --from-literal=VAULT_TOKEN='<JWT from int/wslvault-token or WSLVault>'
+  --from-literal=VAULT_TOKEN='<JWT from int/wslvault-token or WSLVault>' \
+  --from-literal=SOPS_AGE_KEY='<AGE-SECRET-KEY-…>'   # optional SOPS fallback
 kubectl apply -f deploy/ring-promoter/k3s1-rbac.yaml
 ```
 
@@ -60,6 +50,7 @@ kubectl apply -f deploy/ring-promoter/k3s1-rbac.yaml
 export KUBECONFIG=~/.kube/k3s1.yaml
 export VAULT_ADDR=https://vault.workstation.co.uk
 export VAULT_TOKEN='<JWT>'
+# optional: export SOPS_AGE_KEY=...
 ./scripts/k3s1-bootstrap-control-plane.sh
 ```
 
@@ -75,25 +66,6 @@ Or seed/promote `wslproxy-k3s1` on the **prod** ring — the Job does both.
 ## Point POP edges at the central DB
 
 Edges outside the cluster need a reachable Postgres endpoint (NodePort /
-Ingress / VPN) and the same `storage_type: pgsql` + credentials (from Vault).
-In-cluster control-plane pods use the ClusterIP Service name above.
-
-## Control-plane dashboard — https://cp.pop0.uk
-
-Prod helm sets `openresty.controlPlane.enabled=true`:
-
-| Piece | Detail |
-|--|--|
-| K8s Ingress | host `cp.pop0.uk` → Service `…-openresty:8080` (admin UI) |
-| NodePort | `32080` on **cloud003** (`77.68.126.63`) → container `8080` |
-| Edge server | `data/servers/prod/host:cp.pop0.uk.json` |
-| Edge rule | `data/rules/prod/cp-pop0-control-plane.json` → `77.68.126.63:32080` |
-| Pin | `values-control-plane-cloud003.yaml` — `kubernetes.io/hostname=cloud003` + edge taint toleration |
-
-DNS / Cloudflare: origin for `cp.pop0.uk` should be **cloud003** public IP `77.68.126.63`
-(already wired). HTTPS is served by `traefik-edge` Ingress
-`deploy/k3s1/wslproxy-cp-traefik-ingress.yaml` (TLS on `:443` + plain `:80`).
-
-Admin API base URL is **not** baked into the image. At start,
-`write-admin-runtime-config.sh` writes `/runtime-config.js` from
-`WSLPROXY_API_URL` or `settings.admin.api_url` (default same-origin `/api`).
+Ingress / VPN) and the same `storage_type: pgsql` + credentials (from Vault,
+SOPS fallback on Ansible `vault_or_sops`). In-cluster control-plane pods use
+the ClusterIP Service name above.

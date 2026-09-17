@@ -57,7 +57,8 @@ openresty:
   # Number of proxy replicas
   replicas: 3
 
-  # Control-plane settings.json (from WSLVault via scripts/k3s1-bootstrap-control-plane.sh).
+  # Control-plane settings.json. Prefer Vault (WSLVault), fall back to SOPS
+  # via scripts/k3s1-bootstrap-control-plane.sh, then apply as this Secret.
   # Mounted at /opt/nginx/data/settings.json. Empty = image sample settings.
   settings:
     existingSecret: ""
@@ -65,6 +66,7 @@ openresty:
 
   # Postgres connection for storage_type=pgsql (Secret keys: pg_host, pg_port,
   # pg_database, pg_user, pg_password). Injected as WSLPROXY_PG_* env vars.
+  # Materialized by the same bootstrap script (Zalando password for in-cluster).
   pgsql:
     existingSecret: ""
 

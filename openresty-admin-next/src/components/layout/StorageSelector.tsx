@@ -160,7 +160,8 @@ function PgsqlDestinationFields({
         PostgreSQL destination
       </p>
       <p className="text-xs text-slate-500 dark:text-slate-400">
-        Leave password blank to keep the value already stored in settings.json.
+        Password is refreshed from Vault (SOPS settings file as fallback).
+        Leave the override blank unless you need an emergency value.
       </p>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Input
@@ -192,11 +193,11 @@ function PgsqlDestinationFields({
         />
         <div className="sm:col-span-2">
           <Input
-            label="Password"
+            label="Password override (optional)"
             type="password"
             autoComplete="new-password"
             value={pgsql.pg_password}
-            hint="Required on first switch if settings.json has no password."
+            hint="Leave blank to load from Vault, then SOPS."
             onChange={(e) =>
               onChange({ ...pgsql, pg_password: e.target.value })
             }

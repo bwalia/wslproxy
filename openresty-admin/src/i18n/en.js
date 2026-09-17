@@ -27,16 +27,16 @@ const customEnglishMessages = {
         disk: "Disk",
         pgsql: "PostgreSQL",
         pgsql_hint:
-          "Enter the PostgreSQL destination. Leave password blank to keep the value already in settings.json.",
+          "Enter the PostgreSQL destination. Password is loaded from Vault (SOPS file as fallback) — leave blank unless you need an emergency override.",
         pgsql_required: "Host, database, and user are required for PostgreSQL.",
         apply_pgsql: "Use PostgreSQL",
         pg_host: "Host",
         pg_port: "Port",
         pg_database: "Database",
         pg_user: "User",
-        pg_password: "Password",
+        pg_password: "Password override (optional)",
         pg_password_hint:
-          "Required on first switch if settings.json has no password.",
+          "Leave blank to refresh from Vault, then infra/secrets/<env>/settings.sops.json.",
       },
     },
     menu: {

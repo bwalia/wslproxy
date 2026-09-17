@@ -4,15 +4,16 @@
 # Canonical copy also lives in bwalia/ring-promoter deploy/k8s/configmap.yaml.
 #
 # Prod path:
-#   1) Bootstrap Zalando Postgres + pull settings from WSLVault prod
-#      (https://vault.workstation.co.uk → secret/data/wslproxy/prod/…)
-#   2) helm upgrade ingress chart with settings + pgsql secrets mounted
+#   1) Bootstrap Zalando Postgres + resolve secrets Vault → SOPS fallback,
+#      then apply helm Secrets wslproxy-settings + wslproxy-pgsql
+#   2) helm upgrade ingress chart mounting those Secrets
 #      (pins openresty.image.tag only — controller stays at chart latest)
 #
 # One-time on k3s1 (ring-exec):
 #   kubectl -n ring-exec create secret generic wslproxy-vault \
 #     --from-literal=VAULT_ADDR=https://vault.workstation.co.uk \
-#     --from-literal=VAULT_TOKEN='<JWT from int/wslvault-token or WSLVault UI>'
+#     --from-literal=VAULT_TOKEN='<JWT from int/wslvault-token or WSLVault UI>' \
+#     --from-literal=SOPS_AGE_KEY='<AGE-SECRET-KEY-…>'   # optional; SOPS fallback
 #   kubectl apply -f deploy/ring-promoter/k3s1-rbac.yaml
 #   (vault-ui.workstation.co.uk is the SPA only — jobs must use the API host.)
 #
