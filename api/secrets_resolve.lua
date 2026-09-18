@@ -234,6 +234,12 @@ function _M.resolve_pgsql_password(settings, opts)
         return from_env, "env:WSLPROXY_PG_PASSWORD"
     end
 
+    -- 4) Already present in loaded settings.json (Secret-mounted control plane)
+    local from_settings = password_from_table(settings)
+    if from_settings and from_settings ~= "" then
+        return from_settings, "settings.json"
+    end
+
     return nil, nil, "PostgreSQL password not found in Vault or SOPS"
 end
 

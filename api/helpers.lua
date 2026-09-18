@@ -493,11 +493,27 @@ function Helper.writeSettingsFile(filePath, value)
         return false, "Cannot save settings: failed to verify temp file"
     end
 
-    -- Atomic rename
+    -- Atomic rename; Secret/ConfigMap subPath mounts reject rename ("Resource busy").
     local rename_ok, rename_err = os.rename(tmp_path, filePath)
     if not rename_ok then
+        local err_s = tostring(rename_err or "")
+        if err_s:find("Resource busy", 1, true) or err_s:find("Invalid cross-device", 1, true) then
+            -- Fall back to in-place overwrite (works on plain files; Secret mounts are often RO).
+            local dest, dest_err = io.open(filePath, "w")
+            os.remove(tmp_path)
+            if not dest then
+                return false, "Cannot save settings: mounted read-only (Secret/ConfigMap?). "
+                    .. "Update Secret wslproxy-settings via bootstrap/helm instead of the UI. "
+                    .. "(" .. (dest_err or err_s) .. ")"
+            end
+            dest:write(encoded)
+            dest:close()
+            _last_settings_write = now
+            ngx.log(ngx.NOTICE, "Settings file updated in-place (rename unavailable): " .. filePath)
+            return true, nil
+        end
         os.remove(tmp_path)
-        return false, "Cannot save settings: rename failed - " .. (rename_err or "unknown error")
+        return false, "Cannot save settings: rename failed - " .. err_s
     end
 
     _last_settings_write = now

@@ -409,10 +409,12 @@ const dataProvider = (apiUrl, settings = {}) => {
         if (response.status < 200 || response.status >= 300) {
           setIsLoadig(false);
           const msg =
-            data?.error ||
+            (typeof data?.error === "string" && data.error) ||
+            data?.error?.message ||
             data?.message ||
+            (typeof data?.data === "string" && data.data) ||
             `Storage switch failed (HTTP ${response.status})`;
-          return Promise.reject(new Error(msg));
+          return Promise.reject(new Error(String(msg)));
         }
         setIsLoadig(false);
         return data;

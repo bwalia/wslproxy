@@ -93,9 +93,12 @@ const StorageModal = ({ isOpen }) => {
       })
       .catch((err) => {
         console.log(err);
+        const nested =
+          err?.body?.error?.message ||
+          err?.body?.error ||
+          (typeof err?.message === "object" ? JSON.stringify(err.message) : err?.message);
         setError(
-          err?.message ||
-            err?.body?.error ||
+          (typeof nested === "string" && nested) ||
             String(err) ||
             "Failed to switch storage",
         );

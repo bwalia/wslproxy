@@ -1018,6 +1018,20 @@ local function public_pgsql(pg_cfg)
     }
 end
 
+local function pgsql_dest_matches(existing, pg_cfg)
+    existing = type(existing) == "table" and existing or {}
+    if not pg_cfg then
+        return false
+    end
+    local function same(a, b)
+        return tostring(a or "") == tostring(b or "")
+    end
+    return same(existing.pg_host or existing.host, pg_cfg.pg_host)
+        and same(existing.pg_port or existing.port or 5432, pg_cfg.pg_port)
+        and same(existing.pg_database or existing.database, pg_cfg.pg_database)
+        and same(existing.pg_user or existing.user, pg_cfg.pg_user)
+end
+
 local function setStorage(body)
     if not settings then
         Errors.throwError("Settings not loaded", ngx.HTTP_INTERNAL_SERVER_ERROR)
@@ -1038,9 +1052,12 @@ local function setStorage(body)
         Errors.throwError("Invalid storage type. Must be disk, redis, or pgsql", ngx.HTTP_BAD_REQUEST)
         return
     end
+    local prev_storage = settings.storage_type
     local password_source
+    local pg_cfg
     if storageType == "pgsql" then
-        local pg_cfg, merge_err = merge_pgsql_destination(settings.pgsql, payloads.pgsql)
+        local merge_err
+        pg_cfg, merge_err = merge_pgsql_destination(settings.pgsql, payloads.pgsql)
         if not pg_cfg then
             Errors.throwError(tostring(merge_err), ngx.HTTP_BAD_REQUEST)
             return
@@ -1064,11 +1081,39 @@ local function setStorage(body)
             Errors.throwError("PostgreSQL unreachable: " .. tostring(err), ngx.HTTP_BAD_GATEWAY)
             return
         end
+        -- Control-plane pods mount settings.json from Secret wslproxy-settings
+        -- (read-only). If destination already matches, skip the write.
+        if prev_storage == "pgsql" and pgsql_dest_matches(settings.pgsql, pg_cfg) then
+            ngx.say(cjson.encode({
+                data = {
+                    storage = "pgsql",
+                    pgsql = public_pgsql(pg_cfg),
+                    password_source = password_source,
+                    persisted = false,
+                    note = "PostgreSQL already active; settings Secret left unchanged",
+                }
+            }))
+            return
+        end
         settings.pgsql = pg_cfg
     end
     settings.storage_type = storageType
     local updateSettings, msg = Helper.writeSettingsFile(configPath .. "data/settings.json", settings)
     if not updateSettings then
+        -- Already on pgsql + probe OK but Secret mount is immutable: report success.
+        if storageType == "pgsql" and prev_storage == "pgsql" and pg_cfg then
+            ngx.log(ngx.WARN, "storage/management: settings write skipped (", tostring(msg), ")")
+            ngx.say(cjson.encode({
+                data = {
+                    storage = "pgsql",
+                    pgsql = public_pgsql(pg_cfg),
+                    password_source = password_source,
+                    persisted = false,
+                    note = tostring(msg),
+                }
+            }))
+            return
+        end
         Errors.throwError("Couldn't save settings: " .. (msg or "unknown error"), ngx.HTTP_INTERNAL_SERVER_ERROR)
         return
     end
@@ -1077,6 +1122,7 @@ local function setStorage(body)
             storage = settings.storage_type,
             pgsql = storageType == "pgsql" and public_pgsql(settings.pgsql) or nil,
             password_source = password_source,
+            persisted = true,
         }
     }))
 end
