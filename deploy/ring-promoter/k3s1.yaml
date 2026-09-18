@@ -89,6 +89,8 @@ apps:
           # Control-plane image is bwalia/wslproxy (openresty). Do not pin
           # controller.image.tag — that image is not rebuilt on every main merge.
           # shellcheck disable=SC2086
+          # Do not --wait on LoadBalancer readiness: ServiceLB EXTERNAL-IP can
+          # stay empty while NodePort 32080 + traefik-edge already serve cp.pop0.uk.
           helm upgrade --install "${release}" ./ingress-controller/deploy/helm \
             --namespace "${ns}" \
             --set fullnameOverride="${fullname}" \
@@ -97,7 +99,11 @@ apps:
             --set openresty.image.tag="${tag}" \
             --set openresty.image.pullPolicy=Always \
             ${extra} \
-            --wait --timeout 10m
+            --timeout 10m \
+            --wait=false
+          # Still wait for OpenResty pods so seed reports a useful failure.
+          kubectl -n "${ns}" rollout status "deploy/${fullname}-openresty" --timeout=5m
+          kubectl -n "${ns}" rollout status "deploy/${fullname}-controller" --timeout=3m || true
           echo "wslproxy-ingress ${tag} live in ${ns}"
           if [ "${control_plane}" = "1" ]; then
             echo "control-plane pinned to cloud003; UI NodePort 32080 on 77.68.126.63"
