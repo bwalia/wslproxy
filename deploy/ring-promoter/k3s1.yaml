@@ -62,6 +62,14 @@ apps:
           cd /src
           git checkout "${ver}" || echo "RP_VERSION ${ver} is not a git ref; chart from default branch, image tag ${tag}"
           kubectl apply -f ingress-controller/deploy/crds/
+          # IngressClass.spec.controller is immutable. If a prior install left
+          # the wrong controller (e.g. traefik.io/…), delete so helm can recreate.
+          want_ctrl="wslproxy.io/ingress-controller"
+          have_ctrl="$(kubectl get ingressclass "${class}" -o jsonpath='{.spec.controller}' 2>/dev/null || true)"
+          if [ -n "${have_ctrl}" ] && [ "${have_ctrl}" != "${want_ctrl}" ]; then
+            echo "IngressClass ${class} controller='${have_ctrl}' != '${want_ctrl}' — deleting for recreate"
+            kubectl delete ingressclass "${class}" --ignore-not-found
+          fi
           if [ "${control_plane}" = "1" ]; then
             if [ -z "${VAULT_TOKEN:-}" ] || [ -z "${VAULT_ADDR:-}" ]; then
               echo "VAULT_ADDR/VAULT_TOKEN missing — create secret ring-exec/wslproxy-vault" >&2
