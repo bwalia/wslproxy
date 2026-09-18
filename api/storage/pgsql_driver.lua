@@ -64,6 +64,32 @@ local function num_sql(v)
     return tostring(n)
 end
 
+-- api.lua sets created_at/updated_at via os.time() (unix seconds). TIMESTAMPTZ
+-- rejects bare numeric strings like '1789758479'; use to_timestamp() for epochs.
+local function ts_sql(v)
+    if v == nil or v == "" then
+        return "NULL"
+    end
+    if type(v) == "number" then
+        local n = v
+        if n >= 1e12 then
+            n = n / 1000
+        end
+        return "to_timestamp(" .. tostring(math.floor(n)) .. ")"
+    end
+    local s = tostring(v)
+    if s:match("^%d+$") then
+        local n = tonumber(s)
+        if n and n >= 1e9 then
+            if n >= 1e12 then
+                n = n / 1000
+            end
+            return "to_timestamp(" .. tostring(math.floor(n)) .. ")"
+        end
+    end
+    return esc(v)
+end
+
 local function ident(name)
     return '"' .. tostring(name):gsub('"', "") .. '"'
 end
@@ -103,12 +129,31 @@ function _M:connect()
     return pg
 end
 
+local function is_closed_err(err)
+    if not err then
+        return false
+    end
+    local s = tostring(err):lower()
+    return s:find("closed", 1, true)
+        or s:find("receive_message", 1, true)
+        or s:find("broken pipe", 1, true)
+        or s:find("connection reset", 1, true)
+end
+
 function _M:query(sql)
     local pg, err = self:connect()
     if not pg then
         return nil, err
     end
     local res, qerr = pg:query(sql)
+    if not res and is_closed_err(qerr) then
+        self.pg = nil
+        pg, err = self:connect()
+        if not pg then
+            return nil, err or qerr
+        end
+        res, qerr = pg:query(sql)
+    end
     if not res then
         return nil, qerr
     end
@@ -288,6 +333,7 @@ local function col_sql(resource, cols)
         config_status = true,
     }
     local nums = { priority = true, schema_version = true, status_code = true }
+    local timestamps = { created_at = true, updated_at = true }
 
     local names, values, updates = {}, {}, {}
     for _, col in ipairs(order) do
@@ -299,6 +345,8 @@ local function col_sql(resource, cols)
             v = bool_sql(cols[col])
         elseif nums[col] then
             v = num_sql(cols[col])
+        elseif timestamps[col] then
+            v = ts_sql(cols[col])
         else
             v = esc(cols[col])
         end

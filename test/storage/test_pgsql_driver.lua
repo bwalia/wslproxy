@@ -56,6 +56,8 @@ local rec = {
     id = "host:pg-storage-test.example",
     server_name = "pg-storage-test.example",
     ssl_enabled = true,
+    created_at = os.time(), -- unix epoch (api.lua shape) must map to TIMESTAMPTZ
+    updated_at = os.time(),
     extra_nested = { keep = "me" },
 }
 local saved, werr = drv:update("servers", "prod", rec.id, rec)

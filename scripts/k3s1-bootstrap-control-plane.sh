@@ -230,7 +230,7 @@ kubectl -n "$NS" create secret generic "$APP_SECRET" \
 kubectl -n "$NS" label secret "$APP_SECRET" \
   app.kubernetes.io/part-of=wslproxy \
   app.kubernetes.io/component=storage \
-  --overwrite
+  --overwrite 2>/dev/null || true
 
 echo "==> build settings.json (source=${SECRETS_SOURCE}, storage_type=pgsql, in-cluster pgsql)"
 MERGED="$(jq -n \
@@ -273,7 +273,7 @@ kubectl -n "$NS" create secret generic "$SETTINGS_SECRET" \
 kubectl -n "$NS" label secret "$SETTINGS_SECRET" \
   app.kubernetes.io/part-of=wslproxy \
   app.kubernetes.io/component=storage \
-  --overwrite
+  --overwrite 2>/dev/null || true
 
 echo "==> apply migrations via Job"
 kubectl -n "$NS" delete job wslproxy-pgsql-migrate --ignore-not-found
@@ -348,7 +348,12 @@ spec:
 EOF
 
 kubectl -n "$NS" wait --for=condition=complete job/wslproxy-pgsql-migrate --timeout=180s
-kubectl -n "$NS" logs job/wslproxy-pgsql-migrate
+# cloud003 kubelet is sometimes unreachable from the API via LAN proxies
+# (502 Bad Gateway on /containerLogs). Do not fail bootstrap if logs cannot
+# be fetched after a successful wait.
+if ! kubectl -n "$NS" logs job/wslproxy-pgsql-migrate; then
+  echo "WARN: could not fetch migrate job logs (kubelet proxy flaky); job already completed" >&2
+fi
 
 rm -f /tmp/wslproxy-settings.json /tmp/wslproxy-settings-raw.json \
   /tmp/vault-body.json /tmp/pgsql-overlay.json /tmp/sops \
