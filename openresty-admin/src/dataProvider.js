@@ -117,8 +117,8 @@ const handleConfigField = (data) => {
               .map((location) => {
                 return `location ${location?.location_path || "/"} {
                 ${
-                  location?.location_vals
-                    ? Object.values(location?.location_opts)
+                  location?.location_vals && location?.location_opts
+                    ? Object.values(location.location_opts)
                         .map((idx) => {
                           const value = location?.location_vals[idx];
                           return idx + " " + value;
@@ -764,7 +764,18 @@ const dataProvider = (apiUrl, settings = {}) => {
         });
         const data = await response.json();
         setIsLoadig(false);
-        if (response.status === 200) return data;
+        if (response.status === 200) {
+          const graph = data?.data || {};
+          // Empty Lua tables arrive as {} — coerce so TopologyTab can .find/.filter safely.
+          return {
+            ...data,
+            data: {
+              ...graph,
+              nodes: Array.isArray(graph.nodes) ? graph.nodes : [],
+              edges: Array.isArray(graph.edges) ? graph.edges : [],
+            },
+          };
+        }
         return { data: { nodes: [], edges: [], summary: {} } };
       } catch (error) {
         console.log(error);

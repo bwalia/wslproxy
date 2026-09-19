@@ -462,6 +462,16 @@ function _M.get_graph(args)
         kind_counts[node.kind] = (kind_counts[node.kind] or 0) + 1
     end
 
+    -- Empty Lua tables encode as JSON objects {}; pin as arrays so the
+    -- admin Topology tab never does `.find` on a non-array (Create Server crash).
+    if cjson.array_mt then
+        setmetatable(nodes, cjson.array_mt)
+        setmetatable(edges, cjson.array_mt)
+    elseif cjson.empty_array_mt and #nodes == 0 then
+        setmetatable(nodes, cjson.empty_array_mt)
+        setmetatable(edges, cjson.empty_array_mt)
+    end
+
     return {
         data = {
             nodes = nodes,
