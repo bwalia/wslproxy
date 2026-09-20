@@ -1,0 +1,304 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://wslproxy/api-gw.schema.json",
+  "title": "WSLProxy API Gateway policy (api_gw)",
+  "description": "The `api_gw` block on a server JSON (data/servers/<env>/host:<hostname>.json), or on a rule as an override. Every field is optional except `enabled`; a server without an api_gw block behaves exactly as before. Policy changes take effect on the next request — no nginx reload.",
+  "type": "object",
+  "required": ["enabled"],
+  "additionalProperties": false,
+  "properties": {
+    "enabled": {
+      "type": "boolean",
+      "default": false,
+      "description": "Master switch. false (or absent) disables the whole package for this server — this is also the rollback lever."
+    },
+    "tenant_id": {
+      "type": "string",
+      "description": "Isolation key for every shared-dict counter. Defaults to \"<profile_id>/<server_name>\", so each server in each environment gets its own quotas. Set it explicitly only to make several hostnames deliberately share one quota."
+    },
+    "modules": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["real_ip", "request_security", "cors", "ivt", "auth", "rate_limit", "audit"]
+      },
+      "description": "Which modules run. Absent means all of them. A comma-separated string is also accepted, for admin UIs that flatten arrays."
+    },
+
+    "real_ip": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Trusted-proxy handling. With no trusted_cidrs the forwarded header is never consulted and the TCP peer is the client — the only safe default.",
+      "properties": {
+        "trusted_cidrs": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [],
+          "description": "IPv4 CIDRs whose forwarded headers are believed. Anything outside this set has its header ignored entirely."
+        },
+        "header": { "type": "string", "default": "X-Forwarded-For" },
+        "recursive": {
+          "type": "boolean",
+          "default": true,
+          "description": "true walks the header right-to-left past trusted hops to the first untrusted address. false takes the last entry, which is correct when exactly one trusted proxy sits in front."
+        }
+      }
+    },
+
+    "request_security": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "correlation": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": { "type": "boolean", "default": true },
+            "header": { "type": "string", "default": "X-Correlation-ID" },
+            "echo_downstream": { "type": "boolean", "default": true, "description": "Also return the id to the caller." },
+            "accept_inbound": { "type": "boolean", "default": true, "description": "false always mints a fresh id and ignores what the client sent." },
+            "max_length": { "type": "integer", "default": 128, "minimum": 1 }
+          }
+        },
+        "content_type": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enforce": { "type": "boolean", "default": false },
+            "methods": { "type": "array", "items": { "type": "string" }, "default": ["POST", "PUT", "PATCH"] },
+            "allow": {
+              "type": "array",
+              "items": { "type": "string" },
+              "default": ["application/json"],
+              "description": "Media types without parameters. \"application/*\" and \"*/*\" wildcards are supported."
+            },
+            "exempt_paths": { "type": "array", "items": { "type": "string" }, "default": [], "description": "Segment-aware path prefixes, or \"~<regex>\". Uploads and form-encoded webhooks belong here." },
+            "status": { "type": "integer", "default": 415 }
+          }
+        },
+        "max_body_bytes": {
+          "type": "integer",
+          "default": 0,
+          "minimum": 0,
+          "description": "0 disables the api_gw check; nginx client_max_body_size remains the hard backstop. Enforced from Content-Length, so a chunked request with no declared length is not caught here."
+        },
+        "require_content_length": {
+          "type": "boolean",
+          "default": false,
+          "description": "Reject a body-bearing method with no Content-Length (411). Closes the chunked-upload hole in max_body_bytes at the cost of breaking streaming clients."
+        },
+        "body_status": { "type": "integer", "default": 413 },
+        "token_typ": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Advisory check on the `typ` field of a JWS header. Never an authorisation decision — the signature is not verified here.",
+          "properties": {
+            "enabled": { "type": "boolean", "default": false },
+            "header": { "type": "string", "default": "Authorization" },
+            "expect": { "type": "array", "items": { "type": "string" }, "default": ["JWT", "at+jwt"] },
+            "mode": { "type": "string", "enum": ["disabled", "audit", "block"], "default": "audit" }
+          }
+        }
+      }
+    },
+
+    "cors": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean", "default": true },
+        "origins": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [],
+          "description": "Exact origins, \"*\", or a single-label wildcard such as \"https://*.example.com\". An empty list allows nothing."
+        },
+        "methods": { "type": "array", "items": { "type": "string" }, "default": ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"] },
+        "headers": { "type": "array", "items": { "type": "string" }, "default": ["Authorization", "Content-Type"] },
+        "expose_headers": { "type": "array", "items": { "type": "string" }, "default": [] },
+        "credentials": { "type": "boolean", "default": false, "description": "With credentials on, a \"*\" origin echoes the concrete origin instead, because browsers reject the literal wildcard with credentials." },
+        "max_age": { "type": "integer", "default": 3600 },
+        "preflight_continue": { "type": "boolean", "default": false, "description": "true forwards the OPTIONS upstream after attaching the headers." },
+        "preflight_status": { "type": "integer", "default": 204 }
+      }
+    },
+
+    "ivt": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Invalid-traffic guard. Signals are weighted and summed; the request is rejected only when the total reaches block_threshold and the mode is \"block\".",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["disabled", "audit", "monitor", "block"],
+          "default": "audit",
+          "description": "audit = evaluate silently; monitor = also emit X-WSL-IVT; block = reject at the threshold."
+        },
+        "methods": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "allow": { "type": "array", "items": { "type": "string" }, "description": "When non-empty, anything outside the list scores method_denied." },
+            "deny": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "path_denylist": { "type": "array", "items": { "type": "string" }, "default": [], "description": "PCRE patterns matched case-insensitively against the URI." },
+        "require_auth_shape": { "type": "boolean", "default": false, "description": "Score a malformed Authorization header (\"<scheme> <token>\" is the only accepted shape). An absent header is not malformed." },
+        "auth_schemes": { "type": "array", "items": { "type": "string" }, "default": ["Bearer", "Basic"] },
+        "strip_header_prefixes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [],
+          "description": "Headers starting with any of these are removed from the upstream request in every non-disabled mode, and score header_spoof. Use for internal headers the origin trusts."
+        },
+        "burst": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": { "type": "boolean", "description": "Defaults to true when max_requests is set." },
+            "window_seconds": { "type": "integer", "default": 10 },
+            "max_requests": { "type": "integer", "default": 0, "description": "0 disables the counter." },
+            "key": { "type": "string", "enum": ["ip", "header"], "default": "ip" },
+            "header": { "type": "string", "description": "Required when key is \"header\"." }
+          }
+        },
+        "weights": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "method_denied": { "type": "integer", "default": 5 },
+            "path_denied": { "type": "integer", "default": 5 },
+            "auth_malformed": { "type": "integer", "default": 3 },
+            "header_spoof": { "type": "integer", "default": 1 },
+            "burst_exceeded": { "type": "integer", "default": 5 }
+          }
+        },
+        "block_threshold": { "type": "integer", "default": 3 },
+        "status": { "type": "integer", "default": 403 }
+      }
+    },
+
+    "auth": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Optional edge authentication. The default keeps the origin authoritative.",
+      "properties": {
+        "strategy": {
+          "type": "string",
+          "enum": ["none", "passthrough", "jwt", "api_key"],
+          "default": "passthrough",
+          "description": "passthrough forwards the credential untouched; none marks the scope public; jwt and api_key enforce at the edge."
+        },
+        "public_paths": { "type": "array", "items": { "type": "string" }, "default": [], "description": "Segment-aware prefixes (or \"~<regex>\") that skip every strategy. \"/health\" covers \"/health/live\" but not \"/healthz-other\"." },
+        "protected_paths": { "type": "array", "items": { "type": "string" }, "default": [], "description": "When non-empty, the strategy applies only inside these prefixes; everything else stays passthrough." },
+        "status": { "type": "integer", "default": 401 },
+        "allow_unverified_subject": {
+          "type": "boolean",
+          "default": true,
+          "description": "Let a passthrough route read an unverified `sub` claim so rate profiles can key on it. It is a fairness key, never an authorisation decision; set false to fall back to the client IP."
+        },
+        "jwt": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "secret": { "type": "string", "description": "Inline key. Prefer secret_ref — never commit a real value." },
+            "secret_ref": { "type": "string", "description": "\"secret://<record-id>#<key>\" or \"env://VAR_NAME\". An unresolvable ref rejects the request; it never resolves to the ref string." },
+            "alg": { "type": "string", "default": "HS256" },
+            "header": { "type": "string", "default": "Authorization" },
+            "cookie": { "type": "string", "description": "Cookie name to fall back to when the header is absent." },
+            "issuer": { "type": "string" },
+            "audience": { "type": "string" },
+            "leeway": { "type": "integer", "default": 60, "description": "Clock-skew tolerance in seconds for exp and nbf." },
+            "claim_key": { "type": "string", "default": "sub", "description": "Which claim becomes the consumer id." }
+          }
+        },
+        "api_key": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "header": { "type": "string", "default": "X-API-Key" },
+            "query_param": { "type": "string", "description": "Optional fallback location. Query strings land in access logs — prefer the header." },
+            "keys": { "type": "array", "items": { "type": "string" }, "default": [], "description": "Literals, or \"secret://…\" / \"env://…\" refs." },
+            "keys_ref": { "type": "string", "description": "A single ref resolving to a comma- or whitespace-separated key bundle." }
+          }
+        }
+      }
+    },
+
+    "rate_limit": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean", "default": true },
+        "algorithm": { "type": "string", "enum": ["sliding", "fixed"], "default": "sliding" },
+        "default_profile": { "type": "string", "default": "standard", "description": "Applied to any request whose route names no profile. An unknown name is created as unlimited rather than blocking traffic." },
+        "status": { "type": "integer", "default": 429 },
+        "headers": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "standard": { "type": "boolean", "default": true, "description": "RateLimit-Limit / -Remaining / -Reset." },
+            "legacy": { "type": "boolean", "default": true, "description": "X-RateLimit-*." }
+          }
+        },
+        "profiles": {
+          "type": "object",
+          "description": "Named quotas. The built-ins health, auth, public, standard, expensive and webhook are present unless overridden; tenants may add their own.",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "limit": { "type": "integer", "minimum": 0, "description": "Requests per window. 0 means unlimited." },
+              "window_seconds": { "type": "integer", "default": 60, "minimum": 1 },
+              "key": {
+                "type": "string",
+                "enum": ["ip", "consumer", "header", "jwt.sub"],
+                "default": "ip",
+                "description": "What the quota is counted against. consumer and jwt.sub fall back to the client IP when no subject was resolved — never to one shared bucket."
+              },
+              "header": { "type": "string", "description": "Required when key is \"header\"." },
+              "algorithm": { "type": "string", "enum": ["sliding", "fixed"], "description": "Overrides the module default for this profile." }
+            }
+          }
+        }
+      }
+    },
+
+    "audit": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "One structured JSON line per request on the nginx error log. Credentials are never included: the redaction set below is ADDED to a baseline (authorization, proxy-authorization, cookie, set-cookie, x-api-key, api-key, x-auth-token) that cannot be removed.",
+      "properties": {
+        "enabled": { "type": "boolean", "default": true },
+        "level": { "type": "string", "enum": ["debug", "info", "notice", "warn", "error"], "default": "info" },
+        "tag": { "type": "string", "default": "wsl_api_gw", "description": "Leading token on the log line, for the shipper's parser." },
+        "sample_rate": { "type": "number", "default": 1, "minimum": 0, "maximum": 1, "description": "Rejections and 4xx/5xx are always kept regardless of the rate." },
+        "include_query": { "type": "boolean", "default": false, "description": "Off by default: query strings routinely carry tokens. Truncated to 512 chars when on." },
+        "include_client_ip": { "type": "boolean", "default": false, "description": "Off by default; client_key_hash (tenant-salted) is always present." },
+        "include_headers": { "type": "array", "items": { "type": "string" }, "default": [], "description": "Extra headers to capture, truncated to 256 chars. Anything in the redaction set is dropped even if named here." },
+        "redact_headers": { "type": "array", "items": { "type": "string" }, "default": [], "description": "Additional header names to drop. Added to the baseline, never replacing it." }
+      }
+    },
+
+    "routes": {
+      "type": "array",
+      "description": "The route policy matrix. The most specific match wins: `equals` beats `starts_with`, a longer prefix beats a shorter one, regex sits below both, and ties break on declaration order. Selection is deterministic and independent of the order routes appear in.",
+      "items": {
+        "type": "object",
+        "required": ["path"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string", "description": "Route class label. Appears in the audit line." },
+          "path": { "type": "string" },
+          "path_key": { "type": "string", "enum": ["equals", "starts_with", "regex"], "default": "starts_with" },
+          "methods": { "type": "array", "items": { "type": "string" }, "description": "Scope the route to these methods. Absent matches any." },
+          "auth": { "type": "string", "enum": ["none", "passthrough", "jwt", "api_key"], "description": "Overrides auth.strategy for this route." },
+          "rate_profile": { "type": "string", "description": "Names an entry in rate_limit.profiles." },
+          "max_body_bytes": { "type": "integer", "minimum": 0 },
+          "ivt_mode": { "type": "string", "enum": ["disabled", "audit", "monitor", "block"] },
+          "cors": { "type": "object", "description": "Per-route CORS overrides, merged over the server policy." }
+        }
+      }
+    }
+  }
+}
