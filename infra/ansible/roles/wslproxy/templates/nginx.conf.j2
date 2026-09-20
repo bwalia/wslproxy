@@ -121,6 +121,13 @@ http {
     # Traffic stats for dashboard (stores hourly request/response counts)
     lua_shared_dict traffic_stats 5m;
 
+    # API gateway counters (api/api_gw/): rate-limit windows and IVT burst
+    # guards.  Keys are tenant-prefixed (api/api_gw/keys.lua), so every server
+    # and every environment profile gets its own counters out of one zone.
+    # api_gw falls back to wsl_cache if this is missing, but then gateway
+    # counters compete with the content cache for eviction — keep it declared.
+    lua_shared_dict wsl_api_gw 20m;
+
     # WAF event log storage (stores recent WAF events for dashboard and API)
     lua_shared_dict waf_events 10m;
 
@@ -946,6 +953,13 @@ server {
             -- LLM protocol translation: normalise response headers
             local ok_llm, Llm = pcall(require, "llm_translator")
             if ok_llm then Llm.header_filter() end
+
+            -- API gateway: apply the response headers the access phase
+            -- collected (CORS, correlation id, RateLimit-*).  Collected
+            -- rather than set earlier because an upstream response can
+            -- overwrite headers set in the rewrite/access phases.
+            local ok_gw, ApiGw = pcall(require, "api_gw")
+            if ok_gw then ApiGw.header_filter() end
           }
 
           # WSL Cache: Capture response body for caching
@@ -1211,6 +1225,13 @@ server {
             -- LLM protocol translation: normalise response headers
             local ok_llm, Llm = pcall(require, "llm_translator")
             if ok_llm then Llm.header_filter() end
+
+            -- API gateway: apply the response headers the access phase
+            -- collected (CORS, correlation id, RateLimit-*).  Collected
+            -- rather than set earlier because an upstream response can
+            -- overwrite headers set in the rewrite/access phases.
+            local ok_gw, ApiGw = pcall(require, "api_gw")
+            if ok_gw then ApiGw.header_filter() end
           }
 
           # LLM protocol translation: rewrite Anthropic body/SSE -> OpenAI.

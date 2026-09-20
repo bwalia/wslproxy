@@ -1,0 +1,81 @@
+{
+  "id": "host:api.demo.example.com",
+  "server_name": "api.demo.example.com",
+  "profile_id": "prod",
+  "config_status": false,
+  "listens": [{ "listen": "443 ssl" }],
+  "rules": [],
+
+  "_comment": "Generic SaaS API. Nothing here is app-specific: CORS for a browser front end, correlation IDs, an IVT guard in audit mode while the operator watches the numbers, and per-route rate classes. Copy this file, change server_name, cors.origins and the route paths.",
+
+  "api_gw": {
+    "enabled": true,
+    "modules": ["real_ip", "request_security", "cors", "ivt", "rate_limit", "audit"],
+
+    "real_ip": {
+      "trusted_cidrs": ["10.0.0.0/8", "172.16.0.0/12"],
+      "recursive": true
+    },
+
+    "request_security": {
+      "correlation": { "enabled": true, "header": "X-Correlation-ID" },
+      "content_type": {
+        "enforce": true,
+        "methods": ["POST", "PUT", "PATCH"],
+        "allow": ["application/json"],
+        "exempt_paths": ["/v1/files", "/v1/webhooks"]
+      },
+      "max_body_bytes": 1048576
+    },
+
+    "cors": {
+      "origins": ["https://app.demo.example.com", "https://*.preview.demo.example.com"],
+      "methods": ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+      "headers": ["Authorization", "Content-Type", "X-Correlation-ID"],
+      "expose_headers": ["X-Correlation-ID", "RateLimit-Remaining"],
+      "credentials": true,
+      "max_age": 3600
+    },
+
+    "ivt": {
+      "mode": "audit",
+      "methods": { "deny": ["TRACE", "TRACK", "CONNECT"] },
+      "path_denylist": ["/wp-admin", "/wp-login", "\\.php$", "/\\.env$", "/\\.git/"],
+      "require_auth_shape": true,
+      "strip_header_prefixes": ["X-Internal-", "X-Demo-Trusted-"],
+      "burst": { "window_seconds": 10, "max_requests": 200, "key": "ip" },
+      "block_threshold": 5
+    },
+
+    "rate_limit": {
+      "enabled": true,
+      "algorithm": "sliding",
+      "default_profile": "standard",
+      "profiles": {
+        "health":    { "limit": 0 },
+        "auth":      { "limit": 10,   "window_seconds": 60, "key": "ip" },
+        "public":    { "limit": 120,  "window_seconds": 60, "key": "ip" },
+        "standard":  { "limit": 600,  "window_seconds": 60, "key": "consumer" },
+        "expensive": { "limit": 20,   "window_seconds": 60, "key": "consumer" },
+        "webhook":   { "limit": 1200, "window_seconds": 60, "key": "header", "header": "X-Webhook-Source" }
+      }
+    },
+
+    "audit": {
+      "enabled": true,
+      "level": "info",
+      "sample_rate": 1,
+      "include_headers": ["user-agent", "referer"]
+    },
+
+    "routes": [
+      { "name": "health",   "path": "/health",       "path_key": "equals",     "auth": "none",        "rate_profile": "health",    "ivt_mode": "disabled" },
+      { "name": "ready",    "path": "/ready",        "path_key": "equals",     "auth": "none",        "rate_profile": "health",    "ivt_mode": "disabled" },
+      { "name": "login",    "path": "/v1/auth",      "path_key": "starts_with","auth": "none",        "rate_profile": "auth",      "max_body_bytes": 8192 },
+      { "name": "webhooks", "path": "/v1/webhooks",  "path_key": "starts_with","auth": "passthrough", "rate_profile": "webhook",   "max_body_bytes": 262144 },
+      { "name": "reports",  "path": "/v1/reports",   "path_key": "starts_with","rate_profile": "expensive" },
+      { "name": "api",      "path": "/v1/",          "path_key": "starts_with","rate_profile": "standard" },
+      { "name": "catchall", "path": "/",             "path_key": "starts_with","rate_profile": "public" }
+    ]
+  }
+}

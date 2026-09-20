@@ -263,6 +263,19 @@ function _M.log_request()
         end
     end
 
+    -- API gateway audit line (api/api_gw/).  No-op unless the server has an
+    -- api_gw block AND its access phase ran — the context lives in ngx.ctx,
+    -- so nothing is loaded for tenants that never enabled the gateway.
+    if ngx.ctx.api_gw then
+        local gw_ok, ApiGw = pcall(require, "api_gw")
+        if gw_ok and ApiGw then
+            local emit_ok, emit_err = pcall(ApiGw.log)
+            if not emit_ok then
+                ngx.log(ngx.WARN, "log_handler: api_gw audit failed: ", tostring(emit_err))
+            end
+        end
+    end
+
     -- Record traffic stats for dashboard chart
     local traffic_ok, traffic_stats_module = pcall(require, "traffic_stats")
     if traffic_ok and traffic_stats_module and traffic_stats_module.record_request then

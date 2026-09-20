@@ -42,6 +42,7 @@ Admin plane is a separate server block (port 8069 prod / 8080 dev / 8099 next.js
 |------|---------|
 | `api/` | All Lua code (request pipeline, REST API, helpers). **Hot-reloaded per request.** |
 | `api/mcp/` | MCP (Model Context Protocol) server for AI agents |
+| `api/api_gw/` | **Kong-class API gateway package** — CORS, correlation, IVT, edge auth, rate-limit profiles, audit. Per-server `api_gw` JSON, no reload. See `docs/api-gateway.md`. |
 | `data/` | JSON data stores (servers, rules, upstreams, waf_policies, ssl, profiles, audit, versions, change_requests). Per-environment subdirs: `dev/int/test/acc/prod/`. |
 | `data/settings.json` | **Global config** — storage type, super_user, env_profile, redis/pgsql, captcha, waf, mcp, env_vars |
 | `openresty-admin/` | Legacy React admin UI (react-admin, Vite). Resources: Servers, Rules, Profiles, Secrets, Upstreams, Users, WafPolicies, WafRules. |
@@ -79,7 +80,8 @@ Admin plane is a separate server block (port 8069 prod / 8080 dev / 8099 next.js
 | `rule_matcher.lua` | Evaluate a rule: path match (with specificity score), IP match, country match (IP2Location), JWT/S3/cookie auth |
 | `rule_selector.lua` | Deterministic tie-breaking: priority > path_specificity > condition_count > rule_id |
 | `rule_auth.lua` | JWT validation, S3 signing, cookie key-value checks |
-| `gateway_pipeline.lua` | Rate limiting (shared dict `wsl_cache`), WAF delegation, transforms |
+| `gateway_pipeline.lua` | Orchestrates api_gw → legacy rate limiting (shared dict `wsl_cache`) → WAF delegation → transforms |
+| `api_gw/` | Staged access pipeline (`real_ip` → `correlation` → `cors` → `ivt` → `request_security` → `auth` → `rate_limit`), plus `header_filter`/`log` hooks. Opt-in per server via `api_gw.enabled`; tenant-prefixed keys in shared dict `wsl_api_gw`. |
 | `traffic_router.lua` | Multi-backend selection (weighted / round-robin / header-based canary / cookie-sticky / least-conn). Passive health (3 consecutive 5xx → mark unhealthy 30s) + active (10s timer). Records per-backend stats. |
 | `dns_access.lua` | Consul SRV lookup (200ms timeout); fallback to standard resolver is in `gateway_resp.lua` |
 | `varnish_manager.lua` | Per-server Varnish config (redis or disk). If enabled, route to `127.0.0.1:6081` |
@@ -140,6 +142,7 @@ Key fields (not exhaustive):
 - **Proxy timeouts:** `proxy_timeouts: {connect_timeout, send_timeout, read_timeout}` — in seconds, applied by balancer
 - **Rate limiting:** `rate_limit_enabled`, `rate_limit: {requests_per_second, burst}`
 - **WAF:** `waf_enabled`, `waf_policy_id`, `waf_mode_override` ("block"|"monitor")
+- **API gateway:** `api_gw` — nested policy object (`enabled`, `modules`, `real_ip`, `request_security`, `cors`, `ivt`, `auth`, `rate_limit`, `audit`, `routes`). Opt-in; absent = previous behaviour. Schema: `docs/api-gw.schema.json`, guide: `docs/api-gateway.md`.
 
 ### Rule JSON / YAML (`data/rules/{env}/{uuid}.{json,yaml,yml}`)
 
@@ -213,6 +216,7 @@ Key fields (not exhaustive):
 3. If syntax OK → calls `Conf.CreateNginxFlag(reboot_file_path)` which touches `/tmp/nginx/nginx-reboot-required`.
 4. A cron job (templated at `infra/ansible/roles/wslproxy/templates/nginx_restart_if_required.sh.j2`) polls this flag and runs `systemctl restart openresty`, then removes the flag.
 5. **Rules do not require reload** — they're loaded per-request by `rule_loader.lua` from disk/redis and evaluated live.
+6. **`api_gw` policy does not require reload either** — it is normalised per request from the same server JSON. The only reload-requiring part is the `lua_shared_dict wsl_api_gw 20m;` line, which is already in both templates.
 
 **Important:** the main nginx.conf includes `/opt/nginx/conf.d/*.conf` for per-tenant server blocks, and `/opt/nginx/data/upstreams/*/upstreams.conf` for dynamic upstreams.
 

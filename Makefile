@@ -26,7 +26,7 @@ test:
 	go test ./internal/...
 
 test-lua:
-	@for f in test/storage/*.lua test/rules/*.lua; do \
+	@for f in test/storage/*.lua test/rules/*.lua test/api_gw/*.lua; do \
 		printf '%s: ' "$$f"; \
 		$(LUA) "$$f" || exit 1; \
 	done
