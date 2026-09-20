@@ -93,7 +93,7 @@ on:
         type: string
         default: ""
       health_endpoint:
-        description: "URL to curl for health check (e.g. http://localhost:8080/healthz)"
+        description: "URL to curl for health check (e.g. http://127.0.0.1:8099/healthz on int — avoid :8080 when k3s CNI hostPort steals it)"
         type: string
         required: true
       health_check_mode:
@@ -891,28 +891,37 @@ jobs:
             }
           fi
 
-          # Health endpoint check
+          # Health endpoint check.
+          # Always bound curl: without --connect-timeout a blackholed port
+          # (e.g. k3s CNI hostPort stealing :8080) hangs ~2m per attempt.
+          # Prefer writing the code to a file so a failing curl (-f / timeout)
+          # cannot concatenate with `|| echo 000` into "000000".
           RETRIES=12
           WAIT=5
+          CURL_OPTS=(--silent --show-error --output /dev/null --connect-timeout 3 --max-time 8)
           for i in $(seq 1 $RETRIES); do
+            CODE_FILE=$(mktemp)
             if [[ "${{ inputs.health_check_mode }}" == "local" ]]; then
-              STATUS=$(curl -sf -o /dev/null -w "%{http_code}" "${{ inputs.health_endpoint }}" 2>/dev/null || echo "000")
+              curl "${CURL_OPTS[@]}" -w "%{http_code}" "${{ inputs.health_endpoint }}" >"$CODE_FILE" 2>/dev/null || true
             elif [[ "${{ inputs.health_check_mode }}" == "ssh" ]]; then
-              STATUS=$(ssh $SSH_OPTS ${{ inputs.ssh_user }}@${{ inputs.host_ip }} \
-                "curl -sf -o /dev/null -w '%{http_code}' ${{ inputs.health_endpoint }} 2>/dev/null" || echo "000")
+              ssh $SSH_OPTS ${{ inputs.ssh_user }}@${{ inputs.host_ip }} \
+                "curl --silent --output /dev/null --connect-timeout 3 --max-time 8 -w '%{http_code}' ${{ inputs.health_endpoint }} 2>/dev/null" \
+                >"$CODE_FILE" 2>/dev/null || true
             else
-              # external: curl from runner to public URL
-              STATUS=$(curl -sf -o /dev/null -w "%{http_code}" "${{ inputs.health_endpoint }}" 2>/dev/null || echo "000")
+              curl "${CURL_OPTS[@]}" -w "%{http_code}" "${{ inputs.health_endpoint }}" >"$CODE_FILE" 2>/dev/null || true
             fi
+            STATUS=$(tr -cd '0-9' <"$CODE_FILE" | head -c 3)
+            rm -f "$CODE_FILE"
+            [[ -z "$STATUS" ]] && STATUS="000"
 
             if [ "$STATUS" = "200" ]; then
-              echo "Health check passed (HTTP $STATUS)"
+              echo "Health check passed (HTTP $STATUS) on ${{ inputs.health_endpoint }}"
               exit 0
             fi
-            echo "Attempt $i/$RETRIES: HTTP $STATUS — waiting ${WAIT}s..."
+            echo "Attempt $i/$RETRIES: HTTP $STATUS on ${{ inputs.health_endpoint }} — waiting ${WAIT}s..."
             sleep $WAIT
           done
-          echo "::error::Health check failed on ${{ inputs.env_label }} after $((RETRIES * WAIT))s"
+          echo "::error::Health check failed on ${{ inputs.env_label }} (${{ inputs.health_endpoint }}) after $((RETRIES * WAIT))s"
           exit 1
 
       # ── Next.js dashboard health gate ──
@@ -958,15 +967,22 @@ jobs:
           fi
           echo "Service $SVC is active"
 
-          # helper: run a curl either locally or over SSH
+          # helper: run a curl either locally or over SSH (bounded; no 000000 concat)
           probe() {
-            local u="$1"
+            local u="$1" code_file status
+            code_file=$(mktemp)
             if [[ "${{ steps.conn.outputs.mode }}" == "local" ]]; then
-              curl -s -o /dev/null -w "%{http_code}" "$u" 2>/dev/null || echo "000"
+              curl --silent --output /dev/null --connect-timeout 3 --max-time 8 \
+                -w "%{http_code}" "$u" >"$code_file" 2>/dev/null || true
             else
               ssh $SSH_OPTS ${{ inputs.ssh_user }}@${{ inputs.host_ip }} \
-                "curl -s -o /dev/null -w '%{http_code}' '$u' 2>/dev/null" || echo "000"
+                "curl --silent --output /dev/null --connect-timeout 3 --max-time 8 -w '%{http_code}' '$u' 2>/dev/null" \
+                >"$code_file" 2>/dev/null || true
             fi
+            status=$(tr -cd '0-9' <"$code_file" | head -c 3)
+            rm -f "$code_file"
+            [[ -z "$status" ]] && status="000"
+            echo "$status"
           }
 
           # 2) dashboard must serve /login with HTTP 200 (retry: the
