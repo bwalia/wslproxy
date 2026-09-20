@@ -40,6 +40,12 @@
     # Validation settings
     validate_json: true
 
+    # How config files reach the target:
+    #   auto  - probe at runtime whether the controller IS the target (default)
+    #   push  - always rsync from the controller over SSH
+    #   local - controller and target are the same machine; rsync on the host
+    config_sync_mode: auto
+
     # Nginx reload settings
     reload_nginx: false
     nginx_service: "openresty"
@@ -61,9 +67,16 @@
     - name: Validate target environment
       assert:
         that:
-          - target_env in ['dev', 'int', 'test', 'prod', 'lon1', 'diytaxreturn', 'diytaxreturn_wsl1']
-        fail_msg: "Invalid target_env: {{ target_env }}. Must be one of: dev, int, test, prod, lon1, diytaxreturn, diytaxreturn_wsl1"
+          - target_env in ['dev', 'int', 'test', 'acc', 'prod', 'lon1', 'diytaxreturn', 'diytaxreturn_wsl1']
+        fail_msg: "Invalid target_env: {{ target_env }}. Must be one of: dev, int, test, acc, prod, lon1, diytaxreturn, diytaxreturn_wsl1"
         success_msg: "Target environment validated: {{ target_env }}"
+
+    - name: Validate config sync mode
+      assert:
+        that:
+          - config_sync_mode in ['auto', 'push', 'local']
+        fail_msg: "Invalid config_sync_mode: {{ config_sync_mode }}. Must be one of: auto, push, local"
+        quiet: true
 
     - name: Ensure remote directories exist
       file:
@@ -111,7 +124,10 @@
     - name: Find local server config files
       find:
         paths: "{{ local_data_dir }}/servers/{{ source_subdir }}"
-        patterns: "*.json"
+        patterns:
+          - "*.json"
+          - "*.yaml"
+          - "*.yml"
       delegate_to: localhost
       become: no
       register: server_config_files
@@ -119,7 +135,10 @@
     - name: Find local rule config files
       find:
         paths: "{{ local_data_dir }}/rules/{{ source_subdir }}"
-        patterns: "*.json"
+        patterns:
+          - "*.json"
+          - "*.yaml"
+          - "*.yml"
       delegate_to: localhost
       become: no
       register: rule_config_files
@@ -127,11 +146,39 @@
     - name: Display files to be deployed
       debug:
         msg: |
-          Server configs: {{ server_config_files.files | map(attribute='path') | list }}
-          Rule configs: {{ rule_config_files.files | map(attribute='path') | list }}
+          Server configs: {{ server_config_files.files | length }} file(s)
+          Rule configs: {{ rule_config_files.files | length }} file(s)
 
-    - name: Validate server config JSON syntax
-      shell: "jq empty {{ item.path }}"
+    - name: Validate server config syntax (JSON + YAML)
+      shell: |
+        f="{{ item.path }}"
+        case "$f" in
+          *.json) jq empty "$f" ;;
+          *.yaml|*.yml)
+            # Structural parse via vendored tinyyaml (lua) when available;
+            # otherwise require non-empty YAML-looking content.
+            if command -v resty >/dev/null 2>&1; then
+              resty -I "{{ playbook_dir }}/../../api" -e "
+                local ConfigIO = require('config_io')
+                local raw = assert(io.open([[$f]], 'rb')):read('*a')
+                local t, err = ConfigIO.decode(raw, [[$f]])
+                assert(t, err or 'yaml decode failed')
+              "
+            elif command -v lua >/dev/null 2>&1; then
+              LUA_PATH="{{ playbook_dir }}/../../api/?.lua;;" lua -e "
+                local ConfigIO = require('config_io')
+                local raw = assert(io.open([[$f]], 'rb')):read('*a')
+                local t, err = ConfigIO.decode(raw, [[$f]])
+                assert(t, err or 'yaml decode failed')
+              "
+            else
+              test -s "$f"
+            fi
+            ;;
+          *) echo "unsupported config extension: $f"; exit 1 ;;
+        esac
+      args:
+        executable: /bin/bash
       delegate_to: localhost
       become: no
       loop: "{{ server_config_files.files }}"
@@ -139,8 +186,34 @@
       register: server_validation
       changed_when: false
 
-    - name: Validate rule config JSON syntax
-      shell: "jq empty {{ item.path }}"
+    - name: Validate rule config syntax (JSON + YAML)
+      shell: |
+        f="{{ item.path }}"
+        case "$f" in
+          *.json) jq empty "$f" ;;
+          *.yaml|*.yml)
+            if command -v resty >/dev/null 2>&1; then
+              resty -I "{{ playbook_dir }}/../../api" -e "
+                local ConfigIO = require('config_io')
+                local raw = assert(io.open([[$f]], 'rb')):read('*a')
+                local t, err = ConfigIO.decode(raw, [[$f]])
+                assert(t, err or 'yaml decode failed')
+              "
+            elif command -v lua >/dev/null 2>&1; then
+              LUA_PATH="{{ playbook_dir }}/../../api/?.lua;;" lua -e "
+                local ConfigIO = require('config_io')
+                local raw = assert(io.open([[$f]], 'rb')):read('*a')
+                local t, err = ConfigIO.decode(raw, [[$f]])
+                assert(t, err or 'yaml decode failed')
+              "
+            else
+              test -s "$f"
+            fi
+            ;;
+          *) echo "unsupported config extension: $f"; exit 1 ;;
+        esac
+      args:
+        executable: /bin/bash
       delegate_to: localhost
       become: no
       loop: "{{ rule_config_files.files }}"
@@ -148,29 +221,178 @@
       register: rule_validation
       changed_when: false
 
-    - name: Copy server config files
-      copy:
-        src: "{{ item.path }}"
-        dest: "{{ remote_data_dir }}/servers/{{ target_env }}/{{ item.path | basename }}"
-        mode: '0664'
-        owner: www-data
-        group: root
-        backup: yes
-      loop: "{{ server_config_files.files }}"
-      register: server_copy_result
-      no_log: true
+    # Bulk rsync for config deploy. Two paths:
+    # - push  : rsync from the controller over SSH (delegate_to: localhost).
+    #           Required for remote targets — without it, rsync runs on the
+    #           inventory host and looks for local_data_dir there.
+    # - local : controller and target are the same machine (a self-hosted
+    #           runner deploying to itself); rsync runs on the host, no SSH
+    #           hop. delegate_to: localhost would SSH back into the host and
+    #           fail without keys.
+    #
+    # Which one is chosen comes from the runtime probe below, NOT from
+    # `ansible_connection`. That variable cannot answer the question:
+    #   - bare `ansible_connection` inside a `delegate_to: localhost` task
+    #     resolves to the DELEGATE's connection ('local'), so `!= 'local'` was
+    #     false for every host and BOTH branches skipped — no sync ever ran and
+    #     the play still passed, because a skip is not a failure (107f8a66);
+    #   - `hostvars[inventory_hostname].ansible_connection` only sees what the
+    #     INVENTORY sets. `ansible-playbook --connection=local` — how the
+    #     self-hosted int/test runners deploy to themselves — leaves it
+    #     undefined, so the 'ssh' default picked the push branch and rsync tried
+    #     to SSH from the int runner back into itself:
+    #       bwalia@192.168.1.193: Permission denied (publickey,password).
+    #
+    # The probe asks the only question that actually matters — can the target
+    # read local_data_dir at that path? — by creating a randomly named marker on
+    # the controller and stat'ing it on the target. Visible ⇒ same machine (or
+    # shared filesystem) ⇒ rsync locally. Not visible ⇒ push over SSH. Random
+    # name matters: several hosts in this fleet run a runner under the same
+    # user, so a fixed path would false-positive on a sibling's workspace.
+    - name: Create controller-side marker for same-machine detection
+      tempfile:
+        state: file
+        prefix: wslproxy-sync-probe.
+      delegate_to: localhost
+      become: false
+      changed_when: false
+      register: sync_probe_marker
+      when: config_sync_mode == 'auto'
 
-    - name: Copy rule config files
-      copy:
-        src: "{{ item.path }}"
-        dest: "{{ remote_data_dir }}/rules/{{ target_env }}/{{ item.path | basename }}"
-        mode: '0664'
-        owner: www-data
-        group: root
-        backup: yes
-      loop: "{{ rule_config_files.files }}"
-      no_log: true
-      register: rule_copy_result
+    - name: Probe whether the target can see the controller marker
+      stat:
+        path: "{{ sync_probe_marker.path }}"
+      changed_when: false
+      register: sync_probe
+      when: config_sync_mode == 'auto'
+
+    - name: Remove controller-side marker
+      file:
+        path: "{{ sync_probe_marker.path }}"
+        state: absent
+      delegate_to: localhost
+      become: false
+      changed_when: false
+      when: config_sync_mode == 'auto'
+
+    - name: Resolve effective config sync mode
+      set_fact:
+        effective_sync_mode: >-
+          {{ config_sync_mode if config_sync_mode != 'auto'
+             else ('local' if (sync_probe.stat.exists | default(false)) else 'push') }}
+
+    - name: Display effective config sync mode
+      debug:
+        msg: >-
+          Config sync mode: {{ effective_sync_mode }}
+          (requested: {{ config_sync_mode }},
+          controller marker visible on target:
+          {{ sync_probe.stat.exists | default('n/a') }})
+
+    # Skip when find returned nothing (e.g. no data/servers/<env> in repo).
+    - name: Sync server config files (push from controller)
+      ansible.posix.synchronize:
+        src: "{{ local_data_dir }}/servers/{{ source_subdir }}/"
+        dest: "{{ remote_data_dir }}/servers/{{ target_env }}/"
+        mode: push
+        rsync_path: "sudo rsync"
+        rsync_opts:
+          - "--include=*.json"
+          - "--include=*.yaml"
+          - "--include=*.yml"
+          - "--exclude=*"
+      delegate_to: localhost
+      become: false
+      when:
+        - server_config_files.files | length > 0
+        - effective_sync_mode == 'push'
+      register: server_copy_push
+
+    - name: Sync server config files (controller is the target)
+      ansible.posix.synchronize:
+        src: "{{ local_data_dir }}/servers/{{ source_subdir }}/"
+        dest: "{{ remote_data_dir }}/servers/{{ target_env }}/"
+        rsync_path: "sudo rsync"
+        rsync_opts:
+          - "--include=*.json"
+          - "--include=*.yaml"
+          - "--include=*.yml"
+          - "--exclude=*"
+      when:
+        - server_config_files.files | length > 0
+        - effective_sync_mode == 'local'
+      register: server_copy_local
+
+    - name: Sync rule config files (push from controller)
+      ansible.posix.synchronize:
+        src: "{{ local_data_dir }}/rules/{{ source_subdir }}/"
+        dest: "{{ remote_data_dir }}/rules/{{ target_env }}/"
+        mode: push
+        rsync_path: "sudo rsync"
+        rsync_opts:
+          - "--include=*.json"
+          - "--include=*.yaml"
+          - "--include=*.yml"
+          - "--exclude=*"
+      delegate_to: localhost
+      become: false
+      when:
+        - rule_config_files.files | length > 0
+        - effective_sync_mode == 'push'
+      register: rule_copy_push
+
+    - name: Sync rule config files (controller is the target)
+      ansible.posix.synchronize:
+        src: "{{ local_data_dir }}/rules/{{ source_subdir }}/"
+        dest: "{{ remote_data_dir }}/rules/{{ target_env }}/"
+        rsync_path: "sudo rsync"
+        rsync_opts:
+          - "--include=*.json"
+          - "--include=*.yaml"
+          - "--include=*.yml"
+          - "--exclude=*"
+      when:
+        - rule_config_files.files | length > 0
+        - effective_sync_mode == 'local'
+      register: rule_copy_local
+
+    # Insurance against the 107f8a66 failure mode: files found locally but
+    # neither branch ran, and the play reporting success anyway.
+    - name: Assert the config sync actually ran
+      assert:
+        that:
+          - (server_copy_push is defined and not (server_copy_push.skipped | default(false)))
+            or (server_copy_local is defined and not (server_copy_local.skipped | default(false)))
+        fail_msg: >-
+          {{ server_config_files.files | length }} server config(s) found under
+          {{ local_data_dir }}/servers/{{ source_subdir }} but neither sync
+          branch ran (effective_sync_mode={{ effective_sync_mode }}).
+        quiet: true
+      when: server_config_files.files | length > 0
+
+    - name: Assert the rule sync actually ran
+      assert:
+        that:
+          - (rule_copy_push is defined and not (rule_copy_push.skipped | default(false)))
+            or (rule_copy_local is defined and not (rule_copy_local.skipped | default(false)))
+        fail_msg: >-
+          {{ rule_config_files.files | length }} rule config(s) found under
+          {{ local_data_dir }}/rules/{{ source_subdir }} but neither sync
+          branch ran (effective_sync_mode={{ effective_sync_mode }}).
+        quiet: true
+      when: rule_config_files.files | length > 0
+
+    # Both branches register separately: a single shared register name meant the
+    # skipped branch overwrote the one that ran (changed=false), so
+    # fix-permissions below never fired after a successful push.
+    - name: Note what the sync changed
+      set_fact:
+        server_configs_changed: >-
+          {{ (server_copy_push.changed | default(false))
+             or (server_copy_local.changed | default(false)) }}
+        rule_configs_changed: >-
+          {{ (rule_copy_push.changed | default(false))
+             or (rule_copy_local.changed | default(false)) }}
 
     - name: Ensure SSL domain directory exists
       file:
@@ -182,18 +404,57 @@
 
     - name: Generate SSL domain files from server configs with ssl_enabled
       shell: |
-        for config_file in {{ remote_data_dir }}/servers/{{ target_env }}/*.json; do
-          [ -f "$config_file" ] || continue
-          ssl_enabled=$(jq -r '.ssl_enabled // false' "$config_file" 2>/dev/null)
-          server_name=$(jq -r '.server_name // empty' "$config_file" 2>/dev/null)
-          if [ "$ssl_enabled" = "true" ] && [ -n "$server_name" ]; then
+        set -euo pipefail
+        API_LUA="${API_LUA_PATH:-/usr/local/openresty/nginx/html/api}"
+        gen_one() {
+          local config_file="$1"
+          local ssl_enabled server_name
+          case "$config_file" in
+            *.json)
+              ssl_enabled=$(jq -r '.ssl_enabled // false' "$config_file" 2>/dev/null || echo false)
+              server_name=$(jq -r '.server_name // empty' "$config_file" 2>/dev/null || true)
+              ;;
+            *.yaml|*.yml)
+              if command -v resty >/dev/null 2>&1 && [[ -d "$API_LUA" ]]; then
+                eval "$(resty -I "$API_LUA" -e "
+                  local ConfigIO = require('config_io')
+                  local f = assert(io.open([[$config_file]], 'rb'))
+                  local raw = f:read('*a'); f:close()
+                  local t = assert(ConfigIO.decode(raw, [[$config_file]]))
+                  print(string.format(\"ssl_enabled=%s\", tostring(t.ssl_enabled == true)))
+                  print(string.format(\"server_name=%s\", tostring(t.server_name or '')))
+                ")"
+              elif command -v lua >/dev/null 2>&1 && [[ -d "$API_LUA" ]]; then
+                eval "$(LUA_PATH="$API_LUA/?.lua;;" lua -e "
+                  local ConfigIO = require('config_io')
+                  local f = assert(io.open([[$config_file]], 'rb'))
+                  local raw = f:read('*a'); f:close()
+                  local t = assert(ConfigIO.decode(raw, [[$config_file]]))
+                  print(string.format(\"ssl_enabled=%s\", tostring(t.ssl_enabled == true)))
+                  print(string.format(\"server_name=%s\", tostring(t.server_name or '')))
+                ")"
+              else
+                echo "skip yaml ssl extract (no lua/resty): $config_file"
+                return 0
+              fi
+              ;;
+            *) return 0 ;;
+          esac
+          if [ "$ssl_enabled" = "true" ] && [ -n "${server_name:-}" ]; then
             ssl_file="{{ remote_data_dir }}/ssl/${server_name}.json"
             echo "{\"ssl_enabled\": true, \"server_name\": \"${server_name}\"}" > "$ssl_file"
             chown www-data:root "$ssl_file"
             chmod 664 "$ssl_file"
             echo "Created SSL domain file: $ssl_file"
           fi
+        }
+        shopt -s nullglob
+        for config_file in {{ remote_data_dir }}/servers/{{ target_env }}/*.{json,yaml,yml}; do
+          [ -f "$config_file" ] || continue
+          gen_one "$config_file"
         done
+      args:
+        executable: /bin/bash
       register: ssl_domain_result
       changed_when: "'Created SSL domain file' in ssl_domain_result.stdout"
 
@@ -204,7 +465,7 @@
 
     - name: Run fix-permissions to ensure nginx worker can access all files
       command: /usr/sbin/fix-permissions.sh
-      when: server_copy_result.changed or rule_copy_result.changed
+      when: (server_configs_changed | default(false) | bool) or (rule_configs_changed | default(false) | bool)
       ignore_errors: yes
 
     - name: Display deployment summary
@@ -240,7 +501,7 @@
       service:
         name: "{{ nginx_service }}"
         state: reloaded
-      when: server_copy_result.changed or ssl_domain_result.changed
+      when: (server_configs_changed | default(false) | bool) or ssl_domain_result.changed
       ignore_errors: yes
 
   handlers:

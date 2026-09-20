@@ -42,6 +42,7 @@ Admin plane is a separate server block (port 8069 prod / 8080 dev / 8099 next.js
 |------|---------|
 | `api/` | All Lua code (request pipeline, REST API, helpers). **Hot-reloaded per request.** |
 | `api/mcp/` | MCP (Model Context Protocol) server for AI agents |
+| `api/api_gw/` | **Kong-class API gateway package** — CORS, correlation, IVT, edge auth, rate-limit profiles, audit. Per-server `api_gw` JSON, no reload. See `docs/api-gateway.md`. |
 | `data/` | JSON data stores (servers, rules, upstreams, waf_policies, ssl, profiles, audit, versions, change_requests). Per-environment subdirs: `dev/int/test/acc/prod/`. |
 | `data/settings.json` | **Global config** — storage type, super_user, env_profile, redis/pgsql, captcha, waf, mcp, env_vars |
 | `openresty-admin/` | Legacy React admin UI (react-admin, Vite). Resources: Servers, Rules, Profiles, Secrets, Upstreams, Users, WafPolicies, WafRules. |
@@ -79,7 +80,8 @@ Admin plane is a separate server block (port 8069 prod / 8080 dev / 8099 next.js
 | `rule_matcher.lua` | Evaluate a rule: path match (with specificity score), IP match, country match (IP2Location), JWT/S3/cookie auth |
 | `rule_selector.lua` | Deterministic tie-breaking: priority > path_specificity > condition_count > rule_id |
 | `rule_auth.lua` | JWT validation, S3 signing, cookie key-value checks |
-| `gateway_pipeline.lua` | Rate limiting (shared dict `wsl_cache`), WAF delegation, transforms |
+| `gateway_pipeline.lua` | Orchestrates api_gw → legacy rate limiting (shared dict `wsl_cache`) → WAF delegation → transforms |
+| `api_gw/` | Staged access pipeline (`real_ip` → `correlation` → `cors` → `ivt` → `request_security` → `auth` → `rate_limit`), plus `header_filter`/`log` hooks. Opt-in per server via `api_gw.enabled`; tenant-prefixed keys in shared dict `wsl_api_gw`. |
 | `traffic_router.lua` | Multi-backend selection (weighted / round-robin / header-based canary / cookie-sticky / least-conn). Passive health (3 consecutive 5xx → mark unhealthy 30s) + active (10s timer). Records per-backend stats. |
 | `dns_access.lua` | Consul SRV lookup (200ms timeout); fallback to standard resolver is in `gateway_resp.lua` |
 | `varnish_manager.lua` | Per-server Varnish config (redis or disk). If enabled, route to `127.0.0.1:6081` |
@@ -110,17 +112,23 @@ Resources (each has list/get/create/update/delete): **servers, rules, secrets, i
 
 Special endpoints: `/api/user/login`, `/api/cache/*`, `/api/varnish/*`, `/api/traffic/*`, `/api/ai/analyze`, `/api/logs/{access,errors}`, `/api/topology/graph`, `/api/openresty_status`, `/api/push-data`, `/api/mcp/*`.
 
-The core persister is `CreateUpdateRecord(json_val, uuid, key_name, folder_name, method)` around **api.lua:1918**. It:
+The core persister is `CreateUpdateRecord(json_val, uuid, key_name, folder_name, method)`. It:
 1. Strips empty values, base64-encodes sensitive fields (secrets, JWT key, server `.config`, `varnish_vcl_config`)
-2. Writes to both Redis (if `storage_type: redis`) AND disk (`data/{folder_name}/{envProfile}/{uuid}.json`)
+2. Persists via `Repo.save` (`api/repo/` + `api/storage/` drivers). `storage_type: disk` writes JSON files; `redis` and `pgsql` dual-write to the remote store **and** on-disk JSON. Disk JSON remains the request-path source of truth (`rule_loader.lua` still reads files).
 3. For servers: also writes compiled conf to `data/servers/{env}/conf/{server_name}.conf`
 4. If `config_status: true`, copies conf to `/opt/nginx/conf.d/{server_name}.conf`, runs `openresty -t`, creates reboot flag file
+
+**Storage layer:** `api/storage/{driver,disk_driver,redis_driver,pgsql_driver,dual_writer}.lua` plus `api/repo/{servers,rules,secrets,generic}.lua`. PostgreSQL uses typed tables + `raw_json` (see `infra/pgsql/migrations/`). Apply with `scripts/pg-migrate.sh`; import existing disk JSON with `scripts/pg-import-from-disk.sh`. Do not auto-migrate on boot. `pgsql_storage.lua` remains a Redis-hash facade over `config_store` for leftover callers.
 
 ---
 
 ## 5. Data Model
 
-### Server JSON (`data/servers/{env}/host:{hostname}.json`)
+### Server JSON / YAML (`data/servers/{env}/host:{hostname}.{json,yaml,yml}`)
+
+Same schema in JSON or YAML. Request path tries `.json` then `.yaml` then `.yml`
+(`api/config_io.lua` + vendored `api/tinyyaml.lua`). Admin API writes **`.json` only**
+and removes YAML siblings for that id. See `examples/config-yaml/`.
 
 Key fields (not exhaustive):
 - **Identity:** `id` (= `host:{server_name}`), `server_name`, `proxy_server_name`, `profile_id`
@@ -134,8 +142,9 @@ Key fields (not exhaustive):
 - **Proxy timeouts:** `proxy_timeouts: {connect_timeout, send_timeout, read_timeout}` — in seconds, applied by balancer
 - **Rate limiting:** `rate_limit_enabled`, `rate_limit: {requests_per_second, burst}`
 - **WAF:** `waf_enabled`, `waf_policy_id`, `waf_mode_override` ("block"|"monitor")
+- **API gateway:** `api_gw` — nested policy object (`enabled`, `modules`, `real_ip`, `request_security`, `cors`, `ivt`, `auth`, `rate_limit`, `audit`, `routes`). Opt-in; absent = previous behaviour. Schema: `docs/api-gw.schema.json`, guide: `docs/api-gateway.md`.
 
-### Rule JSON (`data/rules/{env}/{uuid}.json`)
+### Rule JSON / YAML (`data/rules/{env}/{uuid}.{json,yaml,yml}`)
 
 ```json
 {
@@ -207,6 +216,7 @@ Key fields (not exhaustive):
 3. If syntax OK → calls `Conf.CreateNginxFlag(reboot_file_path)` which touches `/tmp/nginx/nginx-reboot-required`.
 4. A cron job (templated at `infra/ansible/roles/wslproxy/templates/nginx_restart_if_required.sh.j2`) polls this flag and runs `systemctl restart openresty`, then removes the flag.
 5. **Rules do not require reload** — they're loaded per-request by `rule_loader.lua` from disk/redis and evaluated live.
+6. **`api_gw` policy does not require reload either** — it is normalised per request from the same server JSON. The only reload-requiring part is the `lua_shared_dict wsl_api_gw 20m;` line, which is already in both templates.
 
 **Important:** the main nginx.conf includes `/opt/nginx/conf.d/*.conf` for per-tenant server blocks, and `/opt/nginx/data/upstreams/*/upstreams.conf` for dynamic upstreams.
 
@@ -228,7 +238,7 @@ Key fields (not exhaustive):
 - `{nginx_nextjs_dashboard_port}` — Next.js admin
 - `9443` — TCP stream load balancer for k3s API (prod-only, `nginx-base.d/nginx_tcp_streams.conf`)
 
-### Host 187.124.112.155 (prod)
+### Host 85.190.106.189 (prod — pop0, ssh user `administrator`)
 - `curl http://127.0.0.1:8099/health` returns 200 when healthy
 - The Ansible template's admin server listens on 8099 (NOT 8080) — use this for health checks.
 
@@ -243,7 +253,7 @@ Three completely independent deploy mechanisms — they don't share configuratio
 - `./dev.sh` is the orchestrator (`start.sh`). Accepts `-n` (skip git), `-w` (admin watch), `-a` (auto), `--stash`, `--pull`, JWT arg.
 - Hot-reload: `api/` and `html/` bind-mounted. React admin requires rebuild.
 
-### B. Ansible (bare metal / VM — this is how **prod on 187.124.112.155** is deployed)
+### B. Ansible (bare metal / VM — this is how **prod on 85.190.106.189** is deployed)
 - Playbook: `infra/ansible/wslproxy-ops.yml`
 - Role: `infra/ansible/roles/wslproxy/`
 - Task files (orchestrated by `tasks/main.yml`):
@@ -269,7 +279,7 @@ Three completely independent deploy mechanisms — they don't share configuratio
   - `templates/ingressclass.yaml` — `ingressClassName: wslproxy`
   - `templates/openresty-{service,hpa,pdb}.yaml`, `tls-secret.yaml`, `rbac.yaml`, `servicemonitor.yaml`
 - The helm chart's `files/nginx.conf` is what gets deployed into the ConfigMap. `ingress-controller/deploy/openresty/nginx.conf` is kept in sync but not directly used by helm.
-- **This chart is NOT deployed by any automated pipeline** — you must run `helm upgrade wslproxy-ingress ingress-controller/deploy/helm/ -n wslproxy-system` manually.
+- Helm on k3s1 is Ring Promoter app `wslproxy-k3s1` (`deploy/ring-promoter/k3s1.yaml`): a `k8sjob` in `ring-exec` runs `helm upgrade --install`. One-time RBAC: `kubectl apply -f deploy/ring-promoter/k3s1-rbac.yaml`. Manual equivalent: `helm upgrade wslproxy-ingress ingress-controller/deploy/helm/ -n wslproxy-system`.
 
 ---
 
@@ -277,8 +287,8 @@ Three completely independent deploy mechanisms — they don't share configuratio
 
 Main pipeline: `.github/workflows/deploy-wslproxy-delivery-pipeline.yml`
 
-**Promotion chain:** Build & Validate → Int (192.168.1.193) → Smoke Test Int → Test (192.168.1.140) → Prod pop0 (187.124.112.155) → Prod lon1 (72.62.211.28)
-(The `acc` tier on 187.77.179.206 was decommissioned; the delivery pipeline now goes test → prod directly.)
+**Promotion chain:** Build & Validate → Int (192.168.1.193) → Smoke Test Int → Test (192.168.1.140) → Prod lon1 (lon1.pop0.uk). pop0 (85.190.106.189) is dispatch-only. pop1 (18.133.126.242) retired.
+(The `acc` tier on 187.77.179.206 and the OLD pop0 edge on 187.124.112.155 were decommissioned; pop0 was rebuilt 2026-08-28 on a new VPS, 85.190.106.189 (ssh user `administrator`), wired in as dispatch-only Stage 5c; the delivery pipeline goes test → prod directly. The old lon1 host 72.62.211.28 is a k3s worker only since 2026-08-27 — the lon1 edge lives on lon1.pop0.uk, which reaches the k3s demo apps via NodePorts 30081-30085 on 72.62.211.28.)
 
 **Inputs:** `DEPLOY_BRANCH`, `TARGET_ENV`, `TARGET_HOST`, `DEPLOY_MODE` (code/nginx/servers/dashboard/dashboard-next/os_deps/build/full).
 
@@ -293,7 +303,7 @@ Reusable workflow: `deploy-environment.yml` (per-environment deploy). Supports `
 Many production requests flow through **two** wslproxy layers:
 
 ```
-Client → wslproxy on 187.124.112.155 (Ansible deploy)
+Client → wslproxy on lon1.pop0.uk / 85.190.106.189 (Ansible deploy)
        → k3s NodePort 32100 on 193.237.176.232
        → wslproxy-ingress-controller pod in k3s (Helm deploy)
        → FastAPI / Lapis / other app pods
@@ -486,7 +496,7 @@ Local URLs:
 
 5. **Two-layer timeout:** fixing timeouts on the outer wslproxy doesn't help if k3s ingress has lower. Raise both. `ingress-controller/deploy/helm/files/nginx.conf` now has `proxy_{connect,send,read}_timeout 300s`.
 
-6. **k3s ingress helm chart requires manual `helm upgrade`** — not in any CI pipeline. Changes to `ingress-controller/deploy/helm/files/nginx.conf` won't deploy automatically.
+6. **k3s ingress helm chart** — promote via Ring Promoter app `wslproxy-k3s1` (k8sjob on k3s1) or `helm upgrade wslproxy-ingress ingress-controller/deploy/helm/ -n wslproxy-system`. Changes to `ingress-controller/deploy/helm/files/nginx.conf` only go live after that helm upgrade.
 
 7. **Missing `/var/cache/nginx/docker_blobs` parent** in Docker image → nginx won't start (proxy_cache_path directive fails). Dockerfile creates it explicitly.
 
@@ -503,6 +513,10 @@ Local URLs:
 13. **Traffic router "fail-open":** if all backends are unhealthy, it uses them anyway rather than returning 502. Prevents total outage from health-check false-positives.
 
 14. **`config_status: true` is required** for a server's generated nginx config to actually be active in `/opt/nginx/conf.d/`. Rules work even without config_status.
+
+15. **JSON bodies must not be rebuilt from `ngx.req.get_post_args()`** (2026-08-10 diytaxreturn outage): form parsing splits the body at the first literal `=` and `GetPayloads`' `k .. v` re-concatenation silently deleted it, stripping base64 padding from rule fields (`jwt_token_validation_key: "L2luZGV4Lmh0bWw=" → "L2luZGV4Lmh0bWw"`) for any plain-JSON client (curl, the diy-tax-return-uk `wslproxy-register-domains` import workflow). The shipped `base64.lua` then crashed on the unpadded value on every request → recurring 500s that "came back" after every rules re-import. Fixed: `GetPayloads` now prefers the raw body (`ngx.req.get_body_data`/`get_body_file`), and request-path decodes use the `Base64DecodeSafe` global (init.lua: re-pad + pcall, self-heals unpadded input). The react-admin `=` escaping (frontend gotcha 2) is a workaround for the old behavior — still harmless, no longer required.
+
+16. **Rules for diytaxreturn (and other app domains) are owned by the app repo** (`diy-tax-return-uk/.github/wslproxy/data/{rules,servers}/<env>/`), pushed via `/api/projects/import` which preserves committed rule ids. The canonical rule id for a domain is whatever the app repo's **origin/main** says — check `git show origin/main:...`, not a possibly-stale local checkout (in the 2026-08-10 incident the local clone still had superseded id `5c63f6fa-…` while origin/main had moved to `93893825-…`). Re-creating a rule in the admin UI mints a NEW uuid and repoints servers to it, forking live from git. Fix drift by re-running the app repo's `wslproxy-register-domains` workflow (git wins), not by minting new rules.
 
 ### Conventions
 

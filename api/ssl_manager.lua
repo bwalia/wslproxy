@@ -214,8 +214,37 @@ local function store_ssl_config_disk(server_name, ssl_config)
     return true, nil
 end
 
--- Store SSL configuration for a domain
--- Automatically chooses storage based on settings.storage_type
+-- Populate the `ssl_domains` shared dict entry so the auto-ssl
+-- `allow_domain` callback recognises this domain on the very next
+-- HTTPS handshake — no worker restart / no ssl_init reconciliation
+-- wait.  Split out so `store_ssl_config` (below) can call it after
+-- any successful persistence path, and callers no longer have to
+-- remember `AddSslDomainToCache(name)` as a separate step.  That
+-- separation was the exact defect that caused `int.workstation.academy`
+-- to be stuck on the self-signed fallback for weeks (2026-07-14).
+local function activate_ssl_domain_in_cache(server_name)
+    local shd = ngx.shared.ssl_domains
+    if not shd then
+        ngx.log(ngx.ERR,
+            "SSL Manager: shared dict 'ssl_domains' not available — ",
+            "cannot activate ", server_name, " until worker restart / ssl_init reconciliation")
+        return false, "ssl_domains shared dict not available"
+    end
+    local ok, err = shd:set(server_name, true)
+    if not ok then
+        ngx.log(ngx.ERR, "SSL Manager: failed to add ", server_name,
+            " to ssl_domains shared dict: ", tostring(err))
+        return false, err
+    end
+    ngx.log(ngx.INFO, "SSL Manager: activated in shared dict: ", server_name)
+    return true
+end
+
+-- Store SSL configuration for a domain AND activate it in the
+-- ssl_domains shared dict in the same call.  Atomic from the
+-- caller's perspective — they don't need to remember to also call
+-- `AddSslDomainToCache`.
+-- Automatically chooses storage based on settings.storage_type.
 function _M.store_ssl_config(server_name, ssl_config)
     if not server_name or server_name == "" then
         return nil, "Server name is required"
@@ -223,17 +252,31 @@ function _M.store_ssl_config(server_name, ssl_config)
 
     local use_redis = is_redis_storage()
 
+    local ok, err
     if use_redis then
-        local ok, err = store_ssl_config_redis(server_name, ssl_config)
+        ok, err = store_ssl_config_redis(server_name, ssl_config)
         if not ok then
             -- Fallback to disk if Redis fails
             ngx.log(ngx.WARN, "SSL Manager: Redis storage failed, falling back to disk: ", err)
-            return store_ssl_config_disk(server_name, ssl_config)
+            ok, err = store_ssl_config_disk(server_name, ssl_config)
         end
-        return ok, err
     else
-        return store_ssl_config_disk(server_name, ssl_config)
+        ok, err = store_ssl_config_disk(server_name, ssl_config)
     end
+
+    if not ok then
+        return ok, err
+    end
+
+    -- Persistence succeeded — now activate in the shared dict so
+    -- auto-ssl allow_domain returns true on the very next request.
+    -- A shared-dict failure is logged loudly but NOT propagated up;
+    -- the persisted file will be picked up on the next worker init
+    -- via ssl_init.reconcile_disk_ssl_configs, so the domain
+    -- eventually works even if this step fails.
+    activate_ssl_domain_in_cache(server_name)
+
+    return ok, err
 end
 
 -- Remove SSL configuration from Redis
@@ -270,7 +313,20 @@ local function remove_ssl_config_disk(server_name)
     return true, nil
 end
 
--- Remove SSL configuration for a domain
+-- Evict a domain from the ssl_domains shared dict.  Paired with
+-- `activate_ssl_domain_in_cache` — same rationale for split-out so
+-- `remove_ssl_config` can call it after any successful delete.
+local function deactivate_ssl_domain_in_cache(server_name)
+    local shd = ngx.shared.ssl_domains
+    if shd then
+        shd:delete(server_name)
+        ngx.log(ngx.INFO, "SSL Manager: deactivated in shared dict: ", server_name)
+    end
+end
+
+-- Remove SSL configuration for a domain AND evict it from the
+-- ssl_domains shared dict in the same call.  Atomic from the
+-- caller's perspective.
 function _M.remove_ssl_config(server_name)
     if not server_name or server_name == "" then
         return nil, "Server name is required"
@@ -278,6 +334,7 @@ function _M.remove_ssl_config(server_name)
 
     local use_redis = is_redis_storage()
 
+    local final_ok, final_err
     if use_redis then
         local ok, err = remove_ssl_config_redis(server_name)
         if not ok then
@@ -285,10 +342,18 @@ function _M.remove_ssl_config(server_name)
         end
         -- Also try to remove from disk in case it exists there
         remove_ssl_config_disk(server_name)
-        return true, nil
+        final_ok, final_err = true, nil
     else
-        return remove_ssl_config_disk(server_name)
+        final_ok, final_err = remove_ssl_config_disk(server_name)
     end
+
+    -- Whether or not persistence succeeded, evict from cache so the
+    -- domain immediately stops being allowed by auto-ssl.  A failed
+    -- persistence just means the file may reappear on next worker
+    -- start via reconciliation — better than leaving a stale allow.
+    deactivate_ssl_domain_in_cache(server_name)
+
+    return final_ok, final_err
 end
 
 -- Get SSL configuration from Redis

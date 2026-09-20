@@ -4,6 +4,7 @@ import React, { useCallback, useMemo } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { Plus, Trash2, ListFilter } from "lucide-react";
 import Card from "@/components/ui/Card";
+import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import Combobox from "@/components/ui/Combobox";
 import Button from "@/components/ui/Button";
@@ -119,14 +120,14 @@ const ServerRulesTab: React.FC<ServerRulesTabProps> = ({
             <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
               Server Rules
             </h2>
-            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+            <p className="mt-0.5 text-sm text-slate-600 dark:text-slate-300">
               Select and configure rules for this server
             </p>
           </div>
         </Card.Header>
         <Card.Body>
           {ruleOptions.length === 0 ? (
-            <p className="py-4 text-center text-sm italic text-slate-400 dark:text-slate-500">
+            <p className="py-4 text-center text-sm italic text-slate-600 dark:text-slate-400">
               No rules available. Create rules first to assign them to this
               server.
             </p>
@@ -151,6 +152,42 @@ const ServerRulesTab: React.FC<ServerRulesTabProps> = ({
         </Card.Body>
       </Card>
 
+      {/* ── Failover Host Override ───────────────────────────────────── */}
+      {/* Only meaningful once a rule is assigned — the override applies
+          to traffic served by the rule's NON-primary (failover/mirror)
+          backends. It lives on the server, not the rule, because rules
+          are shared across many domains and each domain's mirror is
+          published under its own hostname. */}
+      {form.rules && (
+        <Card>
+          <Card.Header>
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                Failover Host Override
+              </h2>
+              <p className="mt-0.5 text-sm text-slate-600 dark:text-slate-300">
+                Host header sent upstream when this server&apos;s traffic is
+                served by a non-primary (mirror) backend of the assigned rule.
+                Leave empty to forward the same Host on every backend.
+              </p>
+            </div>
+          </Card.Header>
+          <Card.Body>
+            <Input
+              label="Mirror Host Header"
+              placeholder="e.g. spectoncr-mirror.diytaxreturn.co.uk"
+              value={form.mirror_host_header}
+              onChange={(e) =>
+                setForm((prev) => ({
+                  ...prev,
+                  mirror_host_header: e.target.value,
+                }))
+              }
+            />
+          </Card.Body>
+        </Card>
+      )}
+
       {/* ── Match Conditions ─────────────────────────────────────────── */}
       {showMatchCases && (
         <Card>
@@ -159,7 +196,7 @@ const ServerRulesTab: React.FC<ServerRulesTabProps> = ({
               <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
                 Match Conditions
               </h2>
-              <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+              <p className="mt-0.5 text-sm text-slate-600 dark:text-slate-300">
                 Combine additional rules with the assigned rule using AND / OR.
               </p>
             </div>
@@ -175,7 +212,7 @@ const ServerRulesTab: React.FC<ServerRulesTabProps> = ({
           </Card.Header>
           <Card.Body>
             {form.match_cases.length === 0 ? (
-              <p className="py-4 text-center text-sm italic text-slate-400 dark:text-slate-500">
+              <p className="py-4 text-center text-sm italic text-slate-600 dark:text-slate-400">
                 No match conditions configured.
               </p>
             ) : (
@@ -237,8 +274,8 @@ const ServerRulesTab: React.FC<ServerRulesTabProps> = ({
           to combine with — avoids rendering an empty card with no
           useful state. */}
       {form.rules && ruleOptions.length === 1 && (
-        <div className="flex items-start gap-2 rounded-lg border border-dashed border-slate-200 bg-slate-50 p-3 text-xs text-slate-500 dark:border-slate-700 dark:bg-slate-800/30 dark:text-slate-400">
-          <ListFilter className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+        <div className="flex items-start gap-2 rounded-lg border border-dashed border-slate-200 bg-slate-50 p-3 text-sm leading-relaxed text-slate-600 dark:border-slate-700 dark:bg-slate-800/30 dark:text-slate-300">
+          <ListFilter className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
           <span>
             Create at least one more rule to unlock <em>Match Conditions</em>.
           </span>

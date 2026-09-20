@@ -20,7 +20,7 @@ const variantStyles: Record<NonNullable<ButtonProps["variant"]>, string> = {
   danger:
     "bg-danger-600 text-white hover:bg-danger-700 active:bg-danger-800 focus-visible:ring-danger-500/30",
   ghost:
-    "bg-transparent text-slate-700 hover:bg-slate-100 active:bg-slate-200 dark:text-slate-300 dark:hover:bg-slate-800 dark:active:bg-slate-700 focus-visible:ring-slate-500/30",
+    "bg-transparent text-slate-800 hover:bg-slate-100 active:bg-slate-200 dark:text-slate-100 dark:hover:bg-slate-800 dark:active:bg-slate-700 focus-visible:ring-slate-500/30",
 };
 
 const sizeStyles: Record<NonNullable<ButtonProps["size"]>, string> = {

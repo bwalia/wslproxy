@@ -9,6 +9,17 @@ on:
         description: "Ansible target_env value (int, test, acc, prod)"
         type: string
         required: true
+      runner_label:
+        description: >-
+          Self-hosted runner label to schedule this job on.  Defaults to
+          env_name so the historical "one runner per env, labelled after
+          the env" convention still works.  Set explicitly when the box
+          that has SSH+key access to the target isn't the box tagged
+          with env_name — e.g. prod / prod-lon1 (lon1.pop0.uk) is deployed
+          from the mac-studio runner labelled `acc` (the historical `prod`
+          runner lived on the retired pop0 box). pop1 is retired.
+        type: string
+        default: ""
       env_label:
         description: "Human-readable label for logs and Slack (e.g. 'Int (192.168.1.193)')"
         type: string
@@ -26,7 +37,11 @@ on:
         type: string
         default: "root"
       connection_mode:
-        description: "Connection mode: local (sudo, int only), ssh (test), ssh_key (acc/prod)"
+        description: >-
+          Connection mode: local (sudo, no SSH), ssh (password/agent), ssh_key
+          (deploy key). Auto-downgraded to `local` at runtime when host_ip is
+          one of the runner's own IPs (co-located runner+target) — see the
+          "Resolve effective connection mode" step.
         type: string
         required: true
       secrets_mode:
@@ -98,7 +113,7 @@ on:
         type: string
         required: true
       deploy_mode:
-        description: "Deploy mode: code, nginx, servers, dashboard, dashboard-next, os_deps, build, full"
+        description: "Deploy mode: code, nginx, servers, dashboard, dashboard-next, os_deps, build, full, permissions"
         type: string
         required: true
       nextjs_dashboard_port:
@@ -131,10 +146,14 @@ on:
 jobs:
   deploy:
     name: "Deploy ${{ inputs.env_label }}"
-    # OS-agnostic: match any self-hosted runner carrying the env label,
-    # whether it is Linux or macOS. Hardcoding `Linux` here left the `acc`
-    # job queued forever because the only `acc` runner is macOS.
-    runs-on: [self-hosted, "${{ inputs.env_name }}"]
+    # OS-agnostic: match any self-hosted runner carrying the target
+    # label, whether it is Linux or macOS. Hardcoding `Linux` here left
+    # the `acc` job queued forever because the only `acc` runner is
+    # macOS.  The label defaults to env_name (historical convention:
+    # one runner per env, labelled after the env), but the caller can
+    # override via `runner_label` when the box with the right SSH keys
+    # / network reach doesn't match the env — see input docs.
+    runs-on: [self-hosted, "${{ inputs.runner_label != '' && inputs.runner_label || inputs.env_name }}"]
     timeout-minutes: 30
 
     steps:
@@ -166,6 +185,41 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
+      # ── Auto-detect a co-located target ──
+      # If the deploy TARGET (host_ip) is one of THIS runner's own IP
+      # addresses, the runner and the target are the SAME machine. SSHing
+      # to yourself needs a self-authorized key and normally just fails
+      # with "Permission denied (publickey,password)" — which is exactly
+      # how the acc/pop0 deploy broke: env_name=prod pins the job to the
+      # `prod` self-hosted runner, and that runner IS pop0
+      # (187.124.112.155), so `ssh root@187.124.112.155` from the box to
+      # itself was rejected. When co-located we transparently downgrade to
+      # a LOCAL Ansible connection (--connection=local + sudo): every role
+      # task in wslproxy-ops.yml runs on this host directly, no SSH hop and
+      # no key needed. Downgrade only — a genuinely remote target keeps its
+      # configured ssh/ssh_key mode. Portable across Linux and macOS
+      # runners (hostname -I / ip / ifconfig).
+      - name: Resolve effective connection mode
+        id: conn
+        run: |
+          MODE="${{ inputs.connection_mode }}"
+          HOST="${{ inputs.host_ip }}"
+          if [[ "$MODE" != "local" ]]; then
+            LOCAL_IPS="127.0.0.1 ::1"
+            command -v hostname >/dev/null 2>&1 && LOCAL_IPS="$LOCAL_IPS $(hostname -I 2>/dev/null || true)"
+            command -v ip       >/dev/null 2>&1 && LOCAL_IPS="$LOCAL_IPS $(ip -o addr show 2>/dev/null | awk '{print $4}' | cut -d/ -f1)"
+            command -v ifconfig >/dev/null 2>&1 && LOCAL_IPS="$LOCAL_IPS $(ifconfig 2>/dev/null | awk '/inet /{print $2}')"
+            if printf ' %s ' $LOCAL_IPS | grep -qFw "$HOST"; then
+              echo "::notice::Target $HOST is this runner ($MODE requested) — using a LOCAL Ansible connection (no SSH)."
+              MODE="local"
+            else
+              echo "Target $HOST is remote from this runner — using '$MODE' connection."
+            fi
+          else
+            echo "connection_mode=local requested — no SSH."
+          fi
+          echo "mode=$MODE" >> "$GITHUB_OUTPUT"
+
       - name: Install Ansible
         run: |
           if command -v ansible &> /dev/null; then
@@ -182,20 +236,45 @@ jobs:
           fi
 
       # ── Build Next.js dashboard (standalone mode) ──
+      - name: Setup Node.js (npm cache)
+        if: contains(inputs.deploy_mode, 'dashboard') || inputs.deploy_mode == 'full'
+        uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: openresty-admin-next/package-lock.json
+
+      - name: Cache Next.js build output
+        if: contains(inputs.deploy_mode, 'dashboard') || inputs.deploy_mode == 'full'
+        uses: actions/cache@v4
+        with:
+          path: |
+            openresty-admin-next/.next/cache
+            openresty-admin-next/.next/standalone
+            openresty-admin-next/.next/static
+          key: nextjs-${{ runner.os }}-${{ hashFiles('openresty-admin-next/package-lock.json') }}-${{ hashFiles('openresty-admin-next/src/**', 'openresty-admin-next/app/**', 'openresty-admin-next/next.config.*') }}
+          restore-keys: |
+            nextjs-${{ runner.os }}-${{ hashFiles('openresty-admin-next/package-lock.json') }}-
+            nextjs-${{ runner.os }}-
+
       - name: Build Next.js admin dashboard
         if: contains(inputs.deploy_mode, 'dashboard') || inputs.deploy_mode == 'full'
         run: |
           echo "Building Next.js admin dashboard (standalone)..."
 
-          # Ensure Node.js is available (use nvm if installed, else system node)
-          export NVM_DIR="${HOME}/.nvm"
-          [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+          # Prefer setup-node's node; fall back to nvm/system if setup-node skipped
+          # or PATH was overridden on the self-hosted runner.
+          if ! command -v node &> /dev/null; then
+            export NVM_DIR="${HOME}/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+          fi
           if ! command -v node &> /dev/null; then
             echo "Node.js not found — installing via nvm..."
             curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash
+            export NVM_DIR="${HOME}/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
-            nvm install 18
-            nvm use 18
+            nvm install 20
+            nvm use 20
           fi
           echo "Node.js version: $(node --version)"
 
@@ -350,18 +429,22 @@ jobs:
           fi
 
           # Only trust Vault if the secret is COMPLETE and for the RIGHT env.
-          # A 200 with empty data.data, or data missing super_user, or an
-          # env_profile that doesn't match this environment, means Vault is
-          # holding partial/stale/wrong data (observed 2026-07-04: a broken
-          # Vault KV mount kept prod as a leftover `{probe}` write). Selecting
-          # Vault in those cases makes ansible's env_profile guard abort the
-          # deploy mid-flight; falling back to SOPS (the in-repo source of
-          # truth) keeps the deploy green. jq -e is non-zero unless every
-          # condition holds.
-          if ! jq -e --arg env "${{ inputs.env_name }}" \
-               '.data.data | (length > 0) and (.super_user != null) and (.env_profile == $env)' \
-               /tmp/vault_probe.json >/dev/null 2>&1; then
-            VEP="$(jq -r '.data.data.env_profile // "<missing>"' /tmp/vault_probe.json 2>/dev/null)"
+          # Supports WSLVault {"data":"<base64-json>"} and HashiCorp KV v2
+          # {"data":{"data":{...}}}. Incomplete/wrong-env payloads fall back
+          # to SOPS (in-repo source of truth).
+          if ! jq -e --arg env "${{ inputs.env_name }}" '
+                (if (.data | type) == "string" then (.data | @base64d | fromjson)
+                 elif (.data.data | type) == "object" then .data.data
+                 elif (.data.data | type) == "string" then (.data.data | @base64d | fromjson)
+                 else empty end)
+                | (type == "object") and (length > 0)
+                  and (.super_user != null) and (.env_profile == $env)
+              ' /tmp/vault_probe.json >/dev/null 2>&1; then
+            VEP="$(jq -r '
+              (if (.data | type) == "string" then (.data | @base64d | fromjson)
+               elif (.data.data | type) == "object" then .data.data
+               else {} end).env_profile // "<missing>"
+              ' /tmp/vault_probe.json 2>/dev/null || echo "<missing>")"
             echo "  Vault 200 but data is incomplete or env_profile ('$VEP') != '${{ inputs.env_name }}' — using SOPS"
             echo "mode=sops" >> "$GITHUB_OUTPUT"
             rm -f /tmp/vault_probe.json
@@ -601,7 +684,7 @@ jobs:
 
       # ── SSH setup (remote connections only) ──
       - name: Setup SSH and test connectivity
-        if: inputs.connection_mode != 'local'
+        if: steps.conn.outputs.mode != 'local'
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         run: |
@@ -610,7 +693,7 @@ jobs:
           ssh-keyscan -H ${{ inputs.host_ip }} >> ~/.ssh/known_hosts 2>/dev/null || true
 
           SSH_OPTS="-o BatchMode=yes -o ConnectTimeout=10"
-          if [[ "${{ inputs.connection_mode }}" == "ssh_key" ]]; then
+          if [[ "${{ steps.conn.outputs.mode }}" == "ssh_key" ]]; then
             # If a key was passed via secret, materialise it. Otherwise
             # fall back to a key already provisioned on the runner.
             if [[ -n "${SSH_PRIVATE_KEY:-}" ]]; then
@@ -632,7 +715,7 @@ jobs:
       - name: Clean up Docker resources
         if: inputs.docker_prune
         run: |
-          if [[ "${{ inputs.connection_mode }}" == "local" ]]; then
+          if [[ "${{ steps.conn.outputs.mode }}" == "local" ]]; then
             if command -v docker &> /dev/null; then
               echo "Pruning Docker on ${{ inputs.host_ip }}..."
               sudo docker system prune -y 2>&1 || true
@@ -641,7 +724,7 @@ jobs:
             fi
           else
             SSH_OPTS="-o BatchMode=yes -o ConnectTimeout=10"
-            [[ "${{ inputs.connection_mode }}" == "ssh_key" ]] && SSH_OPTS="$SSH_OPTS -i ~/.ssh/id_rsa"
+            [[ "${{ steps.conn.outputs.mode }}" == "ssh_key" ]] && SSH_OPTS="$SSH_OPTS -i ~/.ssh/id_rsa"
             ssh $SSH_OPTS ${{ inputs.ssh_user }}@${{ inputs.host_ip }} \
               'if command -v docker &> /dev/null; then echo "Pruning Docker..."; docker system prune -y; else echo "Docker not installed — skipping prune"; fi' 2>&1 || true
           fi
@@ -663,6 +746,16 @@ jobs:
           elif [[ "$DEPLOY_MODE" == "dashboard-next" ]]; then
             TAGS_FLAG="--tags dashboard-next"
             echo "Next.js dashboard deploy to ${{ inputs.env_label }}"
+          elif [[ "$DEPLOY_MODE" == "permissions" ]]; then
+            # Surgical repair: run only tasks tagged `always` (fix_permissions,
+            # OS/host probes). A non-existent tag skips every other task while
+            # ansible still runs `always`-tagged ones — which includes
+            # fix_permissions.yml → /usr/sbin/fix-permissions.sh, the single
+            # source of truth for /opt/nginx/data ownership. Use when the
+            # admin API returns "Permission denied" on a rule/server file
+            # (root-owned files that www-data cannot read).
+            TAGS_FLAG="--tags __permissions_only__"
+            echo "Permissions-only repair on ${{ inputs.env_label }}"
           else
             TAGS_FLAG="--tags $DEPLOY_MODE"
             echo "$DEPLOY_MODE deploy to ${{ inputs.env_label }}"
@@ -683,7 +776,7 @@ jobs:
 
           CMD_PREFIX=""
           CONN_FLAGS=""
-          if [[ "${{ inputs.connection_mode }}" == "local" ]]; then
+          if [[ "${{ steps.conn.outputs.mode }}" == "local" ]]; then
             if [[ "$RESOLVED_MODE" == "vault" ]]; then
               CMD_PREFIX="sudo --preserve-env=VAULT_ADDR,VAULT_TOKEN"
             elif [[ "$RESOLVED_MODE" == "sops" ]]; then
@@ -694,7 +787,7 @@ jobs:
               CMD_PREFIX="sudo"
             fi
             CONN_FLAGS="--connection=local"
-          elif [[ "${{ inputs.connection_mode }}" == "ssh_key" ]]; then
+          elif [[ "${{ steps.conn.outputs.mode }}" == "ssh_key" ]]; then
             CONN_FLAGS="--private-key ~/.ssh/id_rsa --timeout 30"
           else
             CONN_FLAGS="--timeout 30"
@@ -712,32 +805,59 @@ jobs:
             *)     SECRETS_FLAG="vault_secrets_enabled=false sops_secrets_enabled=false" ;;
           esac
 
-          $CMD_PREFIX ansible-playbook infra/ansible/wslproxy-ops.yml \
-            -i infra/ansible/hosts \
-            -l ${{ inputs.host_ip }} \
+          # Absolute inventory path — self-hosted runners share one workspace
+          # across concurrent jobs; a relative -i can race a mid-checkout wipe
+          # and yield "Could not match supplied host pattern" for lon1.pop0.uk
+          # (run 34495805656). Fail fast with the inventory contents instead.
+          INV="${GITHUB_WORKSPACE}/infra/ansible/hosts"
+          PLAYBOOK="${GITHUB_WORKSPACE}/infra/ansible/wslproxy-ops.yml"
+          HOST="${{ inputs.host_ip }}"
+          if [[ ! -f "$INV" ]]; then
+            echo "::error::Ansible inventory missing at $INV (cwd=$(pwd))"
+            ls -la "${GITHUB_WORKSPACE}/infra/ansible" || true
+            exit 1
+          fi
+          if ! grep -qE "^${HOST}([[:space:]]|$)" "$INV"; then
+            echo "::error::Inventory $INV does not list host '${HOST}' — refusing to deploy"
+            echo "---- inventory ----"
+            cat "$INV"
+            echo "---- ansible-inventory --list (hostnames) ----"
+            ansible-inventory -i "$INV" --list 2>/dev/null | head -c 4000 || true
+            exit 1
+          fi
+          echo "Inventory OK: ${HOST} present in $INV"
+
+          $CMD_PREFIX ansible-playbook "$PLAYBOOK" \
+            -i "$INV" \
+            -l "$HOST" \
             $CONN_FLAGS \
             $TAGS_FLAG \
             --extra-vars "nginx_user_password=THISCOMESFROMSECRETS target_env=${{ inputs.env_name }} local_settings_file_path=${{ env.settings_path }} local_env_file_path=${{ env.env_path }} wslproxy_version=${WSLPROXY_VERSION} wslproxy_build_number=${{ github.run_id }} wslproxy_git_sha=${{ github.sha }} wslproxy_git_repo=${{ github.repository }} wslproxy_deployment_time=$(date -u +%Y-%m-%dT%H:%M:%SZ) $SECRETS_FLAG"
 
       # ── Deploy server/rule configs ──
+      # Skipped in `permissions` mode: that mode's whole point is a
+      # perms-only repair with zero data changes. Pushing wslproxy's own
+      # data/servers/<env>/ + data/rules/<env>/ would overwrite whatever
+      # drift the operator is currently debugging.
       - name: Deploy server configs and rules
-        timeout-minutes: 5
+        if: ${{ inputs.deploy_mode != 'permissions' }}
+        timeout-minutes: 20
         run: |
           echo "Deploying server configs for env: ${{ inputs.env_name }} to ${{ inputs.host_ip }}"
           export ANSIBLE_HOST_KEY_CHECKING=False
 
           CMD_PREFIX=""
           CONN_FLAGS=""
-          if [[ "${{ inputs.connection_mode }}" == "local" ]]; then
+          if [[ "${{ steps.conn.outputs.mode }}" == "local" ]]; then
             CMD_PREFIX="sudo"
             CONN_FLAGS="--connection=local"
-          elif [[ "${{ inputs.connection_mode }}" == "ssh_key" ]]; then
+          elif [[ "${{ steps.conn.outputs.mode }}" == "ssh_key" ]]; then
             CONN_FLAGS="--private-key ~/.ssh/id_rsa"
           fi
 
-          $CMD_PREFIX ansible-playbook infra/ansible/deploy-configs.yml \
-            -i infra/ansible/hosts \
-            -l ${{ inputs.host_ip }} \
+          $CMD_PREFIX ansible-playbook "${GITHUB_WORKSPACE}/infra/ansible/deploy-configs.yml" \
+            -i "${GITHUB_WORKSPACE}/infra/ansible/hosts" \
+            -l "${{ inputs.host_ip }}" \
             $CONN_FLAGS \
             -e "target_env=${{ inputs.env_name }} local_data_dir=${{ github.workspace }}/data"
 
@@ -747,10 +867,10 @@ jobs:
           echo "Verifying deployment on ${{ inputs.env_label }}..."
 
           SSH_OPTS="-o BatchMode=yes -o ConnectTimeout=10"
-          [[ "${{ inputs.connection_mode }}" == "ssh_key" ]] && SSH_OPTS="$SSH_OPTS -i ~/.ssh/id_rsa"
+          [[ "${{ steps.conn.outputs.mode }}" == "ssh_key" ]] && SSH_OPTS="$SSH_OPTS -i ~/.ssh/id_rsa"
 
           # Nginx config test
-          if [[ "${{ inputs.connection_mode }}" == "local" ]]; then
+          if [[ "${{ steps.conn.outputs.mode }}" == "local" ]]; then
             sudo /usr/local/openresty/bin/openresty -t 2>&1 || {
               echo "::error::Nginx config test failed"; exit 1;
             }
@@ -816,10 +936,10 @@ jobs:
           echo "Verifying Next.js dashboard on ${{ inputs.env_label }} (port ${PORT})..."
 
           SSH_OPTS="-o BatchMode=yes -o ConnectTimeout=10"
-          [[ "${{ inputs.connection_mode }}" == "ssh_key" ]] && SSH_OPTS="$SSH_OPTS -i ~/.ssh/id_rsa"
+          [[ "${{ steps.conn.outputs.mode }}" == "ssh_key" ]] && SSH_OPTS="$SSH_OPTS -i ~/.ssh/id_rsa"
 
           # 1) systemd service must be active
-          if [[ "${{ inputs.connection_mode }}" == "local" ]]; then
+          if [[ "${{ steps.conn.outputs.mode }}" == "local" ]]; then
             sudo systemctl is-active "$SVC" >/dev/null 2>&1 || {
               echo "::error::$SVC is not active on ${{ inputs.host_ip }}"
               sudo systemctl status "$SVC" --no-pager -l 2>&1 | tail -30 || true
@@ -841,7 +961,7 @@ jobs:
           # helper: run a curl either locally or over SSH
           probe() {
             local u="$1"
-            if [[ "${{ inputs.connection_mode }}" == "local" ]]; then
+            if [[ "${{ steps.conn.outputs.mode }}" == "local" ]]; then
               curl -s -o /dev/null -w "%{http_code}" "$u" 2>/dev/null || echo "000"
             else
               ssh $SSH_OPTS ${{ inputs.ssh_user }}@${{ inputs.host_ip }} \

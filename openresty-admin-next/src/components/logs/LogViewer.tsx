@@ -170,7 +170,7 @@ const FilterBar = React.memo(function FilterBar({
             placeholder={logType === "access" ? "Search URI, IP, user agent..." : "Search error messages..."}
             value={filters.search || ""}
             onChange={(e) => onChange({ ...filters, search: e.target.value })}
-            className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-4 text-sm text-slate-900 placeholder:text-slate-400 focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
+            className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-10 pr-4 text-sm text-slate-900 placeholder:text-slate-500 focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
           />
         </div>
         <Button
@@ -205,10 +205,10 @@ const FilterBar = React.memo(function FilterBar({
                 type="button"
                 onClick={() => onChange({ ...filters, time_range: filters.time_range === t.value ? undefined : t.value })}
                 className={cn(
-                  "rounded-md px-2 py-1 text-xs font-medium transition-colors",
+                  "rounded-md px-2.5 py-1 text-sm font-medium transition-colors",
                   filters.time_range === t.value
                     ? "bg-primary-100 text-primary-700 dark:bg-primary-900/40 dark:text-primary-300"
-                    : "text-slate-500 hover:bg-slate-200 dark:text-slate-400 dark:hover:bg-slate-700",
+                    : "text-slate-600 hover:bg-slate-200 dark:text-slate-300 dark:hover:bg-slate-700",
                 )}
               >
                 {t.label}
@@ -228,10 +228,10 @@ const FilterBar = React.memo(function FilterBar({
                     type="button"
                     onClick={() => onChange({ ...filters, method: filters.method === m ? undefined : m })}
                     className={cn(
-                      "rounded-md px-2 py-1 text-xs font-medium transition-colors",
+                      "rounded-md px-2.5 py-1 text-sm font-medium transition-colors",
                       filters.method === m
                         ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
-                        : "text-slate-500 hover:bg-slate-200 dark:text-slate-400 dark:hover:bg-slate-700",
+                        : "text-slate-600 hover:bg-slate-200 dark:text-slate-300 dark:hover:bg-slate-700",
                     )}
                   >
                     {m}
@@ -249,10 +249,10 @@ const FilterBar = React.memo(function FilterBar({
                     type="button"
                     onClick={() => onChange({ ...filters, status_code: filters.status_code === s ? undefined : s })}
                     className={cn(
-                      "rounded-md px-2 py-1 text-xs font-medium transition-colors",
+                      "rounded-md px-2.5 py-1 text-sm font-medium transition-colors",
                       filters.status_code === s
                         ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
-                        : "text-slate-500 hover:bg-slate-200 dark:text-slate-400 dark:hover:bg-slate-700",
+                        : "text-slate-600 hover:bg-slate-200 dark:text-slate-300 dark:hover:bg-slate-700",
                     )}
                   >
                     {s}
@@ -269,10 +269,10 @@ const FilterBar = React.memo(function FilterBar({
                   type="button"
                   onClick={() => onChange({ ...filters, level: filters.level === l ? undefined : l })}
                   className={cn(
-                    "rounded-md px-2 py-1 text-xs font-medium capitalize transition-colors",
+                    "rounded-md px-2.5 py-1 text-sm font-medium capitalize transition-colors",
                     filters.level === l
                       ? "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300"
-                      : "text-slate-500 hover:bg-slate-200 dark:text-slate-400 dark:hover:bg-slate-700",
+                      : "text-slate-600 hover:bg-slate-200 dark:text-slate-300 dark:hover:bg-slate-700",
                   )}
                 >
                   {l}
@@ -319,16 +319,16 @@ const AccessLogRow = React.memo(function AccessLogRow({
           )}
         </button>
       </td>
-      <td className="py-2 px-2 text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">
+      <td className="py-2 px-2 text-sm text-slate-600 dark:text-slate-300 whitespace-nowrap">
         {formatTimestamp(logTime(log))}
       </td>
       <td className="py-2 px-2">
-        <span className={cn("inline-block rounded px-1.5 py-0.5 text-xs font-bold", STATUS_CLASSES[cat])}>
+        <span className={cn("inline-block rounded px-1.5 py-0.5 text-sm font-bold", STATUS_CLASSES[cat])}>
           {log.status}
         </span>
       </td>
       <td className="py-2 px-2">
-        <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-mono font-medium text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+        <span className="rounded bg-slate-100 px-1.5 py-0.5 text-sm font-mono font-medium text-slate-800 dark:bg-slate-800 dark:text-slate-200">
           {log.method}
         </span>
       </td>
@@ -336,24 +336,24 @@ const AccessLogRow = React.memo(function AccessLogRow({
         <button
           type="button"
           onClick={onInspect}
-          className="truncate text-left text-xs font-mono text-slate-800 hover:text-primary-600 dark:text-slate-200 dark:hover:text-primary-400"
+          className="truncate text-left text-sm font-mono text-slate-900 hover:text-primary-600 dark:text-slate-100 dark:hover:text-primary-400"
           title={log.uri}
         >
           {log.uri}
         </button>
       </td>
-      <td className="py-2 px-2 text-xs font-mono text-slate-500 dark:text-slate-400">
+      <td className="py-2 px-2 text-sm font-mono text-slate-600 dark:text-slate-300">
         {log.remote_addr}
       </td>
       <td className={cn(
-        "py-2 px-2 text-xs font-medium text-right whitespace-nowrap",
+        "py-2 px-2 text-sm font-medium text-right whitespace-nowrap",
         log.request_time > 1 ? "text-red-600 dark:text-red-400" :
         log.request_time > 0.5 ? "text-amber-600 dark:text-amber-400" :
         "text-green-600 dark:text-green-400"
       )}>
         {formatLatency(log.request_time * 1000)}
       </td>
-      <td className="py-2 px-2 text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">
+      <td className="py-2 px-2 text-sm text-slate-600 dark:text-slate-300 whitespace-nowrap">
         {logUpstream(log)}
       </td>
       <td className="py-2 px-2">
@@ -367,7 +367,7 @@ const AccessLogRow = React.memo(function AccessLogRow({
             <Badge size="sm" variant="danger">WAF</Badge>
           )}
           {log.country_code && (
-            <span className="text-xs text-slate-400">{log.country_code}</span>
+            <span className="text-sm text-slate-600 dark:text-slate-400">{log.country_code}</span>
           )}
         </div>
       </td>
@@ -408,23 +408,23 @@ const ErrorLogRow = React.memo(function ErrorLogRow({
             )}
           </button>
         </td>
-        <td className="py-2 px-2 text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">
+        <td className="py-2 px-2 text-sm text-slate-600 dark:text-slate-300 whitespace-nowrap">
           {formatTimestamp(logTime(log))}
         </td>
         <td className="py-2 px-2">
-          <span className={cn("inline-block rounded px-1.5 py-0.5 text-xs font-bold uppercase", LEVEL_CLASSES[log.level] || LEVEL_CLASSES.info)}>
+          <span className={cn("inline-block rounded px-1.5 py-0.5 text-sm font-bold uppercase", LEVEL_CLASSES[log.level] || LEVEL_CLASSES.info)}>
             {log.level}
           </span>
         </td>
         <td className="py-2 px-3 max-w-[600px]" colSpan={2}>
-          <p className="truncate text-xs text-slate-800 dark:text-slate-200 font-mono">
+          <p className="truncate text-sm text-slate-900 dark:text-slate-100 font-mono">
             {log.message}
           </p>
         </td>
-        <td className="py-2 px-2 text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">
+        <td className="py-2 px-2 text-sm text-slate-600 dark:text-slate-300 whitespace-nowrap">
           {log.client || "—"}
         </td>
-        <td className="py-2 px-2 text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">
+        <td className="py-2 px-2 text-sm text-slate-600 dark:text-slate-300 whitespace-nowrap">
           {log.server || "—"}
         </td>
         <td className="py-2 px-2">
@@ -434,7 +434,7 @@ const ErrorLogRow = React.memo(function ErrorLogRow({
       {expanded && (
         <tr className="bg-slate-50 dark:bg-slate-800/30">
           <td colSpan={8} className="px-4 py-3">
-            <pre className="whitespace-pre-wrap text-xs font-mono text-slate-700 dark:text-slate-300 leading-relaxed">
+            <pre className="whitespace-pre-wrap text-sm font-mono text-slate-800 dark:text-slate-200 leading-relaxed">
               {log.message}
               {log.request && `\nRequest: ${log.request}`}
               {log.upstream && `\nUpstream: ${log.upstream}`}
@@ -597,32 +597,32 @@ const LogViewer: React.FC<LogViewerProps> = ({
                 </th>
                 {logType === "access" ? (
                   <>
-                    <th className="py-2.5 px-2 text-xs font-semibold text-slate-500 dark:text-slate-400 cursor-pointer select-none" onClick={() => handleSort("timestamp")}>
+                    <th className="py-2.5 px-2 text-sm font-semibold text-slate-600 dark:text-slate-300 cursor-pointer select-none" onClick={() => handleSort("timestamp")}>
                       <span className="inline-flex items-center gap-1">Time <ArrowUpDown className="h-3 w-3" /></span>
                     </th>
-                    <th className="py-2.5 px-2 text-xs font-semibold text-slate-500 dark:text-slate-400 cursor-pointer select-none" onClick={() => handleSort("status")}>
+                    <th className="py-2.5 px-2 text-sm font-semibold text-slate-600 dark:text-slate-300 cursor-pointer select-none" onClick={() => handleSort("status")}>
                       <span className="inline-flex items-center gap-1">Status <ArrowUpDown className="h-3 w-3" /></span>
                     </th>
-                    <th className="py-2.5 px-2 text-xs font-semibold text-slate-500 dark:text-slate-400">Method</th>
-                    <th className="py-2.5 px-2 text-xs font-semibold text-slate-500 dark:text-slate-400">URI</th>
-                    <th className="py-2.5 px-2 text-xs font-semibold text-slate-500 dark:text-slate-400">Client IP</th>
-                    <th className="py-2.5 px-2 text-xs font-semibold text-slate-500 dark:text-slate-400 text-right cursor-pointer select-none" onClick={() => handleSort("request_time")}>
+                    <th className="py-2.5 px-2 text-sm font-semibold text-slate-600 dark:text-slate-300">Method</th>
+                    <th className="py-2.5 px-2 text-sm font-semibold text-slate-600 dark:text-slate-300">URI</th>
+                    <th className="py-2.5 px-2 text-sm font-semibold text-slate-600 dark:text-slate-300">Client IP</th>
+                    <th className="py-2.5 px-2 text-sm font-semibold text-slate-600 dark:text-slate-300 text-right cursor-pointer select-none" onClick={() => handleSort("request_time")}>
                       <span className="inline-flex items-center gap-1">Latency <ArrowUpDown className="h-3 w-3" /></span>
                     </th>
-                    <th className="py-2.5 px-2 text-xs font-semibold text-slate-500 dark:text-slate-400">Upstream</th>
+                    <th className="py-2.5 px-2 text-sm font-semibold text-slate-600 dark:text-slate-300">Upstream</th>
                     {/* "Tags" was misleading — the cell renders cache /
                         WAF / country badges, not arbitrary tags. */}
-                    <th className="py-2.5 px-2 text-xs font-semibold text-slate-500 dark:text-slate-400">Flags</th>
+                    <th className="py-2.5 px-2 text-sm font-semibold text-slate-600 dark:text-slate-300">Flags</th>
                   </>
                 ) : (
                   <>
-                    <th className="py-2.5 px-2 text-xs font-semibold text-slate-500 dark:text-slate-400 cursor-pointer select-none" onClick={() => handleSort("timestamp")}>
+                    <th className="py-2.5 px-2 text-sm font-semibold text-slate-600 dark:text-slate-300 cursor-pointer select-none" onClick={() => handleSort("timestamp")}>
                       <span className="inline-flex items-center gap-1">Time <ArrowUpDown className="h-3 w-3" /></span>
                     </th>
-                    <th className="py-2.5 px-2 text-xs font-semibold text-slate-500 dark:text-slate-400">Level</th>
-                    <th className="py-2.5 px-2 text-xs font-semibold text-slate-500 dark:text-slate-400" colSpan={2}>Message</th>
-                    <th className="py-2.5 px-2 text-xs font-semibold text-slate-500 dark:text-slate-400">Client</th>
-                    <th className="py-2.5 px-2 text-xs font-semibold text-slate-500 dark:text-slate-400">Server</th>
+                    <th className="py-2.5 px-2 text-sm font-semibold text-slate-600 dark:text-slate-300">Level</th>
+                    <th className="py-2.5 px-2 text-sm font-semibold text-slate-600 dark:text-slate-300" colSpan={2}>Message</th>
+                    <th className="py-2.5 px-2 text-sm font-semibold text-slate-600 dark:text-slate-300">Client</th>
+                    <th className="py-2.5 px-2 text-sm font-semibold text-slate-600 dark:text-slate-300">Server</th>
                     <th className="py-2.5 px-2 w-8" />
                   </>
                 )}
@@ -642,7 +642,7 @@ const LogViewer: React.FC<LogViewerProps> = ({
                   <tr>
                     <td colSpan={9} className="py-12 text-center">
                       <AlertCircle className="mx-auto mb-2 h-8 w-8 text-slate-300 dark:text-slate-600" />
-                      <p className="text-sm text-slate-500 dark:text-slate-400">No access logs found matching filters</p>
+                      <p className="text-sm text-slate-600 dark:text-slate-300">No access logs found matching filters</p>
                     </td>
                   </tr>
                 ) : (
@@ -661,7 +661,7 @@ const LogViewer: React.FC<LogViewerProps> = ({
                   <tr>
                     <td colSpan={8} className="py-12 text-center">
                       <AlertCircle className="mx-auto mb-2 h-8 w-8 text-slate-300 dark:text-slate-600" />
-                      <p className="text-sm text-slate-500 dark:text-slate-400">No error logs found matching filters</p>
+                      <p className="text-sm text-slate-600 dark:text-slate-300">No error logs found matching filters</p>
                     </td>
                   </tr>
                 ) : (

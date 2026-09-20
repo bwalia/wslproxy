@@ -30,9 +30,9 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
           ref={ref}
           id={inputId}
           className={cn(
-            "block w-full rounded-lg border px-3 py-2 text-sm",
-            "bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100",
-            "placeholder:text-slate-400 dark:placeholder:text-slate-500",
+            "block w-full rounded-lg border px-3 py-2.5 text-sm leading-normal",
+            "bg-white text-slate-900 dark:bg-slate-800 dark:text-slate-100",
+            "placeholder:text-slate-500 dark:placeholder:text-slate-400",
             "transition-colors",
             "focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500",
             error
@@ -53,7 +53,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
           </p>
         )}
         {hint && !error && (
-          <p id={hintId} className="text-sm text-slate-500 dark:text-slate-400">
+          <p id={hintId} className="text-sm leading-relaxed text-slate-600 dark:text-slate-300">
             {hint}
           </p>
         )}

@@ -1,17 +1,1 @@
-{
-  "id": "waf-rule-sqli-001",
-  "name": "SQL Injection - UNION SELECT",
-  "description": "Detects SQL injection attempts using UNION SELECT statements to extract data from additional database tables.",
-  "category": "sqli",
-  "severity": "critical",
-  "enabled": true,
-  "target": "url",
-  "pattern": "(?i)(?:union\\s+(?:all\\s+)?select)",
-  "pattern_type": "regex",
-  "action": "block",
-  "score": 10,
-  "tags": ["owasp-top10", "sqli", "a03"],
-  "profile_id": "prod",
-  "created_at": 1740000000,
-  "updated_at": 1740000000
-}
+{"id":"waf-rule-sqli-001","pattern_type":"regex","updated_at":1740000000,"severity":"critical","enabled":true,"created_at":1740000000,"target":"url","score":10,"profile_id":"prod","pattern":"(?i)(?:union\\s+(?:all\\s+)?select)","tags":["owasp-top10","sqli","a03"],"action":"block","name":"SQL Injection - UNION SELECT","category":"sqli","description":"Detects SQL injection attempts using UNION SELECT statements to extract data from additional database tables."}

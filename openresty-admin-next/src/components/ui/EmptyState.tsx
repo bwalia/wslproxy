@@ -28,15 +28,15 @@ const EmptyState: React.FC<EmptyStateProps> = ({
   >
     <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800">
       <Icon
-        className="h-8 w-8 text-slate-400 dark:text-slate-500"
+        className="h-8 w-8 text-slate-600 dark:text-slate-300"
         aria-hidden="true"
       />
     </div>
-    <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+    <h3 className="font-display text-lg font-semibold text-slate-900 dark:text-slate-50">
       {title}
     </h3>
     {description && (
-      <p className="mt-1 max-w-sm text-sm text-slate-500 dark:text-slate-400">
+      <p className="mt-1.5 max-w-sm text-sm leading-relaxed text-slate-600 dark:text-slate-300">
         {description}
       </p>
     )}

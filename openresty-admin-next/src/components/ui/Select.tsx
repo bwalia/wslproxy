@@ -42,8 +42,8 @@ const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
             ref={ref}
             id={selectId}
             className={cn(
-              "block w-full appearance-none rounded-lg border px-3 py-2 pr-10 text-sm",
-              "bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100",
+              "block w-full appearance-none rounded-lg border px-3 py-2.5 pr-10 text-sm leading-normal",
+              "bg-white text-slate-900 dark:bg-slate-800 dark:text-slate-100",
               "transition-colors",
               "focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500",
               error
@@ -80,7 +80,7 @@ const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
           </p>
         )}
         {hint && !error && (
-          <p id={hintId} className="text-sm text-slate-500 dark:text-slate-400">
+          <p id={hintId} className="text-sm leading-relaxed text-slate-600 dark:text-slate-300">
             {hint}
           </p>
         )}

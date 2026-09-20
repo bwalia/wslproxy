@@ -9,7 +9,7 @@ import { useRouter } from "next/navigation";
  * legacy react-admin exposed via a settings form are surfaced
  * elsewhere instead:
  *
- *   - Storage type → AppBar `<StorageSelector />`
+ *   - Storage type → Settings page `<StorageSettingsCard />` and AppBar chip
  *   - Active environment profile → AppBar `<ProfileSwitcher />`
  *   - Password → `/account/password`
  *

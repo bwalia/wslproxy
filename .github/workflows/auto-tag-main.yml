@@ -1,0 +1,207 @@
+name: Auto Tag on Merge to Main
+
+# This workflow automatically creates an incremental semantic version tag
+# when code is merged to the main branch (via PR merge or direct push).
+#
+# Version scheme: MAJOR.MINOR.PATCH
+# - PATCH increments on every merge to main
+# - MINOR/MAJOR increments are manual (via workflow_dispatch)
+# - Tags follow the format: v<MAJOR>.<MINOR>.<PATCH> (e.g., v1.0.16)
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      version_type:
+        type: choice
+        description: "Version bump type (for manual major/minor bumps)"
+        required: false
+        default: "patch"
+        options:
+          - patch
+          - minor
+          - major
+      custom_version:
+        type: string
+        description: "Custom version (e.g., v1.2.0) - overrides version_type"
+        required: false
+
+permissions:
+  contents: write  # Required to push tags
+  pull-requests: read  # Required to detect PR merges
+
+concurrency:
+  # Serialize tagging so two quick merges can't race to the same
+  # version number.  `cancel-in-progress: false` so a burst of PR
+  # merges each get their own tag (the second waits for the first
+  # to finish rather than being cancelled and losing its bump).
+  group: auto-tag-main
+  cancel-in-progress: false
+
+jobs:
+  auto-tag:
+    name: Create Incremental Tag
+    runs-on: ubuntu-latest
+    # Only run on push to main (not on PR opens/syncs)
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+
+    steps:
+      - name: Checkout repository with full history
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0  # Need full history for git describe
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Get latest tag
+        id: get_latest_tag
+        run: |
+          # Union of both tag conventions used in this repo:
+          #   - v[0-9]*.[0-9]*.[0-9]*   (current — e.g. v1.0.1)
+          #   - [0-9]*.[0-9]*.[0-9]*    (legacy — e.g. 1.0.15, manually
+          #                              created before auto-tag existed)
+          # Normalise by stripping the leading "v" so semver-sort works
+          # across both, then re-emit with the "v" prefix.  Without
+          # this the workflow would ignore legacy 1.0.15 and try to
+          # auto-bump from v1.0.1 → v1.0.2, silently regressing past
+          # every manual tag operators created between v1.0.1 and now.
+          ALL_TAGS=$(
+            {
+              git tag -l 'v[0-9]*.[0-9]*.[0-9]*' | sed 's/^v//'
+              git tag -l '[0-9]*.[0-9]*.[0-9]*'
+            } | sort -u -V
+          )
+          LATEST_BARE=$(echo "$ALL_TAGS" | tail -1)
+
+          if [ -z "$LATEST_BARE" ]; then
+            # No tags exist yet — start at v1.0.0.
+            LATEST_TAG="v1.0.0"
+            echo "No existing tags found, starting at v1.0.0"
+          else
+            LATEST_TAG="v${LATEST_BARE}"
+            echo "Latest tag (union of v-prefixed + bare): $LATEST_TAG"
+          fi
+
+          echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+
+      - name: Calculate next version
+        id: calc_version
+        run: |
+          LATEST_TAG="${{ steps.get_latest_tag.outputs.latest_tag }}"
+
+          # Handle manual override from workflow_dispatch
+          if [ -n "${{ github.event.inputs.custom_version }}" ]; then
+            NEXT_VERSION="${{ github.event.inputs.custom_version }}"
+            echo "Using custom version: $NEXT_VERSION"
+          elif [ "${{ github.event.inputs.version_type }}" != "patch" ] \
+              && [ -n "${{ github.event.inputs.version_type }}" ]; then
+            # Manual minor/major bump via workflow_dispatch.
+            # The `-n` guard is load-bearing — on `push` events,
+            # `github.event.inputs.version_type` is the empty string.
+            # Without the guard, `"" != "patch"` is TRUE, we entered
+            # this branch with an EMPTY VERSION_TYPE, neither the
+            # major nor minor if-branch matched, MAJOR/MINOR/PATCH
+            # never got incremented, and NEXT_VERSION ended up ==
+            # LATEST_TAG.  The "tag already exists, skip" branch
+            # below then silently no-op'd EVERY push to main from
+            # PR #1143 (2026-07-08) through 2026-07-14 — 30+ merges
+            # produced zero new tags before this fix landed.
+            VERSION_TYPE="${{ github.event.inputs.version_type }}"
+            # Strip 'v' prefix if present
+            BASE_VERSION="${LATEST_TAG#v}"
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE_VERSION"
+
+            if [ "$VERSION_TYPE" = "major" ]; then
+              MAJOR=$((MAJOR + 1))
+              MINOR=0
+              PATCH=0
+            elif [ "$VERSION_TYPE" = "minor" ]; then
+              MINOR=$((MINOR + 1))
+              PATCH=0
+            fi
+
+            NEXT_VERSION="v${MAJOR}.${MINOR}.${PATCH}"
+            echo "Manual $VERSION_TYPE bump: $LATEST_TAG -> $NEXT_VERSION"
+          else
+            # Auto patch bump on merge to main
+            BASE_VERSION="${LATEST_TAG#v}"
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE_VERSION"
+            PATCH=$((PATCH + 1))
+            NEXT_VERSION="v${MAJOR}.${MINOR}.${PATCH}"
+            echo "Auto patch bump: $LATEST_TAG -> $NEXT_VERSION"
+          fi
+
+          echo "next_version=$NEXT_VERSION" >> $GITHUB_OUTPUT
+          echo "major=$MAJOR" >> $GITHUB_OUTPUT
+          echo "minor=$MINOR" >> $GITHUB_OUTPUT
+          echo "patch=$PATCH" >> $GITHUB_OUTPUT
+
+      - name: Create and push tag
+        id: create_tag
+        run: |
+          NEXT_VERSION="${{ steps.calc_version.outputs.next_version }}"
+
+          # Check if tag already exists (shouldn't happen but safety check)
+          if git tag -l "$NEXT_VERSION" | grep -q "^$NEXT_VERSION$"; then
+            echo "Tag $NEXT_VERSION already exists, skipping creation"
+            echo "tag_created=false" >> $GITHUB_OUTPUT
+          else
+            echo "Creating tag: $NEXT_VERSION"
+            git tag -a "$NEXT_VERSION" -m "Release $NEXT_VERSION"
+            git push origin "$NEXT_VERSION"
+            echo "tag_created=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create GitHub Release
+        if: steps.create_tag.outputs.tag_created == 'true'
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.calc_version.outputs.next_version }}
+          name: Release ${{ steps.calc_version.outputs.next_version }}
+          generate_release_notes: true
+
+      # NOTE: an earlier version of this workflow ALSO wrote the new
+      # version back to system/app.json and committed to main.  That
+      # step was removed 2026-07-14 because:
+      #   1. It failed on every run — main is a protected branch and
+      #      GH006 rejects direct pushes: "Changes must be made
+      #      through a pull request."  Run 29332617331 was the
+      #      trigger.
+      #   2. It became redundant when PR #1126 taught
+      #      deploy-environment.yml to resolve the version from
+      #      `git describe --tags --abbrev=0` FIRST, with
+      #      system/app.json only as a fallback.  The freshly-pushed
+      #      tag IS the source of truth from the moment this workflow
+      #      finishes; the on-disk app.json is never consulted
+      #      when a tag is reachable from HEAD.
+      # If a future need arises for a tracked file that mirrors the
+      # tag (e.g. a docs badge), do it via a PR-emitting bot rather
+      # than a direct push; direct pushes to main are policy-blocked.
+
+      - name: Notify Slack on new release
+        if: steps.create_tag.outputs.tag_created == 'true'
+        continue-on-error: true
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+        run: |
+          NEXT_VERSION="${{ steps.calc_version.outputs.next_version }}"
+          COMMIT_SHA="${{ github.sha }}"
+          ACTOR="${{ github.actor }}"
+          LOGS_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          curl -sf -X POST "$SLACK_WEBHOOK" \
+            -H 'Content-Type: application/json' \
+            -d "$(jq -n \
+              --arg version "$NEXT_VERSION" \
+              --arg commit "$COMMIT_SHA" \
+              --arg actor "$ACTOR" \
+              --arg logs "$LOGS_URL" \
+              '{channel: "github-updates", username: "GitHub Actions", text: (":tag: *New Release Tagged*\nVersion: `\($version)`\nCommit: `\($commit)`\nTriggered by: \($actor)\nLogs: \($logs)")}')"

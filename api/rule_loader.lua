@@ -1,31 +1,10 @@
 -- rule_loader.lua
--- Load server and rule JSON configs from disk, normalize formats
+-- Load server and rule configs from disk (JSON or YAML), normalize formats
 -- Handles legacy data (base64-encoded S3 keys) and format variations
 
 local M = {}
 
-local cjson = Cjson
-
-local function load_file(path)
-    local file, err = io.open(path, "rb")
-    if not file then
-        return nil, err
-    end
-    local content = file:read("*a")
-    file:close()
-    if not content or content == "" then
-        return nil, "empty file"
-    end
-    return content
-end
-
-local function parse_json(content)
-    local ok, result = pcall(cjson.decode, content)
-    if ok then
-        return result
-    end
-    return nil, result
-end
+local ConfigIO = require("config_io")
 
 --- Try to decode a base64-encoded string. Returns decoded if it looks valid, else original.
 local function try_decode_b64(s)
@@ -98,21 +77,21 @@ end
 --- @return table|nil  server config, or nil if not found
 --- @return string|nil error message
 function M.load_server(hostname, config_path, profile)
-    local path = config_path .. "data/servers/" .. profile .. "/host:" .. hostname .. ".json"
-    local content, err = load_file(path)
+    local base = config_path .. "data/servers/" .. profile .. "/host:" .. hostname
+    local server, err = ConfigIO.load(base)
 
     -- Fallback: strip "www." prefix
-    if not content and hostname:sub(1, 4) == "www." then
+    if not server and hostname:sub(1, 4) == "www." then
         local bare = hostname:sub(5)
-        path = config_path .. "data/servers/" .. profile .. "/host:" .. bare .. ".json"
-        content, err = load_file(path)
+        base = config_path .. "data/servers/" .. profile .. "/host:" .. bare
+        server, err = ConfigIO.load(base)
     end
 
-    if not content then
+    if not server then
         return nil, err
     end
 
-    return parse_json(content)
+    return server
 end
 
 --- Load a single rule by ID.
@@ -122,17 +101,20 @@ end
 --- @param profile     string  Environment profile
 --- @return table|nil  rule config, or nil if not found
 function M.load_rule(rule_id, config_path, profile)
-    local path = config_path .. "data/rules/" .. profile .. "/" .. rule_id .. ".json"
-    local content = load_file(path)
-    if not content then
-        return nil
-    end
-    local rule_data = parse_json(content)
+    local base = config_path .. "data/rules/" .. profile .. "/" .. rule_id
+    local rule_data = ConfigIO.load(base)
     if not rule_data then
         return nil
     end
     -- Normalize S3 keys based on schema version
     rule_data = normalize_s3_keys(rule_data, rule_data._schema_version)
+    -- Resolve secret:// refs on the known secret fields to their plaintext
+    -- values (see secret_resolver.lua).  Non-ref fields pass through
+    -- unchanged, so existing inline rules keep working.
+    local ok, SecretResolver = pcall(require, "secret_resolver")
+    if ok then
+        rule_data = SecretResolver.resolve_rule_refs(rule_data, config_path, profile)
+    end
     return rule_data
 end
 
@@ -223,7 +205,58 @@ function M.load_all_rules(server_config, config_path, profile)
         end
     end
 
+    -- 3. Expand the server's access profile, if it declares one.
+    if server_config.access_profile and type(server_config.access_profile) ~= "userdata"
+        and server_config.access_profile ~= "" then
+        local AccessProfile = require("access_profile")
+        local expanded, err = AccessProfile.load_and_expand(
+            server_config.access_profile, config_path, profile, server_config)
+        if expanded then
+            for _, entry in ipairs(expanded) do
+                table.insert(loaded_rules, entry)
+            end
+        else
+            -- Fail closed. A server that asks for an access profile has
+            -- endpoints it means to restrict; if the profile cannot be
+            -- expanded, serving them unprotected is the worst outcome. Deny
+            -- everything instead, loudly, so a typo is fixed rather than
+            -- quietly exposing what it was meant to protect.
+            if ngx and ngx.log then
+                ngx.log(ngx.ERR, "access_profile failed, denying all requests for ",
+                    tostring(server_config.server_name), ": ", tostring(err))
+            end
+            table.insert(loaded_rules, M.deny_all_rule(server_config.access_profile, err))
+        end
+    end
+
     return loaded_rules
+end
+
+--- A catch-all deny used when an access profile cannot be expanded.
+--- Priority is far above anything else so it wins outright.
+---
+--- @param profile_name string
+--- @param reason       string|nil
+--- @return table  {rule_data=table, condition_mode="and"}
+function M.deny_all_rule(profile_name, reason)
+    local AccessProfile = require("access_profile")
+    return {
+        condition_mode = "and",
+        rule_data = {
+            id = "ap:" .. tostring(profile_name) .. ":failed",
+            name = "access profile failed to load",
+            priority = AccessProfile.DEFAULT_PRIORITY_BASE + 100000,
+            _access_profile_error = reason or "unknown",
+            match = {
+                rules = { path_key = "starts_with", path = "/" },
+                response = {
+                    allow = false,
+                    code = 403,
+                    message = AccessProfile.DEFAULT_DENY_MESSAGE,
+                },
+            },
+        },
+    }
 end
 
 -- Export for migration script

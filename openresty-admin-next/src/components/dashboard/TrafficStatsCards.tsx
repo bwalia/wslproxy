@@ -185,12 +185,12 @@ function TrendBadge({ pct }: { pct: number }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums",
+        "inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums",
         tone,
       )}
       title={`${label} vs previous period`}
     >
-      <Icon className="h-2.5 w-2.5" aria-hidden="true" />
+      <Icon className="h-3 w-3" aria-hidden="true" />
       {label}
     </span>
   );
@@ -251,7 +251,7 @@ const SingleStatCard = React.memo(function SingleStatCard({
               {value}
             </p>
           )}
-          <p className="truncate text-xs font-medium text-slate-500 dark:text-slate-400">
+          <p className="truncate text-sm font-medium text-slate-600 dark:text-slate-300">
             {def.label}
           </p>
         </div>

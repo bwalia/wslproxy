@@ -487,35 +487,59 @@ function _M.route()
     -- Remove trailing slash
     mcp_path = mcp_path:gsub("/$", "")
 
-    -- Route to handlers
-    if mcp_path == "manifest" and method == "GET" then
+    -- Route to handlers. Known paths with the wrong HTTP method return 405
+    -- (with Allow) so clients do not confuse a method mismatch with a missing
+    -- route or a Next.js login bounce.
+    local function method_not_allowed(allow)
+        ngx.status = ngx.HTTP_NOT_ALLOWED
+        ngx.header["Allow"] = allow
+        ngx.header.content_type = "application/json"
+        ngx.say(cjson.encode({
+            error = {
+                code = 405,
+                message = "Method " .. method .. " not allowed for /mcp/" .. mcp_path .. "; use " .. allow,
+                type = "method_not_allowed"
+            }
+        }))
+    end
+
+    if mcp_path == "manifest" then
+        if method ~= "GET" then return method_not_allowed("GET") end
         _M.manifest()
 
-    elseif mcp_path == "capabilities" and method == "GET" then
+    elseif mcp_path == "capabilities" then
+        if method ~= "GET" then return method_not_allowed("GET") end
         _M.capabilities()
 
-    elseif mcp_path == "resources" and method == "GET" then
+    elseif mcp_path == "resources" then
+        if method ~= "GET" then return method_not_allowed("GET") end
         _M.list_resources()
 
-    elseif mcp_path:match("^resources/(.+)$") and method == "GET" then
+    elseif mcp_path:match("^resources/(.+)$") then
+        if method ~= "GET" then return method_not_allowed("GET") end
         local resource_id = mcp_path:match("^resources/(.+)$")
         _M.get_resource(resource_id)
 
-    elseif mcp_path == "tools" and method == "GET" then
+    elseif mcp_path == "tools" then
+        if method ~= "GET" then return method_not_allowed("GET") end
         _M.list_tools()
 
-    elseif mcp_path:match("^tools/(.+)$") and method == "POST" then
+    elseif mcp_path:match("^tools/(.+)$") then
+        if method ~= "POST" then return method_not_allowed("POST") end
         local tool_name = mcp_path:match("^tools/(.+)$")
         _M.execute_tool(tool_name)
 
-    elseif mcp_path == "schemas" and method == "GET" then
+    elseif mcp_path == "schemas" then
+        if method ~= "GET" then return method_not_allowed("GET") end
         _M.list_schemas()
 
-    elseif mcp_path:match("^schemas/(.+)$") and method == "GET" then
+    elseif mcp_path:match("^schemas/(.+)$") then
+        if method ~= "GET" then return method_not_allowed("GET") end
         local schema_name = mcp_path:match("^schemas/(.+)$")
         _M.get_schema(schema_name)
 
-    elseif mcp_path == "jsonrpc" and method == "POST" then
+    elseif mcp_path == "jsonrpc" then
+        if method ~= "POST" then return method_not_allowed("POST") end
         _M.jsonrpc()
 
     else

@@ -6,6 +6,7 @@ local M = {}
 
 local Helper = require("helpers")
 local RuleAuth = require("rule_auth")
+local IpCidr = require("ip_cidr")
 
 -- ─── String helpers (match existing gateway_ack.lua behavior) ───────────────
 
@@ -109,6 +110,17 @@ local function match_client_ip(rules, hostname, settings)
         return { pass = req_addr:startswith(client_ip) }
     elseif client_ip_key == "equals" then
         return { pass = (req_addr == client_ip) }
+    elseif client_ip_key == "cidr" then
+        -- Subnet match against one CIDR or a comma-separated list, e.g.
+        -- "10.8.1.0/24". This is what VPN-only rules use: string prefix
+        -- matching cannot express a subnet ("10.8.1." also matches
+        -- 10.8.10.0/24), and it is an access decision, so it needs to be
+        -- exact. See docs/VPN_ACCESS.md.
+        --
+        -- Note this reads ngx.var.remote_addr. Behind a reverse proxy that is
+        -- the proxy's address until real_ip is configured to recover the
+        -- client's — data/real_ip/README.md covers the setup.
+        return { pass = IpCidr.contains_any(client_ip, req_addr) }
     end
 
     return { pass = false }
@@ -129,7 +141,9 @@ local function match_country(rules, settings)
 
     -- Resolve country from IP
     local req_addr = ngx.ctx._resolved_ip or ngx.var.remote_addr
-    local ip2loc_path = settings.ip2location_path or "/tmp/IP2LOCATION-LITE-DB11.IPV6.BIN"
+    local ip2loc_path = (IP2LocationPath and IP2LocationPath ~= "" and IP2LocationPath)
+        or settings.ip2location_path
+        or "/usr/local/openresty/nginx/IP2LOCATION-LITE-DB11.IPV6.BIN"
     local ip2loc = IP2location:new(ip2loc_path)
     local result = ip2loc:get_all(req_addr)
     local country = result.country_short or ""
@@ -154,6 +168,56 @@ end
 --- Returns {pass=bool}
 local function match_token(rules)
     return { pass = RuleAuth.authenticate(rules) }
+end
+
+-- ─── VPN identity matching ──────────────────────────────────────────────────
+
+--- Evaluate the VPN identity condition.
+---
+--- `vpn_required` alone demands a resolvable session; `vpn_groups` additionally
+--- demands membership of at least one named group.
+---
+--- Fails closed on every error path: an identity that cannot be resolved denies,
+--- rather than degrading to "no groups" — which would let a rule requiring no
+--- particular group pass. See api/vpn_identity.lua.
+---
+--- Returns {pass=bool, identity=table|nil, reason=string|nil}
+local function match_vpn(rules)
+    local requires_identity = rules.vpn_required == true
+        or (not is_empty(rules.vpn_groups))
+
+    if not requires_identity then
+        return { pass = true }
+    end
+
+    local ok, VpnIdentity = pcall(require, "vpn_identity")
+    if not ok then
+        ngx.log(ngx.ERR, "vpn_identity module unavailable; denying")
+        return { pass = false, reason = "vpn_identity unavailable" }
+    end
+
+    -- Resolved once per request: several rules on one request share the lookup.
+    local identity, reason
+    if ngx.ctx._vpn_identity ~= nil then
+        identity = ngx.ctx._vpn_identity or nil
+        reason = ngx.ctx._vpn_identity_reason
+    else
+        identity, reason = VpnIdentity.resolve(ngx.var.remote_addr, {
+            control_url = rules.vpn_control_url,
+            service_token = rules.vpn_service_token,
+            ttl = rules.vpn_cache_ttl,
+        })
+        ngx.ctx._vpn_identity = identity or false
+        ngx.ctx._vpn_identity_reason = reason
+    end
+
+    if not identity then
+        return { pass = false, reason = reason }
+    end
+    if not VpnIdentity.has_group(identity, rules.vpn_groups) then
+        return { pass = false, identity = identity, reason = "group not held" }
+    end
+    return { pass = true, identity = identity }
 end
 
 -- ─── Main evaluation ────────────────────────────────────────────────────────
@@ -187,9 +251,17 @@ function M.evaluate(loaded_rule, hostname, settings)
     local ip_result = match_client_ip(rules, hostname, settings)
     local country_result = match_country(rules, settings)
     local token_result = match_token(rules)
+    local vpn_result = match_vpn(rules)
 
-    local all_pass = path_result.pass and ip_result.pass and country_result.pass and token_result.pass
-    local any_pass = path_result.pass or ip_result.pass or country_result.pass or token_result.pass
+    local all_pass = path_result.pass and ip_result.pass and country_result.pass
+        and token_result.pass and vpn_result.pass
+
+    -- The VPN condition is a gate, not a matching criterion: it is ANDed even in
+    -- OR mode. Treating it like the others would mean an OR-mode rule whose path
+    -- matched passed while its identity check failed — an access-control bypass
+    -- that looks like ordinary rule configuration.
+    local any_pass = (path_result.pass or ip_result.pass or country_result.pass
+        or token_result.pass) and vpn_result.pass
 
     -- Count non-trivial conditions (those that actually filter)
     local condition_count = 0
@@ -197,6 +269,9 @@ function M.evaluate(loaded_rule, hostname, settings)
     if not is_empty(rules.client_ip) then condition_count = condition_count + 1 end
     if not is_empty(rules.country) then condition_count = condition_count + 1 end
     if not is_empty(rules.jwt_token_validation_key) then condition_count = condition_count + 1 end
+    if rules.vpn_required == true or not is_empty(rules.vpn_groups) then
+        condition_count = condition_count + 1
+    end
 
     -- Build the rule_data object that gateway_resp.lua expects
     -- This preserves the existing contract
@@ -221,7 +296,9 @@ function M.evaluate(loaded_rule, hostname, settings)
             ip = ip_result,
             country = country_result,
             token = token_result,
+            vpn = vpn_result,
         },
+        vpn_identity = vpn_result.identity,
         all_pass = all_pass,
         any_pass = any_pass,
         path_specificity = path_result.specificity,

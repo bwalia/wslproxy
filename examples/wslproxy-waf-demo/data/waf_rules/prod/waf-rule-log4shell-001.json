@@ -1,0 +1,22 @@
+{
+  "id": "waf-rule-log4shell-001",
+  "name": "RCE - Log4Shell JNDI Lookup (CVE-2021-44228)",
+  "description": "Detects Log4Shell exploitation: a ${jndi:...} lookup that makes Log4j fetch and execute a remote class.",
+  "category": "rce",
+  "severity": "critical",
+  "enabled": true,
+  "target": "all",
+  "pattern": "(?i)\\$\\{jndi:(?:ldap|ldaps|rmi|dns|iiop|nis|corba|http)s?:",
+  "pattern_type": "regex",
+  "action": "block",
+  "score": 10,
+  "tags": [
+    "cve-2021-44228",
+    "log4shell",
+    "rce",
+    "beyond-owasp"
+  ],
+  "profile_id": "prod",
+  "created_at": 1740000000,
+  "updated_at": 1740000000
+}

@@ -60,6 +60,34 @@ spec:
           {{- toYaml .Values.openresty.resources | nindent 10 }}
         securityContext:
           {{- toYaml .Values.openresty.securityContext | nindent 10 }}
+        {{- if .Values.openresty.pgsql.existingSecret }}
+        env:
+        - name: WSLPROXY_PG_HOST
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.openresty.pgsql.existingSecret }}
+              key: pg_host
+        - name: WSLPROXY_PG_PORT
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.openresty.pgsql.existingSecret }}
+              key: pg_port
+        - name: WSLPROXY_PG_DB
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.openresty.pgsql.existingSecret }}
+              key: pg_database
+        - name: WSLPROXY_PG_USER
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.openresty.pgsql.existingSecret }}
+              key: pg_user
+        - name: WSLPROXY_PG_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.openresty.pgsql.existingSecret }}
+              key: pg_password
+        {{- end }}
         volumeMounts:
         {{- if not .Values.openresty.useBuiltinConfig }}
         - name: nginx-config
@@ -68,6 +96,12 @@ spec:
           readOnly: true
         - name: lua-scripts
           mountPath: /usr/local/openresty/nginx/lua
+          readOnly: true
+        {{- end }}
+        {{- if .Values.openresty.settings.existingSecret }}
+        - name: settings
+          mountPath: /opt/nginx/data/settings.json
+          subPath: {{ .Values.openresty.settings.secretKey | default "settings.json" }}
           readOnly: true
         {{- end }}
         - name: cache
@@ -97,6 +131,11 @@ spec:
       - name: lua-scripts
         configMap:
           name: {{ include "wslproxy.fullname" . }}-lua-scripts
+      {{- end }}
+      {{- if .Values.openresty.settings.existingSecret }}
+      - name: settings
+        secret:
+          secretName: {{ .Values.openresty.settings.existingSecret }}
       {{- end }}
       - name: cache
         emptyDir: {}

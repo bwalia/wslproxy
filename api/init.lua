@@ -4,6 +4,25 @@ JWT = require "resty.jwt"
 LFS = require("lfs")
 Base64 = require "base64"
 
+-- Base64.decode throws ("attempt to perform arithmetic on a nil value")
+-- on input whose "=" padding was lost in transit, which would turn one
+-- corrupt rule field into a 500 on every request of the vhost. Re-pad to
+-- a multiple of 4 and pcall so request-path callers can never crash on
+-- stored data; returns nil when the value is genuinely undecodable.
+function Base64DecodeSafe(s)
+  s = tostring(s or "")
+  local rem = #s % 4
+  if rem > 0 then
+    s = s .. string.rep("=", 4 - rem)
+  end
+  local ok, decoded = pcall(Base64.decode, s)
+  if ok then
+    return decoded
+  end
+  ngx.log(ngx.WARN, "Base64DecodeSafe: undecodable base64 value")
+  return nil
+end
+
 local configPath = os.getenv("NGINX_CONFIG_DIR") or "/opt/nginx/"
 -- Ensure trailing slash for path concatenation
 if configPath:sub(-1) ~= "/" then
@@ -51,21 +70,80 @@ end
 -- Determine storage type at init time (not in callback)
 local use_redis_storage = settings and settings.storage_type == "redis"
 
+-- pgsql is fail-loud at worker init: refuse to start if Postgres is down.
+if settings and settings.storage_type == "pgsql" then
+  local ok, err = pcall(function()
+    require("storage").init(settings)
+  end)
+  if not ok then
+    ngx.log(ngx.EMERG, "pgsql storage init failed: ", err)
+    error("pgsql storage unavailable: " .. tostring(err))
+  end
+end
+
+-- Actionable operator warning when settings.json still holds the legacy
+-- reboot-flag path.  api/server-conf.lua rewrites LEGACY_REBOOT_FLAG →
+-- DEFAULT_REBOOT_FLAG at call time so this alone doesn't break saves —
+-- but it's a signal that the deployed settings file drifted from the
+-- current default (/tmp/nginx/nginx-reboot-required) and should be
+-- corrected in the source (SOPS / Vault) so future deploys don't keep
+-- re-writing the stale value onto the host.  Prod 2026-07-14 hit this
+-- exact drift and every server-update returned HTTP 400 for weeks
+-- because the older server-conf.lua deployed there didn't have the
+-- rewrite.
+if settings and settings.nginx and settings.nginx.reboot_file_path
+    and settings.nginx.reboot_file_path:sub(1, 14) == "/var/run/nginx" then
+    ngx.log(ngx.WARN,
+        "startup: settings.nginx.reboot_file_path is legacy '",
+        settings.nginx.reboot_file_path,
+        "' — server-conf.lua rewrites this to /tmp/nginx/... at runtime, ",
+        "but update the source (SOPS / Vault) to '/tmp/nginx/nginx-reboot-required' ",
+        "so deploys stop re-writing the stale value onto the host")
+end
+
 -- Export IP2Location path as global variable for use in log_handler
 -- and geo_lookup.  This is loaded at init time when file I/O is
 -- allowed.
 --
--- Fallback default matches where the ansible role installs the DB
--- (cdn-dependencies.sh.j2 + ip2location_db_path in role defaults).
--- A previous fallback of `/tmp/...` silently broke geographic
--- traffic in prod for weeks: the on-disk file lived at the new
--- path but settings.json (in Vault) still pointed at /tmp/, and
--- the fallback didn't catch the drift because it pointed at the
--- same wrong place.  `/tmp` is also a poor location — some systems
--- clear it on reboot.
-IP2LocationPath = settings and settings.ip2location_path
-    or "/usr/local/openresty/nginx/IP2LOCATION-LITE-DB11.IPV6.BIN"
-ngx.log(ngx.INFO, "IP2Location: Using database path: ", IP2LocationPath)
+-- Canonical install path (ansible cdn-dependencies + role default
+-- ip2location_db_path). Docker still ships the DB under /tmp/.
+-- settings.json / Vault often still say /tmp/... even after ansible
+-- moved the file and deleted the /tmp copy — that produced
+-- INVALIDDATABASEFILE in access logs and an empty Geographic
+-- Traffic Distribution panel (lon1 2026-09-11). Prefer the configured
+-- path only when the file actually exists; otherwise fall through
+-- candidates so a stale setting cannot blank geo forever.
+do
+  local candidates = {
+    settings and settings.ip2location_path,
+    "/usr/local/openresty/nginx/IP2LOCATION-LITE-DB11.IPV6.BIN",
+    "/tmp/IP2LOCATION-LITE-DB11.IPV6.BIN",
+  }
+  local chosen = nil
+  for _, p in ipairs(candidates) do
+    if type(p) == "string" and p ~= "" then
+      local attr = LFS.attributes(p)
+      if attr and attr.mode == "file" then
+        chosen = p
+        break
+      end
+    end
+  end
+  if not chosen then
+    chosen = (settings and settings.ip2location_path)
+        or "/usr/local/openresty/nginx/IP2LOCATION-LITE-DB11.IPV6.BIN"
+    ngx.log(ngx.ERR, "IP2Location: no database file found at configured or fallback paths; ",
+        "using ", chosen, " (lookups will fail until the DB is installed)")
+  elseif settings and settings.ip2location_path
+      and settings.ip2location_path ~= ""
+      and settings.ip2location_path ~= chosen then
+    ngx.log(ngx.ERR, "IP2Location: settings.ip2location_path=", settings.ip2location_path,
+        " missing on disk; using ", chosen,
+        " — update Vault/SOPS settings.json so the next deploy does not reintroduce the stale path")
+  end
+  IP2LocationPath = chosen
+  ngx.log(ngx.INFO, "IP2Location: Using database path: ", IP2LocationPath)
+end
 
 -- Use shared dictionary for SSL domains cache
 -- This ensures the cache is shared across all nginx worker processes

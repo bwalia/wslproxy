@@ -1,0 +1,21 @@
+{
+  "id": "waf-rule-nosqli-001",
+  "name": "NoSQL Injection - Query Operator",
+  "description": "Detects MongoDB/JSON query-operator injection ($ne, $gt, $regex, $where, ...) used to bypass authentication or extract data.",
+  "category": "nosqli",
+  "severity": "high",
+  "enabled": true,
+  "target": "all",
+  "pattern": "(?:\\$ne|\\$gt|\\$gte|\\$lt|\\$lte|\\$regex|\\$where|\\$exists|\\$elemMatch|\\$in)\\b",
+  "pattern_type": "regex",
+  "action": "block",
+  "score": 8,
+  "tags": [
+    "api-security",
+    "nosqli",
+    "beyond-owasp"
+  ],
+  "profile_id": "prod",
+  "created_at": 1740000000,
+  "updated_at": 1740000000
+}

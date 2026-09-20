@@ -35,6 +35,11 @@ env MCP_ENABLED;
 env MCP_MODE;
 env MCP_API_KEY;
 env MCP_TOOLS_ENABLED;
+env VAULT_ADDR;
+env VAULT_TOKEN;
+env SOPS_SETTINGS_PATH;
+env SOPS_AGE_KEY;
+env WSLPROXY_PG_PASSWORD;
 
 http {
     include       mime.types;
@@ -81,6 +86,13 @@ http {
     # Include dynamic upstream configurations
     include /opt/nginx/data/upstreams/*/upstreams.conf;
 
+    # Trusted reverse-proxy hops, per deployment. Empty by default: with no
+    # file here, remote_addr stays the directly-connected peer, so a rule that
+    # allowlists an IP range fails closed behind an untrusted proxy rather than
+    # trusting a forwarded header. Required for VPN-only rules when anything
+    # sits in front of WSLProxy — see data/real_ip/README.md.
+    include /opt/nginx/data/real_ip/*.conf;
+
    # Storage for challenge token and cert cache
 
     lua_shared_dict auto_ssl 100m;
@@ -90,6 +102,10 @@ http {
 
     # SSL domains cache - shared across all workers for allow_domain callback
     lua_shared_dict ssl_domains 1m;
+
+    # VPN session identity cache (address → user + groups).
+    # Entry TTL is the revocation lag, so keep it short — see docs/VPN_ACCESS.md.
+    lua_shared_dict vpn_identity 10m;
 
     # Static content cache (WSL Proxy caching system)
     lua_shared_dict wsl_cache 100m;
@@ -104,6 +120,13 @@ http {
 
     # Traffic stats for dashboard (stores hourly request/response counts)
     lua_shared_dict traffic_stats 5m;
+
+    # API gateway counters (api/api_gw/): rate-limit windows and IVT burst
+    # guards.  Keys are tenant-prefixed (api/api_gw/keys.lua), so every server
+    # and every environment profile gets its own counters out of one zone.
+    # api_gw falls back to wsl_cache if this is missing, but then gateway
+    # counters compete with the content cache for eviction — keep it declared.
+    lua_shared_dict wsl_api_gw 20m;
 
     init_by_lua_file /usr/local/openresty/nginx/html/api/init.lua;
 
@@ -1122,7 +1145,7 @@ server {
         limit_req zone=req_zone_wl burst=200 nodelay;
 
         access_log /var/log/nginx/access.log main;
-        error_log  /var/log/nginx/error.log;
+        error_log  /var/log/nginx/error.log info;   # 'info' so api_gw audit lines are not filtered
         access_log on;
         error_log on;
 
@@ -1170,9 +1193,30 @@ server {
               ngx.header["X-WSL-Rule"] = _gw.executableRule.name
             end
 
+            -- Surface WHICH backend the traffic router picked, so an
+            -- operator watching a multi-backend rule (weighted / round-
+            -- robin / least-conn / cookie-sticky) can see per-request
+            -- which endpoint actually served it — critical for
+            -- verifying canary weights, sticky sessions, and failover.
+            -- Populated by gateway_resp.lua whether the rule has one
+            -- backend or many; falls back to the redirect URI when the
+            -- rule has no named label.  Absent on cache HIT (that path
+            -- short-circuits before backend selection — check
+            -- X-WSL-Cache: HIT for that case).
+            if ngx.ctx.selected_backend_label then
+              ngx.header["X-WSL-Backend"] = ngx.ctx.selected_backend_label
+            end
+
             -- LLM protocol translation: normalise response headers
             local ok_llm, Llm = pcall(require, "llm_translator")
             if ok_llm then Llm.header_filter() end
+
+            -- API gateway: apply the response headers the access phase
+            -- collected (CORS, correlation id, RateLimit-*).  Collected
+            -- rather than set earlier because an upstream response can
+            -- overwrite headers set in the rewrite/access phases.
+            local ok_gw, ApiGw = pcall(require, "api_gw")
+            if ok_gw then ApiGw.header_filter() end
           }
 
           # WSL Cache: Capture response body for caching
@@ -1207,6 +1251,11 @@ server {
           proxy_http_version 1.1;
           proxy_set_header Upgrade $http_upgrade;
           proxy_set_header Connection $connection_upgrade;
+
+          # Floor for Docker registry blob PUTs (see nginx.conf.j2).
+          proxy_connect_timeout 600s;
+          proxy_send_timeout 600s;
+          proxy_read_timeout 600s;
 
           proxy_set_header x-route-server $proxy_route_server;
           proxy_set_header Host $proxy_host_override;
@@ -1321,7 +1370,7 @@ server {
 
           location / {
             access_log /var/log/nginx/access.log main;
-            error_log  /var/log/nginx/error.log;
+            error_log  /var/log/nginx/error.log info;   # 'info' so api_gw audit lines are not filtered
             # access_log  on;
             # error_log on;
             default_type text/plain;
@@ -1337,6 +1386,15 @@ server {
             access_by_lua_file /usr/local/openresty/nginx/html/api/gateway_resp.lua;
             # this code run just before the setting the proxy pass and content phase.
 
+          # API gateway: apply the response headers the access phase collected
+          # (CORS, correlation id, RateLimit-*).  This block has no other
+          # header_filter hooks — unlike the 443 server above — so without
+          # this the gateway's headers are silently dropped on plain HTTP.
+          header_filter_by_lua_block {
+            local ok_gw, ApiGw = pcall(require, "api_gw")
+            if ok_gw then ApiGw.header_filter() end
+          }
+
           # proxy_set_header proxy_http_version 1.1;
           proxy_set_header host $proxy_host_override;
           
@@ -1347,11 +1405,19 @@ server {
           proxy_ssl_session_reuse on;
           proxy_set_header X-Real-IP $remote_addr;
           proxy_ssl_server_name on;
+          # SNI = the same hostname we forward as Host, so host-routed HTTPS
+          # origins (Traefik/nginx Ingress) see a matching SNI + Host.
+          proxy_ssl_name $proxy_host_override;
 
           # WebSocket support
           proxy_http_version 1.1;
           proxy_set_header Upgrade $http_upgrade;
           proxy_set_header Connection $connection_upgrade;
+
+          # Floor for Docker registry blob PUTs (see nginx.conf.j2).
+          proxy_connect_timeout 600s;
+          proxy_send_timeout 600s;
+          proxy_read_timeout 600s;
 
           proxy_set_header x-route-server $proxy_route_server;
           proxy_set_header Host $proxy_host_override;

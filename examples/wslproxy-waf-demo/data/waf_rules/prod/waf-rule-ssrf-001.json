@@ -1,0 +1,21 @@
+{
+  "id": "waf-rule-ssrf-001",
+  "name": "SSRF - Cloud Metadata / Internal Target",
+  "description": "Detects SSRF aimed at cloud instance-metadata endpoints (AWS/GCP/Azure/Alibaba) to steal instance credentials.",
+  "category": "ssrf",
+  "severity": "high",
+  "enabled": true,
+  "target": "all",
+  "pattern": "(?i)(?:169\\.254\\.169\\.254|metadata\\.google\\.internal|100\\.100\\.100\\.200|/latest/meta-data|fd00:ec2:|metadata\\.azure\\.com)",
+  "pattern_type": "regex",
+  "action": "block",
+  "score": 8,
+  "tags": [
+    "api-security",
+    "ssrf",
+    "beyond-owasp"
+  ],
+  "profile_id": "prod",
+  "created_at": 1740000000,
+  "updated_at": 1740000000
+}

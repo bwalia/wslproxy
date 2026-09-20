@@ -15,6 +15,8 @@ local CRManager = require("cr_manager")
 local AuditLogger = require("audit_logger")
 local Pops = require("pops")
 local DnsManager = require("dns_manager")
+local Storage = require("storage")
+local Repo = require("repo")
 
 local settings = Helper.settings()
 local storageTypeOverride = settings.settings or os.getenv("STORAGE_TYPE")
@@ -378,12 +380,31 @@ local function validateRulePayload(payloads)
                     })
                 end
 
-                -- Validate redirect_uri for redirect/proxy codes
-                if code == 301 or code == 302 or code == 305 then
+                -- 301/302 need a redirect_uri (goes into the Location: header).
+                if code == 301 or code == 302 then
                     if not payloads.match.response.redirect_uri or payloads.match.response.redirect_uri == "" then
                         table.insert(errors, {
                             field = "match.response.redirect_uri",
-                            message = "Redirect URI is required for response codes 301, 302, and 305 (proxy)"
+                            message = "Redirect URI is required for response codes 301 and 302"
+                        })
+                    end
+                end
+
+                -- 305 (proxy pass) accepts EITHER a `backends` array (the current
+                -- shape written by the Next.js admin — traffic_router picks one)
+                -- OR a plain `redirect_uri` (legacy single-target rules on disk).
+                -- The Lua router overwrites redirect_uri whenever backends is
+                -- non-empty; either shape is a valid target, so we require one
+                -- of them but not both.  See gateway_resp.lua:88-114.
+                if code == 305 then
+                    local backends = payloads.match.response.backends
+                    local has_backends = type(backends) == "table" and #backends > 0
+                    local has_uri = payloads.match.response.redirect_uri
+                        and payloads.match.response.redirect_uri ~= ""
+                    if not has_backends and not has_uri then
+                        table.insert(errors, {
+                            field = "match.response.backends",
+                            message = "Proxy-pass (305) needs at least one backend or a redirect_uri"
                         })
                     end
                 end
@@ -455,13 +476,21 @@ local function validateWafRulePayload(payloads)
     if not payloads.category or payloads.category == "" then
         table.insert(errors, { field = "category", message = "WAF rule category is required" })
     else
-        local valid_categories = { sqli = true, xss = true, cmdi = true, lfi = true, rfi = true, protocol = true, custom = true }
+        local valid_categories = {
+            sqli = true, xss = true, cmdi = true, lfi = true, rfi = true, protocol = true, custom = true,
+            -- Modern / API-era categories shipped by the extended rule library.
+            ssti = true, ssrf = true, nosqli = true, rce = true, xxe = true, jwt = true,
+            graphql = true, redirect = true, scanner = true, ["proto-pollution"] = true,
+            ["mass-assignment"] = true, smuggling = true,
+        }
         if not valid_categories[payloads.category] then
             table.insert(errors,
                 {
                     field = "category",
                     message =
-                    "Invalid category. Must be one of: sqli, xss, cmdi, lfi, rfi, protocol, custom"
+                    "Invalid category. Must be one of: sqli, xss, cmdi, lfi, rfi, protocol, custom, " ..
+                    "ssti, ssrf, nosqli, rce, xxe, jwt, graphql, redirect, scanner, proto-pollution, " ..
+                    "mass-assignment, smuggling"
                 })
         end
     end
@@ -469,7 +498,10 @@ local function validateWafRulePayload(payloads)
     if not payloads.pattern or payloads.pattern == "" then
         table.insert(errors, { field = "pattern", message = "WAF rule pattern is required" })
     elseif payloads.pattern_type ~= "string" then
-        local ok, compile_err = pcall(ngx.re.compile, payloads.pattern, "ijo")
+        -- OpenResty has no ngx.re.compile; test-compile by matching the pattern
+        -- against an empty subject (the "o" flag caches the compiled regex per
+        -- worker, exactly as the engine does at request time).
+        local ok, compile_err = pcall(ngx.re.find, "", payloads.pattern, "jo")
         if not ok then
             table.insert(errors, { field = "pattern", message = "Invalid regex pattern: " .. tostring(compile_err) })
         end
@@ -525,36 +557,27 @@ local function validateWafPolicyPayload(payloads)
     return errors
 end
 
-local red = {}
+local store_ok, store_err = pcall(function()
+    Storage.init(settings)
+end)
+if not store_ok then
+    ngx.log(ngx.ERR, "failed to init storage: ", tostring(store_err))
+    Errors.throwError("failed to connect to storage: " .. tostring(store_err), ngx.HTTP_BAD_GATEWAY)
+end
 
+-- Redis client is only used for resty.session listing (session:* keys).
+-- CRUD goes through Repo / storage drivers.
+local red = nil
 if settings.storage_type == "redis" then
     local redis = require "resty.redis"
     red = redis:new()
     red:set_timeout(1000)
-
-    local redisHost = settings.env_vars.REDIS_HOST or os.getenv("REDIS_HOST")
-    if redisHost == nil then
-        redisHost = "localhost"
-    end
-
+    local redisHost = (settings.env_vars and settings.env_vars.REDIS_HOST) or os.getenv("REDIS_HOST") or "localhost"
     local ok, err = red:connect(redisHost, 6379)
     if not ok then
-        ngx.log(ngx.ERR, "failed to connect to Redis: ", err)
-        Errors.throwError("failed to connect to Redis: " .. err, ngx.HTTP_BAD_GATEWAY)
+        ngx.log(ngx.ERR, "failed to connect to Redis (sessions): ", err)
     end
-elseif settings.storage_type == "pgsql" then
-    local PgStorage = require("pgsql_storage")
-    local pg_config = settings.pgsql or {}
-    local store, pg_err = PgStorage.new(pg_config)
-    if not store then
-        ngx.log(ngx.ERR, "failed to connect to PostgreSQL: ", pg_err)
-        Errors.throwError("failed to connect to PostgreSQL: " .. tostring(pg_err), ngx.HTTP_BAD_GATEWAY)
-    end
-    red = store
 end
-
--- useRemoteStorage: true for redis and pgsql (both use the `red` interface)
-local useRemoteStorage = settings.storage_type == "redis" or settings.storage_type == "pgsql"
 
 local function removeServerFromRule(oldRuleId, serverId, envProfile)
     -- Accept either a single rule ID (string) or an array of rule IDs,
@@ -574,13 +597,8 @@ local function removeServerFromRule(oldRuleId, serverId, envProfile)
 
     local loadRules = nil
     if oldRuleId and oldRuleId ~= nil and type(oldRuleId) ~= "userdata" then
-        if useRemoteStorage then
-            loadRules = red:hget("request_rules_" .. envProfile, oldRuleId)
-        else
-            loadRules = Helper.getDataFromFile(configPath .. "data/rules/" .. envProfile .. "/" .. oldRuleId .. ".json")
-        end
-        if loadRules and loadRules ~= "null" and type(loadRules) == "string" then
-            loadRules = cjson.decode(loadRules)
+        loadRules = Repo.get("rules", envProfile, oldRuleId)
+        if type(loadRules) == "table" then
             -- Guard: rule JSON may not have a `.servers` field yet if
             -- no server has ever been linked to it.  Without this
             -- check, `#loadRules.servers` raises "attempt to get
@@ -600,12 +618,7 @@ local function removeServerFromRule(oldRuleId, serverId, envProfile)
                     i = i + 1
                 end
             end
-            if useRemoteStorage then
-                red:hset("request_rules_" .. envProfile, oldRuleId, cjson.encode(loadRules))
-            else
-                Helper.setDataToFile(configPath .. "data/rules/" .. envProfile .. "/" .. oldRuleId .. ".json", loadRules,
-                    configPath .. "data/rules")
-            end
+            Repo.save("rules", envProfile, oldRuleId, loadRules, { skip_strip = true })
         end
     end
 end
@@ -627,22 +640,10 @@ local function updateServerInRules(ruleId, serverId, Rtype, envProfile)
         return
     end
 
-    local getRules, ruleErr = nil, nil
-    if useRemoteStorage then
-        getRules, ruleErr = red:hget("request_rules_" .. envProfile, ruleId)
-    else
-        getRules, ruleErr = Helper.getDataFromFile(configPath .. "data/rules/" .. envProfile .. "/" .. ruleId .. ".json")
-    end
-    if getRules and getRules ~= "null" and type(getRules) == "string" then
-        getRules = cjson.decode(getRules)
-        local getServer = nil
-        if useRemoteStorage then
-            getServer = red:hget("servers_" .. envProfile, serverId)
-        else
-            getServer = Helper.getDataFromFile(configPath .. "data/servers/" .. envProfile .. "/" .. serverId .. ".json")
-        end
-        if getServer and getServer ~= "null" and type(getServer) == "string" then
-            getServer = cjson.decode(getServer)
+    local getRules = Repo.get("rules", envProfile, ruleId)
+    if type(getRules) == "table" then
+        local getServer = Repo.get("servers", envProfile, serverId)
+        if type(getServer) == "table" then
             if Rtype == "rules" and getServer.rules ~= nil and getServer.rules ~= ruleId then
                 removeServerFromRule(getServer.rules, serverId, envProfile)
             end
@@ -664,36 +665,19 @@ local function updateServerInRules(ruleId, serverId, Rtype, envProfile)
         end
         if isServer == true then
             table.insert(getRules.servers, serverId)
-            if useRemoteStorage then
-                red:hset("request_rules_" .. envProfile, ruleId, cjson.encode(getRules))
-            else
-                Helper.setDataToFile(configPath .. "data/rules/" .. envProfile .. "/" .. ruleId .. ".json", getRules,
-                    configPath .. "data/rules")
-            end
+            Repo.save("rules", envProfile, ruleId, getRules, { skip_strip = true })
         end
     end
 end
 
 local function deleteRuleFromServer(ruleId, envProfile)
-    local getRule = nil
-    if useRemoteStorage then
-        getRule = red:hget("request_rules_" .. envProfile, ruleId)
-    else
-        getRule = Helper.getDataFromFile(configPath .. "data/rules/" .. envProfile .. "/" .. ruleId .. ".json")
-    end
-    if getRule and getRule ~= "null" and type(getRule) == "string" then
-        getRule = cjson.decode(getRule)
+    local getRule = Repo.get("rules", envProfile, ruleId)
+    if type(getRule) == "table" then
         -- Remove the rules from all servers that are using it as a statement or case
         if getRule.servers and getRule.servers ~= nil then
             for _, server in ipairs(getRule.servers) do
-                local getServer = nil
-                if useRemoteStorage then
-                    getServer = red:hget("servers_" .. envProfile, server)
-                else
-                    Helper.getDataFromFile(configPath .. "data/servers/" .. envProfile .. "/" .. server .. ".json")
-                end
-                if getServer and getServer ~= "null" and type(getServer) == "string" then
-                    getServer = cjson.decode(getServer)
+                local getServer = Repo.get("servers", envProfile, server)
+                if type(getServer) == "table" then
                     if getServer.rules == ruleId then
                         getServer.rules = nil
                     else
@@ -706,13 +690,7 @@ local function deleteRuleFromServer(ruleId, envProfile)
                             end
                         end
                     end
-                    if useRemoteStorage then
-                        red:hset("servers_" .. envProfile, server, cjson.encode(getServer))
-                    else
-                        Helper.setDataToFile(configPath .. "data/servers/" .. envProfile .. "/" .. server .. ".json",
-                            getServer,
-                            configPath .. "data/servers")
-                    end
+                    Repo.save("servers", envProfile, server, getServer, { skip_strip = true })
                 end
             end
         end
@@ -720,71 +698,58 @@ local function deleteRuleFromServer(ruleId, envProfile)
 end
 
 local function deleteServerFromRules(ruleId, serverId, envProfile)
-    local getRule = nil
-    if useRemoteStorage then
-        getRule = red:hget("request_rules_" .. envProfile, ruleId)
-    else
-        getRule = Helper.getDataFromFile(configPath .. "data/rules/" .. envProfile .. "/" .. ruleId .. ".json")
-    end
-    if getRule and getRule ~= "null" and type(getRule) == "string" then
-        getRule = cjson.decode(getRule)
+    local getRule = Repo.get("rules", envProfile, ruleId)
+    if type(getRule) == "table" then
         if getRule.servers ~= nil and type(getRule.servers) == "table" then
             for _, server in ipairs(getRule.servers) do
                 if server == serverId then
                     table.remove(getRule.servers, _)
                 end
             end
-            if useRemoteStorage then
-                red:hset("request_rules_" .. envProfile, ruleId, cjson.encode(getRule))
-            else
-                Helper.setDataToFile(configPath .. "data/rules/" .. envProfile .. "/" .. ruleId .. ".json", getRule,
-                    configPath .. "data/rules")
-            end
+            Repo.save("rules", envProfile, ruleId, getRule, { skip_strip = true })
         end
     end
 end
 
--- ─── Redis-backed sibling of listFromDisk ────────────────────────────────
---
--- Previously this did its own (broken) paginate-then-filter inline.  We
--- now load the full hash with one HSCAN pass and delegate the
--- filter / sort / paginate pipeline to listPaginationLocal so disk and
--- redis paths share the same correct semantics.  Loading everything
--- before paginating is necessary for the q-filter to find records that
--- live past the requested page — see the rationale in
--- listPaginationLocal.  In practice the hash sizes here are small
--- (servers / rules per installation are typically <1000 records).
-local function listWithPagination(recordsKey, cursor, pageSize, pageNumber, qParams)
-    local allRecords = {}
+-- Forward declaration: listWithPagination runs after this local is assigned.
+local listPaginationLocal
 
-    local totalKeys, hlenErr = red:hlen(recordsKey)
-    if not totalKeys or hlenErr or totalKeys == 0 then
-        if hlenErr then
-            ngx.log(ngx.INFO, "Failed to retrieve total number of records: ", hlenErr)
-        end
+-- Map historical redis hash names / disk directory prefixes onto repo
+-- resource ids.  listWithPagination and listFromDisk both scan via Repo
+-- so disk / redis / pgsql share listPaginationLocal semantics.
+local REDIS_KEY_RESOURCE = {
+    servers = "servers",
+    request_rules = "rules",
+    secrets = "secrets",
+    instances = "instances",
+    upstreams = "upstreams",
+    waf_rules = "waf_rules",
+    waf_policies = "waf_policies",
+    waf_events = "waf_events",
+    users = "users",
+    pops = "pops",
+    bookmarks = "bookmarks",
+    company_logo = "company_logo",
+}
+
+local function resource_from_redis_key(recordsKey)
+    if REDIS_KEY_RESOURCE[recordsKey] then
+        return REDIS_KEY_RESOURCE[recordsKey], nil
+    end
+    local base, env = tostring(recordsKey):match("^(.*)_(.+)$")
+    if base and REDIS_KEY_RESOURCE[base] then
+        return REDIS_KEY_RESOURCE[base], env
+    end
+    return base or recordsKey, env
+end
+
+local function listWithPagination(recordsKey, cursor, pageSize, pageNumber, qParams)
+    local resource, env = resource_from_redis_key(recordsKey)
+    local allRecords, err = Repo.scan(resource, env)
+    if not allRecords then
+        ngx.log(ngx.INFO, "Failed to retrieve records: ", tostring(err))
         return {}, 0
     end
-
-    -- Full HSCAN pass — no early break.  COUNT 200 is a hint to the
-    -- redis cursor; the actual number returned per round-trip may
-    -- differ.  Loop until the cursor returns to "0".
-    local nextCursor = cursor or "0"
-    repeat
-        local res, scanErr = red:hscan(recordsKey, nextCursor, "COUNT", 200)
-        if not res then
-            ngx.log(ngx.INFO, "Failed to retrieve records: ", scanErr)
-            return {}, 0
-        end
-        nextCursor = res[1]
-        for i = 1, #res[2], 2 do
-            local recordValue = res[2][i + 1]
-            local ok, dataRecord = pcall(cjson.decode, recordValue)
-            if ok and type(dataRecord) == "table" then
-                allRecords[#allRecords + 1] = dataRecord
-            end
-        end
-    until nextCursor == "0"
-
     return listPaginationLocal(allRecords, pageSize, pageNumber, qParams)
 end
 
@@ -808,7 +773,7 @@ end
 -- "match.rules.path") broadens the q match across multiple columns.
 -- Falls back to a single-field match on qParams.type.key_name so
 -- callers that haven't been updated still work.
-local function listPaginationLocal(data, pageSize, pageNumber, qParams)
+listPaginationLocal = function(data, pageSize, pageNumber, qParams)
     qParams = qParams or {}
 
     -- Resolve a dotted path against a nested record (e.g.
@@ -945,7 +910,7 @@ local function login(args)
             ngx.header["Set-Cookie"] = buildAuthCookie(token, AUTH_COOKIE_MAX_AGE)
 
             ngx.status = ngx.OK
-            if useRemoteStorage then
+            if settings.storage_type == "redis" then
                 local session = require "resty.session".new()
                 session:set_subject("Users")
                 session:set(payloads.email, cjson.encode(payloads))
@@ -995,39 +960,171 @@ local function userMe()
     ngx.exit(ngx.HTTP_OK)
 end
 
+local ALLOWED_STORAGE = { disk = true, redis = true, pgsql = true }
+
+local function merge_pgsql_destination(existing, incoming)
+    existing = type(existing) == "table" and existing or {}
+    incoming = type(incoming) == "table" and incoming or {}
+    -- Password: explicit UI override wins; otherwise refresh from Vault,
+    -- then SOPS file, then WSLPROXY_PG_PASSWORD. Do NOT silently keep a
+    -- stale settings.json password — that hid missing Vault/SOPS sync.
+    local SecretsResolve = require("secrets_resolve")
+    local password, source, resolve_err = SecretsResolve.resolve_pgsql_password(settings, {
+        override = incoming.pg_password or incoming.password,
+        env_profile = settings and settings.env_profile,
+    })
+    if not password or password == "" then
+        return nil, resolve_err or "PostgreSQL password not found in Vault or SOPS"
+    end
+    ngx.log(ngx.NOTICE, "storage/management: pg_password resolved from ", tostring(source))
+    local ssl = existing.ssl
+    if incoming.ssl ~= nil then
+        ssl = incoming.ssl
+    end
+    return {
+        pg_host     = incoming.pg_host or incoming.host or existing.pg_host or existing.host,
+        pg_port     = tonumber(incoming.pg_port or incoming.port or existing.pg_port or existing.port) or 5432,
+        pg_database = incoming.pg_database or incoming.database or existing.pg_database or existing.database,
+        pg_user     = incoming.pg_user or incoming.user or existing.pg_user or existing.user,
+        pg_password = password,
+        ssl         = ssl,
+        _password_source = source,
+    }
+end
+
+local function probe_pgsql(pg_cfg)
+    local ok_req, PgsqlDriver = pcall(require, "storage.pgsql_driver")
+    if not ok_req or not PgsqlDriver then
+        return nil, "pgsql driver unavailable"
+    end
+    local drv = PgsqlDriver.new({ settings = { pgsql = pg_cfg } })
+    local pg, err = drv:connect()
+    if not pg then
+        return nil, err or "pgsql connect failed"
+    end
+    return true
+end
+
+local function public_pgsql(pg_cfg)
+    if type(pg_cfg) ~= "table" then
+        return nil
+    end
+    return {
+        pg_host     = pg_cfg.pg_host or pg_cfg.host,
+        pg_port     = pg_cfg.pg_port or pg_cfg.port,
+        pg_database = pg_cfg.pg_database or pg_cfg.database,
+        pg_user     = pg_cfg.pg_user or pg_cfg.user,
+        ssl         = pg_cfg.ssl,
+    }
+end
+
+local function pgsql_dest_matches(existing, pg_cfg)
+    existing = type(existing) == "table" and existing or {}
+    if not pg_cfg then
+        return false
+    end
+    local function same(a, b)
+        return tostring(a or "") == tostring(b or "")
+    end
+    return same(existing.pg_host or existing.host, pg_cfg.pg_host)
+        and same(existing.pg_port or existing.port or 5432, pg_cfg.pg_port)
+        and same(existing.pg_database or existing.database, pg_cfg.pg_database)
+        and same(existing.pg_user or existing.user, pg_cfg.pg_user)
+end
+
 local function setStorage(body)
-    local storageType = ""
-    if settings then
-        if type(body) == "table" then
-            local keyset = {}
-            local n = 0
-            for k, v in pairs(body) do
-                n = n + 1
-                if type(v) == "string" then
-                    table.insert(keyset, cjson.decode(k .. v))
-                else
-                    table.insert(keyset, cjson.decode(k))
-                end
-            end
-            local payloads = keyset[1]
-            storageType = payloads.storage
-        else
-            storageType = body
+    if not settings then
+        Errors.throwError("Settings not loaded", ngx.HTTP_INTERNAL_SERVER_ERROR)
+        return
+    end
+    local payloads
+    if type(body) == "string" then
+        payloads = { storage = body }
+    else
+        payloads = Helper.GetPayloads(body)
+    end
+    if type(payloads) ~= "table" then
+        Errors.throwError("Invalid storage payload", ngx.HTTP_BAD_REQUEST)
+        return
+    end
+    local storageType = payloads.storage or payloads.storage_type
+    if not ALLOWED_STORAGE[tostring(storageType)] then
+        Errors.throwError("Invalid storage type. Must be disk, redis, or pgsql", ngx.HTTP_BAD_REQUEST)
+        return
+    end
+    local prev_storage = settings.storage_type
+    local password_source
+    local pg_cfg
+    if storageType == "pgsql" then
+        local merge_err
+        pg_cfg, merge_err = merge_pgsql_destination(settings.pgsql, payloads.pgsql)
+        if not pg_cfg then
+            Errors.throwError(tostring(merge_err), ngx.HTTP_BAD_REQUEST)
+            return
         end
-        local writableFile, writableErr = io.open(configPath .. "data/settings.json", "w")
-        settings.storage_type = storageType
-        if writableFile == nil then
-            Errors.throwError("Couldn't write file: " .. writableErr, ngx.HTTP_INTERNAL_SERVER_ERROR)
-        else
-            writableFile:write(cjson.encode(settings))
-            writableFile:close()
+        if not pg_cfg.pg_host or pg_cfg.pg_host == "" then
+            Errors.throwError("PostgreSQL host is required", ngx.HTTP_BAD_REQUEST)
+            return
+        end
+        if not pg_cfg.pg_database or pg_cfg.pg_database == "" then
+            Errors.throwError("PostgreSQL database is required", ngx.HTTP_BAD_REQUEST)
+            return
+        end
+        if not pg_cfg.pg_user or pg_cfg.pg_user == "" then
+            Errors.throwError("PostgreSQL user is required", ngx.HTTP_BAD_REQUEST)
+            return
+        end
+        password_source = pg_cfg._password_source
+        pg_cfg._password_source = nil
+        local ok, err = probe_pgsql(pg_cfg)
+        if not ok then
+            Errors.throwError("PostgreSQL unreachable: " .. tostring(err), ngx.HTTP_BAD_GATEWAY)
+            return
+        end
+        -- Control-plane pods mount settings.json from Secret wslproxy-settings
+        -- (read-only). If destination already matches, skip the write.
+        if prev_storage == "pgsql" and pgsql_dest_matches(settings.pgsql, pg_cfg) then
             ngx.say(cjson.encode({
                 data = {
-                    storage = settings.storage_type
+                    storage = "pgsql",
+                    pgsql = public_pgsql(pg_cfg),
+                    password_source = password_source,
+                    persisted = false,
+                    note = "PostgreSQL already active; settings Secret left unchanged",
                 }
             }))
+            return
         end
+        settings.pgsql = pg_cfg
     end
+    settings.storage_type = storageType
+    local updateSettings, msg = Helper.writeSettingsFile(configPath .. "data/settings.json", settings)
+    if not updateSettings then
+        -- Already on pgsql + probe OK but Secret mount is immutable: report success.
+        if storageType == "pgsql" and prev_storage == "pgsql" and pg_cfg then
+            ngx.log(ngx.WARN, "storage/management: settings write skipped (", tostring(msg), ")")
+            ngx.say(cjson.encode({
+                data = {
+                    storage = "pgsql",
+                    pgsql = public_pgsql(pg_cfg),
+                    password_source = password_source,
+                    persisted = false,
+                    note = tostring(msg),
+                }
+            }))
+            return
+        end
+        Errors.throwError("Couldn't save settings: " .. (msg or "unknown error"), ngx.HTTP_INTERNAL_SERVER_ERROR)
+        return
+    end
+    ngx.say(cjson.encode({
+        data = {
+            storage = settings.storage_type,
+            pgsql = storageType == "pgsql" and public_pgsql(settings.pgsql) or nil,
+            password_source = password_source,
+            persisted = true,
+        }
+    }))
 end
 if storageTypeOverride and storageTypeOverride ~= nil then
     setStorage(storageTypeOverride)
@@ -1036,42 +1133,16 @@ end
 -- Servers APIs
 
 local function listFromDisk(directory, pageSize, pageNumber, qParams)
-    local files = {}
-    -- Run the 'ls' command to get a list of filenames
-    local output, error = io.popen("ls " .. configPath .. "data/" .. directory .. ""):read("*all")
-    for filename in string.gmatch(output, "[^\r\n]+") do
-        if filename:match("%.json$") then
-            table.insert(files, filename)
-        end
+    -- directory is historically "servers/prod", "rules/int", "waf_policies/prod"
+    local resource, env = tostring(directory):match("^([^/]+)/?(.*)$")
+    if env == "" then
+        env = nil
     end
-
-    local jsonData, data = {}, {}
-    for _, filename in ipairs(files) do
-        local filePath = configPath .. "data/" .. directory .. "/" .. filename
-        local fileAttr = lfs.attributes(filePath)
-        if fileAttr then
-            if fileAttr.mode == "file" then
-                local file, fileErr = io.open(filePath, "rb")
-                if file == nil then
-                    return ngx.say(cjson.encode({
-                        data = {},
-                        total = 0
-                    }))
-                else
-                    local jsonString = file:read "*a"
-                    file:close()
-
-                    if jsonString and jsonString ~= "" then
-                        data = cjson.decode(jsonString)
-                    end
-                    if data ~= nil and data ~= ngx.null and data ~= "null" then
-                        jsonData[_] = data
-                    end
-                end
-            end
-        end
+    local jsonData, err = Repo.scan(resource, env)
+    if not jsonData then
+        ngx.log(ngx.WARN, "listFromDisk scan failed: ", tostring(err))
+        jsonData = {}
     end
-
     local diskData, count = listPaginationLocal(jsonData, pageSize, pageNumber, qParams)
     return diskData, count
 end
@@ -1146,58 +1217,24 @@ end
 
 local function listServer(args, id)
     local envProfile = args.envprofile ~= nil and args.envprofile or "prod"
-    if settings then
-        if settings.storage_type == "disk" then
-            local jsonData, dataErr = Helper.getDataFromFile(configPath ..
-                "data/servers/" .. envProfile .. "/" .. id .. ".json")
-            if dataErr ~= nil then
-                ngx.say(cjson.encode({
-                    data = {}
-                }))
-            else
-                jsonData = cjson.decode(jsonData)
-                if jsonData.config then
-                    local configDec, decodeErr = Helper.decodeBase64(jsonData.config)
-                    if decodeErr ~= nil then
-                        jsonData.config = configDec
-                    end
-                end
-                if jsonData.varnish_vcl_config then
-                    local vclDec, decodeErr = Helper.decodeBase64(jsonData.varnish_vcl_config)
-                    if decodeErr ~= nil then
-                        jsonData.varnish_vcl_config = vclDec
-                    end
-                end
-                ngx.say(cjson.encode({
-                    data = jsonData
-                }))
-            end
-        else
-            --     local server, dataErr = Helper.getDataFromFile(configPath .. "data/servers/" .. envProfile .. "/" .. id .. ".json")
-            --     if dataErr or dataErr ~= nil then
-            local server = red:hget("servers_" .. envProfile, id)
-            -- end
-            if type(server) == "string" then
-                server = cjson.decode(server)
-                if server.config then
-                    local configDec, decodeErr = Helper.decodeBase64(server.config)
-                    if decodeErr ~= nil then
-                        server.config = configDec
-                    end
-                end
-
-                if server.varnish_vcl_config then
-                    local vclDec, decodeErr = Helper.decodeBase64(server.varnish_vcl_config)
-                    if decodeErr ~= nil then
-                        server.varnish_vcl_config = vclDec
-                    end
-                end
-                ngx.say(cjson.encode({
-                    data = server
-                }))
-            end
+    local jsonData = Repo.get("servers", envProfile, id)
+    if type(jsonData) ~= "table" then
+        ngx.say(cjson.encode({ data = {} }))
+        return
+    end
+    if jsonData.config then
+        local configDec, decodeErr = Helper.decodeBase64(jsonData.config)
+        if decodeErr ~= nil then
+            jsonData.config = configDec
         end
     end
+    if jsonData.varnish_vcl_config then
+        local vclDec, decodeErr = Helper.decodeBase64(jsonData.varnish_vcl_config)
+        if decodeErr ~= nil then
+            jsonData.varnish_vcl_config = vclDec
+        end
+    end
+    ngx.say(cjson.encode({ data = jsonData }))
 end
 
 local function listSecrets(args)
@@ -1264,41 +1301,36 @@ end
 
 local function listSecret(args, id)
     local envProfile = args.envprofile ~= nil and args.envprofile or "prod"
-    if settings then
-        if settings.storage_type == "disk" then
-            local jsonData, dataErr = Helper.getDataFromFile(configPath ..
-                "data/secrets/" .. envProfile .. "/" .. id .. ".json")
-            if dataErr ~= nil then
-                ngx.say(cjson.encode({
-                    data = {}
-                }))
-            else
-                jsonData = cjson.decode(jsonData)
-                if jsonData.secrets then
-                    for sIdx, secret in ipairs(jsonData.secrets) do
-                        jsonData.secrets[sIdx].value = Base64.decode(jsonData.secrets[sIdx].value)
-                    end
+    local jsonData = Repo.get("secrets", envProfile, id)
+    if type(jsonData) ~= "table" then
+        ngx.say(cjson.encode({ data = {} }))
+        return
+    end
+    if jsonData.secrets then
+        -- Dual-read: new records store `value` as an encrypted blob table
+        -- (see CreateUpdateRecord secrets branch).  Legacy records stored
+        -- `value` as base64.  Handle both so a rollout doesn't break edits.
+        local Crypto = require("secrets_crypto")
+        for sIdx, secret in ipairs(jsonData.secrets) do
+            local v = secret.value
+            if type(v) == "table" and v.encrypted then
+                local pt, derr = Crypto.decrypt(v)
+                if pt then
+                    jsonData.secrets[sIdx].value = pt
+                else
+                    ngx.log(ngx.ERR, "secrets decrypt failed for id=", tostring(id),
+                        " key=", tostring(secret.key), ": ", tostring(derr))
+                    -- Return empty rather than the blob, so the UI form
+                    -- shows an empty field and the operator can type in a
+                    -- fresh value.  Rotating a lost key is done by re-entry.
+                    jsonData.secrets[sIdx].value = ""
                 end
-                ngx.say(cjson.encode({
-                    data = jsonData
-                }))
-            end
-        else
-            --     local server, dataErr = Helper.getDataFromFile(configPath .. "data/servers/" .. envProfile .. "/" .. id .. ".json")
-            --     if dataErr or dataErr ~= nil then
-            local server = red:hget("secrets_" .. envProfile, id)
-            -- end
-            if type(server) == "string" then
-                server = cjson.decode(server)
-                if server.config then
-                    server.config = Base64.decode(server.config)
-                end
-                ngx.say(cjson.encode({
-                    data = server
-                }))
+            elseif type(v) == "string" and v ~= "" then
+                jsonData.secrets[sIdx].value = Base64.decode(v)
             end
         end
     end
+    ngx.say(cjson.encode({ data = jsonData }))
 end
 
 
@@ -1366,43 +1398,71 @@ end
 
 local function listInstance(args, id)
     local envProfile = args.envprofile ~= nil and args.envprofile or "prod"
-    if settings then
-        if settings.storage_type == "disk" then
-            local jsonData, dataErr = Helper.getDataFromFile(configPath ..
-                "data/instances/" .. envProfile .. "/" .. id .. ".json")
-            if dataErr ~= nil then
-                ngx.say(cjson.encode({
-                    data = {}
-                }))
-            else
-                jsonData = cjson.decode(jsonData)
-                if jsonData.secrets then
-                    for sIdx, secret in ipairs(jsonData.secrets) do
-                        jsonData.secrets[sIdx].value = Base64.decode(jsonData.secrets[sIdx].value)
-                    end
-                end
-                ngx.say(cjson.encode({
-                    data = jsonData
-                }))
-            end
+    local jsonData = Repo.get("instances", envProfile, id)
+    if type(jsonData) ~= "table" then
+        ngx.say(cjson.encode({ data = {} }))
+        return
+    end
+    if jsonData.secrets then
+        for sIdx, secret in ipairs(jsonData.secrets) do
+            jsonData.secrets[sIdx].value = Base64.decode(jsonData.secrets[sIdx].value)
+        end
+    end
+    ngx.say(cjson.encode({ data = jsonData }))
+end
+
+
+-- Sync SSL side effects for a persisted server record.  Single
+-- source of truth called from BOTH the interactive save path
+-- (`createUpdateServer`, i.e. POST/PUT /api/servers) and the bulk
+-- import path (`importProjects`, i.e. POST /api/projects/import).
+--
+-- Before this helper existed the SSL wire-up (create
+-- data/ssl/<domain>.json + populate ngx.shared.ssl_domains +
+-- trigger initial cert issuance) lived only inline in
+-- createUpdateServer.  Any code path that wrote a server record
+-- via a different route — most notably the beaconpulse bulk-import
+-- workflow — silently left the ssl_enabled=true server without a
+-- matching ssl config file, so auto-ssl denied the domain until
+-- the next worker restart triggered ssl_init.reconcile_disk_ssl_configs.
+-- `int.workstation.academy` was stuck on the self-signed fallback
+-- cert for weeks because of this drift (2026-07-14).
+--
+-- The helper is idempotent: safe to call for a record that already
+-- has the ssl config file (SslManager.store_ssl_config overwrites
+-- with the current values).  Non-fatal — an SSL wire-up failure
+-- MUST NOT block the save; it's logged as ERR and the record
+-- persists.
+local function syncServerSslConfig(server_name, payloads)
+    if not server_name or server_name == "" then
+        return
+    end
+    if payloads.ssl_enabled then
+        local ssl_config = {
+            ssl_enabled = true,
+            ssl_email = payloads.ssl_email,
+            ssl_auto_renew = payloads.ssl_auto_renew ~= false,   -- default true
+            ssl_force_https = payloads.ssl_force_https ~= false, -- default true
+            ssl_staging = payloads.ssl_staging ~= false          -- default true for safety
+        }
+        local ssl_ok, ssl_err = SslManager.store_ssl_config(server_name, ssl_config)
+        if not ssl_ok then
+            ngx.log(ngx.ERR, "syncServerSslConfig: failed to store SSL config for ",
+                server_name, ": ", tostring(ssl_err))
         else
-            --     local server, dataErr = Helper.getDataFromFile(configPath .. "data/servers/" .. envProfile .. "/" .. id .. ".json")
-            --     if dataErr or dataErr ~= nil then
-            local server = red:hget("instances_" .. envProfile, id)
-            -- end
-            if type(server) == "string" then
-                server = cjson.decode(server)
-                if server.config then
-                    server.config = Base64.decode(server.config)
-                end
-                ngx.say(cjson.encode({
-                    data = server
-                }))
-            end
+            ngx.log(ngx.INFO, "syncServerSslConfig: SSL configured + activated for ", server_name)
+            -- Trigger initial ACME issuance in the background.  Idempotent —
+            -- auto-ssl returns fast if a valid cert already exists.
+            SslManager.trigger_certificate_issuance(server_name)
+        end
+    else
+        local ssl_ok, ssl_err = SslManager.remove_ssl_config(server_name)
+        if not ssl_ok then
+            ngx.log(ngx.WARN, "syncServerSslConfig: failed to remove SSL config for ",
+                server_name, ": ", tostring(ssl_err))
         end
     end
 end
-
 
 local function createUpdateServer(body, uuid)
     local payloads, response = Helper.GetPayloads(body), {}
@@ -1455,40 +1515,21 @@ local function createUpdateServer(body, uuid)
         response = CreateUpdateRecord(payloads, payloads.id, "servers", "servers", "create")
     end
 
-    -- Handle SSL certificate configuration if ssl_enabled is set
-    if payloads.ssl_enabled then
-        local ssl_config = {
-            ssl_enabled = payloads.ssl_enabled,
-            ssl_email = payloads.ssl_email,
-            ssl_auto_renew = payloads.ssl_auto_renew ~= false,   -- default true
-            ssl_force_https = payloads.ssl_force_https ~= false, -- default true
-            ssl_staging = payloads.ssl_staging ~= false          -- default true for safety
-        }
-        local ssl_ok, ssl_err = SslManager.store_ssl_config(payloads.server_name, ssl_config)
-        if not ssl_ok then
-            ngx.log(ngx.ERR, "Failed to store SSL config for ", payloads.server_name, ": ", ssl_err)
-        else
-            ngx.log(ngx.INFO, "SSL configuration stored for domain: ", payloads.server_name)
-            -- Add domain to SSL cache for immediate availability
-            if AddSslDomainToCache then
-                AddSslDomainToCache(payloads.server_name)
-            end
-            -- Trigger certificate readiness check
-            SslManager.trigger_certificate_issuance(payloads.server_name)
-        end
-    else
-        -- If SSL is disabled, clear force HTTPS — can't redirect to HTTPS without a certificate
+    -- Handle SSL certificate configuration if ssl_enabled is set.
+    -- Delegates to syncServerSslConfig so this exact wire-up also
+    -- fires from bulk-import paths (importProjects) — see
+    -- syncServerSslConfig definition above.  Without that shared
+    -- helper, imported records with ssl_enabled=true silently landed
+    -- on disk without a matching data/ssl/*.json + shared-dict entry;
+    -- auto-ssl then denied the domain until the next worker restart
+    -- (`int.workstation.academy`, 2026-07-14).
+    if not payloads.ssl_enabled then
+        -- HTTPS-force is nonsense without a certificate.  Clear it
+        -- BEFORE syncServerSslConfig so the persisted disk record
+        -- doesn't hold a stale true from a prior save.
         payloads.ssl_force_https = false
-        -- If SSL is disabled, remove SSL config
-        local ssl_ok, ssl_err = SslManager.remove_ssl_config(payloads.server_name)
-        if not ssl_ok then
-            ngx.log(ngx.WARN, "Failed to remove SSL config for ", payloads.server_name, ": ", ssl_err)
-        end
-        -- Remove domain from SSL cache
-        if RemoveSslDomainFromCache then
-            RemoveSslDomainFromCache(payloads.server_name)
-        end
     end
+    syncServerSslConfig(payloads.server_name, payloads)
 
     -- Handle static content caching configuration if cache_enabled is set
     if payloads.cache_enabled ~= nil then
@@ -1604,53 +1645,26 @@ local function createDeleteServer(body, uuid)
         envProfile = payloads.envProfile
     end
 
-    if settings then
-        if uuid ~= "" and uuid ~= nil then
-            if settings.storage_type == "disk" then
-                os.remove(configPath .. "data/servers/" .. envProfile .. "/" .. uuid .. ".json")
-            else
-                -- os.remove(configPath .. "data/servers/" .. envProfile .. "/" .. uuid .. ".json")
-                local oldDomain, oldDmnErr = red:hget("servers_" .. envProfile, uuid)
-                if oldDomain and oldDomain ~= "null" and type(oldDomain) == "string" then
-                    oldDomain = cjson.decode(oldDomain)
-                    oldServerName = oldDomain.server_name
-                    if oldDomain.rules ~= nil then
-                        deleteServerFromRules(oldDomain.rules, uuid, envProfile)
-                    end
-                    if oldDomain.match_cases ~= nil and type(next(oldDomain.match_cases)) ~= nil then
-                        for _, matchCase in pairs(oldDomain.match_cases) do
-                            deleteServerFromRules(matchCase.statement, uuid, envProfile)
-                        end
-                    end
-                else
-                    ngx.log(ngx.ERR, "Error while getting domain from redis: ", oldDmnErr)
-                end
-                red:hdel("servers_" .. envProfile, uuid)
+    local function unlink_and_delete_server(sid)
+        local oldDomain = Repo.get("servers", envProfile, sid)
+        if type(oldDomain) == "table" then
+            oldServerName = oldDomain.server_name
+            if oldDomain.rules ~= nil then
+                deleteServerFromRules(oldDomain.rules, sid, envProfile)
             end
-        elseif payloads and payloads.ids.ids and #payloads.ids.ids > 0 then
-            for value = 1, #payloads.ids.ids do
-                if settings.storage_type == "disk" then
-                    os.remove(configPath .. "data/servers/" .. envProfile .. "/" .. payloads.ids.ids[value] .. ".json")
-                else
-                    -- os.remove(configPath .. "data/servers/" .. envProfile .. "/" .. payloads.ids.ids[value] .. ".json")
-                    local oldDomain, oldDmnErr = red:hget("servers_" .. envProfile, payloads.ids.ids[value])
-                    if oldDomain and oldDomain ~= "null" and type(oldDomain) == "string" then
-                        oldDomain = cjson.decode(oldDomain)
-                        oldServerName = oldDomain.server_name
-                        if oldDomain.rules ~= nil then
-                            deleteServerFromRules(oldDomain.rules, uuid, envProfile)
-                        end
-                        if oldDomain.match_cases ~= nil and type(next(oldDomain.match_cases)) ~= nil then
-                            for _, matchCase in pairs(oldDomain.match_cases) do
-                                deleteServerFromRules(matchCase.statement, uuid, envProfile)
-                            end
-                        end
-                    else
-                        ngx.log(ngx.ERR, "Error while getting domain from redis: ", oldDmnErr)
-                    end
-                    red:hdel("servers_" .. envProfile, payloads.ids.ids[value])
+            if oldDomain.match_cases ~= nil and type(next(oldDomain.match_cases)) ~= nil then
+                for _, matchCase in pairs(oldDomain.match_cases) do
+                    deleteServerFromRules(matchCase.statement, sid, envProfile)
                 end
             end
+        end
+        Repo.delete("servers", envProfile, sid)
+    end
+    if uuid ~= "" and uuid ~= nil then
+        unlink_and_delete_server(uuid)
+    elseif payloads and payloads.ids.ids and #payloads.ids.ids > 0 then
+        for value = 1, #payloads.ids.ids do
+            unlink_and_delete_server(payloads.ids.ids[value])
         end
     end
     ngx.say(cjson.encode({
@@ -1706,29 +1720,7 @@ local function listUsers(args)
     -- Retrieve a page of records using HSCAN
     local cursor = "0"
     local recordCount, totalRecords = 0, 0
-    if settings then
-        if settings.storage_type == "disk" then
-            local file, err = io.open(configPath .. "data/users.json", "rb")
-            if file == nil then
-                ngx.say(cjson.encode({
-                    data = {},
-                    total = 0
-                }))
-                ngx.exit(ngx.HTTP_OK)
-            else
-                local jsonString = file:read "*a"
-                file:close()
-                users = cjson.decode(jsonString)
-                local currentPageData, totalPages = listPaginationLocal(users, pageSize, pageNumber, qParams)
-                users, totalRecords = currentPageData, totalPages
-            end
-        else
-            local recordsKey = "users"
-            local records, totalCount = listWithPagination(recordsKey, cursor, pageSize, pageNumber, qParams)
-            users = records
-            totalRecords = totalCount
-        end
-    end
+    users, totalRecords = listWithPagination("users", cursor, pageSize, pageNumber, qParams)
     -- Sort applied inside listPaginationLocal / listWithPagination.
     ngx.say(cjson.encode({
         data = users,
@@ -1738,38 +1730,14 @@ local function listUsers(args)
 end
 
 local function listUser(args, uuid)
-    if settings then
-        if settings.storage_type == "disk" then
-            local file, err = io.open(configPath .. "data/users.json", "rb")
-            if file == nil then
-                Errors.throwError("Couldn't read file: " .. err, ngx.HTTP_INTERNAL_SERVER_ERROR)
-            else
-                local jsonString = file:read "*a"
-                file:close()
-                local users = cjson.decode(jsonString)
-                for key, value in pairs(users) do
-                    if users[key]["id"] == uuid then
-                        ngx.say({ cjson.encode({
-                            data = value
-                        }) })
-                        ngx.exit(ngx.HTTP_OK)
-                    end
-                end
-            end
-        else
-            local user, err = red:hget("users", uuid)
-            if user then
-                user = cjson.decode(user)
-                ngx.say(cjson.encode({
-                    data = user
-                }))
-                ngx.exit(ngx.HTTP_OK)
-            end
-            if err then
-                Errors.throwError(err, ngx.HTTP_INTERNAL_SERVER_ERROR)
-            end
-        end
+    local user, err = Repo.get("users", nil, uuid)
+    if type(user) == "table" then
+        ngx.say(cjson.encode({
+            data = user
+        }))
+        ngx.exit(ngx.HTTP_OK)
     end
+    Errors.throwError(err or "user not found", ngx.HTTP_NOT_FOUND)
 end
 
 local function createUpdateUser(body, uuid)
@@ -1781,51 +1749,14 @@ local function createUpdateUser(body, uuid)
         ---@diagnostic disable-next-line: param-type-mismatch
         payloads.created_at = os.time(os.date("!*t"))
     end
-    if settings then
-        if uuid ~= "" and uuid ~= nil then
-            if settings.storage_type == "disk" then
-                local users = createUserInDisk(payloads, uuid)
-                ngx.say(cjson.encode({
-                    data = users
-                }))
-                ngx.exit(ngx.HTTP_OK)
-            else
-                local redis_json = {}
-                redis_json[getUuid] = cjson.encode(payloads)
-                local inserted, err = red:hmset("users", redis_json)
-                if inserted then
-                    ngx.say(cjson.encode({
-                        data = payloads
-                    }))
-                    ngx.exit(ngx.HTTP_OK)
-                end
-                if err then
-                    Errors.throwError(err, ngx.HTTP_INTERNAL_SERVER_ERROR)
-                end
-            end
-        else
-            local users = createUserInDisk(payloads, uuid)
-            if settings.storage_type == "disk" then
-                ngx.say(cjson.encode({
-                    data = users
-                }))
-                ngx.exit(ngx.HTTP_OK)
-            end
-
-            local redis_json = {}
-            redis_json[getUuid] = cjson.encode(payloads)
-            local inserted, err = red:hmset("users", redis_json)
-            if inserted then
-                ngx.say(cjson.encode({
-                    data = payloads
-                }))
-                ngx.exit(ngx.HTTP_OK)
-            end
-            if err then
-                Errors.throwError(err, ngx.HTTP_INTERNAL_SERVER_ERROR)
-            end
-        end
+    local inserted, err = Repo.save("users", nil, getUuid, payloads, { skip_strip = true })
+    if inserted then
+        ngx.say(cjson.encode({
+            data = payloads
+        }))
+        ngx.exit(ngx.HTTP_OK)
     end
+    Errors.throwError(err or "failed to save user", ngx.HTTP_INTERNAL_SERVER_ERROR)
 end
 
 local function deleteUserInDisk(uuid)
@@ -1858,44 +1789,21 @@ end
 local function deleteUsers(args, uuid)
     local payloads = Helper.GetPayloads(args)
     local restUsers = {}
-    if settings then
-        if uuid ~= "" and uuid ~= nil then
-            if settings.storage_type == "disk" then
-                restUsers = deleteUserInDisk(uuid)
-            else
-                local del, err = red:hdel("users", uuid)
-                if del then
-                    restUsers = del
-                end
-                if err then
-                    Errors.throwError(err, ngx.HTTP_INTERNAL_SERVER_ERROR)
-                end
-            end
-        elseif payloads and payloads.ids and #payloads.ids > 0 then
-            if settings then
-                if settings.storage_type == "disk" then
-                    restUsers = deleteUserInDisk(payloads.ids)
-                else
-                    for value = 1, #payloads.ids do
-                        restUsers = red:hdel("users", payloads.ids[value])
-                    end
-                end
-            end
+    if uuid ~= "" and uuid ~= nil then
+        local del, err = Repo.delete("users", nil, uuid)
+        if err then
+            Errors.throwError(err, ngx.HTTP_INTERNAL_SERVER_ERROR)
         end
-        if settings.storage_type == "disk" then
-            local writableFile, writableErr = io.open(configPath .. "data/users.json", "w")
-            if writableFile == nil then
-                Errors.throwError("Couldn't write file: " .. writableErr, ngx.HTTP_INTERNAL_SERVER_ERROR)
-            else
-                writableFile:write(cjson.encode(restUsers))
-                writableFile:close()
-            end
+        restUsers = del
+    elseif payloads and payloads.ids and #payloads.ids > 0 then
+        for value = 1, #payloads.ids do
+            restUsers = Repo.delete("users", nil, payloads.ids[value])
         end
-        ngx.say(cjson.encode({
-            data = (type(restUsers) == "table" and restUsers or { restUsers })
-        }))
-        ngx.exit(ngx.HTTP_OK)
     end
+    ngx.say(cjson.encode({
+        data = (type(restUsers) == "table" and restUsers or { restUsers })
+    }))
+    ngx.exit(ngx.HTTP_OK)
 end
 -- HTTP Request rules:
 local function listRules(args)
@@ -1958,47 +1866,24 @@ end
 
 local function listRule(args, uuid)
     local envProfile = args.envprofile ~= nil and args.envprofile or "prod"
-    if settings then
-        if settings.storage_type == "disk" then
-            local jsonData, dataErr = Helper.getDataFromFile(configPath ..
-                "data/rules/" .. envProfile .. "/" .. uuid .. ".json")
-            if dataErr == nil then
-                local resultData = cjson.decode(jsonData)
-                if resultData.match.rules.jwt_token_validation_value ~= nil and
-                    resultData.match.rules.jwt_token_validation_key ~= nil then
-                    resultData.match.rules.jwt_token_validation_key =
-                        Base64.decode(resultData.match.rules.jwt_token_validation_key)
-                end
-                -- S3 keys are now stored as plaintext (schema v2) — no decoding needed
-                ngx.say(cjson.encode({
-                    data = resultData
-                }))
-            else
-                Errors.throwError("Error" .. dataErr, ngx.HTTP_INTERNAL_SERVER_ERROR)
-            end
-        else
-            -- local exist_value, Rerr = Helper.getDataFromFile(configPath .. "data/rules/" .. envProfile .. "/" .. uuid .. ".json")
-            -- if exist_value == nil or Rerr then
-            local exist_value, Rerr = red:hget("request_rules_" .. envProfile, uuid)
-            -- end
-            exist_value = cjson.decode(exist_value)
-            -- if exist_value.match.response.message then
-            --     exist_value.match.response.message = Base64.decode(exist_value.match.response.message)
-            -- end
-
-            if exist_value.match.rules.jwt_token_validation_value ~= nil and
-                exist_value.match.rules.jwt_token_validation_key ~= nil then
-                exist_value.match.rules.jwt_token_validation_key =
-                    Base64.decode(exist_value.match.rules.jwt_token_validation_key)
-            end
-            -- S3 keys are now stored as plaintext (schema v2) — no decoding needed
-
-            ngx.say({ cjson.encode({
-                data = exist_value
-            }) })
+    local exist_value = Repo.get("rules", envProfile, uuid)
+    if type(exist_value) ~= "table" then
+        Errors.throwError("Rule not found", ngx.HTTP_NOT_FOUND)
+        return
+    end
+    if exist_value.match and exist_value.match.rules
+        and exist_value.match.rules.jwt_token_validation_value ~= nil
+        and exist_value.match.rules.jwt_token_validation_key ~= nil then
+        local jwt_k = exist_value.match.rules.jwt_token_validation_key
+        -- Preserve secret:// refs verbatim — Base64.decoding a ref
+        -- would corrupt it before it reaches the admin UI.
+        if type(jwt_k) == "string" and jwt_k:sub(1, 9) ~= "secret://" then
+            exist_value.match.rules.jwt_token_validation_key = Base64.decode(jwt_k)
         end
     end
-    -- end
+    ngx.say(cjson.encode({
+        data = exist_value
+    }))
 end
 
 local function createDeleteRules(body, uuid)
@@ -2013,27 +1898,12 @@ local function createDeleteRules(body, uuid)
         envProfile = payloads.envProfile
     end
     if uuid ~= "" and uuid ~= nil then
-        if settings then
-            if settings.storage_type == "disk" then
-                os.remove(configPath .. "data/rules/" .. envProfile .. "/" .. uuid .. ".json")
-            else
-                deleteRuleFromServer(uuid, envProfile)
-                red:hdel("request_rules_" .. envProfile, uuid)
-            end
-        end
+        deleteRuleFromServer(uuid, envProfile)
+        Repo.delete("rules", envProfile, uuid)
     elseif payloads and payloads.ids.ids and #payloads.ids.ids > 0 then
         for value = 1, #payloads.ids.ids do
-            if settings then
-                if useRemoteStorage then
-                    deleteRuleFromServer(payloads.ids.ids[value], envProfile)
-                    red:hdel("request_rules_" .. envProfile, payloads.ids.ids[value])
-                else
-                    os.remove(configPath .. "data/rules/" .. envProfile .. "/" .. payloads.ids.ids[value] .. ".json")
-                    local command = "rm -f " ..
-                        configPath .. "data/rules/" .. envProfile .. "/" .. payloads.ids.ids[value] .. ".json"
-                    os.execute(command)
-                end
-            end
+            deleteRuleFromServer(payloads.ids.ids[value], envProfile)
+            Repo.delete("rules", envProfile, payloads.ids.ids[value])
         end
     end
 
@@ -2054,25 +1924,10 @@ local function createDeleteSecrets(body, uuid)
         envProfile = payloads.envProfile
     end
     if uuid ~= "" and uuid ~= nil then
-        if settings then
-            if settings.storage_type == "disk" then
-                os.remove(configPath .. "data/secrets/" .. envProfile .. "/" .. uuid .. ".json")
-            else
-                red:hdel("secrets_" .. envProfile, uuid)
-            end
-        end
+        Repo.delete("secrets", envProfile, uuid)
     elseif payloads and payloads.ids.ids and #payloads.ids.ids > 0 then
         for value = 1, #payloads.ids.ids do
-            if settings then
-                if useRemoteStorage then
-                    red:hdel("secrets_" .. envProfile, payloads.ids.ids[value])
-                else
-                    os.remove(configPath .. "data/secrets/" .. envProfile .. "/" .. payloads.ids.ids[value] .. ".json")
-                    local command = "rm -f " ..
-                        configPath .. "data/secrets/" .. envProfile .. "/" .. payloads.ids.ids[value] .. ".json"
-                    os.execute(command)
-                end
-            end
+            Repo.delete("secrets", envProfile, payloads.ids.ids[value])
         end
     end
 
@@ -2092,25 +1947,10 @@ local function createDeleteInstances(body, uuid)
         envProfile = payloads.envProfile
     end
     if uuid ~= "" and uuid ~= nil then
-        if settings then
-            if settings.storage_type == "disk" then
-                os.remove(configPath .. "data/instances/" .. envProfile .. "/" .. uuid .. ".json")
-            else
-                red:hdel("instances_" .. envProfile, uuid)
-            end
-        end
+        Repo.delete("instances", envProfile, uuid)
     elseif payloads and payloads.ids.ids and #payloads.ids.ids > 0 then
         for value = 1, #payloads.ids.ids do
-            if settings then
-                if useRemoteStorage then
-                    red:hdel("instances_" .. envProfile, payloads.ids.ids[value])
-                else
-                    os.remove(configPath .. "data/instances/" .. envProfile .. "/" .. payloads.ids.ids[value] .. ".json")
-                    local command = "rm -f " ..
-                        configPath .. "data/instances/" .. envProfile .. "/" .. payloads.ids.ids[value] .. ".json"
-                    os.execute(command)
-                end
-            end
+            Repo.delete("instances", envProfile, payloads.ids.ids[value])
         end
     end
 
@@ -2134,13 +1974,45 @@ CreateUpdateRecord = function(json_val, uuid, key_name, folder_name, method)
     end
 
     if folder_name == "secrets" and json_val.secrets ~= nil then
+        -- Encrypt each secret value at rest with AES-256-GCM before persist
+        -- (see api/secrets_crypto.lua).  Prior behaviour was Base64 (obfuscation
+        -- only — anyone who cloned the git backup could read every value).
+        -- Backward compat: if the crypto key isn't configured OR the value
+        -- is already an encrypted blob (e.g. re-save without editing), we
+        -- do not re-encode.  A missing key on a fresh value → 500 with a
+        -- clear message; we prefer loud failure over silently writing
+        -- plaintext-Base64 that would leak to the git backup.
+        local Crypto = require("secrets_crypto")
         for sIdx, secret in ipairs(json_val.secrets) do
-            json_val.secrets[sIdx].value = Base64.encode(json_val.secrets[sIdx].value)
+            local v = secret.value
+            if type(v) == "table" and v.encrypted then
+                -- already encrypted (unchanged edit) — leave it alone
+            elseif type(v) == "string" then
+                if v == "" then
+                    -- empty value — nothing to encrypt, keep as empty string
+                    json_val.secrets[sIdx].value = ""
+                else
+                    local blob, cerr = Crypto.encrypt(v)
+                    if not blob then
+                        ngx.log(ngx.ERR, "secrets encrypt failed: ", tostring(cerr))
+                        ngx.status = ngx.HTTP_INTERNAL_SERVER_ERROR
+                        return {
+                            message = "Cannot save secret: " .. tostring(cerr),
+                        }
+                    end
+                    json_val.secrets[sIdx].value = blob
+                end
+            end
         end
     end
     if folder_name == "rules" and json_val.match.rules.jwt_token_validation_value ~= nil and
         json_val.match.rules.jwt_token_validation_key ~= nil then
-        json_val.match.rules.jwt_token_validation_key = Base64.encode(json_val.match.rules.jwt_token_validation_key)
+        local jwt_k = json_val.match.rules.jwt_token_validation_key
+        -- Never Base64-encode a secret:// ref — the resolver expects it
+        -- to reach disk verbatim.
+        if type(jwt_k) == "string" and jwt_k:sub(1, 9) ~= "secret://" then
+            json_val.match.rules.jwt_token_validation_key = Base64.encode(jwt_k)
+        end
         -- S3 keys: store as plaintext (schema v2), only fix URL encoding
         if json_val.match.rules.amazon_s3_access_key then
             json_val.match.rules.amazon_s3_access_key = string.gsub(json_val.match.rules.amazon_s3_access_key, "%%2B",
@@ -2165,14 +2037,15 @@ CreateUpdateRecord = function(json_val, uuid, key_name, folder_name, method)
 
     local redis_json, domainJson = {}, {}
     if key_name == 'servers' and json_val.server_name then
-        local getDomain = ""
-        if useRemoteStorage then
-            getDomain = red:hget(key_name .. "_" .. envProfile, json_val.id)
-        else
-            getDomain = Helper.getDataFromFile(configPath ..
-                "data/servers/" .. envProfile .. "/" .. json_val.id .. ".json")
+        -- Defensive: some clients (Next.js `useParams()` in particular)
+        -- echo the id back URL-encoded (e.g. "host%3Alocalhost").  Every
+        -- comparison + lookup below expects the semantic form
+        -- ("host:localhost"), so decode once here.
+        if type(json_val.id) == "string" then
+            json_val.id = ngx.unescape_uri(json_val.id)
         end
-        if getDomain and getDomain ~= nil and type(getDomain) == "string" and method == "create" then
+        local getDomain = Repo.get("servers", envProfile, json_val.id)
+        if type(getDomain) == "table" and method == "create" then
             ngx.status = ngx.HTTP_CONFLICT
             formatResponse = {
                 message = string.format(
@@ -2182,14 +2055,8 @@ CreateUpdateRecord = function(json_val, uuid, key_name, folder_name, method)
             return formatResponse
         end
         if method == "update" and json_val.id ~= "host:" .. json_val.server_name then
-            local previousDomain = ""
-            if useRemoteStorage then
-                previousDomain = red:hget(key_name .. "_" .. envProfile, "host:" .. json_val.server_name)
-            else
-                previousDomain = Helper.getDataFromFile(configPath ..
-                    "data/servers/" .. envProfile .. "/host:" .. json_val.server_name .. ".json")
-            end
-            if previousDomain and previousDomain ~= nil and type(previousDomain) == "string" then
+            local previousDomain = Repo.get("servers", envProfile, "host:" .. json_val.server_name)
+            if type(previousDomain) == "table" then
                 ngx.status = ngx.HTTP_CONFLICT
                 formatResponse = {
                     message = string.format(
@@ -2211,69 +2078,81 @@ CreateUpdateRecord = function(json_val, uuid, key_name, folder_name, method)
     end
 
     local filePathDir = configPath .. "data/" .. folder_name .. "/" .. envProfile
-    local nginxTenantConfDir = settings.nginx.tenant_conf_path or "/opt/nginx/conf.d"
-    local rebootFilePath = settings.nginx.reboot_file_path or "/tmp/nginx/nginx-reboot-required"
-    local trimmed_path = string.match(rebootFilePath, "(.+)/[^/]+$")
-    if not Helper.isDirectoryExists(trimmed_path) then
-        local isDirCreated, errDir = Helper.createDirectoryRecursive(trimmed_path)
-        if not isDirCreated and errDir then
-            Errors.throwError(errDir .. " while creating " .. trimmed_path, ngx.HTTP_INTERNAL_SERVER_ERROR)
+
+    -- Baseline capture: if this is an update to a resource that has no
+    -- version history yet, snapshot the CURRENT on-disk state so v1 is
+    -- the pre-edit baseline and the new save becomes v2.  Must happen
+    -- BEFORE Repo.save overwrites the file.
+    local pre_save_baseline
+    if (folder_name == "servers" or folder_name == "rules") and method == "update" then
+        local snap_name = (folder_name == "servers") and json_val.id or uuid
+        if snap_name and snap_name ~= "" then
+            local existing_meta = VersionManager.get_meta(folder_name, envProfile, snap_name)
+            if not existing_meta or (existing_meta.latest_version or 0) == 0 then
+                local live_file = configPath .. "data/" .. folder_name .. "/"
+                    .. envProfile .. "/" .. snap_name .. ".json"
+                local f = io.open(live_file, "rb")
+                if f then
+                    local content = f:read("*a")
+                    f:close()
+                    if content and content ~= "" then
+                        local ok, decoded = pcall(cjson.decode, content)
+                        if ok then pre_save_baseline = decoded end
+                    end
+                end
+            end
         end
     end
-    -- HS 28/08/2024 This part of the code need to be refactor or optimise
-    if useRemoteStorage then
-        redis_json[uuid] = cjson.encode(json_val)
-        red:hmset(key_name .. "_" .. envProfile, redis_json)
+
+    local persist_ok, persist_err = Repo.save(folder_name, envProfile, uuid, json_val, {
+        skip_strip = true,
+        encode_sensitive = false,
+    })
+    if not persist_ok then
+        ngx.log(ngx.ERR, "CreateUpdateRecord persist failed: ", tostring(persist_err))
+        ngx.status = ngx.HTTP_INTERNAL_SERVER_ERROR
+        return { message = "persist failed: " .. tostring(persist_err) }
     end
-    Helper.setDataToFile(filePathDir .. "/" .. uuid .. ".json", json_val, filePathDir)
     if key_name == "servers" then
         local configString = Base64.decode(json_val.config)
         Helper.setDataToFile(filePathDir .. "/conf/" .. json_val.server_name .. ".conf", Helper.cleanString(configString),
             filePathDir .. "/conf", "conf")
-        json_val.nginx_status_check = "error"
-        if json_val.config_status then
-            if Helper.isFileExists(nginxTenantConfDir .. "/" .. json_val.server_name .. ".conf") == false then
-                Conf.saveConfFiles(nginxTenantConfDir, Helper.cleanString(configString), json_val.server_name .. ".conf")
-                local nginxStatus, commandStatus = Helper.testNginxConfig()
-                local isSuccess = Helper.isStringContains("nginx.conf syntax is ok", nginxStatus)
-                json_val.nginx_status = nginxStatus
-                if isSuccess then
-                    json_val.nginx_status_check = "success"
-                    Conf.CreateNginxFlag(rebootFilePath)
-                else
-                    json_val.config_status = false
-                    Helper.setDataToFile(filePathDir .. "/" .. uuid .. ".json", json_val, filePathDir)
-                    os.remove(nginxTenantConfDir .. "/" .. json_val.server_name .. ".conf")
-                    Conf.CreateNginxFlag(rebootFilePath)
-                end
-            else
-                local sourceFilePath = filePathDir .. "/conf/" .. json_val.server_name .. ".conf"
-                local destinationFilePath = nginxTenantConfDir .. "/" .. json_val.server_name .. ".conf"
-                local isFilesSame = Conf.compareFiles(sourceFilePath, destinationFilePath)
-                if isFilesSame == false then
-                    Conf.saveConfFiles(nginxTenantConfDir, Helper.cleanString(configString),
-                        json_val.server_name .. ".conf")
-                    local nginxStatus, commandStatus = Helper.testNginxConfig()
-                    local isSuccess = Helper.isStringContains("nginx.conf syntax is ok", nginxStatus)
-                    json_val.nginx_status = nginxStatus
-                    if isSuccess then
-                        json_val.nginx_status_check = "success"
-                        Conf.CreateNginxFlag(rebootFilePath)
-                    else
-                        json_val.config_status = false
-                        Helper.setDataToFile(filePathDir .. "/" .. uuid .. ".json", json_val, filePathDir)
-                        os.remove(nginxTenantConfDir .. "/" .. json_val.server_name .. ".conf")
-                        Conf.CreateNginxFlag(rebootFilePath)
-                    end
-                end
+        -- OpenResty routes per-request from data/servers/*.json (gateway_ack.lua).
+        -- config_status is stored metadata for the admin UI only — no conf.d copy,
+        -- nginx -t, or reload; those do not affect the Lua routing pipeline.
+    end
+
+    -- Auto-snapshot every save so /versions is populated automatically.
+    -- Fail-open: a snapshot error must never fail the save (log + continue).
+    -- Resource_name: servers use id ("host:foo"), rules use uuid.
+    if folder_name == "servers" or folder_name == "rules" then
+        local snap_name = (folder_name == "servers") and json_val.id or uuid
+        if snap_name and snap_name ~= "" then
+            -- Seed baseline v1 first if this is the first tracked edit of
+            -- an existing resource — so rollback returns to the pre-edit state.
+            if pre_save_baseline then
+                pcall(function()
+                    VersionManager.snapshot_live(
+                        folder_name, envProfile, snap_name,
+                        pre_save_baseline, "system",
+                        "Initial baseline")
+                end)
             end
-        else
-            if Helper.isFileExists(nginxTenantConfDir .. "/" .. json_val.server_name .. ".conf") then
-                os.remove(nginxTenantConfDir .. "/" .. json_val.server_name .. ".conf")
-                Conf.CreateNginxFlag(rebootFilePath)
+            local user = ngx.req.get_headers()["x-user"]
+                or (json_val.updated_by or json_val.created_by)
+                or "system"
+            local desc = (method == "create") and "Created via admin"
+                or "Edited via admin"
+            local snap_ok, snap_ret = pcall(function()
+                return VersionManager.snapshot_live(
+                    folder_name, envProfile, snap_name, json_val, user, desc)
+            end)
+            if not snap_ok then
+                ngx.log(ngx.ERR, "version_manager.snapshot_live crashed: ", tostring(snap_ret))
             end
         end
     end
+
     ngx.status = ngx.HTTP_OK
     return json_val
 end
@@ -2388,15 +2267,13 @@ end
 
 local function listWafRule(args, uuid)
     local envProfile = args.envprofile ~= nil and args.envprofile or "prod"
-    local jsonData, dataErr = Helper.getDataFromFile(configPath ..
-        "data/waf_rules/" .. envProfile .. "/" .. uuid .. ".json")
-    if dataErr == nil then
-        local resultData = cjson.decode(jsonData)
+    local resultData = Repo.get("waf_rules", envProfile, uuid)
+    if type(resultData) == "table" then
         ngx.say(cjson.encode({
             data = resultData
         }))
     else
-        Errors.throwError("WAF rule not found: " .. tostring(dataErr), ngx.HTTP_NOT_FOUND)
+        Errors.throwError("WAF rule not found", ngx.HTTP_NOT_FOUND)
     end
 end
 
@@ -2442,10 +2319,10 @@ local function createDeleteWafRules(body, uuid)
         envProfile = payloads.envProfile
     end
     if uuid ~= "" and uuid ~= nil then
-        os.remove(configPath .. "data/waf_rules/" .. envProfile .. "/" .. uuid .. ".json")
+        Repo.delete("waf_rules", envProfile, uuid)
     elseif payloads and payloads.ids and payloads.ids.ids and #payloads.ids.ids > 0 then
         for value = 1, #payloads.ids.ids do
-            os.remove(configPath .. "data/waf_rules/" .. envProfile .. "/" .. payloads.ids.ids[value] .. ".json")
+            Repo.delete("waf_rules", envProfile, payloads.ids.ids[value])
         end
     end
     ngx.say(cjson.encode({
@@ -2498,15 +2375,13 @@ end
 
 local function listWafPolicy(args, uuid)
     local envProfile = args.envprofile ~= nil and args.envprofile or "prod"
-    local jsonData, dataErr = Helper.getDataFromFile(configPath ..
-        "data/waf_policies/" .. envProfile .. "/" .. uuid .. ".json")
-    if dataErr == nil then
-        local resultData = cjson.decode(jsonData)
+    local resultData = Repo.get("waf_policies", envProfile, uuid)
+    if type(resultData) == "table" then
         ngx.say(cjson.encode({
             data = resultData
         }))
     else
-        Errors.throwError("WAF policy not found: " .. tostring(dataErr), ngx.HTTP_NOT_FOUND)
+        Errors.throwError("WAF policy not found", ngx.HTTP_NOT_FOUND)
     end
 end
 
@@ -2552,10 +2427,10 @@ local function createDeleteWafPolicies(body, uuid)
         envProfile = payloads.envProfile
     end
     if uuid ~= "" and uuid ~= nil then
-        os.remove(configPath .. "data/waf_policies/" .. envProfile .. "/" .. uuid .. ".json")
+        Repo.delete("waf_policies", envProfile, uuid)
     elseif payloads and payloads.ids and payloads.ids.ids and #payloads.ids.ids > 0 then
         for value = 1, #payloads.ids.ids do
-            os.remove(configPath .. "data/waf_policies/" .. envProfile .. "/" .. payloads.ids.ids[value] .. ".json")
+            Repo.delete("waf_policies", envProfile, payloads.ids.ids[value])
         end
     end
     ngx.say(cjson.encode({
@@ -2668,7 +2543,11 @@ local function seedWafRules(args)
         envProfile = payloads.profile_id
     end
 
-    local seed_data = WafDefaults.get_seed_data(envProfile)
+    -- get_seed_data returns a flat array of rules; the policy comes from
+    -- get_default_policy. Reading seed_data.rules/.policy off the array gave nil
+    -- and ipairs(nil) raised, so every seed answered 500 with the HTML error page.
+    local seedRules = WafDefaults.get_seed_data(envProfile)
+    local seedPolicy = WafDefaults.get_default_policy(envProfile)
     local rulesDir = configPath .. "data/waf_rules/" .. envProfile
     local policiesDir = configPath .. "data/waf_policies/" .. envProfile
 
@@ -2682,7 +2561,7 @@ local function seedWafRules(args)
 
     -- Write seed rules
     local rulesWritten = 0
-    for _, rule in ipairs(seed_data.rules) do
+    for _, rule in ipairs(seedRules) do
         local filePath = rulesDir .. "/" .. rule.id .. ".json"
         -- Only write if file doesn't exist (don't overwrite customizations)
         if not Helper.isFileExists(filePath) then
@@ -2693,9 +2572,9 @@ local function seedWafRules(args)
 
     -- Write default policy
     local policiesWritten = 0
-    local policyPath = policiesDir .. "/" .. seed_data.policy.id .. ".json"
+    local policyPath = policiesDir .. "/" .. seedPolicy.id .. ".json"
     if not Helper.isFileExists(policyPath) then
-        Helper.setDataToFile(policyPath, seed_data.policy, policiesDir)
+        Helper.setDataToFile(policyPath, seedPolicy, policiesDir)
         policiesWritten = 1
     end
 
@@ -2704,7 +2583,7 @@ local function seedWafRules(args)
             message = "WAF seed data deployed",
             profile_id = envProfile,
             rules_written = rulesWritten,
-            rules_skipped = #seed_data.rules - rulesWritten,
+            rules_skipped = #seedRules - rulesWritten,
             policies_written = policiesWritten
         }
     }))
@@ -2773,29 +2652,13 @@ end
 
 local function listUpstream(args, id)
     local envProfile = args.envprofile ~= nil and args.envprofile or "prod"
-    if settings then
-        if settings.storage_type == "disk" then
-            local jsonData, dataErr = Helper.getDataFromFile(configPath ..
-                "data/upstreams/" .. envProfile .. "/" .. id .. ".json")
-            if dataErr ~= nil then
-                ngx.say(cjson.encode({
-                    data = {}
-                }))
-            else
-                jsonData = cjson.decode(jsonData)
-                ngx.say(cjson.encode({
-                    data = jsonData
-                }))
-            end
-        else
-            local upstream = red:hget("upstreams_" .. envProfile, id)
-            if type(upstream) == "string" then
-                upstream = cjson.decode(upstream)
-                ngx.say(cjson.encode({
-                    data = upstream
-                }))
-            end
-        end
+    local upstream = Repo.get("upstreams", envProfile, id)
+    if type(upstream) == "table" then
+        ngx.say(cjson.encode({
+            data = upstream
+        }))
+    else
+        ngx.say(cjson.encode({ data = {} }))
     end
 end
 
@@ -2946,47 +2809,15 @@ local function writeUpstreamConfigFile(envProfile)
     ngx.log(ngx.INFO, "writeUpstreamConfigFile - Regenerating config for profile: ", envProfile)
     ngx.log(ngx.INFO, "writeUpstreamConfigFile - Upstreams directory: ", upstreamsDir)
 
-    if settings.storage_type == "disk" then
-        -- Read all upstream files from disk
-        local files, filesErr = Helper.getFilesInDirectory(upstreamsDir)
-        if filesErr then
-            ngx.log(ngx.WARN, "Error reading upstreams directory: ", filesErr)
-            -- Continue with empty list - directory might be newly created
-            files = {}
-        end
-        ngx.log(ngx.INFO, "writeUpstreamConfigFile - Found ", files and #files or 0, " files in directory")
-
-        if files then
-            for _, file in ipairs(files) do
-                ngx.log(ngx.DEBUG, "writeUpstreamConfigFile - Processing file: ", file)
-                if file:match("%.json$") and not file:match("upstreams%.conf") then
-                    local jsonData, readErr = Helper.getDataFromFile(upstreamsDir .. "/" .. file)
-                    if jsonData then
-                        local decodeOk, upstream = pcall(cjson.decode, jsonData)
-                        if decodeOk and upstream and upstream.enabled ~= false then
-                            table.insert(allUpstreams, upstream)
-                            ngx.log(ngx.INFO, "writeUpstreamConfigFile - Added upstream: ", upstream.name or "unknown")
-                        elseif not decodeOk then
-                            ngx.log(ngx.WARN, "Failed to decode upstream JSON file: ", file, " - ", upstream)
-                        end
-                    elseif readErr then
-                        ngx.log(ngx.WARN, "Failed to read upstream file: ", file, " - ", readErr)
-                    end
-                end
-            end
-        end
-    else
-        -- Read from Redis
-        local allRecords, redisErr = red:hgetall("upstreams_" .. envProfile)
-        if redisErr then
-            ngx.log(ngx.WARN, "Redis error reading upstreams: ", redisErr)
-        end
-        if allRecords and type(allRecords) == "table" then
-            for i = 1, #allRecords, 2 do
-                local decodeOk, upstream = pcall(cjson.decode, allRecords[i + 1])
-                if decodeOk and upstream and upstream.enabled ~= false then
-                    table.insert(allUpstreams, upstream)
-                end
+    local scanned, scanErr = Repo.scan("upstreams", envProfile)
+    if scanErr then
+        ngx.log(ngx.WARN, "storage error reading upstreams: ", tostring(scanErr))
+    end
+    if scanned then
+        for _, upstream in ipairs(scanned) do
+            if upstream and upstream.enabled ~= false then
+                table.insert(allUpstreams, upstream)
+                ngx.log(ngx.INFO, "writeUpstreamConfigFile - Added upstream: ", upstream.name or "unknown")
             end
         end
     end
@@ -3156,32 +2987,13 @@ local function deleteUpstreamInternal(args, uuid, envProfile)
     local decodedUuid = ngx.unescape_uri(uuid)
     ngx.log(ngx.INFO, "Deleting upstream: ", decodedUuid, " from profile: ", envProfile)
 
-    if settings.storage_type == "disk" then
-        local filePath = configPath .. "data/upstreams/" .. envProfile .. "/" .. decodedUuid .. ".json"
-        ngx.log(ngx.INFO, "Attempting to delete file: ", filePath)
-
-        -- Check if file exists first
-        if not Helper.isFileExists(filePath) then
-            ngx.log(ngx.WARN, "Upstream file not found: ", filePath)
-            return { deleted = false, id = decodedUuid, error = "Upstream not found" }
-        end
-
-        local ok, err = os.remove(filePath)
-        if ok then
-            restUpstreams = { deleted = true, id = decodedUuid }
-            ngx.log(ngx.INFO, "Successfully deleted upstream file: ", filePath)
-        else
-            ngx.log(ngx.ERR, "Failed to delete upstream file: ", filePath, " - ", err)
-            restUpstreams = { deleted = false, id = decodedUuid, error = err or "Unknown error" }
-        end
+    local del, err = Repo.delete("upstreams", envProfile, decodedUuid)
+    if del then
+        restUpstreams = { deleted = true, id = decodedUuid }
+        ngx.log(ngx.INFO, "Successfully deleted upstream: ", decodedUuid)
     else
-        local del, err = red:hdel("upstreams_" .. envProfile, decodedUuid)
-        if del and del > 0 then
-            restUpstreams = { deleted = true, id = decodedUuid }
-        else
-            ngx.log(ngx.WARN, "Failed to delete upstream from Redis: ", err or "not found")
-            restUpstreams = { deleted = false, id = decodedUuid, error = err or "Upstream not found" }
-        end
+        ngx.log(ngx.WARN, "Failed to delete upstream: ", err or "not found")
+        restUpstreams = { deleted = false, id = decodedUuid, error = err or "Upstream not found" }
     end
 
     return restUpstreams
@@ -3248,7 +3060,7 @@ local function listSessions(args)
     params = params.params
     local allsessions, sessions = {}, {}
     local records = {}
-    if useRemoteStorage then
+    if settings.storage_type == "redis" and red then
         local exist_values, err = red:scan(0, "match", "session:*") -- red:keys("session:*")
         if exist_values[2] ~= nil then
             for key, value in pairs(exist_values[2]) do
@@ -3299,10 +3111,10 @@ end
 -- Settings section
 
 local function listSettings(args, uuid)
-    local settingsLogo = red:hget("company_logo", uuid)
-    if settingsLogo and settingsLogo ~= "null" and type(settingsLogo) == "string" then
+    local settingsLogo = Repo.get("company_logo", nil, uuid)
+    if type(settingsLogo) == "table" then
         ngx.say(cjson.encode({
-            data = cjson.decode(settingsLogo)
+            data = settingsLogo
         }))
     end
 end
@@ -3316,9 +3128,8 @@ local function createUpdateSettings(body, uuid)
         body.id = Helper.generate_uuid()
         settingUUID = body.id
     end
-    settingsJson[settingUUID] = cjson.encode(body)
-    local savingToRedis = red:hmset("company_logo", settingsJson)
-    if savingToRedis and savingToRedis ~= nil and type(savingToRedis) == "string" then
+    local saved = Repo.save("company_logo", nil, settingUUID, body, { skip_strip = true })
+    if saved then
         return ngx.say(cjson.encode({
             data = body
         }))
@@ -3337,14 +3148,23 @@ local function importProjects(args)
         if not Helper.isDirectoryExists(pathDir) then
             Helper.createDirectoryRecursive(pathDir)
         end
-        if useRemoteStorage then
-            formattedJson[value.id] = cjson.encode(value)
-            red:hmset(redisKey .. "_" .. value.profile_id, formattedJson)
-            response = Helper.setDataToFile(
-                pathDir .. "/" .. value.id .. ".json", value, pathDir)
-        else
-            response = Helper.setDataToFile(
-                pathDir .. "/" .. value.id .. ".json", value, pathDir)
+        local import_resource = args.dataType == "rules" and "rules" or args.dataType
+        response = Repo.save(import_resource, value.profile_id, value.id, value, {
+            skip_strip = true,
+            encode_sensitive = false,
+        })
+
+        -- Bulk-import SSL wire-up.  Before this call, importing a
+        -- server record with ssl_enabled=true silently landed on
+        -- disk without a matching data/ssl/<domain>.json file — so
+        -- ssl_init's allow_domain check denied the domain and the
+        -- self-signed fallback cert was served for weeks.  Now the
+        -- import fires the same side-effects the interactive
+        -- POST/PUT /api/servers path does (see syncServerSslConfig).
+        -- Only relevant for the 'servers' import type; rules /
+        -- upstreams / etc don't carry SSL config.
+        if args.dataType == "servers" and value.server_name then
+            syncServerSslConfig(value.server_name, value)
         end
     end
     ngx.say(cjson.encode({
@@ -3881,12 +3701,215 @@ local function isMutationAllowed()
     return platform and ALLOWED_MUTATION_PLATFORMS[platform] == true
 end
 
+-- ============================================================================
+-- WAF Test Lab — server-side request relay (POST /api/waf/test)
+-- ============================================================================
+-- The admin dashboard is a different origin from the tenant hosts, so a browser
+-- there cannot read their WAF blocks (a 403 block page carries no CORS headers).
+-- This endpoint fires ONE request at an allow-listed target from OpenResty and
+-- returns the status + x-waf-* headers, letting the dashboard measure WAF
+-- efficacy against any managed host or rule (POST included). Because it is a
+-- server-side relay it is strictly guarded:
+--   * only http/https, only hosts on the allow-list (settings.waf.test_targets),
+--   * never a private/loopback/link-local/CGNAT/metadata address,
+--   * bounded timeout and a truncated response body.
+-- The allow-list is the hard SSRF boundary; the IP-range check is defence in depth.
+local WAF_TEST_DEFAULT_TARGETS = {
+    "https://payments-secure.fictionally.org",
+    "https://payments-open.fictionally.org",
+    "https://payments.fictionally.org",
+}
+
+local function waf_test_target_list()
+    local w = (settings and settings.waf) or {}
+    local list = w.test_targets or (settings and settings.waf_test_targets) or WAF_TEST_DEFAULT_TARGETS
+    if type(list) ~= "table" or #list == 0 then list = WAF_TEST_DEFAULT_TARGETS end
+    return list
+end
+
+local function waf_parse_target(url)
+    if type(url) ~= "string" then return nil end
+    local scheme, host, port = url:match("^(https?)://([^:/%?#]+):?(%d*)")
+    if not scheme or not host or host == "" then return nil end
+    port = (port ~= "" and tonumber(port)) or (scheme == "https" and 443 or 80)
+    return { scheme = scheme, host = host:lower(), port = port }
+end
+
+-- Match a requested target against the allow-list by host; the scheme/port come
+-- from the allow-list entry so they can't be swapped to reach something else.
+local function waf_match_target(url)
+    local want = waf_parse_target(url)
+    if not want then return nil end
+    for _, entry in ipairs(waf_test_target_list()) do
+        local raw = (type(entry) == "table" and (entry.url or entry.target)) or entry
+        local e = waf_parse_target(raw)
+        if e and e.host == want.host then return e end
+    end
+    return nil
+end
+
+-- Block obvious SSRF targets: metadata/localhost names and private / loopback /
+-- link-local / CGNAT / multicast IP literals (v4 and v6).
+local function waf_host_blocked(host)
+    host = tostring(host or ""):lower()
+    local names = { localhost = true, ["ip6-localhost"] = true, metadata = true,
+                    ["metadata.google.internal"] = true, ["instance-data"] = true }
+    if names[host] then return true end
+    local o1, o2 = host:match("^(%d+)%.(%d+)%.%d+%.%d+$")
+    if o1 then
+        o1, o2 = tonumber(o1), tonumber(o2)
+        if o1 == 0 or o1 == 10 or o1 == 127 then return true end
+        if o1 == 169 and o2 == 254 then return true end            -- link-local + cloud metadata
+        if o1 == 172 and o2 >= 16 and o2 <= 31 then return true end
+        if o1 == 192 and o2 == 168 then return true end
+        if o1 == 100 and o2 >= 64 and o2 <= 127 then return true end -- CGNAT
+        if o1 >= 224 then return true end                            -- multicast / reserved
+    end
+    if host == "::1" or host == "::" or host:match("^fe80:") or host:match("^fc") or host:match("^fd") then
+        return true
+    end
+    return false
+end
+
+-- Keep the URL valid while letting the WAF's decoded args still see the payload:
+-- percent-encode only whitespace and the few bytes that break a request target.
+local function waf_encode_path(p)
+    p = tostring(p or "/")
+    if p == "" then p = "/" end
+    if p:sub(1, 1) ~= "/" then p = "/" .. p end
+    return (p:gsub("[%s\"<>\\%^`{|}]", function(c) return string.format("%%%02X", string.byte(c)) end))
+end
+
+local function waf_header_ci(headers, name)
+    if type(headers) ~= "table" then return nil end
+    name = name:lower()
+    for k, v in pairs(headers) do
+        if type(k) == "string" and k:lower() == name then
+            if type(v) == "table" then return v[1] end
+            return v
+        end
+    end
+    return nil
+end
+
+local function waf_test_json(code, tbl)
+    ngx.status = code
+    ngx.header["Content-Type"] = "application/json"
+    ngx.say(cjson.encode(tbl))
+    ngx.exit(ngx.HTTP_OK)
+end
+
+local function handle_waf_test()
+    ngx.req.read_body()
+    local raw = ngx.req.get_body_data()
+    local ok, req = pcall(cjson.decode, raw or "{}")
+    if not ok or type(req) ~= "table" then
+        waf_test_json(400, { ok = false, error = "Invalid JSON body" })
+    end
+
+    -- Guard rejections are expected outcomes the UI renders inline, so they come
+    -- back as 200 {ok=false, error=...} rather than 4xx (which the client's
+    -- apiFetch would throw on). Only a genuinely malformed body is a 400.
+    local method = tostring(req.method or "GET"):upper()
+    local ALLOWED = { GET = true, POST = true, PUT = true, DELETE = true,
+                      HEAD = true, OPTIONS = true, PATCH = true }
+    if not ALLOWED[method] then
+        waf_test_json(200, { ok = false, error = "method not allowed: " .. method })
+    end
+
+    local entry = waf_match_target(req.target)
+    if not entry then
+        waf_test_json(200, { ok = false,
+            error = "target host is not on the WAF test allow-list",
+            allow_list = waf_test_target_list() })
+    end
+    if waf_host_blocked(entry.host) then
+        waf_test_json(200, { ok = false, error = "target resolves to a blocked address range" })
+    end
+
+    local portpart = ((entry.port ~= 80 and entry.port ~= 443) and (":" .. entry.port)) or ""
+    local url = entry.scheme .. "://" .. entry.host .. portpart .. waf_encode_path(req.path or "/")
+
+    -- Pass caller headers through, minus hop-by-hop / framing headers the client
+    -- must not control (Host/Content-Length/Connection are set by resty.http).
+    local out_headers = {}
+    if type(req.headers) == "table" then
+        for k, v in pairs(req.headers) do
+            local lk = tostring(k):lower()
+            if lk ~= "host" and lk ~= "content-length" and lk ~= "connection"
+                and lk ~= "transfer-encoding" and type(v) == "string" then
+                out_headers[k] = v
+            end
+        end
+    end
+    if req.content_type and not waf_header_ci(out_headers, "content-type") then
+        out_headers["Content-Type"] = tostring(req.content_type)
+    end
+    if not waf_header_ci(out_headers, "user-agent") then
+        out_headers["User-Agent"] = "wslproxy-waf-testlab/1.0"
+    end
+
+    local http_ok, http = pcall(require, "resty.http")
+    if not http_ok then
+        waf_test_json(200, { ok = false, error = "resty.http unavailable on this node" })
+    end
+    local httpc = http.new()
+    local timeout = tonumber(req.timeout_ms) or 10000
+    if timeout < 1000 then timeout = 1000 elseif timeout > 20000 then timeout = 20000 end
+    httpc:set_timeout(timeout)
+
+    local t0 = ngx.now()
+    local res, err = httpc:request_uri(url, {
+        method = method,
+        headers = out_headers,
+        body = (type(req.body) == "string" and req.body) or nil,
+        ssl_verify = false, -- test tool: we read WAF headers, not establish trust
+    })
+    local latency_ms = math.floor((ngx.now() - t0) * 1000 + 0.5)
+
+    if not res then
+        waf_test_json(200, { ok = false, error = "request failed: " .. tostring(err),
+            target = entry.host, path = req.path, method = method, latency_ms = latency_ms })
+    end
+
+    local block = tostring(waf_header_ci(res.headers, "x-waf-block") or ""):lower() == "true"
+    waf_test_json(200, {
+        ok = true,
+        status = res.status,
+        blocked = (res.status == 403 and block),
+        waf_block = block,
+        waf_rule = waf_header_ci(res.headers, "x-waf-rule"),
+        waf_violation = waf_header_ci(res.headers, "x-waf-violation"),
+        support_id = waf_header_ci(res.headers, "x-support-id"),
+        server = waf_header_ci(res.headers, "server"),
+        content_type = waf_header_ci(res.headers, "content-type"),
+        latency_ms = latency_ms,
+        target = entry.host,
+        scheme = entry.scheme,
+        path = req.path,
+        method = method,
+        body_snippet = (res.body or ""):sub(1, 2000),
+    })
+end
+
 -- AI log analysis handler shared by GET and POST dispatch.
 -- Request body (JSON): { logs: [<log_entry>], question?: string, context?: string }
 -- Response envelope:   { data: { analysis, root_causes[], recommendations[],
 --                                severity: "low"|"medium"|"high"|"critical",
 --                                related_patterns[] } }
 -- Reads Ollama endpoint from settings.ai_endpoint / settings.ai_model.
+-- Empty/missing ai_endpoint falls back to the Mac Studio NodePort used by
+-- ollama.workstation.co.uk (not localhost — Ansible edges do not run Ollama).
+local DEFAULT_OLLAMA_ENDPOINT = "http://193.237.176.232:31434"
+
+local function resolve_ollama_host(cfg)
+    local host = cfg and cfg.ai_endpoint
+    if type(host) ~= "string" or host:match("^%s*$") then
+        return DEFAULT_OLLAMA_ENDPOINT
+    end
+    return (host:gsub("%s+", ""):gsub("/+$", ""))
+end
+
 local function handle_ai_analyze()
     ngx.req.read_body()
     local body = ngx.req.get_body_data()
@@ -3917,7 +3940,7 @@ local function handle_ai_analyze()
         ..
         '{"analysis": "...", "root_causes": ["..."], "recommendations": ["..."], "severity": "low|medium|high|critical", "related_patterns": ["..."]}'
 
-    local ollama_host = (settings and settings.ai_endpoint) or "http://127.0.0.1:11434"
+    local ollama_host = resolve_ollama_host(settings)
     local ollama_model = (settings and settings.ai_model) or "llama3.2"
     local http = require("resty.http")
     local httpc = http.new()
@@ -3963,11 +3986,11 @@ local function handle_ai_analyze()
         ngx.say(cjson.encode({
             data = {
                 analysis = "Could not reach AI service at " .. ollama_host .. ". " .. (err or ""),
-                root_causes = { "Ollama service not running or not reachable" },
+                root_causes = { "Ollama service not running or not reachable from this host" },
                 recommendations = {
-                    "Start Ollama: ollama serve",
+                    "Verify Ollama at " .. ollama_host .. " (default Mac Studio NodePort 31434)",
                     "Pull a model: ollama pull " .. ollama_model,
-                    "Check firewall settings for port 11434",
+                    "Override settings.ai_endpoint if a different URL is required",
                 },
                 severity = "medium",
             }
@@ -4138,25 +4161,47 @@ local function handle_get_request(args, path)
     end
 
     -- ── Structured logs for dashboard ────────────────────────────────
+    --
+    -- BOUNDED tail-read only.  Previous implementation slurped the
+    -- ENTIRE access.log into a Lua table per request (352 MB / 1.4 M
+    -- lines on prod as of 2026-07-14), blocking every other request
+    -- through the gateway under the single-worker prod topology
+    -- (CLAUDE.md §15 #2).  Now uses Helper.readTailLines which caps
+    -- the read at MAX_LOG_TAIL_BYTES bytes regardless of file size.
+    --
+    -- Trade-off: `total` is an ESTIMATE when the file is larger than
+    -- the read window.  Frontend already treats `total` as
+    -- informational.  The estimate is derived from file_size /
+    -- avg_line_bytes so it tracks reality closely enough for the
+    -- "showing N of ~M" display.
     if path == "logs/access" then
         local args = ngx.req.get_uri_args()
-        local limit = tonumber(args.limit) or 200
+        local limit = math.min(tonumber(args.limit) or 200, 1000)
         local offset = tonumber(args.offset) or 0
         local logFile = "/usr/local/openresty/nginx/logs/access.log"
-        local f = io.open(logFile, "r")
+
+        -- Read enough bytes to comfortably serve `limit` lines even
+        -- after filters knock out most of them.  200 lines * ~800
+        -- avg bytes = 160 KB nominal; multiply by 25 for filter
+        -- headroom + safety = 4 MB cap.  Hard cap so a huge limit
+        -- can't turn this into a whole-file read.
+        local MAX_LOG_TAIL_BYTES = 5 * 1024 * 1024
+        local lines, file_size, truncated = Helper.readTailLines(logFile, MAX_LOG_TAIL_BYTES)
         -- Tag as an array so cjson always emits `[]` for an empty
         -- result — otherwise `{}` gets returned and the frontend's
-        -- `.filter()` / `.map()` blow up.  See lua-cjson docs on
-        -- `empty_array_mt`.
+        -- `.filter()` / `.map()` blow up.
         local entries = setmetatable({}, cjson.empty_array_mt)
-        local total = 0
-        if f then
-            local lines = {}
-            for line in f:lines() do
-                lines[#lines + 1] = line
-            end
-            f:close()
+        -- Estimate total: if truncated, extrapolate from what we
+        -- read; if not, #lines IS the total.  Never lie about the
+        -- shape (frontend just displays this).
+        local total
+        if truncated and #lines > 0 then
+            local avg = math.max(1, math.floor(#(lines[1] or "") + 100))
+            total = math.floor(file_size / avg)
+        else
             total = #lines
+        end
+        if #lines > 0 then
             -- Read from end (most recent first), apply offset and limit
             local startIdx = math.max(1, #lines - offset - limit + 1)
             local endIdx = math.max(1, #lines - offset)
@@ -4260,20 +4305,26 @@ local function handle_get_request(args, path)
 
     if path == "logs/errors" then
         local args = ngx.req.get_uri_args()
-        local limit = tonumber(args.limit) or 200
+        local limit = math.min(tonumber(args.limit) or 200, 1000)
         local logFile = "/usr/local/openresty/nginx/logs/error.log"
-        local f = io.open(logFile, "r")
+
+        -- Same bounded tail-read as /logs/access.  error.log is
+        -- typically much larger than access.log (1.9 GB / 6.2M lines
+        -- on prod 2026-07-14) — before this cap the handler slurped
+        -- the whole thing every request and hard-blocked the gateway.
+        local MAX_LOG_TAIL_BYTES = 5 * 1024 * 1024
+        local lines, file_size, truncated = Helper.readTailLines(logFile, MAX_LOG_TAIL_BYTES)
         -- Tag as an array so an empty result serializes as `[]` not
         -- `{}` — matches the `logs/access` handler above.
         local entries = setmetatable({}, cjson.empty_array_mt)
-        local total = 0
-        if f then
-            local lines = {}
-            for line in f:lines() do
-                lines[#lines + 1] = line
-            end
-            f:close()
+        local total
+        if truncated and #lines > 0 then
+            local avg = math.max(1, math.floor(#(lines[1] or "") + 100))
+            total = math.floor(file_size / avg)
+        else
             total = #lines
+        end
+        if #lines > 0 then
             for i = #lines, math.max(1, #lines - limit * 2 + 1), -1 do
                 local line = lines[i]
                 local timestamp, level, message =
@@ -4323,7 +4374,7 @@ local function handle_get_request(args, path)
     end
 
     if path == "ai/models" then
-        local ollama_host = (settings and settings.ai_endpoint) or "http://127.0.0.1:11434"
+        local ollama_host = resolve_ollama_host(settings)
         local http = require("resty.http")
         local httpc = http.new()
         httpc:set_timeout(5000)
@@ -4936,7 +4987,10 @@ local function handle_get_request(args, path)
     end
 
     if path == "global/settings" then
-        local settingsData = settings
+        local settingsData = {}
+        for k, v in pairs(settings) do
+            settingsData[k] = v
+        end
         settingsData.dns_resolver = nil
         settingsData.env_vars = nil
         settingsData.consul = nil
@@ -4944,6 +4998,8 @@ local function handle_get_request(args, path)
         settingsData.nginx = nil
         settingsData.redis_host = nil
         settingsData.redis_port = nil
+        -- Never return the Postgres password to the admin UI.
+        settingsData.pgsql = public_pgsql(settings.pgsql)
         ngx.say(cjson.encode({
             data = settingsData
         }))
@@ -4982,6 +5038,10 @@ local function handle_get_request(args, path)
     end
     if path == "waf_events" then
         listWafEvents(args)
+    end
+    -- WAF Test Lab: the allow-listed target hosts the dashboard may fire at.
+    if path == "waf/test/targets" then
+        waf_test_json(200, { targets = waf_test_target_list() })
     end
 
     -- Topology graph endpoint (nodes + edges for canvas visualization)
@@ -5031,8 +5091,11 @@ local function handle_get_request(args, path)
         if res_type and profile and name then
             local versions = VersionManager.list_versions(res_type, profile, name)
             local meta = VersionManager.get_meta(res_type, profile, name)
+            -- cjson encodes an empty Lua table as `{}` (object), not `[]`.
+            -- Force array semantics so the frontend can call `.sort` on it.
+            local data_out = (#versions == 0) and cjson.empty_array or versions
             ngx.say(cjson.encode({
-                data = versions,
+                data = data_out,
                 total = #versions,
                 meta = meta,
             }))
@@ -5205,6 +5268,11 @@ local function handle_post_request(args, path)
     if path == "push-data" then
         local body = Helper.GetPayloads(args)
         PushData.sendData(body, Helper, configPath, Errors)
+    end
+    -- WAF Test Lab relay (read-only action; guarded by the target allow-list, so
+    -- it sits outside the mutation gate and works from any admin UI/platform).
+    if path == "waf/test" then
+        handle_waf_test()
     end
     if isMutationAllowed() then
         if path == "servers" then
@@ -5622,7 +5690,12 @@ local function handle_post_request(args, path)
         -- ============================================================
 
         -- POST /api/versions/{type}/{profile}/{name} - Create a new draft version
-        if string.find(path, "^versions/[^/]+/[^/]+/.+$") and not string.find(path, "/rollback$") and not string.find(path, "/initialize$") then
+        -- Guard MUST exclude both /rollback/{N} (not /rollback — the URL
+        -- always has a version suffix) and /initialize$, otherwise the
+        -- greedy `.+` swallows them and creates a bogus draft.
+        if string.find(path, "^versions/[^/]+/[^/]+/.+$")
+            and not string.find(path, "/rollback/")
+            and not string.find(path, "/initialize$") then
             local res_type, profile, name = path:match("^versions/([^/]+)/([^/]+)/(.+)$")
             if res_type and profile and name then
                 local payloads = Helper.GetPayloads(args)
@@ -5661,18 +5734,22 @@ local function handle_post_request(args, path)
             end
         end
 
-        -- POST /api/versions/{type}/{profile}/{name}/rollback/{version} - Create rollback version
+        -- POST /api/versions/{type}/{profile}/{name}/rollback/{version} - Restore target version to live
         if string.find(path, "^versions/[^/]+/[^/]+/.+/rollback/%d+$") then
-            local res_type, profile, name, version = path:match("^versions/([^/]+)/([^/]+)/([^/]+)/rollback/(%d+)$")
+            local res_type, profile, name, version = path:match("^versions/([^/]+)/([^/]+)/(.+)/rollback/(%d+)$")
             if res_type and profile and name and version then
                 local user = ngx.req.get_headers()["x-user"] or "system"
-                local new_version, err = VersionManager.create_rollback_version(
+                local new_version, err = VersionManager.restore_version(
                     res_type, profile, name, tonumber(version), user
                 )
                 if new_version then
-                    ngx.say(cjson.encode({ data = new_version, message = "Rollback version created as draft" }))
+                    ngx.say(cjson.encode({
+                        data = new_version,
+                        message = "Rolled back to v" .. tostring(version)
+                            .. " (now live as v" .. tostring(new_version.version) .. ")"
+                    }))
                 else
-                    Errors.throwError(err or "Failed to create rollback version", ngx.HTTP_BAD_REQUEST)
+                    Errors.throwError(err or "Failed to restore version", ngx.HTTP_BAD_REQUEST)
                 end
                 ngx.exit(ngx.HTTP_OK)
             end

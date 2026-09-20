@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="WSLProxy WAF &amp; security — policy packs, signature governance, anomaly scoring, HTTP smuggling guards, geo/IP deny, JWT alg policy, rate limits, CAPTCHA, and explainable blocks on the OpenResty hot path." />
+  <meta name="author" content="Workstation Solutions Limited" />
+  <meta name="theme-color" content="#f4f7fb" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#070e18" media="(prefers-color-scheme: dark)" />
+  <meta name="color-scheme" content="light dark" />
+  <meta property="og:title" content="WAF &amp; security — WSLProxy" />
+  <meta property="og:description" content="Enterprise edge WAF: policies, signatures, stages, monitor or block — without taking the site down." />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="https://wslproxy.org/images/geographic-traffic-distribution-dashboard.jpg" />
+  <title>WAF &amp; security — WSLProxy</title>
+  <script src="/js/theme.js"></script>
+  <link rel="icon" href="/images/logo-color.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Lexend:wght@400;500;600;700&family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/site.css" />
+</head>
+<body>
+  <header class="nav">
+    <div class="wrap nav-inner">
+      <a class="brand" href="/">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="wslproxyLogoGradWaf" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="var(--signal)" />
+                <stop offset="100%" stop-color="var(--brass-dim)" />
+              </linearGradient>
+            </defs>
+            <path d="M24 4L6 12v12c0 11 8 21 18 24 10-3 18-13 18-24V12L24 4z" fill="url(#wslproxyLogoGradWaf)" />
+            <circle cx="24" cy="18" r="3" fill="white" />
+            <circle cx="16" cy="28" r="2.5" fill="white" opacity="0.9" />
+            <circle cx="32" cy="28" r="2.5" fill="white" opacity="0.9" />
+            <circle cx="24" cy="36" r="2" fill="white" opacity="0.8" />
+            <path d="M24 21v5M18 27l4-4M30 27l-4-4M24 33v-3" stroke="white" stroke-width="1.5" stroke-linecap="round" opacity="0.7" />
+          </svg>
+        </span>
+        <span>WSL<span class="brand-accent">Proxy</span></span>
+      </a>
+      <button class="nav-toggle" type="button" id="nav-toggle" aria-expanded="false" aria-controls="nav-menu">Menu</button>
+      <nav class="nav-links" id="nav-menu">
+        <a href="/">Home</a>
+        <a href="/#features">Features</a>
+        <a href="/waf/" aria-current="page">WAF</a>
+        <a href="/blog/">Blog</a>
+        <a href="/swagger/">API</a>
+        <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode" title="Toggle theme">
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M21 14.5A8.5 8.5 0 0 1 9.5 3 7 7 0 1 0 21 14.5z" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" stroke-linecap="round"/>
+          </svg>
+        </button>
+        <a class="nav-cta" href="https://github.com/bwalia/wslproxy">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="feature-hero">
+      <div class="wrap">
+        <p class="kicker">Edge security · OpenResty hot path</p>
+        <h1>WAF &amp; security that operators can explain</h1>
+        <p class="lede">
+          Bind policies per domain and route. Run in monitor or block. Stage signatures safely.
+          Every decision names the policy, binding, stage, signature, and a support ID —
+          fail-open by default so a WAF bug never takes the site down.
+        </p>
+        <div class="feature-hero-actions">
+          <a class="btn btn-primary" href="https://github.com/bwalia/wslproxy/blob/main/docs/WAF_ENGINE_V2.md">Engine reference</a>
+          <a class="btn btn-ghost" href="/swagger/">WAF API (Swagger)</a>
+          <a class="btn btn-ghost" href="https://github.com/bwalia/wslproxy/tree/main/examples/wslproxy-waf-demo">Demo pack</a>
+        </div>
+        <ul class="feature-facts" aria-label="WAF highlights">
+          <li><strong>37+</strong> shipped attack signatures</li>
+          <li><strong>8</strong> first-class inspection stages</li>
+          <li><strong>Block</strong> or <strong>monitor</strong> per binding</li>
+          <li>Rate limit · CAPTCHA · JWT / geo / IP</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="band-canvas feature-band" aria-labelledby="caps-heading">
+      <div class="wrap">
+        <div class="section-head">
+          <div class="kicker">Capability surface</div>
+          <h2 id="caps-heading">Everything security needs at the POP</h2>
+          <p class="section-sub">Not a regex snippet — a governed policy engine with stable signature IDs, anomaly scoring, and structured events.</p>
+        </div>
+        <div class="feature-grid">
+          <article class="feature-tile">
+            <h3>Policy packs</h3>
+            <p>Bind a WAF policy to a virtual host. Override mode per server or longest-prefix route. Logical <code>service</code> labels ride in every log line.</p>
+          </article>
+          <article class="feature-tile">
+            <h3>Monitor or block</h3>
+            <p>Transparent (alarm) and blocking enforcement modes. Route overrides let <code>/preview</code> stay in monitor while <code>/api/pay</code> blocks.</p>
+          </article>
+          <article class="feature-tile">
+            <h3>Anomaly scoring</h3>
+            <p>Each signature contributes a score. When the cumulative total crosses the policy threshold, <code>VIOL_ANOMALY_SCORE</code> fires — even if no single rule alone would block.</p>
+          </article>
+          <article class="feature-tile">
+            <h3>Signature governance</h3>
+            <p>Disable by ID, stage until a timestamp (alarm-only), or toggle whole sets (<code>SET_SQLI</code>, <code>SET_XSS</code>…). Staged rules never inflate anomaly scores.</p>
+          </article>
+          <article class="feature-tile">
+            <h3>Body inspection</h3>
+            <p>JSON depth and size profiles, XXE / SSTI / mass-assignment signatures, and optional parse hardening on the request path.</p>
+          </article>
+          <article class="feature-tile">
+            <h3>Explainable blocks</h3>
+            <p>Response headers <code>X-WAF-Block</code>, <code>X-WAF-Rule</code>, <code>X-WAF-Violation</code>, <code>X-Support-ID</code> plus a block page that embeds the correlation ID.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="band-steel feature-band" aria-labelledby="pipeline-heading">
+      <div class="wrap">
+        <div class="section-head">
+          <div class="kicker">Request path</div>
+          <h2 id="pipeline-heading">Stage pipeline, then signatures</h2>
+          <p class="section-sub">After rule match and rate limit, <code>waf_engine.inspect</code> runs first-class stages, then governed signature matching — each stage is fail-open under <code>pcall</code>.</p>
+        </div>
+        <ol class="stage-list">
+          <li>
+            <code>VIOL_METHOD</code>
+            <div>
+              <strong>Method allow-list</strong>
+              <p>Reject verbs outside the policy allow set (for example GET / POST / HEAD / OPTIONS only).</p>
+            </div>
+          </li>
+          <li>
+            <code>VIOL_FILETYPE</code>
+            <div>
+              <strong>Filetype deny</strong>
+              <p>Block paths ending in sensitive extensions — <code>.env</code>, <code>.sql</code>, <code>.bak</code>, <code>.git</code>, <code>.pem</code>, and more.</p>
+            </div>
+          </li>
+          <li>
+            <code>VIOL_SMUGGLING</code>
+            <div>
+              <strong>HTTP smuggling / desync</strong>
+              <p>CL+TE coexistence, duplicate or obfuscated <code>Transfer-Encoding</code>, malformed <code>Content-Length</code> — plus a body signature for pipelined request lines.</p>
+            </div>
+          </li>
+          <li>
+            <code>VIOL_IP_DENY</code> · <code>VIOL_GEO</code>
+            <div>
+              <strong>IP lists &amp; geo deny</strong>
+              <p>CIDR allow/deny lists and country deny via IP2Location on the hot path.</p>
+            </div>
+          </li>
+          <li>
+            <code>VIOL_JWT_ALG</code>
+            <div>
+              <strong>JWT algorithm policy</strong>
+              <p>Deny <code>none</code> / weak algs; require RS256 or ES256 for APIs that carry bearer tokens.</p>
+            </div>
+          </li>
+          <li>
+            <code>VIOL_JSON_*</code>
+            <div>
+              <strong>JSON body profile</strong>
+              <p>Max depth and max bytes before the request reaches your origin.</p>
+            </div>
+          </li>
+          <li>
+            <code>VIOL_BRUTE_FORCE</code>
+            <div>
+              <strong>Brute-force velocity</strong>
+              <p>Per-path windows (for example <code>/api/login</code>) keyed by IP — block or alarm when attempts exceed the budget.</p>
+            </div>
+          </li>
+          <li>
+            <code>VIOL_OPENAPI_*</code>
+            <div>
+              <strong>OpenAPI positive security</strong>
+              <p>Declared path + method allow-list with path templating — unknown surface never reaches the backend.</p>
+            </div>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="band-canvas feature-band" aria-labelledby="sigs-heading">
+      <div class="wrap">
+        <div class="section-head">
+          <div class="kicker">Signature library</div>
+          <h2 id="sigs-heading">Attack categories shipped with the product</h2>
+          <p class="section-sub">Stable IDs under <code>data/waf_rules/</code> — seedable via API, editable in Admin UI, pullable with <code>wslproxy-cli</code>.</p>
+        </div>
+        <div class="tag-cloud" role="list">
+          <span role="listitem">SQLi</span>
+          <span role="listitem">XSS</span>
+          <span role="listitem">Command injection</span>
+          <span role="listitem">LFI / path traversal</span>
+          <span role="listitem">SSRF</span>
+          <span role="listitem">SSTI</span>
+          <span role="listitem">XXE</span>
+          <span role="listitem">NoSQL injection</span>
+          <span role="listitem">Log4Shell</span>
+          <span role="listitem">Spring4Shell</span>
+          <span role="listitem">JWT none</span>
+          <span role="listitem">GraphQL introspection</span>
+          <span role="listitem">Open redirect</span>
+          <span role="listitem">Prototype pollution</span>
+          <span role="listitem">Mass assignment</span>
+          <span role="listitem">HTTP smuggling</span>
+          <span role="listitem">Scanner user-agents</span>
+          <span role="listitem">Protocol abuse</span>
+        </div>
+        <div class="callout-panel">
+          <p>Each signature declares category, severity, match target (<code>url</code> · <code>args</code> · <code>body</code> · <code>headers</code> · <code>cookies</code> · <code>user_agent</code> · <code>all</code>), action, and anomaly score. Policies attach rule IDs; sets group them for bulk block/alarm toggles.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="band-steel feature-band" aria-labelledby="edge-heading">
+      <div class="wrap">
+        <div class="section-head">
+          <div class="kicker">Beyond the WAF engine</div>
+          <h2 id="edge-heading">Layered controls on the same edge</h2>
+          <p class="section-sub">Security is not only signatures — routing rules and gateway pipeline features close the gaps attackers use.</p>
+        </div>
+        <div class="feature-grid feature-grid--2">
+          <article class="feature-tile">
+            <h3>Per-server rate limiting</h3>
+            <p>Shared-dict rate limits with requests-per-second and burst — applied in the gateway pipeline before expensive origin work.</p>
+          </article>
+          <article class="feature-tile">
+            <h3>CAPTCHA challenge (306)</h3>
+            <p>Rule status <code>306</code> serves Turnstile or reCAPTCHA until a signed cookie proves the client cleared the challenge, then continues as a normal proxy (305).</p>
+          </article>
+          <article class="feature-tile">
+            <h3>Rule-level auth matches</h3>
+            <p>JWT validation, Amazon S3 signing checks, and cookie key-value gates on the rule matcher — deny before the backend ever sees the request.</p>
+          </article>
+          <article class="feature-tile">
+            <h3>Geo &amp; IP rule match</h3>
+            <p>Independent of WAF geo stages: route or block by country and client CIDR with equals / not-equals keys on live rules.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="band-canvas feature-band" aria-labelledby="ops-heading">
+      <div class="wrap">
+        <div class="section-head">
+          <div class="kicker">Operate &amp; prove</div>
+          <h2 id="ops-heading">Built for security and platform teams</h2>
+          <p class="section-sub">Govern in UI or GitOps. Validate in CI. Ship events to your SIEM.</p>
+        </div>
+        <div class="ops-rows">
+          <div class="ops-row">
+            <strong>Admin UI</strong>
+            <p>WAF Policies and WAF Rules forms cover v2 fields — bind to servers, override mode, review events.</p>
+          </div>
+          <div class="ops-row">
+            <strong>REST · MCP · CLI</strong>
+            <p>CRUD via Swagger, bind policies from MCP tools, <code>wslproxy-cli pull/push</code> for <code>waf_rules</code> and <code>waf_policies</code>.</p>
+          </div>
+          <div class="ops-row">
+            <strong>CI validation</strong>
+            <p><code>tools/waf_validate.py</code> + <code>waf-validate</code> workflow — Lua syntax, JSON Schema policies, signature referential integrity.</p>
+          </div>
+          <div class="ops-row">
+            <strong>Observability</strong>
+            <p>Structured <code>wafsec</code> JSON logs, Prometheus counters (<code>waf_blocked</code>, <code>waf_monitored</code>, latency), recent events API.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="band-steel feature-band" aria-labelledby="start-waf-heading">
+      <div class="wrap">
+        <div class="cta-box">
+          <div class="kicker">Next step</div>
+          <h2 id="start-waf-heading">Put a policy on your edge</h2>
+          <p>Read the engine design, seed rules in your profile, bind a policy to a server, and start in monitor mode before you flip to block.</p>
+          <div class="cta-actions">
+            <a class="btn btn-primary" href="https://github.com/bwalia/wslproxy/blob/main/docs/WAF_ENGINE_V2.md">Read WAF Engine v2</a>
+            <a class="btn btn-ghost" href="https://github.com/bwalia/wslproxy">GitHub</a>
+            <a class="btn btn-ghost" href="/">Back to home</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap footer-inner">
+      <div>© Workstation Solutions Limited · WSLProxy</div>
+      <div class="footer-links">
+        <a href="/">Home</a>
+        <a href="/waf/">WAF</a>
+        <a href="/blog/">Blog</a>
+        <a href="/swagger/">API</a>
+        <a href="https://github.com/bwalia/wslproxy">GitHub</a>
+        <a href="https://github.com/bwalia/wslproxy/blob/main/docs/WAF_ENGINE_V2.md">Engine docs</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    if (window.WSLProxyTheme) {
+      WSLProxyTheme.bindNav();
+      WSLProxyTheme.bind();
+    }
+  </script>
+</body>
+</html>

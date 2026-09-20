@@ -1,0 +1,40 @@
+# Example GitLab CI job using the wslproxy-cli container image.
+# Image: ghcr.io/bwalia/wslproxy-cli:latest
+#
+# CI/CD variables (masked/protected as needed):
+#   WSLPROXY_BASE_URL
+#   WSLPROXY_TOKEN
+# Optional for private GHCR pull:
+#   CI_REGISTRY / DOCKER_AUTH_CONFIG, or deploy token for ghcr.io
+
+stages:
+  - verify
+
+variables:
+  WSLPROXY_CLI_IMAGE: "ghcr.io/bwalia/wslproxy-cli:latest"
+  WSLPROXY_ASSUME_YES: "1"
+
+wslproxy-check-nginx:
+  stage: verify
+  image:
+    name: $WSLPROXY_CLI_IMAGE
+    entrypoint: [""]
+  script:
+    - wslproxy-cli version
+    - wslproxy-cli status health -o json
+    - wslproxy-cli check nginx -o json
+
+wslproxy-pull-dry-run:
+  stage: verify
+  image:
+    name: $WSLPROXY_CLI_IMAGE
+    entrypoint: [""]
+  script:
+    - set -euo pipefail
+    - wslproxy-cli pull -d ./cfg --resources servers,rules -o json
+    - wslproxy-cli push -d ./cfg --resources servers,rules --dry-run -o json
+  artifacts:
+    paths:
+      - cfg/
+    expire_in: 1 day
+    when: always

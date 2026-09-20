@@ -71,8 +71,9 @@ const TopologyTab = ({ filterServerId, filterRuleId, useRecord = false, resource
     try {
       const res = await dataProvider.getTopologyGraph();
       const d = res?.data || {};
-      let allNodes = d.nodes || [];
-      let allEdges = d.edges || [];
+      // Lua cjson encodes empty tables as {} — never call .find on a non-array.
+      let allNodes = Array.isArray(d.nodes) ? d.nodes : [];
+      let allEdges = Array.isArray(d.edges) ? d.edges : [];
 
       // Filter if needed
       if (serverId) {

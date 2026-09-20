@@ -917,7 +917,7 @@ def sec_region():
                             "{{instance}}")],
                        w=24, h=6, unit="percent",
                        thresholds=steps((None, "red"), (99, "yellow"), (99.9, "green")),
-                       desc="pop0 = 187.124.112.155 · lon1 = 72.62.211.28 "
+                       desc="pop0 = 85.190.106.189 · lon1 = lon1.pop0.uk "
                             "(instance label from the Prometheus scrape config)."),
         ts("Requests by Region/Node",
            [tgt(f'sum by (instance) (rate({REQ}{{{SI}}}[{RI}]))', "{{instance}}")],

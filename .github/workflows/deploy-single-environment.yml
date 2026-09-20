@@ -4,13 +4,15 @@ name: Deploy Single Environment
 # settings as the full delivery pipeline — it just drops the promotion chaining.
 #
 # Environments (Integration -> Test -> Acceptance -> Production):
-#   int  -> 192.168.1.193   (Integration)
-#   test -> 192.168.1.140   (Test)
-#   acc  -> 187.124.112.155 (Acceptance — "pop0")
-#   prod -> 18.133.126.242  (Production  — "pop1")
+#   int       -> 192.168.1.193   (Integration)
+#   test      -> 192.168.1.140   (Test)
+#   acc       -> 192.168.1.47    (Acceptance — LAN)
+#   prod      -> lon1.pop0.uk    (Production — live edge; alias of prod-lon1)
+#   prod-lon1 -> lon1.pop0.uk    (Production — "lon1" / lon1.pop0.uk)
+#   prod-pop0 -> 85.190.106.189  (Production — "pop0", new VPS, ssh administrator)
+# Retired: 18.133.126.242 (pop1) — host gone; ENV=prod must not SSH there.
 #
-# Each ENV maps to exactly ONE host, so acceptance (pop0) and production (pop1)
-# deploy independently. (The former lon1 host, 72.62.211.28, is no longer used.)
+# Each ENV maps to exactly ONE host, so rings deploy independently.
 #
 # WHY THIS EXISTS
 #   deploy-wslproxy-delivery-pipeline.yml is a cumulative promotion cascade and
@@ -20,8 +22,9 @@ name: Deploy Single Environment
 #   health check, auto-rolls-back THAT ring only — so it needs to deploy exactly
 #   one environment per dispatch, which is what this workflow provides.
 #
-# NOTE: acc and prod both run with env_name=prod (they are prod-profile hosts
-# served by the `prod` self-hosted runner); the ENV input selects which host.
+# NOTE: prod runs with env_name=prod (served by the `prod` self-hosted runner);
+# acc runs with env_name=acc on a dedicated LAN host with its own runner. int
+# and test also use env_name matching their runner labels.
 
 on:
   workflow_dispatch:
@@ -36,18 +39,22 @@ on:
           - test
           - acc
           - prod
+          - prod-lon1
+          - prod-pop0
       DEPLOY_BRANCH:
         type: string
         description: "Git ref to deploy (branch, tag or commit SHA)"
         required: true
-        default: "build"
+        default: "main"
       DEPLOY_MODE:
         type: choice
-        description: "What to deploy"
+        description: >-
+          What to deploy. Prefer `code` for Lua/API/html (fast). Use `full` or
+          `build` only when OpenResty/OS deps/dashboards must change — OpenResty
+          installs from the prebuilt Docker image by default (no on-host compile).
         required: true
-        default: "full"
+        default: "code"
         options:
-          - full
           - code
           - nginx
           - servers
@@ -55,6 +62,8 @@ on:
           - dashboard-next
           - os_deps
           - build
+          - full
+          - permissions
 
 # Serialize deploys to the same environment; don't cancel an in-flight deploy.
 concurrency:
@@ -104,9 +113,11 @@ jobs:
       host_ip: "192.168.1.140"
       ssh_user: bwalia
       connection_mode: ssh
-      secrets_mode: runner_file
-      settings_file_path: "/home/bwalia/.secrets/wslproxy/test/settings.json"
-      env_file_path: "/home/bwalia/.secrets/wslproxy/test/.env"
+      # vault_or_sops so the deploy works from ANY runner — the previous
+      # runner_file mode read /home/bwalia/.secrets/wslproxy/test/{...}
+      # which only exists on the LAN test runner; moving the job to the
+      # mac-studio runner (as we did for prod-pop1) would have broken it.
+      secrets_mode: vault_or_sops
       health_endpoint: "http://localhost:8080/healthz"
       health_check_mode: ssh
       docker_prune: false
@@ -116,23 +127,91 @@ jobs:
     secrets:
       SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
       SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
+      VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
+      SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
 
   # ──────────────────────────────────────────────────────
-  # Acceptance — acc / "pop0" (187.124.112.155). vault-first with SOPS fallback
+  # Acceptance — acc (192.168.1.47, LAN). vault-first with SOPS fallback
   # (matches the delivery pipeline post-#1125; seed_from_host retired).
   # ──────────────────────────────────────────────────────
+  # Migrated off 187.124.112.155 (the old pop0 host). acc
+  # now runs on a dedicated LAN box (192.168.1.47 / debian002 — was .48
+  # until DHCP drift on 2026-08-19); the `acc`
+  # self-hosted runner lives on the shared mac (hh193 / BalindeacStudio,
+  # LAN peer) and SSHes into acc as bwalia — its ~/.ssh/id_rsa is already
+  # trusted on the target. connection_mode=local would have `sudo`'d on
+  # the runner box (macOS, no passwordless sudo) instead of on acc, which
+  # is what failed run 30267669485.
   acc:
     if: ${{ inputs.ENV == 'acc' }}
     uses: ./.github/workflows/deploy-environment.yml
     with:
-      env_name: prod            # prod-profile host, served by the `prod` runner
-      env_label: "Acceptance — pop0 (187.124.112.155)"
+      env_name: acc
+      env_label: "Acceptance (192.168.1.47)"
       stage_number: "acc"
-      host_ip: "187.124.112.155"
+      host_ip: "192.168.1.47"
+      ssh_user: bwalia
+      # ssh_key: ansible SSHes from the runner (mac, LAN peer) into acc
+      # using the runner's ~/.ssh/id_rsa. If the `acc` runner is ever
+      # moved onto 192.168.1.47 itself, drop this to `local`.
+      connection_mode: ssh_key
+      secrets_mode: vault_or_sops
+      health_endpoint: "http://localhost:8080/healthz"
+      health_check_mode: ssh
+      docker_prune: true
+      notify_success: true
+      deploy_branch: ${{ inputs.DEPLOY_BRANCH }}
+      deploy_mode: ${{ inputs.DEPLOY_MODE }}
+    secrets:
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
+      VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
+      SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
+
+  # ──────────────────────────────────────────────────────
+  # Production — live edge lon1 (lon1.pop0.uk, IONOS, ssh root).
+  # ENV=prod and ENV=prod-lon1 are the same host. pop1 (18.133.126.242) retired.
+  # ──────────────────────────────────────────────────────
+  prod:
+    if: ${{ inputs.ENV == 'prod' }}
+    uses: ./.github/workflows/deploy-environment.yml
+    with:
+      env_name: prod
+      runner_label: acc
+      env_label: "Production — lon1 (lon1.pop0.uk)"
+      stage_number: "prod"
+      host_ip: "lon1.pop0.uk"
       ssh_user: root
       connection_mode: ssh_key
       secrets_mode: vault_or_sops
-      health_endpoint: "https://prod-our-v1.wslproxy.com/healthz"
+      health_endpoint: "https://lon1.pop0.uk/healthz"
+      health_check_mode: external
+      docker_prune: true
+      notify_success: true
+      deploy_branch: ${{ inputs.DEPLOY_BRANCH }}
+      deploy_mode: ${{ inputs.DEPLOY_MODE }}
+    secrets:
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
+      VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
+      SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
+
+  prod-lon1:
+    if: ${{ inputs.ENV == 'prod-lon1' }}
+    uses: ./.github/workflows/deploy-environment.yml
+    with:
+      env_name: prod
+      runner_label: acc
+      env_label: "Production — lon1 (lon1.pop0.uk)"
+      stage_number: "prod-lon1"
+      host_ip: "lon1.pop0.uk"
+      ssh_user: root
+      connection_mode: ssh_key
+      secrets_mode: vault_or_sops
+      health_endpoint: "https://lon1.pop0.uk/healthz"
       health_check_mode: external
       docker_prune: true
       notify_success: true
@@ -146,26 +225,34 @@ jobs:
       SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
 
   # ──────────────────────────────────────────────────────
-  # Production — prod / "pop1" (18.133.126.242, AWS eu-west-2, ssh user admin).
-  # vault-first with SOPS fallback (matches the delivery pipeline post-#1125).
+  # Production — prod / "pop0" (85.190.106.189, ssh user `administrator`).
+  #
+  # New VPS commissioned 2026-08-28, replacing the retired pop0 host
+  # 187.124.112.155 (that box became a k3s/traefik node). Same prod secrets
+  # (Vault/SOPS) as lon1.
+  #
+  # Scheduled on the mac-studio runner (`acc`) — same rationale as lon1:
+  # it is the runner that holds an SSH key trusted by the prod edges. The old
+  # `prod` runner lived ON the retired pop0 box and no longer exists.
+  #
+  # health_check_mode is `ssh` (not `external`): no DNS points at this VPS yet
+  # (prod-our.wslproxy.com still resolves to lon1), so an external check would
+  # green on the WRONG host. Switch to `external` once DNS is repointed.
   # ──────────────────────────────────────────────────────
-  prod:
-    if: ${{ inputs.ENV == 'prod' }}
+  prod-pop0:
+    if: ${{ inputs.ENV == 'prod-pop0' }}
     uses: ./.github/workflows/deploy-environment.yml
     with:
       env_name: prod
-      env_label: "Production — pop1 (18.133.126.242)"
-      stage_number: "prod"
-      host_ip: "18.133.126.242"
-      ssh_user: admin
+      runner_label: acc
+      env_label: "Production — pop0 (85.190.106.189)"
+      stage_number: "prod-pop0"
+      host_ip: "85.190.106.189"
+      ssh_user: administrator
       connection_mode: ssh_key
       secrets_mode: vault_or_sops
-      # pop1 is a DASHBOARD-ONLY pop: nginx_default_server_backend is empty,
-      # so no admin block listens on :7691 (unlike lon1, which does). Health-
-      # check the public dashboard domain on 443 instead — valid LE cert,
-      # serves /healthz 200. (cf. acc/pop0 uses https://prod-our-v1…/healthz.)
-      health_endpoint: "https://pop1.diytaxreturn.co.uk/healthz"
-      health_check_mode: external
+      health_endpoint: "http://127.0.0.1:7691/healthz"
+      health_check_mode: ssh
       docker_prune: true
       notify_success: true
       deploy_branch: ${{ inputs.DEPLOY_BRANCH }}

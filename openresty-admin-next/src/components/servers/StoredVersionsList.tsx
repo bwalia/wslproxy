@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState, useTransition } from "react";
-import { Archive, Clock, RotateCcw } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import { Archive, Clock, Eye, RotateCcw } from "lucide-react";
 import { useDataProvider } from "@/hooks/useResource";
 import { useNotification } from "@/contexts/NotificationContext";
 import { useProfile } from "@/contexts/ProfileContext";
@@ -12,15 +12,17 @@ import Button from "@/components/ui/Button";
 import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import { cn } from "@/lib/utils/cn";
 import type { StoredVersion } from "@/types";
+import VersionDiffModal from "./VersionDiffModal";
 
 /**
  * Shows stored versions for a given resource and exposes a rollback
- * action: click "Rollback" on an archived or pending version → backend
- * creates a new DRAFT version cloned from that revision.  The draft
- * then flows through the normal change-request / approval pipeline.
+ * action: click "Rollback" on an archived version → backend writes that
+ * revision's config back to the live JSON immediately, then snapshots
+ * the restore as a new live version so the timeline stays honest.
  *
- * This is a READ + MUTATE subcomponent — complements the change-
- * requests timeline elsewhere in `VersionHistoryTab`.
+ * One-click restore — no CR/approval hop.  The operator asked to go back;
+ * we go back.  History is preserved on both ends (the archived version
+ * remains readable and the restore adds a new "Rollback to vN" entry).
  */
 
 interface StoredVersionsListProps {
@@ -68,7 +70,33 @@ export default function StoredVersionsList({
   const [rollbackTarget, setRollbackTarget] = useState<StoredVersion | null>(
     null,
   );
+  const [viewTarget, setViewTarget] = useState<StoredVersion | null>(null);
   const [isRollingBack, startRollback] = useTransition();
+
+  // Diff/view compares the picked version against the current live so
+  // the operator sees "what did I change" at a glance.  Live version
+  // itself is diffed against the one immediately before it.
+  const liveVersionNumber = useMemo(
+    () => versions.find((v) => (v.state ?? "").toLowerCase() === "live")?.version,
+    [versions],
+  );
+  const compareVersionFor = useCallback(
+    (v: StoredVersion): number | undefined => {
+      if (typeof v.version !== "number") return undefined;
+      if (v.version === liveVersionNumber) {
+        // On the live row, compare to its immediate predecessor.
+        return versions
+          .filter((x) => typeof x.version === "number" && x.version < v.version)
+          .reduce<number | undefined>(
+            (acc, x) =>
+              acc === undefined || (x.version as number) > acc ? x.version : acc,
+            undefined,
+          );
+      }
+      return liveVersionNumber;
+    },
+    [liveVersionNumber, versions],
+  );
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -79,8 +107,11 @@ export default function StoredVersionsList({
         profile,
         resourceName,
       );
-      const rows = (res.data ?? []) as StoredVersion[];
-      // Sort newest-first.
+      // The API sends `[]` for empty lists, but a legacy build could
+      // reply with `{}` if a non-array leaks through — coerce so `.sort`
+      // never throws.
+      const raw = res.data;
+      const rows = (Array.isArray(raw) ? raw : []) as StoredVersion[];
       rows.sort((a, b) => (b.version ?? 0) - (a.version ?? 0));
       setVersions(rows);
     } catch (err) {
@@ -101,20 +132,23 @@ export default function StoredVersionsList({
     setRollbackTarget(null);
     startRollback(async () => {
       try {
-        await dataProvider.rollbackVersion(
+        const res = await dataProvider.rollbackVersion(
           resourceType,
           profile,
           resourceName,
           target.version,
         );
+        const newVersion = (res?.data as { version?: number } | undefined)?.version;
         notify(
-          `Rollback to v${target.version} created as a new draft.  Approve via Change Requests to apply.`,
-          { type: "success", duration: 8000 },
+          newVersion
+            ? `Rolled back to v${target.version} — now live as v${newVersion}.`
+            : `Rolled back to v${target.version}.`,
+          { type: "success", duration: 6000 },
         );
         await load();
       } catch (err) {
         notify(
-          (err as Error).message || "Failed to create rollback version",
+          (err as Error).message || "Failed to roll back",
           { type: "error" },
         );
       }
@@ -189,21 +223,36 @@ export default function StoredVersionsList({
                         </p>
                       )}
                     </div>
-                    <Button
-                      variant="ghost"
-                      onClick={() => setRollbackTarget(v)}
-                      disabled={isLive || isRollingBack}
-                      className={cn(isLive && "invisible")}
-                      aria-label={`Rollback to version ${v.version}`}
-                      title={
-                        isLive
-                          ? "Already live"
-                          : `Create a new draft based on v${v.version}`
-                      }
-                    >
-                      <RotateCcw className="h-4 w-4" aria-hidden="true" />
-                      <span className="ml-1.5">Rollback</span>
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        onClick={() => setViewTarget(v)}
+                        aria-label={`View version ${v.version} details`}
+                        title={
+                          isLive
+                            ? `View v${v.version} details (diff vs previous)`
+                            : `Compare v${v.version} against live`
+                        }
+                      >
+                        <Eye className="h-4 w-4" aria-hidden="true" />
+                        <span className="ml-1.5">View</span>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        onClick={() => setRollbackTarget(v)}
+                        disabled={isLive || isRollingBack}
+                        className={cn(isLive && "invisible")}
+                        aria-label={`Rollback to version ${v.version}`}
+                        title={
+                          isLive
+                            ? "Already live"
+                            : `Restore v${v.version} to live`
+                        }
+                      >
+                        <RotateCcw className="h-4 w-4" aria-hidden="true" />
+                        <span className="ml-1.5">Rollback</span>
+                      </Button>
+                    </div>
                   </li>
                 );
               })}
@@ -219,13 +268,26 @@ export default function StoredVersionsList({
         loading={isRollingBack}
         title={`Rollback to v${rollbackTarget?.version}?`}
         message={
-          `A new draft version will be created from v${rollbackTarget?.version}.  ` +
-          `The live configuration won't change until the draft is approved via ` +
-          `Change Requests.`
+          `This will restore v${rollbackTarget?.version} to live immediately. ` +
+          `The current live version will be archived and a new "Rollback to ` +
+          `v${rollbackTarget?.version}" snapshot recorded, so you can roll ` +
+          `forward again if needed.`
         }
-        confirmLabel="Create rollback draft"
+        confirmLabel="Restore to live"
         confirmVariant="primary"
       />
+
+      {viewTarget && typeof viewTarget.version === "number" && (
+        <VersionDiffModal
+          open={!!viewTarget}
+          onClose={() => setViewTarget(null)}
+          resourceType={resourceType}
+          resourceName={resourceName}
+          profile={profile}
+          targetVersion={viewTarget.version}
+          compareVersion={compareVersionFor(viewTarget)}
+        />
+      )}
     </>
   );
 }

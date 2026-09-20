@@ -31,12 +31,30 @@ install_build_deps() {
   UBUNTU_VERSION=$(lsb_release -rs | cut -d. -f1)
   if [ "$UBUNTU_VERSION" -ge 22 ]; then
     echo "Ubuntu ${UBUNTU_VERSION} detected"
-    rm -f /usr/share/keyrings/openresty.gpg
-    wget -O - https://openresty.org/package/pubkey.gpg | sudo gpg --dearmor -o /usr/share/keyrings/openresty.gpg
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/openresty.gpg] http://openresty.org/package/ubuntu $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/openresty.list > /dev/null
-    apt-get update
-    apt-get install ldconfig -y
-    apt-get -y install openresty-opm
+    UBUNTU_CODENAME=$(lsb_release -sc)
+    # openresty.org publishes apt repos only for the codenames it supports.
+    # On a newer release (first hit: 26.04 "resolute" on pop0, 2026-08-28) the
+    # Release file 404s, and once that list file exists EVERY later
+    # `apt-get update` exits 100 — poisoning the box for the rest of the play
+    # and for every subsequent deploy. Probe before adding. OpenResty itself is
+    # compiled from source further down, so this repo is only ever needed for
+    # the optional `openresty-opm` package.
+    OPENRESTY_REPO_URL="http://openresty.org/package/ubuntu/dists/${UBUNTU_CODENAME}/Release"
+    if curl -sfI --max-time 15 "$OPENRESTY_REPO_URL" >/dev/null 2>&1 \
+       || wget -q --spider --timeout=15 "$OPENRESTY_REPO_URL" 2>/dev/null; then
+      rm -f /usr/share/keyrings/openresty.gpg
+      wget -O - https://openresty.org/package/pubkey.gpg | sudo gpg --dearmor -o /usr/share/keyrings/openresty.gpg
+      echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/openresty.gpg] http://openresty.org/package/ubuntu ${UBUNTU_CODENAME} main" | sudo tee /etc/apt/sources.list.d/openresty.list > /dev/null
+      apt-get update
+      apt-get install ldconfig -y
+      apt-get -y install openresty-opm
+    else
+      echo "WARNING: openresty.org publishes no apt repo for '${UBUNTU_CODENAME}' — skipping it."
+      echo "         openresty-opm will be unavailable; OpenResty is built from source below."
+      # Remove a list file left by an earlier run on an older codename/attempt.
+      rm -f /etc/apt/sources.list.d/openresty.list
+      apt-get update
+    fi
   fi
 {% endif %}
   apt-get install {{ os_build_deps | join(' ') }} -y

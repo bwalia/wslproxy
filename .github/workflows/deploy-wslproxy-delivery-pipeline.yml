@@ -1,5 +1,10 @@
 name: Full Build and Deploy WSLProxy Delivery Pipeline
-# Pipeline: Validate → Int → Smoke Test → Test → Acc → Prod (pop0 + lon1)
+# Pipeline: Validate → Int → Smoke Test → Test → Prod lon1
+# NOTE: pop0 was rebuilt on a NEW VPS (85.190.106.189, ssh user `administrator`)
+# on 2026-08-28. The OLD pop0 host 187.124.112.155 was retired — it is a k3s node
+# where traefik owns :80/:443. The new pop0 is a DISPATCH-ONLY stage (5b): it is
+# not deployed by a push to main/release until DNS is repointed at it and it has
+# proven itself. Push-driven prod edge is lon1 only. pop1 (18.133.126.242) retired.
 # Promotion pipeline: each environment must pass before the next deploys
 # Deploy modes: code (default for manual) | nginx | servers | dashboard | os_deps | build | full (default for push)
 
@@ -39,15 +44,22 @@ on:
           - all
           - 192.168.1.193
           - 192.168.1.140
-          # 187.77.179.206 (acc) was decommissioned.
-          - 187.124.112.155
-          - 72.62.211.28
-          - 18.133.126.242
+          # 187.77.179.206 (acc) and the OLD pop0 187.124.112.155 were retired.
+          # 72.62.211.28 (old lon1) is now a k3s worker only — the lon1 edge
+          # moved to lon1.pop0.uk on 2026-08-27.
+          - lon1.pop0.uk
+          # pop0 rebuilt on a new VPS 2026-08-28 — dispatch-only (Stage 5b),
+          # never reached by `all` or by a push to main/release.
+          - 85.190.106.189
+          # Retired: 18.133.126.242 (pop1)
 
       DEPLOY_MODE:
         type: choice
-        description: "What to deploy"
-        default: "full"
+        description: >-
+          What to deploy. Prefer `code` for day-to-day. `full`/`build` pull the
+          prebuilt OpenResty image (bwalia/wslproxy-openresty) instead of compiling
+          on the host unless openresty_install_mode=source.
+        default: "code"
         required: true
         options:
           - code
@@ -76,7 +88,7 @@ jobs:
     steps:
       - name: Show deploy mode
         run: |
-          echo "Deploy mode: ${{ github.event.inputs.DEPLOY_MODE || 'full' }}"
+          echo "Deploy mode: ${{ github.event.inputs.DEPLOY_MODE || 'code' }}"
           echo "Target env:  ${{ github.event.inputs.TARGET_ENV || 'prod' }}"
           echo "Target host: ${{ github.event.inputs.TARGET_HOST || 'all' }}"
 
@@ -244,7 +256,14 @@ jobs:
   # ──────────────────────────────────────────────────────
   deploy-int:
     needs: [build-validate, preflight-int]
-    if: needs.preflight-int.outputs.runner_online == 'true'
+    # Honor TARGET_HOST on workflow_dispatch (same as test/prod stages) so a
+    # lon1-only / pop0-only / pop1-only run never touches int. Push events
+    # still deploy int when the runner is online.
+    if: >
+      needs.preflight-int.outputs.runner_online == 'true' &&
+      (github.event_name != 'workflow_dispatch' ||
+       github.event.inputs.TARGET_HOST == '192.168.1.193' ||
+       github.event.inputs.TARGET_HOST == 'all')
     uses: ./.github/workflows/deploy-environment.yml
     with:
       env_name: int
@@ -390,9 +409,11 @@ jobs:
       host_ip: "192.168.1.140"
       ssh_user: bwalia
       connection_mode: ssh
-      secrets_mode: runner_file
-      settings_file_path: "/home/bwalia/.secrets/wslproxy/test/settings.json"
-      env_file_path: "/home/bwalia/.secrets/wslproxy/test/.env"
+      # vault_or_sops so any runner can deploy; runner_file (previous
+      # value) required /home/bwalia/.secrets/wslproxy/test/{...} to
+      # exist on the runner FS, which pinned the job to the LAN test
+      # runner and broke portability.
+      secrets_mode: vault_or_sops
       health_endpoint: "http://localhost:8080/healthz"
       health_check_mode: ssh
       docker_prune: false
@@ -402,40 +423,46 @@ jobs:
     secrets:
       SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
       SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
+      VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
+      SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
 
   # Stage 5 (acc / 187.77.179.206) was decommissioned.  Prod stages
   # below now depend directly on `deploy-test` so the pipeline still
   # gates production behind a successful non-prod deploy.
 
   # ──────────────────────────────────────────────────────
-  # Stage 5a: Deploy Prod pop0 (187.124.112.155)
+  # Stage 5a: Deploy Prod lon1 (lon1.pop0.uk)
+  # (lon1 relocated 2026-08-27: the old lon1 host 72.62.211.28 is now a k3s
+  #  worker only. The former Stage 5a "pop0" / 187.124.112.155 was retired:
+  #  that host is a k3s/traefik node with no wslproxy edge and no DNS, so it
+  #  never served prod traffic. pop0 was rebuilt on a new VPS — see Stage 5c.)
   # ──────────────────────────────────────────────────────
-  deploy-prod-pop0:
-    # Full upstream chain — see deploy-test. Any failure up to here blocks prod.
+  deploy-prod-lon1:
+    # Full upstream chain — see deploy-test.
     needs: [build-validate, deploy-int, test-int, deploy-test]
     if: >
       always() && !failure() && !cancelled() &&
       ((github.event_name == 'push' && (github.ref == 'refs/heads/release' || github.ref == 'refs/heads/main')) ||
       (github.event_name == 'workflow_dispatch' &&
-      (github.event.inputs.TARGET_HOST == '187.124.112.155' || github.event.inputs.TARGET_HOST == 'all')))
+      (github.event.inputs.TARGET_HOST == 'lon1.pop0.uk' || github.event.inputs.TARGET_HOST == 'all')))
     uses: ./.github/workflows/deploy-environment.yml
     with:
       env_name: prod
-      env_label: "Prod pop0 (187.124.112.155)"
+      # Schedule on mac-studio (`acc`) — the historical `prod` runner on
+      # pop0 has no SSH trust to lon1.
+      runner_label: acc
+      env_label: "Prod lon1 (lon1.pop0.uk)"
       stage_number: "5a"
-      host_ip: "187.124.112.155"
+      host_ip: "lon1.pop0.uk"
       ssh_user: root
       connection_mode: ssh_key
-      # vault_or_sops: probe Vault first (see the resolve_mode step in
-      # deploy-environment.yml).  If Vault has the settings at
-      # secret/data/wslproxy/prod/settings.json, use it; otherwise fall
-      # back to the SOPS-encrypted infra/secrets/prod/settings.sops.json
-      # already committed to the repo.  Replaces the old runner_file +
-      # seed_from_host mode that failed on 2026-07-02 when the runner's
-      # SSH key stopped authenticating against the prod host (root@…
-      # permission denied) and there was no fallback.
+      # Vault-first with SOPS prod fallback (lon1-only dispatch 31281185587
+      # failed at "Settings file not found" under runner_file).
       secrets_mode: vault_or_sops
-      health_endpoint: "https://prod-our-v1.wslproxy.com/healthz"
+      # Prefer public dashboard health over IP:7691 so external checks
+      # match https://lon1.pop0.uk (admin UI behind public 443).
+      health_endpoint: "https://lon1.pop0.uk/healthz"
       health_check_mode: external
       docker_prune: true
       notify_success: true
@@ -444,76 +471,45 @@ jobs:
     secrets:
       SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
       SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-      # Provide BOTH — the resolver picks Vault if VAULT_ADDR/VAULT_TOKEN
-      # are set AND the settings path is populated; otherwise it uses
-      # SOPS_AGE_KEY.  Deploy only fails if BOTH are unavailable.
       VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
       VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
       SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
 
   # ──────────────────────────────────────────────────────
-  # Stage 5b: Deploy Prod lon1 (72.62.211.28)
+  # Stage 5b: Deploy Prod pop0 (85.190.106.189) — new VPS, ssh user
+  # `administrator`, commissioned 2026-08-28 to replace the retired
+  # 187.124.112.155. (Former Stage 5b was pop1 / 18.133.126.242 — retired.)
+  #
+  # DISPATCH-ONLY BY DESIGN: unlike 5a there is no `push` clause and it is
+  # NOT included in TARGET_HOST == 'all'. A brand-new edge with no DNS should
+  # not be dragged into every release; select it explicitly. Promote it to the
+  # push chain (copy 5a's `if:`) once DNS points here and it has run clean.
+  #
+  # health_check_mode is `ssh` because nothing resolves to this IP yet — an
+  # external check on prod-our.wslproxy.com would green on lon1 instead.
   # ──────────────────────────────────────────────────────
-  deploy-prod-lon1:
-    # Full upstream chain — see deploy-test.
-    needs: [build-validate, deploy-int, test-int, deploy-test, deploy-prod-pop0]
+  deploy-prod-pop0:
+    # Same upstream gate as the other prod stages — prod is never reached
+    # without a green int + smoke test + test.
+    needs: [build-validate, deploy-int, test-int, deploy-test]
     if: >
       always() && !failure() && !cancelled() &&
-      ((github.event_name == 'push' && (github.ref == 'refs/heads/release' || github.ref == 'refs/heads/main')) ||
-      (github.event_name == 'workflow_dispatch' &&
-      (github.event.inputs.TARGET_HOST == '72.62.211.28' || github.event.inputs.TARGET_HOST == 'all')))
+      github.event_name == 'workflow_dispatch' &&
+      github.event.inputs.TARGET_HOST == '85.190.106.189'
     uses: ./.github/workflows/deploy-environment.yml
     with:
       env_name: prod
-      env_label: "Prod lon1 (72.62.211.28)"
+      # mac-studio runner (`acc`) — the old `prod` runner lived ON the retired
+      # pop0 box and is gone; `acc` is the runner holding the prod SSH key.
+      runner_label: acc
+      env_label: "Prod pop0 (85.190.106.189)"
       stage_number: "5b"
-      host_ip: "72.62.211.28"
-      ssh_user: root
+      host_ip: "85.190.106.189"
+      ssh_user: administrator
       connection_mode: ssh_key
-      secrets_mode: runner_file
-      settings_file_path: "/home/bwalia/.secrets/wslproxy/lon1/settings.json"
-      env_file_path: "/home/bwalia/.secrets/wslproxy/lon1/.env"
-      health_endpoint: "http://72.62.211.28:7691/healthz"
-      health_check_mode: external
-      docker_prune: true
-      notify_success: true
-      deploy_branch: ${{ github.event.inputs.DEPLOY_BRANCH || github.ref_name }}
-      deploy_mode: ${{ github.event.inputs.DEPLOY_MODE || 'full' }}
-    secrets:
-      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-
-  # ──────────────────────────────────────────────────────
-  # Stage 5c: Deploy Prod pop1 (18.133.126.242) — AWS eu-west-2, ssh user admin
-  # Runs LAST, after pop0 + lon1, only when they (and all prior stages) pass.
-  # Dashboard domain: pop1.diytaxreturn.co.uk
-  # ──────────────────────────────────────────────────────
-  deploy-prod-pop1:
-    # Full upstream chain — see deploy-test.
-    needs: [build-validate, deploy-int, test-int, deploy-test, deploy-prod-pop0, deploy-prod-lon1]
-    if: >
-      always() && !failure() && !cancelled() &&
-      ((github.event_name == 'push' && (github.ref == 'refs/heads/release' || github.ref == 'refs/heads/main')) ||
-      (github.event_name == 'workflow_dispatch' &&
-      (github.event.inputs.TARGET_HOST == '18.133.126.242' || github.event.inputs.TARGET_HOST == 'all')))
-    uses: ./.github/workflows/deploy-environment.yml
-    with:
-      env_name: prod
-      env_label: "Prod pop1 (18.133.126.242)"
-      stage_number: "5c"
-      host_ip: "18.133.126.242"
-      ssh_user: admin
-      connection_mode: ssh_key
-      # Same rationale as pop0 (Stage 5a) — Vault-first with SOPS
-      # fallback so a broken runner SSH key or an offline Vault can't
-      # take the pipeline down.
       secrets_mode: vault_or_sops
-      # pop1 is DASHBOARD-ONLY: nginx_default_server_backend is empty, so no
-      # admin block listens on :7691 (lon1 differs — it sets that var, so its
-      # :7691 gate is fine). The old IP:7691 gate could never pass here. Health-
-      # check the public dashboard domain on 443 — valid LE cert, /healthz 200.
-      health_endpoint: "https://pop1.diytaxreturn.co.uk/healthz"
-      health_check_mode: external
+      health_endpoint: "http://127.0.0.1:7691/healthz"
+      health_check_mode: ssh
       docker_prune: true
       notify_success: true
       deploy_branch: ${{ github.event.inputs.DEPLOY_BRANCH || github.ref_name }}
@@ -537,9 +533,8 @@ jobs:
         deploy-int,
         test-int,
         deploy-test,
-        deploy-prod-pop0,
         deploy-prod-lon1,
-        deploy-prod-pop1,
+        deploy-prod-pop0,
       ]
     if: always()
     steps:
@@ -553,9 +548,8 @@ jobs:
           echo "  Stage 2  — Deploy Int:           ${{ needs.deploy-int.result }}"
           echo "  Stage 3  — Smoke Test Int:       ${{ needs.test-int.result }}"
           echo "  Stage 4  — Deploy Test:          ${{ needs.deploy-test.result }}"
-          echo "  Stage 5a — Deploy Prod (pop0):   ${{ needs.deploy-prod-pop0.result }}"
-          echo "  Stage 5b — Deploy Prod (lon1):   ${{ needs.deploy-prod-lon1.result }}"
-          echo "  Stage 5c — Deploy Prod (pop1):   ${{ needs.deploy-prod-pop1.result }}"
+          echo "  Stage 5a — Deploy Prod (lon1):   ${{ needs.deploy-prod-lon1.result }}"
+          echo "  Stage 5b — Deploy Prod (pop0):   ${{ needs.deploy-prod-pop0.result }}"
           echo ""
           echo "  Commit:  ${{ github.sha }}"
           echo "  Branch:  ${{ github.ref_name }}"
@@ -566,9 +560,8 @@ jobs:
              [[ "${{ needs.deploy-int.result }}" == "failure" ]] || \
              [[ "${{ needs.test-int.result }}" == "failure" ]] || \
              [[ "${{ needs.deploy-test.result }}" == "failure" ]] || \
-             [[ "${{ needs.deploy-prod-pop0.result }}" == "failure" ]] || \
              [[ "${{ needs.deploy-prod-lon1.result }}" == "failure" ]] || \
-             [[ "${{ needs.deploy-prod-pop1.result }}" == "failure" ]]; then
+             [[ "${{ needs.deploy-prod-pop0.result }}" == "failure" ]]; then
               echo "::error::Pipeline failed — see stage results above"
               exit 1
           fi

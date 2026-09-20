@@ -65,15 +65,15 @@ const WelcomeBanner = memo(function WelcomeBanner({ info }: WelcomeBannerProps) 
             <div className="mb-4">
               <Logo variant="full" width={210} height={44} theme="dark" />
             </div>
-            <span className="mb-3 inline-block rounded-full bg-white/20 px-3 py-1 text-xs font-medium backdrop-blur-sm">
-              Admin Portal
+            <span className="mb-3 inline-block rounded-md bg-white/20 px-3 py-1 text-sm font-medium backdrop-blur-sm">
+              Admin portal
             </span>
-            <h1 className="mb-2 text-3xl font-bold">Welcome to the WSL Proxy</h1>
-            <p className="mb-6 max-w-xl text-primary-100/90">
-              Strengthen your website&apos;s defenses with this comprehensive CDN
-              security platform. Effortlessly provision new servers and assign
-              tailored security rules to build a robust, multi-layered protection
-              strategy.
+            <h1 className="font-display mb-2 text-3xl font-bold tracking-tight sm:text-4xl">
+              Welcome to WSLProxy
+            </h1>
+            <p className="mb-6 max-w-xl text-base leading-relaxed text-primary-50/95">
+              Manage virtual hosts, live routing rules, WAF, and traffic from one
+              place — changes take effect without reloading nginx for every rule.
             </p>
             <div className="flex flex-wrap gap-3">
               <button
@@ -102,8 +102,8 @@ const WelcomeBanner = memo(function WelcomeBanner({ info }: WelcomeBannerProps) 
       <div>
         <Card className="h-full">
           <Card.Header>
-            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-              Instance Info
+            <h2 className="font-display text-base font-semibold text-slate-800 dark:text-slate-100">
+              Instance info
             </h2>
           </Card.Header>
           <Card.Body>
@@ -161,7 +161,7 @@ const WelcomeBanner = memo(function WelcomeBanner({ info }: WelcomeBannerProps) 
                 />
               </div>
             ) : (
-              <p className="text-sm text-slate-400">Instance info unavailable</p>
+              <p className="text-sm text-slate-600 dark:text-slate-300">Instance info unavailable</p>
             )}
             <button
               // `/health` is the Lua JSON probe endpoint.  Nginx uses
@@ -194,8 +194,8 @@ const InfoRow = memo(function InfoRow({
     <div className="flex items-start gap-3">
       <div className="mt-0.5">{icon}</div>
       <div className="min-w-0 flex-1">
-        <p className="text-xs font-medium text-slate-400 dark:text-slate-500">{label}</p>
-        <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+        <p className="text-sm font-medium text-slate-600 dark:text-slate-300">{label}</p>
+        <div className="text-sm font-semibold text-slate-900 dark:text-slate-50">
           {value}
         </div>
       </div>

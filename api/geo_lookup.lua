@@ -73,7 +73,12 @@ function _M.get_country(ip_address)
     end)
 
     if ok and result and result.country_short and result.country_short ~= "-" then
-        return result.country_short
+        local cc = tostring(result.country_short):upper():gsub("%s+", "")
+        -- IP2Location uses "UK"; ISO 3166-1 / world-atlas use "GB".
+        if cc == "UK" then
+            cc = "GB"
+        end
+        return cc
     end
 
     return "-"

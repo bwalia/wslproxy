@@ -231,8 +231,13 @@ function _M.record_request(params)
     dict:incr(method_key, 1, 0)
 
     -- Track geographic data by country (if country_code is provided)
-    local country_code = tostring(params.country_code or ""):sub(1, 10)
-    if country_code ~= "" and country_code ~= "-" then
+    -- Normalize: upper-case, strip, IP2Location "UK" → ISO "GB".
+    local country_code = tostring(params.country_code or ""):upper():gsub("%s+", "")
+    if country_code == "UK" then
+        country_code = "GB"
+    end
+    if country_code ~= "" and country_code ~= "-" and country_code ~= "LOCAL"
+        and country_code:match("^[A-Z][A-Z]$") then
         -- Track total requests per country (session lifetime, resets on restart)
         local geo_total_key = "geo:" .. country_code
         local existing_geo = dict:get(geo_total_key)
@@ -668,18 +673,30 @@ function _M.get_geo_data()
 
     local countries = {}
     local keys = dict:get_keys(1000)
+    -- Aggregate case variants (geo:gb + geo:GB) and IP2Location UK → GB.
+    local totals = {}
 
     for _, key in ipairs(keys) do
-        local country = key:match("^geo:([A-Z][A-Z])$")
-        if country then
-            local count = dict:get(key) or 0
-            if count > 0 then
-                table.insert(countries, {
-                    country_code = country,
-                    requests = count
-                })
+        local raw = key:match("^geo:(.+)$")
+        if raw then
+            local country = tostring(raw):upper():gsub("%s+", "")
+            if country == "UK" then
+                country = "GB"
+            end
+            if country:match("^[A-Z][A-Z]$") then
+                local count = tonumber(dict:get(key)) or 0
+                if count > 0 then
+                    totals[country] = (totals[country] or 0) + count
+                end
             end
         end
+    end
+
+    for country, count in pairs(totals) do
+        table.insert(countries, {
+            country_code = country,
+            requests = count
+        })
     end
 
     -- Sort by request count descending

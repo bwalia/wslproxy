@@ -66,7 +66,7 @@ const TopDomainsChart: React.FC<TopDomainsChartProps> = ({
           </h3>
         </div>
         {total > 0 && (
-          <span className="text-xs text-slate-500 dark:text-slate-400">
+          <span className="text-sm text-slate-600 dark:text-slate-300">
             {formatNumber(total)} total
           </span>
         )}
@@ -135,7 +135,7 @@ const DomainRow = React.memo(function DomainRow({
           >
             {domain}
           </span>
-          <span className="shrink-0 text-[11px] font-mono tabular-nums text-slate-500 dark:text-slate-400">
+          <span className="shrink-0 font-mono text-xs tabular-nums text-slate-600 dark:text-slate-300">
             {formatNumber(requests)}
           </span>
         </div>

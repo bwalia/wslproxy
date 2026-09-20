@@ -1,0 +1,33 @@
+{{- if and .Values.openresty.controlPlane.enabled .Values.openresty.controlPlane.host }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "wslproxy.fullname" . }}-control-plane
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "wslproxy.labels" . | nindent 4 }}
+    app.kubernetes.io/component: control-plane
+  annotations:
+    {{- if and .Values.certManager.enabled .Values.openresty.controlPlane.tls }}
+    cert-manager.io/cluster-issuer: {{ .Values.openresty.controlPlane.clusterIssuer | quote }}
+    {{- end }}
+spec:
+  ingressClassName: {{ .Values.ingressClass.name }}
+  {{- if .Values.openresty.controlPlane.tls }}
+  tls:
+    - hosts:
+        - {{ .Values.openresty.controlPlane.host | quote }}
+      secretName: {{ include "wslproxy.fullname" . }}-control-plane-tls
+  {{- end }}
+  rules:
+    - host: {{ .Values.openresty.controlPlane.host | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "wslproxy.fullname" . }}-openresty
+                port:
+                  name: api
+{{- end }}

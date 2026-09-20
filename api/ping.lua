@@ -185,6 +185,30 @@ else
     services.redis = { status = "skipped", message = "Storage type is '" .. storageType .. "', Redis not required" }
 end
 
+if storageType == "pgsql" then
+    local ok_store, store_h = pcall(function()
+        return require("storage").health()
+    end)
+    if ok_store and type(store_h) == "table" and store_h.ok then
+        local pg = settings.pgsql or {}
+        services.pgsql = {
+            status = "ok",
+            message = store_h.detail or "Connected",
+            host = pg.pg_host or pg.host,
+            port = pg.pg_port or pg.port,
+            database = pg.pg_database or pg.database,
+        }
+    else
+        services.pgsql = {
+            status = "error",
+            message = (ok_store and store_h and store_h.detail) or tostring(store_h) or "pgsql health failed",
+        }
+        hasCriticalFailure = true
+    end
+else
+    services.pgsql = { status = "skipped", message = "Storage type is '" .. storageType .. "', PostgreSQL not required" }
+end
+
 -- ---------- Data Directories ----------
 
 local dataDir = configPath .. "data/"

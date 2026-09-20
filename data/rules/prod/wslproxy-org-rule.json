@@ -1,7 +1,7 @@
 {
   "id": "wslproxy-org-rule",
   "created_at": 1769388395,
-  "name": "wslproxy-org-local",
+  "name": "wslproxy-org-github-pages",
   "profile_id": "prod",
   "priority": 1,
   "match": {
@@ -14,13 +14,16 @@
     },
     "response": {
       "code": 305,
-      "redirect_uri": "127.0.0.1",
+      "redirect_uri": "https://bwalia.github.io",
       "allow": false,
       "message": "undefined",
-      "is_consul": false
+      "is_consul": false,
+      "auto_redirect_https": false,
+      "strip_path": false
     }
   },
   "version": 1,
+  "_schema_version": 2,
   "servers": [
     "host:wslproxy.org"
   ]

@@ -58,13 +58,18 @@
   notify: Restart openresty
   tags: [nginx, code, dashboard, servers]
 
-- name: Add nginx base configuration
-  copy:
-    src: ../../nginx-base.d/
-    dest: /opt/nginx/base.d/
+- name: Render nginx base TCP stream config
+  # Single stream{} block: k3s0 (9443) on every pop; k3s1api (6443) only on the
+  # pop whose host_vars sets k3s1api_lb_listen (pop1 / ip-10-0-0-207). Was a
+  # static copy of nginx-base.d/; templated so the pop-specific k3s1api LB can
+  # be gated by a host var instead of shipping a host-specific listen IP to all.
+  ansible.builtin.template:
+    src: nginx_tcp_streams.conf.j2
+    dest: /opt/nginx/base.d/nginx_tcp_streams.conf
     owner: "www-data"
     group: root
     mode: "0644"
+  notify: Restart openresty
   tags: [nginx, code, dashboard, servers]
 
 - name: Ensure tenants nginx conf directory exists
@@ -94,4 +99,41 @@
     group: root
     mode: "0644"
   notify: Restart openresty
+  tags: [nginx, code, dashboard, servers]
+
+# ── Log rotation ─────────────────────────────────────────────────────────
+# Prod 2026-07-14: error.log grew to 1.9 GB / 6.2 M lines because there
+# was no rotation at all — every /api/logs/* request (which slurped the
+# whole file into memory, separately fixed in api/api.lua) blocked the
+# single-worker gateway for 10+ seconds AND the disk was headed for
+# fill.  The template writes /etc/logrotate.d/openresty; the daily cron
+# hook that ships with the `logrotate` package (added to base_packages)
+# picks it up and runs it via /etc/cron.daily/logrotate.
+#
+# Config is idempotent (template copy).  A subsequent `logrotate --force`
+# is intentionally NOT run — waiting for the natural cron cadence
+# means we don't rotate mid-request if this happens to run during a
+# heavy log burst.  Operators who need to trim NOW can:
+#   sudo logrotate --force /etc/logrotate.d/openresty
+#
+# Ensure the binary exists even when deploy_mode=nginx skips the
+# base_packages role (lon1 2026-08-08: validate failed "command not found").
+- name: Ensure logrotate is installed (for openresty rotation validate)
+  ansible.builtin.package:
+    name: logrotate
+    state: present
+  tags: [nginx, code, dashboard, servers]
+
+- name: Install openresty log rotation config
+  ansible.builtin.template:
+    src: openresty-logrotate.j2
+    dest: /etc/logrotate.d/openresty
+    owner: root
+    group: root
+    mode: "0644"
+    # Validate the config before it lands so a template typo can't
+    # leave the host with a broken rotation policy.  `logrotate -d`
+    # runs in debug/dry-run mode against the temp file (%s) —
+    # doesn't touch any real logs.
+    validate: "logrotate -d %s"
   tags: [nginx, code, dashboard, servers]

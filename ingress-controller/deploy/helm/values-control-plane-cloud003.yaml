@@ -1,0 +1,33 @@
+# Prod control-plane overlay — pin to cloud003 (London edge).
+# Cloudflare for cp.pop0.uk already targets this node's public IP (77.68.126.63).
+#
+# cloud003 has: node-role.kubernetes.io/edge=true:NoSchedule
+nodeSelector:
+  kubernetes.io/hostname: cloud003
+
+tolerations:
+  - key: node-role.kubernetes.io/edge
+    operator: Exists
+    effect: NoSchedule
+
+# Prefer co-locating on the pinned node (clear chart podAntiAffinity).
+# null — not {} — so template `with .Values.affinity` is false.
+affinity: null
+
+controller:
+  replicas: 1
+
+openresty:
+  replicas: 2
+  autoscaling:
+    enabled: false
+  podDisruptionBudget:
+    enabled: false
+  service:
+    type: LoadBalancer
+    # Klipper/ServiceLB will advertise on the node that has endpoints (cloud003).
+  controlPlane:
+    enabled: true
+    host: cp.pop0.uk
+    nodePort: 32080
+    tls: true
