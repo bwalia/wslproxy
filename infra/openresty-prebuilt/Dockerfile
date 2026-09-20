@@ -93,8 +93,11 @@ RUN set -eux; \
 
 # MinIO client (host config-backup tool). Kept inside the openresty tree so
 # it travels with the extracted tarball; the installer symlinks it into PATH.
-RUN wget -q https://dl.min.io/client/mc/release/linux-amd64/mc \
-      -O /usr/local/openresty/bin/mc && chmod +x /usr/local/openresty/bin/mc
+# Classic /client/mc/… URLs return 410; AIStor path is current (same as root Dockerfile).
+RUN wget -q https://dl.min.io/aistor/mc/release/linux-amd64/mc \
+      -O /usr/local/openresty/bin/mc --tries=3 --timeout=60 \
+ && chmod +x /usr/local/openresty/bin/mc \
+ && /usr/local/openresty/bin/mc --version
 
 # ── Stage 2: runtime image = matching base + only runtime libs + the tree.
 #    The apt list here is exactly what a target host needs alongside the

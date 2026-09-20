@@ -112,7 +112,8 @@ openssl req -new -newkey rsa:2048 -days 3650 -nodes -x509 \
   -out /etc/ssl/resty-auto-ssl-fallback.crt
 
 # mc - MinIO Client is used to backup nginx openresty configuration to S3
-wget -q https://dl.min.io/client/mc/release/linux-amd64/mc -O /usr/local/bin/mc \
+# Classic /client/mc/… URLs return 410; AIStor path is current.
+wget -q https://dl.min.io/aistor/mc/release/linux-amd64/mc -O /usr/local/bin/mc \
     --tries=3 --timeout=30 && \
     chmod +x /usr/local/bin/mc
 
