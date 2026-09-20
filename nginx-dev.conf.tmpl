@@ -1145,7 +1145,7 @@ server {
         limit_req zone=req_zone_wl burst=200 nodelay;
 
         access_log /var/log/nginx/access.log main;
-        error_log  /var/log/nginx/error.log;
+        error_log  /var/log/nginx/error.log info;   # 'info' so api_gw audit lines are not filtered
         access_log on;
         error_log on;
 
@@ -1370,7 +1370,7 @@ server {
 
           location / {
             access_log /var/log/nginx/access.log main;
-            error_log  /var/log/nginx/error.log;
+            error_log  /var/log/nginx/error.log info;   # 'info' so api_gw audit lines are not filtered
             # access_log  on;
             # error_log on;
             default_type text/plain;
@@ -1385,6 +1385,15 @@ server {
             rewrite_by_lua_file /usr/local/openresty/nginx/html/api/gateway_ack.lua;
             access_by_lua_file /usr/local/openresty/nginx/html/api/gateway_resp.lua;
             # this code run just before the setting the proxy pass and content phase.
+
+          # API gateway: apply the response headers the access phase collected
+          # (CORS, correlation id, RateLimit-*).  This block has no other
+          # header_filter hooks — unlike the 443 server above — so without
+          # this the gateway's headers are silently dropped on plain HTTP.
+          header_filter_by_lua_block {
+            local ok_gw, ApiGw = pcall(require, "api_gw")
+            if ok_gw then ApiGw.header_filter() end
+          }
 
           # proxy_set_header proxy_http_version 1.1;
           proxy_set_header host $proxy_host_override;
