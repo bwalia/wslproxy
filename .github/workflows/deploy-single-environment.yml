@@ -85,7 +85,10 @@ jobs:
       ssh_user: bwalia
       connection_mode: local
       secrets_mode: sops
-      health_endpoint: "http://localhost:8080/healthz"
+      # Health via :8099 (Next.js admin OpenResty block). Host :8080 is
+      # stolen by k3s CNI hostPort DNAT on this node — TCP connect times out
+      # even though OpenResty listens. Admin API moved to :8090 in host_vars.
+      health_endpoint: "http://127.0.0.1:8099/healthz"
       health_check_mode: local
       docker_prune: true
       notify_success: true

@@ -21,6 +21,9 @@ nginx_s3_cli_server_name: "s3-cli.workstation.co.uk"
 nginx_k3s_dashboard_server_name: "k3s-dashboard.workstation.co.uk"
 nginx_default_server_frontend: "int.wslproxy.com www.int.wslproxy.com int.wslproxy.org www.int.wslproxy.org"
 nginx_default_server_backend: "192.168.1.193"
-nginx_default_server_backend_port: 8080
+# Avoid 8080 on this k3s node: CNI hostPort DNATs host:8080 to a pod, so
+# localhost health checks and the admin API never reach OpenResty (TCP timeout).
+# 8090 is free; Next.js dashboard stays on nginx_nextjs_dashboard_port (8099).
+nginx_default_server_backend_port: 8090
 letsencrypt_email: "balinder.walia@gmail.com"
 openresty_admin_secondary_color: "#D91656"
