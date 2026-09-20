@@ -156,7 +156,8 @@ paths. Leave `ivt.mode` at `audit` for the first rollout.
 BASE_URL=https://api.yourtenant.com API_PATH=/v1/ping ./scripts/api-gw-smoke.sh
 ```
 
-**5. Watch the audit lines** before tightening anything:
+**5. Watch the audit lines** before tightening anything (if nothing appears,
+see §12 — the gateway blocks' `error_log` level filters `info` by default):
 
 ```bash
 tail -f /usr/local/openresty/nginx/logs/error.log \
@@ -350,6 +351,10 @@ Ship it with:
 tail -F logs/error.log | grep -o 'wsl_api_gw {.*}' | jq .
 ```
 
+> **If that command returns nothing, check your `error_log` level before
+> anything else** — the line is emitted at `info` and the gateway blocks in
+> both templates override `error_log` without a level. See §12.
+
 ### Redaction is not configurable downward
 
 `audit.redact_headers` is **added to** a baseline — `authorization`,
@@ -414,7 +419,61 @@ the gateway off for that rule's traffic only.
 
 ---
 
-## 12. Operational notes
+## 12. Two things that will catch you out
+
+### The audit line is emitted at `info` — check your `error_log` level
+
+Both nginx templates override `error_log` **inside** the gateway server blocks:
+
+```nginx
+error_log  /var/log/nginx/error.log;    # no level → defaults to "error"
+```
+
+A directive with no level defaults to `error`, which silently discards the
+audit line even though `http{}` above is configured for `info`. The symptom is
+the worst kind: you enable `audit`, everything else works, and the log is
+simply empty — nothing reports a failure, because nothing failed.
+
+Verified on a live dev stack: with the default `audit.level: "info"` and a
+level-less `error_log`, zero lines were written; raising the level produced
+them immediately.
+
+Two remedies, pick one per deployment:
+
+```nginx
+error_log  /var/log/nginx/error.log info;   # preferred: keeps audit at info
+```
+
+```json
+"audit": { "level": "error" }               // if you cannot change the log level
+```
+
+`nginx-dev.conf.tmpl` now carries `info` on both gateway blocks so the docker
+dev stack works out of the box. **The production template is deliberately left
+alone** — raising a prod `error_log` to `info` is a per-deployment call about
+log volume, not something a feature should decide for you. Make it consciously
+before you rely on the audit trail in prod.
+
+### api_gw does not strip an origin's own CORS headers
+
+For an **allowed** origin, api_gw's `Access-Control-Allow-Origin` replaces
+whatever the upstream sent. For a **disallowed** one, api_gw adds nothing — so
+if your origin emits a blanket `Access-Control-Allow-Origin: *` of its own, that
+header survives and the browser honours it. The gateway allowlist has not been
+bypassed so much as rendered moot by the origin.
+
+api_gw is an access gateway, not a response sanitiser, and silently deleting
+headers an origin deliberately set would be its own kind of surprise. If you
+need the allowlist to be authoritative, stop the origin sending its own CORS
+headers, or strip them with `proxy_hide_header Access-Control-Allow-Origin;`.
+
+You can tell the two apart at a glance: api_gw's allowed-origin responses also
+carry `Vary: Origin` and, when configured, `Access-Control-Allow-Credentials`
+and `Access-Control-Expose-Headers`. A bare `*` on its own came from upstream.
+
+---
+
+## 13. Operational notes
 
 - **No reload for policy changes.** Server JSON is read from disk per request
   by `rule_loader.lua`, and `api_gw` normalises it per request. Save the record
@@ -432,7 +491,7 @@ the gateway off for that rule's traffic only.
   usually what you want, but check both layers before concluding a policy is
   not applying.
 
-## 13. Testing
+## 14. Testing
 
 ```bash
 make test-lua                                          # plain lua
