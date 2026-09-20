@@ -21,13 +21,17 @@ FROM ${BASE_IMAGE} AS builder
 ARG OPENRESTY_VERSION=1.29.2.1
 ARG LUAROCKS_VERSION=3.11.1
 ENV DEBIAN_FRONTEND=noninteractive
-ENV PATH=/usr/local/openresty/luajit/bin:/usr/local/openresty/bin:/usr/local/bin:/usr/bin:/bin
+# OpenResty configure needs `ldconfig` on PATH when enabling LuaJIT
+# (lives in /sbin or /usr/sbin; Debian slim images omit those from PATH).
+ENV PATH=/usr/local/openresty/luajit/bin:/usr/local/openresty/bin:/usr/local/bin:/usr/sbin:/sbin:/usr/bin:/bin
 
 # Build deps = roles/wslproxy/vars/Debian.yml os_build_deps + PCRE2 + git.
+# libc-bin provides /sbin/ldconfig (required by OpenResty ./configure).
 RUN apt-get update && apt-get install -y --no-install-recommends \
       libssl-dev perl make build-essential curl zlib1g-dev wget gcc unzip \
-      lua5.1 liblua5.1-0-dev libpcre2-dev git ca-certificates \
- && rm -rf /var/lib/apt/lists/*
+      lua5.1 liblua5.1-0-dev libpcre2-dev git ca-certificates libc-bin \
+ && rm -rf /var/lib/apt/lists/* \
+ && command -v ldconfig >/dev/null
 
 # ── Compile OpenResty (configure flags identical to openresty.sh.j2:72) ──
 RUN cd /tmp \
