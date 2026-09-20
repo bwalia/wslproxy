@@ -55,8 +55,11 @@ on:
 
       DEPLOY_MODE:
         type: choice
-        description: "What to deploy"
-        default: "full"
+        description: >-
+          What to deploy. Prefer `code` for day-to-day. `full`/`build` pull the
+          prebuilt OpenResty image (bwalia/wslproxy-openresty) instead of compiling
+          on the host unless openresty_install_mode=source.
+        default: "code"
         required: true
         options:
           - code
@@ -85,7 +88,7 @@ jobs:
     steps:
       - name: Show deploy mode
         run: |
-          echo "Deploy mode: ${{ github.event.inputs.DEPLOY_MODE || 'full' }}"
+          echo "Deploy mode: ${{ github.event.inputs.DEPLOY_MODE || 'code' }}"
           echo "Target env:  ${{ github.event.inputs.TARGET_ENV || 'prod' }}"
           echo "Target host: ${{ github.event.inputs.TARGET_HOST || 'all' }}"
 

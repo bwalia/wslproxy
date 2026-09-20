@@ -26,12 +26,14 @@ on:
     inputs:
       DEPLOY_MODE:
         type: choice
-        description: "What to deploy (full = everything; specific layers for surgical updates)"
-        default: "full"
+        description: >-
+          What to deploy. Prefer `code` for routine promotions. `full`/`build`
+          use the prebuilt OpenResty image (no on-host compile by default).
+        default: "code"
         required: true
         options:
-          - full
           - code
+          - full
           - nginx
           - servers
           - dashboard

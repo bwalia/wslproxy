@@ -1,7 +1,7 @@
 name: Nightly Integration Pipeline (main → int → test)
 # Automated nightly pipeline: validates, deploys, and tests main branch through int and test environments
 # Runs unattended — no operator required. Stops at test (never touches acc or prod).
-# Full deploy by default: OS deps, OpenResty build, Lua code, nginx config, configs, dashboard
+# Full deploy by default: OS deps, OpenResty via prebuilt Docker image, Lua code, nginx, configs, dashboard
 # Slack notifications at every gate so the team sees results in the morning.
 
 on:

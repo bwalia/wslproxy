@@ -1,5 +1,16 @@
 nginx_port: 80
 
+# ── OpenResty install mode ─────────────────────────────────────────────────
+# prebuilt (default): pull bwalia/wslproxy-openresty from Docker Hub and
+#   rsync /usr/local/openresty to the target (see tasks/openresty_prebuilt.yml).
+#   Avoids the ~8–15 min on-host compile from openresty.sh.j2.
+# source: legacy path — bootstrap + compile on the target (openresty_build.yml).
+openresty_install_mode: prebuilt
+openresty_expected_version: "1.29.2.1"
+openresty_prefix: /usr/local/openresty
+openresty_prebuilt_image: "docker.io/bwalia/wslproxy-openresty:{{ openresty_expected_version }}"
+openresty_prebuilt_platform: linux/amd64
+
 # When set (e.g. "192.0.2.10"), public HTTP/HTTPS listeners bind that IP
 # only — so Traefik (or anything else) can keep 127.0.0.1:80/443 on the same
 # host without EADDRINUSE. Empty = bind all interfaces (0.0.0.0 / *).

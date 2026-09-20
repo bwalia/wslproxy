@@ -51,14 +51,14 @@ MODE="${1:-full}"
 
 # ── Config ──
 TARGET="${TARGET:-administrator@85.190.106.189}"          # pop0
-IMAGE="${IMAGE:-wslproxy-openresty:1.29.2.1}"
+IMAGE="${IMAGE:-docker.io/bwalia/wslproxy-openresty:1.29.2.1}"
 BASE_IMAGE="${BASE_IMAGE:-debian:13}"
 OPENRESTY_VERSION="${OPENRESTY_VERSION:-1.29.2.1}"
 # Target CPU arch. pop0 is x86_64, so default linux/amd64. On Apple Silicon
 # this builds under emulation (slower) but produces a binary that RUNS on the
 # amd64 host — building native arm64 here would be unusable on pop0.
 PLATFORM="${PLATFORM:-linux/amd64}"
-PULL="${PULL:-0}"
+PULL="${PULL:-1}"
 PREFIX="/usr/local/openresty"
 SSH_OPTS="${SSH_OPTS:--o ConnectTimeout=15}"
 

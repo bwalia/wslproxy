@@ -45,7 +45,8 @@ Full production release pipeline with fail-fast behavior and Slack notifications
 
 ### Deploy Modes
 
-Selected via `DEPLOY_MODE` dropdown (default: `code` for manual, `full` for push to release):
+Selected via `DEPLOY_MODE` dropdown (default: **`code`** for manual dispatch).
+Push to `build`/`release` still defaults to `full` when no input is set.
 
 | Mode | `DEPLOY_MODE` | What runs |
 |------|---------------|-----------|
@@ -54,8 +55,23 @@ Selected via `DEPLOY_MODE` dropdown (default: `code` for manual, `full` for push
 | **Virtual servers** | `servers` | Server/rule data configs, settings, SSL, tenant configs, restart |
 | **Dashboard** | `dashboard` | React admin UI build + deploy, restart |
 | **OS dependencies** | `os_deps` | apt/zypper/yum package updates |
-| **Build OpenResty** | `build` | OS deps + OpenResty compile + luarocks + CDN deps |
-| **Full deploy** (push default) | `full` | Everything |
+| **Build OpenResty** | `build` | OS deps + **prebuilt** OpenResty image pull/rsync + luarocks + CDN deps (`openresty_install_mode=source` to compile on-host) |
+| **Full deploy** | `full` | Everything (OpenResty via prebuilt image by default) |
+
+#### Faster OpenResty installs (prebuilt image)
+
+Bare-metal `build` / auto-install no longer compiles OpenResty from source by
+default. Ansible pulls `docker.io/bwalia/wslproxy-openresty:<version>` (Buildx
++ GHA cache via `.github/workflows/build-openresty-prebuilt.yml`) and rsyncs
+`/usr/local/openresty` to the target. See [`infra/openresty-prebuilt/README.md`](../infra/openresty-prebuilt/README.md).
+
+- Prefer **`DEPLOY_MODE=code`** for Lua / api_gw / HTML changes.
+- Use **`build`** or **`full`** when the OpenResty version or rocks change (after
+  the prebuilt image workflow has published the matching tag).
+- Escape hatch: `--extra-vars openresty_install_mode=source`.
+
+Next.js admin builds on the deploy runner use `actions/setup-node` npm cache
+and `actions/cache` for `.next` outputs.
 
 ### Pipeline Stages
 
@@ -224,9 +240,9 @@ The `DEPLOY_MODE` value maps to Ansible tags that control which tasks run:
 | `servers` | Server/rule data configs, settings, SSL, tenant configs, restart |
 | `dashboard` | React admin UI sync, npm/yarn build, nginx conf, restart |
 | `os_deps` | OS package updates (apt/zypper/dnf) |
-| `build` | `os_deps` + OpenResty compile + luarocks + CDN deps |
+| `build` | `os_deps` + OpenResty **prebuilt image** install (or source if `openresty_install_mode=source`) + luarocks + CDN deps |
 | `full` | No tag filter — all tasks run |
-| `always` | Auto-detect OpenResty, load vars, user setup (runs in every mode) |
+| `always` | Auto-detect OpenResty, load vars, user setup (runs in every mode); auto-installs OpenResty via prebuilt when missing/wrong version |
 
 ---
 

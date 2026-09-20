@@ -48,11 +48,13 @@ on:
         default: "main"
       DEPLOY_MODE:
         type: choice
-        description: "What to deploy"
+        description: >-
+          What to deploy. Prefer `code` for Lua/API/html (fast). Use `full` or
+          `build` only when OpenResty/OS deps/dashboards must change — OpenResty
+          installs from the prebuilt Docker image by default (no on-host compile).
         required: true
-        default: "full"
+        default: "code"
         options:
-          - full
           - code
           - nginx
           - servers
@@ -60,6 +62,7 @@ on:
           - dashboard-next
           - os_deps
           - build
+          - full
           - permissions
 
 # Serialize deploys to the same environment; don't cancel an in-flight deploy.

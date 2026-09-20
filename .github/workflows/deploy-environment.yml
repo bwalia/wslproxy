@@ -236,20 +236,45 @@ jobs:
           fi
 
       # ── Build Next.js dashboard (standalone mode) ──
+      - name: Setup Node.js (npm cache)
+        if: contains(inputs.deploy_mode, 'dashboard') || inputs.deploy_mode == 'full'
+        uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: openresty-admin-next/package-lock.json
+
+      - name: Cache Next.js build output
+        if: contains(inputs.deploy_mode, 'dashboard') || inputs.deploy_mode == 'full'
+        uses: actions/cache@v4
+        with:
+          path: |
+            openresty-admin-next/.next/cache
+            openresty-admin-next/.next/standalone
+            openresty-admin-next/.next/static
+          key: nextjs-${{ runner.os }}-${{ hashFiles('openresty-admin-next/package-lock.json') }}-${{ hashFiles('openresty-admin-next/src/**', 'openresty-admin-next/app/**', 'openresty-admin-next/next.config.*') }}
+          restore-keys: |
+            nextjs-${{ runner.os }}-${{ hashFiles('openresty-admin-next/package-lock.json') }}-
+            nextjs-${{ runner.os }}-
+
       - name: Build Next.js admin dashboard
         if: contains(inputs.deploy_mode, 'dashboard') || inputs.deploy_mode == 'full'
         run: |
           echo "Building Next.js admin dashboard (standalone)..."
 
-          # Ensure Node.js is available (use nvm if installed, else system node)
-          export NVM_DIR="${HOME}/.nvm"
-          [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+          # Prefer setup-node's node; fall back to nvm/system if setup-node skipped
+          # or PATH was overridden on the self-hosted runner.
+          if ! command -v node &> /dev/null; then
+            export NVM_DIR="${HOME}/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+          fi
           if ! command -v node &> /dev/null; then
             echo "Node.js not found — installing via nvm..."
             curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash
+            export NVM_DIR="${HOME}/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
-            nvm install 18
-            nvm use 18
+            nvm install 20
+            nvm use 20
           fi
           echo "Node.js version: $(node --version)"
 
