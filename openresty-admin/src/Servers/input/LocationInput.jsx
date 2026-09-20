@@ -33,7 +33,7 @@ const LocationInput = ({source}) => {
         />
         <FormDataConsumer>
           {({ formData, scopedFormData, getSource }) => {
-            const selectedOptions = scopedFormData.location_opts || [];
+            const selectedOptions = scopedFormData?.location_opts || [];
             return selectedOptions.map((option, index) => (
               <React.Fragment key={index}>
                 <TextInput

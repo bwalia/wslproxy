@@ -1,0 +1,18 @@
+{
+    "capacity_weight": 1.0,
+    "city": "London",
+    "country_code": "GB",
+    "created_at": 1781918751,
+    "display_name": "London POP 1",
+    "id": "lon1",
+    "metadata": {},
+    "provider": "ionos",
+    "public_ipv4": "195.20.255.201",
+    "region": "eu-west",
+    "status": "active",
+    "tags": [
+        "production",
+        "secondary"
+    ],
+    "updated_at": 1781918751
+}

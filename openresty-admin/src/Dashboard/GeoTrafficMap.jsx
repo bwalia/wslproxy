@@ -215,6 +215,7 @@ const countryCodeMap = {
   UA: "UKR",
   AE: "ARE",
   GB: "GBR",
+  UK: "GBR",
   US: "USA",
   UY: "URY",
   UZ: "UZB",
@@ -285,6 +286,31 @@ const countryNames = {
   TW: "Taiwan",
 };
 
+// world-atlas@2 countries-110m.json uses ISO 3166-1 numeric ids (not Alpha-3)
+const alpha2ToNumeric = {
+  AF: "004", AL: "008", DZ: "012", AR: "032", AU: "036", AT: "040",
+  BD: "050", BE: "056", BR: "076", BG: "100", CA: "124", CL: "152",
+  CN: "156", CO: "170", HR: "191", CZ: "203", DK: "208", EG: "818",
+  FI: "246", FR: "250", DE: "276", GR: "300", HK: "344", HU: "348",
+  IN: "356", ID: "360", IR: "364", IQ: "368", IE: "372", IL: "376",
+  IT: "380", JP: "392", KZ: "398", KE: "404", KR: "410", MY: "458",
+  MX: "484", MA: "504", NL: "528", NZ: "554", NG: "566", NO: "578",
+  PK: "586", PE: "604", PH: "608", PL: "616", PT: "620", RO: "642",
+  RU: "643", SA: "682", SG: "702", ZA: "710", ES: "724", SE: "752",
+  CH: "756", TW: "158", TH: "764", TR: "792", UA: "804", AE: "784",
+  GB: "826", UK: "826", US: "840", VN: "704", VE: "862", EC: "218",
+  GH: "288", ET: "231", TZ: "834", UG: "800", CM: "120", SN: "686",
+  CI: "384", AO: "024", MZ: "508", MG: "450", LK: "144", MM: "104",
+  NP: "524", KH: "116", UZ: "860", GE: "268", AM: "051", AZ: "031",
+  BY: "112", LT: "440", LV: "428", EE: "233", RS: "688", SK: "703",
+  SI: "705", BA: "070", MK: "807", ME: "499", IS: "352", LU: "442",
+  MT: "470", CY: "196", JO: "400", LB: "422", KW: "414", QA: "634",
+  BH: "048", OM: "512", YE: "887", SY: "760", LY: "434", TN: "788",
+  SD: "729", DO: "214", CR: "188", PA: "591", CU: "192", GT: "320",
+  HN: "340", SV: "222", NI: "558", PY: "600", UY: "858", BO: "068",
+  TT: "780", JM: "388",
+};
+
 const GeoTrafficMap = ({ data = [], formatNumber }) => {
   const theme = useTheme();
   const { mode } = useThemeMode();
@@ -301,16 +327,23 @@ const GeoTrafficMap = ({ data = [], formatNumber }) => {
     });
 
   // Calculate color scale based on request counts
+  // world-atlas@2 countries-110m uses ISO numeric ids (e.g. 826), not ISO_A3.
   const { maxRequests, colorScale, dataMap } = useMemo(() => {
     const max = data.length > 0 ? Math.max(...data.map((d) => d.requests)) : 1;
 
-    // Convert data to lookup maps (both Alpha-2 and Alpha-3 codes)
     const dataLookup = {};
     data.forEach((item) => {
-      const alpha2 = item.country_code;
+      let alpha2 = (item.country_code || "").toUpperCase();
+      if (alpha2 === "UK") alpha2 = "GB";
       dataLookup[alpha2] = item.requests;
       if (countryCodeMap[alpha2]) {
         dataLookup[countryCodeMap[alpha2]] = item.requests;
+      }
+      // Numeric id used by world-atlas TopoJSON (and react-simple-maps geo.id)
+      const numeric = alpha2ToNumeric[alpha2];
+      if (numeric) {
+        dataLookup[numeric] = item.requests;
+        dataLookup[String(Number(numeric))] = item.requests;
       }
     });
 
@@ -351,8 +384,9 @@ const GeoTrafficMap = ({ data = [], formatNumber }) => {
             <Geographies geography={geoUrl}>
               {({ geographies }) =>
                 geographies.map((geo) => {
-                  // world-atlas uses 'name' (lowercase) for country name
-                  const countryCode = geo.properties.ISO_A3 || geo.id;
+                  const countryCode = String(
+                    geo.id ?? geo.properties.ISO_A3 ?? "",
+                  );
                   const requests = dataMap[countryCode] || 0;
                   const countryName =
                     geo.properties.name || geo.properties.NAME || countryCode;

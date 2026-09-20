@@ -1,7 +1,9 @@
+import { getApiUrl } from "./apiBase";
+
 const authProvider = {
   // send username and password to the auth server and get back credentials
   login: async (params) => {
-    const API_URL = import.meta.env.VITE_API_URL;
+    const API_URL = getApiUrl();
     const { email, password } = params;
     const request = new Request(`${API_URL}/user/login`, {
       method: "POST",

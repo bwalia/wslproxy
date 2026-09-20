@@ -33,6 +33,7 @@ const ENV_PALETTE: Record<
   { dotClass: string; label: string }
 > = {
   prod: { dotClass: "bg-red-500", label: "PROD" },
+  acc: { dotClass: "bg-amber-500", label: "ACC" },
   test: { dotClass: "bg-blue-500", label: "TEST" },
   int: { dotClass: "bg-sky-400", label: "INT" },
   local: { dotClass: "bg-slate-400", label: "LOCAL" },

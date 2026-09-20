@@ -1,822 +1,593 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="WSL Proxy - Enterprise-grade reverse proxy, load balancer, and edge computing platform. Build your own CDN with multi-region failover, edge caching, and WAF protection." />
-    <meta name="keywords" content="CDN, reverse proxy, load balancer, edge computing, WAF, SSL, cache, API gateway, OpenResty, Lua, nginx" />
-    <meta name="author" content="Workstation Solutions Limited" />
-    <meta property="og:title" content="WSL Proxy - Build Your Own CDN" />
-    <meta property="og:description" content="Enterprise-grade reverse proxy, load balancer, and edge computing platform with multi-region failover, edge caching, and WAF protection." />
-    <meta property="og:type" content="website" />
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="WSL Proxy - Build Your Own CDN" />
-    <meta name="twitter:description" content="Enterprise-grade reverse proxy and edge computing platform" />
-    <title>WSL Proxy - Build Your Own CDN | Enterprise Edge Platform</title>
-    
-    <!-- CDN Dependencies for GitHub Pages -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet" />
-    
-    <style>
-      :root {
-        --primary: #6366f1;
-        --primary-dark: #4f46e5;
-        --secondary: #0ea5e9;
-        --accent: #10b981;
-        --dark: #0f172a;
-        --dark-light: #1e293b;
-        --gray: #64748b;
-        --light: #f8fafc;
-        --white: #ffffff;
-        --gradient: linear-gradient(135deg, #6366f1 0%, #0ea5e9 50%, #10b981 100%);
-        --gradient-dark: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-      }
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="WSLProxy — dynamic API gateway and reverse proxy on OpenResty. Live rules, WAF, multi-POP edge, MCP for AI agents, and a CLI for GitOps." />
+  <meta name="author" content="Workstation Solutions Limited" />
+  <meta name="theme-color" content="#f4f7fb" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#070e18" media="(prefers-color-scheme: dark)" />
+  <meta name="color-scheme" content="light dark" />
+  <meta property="og:title" content="WSLProxy — Live-config API gateway" />
+  <meta property="og:description" content="Route, secure, and observe traffic from JSON and MCP — without reloading nginx for every rule change." />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="https://wslproxy.org/images/geographic-traffic-distribution-dashboard.jpg" />
+  <title>WSLProxy — Live-config API gateway &amp; edge control plane</title>
+  <script src="/js/theme.js"></script>
+  <link rel="icon" href="/images/logo-color.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Lexend:wght@400;500;600;700&family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/site.css" />
+  <style>
+    @keyframes rise-in {
+      from { opacity: 0; transform: translateY(14px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes ring-breathe {
+      0%, 100% { opacity: 0.28; transform: translate(-50%, -50%) scale(1); }
+      50% { opacity: 0.4; transform: translate(-50%, -50%) scale(1.03); }
+    }
 
-      * { margin: 0; padding: 0; box-sizing: border-box; }
+    /* Buttons */
+    .btn {
+      font-family: var(--font-display);
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 12px 20px; border-radius: 10px; border: 1px solid transparent;
+      font-size: 15px; font-weight: 600; cursor: pointer;
+      transition: transform 60ms, box-shadow 0.2s, background 0.15s, border-color 0.15s;
+    }
+    .btn:active { transform: translateY(1px); }
+    .btn-primary {
+      background: linear-gradient(180deg, color-mix(in srgb, var(--brass) 92%, #fff), var(--brass));
+      color: #fff;
+      box-shadow: 0 10px 28px var(--brass-glow);
+    }
+    .btn-primary:hover {
+      background: linear-gradient(180deg, color-mix(in srgb, var(--brass) 80%, #fff), var(--brass-dim));
+    }
+    .btn-ghost {
+      background: color-mix(in srgb, var(--steel-raised) 55%, transparent);
+      color: var(--on-steel);
+      border-color: var(--steel-line);
+    }
+    .btn-ghost:hover {
+      border-color: var(--signal);
+      color: var(--signal);
+      background: color-mix(in srgb, var(--signal) 8%, transparent);
+    }
 
-      body {
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-        color: var(--dark);
-        line-height: 1.6;
-        overflow-x: hidden;
-      }
+    /* Hero */
+    .hero {
+      padding: 96px 0 80px; position: relative; overflow: hidden;
+      animation: 0.7s both rise-in;
+    }
+    .hero::before, .hero::after {
+      content: ""; position: absolute; top: 42%; left: 58%;
+      width: 36rem; height: 36rem; border-radius: 50%;
+      border: 1px solid var(--hero-ring); pointer-events: none;
+      transform: translate(-50%, -50%);
+      animation: 8s ease-in-out infinite ring-breathe;
+    }
+    .hero::after { width: 26rem; height: 26rem; opacity: 0.22; animation-delay: -2.5s; }
+    .eyebrow {
+      display: inline-flex; align-items: center; gap: 10px;
+      font-family: var(--font-display);
+      font-size: 14.5px; font-weight: 600;
+      letter-spacing: 0.015em;
+      line-height: 1.2;
+      color: var(--ink);
+      border: 1px solid color-mix(in srgb, var(--signal) 45%, var(--steel-line));
+      background: color-mix(in srgb, var(--signal) 14%, var(--steel-raised));
+      border-radius: 999px; padding: 9px 18px; margin-bottom: 26px;
+      box-shadow:
+        inset 0 1px 0 color-mix(in srgb, #fff 8%, transparent),
+        0 0 0 1px color-mix(in srgb, var(--signal) 10%, transparent);
+    }
+    .eyebrow .dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--signal);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--signal) 30%, transparent);
+      flex-shrink: 0;
+    }
+    .hero-title {
+      font-family: var(--font-display);
+      font-size: clamp(36px, 5.5vw, 60px); font-weight: 700; line-height: 1.04;
+      letter-spacing: -0.03em; color: var(--ink); max-width: 18ch; text-wrap: balance;
+      margin: 0 0 20px;
+    }
+    .hero-title .grad {
+      color: var(--signal);
+      background-image: linear-gradient(105deg, #7dd3fc 0%, #60a5fa 48%, #3b82f6 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    html:not(.dark) .hero-title .grad {
+      background-image: linear-gradient(105deg, #2f7fc4 0%, #1f5f9e 55%, #174a7c 100%);
+    }
+    .hero-sub {
+      color: var(--on-steel-muted); max-width: 640px; margin: 0 0 28px;
+      font-size: clamp(17px, 2vw, 19.5px); line-height: 1.55;
+    }
+    .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 22px; }
+    .hero-meta {
+      display: flex; flex-wrap: wrap; gap: 22px;
+      color: var(--on-steel-faint); font-size: 14.5px; font-weight: 500;
+    }
+    .hero-meta span { display: inline-flex; align-items: center; gap: 7px; }
+    .check { color: var(--unlock); flex-shrink: 0; }
 
-      /* Navbar */
-      .navbar-custom {
-        background: rgba(15, 23, 42, 0.95);
-        backdrop-filter: blur(20px);
-        padding: 1rem 0;
-        position: fixed;
-        width: 100%;
-        top: 0;
-        z-index: 1000;
-        border-bottom: 1px solid rgba(255,255,255,0.1);
-        transition: all 0.3s ease;
-      }
+    .terminal {
+      margin-top: 44px; border: 1px solid var(--steel-line); border-radius: var(--radius);
+      background: linear-gradient(180deg, var(--term-bar), var(--term-bg));
+      overflow: hidden; box-shadow: 0 28px 80px color-mix(in srgb, #000 28%, transparent);
+      animation: 0.85s 0.12s both rise-in; position: relative; z-index: 1;
+    }
+    .terminal-bar {
+      display: flex; align-items: center; gap: 8px;
+      padding: 12px 16px; background: var(--term-bar); border-bottom: 1px solid var(--steel-line);
+    }
+    .tdot { width: 10px; height: 10px; border-radius: 50%; }
+    .tdot.r { background: #ff5f57; }
+    .tdot.y { background: #febc2e; }
+    .tdot.g { background: #28c840; }
+    .terminal-title {
+      margin-left: 8px; font-family: var(--font-mono); font-size: 12px; color: #7a8fa6;
+    }
+    .terminal pre {
+      margin: 0; padding: 18px 20px 22px; font-family: var(--font-mono);
+      font-size: 13.5px; line-height: 1.65; color: var(--term-ink); overflow-x: auto;
+    }
+    .c-cmd { color: #7dd3fc; }
+    .c-flag { color: #93c5fd; }
+    .c-str { color: #86efac; }
+    .c-ok { color: #34d399; }
+    .c-dim { color: #64748b; }
 
-      .navbar-brand {
-        font-size: 1.5rem;
-        font-weight: 800;
-        color: var(--white) !important;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        text-decoration: none;
-      }
+    /* Sections */
+    section { padding: 72px 0; }
+    .band-steel { background: var(--steel); color: var(--on-steel); }
+    .band-canvas {
+      background: var(--canvas);
+      color: var(--ink);
+      border-top: 1px solid var(--steel-line);
+      border-bottom: 1px solid var(--steel-line);
+    }
+    .band-raised { background: var(--canvas); }
 
-      .navbar-brand span {
-        background: var(--gradient);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-      }
+    .section-head { max-width: 640px; margin-bottom: 40px; }
+    .section-head.center { margin-left: auto; margin-right: auto; text-align: center; }
+    .kicker {
+      font-family: var(--font-display); font-size: 13px; font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase; color: var(--signal); margin-bottom: 12px;
+    }
+    h2 {
+      font-family: var(--font-display); font-weight: 600; letter-spacing: -0.02em;
+      font-size: clamp(26px, 3.4vw, 36px); margin: 0 0 14px; color: var(--ink);
+    }
+    .section-sub { margin: 0; color: var(--on-steel-muted); font-size: 16.5px; }
 
-      .nav-link-custom {
-        color: rgba(255,255,255,0.8) !important;
-        font-weight: 500;
-        padding: 0.5rem 1rem !important;
-        transition: all 0.3s ease;
-        text-decoration: none;
-      }
+    .grid { display: grid; gap: 18px; }
+    .grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+    .grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
+    @media (max-width: 900px) {
+      .grid.cols-3, .grid.cols-2 { grid-template-columns: 1fr; }
+    }
 
-      .nav-link-custom:hover { color: var(--white) !important; }
+    .card {
+      background: var(--steel-raised); border: 1px solid var(--steel-line);
+      border-radius: var(--radius); padding: 22px 22px 20px;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .card:hover {
+      border-color: color-mix(in srgb, var(--brass) 55%, var(--steel-line));
+      box-shadow: 0 0 0 1px color-mix(in srgb, var(--brass) 20%, transparent);
+    }
+    .card-icon {
+      width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center;
+      margin-bottom: 14px; color: var(--signal);
+      background: color-mix(in srgb, var(--signal) 12%, transparent);
+      border: 1px solid color-mix(in srgb, var(--signal) 28%, transparent);
+    }
+    .card h3 {
+      font-family: var(--font-display); font-size: 17px; font-weight: 600;
+      margin: 0 0 8px; color: var(--ink);
+    }
+    .card p { margin: 0; color: var(--on-steel-muted); font-size: 15px; }
 
-      .btn-nav {
-        background: var(--gradient);
-        color: var(--white) !important;
-        padding: 0.6rem 1.5rem !important;
-        border-radius: 8px;
-        font-weight: 600;
-        transition: all 0.3s ease;
-        text-decoration: none;
-        margin-left: 1rem;
-        border: none;
-      }
+    /* Video */
+    .video-frame {
+      position: relative; width: 100%; max-width: 920px; margin: 0 auto;
+      aspect-ratio: 16 / 9; border-radius: var(--radius); overflow: hidden;
+      border: 1px solid var(--steel-line); background: #0a0e14;
+      box-shadow: 0 24px 70px color-mix(in srgb, #000 18%, transparent);
+    }
+    .video-frame iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+    .video-caption {
+      text-align: center; margin: 14px auto 0; max-width: 920px;
+      color: var(--on-steel-faint); font-size: 14.5px;
+    }
+    .video-caption a { color: var(--brass); font-weight: 600; }
+    .video-caption a:hover { text-decoration: underline; }
 
-      .btn-nav:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 10px 40px rgba(99, 102, 241, 0.4);
-      }
+    /* Media lists (videos + blogs) */
+    .media-list { display: grid; gap: 14px; }
+    .media-row {
+      display: grid; gap: 18px; align-items: center;
+      padding: 16px 18px; border-radius: var(--radius);
+      border: 1px solid var(--line-strong); background: var(--surface);
+      transition: border-color 0.15s;
+    }
+    .media-row:hover { border-color: color-mix(in srgb, var(--brass) 50%, var(--line-strong)); }
+    @media (min-width: 780px) {
+      .media-row { grid-template-columns: 220px 1fr auto; }
+    }
+    .media-thumb {
+      border-radius: 10px; overflow: hidden; border: 1px solid var(--line);
+      background: var(--canvas); aspect-ratio: 16 / 9;
+    }
+    .media-thumb img { display: block; width: 100%; height: 100%; object-fit: cover; }
+    .media-thumb--yt {
+      display: grid; place-items: center; color: var(--brass);
+      background: linear-gradient(145deg, var(--surface), var(--canvas));
+      font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.06em;
+    }
+    .media-copy .tag {
+      font-family: var(--font-display); font-size: 12px; font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase; color: var(--signal); margin: 0 0 6px;
+    }
+    .media-copy h3 {
+      font-family: var(--font-display); font-size: 18px; font-weight: 600;
+      margin: 0 0 6px; color: var(--ink);
+    }
+    .media-copy p { margin: 0; color: var(--ink-muted); font-size: 15px; }
+    .media-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .media-actions .btn { padding: 9px 14px; font-size: 13.5px; }
 
-      /* Hero Section */
-      .hero {
-        min-height: 100vh;
-        background: var(--gradient-dark);
-        position: relative;
-        display: flex;
-        align-items: center;
-        overflow: hidden;
-        padding-top: 80px;
-      }
+    .btn-dark {
+      background: var(--brass); color: #fff; border-color: var(--brass);
+      box-shadow: 0 8px 20px var(--brass-glow);
+    }
+    .btn-dark:hover {
+      background: color-mix(in srgb, var(--brass) 88%, #fff);
+    }
+    .btn-outline-ink {
+      background: transparent; color: var(--on-steel); border-color: var(--line-strong);
+    }
+    .btn-outline-ink:hover { border-color: var(--brass); color: var(--brass); }
 
-      .hero::before {
-        content: '';
-        position: absolute;
-        top: 0; left: 0; right: 0; bottom: 0;
-        background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.03)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
-        pointer-events: none;
-      }
+    .flow-steps { display: grid; gap: 14px; }
+    .flow-step {
+      display: grid; grid-template-columns: 110px 1fr; gap: 16px;
+      padding: 18px 20px; border: 1px solid var(--steel-line); border-radius: var(--radius);
+      background: var(--steel-raised);
+    }
+    .flow-step code {
+      font-family: var(--font-mono); font-size: 12.5px; color: var(--signal);
+      align-self: start; padding-top: 2px;
+    }
+    .flow-step strong { display: block; color: var(--ink); margin-bottom: 4px; font-family: var(--font-display); }
+    .flow-step p { margin: 0; color: var(--on-steel-muted); font-size: 15px; }
+    @media (max-width: 640px) {
+      .flow-step { grid-template-columns: 1fr; }
+    }
 
-      .hero-glow {
-        position: absolute;
-        width: 600px; height: 600px;
-        background: radial-gradient(circle, rgba(99, 102, 241, 0.3) 0%, transparent 70%);
-        top: -200px; right: -100px;
-        pointer-events: none;
-      }
+    .cta-box {
+      text-align: center; padding: 48px 28px; border-radius: calc(var(--radius) + 4px);
+      border: 1px solid var(--steel-line);
+      background: linear-gradient(180deg, var(--steel-raised), var(--canvas));
+    }
+    .cta-box h2 { max-width: 18ch; margin-left: auto; margin-right: auto; }
+    .cta-box p { color: var(--on-steel-muted); max-width: 36rem; margin: 0 auto 24px; }
+    .cta-actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+  </style>
+</head>
+<body>
+  <header class="nav">
+    <div class="wrap nav-inner">
+      <a class="brand" href="#top">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="wslproxyLogoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="var(--signal)" />
+                <stop offset="100%" stop-color="var(--brass-dim)" />
+              </linearGradient>
+            </defs>
+            <path d="M24 4L6 12v12c0 11 8 21 18 24 10-3 18-13 18-24V12L24 4z" fill="url(#wslproxyLogoGrad)" />
+            <circle cx="24" cy="18" r="3" fill="white" />
+            <circle cx="16" cy="28" r="2.5" fill="white" opacity="0.9" />
+            <circle cx="32" cy="28" r="2.5" fill="white" opacity="0.9" />
+            <circle cx="24" cy="36" r="2" fill="white" opacity="0.8" />
+            <path d="M24 21v5M18 27l4-4M30 27l-4-4M24 33v-3" stroke="white" stroke-width="1.5" stroke-linecap="round" opacity="0.7" />
+          </svg>
+        </span>
+        <span>WSL<span class="brand-accent">Proxy</span></span>
+      </a>
+      <button class="nav-toggle" type="button" id="nav-toggle" aria-expanded="false" aria-controls="nav-menu">Menu</button>
+      <nav class="nav-links" id="nav-menu">
+        <a href="#intro-video">Watch</a>
+        <a href="#how-to-videos">How-to</a>
+        <a href="#features">Features</a>
+        <a href="/waf/">WAF</a>
+        <a href="#blog">Blog</a>
+        <a href="#pipeline">Pipeline</a>
+        <a href="/swagger/">API</a>
+        <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode" title="Toggle theme">
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M21 14.5A8.5 8.5 0 0 1 9.5 3 7 7 0 1 0 21 14.5z" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" stroke-linecap="round"/>
+          </svg>
+        </button>
+        <a class="nav-cta" href="https://github.com/bwalia/wslproxy">GitHub</a>
+      </nav>
+    </div>
+  </header>
 
-      .hero-glow-2 {
-        position: absolute;
-        width: 400px; height: 400px;
-        background: radial-gradient(circle, rgba(14, 165, 233, 0.2) 0%, transparent 70%);
-        bottom: -100px; left: -100px;
-        pointer-events: none;
-      }
-
-      .hero-content { position: relative; z-index: 2; }
-
-      .hero-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        background: rgba(99, 102, 241, 0.2);
-        border: 1px solid rgba(99, 102, 241, 0.3);
-        padding: 0.5rem 1rem;
-        border-radius: 50px;
-        color: var(--primary);
-        font-size: 0.875rem;
-        font-weight: 500;
-        margin-bottom: 1.5rem;
-      }
-
-      .hero h1 {
-        font-size: 3.5rem;
-        font-weight: 800;
-        color: var(--white);
-        line-height: 1.1;
-        margin-bottom: 1.5rem;
-      }
-
-      .hero h1 .gradient-text {
-        background: var(--gradient);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-      }
-
-      .hero-description {
-        font-size: 1.25rem;
-        color: rgba(255,255,255,0.7);
-        max-width: 600px;
-        margin-bottom: 2rem;
-      }
-
-      .hero-buttons { display: flex; gap: 1rem; flex-wrap: wrap; }
-
-      .btn-primary-custom {
-        background: var(--gradient);
-        color: var(--white);
-        padding: 1rem 2rem;
-        border-radius: 12px;
-        font-weight: 600;
-        font-size: 1rem;
-        border: none;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        text-decoration: none;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-      }
-
-      .btn-primary-custom:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 20px 40px rgba(99, 102, 241, 0.4);
-        color: var(--white);
-      }
-
-      .btn-secondary-custom {
-        background: transparent;
-        color: var(--white);
-        padding: 1rem 2rem;
-        border-radius: 12px;
-        font-weight: 600;
-        font-size: 1rem;
-        border: 2px solid rgba(255,255,255,0.2);
-        cursor: pointer;
-        transition: all 0.3s ease;
-        text-decoration: none;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-      }
-
-      .btn-secondary-custom:hover {
-        background: rgba(255,255,255,0.1);
-        border-color: rgba(255,255,255,0.4);
-        color: var(--white);
-      }
-
-      .hero-stats {
-        display: flex;
-        gap: 3rem;
-        margin-top: 4rem;
-        padding-top: 2rem;
-        border-top: 1px solid rgba(255,255,255,0.1);
-        flex-wrap: wrap;
-      }
-
-      .stat-item { text-align: center; }
-
-      .stat-number {
-        font-size: 2.5rem;
-        font-weight: 800;
-        background: var(--gradient);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-      }
-
-      .stat-label { color: rgba(255,255,255,0.6); font-size: 0.875rem; }
-
-      /* Terminal */
-      .terminal-window {
-        background: var(--dark);
-        border-radius: 16px;
-        overflow: hidden;
-        box-shadow: 0 40px 80px rgba(0,0,0,0.5);
-        border: 1px solid rgba(255,255,255,0.1);
-      }
-
-      .terminal-header {
-        background: var(--dark-light);
-        padding: 1rem 1.5rem;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-      }
-
-      .terminal-dot { width: 12px; height: 12px; border-radius: 50%; }
-      .terminal-dot.red { background: #ff5f57; }
-      .terminal-dot.yellow { background: #febc2e; }
-      .terminal-dot.green { background: #28c840; }
-
-      .terminal-body {
-        padding: 1.5rem;
-        font-family: 'Monaco', 'Menlo', monospace;
-        font-size: 0.8rem;
-        color: rgba(255,255,255,0.8);
-        min-height: 280px;
-      }
-
-      .terminal-line { margin-bottom: 0.5rem; display: flex; gap: 0.5rem; }
-      .terminal-prompt { color: var(--accent); }
-      .terminal-command { color: var(--secondary); }
-      .terminal-output { color: rgba(255,255,255,0.6); padding-left: 1rem; }
-
-      /* Features Section */
-      .features { padding: 6rem 0; background: var(--light); }
-
-      .section-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        background: rgba(99, 102, 241, 0.1);
-        padding: 0.5rem 1rem;
-        border-radius: 50px;
-        color: var(--primary);
-        font-size: 0.875rem;
-        font-weight: 500;
-        margin-bottom: 1rem;
-      }
-
-      .section-title {
-        font-size: 2.5rem;
-        font-weight: 800;
-        color: var(--dark);
-        margin-bottom: 1rem;
-      }
-
-      .section-description {
-        font-size: 1.125rem;
-        color: var(--gray);
-        max-width: 600px;
-        margin: 0 auto 3rem;
-      }
-
-      .feature-card {
-        background: var(--white);
-        border-radius: 20px;
-        padding: 2rem;
-        height: 100%;
-        border: 1px solid rgba(0,0,0,0.05);
-        transition: all 0.3s ease;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.03);
-      }
-
-      .feature-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 20px 60px rgba(0,0,0,0.1);
-      }
-
-      .feature-icon {
-        width: 60px;
-        height: 60px;
-        border-radius: 16px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-bottom: 1.5rem;
-        font-size: 1.5rem;
-      }
-
-      .feature-icon.blue { background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(14, 165, 233, 0.2)); color: var(--primary); }
-      .feature-icon.green { background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(5, 150, 105, 0.2)); color: var(--accent); }
-      .feature-icon.purple { background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(168, 85, 247, 0.2)); color: #8b5cf6; }
-      .feature-icon.orange { background: linear-gradient(135deg, rgba(249, 115, 22, 0.2), rgba(234, 88, 12, 0.2)); color: #f97316; }
-      .feature-icon.cyan { background: linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(8, 145, 178, 0.2)); color: #06b6d4; }
-      .feature-icon.red { background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(220, 38, 38, 0.2)); color: #ef4444; }
-      .feature-icon.pink { background: linear-gradient(135deg, rgba(236, 72, 153, 0.2), rgba(219, 39, 119, 0.2)); color: #ec4899; }
-      .feature-icon.yellow { background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(217, 119, 6, 0.2)); color: #f59e0b; }
-      .feature-icon.indigo { background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(79, 70, 229, 0.2)); color: #6366f1; }
-      .feature-icon.teal { background: linear-gradient(135deg, rgba(20, 184, 166, 0.2), rgba(13, 148, 136, 0.2)); color: #14b8a6; }
-
-      .feature-card h4 { font-size: 1.25rem; font-weight: 700; color: var(--dark); margin-bottom: 0.75rem; }
-      .feature-card p { color: var(--gray); font-size: 0.95rem; line-height: 1.6; margin: 0; }
-
-      /* Request Flow Diagram */
-      .flow-section { padding: 5rem 0; background: var(--gradient-dark); }
-
-      .flow-diagram {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-wrap: wrap;
-        gap: 0;
-        padding: 2rem 0;
-      }
-
-      .flow-node {
-        background: rgba(255,255,255,0.1);
-        border: 1px solid rgba(255,255,255,0.2);
-        border-radius: 12px;
-        padding: 1rem 1.5rem;
-        text-align: center;
-        backdrop-filter: blur(10px);
-        min-width: 100px;
-      }
-
-      .flow-node i { font-size: 1.5rem; margin-bottom: 0.5rem; display: block; }
-      .flow-node span { font-size: 0.75rem; color: rgba(255,255,255,0.9); font-weight: 500; }
-      .flow-node.primary { background: rgba(99, 102, 241, 0.3); border-color: var(--primary); }
-      .flow-node.primary i { color: var(--primary); }
-      .flow-node.success { background: rgba(16, 185, 129, 0.3); border-color: var(--accent); }
-      .flow-node.success i { color: var(--accent); }
-      .flow-node.warning { background: rgba(249, 115, 22, 0.3); border-color: #f97316; }
-      .flow-node.warning i { color: #f97316; }
-      .flow-node.info { background: rgba(14, 165, 233, 0.3); border-color: var(--secondary); }
-      .flow-node.info i { color: var(--secondary); }
-
-      .flow-arrow {
-        color: rgba(255,255,255,0.4);
-        font-size: 1.5rem;
-        padding: 0 0.5rem;
-      }
-
-      /* API Section */
-      .api-section { padding: 5rem 0; background: var(--light); }
-
-      .api-card {
-        background: var(--white);
-        border-radius: 12px;
-        padding: 1.5rem;
-        border: 1px solid rgba(0,0,0,0.05);
-        height: 100%;
-        transition: all 0.3s ease;
-      }
-
-      .api-card:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-      }
-
-      .api-method {
-        display: inline-block;
-        padding: 0.25rem 0.75rem;
-        border-radius: 6px;
-        font-size: 0.75rem;
-        font-weight: 700;
-        margin-bottom: 0.75rem;
-      }
-
-      .api-method.get { background: rgba(16, 185, 129, 0.2); color: var(--accent); }
-      .api-method.post { background: rgba(99, 102, 241, 0.2); color: var(--primary); }
-      .api-method.put { background: rgba(249, 115, 22, 0.2); color: #f97316; }
-      .api-method.delete { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
-
-      .api-endpoint { font-family: 'Monaco', monospace; font-size: 0.875rem; color: var(--dark); margin-bottom: 0.5rem; font-weight: 600; }
-      .api-desc { color: var(--gray); font-size: 0.85rem; margin: 0; }
-
-      /* CTA Section */
-      .cta-section {
-        padding: 6rem 0;
-        background: var(--gradient-dark);
-        text-align: center;
-      }
-
-      .cta-section h2 { font-size: 2.5rem; font-weight: 800; color: var(--white); margin-bottom: 1rem; }
-      .cta-section p { font-size: 1.125rem; color: rgba(255,255,255,0.7); margin-bottom: 2rem; max-width: 600px; margin-left: auto; margin-right: auto; }
-
-      /* Footer */
-      .footer {
-        background: var(--dark);
-        padding: 4rem 0 2rem;
-        color: rgba(255,255,255,0.7);
-      }
-
-      .footer h5 { color: var(--white); font-weight: 700; margin-bottom: 1.5rem; }
-      .footer ul { list-style: none; padding: 0; }
-      .footer ul li { margin-bottom: 0.75rem; }
-      .footer a { color: rgba(255,255,255,0.6); text-decoration: none; transition: color 0.3s ease; }
-      .footer a:hover { color: var(--white); }
-      .footer-bottom { border-top: 1px solid rgba(255,255,255,0.1); padding-top: 2rem; margin-top: 3rem; text-align: center; }
-      .footer-logo { font-size: 1.5rem; font-weight: 800; margin-bottom: 1rem; }
-      .footer-logo span { background: var(--gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-
-      .social-links { display: flex; gap: 1rem; margin-top: 1rem; }
-      .social-links a {
-        width: 40px; height: 40px;
-        border-radius: 50%;
-        background: rgba(255,255,255,0.1);
-        display: flex; align-items: center; justify-content: center;
-        color: var(--white);
-        transition: all 0.3s ease;
-      }
-      .social-links a:hover { background: var(--primary); transform: translateY(-3px); }
-
-      /* Responsive */
-      @media (max-width: 768px) {
-        .hero h1 { font-size: 2.5rem; }
-        .hero-stats { gap: 1.5rem; }
-        .stat-number { font-size: 1.75rem; }
-        .section-title { font-size: 2rem; }
-        .flow-diagram { flex-direction: column; gap: 0.5rem; }
-        .flow-arrow { transform: rotate(90deg); padding: 0.25rem 0; }
-      }
-    </style>
-  </head>
-  <body>
-    <!-- Navbar -->
-    <nav class="navbar-custom">
-      <div class="container d-flex justify-content-between align-items-center">
-        <a class="navbar-brand" href="#">
-          <i class="fas fa-cube"></i>
-          <span>WSL Proxy</span>
-        </a>
-        <div class="d-flex align-items-center">
-          <a class="nav-link-custom d-none d-md-inline" href="#features">Features</a>
-          <a class="nav-link-custom d-none d-md-inline" href="#flow">Architecture</a>
-          <a class="nav-link-custom d-none d-md-inline" href="#api">API</a>
-          <a class="nav-link-custom d-none d-md-inline" href="https://github.com/bwalia/wslproxy" target="_blank">Docs</a>
-          <a class="btn-nav" href="https://github.com/bwalia/wslproxy" target="_blank">
-            <i class="fab fa-github"></i> GitHub
-          </a>
-        </div>
-      </div>
-    </nav>
-
-    <!-- Hero Section -->
+  <main id="top">
     <section class="hero">
-      <div class="hero-glow"></div>
-      <div class="hero-glow-2"></div>
-      <div class="container">
-        <div class="row align-items-center">
-          <div class="col-lg-6 hero-content">
-            <div class="hero-badge">
-              <i class="fas fa-bolt"></i>
-              <span>OpenResty + Lua Powered Edge Computing</span>
-            </div>
-            <h1>Build Your Own <span class="gradient-text">Enterprise CDN</span></h1>
-            <p class="hero-description">
-              WSL Proxy is a high-performance reverse proxy, load balancer, and edge computing platform. 
-              Deploy globally with multi-region failover, edge caching, WAF protection, and API gateway capabilities.
-            </p>
-            <div class="hero-buttons">
-              <a href="https://github.com/bwalia/wslproxy" class="btn-primary-custom" target="_blank">
-                <i class="fas fa-rocket"></i> Get Started
-              </a>
-              <a href="https://github.com/bwalia/wslproxy" class="btn-secondary-custom" target="_blank">
-                <i class="fab fa-github"></i> View on GitHub
-              </a>
-            </div>
-            <div class="hero-stats">
-              <div class="stat-item">
-                <div class="stat-number">&lt;10ms</div>
-                <div class="stat-label">Latency</div>
-              </div>
-              <div class="stat-item">
-                <div class="stat-number">99.99%</div>
-                <div class="stat-label">Uptime</div>
-              </div>
-              <div class="stat-item">
-                <div class="stat-number">100K+</div>
-                <div class="stat-label">RPS</div>
-              </div>
-              <div class="stat-item">
-                <div class="stat-number">50+</div>
-                <div class="stat-label">Edge Locations</div>
-              </div>
-            </div>
-          </div>
-          <div class="col-lg-6 d-none d-lg-block">
-            <div class="terminal-window">
-              <div class="terminal-header">
-                <span class="terminal-dot red"></span>
-                <span class="terminal-dot yellow"></span>
-                <span class="terminal-dot green"></span>
-              </div>
-              <div class="terminal-body">
-                <div class="terminal-line">
-                  <span class="terminal-prompt">$</span>
-                  <span class="terminal-command">docker pull bwalia/wslproxy:latest</span>
-                </div>
-                <div class="terminal-output">Pulling from bwalia/wslproxy...</div>
-                <div class="terminal-output">Status: Downloaded newer image</div>
-                <div class="terminal-line">
-                  <span class="terminal-prompt">$</span>
-                  <span class="terminal-command">docker-compose up -d</span>
-                </div>
-                <div class="terminal-output">Creating wslproxy_redis_1 ... done</div>
-                <div class="terminal-output">Creating wslproxy_openresty_1 ... done</div>
-                <div class="terminal-line">
-                  <span class="terminal-prompt">$</span>
-                  <span class="terminal-command">curl https://your-domain.com/api/health</span>
-                </div>
-                <div class="terminal-output" style="color: #10b981;">{"status":"healthy","version":"2.0"}</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Features Section -->
-    <section class="features" id="features">
-      <div class="container">
-        <div class="text-center mb-5">
-          <span class="section-badge"><i class="fas fa-sparkles"></i> Features</span>
-          <h2 class="section-title">Everything You Need for Edge Computing</h2>
-          <p class="section-description">
-            From load balancing to WAF protection, WSL Proxy provides enterprise-grade features for building your own CDN.
-          </p>
-        </div>
-        <div class="row g-4">
-          <div class="col-md-6 col-lg-4">
-            <div class="feature-card">
-              <div class="feature-icon blue"><i class="fas fa-balance-scale"></i></div>
-              <h4>Load Balancing</h4>
-              <p>Distribute traffic across multiple backends with round-robin, least connections, or IP hash algorithms.</p>
-            </div>
-          </div>
-          <div class="col-md-6 col-lg-4">
-            <div class="feature-card">
-              <div class="feature-icon green"><i class="fas fa-globe"></i></div>
-              <h4>Multi-Region Failover</h4>
-              <p>Automatic failover to healthy regions with configurable health checks and priority routing.</p>
-            </div>
-          </div>
-          <div class="col-md-6 col-lg-4">
-            <div class="feature-card">
-              <div class="feature-icon purple"><i class="fas fa-bolt"></i></div>
-              <h4>Edge Caching</h4>
-              <p>Cache responses at the edge with fine-grained TTL control and instant cache invalidation via API.</p>
-            </div>
-          </div>
-          <div class="col-md-6 col-lg-4">
-            <div class="feature-card">
-              <div class="feature-icon orange"><i class="fas fa-shield-alt"></i></div>
-              <h4>WAF Protection</h4>
-              <p>Content-based WAF rules with SQL injection mitigation, XSS protection, and custom rule sets.</p>
-            </div>
-          </div>
-          <div class="col-md-6 col-lg-4">
-            <div class="feature-card">
-              <div class="feature-icon cyan"><i class="fas fa-lock"></i></div>
-              <h4>SSL/TLS Termination</h4>
-              <p>Automatic certificate management with Let's Encrypt integration and cloud certificate pipelines.</p>
-            </div>
-          </div>
-          <div class="col-md-6 col-lg-4">
-            <div class="feature-card">
-              <div class="feature-icon red"><i class="fas fa-key"></i></div>
-              <h4>Edge Authorization</h4>
-              <p>JWT validation, API key management, and OAuth2 integration at the edge.</p>
-            </div>
-          </div>
-          <div class="col-md-6 col-lg-4">
-            <div class="feature-card">
-              <div class="feature-icon pink"><i class="fas fa-chart-line"></i></div>
-              <h4>Observability</h4>
-              <p>Prometheus metrics, structured logging, and distributed tracing for full visibility.</p>
-            </div>
-          </div>
-          <div class="col-md-6 col-lg-4">
-            <div class="feature-card">
-              <div class="feature-icon yellow"><i class="fas fa-map-marker-alt"></i></div>
-              <h4>Geo Traffic Rules</h4>
-              <p>Route traffic by country or continent with IP2Location integration.</p>
-            </div>
-          </div>
-          <div class="col-md-6 col-lg-4">
-            <div class="feature-card">
-              <div class="feature-icon indigo"><i class="fas fa-code-branch"></i></div>
-              <h4>GitOps Ready</h4>
-              <p>Declarative configuration with Helm charts and GitHub Actions CI/CD integration.</p>
-            </div>
-          </div>
-          <div class="col-md-6 col-lg-4">
-            <div class="feature-card">
-              <div class="feature-icon blue"><i class="fas fa-tachometer-alt"></i></div>
-              <h4>Monitoring Integration</h4>
-              <p>Native integration with Prometheus, Grafana, Loki, Mimir, Alertmanager, ELK Stack, Dynatrace, and Datadog.</p>
-            </div>
-          </div>
-          <div class="col-md-6 col-lg-4">
-            <div class="feature-card">
-              <div class="feature-icon teal"><i class="fas fa-sliders-h"></i></div>
-              <h4>Web UI Control Plane</h4>
-              <p>Fully-featured Web UI Administrator to manage entire cluster configuration from a single place securely.</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Request Flow Section -->
-    <section class="flow-section" id="flow">
-      <div class="container">
-        <div class="text-center mb-5">
-          <span class="section-badge" style="background: rgba(255,255,255,0.1); color: var(--white);">
-            <i class="fas fa-project-diagram"></i> Architecture
-          </span>
-          <h2 class="section-title" style="color: var(--white);">Request Flow</h2>
-          <p class="section-description" style="color: rgba(255,255,255,0.7);">
-            Every request flows through our optimized edge pipeline for maximum performance and security.
-          </p>
-        </div>
-        <div class="flow-diagram">
-          <div class="flow-node info"><i class="fas fa-user"></i><span>Client</span></div>
-          <span class="flow-arrow"><i class="fas fa-arrow-right"></i></span>
-          <div class="flow-node"><i class="fas fa-network-wired"></i><span>DNS</span></div>
-          <span class="flow-arrow"><i class="fas fa-arrow-right"></i></span>
-          <div class="flow-node success"><i class="fas fa-lock"></i><span>SSL/TLS</span></div>
-          <span class="flow-arrow"><i class="fas fa-arrow-right"></i></span>
-          <div class="flow-node warning"><i class="fas fa-shield-alt"></i><span>WAF</span></div>
-          <span class="flow-arrow"><i class="fas fa-arrow-right"></i></span>
-          <div class="flow-node primary"><i class="fas fa-key"></i><span>Auth</span></div>
-          <span class="flow-arrow"><i class="fas fa-arrow-right"></i></span>
-          <div class="flow-node"><i class="fas fa-database"></i><span>Cache</span></div>
-          <span class="flow-arrow"><i class="fas fa-arrow-right"></i></span>
-          <div class="flow-node info"><i class="fas fa-balance-scale"></i><span>LB</span></div>
-          <span class="flow-arrow"><i class="fas fa-arrow-right"></i></span>
-          <div class="flow-node success"><i class="fas fa-server"></i><span>Origin</span></div>
-        </div>
-      </div>
-    </section>
-
-    <!-- API Section -->
-    <section class="api-section" id="api">
-      <div class="container">
-        <div class="text-center mb-5">
-          <span class="section-badge"><i class="fas fa-code"></i> API-Driven</span>
-          <h2 class="section-title">RESTful Configuration API</h2>
-          <p class="section-description">
-            Manage your entire edge infrastructure through our comprehensive REST API.
-          </p>
-        </div>
-        <div class="row g-4">
-          <div class="col-md-6 col-lg-4">
-            <div class="api-card">
-              <span class="api-method get">GET</span>
-              <div class="api-endpoint">/api/servers</div>
-              <p class="api-desc">List all configured backend servers</p>
-            </div>
-          </div>
-          <div class="col-md-6 col-lg-4">
-            <div class="api-card">
-              <span class="api-method post">POST</span>
-              <div class="api-endpoint">/api/servers</div>
-              <p class="api-desc">Create a new server configuration</p>
-            </div>
-          </div>
-          <div class="col-md-6 col-lg-4">
-            <div class="api-card">
-              <span class="api-method get">GET</span>
-              <div class="api-endpoint">/api/rules</div>
-              <p class="api-desc">List all routing and WAF rules</p>
-            </div>
-          </div>
-          <div class="col-md-6 col-lg-4">
-            <div class="api-card">
-              <span class="api-method post">POST</span>
-              <div class="api-endpoint">/api/cache/purge</div>
-              <p class="api-desc">Purge cached content by pattern</p>
-            </div>
-          </div>
-          <div class="col-md-6 col-lg-4">
-            <div class="api-card">
-              <span class="api-method get">GET</span>
-              <div class="api-endpoint">/metrics</div>
-              <p class="api-desc">Prometheus-compatible metrics</p>
-            </div>
-          </div>
-          <div class="col-md-6 col-lg-4">
-            <div class="api-card">
-              <span class="api-method get">GET</span>
-              <div class="api-endpoint">/api/health</div>
-              <p class="api-desc">Health check endpoint</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- CTA Section -->
-    <section class="cta-section">
-      <div class="container">
-        <h2>Ready to Build Your Own CDN?</h2>
-        <p>Get started with WSL Proxy in minutes. Deploy on Docker, Kubernetes, or bare metal.</p>
-        <div class="d-flex justify-content-center gap-3 flex-wrap">
-          <a href="https://github.com/bwalia/wslproxy" class="btn-primary-custom" target="_blank">
-            <i class="fas fa-rocket"></i> Get Started
+      <div class="wrap">
+        <span class="eyebrow"><span class="dot" aria-hidden="true"></span> Open-source · multi-POP · live-config</span>
+        <h1 class="hero-title">
+          Live-config API gateway.
+          <span class="grad">Rules without reloads.</span>
+        </h1>
+        <p class="hero-sub">
+          WSLProxy is a self-hosted reverse proxy and edge control plane on OpenResty —
+          virtual hosts, WAF, traffic splits, geo stats, MCP, and CLI — driven from JSON
+          that takes effect without restarting nginx for every rule change.
+        </p>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="https://github.com/bwalia/wslproxy">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.2C18 13.5 20 11 20 8a6 6 0 0 0-4-5.6 6 6 0 0 0-6 0A6 6 0 0 0 6 8c0 3 2 5.5 6 6.8A4.8 4.8 0 0 0 11 18v4"/><path d="M9 18c-4.5 1.5-4.5-2.3-7-3"/></svg>
+            Get started on GitHub
           </a>
-          <a href="https://github.com/bwalia/wslproxy/issues" class="btn-secondary-custom" target="_blank">
-            <i class="fas fa-comments"></i> Join Community
-          </a>
+          <a class="btn btn-ghost" href="#intro-video">Watch the intro</a>
+        </div>
+        <div class="hero-meta">
+          <span><svg class="check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg> Live rules &amp; WAF</span>
+          <span><svg class="check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg> Multi-POP edge</span>
+          <span><svg class="check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg> UI · REST · MCP · CLI</span>
+        </div>
+
+        <div class="terminal" role="img" aria-label="Example wslproxy-cli session">
+          <div class="terminal-bar">
+            <span class="tdot r"></span><span class="tdot y"></span><span class="tdot g"></span>
+            <span class="terminal-title">wslproxy-cli — pull · push · check</span>
+          </div>
+          <pre>$ <span class="c-cmd">wslproxy-cli</span> pull <span class="c-flag">-d</span> ./cfg <span class="c-flag">--resources</span> <span class="c-str">servers,rules,waf</span>
+<span class="c-ok">✓</span> synced 42 servers · 118 rules · 6 waf policies
+
+$ <span class="c-cmd">wslproxy-cli</span> check nginx <span class="c-flag">-o</span> <span class="c-str">json</span>
+<span class="c-ok">✓</span> openresty -t ok · healthz=<span class="c-str">200</span>
+
+$ <span class="c-cmd">wslproxy-cli</span> push <span class="c-flag">-d</span> ./cfg <span class="c-flag">--yes</span> <span class="c-flag">--verify</span>
+<span class="c-dim"># rules hot — no nginx reload for match changes</span>
+<span class="c-ok">✓</span> applied · verified</pre>
         </div>
       </div>
     </section>
 
-    <!-- Footer -->
-    <footer class="footer">
-      <div class="container">
-        <div class="row">
-          <div class="col-lg-4 mb-4 mb-lg-0">
-            <div class="footer-logo"><i class="fas fa-cube"></i> <span>WSL Proxy</span></div>
-            <p>Enterprise-grade reverse proxy, load balancer, and edge computing platform.</p>
-            <div class="social-links">
-              <a href="https://github.com/bwalia/wslproxy" target="_blank"><i class="fab fa-github"></i></a>
-              <a href="#"><i class="fab fa-slack"></i></a>
-              <a href="#"><i class="fab fa-twitter"></i></a>
-              <a href="#"><i class="fab fa-linkedin"></i></a>
-            </div>
-          </div>
-          <div class="col-6 col-lg-2">
-            <h5>Product</h5>
-            <ul>
-              <li><a href="#features">Features</a></li>
-              <li><a href="#flow">Architecture</a></li>
-              <li><a href="#api">API</a></li>
-              <li><a href="https://github.com/bwalia/wslproxy">Documentation</a></li>
-            </ul>
-          </div>
-          <div class="col-6 col-lg-2">
-            <h5>Resources</h5>
-            <ul>
-              <li><a href="https://github.com/bwalia/wslproxy">GitHub</a></li>
-              <li><a href="https://github.com/bwalia/wslproxy/issues">Issues</a></li>
-              <li><a href="https://github.com/bwalia/wslproxy/releases">Releases</a></li>
-              <li><a href="https://hub.docker.com/r/bwalia/wslproxy">Docker Hub</a></li>
-            </ul>
-          </div>
-          <div class="col-6 col-lg-2">
-            <h5>Company</h5>
-            <ul>
-              <li><a href="#">About</a></li>
-              <li><a href="#">Blog</a></li>
-              <li><a href="#">Careers</a></li>
-              <li><a href="#">Contact</a></li>
-            </ul>
-          </div>
-          <div class="col-6 col-lg-2">
-            <h5>Legal</h5>
-            <ul>
-              <li><a href="#">Privacy</a></li>
-              <li><a href="#">Terms</a></li>
-              <li><a href="https://github.com/bwalia/wslproxy/blob/main/LICENSE">License</a></li>
-            </ul>
-          </div>
+    <section id="intro-video" class="band-raised" aria-label="WSLProxy introduction video">
+      <div class="wrap">
+        <div class="section-head center">
+          <div class="kicker">Watch</div>
+          <h2>WSLProxy in 20 minutes</h2>
+          <p class="section-sub">Live-config routing, WAF, traffic splits, MCP, and CLI — without reloading nginx for every rule change.</p>
         </div>
-        <div class="footer-bottom">
-          <p>&copy; 2025 Workstation Solutions Limited. Open Source under MIT License.</p>
+        <div class="video-frame">
+          <iframe
+            src="https://www.youtube.com/embed/7NJulclG5sQ"
+            title="WSLProxy introduction — live-config API gateway on OpenResty"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            referrerpolicy="strict-origin-when-cross-origin"
+            allowfullscreen
+            loading="lazy"
+          ></iframe>
+        </div>
+        <p class="video-caption">
+          Full walkthrough on
+          <a href="https://youtu.be/7NJulclG5sQ" rel="noopener noreferrer" target="_blank">YouTube</a>
+          · More in
+          <a href="#how-to-videos">How-to videos</a>
+        </p>
+      </div>
+    </section>
+
+    <section id="how-to-videos" class="band-canvas" aria-labelledby="howto-heading">
+      <div class="wrap">
+        <div class="section-head">
+          <div class="kicker">How-to videos</div>
+          <h2 id="howto-heading">Learn the platform, feature by feature</h2>
+          <p class="section-sub">A growing list of walkthroughs — start with the introduction, then jump into shorter feature videos.</p>
+        </div>
+        <div class="media-list">
+          <article class="media-row">
+            <div class="media-thumb media-thumb--yt" aria-hidden="true">INTRO · 20 MIN</div>
+            <div class="media-copy">
+              <p class="tag">1 · Introduction</p>
+              <h3>WSLProxy in 20 minutes</h3>
+              <p>Architecture, live rules, WAF, traffic splits, admin UI, MCP, and CLI — the complete product tour.</p>
+            </div>
+            <div class="media-actions">
+              <a class="btn btn-dark" href="#intro-video">Watch here</a>
+              <a class="btn btn-outline-ink" href="https://youtu.be/7NJulclG5sQ" rel="noopener noreferrer" target="_blank">YouTube</a>
+            </div>
+          </article>
+          <article class="media-row">
+            <div class="media-thumb">
+              <img
+                src="/images/geographic-traffic-distribution-dashboard.jpg"
+                alt="Geographic Traffic Distribution dashboard"
+                width="440"
+                height="248"
+                loading="lazy"
+              />
+            </div>
+            <div class="media-copy">
+              <p class="tag">2 · Feature · 2 min</p>
+              <h3>Traffic by country</h3>
+              <p>Geographic Traffic Distribution — Top Countries, live choropleth, and how IP2Location feeds the edge.</p>
+            </div>
+            <div class="media-actions">
+              <a class="btn btn-dark" href="https://youtu.be/4G_YPYj3J3k" rel="noopener noreferrer" target="_blank">YouTube</a>
+              <a class="btn btn-outline-ink" href="/blog/geographic-traffic-distribution.html">Article</a>
+            </div>
+          </article>
         </div>
       </div>
-    </footer>
+    </section>
 
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-  </body>
+    <section id="features" class="band-canvas" style="border-top:0;padding-top:0" aria-labelledby="features-heading">
+      <div class="wrap">
+        <div class="section-head">
+          <div class="kicker">One edge, every control</div>
+          <h2 id="features-heading">Everything you need at the POP</h2>
+          <p class="section-sub">Route, protect, observe, and automate — each capability hot on the request path or a flag away from reload.</p>
+        </div>
+        <div class="grid cols-3">
+          <article class="card">
+            <div class="card-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg></div>
+            <h3>Geographic traffic</h3>
+            <p>Top Countries and a world map on the admin dashboard — every request tagged via IP2Location into live traffic stats.</p>
+          </article>
+          <article class="card">
+            <div class="card-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19V5M4 19h16M8 17V9M12 17v-5M16 17V7"/></svg></div>
+            <h3>Dynamic routing</h3>
+            <p>Path, IP, country, JWT, S3, and cookie match with priority and specificity — no OpenResty reload for rule changes.</p>
+          </article>
+          <a class="card card-link" href="/waf/">
+            <div class="card-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+            <h3>WAF &amp; security</h3>
+            <p>Policy packs, anomaly scoring, monitor or block, rate limits, CAPTCHA, and geo deny lists at the edge.</p>
+            <span class="card-more">Full WAF guide →</span>
+          </a>
+          <article class="card">
+            <div class="card-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M12 2v4m0 12v4M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2 12h4m12 0h4M4.9 19.1l2.1-2.1M17 7l2.1-2.1"/></svg></div>
+            <h3>Traffic engineering</h3>
+            <p>Weighted, canary, sticky, and least-conn backends with promote/rollback and upstream health.</p>
+          </article>
+          <article class="card">
+            <div class="card-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></div>
+            <h3>Auto SSL &amp; cache</h3>
+            <p>Let’s Encrypt auto-ssl, force HTTPS, edge static cache, optional Varnish and Docker blob cache.</p>
+          </article>
+          <article class="card">
+            <div class="card-icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2a4 4 0 014 4v2a4 4 0 01-4 4 4 4 0 01-4 0V2a4 4 0 014 0z"/><path d="M4 10h16v10a2 2 0 01-2 2H6a2 2 0 01-2-2V10z"/></svg></div>
+            <h3>UI · REST · MCP · CLI</h3>
+            <p>React Admin and Next.js ops, Swagger CRUD, MCP for agents, and <code>wslproxy-cli</code> for GitOps pipelines.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="pipeline" class="band-steel" aria-labelledby="pipeline-heading">
+      <div class="wrap">
+        <div class="section-head">
+          <div class="kicker">How traffic moves</div>
+          <h2 id="pipeline-heading">Match once. Decide per request.</h2>
+          <p class="section-sub">OpenResty loads server and rule JSON on the hot path. Only server-block nginx changes need a reload flag.</p>
+        </div>
+        <div class="flow-steps">
+          <div class="flow-step">
+            <code>rewrite</code>
+            <div>
+              <strong>gateway_ack</strong>
+              <p>Load host config, score candidate rules (path, IP, country, JWT…), run rate limit and WAF, stash the winner.</p>
+            </div>
+          </div>
+          <div class="flow-step">
+            <code>access</code>
+            <div>
+              <strong>gateway_resp</strong>
+              <p>Honor response code: proxy (305), redirect, HTML block, CAPTCHA (306), or 403 — then resolve backend and timeouts.</p>
+            </div>
+          </div>
+          <div class="flow-step">
+            <code>balancer</code>
+            <div>
+              <strong>Peer + timeouts</strong>
+              <p>Weighted, canary, sticky, or least-conn selection with per-server connect/send/read timeouts.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="blog" class="band-canvas" aria-labelledby="blog-heading">
+      <div class="wrap">
+        <div class="section-head">
+          <div class="kicker">Blog</div>
+          <h2 id="blog-heading">Notes from the edge control plane</h2>
+          <p class="section-sub">Deep dives and feature write-ups — listed here as they ship.</p>
+        </div>
+        <div class="media-list">
+          <article class="media-row">
+            <div class="media-thumb">
+              <img
+                src="/images/geographic-traffic-distribution-dashboard.jpg"
+                alt="Geographic Traffic Distribution article cover"
+                width="440"
+                height="248"
+                loading="lazy"
+              />
+            </div>
+            <div class="media-copy">
+              <p class="tag">Feature deep dive</p>
+              <h3>Geographic Traffic Distribution by country</h3>
+              <p>How Top Countries and the world choropleth work — IP2Location on the hot path, traffic_stats, and atlas-ready codes.</p>
+            </div>
+            <div class="media-actions">
+              <a class="btn btn-dark" href="/blog/geographic-traffic-distribution.html">Read article</a>
+              <a class="btn btn-outline-ink" href="/blog/">All posts</a>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="band-steel" aria-labelledby="start-heading">
+      <div class="wrap">
+        <div class="cta-box">
+          <div class="kicker">Get going</div>
+          <h2 id="start-heading">Own the edge you run</h2>
+          <p>Clone the repo, bring up Docker with <code>./dev.sh</code>, or deploy POPs with Ansible — then drive config like code.</p>
+          <div class="cta-actions">
+            <a class="btn btn-primary" href="https://github.com/bwalia/wslproxy">View on GitHub</a>
+            <a class="btn btn-ghost" href="/swagger/">Swagger API</a>
+            <a class="btn btn-ghost" href="/blog/">Blog</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap footer-inner">
+      <div>© Workstation Solutions Limited · WSLProxy</div>
+      <div class="footer-links">
+        <a href="#how-to-videos">How-to</a>
+        <a href="/waf/">WAF</a>
+        <a href="#blog">Blog</a>
+        <a href="/swagger/">API</a>
+        <a href="https://github.com/bwalia/wslproxy">GitHub</a>
+        <a href="https://github.com/bwalia/wslproxy/blob/main/docs/wslproxy-cli.md">CLI</a>
+        <a href="https://github.com/bwalia/wslproxy/blob/main/docs/mcp.md">MCP</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    if (window.WSLProxyTheme) {
+      WSLProxyTheme.bindNav();
+      WSLProxyTheme.bind();
+    }
+  </script>
+</body>
 </html>

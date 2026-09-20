@@ -1,0 +1,143 @@
+---
+# Install OpenResty from a prebuilt Docker image (compile-once, pull-many).
+# Replaces openresty_build.yml when openresty_install_mode=prebuilt.
+#
+# Flow (controller = Ansible runner, needs Docker):
+#   docker pull → create → docker cp /usr/local/openresty → rsync to target
+# Never overwrites target nginx/conf, nginx/html, or nginx/logs.
+#
+# Requires: docker + rsync on the controller; passwordless sudo on the target
+# for remote installs (same as infra/openresty-prebuilt/openresty-express-install.sh).
+
+- name: Assert Docker is available on the Ansible controller
+  ansible.builtin.command: docker version
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  tags: [build]
+
+- name: Pull prebuilt OpenResty image
+  ansible.builtin.command: >
+    docker pull --platform {{ openresty_prebuilt_platform }}
+    {{ openresty_prebuilt_image }}
+  delegate_to: localhost
+  become: false
+  register: openresty_prebuilt_pull
+  changed_when: "'Downloaded newer image' in openresty_prebuilt_pull.stdout
+    or 'Pull complete' in openresty_prebuilt_pull.stdout"
+  tags: [build]
+
+- name: Ensure runtime libraries on target (match Dockerfile runtime stage)
+  ansible.builtin.shell: |
+    set -euo pipefail
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update -qq
+    apt-get install -y -qq libssl3 zlib1g ca-certificates rsync || true
+    apt-get install -y -qq libpcre2-8-0 || apt-get install -y -qq libpcre3 || true
+  args:
+    executable: /bin/bash
+  become: true
+  tags: [build]
+
+- name: Extract OpenResty tree from image on controller
+  ansible.builtin.shell: |
+    set -euo pipefail
+    IMAGE="{{ openresty_prebuilt_image }}"
+    PLATFORM="{{ openresty_prebuilt_platform }}"
+    PREFIX="{{ openresty_prefix }}"
+    STAGING="{{ openresty_prebuilt_staging | default('/tmp/wslproxy-openresty-staging') }}"
+    rm -rf "$STAGING"
+    mkdir -p "$STAGING"
+
+    echo "==> Extracting $PREFIX from $IMAGE"
+    cid="$(docker create --platform "$PLATFORM" "$IMAGE")"
+    docker cp "$cid:$PREFIX" - | tar -x -C "$STAGING"
+    docker rm -f "$cid" >/dev/null
+    test -x "$STAGING/openresty/nginx/sbin/nginx"
+    echo "Extracted $(du -sh "$STAGING/openresty" | cut -f1)"
+  args:
+    executable: /bin/bash
+  delegate_to: localhost
+  become: false
+  register: openresty_prebuilt_extract
+  tags: [build]
+
+- name: Install OpenResty tree onto target (local)
+  ansible.builtin.shell: |
+    set -euo pipefail
+    STAGING="{{ openresty_prebuilt_staging | default('/tmp/wslproxy-openresty-staging') }}"
+    PREFIX="{{ openresty_prefix }}"
+    mkdir -p "$PREFIX"
+    rsync -a --delete \
+      --exclude='/nginx/conf/' \
+      --exclude='/nginx/html/' \
+      --exclude='/nginx/logs/' \
+      "$STAGING/openresty/" "$PREFIX/"
+    ln -sf "$PREFIX/nginx/sbin/nginx" /usr/bin/openresty
+    ln -sf "$PREFIX/bin/mc" /usr/local/bin/mc 2>/dev/null || true
+    "$PREFIX/nginx/sbin/nginx" -v
+  args:
+    executable: /bin/bash
+  become: true
+  when: (ansible_connection | default('ssh')) == 'local'
+  tags: [build]
+
+- name: Install OpenResty tree onto target (remote rsync)
+  ansible.builtin.shell: |
+    set -euo pipefail
+    STAGING="{{ openresty_prebuilt_staging | default('/tmp/wslproxy-openresty-staging') }}"
+    PREFIX="{{ openresty_prefix }}"
+    USER="{{ ansible_user | default(ansible_ssh_user) | default('root') }}"
+    HOST="{{ ansible_host | default(inventory_hostname) }}"
+    PORT="{{ ansible_port | default(22) }}"
+    KEY="{{ ansible_ssh_private_key_file | default('') }}"
+    SSH_OPTS="-o ConnectTimeout=15 -o StrictHostKeyChecking=accept-new -p $PORT"
+    if [ -n "$KEY" ]; then
+      SSH_OPTS="$SSH_OPTS -i $KEY"
+    fi
+    echo "==> Remote rsync to ${USER}@${HOST}:$PREFIX"
+    rsync -az --delete \
+      --exclude='/nginx/conf/' \
+      --exclude='/nginx/html/' \
+      --exclude='/nginx/logs/' \
+      --rsh="ssh $SSH_OPTS" \
+      --rsync-path="sudo rsync" \
+      "$STAGING/openresty/" "${USER}@${HOST}:$PREFIX/"
+    ssh $SSH_OPTS "${USER}@${HOST}" \
+      "sudo ln -sf $PREFIX/nginx/sbin/nginx /usr/bin/openresty ; \
+       sudo ln -sf $PREFIX/bin/mc /usr/local/bin/mc 2>/dev/null || true ; \
+       $PREFIX/nginx/sbin/nginx -v"
+  args:
+    executable: /bin/bash
+  delegate_to: localhost
+  become: false
+  when: (ansible_connection | default('ssh')) != 'local'
+  register: openresty_prebuilt_remote
+  tags: [build]
+
+- name: Show prebuilt OpenResty extract output
+  ansible.builtin.debug:
+    msg: "{{ openresty_prebuilt_extract.stdout_lines[-20:] | default([]) }}"
+  tags: [build]
+
+- name: Verify OpenResty binary responds with expected version
+  ansible.builtin.shell: /usr/local/openresty/bin/openresty -v 2>&1 || /usr/bin/openresty -v 2>&1
+  register: openresty_prebuilt_verify
+  changed_when: false
+  failed_when: >-
+    openresty_expected_version not in (openresty_prebuilt_verify.stdout | default(''))
+    and openresty_expected_version not in (openresty_prebuilt_verify.stderr | default(''))
+  tags: [build]
+
+- name: Show installed OpenResty version
+  ansible.builtin.debug:
+    msg: "{{ (openresty_prebuilt_verify.stdout | default(openresty_prebuilt_verify.stderr)) | trim }}"
+  tags: [build]
+
+- name: Clean controller staging directory
+  ansible.builtin.file:
+    path: "{{ openresty_prebuilt_staging | default('/tmp/wslproxy-openresty-staging') }}"
+    state: absent
+  delegate_to: localhost
+  become: false
+  tags: [build]

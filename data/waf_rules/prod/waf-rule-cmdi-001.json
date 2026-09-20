@@ -1,17 +1,1 @@
-{
-  "id": "waf-rule-cmdi-001",
-  "name": "Command Injection - Semicolon Chaining",
-  "description": "Detects OS command injection attempts using semicolon chaining to execute arbitrary system commands after a legitimate command.",
-  "category": "cmdi",
-  "severity": "critical",
-  "enabled": true,
-  "target": "url",
-  "pattern": "(?:;\\s*(?:cat|ls|id|pwd|whoami|uname|wget|curl|nc|netcat|bash|sh|python|perl|ruby|php|chmod|chown)\\b)",
-  "pattern_type": "regex",
-  "action": "block",
-  "score": 10,
-  "tags": ["owasp-top10", "cmdi", "a03"],
-  "profile_id": "prod",
-  "created_at": 1740000000,
-  "updated_at": 1740000000
-}
+{"id":"waf-rule-cmdi-001","pattern_type":"regex","updated_at":1740000000,"severity":"critical","enabled":true,"created_at":1740000000,"target":"url","score":10,"profile_id":"prod","pattern":"(?:;\\s*(?:cat|ls|id|pwd|whoami|uname|wget|curl|nc|netcat|bash|sh|python|perl|ruby|php|chmod|chown)\\b)","tags":["owasp-top10","cmdi","a03"],"action":"block","name":"Command Injection - Semicolon Chaining","category":"cmdi","description":"Detects OS command injection attempts using semicolon chaining to execute arbitrary system commands after a legitimate command."}

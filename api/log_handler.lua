@@ -51,6 +51,19 @@ end
 
 -- Lookup country code from IP address
 local function get_country_code(ip_address)
+    -- Prefer $geo_country when nginx already resolved it (set_by_lua geo_lookup)
+    -- so we don't open the IP2Location DB twice per request.
+    local from_var = ngx.var.geo_country
+    if from_var and from_var ~= "" and from_var ~= "-" then
+        local cc = tostring(from_var):upper():gsub("%s+", "")
+        if cc == "UK" then cc = "GB" end
+        if cc:match("^[A-Z][A-Z]$") then
+            return cc
+        end
+        -- LOCAL / other non-ISO values: skip geo aggregation
+        return ""
+    end
+
     local ip2loc = get_ip2location()
     if not ip2loc then
         return ""
@@ -61,7 +74,9 @@ local function get_country_code(ip_address)
     end)
 
     if ok and result and result.country_short and result.country_short ~= "-" then
-        return result.country_short
+        local cc = tostring(result.country_short):upper():gsub("%s+", "")
+        if cc == "UK" then cc = "GB" end
+        return cc
     end
 
     return ""
@@ -244,6 +259,19 @@ function _M.log_request()
             local metric_proxy_lat = metrics.get_metric_proxy_latency()
             if metric_proxy_lat then
                 metric_proxy_lat:observe(request_time, { upstream_addr })
+            end
+        end
+    end
+
+    -- API gateway audit line (api/api_gw/).  No-op unless the server has an
+    -- api_gw block AND its access phase ran — the context lives in ngx.ctx,
+    -- so nothing is loaded for tenants that never enabled the gateway.
+    if ngx.ctx.api_gw then
+        local gw_ok, ApiGw = pcall(require, "api_gw")
+        if gw_ok and ApiGw then
+            local emit_ok, emit_err = pcall(ApiGw.log)
+            if not emit_ok then
+                ngx.log(ngx.WARN, "log_handler: api_gw audit failed: ", tostring(emit_err))
             end
         end
     end

@@ -53,8 +53,8 @@ import CheckModal from "./component/CheckModal";
 import { Route } from "react-router";
 import ResetForm from "./component/ResetForm";
 import InstanceInfo from "./Instances/InstanceInfo";
+import { getApiUrl } from "./apiBase";
 
-const API_URL = import.meta.env.VITE_API_URL;
 const deploymentTime = import.meta.env.VITE_DEPLOYMENT_TIME;
 const versionNumber = import.meta.env.VITE_APP_VERSION;
 const buildNumber = import.meta.env.VITE_APP_BUILD_NUMBER;
@@ -144,7 +144,7 @@ const AppContent = () => {
   // dataProvider uses hooks internally, so it must be called during render
   // useRef stores the instance to provide stable reference to react-admin
   const dataProviderRef = useRef(null);
-  const currentDataProvider = dataProvider(API_URL);
+  const currentDataProvider = dataProvider(getApiUrl());
   if (!dataProviderRef.current) {
     dataProviderRef.current = currentDataProvider;
   }

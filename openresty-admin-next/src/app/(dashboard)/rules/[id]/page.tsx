@@ -19,6 +19,9 @@ import {
   ShieldCheck,
   Settings,
   Zap,
+  FileJson,
+  Pencil,
+  History,
 } from "lucide-react";
 import { useOne, useList, useDataProvider } from "@/hooks/useResource";
 import { useNotification } from "@/contexts/NotificationContext";
@@ -32,6 +35,9 @@ import ConfirmDialog from "@/components/ui/ConfirmDialog";
 import Skeleton from "@/components/ui/Skeleton";
 import FetchErrorState from "@/components/ui/FetchErrorState";
 import Badge from "@/components/ui/Badge";
+import JsonConfigTab from "@/components/ui/JsonConfigTab";
+import SecretRefField from "@/components/rules/SecretRefField";
+import { cn } from "@/lib/utils/cn";
 import type { Rule, Backend } from "@/types";
 import {
   runValidationGate,
@@ -47,6 +53,15 @@ const TopologyCanvas = dynamic(
     ),
   {
     loading: () => <Skeleton variant="rectangular" className="h-96 w-full" />,
+    ssr: false,
+  },
+);
+
+// Deferred — versions tab only loaded when the operator opens it.
+const StoredVersionsList = dynamic(
+  () => import("@/components/servers/StoredVersionsList"),
+  {
+    loading: () => <Skeleton variant="rectangular" className="h-40 w-full" />,
     ssr: false,
   },
 );
@@ -221,17 +236,17 @@ function Subsection({
               {icon}
             </span>
           )}
-          <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+          <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
             {title}
           </h3>
           {optional && (
-            <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+            <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-600 dark:bg-slate-700 dark:text-slate-300">
               Optional
             </span>
           )}
         </div>
         {intro && (
-          <p className="mt-1.5 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+          <p className="mt-1.5 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
             {intro}
           </p>
         )}
@@ -311,6 +326,11 @@ export default function RuleDetailPage() {
   const [showDelete, setShowDelete] = useState(false);
   const [newTag, setNewTag] = useState("");
   const [showTopology, setShowTopology] = useState(false);
+  // "editor" shows the form, "configuration" shows the on-disk JSON.
+  // "configuration" is hidden on create (no record exists yet).
+  const [activeTab, setActiveTab] = useState<
+    "editor" | "configuration" | "history"
+  >("editor");
   // Per-field validation errors surfaced from `runValidationGate`.
   // Populated in handleSubmit; cleared per-field as the user edits
   // the offending input via the `set` helper below.
@@ -359,7 +379,23 @@ export default function RuleDetailPage() {
       routing_header_value: rt.header_value ?? "true",
       routing_cookie_name: rt.cookie_name ?? "canary_session",
       routing_sticky: rt.sticky ?? false,
-      backends: Array.isArray(r.backends) ? r.backends : Array.isArray((rt as Record<string, unknown>).backends) ? (rt as { backends: Backend[] }).backends : [],
+      backends: (() => {
+        const existing = Array.isArray(r.backends)
+          ? r.backends
+          : Array.isArray((rt as Record<string, unknown>).backends)
+            ? (rt as { backends: Backend[] }).backends
+            : [];
+        if (existing.length > 0) return existing;
+        // Legacy migration: for 305 rules that only had `redirect_uri`
+        // (the old single-target shape), seed backends[0] so the operator
+        // sees their existing target as row 1. The Lua router already
+        // ignores redirect_uri whenever backends is non-empty, so this is
+        // a UI-side visual migration only — no runtime change.
+        if ((r.code ?? 403) === 305 && typeof r.redirect_uri === "string" && r.redirect_uri.length > 0) {
+          return [{ address: r.redirect_uri, weight: 100, label: "primary" }];
+        }
+        return [];
+      })(),
       rules_tags: Array.isArray(data.rules_tags) ? data.rules_tags : [],
     });
   }, [data, isClone]);
@@ -373,6 +409,7 @@ export default function RuleDetailPage() {
     setFieldErrors({});
     setShowTopology(false);
     setNewTag("");
+    setActiveTab("editor");
   }, [fetchKey, isCreate]);
 
   const set = useCallback(
@@ -408,8 +445,12 @@ export default function RuleDetailPage() {
 
   // ── Conditional visibility ──────────────────────────────────────────
 
+  // 305 proxy-pass uses backends[] exclusively — the Lua router
+  // overwrites redirect_uri whenever backends is non-empty, so the
+  // form hides that field for 305 to stop operators typing the same
+  // target twice. See traffic_router.lua + gateway_resp.lua:88-112.
   const showRedirectUri = useMemo(
-    () => [301, 302, 305].includes(form.code),
+    () => [301, 302].includes(form.code),
     [form.code],
   );
   const showMessage = useMemo(
@@ -481,7 +522,6 @@ export default function RuleDetailPage() {
   }, [form.jwt_token_validation]);
 
   const redirectLabel = useMemo(() => {
-    if (form.code === 305) return "Proxy Pass URL";
     if (form.code === 301 || form.code === 302) return "Redirect URL";
     return "Target URL";
   }, [form.code]);
@@ -682,6 +722,66 @@ export default function RuleDetailPage() {
         }
       />
 
+      {/* ── Tab bar ──────────────────────────────────────────────────
+          Configuration tab is hidden on Create — no on-disk record
+          exists yet.  On existing / clone-source records it lets the
+          operator inspect the persisted JSON alongside the form. */}
+      {!isCreate && (
+        <div className="border-b border-slate-200 dark:border-slate-800">
+          <nav className="-mb-px flex gap-x-1 overflow-x-auto" aria-label="Rule tabs">
+            {(
+              [
+                { key: "editor" as const, label: "Editor", icon: Pencil },
+                { key: "configuration" as const, label: "Configuration", icon: FileJson },
+                { key: "history" as const, label: "History", icon: History },
+              ]
+            ).map(({ key, label, icon: Icon }) => {
+              const active = activeTab === key;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setActiveTab(key)}
+                  className={cn(
+                    "inline-flex items-center gap-2 whitespace-nowrap border-b-2 px-4 py-3 text-sm font-medium transition-colors",
+                    active
+                      ? "border-primary-500 text-primary-600 dark:text-primary-400"
+                      : "border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700 dark:text-slate-400 dark:hover:border-slate-600 dark:hover:text-slate-300",
+                  )}
+                  aria-current={active ? "page" : undefined}
+                >
+                  <Icon className="h-4 w-4" />
+                  {label}
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+      )}
+
+      {/* ── Configuration tab: raw on-disk JSON ─────────────────────── */}
+      {!isCreate && activeTab === "configuration" && (
+        <JsonConfigTab
+          data={data}
+          downloadName={`rule-${data?.name ?? id}`}
+          // api.lua:listRule base64-decodes this one field before
+          // returning; every other field matches the on-disk record.
+          decodedFields={["jwt_token_validation_key"]}
+        />
+      )}
+
+      {/* ── History tab: stored versions + one-click rollback ────────── */}
+      {!isCreate && activeTab === "history" && (
+        <StoredVersionsList
+          resourceType="rules"
+          resourceName={id}
+          profile={form.profile_id || undefined}
+        />
+      )}
+
+      {/* ── Editor tab (or Create) ──────────────────────────────────── */}
+      {(isCreate || activeTab === "editor") && (
+        <>
       {/* ── Topology (existing rules only) ──────────────────────────── */}
       {!isCreate && (
         <div className="rounded-xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
@@ -707,7 +807,7 @@ export default function RuleDetailPage() {
         <Card.Header>
           <div>
             <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Basic Rule Information</h2>
-            <p className="text-sm text-slate-500">Configure the rule name, profile, and metadata</p>
+            <p className="text-sm text-slate-600 dark:text-slate-300">Configure the rule name, profile, and metadata</p>
           </div>
         </Card.Header>
         <Card.Body>
@@ -779,7 +879,7 @@ export default function RuleDetailPage() {
             <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
               Match rules
             </h2>
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-slate-600 dark:text-slate-300">
               When should this rule fire?  Configure one or more conditions
               below — the rule only runs when <em>every</em> condition you
               set matches the incoming request.
@@ -849,7 +949,7 @@ export default function RuleDetailPage() {
                   selects a country.  Same logic in "Restrict by client
                   IP" below. */}
               {form.country === "EU" && (
-                <div className="col-span-full rounded-lg bg-blue-50 p-3 text-xs text-blue-700 dark:bg-blue-900/20 dark:text-blue-300">
+                <div className="col-span-full rounded-lg bg-blue-50 p-3 text-sm leading-relaxed text-blue-800 dark:bg-blue-900/20 dark:text-blue-200">
                   “EU” expands to: AT, BE, BG, HR, CY, CZ, DK, EE, FI, FR,
                   DE, GR, HU, IE, IT, LV, LT, LU, MT, NL, PL, PT, RO, SK,
                   SI, ES, SE.
@@ -929,23 +1029,19 @@ export default function RuleDetailPage() {
               />
               {form.jwt_token_validation !== "equals" && (
                 <>
-                  <Input
+                  <SecretRefField
                     label={validationFieldLabels.valueLabel}
                     hint={validationFieldLabels.valueHint}
                     value={form.jwt_token_validation_value}
-                    onChange={(e) =>
-                      set("jwt_token_validation_value", e.target.value)
-                    }
+                    onChange={(v) => set("jwt_token_validation_value", v)}
                   />
                   {showTokenFields && (
-                    <Input
+                    <SecretRefField
                       label={validationFieldLabels.keyLabel}
                       hint={validationFieldLabels.keyHint}
                       type={isS3 ? "text" : "password"}
                       value={form.jwt_token_validation_key}
-                      onChange={(e) =>
-                        set("jwt_token_validation_key", e.target.value)
-                      }
+                      onChange={(v) => set("jwt_token_validation_key", v)}
                     />
                   )}
                   {showS3Fields && (
@@ -957,21 +1053,17 @@ export default function RuleDetailPage() {
                           set("amazon_s3_region", e.target.value)
                         }
                       />
-                      <Input
+                      <SecretRefField
                         label="AWS access key"
                         type="password"
                         value={form.amazon_s3_access_key}
-                        onChange={(e) =>
-                          set("amazon_s3_access_key", e.target.value)
-                        }
+                        onChange={(v) => set("amazon_s3_access_key", v)}
                       />
-                      <Input
+                      <SecretRefField
                         label="AWS secret key"
                         type="password"
                         value={form.amazon_s3_secret_key}
-                        onChange={(e) =>
-                          set("amazon_s3_secret_key", e.target.value)
-                        }
+                        onChange={(v) => set("amazon_s3_secret_key", v)}
                       />
                     </>
                   )}
@@ -989,7 +1081,7 @@ export default function RuleDetailPage() {
             <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
               Response
             </h2>
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-slate-600 dark:text-slate-300">
               What should wslproxy do with the request when this rule matches?
             </p>
           </div>
@@ -1028,18 +1120,10 @@ export default function RuleDetailPage() {
                   <Input
                     label={`${redirectLabel} *`}
                     value={form.redirect_uri}
-                    placeholder={
-                      form.code === 305
-                        ? "http://backend.example.com:8080"
-                        : "https://example.com"
-                    }
+                    placeholder="https://example.com"
                     onChange={(e) => set("redirect_uri", e.target.value)}
                     error={fieldErrors.redirect_uri}
-                    hint={
-                      form.code === 305
-                        ? "The internal backend wslproxy will proxy this request to.  Include the scheme and port."
-                        : "The URL the client will be redirected to."
-                    }
+                    hint="The URL the client will be redirected to."
                   />
                 </div>
               )}
@@ -1116,7 +1200,7 @@ export default function RuleDetailPage() {
           <Card.Header>
             <div>
               <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Traffic Splitting</h2>
-              <p className="text-sm text-slate-500">Configure multi-backend routing for canary releases, A/B testing, or weighted load balancing</p>
+              <p className="text-sm text-slate-600 dark:text-slate-300">Configure multi-backend routing for canary releases, A/B testing, or weighted load balancing</p>
             </div>
           </Card.Header>
           <Card.Body>
@@ -1235,6 +1319,8 @@ export default function RuleDetailPage() {
           {isCreate ? "Create Rule" : "Save Changes"}
         </Button>
       </div>
+        </>
+      )}
 
       <ConfirmDialog
         open={showDelete}

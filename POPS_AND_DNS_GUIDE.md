@@ -65,7 +65,7 @@ A **POP** (Point of Presence) is a physical or virtual server somewhere in the w
 |---|---|---|
 | **id** | `pop0`, `lon1`, `us-east-1` | Short slug used everywhere wslproxy references this POP |
 | **display_name** | `London POP 0` | Human-friendly label shown in the dashboard |
-| **public_ipv4** | `187.124.112.155` | The public IP that DNS will point to |
+| **public_ipv4** | `85.190.106.189` | The public IP that DNS will point to |
 | **region** | `eu-west-1` | Logical grouping (used to sort the picker) |
 | **city** | `London` | For dashboards / context only |
 | **country_code** | `GB` | ISO code, for context |
@@ -83,8 +83,8 @@ pop_ids: [pop0, lon1]
       ↓ Preview & Provision
 
 Cloudflare A records:
-  api.example.com → 187.124.112.155  (pop=pop0)
-  api.example.com → 72.62.211.28     (pop=lon1)
+  api.example.com → 85.190.106.189  (pop=pop0)
+  api.example.com → lon1.pop0.uk     (pop=lon1)
 ```
 
 ---
@@ -264,7 +264,7 @@ If you deploy wslproxy via the Ansible role, the two production POPs (`pop0` + `
 wslproxy_pops:
   - id: pop0
     display_name: "London POP 0"
-    public_ipv4: "187.124.112.155"
+    public_ipv4: "85.190.106.189"
     region: eu-west
     city: London
     country_code: GB
@@ -451,24 +451,24 @@ You: Provision DNS for host:api.example.com in prod.
 
 Claude: [calls provision_dns (dry_run defaults to true)]
         Here's what would change in Cloudflare:
-          - CREATE A api.example.com → 187.124.112.155  (pop=pop0)
-          - CREATE A api.example.com → 72.62.211.28    (pop=lon1)
+          - CREATE A api.example.com → 85.190.106.189  (pop=pop0)
+          - CREATE A api.example.com → lon1.pop0.uk    (pop=lon1)
         Should I apply these?
 
 You: yes
 
 Claude: [calls provision_dns with dry_run=false]
         Applied:
-          - Created A record api.example.com → 187.124.112.155
-          - Created A record api.example.com → 72.62.211.28
+          - Created A record api.example.com → 85.190.106.189
+          - Created A record api.example.com → lon1.pop0.uk
         Both records are now live in Cloudflare.
 
 You: What DNS records exist for api.example.com right now?
 
 Claude: [calls lookup_dns]
         Cloudflare has 2 A records:
-          - 187.124.112.155  (managed by wslproxy, pop=pop0)
-          - 72.62.211.28    (managed by wslproxy, pop=lon1)
+          - 85.190.106.189  (managed by wslproxy, pop=pop0)
+          - lon1.pop0.uk    (managed by wslproxy, pop=lon1)
         No hand-curated records.
 ```
 

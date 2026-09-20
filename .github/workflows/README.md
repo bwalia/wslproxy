@@ -6,11 +6,19 @@ WSLProxy uses two deployment pipelines and a shared reusable workflow:
 
 | Pipeline | File | Branch | Environments | Purpose |
 |----------|------|--------|-------------|---------|
-| **Delivery** | `deploy-wslproxy-delivery-pipeline.yml` | `release` | int → test → prod (pop0 + lon1) | Production releases |
+| **Delivery** | `deploy-wslproxy-delivery-pipeline.yml` | `release` | int → test → prod (lon1 + pop1) | Production releases |
 | **Promotion** | `deploy-wslproxy-promotion-pipeline.yml` | `main` | int → test | CI/CD for config/server changes |
+| **Control plane (k3s1)** | `deploy-control-plane-k3s1.yml` | `main` | k3s1 `wslproxy-system` / cp.pop0.uk | Build image + seed `wslproxy-k3s1` on [rp.workstation.co.uk](https://rp.workstation.co.uk/) |
 | **Reusable** | `deploy-environment.yml` | — | (called by both pipelines) | Parameterized per-environment deploy logic |
 
 > The `acc` tier on 187.77.179.206 was decommissioned. Both pipelines now go test → prod (delivery) or stop at test (promotion).
+
+> `deploy-diytaxreturn-configs.yml` was retired on 2026-09-01. It targeted the
+> decommissioned 187.77.179.206 and an `[openresty_diytaxreturn]` inventory group
+> that no commit ever added, so all 12 of its runs failed — while firing on every
+> merge that touched `data/servers/**` or `data/rules/**`. diytaxreturn config is
+> owned by the app repo (`diy-tax-return-uk/.github/wslproxy/data/`) and imported
+> through `/api/projects/import`.
 
 ---
 
@@ -26,18 +34,19 @@ WSLProxy uses two deployment pipelines and a shared reusable workflow:
 
 ## Delivery Pipeline (`deploy-wslproxy-delivery-pipeline.yml`)
 
-Full production release pipeline with fail-fast behavior and Slack notifications at every gate. Code promotes through **int → test → prod (pop0 + lon1)** — each environment must pass before the next deploys.
+Full production release pipeline with fail-fast behavior and Slack notifications at every gate. Code promotes through **int → test → prod (lon1 + pop1)** — each environment must pass before the next deploys.
 
 ### Triggers
 
 | Trigger | Branches | Behavior |
 |---------|----------|----------|
-| Push | `release` | Runs full pipeline: int → test → prod (pop0 + lon1) |
+| Push | `release` | Runs full pipeline: int → test → prod (lon1 + pop1) |
 | Manual (`workflow_dispatch`) | any | Choose target host, environment, and deploy mode |
 
 ### Deploy Modes
 
-Selected via `DEPLOY_MODE` dropdown (default: `code` for manual, `full` for push to release):
+Selected via `DEPLOY_MODE` dropdown (default: **`code`** for manual dispatch).
+Push to `build`/`release` still defaults to `full` when no input is set.
 
 | Mode | `DEPLOY_MODE` | What runs |
 |------|---------------|-----------|
@@ -46,8 +55,23 @@ Selected via `DEPLOY_MODE` dropdown (default: `code` for manual, `full` for push
 | **Virtual servers** | `servers` | Server/rule data configs, settings, SSL, tenant configs, restart |
 | **Dashboard** | `dashboard` | React admin UI build + deploy, restart |
 | **OS dependencies** | `os_deps` | apt/zypper/yum package updates |
-| **Build OpenResty** | `build` | OS deps + OpenResty compile + luarocks + CDN deps |
-| **Full deploy** (push default) | `full` | Everything |
+| **Build OpenResty** | `build` | OS deps + **prebuilt** OpenResty image pull/rsync + luarocks + CDN deps (`openresty_install_mode=source` to compile on-host) |
+| **Full deploy** | `full` | Everything (OpenResty via prebuilt image by default) |
+
+#### Faster OpenResty installs (prebuilt image)
+
+Bare-metal `build` / auto-install no longer compiles OpenResty from source by
+default. Ansible pulls `docker.io/bwalia/wslproxy-openresty:<version>` (Buildx
++ GHA cache via `.github/workflows/build-openresty-prebuilt.yml`) and rsyncs
+`/usr/local/openresty` to the target. See [`infra/openresty-prebuilt/README.md`](../infra/openresty-prebuilt/README.md).
+
+- Prefer **`DEPLOY_MODE=code`** for Lua / api_gw / HTML changes.
+- Use **`build`** or **`full`** when the OpenResty version or rocks change (after
+  the prebuilt image workflow has published the matching tag).
+- Escape hatch: `--extra-vars openresty_install_mode=source`.
+
+Next.js admin builds on the deploy runner use `actions/setup-node` npm cache
+and `actions/cache` for `.next` outputs.
 
 ### Pipeline Stages
 
@@ -88,9 +112,9 @@ Selected via `DEPLOY_MODE` dropdown (default: `code` for manual, `full` for push
                             │ pass
                             ▼
  ┌──────────────────────────────────────────────────────────────────────┐
- │  STAGE 5a: Deploy Prod pop0             [self-hosted, SSH+key]      │
+ │  STAGE 5a: Deploy Prod lon1             [self-hosted, SSH+key]      │
  │  Uses deploy-environment.yml (connection_mode: ssh_key)             │
- │  ✓ Success → Slack: "deployed to production (pop0)"                 │
+ │  ✓ Success → Slack: "deployed to production (lon1)"                 │
  │  ✗ Failure → Slack alert + manual rollback                          │
  └──────────────────────────┬───────────────────────────────────────────┘
                             │ pass
@@ -184,8 +208,12 @@ Shared parameterized workflow called by both pipelines via `workflow_call`. Hand
 |-------------|---------|----------|--------------------|----------------|---------------------|-----------------|
 | int | 192.168.1.193 | (local) | `local` | `github_secret` | `local` | `http://localhost:8080/health` |
 | test | 192.168.1.140 | bwalia | `ssh` | `runner_file` | `ssh` | `http://localhost:8080/health` |
-| prod (pop0) | 187.124.112.155 | root | `ssh_key` | `github_secret` | `external` | `https://prod-our-v1.wslproxy.com/health` |
-| prod (lon1) | 72.62.211.28 | root | `ssh_key` | `runner_file` | `external` | `http://72.62.211.28:7691/health` |
+| prod / prod-lon1 | lon1.pop0.uk | root | `ssh_key` | `vault_or_sops` | `external` | `https://lon1.pop0.uk/healthz` |
+| prod-pop0 | 85.190.106.189 | administrator | `ssh_key` | `vault_or_sops` | `ssh` | `http://127.0.0.1:7691/healthz` |
+
+> **pop1 retired:** `18.133.126.242` / `pop1.diytaxreturn.co.uk` is gone — use `ENV=prod` or `prod-lon1` (both lon1).
+>
+> **pop0 rebuilt (2026-08-28):** the old pop0 host `187.124.112.155` was retired (it is a k3s node where traefik owns `:80`/`:443`). pop0 now lives on a new VPS, `85.190.106.189`, SSH user `administrator` (passwordless sudo, no root login). It is **dispatch-only** — Stage 5b of the delivery pipeline and `ENV=prod-pop0` in `deploy-single-environment.yml`; a push to `main`/`release` and `TARGET_HOST=all` both skip it. Its health gate runs over SSH against `127.0.0.1:7691` because no DNS points at the new IP yet (`prod-our.wslproxy.com` still resolves to lon1) — switch it to `external` after repointing DNS.
 
 ### Steps (conditional per environment)
 
@@ -212,9 +240,9 @@ The `DEPLOY_MODE` value maps to Ansible tags that control which tasks run:
 | `servers` | Server/rule data configs, settings, SSL, tenant configs, restart |
 | `dashboard` | React admin UI sync, npm/yarn build, nginx conf, restart |
 | `os_deps` | OS package updates (apt/zypper/dnf) |
-| `build` | `os_deps` + OpenResty compile + luarocks + CDN deps |
+| `build` | `os_deps` + OpenResty **prebuilt image** install (or source if `openresty_install_mode=source`) + luarocks + CDN deps |
 | `full` | No tag filter — all tasks run |
-| `always` | Auto-detect OpenResty, load vars, user setup (runs in every mode) |
+| `always` | Auto-detect OpenResty, load vars, user setup (runs in every mode); auto-installs OpenResty via prebuilt when missing/wrong version |
 
 ---
 
@@ -224,9 +252,17 @@ The `DEPLOY_MODE` value maps to Ansible tags that control which tasks run:
 |--------|---------|-------------|
 | `DOT_WSLPROXY_SETTINGS_INT` | Int deploy | Base64-encoded settings.json for int |
 | `DOT_WSLPROXY_ENV_CREDS_INT` | Int deploy | Base64-encoded .env for int |
-| `DOT_WSLPROXY_SETTINGS_PROD` | Prod pop0 deploy | Base64-encoded settings.json for prod |
-| `DOT_WSLPROXY_ENV_CREDS_PROD` | Prod pop0 deploy | Base64-encoded .env for prod |
+| `DOT_WSLPROXY_SETTINGS_PROD` | Prod deploy (lon1/pop1) | Base64-encoded settings.json for prod |
+| `DOT_WSLPROXY_ENV_CREDS_PROD` | Prod deploy (lon1/pop1) | Base64-encoded .env for prod |
 | `SLACK_WEBHOOK` | All stages | Slack incoming webhook URL |
+| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_REGION` | `sync-prod-data-to-s3`, `sync-configs-to-environments`, `deploy-wslproxy-virtual-servers` | IAM user credentials for the S3 data bucket |
+| `WSLPROXY_S3_BUCKET` | Same three workflows | Bucket holding `data/servers/<env>/` and `data/rules/<env>/` |
+
+Those three workflows run `.github/actions/aws-s3-preflight` before any transfer.
+It probes `sts:GetCallerIdentity` and one `s3 ls`, so a rotated, revoked or
+AWS-quarantined key is named as such instead of surfacing as a bare `AccessDenied`
+from inside `aws s3 sync`. It fails the job where S3 is the source of truth and
+only warns where the S3 step is a best-effort overlay.
 
 Runner-local secrets (on 192.168.1.193):
 
@@ -234,7 +270,7 @@ Runner-local secrets (on 192.168.1.193):
 /home/bwalia/.secrets/wslproxy/
 ├── int/     → settings.json + .env (BACKEND_HOST=192.168.1.193)
 ├── test/    → settings.json + .env (BACKEND_HOST=192.168.1.140)
-└── lon1/    → settings.json + .env (BACKEND_HOST=72.62.211.28)
+└── lon1/    → settings.json + .env (BACKEND_HOST=lon1.pop0.uk)
 ```
 
 ---
@@ -291,8 +327,8 @@ Stage 1 fails  → "Build & Validate FAILED"              → pipeline stops
 Stage 2 fails  → "Deploy Int FAILED"                    → pipeline stops
 Stage 3 fails  → "Smoke Test Int FAILED"                → pipeline stops (before test)
 Stage 4 fails  → "Deploy Test FAILED"                   → pipeline stops (before prod)
-Stage 5a fails → "Production Deployment FAILED (pop0)"  → alert + manual rollback
-Stage 5b fails → "LON1 Deployment FAILED"               → alert + manual rollback
+Stage 5a fails → "Production Deployment FAILED (lon1)"  → alert + manual rollback
+Stage 5b fails → "Production Deployment FAILED (pop1)"  → alert + manual rollback
 ```
 
 ### Promotion Pipeline
@@ -320,3 +356,5 @@ Deploy Test fails  → alert
 | API Test Suite | `automated-api-test-suite.yml` | Go-based API integration tests |
 | UI Smoke Test | `automated-ui-smoke-test.yml` | Cypress UI smoke tests |
 | Backup Data | `backup-wslproxy-data.yml` | Backup WSLProxy data from production |
+| Sync Prod to S3 | `sync-prod-data-to-s3.yml` | Daily SSH rsync from lon1 → S3 + backup tarball |
+| Restore S3 to Git | `restore-prod-data-from-s3-to-git.yml` | After S3 backup: test runner refreshes `data/` and opens a review PR (manual merge) |

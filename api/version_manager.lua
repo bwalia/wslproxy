@@ -484,6 +484,158 @@ function _M.diff_versions(resource_type, profile, resource_name, v1, v2)
     }
 end
 
+--- Snapshot the CURRENT on-disk state as a new "live" version, archiving
+--- the previous live.  Called from CreateUpdateRecord after every save so
+--- history is populated automatically (was previously only populated by
+--- a manual /initialize call — see api/api.lua and CLAUDE.md §5).
+---
+--- config_payload MUST be the post-processed on-disk JSON (base64-encoded
+--- fields already encoded), so a later restore_version can write it back
+--- verbatim without re-processing.  Fail-open — never blocks a save.
+function _M.snapshot_live(resource_type, profile, resource_name, config_payload, user, description)
+    if not resource_type or not profile or not resource_name or not config_payload then
+        return nil, "resource_type, profile, resource_name, config_payload required"
+    end
+
+    local meta = read_meta(resource_type, profile, resource_name)
+    local new_version = meta.latest_version + 1
+
+    -- Archive prior live (if any) so exactly one version is live at a time,
+    -- and while we have it in hand compute a top-level-field diff summary
+    -- so the description tells the operator WHAT changed at a glance.
+    local prior_payload
+    if meta.live_version then
+        local live_entry = _M.get_version(resource_type, profile, resource_name, meta.live_version)
+        if live_entry and live_entry.state == "live" then
+            prior_payload = live_entry.config_payload
+            live_entry.state = "archived"
+            live_entry.updated_at = os.time()
+            local live_path = get_version_path(resource_type, profile, resource_name, meta.live_version)
+            write_json_file(live_path, live_entry)
+        end
+    end
+
+    -- Auto-augment the description with a short "changed: a, b, c" list
+    -- when a prior live existed.  Small operator-facing improvement:
+    -- "Edited via admin — changed: rules, priority" beats a bare
+    -- "Edited via admin".  Skips noise fields that update on every save.
+    if prior_payload then
+        local NOISE = { updated_at = true, created_at = true,
+            _version_control = true, version = true }
+        local seen, changed = {}, {}
+        local function walk(t)
+            if type(t) ~= "table" then return end
+            for k, _ in pairs(t) do
+                if type(k) == "string" and not seen[k] and not NOISE[k] then
+                    seen[k] = true
+                    local a = cjson.encode(t[k] or cjson.null)
+                    local other = (t == prior_payload) and config_payload or prior_payload
+                    local b = cjson.encode(other[k] or cjson.null)
+                    if a ~= b then table.insert(changed, k) end
+                end
+            end
+        end
+        walk(prior_payload); walk(config_payload)
+        if #changed > 0 then
+            table.sort(changed)
+            local shown = changed
+            local more = ""
+            if #changed > 6 then
+                shown = { changed[1], changed[2], changed[3],
+                    changed[4], changed[5], changed[6] }
+                more = " (+" .. tostring(#changed - 6) .. " more)"
+            end
+            local summary = "changed: " .. table.concat(shown, ", ") .. more
+            description = (description and description ~= "")
+                and (description .. " — " .. summary)
+                or summary
+        end
+    end
+
+    local now = os.time()
+    local entry = {
+        version = new_version,
+        state = "live",
+        created_by = user or "system",
+        created_at = now,
+        updated_at = now,
+        activated_at = now,
+        activated_by = user or "system",
+        approved_by = "auto",
+        approved_at = now,
+        description = description or "",
+        config_payload = config_payload,
+        resource_type = resource_type,
+        profile = profile,
+        resource_name = resource_name,
+    }
+    local dir = get_versions_dir(resource_type, profile, resource_name)
+    local ok, err = write_json_file(
+        get_version_path(resource_type, profile, resource_name, new_version), entry, dir)
+    if not ok then return nil, err end
+
+    meta.latest_version = new_version
+    meta.live_version = new_version
+    write_meta(resource_type, profile, resource_name, meta)
+
+    AuditLogger.log("version_snapshot", user, resource_type, resource_name, {
+        version = new_version, description = description,
+    })
+    return entry
+end
+
+--- Restore a previous version to live (one-click rollback).  Writes the
+--- target version's config_payload verbatim to data/{type}/{profile}/{name}.json,
+--- regenerates the compiled .conf for servers, and snapshots the restore
+--- as a new live version.  Bypasses the CR/4-eyes flow — the operator
+--- has explicitly asked to roll back.
+function _M.restore_version(resource_type, profile, resource_name, target_version, user)
+    target_version = tonumber(target_version)
+    local target, err = _M.get_version(resource_type, profile, resource_name, target_version)
+    if not target then return nil, err or "target version not found" end
+    if not target.config_payload then return nil, "target version has no config_payload" end
+
+    local live_data_path = get_live_data_path(resource_type, profile, resource_name)
+    if not live_data_path then return nil, "invalid resource type: " .. tostring(resource_type) end
+    local live_dir = live_data_path:match("^(.*)/[^/]+$")
+    local ok, werr = write_json_file(live_data_path, target.config_payload, live_dir)
+    if not ok then return nil, werr end
+
+    -- Servers: regenerate the compiled .conf too (gateway_ack reads JSON per-request,
+    -- but the .conf file drives listen ports / SSL / ACME location blocks).
+    if resource_type == "servers"
+        and target.config_payload.config
+        and target.config_payload.server_name then
+        local Helper = require("helpers")
+        local Base64 = require("base64")
+        local conf_dir = configPath .. "data/servers/" .. profile .. "/conf"
+        local conf_path = conf_dir .. "/" .. target.config_payload.server_name .. ".conf"
+        local ok2, decoded = pcall(Base64.decode, target.config_payload.config)
+        if ok2 and decoded then
+            pcall(Helper.setDataToFile, conf_path,
+                Helper.cleanString(decoded), conf_dir, "conf")
+        end
+    end
+
+    local restored = _M.snapshot_live(
+        resource_type, profile, resource_name,
+        target.config_payload, user,
+        "Rollback to v" .. tostring(target_version)
+    )
+    if restored then
+        restored.rollback_from_version = target_version
+        local vp = get_version_path(resource_type, profile, resource_name, restored.version)
+        write_json_file(vp, restored)
+    end
+
+    AuditLogger.log("version_restored", user, resource_type, resource_name, {
+        new_version = restored and restored.version,
+        restored_from = target_version,
+    })
+
+    return restored
+end
+
 --- Create a rollback version (copies config from a previous version as a new draft)
 -- @param resource_type string: "servers" or "rules"
 -- @param profile string: Profile ID

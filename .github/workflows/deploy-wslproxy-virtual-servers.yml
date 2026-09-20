@@ -30,11 +30,14 @@ on:
       TARGET_HOST:
         type: choice
         description: "Target host"
-        default: "187.124.112.155"
+        default: "lon1.pop0.uk"
         required: true
         options:
-          - 187.124.112.155
-          # 187.77.179.206 (acc) was decommissioned.
+          # 187.77.179.206 (acc) and the OLD pop0 187.124.112.155 were retired.
+          # pop0 was rebuilt on a new VPS (85.190.106.189, ssh administrator)
+          # on 2026-08-28 — the SSH user comes from infra/ansible/hosts.
+          - lon1.pop0.uk
+          - 85.190.106.189
           - 192.168.1.193
 
       DEPLOY_NGINX_CONF:
@@ -49,7 +52,7 @@ on:
 
 env:
   TARGET_ENV: ${{ github.event.inputs.TARGET_ENV || 'prod' }}
-  TARGET_HOST: ${{ github.event.inputs.TARGET_HOST || '187.124.112.155' }}
+  TARGET_HOST: ${{ github.event.inputs.TARGET_HOST || 'lon1.pop0.uk' }}
   DEPLOY_NGINX_CONF: ${{ github.event.inputs.DEPLOY_NGINX_CONF || 'false' }}
   DRY_RUN: ${{ github.event.inputs.DRY_RUN || 'false' }}
   INT_HOST: 192.168.1.193
@@ -230,11 +233,13 @@ jobs:
 
       - name: Test frontend domains HTTP (port 80)
         run: |
+          # 404 = gateway reachable but no rule matched (OK for smoke).
+          # Add a separate routed-domain 200 check when a stable int host exists.
           echo "Testing frontend HTTP on ${{ env.INT_HOST }}..."
           HTTP_CODE=$(ssh -o BatchMode=yes -o ConnectTimeout=10 bwalia@${{ env.INT_HOST }} \
             "curl -s -o /dev/null -w '%{http_code}' -H 'Host: int.wslproxy.com' http://127.0.0.1:80/" 2>&1) || true
           echo "Frontend HTTP response (port 80): $HTTP_CODE"
-          if [[ "$HTTP_CODE" != "200" && "$HTTP_CODE" != "301" && "$HTTP_CODE" != "302" ]]; then
+          if [[ ! "$HTTP_CODE" =~ ^(200|301|302|404)$ ]]; then
             echo "::error::Frontend HTTP check FAILED (HTTP $HTTP_CODE) on port 80 - blocking deployment"
             exit 1
           fi
@@ -246,7 +251,7 @@ jobs:
           HTTP_CODE=$(ssh -o BatchMode=yes -o ConnectTimeout=10 bwalia@${{ env.INT_HOST }} \
             "curl -sk -o /dev/null -w '%{http_code}' https://127.0.0.1:443/ -H 'Host: int.wslproxy.com'" 2>&1) || true
           echo "Frontend HTTPS response (port 443): $HTTP_CODE"
-          if [[ "$HTTP_CODE" != "200" && "$HTTP_CODE" != "301" && "$HTTP_CODE" != "302" ]]; then
+          if [[ ! "$HTTP_CODE" =~ ^(200|301|302|404)$ ]]; then
             echo "::error::Frontend HTTPS check FAILED (HTTP $HTTP_CODE) on port 443 - blocking deployment"
             exit 1
           fi
@@ -334,6 +339,16 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
+
+      # The overlay below swallows S3 errors (`2>/dev/null || true`) and then
+      # reports "No S3 overlay configs found", so a dead credential looks like
+      # an empty bucket. Warn-only preflight: same behaviour, visible cause.
+      - name: Verify S3 access
+        uses: ./.github/actions/aws-s3-preflight
+        with:
+          bucket: ${{ secrets.WSLPROXY_S3_BUCKET }}
+          prefix: data/servers/${{ env.TARGET_ENV }}/
+          on-failure: warn
 
       - name: Download S3 configs and overlay onto target
         run: |

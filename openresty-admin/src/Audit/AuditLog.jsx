@@ -17,8 +17,7 @@ import {
   CircularProgress,
 } from "@mui/material";
 import RefreshIcon from "@mui/icons-material/Refresh";
-
-const API_URL = import.meta.env.VITE_API_URL;
+import { getApiUrl } from "../apiBase";
 
 const getHeaders = () => {
   const token = localStorage.getItem("token");
@@ -66,7 +65,7 @@ const AuditLog = () => {
       const queryParams = Object.keys(params).length > 0
         ? `&params=${encodeURIComponent(JSON.stringify({ filter: params }))}`
         : "";
-      const url = `${API_URL}/audit?timestamp=${Date.now()}${queryParams}`;
+      const url = `${getApiUrl()}/audit?timestamp=${Date.now()}${queryParams}`;
       const response = await fetch(url, { method: "GET", headers: getHeaders() });
       const result = await response.json();
       setEntries(result.data || []);

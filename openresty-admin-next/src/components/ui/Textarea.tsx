@@ -54,7 +54,7 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
           </p>
         )}
         {hint && !error && (
-          <p id={hintId} className="text-sm text-slate-500 dark:text-slate-400">
+          <p id={hintId} className="text-sm leading-relaxed text-slate-600 dark:text-slate-300">
             {hint}
           </p>
         )}

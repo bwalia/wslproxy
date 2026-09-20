@@ -20,11 +20,23 @@ const customEnglishMessages = {
         rule_button: "Rules",
       },
       storage: {
-        title: "Please choose a option for storage management",
+        title: "Please choose an option for storage management",
         subtitle:
-          "Storage Preference, You can change it by selecting any options.",
+          "Storage preference — Disk, Redis, or PostgreSQL. You can change it anytime.",
         redis: "Redis",
         disk: "Disk",
+        pgsql: "PostgreSQL",
+        pgsql_hint:
+          "Enter the PostgreSQL destination. Password is loaded from Vault (SOPS file as fallback) — leave blank unless you need an emergency override.",
+        pgsql_required: "Host, database, and user are required for PostgreSQL.",
+        apply_pgsql: "Use PostgreSQL",
+        pg_host: "Host",
+        pg_port: "Port",
+        pg_database: "Database",
+        pg_user: "User",
+        pg_password: "Password override (optional)",
+        pg_password_hint:
+          "Leave blank to refresh from Vault, then infra/secrets/<env>/settings.sops.json.",
       },
     },
     menu: {

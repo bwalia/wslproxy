@@ -43,7 +43,7 @@ local function serve_error(settings_obj, page_type)
     if page_type == "conf_mismatch" then
         ngx.status = ngx.HTTP_FORBIDDEN
     end
-    ngx.say(Base64.decode(html))
+    ngx.say(Base64DecodeSafe(html) or "Service unavailable")
 end
 
 -- ─── Cache check ────────────────────────────────────────────────────────────
@@ -164,7 +164,7 @@ else
     if fallback_msg then
         ngx.header["Content-Type"] = (settings.nginx and settings.nginx.content_type) or "text/html"
         ngx.status = ngx.HTTP_FORBIDDEN
-        ngx.say(Base64.decode(fallback_msg))
+        ngx.say(Base64DecodeSafe(fallback_msg) or "Forbidden")
     else
         serve_error(settings, "conf_mismatch")
     end

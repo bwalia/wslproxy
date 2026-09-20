@@ -509,8 +509,8 @@ const Topology = () => {
     try {
       const res = await dataProvider.getTopologyGraph();
       const d = res?.data || {};
-      setNodes(d.nodes || []);
-      setEdges(d.edges || []);
+      setNodes(Array.isArray(d.nodes) ? d.nodes : []);
+      setEdges(Array.isArray(d.edges) ? d.edges : []);
       setSummary(d.summary || {});
     } catch (err) {
       console.error("Topology fetch error:", err);

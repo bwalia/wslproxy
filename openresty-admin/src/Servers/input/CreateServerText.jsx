@@ -111,8 +111,8 @@ const CreateServerText = ({ source }) => {
                 ? formData.locations
                   .map((location) => {
                     return `location ${location?.location_path || "/"} {
-                      ${location?.location_vals
-                        ? Object.values(location?.location_opts)
+                      ${location?.location_vals && location?.location_opts
+                        ? Object.values(location.location_opts)
                           .map((idx) => {
                             const value = location?.location_vals[idx];
                             return idx + " " + value;

@@ -1,6 +1,13 @@
 ---
 # Deploy application code: HTML pages and Lua API files
 
+- name: Install write-admin-runtime-config helper
+  copy:
+    src: "{{ playbook_dir }}/../../scripts/write-admin-runtime-config.sh"
+    dest: /usr/local/bin/write-admin-runtime-config.sh
+    mode: "0755"
+  tags: [code, dashboard, nginx]
+
 - name: Sync HTML files
   ansible.posix.synchronize:
     src: ../../html/

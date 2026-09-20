@@ -1,0 +1,119 @@
+# Ring Promoter app config — helm-deploy WSLProxy control plane on k3s1.
+#
+# Owning instance: https://rp.workstation.co.uk/ (namespace workstation-ring-promoter).
+# Canonical copy also lives in bwalia/ring-promoter deploy/k8s/configmap.yaml.
+#
+# Prod path:
+#   1) Bootstrap Zalando Postgres + resolve secrets Vault → SOPS fallback,
+#      then apply helm Secrets wslproxy-settings + wslproxy-pgsql
+#   2) helm upgrade ingress chart mounting those Secrets
+#      (pins openresty.image.tag only — controller stays at chart latest)
+#
+# One-time on k3s1 (ring-exec):
+#   kubectl -n ring-exec create secret generic wslproxy-vault \
+#     --from-literal=VAULT_ADDR=https://vault.workstation.co.uk \
+#     --from-literal=VAULT_TOKEN='<JWT from int/wslvault-token or WSLVault UI>' \
+#     --from-literal=SOPS_AGE_KEY='<AGE-SECRET-KEY-…>'   # optional; SOPS fallback
+#   kubectl apply -f deploy/ring-promoter/k3s1-rbac.yaml
+#   (vault-ui.workstation.co.uk is the SPA only — jobs must use the API host.)
+#
+# Auto-deploy: .github/workflows/deploy-control-plane-k3s1.yml seeds prod on
+# merge to main via POST https://rp.workstation.co.uk/api/apps/wslproxy-k3s1/seed
+apps:
+  - name: wslproxy-k3s1
+    display_name: "WSLProxy Control Plane"
+    location: { lat: 51.5074, lng: -0.1278, city: London, region: GB }
+    deployer: k8sjob
+    k8sjob:
+      namespace: ring-exec
+      image: docker.io/dtzar/helm-kubectl:3.15.4
+      service_account: ring-deploy-job
+      # Node path reaches WSLVault UI/API; CNI overlay is flaky on some nodes.
+      host_network: true
+      env_from_secrets: [wslproxy-vault]
+      command: ["/bin/sh", "-c"]
+      args:
+        - |
+          set -eu
+          env="${RP_TARGET_ENV}"
+          ver="${RP_VERSION}"
+          tag="${ver}"
+          if [ "${#ver}" -eq 40 ]; then
+            tag="sha-$(printf '%s' "${ver}" | cut -c1-7)"
+          fi
+          if [ "${env}" = "prod" ]; then
+            ns="wslproxy-system"
+            release="wslproxy-ingress"
+            fullname="wslproxy-ingress"
+            class="wslproxy"
+            extra=""
+            control_plane=1
+          else
+            ns="wslproxy-${env}"
+            release="wslproxy-ingress-${env}"
+            fullname="wslproxy-ingress-${env}"
+            class="wslproxy-${env}"
+            extra="--set openresty.autoscaling.enabled=false --set openresty.replicas=1 --set controller.replicas=1 --set openresty.podDisruptionBudget.enabled=false --set openresty.service.type=ClusterIP"
+            control_plane=0
+          fi
+          echo "deploy wslproxy-ingress ${tag} -> ns ${ns} class ${class} (ring ${RP_RING})"
+          rm -rf /src
+          git clone https://github.com/bwalia/wslproxy /src
+          cd /src
+          git checkout "${ver}" || echo "RP_VERSION ${ver} is not a git ref; chart from default branch, image tag ${tag}"
+          kubectl apply -f ingress-controller/deploy/crds/
+          # IngressClass.spec.controller is immutable. If a prior install left
+          # the wrong controller (e.g. traefik.io/…), delete so helm can recreate.
+          want_ctrl="wslproxy.io/ingress-controller"
+          have_ctrl="$(kubectl get ingressclass "${class}" -o jsonpath='{.spec.controller}' 2>/dev/null || true)"
+          if [ -n "${have_ctrl}" ] && [ "${have_ctrl}" != "${want_ctrl}" ]; then
+            echo "IngressClass ${class} controller='${have_ctrl}' != '${want_ctrl}' — deleting for recreate"
+            kubectl delete ingressclass "${class}" --ignore-not-found
+          fi
+          if [ "${control_plane}" = "1" ]; then
+            if [ -z "${VAULT_TOKEN:-}" ] || [ -z "${VAULT_ADDR:-}" ]; then
+              echo "VAULT_ADDR/VAULT_TOKEN missing — create secret ring-exec/wslproxy-vault" >&2
+              exit 1
+            fi
+            export VAULT_ADDR VAULT_TOKEN
+            export WSLPROXY_VAULT_ENV=prod
+            chmod +x scripts/k3s1-bootstrap-control-plane.sh
+            ./scripts/k3s1-bootstrap-control-plane.sh
+            # Pin OpenResty + controller to cloud003 (CF → 77.68.126.63).
+            # Overlay also enables controlPlane Ingress/NodePort 32080.
+            extra="${extra} -f ./ingress-controller/deploy/helm/values-control-plane-cloud003.yaml"
+            extra="${extra} --set openresty.settings.existingSecret=wslproxy-settings --set openresty.pgsql.existingSecret=wslproxy-pgsql"
+          fi
+          # No --create-namespace: ring-deploy-job has no cluster-scoped
+          # namespace rights. Namespaces come from k3s1-rbac.yaml.
+          # Control-plane image is bwalia/wslproxy (openresty). Do not pin
+          # controller.image.tag — that image is not rebuilt on every main merge.
+          # shellcheck disable=SC2086
+          # Do not --wait on LoadBalancer readiness: ServiceLB EXTERNAL-IP can
+          # stay empty while NodePort 32080 + traefik-edge already serve cp.pop0.uk.
+          helm upgrade --install "${release}" ./ingress-controller/deploy/helm \
+            --namespace "${ns}" \
+            --set fullnameOverride="${fullname}" \
+            --set ingressClass.name="${class}" \
+            --set ingressClass.isDefaultClass=false \
+            --set openresty.image.tag="${tag}" \
+            --set openresty.image.pullPolicy=Always \
+            ${extra} \
+            --timeout 10m \
+            --wait=false
+          # Still wait for OpenResty pods so seed reports a useful failure.
+          kubectl -n "${ns}" rollout status "deploy/${fullname}-openresty" --timeout=5m
+          kubectl -n "${ns}" rollout status "deploy/${fullname}-controller" --timeout=3m || true
+          echo "wslproxy-ingress ${tag} live in ${ns}"
+          if [ "${control_plane}" = "1" ]; then
+            echo "control-plane pinned to cloud003; UI NodePort 32080 on 77.68.126.63"
+          fi
+      resources: { cpu_request: 100m, memory_limit: 512Mi }
+      timeout: 25m
+      retries: 0
+      ttl_after_finished: 1h
+    rings:
+      int:  { target_env: int,  health_url: "http://wslproxy-ingress-int-openresty.wslproxy-int.svc.cluster.local:8080/healthz" }
+      test: { target_env: test, health_url: "http://wslproxy-ingress-test-openresty.wslproxy-test.svc.cluster.local:8080/healthz" }
+      acc:  { target_env: acc,  health_url: "http://wslproxy-ingress-acc-openresty.wslproxy-acc.svc.cluster.local:8080/healthz" }
+      prod: { target_env: prod, health_url: "http://wslproxy-ingress-openresty.wslproxy-system.svc.cluster.local:8080/healthz" }

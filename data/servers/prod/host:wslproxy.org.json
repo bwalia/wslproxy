@@ -8,7 +8,7 @@
   "error_log": "logs/error.log",
   "config_status": false,
   "profile_id": "prod",
-  "proxy_pass": "http://127.0.0.1",
+  "proxy_pass": "https://bwalia.github.io",
   "rules": "wslproxy-org-rule",
   "created_at": 1769388403,
   "listens": [

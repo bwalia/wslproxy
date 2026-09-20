@@ -7,9 +7,9 @@
 #   ./deploy.sh <server-ip> [playbook] [extra-ansible-args...]
 #
 # Examples:
-#   ./deploy.sh 187.124.112.155
-#   ./deploy.sh 187.124.112.155 deploy-wslproxy.yml --tags nginx
-#   ./deploy.sh 187.124.112.155 deploy-wslproxy.yml --tags "nginx,dashboard"
+#   ./deploy.sh 85.190.106.189
+#   ./deploy.sh 85.190.106.189 deploy-wslproxy.yml --tags nginx
+#   ./deploy.sh 85.190.106.189 deploy-wslproxy.yml --tags "nginx,dashboard"
 #
 
 set -e
@@ -39,9 +39,9 @@ show_usage() {
     echo "  extra-ansible-args Additional arguments passed to ansible-playbook"
     echo ""
     echo "Examples:"
-    echo "  $0 187.124.112.155"
-    echo "  $0 187.124.112.155 deploy-wslproxy.yml --tags nginx"
-    echo "  $0 187.124.112.155 deploy-wslproxy.yml --tags \"nginx,dashboard\""
+    echo "  $0 85.190.106.189"
+    echo "  $0 85.190.106.189 deploy-wslproxy.yml --tags nginx"
+    echo "  $0 85.190.106.189 deploy-wslproxy.yml --tags \"nginx,dashboard\""
     echo ""
     echo "Available servers (host_vars):"
     if [ -d "${SCRIPT_DIR}/host_vars" ]; then

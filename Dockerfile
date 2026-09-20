@@ -112,6 +112,8 @@ RUN luarocks install lua-resty-redis-connector
 RUN luarocks install lua-resty-dns
 RUN luarocks install lua-resty-resolver
 RUN luarocks install luafilesystem
+# pgmoon falls back to luasocket outside some ngx phases; required for storage_type=pgsql init
+RUN luarocks install luasocket
 # lua-resty-auto-ssl pulls in the `sockproc` native dependency.  sockproc's
 # source uses legacy C (`void proc_exit()` instead of `void proc_exit(int)`)
 # and its Makefile hardcodes `-Werror`.  Alpine 3.19+ ships GCC 13+ which
@@ -149,14 +151,14 @@ RUN mkdir -p ${NGINX_CONFIG_DIR} && chmod 777 ${NGINX_CONFIG_DIR}
 # Installed early to be cached (before COPY commands that change frequently)
 # TARGETARCH is automatically provided by Docker for multi-platform builds (amd64, arm64, etc.)
 ARG TARGETARCH
+# Classic /client/mc/… URLs now return 410; AIStor client path is the current download.
 RUN ARCH="${TARGETARCH:-amd64}" && \
-    wget https://dl.min.io/client/mc/release/linux-${ARCH}/mc -O /usr/local/bin/mc \
+    wget https://dl.min.io/aistor/mc/release/linux-${ARCH}/mc -O /usr/local/bin/mc \
     --tries=3 --timeout=30 && \
     chmod +x /usr/local/bin/mc && \
     mc --version
 
 ARG APP_ENV="dev"
-ARG ENV_FILE=".env.dev"
 
 # ==============================================================================
 # COPY commands below - cache will be invalidated when source files change
@@ -169,7 +171,9 @@ COPY ./openresty-admin /usr/local/openresty/nginx/html/openresty-admin
 COPY ./data ${NGINX_CONFIG_DIR}data
 COPY ./data/sample-settings.json ${NGINX_CONFIG_DIR}data/settings.json
 COPY ./api /usr/local/openresty/nginx/html/api
-COPY .env.dev /usr/local/openresty/nginx/html/openresty-admin/.env
+# Neutral same-origin default at build time only — runtime uses /runtime-config.js
+# from WSLPROXY_API_URL or settings.admin.api_url (see write-admin-runtime-config.sh).
+ENV VITE_API_URL=/api
 COPY ./nginx-${APP_ENV}.conf.tmpl /tmp/nginx.conf.tmpl
 COPY ./resolver.conf.tmpl /tmp/resolver.conf.tmpl
 COPY ./html/swagger /usr/local/openresty/nginx/html/swagger
@@ -299,20 +303,10 @@ HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=40s \
 # ============================================================================
 # Container Entry Point
 # ============================================================================
-# Starts OpenResty Nginx in foreground mode (required for proper Docker operation)
-# This allows container to receive signals and manage the process correctly
-#
-# The Nginx process will:
-# 1. Load configuration from NGINX_CONFIG_DIR (default: /opt/nginx)
-# 2. Initialize auto-SSL with Let's Encrypt
-# 3. Load all Lua modules and API handlers
-# 4. Start Admin Dashboard on port 8080
-# 5. Listen for HTTP (80) and HTTPS (443) traffic
-#
-# Signals:
-# - SIGTERM: Graceful shutdown
-# - SIGHUP: Reload configuration
-# - SIGUSR1: Reopen log files
-# - SIGUSR2: Upgrade binary (hot reload)
+# Emit admin runtime-config.js (per-install API URL) then start OpenResty.
+COPY ./scripts/write-admin-runtime-config.sh /usr/local/bin/write-admin-runtime-config.sh
+COPY ./scripts/docker-entrypoint-openresty.sh /usr/local/bin/docker-entrypoint-openresty.sh
+RUN chmod +x /usr/local/bin/write-admin-runtime-config.sh \
+              /usr/local/bin/docker-entrypoint-openresty.sh
 
-CMD ["/usr/local/openresty/nginx/sbin/nginx", "-g", "daemon off;"]
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint-openresty.sh"]

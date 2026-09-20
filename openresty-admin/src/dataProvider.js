@@ -117,8 +117,8 @@ const handleConfigField = (data) => {
               .map((location) => {
                 return `location ${location?.location_path || "/"} {
                 ${
-                  location?.location_vals
-                    ? Object.values(location?.location_opts)
+                  location?.location_vals && location?.location_opts
+                    ? Object.values(location.location_opts)
                         .map((idx) => {
                           const value = location?.location_vals[idx];
                           return idx + " " + value;
@@ -398,21 +398,30 @@ const dataProvider = (apiUrl, settings = {}) => {
           body: JSON.stringify(params),
           headers: getHeaders(),
         });
-        if (response.status < 200 && response.status !== 401) {
-          return Promise.reject(data.error);
-        }
+        const data = await response.json().catch(() => ({}));
         if (response.status === 401) {
           localStorage.removeItem("token");
           localStorage.removeItem("uuid_business_id");
           window.location.href = "/#/login";
+          setIsLoadig(false);
+          return Promise.reject(new Error("Unauthorized"));
         }
-        const data = await response.json();
+        if (response.status < 200 || response.status >= 300) {
+          setIsLoadig(false);
+          const msg =
+            (typeof data?.error === "string" && data.error) ||
+            data?.error?.message ||
+            data?.message ||
+            (typeof data?.data === "string" && data.data) ||
+            `Storage switch failed (HTTP ${response.status})`;
+          return Promise.reject(new Error(String(msg)));
+        }
         setIsLoadig(false);
         return data;
       } catch (error) {
         console.log({ error });
         setIsLoadig(false);
-        throw new Error(error);
+        throw error instanceof Error ? error : new Error(String(error));
       }
     },
 
@@ -755,7 +764,18 @@ const dataProvider = (apiUrl, settings = {}) => {
         });
         const data = await response.json();
         setIsLoadig(false);
-        if (response.status === 200) return data;
+        if (response.status === 200) {
+          const graph = data?.data || {};
+          // Empty Lua tables arrive as {} — coerce so TopologyTab can .find/.filter safely.
+          return {
+            ...data,
+            data: {
+              ...graph,
+              nodes: Array.isArray(graph.nodes) ? graph.nodes : [],
+              edges: Array.isArray(graph.edges) ? graph.edges : [],
+            },
+          };
+        }
         return { data: { nodes: [], edges: [], summary: {} } };
       } catch (error) {
         console.log(error);

@@ -36,6 +36,11 @@ env MCP_MODE;
 env MCP_API_KEY;
 env MCP_TOOLS_ENABLED;
 env VARNISH_ENABLED;
+env VAULT_ADDR;
+env VAULT_TOKEN;
+env SOPS_SETTINGS_PATH;
+env SOPS_AGE_KEY;
+env WSLPROXY_PG_PASSWORD;
 
 {% if target_env == 'prod' %}
 # TCP stream proxy configs (only on production proxy hosts)
@@ -115,6 +120,13 @@ http {
 
     # Traffic stats for dashboard (stores hourly request/response counts)
     lua_shared_dict traffic_stats 5m;
+
+    # API gateway counters (api/api_gw/): rate-limit windows and IVT burst
+    # guards.  Keys are tenant-prefixed (api/api_gw/keys.lua), so every server
+    # and every environment profile gets its own counters out of one zone.
+    # api_gw falls back to wsl_cache if this is missing, but then gateway
+    # counters compete with the content cache for eviction — keep it declared.
+    lua_shared_dict wsl_api_gw 20m;
 
     # WAF event log storage (stores recent WAF events for dashboard and API)
     lua_shared_dict waf_events 10m;
@@ -240,6 +252,36 @@ http {
                     ngx.ctx.selected_backend_label = new_backend.label
                     ngx.log(ngx.WARN, "balancer: retrying with backend ", host, ":", port,
                         " after failure on ", tostring(failed_addr))
+
+                    -- Per-backend Host override on retry (backends[].host_header):
+                    -- the replacement peer may need a different upstream Host than
+                    -- the failed one — or none, in which case the base Host from
+                    -- the access phase is restored. recreate_request() rebuilds
+                    -- the proxied request so proxy_set_header re-evaluates
+                    -- $proxy_host_override (and proxy_ssl_name follows for SNI).
+                    -- S3-signed requests are exempt: Host is part of the signature.
+                    local desired_host
+                    if ngx.ctx.s3_host_override then
+                        desired_host = ngx.ctx._base_host_override
+                    elseif new_backend.host_header and new_backend.host_header ~= "" then
+                        desired_host = new_backend.host_header
+                    elseif ngx.ctx._server_mirror_host
+                        and ngx.ctx._primary_backend_address
+                        and new_backend.address ~= ngx.ctx._primary_backend_address then
+                        -- Server-level mirror_host_header: this retry landed on
+                        -- a non-primary (mirror) backend of a shared rule.
+                        desired_host = ngx.ctx._server_mirror_host
+                    else
+                        desired_host = ngx.ctx._base_host_override
+                    end
+                    if desired_host and desired_host ~= ""
+                        and desired_host ~= ngx.var.proxy_host_override then
+                        ngx.var.proxy_host_override = desired_host
+                        local rok, rerr = balancer.recreate_request()
+                        if not rok then
+                            ngx.log(ngx.ERR, "balancer: recreate_request failed: ", rerr)
+                        end
+                    end
                 end
             end
         end
@@ -699,6 +741,45 @@ http {
           index  swagger.html swagger.htm;
         }
 
+        # MCP must be served by OpenResty Lua on this port too. Without this
+        # block, /mcp/* falls through to `location /` → Next.js, which 307s
+        # unauthenticated clients to /login. JobShout (and other MCP clients)
+        # then re-POST to /login and get HTTP 405 Method Not Allowed — which
+        # looks like a broken JSON-RPC endpoint.
+        location ~ ^/mcp(/.*)?$ {
+            default_type 'application/json';
+            more_set_headers 'Access-Control-Allow-Origin: *';
+            more_set_headers 'Access-Control-Allow-Methods: GET, POST, OPTIONS';
+            more_set_headers 'Access-Control-Allow-Headers: Authorization, Content-Type, X-MCP-API-Key';
+            more_set_headers 'Access-Control-Max-Age: 1728069';
+
+            if ($request_method = 'OPTIONS') {
+                more_set_headers 'Access-Control-Allow-Origin: *';
+                more_set_headers 'Access-Control-Allow-Methods: GET, POST, OPTIONS';
+                more_set_headers 'Access-Control-Allow-Headers: Authorization, Content-Type, X-MCP-API-Key';
+                more_set_headers 'Access-Control-Max-Age: 1728069';
+                more_set_headers 'Content-Type: text/plain; charset=utf-8';
+                return 204;
+            }
+
+            content_by_lua_block {
+                local ok, handler = pcall(require, "mcp.handler")
+                if ok then
+                    handler.route()
+                else
+                    ngx.status = ngx.HTTP_INTERNAL_SERVER_ERROR
+                    ngx.header.content_type = "application/json"
+                    ngx.say(require("cjson").encode({
+                        error = {
+                            code = 500,
+                            message = "MCP handler failed to load: " .. tostring(handler),
+                            type = "internal_error"
+                        }
+                    }))
+                end
+            }
+        }
+
         # All other requests — proxy to Next.js standalone Node.js server
         location / {
             proxy_pass http://127.0.0.1:{{ nginx_nextjs_node_port }};
@@ -740,9 +821,14 @@ http {
   # Internal server running on port 8999 for handling certificate tasks.
 
 # server any host 443 ssl and http2 port, http below this server block will be redirected to https
+{# nginx_public_bind_ip: bind public IP only (coexist with Traefik on 127.0.0.1) #}
 server {
+{% if nginx_public_bind_ip | default('') | length > 0 %}
+    listen {{ nginx_public_bind_ip }}:443 ssl default_server;
+{% else %}
     listen *:443 ssl default_server;
     listen [::]:443 ssl default_server;
+{% endif %}
     server_name _; # catch-all server block for HTTPS
     server_tokens off;
     http2 on;
@@ -850,9 +936,30 @@ server {
               ngx.header["X-WSL-Rule"] = _gw.executableRule.name
             end
 
+            -- Surface WHICH backend the traffic router picked, so an
+            -- operator watching a multi-backend rule (weighted / round-
+            -- robin / least-conn / cookie-sticky) can see per-request
+            -- which endpoint actually served it — critical for
+            -- verifying canary weights, sticky sessions, and failover.
+            -- Populated by gateway_resp.lua whether the rule has one
+            -- backend or many; falls back to the redirect URI when the
+            -- rule has no named label.  Absent on cache HIT (that path
+            -- short-circuits before backend selection — check
+            -- X-WSL-Cache: HIT for that case).
+            if ngx.ctx.selected_backend_label then
+              ngx.header["X-WSL-Backend"] = ngx.ctx.selected_backend_label
+            end
+
             -- LLM protocol translation: normalise response headers
             local ok_llm, Llm = pcall(require, "llm_translator")
             if ok_llm then Llm.header_filter() end
+
+            -- API gateway: apply the response headers the access phase
+            -- collected (CORS, correlation id, RateLimit-*).  Collected
+            -- rather than set earlier because an upstream response can
+            -- overwrite headers set in the rewrite/access phases.
+            local ok_gw, ApiGw = pcall(require, "api_gw")
+            if ok_gw then ApiGw.header_filter() end
           }
 
           # WSL Cache: Capture response body for caching
@@ -890,13 +997,34 @@ server {
           proxy_ssl_session_reuse on;
           proxy_set_header X-Real-IP $remote_addr;
           proxy_ssl_server_name on;
+          # SNI = the same hostname we forward as Host, so host-routed HTTPS
+          # origins (Traefik/nginx Ingress) see a matching SNI + Host. Without
+          # this, proxy_ssl_name defaults to the upstream block name.
+          proxy_ssl_name $proxy_host_override;
 
           # WebSocket support
           proxy_http_version 1.1;
           proxy_set_header Upgrade $http_upgrade;
           proxy_set_header Connection $connection_upgrade;
 
+          # Floor for long uploads (Docker registry blob PUTs, etc.).
+          # Nginx defaults these to 60s. balancer.set_timeouts still wins
+          # when the vhost JSON sets proxy_timeouts.
+          proxy_connect_timeout 600s;
+          proxy_send_timeout 600s;
+          proxy_read_timeout 600s;
+
           proxy_set_header x-route-server $proxy_route_server;
+          # Failover for multi-backend rules: re-enter the balancer not just on
+          # connect error/timeout (the nginx default) but also when a backend is
+          # up-but-broken (its edge answers 404/5xx for a dead origin), and allow
+          # non-idempotent methods (docker push POST/PATCH) to retry too — without
+          # non_idempotent a push cannot fail over at all. http_404 is safe here
+          # because retries only ever target backends of the SAME rule, which by
+          # contract serve identical content; a genuine 404 stays a 404, it just
+          # costs one extra hop. Single-backend vhosts are unaffected: the
+          # balancer only calls set_more_tries() when a rule has >1 backend.
+          proxy_next_upstream error timeout http_502 http_503 http_504 http_404 non_idempotent;
           proxy_set_header Host $proxy_host_override;
           proxy_pass $proxy_host_scheme://$upstream_server;
         
@@ -973,7 +1101,11 @@ server {
 
 # server any host http port 80
 server {
+{% if nginx_public_bind_ip | default('') | length > 0 %}
+        listen       {{ nginx_public_bind_ip }}:80 default_server;
+{% else %}
         listen       80 default_server;
+{% endif %}
         server_name _; # catch-all server block for HTTP requests (redirect to HTTPS or serve ACME challenges)
         server_tokens off;
         # enable
@@ -1076,9 +1208,30 @@ server {
               ngx.header["X-WSL-Rule"] = _gw.executableRule.name
             end
 
+            -- Surface WHICH backend the traffic router picked, so an
+            -- operator watching a multi-backend rule (weighted / round-
+            -- robin / least-conn / cookie-sticky) can see per-request
+            -- which endpoint actually served it — critical for
+            -- verifying canary weights, sticky sessions, and failover.
+            -- Populated by gateway_resp.lua whether the rule has one
+            -- backend or many; falls back to the redirect URI when the
+            -- rule has no named label.  Absent on cache HIT (that path
+            -- short-circuits before backend selection — check
+            -- X-WSL-Cache: HIT for that case).
+            if ngx.ctx.selected_backend_label then
+              ngx.header["X-WSL-Backend"] = ngx.ctx.selected_backend_label
+            end
+
             -- LLM protocol translation: normalise response headers
             local ok_llm, Llm = pcall(require, "llm_translator")
             if ok_llm then Llm.header_filter() end
+
+            -- API gateway: apply the response headers the access phase
+            -- collected (CORS, correlation id, RateLimit-*).  Collected
+            -- rather than set earlier because an upstream response can
+            -- overwrite headers set in the rewrite/access phases.
+            local ok_gw, ApiGw = pcall(require, "api_gw")
+            if ok_gw then ApiGw.header_filter() end
           }
 
           # LLM protocol translation: rewrite Anthropic body/SSE -> OpenAI.
@@ -1100,7 +1253,9 @@ server {
           proxy_cache_lock_timeout 300s;
           add_header X-WSL-Docker-Cache $upstream_cache_status;
 
-          proxy_connect_timeout 300;
+          proxy_connect_timeout 600s;
+          proxy_send_timeout 600s;
+          proxy_read_timeout 600s;
           # WebSocket support
           proxy_http_version 1.1;
           proxy_set_header Upgrade $http_upgrade;
@@ -1120,9 +1275,21 @@ server {
           proxy_ssl_session_reuse on;
           proxy_set_header X-Real-IP $remote_addr;
           proxy_ssl_server_name on;
+          # SNI = the same hostname we forward as Host (see the block above).
+          proxy_ssl_name $proxy_host_override;
 
           chunked_transfer_encoding off;
           proxy_set_header x-route-server $proxy_route_server;
+          # Failover for multi-backend rules: re-enter the balancer not just on
+          # connect error/timeout (the nginx default) but also when a backend is
+          # up-but-broken (its edge answers 404/5xx for a dead origin), and allow
+          # non-idempotent methods (docker push POST/PATCH) to retry too — without
+          # non_idempotent a push cannot fail over at all. http_404 is safe here
+          # because retries only ever target backends of the SAME rule, which by
+          # contract serve identical content; a genuine 404 stays a 404, it just
+          # costs one extra hop. Single-backend vhosts are unaffected: the
+          # balancer only calls set_more_tries() when a rule has >1 backend.
+          proxy_next_upstream error timeout http_502 http_503 http_504 http_404 non_idempotent;
           proxy_set_header Host $proxy_host_override;
           proxy_pass $proxy_host_scheme://$upstream_server;
         

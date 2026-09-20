@@ -1,0 +1,32 @@
+{
+  "id": "cp-pop0-control-plane",
+  "name": "cp-pop0-control-plane-ui",
+  "profile_id": "prod",
+  "priority": 1,
+  "version": 1,
+  "_schema_version": 2,
+  "servers": ["host:cp.pop0.uk"],
+  "rules_tags": ["wslproxy", "control-plane", "k3s1"],
+  "match": {
+    "rules": {
+      "path": "/",
+      "path_key": "starts_with"
+    },
+    "response": {
+      "code": 305,
+      "strip_path": false,
+      "auto_redirect_https": false,
+      "allow": true,
+      "is_consul": false,
+      "routing": { "mode": "least_conn" },
+      "redirect_uri": "77.68.126.63:32080",
+      "backends": [
+        {
+          "address": "77.68.126.63:32080",
+          "weight": 100,
+          "label": "wslproxy-k3s1-control-plane-cloud003"
+        }
+      ]
+    }
+  }
+}

@@ -209,7 +209,7 @@ const TableRowInner = <T,>({
         <td
           key={col.field}
           className={cn(
-            "px-4 py-3 text-sm text-slate-700 dark:text-slate-300",
+            "px-4 py-3.5 text-sm text-slate-900 dark:text-slate-100",
             col.className
           )}
           style={col.width ? { width: col.width } : undefined}
@@ -401,7 +401,7 @@ function DataTableInner<T>({
                 <th
                   key={col.field}
                   className={cn(
-                    "px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400",
+                    "px-4 py-3.5 text-sm font-semibold tracking-normal text-slate-700 dark:text-slate-200",
                     col.sortable && onSort && "cursor-pointer select-none",
                     col.className
                   )}

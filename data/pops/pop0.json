@@ -1,0 +1,18 @@
+{
+    "capacity_weight": 1.0,
+    "city": "London",
+    "country_code": "GB",
+    "created_at": 1781918748,
+    "display_name": "London POP 0",
+    "id": "pop0",
+    "metadata": {},
+    "provider": "hetzner",
+    "public_ipv4": "187.124.112.155",
+    "region": "eu-west",
+    "status": "active",
+    "tags": [
+        "production",
+        "primary"
+    ],
+    "updated_at": 1781918748
+}

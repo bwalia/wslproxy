@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="WSLProxy Geographic Traffic Distribution — Top Countries and world map on the admin dashboard, powered by IP2Location on the OpenResty hot path." />
+  <meta property="og:title" content="Geographic Traffic Distribution by country — WSLProxy" />
+  <meta property="og:image" content="https://wslproxy.org/images/geographic-traffic-distribution-dashboard.jpg" />
+  <title>Geographic Traffic Distribution by country — WSLProxy</title>
+  <meta name="theme-color" content="#f7f9fc" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0c1421" media="(prefers-color-scheme: dark)" />
+  <meta name="color-scheme" content="light dark" />
+  <script src="/js/theme.js"></script>
+  <link rel="icon" href="/images/logo-color.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Lexend:wght@400;500;600;700&family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/site.css" />
+</head>
+<body>
+  <header class="nav">
+    <div class="wrap nav-inner">
+      <a class="brand" href="/">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="wslproxyLogoGradGeo" x1="6" y1="4" x2="42" y2="44" gradientUnits="userSpaceOnUse">
+                <stop stop-color="var(--signal)"/>
+                <stop offset="1" stop-color="var(--brass-dim)"/>
+              </linearGradient>
+            </defs>
+            <path d="M24 4L6 12v12c0 11 8 21 18 24 10-3 18-13 18-24V12L24 4z" fill="url(#wslproxyLogoGradGeo)" />
+            <circle cx="24" cy="18" r="3" fill="white" />
+            <circle cx="16" cy="28" r="2.5" fill="white" opacity="0.9" />
+            <circle cx="32" cy="28" r="2.5" fill="white" opacity="0.9" />
+            <circle cx="24" cy="36" r="2" fill="white" opacity="0.8" />
+            <path d="M24 21v5M18 27l4-4M30 27l-4-4M24 33v-3" stroke="white" stroke-width="1.5" stroke-linecap="round" opacity="0.7" />
+          </svg>
+        </span>
+        <span>WSL<span class="brand-accent">Proxy</span></span>
+      </a>
+      <button class="nav-toggle" type="button" id="nav-toggle" aria-expanded="false" aria-controls="nav-menu">Menu</button>
+      <nav class="nav-links" id="nav-menu">
+        <a href="/">Home</a>
+        <a href="/blog/">Blog</a>
+        <a href="https://youtu.be/4G_YPYj3J3k">Video</a>
+        <a href="/swagger/">API</a>
+        <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode" title="Toggle theme">
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M21 14.5A8.5 8.5 0 0 1 9.5 3 7 7 0 1 0 21 14.5z" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" stroke-linecap="round"/>
+          </svg>
+        </button>
+        <a class="nav-cta" href="https://github.com/bwalia/wslproxy">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <article class="blog-article">
+    <div class="wrap wrap--read">
+      <p class="kicker">Feature deep dive</p>
+      <h1>Geographic Traffic Distribution by country</h1>
+      <p class="lede">
+        See where clients hit your edge — Top Countries ranked by request volume and a live world map — without leaving the WSL Proxy admin dashboard.
+      </p>
+      <p class="meta">2-minute feature video · Dashboard Overview · IP2Location on the OpenResty hot path</p>
+
+      <figure class="hero-shot">
+        <img
+          src="/images/geographic-traffic-distribution-dashboard.jpg"
+          alt="WSL Proxy Geographic Traffic Distribution panel with world map choropleth and Top Countries list (United Kingdom, United States, Switzerland, and more)"
+          width="1280"
+          height="720"
+        />
+        <figcaption>Geographic Traffic Distribution on the WSL Proxy dashboard — choropleth heat and Top Countries.</figcaption>
+      </figure>
+
+      <div class="video-frame">
+        <iframe
+          src="https://www.youtube.com/embed/4G_YPYj3J3k"
+          title="WSLProxy Geographic Traffic Distribution — traffic by country"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          referrerpolicy="strict-origin-when-cross-origin"
+          allowfullscreen
+          loading="lazy"
+        ></iframe>
+      </div>
+      <p><a href="https://youtu.be/4G_YPYj3J3k">Watch on YouTube</a> · <a href="https://youtu.be/7NJulclG5sQ">Full product intro (20 min)</a></p>
+
+      <h2>Why geo traffic belongs in the control plane</h2>
+      <p>
+        Edge operators already know <em>how much</em> traffic they serve. The harder question is <em>from where</em>.
+        Country-level demand drives WAF geo rules, capacity planning, CDN POP placement, and abuse response.
+        Shipping that view into a third-party analytics product means another hop, another identity, and another delay.
+      </p>
+      <p>
+        WSLProxy records country on the request path and surfaces it next to the same Overview KPIs you already use —
+        requests, bandwidth, errors, success rate — so geo context stays inside the gateway control plane.
+      </p>
+
+      <h2>What the dashboard shows</h2>
+      <div class="features">
+        <div>
+          <strong>Top Countries</strong>
+          Ranked list of ISO countries with request counts for the selected window (for example last 24 hours).
+        </div>
+        <div>
+          <strong>World choropleth</strong>
+          Countries shaded by volume so hot regions stand out at a glance — useful when Top Countries is long or skewed.
+        </div>
+        <div>
+          <strong>Overview context</strong>
+          The geo panel sits under the same Overview strip as Requests, Bandwidth, Errors, Active Domains, and Success Rate.
+        </div>
+      </div>
+
+      <figure class="inline-shot">
+        <img
+          src="/images/geographic-traffic-distribution-dashboard.jpg"
+          alt="Close view of WSL Proxy Geographic Traffic Distribution map and Top Countries"
+          width="1280"
+          height="720"
+          loading="lazy"
+        />
+        <figcaption>Same production dashboard view used in the 2-minute walkthrough.</figcaption>
+      </figure>
+
+      <h2>How it works on the hot path</h2>
+      <ol>
+        <li><strong>Client IP</strong> — typically <code>ngx.var.remote_addr</code> (respect real-IP / trusted proxy config when behind Cloudflare or another edge).</li>
+        <li><strong>IP2Location</strong> — <code>geo_lookup</code> / <code>log_handler</code> open the binary DB from <code>settings.ip2location_path</code> (with on-disk fallbacks to the ansible install path under OpenResty).</li>
+        <li><strong>Normalize</strong> — IP2Location’s <code>UK</code> is mapped to ISO <code>GB</code> so world-atlas polygons light correctly.</li>
+        <li><strong>Aggregate</strong> — counts land in the <code>traffic_stats</code> shared dict for hourly / rolling windows.</li>
+        <li><strong>API → UI</strong> — authenticated <code>/api/traffic/stats</code> feeds <code>GeoTrafficMap</code> in React Admin and the Next.js dashboard.</li>
+      </ol>
+
+      <div class="callout">
+        Access logs also emit <code>$geo_country</code>. If you ever see <code>INVALIDDATABASEFILE</code>, the configured DB path is missing —
+        point <code>ip2location_path</code> at the real BIN (or keep the <code>/tmp</code> symlink ansible now maintains).
+      </div>
+
+      <h2>Platform features this sits beside</h2>
+      <p>Geographic Traffic Distribution is one slice of the same live-config edge platform:</p>
+      <ul>
+        <li><strong>Dynamic routing</strong> — path / IP / country / JWT / S3 / cookie match without nginx reloads for rules</li>
+        <li><strong>Traffic engineering</strong> — weighted, canary, sticky, least-conn backends</li>
+        <li><strong>WAF</strong> — policy packs, monitor or block, including geo deny lists</li>
+        <li><strong>SSL &amp; cache</strong> — auto-ssl, edge static cache, optional Varnish</li>
+        <li><strong>Observability</strong> — <code>/metrics</code> for Prometheus/Grafana plus in-product traffic stats</li>
+        <li><strong>Control plane</strong> — Admin UI, Swagger REST, MCP, <code>wslproxy-cli</code></li>
+      </ul>
+
+      <h2>Operate it in production</h2>
+      <ul>
+        <li>Keep the IP2Location BIN installed (ansible <code>cdn-dependencies</code> → <code>/usr/local/openresty/nginx/…</code>).</li>
+        <li>Ensure Vault/SOPS <code>settings.json</code> does not point at a deleted <code>/tmp</code> path after install.</li>
+        <li>Reload OpenResty after fixing the path so workers re-init <code>IP2LocationPath</code>.</li>
+        <li>For fleet charts, scrape <code>job=wslproxy-edges</code> into the obs Prometheus that powers Grafana.</li>
+      </ul>
+
+      <h2>Try it</h2>
+      <pre>https://wslproxy.org
+https://youtu.be/4G_YPYj3J3k
+https://github.com/bwalia/wslproxy</pre>
+      <p>
+        Open the admin Overview tab on your POP (for example <a href="https://lon1.pop0.uk">lon1.pop0.uk</a>),
+        confirm Top Countries fills after traffic, and share the map with whoever owns abuse and capacity.
+      </p>
+    </div>
+  </article>
+
+  <footer class="site-footer">
+    <div class="wrap footer-inner">
+      <div>© Workstation Solutions Limited</div>
+      <div class="footer-links">
+        <a href="/blog/">Blog</a>
+        <a href="/">Home</a>
+        <a href="https://github.com/bwalia/wslproxy">GitHub</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    if (window.WSLProxyTheme) {
+      WSLProxyTheme.bindNav();
+      WSLProxyTheme.bind();
+    }
+  </script>
+</body>
+</html>

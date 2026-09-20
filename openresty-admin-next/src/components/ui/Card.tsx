@@ -11,7 +11,7 @@ const CardRoot = React.forwardRef<HTMLDivElement, CardProps>(
     <div
       ref={ref}
       className={cn(
-        "bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm",
+        "rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-[#122233]",
         className
       )}
       {...rest}
@@ -27,7 +27,7 @@ const Header = React.forwardRef<HTMLDivElement, CardSectionProps>(
     <div
       ref={ref}
       className={cn(
-        "flex justify-between items-center px-6 py-4 border-b border-slate-200 dark:border-slate-800",
+        "flex items-center justify-between border-b border-slate-200 px-6 py-4 dark:border-slate-700",
         className
       )}
       {...rest}
@@ -52,7 +52,7 @@ const Footer = React.forwardRef<HTMLDivElement, CardSectionProps>(
     <div
       ref={ref}
       className={cn(
-        "px-6 py-4 border-t border-slate-200 dark:border-slate-800",
+        "border-t border-slate-200 px-6 py-4 dark:border-slate-700",
         className
       )}
       {...rest}

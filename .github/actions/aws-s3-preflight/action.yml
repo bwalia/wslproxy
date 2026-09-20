@@ -1,0 +1,114 @@
+name: "AWS S3 preflight"
+description: >-
+  Probe the configured AWS identity and bucket before any transfer, so a
+  rotated, revoked or quarantined key reports what is actually wrong instead
+  of a bare AccessDenied from deep inside `aws s3 sync`.
+
+inputs:
+  bucket:
+    description: "Bucket the caller is about to read or write."
+    required: true
+  prefix:
+    description: "Key prefix to probe."
+    required: false
+    default: "data/"
+  on-failure:
+    description: >-
+      `fail` (default) stops the job — use it where S3 is the source of truth.
+      `warn` annotates and continues — use it where the S3 step is an optional
+      overlay, so the job keeps its old behaviour but stops failing silently.
+    required: false
+    default: "fail"
+
+runs:
+  using: composite
+  steps:
+    - name: Probe AWS identity and bucket
+      shell: bash
+      env:
+        PREFLIGHT_BUCKET: ${{ inputs.bucket }}
+        PREFLIGHT_PREFIX: ${{ inputs.prefix }}
+        PREFLIGHT_ON_FAILURE: ${{ inputs.on-failure }}
+      run: |
+        # GitHub runs `shell: bash` with -e; every failure below is reported
+        # by hand, so turn it off or the diagnosis never prints.
+        set +e
+        # Only fall back to the usual install locations when the CLI is not
+        # already on PATH — prepending them would shadow whichever `aws` the
+        # caller's own steps will run, and the preflight must probe that one.
+        command -v aws >/dev/null 2>&1 || export PATH="$PATH:/opt/homebrew/bin:/usr/local/bin"
+
+        fail_or_warn() {
+          if [ "$PREFLIGHT_ON_FAILURE" = "warn" ]; then
+            echo "::warning::$1"
+            exit 0
+          fi
+          echo "::error::$1"
+          exit 1
+        }
+
+        quarantine_notice() {
+          echo ""
+          echo "────────────────────────────────────────────────────────────────"
+          echo "AWS has QUARANTINED this access key."
+          echo ""
+          echo "The AWSCompromisedKeyQuarantine policy is attached to the IAM"
+          echo "user and explicitly denies s3:ListBucket along with most other"
+          echo "actions. AWS attaches it automatically when it detects the key"
+          echo "material exposed publicly. No change to this workflow can"
+          echo "restore access."
+          echo ""
+          echo "Remediation, in order:"
+          echo "  1. IAM -> Users -> this user -> Security credentials:"
+          echo "     deactivate and DELETE the exposed access key. Rotation is"
+          echo "     what ends the exposure; do it before anything else."
+          echo "  2. Create a replacement key and update the repo secrets"
+          echo "     AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY."
+          echo "  3. Review CloudTrail for calls made with the exposed key id."
+          echo "  4. Work the AWS Support case opened for the exposure. AWS"
+          echo "     detaches the quarantine policy once it confirms the key"
+          echo "     is gone."
+          echo "────────────────────────────────────────────────────────────────"
+          echo ""
+        }
+
+        if ! command -v aws >/dev/null 2>&1; then
+          echo "::notice::AWS CLI not on PATH — skipping S3 preflight."
+          exit 0
+        fi
+
+        WHO=$(aws sts get-caller-identity --query Arn --output text 2>&1)
+        RC=$?
+        if [ $RC -ne 0 ]; then
+          echo "$WHO"
+          fail_or_warn "AWS credentials are unusable (sts:GetCallerIdentity failed). Check the AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY and AWS_REGION repo secrets."
+        fi
+        # Identity without the account id — this log is public on a public repo.
+        echo "Authenticated as ${WHO##*:}"
+
+        PROBE=$(aws s3 ls "s3://${PREFLIGHT_BUCKET}/${PREFLIGHT_PREFIX}" 2>&1)
+        RC=$?
+        if [ $RC -eq 0 ]; then
+          echo "Bucket prefix reachable: s3://<bucket>/${PREFLIGHT_PREFIX}"
+          exit 0
+        fi
+        echo "$PROBE"
+
+        case "$PROBE" in
+          *CompromisedKeyQuarantine*)
+            quarantine_notice
+            fail_or_warn "Access key is under AWS compromised-key quarantine — rotate the key (details above). This cannot be fixed in the workflow."
+            ;;
+          *AccessDenied*|*"Access Denied"*)
+            fail_or_warn "AccessDenied listing s3://<bucket>/${PREFLIGHT_PREFIX} — the IAM identity is missing s3:ListBucket, or a bucket policy denies it."
+            ;;
+          *NoSuchBucket*)
+            fail_or_warn "Bucket does not exist — check the WSLPROXY_S3_BUCKET repo secret."
+            ;;
+          *ExpiredToken*|*InvalidAccessKeyId*|*SignatureDoesNotMatch*)
+            fail_or_warn "AWS rejected the credentials — the key was rotated or revoked. Update the AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY repo secrets."
+            ;;
+          *)
+            fail_or_warn "S3 preflight failed — see the AWS CLI output above."
+            ;;
+        esac

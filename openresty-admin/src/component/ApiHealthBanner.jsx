@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Box, Typography, alpha } from "@mui/material";
 import CircleIcon from "@mui/icons-material/CircleRounded";
-
-const API_URL = import.meta.env.VITE_API_URL;
+import { getApiUrl } from "../apiBase";
 
 const SLOW_THRESHOLD_MS = 3000;
 const POLL_INTERVAL_MS = 30000;
@@ -48,6 +47,7 @@ const useApiHealth = (authenticated = false) => {
   const [httpStatus, setHttpStatus] = useState(null);
 
   const checkHealth = useCallback(async () => {
+    const API_URL = getApiUrl();
     if (!API_URL) {
       setStatus("down");
       return;
@@ -174,7 +174,7 @@ export const ApiHealthIndicator = () => {
       }}
       title={
         latency !== null
-          ? `API: ${API_URL} | HTTP ${httpStatus} | ${latency}ms`
+          ? `API: ${getApiUrl()} | HTTP ${httpStatus} | ${latency}ms`
           : config.label
       }
     >

@@ -25,7 +25,7 @@ const clientEnvSchema = z.object({
   // looking at prod or a staging tier.  `local` covers laptop /
   // docker compose; the rest map 1:1 to the deploy pipeline tiers.
   NEXT_PUBLIC_ENV_NAME: z
-    .enum(["local", "int", "test", "prod"])
+    .enum(["local", "int", "test", "acc", "prod"])
     .default("local"),
   // Full git SHA of the deployed commit — empty in dev.  The footer
   // renders the first 7 chars and links to the GitHub commit page.

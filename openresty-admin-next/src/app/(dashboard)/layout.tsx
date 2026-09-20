@@ -29,7 +29,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950">
+    <div className="flex min-h-screen bg-[#f7f9fc] dark:bg-[#0b1c2c]">
       <RouteFocusReset />
       <Sidebar collapsed={sidebarCollapsed} onToggle={toggleSidebar} />
 

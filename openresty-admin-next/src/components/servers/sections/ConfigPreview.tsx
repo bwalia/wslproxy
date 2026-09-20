@@ -54,7 +54,7 @@ const ConfigPreview: React.FC<ConfigPreviewProps> = ({ config, className }) => {
 
       <pre
         className={cn(
-          "w-full overflow-auto rounded-lg border p-4 text-xs leading-relaxed",
+          "w-full overflow-auto rounded-lg border p-4 text-sm leading-relaxed",
           "bg-slate-900 text-green-400 border-slate-700",
           "dark:bg-slate-950 dark:border-slate-800",
           "font-mono whitespace-pre-wrap break-words",

@@ -33,8 +33,7 @@ import { useRecordContext, useNotify } from "react-admin";
 import StatusBadge from "../component/StatusBadge";
 import DiffViewer from "./DiffViewer";
 import get from "lodash/get";
-
-const API_URL = import.meta.env.VITE_API_URL;
+import { getApiUrl } from "../apiBase";
 
 const getHeaders = () => {
   const token = localStorage.getItem("token");
@@ -80,7 +79,7 @@ const VersionHistoryTab = ({ resourceType }) => {
     if (!resourceName || !profile) return;
     setLoading(true);
     try {
-      const url = `${API_URL}/versions/${resourceType}/${profile}/${resourceName}?timestamp=${Date.now()}`;
+      const url = `${getApiUrl()}/versions/${resourceType}/${profile}/${resourceName}?timestamp=${Date.now()}`;
       const response = await fetch(url, { method: "GET", headers: getHeaders() });
       const result = await response.json();
       setVersions(result.data || []);
@@ -99,7 +98,7 @@ const VersionHistoryTab = ({ resourceType }) => {
 
   const handleInitialize = async () => {
     try {
-      const url = `${API_URL}/versions/${resourceType}/${profile}/${resourceName}/initialize`;
+      const url = `${getApiUrl()}/versions/${resourceType}/${profile}/${resourceName}/initialize`;
       const response = await fetch(url, {
         method: "POST",
         headers: getHeaders(),
@@ -118,7 +117,7 @@ const VersionHistoryTab = ({ resourceType }) => {
 
   const handleCreateDraft = async () => {
     try {
-      const url = `${API_URL}/versions/${resourceType}/${profile}/${resourceName}`;
+      const url = `${getApiUrl()}/versions/${resourceType}/${profile}/${resourceName}`;
       const body = {
         config_payload: record,
         description: "New draft from current config",
@@ -143,7 +142,7 @@ const VersionHistoryTab = ({ resourceType }) => {
 
   const handleViewDiff = async (v1, v2) => {
     try {
-      const url = `${API_URL}/versions/${resourceType}/${profile}/${resourceName}/diff/${v1}/${v2}?timestamp=${Date.now()}`;
+      const url = `${getApiUrl()}/versions/${resourceType}/${profile}/${resourceName}/diff/${v1}/${v2}?timestamp=${Date.now()}`;
       const response = await fetch(url, { method: "GET", headers: getHeaders() });
       const result = await response.json();
       setDiffData(result.data);
@@ -155,7 +154,7 @@ const VersionHistoryTab = ({ resourceType }) => {
 
   const handleViewVersion = async (version) => {
     try {
-      const url = `${API_URL}/versions/${resourceType}/${profile}/${resourceName}/${version}?timestamp=${Date.now()}`;
+      const url = `${getApiUrl()}/versions/${resourceType}/${profile}/${resourceName}/${version}?timestamp=${Date.now()}`;
       const response = await fetch(url, { method: "GET", headers: getHeaders() });
       const result = await response.json();
       setSelectedVersion(result.data);
@@ -167,7 +166,7 @@ const VersionHistoryTab = ({ resourceType }) => {
 
   const handleRollback = async (version) => {
     try {
-      const url = `${API_URL}/versions/${resourceType}/${profile}/${resourceName}/rollback/${version}`;
+      const url = `${getApiUrl()}/versions/${resourceType}/${profile}/${resourceName}/rollback/${version}`;
       const response = await fetch(url, {
         method: "POST",
         headers: getHeaders(),
@@ -187,7 +186,7 @@ const VersionHistoryTab = ({ resourceType }) => {
   const handleCreateCR = async () => {
     if (!crVersion) return;
     try {
-      const url = `${API_URL}/change-requests`;
+      const url = `${getApiUrl()}/change-requests`;
       const body = {
         resource_type: resourceType,
         resource_name: resourceName,

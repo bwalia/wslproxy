@@ -56,7 +56,7 @@ if selectedRule.statusCode == nil then
 elseif selectedRule.statusCode == 200 or selectedRule.statusCode == 403 then
     ngx.header["Content-Type"] = "text/html"
     ngx.status = selectedRule.statusCode
-    ngx.say(Base64.decode(selectedRule.message))
+    ngx.say(Base64DecodeSafe(selectedRule.message) or "")
 elseif selectedRule.statusCode == 301 then
     if selectedRule.redirectUri == nil then
         ngx.say("Redirect url not found: ")
@@ -100,6 +100,24 @@ elseif selectedRule.statusCode == 305 then
                 selectedRule.redirectUri = backend.address
                 ngx.ctx.selected_backend_label = backend.label
                 ngx.ctx.selected_backend_rule_id = response.rule_id
+                -- Optional per-backend upstream Host (rule backends[].host_header),
+                -- applied below once the base Host override has been computed.
+                ngx.ctx._selected_backend_host_header = backend.host_header
+                ngx.ctx._selected_backend_address = backend.address
+                -- The rule's PRIMARY backend is the highest-weight one (first
+                -- wins a tie). The server-level mirror_host_header applies
+                -- only to the OTHER (failover/mirror) backends — a rule is
+                -- shared across many domains, so the domain-specific mirror
+                -- hostname lives on each server row, not on the rule.
+                local primary_addr, primary_w = nil, -1
+                for _, pb in ipairs(response.backends) do
+                    local w = tonumber(pb.weight) or 1
+                    if w > primary_w then
+                        primary_w = w
+                        primary_addr = pb.address
+                    end
+                end
+                ngx.ctx._primary_backend_address = primary_addr
                 -- Cache for potential retry in balancer_by_lua
                 ngx.ctx._router_response_cache = response
                 ngx.ctx._router_ctx_cache = ctx
@@ -153,7 +171,12 @@ elseif selectedRule.statusCode == 305 then
         selectedRule.redirectUri = string.sub(selectedRule.redirectUri, 1, slashPos - 1)
     end
     local extracted = nil
-    local extractedPort = 80
+    -- Default upstream port follows the scheme: an https:// backend given
+    -- without an explicit port must go to 443, not 80. Previously this was
+    -- hardcoded to 80, so `redirect_uri: "https://<ip>"` proxied a TLS
+    -- handshake to the origin's :80 (HTTP) entrypoint. An explicit ":port"
+    -- in the redirect_uri still overrides this below.
+    local extractedPort = (origin_serverScheme == "https") and 443 or 80
     -- if not isIpAddress(selectedRule.redirectUri) then
     local continueDnsResolve = true
     if selectedRule.rule_data.isConsul then
@@ -255,13 +278,52 @@ elseif selectedRule.statusCode == 305 then
     end
 
     ngx.var.proxy_host = finalProxyHost
-    -- S3 signed requests need s3.<region>.amazonaws.com as Host header
+    -- Upstream Host header selection (drives `proxy_set_header Host $proxy_host_override`).
     if ngx.ctx.s3_host_override then
+        -- S3 signed requests need s3.<region>.amazonaws.com as Host header
         ngx.var.proxy_host_override = ngx.ctx.s3_host_override
     elseif proxy_server_name ~= nil and proxy_server_name ~= "" then
+        -- Operator explicitly pinned the upstream Host on the server config.
         ngx.var.proxy_host_override = proxy_server_name
     else
-        ngx.var.proxy_host_override = selectedRule.redirectUri
+        -- Default: forward the ORIGINAL client Host (e.g. vault.workstation.co.uk).
+        -- By this point selectedRule.redirectUri has been DNS-resolved to a bare IP
+        -- (see the resolver block above), so using it as the Host header would send
+        -- `Host: <ip>` — which host-routing origins (Traefik/nginx Ingress, matching
+        -- Ingress Host() rules) map to no vhost and answer 404. Forwarding the client's
+        -- own Host makes host-routed HTTPS backends work, stays per-request dynamic (no
+        -- hardcoded hostname, so every served host forwards its own Host), and is
+        -- harmless for backends that ignore Host. `proxy_server_name` still overrides.
+        ngx.var.proxy_host_override = ngx.var.host
+    end
+
+    -- Remember the Host this request would use WITHOUT any per-backend
+    -- override — the balancer restores it when a retry lands on a backend
+    -- that has no host_header of its own.
+    ngx.ctx._base_host_override = ngx.var.proxy_host_override
+
+    -- Server-level mirror Host (server row `mirror_host_header`): rules are
+    -- shared across many domains, so a rule cannot carry a domain-specific
+    -- hostname — each server declares its own. It applies whenever the
+    -- selected backend is NOT the rule's primary (highest-weight) backend.
+    local mirror_host = proxyServer and proxyServer.mirror_host_header
+    if type(mirror_host) ~= "string" or mirror_host == "" then mirror_host = nil end
+    ngx.ctx._server_mirror_host = mirror_host
+
+    -- Upstream Host precedence on top of the base above: the rule backend's
+    -- own host_header (most specific) > the server's mirror_host_header (for
+    -- non-primary backends) > the base. S3-signed requests are exempt
+    -- because Host is part of the signature.
+    local backend_host = ngx.ctx._selected_backend_host_header
+    if not ngx.ctx.s3_host_override then
+        if backend_host and backend_host ~= "" then
+            ngx.var.proxy_host_override = backend_host
+        elseif mirror_host
+            and ngx.ctx._selected_backend_address
+            and ngx.ctx._primary_backend_address
+            and ngx.ctx._selected_backend_address ~= ngx.ctx._primary_backend_address then
+            ngx.var.proxy_host_override = mirror_host
+        end
     end
 
     -- Upstream backend request headers (forwarded to the backend server)

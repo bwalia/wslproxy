@@ -1,0 +1,89 @@
+{
+  "id": "host:api.fishers.example.com",
+  "server_name": "api.fishers.example.com",
+  "profile_id": "prod",
+  "config_status": false,
+  "listens": [{ "listen": "443 ssl" }],
+  "rules": [],
+
+  "_comment": "Second worked example, to show that a tenant with tighter requirements needs no new Lua — only different JSON. It runs IVT in block mode, enforces an edge API key on its admin surface, and keys its quotas on the consumer rather than the IP. Nothing in the api_gw package knows this tenant exists; see docs/api-gateway-kong-migration.md for the Kong plugin each block replaces.",
+
+  "api_gw": {
+    "enabled": true,
+    "tenant_id": "fishers-prod",
+    "modules": ["real_ip", "request_security", "cors", "ivt", "auth", "rate_limit", "audit"],
+
+    "real_ip": {
+      "trusted_cidrs": ["10.0.0.0/8"],
+      "recursive": true
+    },
+
+    "request_security": {
+      "correlation": { "enabled": true, "header": "X-Correlation-ID", "accept_inbound": false },
+      "content_type": {
+        "enforce": true,
+        "allow": ["application/json"],
+        "exempt_paths": ["/api/v1/media"]
+      },
+      "max_body_bytes": 2097152,
+      "token_typ": { "enabled": true, "expect": ["JWT", "at+jwt"], "mode": "audit" }
+    },
+
+    "cors": {
+      "origins": ["https://fishers.example.com", "https://admin.fishers.example.com"],
+      "headers": ["Authorization", "Content-Type", "X-Correlation-ID"],
+      "expose_headers": ["X-Correlation-ID"],
+      "credentials": true
+    },
+
+    "ivt": {
+      "mode": "block",
+      "methods": { "allow": ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"] },
+      "path_denylist": ["/wp-admin", "\\.php$", "/\\.env$"],
+      "require_auth_shape": true,
+      "strip_header_prefixes": ["X-Fishers-", "X-Internal-"],
+      "burst": { "window_seconds": 10, "max_requests": 120, "key": "ip" },
+      "weights": { "method_denied": 5, "path_denied": 5, "auth_malformed": 3, "header_spoof": 2, "burst_exceeded": 5 },
+      "block_threshold": 5
+    },
+
+    "auth": {
+      "strategy": "passthrough",
+      "public_paths": ["/health", "/api/v1/public"],
+      "api_key": {
+        "header": "X-API-Key",
+        "keys_ref": "env://FISHERS_EDGE_API_KEYS"
+      },
+      "allow_unverified_subject": true
+    },
+
+    "rate_limit": {
+      "algorithm": "sliding",
+      "default_profile": "standard",
+      "profiles": {
+        "health":    { "limit": 0 },
+        "auth":      { "limit": 8,    "window_seconds": 60, "key": "ip" },
+        "public":    { "limit": 90,   "window_seconds": 60, "key": "ip" },
+        "standard":  { "limit": 400,  "window_seconds": 60, "key": "jwt.sub" },
+        "expensive": { "limit": 15,   "window_seconds": 60, "key": "jwt.sub" },
+        "admin":     { "limit": 60,   "window_seconds": 60, "key": "consumer" }
+      }
+    },
+
+    "audit": {
+      "enabled": true,
+      "sample_rate": 1,
+      "redact_headers": ["x-fishers-session"],
+      "include_headers": ["user-agent"]
+    },
+
+    "routes": [
+      { "name": "health",  "path": "/health",         "path_key": "equals",      "auth": "none",    "rate_profile": "health",    "ivt_mode": "disabled" },
+      { "name": "login",   "path": "/api/v1/auth",    "path_key": "starts_with", "auth": "none",    "rate_profile": "auth",      "max_body_bytes": 8192 },
+      { "name": "admin",   "path": "/api/v1/admin",   "path_key": "starts_with", "auth": "api_key", "rate_profile": "admin" },
+      { "name": "exports", "path": "/api/v1/exports", "path_key": "starts_with", "rate_profile": "expensive" },
+      { "name": "api",     "path": "/api/v1/",        "path_key": "starts_with", "rate_profile": "standard" },
+      { "name": "public",  "path": "/",               "path_key": "starts_with", "rate_profile": "public" }
+    ]
+  }
+}

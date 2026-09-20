@@ -1,6 +1,14 @@
 -- Gateway Pipeline Module for WSLProxy API Gateway
--- Orchestrates the execution order: rate_limit -> WAF -> (transforms handled in gateway_resp.lua)
+-- Orchestrates the execution order:
+--     api_gw (Kong-class edge gateway) -> rate_limit -> WAF
+--     (transforms handled in gateway_resp.lua)
 -- Called from gateway_ack.lua after rule matching determines the target
+--
+-- api_gw runs first because it owns CORS preflight, which must be answered
+-- before anything can rate-limit or inspect it, and because its IVT stage is
+-- the cheapest way to shed obvious junk.  It is opt-in per server
+-- (`api_gw.enabled`); with no api_gw block the call costs one table lookup
+-- and the legacy order below is exactly what it always was.
 --
 -- Fail-open: if any pipeline stage errors, request continues normally
 -- No nginx reloads required — reads config from server JSON on each request
@@ -68,6 +76,33 @@ function _M.waf_inspect(server_config, profile_id)
 end
 
 -- ============================================================================
+-- API GATEWAY PACKAGE (api/api_gw/)
+-- ============================================================================
+
+-- Run the tenant's api_gw pipeline, when it has one.
+-- Returns true if the request was handled (answered or rejected).
+function _M.api_gw(server_config, selected_rule, profile_id)
+    if type(server_config) ~= "table" or type(server_config.api_gw) ~= "table" then
+        return false -- not configured: no module load, no work
+    end
+    local ok, ApiGw = pcall(require, "api_gw")
+    if not ok or not ApiGw then
+        ngx.log(ngx.ERR, "gateway_pipeline: api_gw is configured for ",
+            tostring(server_config.server_name), " but the package failed to load: ",
+            tostring(ApiGw), " — continuing without it (fail-open)")
+        return false
+    end
+    local rule_data = selected_rule and selected_rule.rule_data or nil
+    local called_ok, handled = pcall(ApiGw.access, server_config, rule_data, profile_id)
+    if not called_ok then
+        ngx.log(ngx.ERR, "gateway_pipeline: api_gw errored: ", tostring(handled),
+            " — continuing without it (fail-open)")
+        return false
+    end
+    return handled == true
+end
+
+-- ============================================================================
 -- PIPELINE EXECUTION
 -- ============================================================================
 
@@ -77,7 +112,12 @@ function _M.execute(server_config, selected_rule, profile_id)
     -- Phase 1: Authentication
     -- Already handled in gatewayHostRulesParser() before this is called
 
-    -- Phase 2: Rate Limiting
+    -- Phase 2: API Gateway (CORS, correlation, IVT, edge auth, rate limiting)
+    if _M.api_gw(server_config, selected_rule, profile_id) then
+        return true -- request handled
+    end
+
+    -- Phase 3: Rate Limiting (legacy server-level limiter)
     local rate_result = _M.rate_limit(server_config)
     if rate_result and rate_result.action == "rate_limited" then
         ngx.status = 429
@@ -94,7 +134,7 @@ function _M.execute(server_config, selected_rule, profile_id)
         return ngx.exit(429)
     end
 
-    -- Phase 3: WAF Inspection (delegates to existing waf_engine module)
+    -- Phase 4: WAF Inspection (delegates to existing waf_engine module)
     local waf_result, WafEngine = _M.waf_inspect(server_config, profile_id)
     if waf_result and waf_result.action == "block" then
         local policy = WafEngine.load_policy(server_config, profile_id)
@@ -102,7 +142,7 @@ function _M.execute(server_config, selected_rule, profile_id)
         return true -- request handled
     end
 
-    -- Phase 4: Transforms
+    -- Phase 5: Transforms
     -- Header injection and URI rewriting are handled in gateway_resp.lua
 
     return false -- continue to proxy

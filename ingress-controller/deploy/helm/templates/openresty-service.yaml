@@ -12,7 +12,8 @@ metadata:
   {{- end }}
 spec:
   type: {{ .Values.openresty.service.type }}
-  {{- if .Values.openresty.service.externalTrafficPolicy }}
+  {{- /* externalTrafficPolicy is only valid on NodePort / LoadBalancer */ -}}
+  {{- if and .Values.openresty.service.externalTrafficPolicy (or (eq .Values.openresty.service.type "LoadBalancer") (eq .Values.openresty.service.type "NodePort")) }}
   externalTrafficPolicy: {{ .Values.openresty.service.externalTrafficPolicy }}
   {{- end }}
   ports:
@@ -28,6 +29,9 @@ spec:
     port: 8080
     targetPort: api
     protocol: TCP
+    {{- if and .Values.openresty.controlPlane.enabled .Values.openresty.controlPlane.nodePort }}
+    nodePort: {{ .Values.openresty.controlPlane.nodePort }}
+    {{- end }}
   selector:
     {{- include "wslproxy.selectorLabels" . | nindent 4 }}
     app.kubernetes.io/component: proxy

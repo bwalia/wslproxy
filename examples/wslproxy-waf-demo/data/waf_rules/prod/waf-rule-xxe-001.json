@@ -1,0 +1,21 @@
+{
+  "id": "waf-rule-xxe-001",
+  "name": "XXE - XML External Entity",
+  "description": "Detects XML External Entity payloads (<!ENTITY ... SYSTEM ...>) used to read local files or perform SSRF via XML parsers.",
+  "category": "xxe",
+  "severity": "high",
+  "enabled": true,
+  "target": "all",
+  "pattern": "(?i)<!ENTITY\\b|<!DOCTYPE[^>]{0,200}(?:SYSTEM|PUBLIC)\\b",
+  "pattern_type": "regex",
+  "action": "block",
+  "score": 9,
+  "tags": [
+    "api-security",
+    "xxe",
+    "beyond-owasp"
+  ],
+  "profile_id": "prod",
+  "created_at": 1740000000,
+  "updated_at": 1740000000
+}

@@ -661,6 +661,16 @@ export interface AppSettings {
   env_profile?: string;
   storage_type?: string;
   env_vars?: Record<string, string>;
+  pgsql?: {
+    pg_host?: string;
+    pg_port?: number | string;
+    pg_database?: string;
+    pg_user?: string;
+    host?: string;
+    port?: number | string;
+    database?: string;
+    user?: string;
+  };
   [key: string]: unknown;
 }
 
@@ -808,6 +818,23 @@ export interface DataProvider {
     profile: string,
     resourceName: string,
     version: number,
+  ): Promise<SingleResult>;
+  /** Fetch full version entry incl. config_payload.
+   *  `GET /api/versions/{type}/{profile}/{name}/{version}`. */
+  getVersion(
+    resourceType: string,
+    profile: string,
+    resourceName: string,
+    version: number,
+  ): Promise<SingleResult>;
+  /** Structured diff between two versions.
+   *  `GET /api/versions/{type}/{profile}/{name}/diff/{v1}/{v2}`. */
+  diffVersions(
+    resourceType: string,
+    profile: string,
+    resourceName: string,
+    v1: number,
+    v2: number,
   ): Promise<SingleResult>;
 }
 

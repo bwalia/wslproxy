@@ -550,6 +550,38 @@ You're POSTing to `/mcp/` instead of `/mcp/jsonrpc`. The root path serves the
 manifest for any method; `tools/list` is dispatched by JSON-RPC method only at
 `/mcp/jsonrpc`.
 
+### `initialize` returns HTTP 405 Method Not Allowed
+
+Almost always a **redirect to `/login`**, not a real MCP 405.
+
+On hosts that front the Next.js admin (e.g. `https://lon1.pop0.uk`), traffic
+terminates on the Next.js standalone server. Two layers must both pass MCP
+through:
+
+1. **`src/proxy.ts`** — exclude `/mcp` from the login gate (same as `/api`).
+2. **`src/app/mcp/[[...path]]/route.ts`** — runtime reverse-proxy to
+   `<WSLPROXY_API_URL>/mcp/*` (OpenResty Lua MCP handler).
+3. **nginx** — `/mcp` location on the Next.js admin `server` block (for
+   clients that hit that port directly, not via the public gateway).
+
+If (1) is missing, Next.js `307`s to `/login?returnTo=/mcp/jsonrpc`. HTTP
+clients that follow redirects then **POST `/login`** and get `405`.
+
+Check with redirects disabled:
+
+```sh
+curl -sS -o /dev/null -w '%{http_code} %{redirect_url}\n' --max-redirs 0 \
+  -X POST "https://lon1.pop0.uk/mcp/jsonrpc" \
+  -H "Content-Type: application/json" \
+  -H "X-MCP-API-Key: $KEY" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}'
+```
+
+- `307` + `/login?...` → Next.js auth proxy still catching `/mcp` (redeploy
+  `dashboard-next` with the MCP route + proxy.ts allowlist).
+- `401` / MCP JSON error → path is correct; fix the API key or `mcp.enabled`.
+- `200` + JSON-RPC result → healthy.
+
 ### Tool returns "requires write mode"
 
 `data/settings.json` has `mcp.mode: "read-only"`. Flip to `"write"` and

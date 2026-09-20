@@ -1,0 +1,55 @@
+# Public CP dashboard on cloud003 via traefik-edge (hostNetwork :80/:443).
+# Cloudflare proxies cp.pop0.uk → 77.68.126.63. Traefik 3 only attaches
+# routers to websecure when TLS is enabled — hence the split Ingresses.
+#
+# Apply: kubectl apply -f deploy/k3s1/wslproxy-cp-traefik-ingress.yaml
+#
+# Note: traefik-edge has --providers.kubernetesingress only (no kubernetescrd),
+# so Middleware CRDs / @kubernetescrd refs will not work here.
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: wslproxy-cp-traefik
+  namespace: wslproxy-system
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+spec:
+  ingressClassName: traefik-edge
+  tls:
+    - hosts:
+        - cp.pop0.uk
+      secretName: wslproxy-ingress-default-tls
+  rules:
+    - host: cp.pop0.uk
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: wslproxy-ingress-openresty
+                port:
+                  number: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: wslproxy-cp-traefik-http
+  namespace: wslproxy-system
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+spec:
+  ingressClassName: traefik-edge
+  rules:
+    - host: cp.pop0.uk
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: wslproxy-ingress-openresty
+                port:
+                  number: 8080

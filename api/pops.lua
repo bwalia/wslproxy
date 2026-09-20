@@ -220,7 +220,7 @@ local function validate(payload, for_update)
         if not payload.public_ipv4 or payload.public_ipv4 == "" then
             bad("public_ipv4", "public_ipv4 is required")
         elseif not is_valid_ipv4(payload.public_ipv4) then
-            bad("public_ipv4", "public_ipv4 must be a valid IPv4 address (e.g. '187.124.112.155')")
+            bad("public_ipv4", "public_ipv4 must be a valid IPv4 address (e.g. '85.190.106.189')")
         end
     end
 

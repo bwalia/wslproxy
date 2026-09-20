@@ -1,0 +1,22 @@
+{
+  "id": "waf-rule-spring4shell-001",
+  "name": "RCE - Spring4Shell ClassLoader (CVE-2022-22965)",
+  "description": "Detects Spring4Shell data-binding exploitation that walks class.module.classLoader.* to write a webshell and gain RCE.",
+  "category": "rce",
+  "severity": "critical",
+  "enabled": true,
+  "target": "all",
+  "pattern": "(?i)class\\.module\\.classLoader|class\\[[\\\"']module[\\\"']\\]",
+  "pattern_type": "regex",
+  "action": "block",
+  "score": 9,
+  "tags": [
+    "cve-2022-22965",
+    "spring4shell",
+    "rce",
+    "beyond-owasp"
+  ],
+  "profile_id": "prod",
+  "created_at": 1740000000,
+  "updated_at": 1740000000
+}

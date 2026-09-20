@@ -264,7 +264,7 @@ const AppBar = () => {
         }}
       >
         {targetPlatform !== "DOCKER" && <ApiSync />}
-        {settings.storage_type === "disk" && <StorageButton />}
+        {settings.storage_type && <StorageButton />}
         <ApiHealthIndicator />
         <CheckStatus />
         <ProfileHandler />
