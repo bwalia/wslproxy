@@ -189,7 +189,8 @@ jobs:
       # Secrets decrypted from committed SOPS+age files
       # (infra/secrets/<env>/) using the SOPS_AGE_KEY repo secret.
       secrets_mode: sops
-      health_endpoint: "http://localhost:8080/healthz"
+      # Int: :8080 stolen by k3s CNI hostPort — use Next admin :8099 healthz.
+      health_endpoint: "http://127.0.0.1:8099/healthz"
       health_check_mode: local
       docker_prune: false
       notify_success: false
@@ -251,7 +252,7 @@ jobs:
       - name: Run health check tests (Go)
         working-directory: QA
         env:
-          TARGET_HOST: "http://localhost:8080"
+          TARGET_HOST: "http://127.0.0.1:8099"
         run: |
           go test -v -run TestHealthCheck -timeout 60s 2>&1 | tee health-results.txt
           if [ ${PIPESTATUS[0]} -ne 0 ]; then
@@ -262,12 +263,15 @@ jobs:
       - name: Verify core endpoints
         run: |
           FAILED=0
+          BASE="http://127.0.0.1:8099"
           for ENDPOINT in /healthz; do
-            STATUS=$(curl -sf -o /dev/null -w "%{http_code}" "http://localhost:8080${ENDPOINT}" 2>/dev/null || echo "000")
+            STATUS=$(curl --silent --output /dev/null --connect-timeout 3 --max-time 8 -w "%{http_code}" "${BASE}${ENDPOINT}" 2>/dev/null || true)
+            STATUS=$(echo "$STATUS" | tr -cd '0-9' | head -c 3)
+            [[ -z "$STATUS" ]] && STATUS="000"
             if [ "$STATUS" = "200" ]; then
-              printf "  GET :8080%-20s OK (%s)\n" "$ENDPOINT" "$STATUS"
+              printf "  GET :8099%-20s OK (%s)\n" "$ENDPOINT" "$STATUS"
             else
-              printf "  GET :8080%-20s FAIL (%s)\n" "$ENDPOINT" "$STATUS"
+              printf "  GET :8099%-20s FAIL (%s)\n" "$ENDPOINT" "$STATUS"
               FAILED=$((FAILED+1))
             fi
           done
