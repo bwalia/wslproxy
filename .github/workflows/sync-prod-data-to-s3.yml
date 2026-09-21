@@ -127,11 +127,22 @@ jobs:
             remote="${PROD_SSH_USER}@${PROD_HOST}:${PROD_DATA_DIR}/${tree}/"
             echo "rsync ${remote} → staging/${tree}/"
             mkdir -p "staging/${tree}"
-            if ! rsync -az --delete -e "${RSYNC_RSH}" "${remote}" "staging/${tree}/"; then
+            # --exclude: the prod host leaves editor droppings beside the live
+            # files (`<uuid>.json.<pid>.<date>~`, `.bak.<ts>`). Nothing loads
+            # them, and the DR restore committed one -- with a live S3 access
+            # key id and secret -- to this PUBLIC repo in e4bae60f, which is
+            # why every key rotated into AWS_ACCESS_KEY_ID has been deleted by
+            # AWS within a day. Keep them out of the backup as well as out of
+            # git: a backup is restored, and this one is restored into a PR.
+            if ! rsync -az --delete -e "${RSYNC_RSH}" \
+              --exclude='*~' --exclude='*.bak' --exclude='*.bak.*' \
+              --exclude='*.swp' --exclude='*.tmp' \
+              "${remote}" "staging/${tree}/"; then
               echo "::warning::Direct rsync failed for ${tree}; trying sudo tar over ssh"
               # shellcheck disable=SC2086
               ${RSYNC_RSH} "${PROD_SSH_USER}@${PROD_HOST}" \
-                "sudo tar -C ${PROD_DATA_DIR} -cf - ${tree}" \
+                "sudo tar -C ${PROD_DATA_DIR} --exclude='*~' --exclude='*.bak' \
+                 --exclude='*.bak.*' --exclude='*.swp' --exclude='*.tmp' -cf - ${tree}" \
                 | tar -C staging -xf -
             fi
             COUNT=$(find "staging/${tree}" -type f 2>/dev/null | wc -l | tr -d ' ')
@@ -185,6 +196,12 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
+          # This action validates by calling sts:GetCallerIdentity itself and,
+          # on a deleted key, aborts the job with the bare line `The security
+          # token included in the request is invalid.` -- before the preflight
+          # below, which exists to say what that means and what to do. Export
+          # the credentials here; let the preflight be the one that judges.
+          skip-credential-validation: true
 
       - name: Ensure AWS CLI
         run: |
