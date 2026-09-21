@@ -21,6 +21,16 @@ error.html
 sealed-secret*
 data/settings.json
 data/ssl
+
+# Editor/backup droppings the prod host leaves beside the live config. The DR
+# restore rsync'd them into data/ and one was committed in e4bae60f carrying a
+# live S3 access key id and secret -- to a public repo, which is why AWS has
+# deleted every key rotated into AWS_ACCESS_KEY_ID since. The sync and restore
+# both exclude them now; this is the backstop for a hand-copied tree.
+*~
+*.bak
+*.bak.*
+*.swp
 node_modules
 .DS_Store
 infra/ansible/roles/luarocks/.DS_Store

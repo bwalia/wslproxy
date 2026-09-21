@@ -62,22 +62,23 @@ jobs:
       - name: Get latest tag
         id: get_latest_tag
         run: |
+          set -euo pipefail
           # Union of both tag conventions used in this repo:
           #   - v[0-9]*.[0-9]*.[0-9]*   (current — e.g. v1.0.1)
           #   - [0-9]*.[0-9]*.[0-9]*    (legacy — e.g. 1.0.15, manually
           #                              created before auto-tag existed)
-          # Normalise by stripping the leading "v" so semver-sort works
-          # across both, then re-emit with the "v" prefix.  Without
-          # this the workflow would ignore legacy 1.0.15 and try to
-          # auto-bump from v1.0.1 → v1.0.2, silently regressing past
-          # every manual tag operators created between v1.0.1 and now.
+          # IMPORTANT: keep ONLY strict MAJOR.MINOR.PATCH bare versions.
+          # Tags like v1.0.135-build.3 match glob v[0-9]*… and sort -V
+          # above v1.0.135; feeding them into $((PATCH+1)) yields
+          # "135-build.3: invalid arithmetic operator" and an empty
+          # next_version (run 35665793070).
           ALL_TAGS=$(
             {
               git tag -l 'v[0-9]*.[0-9]*.[0-9]*' | sed 's/^v//'
               git tag -l '[0-9]*.[0-9]*.[0-9]*'
-            } | sort -u -V
+            } | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -u -V
           )
-          LATEST_BARE=$(echo "$ALL_TAGS" | tail -1)
+          LATEST_BARE=$(printf '%s\n' "$ALL_TAGS" | tail -1)
 
           if [ -z "$LATEST_BARE" ]; then
             # No tags exist yet — start at v1.0.0.
@@ -85,20 +86,27 @@ jobs:
             echo "No existing tags found, starting at v1.0.0"
           else
             LATEST_TAG="v${LATEST_BARE}"
-            echo "Latest tag (union of v-prefixed + bare): $LATEST_TAG"
+            echo "Latest release tag (strict X.Y.Z only): $LATEST_TAG"
           fi
 
-          echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+          echo "latest_tag=$LATEST_TAG" >> "$GITHUB_OUTPUT"
 
       - name: Calculate next version
         id: calc_version
         run: |
+          set -euo pipefail
           LATEST_TAG="${{ steps.get_latest_tag.outputs.latest_tag }}"
+          if [[ ! "$LATEST_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::latest_tag '$LATEST_TAG' is not strict vMAJOR.MINOR.PATCH"
+            exit 1
+          fi
 
           # Handle manual override from workflow_dispatch
           if [ -n "${{ github.event.inputs.custom_version }}" ]; then
             NEXT_VERSION="${{ github.event.inputs.custom_version }}"
             echo "Using custom version: $NEXT_VERSION"
+            BASE_VERSION="${NEXT_VERSION#v}"
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE_VERSION"
           elif [ "${{ github.event.inputs.version_type }}" != "patch" ] \
               && [ -n "${{ github.event.inputs.version_type }}" ]; then
             # Manual minor/major bump via workflow_dispatch.
@@ -124,6 +132,9 @@ jobs:
             elif [ "$VERSION_TYPE" = "minor" ]; then
               MINOR=$((MINOR + 1))
               PATCH=0
+            else
+              echo "::error::Unknown version_type '$VERSION_TYPE'"
+              exit 1
             fi
 
             NEXT_VERSION="v${MAJOR}.${MINOR}.${PATCH}"
@@ -137,25 +148,35 @@ jobs:
             echo "Auto patch bump: $LATEST_TAG -> $NEXT_VERSION"
           fi
 
-          echo "next_version=$NEXT_VERSION" >> $GITHUB_OUTPUT
-          echo "major=$MAJOR" >> $GITHUB_OUTPUT
-          echo "minor=$MINOR" >> $GITHUB_OUTPUT
-          echo "patch=$PATCH" >> $GITHUB_OUTPUT
+          if [[ ! "$NEXT_VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Computed next_version '$NEXT_VERSION' is invalid"
+            exit 1
+          fi
+
+          echo "next_version=$NEXT_VERSION" >> "$GITHUB_OUTPUT"
+          echo "major=$MAJOR" >> "$GITHUB_OUTPUT"
+          echo "minor=$MINOR" >> "$GITHUB_OUTPUT"
+          echo "patch=$PATCH" >> "$GITHUB_OUTPUT"
 
       - name: Create and push tag
         id: create_tag
         run: |
+          set -euo pipefail
           NEXT_VERSION="${{ steps.calc_version.outputs.next_version }}"
+          if [ -z "$NEXT_VERSION" ]; then
+            echo "::error::next_version is empty — refusing to create a tag"
+            exit 1
+          fi
 
           # Check if tag already exists (shouldn't happen but safety check)
           if git tag -l "$NEXT_VERSION" | grep -q "^$NEXT_VERSION$"; then
             echo "Tag $NEXT_VERSION already exists, skipping creation"
-            echo "tag_created=false" >> $GITHUB_OUTPUT
+            echo "tag_created=false" >> "$GITHUB_OUTPUT"
           else
             echo "Creating tag: $NEXT_VERSION"
             git tag -a "$NEXT_VERSION" -m "Release $NEXT_VERSION"
             git push origin "$NEXT_VERSION"
-            echo "tag_created=true" >> $GITHUB_OUTPUT
+            echo "tag_created=true" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Create GitHub Release
