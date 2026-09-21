@@ -339,6 +339,12 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
+          # This action validates by calling sts:GetCallerIdentity itself and,
+          # on a deleted key, aborts the job with the bare line `The security
+          # token included in the request is invalid.` -- before the preflight
+          # below, which exists to say what that means and what to do. Export
+          # the credentials here; let the preflight be the one that judges.
+          skip-credential-validation: true
 
       # The overlay below swallows S3 errors (`2>/dev/null || true`) and then
       # reports "No S3 overlay configs found", so a dead credential looks like

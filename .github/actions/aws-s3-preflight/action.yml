@@ -47,6 +47,27 @@ runs:
           exit 1
         }
 
+        deleted_key_notice() {
+          echo ""
+          echo "────────────────────────────────────────────────────────────────"
+          echo "This access key id DOES NOT EXIST in AWS."
+          echo ""
+          echo "sts:GetCallerIdentity returned InvalidClientTokenId. That is"
+          echo "not a permissions problem -- a quarantined or under-privileged"
+          echo "key still authenticates. The key was deleted."
+          echo ""
+          echo "AWS deletes a key it has confirmed was published. Rotating"
+          echo "alone does not help: if the channel that published the last"
+          echo "key is still open, the replacement is deleted too, usually"
+          echo "within a day. That is what happened on 2026-09-02, when the"
+          echo "key rotated in on 2026-09-01 survived exactly one run."
+          echo ""
+          echo "Close the channel FIRST, then rotate:"
+          echo "  docs/runbooks/s3-credential-rotation.md"
+          echo "────────────────────────────────────────────────────────────────"
+          echo ""
+        }
+
         quarantine_notice() {
           echo ""
           echo "────────────────────────────────────────────────────────────────"
@@ -81,6 +102,15 @@ runs:
         RC=$?
         if [ $RC -ne 0 ]; then
           echo "$WHO"
+          case "$WHO" in
+            *InvalidClientTokenId*|*"security token included in the request is invalid"*)
+              deleted_key_notice
+              fail_or_warn "The access key id no longer exists in AWS -- the key was deleted, not merely denied. Rotate it and update the repo secrets (details above)."
+              ;;
+            *SignatureDoesNotMatch*)
+              fail_or_warn "The access key id exists but AWS_SECRET_ACCESS_KEY does not match it. The two secrets were probably updated out of step -- set both from the same new key."
+              ;;
+          esac
           fail_or_warn "AWS credentials are unusable (sts:GetCallerIdentity failed). Check the AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY and AWS_REGION repo secrets."
         fi
         # Identity without the account id — this log is public on a public repo.

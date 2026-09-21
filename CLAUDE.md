@@ -79,7 +79,8 @@ Admin plane is a separate server block (port 8069 prod / 8080 dev / 8099 next.js
 | `rule_loader.lua` | Load server JSON (`host:{hostname}.json`), parse rules list + match_cases, decode schema v1/v2 S3 keys |
 | `rule_matcher.lua` | Evaluate a rule: path match (with specificity score), IP match, country match (IP2Location), JWT/S3/cookie auth |
 | `rule_selector.lua` | Deterministic tie-breaking: priority > path_specificity > condition_count > rule_id |
-| `rule_auth.lua` | JWT validation, S3 signing, cookie key-value checks |
+| `rule_auth.lua` | JWT validation, S3 signing, cookie key-value checks. Arms `ngx.ctx.s3_signed` so the response filter knows it signed |
+| `s3_error_filter.lua` | `header_filter`/`body_filter`. Replaces an S3-signed 4xx/5xx body before it reaches the client — S3 quotes the access key id inside its error XML. Wired into all four gateway blocks across both nginx templates |
 | `gateway_pipeline.lua` | Orchestrates api_gw → legacy rate limiting (shared dict `wsl_cache`) → WAF delegation → transforms |
 | `api_gw/` | Staged access pipeline (`real_ip` → `correlation` → `cors` → `ivt` → `request_security` → `auth` → `rate_limit`), plus `header_filter`/`log` hooks. Opt-in per server via `api_gw.enabled`; tenant-prefixed keys in shared dict `wsl_api_gw`. |
 | `traffic_router.lua` | Multi-backend selection (weighted / round-robin / header-based canary / cookie-sticky / least-conn). Passive health (3 consecutive 5xx → mark unhealthy 30s) + active (10s timer). Records per-backend stats. |
@@ -518,6 +519,20 @@ Local URLs:
 
 16. **Rules for diytaxreturn (and other app domains) are owned by the app repo** (`diy-tax-return-uk/.github/wslproxy/data/{rules,servers}/<env>/`), pushed via `/api/projects/import` which preserves committed rule ids. The canonical rule id for a domain is whatever the app repo's **origin/main** says — check `git show origin/main:...`, not a possibly-stale local checkout (in the 2026-08-10 incident the local clone still had superseded id `5c63f6fa-…` while origin/main had moved to `93893825-…`). Re-creating a rule in the admin UI mints a NEW uuid and repoints servers to it, forking live from git. Fix drift by re-running the app repo's `wslproxy-register-domains` workflow (git wins), not by minting new rules.
 
+17. **The gateway republished its own AWS key, and AWS kept deleting it** (2026-09-21). Two channels, one credential, one self-sustaining loop:
+    - **The 403 body.** Rules using `amazon_s3_signed_header_validation` proxy to `s3.<region>.amazonaws.com`. S3's error XML contains `<AWSAccessKeyId>AKIA…</AWSAccessKeyId>`, and nothing rewrote it, so `www.diytaxreturn.co.uk` served the key to anyone who asked. AWS's exposed-key scanner reads public HTTP.
+    - **The DR restore.** `scripts/dr-sync-s3-backup-to-data.sh` redacted `*.json`, but the prod host leaves editor droppings beside each rule (`<uuid>.json.<pid>.<date>~`). Those don't match `*.json`, so they were rsync'd in unredacted and committed to this **public** repo in `e4bae60f`.
+
+    The loop: rotate the key → the next nightly `Sync Prod Data to S3` succeeds → the DR restore commits the *new* key → AWS deletes it → every S3 workflow fails with `InvalidClientTokenId` (surfaced as the opaque `The security token included in the request is invalid.`). Exactly one green run per rotation, on 2026-09-02.
+
+    Fixed: `api/s3_error_filter.lua` (body never passes through on a signed 4xx/5xx), junk excluded from both the S3 sync and the DR restore, redaction widened to every file, and a secret scan that fails the DR run. **Rotating without closing both channels buys about a day** — see `docs/runbooks/s3-credential-rotation.md`.
+
+18. **`aws-actions/configure-aws-credentials` validates credentials itself** via `sts:GetCallerIdentity` and aborts the job before any later step. That is why the purpose-built `.github/actions/aws-s3-preflight` — which has the diagnosis and the runbook — never got to run. All four S3 workflows now pass `skip-credential-validation: true` so the preflight is what judges.
+
+19. **`set -euo pipefail` + `find` over a missing directory kills a script silently.** `find a b c -name '*.json' 2>/dev/null | while …` returns `find`'s non-zero status through `pipefail`, and `2>/dev/null` hides why. In `dr-sync-s3-backup-to-data.sh` this would have aborted the run before the JSON validation *and* the new secret scan whenever an optional tree (`pops/`) was absent from the backup. Build the path list from directories that exist.
+
+20. **`lua_code_cache` is on in the dev container**, so §4's "hot-reloaded per request" is not true for `api/` in practice — editing a module has no effect until `openresty -s reload`. Worth knowing when a change appears to do nothing.
+
 ### Conventions
 
 - **Lua modules** return a table `_M`. Public functions on `_M`; file-scoped locals outside.
@@ -540,6 +555,8 @@ Local URLs:
 | Rule doesn't match | Check rule's `priority`, `path_key`, and that server's `rules` or `match_cases` includes it. Use `/api/traffic/debug` to inspect matching state. |
 | Config changes don't take effect | `config_status: true`? `openresty -t` passes? `/tmp/nginx/nginx-reboot-required` being picked up by cron? |
 | k3s ingress config out of date | `helm upgrade wslproxy-ingress ingress-controller/deploy/helm/ -n wslproxy-system` |
+| S3 workflows fail: `The security token included in the request is invalid.` | The access key id was **deleted**, not denied. Something published it. `docs/runbooks/s3-credential-rotation.md` — close the channel before rotating. |
+| A tenant site returns S3 XML errors to the public | Expected to be scrubbed by `api/s3_error_filter.lua`; if `AKIA` appears in the body the edge has not picked up the change — redeploy `api/` + the nginx template and reload. |
 
 ### Useful commands on production host
 
