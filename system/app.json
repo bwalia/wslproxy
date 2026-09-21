@@ -1,9 +1,9 @@
 {
   "name": "wslproxy",
   "version": {
-    "version": "1.0.135-build.3",
-    "base_version": "1.0.135",
-    "build_number": 3,
-    "deployment_timestamp": "2026-09-20T12:29:54Z"
+    "version": "1.0.136-build.1",
+    "base_version": "1.0.136",
+    "build_number": 1,
+    "deployment_timestamp": "2026-09-21T23:18:25Z"
   }
 }
