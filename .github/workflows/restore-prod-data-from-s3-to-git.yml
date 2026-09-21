@@ -60,6 +60,12 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
+          # This action validates by calling sts:GetCallerIdentity itself and,
+          # on a deleted key, aborts the job with the bare line `The security
+          # token included in the request is invalid.` -- before the preflight
+          # below, which exists to say what that means and what to do. Export
+          # the credentials here; let the preflight be the one that judges.
+          skip-credential-validation: true
 
       - name: Ensure AWS CLI and jq
         run: |
@@ -67,6 +73,15 @@ jobs:
           command -v aws >/dev/null || { echo "::error::aws CLI required on test runner"; exit 1; }
           command -v jq >/dev/null || { echo "::error::jq required on test runner"; exit 1; }
           aws --version
+
+      # S3 is the source of truth for this restore, so name a dead credential
+      # here rather than at `aws s3 ls` three steps down. The other two S3
+      # workflows have had this since bbd60f93; this one was missed.
+      - name: Verify S3 access
+        uses: ./.github/actions/aws-s3-preflight
+        with:
+          bucket: ${{ secrets.WSLPROXY_S3_BUCKET }}
+          prefix: backups/
 
       - name: Resolve backup tarball from S3
         id: backup

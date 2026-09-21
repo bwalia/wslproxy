@@ -960,6 +960,15 @@ server {
             -- overwrite headers set in the rewrite/access phases.
             local ok_gw, ApiGw = pcall(require, "api_gw")
             if ok_gw then ApiGw.header_filter() end
+
+            -- Credential scrub: S3 answers a refused request with an XML
+            -- body that quotes the access key id back at the caller, and
+            -- proxying that to an anonymous client publishes the key --
+            -- AWS then quarantines and deletes it.  No-op unless
+            -- rule_auth.sign_s3_request armed ngx.ctx.s3_signed.  Last in
+            -- the chain so nothing downstream restores Content-Length.
+            local ok_s3, S3Err = pcall(require, "s3_error_filter")
+            if ok_s3 then S3Err.header_filter() end
           }
 
           # WSL Cache: Capture response body for caching
@@ -973,6 +982,12 @@ server {
             if ok and ngx.ctx.should_cache then
               CacheHandler.collect_response_body()
             end
+
+            -- Credential scrub: replace an S3-signed 4xx/5xx body before it
+            -- reaches the client (api/s3_error_filter.lua).  Last, so the
+            -- scrubbed body is what actually ships.
+            local ok_s3, S3Err = pcall(require, "s3_error_filter")
+            if ok_s3 then S3Err.body_filter() end
           }
 
           # echo $proxy_host:$proxy_port;
@@ -1232,6 +1247,15 @@ server {
             -- overwrite headers set in the rewrite/access phases.
             local ok_gw, ApiGw = pcall(require, "api_gw")
             if ok_gw then ApiGw.header_filter() end
+
+            -- Credential scrub: S3 answers a refused request with an XML
+            -- body that quotes the access key id back at the caller, and
+            -- proxying that to an anonymous client publishes the key --
+            -- AWS then quarantines and deletes it.  No-op unless
+            -- rule_auth.sign_s3_request armed ngx.ctx.s3_signed.  Last in
+            -- the chain so nothing downstream restores Content-Length.
+            local ok_s3, S3Err = pcall(require, "s3_error_filter")
+            if ok_s3 then S3Err.header_filter() end
           }
 
           # LLM protocol translation: rewrite Anthropic body/SSE -> OpenAI.
@@ -1239,6 +1263,11 @@ server {
           body_filter_by_lua_block {
             local ok_llm, Llm = pcall(require, "llm_translator")
             if ok_llm then Llm.body_filter() end
+
+            -- Credential scrub: replace an S3-signed 4xx/5xx body before it
+            -- reaches the client (api/s3_error_filter.lua).
+            local ok_s3, S3Err = pcall(require, "s3_error_filter")
+            if ok_s3 then S3Err.body_filter() end
           }
 
           # Docker blob disk cache (controlled by Lua via $docker_cache_zone)

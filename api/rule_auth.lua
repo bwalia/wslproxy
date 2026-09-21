@@ -202,6 +202,13 @@ function M.sign_s3_request(rule, folder_path, bucket_name)
     ngx.req.set_header("x-amz-content-sha256", payload_hash)
     ngx.req.set_header("Authorization", authorization)
     ngx.ctx.s3_host_override = host_header
+
+    -- Arm s3_error_filter for the response phases.  S3 quotes the access key
+    -- id back inside its 4xx bodies, and proxying that to an anonymous client
+    -- publishes the key: AWS's exposed-key scanner then quarantines and
+    -- deletes it.  Without this flag the filter cannot tell an S3-signed
+    -- response from any other upstream, so it stays a no-op.
+    ngx.ctx.s3_signed = true
 end
 
 return M
