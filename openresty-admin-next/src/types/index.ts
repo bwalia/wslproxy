@@ -793,7 +793,15 @@ export interface DataProvider {
   getErrorLogs(filters?: LogFilters): Promise<ListResult<ErrorLogEntry>>;
   getBackendHealthDetails(): Promise<ListResult<BackendHealthDetail>>;
   analyzeWithAI(request: AIAnalysisRequest): Promise<SingleResult<AIAnalysisResponse>>;
-  getAIModels(): Promise<SingleResult<{ models: string[]; default: string }>>;
+  getAIModels(): Promise<
+    SingleResult<{
+      models: string[];
+      default: string;
+      healthy?: boolean;
+      endpoint?: string;
+      error?: string;
+    }>
+  >;
 
   // Cache management
   /** Purge cache for a specific server (`POST /api/cache/clear/{server}`). */

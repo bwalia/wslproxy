@@ -4392,13 +4392,30 @@ local function handle_get_request(args, path)
                     data = {
                         models = models,
                         default = (settings and settings.ai_model) or "llama3.2",
+                        healthy = true,
+                        endpoint = ollama_host,
                     }
                 }))
             else
-                ngx.say(cjson.encode({ data = { models = {}, default = "" } }))
+                ngx.say(cjson.encode({
+                    data = {
+                        models = {},
+                        default = "",
+                        healthy = true,
+                        endpoint = ollama_host,
+                    }
+                }))
             end
         else
-            ngx.say(cjson.encode({ data = { models = {}, default = "" } }))
+            ngx.say(cjson.encode({
+                data = {
+                    models = {},
+                    default = "",
+                    healthy = false,
+                    endpoint = ollama_host,
+                    error = err or (res and ("HTTP " .. tostring(res.status))) or "unreachable",
+                }
+            }))
         end
         ngx.exit(ngx.HTTP_OK)
     end
