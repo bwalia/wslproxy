@@ -217,4 +217,163 @@ export const ApiHealthIndicator = () => {
   );
 };
 
+const OLLAMA_STATUS_CONFIG = {
+  checking: { color: "#f59e0b", label: "Checking Ollama…", bg: "#f59e0b" },
+  healthy: { color: "#10b981", label: "Ollama Online", bg: "#10b981" },
+  degraded: { color: "#f59e0b", label: "Ollama Slow", bg: "#f59e0b" },
+  down: { color: "#ef4444", label: "Ollama Offline", bg: "#ef4444" },
+  error: { color: "#ef4444", label: "Ollama Error", bg: "#ef4444" },
+};
+
+const useOllamaHealth = () => {
+  const [status, setStatus] = useState("checking");
+  const [latency, setLatency] = useState(null);
+  const [modelCount, setModelCount] = useState(null);
+  const [endpoint, setEndpoint] = useState(null);
+  const [error, setError] = useState(null);
+
+  const checkHealth = useCallback(async () => {
+    const API_URL = getApiUrl();
+    const started = performance.now();
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      const res = await fetch(`${API_URL}/ai/models?t=${Date.now()}`, {
+        method: "GET",
+        headers: getAuthHeaders(),
+        cache: "no-store",
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      const roundTripMs = Math.round(performance.now() - started);
+
+      if (!res.ok) {
+        setLatency(roundTripMs);
+        setModelCount(null);
+        setEndpoint(null);
+        setError(`HTTP ${res.status}`);
+        setStatus("error");
+        return;
+      }
+
+      const body = await res.json();
+      const data = body?.data ?? {};
+      const models = Array.isArray(data.models) ? data.models : [];
+      const probeMs =
+        typeof data.latency_ms === "number" ? data.latency_ms : roundTripMs;
+
+      setLatency(probeMs);
+      setModelCount(models.length);
+      setEndpoint(typeof data.endpoint === "string" ? data.endpoint : null);
+      setError(typeof data.error === "string" ? data.error : null);
+
+      if (data.healthy === true) {
+        setStatus(probeMs > SLOW_THRESHOLD_MS ? "degraded" : "healthy");
+      } else if (data.healthy === false) {
+        setStatus("down");
+      } else {
+        setStatus(models.length > 0 ? "healthy" : "down");
+      }
+    } catch {
+      setLatency(null);
+      setModelCount(null);
+      setEndpoint(null);
+      setError(null);
+      setStatus("down");
+    }
+  }, []);
+
+  useEffect(() => {
+    checkHealth();
+    const id = setInterval(checkHealth, POLL_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [checkHealth]);
+
+  return { status, latency, modelCount, endpoint, error, refresh: checkHealth };
+};
+
+export const OllamaHealthIndicator = () => {
+  const { status, latency, modelCount, endpoint, error, refresh } =
+    useOllamaHealth();
+  const config = OLLAMA_STATUS_CONFIG[status] || OLLAMA_STATUS_CONFIG.down;
+  const label =
+    modelCount !== null &&
+    status !== "checking" &&
+    (status === "healthy" || status === "degraded")
+      ? `${config.label} (${modelCount})`
+      : config.label;
+
+  const titleParts = [];
+  if (endpoint) titleParts.push(endpoint);
+  if (modelCount !== null && status !== "checking") {
+    titleParts.push(
+      modelCount === 1 ? "1 model" : `${modelCount} models`,
+    );
+  }
+  if (latency !== null && status !== "checking") {
+    titleParts.push(`${latency}ms`);
+  }
+  if (error && (status === "down" || status === "error")) {
+    titleParts.push(error);
+  }
+  titleParts.push("click to re-check");
+
+  return (
+    <Box
+      component="button"
+      type="button"
+      onClick={refresh}
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        gap: 0.75,
+        px: 1.5,
+        py: 0.5,
+        borderRadius: 2,
+        backgroundColor: alpha(config.bg, 0.12),
+        border: `1px solid ${alpha(config.bg, 0.25)}`,
+        cursor: "pointer",
+        font: "inherit",
+      }}
+      title={titleParts.join(" · ")}
+    >
+      <CircleIcon
+        sx={{
+          fontSize: 8,
+          color: config.color,
+          animation: status === "checking" ? "pulse 1.5s infinite" : "none",
+          "@keyframes pulse": {
+            "0%, 100%": { opacity: 1 },
+            "50%": { opacity: 0.3 },
+          },
+        }}
+      />
+      <Typography
+        variant="caption"
+        sx={{
+          fontWeight: 600,
+          color: config.color,
+          fontSize: "0.7rem",
+          lineHeight: 1,
+          whiteSpace: "nowrap",
+        }}
+      >
+        {label}
+      </Typography>
+      {latency !== null && status !== "checking" && (
+        <Typography
+          variant="caption"
+          sx={{
+            color: alpha(config.color, 0.7),
+            fontSize: "0.65rem",
+            lineHeight: 1,
+          }}
+        >
+          {latency}ms
+        </Typography>
+      )}
+    </Box>
+  );
+};
+
 export default ApiHealthBanner;

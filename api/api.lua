@@ -4375,44 +4375,40 @@ local function handle_get_request(args, path)
 
     if path == "ai/models" then
         local ollama_host = resolve_ollama_host(settings)
+        local default_model = (settings and settings.ai_model) or "llama3.2"
         local http = require("resty.http")
         local httpc = http.new()
         httpc:set_timeout(5000)
+        local started = ngx.now()
         local res, err = httpc:request_uri(ollama_host .. "/api/tags", {
             method = "GET",
         })
+        local latency_ms = math.floor((ngx.now() - started) * 1000)
         if res and res.status == 200 then
             local ok, result = pcall(cjson.decode, res.body)
-            if ok and result.models then
-                local models = {}
+            local models = {}
+            if ok and result and result.models then
                 for _, m in ipairs(result.models) do
                     models[#models + 1] = m.name
                 end
-                ngx.say(cjson.encode({
-                    data = {
-                        models = models,
-                        default = (settings and settings.ai_model) or "llama3.2",
-                        healthy = true,
-                        endpoint = ollama_host,
-                    }
-                }))
-            else
-                ngx.say(cjson.encode({
-                    data = {
-                        models = {},
-                        default = "",
-                        healthy = true,
-                        endpoint = ollama_host,
-                    }
-                }))
             end
+            ngx.say(cjson.encode({
+                data = {
+                    models = models,
+                    default = default_model,
+                    healthy = true,
+                    endpoint = ollama_host,
+                    latency_ms = latency_ms,
+                }
+            }))
         else
             ngx.say(cjson.encode({
                 data = {
                     models = {},
-                    default = "",
+                    default = default_model,
                     healthy = false,
                     endpoint = ollama_host,
+                    latency_ms = latency_ms,
                     error = err or (res and ("HTTP " .. tostring(res.status))) or "unreachable",
                 }
             }))
