@@ -419,7 +419,31 @@ the gateway off for that rule's traffic only.
 
 ---
 
-## 12. Two things that will catch you out
+## 12. Three things that will catch you out
+
+### `modules` takes MODULE names, not stage names
+
+The pipeline runs seven stages gated on six module names, because
+`correlation` and `request_security` are two stages sharing one module
+(`api_gw/pipeline.lua` `M.STAGES`). The valid values are:
+
+```
+real_ip   request_security   cors   ivt   auth   rate_limit   audit
+```
+
+Listing `correlation` there does not enable the correlation id — it names
+something that is not a module, so the stage is filtered out and the header
+silently disappears. Nothing warns you: the other modules keep working, so the
+policy looks live.
+
+```jsonc
+"modules": ["real_ip", "correlation", "cors", ...]      // no correlation id
+"modules": ["real_ip", "request_security", "cors", ...] // correct
+```
+
+Omitting `modules` entirely runs everything the config configures, which is
+the safe default. Set it only to deliberately narrow the pipeline.
+
 
 ### The audit line is emitted at `info` — check your `error_log` level
 

@@ -37,47 +37,16 @@ import VarnishDeployPanel from "./VarnishDeployPanel";
 import VersionHistoryTab from "../Versions/VersionHistoryTab";
 import TopologyTab from "../Topology/TopologyTab";
 import get from "lodash/get";
+import { SectionCard, SubSectionLabel } from "../component/SectionCard";
+import ApiGatewayTab from "./ApiGatewayTab";
 import "../styles/forms.css";
 
 const handleProfileChange = (e) => {
   localStorage.setItem("environment", e.target.value);
 };
 
-// Section Card component for consistent styling
-const SectionCard = ({ title, subtitle, children, noPadding = false }) => (
-  <Card
-    variant="outlined"
-    className={`section-card${noPadding ? " section-card--no-padding" : ""}`}
-  >
-    <CardContent>
-      <Typography variant="subtitle1" className="section-card__title">
-        {title}
-      </Typography>
-      {subtitle && (
-        <Typography
-          variant="body2"
-          color="text.secondary"
-          className="section-card__subtitle"
-        >
-          {subtitle}
-        </Typography>
-      )}
-      {!subtitle && <div className="section-card__spacer" />}
-      {children}
-    </CardContent>
-  </Card>
-);
-
-// Sub-section label
-const SubSectionLabel = ({ children }) => (
-  <Typography
-    variant="body2"
-    color="text.secondary"
-    className="sub-section-label"
-  >
-    {children}
-  </Typography>
-);
+// SectionCard / SubSectionLabel now live in ../component/SectionCard so the
+// API Gateway tab can share them without importing this file.
 
 const Form = ({ type }) => {
   const dataProvider = useDataProvider();
@@ -1073,6 +1042,10 @@ const Form = ({ type }) => {
             </Card>
           )}
         </div>
+      </TabbedForm.Tab>
+
+      <TabbedForm.Tab label="API Gateway">
+        <ApiGatewayTab />
       </TabbedForm.Tab>
 
       <TabbedForm.Tab label="WAF Protection">

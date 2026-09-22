@@ -24,5 +24,70 @@
   "cache_enabled": false,
   "cache_bypass_auth": false,
   "match_cases": {},
-  "custom_headers": []
+  "custom_headers": [],
+  "api_gw": {
+    "enabled": true,
+    "modules": [
+      "real_ip",
+      "request_security",
+      "cors",
+      "ivt",
+      "rate_limit",
+      "audit"
+    ],
+    "real_ip": {
+      "trusted_cidrs": [],
+      "recursive": true
+    },
+    "request_security": {
+      "correlation": {
+        "enabled": true,
+        "header": "X-Correlation-ID",
+        "echo_downstream": true,
+        "accept_inbound": true
+      }
+    },
+    "cors": {
+      "enabled": true,
+      "origins": [
+        "https://int.wslproxy.com"
+      ],
+      "expose_headers": [
+        "X-Correlation-ID"
+      ]
+    },
+    "ivt": {
+      "mode": "audit",
+      "require_auth_shape": true,
+      "path_denylist": [
+        "\\.env$",
+        "/wp-admin",
+        "/\\.git/"
+      ],
+      "strip_header_prefixes": [
+        "X-Internal-"
+      ]
+    },
+    "rate_limit": {
+      "enabled": true,
+      "default_profile": "standard",
+      "profiles": {
+        "standard": {
+          "limit": 600,
+          "window_seconds": 60,
+          "key": "ip"
+        }
+      }
+    },
+    "auth": {
+      "strategy": "passthrough"
+    },
+    "audit": {
+      "enabled": true,
+      "level": "info",
+      "include_headers": [
+        "user-agent"
+      ]
+    }
+  }
 }
