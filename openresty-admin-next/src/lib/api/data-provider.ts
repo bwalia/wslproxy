@@ -628,6 +628,7 @@ export const dataProvider: DataProvider = {
         default: string;
         healthy?: boolean;
         endpoint?: string;
+        latency_ms?: number;
         error?: string;
       }>
     >(`/ai/models`).then(

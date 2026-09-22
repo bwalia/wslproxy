@@ -799,6 +799,7 @@ export interface DataProvider {
       default: string;
       healthy?: boolean;
       endpoint?: string;
+      latency_ms?: number;
       error?: string;
     }>
   >;
