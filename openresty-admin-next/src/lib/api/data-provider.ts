@@ -622,8 +622,16 @@ export const dataProvider: DataProvider = {
     }).then((r) => r ?? { data: { analysis: "Analysis unavailable", root_causes: [], recommendations: [] } }),
 
   getAIModels: () =>
-    apiFetch<SingleResult<{ models: string[]; default: string }>>(`/ai/models`).then(
-      (r) => r ?? { data: { models: [], default: "" } },
+    apiFetch<
+      SingleResult<{
+        models: string[];
+        default: string;
+        healthy?: boolean;
+        endpoint?: string;
+        error?: string;
+      }>
+    >(`/ai/models`).then(
+      (r) => r ?? { data: { models: [], default: "", healthy: false } },
     ),
 
   // ── Cache management ──────────────────────────────────────────────
