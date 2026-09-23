@@ -290,7 +290,8 @@ jobs:
       # vault_or_sops so any runner can deploy — see delivery pipeline
       # test stage for the full rationale.
       secrets_mode: vault_or_sops
-      health_endpoint: "http://localhost:8080/healthz"
+      # :8080 blackholed by k3s CNI hostPort DNAT on debian001 — use :8099.
+      health_endpoint: "http://127.0.0.1:8099/healthz"
       health_check_mode: ssh
       docker_prune: false
       notify_success: true

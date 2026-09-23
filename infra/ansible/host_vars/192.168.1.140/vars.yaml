@@ -12,6 +12,8 @@ nginx_s3_cli_server_name: "s3-cli.workstation.co.uk"
 nginx_k3s_dashboard_server_name: "k3s-dashboard.workstation.co.uk"
 nginx_default_server_frontend: "test.wslproxy.com www.test.wslproxy.com test.wslproxy.org www.test.wslproxy.org"
 nginx_default_server_backend: "192.168.1.140"
+# OpenResty still listens here, but k3s CNI hostPort DNAT blackholes
+# host:8080 (TCP connect times out). Deploy health gates use :8099.
 nginx_default_server_backend_port: 8080
 letsencrypt_email: "balinder.walia@gmail.com"
 openresty_admin_secondary_color: "#D91656"

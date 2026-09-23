@@ -121,7 +121,9 @@ jobs:
       # which only exists on the LAN test runner; moving the job to the
       # mac-studio runner (as we did for prod-pop1) would have broken it.
       secrets_mode: vault_or_sops
-      health_endpoint: "http://localhost:8080/healthz"
+      # Same k3s CNI hostPort DNAT foot-gun as int: OpenResty listens on
+      # :8080 but TCP connect times out. Next admin block on :8099 is healthy.
+      health_endpoint: "http://127.0.0.1:8099/healthz"
       health_check_mode: ssh
       docker_prune: false
       notify_success: true
