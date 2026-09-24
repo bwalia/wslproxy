@@ -43,6 +43,13 @@ controller:
   metrics:
     enabled: true
     port: 8080
+    # ClusterIP: scrape in-cluster (ServiceMonitor) or `kubectl port-forward`.
+    # It was LoadBalancer (#903), and k3s ServiceLB then ran an svclb DaemonSet
+    # per release holding hostPort 8080 on EVERY node. prod's claimed :8080 on
+    # all 8 LAN nodes, including the Ansible int/test/acc hosts (.193/.140/.47;
+    # see #1272, ":8080 returns HTTP 000"), and each of int/test/acc left 8
+    # svclb pods Pending on the same port.
+    serviceType: ClusterIP
 
   # Health probes
   healthProbe:
