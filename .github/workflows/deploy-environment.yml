@@ -120,6 +120,13 @@ on:
         description: "Port the nginx-fronted Next.js dashboard listens on (nginx_nextjs_dashboard_port). Used only by the post-deploy dashboard health gate."
         type: string
         default: "8099"
+      push_repo_data:
+        description: >-
+          Push this repo's data/servers|rules/<env> over the target's live
+          config: auto (default: yes, except on lon1, whose live config is
+          the source pop0 mirrors), always, or never.
+        type: string
+        default: "auto"
     secrets:
       SLACK_WEBHOOK:
         required: true
@@ -839,8 +846,36 @@ jobs:
       # perms-only repair with zero data changes. Pushing wslproxy's own
       # data/servers/<env>/ + data/rules/<env>/ would overwrite whatever
       # drift the operator is currently debugging.
+      #
+      # Also skipped on lon1 unless push_repo_data=always. lon1's live
+      # config is edited through its admin API and is the source pop0
+      # mirrors (infra/edge-sync/); the repo copy is an older snapshot, so
+      # every code/dashboard deploy used to roll lon1's config back to it
+      # (CLAUDE.md #22). To push repo data to lon1 on purpose, use
+      # deploy-wslproxy-virtual-servers.yml.
+      - name: Decide whether to push repo server/rule data
+        id: repo_data
+        run: |
+          mode="${{ inputs.push_repo_data }}"
+          host="${{ inputs.host_ip }}"
+          case "$mode" in auto|always|never) ;; *)
+            echo "::error::push_repo_data must be auto, always or never (got: ${mode})"; exit 1 ;;
+          esac
+          push=true
+          if [ "${{ inputs.deploy_mode }}" = "permissions" ] || [ "$mode" = "never" ]; then
+            push=false
+          elif [ "$mode" = "auto" ]; then
+            case "$host" in
+              lon1.pop0.uk|195.20.255.201) push=false ;;
+            esac
+          fi
+          echo "push=${push}" >> "$GITHUB_OUTPUT"
+          if [ "$push" = false ]; then
+            echo "::notice::Not pushing repo data/servers|rules to ${host} (push_repo_data=${mode}, deploy_mode=${{ inputs.deploy_mode }}); live edge config is left as is."
+          fi
+
       - name: Deploy server configs and rules
-        if: ${{ inputs.deploy_mode != 'permissions' }}
+        if: ${{ steps.repo_data.outputs.push == 'true' }}
         timeout-minutes: 20
         run: |
           echo "Deploying server configs for env: ${{ inputs.env_name }} to ${{ inputs.host_ip }}"
