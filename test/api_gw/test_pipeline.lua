@@ -30,7 +30,7 @@ local order = Pipeline.order()
 local names = {}
 for _, s in ipairs(order) do names[#names + 1] = s.stage end
 A.eq(table.concat(names, ","),
-    "real_ip,correlation,cors,ivt,request_security,auth,rate_limit",
+    "real_ip,hooks_request,correlation,cors,ivt,request_security,auth,rate_limit,hooks_access_after",
     "the documented pipeline order")
 
 for i = 2, #order do

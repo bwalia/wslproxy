@@ -7,6 +7,8 @@
 --
 --   1000 real_ip           Everything downstream keys on the client IP, so it
 --                          has to be resolved inside the trust boundary first.
+--    995 hooks_request     Declarative request-header transforms + Lua
+--                          access_before (after IP is known).
 --    980 correlation       Established before anything can deny, so every
 --                          rejection and every audit line carries the same id.
 --    950 cors              A preflight carries no credentials and must not be
@@ -21,7 +23,8 @@
 --                          because these are correctness checks on traffic we
 --                          have already decided to consider real.
 --    800 auth              Credential verification. Produces ctx.consumer.
---    700 rate_limit        Last, so it can key on the verified consumer.
+--    700 rate_limit        After auth, so it can key on the verified consumer.
+--    650 hooks_access_after Lua access_after — last chance before proxy.
 --
 -- A stage returns nil to continue, or a decision table from api_gw.response.
 -- The first non-nil decision wins and the rest of the pipeline is skipped.
@@ -35,18 +38,21 @@ local Cors = require("api_gw.cors")
 local Ivt = require("api_gw.ivt")
 local Auth = require("api_gw.auth")
 local RateLimit = require("api_gw.rate_limit")
+local Hooks = require("api_gw.hooks")
 
 -- `module` is the name a tenant lists in `api_gw.modules`; several stages can
 -- share one module name (correlation and enforcement are both
 -- request_security), which is why stage and module are separate fields.
 M.STAGES = {
     { priority = 1000, stage = "real_ip",             module = "real_ip",          run = RealIp.run },
+    { priority = 995,  stage = "hooks_request",       module = "hooks",            run = Hooks.request_phase },
     { priority = 980,  stage = "correlation",         module = "request_security", run = RequestSecurity.correlate },
     { priority = 950,  stage = "cors",                module = "cors",             run = Cors.run },
     { priority = 900,  stage = "ivt",                 module = "ivt",              run = Ivt.run },
     { priority = 850,  stage = "request_security",    module = "request_security", run = RequestSecurity.enforce },
     { priority = 800,  stage = "auth",                module = "auth",             run = Auth.run },
     { priority = 700,  stage = "rate_limit",          module = "rate_limit",       run = RateLimit.run },
+    { priority = 650,  stage = "hooks_access_after",  module = "hooks",            run = Hooks.access_after },
 }
 
 -- Sorted once at load. Declared in order already; sorting makes the invariant

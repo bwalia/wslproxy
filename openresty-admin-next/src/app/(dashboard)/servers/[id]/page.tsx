@@ -16,6 +16,7 @@ import {
   Network,
   Bookmark,
   FileJson,
+  Waypoints,
 } from "lucide-react";
 import { useOne, useList, useDataProvider } from "@/hooks/useResource";
 import { useNotification } from "@/contexts/NotificationContext";
@@ -42,6 +43,10 @@ const WafProtectionTab = dynamic(
   () => import("@/components/servers/WafProtectionTab"),
   { loading: () => <Skeleton variant="rectangular" className="h-64 w-full" /> },
 );
+const ApiGatewayTab = dynamic(
+  () => import("@/components/servers/ApiGatewayTab"),
+  { loading: () => <Skeleton variant="rectangular" className="h-64 w-full" /> },
+);
 const VersionHistoryTab = dynamic(
   () => import("@/components/servers/VersionHistoryTab"),
   { loading: () => <Skeleton variant="rectangular" className="h-64 w-full" /> },
@@ -63,6 +68,11 @@ import type {
   VarnishSnippet,
   ProxyTimeouts,
 } from "@/components/servers/types";
+import {
+  defaultApiGwConfig,
+  hydrateApiGw,
+  serializeApiGw,
+} from "@/components/servers/apiGwTypes";
 import { generateNginxServerConfig } from "@/components/servers/lib/generateNginxConfig";
 import type { LocationEntry } from "@/components/servers/sections/LocationBlockEditor";
 import {
@@ -168,6 +178,7 @@ const DEFAULT_FORM: ServerFormState = {
 
   rules: "",
   match_cases: [],
+  api_gw: defaultApiGwConfig(),
 };
 
 /* ── Tab definitions ──────────────────────────────────────────────────── */
@@ -176,6 +187,7 @@ type TabKey =
   | "nginx"
   | "varnish"
   | "rules"
+  | "api_gw"
   | "waf"
   | "history"
   | "topology"
@@ -209,6 +221,7 @@ const TABS: TabDef[] = [
   { key: "nginx", label: "Nginx", icon: Globe },
   { key: "varnish", label: "Varnish", icon: Database },
   { key: "rules", label: "Server Rules", icon: ListFilter },
+  { key: "api_gw", label: "API Gateway", icon: Waypoints },
   { key: "waf", label: "WAF", icon: Shield },
   { key: "history", label: "Version", icon: History },
   { key: "topology", label: "Topology", icon: Network },
@@ -375,6 +388,9 @@ function hydrateForm(data: ServerType): ServerFormState {
               : "",
       }),
     ),
+    api_gw: hydrateApiGw(
+      (data as unknown as Record<string, unknown>).api_gw,
+    ),
   };
 }
 
@@ -443,6 +459,9 @@ function buildPayload(form: ServerFormState): Record<string, unknown> {
     // api.lua:CreateUpdateRecord.  When true, the compiled nginx
     // block is copied to /opt/nginx/conf.d/ and reload is scheduled.
     config_status: form.config_status,
+    // Kong-class edge policy — nested object; omit blanks via serializer
+    // so Lua gateway defaults stay live (docs/api-gateway.md).
+    api_gw: serializeApiGw(form.api_gw ?? defaultApiGwConfig()),
     // Regenerate `config` from the current form state at save time
     // rather than trusting form.config (which is either empty on
     // create or the base64 blob we hydrated from disk).  This is the
@@ -858,6 +877,10 @@ export default function ServerDetailPage() {
           setForm={setForm}
           ruleOptions={ruleOptions}
         />
+      )}
+
+      {activeTab === "api_gw" && (
+        <ApiGatewayTab form={form} setForm={setForm} />
       )}
 
       {activeTab === "waf" && (
