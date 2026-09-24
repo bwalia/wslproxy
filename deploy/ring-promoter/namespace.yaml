@@ -1,0 +1,13 @@
+# The wslproxy Ring Promoter instance (https://rp.wslproxy.com).
+#
+# Its own instance, like diy-tax-return-uk's ring-system: this repo owns the
+# whole config, so nothing else can overwrite the wslproxy-k3s1 deploy script.
+# Deploy Jobs still run in the shared ring-exec namespace as ring-deploy-job
+# (see rbac.yaml and k3s1-rbac.yaml).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: wslproxy-ring-promoter
+  labels:
+    app.kubernetes.io/name: ring-promoter
+    app.kubernetes.io/part-of: wslproxy

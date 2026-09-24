@@ -1,98 +1,88 @@
-# Ring Promoter — k3s1 Helm deploy + pgsql control plane
+# Ring Promoter — wslproxy instance (k3s1 control plane)
 
-**Owning instance:** [https://rp.workstation.co.uk/](https://rp.workstation.co.uk/)
-(`workstation-ring-promoter` on k3s1). UI:
-`https://rp.workstation.co.uk/?app=wslproxy-k3s1`.
+**Instance:** [https://rp.wslproxy.com/](https://rp.wslproxy.com/)
+(namespace `wslproxy-ring-promoter` on k3s1). UI:
+`https://rp.wslproxy.com/?app=wslproxy-k3s1`.
 
-Do **not** register this app on fictionally.org or diy-tax-return `ring-system`
-(those have a different github-deployer app named `wslproxy` for Ansible VMs).
-
-## Auto-deploy on merge to main
-
-[`.github/workflows/deploy-control-plane-k3s1.yml`](../../.github/workflows/deploy-control-plane-k3s1.yml):
-
-1. Build/push `bwalia/wslproxy:sha-<7chars>` (+ `:latest`)
-2. `POST https://rp.workstation.co.uk/api/apps/wslproxy-k3s1/seed` with
-   `{"ring":"prod","version":"<full git sha>"}`
-
-That creates a Job in `ring-exec` which Vault-bootstraps + helm-upgrades.
-
-### GitHub secrets (`bwalia/wslproxy`)
-
-| Secret | Value |
-|--------|--------|
-| `RP_URL` | `https://rp.workstation.co.uk` |
-| `RP_TOKEN` | workstation Secret `ring-promoter` → `RP_API_TOKEN` |
-| `RP_PROD_PASSWORD` | optional; only if the instance has `RP_PROD_PASSWORD` set |
-| `DOCKER_USER` / `DOCKER_PASSWD` | already present |
-
-```sh
-# From a machine with kube access to k3s1:
-TOKEN=$(kubectl -n workstation-ring-promoter get secret ring-promoter \
-  -o jsonpath='{.data.RP_API_TOKEN}' | base64 -d)
-gh secret set RP_URL --repo bwalia/wslproxy --body 'https://rp.workstation.co.uk'
-gh secret set RP_TOKEN --repo bwalia/wslproxy --body "$TOKEN"
-```
-
-## What the Job does
-
-Ring Promoter app `wslproxy-k3s1` (`deployer: k8sjob`) creates a Job in
-`ring-exec` on k3s1 that:
-
-1. **prod only** — runs `scripts/k3s1-bootstrap-control-plane.sh`:
-   Zalando Postgres, migrations, then Secrets `wslproxy-pgsql` +
-   `wslproxy-settings` from **Vault → SOPS fallback** (forced `storage_type: pgsql`)
-2. `helm upgrade --install` of `ingress-controller/deploy/helm`
-   (prod mounts those Secrets into OpenResty; pins **`openresty.image.tag`**
-   only — ingress controller image stays at chart `latest`)
+This repo owns the whole instance, the same way diy-tax-return-uk owns
+`ring-promoter.diytaxreturn.co.uk` (`devops/ring-promoter/`). It used to be an
+app on the shared `rp.workstation.co.uk` instance, whose config lives in
+bwalia/ring-promoter. The copy kept here drifted from the one that instance
+actually ran, and every seed from Sep 18 to Sep 24 ran a stale
+`helm upgrade --wait` that timed out on the `<pending>` LoadBalancer IP.
+Now [`configmap.yaml`](configmap.yaml) is the only copy of the deploy script.
 
 | File | What it is |
 |------|------------|
-| [`k3s1.yaml`](k3s1.yaml) | App snippet (mirrored into ring-promoter ConfigMap) |
-| [`k3s1-rbac.yaml`](k3s1-rbac.yaml) | Namespaces + RBAC (incl. Zalando `postgresqls`, Jobs) |
-| [`../postgres/README.md`](../postgres/README.md) | Vault paths + Secret layout |
+| [`configmap.yaml`](configmap.yaml) | App registry: `wslproxy-k3s1` and its k8sjob deploy script |
+| [`deployment.yaml`](deployment.yaml), [`service.yaml`](service.yaml), [`ingress.yaml`](ingress.yaml) | The instance |
+| [`namespace.yaml`](namespace.yaml), [`rbac.yaml`](rbac.yaml) | Namespace; control-plane SA + rights to run Jobs in `ring-exec` |
+| [`k3s1-rbac.yaml`](k3s1-rbac.yaml) | Runner (`ring-exec/ring-deploy-job`) helm rights in `wslproxy-*` |
+| [`secret.example.yaml`](secret.example.yaml) | Secret template; real one made by the bootstrap script |
+| [`../../scripts/ring-promoter-bootstrap.sh`](../../scripts/ring-promoter-bootstrap.sh) | One-time DB, Secret and GitHub secrets |
+| `data/servers/prod/host:rp.wslproxy.com.json` | Edge vhost (pop0 → k3s1 Traefik, rule `425e4925`) |
 
-## One-time bootstrap on k3s1
+## Workflows
 
-Required before the first seed (CI does **not** create these):
+- [`deploy-ring-promoter.yml`](../../.github/workflows/deploy-ring-promoter.yml)
+  runs on a push to main touching `deploy/ring-promoter/**`. It applies the
+  manifests, restarts the pod (config is read only at boot) and checks that
+  `wslproxy-k3s1` is registered. It runs on the Mac Studio runner because the
+  k3s1 API is LAN-only.
+- [`deploy-control-plane-k3s1.yml`](../../.github/workflows/deploy-control-plane-k3s1.yml)
+  runs on a push to main touching `api/`, the chart, etc. It builds
+  `bwalia/wslproxy:sha-<7>` and `bwalia/wslproxy-admin-next:sha-<7>`, then calls
+  `POST https://rp.wslproxy.com/api/apps/wslproxy-k3s1/seed` with
+  `{"ring":"prod","version":"<full sha>"}`.
+
+## One-time setup
 
 ```sh
 export KUBECONFIG=~/.kube/k3s1.yaml
 
-# Vault token for the Job (never commit the token).
-# Use the API host (vault-ui is SPA-only). Token: JWT from int/wslvault-token.
-# Optional SOPS_AGE_KEY enables Vault → SOPS fallback inside the Job.
+# 1. Runner prerequisites (shared with the old instance; skip if present)
 kubectl -n ring-exec create secret generic wslproxy-vault \
   --from-literal=VAULT_ADDR=https://vault.workstation.co.uk \
   --from-literal=VAULT_TOKEN='<JWT>' \
   --from-literal=SOPS_AGE_KEY='<AGE-SECRET-KEY-…>'
 
-kubectl apply -f deploy/ring-promoter/k3s1-rbac.yaml
+# 2. Database ringpromoter_wsl on ring-system/ring-promoter-db, the
+#    wslproxy-ring-promoter/ring-promoter Secret, and the RP_URL / RP_TOKEN
+#    GitHub secrets. Idempotent; --rotate to mint new values.
+scripts/ring-promoter-bootstrap.sh
+
+# 3. Deploy the instance
+gh workflow run deploy-ring-promoter.yml
 ```
 
-App registration lives in **bwalia/ring-promoter**
-`deploy/k8s/configmap.yaml` (workstation instance). After that ConfigMap is
-applied / rolled:
+4. **DNS:** `rp.wslproxy.com` CNAME `pop0.wslproxy.com` (Cloudflare, DNS-only,
+   same as `rp.workstation.co.uk`).
+5. **Edge vhost:** push `data/servers/prod/host:rp.wslproxy.com.json` to the
+   pop0 edge (delivery pipeline, `DEPLOY_MODE=servers`), or create the server
+   in the admin UI with rule `425e4925-8ce1-de5b-2d13-0b086621101f` and SSL
+   enabled.
 
-```sh
-kubectl rollout restart deploy/ring-promoter -n workstation-ring-promoter
-# or merge to ring-promoter main so deploy-k3s1.yml applies it
-```
+The seed workflow runs on GitHub-hosted runners, so it only works after steps
+4–5 make `rp.wslproxy.com` public.
 
-Without `ring-exec/wslproxy-vault`, prod Jobs exit immediately with
-`VAULT_ADDR/VAULT_TOKEN missing`.
-
-## What a seed/promote does
+## What a seed does
 
 1. Job `rp-wslproxy-k3s1-<ring>-…` in `ring-exec` (envFrom `wslproxy-vault`).
-2. Clone this repo at `RP_VERSION`, apply CRDs.
-3. **prod** → bootstrap pgsql + Vault settings, then helm release
-   `wslproxy-ingress` in `wslproxy-system` with IngressClass `wslproxy`,
-   OpenResty mounts for settings/pgsql, and **control-plane UI** on
-   `cp.pop0.uk` pinned to **cloud003** (`values-control-plane-cloud003.yaml`,
-   NodePort `32080` / `77.68.126.63`). Edge rule:
-   `data/rules/prod/cp-pop0-control-plane.json`.
-4. **int/test/acc** → helm only (`wslproxy-<ring>`), no central DB bootstrap.
-5. Health: in-cluster `GET /healthz` on OpenResty API port 8080.
+2. Clones this repo at `RP_VERSION`, applies CRDs, and fixes an IngressClass
+   with the wrong (immutable) controller.
+3. **prod:** `scripts/k3s1-bootstrap-control-plane.sh` (Zalando Postgres,
+   migrations, `wslproxy-settings` + `wslproxy-pgsql` from Vault → SOPS), then
+   `helm upgrade --wait=false` of `wslproxy-ingress` in `wslproxy-system` with
+   the cloud003 overlay, and OpenResty **and** dashboard pinned to
+   `sha-<7>`. Then it applies the cp.pop0.uk Traefik split and waits on the
+   openresty and dashboard rollouts.
+4. **int/test/acc:** helm only (`wslproxy-<ring>`, ClusterIP, one replica).
+5. Health: prod uses `https://cp.pop0.uk/healthz`, because its pods sit on
+   cloud003 and the CNI overlay to edge nodes doesn't carry traffic. Other
+   rings use in-cluster `:8080/healthz`.
 
-A 40-character git SHA maps to image tag `sha-<7chars>` (`bwalia/wslproxy`).
+`--wait=false` is deliberate. `wslproxy-ingress-openresty` is a LoadBalancer
+whose EXTERNAL-IP stays `<pending>` (Traefik holds 80/443 on the nodes), so
+`helm --wait` can never succeed.
+
+A 40-character git SHA maps to image tag `sha-<7chars>`.

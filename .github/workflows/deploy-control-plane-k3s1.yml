@@ -2,14 +2,17 @@
 #
 # On merge to main: build/push bwalia/wslproxy:sha-<short> +
 # bwalia/wslproxy-admin-next:sha-<short>, then seed wslproxy-k3s1 prod on
-# https://rp.workstation.co.uk/ — that creates a ring-exec Job which
+# https://rp.wslproxy.com/ (this repo's own Ring Promoter instance,
+# deploy/ring-promoter/, deployed by deploy-ring-promoter.yml) — that creates
+# a ring-exec Job which
 # Vault-bootstraps + helm-upgrades wslproxy-ingress in wslproxy-system
 # (pinned to cloud003 / cp.pop0.uk) and applies the Traefik path split.
 #
 # Repo secrets:
 #   DOCKER_USER / DOCKER_PASSWD
-#   RP_URL    = https://rp.workstation.co.uk
-#   RP_TOKEN  = workstation ring-promoter RP_API_TOKEN
+#   RP_URL    = https://rp.wslproxy.com
+#   RP_TOKEN  = wslproxy-ring-promoter/ring-promoter RP_API_TOKEN
+#   (both set by scripts/ring-promoter-bootstrap.sh)
 #   RP_PROD_PASSWORD (optional; only if RP_PROD_PASSWORD is set on the instance)
 #
 # One-time cluster prereqs (not created by this workflow):
@@ -17,7 +20,8 @@
 #     --from-literal=VAULT_ADDR=https://vault.workstation.co.uk \
 #     --from-literal=VAULT_TOKEN=hvs.…
 #   kubectl apply -f deploy/ring-promoter/k3s1-rbac.yaml
-#   App registered in workstation ConfigMap (ring-promoter deploy/k8s/configmap.yaml)
+#   Instance + app registry: deploy/ring-promoter/ (configmap.yaml is the
+#   only copy of the wslproxy-k3s1 deploy script)
 
 name: Deploy control plane (k3s1)
 
@@ -33,7 +37,6 @@ on:
       - "ingress-controller/deploy/helm/**"
       - "deploy/k3s1/**"
       - "deploy/postgres/**"
-      - "deploy/ring-promoter/**"
       - ".github/workflows/deploy-control-plane-k3s1.yml"
   workflow_dispatch:
     inputs:
@@ -49,11 +52,11 @@ concurrency:
 env:
   IMAGE: docker.io/bwalia/wslproxy
   DASHBOARD_IMAGE: docker.io/bwalia/wslproxy-admin-next
-  RP_URL_DEFAULT: https://rp.workstation.co.uk
+  RP_URL_DEFAULT: https://rp.wslproxy.com
 
 jobs:
   deploy:
-    name: Build images + seed prod on rp.workstation.co.uk
+    name: Build images + seed prod on rp.wslproxy.com
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -141,14 +144,14 @@ jobs:
           RP_URL="${RP_URL:-$RP_URL_DEFAULT}"
           RP_URL="${RP_URL%/}"
           case "$RP_URL" in
-            https://rp.workstation.co.uk) ;;
+            https://rp.wslproxy.com) ;;
             *)
-              echo "::error::RP_URL must be https://rp.workstation.co.uk (got: ${RP_URL})"
+              echo "::error::RP_URL must be https://rp.wslproxy.com (got: ${RP_URL})"
               exit 1
               ;;
           esac
           if [ -z "${RP_TOKEN:-}" ]; then
-            echo "::error::secrets.RP_TOKEN is empty — set workstation RP_API_TOKEN on bwalia/wslproxy"
+            echo "::error::secrets.RP_TOKEN is empty — run scripts/ring-promoter-bootstrap.sh (sets RP_URL + RP_TOKEN)"
             exit 1
           fi
 
@@ -217,7 +220,7 @@ jobs:
           done
           echo "next_ok=0" >> "$GITHUB_OUTPUT"
           if [ "$SEED_OK" = "success" ]; then
-            echo "::warning::seed accepted but cp.pop0.uk did not show Next.js within ~8m — check https://rp.workstation.co.uk/?app=wslproxy-k3s1"
+            echo "::warning::seed accepted but cp.pop0.uk did not show Next.js within ~8m — check https://rp.wslproxy.com/?app=wslproxy-k3s1"
             exit 0
           fi
           echo "::error::Ring Promoter seed failed and cp.pop0.uk did not become healthy with Next.js. Images were pushed — helm-upgrade manually with tag ${{ steps.meta.outputs.tag }} and apply deploy/k3s1/wslproxy-cp-traefik-ingress.yaml."

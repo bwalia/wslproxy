@@ -1,0 +1,44 @@
+# Control-plane identity for the wslproxy Ring Promoter instance.
+#
+# The k8sjob deployer shells out to kubectl to create/watch/delete deploy Jobs
+# in ring-exec and read their pod logs. The Jobs themselves run as
+# ring-exec/ring-deploy-job, whose helm-deploy rights into wslproxy-* live in
+# k3s1-rbac.yaml.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ring-promoter
+  namespace: wslproxy-ring-promoter
+  labels:
+    app.kubernetes.io/part-of: wslproxy
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: wslproxy-ring-promoter-jobexec
+  namespace: ring-exec
+  labels:
+    app.kubernetes.io/part-of: wslproxy
+rules:
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["create", "get", "list", "watch", "delete"]
+  - apiGroups: [""]
+    resources: ["pods", "pods/log"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: wslproxy-ring-promoter-jobexec
+  namespace: ring-exec
+  labels:
+    app.kubernetes.io/part-of: wslproxy
+subjects:
+  - kind: ServiceAccount
+    name: ring-promoter
+    namespace: wslproxy-ring-promoter
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: wslproxy-ring-promoter-jobexec

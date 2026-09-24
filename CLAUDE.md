@@ -279,7 +279,7 @@ Three completely independent deploy mechanisms — they don't share configuratio
   - `templates/ingressclass.yaml` — `ingressClassName: wslproxy`
   - `templates/openresty-{service,hpa,pdb}.yaml`, `tls-secret.yaml`, `rbac.yaml`, `servicemonitor.yaml`
 - The helm chart's `files/nginx.conf` is what gets deployed into the ConfigMap. `ingress-controller/deploy/openresty/nginx.conf` is kept in sync but not directly used by helm.
-- Helm on k3s1 is Ring Promoter app `wslproxy-k3s1` (`deploy/ring-promoter/k3s1.yaml`): a `k8sjob` in `ring-exec` runs `helm upgrade --install`. One-time RBAC: `kubectl apply -f deploy/ring-promoter/k3s1-rbac.yaml`. Manual equivalent: `helm upgrade wslproxy-ingress ingress-controller/deploy/helm/ -n wslproxy-system`.
+- Helm on k3s1 is Ring Promoter app `wslproxy-k3s1` on this repo's **own** Ring Promoter instance, `https://rp.wslproxy.com` (namespace `wslproxy-ring-promoter`, manifests in `deploy/ring-promoter/`, deployed by `deploy-ring-promoter.yml`). A `k8sjob` in `ring-exec` runs `helm upgrade --install`. `deploy/ring-promoter/configmap.yaml` is the **only** copy of that deploy script. It used to live on the shared `rp.workstation.co.uk` instance, whose config (in bwalia/ring-promoter) drifted from ours and made every seed from Sep 18 to Sep 24 time out. One-time setup: `scripts/ring-promoter-bootstrap.sh`. Manual equivalent: `helm upgrade wslproxy-ingress ingress-controller/deploy/helm/ -n wslproxy-system`.
 
 ---
 
@@ -417,6 +417,8 @@ Local URLs:
 19. **`set -euo pipefail` + `find` over a missing directory kills a script silently.** `find a b c -name '*.json' 2>/dev/null | while …` returns `find`'s non-zero status through `pipefail`, and `2>/dev/null` hides why. In `dr-sync-s3-backup-to-data.sh` this would have aborted the run before the JSON validation *and* the new secret scan whenever an optional tree (`pops/`) was absent from the backup. Build the path list from directories that exist.
 
 20. **`lua_code_cache` is on in the dev container**, so §4's "hot-reloaded per request" is not true for `api/` in practice — editing a module has no effect until `openresty -s reload`. Worth knowing when a change appears to do nothing.
+
+21. **`helm --wait` can never succeed for the k3s1 control plane.** `wslproxy-ingress-openresty` is a LoadBalancer whose EXTERNAL-IP stays `<pending>` (Traefik already holds 80/443 on the nodes), so `--wait` times out after applying everything. The release is marked failed, the seed job exits non-zero, and the GitHub seed step shows HTTP 504. The deploy script uses `--wait=false` plus explicit `rollout status`. If `helm history wslproxy-ingress -n wslproxy-system` shows a run of `failed … context deadline exceeded`, check that the script Ring Promoter *runs* (`kubectl -n ring-exec get job <id> -o yaml`) matches `deploy/ring-promoter/configmap.yaml`.
 
 ### Conventions
 

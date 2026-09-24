@@ -1,0 +1,150 @@
+name: Deploy Ring Promoter (wslproxy)
+
+# Deploys the wslproxy Ring Promoter instance to k3s1 (namespace
+# wslproxy-ring-promoter, https://rp.wslproxy.com). That instance runs the
+# wslproxy-k3s1 app, which helm-deploys the control plane (cp.pop0.uk).
+#
+# Same shape as diy-tax-return-uk's deploy-ring-promoter.yml. DEPLOY ONLY: the
+# bwalia/ring-promoter repo builds docker.io/bwalia/ring-promoter; here we pull
+# a tag and roll it out.
+#
+# Runs when deploy/ring-promoter/** changes on main, so an edit to the
+# wslproxy-k3s1 deploy script (configmap.yaml) ships by itself.
+#
+# One-time, before the first run: scripts/ring-promoter-bootstrap.sh
+# (database, Secret, RP_URL/RP_TOKEN GitHub secrets). CI never creates secrets.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "deploy/ring-promoter/**"
+      - ".github/workflows/deploy-ring-promoter.yml"
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Ring Promoter image tag (e.g. sha-1c7432d). Empty keeps what is deployed."
+        required: false
+        default: ""
+
+concurrency:
+  group: deploy-ring-promoter-wslproxy
+  cancel-in-progress: false
+
+env:
+  IMAGE: docker.io/bwalia/ring-promoter
+  NAMESPACE: wslproxy-ring-promoter
+  MANIFESTS: deploy/ring-promoter
+  HEALTH_URL: https://rp.wslproxy.com/healthz
+
+jobs:
+  deploy:
+    name: Deploy Ring Promoter to k3s1
+    # The k3s1 API (192.168.1.192:6443) is LAN-only; the Mac Studio runner is
+    # on that LAN (the same runner diy-tax-return-uk uses for this).
+    runs-on: [self-hosted, macOS, ARM64]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure kubeconfig (k3s1)
+        run: |
+          set -euo pipefail
+          if [ -z "${{ secrets.KUBE_CONFIG_DATA_K3S1 }}" ]; then
+            echo "::error::Secret KUBE_CONFIG_DATA_K3S1 is empty or missing — cannot reach k3s1."
+            exit 1
+          fi
+          umask 077
+          echo "${{ secrets.KUBE_CONFIG_DATA_K3S1 }}" | base64 -d > "$RUNNER_TEMP/kubeconfig"
+          echo "KUBECONFIG=$RUNNER_TEMP/kubeconfig" >> "$GITHUB_ENV"
+
+      - name: Preflight
+        run: |
+          set -euo pipefail
+          command -v kubectl >/dev/null || { echo "::error::kubectl not found on this runner."; exit 1; }
+          kubectl get nodes -o wide
+          if ! kubectl -n "${NAMESPACE}" get secret ring-promoter >/dev/null 2>&1; then
+            echo "::error::secret/ring-promoter is missing in ${NAMESPACE}. Run scripts/ring-promoter-bootstrap.sh once. CI never creates secrets."
+            exit 1
+          fi
+          # The deploy Jobs run as ring-exec/ring-deploy-job with the Vault
+          # secret; both are shared platform pieces (k3s1-rbac.yaml, README).
+          kubectl -n ring-exec get sa ring-deploy-job >/dev/null
+          kubectl -n ring-exec get secret wslproxy-vault >/dev/null \
+            || echo "::warning::ring-exec/wslproxy-vault missing — prod seeds will exit with VAULT_ADDR/VAULT_TOKEN missing."
+
+      - name: Resolve image tag
+        run: |
+          set -euo pipefail
+          TAG="${{ inputs.image_tag }}"
+          if [ -z "$TAG" ]; then
+            # A manifest-only push must not move the image: keep what runs.
+            CURRENT=$(kubectl -n "${NAMESPACE}" get deploy ring-promoter \
+              -o jsonpath='{.spec.template.spec.containers[0].image}' 2>/dev/null || true)
+            if [ -n "$CURRENT" ]; then
+              TAG="${CURRENT##*:}"
+            else
+              # First install: start on the build the workstation instance
+              # already runs, not the moving :latest.
+              WS=$(kubectl -n workstation-ring-promoter get deploy ring-promoter \
+                -o jsonpath='{.spec.template.spec.containers[0].image}' 2>/dev/null || true)
+              TAG="${WS##*:}"
+              TAG="${TAG:-latest}"
+            fi
+          fi
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+          echo "Deploying ${IMAGE}:${TAG}"
+
+      - name: Apply manifests (never secrets)
+        run: |
+          set -euo pipefail
+          kubectl apply \
+            -f "${MANIFESTS}/namespace.yaml" \
+            -f "${MANIFESTS}/rbac.yaml" \
+            -f "${MANIFESTS}/k3s1-rbac.yaml" \
+            -f "${MANIFESTS}/configmap.yaml" \
+            -f "${MANIFESTS}/service.yaml" \
+            -f "${MANIFESTS}/ingress.yaml"
+          sed "s#image: docker.io/bwalia/ring-promoter:.*#image: ${IMAGE}:${TAG}#" \
+            "${MANIFESTS}/deployment.yaml" | kubectl apply -f -
+
+      - name: Restart to pick up config, and wait
+        run: |
+          set -euo pipefail
+          # The process reads config.yaml only at boot; a ConfigMap change
+          # alone would apply cleanly and never take effect.
+          kubectl -n "${NAMESPACE}" rollout restart deploy/ring-promoter
+          if ! kubectl -n "${NAMESPACE}" rollout status deploy/ring-promoter --timeout=180s; then
+            echo "::error::ring-promoter rollout timed out"
+            kubectl -n "${NAMESPACE}" get pods -o wide || true
+            kubectl -n "${NAMESPACE}" describe pods -l app=ring-promoter || true
+            kubectl -n "${NAMESPACE}" get events --sort-by=.lastTimestamp | tail -40 || true
+            exit 1
+          fi
+
+      - name: Verify wslproxy-k3s1 is registered
+        run: |
+          set -euo pipefail
+          # In-cluster, so this passes before DNS / the edge vhost exist.
+          kubectl -n "${NAMESPACE}" port-forward svc/ring-promoter 18080:80 >/dev/null 2>&1 &
+          PF=$!
+          trap 'kill $PF 2>/dev/null || true' EXIT
+          for _ in $(seq 1 15); do
+            curl -fsS --max-time 3 http://127.0.0.1:18080/healthz >/dev/null 2>&1 && break
+            sleep 1
+          done
+          curl -fsS --max-time 5 http://127.0.0.1:18080/healthz
+          echo
+          TOKEN=$(kubectl -n "${NAMESPACE}" get secret ring-promoter -o jsonpath='{.data.RP_API_TOKEN}' | base64 -d)
+          echo "::add-mask::${TOKEN}"
+          code=$(curl -sS -o "$RUNNER_TEMP/app.json" -w '%{http_code}' --max-time 10 \
+            -H "Authorization: Bearer ${TOKEN}" http://127.0.0.1:18080/api/apps/wslproxy-k3s1/rings)
+          echo "GET /api/apps/wslproxy-k3s1/rings -> ${code}"
+          [ "$code" = "200" ] || { cat "$RUNNER_TEMP/app.json"; exit 1; }
+
+      - name: Public health (advisory)
+        run: |
+          # Needs DNS rp.wslproxy.com -> edge and the edge vhost; warn, don't
+          # fail, so the instance can be deployed before those exist.
+          code=$(curl -sL -o /dev/null -w '%{http_code}' --max-time 15 "${HEALTH_URL}" || echo 000)
+          echo "${HEALTH_URL} -> ${code}"
+          [ "$code" = "200" ] || echo "::warning::${HEALTH_URL} returned ${code}; check DNS and the edge vhost (data/servers/prod/host:rp.wslproxy.com.json)."

@@ -1,0 +1,107 @@
+# The wslproxy Ring Promoter control-plane service.
+#
+# Copied from diy-tax-return-uk devops/ring-promoter/deployment.yaml; see the
+# comments there for the reasoning behind each choice. The short version:
+#   * replicas 1, RollingUpdate maxUnavailable 0 — promotions are serialized
+#     by a Postgres advisory lock, and Recreate wedges behind a ghost pod on a
+#     dead node.
+#   * amd64 affinity — the image is amd64-only in practice on this cluster.
+#   * imagePullPolicy Always — a cached :latest silently ran a stale build.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ring-promoter
+  namespace: wslproxy-ring-promoter
+  labels:
+    app: ring-promoter
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: ring-promoter
+  template:
+    metadata:
+      labels:
+        app: ring-promoter
+    spec:
+      serviceAccountName: ring-promoter
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/arch
+                    operator: In
+                    values: ["amd64"]
+      securityContext:
+        runAsNonRoot: true
+        # distroless :nonroot is a NAME; runAsNonRoot needs the numeric UID.
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: ring-promoter
+          # deploy-ring-promoter.yml rewrites this to the tag it rolls out.
+          image: docker.io/bwalia/ring-promoter:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: RP_CONFIG_FILE
+              value: /etc/ringpromoter/config.yaml
+            - name: RP_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: ring-promoter
+                  key: RP_API_TOKEN
+            - name: RP_DB_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: ring-promoter
+                  key: RP_DB_DSN
+            - name: RP_PROD_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: ring-promoter
+                  key: RP_PROD_PASSWORD
+                  optional: true
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: config
+              mountPath: /etc/ringpromoter
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: ring-promoter-config
