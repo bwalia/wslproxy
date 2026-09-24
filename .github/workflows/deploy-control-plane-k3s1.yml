@@ -59,6 +59,8 @@ jobs:
     name: Build images + seed prod on rp.wslproxy.com
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
     steps:
       - uses: actions/checkout@v5
 
@@ -255,4 +257,61 @@ jobs:
             sleep 30
           done
           echo "::error::Ring Promoter prod is on '${cur:-unknown}', not ${VERSION}. The seed did not deploy — check ${RP_URL}/?app=wslproxy-k3s1 and kubectl -n ring-exec get jobs."
+          exit 1
+
+  # Keep the int ring on the same build as prod, so int -> test -> acc
+  # promotions always have something to promote. Until 2026-09-24 CI only
+  # seeded prod, test never had a version, and promoting to acc returned
+  # 409 "source ring has no version to promote".
+  #
+  # Runs only after prod is verified on this version, as its own job so a
+  # failed int deploy is visible without marking prod's deploy red.
+  seed-int:
+    name: Seed int ring on rp.wslproxy.com
+    needs: deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Seed wslproxy-k3s1 int and verify
+        env:
+          RP_URL: ${{ secrets.RP_URL }}
+          RP_TOKEN: ${{ secrets.RP_TOKEN }}
+          VERSION: ${{ needs.deploy.outputs.version }}
+        run: |
+          set -euo pipefail
+          RP_URL="${RP_URL:-$RP_URL_DEFAULT}"
+          RP_URL="${RP_URL%/}"
+          if [ -z "${VERSION}" ] || [ -z "${RP_TOKEN:-}" ]; then
+            echo "::error::missing version (${VERSION:-empty}) or RP_TOKEN"
+            exit 1
+          fi
+          body=$(jq -n --arg ring int --arg version "$VERSION" '{ring:$ring, version:$version}')
+          echo "POST ${RP_URL}/api/apps/wslproxy-k3s1/seed ${body}"
+          code=$(curl -sS -o /tmp/rp-seed-int.json -w '%{http_code}' \
+            --connect-timeout 30 --max-time 1800 \
+            -X POST "${RP_URL}/api/apps/wslproxy-k3s1/seed" \
+            -H "Authorization: Bearer ${RP_TOKEN}" \
+            -H 'Content-Type: application/json' \
+            -d "$body" || true)
+          echo "HTTP ${code}"
+          jq -c '{success, message}' /tmp/rp-seed-int.json 2>/dev/null || head -c 500 /tmp/rp-seed-int.json || true
+          echo
+          # A 504 at the edge can still mean the Job finished, so the
+          # ring's recorded version decides, not the HTTP code.
+          for i in $(seq 1 50); do
+            cur=$(curl -sS --connect-timeout 10 --max-time 20 \
+              -H "Authorization: Bearer ${RP_TOKEN}" \
+              "${RP_URL}/api/apps/wslproxy-k3s1/rings" 2>/dev/null \
+              | jq -r '.rings[] | select(.ring.name == "int") | .current_version' 2>/dev/null || true)
+            echo "attempt $i: int current_version=${cur:-<unreadable>}"
+            if [ "$cur" = "$VERSION" ]; then
+              echo "int is on ${VERSION}"
+              exit 0
+            fi
+            if [ "$code" = "422" ]; then
+              break   # Ring Promoter reported the deploy itself failed
+            fi
+            sleep 30
+          done
+          echo "::error::int is on '${cur:-unknown}', not ${VERSION}. Check ${RP_URL}/?app=wslproxy-k3s1 and kubectl -n ring-exec get jobs."
           exit 1

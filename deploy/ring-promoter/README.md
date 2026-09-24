@@ -95,6 +95,8 @@ for that commit.
 
 Promotion goes int → test → acc → prod, and each step copies the previous
 ring's version (`POST /promote {"from_ring":"test"}` deploys to acc). CI
-(`deploy-control-plane-k3s1.yml`) only **seeds prod**, so int, test and acc
-stay empty until one of them is seeded, and promoting into an empty ring's
-successor returns `409 source ring has no version to promote`.
+(`deploy-control-plane-k3s1.yml`) seeds **prod**, then, once prod is verified
+on that version, seeds **int** in a separate `seed-int` job. int therefore
+always has a version to promote. test and acc move only when someone
+promotes. Promoting from an empty ring returns
+`409 source ring has no version to promote`.
