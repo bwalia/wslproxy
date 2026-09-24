@@ -1,23 +1,67 @@
-FROM node:24.13.0-alpine
+# Production Next.js standalone image for the k3s control-plane dashboard
+# (cp.pop0.uk).  Dev/hot-reload continues to use Dockerfile.dev via compose.
+#
+# Build-args bake footer provenance (NEXT_PUBLIC_*).  Runtime WSLPROXY_API_URL
+# points at the in-cluster OpenResty admin API so one image works per SHA.
 
+# ── deps ──────────────────────────────────────────────────────────────────
+FROM node:24.13.0-alpine AS deps
+WORKDIR /app
+RUN apk add --no-cache libc6-compat
+COPY package.json package-lock.json* ./
+RUN npm ci --legacy-peer-deps
+
+# ── build ─────────────────────────────────────────────────────────────────
+FROM node:24.13.0-alpine AS builder
 WORKDIR /app
 
-# Install dependencies separately so Docker layer cache is reused when only
-# source files change (not package.json / package-lock.json)
-COPY package.json package-lock.json* ./
-RUN npm install --legacy-peer-deps
+ARG NEXT_PUBLIC_APP_VERSION=dev
+ARG NEXT_PUBLIC_APP_BUILD_NUMBER=local
+ARG NEXT_PUBLIC_DEPLOYMENT_TIME=
+ARG NEXT_PUBLIC_ENV_NAME=prod
+ARG NEXT_PUBLIC_GIT_SHA=
+ARG NEXT_PUBLIC_GIT_REPO=bwalia/wslproxy
+ARG NEXT_PUBLIC_TARGET_PLATFORM=KUBERNETES
+ARG NEXT_PUBLIC_APP_NAME=wslproxy
+ARG NEXT_PUBLIC_APP_DISPLAY_NAME=WSL Proxy
 
-# Source is bind-mounted in docker-compose-local.yml for hot-reload.
-# This COPY only runs during production builds (docker build without a mount).
+ENV NEXT_PUBLIC_APP_VERSION=$NEXT_PUBLIC_APP_VERSION \
+    NEXT_PUBLIC_APP_BUILD_NUMBER=$NEXT_PUBLIC_APP_BUILD_NUMBER \
+    NEXT_PUBLIC_DEPLOYMENT_TIME=$NEXT_PUBLIC_DEPLOYMENT_TIME \
+    NEXT_PUBLIC_ENV_NAME=$NEXT_PUBLIC_ENV_NAME \
+    NEXT_PUBLIC_GIT_SHA=$NEXT_PUBLIC_GIT_SHA \
+    NEXT_PUBLIC_GIT_REPO=$NEXT_PUBLIC_GIT_REPO \
+    NEXT_PUBLIC_TARGET_PLATFORM=$NEXT_PUBLIC_TARGET_PLATFORM \
+    NEXT_PUBLIC_APP_NAME=$NEXT_PUBLIC_APP_NAME \
+    NEXT_PUBLIC_APP_DISPLAY_NAME=$NEXT_PUBLIC_APP_DISPLAY_NAME \
+    NEXT_TELEMETRY_DISABLED=1 \
+    NODE_ENV=production
+
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
+RUN npm run build
+
+# ── runner ────────────────────────────────────────────────────────────────
+FROM node:24.13.0-alpine AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production \
+    NEXT_TELEMETRY_DISABLED=1 \
+    PORT=7619 \
+    HOSTNAME=0.0.0.0 \
+    # Default in-cluster OpenResty admin API; override per deploy if needed.
+    WSLPROXY_API_URL=http://wslproxy-ingress-openresty:8080 \
+    WSLPROXY_ALLOWED_ORIGINS=cp.pop0.uk
+
+RUN addgroup --system --gid 1001 nodejs \
+ && adduser --system --uid 1001 nextjs
+
+COPY --from=builder /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+USER nextjs
 EXPOSE 7619
 
-# On container start, if package.json on the bind-mount is newer than the
-# last install, re-sync node_modules.  Needed because `node_modules` lives
-# on a named Docker volume — adding a dep to package.json on the host
-# wouldn't otherwise be reflected in the running container.
-#
-# `npm install` is a no-op when deps are already in sync, so this adds
-# only ~1s on cold start when nothing has changed.
-CMD ["sh", "-c", "npm install --legacy-peer-deps --no-audit --no-fund --prefer-offline 2>&1 | tail -1 && npm run dev"]
+CMD ["node", "server.js"]

@@ -1,0 +1,20 @@
+{{- if and .Values.openresty.controlPlane.enabled .Values.openresty.controlPlane.dashboard.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "wslproxy.fullname" . }}-dashboard
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "wslproxy.labels" . | nindent 4 }}
+    app.kubernetes.io/component: dashboard
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: {{ .Values.openresty.controlPlane.dashboard.port }}
+      targetPort: http
+      protocol: TCP
+  selector:
+    {{- include "wslproxy.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: dashboard
+{{- end }}

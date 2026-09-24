@@ -202,7 +202,7 @@ services:
   openresty-admin-next:
     build:
       context: ./openresty-admin-next
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     container_name: wslproxy-admin-next-local
     restart: unless-stopped
 

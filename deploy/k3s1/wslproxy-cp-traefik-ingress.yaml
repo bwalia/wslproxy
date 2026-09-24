@@ -2,6 +2,9 @@
 # Cloudflare proxies cp.pop0.uk → 77.68.126.63. Traefik 3 only attaches
 # routers to websecure when TLS is enabled — hence the split Ingresses.
 #
+# UI → Next.js dashboard Service (:7619)
+# API / health / swagger / mcp / legacy SPA → OpenResty (:8080)
+#
 # Apply: kubectl apply -f deploy/k3s1/wslproxy-cp-traefik-ingress.yaml
 #
 # Note: traefik-edge has --providers.kubernetesingress only (no kubernetescrd),
@@ -25,13 +28,83 @@ spec:
     - host: cp.pop0.uk
       http:
         paths:
-          - path: /
+          - path: /api
             pathType: Prefix
             backend:
               service:
                 name: wslproxy-ingress-openresty
                 port:
                   number: 8080
+          - path: /health
+            pathType: Prefix
+            backend:
+              service:
+                name: wslproxy-ingress-openresty
+                port:
+                  number: 8080
+          - path: /healthz
+            pathType: Prefix
+            backend:
+              service:
+                name: wslproxy-ingress-openresty
+                port:
+                  number: 8080
+          - path: /ready
+            pathType: Prefix
+            backend:
+              service:
+                name: wslproxy-ingress-openresty
+                port:
+                  number: 8080
+          - path: /readyz
+            pathType: Prefix
+            backend:
+              service:
+                name: wslproxy-ingress-openresty
+                port:
+                  number: 8080
+          - path: /swagger
+            pathType: Prefix
+            backend:
+              service:
+                name: wslproxy-ingress-openresty
+                port:
+                  number: 8080
+          - path: /mcp
+            pathType: Prefix
+            backend:
+              service:
+                name: wslproxy-ingress-openresty
+                port:
+                  number: 8080
+          - path: /metrics
+            pathType: Prefix
+            backend:
+              service:
+                name: wslproxy-ingress-openresty
+                port:
+                  number: 8080
+          - path: /openresty-admin
+            pathType: Prefix
+            backend:
+              service:
+                name: wslproxy-ingress-openresty
+                port:
+                  number: 8080
+          - path: /runtime-config.js
+            pathType: Prefix
+            backend:
+              service:
+                name: wslproxy-ingress-openresty
+                port:
+                  number: 8080
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: wslproxy-ingress-dashboard
+                port:
+                  number: 7619
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -46,10 +119,80 @@ spec:
     - host: cp.pop0.uk
       http:
         paths:
-          - path: /
+          - path: /api
             pathType: Prefix
             backend:
               service:
                 name: wslproxy-ingress-openresty
                 port:
                   number: 8080
+          - path: /health
+            pathType: Prefix
+            backend:
+              service:
+                name: wslproxy-ingress-openresty
+                port:
+                  number: 8080
+          - path: /healthz
+            pathType: Prefix
+            backend:
+              service:
+                name: wslproxy-ingress-openresty
+                port:
+                  number: 8080
+          - path: /ready
+            pathType: Prefix
+            backend:
+              service:
+                name: wslproxy-ingress-openresty
+                port:
+                  number: 8080
+          - path: /readyz
+            pathType: Prefix
+            backend:
+              service:
+                name: wslproxy-ingress-openresty
+                port:
+                  number: 8080
+          - path: /swagger
+            pathType: Prefix
+            backend:
+              service:
+                name: wslproxy-ingress-openresty
+                port:
+                  number: 8080
+          - path: /mcp
+            pathType: Prefix
+            backend:
+              service:
+                name: wslproxy-ingress-openresty
+                port:
+                  number: 8080
+          - path: /metrics
+            pathType: Prefix
+            backend:
+              service:
+                name: wslproxy-ingress-openresty
+                port:
+                  number: 8080
+          - path: /openresty-admin
+            pathType: Prefix
+            backend:
+              service:
+                name: wslproxy-ingress-openresty
+                port:
+                  number: 8080
+          - path: /runtime-config.js
+            pathType: Prefix
+            backend:
+              service:
+                name: wslproxy-ingress-openresty
+                port:
+                  number: 8080
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: wslproxy-ingress-dashboard
+                port:
+                  number: 7619

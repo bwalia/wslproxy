@@ -70,8 +70,9 @@ openresty:
   pgsql:
     existingSecret: ""
 
-  # Control-plane admin UI (react-admin on :8080). Exposed as Ingress host
-  # and NodePort so the lon1 edge can proxy https://cp.pop0.uk → this Service.
+  # Control-plane admin UI. Legacy Vite SPA remains on OpenResty :8080
+  # at /openresty-admin/. When dashboard.enabled, the Next.js Deployment
+  # serves / via Traefik (see deploy/k3s1/wslproxy-cp-traefik-ingress.yaml).
   controlPlane:
     enabled: false
     host: cp.pop0.uk
@@ -80,6 +81,24 @@ openresty:
     tls: true
     # cert-manager ClusterIssuer when certManager.enabled (optional)
     clusterIssuer: letsencrypt-prod
+    dashboard:
+      enabled: false
+      replicas: 1
+      port: 7619
+      # In-cluster OpenResty admin API (Lua). Service name matches fullnameOverride.
+      apiUrl: http://wslproxy-ingress-openresty:8080
+      allowedOrigins: cp.pop0.uk
+      image:
+        repository: bwalia/wslproxy-admin-next
+        tag: "latest"
+        pullPolicy: IfNotPresent
+      resources:
+        limits:
+          cpu: "1"
+          memory: 512Mi
+        requests:
+          cpu: 50m
+          memory: 128Mi
 
   # Container image
   image:
