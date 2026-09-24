@@ -34,6 +34,11 @@ spec:
       - name: openresty
         image: "{{ .Values.openresty.image.repository }}:{{ .Values.openresty.image.tag }}"
         imagePullPolicy: {{ .Values.openresty.image.pullPolicy }}
+        {{- if and .Values.openresty.useBuiltinConfig .Values.openresty.builtinConfigStartup }}
+        command: ["/bin/sh", "-c"]
+        args:
+          - {{ toJson .Values.openresty.builtinConfigStartup }}
+        {{- end }}
         ports:
         - name: http
           containerPort: 80

@@ -54,6 +54,33 @@ openresty:
   # Set to false to use ConfigMap-based config from files/ in this chart
   useBuiltinConfig: true
 
+  # Startup script run as `/bin/sh -c` when useBuiltinConfig is true. The
+  # image's built-in nginx.conf is the Docker dev template: it includes
+  # /tmp/resolver.conf and proxies `location /` to host.docker.internal:7619,
+  # which doesn't resolve in k3s, so nginx exits with
+  # `[emerg] host not found in upstream "host.docker.internal"`. This writes
+  # the k3s resolver, rewrites that location, and execs nginx.
+  # Until 2026-09-24 this lived ONLY on the prod Deployment (applied by hand
+  # with `kubectl replace` on 2026-09-15), so every int/test/acc release
+  # crash-looped. Kept byte-identical to what prod ran. Set to "" to use the
+  # image entrypoint.
+  builtinConfigStartup: |-
+    set -ex
+    printf 'resolver 10.43.0.10 ipv6=off;\n' > /tmp/resolver.conf
+    CONF=/usr/local/openresty/nginx/conf/nginx.conf
+    # Serve built admin UI instead of proxying to host Next.js (dev-only).
+    if grep -q 'proxy_pass http://host.docker.internal:7619;' "$CONF"; then
+      sed -i 's|proxy_pass http://host.docker.internal:7619;|root /usr/local/openresty/nginx/html/openresty-admin/dist; try_files $uri $uri/ /index.html;|' "$CONF"
+      # Drop leftover proxy_* headers in that block (harmless if left; remove Upgrade lines)
+      sed -i '/root \/usr\/local\/openresty\/nginx\/html\/openresty-admin\/dist; try_files/,/}/ {
+        /proxy_http_version/d
+        /proxy_set_header/d
+      }' "$CONF"
+      echo patched location /
+    fi
+    nginx -t
+    exec /usr/local/openresty/nginx/sbin/nginx -g 'daemon off;'
+
   # Number of proxy replicas
   replicas: 3
 
