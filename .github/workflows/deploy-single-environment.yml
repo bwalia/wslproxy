@@ -162,7 +162,24 @@ jobs:
       # moved onto 192.168.1.47 itself, drop this to `local`.
       connection_mode: ssh_key
       secrets_mode: vault_or_sops
-      health_endpoint: "http://localhost:8080/healthz"
+      # Was http://localhost:8080/healthz and failed every deploy: twelve
+      # attempts, HTTP 000 each time, after a PLAY RECAP with failed=0 and a
+      # passing `openresty -t` (run 36042124096). HTTP 000 is a failed TCP
+      # connect, not a bad response — nothing was listening, or nothing that
+      # could be reached.
+      #
+      # int and test hit the identical symptom on :8080 and both moved here;
+      # their comments attribute it to k3s CNI hostPort DNAT blackholing the
+      # port. That cause has NOT been confirmed on acc — no one has been on
+      # the box — so treat it as the likely explanation, not a finding.
+      #
+      # Either way :8099 is the right target: the Next.js admin block serves
+      # the same /healthz (nginx.conf.j2:648), and it exists here because acc
+      # sets nginx_web_ui_enabled: "yes".
+      #
+      # 127.0.0.1 rather than localhost, matching int and test: localhost can
+      # resolve to ::1 first and these blocks listen on IPv4.
+      health_endpoint: "http://127.0.0.1:8099/healthz"
       health_check_mode: ssh
       docker_prune: true
       notify_success: true

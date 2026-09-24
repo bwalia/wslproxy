@@ -206,10 +206,26 @@ Shared parameterized workflow called by both pipelines via `workflow_call`. Hand
 
 | Environment | Host IP | SSH User | `connection_mode` | `secrets_mode` | `health_check_mode` | Health Endpoint |
 |-------------|---------|----------|--------------------|----------------|---------------------|-----------------|
-| int | 192.168.1.193 | (local) | `local` | `github_secret` | `local` | `http://localhost:8080/health` |
-| test | 192.168.1.140 | bwalia | `ssh` | `runner_file` | `ssh` | `http://localhost:8080/health` |
+| int | 192.168.1.193 | (local) | `local` | `sops` | `local` | `http://127.0.0.1:8099/healthz` |
+| test | 192.168.1.140 | bwalia | `ssh` | `vault_or_sops` | `ssh` | `http://127.0.0.1:8099/healthz` |
+| acc | 192.168.1.47 | bwalia | `ssh_key` | `vault_or_sops` | `ssh` | `http://127.0.0.1:8099/healthz` |
 | prod / prod-lon1 | lon1.pop0.uk | root | `ssh_key` | `vault_or_sops` | `external` | `https://lon1.pop0.uk/healthz` |
 | prod-pop0 | 85.190.106.189 | administrator | `ssh_key` | `vault_or_sops` | `ssh` | `http://127.0.0.1:7691/healthz` |
+
+> **Why :8099 on the LAN hosts:** all three of int, test and acc failed their
+> health gate on `:8080` with HTTP 000 — a failed TCP connect — while
+> `openresty -t` passed and the service was `active`. The int and test fixes
+> attribute this to k3s CNI hostPort DNAT blackholing the port; that cause is
+> documented there but has not been verified on acc. The Next.js admin block
+> on `nginx_nextjs_dashboard_port` (8099) serves the same `/healthz` and is
+> reachable, so all three point at it.
+>
+> If `:8080` really is blackholed rather than merely unbound, then the **admin
+> API itself** is unreachable on these hosts, not just the health path. int
+> handled that by moving it to `:8090`
+> (`nginx_default_server_backend_port` in its host_vars); test and acc still
+> have it on `:8080`. Worth checking on the box — the Next.js dashboard's
+> `WSLPROXY_API_URL` points at that port.
 
 > **pop1 retired:** `18.133.126.242` / `pop1.diytaxreturn.co.uk` is gone — use `ENV=prod` or `prod-lon1` (both lon1).
 >
