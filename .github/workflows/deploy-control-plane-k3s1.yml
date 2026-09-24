@@ -184,36 +184,43 @@ jobs:
 
           echo "seed accepted"
 
-      - name: Fail if Ring Promoter seed failed
-        if: steps.seed.outcome == 'failure'
-        run: |
-          echo "::error::Ring Promoter seed failed (see previous step). Images ${{ env.IMAGE }}:${{ steps.meta.outputs.tag }} and ${{ env.DASHBOARD_IMAGE }}:${{ steps.meta.outputs.tag }} were pushed — re-run or helm upgrade with those tags."
-          exit 1
-
+      # RP sync seed frequently returns HTTP 504 from the edge while the
+      # in-cluster ring-exec Job still finishes helm + Traefik apply. Treat
+      # gateway timeouts as soft-fail and let smoke decide success.
       - name: Smoke check control plane
+        id: smoke
         run: |
           set -euo pipefail
-          for i in $(seq 1 36); do
+          SEED_OK="${{ steps.seed.outcome }}"
+          if [ "$SEED_OK" != "success" ]; then
+            echo "::warning::Ring Promoter seed HTTP failed (outcome=${SEED_OK}). Waiting for in-cluster Job; images ${{ env.IMAGE }}:${{ steps.meta.outputs.tag }} + ${{ env.DASHBOARD_IMAGE }}:${{ steps.meta.outputs.tag }} are on Docker Hub."
+          fi
+          NEXT_OK=0
+          for i in $(seq 1 48); do
             code=$(curl -sS -o /tmp/cp-health.body -w '%{http_code}' \
               --connect-timeout 5 --max-time 15 \
               https://cp.pop0.uk/healthz || true)
             echo "attempt $i healthz: HTTP ${code}"
             if [ "$code" = "200" ]; then
               head -c 200 /tmp/cp-health.body; echo
-              # Prefer Next.js login (307/200) over legacy Vite HTML.
-              ui=$(curl -sS -o /tmp/cp-root.body -w '%{http_code}' \
+              ui=$(curl -sS -o /tmp/cp-login.body -w '%{http_code}' \
                 --connect-timeout 5 --max-time 15 \
                 https://cp.pop0.uk/login || true)
               echo "login: HTTP ${ui}"
-              if grep -qi 'next\|Outfit\|fraunces\|WSLProxy Admin' /tmp/cp-root.body 2>/dev/null \
-                || [ "$ui" = "200" ] || [ "$ui" = "307" ]; then
+              if grep -qiE 'next|Outfit|fraunces|WSLProxy Admin|generator" content="Next' /tmp/cp-login.body 2>/dev/null; then
                 echo "Next.js UI looks live"
-              else
-                echo "::warning::/login did not look like Next.js yet (may still be rolling)"
+                NEXT_OK=1
+                echo "next_ok=1" >> "$GITHUB_OUTPUT"
+                exit 0
               fi
-              exit 0
+              echo "::warning::/login did not look like Next.js yet (may still be rolling Traefik path split)"
             fi
             sleep 10
           done
-          echo "::warning::cp.pop0.uk/healthz did not return 200 within ~6m (seed Job may still be running; check https://rp.workstation.co.uk/?app=wslproxy-k3s1)"
-          exit 0
+          echo "next_ok=0" >> "$GITHUB_OUTPUT"
+          if [ "$SEED_OK" = "success" ]; then
+            echo "::warning::seed accepted but cp.pop0.uk did not show Next.js within ~8m — check https://rp.workstation.co.uk/?app=wslproxy-k3s1"
+            exit 0
+          fi
+          echo "::error::Ring Promoter seed failed and cp.pop0.uk did not become healthy with Next.js. Images were pushed — helm-upgrade manually with tag ${{ steps.meta.outputs.tag }} and apply deploy/k3s1/wslproxy-cp-traefik-ingress.yaml."
+          exit 1
