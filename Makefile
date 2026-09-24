@@ -31,6 +31,11 @@ test-lua:
 		$(LUA) "$$f" || exit 1; \
 	done
 
+# Next.js admin contract tests.  Node's built-in runner, no test framework
+# dependency — Node >= 22 strips the TypeScript itself.
+test-admin:
+	cd openresty-admin-next && npm test
+
 vet:
 	go vet ./cmd/wslproxy-cli/... ./internal/...
 
