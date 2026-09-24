@@ -225,3 +225,34 @@ jobs:
           fi
           echo "::error::Ring Promoter seed failed and cp.pop0.uk did not become healthy with Next.js. Images were pushed — helm-upgrade manually with tag ${{ steps.meta.outputs.tag }} and apply deploy/k3s1/wslproxy-cp-traefik-ingress.yaml."
           exit 1
+
+      # The smoke check above only proves cp.pop0.uk answers — the PREVIOUS
+      # build answers too. On 2026-09-24 a seed that never reached Ring
+      # Promoter (DNS for rp.wslproxy.com not yet created) still went green.
+      # Ring Promoter sets prod current_version only when the deploy Job
+      # succeeds, so require it to equal the version this run seeded.
+      - name: Verify prod runs the seeded version
+        env:
+          RP_URL: ${{ secrets.RP_URL }}
+          RP_TOKEN: ${{ secrets.RP_TOKEN }}
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          set -euo pipefail
+          RP_URL="${RP_URL:-$RP_URL_DEFAULT}"
+          RP_URL="${RP_URL%/}"
+          # Up to 25m: the deploy Job's own timeout, for a seed that 504'd at
+          # the gateway while the Job kept running.
+          for i in $(seq 1 50); do
+            cur=$(curl -sS --connect-timeout 10 --max-time 20 \
+              -H "Authorization: Bearer ${RP_TOKEN}" \
+              "${RP_URL}/api/apps/wslproxy-k3s1/rings" 2>/dev/null \
+              | jq -r '.rings[] | select(.ring.name == "prod") | .current_version' 2>/dev/null || true)
+            echo "attempt $i: prod current_version=${cur:-<unreadable>}"
+            if [ "$cur" = "$VERSION" ]; then
+              echo "prod is on ${VERSION}"
+              exit 0
+            fi
+            sleep 30
+          done
+          echo "::error::Ring Promoter prod is on '${cur:-unknown}', not ${VERSION}. The seed did not deploy — check ${RP_URL}/?app=wslproxy-k3s1 and kubectl -n ring-exec get jobs."
+          exit 1
