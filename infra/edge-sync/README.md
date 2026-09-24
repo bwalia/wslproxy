@@ -53,9 +53,10 @@ Every `deploy-wslproxy-delivery-pipeline.yml` deploy, in **any** mode except
 `deploy-environment.yml` → "Deploy server configs and rules" →
 `infra/ansible/deploy-configs.yml`. That step pushes this repo's
 `data/servers/<env>` and `data/rules/<env>` over the target. On pop0 the
-timer puts lon1's data back within 5 minutes. On **lon1** it overwrites live
-edge config with whatever the repo has, and the timer then copies the result
-to pop0.
+timer puts lon1's data back within 5 minutes. **lon1 is skipped**
+(`push_repo_data: auto`), so its live config, the source pop0 mirrors, is
+never rolled back by a code or dashboard deploy. To push repo data to lon1 on
+purpose, use `deploy-wslproxy-virtual-servers.yml`.
 
 ## Reinstall
 
