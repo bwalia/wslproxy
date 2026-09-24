@@ -196,8 +196,7 @@ services:
         ipv4_address: 172.177.0.7
 
   # ── Next.js Admin Dashboard ──────────────────────────────────────────────
-  # Standalone Next.js app — the sole admin UI (legacy Vite/React-Admin
-  # retired from local dev; see `openresty-admin/` for the archived source).
+  # Standalone Next.js app — the sole admin UI.
   # Runs on port 7619 (internal and external) with hot-reload in dev mode
   openresty-admin-next:
     build:

@@ -131,8 +131,3 @@ install -D -m 0775 -o www-data -g root /tmp/IP2LOCATION-LITE-DB11.IPV6.BIN "{{ i
 # after install, which blanked Geographic Traffic on lon1.
 rm -f /tmp/IP2LOCATION-LITE-DB11.IPV6.BIN
 ln -sfn "{{ ip2location_db_path }}" /tmp/IP2LOCATION-LITE-DB11.IPV6.BIN
-
-if [ -f "/tmp/.env" ]; then
-  mkdir -p /usr/local/openresty/nginx/html/openresty-admin/
-  cp /tmp/.env /usr/local/openresty/nginx/html/openresty-admin/.env
-fi

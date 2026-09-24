@@ -6,7 +6,7 @@
 # - Lua API Gateway functionality
 # - Automatic SSL/TLS certificate management (Let's Encrypt)
 # - Reverse proxy and load balancing
-# - Admin dashboard (React)
+# - Admin API (Lua); UI is openresty-admin-next (separate image / Ansible)
 # - Prometheus metrics
 # - Traffic analytics
 # - Redis session storage
@@ -61,8 +61,6 @@ RUN apk add --no-cache --virtual .build-deps \
     perl \
     unzip \
     wget \
-    npm \
-    yarn \
     openssl \
     jq \
     && cd /tmp \
@@ -167,13 +165,9 @@ ARG APP_ENV="dev"
 COPY ./system ${NGINX_CONFIG_DIR}system
 
 COPY ./html /usr/local/openresty/nginx/
-COPY ./openresty-admin /usr/local/openresty/nginx/html/openresty-admin
 COPY ./data ${NGINX_CONFIG_DIR}data
 COPY ./data/sample-settings.json ${NGINX_CONFIG_DIR}data/settings.json
 COPY ./api /usr/local/openresty/nginx/html/api
-# Neutral same-origin default at build time only — runtime uses /runtime-config.js
-# from WSLPROXY_API_URL or settings.admin.api_url (see write-admin-runtime-config.sh).
-ENV VITE_API_URL=/api
 COPY ./nginx-${APP_ENV}.conf.tmpl /tmp/nginx.conf.tmpl
 COPY ./resolver.conf.tmpl /tmp/resolver.conf.tmpl
 COPY ./html/swagger /usr/local/openresty/nginx/html/swagger
@@ -258,18 +252,7 @@ RUN mkdir -p "/var/cache/nginx/docker_blobs" \
     && chmod 775 -R "/var/cache/nginx/"
 
 
-# set environment file based on the argument
-
-WORKDIR /usr/local/openresty/nginx/html/openresty-admin/
-
-# Install yarn dependencies
-RUN yarn install \
-    --non-interactive \
-    --network-timeout 300000 \
-    --production=false
-
-# Build the application
-RUN yarn build
+WORKDIR /usr/local/openresty/nginx/html
 
 RUN mkdir -p "${NGINX_CONFIG_DIR}data/servers" && \
     mkdir -p "${NGINX_CONFIG_DIR}data/rules" && \
@@ -303,10 +286,7 @@ HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=40s \
 # ============================================================================
 # Container Entry Point
 # ============================================================================
-# Emit admin runtime-config.js (per-install API URL) then start OpenResty.
-COPY ./scripts/write-admin-runtime-config.sh /usr/local/bin/write-admin-runtime-config.sh
 COPY ./scripts/docker-entrypoint-openresty.sh /usr/local/bin/docker-entrypoint-openresty.sh
-RUN chmod +x /usr/local/bin/write-admin-runtime-config.sh \
-              /usr/local/bin/docker-entrypoint-openresty.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint-openresty.sh
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint-openresty.sh"]

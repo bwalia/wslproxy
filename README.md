@@ -165,7 +165,6 @@ sequenceDiagram
 |------|------|
 | `api/` | Lua gateway + REST + MCP (hot-reloaded) |
 | `data/` | Servers, rules, WAF, SSL JSON (per env profile) |
-| `openresty-admin/` | React Admin UI |
 | `openresty-admin-next/` | Next.js ops dashboard |
 | `html/` | Public landing + swagger |
 | `cmd/wslproxy-cli/` | Go CLI + Dockerfile |

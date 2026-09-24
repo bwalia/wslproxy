@@ -742,7 +742,7 @@ jobs:
             echo "Build deploy to ${{ inputs.env_label }}"
           elif [[ "$DEPLOY_MODE" == "dashboard" ]]; then
             TAGS_FLAG="--tags dashboard,dashboard-next"
-            echo "Dashboard deploy (legacy + Next.js) to ${{ inputs.env_label }}"
+            echo "Next.js dashboard deploy to ${{ inputs.env_label }}"
           elif [[ "$DEPLOY_MODE" == "dashboard-next" ]]; then
             TAGS_FLAG="--tags dashboard-next"
             echo "Next.js dashboard deploy to ${{ inputs.env_label }}"

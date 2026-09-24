@@ -14,10 +14,6 @@ docker cp response.lua ${DOCKER_CONTAINER_NAME}:/usr/local/openresty/nginx/html/
 docker cp api/ ${DOCKER_CONTAINER_NAME}:/usr/local/openresty/nginx/html/
 docker cp data/ ${DOCKER_CONTAINER_NAME}:/usr/local/openresty/nginx/html/
 
-#COPY ./.env.${APP_ENV} /usr/local/openresty/nginx/html/openresty-admin/.env
-
-docker cp .env.${APP_ENV} ${DOCKER_CONTAINER_NAME}:/usr/local/openresty/nginx/html/openresty-admin/.env
-docker cp openresty-admin/src ${DOCKER_CONTAINER_NAME}:/usr/local/openresty/nginx/html/openresty-admin/
 docker exec -it ${DOCKER_CONTAINER_NAME} chmod -R 777 /opt/nginx/data
 docker exec -it ${DOCKER_CONTAINER_NAME} openresty -t 
 docker exec -it ${DOCKER_CONTAINER_NAME} openresty -s reload

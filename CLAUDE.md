@@ -45,8 +45,7 @@ Admin plane is a separate server block (port 8069 prod / 8080 dev / 8099 next.js
 | `api/api_gw/` | **Kong-class API gateway package** — CORS, correlation, IVT, edge auth, rate-limit profiles, audit. Per-server `api_gw` JSON, no reload. See `docs/api-gateway.md`. |
 | `data/` | JSON data stores (servers, rules, upstreams, waf_policies, ssl, profiles, audit, versions, change_requests). Per-environment subdirs: `dev/int/test/acc/prod/`. |
 | `data/settings.json` | **Global config** — storage type, super_user, env_profile, redis/pgsql, captcha, waf, mcp, env_vars |
-| `openresty-admin/` | Legacy React admin UI (react-admin, Vite). Resources: Servers, Rules, Profiles, Secrets, Upstreams, Users, WafPolicies, WafRules. |
-| `openresty-admin-next/` | Modern Next.js 16 dashboard (Tailwind, SWR). Adds Logs & AI Analysis pages. |
+| `openresty-admin-next/` | Next.js 16 admin dashboard (Tailwind, SWR) — sole admin UI. |
 | `nginx-dev.conf.tmpl` | **Docker** nginx template |
 | `nginx-base.d/`, `nginx-conf.d/` | Base/shared nginx includes |
 | `infra/ansible/` | Ansible playbooks + roles for bare-metal/VM deploy |
@@ -250,7 +249,7 @@ Key fields (not exhaustive):
 Three completely independent deploy mechanisms — they don't share configuration:
 
 ### A. Docker (local dev)
-- `docker-compose-local.yml` starts wslproxy, redis, postgres, openresty-admin (Vite), openresty-admin-next
+- `docker-compose-local.yml` starts wslproxy, redis, postgres, openresty-admin-next
 - `./dev.sh` is the orchestrator (`start.sh`). Accepts `-n` (skip git), `-w` (admin watch), `-a` (auto), `--stash`, `--pull`, JWT arg.
 - Hot-reload: `api/` and `html/` bind-mounted. React admin requires rebuild.
 
@@ -344,123 +343,9 @@ The k3s ingress controller is configured by `Ingress` resources (e.g. `diytaxret
 
 ---
 
-## 13. Frontend: React Admin UI (`openresty-admin/`)
+## 13. Frontend: Next.js Admin (`openresty-admin-next/`)
 
-Legacy but still primary admin UI. **react-admin v4.9.4 + Vite 4 + MUI v5**, no Tailwind.
-
-### Resource convention
-
-Each resource is a folder under `src/` with `index.jsx` exporting `{ create, edit, list }`:
-
-```
-src/{Resource}/
-├── index.jsx              # exports { create, edit, list }
-├── Create.jsx             # wraps <Create>{Form}</Create>
-├── Edit.jsx               # wraps <Edit>{Form}</Edit>
-├── List.jsx               # <List><Datagrid>...</Datagrid></List>
-├── Form.jsx               # SimpleForm or TabbedForm with inputs + validation
-├── input/                 # resource-specific inputs (e.g. LocationInput)
-└── toolbar/               # resource-specific toolbar buttons (e.g. ExportJsonButton)
-```
-
-Registered in `App.jsx:190-202`. Current resources: `users, sessions, servers, upstreams, rules, settings, profiles, secrets, instances, waf_rules, waf_policies, waf_events, bookmarks`.
-
-### `dataProvider.js` — the brain of the frontend
-
-A large custom react-admin data provider (~1060 lines) that bridges RA's CRUD interface to the Lua `/api/*` REST endpoints. Key responsibilities:
-
-- **JWT injection:** `Authorization: Bearer {localStorage.token}` on every request, plus `x-platform: react-admin`. On 401/403, clears localStorage and redirects to `/#/login`.
-- **Environment profile injection:** auto-adds `profile_id` from localStorage (`environment` key) to queries — that's how per-environment isolation works (prod/int/acc/dev).
-- **URI encoding quirk** (lines ~272, 309): escapes `&`, `+`, `=` as Unicode before sending, because nginx config strings contain these chars.
-- **Special `servers` resource handling** (lines 19-156) — `handleConfigField()`:
-  - Composes the full nginx server block **in the browser** by combining form fields (listens, locations, SSL, ACME, custom blocks) into raw nginx syntax
-  - `generateSslConfigBlock()` emits `ssl_certificate_by_lua_block { auto_ssl:ssl_certificate() }`, fallback cert paths, modern TLS ciphers, HSTS
-  - `generateAcmeChallengeBlock()` emits the `/.well-known/acme-challenge/` location
-  - If `ssl_force_https=true`, emits a separate server block on port 80 redirecting to HTTPS
-  - The composed string is base64-encoded and sent as the server's `config` field. **Backend does NOT regenerate the config** — it trusts what the browser sends.
-- **Custom methods beyond CRUD:** `syncAPI()`, `importProjects()`, `profileUpdate()`, `loadSettings()`, `getTrafficStats()`, `getTopologyGraph()`, `updateTrafficWeights()`, `promoteBackend()`, `rollbackBackend()`, `analyzeLogsAi()`.
-- **Loading state:** uses react-admin's `useStore` to manage a global `fetch.data.loading` flag that blurs the UI during requests.
-- **Bug watch** (lines ~197, 227, 346): error check `response.status < 200` should be `>= 400`. Works in practice but is semantically wrong.
-
-### `authProvider.js` — minimal JWT (~62 lines)
-
-- `login()` — POST `/api/user/login` → stores `{accessToken, expiryDate}` in localStorage with 1-hour expiry
-- `checkAuth()` — resolves if `localStorage.token` exists, rejects otherwise
-- `checkError()` — on 401/403, clears localStorage and rejects (react-admin redirects to login)
-- `logout()` — clears localStorage
-- `getIdentity()` / `getPermissions()` — stubbed; no RBAC in the UI yet
-- **No refresh tokens** — when the 1-hour expires, user must re-login
-
-### `App.jsx` structure
-
-- Custom routes outside the resource graph: `/password/reset`, `/instance-info`, `/topology`, `/ingress`, `/health`, `/change-requests`, `/change-requests/:id`, `/audit`
-- QueryClient `staleTime: 1000ms` (aggressive refetch on route changes)
-- `useRef` pattern for dataProvider stability (hooks can't be called in args)
-- `VersionFooter` (lines 63-121): shows version/build/deploy-time from `import.meta.env.VITE_APP_*`; links to `/swagger/`
-- Dark/light theme persisted in `localStorage.wslproxy-theme-mode`
-
-### `Theme.jsx` (~493 lines)
-
-- Palette: Indigo primary (#6366f1), Emerald accent (#10b981), Slate grays
-- Typography: Inter, 12px base
-- Shape: 12px border-radius
-- Component overrides for MuiButton (no text-transform, fontWeight 600), MuiTable (hover alpha), RaDatagrid/RaList/RaEdit/RaCreate (card-style borders)
-- `useThemeMode()` hook exposes `{mode, toggleTheme, setMode}`
-- Dark mode default respects `prefers-color-scheme` on first load
-
-### Key resource forms to know
-
-- **Servers/Form.jsx** — `TabbedForm` with ~6 tabs:
-  - Nginx Server (domain, profile, paths, listens, SSL, caching, WAF, rate limit, headers, **proxy_timeouts**)
-  - Topology (read-only graph for this server)
-  - Varnish Server (VarnishSnippetEditor + VarnishDeployPanel)
-  - Server Rules (ReferenceArrayInput to rules + match_cases)
-  - WAF Protection
-  - Version History
-  Uses `CreateServerText` to preview the generated nginx config live as the user edits.
-  `LocationInput` custom component (`src/Servers/input/LocationInput.jsx`) lets users build nginx `location` blocks with a SelectArrayInput of directives (proxy_pass, proxy_set_header, allow, deny, root, index, try_files, rewrite, fastcgi_pass, expires, auth_basic).
-
-- **Rules/Form.jsx** — match conditions (path + key, country + key, client_ip + key, JWT validation), response type selector (proxy/redirect/static HTML/CAPTCHA), backend selection (ReferenceInput to upstreams). Uses `HtmlEditorInput` (CodeMirror) for 200/403 static HTML responses with base64 round-trip.
-
-- **Profiles, Secrets, Upstreams, Users, WafRules, WafPolicies** — vanilla CRUD patterns.
-
-### Shared custom components (`src/component/`)
-
-| Component | Purpose |
-|-----------|---------|
-| `AiInsightsPanel.jsx` | Calls `/api/ai/analyze` (Ollama/Claude) for log anomaly detection |
-| `ApiHealthBanner.jsx` | AppBar status badge |
-| `CreateTags.jsx` | Inline tag creation dialog for SelectArrayInput |
-| `HtmlEditorInput.jsx` | CodeMirror HTML editor with base64/URI decode |
-| `EnvProfileHandler.jsx` | Profile dropdown in AppBar; writes `localStorage.environment` |
-| `ExportJsonButton.jsx` / `ImportJsonButton.jsx` | Bulk export/import resource list as JSON |
-| `StatusBadge.jsx` | Red/yellow/green health chip |
-| `ResetForm.jsx` | Password reset (used by `/password/reset` route) |
-
-### Dashboard (`src/Dashboard/`)
-
-- Recharts-based charts (traffic volume AreaChart, error distribution BarChart)
-- `GeoTrafficMap.jsx` — world map via react-simple-maps
-- `BackendHealth.jsx` — live upstream health with weight-adjustment sliders (calls `updateTrafficWeights()`)
-- `StorageModal.jsx` — storage type selector
-
-### Build, env, deploy
-
-- `vite.config.js` — mode-based `.env.{dev,int,acc,prod,lan,diytaxreturn}` loading; dev proxy maps `/api` and `/health` to backend (no CORS). `emptyOutDir: false` (avoids macOS ENOTEMPTY under bind mounts).
-- Build output: `dist/` — nginx serves it at `/openresty-admin/` (see `nginx-dev.conf.tmpl` and `nginx.conf.j2`).
-- Env vars used at build time: `VITE_API_URL`, `VITE_FRONT_URL`, `VITE_APP_VERSION`, `VITE_APP_BUILD_NUMBER`, `VITE_DEPLOYMENT_TIME`, `VITE_JWT_SECURITY_PASSPHRASE`, `VITE_TARGET_PLATFORM` (e.g. `"DOCKER"` or `"KUBERNATES"` — hides sync button for containerized deploys).
-- Build runs inside the wslproxy container via bind-mounted source during `./dev.sh` (see `start.sh`).
-
-### Gotchas specific to the frontend
-
-1. **Config preview is browser-generated** — the nginx server block is composed in `dataProvider.js:handleConfigField()`, not regenerated server-side. If you change nginx syntax needs (e.g. a new directive), update both the preview generator and the Form's inputs.
-2. **URI-encoding `&`, `+`, `=`** as Unicode in dataProvider is required for complex nginx config strings; don't "simplify" this away.
-3. **`profile_id` auto-injection** from `localStorage.environment` means the same UI instance shows different data per profile. Clearing localStorage = loses profile context.
-4. **1-hour JWT expiry, no refresh** — long editing sessions get kicked out.
-5. **`emptyOutDir: false` in vite.config.js** is intentional for macOS Docker bind mount behavior.
-6. **PageHeader icon convention** (in the Next.js admin, not this one) expects a component reference, not JSX. Don't mix them up if you ever unify the two UIs.
-
----
+The sole admin UI is Next.js 16 (Tailwind, SWR). Deployed via Ansible `deploy_nextjs_admin_ui.yml`, Docker Compose service `openresty-admin-next`, and (on k3s1 control plane) the Helm dashboard Deployment. Legacy Vite/react-admin (`openresty-admin/`) has been removed.
 
 ## 14. Development Workflow
 
