@@ -1,4 +1,6 @@
 {{- if and .Values.openresty.controlPlane.enabled .Values.openresty.controlPlane.host }}
+{{- $dashboard := and .Values.openresty.controlPlane.dashboard .Values.openresty.controlPlane.dashboard.enabled }}
+{{- $dashPort := .Values.openresty.controlPlane.dashboard.port | default 7619 }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -23,6 +25,25 @@ spec:
     - host: {{ .Values.openresty.controlPlane.host | quote }}
       http:
         paths:
+          {{- if $dashboard }}
+          # More-specific OpenResty paths first (API + legacy SPA fallback).
+          {{- range $p := list "/api" "/health" "/healthz" "/ready" "/readyz" "/swagger" "/mcp" "/metrics" "/openresty-admin" "/runtime-config.js" }}
+          - path: {{ $p }}
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "wslproxy.fullname" $ }}-openresty
+                port:
+                  name: api
+          {{- end }}
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "wslproxy.fullname" . }}-dashboard
+                port:
+                  number: {{ $dashPort }}
+          {{- else }}
           - path: /
             pathType: Prefix
             backend:
@@ -30,4 +51,5 @@ spec:
                 name: {{ include "wslproxy.fullname" . }}-openresty
                 port:
                   name: api
+          {{- end }}
 {{- end }}

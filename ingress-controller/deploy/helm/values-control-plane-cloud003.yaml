@@ -31,3 +31,10 @@ openresty:
     host: cp.pop0.uk
     nodePort: 32080
     tls: true
+    dashboard:
+      enabled: true
+      image:
+        pullPolicy: Always
+      # fullnameOverride=wslproxy-ingress → Service wslproxy-ingress-openresty
+      apiUrl: http://wslproxy-ingress-openresty:8080
+      allowedOrigins: cp.pop0.uk

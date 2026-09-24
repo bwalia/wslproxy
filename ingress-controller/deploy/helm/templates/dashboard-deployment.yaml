@@ -1,0 +1,77 @@
+{{- if and .Values.openresty.controlPlane.enabled .Values.openresty.controlPlane.dashboard.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "wslproxy.fullname" . }}-dashboard
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "wslproxy.labels" . | nindent 4 }}
+    app.kubernetes.io/component: dashboard
+spec:
+  replicas: {{ .Values.openresty.controlPlane.dashboard.replicas | default 1 }}
+  selector:
+    matchLabels:
+      {{- include "wslproxy.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: dashboard
+  template:
+    metadata:
+      labels:
+        {{- include "wslproxy.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: dashboard
+    spec:
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: dashboard
+          image: "{{ .Values.openresty.controlPlane.dashboard.image.repository }}:{{ .Values.openresty.controlPlane.dashboard.image.tag }}"
+          imagePullPolicy: {{ .Values.openresty.controlPlane.dashboard.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.openresty.controlPlane.dashboard.port }}
+              protocol: TCP
+          env:
+            - name: PORT
+              value: {{ .Values.openresty.controlPlane.dashboard.port | quote }}
+            - name: HOSTNAME
+              value: "0.0.0.0"
+            - name: WSLPROXY_API_URL
+              value: {{ .Values.openresty.controlPlane.dashboard.apiUrl | quote }}
+            - name: WSLPROXY_ALLOWED_ORIGINS
+              value: {{ .Values.openresty.controlPlane.dashboard.allowedOrigins | quote }}
+            - name: NODE_ENV
+              value: production
+          livenessProbe:
+            httpGet:
+              path: /login
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /login
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+          resources:
+            {{- toYaml .Values.openresty.controlPlane.dashboard.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            runAsNonRoot: true
+            runAsUser: 1001
+            capabilities:
+              drop:
+                - ALL
+{{- end }}

@@ -1,9 +1,10 @@
 # Deploy WSLProxy control plane to k3s1 via Ring Promoter
 #
-# On merge to main: build/push bwalia/wslproxy:sha-<short>, then seed
-# wslproxy-k3s1 prod on https://rp.workstation.co.uk/ — that creates a
-# ring-exec Job which Vault-bootstraps + helm-upgrades wslproxy-ingress
-# in wslproxy-system (pinned to cloud003 / cp.pop0.uk).
+# On merge to main: build/push bwalia/wslproxy:sha-<short> +
+# bwalia/wslproxy-admin-next:sha-<short>, then seed wslproxy-k3s1 prod on
+# https://rp.workstation.co.uk/ — that creates a ring-exec Job which
+# Vault-bootstraps + helm-upgrades wslproxy-ingress in wslproxy-system
+# (pinned to cloud003 / cp.pop0.uk) and applies the Traefik path split.
 #
 # Repo secrets:
 #   DOCKER_USER / DOCKER_PASSWD
@@ -30,7 +31,9 @@ on:
       - "scripts/write-admin-runtime-config.sh"
       - "scripts/k3s1*.sh"
       - "openresty-admin/**"
+      - "openresty-admin-next/**"
       - "ingress-controller/deploy/helm/**"
+      - "deploy/k3s1/**"
       - "deploy/postgres/**"
       - "deploy/ring-promoter/**"
       - ".github/workflows/deploy-control-plane-k3s1.yml"
@@ -47,13 +50,14 @@ concurrency:
 
 env:
   IMAGE: docker.io/bwalia/wslproxy
+  DASHBOARD_IMAGE: docker.io/bwalia/wslproxy-admin-next
   RP_URL_DEFAULT: https://rp.workstation.co.uk
 
 jobs:
   deploy:
-    name: Build image + seed prod on rp.workstation.co.uk
+    name: Build images + seed prod on rp.workstation.co.uk
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
 
@@ -69,9 +73,17 @@ jobs:
           else
             TAG="$VER"
           fi
+          DEPLOY_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          # Prefer package.json version for the footer when available.
+          APP_VER="$(jq -r '.version // empty' openresty-admin-next/package.json 2>/dev/null || true)"
+          if [ -z "$APP_VER" ]; then APP_VER="$SHORT"; fi
           echo "version=$VER" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "Deploy version=${VER} image_tag=${TAG}"
+          echo "short=$SHORT" >> "$GITHUB_OUTPUT"
+          echo "deploy_time=$DEPLOY_TIME" >> "$GITHUB_OUTPUT"
+          echo "app_version=$APP_VER" >> "$GITHUB_OUTPUT"
+          echo "build_number=${{ github.run_id }}" >> "$GITHUB_OUTPUT"
+          echo "Deploy version=${VER} image_tag=${TAG} app_version=${APP_VER}"
 
       - uses: docker/setup-buildx-action@v3
 
@@ -95,7 +107,32 @@ jobs:
           provenance: false
           sbom: false
 
+      - name: Build and push bwalia/wslproxy-admin-next
+        uses: docker/build-push-action@v5
+        with:
+          context: ./openresty-admin-next
+          file: ./openresty-admin-next/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.DASHBOARD_IMAGE }}:${{ steps.meta.outputs.tag }}
+            ${{ env.DASHBOARD_IMAGE }}:latest
+          build-args: |
+            NEXT_PUBLIC_APP_VERSION=${{ steps.meta.outputs.app_version }}
+            NEXT_PUBLIC_APP_BUILD_NUMBER=${{ steps.meta.outputs.build_number }}
+            NEXT_PUBLIC_DEPLOYMENT_TIME=${{ steps.meta.outputs.deploy_time }}
+            NEXT_PUBLIC_ENV_NAME=prod
+            NEXT_PUBLIC_GIT_SHA=${{ steps.meta.outputs.version }}
+            NEXT_PUBLIC_GIT_REPO=bwalia/wslproxy
+            NEXT_PUBLIC_TARGET_PLATFORM=KUBERNETES
+          cache-from: type=gha,scope=admin-next
+          cache-to: type=gha,mode=max,scope=admin-next
+          provenance: false
+          sbom: false
+
       - name: Seed wslproxy-k3s1 prod via Ring Promoter
+        id: seed
+        continue-on-error: true
         env:
           RP_URL: ${{ secrets.RP_URL }}
           RP_TOKEN: ${{ secrets.RP_TOKEN }}
@@ -127,8 +164,10 @@ jobs:
           echo "body: $(echo "$BODY" | jq -c 'del(.password) | . + (if .password then {password:"***"} else {} end)' 2>/dev/null || echo "$BODY" | sed 's/"password":"[^"]*"/"password":"***"/')"
 
           # Sync seed waits for the k8sjob (timeout 25m on the app).
+          # Allow up to 35m wall clock — RP/gateway 504s were aborting at ~12m.
           HTTP_CODE=$(curl -sS -o /tmp/rp-seed.json -w '%{http_code}' \
-            --max-time 1800 \
+            --connect-timeout 30 \
+            --max-time 2100 \
             -X POST "${RP_URL}/api/apps/wslproxy-k3s1/seed" \
             -H "Authorization: Bearer ${RP_TOKEN}" \
             -H 'Content-Type: application/json' \
@@ -139,33 +178,42 @@ jobs:
           echo
 
           if [ "$HTTP_CODE" != "200" ]; then
-            echo "::error::Ring Promoter seed failed (HTTP ${HTTP_CODE}). Is wslproxy-k3s1 registered on https://rp.workstation.co.uk/? Is ring-exec/wslproxy-vault present?"
+            echo "::warning::Ring Promoter seed failed (HTTP ${HTTP_CODE}). Images are on Docker Hub; retry seed or helm-upgrade manually."
             exit 1
           fi
 
           echo "seed accepted"
 
+      - name: Fail if Ring Promoter seed failed
+        if: steps.seed.outcome == 'failure'
+        run: |
+          echo "::error::Ring Promoter seed failed (see previous step). Images ${{ env.IMAGE }}:${{ steps.meta.outputs.tag }} and ${{ env.DASHBOARD_IMAGE }}:${{ steps.meta.outputs.tag }} were pushed — re-run or helm upgrade with those tags."
+          exit 1
+
       - name: Smoke check control plane
         run: |
           set -euo pipefail
-          for i in $(seq 1 30); do
+          for i in $(seq 1 36); do
             code=$(curl -sS -o /tmp/cp-health.body -w '%{http_code}' \
               --connect-timeout 5 --max-time 15 \
-              https://cp.pop0.uk/health || true)
-            echo "attempt $i: HTTP ${code}"
+              https://cp.pop0.uk/healthz || true)
+            echo "attempt $i healthz: HTTP ${code}"
             if [ "$code" = "200" ]; then
               head -c 200 /tmp/cp-health.body; echo
-              exit 0
-            fi
-            # Admin healthz path used by OpenResty API port via edge
-            code2=$(curl -sS -o /tmp/cp-healthz.body -w '%{http_code}' \
-              --connect-timeout 5 --max-time 15 \
-              https://cp.pop0.uk/healthz || true)
-            if [ "$code2" = "200" ]; then
-              head -c 200 /tmp/cp-healthz.body; echo
+              # Prefer Next.js login (307/200) over legacy Vite HTML.
+              ui=$(curl -sS -o /tmp/cp-root.body -w '%{http_code}' \
+                --connect-timeout 5 --max-time 15 \
+                https://cp.pop0.uk/login || true)
+              echo "login: HTTP ${ui}"
+              if grep -qi 'next\|Outfit\|fraunces\|WSLProxy Admin' /tmp/cp-root.body 2>/dev/null \
+                || [ "$ui" = "200" ] || [ "$ui" = "307" ]; then
+                echo "Next.js UI looks live"
+              else
+                echo "::warning::/login did not look like Next.js yet (may still be rolling)"
+              fi
               exit 0
             fi
             sleep 10
           done
-          echo "::warning::cp.pop0.uk did not return 200 within ~5m (seed Job may still be running; check https://rp.workstation.co.uk/?app=wslproxy-k3s1)"
+          echo "::warning::cp.pop0.uk/healthz did not return 200 within ~6m (seed Job may still be running; check https://rp.workstation.co.uk/?app=wslproxy-k3s1)"
           exit 0
