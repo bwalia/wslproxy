@@ -85,4 +85,16 @@ The seed workflow runs on GitHub-hosted runners, so it only works after steps
 whose EXTERNAL-IP stays `<pending>` (Traefik holds 80/443 on the nodes), so
 `helm --wait` can never succeed.
 
-A 40-character git SHA maps to image tag `sha-<7chars>`.
+`RP_VERSION` can be a full SHA, a short SHA or a git tag. The job resolves it to the
+commit and uses image tag `sha-<first 7 of that commit>`, the only form CI publishes.
+It fails before touching the cluster if the ref doesn't resolve, or if
+`bwalia/wslproxy` (and, for prod, `bwalia/wslproxy-admin-next`) has no image
+for that commit.
+
+## Rings
+
+Promotion goes int → test → acc → prod, and each step copies the previous
+ring's version (`POST /promote {"from_ring":"test"}` deploys to acc). CI
+(`deploy-control-plane-k3s1.yml`) only **seeds prod**, so int, test and acc
+stay empty until one of them is seeded, and promoting into an empty ring's
+successor returns `409 source ring has no version to promote`.

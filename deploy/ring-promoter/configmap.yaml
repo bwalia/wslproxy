@@ -42,10 +42,6 @@ data:
               set -eu
               env="${RP_TARGET_ENV}"
               ver="${RP_VERSION}"
-              tag="${ver}"
-              if [ "${#ver}" -eq 40 ]; then
-                tag="sha-$(printf '%s' "${ver}" | cut -c1-7)"
-              fi
               if [ "${env}" = "prod" ]; then
                 ns="wslproxy-system"
                 release="wslproxy-ingress"
@@ -61,11 +57,36 @@ data:
                 extra="--set openresty.autoscaling.enabled=false --set openresty.replicas=1 --set controller.replicas=1 --set openresty.podDisruptionBudget.enabled=false --set openresty.service.type=ClusterIP"
                 control_plane=0
               fi
-              echo "deploy wslproxy-ingress ${tag} -> ns ${ns} class ${class} (ring ${RP_RING})"
               rm -rf /src
               git clone https://github.com/bwalia/wslproxy /src
               cd /src
-              git checkout "${ver}" || echo "RP_VERSION ${ver} is not a git ref; chart from default branch, image tag ${tag}"
+              # Resolve RP_VERSION (full SHA, short SHA or git tag) to the
+              # commit, then derive the image tag from THAT. Images are only
+              # published as sha-<7>; using a short SHA or a tag verbatim
+              # (5077414a, v1.0.117) pointed helm at tags that do not exist,
+              # and int sat in ImagePullBackOff from 2026-09-15. A ref that
+              # does not resolve is an error, not a silent default-branch
+              # deploy.
+              if ! git checkout -q "${ver}"; then
+                echo "RP_VERSION '${ver}' is not a commit or tag in bwalia/wslproxy" >&2
+                exit 1
+              fi
+              sha="$(git rev-parse HEAD)"
+              tag="sha-$(printf '%s' "${sha}" | cut -c1-7)"
+              echo "deploy wslproxy-ingress ${tag} (${ver} -> ${sha}) -> ns ${ns} class ${class} (ring ${RP_RING})"
+              # Fail before touching the cluster if CI never built this commit.
+              hub_tag() {
+                code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 \
+                  "https://hub.docker.com/v2/namespaces/bwalia/repositories/$1/tags/${tag}" || true)"
+                if [ "${code}" != "200" ]; then
+                  echo "image bwalia/$1:${tag} not found on Docker Hub (HTTP ${code}); build it via deploy-control-plane-k3s1.yml first" >&2
+                  exit 1
+                fi
+              }
+              hub_tag wslproxy
+              if [ "${control_plane}" = "1" ]; then
+                hub_tag wslproxy-admin-next
+              fi
               kubectl apply -f ingress-controller/deploy/crds/
               # IngressClass.spec.controller is immutable. If a prior install left
               # the wrong controller (e.g. traefik.io/…), delete so helm can recreate.
