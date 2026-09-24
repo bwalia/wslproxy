@@ -98,11 +98,9 @@ echo "Copying configuration files..."
 mkdir -p /opt/nginx/ && chmod 777 /opt/nginx/
 cp ./system /opt/nginx/system
 cp ./html /usr/local/openresty/nginx/
-cp ./openresty-admin /usr/local/openresty/nginx/html/openresty-admin
 cp ./data /opt/nginx/data
 cp ./data/sample-settings.json /opt/nginx/data/settings.json
 cp ./api /usr/local/openresty/nginx/html/api
-cp .env.dev /usr/local/openresty/nginx/html/openresty-admin/.env
 cp ./nginx-dev.conf.tmpl /tmp/nginx.conf.tmpl
 cp ./resolver.conf.tmpl /tmp/resolver.conf.tmpl
 cp ./html/swagger /usr/local/openresty/nginx/html/swagger
@@ -121,15 +119,6 @@ mkdir -p "/var/log/nginx/" \
   && chmod +x "/var/log/nginx/" \
   && chown root:root "/var/log/nginx/" \
   && chmod 755 -R "/var/log/nginx/"
-
-# Installing and Building the node packages
-echo "Installing and Building the node packages..."
-cd /usr/local/openresty/nginx/html/openresty-admin && yarn install \
-  --prefer-offline \
-  --non-interactive \
-  --network-timeout 100000 \
-  --production=false
-cd /usr/local/openresty/nginx/html/openresty-admin/ && yarn build
 
 mkdir -p "/opt/nginx/data/servers" && \
     mkdir -p "/opt/nginx/data/rules"

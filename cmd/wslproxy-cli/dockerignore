@@ -7,7 +7,6 @@ bin
 dist
 release
 node_modules
-openresty-admin
 openresty-admin-next
 dashboard
 data

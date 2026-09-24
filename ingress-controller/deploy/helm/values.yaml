@@ -70,8 +70,7 @@ openresty:
   pgsql:
     existingSecret: ""
 
-  # Control-plane admin UI. Legacy Vite SPA remains on OpenResty :8080
-  # at /openresty-admin/. When dashboard.enabled, the Next.js Deployment
+  # Control-plane admin UI. When dashboard.enabled, the Next.js Deployment
   # serves / via Traefik (see deploy/k3s1/wslproxy-cp-traefik-ingress.yaml).
   controlPlane:
     enabled: false

@@ -3,7 +3,7 @@
 # routers to websecure when TLS is enabled — hence the split Ingresses.
 #
 # UI → Next.js dashboard Service (:7619)
-# API / health / swagger / mcp / legacy SPA → OpenResty (:8080)
+# API / health / swagger / mcp → OpenResty (:8080)
 #
 # Apply: kubectl apply -f deploy/k3s1/wslproxy-cp-traefik-ingress.yaml
 #
@@ -84,20 +84,6 @@ spec:
                 name: wslproxy-ingress-openresty
                 port:
                   number: 8080
-          - path: /openresty-admin
-            pathType: Prefix
-            backend:
-              service:
-                name: wslproxy-ingress-openresty
-                port:
-                  number: 8080
-          - path: /runtime-config.js
-            pathType: Prefix
-            backend:
-              service:
-                name: wslproxy-ingress-openresty
-                port:
-                  number: 8080
           - path: /
             pathType: Prefix
             backend:
@@ -169,20 +155,6 @@ spec:
                 port:
                   number: 8080
           - path: /metrics
-            pathType: Prefix
-            backend:
-              service:
-                name: wslproxy-ingress-openresty
-                port:
-                  number: 8080
-          - path: /openresty-admin
-            pathType: Prefix
-            backend:
-              service:
-                name: wslproxy-ingress-openresty
-                port:
-                  number: 8080
-          - path: /runtime-config.js
             pathType: Prefix
             backend:
               service:

@@ -264,23 +264,10 @@ else
     end
 end
 
--- ---------- Frontend .env ----------
--- Try multiple known locations for the frontend .env file
-local frontEnvPaths = {
-    "/usr/local/openresty/nginx/html/openresty-admin/.env",
-    configPath .. "openresty-admin/.env",
-}
-
+-- ---------- Frontend .env (legacy Vite) ----------
+-- Vite react-admin was removed; Next.js does not use this .env probe.
 local frontEnvPath = nil
 local frontEnvContent = nil
-for _, path in ipairs(frontEnvPaths) do
-    frontEnvContent = readFile(path)
-    if frontEnvContent and frontEnvContent:gsub("%s+", "") ~= "" then
-        frontEnvPath = path
-        break
-    end
-    frontEnvContent = nil
-end
 
 local frontEnvVars = parseEnvFile(frontEnvContent)
 

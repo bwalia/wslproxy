@@ -26,8 +26,7 @@ spec:
       http:
         paths:
           {{- if $dashboard }}
-          # More-specific OpenResty paths first (API + legacy SPA fallback).
-          {{- range $p := list "/api" "/health" "/healthz" "/ready" "/readyz" "/swagger" "/mcp" "/metrics" "/openresty-admin" "/runtime-config.js" }}
+          {{- range $p := list "/api" "/health" "/healthz" "/ready" "/readyz" "/swagger" "/mcp" "/metrics" }}
           - path: {{ $p }}
             pathType: Prefix
             backend:

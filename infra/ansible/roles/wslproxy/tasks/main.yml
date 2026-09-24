@@ -6,7 +6,7 @@
 # Deploy modes (controlled by Ansible tags):
 #   --tags nginx       → Update nginx configuration (conf dirs, tenants, cron, systemd, PAM, restart)
 #   --tags servers     → Update virtual server/rule data configs + SSL + settings
-#   --tags dashboard   → Rebuild and deploy React admin UI + Next.js dashboard
+#   --tags dashboard   → Rebuild and deploy Next.js admin dashboard
 #   --tags dashboard-next → Deploy Next.js admin dashboard only (includes Node.js install)
 #   --tags os_deps     → Install/update OS dependencies (apt/zypper/yum packages)
 #   --tags build       → Install OpenResty (prebuilt image by default) + luarocks + CDN deps
@@ -180,13 +180,7 @@
   include_tasks: pam_config.yml
   tags: [nginx]
 
-# Step 10: OpenResty admin UI (conditional)
-- name: Deploy OpenResty admin UI
-  include_tasks: deploy_admin_ui.yml
-  when: nginx_web_ui_enabled is defined and nginx_web_ui_enabled == "yes"
-  tags: [dashboard]
-
-# Step 10b: Next.js admin dashboard (conditional)
+# Step 10: Next.js admin dashboard (conditional)
 - name: Deploy Next.js admin dashboard
   include_tasks: deploy_nextjs_admin_ui.yml
   when: nginx_web_ui_enabled is defined and nginx_web_ui_enabled == "yes"
