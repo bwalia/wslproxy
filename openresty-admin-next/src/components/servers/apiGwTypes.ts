@@ -106,6 +106,12 @@ export type ApiGwConfig = {
       key: "ip" | "header";
       header: string;
     };
+    /* Per-signal scores, read by api/api_gw/config.lua with defaults
+       5/5/3/1/5. A sparse map on purpose: only the weights an operator
+       actually set are carried, so tuning one does not silently write the
+       other four into the record. No input renders these yet — this exists
+       so a hand-written policy survives a save. */
+    weights: Record<string, number>;
     block_threshold: number | "";
     status: number | "";
   };
@@ -116,6 +122,12 @@ export type ApiGwConfig = {
     status: number | "";
     allow_unverified_subject: boolean | null;
     jwt: {
+      /* Inline signing key. The schema allows it ("Prefer secret_ref") and
+         some policies use it, so it has to survive a save — dropping it
+         breaks verification for that tenant. Deliberately not rendered:
+         this record syncs to S3 and git, and secret_ref is the right
+         answer. Carried, not edited. */
+      secret: string;
       secret_ref: string;
       alg: string;
       header: string;
@@ -249,6 +261,7 @@ export function defaultApiGwConfig(): ApiGwConfig {
         key: "ip",
         header: "",
       },
+      weights: {},
       block_threshold: "",
       status: "",
     },
@@ -259,6 +272,7 @@ export function defaultApiGwConfig(): ApiGwConfig {
       status: "",
       allow_unverified_subject: null,
       jwt: {
+        secret: "",
         secret_ref: "",
         alg: "",
         header: "",
@@ -309,6 +323,19 @@ function arr(v: unknown): string[] {
   if (typeof v === "string" && v.trim())
     return v.split(",").map((s) => s.trim()).filter(Boolean);
   return [];
+}
+
+/** Sparse numeric map, for tables like `ivt.weights` where only the keys an
+ *  operator actually set should be carried. Non-numeric entries are dropped
+ *  rather than coerced — a weight of NaN would score every request. */
+function numMap(v: unknown): Record<string, number> {
+  if (!v || typeof v !== "object" || Array.isArray(v)) return {};
+  const out: Record<string, number> = {};
+  for (const [k, raw] of Object.entries(v as Record<string, unknown>)) {
+    const n = typeof raw === "number" ? raw : Number(raw);
+    if (raw !== "" && raw !== null && Number.isFinite(n)) out[k] = n;
+  }
+  return out;
 }
 
 function numOrEmpty(v: unknown): number | "" {
@@ -398,6 +425,7 @@ export function hydrateApiGw(raw: unknown): ApiGwConfig {
     require_auth_shape: Boolean(ivt.require_auth_shape),
     auth_schemes: arr(ivt.auth_schemes),
     strip_header_prefixes: arr(ivt.strip_header_prefixes),
+    weights: numMap(ivt.weights),
     burst: {
       enabled: boolOrNull(burst.enabled),
       window_seconds: numOrEmpty(burst.window_seconds),
@@ -423,6 +451,7 @@ export function hydrateApiGw(raw: unknown): ApiGwConfig {
     status: numOrEmpty(auth.status),
     allow_unverified_subject: boolOrNull(auth.allow_unverified_subject),
     jwt: {
+      secret: typeof jwt.secret === "string" ? jwt.secret : "",
       secret_ref: typeof jwt.secret_ref === "string" ? jwt.secret_ref : "",
       alg: typeof jwt.alg === "string" ? jwt.alg : "",
       header: typeof jwt.header === "string" ? jwt.header : "",
@@ -668,6 +697,7 @@ export function serializeApiGw(cfg: ApiGwConfig): Record<string, unknown> | unde
   if (cfg.ivt.auth_schemes.length) ivt.auth_schemes = cfg.ivt.auth_schemes;
   if (cfg.ivt.strip_header_prefixes.length)
     ivt.strip_header_prefixes = cfg.ivt.strip_header_prefixes;
+  if (Object.keys(cfg.ivt.weights).length) ivt.weights = { ...cfg.ivt.weights };
   const burst: Record<string, unknown> = {};
   if (cfg.ivt.burst.enabled !== null) burst.enabled = cfg.ivt.burst.enabled;
   const bw = omitEmptyNum(cfg.ivt.burst.window_seconds);
@@ -692,6 +722,7 @@ export function serializeApiGw(cfg: ApiGwConfig): Record<string, unknown> | unde
   if (cfg.auth.allow_unverified_subject !== null)
     auth.allow_unverified_subject = cfg.auth.allow_unverified_subject;
   const jwt: Record<string, unknown> = {};
+  if (cfg.auth.jwt.secret) jwt.secret = cfg.auth.jwt.secret;
   if (cfg.auth.jwt.secret_ref) jwt.secret_ref = cfg.auth.jwt.secret_ref;
   if (cfg.auth.jwt.alg) jwt.alg = cfg.auth.jwt.alg;
   if (cfg.auth.jwt.header) jwt.header = cfg.auth.jwt.header;
