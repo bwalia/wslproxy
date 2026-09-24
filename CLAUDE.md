@@ -254,6 +254,7 @@ Three completely independent deploy mechanisms — they don't share configuratio
 - Hot-reload: `api/` and `html/` bind-mounted. React admin requires rebuild.
 
 ### B. Ansible (bare metal / VM — this is how **prod on 85.190.106.189** is deployed)
+- **pop0 mirrors lon1:** `wslproxy-edge-sync.timer` on pop0 pulls lon1's servers/rules/waf_policies JSON every 5 min through a restricted forced-command key (`infra/edge-sync/`). `settings.json` is copied once, not synced.
 - Playbook: `infra/ansible/wslproxy-ops.yml`
 - Role: `infra/ansible/roles/wslproxy/`
 - Task files (orchestrated by `tasks/main.yml`):
@@ -419,6 +420,8 @@ Local URLs:
 20. **`lua_code_cache` is on in the dev container**, so §4's "hot-reloaded per request" is not true for `api/` in practice — editing a module has no effect until `openresty -s reload`. Worth knowing when a change appears to do nothing.
 
 21. **`helm --wait` can never succeed for the k3s1 control plane.** `wslproxy-ingress-openresty` is a LoadBalancer whose EXTERNAL-IP stays `<pending>` (Traefik already holds 80/443 on the nodes), so `--wait` times out after applying everything. The release is marked failed, the seed job exits non-zero, and the GitHub seed step shows HTTP 504. The deploy script uses `--wait=false` plus explicit `rollout status`. If `helm history wslproxy-ingress -n wslproxy-system` shows a run of `failed … context deadline exceeded`, check that the script Ring Promoter *runs* (`kubectl -n ring-exec get job <id> -o yaml`) matches `deploy/ring-promoter/configmap.yaml`.
+
+22. **Delivery-pipeline deploys push the repo's `data/` over the edge.** Every `deploy-wslproxy-delivery-pipeline.yml` run, in every `DEPLOY_MODE` except `permissions` (so `dashboard-next` too), ends with `deploy-environment.yml` → `infra/ansible/deploy-configs.yml`. That step copies `data/servers/<env>` + `data/rules/<env>` from this repo onto the target. On 2026-09-24 a `dashboard-next` deploy to pop0 replaced 134 of the rule/server files just copied from lon1 with the repo's older copies. pop0 recovers within 5 minutes because it mirrors lon1 (`infra/edge-sync/`). lon1 does not: a deploy there overwrites live edge config with the repo's version.
 
 ### Conventions
 

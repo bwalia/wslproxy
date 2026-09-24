@@ -1,0 +1,16 @@
+#!/bin/sh
+# Runs on the SOURCE edge (lon1) as the forced command of the edge-sync key
+# in /root/.ssh/authorized_keys. Whatever the client asks for, this is all
+# it gets: a tar.gz on stdout of the top-level *.json in
+#   servers/<env>/  rules/<env>/  waf_policies/<env>/
+# Editor droppings (<uuid>.json.<pid>.<date>~) are excluded by the name
+# match; those leaked an AWS key once (CLAUDE.md gotcha 17).
+set -eu
+cd /opt/nginx/data
+dirs=""
+for d in servers rules waf_policies; do
+  [ -d "$d" ] && dirs="$dirs $d"
+done
+# shellcheck disable=SC2086
+find $dirs -mindepth 2 -maxdepth 2 -type f -name '*.json' -print0 \
+  | tar --null -T - -czf -

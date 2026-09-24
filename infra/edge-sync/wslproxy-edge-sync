@@ -1,0 +1,98 @@
+#!/usr/bin/env bash
+# Runs on the MIRROR edge (pop0) from wslproxy-edge-sync.timer. Pulls
+# servers/, rules/ and waf_policies/ JSON from the source edge (lon1) and
+# mirrors them into /opt/nginx/data.
+#
+# The key it uses can only run wslproxy-edge-export on lon1 (forced command,
+# from= pinned to this host), so this box holds no general access to lon1.
+#
+# Safety:
+#   * every file must parse as JSON, or nothing is applied
+#   * a directory whose file count drops below MIN_PERCENT of what is here
+#     now is treated as a broken export, and nothing is applied
+#   * only *.json is mirrored/deleted; other files and directories are kept
+#   * settings.json is NOT synced (pop0 has its own instance_id)
+set -euo pipefail
+
+SRC="${EDGE_SYNC_SRC:-root@195.20.255.201}"
+KEY="${EDGE_SYNC_KEY:-/root/.ssh/edge-sync_ed25519}"
+KNOWN_HOSTS="${EDGE_SYNC_KNOWN_HOSTS:-/root/.ssh/known_hosts_edge-sync}"
+DATA="${EDGE_SYNC_DATA:-/opt/nginx/data}"
+MIN_PERCENT="${EDGE_SYNC_MIN_PERCENT:-80}"
+STATE_DIR=/var/lib/wslproxy-edge-sync
+DIRS=(servers rules waf_policies)
+
+exec 9>/run/wslproxy-edge-sync.lock
+flock -n 9 || { echo "another sync is running; skipping"; exit 0; }
+
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+chmod 700 "$tmp"
+
+ssh -T -i "$KEY" -o BatchMode=yes -o IdentitiesOnly=yes \
+    -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$KNOWN_HOSTS" \
+    -o ConnectTimeout=15 -o ServerAliveInterval=10 -o ServerAliveCountMax=3 \
+    "$SRC" > "$tmp/export.tgz"
+
+mkdir "$tmp/new"
+tar xzf "$tmp/export.tgz" -C "$tmp/new" --no-same-owner --no-same-permissions
+
+# Validate the export before touching anything.
+python3 - "$tmp/new" "$DATA" "$MIN_PERCENT" "${DIRS[@]}" <<'EOF'
+import glob, json, os, sys
+new, data, min_pct, dirs = sys.argv[1], sys.argv[2], int(sys.argv[3]), sys.argv[4:]
+for root, _, files in os.walk(new):
+    for f in files:
+        p = os.path.join(root, f)
+        rel = os.path.relpath(p, new)
+        parts = rel.split(os.sep)
+        if len(parts) != 3 or parts[0] not in dirs or not f.endswith(".json"):
+            sys.exit(f"refusing: unexpected path in export: {rel}")
+        try:
+            json.load(open(p))
+        except Exception as e:
+            sys.exit(f"refusing: invalid JSON {rel}: {e}")
+bad = []
+for d in dirs:
+    n_new = len(glob.glob(f"{new}/{d}/*/*.json"))
+    n_cur = len(glob.glob(f"{data}/{d}/*/*.json"))
+    print(f"{d}: export={n_new} current={n_cur}")
+    if n_cur and n_new * 100 < n_cur * min_pct:
+        bad.append(f"{d} {n_cur}->{n_new}")
+if not glob.glob(f"{new}/servers/*/*.json"):
+    bad.append("servers export is empty")
+if bad:
+    sys.exit("refusing: export shrank past EDGE_SYNC_MIN_PERCENT=%d%%: %s" % (min_pct, ", ".join(bad)))
+EOF
+
+reload=0
+total=0
+for d in "${DIRS[@]}"; do
+  [ -d "$tmp/new/$d" ] || continue
+  mkdir -p "$DATA/$d"
+  # P */ keeps directories that only exist here (e.g. servers/<env>/conf);
+  # only *.json is transferred or deleted.
+  out="$(rsync -a --delete --checksum --itemize-changes \
+      --chown=www-data:root --chmod=D2777,F666 \
+      --filter='P */' --include='*/' --include='*.json' --exclude='*' \
+      "$tmp/new/$d/" "$DATA/$d/" | grep -E '^(>f|\*deleting)' || true)"
+  if [ -n "$out" ]; then
+    n="$(printf '%s\n' "$out" | wc -l)"
+    total=$((total + n))
+    echo "$d: $n change(s)"
+    printf '%s\n' "$out" | head -20
+    # Rules are read per request. Servers (SSL domain list is built at
+    # worker start) and WAF policies need a reload.
+    [ "$d" = rules ] || reload=1
+  fi
+done
+
+if [ "$reload" = 1 ]; then
+  /usr/local/openresty/bin/openresty -t -q
+  systemctl reload openresty
+  echo "openresty reloaded"
+fi
+
+mkdir -p "$STATE_DIR"
+date -u +%Y-%m-%dT%H:%M:%SZ > "$STATE_DIR/last-success"
+echo "sync ok: ${total} change(s)"
