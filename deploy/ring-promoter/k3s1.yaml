@@ -104,13 +104,17 @@ apps:
             ${extra} \
             --timeout 10m \
             --wait=false
+          # Apply Traefik path split BEFORE waiting on rollouts — RP's sync
+          # seed often 504s at the gateway while the Job is still running, and
+          # skipping this left cp.pop0.uk stuck on the legacy Vite SPA.
+          if [ "${control_plane}" = "1" ]; then
+            kubectl apply -f deploy/k3s1/wslproxy-cp-traefik-ingress.yaml
+          fi
           # Still wait for OpenResty pods so seed reports a useful failure.
           kubectl -n "${ns}" rollout status "deploy/${fullname}-openresty" --timeout=5m
           kubectl -n "${ns}" rollout status "deploy/${fullname}-controller" --timeout=3m || true
           if [ "${control_plane}" = "1" ]; then
             kubectl -n "${ns}" rollout status "deploy/${fullname}-dashboard" --timeout=5m
-            # Public edge is traefik-edge (not the chart IngressClass) — refresh path split.
-            kubectl apply -f deploy/k3s1/wslproxy-cp-traefik-ingress.yaml
             echo "control-plane pinned to cloud003; UI NodePort 32080 + Next.js dashboard on 77.68.126.63"
           fi
           echo "wslproxy-ingress ${tag} live in ${ns}"
