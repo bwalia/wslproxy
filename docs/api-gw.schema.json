@@ -20,9 +20,76 @@
       "type": "array",
       "items": {
         "type": "string",
-        "enum": ["real_ip", "request_security", "cors", "ivt", "auth", "rate_limit", "audit"]
+        "enum": ["real_ip", "request_security", "cors", "ivt", "auth", "rate_limit", "audit", "hooks"]
       },
       "description": "Which modules run. Absent means all of them. A comma-separated string is also accepted, for admin UIs that flatten arrays."
+    },
+
+    "hooks": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Declarative header transforms plus optional Lua function hooks for complex request/response mutation. Fail-open: a broken hook is logged and skipped.",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Master switch for the hooks module. Auto-enabled when any transform or lua entry is present."
+        },
+        "request_headers": {
+          "type": "array",
+          "description": "Applied in access (after real_ip). Ops: set | remove | rename. Values may use {{server_name}}, {{tenant}}, {{client_ip}}, {{correlation_id}}, {{method}}, {{uri}}, {{route_name}}.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "op": { "type": "string", "enum": ["set", "remove", "rename"] },
+              "name": { "type": "string" },
+              "value": { "type": "string" },
+              "from": { "type": "string" },
+              "to": { "type": "string" }
+            }
+          }
+        },
+        "response_headers": {
+          "type": "array",
+          "description": "Applied in header_filter before response headers are flushed.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "op": { "type": "string", "enum": ["set", "remove", "rename"] },
+              "name": { "type": "string" },
+              "value": { "type": "string" },
+              "from": { "type": "string" },
+              "to": { "type": "string" }
+            }
+          }
+        },
+        "lua": {
+          "type": "array",
+          "description": "Custom Lua hooks. Prefer file under data/hooks/*.lua; inline source is for privileged operators. Each entry must return function(cfg, ctx, policy).",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "name": { "type": "string" },
+              "phase": {
+                "type": "string",
+                "enum": ["access_before", "access_after", "header_filter"],
+                "default": "access_before"
+              },
+              "file": {
+                "type": "string",
+                "description": "Relative path like hooks/enrich.lua under $NGINX_CONFIG_DIR/data/."
+              },
+              "source": {
+                "type": "string",
+                "description": "Inline Lua that returns a function. Sandboxed require is limited to api_gw.*."
+              }
+            }
+          }
+        }
+      }
     },
 
     "real_ip": {

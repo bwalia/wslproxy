@@ -88,7 +88,19 @@ end
 --- header_filter phase entry point. Safe to call unconditionally.
 function _M.header_filter()
     local ctx = ngx.ctx.api_gw
-    if not ctx or type(ctx.response_headers) ~= "table" then return end
+    if not ctx then return end
+
+    if ctx.cfg then
+        local ok_h, Hooks = pcall(require, "api_gw.hooks")
+        if ok_h and Hooks then
+            local ok_run, err = pcall(Hooks.header_filter, ctx.cfg, ctx)
+            if not ok_run then
+                ngx.log(ngx.WARN, "[api_gw] hooks.header_filter errored: ", tostring(err))
+            end
+        end
+    end
+
+    if type(ctx.response_headers) ~= "table" then return end
     for k, v in pairs(ctx.response_headers) do
         if v ~= nil then
             ngx.header[k] = v

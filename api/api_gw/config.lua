@@ -17,7 +17,7 @@ local M = {}
 local Keys = require("api_gw.keys")
 
 -- Order is the documented pipeline order; see docs/api-gateway.md.
-M.MODULES = { "real_ip", "request_security", "cors", "ivt", "auth", "rate_limit", "audit" }
+M.MODULES = { "real_ip", "request_security", "cors", "ivt", "auth", "rate_limit", "audit", "hooks" }
 
 M.IVT_MODES = { disabled = true, audit = true, monitor = true, block = true }
 M.AUTH_STRATEGIES = { none = true, passthrough = true, jwt = true, api_key = true }
@@ -368,6 +368,55 @@ local function norm_routes(raw)
     return out
 end
 
+local function norm_hooks(raw)
+    raw = type(raw) == "table" and raw or {}
+    local req_hdrs, res_hdrs, lua_hooks = {}, {}, {}
+
+    for _, op in ipairs(list(raw.request_headers, {})) do
+        if type(op) == "table" and op.op then
+            req_hdrs[#req_hdrs + 1] = {
+                op    = str(op.op, "set"),
+                name  = str(op.name, nil),
+                value = op.value,
+                ["from"] = str(op["from"], nil),
+                ["to"]   = str(op["to"], nil),
+            }
+        end
+    end
+    for _, op in ipairs(list(raw.response_headers, {})) do
+        if type(op) == "table" and op.op then
+            res_hdrs[#res_hdrs + 1] = {
+                op    = str(op.op, "set"),
+                name  = str(op.name, nil),
+                value = op.value,
+                ["from"] = str(op["from"], nil),
+                ["to"]   = str(op["to"], nil),
+            }
+        end
+    end
+    for _, h in ipairs(list(raw.lua, {})) do
+        if type(h) == "table" then
+            local phase = str(h.phase, "access_before")
+            if phase ~= "access_before" and phase ~= "access_after" and phase ~= "header_filter" then
+                phase = "access_before"
+            end
+            lua_hooks[#lua_hooks + 1] = {
+                name   = str(h.name, nil),
+                phase  = phase,
+                file   = str(h.file, nil),
+                source = (type(h.source) == "string" and h.source ~= "") and h.source or nil,
+            }
+        end
+    end
+
+    return {
+        enabled           = truthy(raw.enabled, (#req_hdrs + #res_hdrs + #lua_hooks) > 0),
+        request_headers   = req_hdrs,
+        response_headers  = res_hdrs,
+        lua               = lua_hooks,
+    }
+end
+
 -- ─── public API ─────────────────────────────────────────────────────────────
 
 --- Build the effective api_gw config for a request.
@@ -418,6 +467,7 @@ function M.resolve(server_config, rule_data, profile_id)
         auth             = norm_auth(raw.auth),
         rate_limit       = norm_rate_limit(raw.rate_limit),
         audit            = norm_audit(raw.audit),
+        hooks            = norm_hooks(raw.hooks),
         routes           = norm_routes(raw.routes),
     }
 end

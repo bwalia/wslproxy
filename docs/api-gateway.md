@@ -40,12 +40,17 @@ runtime.
 | Priority | Stage | Module | Why it sits here |
 |---------:|-------|--------|------------------|
 | 1000 | `real_ip` | `real_ip` | Everything downstream keys on the client IP |
+| 995 | `hooks_request` | `hooks` | Declarative request-header transforms + Lua `access_before` |
 | 980 | `correlation` | `request_security` | Established before anything can deny, so every rejection and audit line carries the same id |
 | 950 | `cors` | `cors` | A preflight carries no credentials and must not be authenticated or rate limited; it terminates here |
 | 900 | `ivt` | `ivt` | Cheap structural checks run before the verifier and before content parsing |
 | 850 | `request_security` | `request_security` | Content-Type, body size, token shape — correctness checks on traffic already judged real |
 | 800 | `auth` | `auth` | Credential verification; produces `ctx.consumer` |
-| 700 | `rate_limit` | `rate_limit` | Last, so a quota can key on the *verified* consumer |
+| 700 | `rate_limit` | `rate_limit` | Last built-in stage, so a quota can key on the *verified* consumer |
+| 650 | `hooks_access_after` | `hooks` | Lua `access_after` — last chance to deny or enrich before proxy |
+
+`header_filter` also runs declarative response-header transforms and Lua
+`header_filter` hooks (see `api/api_gw/hooks.lua`).
 
 A stage returns nothing to continue, or a decision. The first decision wins and
 the rest of the pipeline is skipped — so a request rejected by IVT never

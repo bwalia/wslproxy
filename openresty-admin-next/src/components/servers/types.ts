@@ -3,6 +3,7 @@
    ────────────────────────────────────────────────────────────────────────── */
 
 import type { LocationEntry } from "./sections/LocationBlockEditor";
+import type { ApiGwConfig } from "./apiGwTypes";
 
 /** Upstream (nginx `proxy_pass`) timeouts.  Each value is a number in
  *  seconds; an empty string means "use the nginx default (60s)" so
@@ -152,4 +153,7 @@ export interface ServerFormState {
    * single rule_id string and `condition` as "and" / "or" / "none".
    */
   match_cases: { condition: string; statement: string }[];
+
+  /* Kong-class API gateway (api/api_gw/) — nested policy object */
+  api_gw: ApiGwConfig;
 }
