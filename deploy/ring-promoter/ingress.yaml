@@ -1,0 +1,25 @@
+# Public Ring Promoter UI + API: https://rp.wslproxy.com
+#
+# Same path as rp.workstation.co.uk: DNS -> wslproxy edge (pop0) -> rule
+# 425e4925 -> k3s1 Traefik (193.237.176.232:8888) -> this Ingress. The edge
+# server is data/servers/prod/host:rp.wslproxy.com.json.
+#
+# The API needs the RP_API_TOKEN bearer; the UI has no auth of its own.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ring-promoter
+  namespace: wslproxy-ring-promoter
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: rp.wslproxy.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ring-promoter
+                port:
+                  number: 80
