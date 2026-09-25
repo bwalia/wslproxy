@@ -210,6 +210,7 @@ jobs:
       secrets_mode: vault_or_sops
       health_endpoint: "https://lon1.pop0.uk/healthz"
       health_check_mode: external
+      smoke_domain: "lon1.pop0.uk"
       docker_prune: true
       notify_success: true
       deploy_branch: ${{ inputs.DEPLOY_BRANCH }}
@@ -235,6 +236,7 @@ jobs:
       secrets_mode: vault_or_sops
       health_endpoint: "https://lon1.pop0.uk/healthz"
       health_check_mode: external
+      smoke_domain: "lon1.pop0.uk"
       docker_prune: true
       notify_success: true
       deploy_branch: ${{ inputs.DEPLOY_BRANCH }}

@@ -297,7 +297,11 @@ jobs:
   # ──────────────────────────────────────────────────────
   test-int:
     name: "Stage 3: Smoke Test Int"
-    runs-on: [self-hosted, Linux, int]
+    # Any Linux self-hosted runner: we route through SSH when the runner is
+    # not co-located with int, so this survives runner changes.  The int
+    # runner label used to be a hard pin — that made the smoke test the
+    # single most runner-fragile job in the pipeline.
+    runs-on: [self-hosted, Linux]
     needs: [deploy-int, preflight-int]
     # Only smoke-test when the int runner was actually online AND
     # deploy-int succeeded.  Without the preflight gate this job
@@ -307,6 +311,10 @@ jobs:
       needs.preflight-int.outputs.runner_online == 'true' &&
       needs.deploy-int.result == 'success'
     timeout-minutes: 15
+    env:
+      TARGET_IP: "192.168.1.193"
+      TARGET_USER: "bwalia"
+      TARGET_PORT: "8099"
     steps:
       # actions/checkout's git-clean cannot unlink root-owned build
       # artifacts left in the persistent self-hosted workspace (e.g.
@@ -326,16 +334,69 @@ jobs:
         with:
           ref: ${{ github.event.inputs.DEPLOY_BRANCH || github.ref_name }}
 
+      # Detect if this runner IS the int host.  When yes, plain localhost
+      # curls just work.  When no, we tunnel through SSH so the same job
+      # runs from any Linux self-hosted runner with a key on int.
+      - name: Detect co-location with target
+        id: colo
+        run: |
+          IS_LOCAL=false
+          IPS="$(hostname -I 2>/dev/null || true) $(ip -o addr show 2>/dev/null | awk '{print $4}' | cut -d/ -f1) $(ifconfig 2>/dev/null | awk '/inet /{print $2}')"
+          if printf ' %s ' $IPS | grep -qFw "$TARGET_IP"; then
+            IS_LOCAL=true
+          fi
+          echo "is_local=$IS_LOCAL" >> "$GITHUB_OUTPUT"
+          if [ "$IS_LOCAL" = "true" ]; then
+            echo "Runner IS co-located with $TARGET_IP — will curl 127.0.0.1 directly."
+          else
+            echo "Runner is NOT co-located with $TARGET_IP — will tunnel via SSH."
+          fi
+
+      - name: Install SSH key (only when remote from target)
+        if: steps.colo.outputs.is_local != 'true'
+        env:
+          SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          if [ -z "$SSH_KEY" ]; then
+            # Runner without a pre-provisioned key AND no repo secret: nothing
+            # this step can do.  Fail loud rather than write an empty id_rsa.
+            if [ ! -f "$HOME/.ssh/id_rsa" ]; then
+              echo "::error::Runner has no ~/.ssh/id_rsa and secrets.SSH_PRIVATE_KEY is not set — cannot reach ${TARGET_IP}."
+              exit 1
+            fi
+            echo "Using pre-existing runner key at ~/.ssh/id_rsa"
+          else
+            mkdir -p ~/.ssh
+            echo "$SSH_KEY" > ~/.ssh/id_rsa
+            chmod 600 ~/.ssh/id_rsa
+          fi
+          ssh-keyscan -H "$TARGET_IP" >> ~/.ssh/known_hosts 2>/dev/null || true
+
       - name: Install Go
+        # The Go schema check needs a socket to the target: local when
+        # co-located, or an SSH port-forward when remote.  Both work
+        # transparently via TARGET_HOST=http://127.0.0.1:${PORT}.
         uses: actions/setup-go@v5
         with:
           go-version: "1.19"
           cache: false
 
+      - name: Open SSH port-forward to target (only when remote)
+        if: steps.colo.outputs.is_local != 'true'
+        run: |
+          # Background port-forward so the Go test can hit localhost:${PORT}
+          # exactly as it does when co-located.  StrictHostKeyChecking=accept-new
+          # writes the key on first sight without blocking; BatchMode=yes
+          # refuses any password prompt.
+          ssh -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new \
+            -i ~/.ssh/id_rsa -N -f \
+            -L "${TARGET_PORT}:127.0.0.1:${TARGET_PORT}" \
+            "${TARGET_USER}@${TARGET_IP}"
+
       - name: Run health check tests (Go)
         working-directory: QA
         env:
-          TARGET_HOST: "http://127.0.0.1:8099"
+          TARGET_HOST: "http://127.0.0.1:${{ env.TARGET_PORT }}"
         run: |
           go test -v -run TestHealthCheck -timeout 60s 2>&1 | tee health-results.txt
           if [ ${PIPESTATUS[0]} -ne 0 ]; then
@@ -348,16 +409,18 @@ jobs:
         run: |
           # Int admin/health: prefer :8099 (OpenResty Next block). Host :8080
           # is blackholed by k3s CNI hostPort DNAT on 192.168.1.193.
-          BASE="http://127.0.0.1:8099"
+          # When co-located we curl localhost directly; when remote the
+          # SSH port-forward from the previous step gives us the same URL.
+          BASE="http://127.0.0.1:${TARGET_PORT}"
           FAILED=0
           for ENDPOINT in /healthz; do
             STATUS=$(curl --silent --output /dev/null --connect-timeout 3 --max-time 8 -w "%{http_code}" "${BASE}${ENDPOINT}" 2>/dev/null || true)
             STATUS=$(echo "$STATUS" | tr -cd '0-9' | head -c 3)
             [[ -z "$STATUS" ]] && STATUS="000"
             if [ "$STATUS" = "200" ]; then
-              printf "  GET :8099%-20s OK (%s)\n" "$ENDPOINT" "$STATUS"
+              printf "  GET :%s%-20s OK (%s)\n" "$TARGET_PORT" "$ENDPOINT" "$STATUS"
             else
-              printf "  GET :8099%-20s FAIL (%s)\n" "$ENDPOINT" "$STATUS"
+              printf "  GET :%s%-20s FAIL (%s)\n" "$TARGET_PORT" "$ENDPOINT" "$STATUS"
               FAILED=$((FAILED+1))
             fi
           done
@@ -366,16 +429,21 @@ jobs:
             STATUS=$(echo "$STATUS" | tr -cd '0-9' | head -c 3)
             [[ -z "$STATUS" ]] && STATUS="000"
             if [ "$STATUS" = "200" ]; then
-              printf "  GET :8099%-20s OK (%s)\n" "$ENDPOINT" "$STATUS"
+              printf "  GET :%s%-20s OK (%s)\n" "$TARGET_PORT" "$ENDPOINT" "$STATUS"
             else
-              printf "  GET :8099%-20s SKIP (%s) - requires admin UI\n" "$ENDPOINT" "$STATUS"
+              printf "  GET :%s%-20s SKIP (%s) - requires admin UI\n" "$TARGET_PORT" "$ENDPOINT" "$STATUS"
             fi
           done
           if [ $FAILED -gt 0 ]; then
-            echo "::error::$FAILED core endpoint check(s) failed on 192.168.1.193"
+            echo "::error::$FAILED core endpoint check(s) failed on ${TARGET_IP}"
             exit 1
           fi
           echo "All core endpoint checks passed"
+
+      - name: Tear down SSH port-forward
+        if: always() && steps.colo.outputs.is_local != 'true'
+        run: |
+          pkill -f "ssh .* -L ${TARGET_PORT}:127.0.0.1:${TARGET_PORT} ${TARGET_USER}@${TARGET_IP}" 2>/dev/null || true
 
       - name: Slack notify - Tests failed
         if: failure()
@@ -473,6 +541,9 @@ jobs:
       # match https://lon1.pop0.uk (admin UI behind public 443).
       health_endpoint: "https://lon1.pop0.uk/healthz"
       health_check_mode: external
+      # Domain smoke test from the runner exercises DNS + public 443 for
+      # real — the same thing a client hits. Runs from any runner.
+      smoke_domain: "lon1.pop0.uk"
       docker_prune: true
       notify_success: true
       deploy_branch: ${{ github.event.inputs.DEPLOY_BRANCH || github.ref_name }}
