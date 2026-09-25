@@ -166,9 +166,17 @@ jobs:
   # ──────────────────────────────────────────────────────
   smoke-test-int:
     name: "Nightly 3/5: Smoke Test Int"
+    # Any Linux self-hosted runner.  This job used to curl 127.0.0.1:8099
+    # regardless of which runner picked it up — a coin toss the moment
+    # a Linux self-hosted runner other than int existed.  Now it detects
+    # co-location and tunnels via SSH otherwise.
     runs-on: [self-hosted, Linux]
     needs: [deploy-int]
     timeout-minutes: 15
+    env:
+      TARGET_IP: "192.168.1.193"
+      TARGET_USER: "bwalia"
+      TARGET_PORT: "8099"
 
     steps:
       # actions/checkout's git-clean cannot unlink root-owned build
@@ -189,16 +197,57 @@ jobs:
         with:
           ref: ${{ env.NIGHTLY_BRANCH }}
 
+      - name: Detect co-location with target
+        id: colo
+        run: |
+          IS_LOCAL=false
+          IPS="$(hostname -I 2>/dev/null || true) $(ip -o addr show 2>/dev/null | awk '{print $4}' | cut -d/ -f1) $(ifconfig 2>/dev/null | awk '/inet /{print $2}')"
+          if printf ' %s ' $IPS | grep -qFw "$TARGET_IP"; then
+            IS_LOCAL=true
+          fi
+          echo "is_local=$IS_LOCAL" >> "$GITHUB_OUTPUT"
+          if [ "$IS_LOCAL" = "true" ]; then
+            echo "Runner IS co-located with $TARGET_IP — will curl 127.0.0.1 directly."
+          else
+            echo "Runner is NOT co-located with $TARGET_IP — will tunnel via SSH."
+          fi
+
+      - name: Install SSH key (only when remote from target)
+        if: steps.colo.outputs.is_local != 'true'
+        env:
+          SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          if [ -z "$SSH_KEY" ]; then
+            if [ ! -f "$HOME/.ssh/id_rsa" ]; then
+              echo "::error::Runner has no ~/.ssh/id_rsa and secrets.SSH_PRIVATE_KEY is not set — cannot reach ${TARGET_IP}."
+              exit 1
+            fi
+            echo "Using pre-existing runner key at ~/.ssh/id_rsa"
+          else
+            mkdir -p ~/.ssh
+            echo "$SSH_KEY" > ~/.ssh/id_rsa
+            chmod 600 ~/.ssh/id_rsa
+          fi
+          ssh-keyscan -H "$TARGET_IP" >> ~/.ssh/known_hosts 2>/dev/null || true
+
       - name: Install Go
         uses: actions/setup-go@v5
         with:
           go-version: '1.19'
           cache: false
 
+      - name: Open SSH port-forward to target (only when remote)
+        if: steps.colo.outputs.is_local != 'true'
+        run: |
+          ssh -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new \
+            -i ~/.ssh/id_rsa -N -f \
+            -L "${TARGET_PORT}:127.0.0.1:${TARGET_PORT}" \
+            "${TARGET_USER}@${TARGET_IP}"
+
       - name: Run health check tests (Go)
         working-directory: QA
         env:
-          TARGET_HOST: "http://127.0.0.1:8099"
+          TARGET_HOST: "http://127.0.0.1:${{ env.TARGET_PORT }}"
         run: |
           echo "=== Go Health Check Tests ==="
           echo "Target: $TARGET_HOST"
@@ -220,7 +269,7 @@ jobs:
           FAILED=0
           PASSED=0
           SKIPPED=0
-          BASE="http://127.0.0.1:8099"
+          BASE="http://127.0.0.1:${TARGET_PORT}"
 
           # Core endpoints (must pass) — :8099 avoids k3s CNI hostPort on :8080
           echo "--- Core endpoints (required) ---"
@@ -229,10 +278,10 @@ jobs:
             STATUS=$(echo "$STATUS" | tr -cd '0-9' | head -c 3)
             [[ -z "$STATUS" ]] && STATUS="000"
             if [ "$STATUS" = "200" ]; then
-              printf "  ✓ GET :8099%-25s %s\n" "$ENDPOINT" "$STATUS"
+              printf "  ✓ GET :%s%-25s %s\n" "$TARGET_PORT" "$ENDPOINT" "$STATUS"
               PASSED=$((PASSED+1))
             else
-              printf "  ✗ GET :8099%-25s %s\n" "$ENDPOINT" "$STATUS"
+              printf "  ✗ GET :%s%-25s %s\n" "$TARGET_PORT" "$ENDPOINT" "$STATUS"
               FAILED=$((FAILED+1))
             fi
           done
@@ -244,10 +293,10 @@ jobs:
             STATUS=$(echo "$STATUS" | tr -cd '0-9' | head -c 3)
             [[ -z "$STATUS" ]] && STATUS="000"
             if [ "$STATUS" = "200" ]; then
-              printf "  ✓ GET :8099%-25s %s\n" "$ENDPOINT" "$STATUS"
+              printf "  ✓ GET :%s%-25s %s\n" "$TARGET_PORT" "$ENDPOINT" "$STATUS"
               PASSED=$((PASSED+1))
             else
-              printf "  ○ GET :8099%-25s %s (skip)\n" "$ENDPOINT" "$STATUS"
+              printf "  ○ GET :%s%-25s %s (skip)\n" "$TARGET_PORT" "$ENDPOINT" "$STATUS"
               SKIPPED=$((SKIPPED+1))
             fi
           done
@@ -259,6 +308,11 @@ jobs:
             exit 1
           fi
           echo "All core endpoints PASSED"
+
+      - name: Tear down SSH port-forward
+        if: always() && steps.colo.outputs.is_local != 'true'
+        run: |
+          pkill -f "ssh .* -L ${TARGET_PORT}:127.0.0.1:${TARGET_PORT} ${TARGET_USER}@${TARGET_IP}" 2>/dev/null || true
 
       - name: Slack notify - Smoke test failed
         if: failure()
