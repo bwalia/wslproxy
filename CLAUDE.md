@@ -373,7 +373,7 @@ Local URLs:
 
 ### Things we discovered in real incidents:
 
-1. **`client_body_buffer_size 0`** on admin server block silently truncates large request bodies to ~90 bytes → worker enters CPU-bound infinite loop on malformed JSON parse. Use `128k`. Fixed in `nginx-dev.conf.tmpl` and `infra/ansible/roles/wslproxy/templates/nginx.conf.j2`.
+1. **`client_body_buffer_size 0`** on admin server block silently truncates large request bodies to ~90 bytes → worker enters CPU-bound infinite loop on malformed JSON parse. Admin API blocks now use `10m` in both templates, so records up to 10 MB (server records with large nginx configs) stay in memory. Larger bodies spool to a temp file; `api.lua`'s dispatcher skips `get_post_args()` for those (it refuses spooled bodies with `request body in temp file not supported`) and `Helper.GetPayloads` reads the file. The dashboard proxy allows 16mb (`proxyClientMaxBodySize` in `next.config.ts`).
 
 2. **Only 1 `worker_processes`** in production means any stuck worker = full outage. Consider increasing.
 

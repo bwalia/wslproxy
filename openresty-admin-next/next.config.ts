@@ -119,6 +119,10 @@ const nextConfig: NextConfig = {
   // is kept as a fallback so `./dev.sh` and the local docker stack
   // continue to work without setting an env var.
   experimental: {
+    // src/proxy.ts sits in front of every /api call, and Next caps proxied
+    // bodies at 10MB. Admin records can be up to 10MB each (large nginx
+    // configs), so leave room for the JSON envelope around one.
+    proxyClientMaxBodySize: "16mb",
     serverActions: {
       allowedOrigins: (() => {
         const fromEnv = process.env.WSLPROXY_ALLOWED_ORIGINS;

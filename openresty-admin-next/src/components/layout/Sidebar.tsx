@@ -247,7 +247,8 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
       {!collapsed && (
         <div className="border-t border-slate-200 px-4 py-3 dark:border-slate-800">
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            v{env.appVersion} &middot; Build {env.buildNumber}
+            {/* Release tags already carry the "v" (v1.0.158). */}
+            {env.appVersion.replace(/^(?=\d)/, "v")} &middot; Build {env.buildNumber}
           </p>
         </div>
       )}
