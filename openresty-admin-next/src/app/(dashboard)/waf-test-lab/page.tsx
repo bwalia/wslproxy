@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { FlaskConical, Play, Send, ShieldCheck, ShieldAlert } from "lucide-react";
+import { FlaskConical, Play, Send, ShieldCheck, ShieldAlert, FileDown } from "lucide-react";
 import PageHeader from "@/components/ui/PageHeader";
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import Button from "@/components/ui/Button";
@@ -12,6 +12,14 @@ import Textarea from "@/components/ui/Textarea";
 import Card, { CardHeader, CardBody } from "@/components/ui/Card";
 import { apiFetch } from "@/lib/api/client";
 import { useNotification } from "@/contexts/NotificationContext";
+import { getEnvProfile } from "@/lib/api/data-provider";
+import {
+  buildWafLabReport,
+  protectionOf,
+  verdictOf,
+  type CatalogAttack,
+  type WafTestResult,
+} from "@/lib/reports/wafLabReport";
 
 /**
  * WAF Test Lab — an operator tool that fires attack payloads at any allow-listed
@@ -26,38 +34,6 @@ import { useNotification } from "@/contexts/NotificationContext";
  * Unlike the in-browser demo lab, this relay can also set forbidden headers such
  * as User-Agent, so scanner detection is testable here too.
  */
-
-// ── Result + catalog types ──────────────────────────────────────────────────
-interface WafTestResult {
-  ok: boolean;
-  error?: string;
-  status?: number;
-  blocked?: boolean;
-  waf_block?: boolean;
-  waf_rule?: string | null;
-  waf_violation?: string | null;
-  support_id?: string | null;
-  server?: string | null;
-  content_type?: string | null;
-  latency_ms?: number;
-  target?: string;
-  path?: string;
-  method?: string;
-  body_snippet?: string;
-}
-
-interface CatalogAttack {
-  id: string;
-  name: string;
-  group: string;
-  method: string;
-  path: string;
-  body?: string;
-  contentType?: string;
-  headers?: Record<string, string>;
-  expect: "block" | "allow";
-  notes?: string;
-}
 
 // Forged alg:none JWT for the JWT test (header.payload. with empty signature).
 function b64url(obj: unknown): string {
@@ -134,14 +110,6 @@ const CATALOG: CatalogAttack[] = [
 
 const GROUPS = ["all", ...Array.from(new Set(CATALOG.map((a) => a.group)))];
 
-function verdictOf(a: CatalogAttack, r?: WafTestResult): { ok: boolean | null; label: string } {
-  if (!r) return { ok: null, label: "—" };
-  if (!r.ok) return { ok: false, label: r.error ? "error" : "failed" };
-  const blocked = !!r.blocked;
-  if (a.expect === "block") return { ok: blocked, label: blocked ? "blocked ✓" : "NOT blocked ✗" };
-  return { ok: !blocked, label: blocked ? "blocked ✗" : "passed ✓" };
-}
-
 export default function WafTestLabPage() {
   const { notify } = useNotification();
   const [targets, setTargets] = useState<string[]>([]);
@@ -149,6 +117,9 @@ export default function WafTestLabPage() {
   const [group, setGroup] = useState("all");
   const [results, setResults] = useState<Record<string, WafTestResult | undefined>>({});
   const [running, setRunning] = useState(false);
+  const [runStartedAt, setRunStartedAt] = useState<Date | null>(null);
+  const [runFinishedAt, setRunFinishedAt] = useState<Date | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   // custom request builder
   const [cMethod, setCMethod] = useState("GET");
@@ -207,6 +178,8 @@ export default function WafTestLabPage() {
     }
     setRunning(true);
     setResults({});
+    setRunStartedAt(new Date());
+    setRunFinishedAt(null);
     const items = [...CATALOG];
     let idx = 0;
     const worker = async () => {
@@ -220,16 +193,43 @@ export default function WafTestLabPage() {
       await Promise.all([worker(), worker(), worker()]);
     } finally {
       setRunning(false);
+      setRunFinishedAt(new Date());
     }
   }, [target, fireAttack, notify]);
 
   const fireOne = useCallback(
     async (a: CatalogAttack) => {
+      const started = new Date();
       const r = await fireAttack(a);
       setResults((prev) => ({ ...prev, [a.id]: r }));
+      setRunStartedAt((prev) => prev ?? started);
+      setRunFinishedAt(new Date());
     },
     [fireAttack],
   );
+
+  const downloadPdf = useCallback(async () => {
+    setExporting(true);
+    try {
+      const report = buildWafLabReport({
+        catalog: CATALOG,
+        results,
+        target,
+        environment: getEnvProfile(),
+        startedAt: runStartedAt,
+        finishedAt: runFinishedAt,
+      });
+      const { downloadWafLabPdf } = await import("@/lib/reports/wafLabPdf");
+      const name = await downloadWafLabPdf(report);
+      notify(`Saved ${name}`, { type: "success" });
+    } catch (e) {
+      notify(`Could not build the PDF: ${e instanceof Error ? e.message : String(e)}`, {
+        type: "error",
+      });
+    } finally {
+      setExporting(false);
+    }
+  }, [results, target, runStartedAt, runFinishedAt, notify]);
 
   const sendCustom = useCallback(async () => {
     let headers: Record<string, string> = {};
@@ -262,8 +262,9 @@ export default function WafTestLabPage() {
     if (!r) return false;
     return verdictOf(a, r).ok === true;
   }).length;
-  const protectionKnown = successful.length >= 3;
-  const isProtected = protectionKnown && blockedCount >= Math.max(1, Math.floor(successful.length * 0.5));
+  const protection = protectionOf(successful.length, blockedCount);
+  const protectionKnown = protection !== "insufficient";
+  const isProtected = protection === "active";
 
   const shown = useMemo(
     () => (group === "all" ? CATALOG : CATALOG.filter((a) => a.group === group)),
@@ -385,14 +386,26 @@ export default function WafTestLabPage() {
         icon={FlaskConical}
         subtitle="Fire attack payloads (GET & POST) at an allow-listed host and see what the WAF blocks"
         actions={
-          <Button
-            onClick={runAll}
-            loading={running}
-            disabled={!target}
-            icon={<Play className="h-4 w-4" aria-hidden="true" />}
-          >
-            Run all ({CATALOG.length})
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="secondary"
+              onClick={downloadPdf}
+              loading={exporting}
+              disabled={running || ran.length === 0}
+              title={ran.length === 0 ? "Run at least one test first" : "Download these results as a PDF report"}
+              icon={<FileDown className="h-4 w-4" aria-hidden="true" />}
+            >
+              Download PDF
+            </Button>
+            <Button
+              onClick={runAll}
+              loading={running}
+              disabled={!target}
+              icon={<Play className="h-4 w-4" aria-hidden="true" />}
+            >
+              Run all ({CATALOG.length})
+            </Button>
+          </div>
         }
       />
 
