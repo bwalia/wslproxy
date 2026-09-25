@@ -57,11 +57,33 @@ local function is_yaml_ext(path)
         and (path:match("%.ya?ml$") ~= nil)
 end
 
-local function decode_json(content)
-    if not cjson or not cjson.decode then
+-- Separate cjson instance whose decoded arrays carry cjson.array_mt. A plain
+-- decode turns an empty [] into an empty table that re-encodes as {}, so any
+-- read-modify-write of a record (policy apply, rule unlink) silently changed
+-- `ipLists.deny: []` into `{}`. Opt-in (preserve_arrays) so the request path
+-- keeps the plain decoder. false = unavailable (older cjson), nil = not tried.
+local cjson_arrays
+local function arrays_decoder()
+    if cjson_arrays == nil then
+        cjson_arrays = false
+        local ok, mod = pcall(require, "cjson")
+        if ok and type(mod.new) == "function" then
+            local inst = mod.new()
+            if type(inst.decode_array_with_array_mt) == "function" then
+                inst.decode_array_with_array_mt(true)
+                cjson_arrays = inst
+            end
+        end
+    end
+    return cjson_arrays or nil
+end
+
+local function decode_json(content, preserve_arrays)
+    local dec = preserve_arrays and arrays_decoder() or cjson
+    if not dec or not dec.decode then
         return nil, "cjson not available"
     end
-    local ok, result = pcall(cjson.decode, content)
+    local ok, result = pcall(dec.decode, content)
     if ok and type(result) == "table" then
         return result
     end
@@ -84,7 +106,9 @@ local function decode_yaml(content)
 end
 
 --- Decode file contents using extension (or JSON-first sniff).
-function _M.decode(content, path)
+-- opts.preserve_arrays: keep JSON arrays (even empty ones) as arrays when the
+-- result is encoded again; used by the storage layer's read-modify-write.
+function _M.decode(content, path, opts)
     if content == nil or content == "" then
         return nil, "empty"
     end
@@ -95,7 +119,7 @@ function _M.decode(content, path)
         return decode_yaml(content)
     end
     -- Default / .json: try JSON first
-    local tbl, err = decode_json(content)
+    local tbl, err = decode_json(content, opts and opts.preserve_arrays)
     if tbl then
         return tbl
     end

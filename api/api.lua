@@ -17,6 +17,7 @@ local Pops = require("pops")
 local DnsManager = require("dns_manager")
 local Storage = require("storage")
 local Repo = require("repo")
+local Driver = require("storage.driver")
 
 local settings = Helper.settings()
 local storageTypeOverride = settings.settings or os.getenv("STORAGE_TYPE")
@@ -1632,44 +1633,96 @@ local function createUpdateServer(body, uuid)
     }))
 end
 
-local function createDeleteServer(body, uuid)
-    local serverId = uuid
+-- ── Shared DELETE plumbing (servers, rules, waf_rules) ──────────────────────
+-- Upper bound on ids per bulk request; one request holds one worker for the
+-- whole loop.
+local MAX_BULK_DELETE = 500
+
+-- Normalise a DELETE body into (ids, envProfile). Accepts the dashboard shape
+-- {ids = {ids = {...}, envProfile = ...}}, a flat {ids = {...}, envProfile},
+-- or no body at all (single delete by path id). Never indexes a nil field:
+-- the old handlers read payloads.ids.ids unguarded and 500'd on `{}`.
+local function parseDeleteBody(body)
     local payloads = Helper.GetPayloads(body)
-    if payloads == ngx.null or not body or type(payloads) == "nil" then
-        payloads = ngx.req.get_uri_args()
+    if payloads == ngx.null or type(payloads) ~= "table" then
+        payloads = ngx.req.get_uri_args() or {}
     end
     local envProfile = "prod"
-    if payloads.ids ~= nil and payloads.ids.envProfile ~= nil then
-        envProfile = payloads.ids.envProfile
+    local ids = {}
+    local wrap = payloads.ids
+    if type(wrap) == "table" then
+        if type(wrap.ids) == "table" then
+            ids = wrap.ids
+        elseif wrap[1] ~= nil then
+            ids = wrap
+        end
+    end
+    if type(wrap) == "table" and wrap.envProfile ~= nil then
+        envProfile = wrap.envProfile
     elseif payloads.envProfile ~= nil then
         envProfile = payloads.envProfile
     end
+    return ids, tostring(envProfile)
+end
 
-    local function unlink_and_delete_server(sid)
-        local oldDomain = Repo.get("servers", envProfile, sid)
-        if type(oldDomain) == "table" then
-            oldServerName = oldDomain.server_name
-            if oldDomain.rules ~= nil then
-                deleteServerFromRules(oldDomain.rules, sid, envProfile)
-            end
-            if oldDomain.match_cases ~= nil and type(next(oldDomain.match_cases)) ~= nil then
-                for _, matchCase in pairs(oldDomain.match_cases) do
-                    deleteServerFromRules(matchCase.statement, sid, envProfile)
-                end
-            end
-        end
-        Repo.delete("servers", envProfile, sid)
+-- Run deleteOne(id) for a path id or every body id, and answer with what
+-- actually happened. deleteOne returns truthy on success or nil, err.
+-- Response: {data = {deleted = {...}, failed = {{id, error}...}}}; 207 when
+-- some ids failed, 400 when nothing was asked for or the list is too long.
+local function runDelete(resource, body, uuid, deleteOne)
+    local ids, envProfile = parseDeleteBody(body)
+    if uuid ~= nil and uuid ~= "" then
+        ids = { uuid }
     end
-    if uuid ~= "" and uuid ~= nil then
-        unlink_and_delete_server(uuid)
-    elseif payloads and payloads.ids.ids and #payloads.ids.ids > 0 then
-        for value = 1, #payloads.ids.ids do
-            unlink_and_delete_server(payloads.ids.ids[value])
+    if #ids == 0 then
+        Errors.throwError("No ids to delete: pass an id in the path or {ids: {ids: [...]}} in the body",
+            ngx.HTTP_BAD_REQUEST)
+    end
+    if #ids > MAX_BULK_DELETE then
+        Errors.throwError("Too many ids in one request (" .. #ids .. " > " .. MAX_BULK_DELETE .. ")",
+            ngx.HTTP_BAD_REQUEST)
+    end
+    -- array_mt so an empty list encodes as [] rather than {}.
+    local deleted = setmetatable({}, cjson.array_mt)
+    local failed = setmetatable({}, cjson.array_mt)
+    for _, id in ipairs(ids) do
+        local ok, res, err = pcall(deleteOne, id, envProfile)
+        if ok and res then
+            deleted[#deleted + 1] = tostring(id)
+        else
+            failed[#failed + 1] = {
+                id = tostring(id),
+                error = tostring(ok and (err or "delete failed") or res),
+            }
         end
+    end
+    pcall(AuditLogger.log, #ids > 1 and "bulk_delete" or "delete", nil, resource,
+        #ids == 1 and tostring(ids[1]) or (#deleted .. " of " .. #ids),
+        { env = envProfile, deleted = deleted, failed = failed })
+    if #failed > 0 then
+        ngx.status = 207
     end
     ngx.say(cjson.encode({
-        data = { "success" }
+        data = { deleted = deleted, failed = failed }
     }))
+end
+
+local function createDeleteServer(body, uuid)
+    runDelete("servers", body, uuid, function(sid, envProfile)
+        local oldDomain, gerr = Repo.get("servers", envProfile, sid)
+        if type(oldDomain) ~= "table" then
+            return nil, gerr or "not found"
+        end
+        if oldDomain.rules ~= nil then
+            deleteServerFromRules(oldDomain.rules, sid, envProfile)
+        end
+        if oldDomain.match_cases ~= nil and type(next(oldDomain.match_cases)) ~= nil then
+            for _, matchCase in pairs(oldDomain.match_cases) do
+                deleteServerFromRules(matchCase.statement, sid, envProfile)
+            end
+        end
+        return Repo.delete("servers", envProfile, sid)
+    end)
 end
 
 -- Users APIs
@@ -1887,76 +1940,35 @@ local function listRule(args, uuid)
 end
 
 local function createDeleteRules(body, uuid)
-    local payloads = Helper.GetPayloads(body)
-    if payloads == ngx.null or not body or type(payloads) == "nil" then
-        payloads = ngx.req.get_uri_args()
-    end
-    local envProfile = "prod"
-    if payloads.ids ~= nil and payloads.ids.envProfile ~= nil then
-        envProfile = payloads.ids.envProfile
-    elseif payloads.envProfile ~= nil then
-        envProfile = payloads.envProfile
-    end
-    if uuid ~= "" and uuid ~= nil then
-        deleteRuleFromServer(uuid, envProfile)
-        Repo.delete("rules", envProfile, uuid)
-    elseif payloads and payloads.ids.ids and #payloads.ids.ids > 0 then
-        for value = 1, #payloads.ids.ids do
-            deleteRuleFromServer(payloads.ids.ids[value], envProfile)
-            Repo.delete("rules", envProfile, payloads.ids.ids[value])
+    runDelete("rules", body, uuid, function(id, envProfile)
+        if not Driver.valid_id(id) then
+            return nil, "invalid id"
         end
-    end
+        local existing, gerr = Repo.get("rules", envProfile, id)
+        if type(existing) ~= "table" then
+            return nil, gerr or "not found"
+        end
+        deleteRuleFromServer(id, envProfile)
+        return Repo.delete("rules", envProfile, id)
+    end)
+end
 
-    ngx.say(cjson.encode({
-        data = payloads
-    }))
+-- Plain delete for resources with no cross-references to clean up.
+local function deleteSimpleResource(resource, body, uuid)
+    runDelete(resource, body, uuid, function(id, envProfile)
+        local existing, gerr = Repo.get(resource, envProfile, id)
+        if type(existing) ~= "table" then
+            return nil, gerr or "not found"
+        end
+        return Repo.delete(resource, envProfile, id)
+    end)
 end
 
 local function createDeleteSecrets(body, uuid)
-    local payloads = Helper.GetPayloads(body)
-    if payloads == ngx.null or not body or type(payloads) == "nil" then
-        payloads = ngx.req.get_uri_args()
-    end
-    local envProfile = "prod"
-    if payloads.ids ~= nil and payloads.ids.envProfile ~= nil then
-        envProfile = payloads.ids.envProfile
-    elseif payloads.envProfile ~= nil then
-        envProfile = payloads.envProfile
-    end
-    if uuid ~= "" and uuid ~= nil then
-        Repo.delete("secrets", envProfile, uuid)
-    elseif payloads and payloads.ids.ids and #payloads.ids.ids > 0 then
-        for value = 1, #payloads.ids.ids do
-            Repo.delete("secrets", envProfile, payloads.ids.ids[value])
-        end
-    end
-
-    ngx.say(cjson.encode({
-        data = payloads
-    }))
+    deleteSimpleResource("secrets", body, uuid)
 end
 local function createDeleteInstances(body, uuid)
-    local payloads = Helper.GetPayloads(body)
-    if payloads == ngx.null or not body or type(payloads) == "nil" then
-        payloads = ngx.req.get_uri_args()
-    end
-    local envProfile = "prod"
-    if payloads.ids ~= nil and payloads.ids.envProfile ~= nil then
-        envProfile = payloads.ids.envProfile
-    elseif payloads.envProfile ~= nil then
-        envProfile = payloads.envProfile
-    end
-    if uuid ~= "" and uuid ~= nil then
-        Repo.delete("instances", envProfile, uuid)
-    elseif payloads and payloads.ids.ids and #payloads.ids.ids > 0 then
-        for value = 1, #payloads.ids.ids do
-            Repo.delete("instances", envProfile, payloads.ids.ids[value])
-        end
-    end
-
-    ngx.say(cjson.encode({
-        data = payloads
-    }))
+    deleteSimpleResource("instances", body, uuid)
 end
 
 CreateUpdateRecord = function(json_val, uuid, key_name, folder_name, method)
@@ -2307,26 +2319,151 @@ local function createUpdateWafRules(body, uuid)
     }))
 end
 
-local function createDeleteWafRules(body, uuid)
-    local payloads = Helper.GetPayloads(body)
-    if payloads == ngx.null or not body or type(payloads) == "nil" then
-        payloads = ngx.req.get_uri_args()
+-- Remove deleted WAF rule ids from every policy in the env that lists them,
+-- so a policy never points at a rule that no longer exists.
+local function unlinkWafRulesFromPolicies(envProfile, ruleIds)
+    if #ruleIds == 0 then
+        return
     end
-    local envProfile = "prod"
-    if payloads.ids ~= nil then
-        envProfile = payloads.ids.envProfile or "prod"
-    elseif payloads.envProfile then
-        envProfile = payloads.envProfile
+    local gone = {}
+    for _, id in ipairs(ruleIds) do
+        gone[tostring(id)] = true
     end
-    if uuid ~= "" and uuid ~= nil then
-        Repo.delete("waf_rules", envProfile, uuid)
-    elseif payloads and payloads.ids and payloads.ids.ids and #payloads.ids.ids > 0 then
-        for value = 1, #payloads.ids.ids do
-            Repo.delete("waf_rules", envProfile, payloads.ids.ids[value])
+    local policies = Repo.scan("waf_policies", envProfile) or {}
+    for _, policy in ipairs(policies) do
+        if type(policy) == "table" and type(policy.waf_rules) == "table" then
+            local kept = setmetatable({}, cjson.array_mt)
+            for _, rid in ipairs(policy.waf_rules) do
+                if not gone[tostring(rid)] then
+                    kept[#kept + 1] = rid
+                end
+            end
+            if #kept ~= #policy.waf_rules then
+                policy.waf_rules = kept
+                policy.updated_at = ngx.time()
+                Repo.update("waf_policies", envProfile, policy.id, policy)
+            end
         end
     end
+end
+
+local function createDeleteWafRules(body, uuid)
+    local unlinked = {}
+    runDelete("waf_rules", body, uuid, function(id, envProfile)
+        local existing, gerr = Repo.get("waf_rules", envProfile, id)
+        if type(existing) ~= "table" then
+            return nil, gerr or "not found"
+        end
+        local ok, err = Repo.delete("waf_rules", envProfile, id)
+        if ok then
+            unlinked[#unlinked + 1] = id
+            unlinked.env = envProfile
+        end
+        return ok, err
+    end)
+    if unlinked.env then
+        pcall(unlinkWafRulesFromPolicies, unlinked.env, unlinked)
+    end
+end
+
+-- POST /api/waf_rules/apply
+-- Body: {policy_id, rule_ids = {...}, action = "add"|"remove", envProfile}
+-- Adds (default) or removes several WAF rules on one policy in a single
+-- write, instead of the UI reading, merging and PUTting the whole policy.
+-- Unknown rule ids are reported and skipped on "add"; order of the existing
+-- list is preserved and new ids are appended.
+local function applyWafRulesToPolicy(body)
+    local payloads = Helper.GetPayloads(body)
+    if type(payloads) ~= "table" then
+        Errors.throwError("Request body must be JSON", ngx.HTTP_BAD_REQUEST)
+    end
+    local envProfile = tostring(payloads.envProfile or "prod")
+    local policyId = payloads.policy_id
+    local action = payloads.action or "add"
+    local ruleIds = type(payloads.rule_ids) == "table" and payloads.rule_ids or {}
+    if action ~= "add" and action ~= "remove" then
+        Errors.throwError("action must be \"add\" or \"remove\"", ngx.HTTP_BAD_REQUEST)
+    end
+    if not Driver.valid_env(envProfile) then
+        Errors.throwError("Invalid envProfile", ngx.HTTP_BAD_REQUEST)
+    end
+    if not Driver.valid_id(policyId) then
+        Errors.throwError("policy_id is missing or invalid", ngx.HTTP_BAD_REQUEST)
+    end
+    if #ruleIds == 0 or #ruleIds > MAX_BULK_DELETE then
+        Errors.throwError("rule_ids must list 1-" .. MAX_BULK_DELETE .. " ids", ngx.HTTP_BAD_REQUEST)
+    end
+
+    local policy = Repo.get("waf_policies", envProfile, policyId)
+    if type(policy) ~= "table" then
+        Errors.throwError("WAF policy not found: " .. tostring(policyId), ngx.HTTP_NOT_FOUND)
+    end
+
+    local current = type(policy.waf_rules) == "table" and policy.waf_rules or {}
+    local present = {}
+    for _, rid in ipairs(current) do
+        present[tostring(rid)] = true
+    end
+
+    local changed = setmetatable({}, cjson.array_mt)   -- added or removed
+    local unchanged = setmetatable({}, cjson.array_mt) -- already there / not there
+    local missing = setmetatable({}, cjson.array_mt)   -- no such WAF rule
+    local next_list = setmetatable({}, cjson.array_mt)
+
+    if action == "add" then
+        for _, rid in ipairs(current) do
+            next_list[#next_list + 1] = rid
+        end
+        for _, raw in ipairs(ruleIds) do
+            local rid = tostring(raw)
+            if present[rid] then
+                unchanged[#unchanged + 1] = rid
+            elseif not Driver.valid_id(rid) or type(Repo.get("waf_rules", envProfile, rid)) ~= "table" then
+                missing[#missing + 1] = rid
+            else
+                next_list[#next_list + 1] = rid
+                present[rid] = true
+                changed[#changed + 1] = rid
+            end
+        end
+    else
+        local drop = {}
+        for _, raw in ipairs(ruleIds) do
+            local rid = tostring(raw)
+            if present[rid] then
+                drop[rid] = true
+                changed[#changed + 1] = rid
+            else
+                unchanged[#unchanged + 1] = rid
+            end
+        end
+        for _, rid in ipairs(current) do
+            if not drop[tostring(rid)] then
+                next_list[#next_list + 1] = rid
+            end
+        end
+    end
+
+    if #changed > 0 then
+        policy.waf_rules = next_list
+        policy.updated_at = ngx.time()
+        local ok, err = Repo.update("waf_policies", envProfile, policy.id or policyId, policy)
+        if not ok then
+            Errors.throwError("Failed to save policy: " .. tostring(err), ngx.HTTP_INTERNAL_SERVER_ERROR)
+        end
+        pcall(AuditLogger.log, "waf_rules_" .. action, nil, "waf_policies", tostring(policyId),
+            { env = envProfile, rules = changed, missing = missing })
+    end
+
     ngx.say(cjson.encode({
-        data = payloads
+        data = {
+            policy_id = policyId,
+            action = action,
+            changed = changed,
+            unchanged = unchanged,
+            missing = missing,
+            total_rules = #next_list,
+        }
     }))
 end
 
@@ -2416,26 +2553,7 @@ local function createUpdateWafPolicies(body, uuid)
 end
 
 local function createDeleteWafPolicies(body, uuid)
-    local payloads = Helper.GetPayloads(body)
-    if payloads == ngx.null or not body or type(payloads) == "nil" then
-        payloads = ngx.req.get_uri_args()
-    end
-    local envProfile = "prod"
-    if payloads.ids ~= nil then
-        envProfile = payloads.ids.envProfile or "prod"
-    elseif payloads.envProfile then
-        envProfile = payloads.envProfile
-    end
-    if uuid ~= "" and uuid ~= nil then
-        Repo.delete("waf_policies", envProfile, uuid)
-    elseif payloads and payloads.ids and payloads.ids.ids and #payloads.ids.ids > 0 then
-        for value = 1, #payloads.ids.ids do
-            Repo.delete("waf_policies", envProfile, payloads.ids.ids[value])
-        end
-    end
-    ngx.say(cjson.encode({
-        data = payloads
-    }))
+    deleteSimpleResource("waf_policies", body, uuid)
 end
 
 -- =====================================================
@@ -5346,6 +5464,9 @@ local function handle_post_request(args, path)
         end
         if path == "waf_rules/seed" then
             seedWafRules(args)
+        end
+        if path == "waf_rules/apply" then
+            applyWafRulesToPolicy(args)
         end
         -- Traffic management POST endpoints
         if path == "traffic/backends/weights" then

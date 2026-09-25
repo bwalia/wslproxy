@@ -46,10 +46,33 @@ function _M.redis_hash(resource, env)
     return m.redis
 end
 
+-- Path-segment guards. Ids and env names arrive from request bodies (bulk
+-- delete takes a list of ids), and both are concatenated into file paths, so
+-- `env = ".."` with `id = "settings"` would address data/settings.json.
+-- Real ids ("host:example.com", uuids, "waf-rule-cmdi-001") never contain a
+-- separator, and without one an id cannot leave its directory.
+function _M.valid_env(env)
+    if env == nil then
+        return true -- disk_dir falls back to "prod"
+    end
+    return type(env) == "string" and env:match("^[%w_%-]+$") ~= nil
+end
+
+function _M.valid_id(id)
+    if type(id) ~= "string" and type(id) ~= "number" then
+        return false
+    end
+    local s = tostring(id)
+    return s ~= "" and not s:find("[/\\%z]")
+end
+
 function _M.disk_dir(config_path, resource, env)
     local m = _M.RESOURCES[resource]
     if not m then
         return nil, "unknown resource: " .. tostring(resource)
+    end
+    if m.scoped and not _M.valid_env(env) then
+        return nil, "invalid environment: " .. tostring(env)
     end
     local root = config_path or "/opt/nginx/"
     if root:sub(-1) ~= "/" then

@@ -23,7 +23,8 @@ local function decode_record(raw, path)
     if type(raw) == "table" then
         return raw
     end
-    local decoded, err = ConfigIO.decode(raw, path)
+    -- preserve_arrays: records are read to be modified and written back.
+    local decoded, err = ConfigIO.decode(raw, path, { preserve_arrays = true })
     if decoded then
         return decoded
     end
@@ -64,6 +65,15 @@ local function read_array_file(path)
     return arr
 end
 
+-- Directory for a per-record file, or nil + error when the env or id would
+-- escape it (see Driver.valid_env / valid_id).
+local function record_dir(self, resource, env, id)
+    if not Driver.valid_id(id) then
+        return nil, "invalid id: " .. tostring(id)
+    end
+    return Driver.disk_dir(self.config_path, resource, env)
+end
+
 local function write_array_file(path, records)
     local dir = path:match("(.+)/[^/]+$")
     -- setDataToFile JSON-encodes tables itself; do not pre-encode.
@@ -98,7 +108,10 @@ function _M:get(resource, env, id)
         end
         return nil
     end
-    local dir = Driver.disk_dir(self.config_path, resource, env)
+    local dir, derr = record_dir(self, resource, env, id)
+    if not dir then
+        return nil, derr
+    end
     local base = dir .. "/" .. tostring(id)
     local path, content = ConfigIO.resolve_and_read(base)
     if not path then
@@ -162,7 +175,10 @@ function _M:update(resource, env, id, record)
         write_array_file(path, recs)
         return record
     end
-    local dir = Driver.disk_dir(self.config_path, resource, env)
+    local dir, derr = record_dir(self, resource, env, id)
+    if not dir then
+        return nil, derr
+    end
     local path = ConfigIO.write_path(dir, id)
     -- setDataToFile JSON-encodes tables itself (and throws on IO failure).
     Helper.setDataToFile(path, record, dir, "json")
@@ -196,7 +212,10 @@ function _M:delete(resource, env, id)
         write_array_file(path, kept)
         return true
     end
-    local dir = Driver.disk_dir(self.config_path, resource, env)
+    local dir, derr = record_dir(self, resource, env, id)
+    if not dir then
+        return nil, derr
+    end
     local base = dir .. "/" .. tostring(id)
     for _, ext in ipairs({ ".json", ".yaml", ".yml" }) do
         os.remove(base .. ext)
