@@ -63,6 +63,9 @@ jobs:
       version: ${{ steps.meta.outputs.version }}
     steps:
       - uses: actions/checkout@v5
+        with:
+          # Tags are needed for `git describe` below (footer version).
+          fetch-depth: 0
 
       - name: Compute tags
         id: meta
@@ -77,8 +80,10 @@ jobs:
             TAG="$VER"
           fi
           DEPLOY_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          # Prefer package.json version for the footer when available.
-          APP_VER="$(jq -r '.version // empty' openresty-admin-next/package.json 2>/dev/null || true)"
+          # Footer version comes from the nearest release tag, the same source
+          # deploy-environment.yml uses for the Ansible edges (lon1 shows
+          # v1.0.158). package.json was never bumped, so cp showed 0.2.0.
+          APP_VER="$(git describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null || true)"
           if [ -z "$APP_VER" ]; then APP_VER="$SHORT"; fi
           echo "version=$VER" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
