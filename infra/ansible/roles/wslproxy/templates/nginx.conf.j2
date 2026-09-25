@@ -426,8 +426,10 @@ http {
             proxy_cache_bypass $http_upgrade;
         }
 
+        # 10m: admin payloads (server records with large nginx configs) stay in
+        # memory. Bigger bodies spool to a temp file, which api.lua also handles.
         client_max_body_size  0;
-        client_body_buffer_size 128k;
+        client_body_buffer_size 10m;
 
         location ~ ^/api(.*)$ {
             default_type 'text/plain';
@@ -641,8 +643,10 @@ http {
         listen       {{ nginx_nextjs_dashboard_port }};
         server_name  127.0.0.1 localhost;
 
+        # 10m: admin payloads (server records with large nginx configs) stay in
+        # memory. Bigger bodies spool to a temp file, which api.lua also handles.
         client_max_body_size  0;
-        client_body_buffer_size 128k;
+        client_body_buffer_size 10m;
 
         # Health and ping — served by OpenResty Lua (same as legacy dashboard)
         # Canonical /healthz (Kubernetes-standard).  /health kept as an

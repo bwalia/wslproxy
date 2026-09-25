@@ -6262,22 +6262,33 @@ end
 -- Get the path name from the URI
 local path_name = ngx.var.uri:match("^/api/(.*)$")
 
+-- Read the body and return form args for the handlers. A body larger than
+-- client_body_buffer_size (128k) is spooled to a temp file, and
+-- get_post_args() refuses those with "request body in temp file not
+-- supported" — which rejected every server whose nginx config is over ~128k
+-- (grafana.diytaxreturn.co.uk, 170 KB). Handlers read JSON through
+-- Helper.GetPayloads, which reads the temp file itself, so skip form parsing.
+local function read_request_args()
+    ngx.req.read_body()
+    if not ngx.req.get_body_data() and ngx.req.get_body_file() then
+        return {}
+    end
+    local args, err = ngx.req.get_post_args()
+    if err then
+        Errors.throwError(err, ngx.HTTP_INTERNAL_SERVER_ERROR)
+    end
+    return args
+end
+
 -- Determine the request method and call the appropriate function
 if ngx.req.get_method() == "GET" then
     handle_get_request(ngx.req.get_uri_args(), path_name)
 elseif ngx.req.get_method() == "POST" then
-    ngx.req.read_body()
-    local postBody, postErr = ngx.req.get_post_args()
-    if postErr then
-        Errors.throwError(postErr, ngx.HTTP_INTERNAL_SERVER_ERROR)
-    end
-    handle_post_request(postBody, path_name)
+    handle_post_request(read_request_args(), path_name)
 elseif ngx.req.get_method() == "PUT" then
-    ngx.req.read_body()
-    handle_put_request(ngx.req.get_post_args(), path_name)
+    handle_put_request(read_request_args(), path_name)
 elseif ngx.req.get_method() == "DELETE" then
-    ngx.req.read_body()
-    handle_delete_request(ngx.req.get_post_args(), path_name)
+    handle_delete_request(read_request_args(), path_name)
 else
     ngx.exit(ngx.HTTP_NOT_ALLOWED)
 end
