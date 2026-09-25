@@ -10,6 +10,8 @@ import DataTable, { type Column } from "@/components/ui/DataTable";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import StatusBadge from "@/components/ui/StatusBadge";
+import { SelectionBar, BulkDeleteButton } from "@/components/ui/BulkActions";
+import { useSelection } from "@/hooks/useSelection";
 import type { Server as ServerType } from "@/types";
 
 export default function ServersListPage() {
@@ -34,6 +36,12 @@ export default function ServersListPage() {
   const { data, total, isLoading, error, mutate } = useList<ServerType>(
     "servers",
     params,
+  );
+
+  const selection = useSelection<ServerType>(
+    data,
+    (r) => r.id,
+    (r) => r.server_name || r.id,
   );
 
   // Navigate to the create form with the source id in the query string;
@@ -221,7 +229,22 @@ export default function ServersListPage() {
           </Button>
         }
       />
+      <SelectionBar count={selection.count} onClear={selection.clear}>
+        <BulkDeleteButton
+          resource="servers"
+          noun="servers"
+          items={selection.selectedItems}
+          warning="Each server is also unlinked from the rules that reference it. A config already written to /opt/nginx/conf.d is not removed."
+          onDone={() => {
+            selection.clear();
+            mutate();
+          }}
+        />
+      </SelectionBar>
       <DataTable
+        selectable
+        selectedIds={selection.selectedIds}
+        onSelectionChange={selection.setSelectedIds}
         columns={columns}
         data={data}
         total={total}

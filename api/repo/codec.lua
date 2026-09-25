@@ -54,11 +54,14 @@ local function should_encode(k, v)
     return false
 end
 
+-- Copies keep the source table's metatable: arrays decoded by the storage
+-- layer carry cjson.array_mt, and a bare `{}` copy would re-encode an empty
+-- [] as {} (a policy's `ipLists.deny: []` became `{}` on every save).
 local function walk(tbl, fn)
     if type(tbl) ~= "table" then
         return tbl
     end
-    local out = {}
+    local out = setmetatable({}, getmetatable(tbl))
     for k, v in pairs(tbl) do
         if OPAQUE_SUBTREES[k] then
             out[k] = v
@@ -95,7 +98,7 @@ function _M.strip_empty(record)
     if type(record) ~= "table" then
         return record
     end
-    local out = {}
+    local out = setmetatable({}, getmetatable(record)) -- see walk()
     for k, v in pairs(record) do
         if OPAQUE_SUBTREES[k] then
             -- Same reasoning as encode_sensitive: an empty string inside an

@@ -2,13 +2,16 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ShieldAlert } from "lucide-react";
+import { ShieldAlert, ListPlus } from "lucide-react";
 import { useList } from "@/hooks/useResource";
 import PageHeader from "@/components/ui/PageHeader";
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import StatusBadge from "@/components/ui/StatusBadge";
+import { SelectionBar, BulkDeleteButton } from "@/components/ui/BulkActions";
+import ApplyRulesToPolicyDialog from "@/components/waf/ApplyRulesToPolicyDialog";
+import { useSelection } from "@/hooks/useSelection";
 import type { WafRule } from "@/types";
 
 const categoryVariant: Record<
@@ -57,6 +60,13 @@ export default function WafRulesListPage() {
     "waf_rules",
     params,
   );
+
+  const selection = useSelection<WafRule>(
+    data,
+    (r) => r.id,
+    (r) => r.name || r.id,
+  );
+  const [applyOpen, setApplyOpen] = useState(false);
 
   const columns = useMemo<Column<WafRule>[]>(
     () => [
@@ -148,7 +158,36 @@ export default function WafRulesListPage() {
           </Button>
         }
       />
+      <SelectionBar count={selection.count} onClear={selection.clear}>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => setApplyOpen(true)}
+          icon={<ListPlus className="h-4 w-4" aria-hidden="true" />}
+        >
+          Apply to policy
+        </Button>
+        <BulkDeleteButton
+          resource="waf_rules"
+          noun="WAF rules"
+          items={selection.selectedItems}
+          warning="Each rule is also removed from every WAF policy that lists it."
+          onDone={() => {
+            selection.clear();
+            mutate();
+          }}
+        />
+      </SelectionBar>
+      <ApplyRulesToPolicyDialog
+        open={applyOpen}
+        items={selection.selectedItems}
+        onClose={() => setApplyOpen(false)}
+        onApplied={() => setApplyOpen(false)}
+      />
       <DataTable
+        selectable
+        selectedIds={selection.selectedIds}
+        onSelectionChange={selection.setSelectedIds}
         columns={columns}
         data={data}
         total={total}

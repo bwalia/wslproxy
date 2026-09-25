@@ -82,7 +82,7 @@ const VALIDATE_TOLERANT = true;
  * users whose localStorage hasn't migrated yet (ProfileContext's
  * hydrate step migrates them on next mount).
  */
-function getEnvProfile(): string {
+export function getEnvProfile(): string {
   const ns = get(STORAGE_KEYS.environment);
   if (ns) return ns;
   // Transitional fallback — ProfileContext migrates this on next render.

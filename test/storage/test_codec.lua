@@ -100,6 +100,33 @@ if not schema:find('"secret"', 1, true) then
     io.stderr:write("NOTE: api-gw.schema.json no longer defines `secret`; revisit OPAQUE_SUBTREES.\n")
 end
 
+-- Empty arrays survive a storage read-modify-write. A plain cjson decode
+-- turns [] into an empty table that encodes as {}, and strip_empty /
+-- encode_sensitive rebuilt every table without its metatable, so saving a
+-- WAF policy rewrote `ipLists.deny: []` as `{}`. Needs real cjson (resty).
+local has_cjson, cjson = pcall(require, "cjson")
+if has_cjson and cjson.new and cjson.array_mt then
+    local ConfigIO = require("config_io")
+    local raw = '{"id":"p","ipLists":{"deny":[],"allow":["127.0.0.1"]},"meta":{},"s":{"disable":[]}}'
+    local rec = assert(ConfigIO.decode(raw, "p.json", { preserve_arrays = true }))
+    local out = cjson.encode(Codec.encode_sensitive(Codec.strip_empty(rec)))
+    assert_eq(out:find('"deny":[]', 1, true) ~= nil, true, "empty array stays [] (" .. out .. ")")
+    assert_eq(out:find('"disable":[]', 1, true) ~= nil, true, "nested empty array stays []")
+    assert_eq(out:find('"meta":{}', 1, true) ~= nil, true, "empty object stays {}")
+    assert_eq(out:find('"allow":["127.0.0.1"]', 1, true) ~= nil, true, "non-empty array intact")
+    -- Without the opt-in, file decoding keeps cjson's default behaviour.
+    local plain = assert(ConfigIO.decode(raw, "p.json"))
+    assert_eq(cjson.encode(plain.ipLists.deny), "{}", "default decode unchanged")
+    -- Request bodies (Helper.GetPayloads) use decode_json_arrays: the
+    -- dashboard's empty lists must be stored as [] not {}.
+    local body = ConfigIO.decode_json_arrays('{"match_cases":[],"pop_ids":[],"locations":{}}')
+    local enc = cjson.encode(Codec.strip_empty(body))
+    assert_eq(enc:find('"match_cases":[]', 1, true) ~= nil, true, "request [] stays [] (" .. enc .. ")")
+    assert_eq(enc:find('"locations":{}', 1, true) ~= nil, true, "request {} stays {}")
+else
+    io.stderr:write("NOTE: real cjson unavailable; skipped array round-trip (run under resty)\n")
+end
+
 if failures > 0 then
     io.stderr:write("test_codec: " .. failures .. " failure(s)\n")
     os.exit(1)

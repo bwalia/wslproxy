@@ -9,6 +9,8 @@ import PageHeader from "@/components/ui/PageHeader";
 import DataTable, { type Column } from "@/components/ui/DataTable";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
+import { SelectionBar, BulkDeleteButton } from "@/components/ui/BulkActions";
+import { useSelection } from "@/hooks/useSelection";
 import type { Rule } from "@/types";
 
 export default function RulesListPage() {
@@ -33,6 +35,12 @@ export default function RulesListPage() {
   const { data, total, isLoading, error, mutate } = useList<Rule>(
     "rules",
     params,
+  );
+
+  const selection = useSelection<Rule>(
+    data,
+    (r) => r.id,
+    (r) => r.name || r.id,
   );
 
   // Per-row Clone — pushes to /rules/create?source=<id>; the create
@@ -165,7 +173,22 @@ export default function RulesListPage() {
           </Button>
         }
       />
+      <SelectionBar count={selection.count} onClear={selection.clear}>
+        <BulkDeleteButton
+          resource="rules"
+          noun="rules"
+          items={selection.selectedItems}
+          warning="Each rule is also removed from every server that uses it, so those servers stop matching it immediately."
+          onDone={() => {
+            selection.clear();
+            mutate();
+          }}
+        />
+      </SelectionBar>
       <DataTable
+        selectable
+        selectedIds={selection.selectedIds}
+        onSelectionChange={selection.setSelectedIds}
         columns={columns}
         data={data}
         total={total}

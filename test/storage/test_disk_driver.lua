@@ -234,6 +234,37 @@ assert_true(not ok, "dual create fails when disk fails")
 assert_true(err == "disk full", "disk error surfaced")
 assert_true(primary:get("servers", "prod", "host:x") == nil, "primary rolled back")
 
+-- Path guards: ids and env names come from request bodies (bulk delete) and
+-- are concatenated into file paths, so they must not escape data/<resource>/.
+local Driver = require("storage.driver")
+for _, env in ipairs({ "prod", "int", "dev", "diytaxreturn", nil }) do
+    assert_true(Driver.valid_env(env), "valid env " .. tostring(env))
+end
+for _, env in ipairs({ "..", ".", "", "a/b", "../prod", "prod\0" }) do
+    assert_true(not Driver.valid_env(env), "invalid env " .. env)
+end
+for _, id in ipairs({ "host:example.com", "waf-rule-cmdi-001",
+    "8f161403-8592-1111-6294-9c57974505b0", 42 }) do
+    assert_true(Driver.valid_id(id), "valid id " .. tostring(id))
+end
+for _, id in ipairs({ "../../settings", "a/b", "a\\b", "", "x\0y" }) do
+    assert_true(not Driver.valid_id(id), "invalid id " .. id)
+end
+assert_true(not Driver.valid_id(nil), "nil id")
+
+-- A decoy two levels above data/servers/prod: what "../../decoy" would hit.
+local decoy = tmp .. "/data/decoy.json"
+local f = io.open(decoy, "w"); f:write("{}"); f:close()
+local ok, err = disk:delete("servers", "prod", "../../decoy")
+assert_true(not ok and err and err:find("invalid id"), "traversal id rejected on delete")
+ok, err = disk:delete("servers", "..", "decoy")
+assert_true(not ok and err and err:find("invalid environment"), "traversal env rejected on delete")
+assert_true(io.open(decoy, "r") ~= nil, "decoy survives traversal deletes")
+local rec2, gerr = disk:get("servers", "..", "decoy")
+assert_true(rec2 == nil and gerr and gerr:find("invalid environment"), "traversal env rejected on get")
+ok, err = disk:update("servers", "prod", "../../decoy", { id = "x" })
+assert_true(not ok and err and err:find("invalid id"), "traversal id rejected on update")
+
 os.execute('rm -rf "' .. tmp .. '"')
 
 if failures > 0 then
