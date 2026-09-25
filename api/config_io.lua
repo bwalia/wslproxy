@@ -105,6 +105,14 @@ local function decode_yaml(content)
     return result
 end
 
+--- Decode a JSON string keeping arrays as arrays on re-encode (empty [] stays
+-- []). Falls back to the plain decoder where cjson.new is unavailable.
+-- Used for request bodies (Helper.GetPayloads) and storage reads.
+function _M.decode_json_arrays(raw)
+    local dec = arrays_decoder() or cjson
+    return dec.decode(raw)
+end
+
 --- Decode file contents using extension (or JSON-first sniff).
 -- opts.preserve_arrays: keep JSON arrays (even empty ones) as arrays when the
 -- result is encoded again; used by the storage layer's read-modify-write.

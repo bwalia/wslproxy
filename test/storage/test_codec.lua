@@ -114,9 +114,15 @@ if has_cjson and cjson.new and cjson.array_mt then
     assert_eq(out:find('"disable":[]', 1, true) ~= nil, true, "nested empty array stays []")
     assert_eq(out:find('"meta":{}', 1, true) ~= nil, true, "empty object stays {}")
     assert_eq(out:find('"allow":["127.0.0.1"]', 1, true) ~= nil, true, "non-empty array intact")
-    -- Without the opt-in the request path keeps cjson's default behaviour.
+    -- Without the opt-in, file decoding keeps cjson's default behaviour.
     local plain = assert(ConfigIO.decode(raw, "p.json"))
     assert_eq(cjson.encode(plain.ipLists.deny), "{}", "default decode unchanged")
+    -- Request bodies (Helper.GetPayloads) use decode_json_arrays: the
+    -- dashboard's empty lists must be stored as [] not {}.
+    local body = ConfigIO.decode_json_arrays('{"match_cases":[],"pop_ids":[],"locations":{}}')
+    local enc = cjson.encode(Codec.strip_empty(body))
+    assert_eq(enc:find('"match_cases":[]', 1, true) ~= nil, true, "request [] stays [] (" .. enc .. ")")
+    assert_eq(enc:find('"locations":{}', 1, true) ~= nil, true, "request {} stays {}")
 else
     io.stderr:write("NOTE: real cjson unavailable; skipped array round-trip (run under resty)\n")
 end

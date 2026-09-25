@@ -643,6 +643,13 @@ function Helper.setDataToFile(path, value, dir, fileType)
 end
 
 -- Convert payloads to Lua table
+-- Request JSON is decoded so arrays re-encode as arrays: with plain cjson an
+-- empty [] from the dashboard came back as {} once saved, which is why most
+-- stored servers have `match_cases: {}` although the UI sends a list.
+local function decode_request_json(raw)
+    return require("config_io").decode_json_arrays(raw)
+end
+
 function Helper.GetPayloads(body)
     -- Prefer the raw request body over ngx.req.get_post_args():
     -- form parsing splits the body at the first literal "=" (and decodes
@@ -664,7 +671,7 @@ function Helper.GetPayloads(body)
         end
     end
     if raw then
-        local ok, decoded = pcall(Cjson.decode, raw)
+        local ok, decoded = pcall(decode_request_json, raw)
         if ok and type(decoded) == "table" then
             return decoded
         end
@@ -676,10 +683,10 @@ function Helper.GetPayloads(body)
         n = n + 1
         if type(v) == "string" then
             if v ~= nil and v ~= "" then
-                table.insert(keyset, Cjson.decode(k .. v))
+                table.insert(keyset, decode_request_json(k .. v))
             end
         else
-            table.insert(keyset, Cjson.decode(k))
+            table.insert(keyset, decode_request_json(k))
         end
     end
     return keyset[1]
@@ -707,6 +714,12 @@ end
 
 function Helper.isUniqueField(folderPath, field, value)
     local ConfigIO = require("config_io")
+    -- LFS.dir throws on a missing directory, which made creating the first
+    -- record of a type in an environment (e.g. the first WAF policy in
+    -- "int") a 500. No directory means nothing to collide with.
+    if not Helper.isDirectoryExists(folderPath) then
+        return true
+    end
     for file_name in LFS.dir(folderPath) do
         if ConfigIO.is_config_name(file_name) then
             local filePath = folderPath .. "/" .. file_name
