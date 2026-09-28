@@ -33,16 +33,20 @@ func TestHealthCheck(t *testing.T) {
 	client := &http.Client{}
 	req, err := http.NewRequest("GET", pingUrl, nil)
 	if err != nil {
-		t.Log(err)
+		t.Fatalf("build request for %s failed: %v", pingUrl, err)
 	}
 	res, err := client.Do(req)
-	if false {
-		fmt.Println(res)
+	if err != nil {
+		// Without this check the test used to nil-deref res.Body on the next
+		// line and panic — hiding real errors (typically a TLS problem on the
+		// dev host) behind a runtime crash.
+		t.Fatalf("request to %s failed: %v", pingUrl, err)
 	}
+	defer res.Body.Close()
 
 	body, err := ioutil.ReadAll(res.Body)
-	if false {
-		fmt.Println(string(body))
+	if err != nil {
+		t.Fatalf("read body from %s failed: %v", pingUrl, err)
 	}
 
 	if !strings.Contains(string(body), "pong") {
