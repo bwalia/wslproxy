@@ -67,18 +67,65 @@ jobs:
           fetch-depth: 1
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Resolve CP API token
+        id: token
+        if: ${{ inputs.source == 'api' }}
+        env:
+          CP_API_USER: ${{ secrets.CP_API_USER }}
+          CP_API_PASSWD: ${{ secrets.CP_API_PASSWD }}
+          CP_API_TOKEN: ${{ secrets.CP_API_TOKEN }}
+          CP_URL: ${{ inputs.cp_url }}
+        run: |
+          set -euo pipefail
+          CP_URL="${CP_URL%/}"
+          if [ -n "${CP_API_USER}" ] && [ -n "${CP_API_PASSWD}" ]; then
+            body="$(jq -n --arg e "$CP_API_USER" --arg p "$CP_API_PASSWD" '{email:$e,password:$p}')"
+            resp="$(mktemp)"
+            code="$(curl -sS -o "$resp" -w '%{http_code}' --connect-timeout 15 --max-time 45 \
+              -X POST "${CP_URL}/api/user/login" \
+              -H 'Content-Type: application/json' \
+              -d "$body")"
+            echo "POST ${CP_URL}/api/user/login → HTTP ${code}"
+            if [ "$code" != "200" ]; then
+              echo "::error::CP login failed HTTP ${code}: $(head -c 400 "$resp")"
+              exit 1
+            fi
+            tok="$(jq -r '
+              (.data.accessToken // .accessToken // .data.token // .token // empty)
+              | if type == "string" and length > 0 then . else empty end
+            ' "$resp")"
+            if [ -z "$tok" ] || [ "$tok" = "null" ]; then
+              echo "::error::Login 200 but no accessToken"
+              exit 1
+            fi
+            echo "::add-mask::${tok}"
+            {
+              echo "token<<EOF"
+              printf '%s\n' "$tok"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
+            echo "Minted JWT via CP_API_USER"
+            exit 0
+          fi
+          if [ -n "${CP_API_TOKEN}" ]; then
+            echo "::add-mask::${CP_API_TOKEN}"
+            echo "token=${CP_API_TOKEN}" >> "$GITHUB_OUTPUT"
+            echo "Using secrets.CP_API_TOKEN"
+            exit 0
+          fi
+          echo "::error::Need secrets.CP_API_USER+CP_API_PASSWD (preferred) or CP_API_TOKEN for source=api"
+          exit 1
+
       - name: Materialize POP tree
         env:
           CP_URL: ${{ inputs.cp_url }}
-          CP_TOKEN: ${{ secrets.CP_API_TOKEN }}
+          CP_TOKEN: ${{ steps.token.outputs.token }}
         run: |
           set -euo pipefail
           chmod +x scripts/materialize-pop-export.sh
-          if [ "${{ inputs.source }}" = "api" ]; then
-            if [ -z "${CP_TOKEN}" ]; then
-              echo "::error::secrets.CP_API_TOKEN is required for source=api (JWT for cp.pop0.uk admin API)"
-              exit 1
-            fi
+          if [ "${{ inputs.source }}" = "api" ] && [ -z "${CP_TOKEN}" ]; then
+            echo "::error::CP token missing after Resolve step"
+            exit 1
           fi
           ./scripts/materialize-pop-export.sh \
             "${{ inputs.source }}" \

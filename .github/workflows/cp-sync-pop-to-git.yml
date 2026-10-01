@@ -73,9 +73,13 @@ jobs:
           go-version-file: go.mod
           cache: true
 
+      # Prefer CP_API_USER + CP_API_PASSWD → mint a fresh JWT each run.
+      # Optional: CP_API_TOKEN (static). Legacy: LOGIN_* / BACKUP_LOGIN_CREDS.
       - name: Resolve CP API token
         id: token
         env:
+          CP_API_USER: ${{ secrets.CP_API_USER }}
+          CP_API_PASSWD: ${{ secrets.CP_API_PASSWD }}
           CP_API_TOKEN: ${{ secrets.CP_API_TOKEN }}
           LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
           LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
@@ -84,10 +88,54 @@ jobs:
         run: |
           set -euo pipefail
           CP_URL="${CP_URL%/}"
+
+          mint_jwt() {
+            local email="$1" pass="$2" label="$3"
+            local body resp code tok
+            body="$(jq -n --arg e "$email" --arg p "$pass" '{email:$e,password:$p}')"
+            resp="$(mktemp)"
+            code="$(curl -sS -o "$resp" -w '%{http_code}' --connect-timeout 15 --max-time 45 \
+              -X POST "${CP_URL}/api/user/login" \
+              -H 'Content-Type: application/json' \
+              -d "$body")"
+            echo "POST ${CP_URL}/api/user/login (${label}) as ${email} → HTTP ${code}"
+            if [ "$code" != "200" ]; then
+              echo "::error::CP login failed HTTP ${code}: $(head -c 400 "$resp")"
+              exit 1
+            fi
+            # Login body is { data: { accessToken, user, instance }, status }
+            tok="$(jq -r '
+              (.data.accessToken // .accessToken // .data.token // .token // empty)
+              | if type == "string" and length > 0 then . else empty end
+            ' "$resp")"
+            if [ -z "$tok" ] || [ "$tok" = "null" ]; then
+              echo "::error::Login 200 but no accessToken"
+              exit 1
+            fi
+            case "$tok" in
+              *$'\n'*)
+                echo "::error::Token extract returned multi-line value (wrong jq path)"
+                exit 1
+                ;;
+            esac
+            echo "::add-mask::${tok}"
+            {
+              echo "token<<EOF"
+              printf '%s\n' "$tok"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
+            echo "Minted JWT via /api/user/login (${label})"
+          }
+
+          if [ -n "${CP_API_USER}" ] && [ -n "${CP_API_PASSWD}" ]; then
+            mint_jwt "$CP_API_USER" "$CP_API_PASSWD" "CP_API_USER"
+            exit 0
+          fi
+
           if [ -n "${CP_API_TOKEN}" ]; then
             echo "::add-mask::${CP_API_TOKEN}"
             echo "token=${CP_API_TOKEN}" >> "$GITHUB_OUTPUT"
-            echo "Using secrets.CP_API_TOKEN"
+            echo "Using secrets.CP_API_TOKEN (static; prefer CP_API_USER+CP_API_PASSWD)"
             exit 0
           fi
 
@@ -95,48 +143,19 @@ jobs:
           if [ -n "${LOGIN_EMAIL}" ] && [ -n "${LOGIN_PASSWORD}" ]; then
             email="$LOGIN_EMAIL"
             pass="$LOGIN_PASSWORD"
+            mint_jwt "$email" "$pass" "LOGIN_EMAIL"
+            exit 0
           elif [ -n "${BACKUP_LOGIN_CREDS}" ]; then
             email="$(printf '%s' "$BACKUP_LOGIN_CREDS" | jq -r '.ADMIN_EMAIL // .email // empty')"
             pass="$(printf '%s' "$BACKUP_LOGIN_CREDS" | jq -r '.ADMIN_PASSWORD // .password // empty')"
-          fi
-          if [ -z "$email" ] || [ -z "$pass" ]; then
-            echo "::error::Need secrets.CP_API_TOKEN or LOGIN_EMAIL+LOGIN_PASSWORD (or BACKUP_LOGIN_CREDS) to call ${CP_URL}"
-            exit 1
+            if [ -n "$email" ] && [ -n "$pass" ]; then
+              mint_jwt "$email" "$pass" "BACKUP_LOGIN_CREDS"
+              exit 0
+            fi
           fi
 
-          body="$(jq -n --arg e "$email" --arg p "$pass" '{email:$e,password:$p}')"
-          resp="$(mktemp)"
-          code="$(curl -sS -o "$resp" -w '%{http_code}' --connect-timeout 15 --max-time 45 \
-            -X POST "${CP_URL}/api/user/login" \
-            -H 'Content-Type: application/json' \
-            -d "$body")"
-          echo "POST ${CP_URL}/api/user/login as ${email} → HTTP ${code}"
-          if [ "$code" != "200" ]; then
-            echo "::error::CP login failed HTTP ${code}: $(head -c 400 "$resp")"
-            exit 1
-          fi
-          # Login body is { data: { accessToken, user, instance }, status }
-          tok="$(jq -r '
-            (.data.accessToken // .accessToken // .data.token // .token // empty)
-            | if type == "string" and length > 0 then . else empty end
-          ' "$resp")"
-          if [ -z "$tok" ] || [ "$tok" = "null" ]; then
-            echo "::error::Login 200 but no accessToken (keys=$(jq -c 'paths(scalars)|select(.[-1]|tostring|test("(?i)token|access"))' "$resp" 2>/dev/null || true))"
-            exit 1
-          fi
-          case "$tok" in
-            *$'\n'*)
-              echo "::error::Token extract returned multi-line value (wrong jq path)"
-              exit 1
-              ;;
-          esac
-          echo "::add-mask::${tok}"
-          {
-            echo "token<<EOF"
-            printf '%s\n' "$tok"
-            echo "EOF"
-          } >> "$GITHUB_OUTPUT"
-          echo "Minted JWT via /api/user/login"
+          echo "::error::Need secrets.CP_API_USER+CP_API_PASSWD (preferred), or CP_API_TOKEN, to call ${CP_URL}"
+          exit 1
 
       - name: Sync from control plane
         id: sync
