@@ -73,17 +73,64 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - name: Sync from control plane
-        id: sync
+      - name: Resolve CP API token
+        id: token
         env:
-          CP_TOKEN: ${{ secrets.CP_API_TOKEN }}
+          CP_API_TOKEN: ${{ secrets.CP_API_TOKEN }}
+          LOGIN_EMAIL: ${{ secrets.LOGIN_EMAIL }}
+          LOGIN_PASSWORD: ${{ secrets.LOGIN_PASSWORD }}
+          BACKUP_LOGIN_CREDS: ${{ secrets.BACKUP_LOGIN_CREDS }}
           CP_URL: ${{ inputs.cp_url }}
         run: |
           set -euo pipefail
-          if [ -z "${CP_TOKEN}" ]; then
-            echo "::error::Set repo secret CP_API_TOKEN (JWT for cp.pop0.uk admin API)"
+          CP_URL="${CP_URL%/}"
+          if [ -n "${CP_API_TOKEN}" ]; then
+            echo "::add-mask::${CP_API_TOKEN}"
+            echo "token=${CP_API_TOKEN}" >> "$GITHUB_OUTPUT"
+            echo "Using secrets.CP_API_TOKEN"
+            exit 0
+          fi
+
+          email=""; pass=""
+          if [ -n "${LOGIN_EMAIL}" ] && [ -n "${LOGIN_PASSWORD}" ]; then
+            email="$LOGIN_EMAIL"
+            pass="$LOGIN_PASSWORD"
+          elif [ -n "${BACKUP_LOGIN_CREDS}" ]; then
+            email="$(printf '%s' "$BACKUP_LOGIN_CREDS" | jq -r '.ADMIN_EMAIL // .email // empty')"
+            pass="$(printf '%s' "$BACKUP_LOGIN_CREDS" | jq -r '.ADMIN_PASSWORD // .password // empty')"
+          fi
+          if [ -z "$email" ] || [ -z "$pass" ]; then
+            echo "::error::Need secrets.CP_API_TOKEN or LOGIN_EMAIL+LOGIN_PASSWORD (or BACKUP_LOGIN_CREDS) to call ${CP_URL}"
             exit 1
           fi
+
+          body="$(jq -n --arg e "$email" --arg p "$pass" '{email:$e,password:$p}')"
+          resp="$(mktemp)"
+          code="$(curl -sS -o "$resp" -w '%{http_code}' --connect-timeout 15 --max-time 45 \
+            -X POST "${CP_URL}/api/user/login" \
+            -H 'Content-Type: application/json' \
+            -d "$body")"
+          echo "POST ${CP_URL}/api/user/login as ${email} → HTTP ${code}"
+          if [ "$code" != "200" ]; then
+            echo "::error::CP login failed HTTP ${code}: $(head -c 400 "$resp")"
+            exit 1
+          fi
+          tok="$(jq -r '.data.token // .token // .data // empty' "$resp")"
+          if [ -z "$tok" ] || [ "$tok" = "null" ]; then
+            echo "::error::Login 200 but no token in body: $(head -c 400 "$resp")"
+            exit 1
+          fi
+          echo "::add-mask::${tok}"
+          echo "token=${tok}" >> "$GITHUB_OUTPUT"
+          echo "Minted JWT via /api/user/login"
+
+      - name: Sync from control plane
+        id: sync
+        env:
+          CP_TOKEN: ${{ steps.token.outputs.token }}
+          CP_URL: ${{ inputs.cp_url }}
+        run: |
+          set -euo pipefail
           DRY=()
           if [ "${{ inputs.dry_run }}" = "true" ]; then
             DRY+=(-dry-run)
