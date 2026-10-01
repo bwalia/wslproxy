@@ -89,12 +89,16 @@ flowchart LR
 | [`cmd/cp-sync-pop`](../../cmd/cp-sync-pop) | Go client: fetch CP export → write `data/` |
 | [`cp-sync-pop-to-git.yml`](../../.github/workflows/cp-sync-pop-to-git.yml) | Checkout main → Go sync → PR → merge |
 | `GET /api/configuration/export` | CP API ([`api/configuration_export.lua`](../../api/configuration_export.lua)) |
-| Secret `CP_API_TOKEN` | JWT for CP admin API |
+| Secrets `CP_API_USER` + `CP_API_PASSWD` | Preferred — workflow mints a fresh JWT via `POST /api/user/login` before each sync |
+| Secret `CP_API_TOKEN` | Optional static JWT fallback |
 
 Local dry-run:
 
 ```bash
-export CP_TOKEN='…'   # from POST /api/user/login on cp.pop0.uk
+# Mint once, or use a long-lived token:
+export CP_TOKEN="$(curl -sS -X POST https://cp.pop0.uk/api/user/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"…","password":"…"}' | jq -r '.data.accessToken')"
 go run ./cmd/cp-sync-pop -pop lon1 -env prod -dry-run
 ```
 
