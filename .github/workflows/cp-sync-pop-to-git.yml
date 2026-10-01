@@ -116,16 +116,20 @@ jobs:
             exit 1
           fi
           # Login body is { data: { accessToken, user, instance }, status }
-          tok="$(jq -r '.data.accessToken // .accessToken // .data.token // .token // empty' "$resp")"
+          tok="$(jq -r '
+            (.data.accessToken // .accessToken // .data.token // .token // empty)
+            | if type == "string" and length > 0 then . else empty end
+          ' "$resp")"
           if [ -z "$tok" ] || [ "$tok" = "null" ]; then
-            echo "::error::Login 200 but no accessToken in body: $(head -c 400 "$resp")"
+            echo "::error::Login 200 but no accessToken (keys=$(jq -c 'paths(scalars)|select(.[-1]|tostring|test("(?i)token|access"))' "$resp" 2>/dev/null || true))"
             exit 1
           fi
-          # Reject multi-line / non-string jq accidents before GITHUB_OUTPUT
-          if printf '%s' "$tok" | grep -q $'\n'; then
-            echo "::error::Token extract returned multi-line value (wrong jq path)"
-            exit 1
-          fi
+          case "$tok" in
+            *$'\n'*)
+              echo "::error::Token extract returned multi-line value (wrong jq path)"
+              exit 1
+              ;;
+          esac
           echo "::add-mask::${tok}"
           {
             echo "token<<EOF"
