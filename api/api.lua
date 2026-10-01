@@ -5188,6 +5188,24 @@ local function handle_get_request(args, path)
         end
     end
 
+    -- CP → POP publish: POP-filtered config bundle (servers/rules/waf/secrets).
+    if path == "configuration/export" then
+        local ok, Export = pcall(require, "configuration_export")
+        if not ok then
+            Errors.throwError("configuration_export unavailable: " .. tostring(Export),
+                ngx.HTTP_INTERNAL_SERVER_ERROR)
+        end
+        local pop_id = args.pop_id or args.pop
+        local env = args.env or args.envprofile or args.env_profile or "prod"
+        local bundle, err = Export.build(pop_id, env)
+        if not bundle then
+            Errors.throwError(tostring(err or "export failed"), ngx.HTTP_BAD_REQUEST)
+        end
+        ngx.header["Content-Type"] = "application/json"
+        ngx.say(cjson.encode({ data = bundle }))
+        ngx.exit(ngx.HTTP_OK)
+    end
+
     -- Traffic management endpoints
     if path == "traffic/topology" then
         local ok, TrafficMgmt = pcall(require, "traffic_mgmt")
