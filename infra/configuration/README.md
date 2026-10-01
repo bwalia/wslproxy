@@ -153,18 +153,29 @@ flowchart LR
 
 ---
 
-## Workflows (planned)
+## Workflows
 
 | Workflow | Role |
 |----------|------|
-| `export-pop-config.yml` | Pull CP bundle → write `pops/<pop>/` → commit |
-| `deploy-pop-config.yml` | Apply pinned SHA to bare-metal POP |
+| [`export-pop-config.yml`](../../.github/workflows/export-pop-config.yml) | Pull CP bundle (or filter repo `data/`) → commit `pops/<pop>/` |
+| [`deploy-pop-config.yml`](../../.github/workflows/deploy-pop-config.yml) | Apply pinned SHA to bare-metal POP via [`deploy-pop-config.yml`](../ansible/deploy-pop-config.yml) |
 
-Portal **Publish** dispatches export (then deploy) for a chosen `pop_id`.
+Portal **Publish** (or manual Actions) dispatches export for a chosen `pop_id`, then deploy (path push on `infra/configuration/pops/**` also triggers deploy).
+
+Required secret for `source=api`: `CP_API_TOKEN` (JWT for `cp.pop0.uk` admin API).
+
+### Stopped: lon1/S3 → CP contamination
+
+| Workflow | Change |
+|----------|--------|
+| `restore-prod-data-from-s3-to-git.yml` | **No longer** auto-runs after Sync Prod → S3. Manual `workflow_dispatch` only, with `confirm_dr=RESTORE-FROM-S3`. |
+| Delivery `push_repo_data: auto` | Skips **lon1** and **pop0** (85.190.106.189) so repo `data/` cannot clobber POP trees. |
+
+Edge → S3 backup (`sync-prod-data-to-s3`) remains for DR archives; it does not write into CP.
 
 ---
 
-## manifest.json (planned shape)
+## manifest.json shape
 
 ```json
 {
@@ -196,6 +207,11 @@ Portal **Publish** dispatches export (then deploy) for a chosen `pop_id`.
 
 ## Status
 
-Documentation and diagrams only. Export API, workflows, and Ansible atomic
-apply are tracked in the CP→POP config sync plan — not implemented in this
-commit.
+Workflows and export API are in place:
+
+- `GET /api/configuration/export?pop_id=&env=` ([`api/configuration_export.lua`](../../api/configuration_export.lua))
+- `scripts/materialize-pop-export.sh` (`api` or `repo` mode)
+- `.github/workflows/export-pop-config.yml` / `deploy-pop-config.yml`
+- Ansible atomic apply: `infra/ansible/deploy-pop-config.yml`
+
+Customer portal Publish button wiring is still optional (dispatch the export workflow via GitHub API).

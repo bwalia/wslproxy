@@ -1,0 +1,188 @@
+---
+# deploy-pop-config.yml — apply infra/configuration/pops/<pop>/ to a bare-metal edge
+#
+# Atomic: rsync into data/.incoming-<export_id>/, validate, then swap into
+# live servers|rules|waf_*|secrets/<env>/. Refuses if live file count would
+# drop below min_percent of current.
+#
+# Usage:
+#   ansible-playbook -i lon1.pop0.uk, -u root \
+#     infra/ansible/deploy-pop-config.yml \
+#     -e pop_id=lon1 -e target_env=prod \
+#     -e local_pop_dir=$PWD/infra/configuration/pops/lon1 \
+#     -e export_id=... -e expected_content_sha256=...
+
+- name: Deploy POP configuration tree
+  hosts: all
+  become: yes
+  gather_facts: yes
+
+  vars:
+    remote_data_dir: /opt/nginx/data
+    pop_id: ""
+    target_env: prod
+    local_pop_dir: ""
+    export_id: ""
+    expected_content_sha256: ""
+    min_percent: 80
+    reload_nginx: true
+    nginx_bin: /usr/local/openresty/bin/openresty
+
+  tasks:
+    - name: Assert required vars
+      ansible.builtin.assert:
+        that:
+          - pop_id | length > 0
+          - local_pop_dir | length > 0
+          - target_env | length > 0
+        fail_msg: "pop_id, local_pop_dir, and target_env are required"
+
+    - name: Read local manifest
+      ansible.builtin.slurp:
+        src: "{{ local_pop_dir }}/manifest.json"
+      delegate_to: localhost
+      become: false
+      register: _manifest_raw
+
+    - name: Parse manifest
+      ansible.builtin.set_fact:
+        _manifest: "{{ _manifest_raw.content | b64decode | from_json }}"
+
+    - name: Assert manifest pop_id matches
+      ansible.builtin.assert:
+        that:
+          - _manifest.pop_id == pop_id
+        fail_msg: >-
+          manifest.pop_id={{ _manifest.pop_id }} != pop_id={{ pop_id }}
+
+    - name: Resolve export_id
+      ansible.builtin.set_fact:
+        _export_id: "{{ export_id if (export_id | length > 0) else _manifest.export_id }}"
+
+    - name: Ensure live data dirs exist
+      ansible.builtin.file:
+        path: "{{ remote_data_dir }}/{{ item }}/{{ target_env }}"
+        state: directory
+        mode: "0775"
+        owner: www-data
+        group: root
+      loop:
+        - servers
+        - rules
+        - waf_policies
+        - waf_rules
+        - secrets
+
+    - name: Count live JSON files
+      ansible.builtin.shell: |
+        set -euo pipefail
+        n=0
+        for d in servers rules waf_policies waf_rules secrets; do
+          n=$((n + $(find "{{ remote_data_dir }}/$d/{{ target_env }}" -maxdepth 1 -type f -name '*.json' 2>/dev/null | wc -l | tr -d ' ')))
+        done
+        echo "$n"
+      args:
+        executable: /bin/bash
+      register: _live_count
+      changed_when: false
+
+    - name: Count incoming JSON files (local)
+      ansible.builtin.shell: |
+        set -euo pipefail
+        n=0
+        for d in servers rules waf_policies waf_rules secrets; do
+          n=$((n + $(find "{{ local_pop_dir }}/$d" -maxdepth 1 -type f -name '*.json' 2>/dev/null | wc -l | tr -d ' ')))
+        done
+        echo "$n"
+      args:
+        executable: /bin/bash
+      delegate_to: localhost
+      become: false
+      register: _incoming_count
+      changed_when: false
+
+    - name: Refuse catastrophic shrink
+      ansible.builtin.assert:
+        that:
+          - (_live_count.stdout | int) == 0 or ((_incoming_count.stdout | int) * 100) >= ((_live_count.stdout | int) * (min_percent | int))
+        fail_msg: >-
+          Incoming {{ _incoming_count.stdout }} files is below {{ min_percent }}%
+          of live {{ _live_count.stdout }}. Refusing apply (set min_percent=0 to override).
+
+    - name: Prepare incoming directory on target
+      ansible.builtin.file:
+        path: "{{ remote_data_dir }}/.incoming-{{ _export_id }}"
+        state: directory
+        mode: "0750"
+        owner: www-data
+        group: root
+
+    - name: Rsync POP tree into incoming
+      ansible.posix.synchronize:
+        src: "{{ local_pop_dir }}/"
+        dest: "{{ remote_data_dir }}/.incoming-{{ _export_id }}/"
+        delete: true
+        rsync_opts:
+          - "--exclude=manifest.json"
+      become: false
+
+    - name: Validate incoming JSON
+      ansible.builtin.shell: |
+        set -euo pipefail
+        find "{{ remote_data_dir }}/.incoming-{{ _export_id }}" -type f -name '*.json' -print0 \
+          | xargs -0 -n1 jq empty
+      args:
+        executable: /bin/bash
+
+    - name: Swap incoming trees into live env dirs
+      ansible.builtin.shell: |
+        set -euo pipefail
+        INC="{{ remote_data_dir }}/.incoming-{{ _export_id }}"
+        for d in servers rules waf_policies waf_rules secrets; do
+          mkdir -p "{{ remote_data_dir }}/$d/{{ target_env }}"
+          if [ -d "$INC/$d" ]; then
+            rsync -a --delete --include='*/' --include='*.json' --exclude='*' \
+              "$INC/$d/" "{{ remote_data_dir }}/$d/{{ target_env }}/"
+            chown -R www-data:root "{{ remote_data_dir }}/$d/{{ target_env }}" || true
+            find "{{ remote_data_dir }}/$d/{{ target_env }}" -type f -name '*.json' -exec chmod 660 {} +
+            if [ "$d" = "secrets" ]; then
+              find "{{ remote_data_dir }}/$d/{{ target_env }}" -type f -name '*.json' -exec chmod 660 {} +
+              chmod 2770 "{{ remote_data_dir }}/$d/{{ target_env }}" || true
+            fi
+          fi
+        done
+        rm -rf "$INC"
+      args:
+        executable: /bin/bash
+
+    - name: Ensure marker directory
+      ansible.builtin.file:
+        path: /var/lib/wslproxy-pop-config
+        state: directory
+        mode: "0755"
+
+    - name: Persist last-success marker
+      ansible.builtin.copy:
+        dest: /var/lib/wslproxy-pop-config/last-success
+        mode: "0644"
+        content: |
+          {
+            "pop_id": "{{ pop_id }}",
+            "env_profile": "{{ target_env }}",
+            "export_id": "{{ _export_id }}",
+            "content_sha256": "{{ _manifest.content_sha256 | default(expected_content_sha256) }}",
+            "applied_at": "{{ ansible_date_time.iso8601 }}",
+            "git_host": "{{ inventory_hostname }}"
+          }
+
+    - name: Nginx config test
+      ansible.builtin.command: "{{ nginx_bin }} -t"
+      register: _nginx_t
+      changed_when: false
+      when: reload_nginx | bool
+
+    - name: Reload OpenResty
+      ansible.builtin.service:
+        name: openresty
+        state: reloaded
+      when: reload_nginx | bool and _nginx_t is succeeded

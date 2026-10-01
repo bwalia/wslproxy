@@ -1,24 +1,25 @@
 name: Restore Prod Data from S3 to Git
 
-# After a successful "Sync Prod Data to S3" backup, download the latest tarball
-# on the test runner, refresh data/servers|rules|waf_*|upstreams|pops (prod), and
-# open (or update) a PR for human review. Does NOT auto-merge — merge manually
-# after approving the diff.
+# DR-only: download an S3 prod backup tarball, refresh data/servers|rules|waf_*|
+# upstreams|pops (prod), and open (or update) a PR for human review.
+# Does NOT auto-merge — merge manually after approving the diff.
 #
-# Trigger chain:
-#   Sync Prod Data to S3 (04:00 UTC) → this workflow (workflow_run)
+# DISABLED auto-chain (2026-10): control plane (cp.pop0.uk) is the desired-config
+# source of truth. Auto-running after "Sync Prod Data to S3" pulled lon1 edge
+# snapshots back into git and fought the CP → POP publish path
+# (infra/configuration/README.md). Keep workflow_dispatch for true DR only —
+# never schedule this against a healthy CP.
 
 on:
-  workflow_run:
-    workflows: ["Sync Prod Data to S3"]
-    types: [completed]
-    branches: [main]
-
   workflow_dispatch:
     inputs:
       backup_file:
         description: "S3 backup tarball name under backups/ (default: latest prod_backup_*.tar.gz)"
         required: false
+        type: string
+      confirm_dr:
+        description: "Type RESTORE-FROM-S3 to confirm this is a DR restore (not a routine sync)"
+        required: true
         type: string
 
 concurrency:
@@ -35,13 +36,19 @@ env:
 jobs:
   restore-and-pr:
     name: "DR: S3 backup → data/ PR (test runner)"
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+    if: github.event_name == 'workflow_dispatch'
     runs-on: [self-hosted, test]
     timeout-minutes: 30
 
     steps:
+      - name: Require explicit DR confirmation
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event.inputs.confirm_dr }}" != "RESTORE-FROM-S3" ]; then
+            echo "::error::Refusing restore. Set confirm_dr=RESTORE-FROM-S3. CP (cp.pop0.uk) is SoT; this workflow is DR-only."
+            exit 1
+          fi
+
       - name: Reclaim runner workspace ownership
         run: |
           if [ -n "$GITHUB_WORKSPACE" ] && [ -d "$GITHUB_WORKSPACE" ]; then
@@ -173,9 +180,12 @@ jobs:
             S3 signing keys in rules are redacted to `REDACTED_S3_*` for git safety.
 
             ### Required: manual approval
-            **Review the diff and merge this PR when satisfied.** There is no auto-merge — merging updates `main` with the live prod snapshot from S3.
+            **Review the diff and merge this PR when satisfied.** There is no auto-merge.
 
-            After merge, deploy with `DEPLOY_MODE=servers` to lon1 (or your usual promotion path).
+            **Warning:** `cp.pop0.uk` is the desired-config source of truth. Merging this
+            PR updates git `data/` from an **edge** snapshot (lon1 via S3). Do **not**
+            treat this as a routine sync into the control plane. Prefer CP → POP publish
+            (`infra/configuration/README.md`). Use this PR only for disaster recovery.
           labels: |
             dr
             automated

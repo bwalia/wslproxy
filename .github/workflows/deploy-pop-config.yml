@@ -1,0 +1,176 @@
+name: Deploy POP config (git → edge)
+
+# Apply infra/configuration/pops/<pop_id>/ to a bare-metal POP.
+# Pins the checkout SHA so deploy does not race a concurrent export.
+# See infra/configuration/README.md.
+
+on:
+  workflow_dispatch:
+    inputs:
+      pop_id:
+        description: "POP id whose git tree to apply"
+        required: true
+        type: choice
+        default: lon1
+        options:
+          - lon1
+          - pop0
+      env_profile:
+        description: "Remote data/<env>/ directory on the POP"
+        required: true
+        type: choice
+        default: prod
+        options:
+          - prod
+          - int
+          - test
+      target_host:
+        description: "SSH host (override; default from pop registry)"
+        required: false
+        type: string
+        default: ""
+      git_sha:
+        description: "Git SHA to deploy (empty = main tip)"
+        required: false
+        type: string
+        default: ""
+      min_percent:
+        description: "Refuse apply if file count drops below this %% of live"
+        required: false
+        type: string
+        default: "80"
+
+  push:
+    branches: [main]
+    paths:
+      - "infra/configuration/pops/**"
+
+concurrency:
+  group: deploy-pop-config
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  # On path push, discover which POP dirs changed and matrix-deploy them.
+  discover:
+    name: Discover POPs to deploy
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 2
+
+      - name: Build matrix
+        id: set
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            POP="${{ inputs.pop_id }}"
+            HOST="${{ inputs.target_host }}"
+            if [ -z "$HOST" ]; then
+              case "$POP" in
+                lon1) HOST="lon1.pop0.uk" ;;
+                pop0) HOST="85.190.106.189" ;;
+                *) echo "::error::Unknown pop_id $POP and no target_host"; exit 1 ;;
+              esac
+            fi
+            echo "matrix={\"include\":[{\"pop_id\":\"$POP\",\"host\":\"$HOST\",\"env\":\"${{ inputs.env_profile }}\",\"sha\":\"${{ inputs.git_sha }}\",\"min_percent\":\"${{ inputs.min_percent }}\"}]}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # push: which pops/<id>/ trees changed vs previous commit
+          CHANGED="$(git diff --name-only HEAD~1 HEAD -- infra/configuration/pops/ \
+            | awk -F/ 'NF>=4 {print $3}' | sort -u || true)"
+          if [ -z "$CHANGED" ]; then
+            echo 'matrix={"include":[]}' >> "$GITHUB_OUTPUT"
+            echo "No POP trees changed"
+            exit 0
+          fi
+          INCLUDE="["
+          FIRST=1
+          for POP in $CHANGED; do
+            case "$POP" in
+              lon1) HOST="lon1.pop0.uk" ;;
+              pop0) HOST="85.190.106.189" ;;
+              *) echo "::warning::Skipping unknown pop $POP"; continue ;;
+            esac
+            [ "$FIRST" = 1 ] || INCLUDE+=","
+            FIRST=0
+            INCLUDE+="{\"pop_id\":\"$POP\",\"host\":\"$HOST\",\"env\":\"prod\",\"sha\":\"${{ github.sha }}\",\"min_percent\":\"80\"}"
+          done
+          INCLUDE+="]"
+          echo "matrix={\"include\":$INCLUDE}" >> "$GITHUB_OUTPUT"
+          echo "Deploy matrix: $INCLUDE"
+
+  deploy:
+    name: "Deploy ${{ matrix.pop_id }} → ${{ matrix.host }}"
+    needs: discover
+    if: ${{ needs.discover.outputs.matrix != '{"include":[]}' && fromJSON(needs.discover.outputs.matrix).include[0] }}
+    runs-on: [self-hosted, prod, macOS]
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.discover.outputs.matrix) }}
+    concurrency:
+      group: deploy-pop-${{ matrix.pop_id }}
+      cancel-in-progress: false
+    steps:
+      - name: Checkout pinned SHA
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ matrix.sha != '' && matrix.sha || github.sha }}
+          fetch-depth: 1
+
+      - name: Verify POP tree + manifest
+        run: |
+          set -euo pipefail
+          TREE="infra/configuration/pops/${{ matrix.pop_id }}"
+          test -f "${TREE}/manifest.json"
+          jq -e --arg p "${{ matrix.pop_id }}" '.pop_id == $p' "${TREE}/manifest.json"
+          echo "export_id=$(jq -r .export_id "${TREE}/manifest.json")" >> "$GITHUB_ENV"
+          echo "content_sha=$(jq -r .content_sha256 "${TREE}/manifest.json")" >> "$GITHUB_ENV"
+          jq . "${TREE}/manifest.json"
+
+      - name: Resolve SSH user
+        id: ssh
+        run: |
+          set -euo pipefail
+          case "${{ matrix.host }}" in
+            lon1.pop0.uk) echo "user=root" >> "$GITHUB_OUTPUT" ;;
+            85.190.106.189) echo "user=administrator" >> "$GITHUB_OUTPUT" ;;
+            *) echo "user=root" >> "$GITHUB_OUTPUT" ;;
+          esac
+
+      - name: Install Ansible if needed
+        run: |
+          if ! command -v ansible-playbook >/dev/null; then
+            if command -v brew >/dev/null; then brew install ansible
+            else echo "::error::ansible-playbook required"; exit 1
+            fi
+          fi
+
+      - name: Atomic apply via Ansible
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: "False"
+        run: |
+          set -euo pipefail
+          POP="${{ matrix.pop_id }}"
+          HOST="${{ matrix.host }}"
+          USER="${{ steps.ssh.outputs.user }}"
+          TREE="${GITHUB_WORKSPACE}/infra/configuration/pops/${POP}"
+          ansible-playbook "${GITHUB_WORKSPACE}/infra/ansible/deploy-pop-config.yml" \
+            -i "${HOST}," \
+            -u "$USER" \
+            --private-key "${HOME}/.ssh/id_rsa" \
+            -e "pop_id=${POP}" \
+            -e "target_env=${{ matrix.env }}" \
+            -e "local_pop_dir=${TREE}" \
+            -e "export_id=${EXPORT_ID}" \
+            -e "expected_content_sha256=${CONTENT_SHA}" \
+            -e "min_percent=${{ matrix.min_percent }}" \
+            -e "ansible_python_interpreter=auto_silent"

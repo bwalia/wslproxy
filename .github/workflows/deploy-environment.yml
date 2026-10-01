@@ -874,7 +874,11 @@ jobs:
             push=false
           elif [ "$mode" = "auto" ]; then
             case "$host" in
-              lon1.pop0.uk|195.20.255.201) push=false ;;
+              lon1.pop0.uk|195.20.255.201|85.190.106.189)
+                # POP edges: desired config comes from CP → infra/configuration/pops/
+                # (export-pop-config / deploy-pop-config). Do not clobber with repo data/.
+                push=false
+                ;;
             esac
           fi
           echo "push=${push}" >> "$GITHUB_OUTPUT"
