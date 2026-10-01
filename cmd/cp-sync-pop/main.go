@@ -74,13 +74,62 @@ type exportResponse struct {
 	Data bundle `json:"data"`
 }
 
+// recordList accepts JSON [] or {} (Lua cjson empty-table quirk) or a
+// map keyed by id. Live CP may still emit {} until api/ is redeployed.
+type recordList []map[string]any
+
+func (r *recordList) UnmarshalJSON(b []byte) error {
+	b = bytes.TrimSpace(b)
+	if len(b) == 0 || string(b) == "null" {
+		*r = nil
+		return nil
+	}
+	switch b[0] {
+	case '[':
+		var arr []map[string]any
+		if err := json.Unmarshal(b, &arr); err != nil {
+			return err
+		}
+		*r = arr
+		return nil
+	case '{':
+		if string(b) == "{}" {
+			*r = nil
+			return nil
+		}
+		var asMaps map[string]map[string]any
+		if err := json.Unmarshal(b, &asMaps); err == nil {
+			out := make([]map[string]any, 0, len(asMaps))
+			for _, v := range asMaps {
+				out = append(out, v)
+			}
+			*r = out
+			return nil
+		}
+		var asAny map[string]any
+		if err := json.Unmarshal(b, &asAny); err != nil {
+			return err
+		}
+		out := make([]map[string]any, 0, len(asAny))
+		for _, v := range asAny {
+			if rec, ok := v.(map[string]any); ok {
+				out = append(out, rec)
+			}
+		}
+		*r = out
+		return nil
+	default:
+		return fmt.Errorf("recordList: expected array or object, got %s", truncate(string(b), 40))
+	}
+}
+
 type bundle struct {
-	Manifest     manifest            `json:"manifest"`
-	Servers      []map[string]any    `json:"servers"`
-	Rules        []map[string]any    `json:"rules"`
-	WafPolicies  []map[string]any    `json:"waf_policies"`
-	WafRules     []map[string]any    `json:"waf_rules"`
-	Secrets      []map[string]any    `json:"secrets"`
+	Manifest    manifest   `json:"manifest"`
+	Servers     recordList `json:"servers"`
+	Rules       recordList `json:"rules"`
+	WafPolicies recordList `json:"waf_policies"`
+	WafRules    recordList `json:"waf_rules"`
+	Secrets     recordList `json:"secrets"`
 }
 
 type manifest struct {

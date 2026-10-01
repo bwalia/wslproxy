@@ -107,6 +107,27 @@ local function sha256_hex(s)
     return str.to_hex(sha:final())
 end
 
+-- Empty Lua tables encode as {} without a metatable; pin list fields to [].
+local function json_array()
+    local t = {}
+    local mt = cjson.array_mt or cjson.empty_array_mt
+    if mt then
+        setmetatable(t, mt)
+    end
+    return t
+end
+
+local function as_json_array(t)
+    if type(t) ~= "table" then
+        return json_array()
+    end
+    local mt = cjson.array_mt or cjson.empty_array_mt
+    if mt then
+        setmetatable(t, mt)
+    end
+    return t
+end
+
 --- Build export bundle. Returns data table or nil, err_string.
 function _M.build(pop_id, env)
     if type(pop_id) ~= "string" or pop_id:match("^%s*$") then
@@ -130,7 +151,7 @@ function _M.build(pop_id, env)
         return nil, "failed to list servers: " .. tostring(serr)
     end
 
-    local servers = {}
+    local servers = json_array()
     local rule_ids, waf_policy_ids, secret_ids = {}, {}, {}
 
     for _, srv in ipairs(all_servers) do
@@ -148,7 +169,7 @@ function _M.build(pop_id, env)
         return tostring(a.id or "") < tostring(b.id or "")
     end)
 
-    local rules = {}
+    local rules = json_array()
     for id in pairs(rule_ids) do
         local rec = Repo.get("rules", env, id)
         if type(rec) == "table" then
@@ -160,7 +181,7 @@ function _M.build(pop_id, env)
         return tostring(a.id or "") < tostring(b.id or "")
     end)
 
-    local waf_policies = {}
+    local waf_policies = json_array()
     local waf_rule_ids = {}
     for id in pairs(waf_policy_ids) do
         local rec = Repo.get("waf_policies", env, id)
@@ -183,7 +204,7 @@ function _M.build(pop_id, env)
         return tostring(a.id or "") < tostring(b.id or "")
     end)
 
-    local waf_rules = {}
+    local waf_rules = json_array()
     for id in pairs(waf_rule_ids) do
         local rec = Repo.get("waf_rules", env, id)
         if type(rec) == "table" then
@@ -194,7 +215,7 @@ function _M.build(pop_id, env)
         return tostring(a.id or "") < tostring(b.id or "")
     end)
 
-    local secrets = {}
+    local secrets = json_array()
     for id in pairs(secret_ids) do
         local rec = Repo.get("secrets", env, id)
         if type(rec) == "table" then
@@ -204,6 +225,12 @@ function _M.build(pop_id, env)
     table.sort(secrets, function(a, b)
         return tostring(a.id or "") < tostring(b.id or "")
     end)
+
+    servers = as_json_array(servers)
+    rules = as_json_array(rules)
+    waf_policies = as_json_array(waf_policies)
+    waf_rules = as_json_array(waf_rules)
+    secrets = as_json_array(secrets)
 
     local body = {
         servers = servers,
