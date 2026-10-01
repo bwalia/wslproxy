@@ -21,7 +21,69 @@ infra/secrets/
     └── env.sops.env
 ```
 
-The runtime flow:
+SOPS is **deploy-time only**. OpenResty never talks to SOPS or age at
+request time; it only reads the plaintext `settings.json` Ansible
+already wrote on the host.
+
+Day-to-day deploys prefer **WSLVault** (`secrets_mode: vault` /
+`vault_or_sops`). SOPS is the **break-glass** path when Vault is down
+or incomplete — see [How deploy decrypt works](#how-deploy-decrypt-works)
+below. The age **private** key must never live in Vault (circular
+dependency if Vault is the outage).
+
+---
+
+## How deploy decrypt works
+
+### At rest
+
+| What | Where |
+|------|--------|
+| Ciphertext | This directory in git (`*.sops.json`, `*.sops.env`) |
+| Age **public** recipient | Inside each file's `"sops"."age"[].recipient` (safe to commit) |
+| Age **private** key | GitHub Actions secret `SOPS_AGE_KEY` (`AGE-SECRET-KEY-1…`); also password manager + offline sealed copy for laptop Ansible |
+
+### Deploy flow
+
+```mermaid
+flowchart TD
+  subgraph atRest [At rest]
+    Git["Git: infra/secrets/env/*.sops.*"]
+    GH["GitHub secret SOPS_AGE_KEY"]
+  end
+
+  subgraph gha [GitHub Actions runner]
+    Mode{"secrets_mode?"}
+    Probe["vault_or_sops: probe WSLVault"]
+    Export["Export SOPS_AGE_KEY"]
+    Install["Install sops + community.sops"]
+    Ansible["ansible-playbook"]
+  end
+
+  subgraph ansibleSops [Ansible decrypt on runner]
+    Guard["Assert env_profile matches target_env"]
+    Dec["community.sops.sops lookup decrypts files"]
+  end
+
+  subgraph edge [Target edge]
+    Settings["/opt/nginx/data/settings.json 0640"]
+    DotEnv["/tmp/.env"]
+    OR["OpenResty reads settings.json"]
+  end
+
+  Git --> Ansible
+  GH --> Export
+  Mode -->|sops| Export
+  Mode -->|vault_or_sops| Probe
+  Probe -->|Vault OK| VaultPath["Vault branch instead"]
+  Probe -->|Vault down or incomplete| Export
+  Export --> Install --> Ansible
+  Ansible --> Guard --> Dec --> Settings
+  Dec --> DotEnv
+  Settings --> OR
+```
+
+ASCII (same path):
 
 ```
                   ┌─→ infra/secrets/<env>/settings.sops.json  (in Git)
@@ -35,9 +97,84 @@ GitHub Actions ───┤   infra/secrets/<env>/env.sops.env            (in Gi
                   /tmp/.env on target
 ```
 
-No HTTP calls.  No external service to keep alive.  No token TTLs.
-The deploy fails fast if the key is missing or the file is corrupt
-— which is exactly what we want.
+Wiring:
+
+1. CI picks mode (`sops`, or `vault_or_sops` → falls back to SOPS if Vault fails).
+2. Runner exports `SOPS_AGE_KEY` from GitHub Secrets; installs `sops` + `community.sops`.
+3. Ansible ([`roles/wslproxy/tasks/deploy_data.yml`](../ansible/roles/wslproxy/tasks/deploy_data.yml)) decrypts on the **runner** (no Vault HTTP), asserts `env_profile == target_env`, copies plaintext to the **target**.
+4. OpenResty uses `/opt/nginx/data/settings.json` only.
+
+No HTTP calls on the SOPS path. No token TTLs. The deploy fails fast if
+the age key is missing or the file is corrupt.
+
+### Operator edit path
+
+```mermaid
+flowchart LR
+  Edit["sops infra/secrets/prod/settings.sops.json"]
+  Age["age private key decrypts in editor"]
+  Save["Save re-encrypts ciphertext"]
+  Commit["git commit + push"]
+  Next["Next deploy with mode sops uses new blob"]
+  Edit --> Age --> Save --> Commit --> Next
+```
+
+After a successful deploy, losing Vault or SOPS does not take down the
+edge until the next deploy that needs to rewrite secrets.
+
+---
+
+## What the `"sops": { ... }` metadata block is
+
+Every `*.sops.json` ends with a `"sops"` object. That is **SOPS bookkeeping**,
+not application settings. Example shape:
+
+```json
+"sops": {
+  "age": [
+    {
+      "enc": "-----BEGIN AGE ENCRYPTED FILE-----\n...",
+      "recipient": "age1n5h080hae9czwpsgfgz4vapxd86ud2742maxc5gezurlwzs9ee7s07e0k4"
+    }
+  ],
+  "lastmodified": "2026-07-04T00:15:30Z",
+  "mac": "ENC[AES256_GCM,data:...,iv:...,tag:...,type:str]",
+  "unencrypted_suffix": "_unencrypted",
+  "version": "3.13.2"
+}
+```
+
+| Field | Meaning |
+|-------|---------|
+| `age` | Encrypted with [age](https://age-encryption.org), not PGP/AWS KMS |
+| `age[].recipient` | Public age key that can decrypt (safe to commit) |
+| `age[].enc` | Tiny age-encrypted wrap of the data encryption key (DEK). Only the matching **private** key (`SOPS_AGE_KEY`) can open this |
+| `mac` | Integrity check — tampering with ciphertext fails decrypt |
+| `lastmodified` | When this file was last re-encrypted |
+| `version` | SOPS CLI version that wrote the file |
+| `unencrypted_suffix` | Keys ending in `_unencrypted` stay plaintext (unused in our settings) |
+
+Decrypt chain: `SOPS_AGE_KEY` unlocks `age[].enc` → DEK → DEK decrypts every
+`ENC[AES256_GCM,…]` value in the JSON body above the metadata block.
+
+The long `-----BEGIN AGE ENCRYPTED FILE-----` blob is **not** your JWT or
+settings payload — it is only the wrapped DEK. The `recipient` line is the
+public half of the same keypair as GitHub `SOPS_AGE_KEY`.
+
+---
+
+## Break-glass key custody
+
+| Location | Role | Available when Vault down? |
+|----------|------|----------------------------|
+| GitHub Actions secret `SOPS_AGE_KEY` | Primary for CI/CD | Yes |
+| Password manager (ops shared vault) | Laptop / manual Ansible | Yes |
+| Offline sealed copy | Last resort | Yes |
+| This git directory | Ciphertext only | N/A |
+| WSLVault | **Do not store** the age private key here | Would defeat break-glass |
+
+When Vault is down: re-run deploy with `secrets_mode: sops`, or rely on
+`vault_or_sops` auto-fallback. No Vault token required.
 
 ---
 
