@@ -427,6 +427,8 @@ Local URLs:
 
 24. **Bulk DELETE takes a body, and ids/env reach file paths.** `DELETE /api/<servers|rules|waf_rules|waf_policies|secrets|instances>` with `{ids: {ids: [...], envProfile}}` (or a path id) runs through `runDelete` in `api.lua`, which answers `{data: {deleted, failed:[{id, error}]}}` (207 when some failed, 400 for no ids or >500) and writes one audit entry. `storage/driver.lua` `valid_id`/`valid_env` reject `/`, `\`, NUL and non-`[%w_-]` envs: before them, `{"ids":["../../settings"]}` deleted `data/settings.json`.
 
+25. **Rule secrets go through `secret://`, never inline** (2026-09-27). The ollama JWT key sat base64-encoded in `data/rules/prod/16ff5129-….json` in this **public** repo from 2026-08-27, and in diy-tax-return-uk since July. Base64 is not encryption. It was rotated. Rules now carry `jwt_token_validation_key: "secret://<id>#jwt_key"`; `secret_resolver.lua` resolves it per request from `data/secrets/<env>/<id>.json` (AES-256-GCM, created via `POST /api/secrets`), decrypted with `env_vars.SECRETS_ENCRYPTION_KEY`. The encrypted blob is safe to commit. The key must be in `infra/secrets/<env>/settings.sops.json`, because `code`/`servers` deploys rewrite `settings.json` from SOPS. An edge whose `api/` predates `secret_resolver.lua`, or which lacks the key, refuses every request to that rule (403).
+
 ### Conventions
 
 - **Lua modules** return a table `_M`. Public functions on `_M`; file-scoped locals outside.
