@@ -1,0 +1,148 @@
+name: Sync POP config from CP (Go → data/ → PR)
+
+# Customer portal on cp.pop0.uk is the source of truth. This workflow:
+#   1. Checks out latest main
+#   2. Runs cmd/cp-sync-pop (Go) to GET /api/configuration/export?pop_id=
+#   3. Writes/updates data/servers|rules|waf_*|secrets/<env>/
+#   4. Opens a PR and merges it into main
+#
+# Does NOT pull from lon1 or S3 into CP. See infra/configuration/README.md.
+
+on:
+  workflow_dispatch:
+    inputs:
+      pop_id:
+        description: "POP id (server.pop_ids + data/pops/<id>.json)"
+        required: true
+        type: choice
+        default: lon1
+        options:
+          - lon1
+          - pop0
+      env_profile:
+        description: "Environment profile / data/<env>/"
+        required: true
+        type: choice
+        default: prod
+        options:
+          - prod
+          - int
+          - test
+      cp_url:
+        description: "Control plane base URL"
+        required: false
+        default: "https://cp.pop0.uk"
+        type: string
+      dry_run:
+        description: "Fetch + plan only; no PR"
+        required: false
+        type: boolean
+        default: false
+      auto_merge:
+        description: "Merge the PR into main after create"
+        required: false
+        type: boolean
+        default: true
+
+concurrency:
+  group: cp-sync-pop-${{ inputs.pop_id }}-${{ inputs.env_profile }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  sync:
+    name: "CP → data/ (${{ inputs.pop_id }})"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Sync from control plane
+        id: sync
+        env:
+          CP_TOKEN: ${{ secrets.CP_API_TOKEN }}
+          CP_URL: ${{ inputs.cp_url }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CP_TOKEN}" ]; then
+            echo "::error::Set repo secret CP_API_TOKEN (JWT for cp.pop0.uk admin API)"
+            exit 1
+          fi
+          DRY=()
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            DRY+=(-dry-run)
+          fi
+          go run ./cmd/cp-sync-pop \
+            -cp-url "${CP_URL}" \
+            -token "${CP_TOKEN}" \
+            -pop "${{ inputs.pop_id }}" \
+            -env "${{ inputs.env_profile }}" \
+            -data-dir data \
+            "${DRY[@]}" | tee /tmp/cp-sync-summary.json
+          echo "export_id=$(jq -r .export_id /tmp/cp-sync-summary.json)" >> "$GITHUB_OUTPUT"
+          echo "written_servers=$(jq -r '.written.servers // 0' /tmp/cp-sync-summary.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Dry-run stop
+        if: ${{ inputs.dry_run == true || inputs.dry_run == 'true' }}
+        run: |
+          echo "::notice::dry_run — no PR created"
+          cat /tmp/cp-sync-summary.json
+
+      - name: Create pull request
+        id: pr
+        if: ${{ inputs.dry_run != true && inputs.dry_run != 'true' }}
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          base: main
+          branch: cp-sync/${{ inputs.pop_id }}-${{ inputs.env_profile }}
+          delete-branch: true
+          title: "config(${{ inputs.pop_id }}): sync from CP ${{ steps.sync.outputs.export_id }}"
+          commit-message: "config(${{ inputs.pop_id }}): sync servers/rules from cp.pop0.uk"
+          body: |
+            ## CP → git sync
+
+            Control plane (`${{ inputs.cp_url }}`) is SoT. This PR was opened by
+            [Sync POP config from CP](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}).
+
+            | Field | Value |
+            |-------|-------|
+            | POP | `${{ inputs.pop_id }}` |
+            | Env | `${{ inputs.env_profile }}` |
+            | Export ID | `${{ steps.sync.outputs.export_id }}` |
+            | Tool | `cmd/cp-sync-pop` |
+
+            Trees updated under `data/{servers,rules,waf_policies,waf_rules,secrets}/${{ inputs.env_profile }}/`.
+            Servers no longer tagged `${{ inputs.pop_id }}` on CP (or removed) are deleted from `data/servers/`.
+          labels: |
+            cp-sync
+            automated
+
+      - name: Merge PR into main
+        if: >-
+          (inputs.dry_run != true && inputs.dry_run != 'true') &&
+          (inputs.auto_merge == true || inputs.auto_merge == 'true') &&
+          steps.pr.outputs.pull-request-number != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          N="${{ steps.pr.outputs.pull-request-number }}"
+          echo "Merging PR #${N}"
+          gh pr merge "$N" --merge --admin --delete-branch
