@@ -374,5 +374,6 @@ Deploy Test fails  → alert
 | Backup Data | `backup-wslproxy-data.yml` | Backup WSLProxy data from production |
 | Sync Prod to S3 | `sync-prod-data-to-s3.yml` | Daily SSH rsync from lon1 → S3 + backup tarball |
 | Restore S3 to Git | `restore-prod-data-from-s3-to-git.yml` | **DR only** (manual). Auto-chain after Sync Prod→S3 disabled — CP is SoT |
-| Export POP config | `export-pop-config.yml` | CP (or repo) → `infra/configuration/pops/<pop>/` commit |
+| Export POP config | `export-pop-config.yml` | Optional artifact under `infra/configuration/pops/` |
 | Deploy POP config | `deploy-pop-config.yml` | Git POP tree → bare-metal lon1/pop0 |
+| Sync POP from CP | `cp-sync-pop-to-git.yml` | **Primary:** Go `cmd/cp-sync-pop` → `data/` → PR → merge |

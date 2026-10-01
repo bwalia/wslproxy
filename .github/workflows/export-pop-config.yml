@@ -1,10 +1,10 @@
-name: Export POP config (CP → git)
+name: Export POP config (artifact tree)
 
-# Pull a POP-filtered config snapshot from the control plane (or repo data/
-# fallback) into infra/configuration/pops/<pop_id>/ and commit to main.
+# Legacy/optional: materialize infra/configuration/pops/<pop>/ from CP or repo.
+# Prefer **Sync POP config from CP** (cp-sync-pop-to-git.yml) which writes
+# data/servers|rules via Go and merges a PR — that is the SoT mirror path.
 #
-# See infra/configuration/README.md. CP (cp.pop0.uk) is SoT — this does not
-# pull from lon1/S3 into CP.
+# See infra/configuration/README.md.
 
 on:
   workflow_dispatch:
