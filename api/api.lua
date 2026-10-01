@@ -1931,7 +1931,10 @@ local function listRule(args, uuid)
         -- Preserve secret:// refs verbatim — Base64.decoding a ref
         -- would corrupt it before it reaches the admin UI.
         if type(jwt_k) == "string" and jwt_k:sub(1, 9) ~= "secret://" then
-            exist_value.match.rules.jwt_token_validation_key = Base64.decode(jwt_k)
+            -- Safe decode: a key that lost its "=" padding (gotcha 15) made plain
+            -- Base64.decode throw, so the rule page 500'd and the dashboard said
+            -- the rule "may have been deleted" (16ff5129, 2026-09-27).
+            exist_value.match.rules.jwt_token_validation_key = Base64DecodeSafe(jwt_k) or jwt_k
         end
     end
     ngx.say(cjson.encode({

@@ -2,9 +2,14 @@
 
 pop0 (85.190.106.189) is the failover edge for lon1 (lon1.pop0.uk,
 195.20.255.201). Every 5 minutes it pulls lon1's
-`servers/`, `rules/` and `waf_policies/` JSON and mirrors them into its own
-`/opt/nginx/data`. `settings.json` is **not** synced, because pop0 has its own
-`instance_id` (`wslproxy-prod-pop0`).
+`servers/`, `rules/`, `waf_policies/` and `secrets/` JSON and mirrors them into
+its own `/opt/nginx/data`. `settings.json` is **not** synced, because pop0 has
+its own `instance_id` (`wslproxy-prod-pop0`).
+
+`secrets/` holds only AES-256-GCM blobs; rules point at them with
+`secret://<id>#<key>`. Each edge decrypts with the `SECRETS_ENCRYPTION_KEY` in
+its own `settings.json` (from `infra/secrets/prod/settings.sops.json`), so pop0
+needs the same key as lon1. Synced secrets are written `0660`, not `0666`.
 
 ## How it works
 
