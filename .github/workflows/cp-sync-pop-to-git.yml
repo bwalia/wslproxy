@@ -115,13 +115,23 @@ jobs:
             echo "::error::CP login failed HTTP ${code}: $(head -c 400 "$resp")"
             exit 1
           fi
-          tok="$(jq -r '.data.token // .token // .data // empty' "$resp")"
+          # Login body is { data: { accessToken, user, instance }, status }
+          tok="$(jq -r '.data.accessToken // .accessToken // .data.token // .token // empty' "$resp")"
           if [ -z "$tok" ] || [ "$tok" = "null" ]; then
-            echo "::error::Login 200 but no token in body: $(head -c 400 "$resp")"
+            echo "::error::Login 200 but no accessToken in body: $(head -c 400 "$resp")"
+            exit 1
+          fi
+          # Reject multi-line / non-string jq accidents before GITHUB_OUTPUT
+          if printf '%s' "$tok" | grep -q $'\n'; then
+            echo "::error::Token extract returned multi-line value (wrong jq path)"
             exit 1
           fi
           echo "::add-mask::${tok}"
-          echo "token=${tok}" >> "$GITHUB_OUTPUT"
+          {
+            echo "token<<EOF"
+            printf '%s\n' "$tok"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
           echo "Minted JWT via /api/user/login"
 
       - name: Sync from control plane
