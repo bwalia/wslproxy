@@ -209,8 +209,7 @@ Shared parameterized workflow called by both pipelines via `workflow_call`. Hand
 | int | 192.168.1.193 | (local) | `local` | `sops` | `local` | `http://127.0.0.1:8099/healthz` |
 | test | 192.168.1.140 | bwalia | `ssh` | `vault_or_sops` | `ssh` | `http://127.0.0.1:8099/healthz` |
 | acc | 192.168.1.47 | bwalia | `ssh_key` | `vault_or_sops` | `ssh` | `http://127.0.0.1:8099/healthz` |
-| prod / prod-lon1 | lon1.pop0.uk | root | `ssh_key` | `vault_or_sops` | `external` | `https://lon1.pop0.uk/healthz` |
-| prod-pop0 | 85.190.106.189 | administrator | `ssh_key` | `vault_or_sops` | `ssh` | `http://127.0.0.1:7691/healthz` |
+| prod / prod-lon1 / prod-pop0 | **both** lon1.pop0.uk **and** 85.190.106.189 (lon2) | root / administrator | `ssh_key` | `vault_or_sops` | `external` | `https://lon1.pop0.uk/healthz` + `https://lon2.pop0.uk/healthz` |
 
 > **Why :8099 on the LAN hosts:** all three of int, test and acc failed their
 > health gate on `:8080` with HTTP 000 — a failed TCP connect — while
@@ -227,9 +226,11 @@ Shared parameterized workflow called by both pipelines via `workflow_call`. Hand
 > have it on `:8080`. Worth checking on the box — the Next.js dashboard's
 > `WSLPROXY_API_URL` points at that port.
 
-> **pop1 retired:** `18.133.126.242` / `pop1.diytaxreturn.co.uk` is gone — use `ENV=prod` or `prod-lon1` (both lon1).
+> **pop1 retired:** `18.133.126.242` / `pop1.diytaxreturn.co.uk` is gone.
 >
-> **pop0 rebuilt (2026-08-28):** the old pop0 host `187.124.112.155` was retired (it is a k3s node where traefik owns `:80`/`:443`). pop0 now lives on a new VPS, `85.190.106.189`, SSH user `administrator` (passwordless sudo, no root login). It is **dispatch-only** — Stage 5b of the delivery pipeline and `ENV=prod-pop0` in `deploy-single-environment.yml`; a push to `main`/`release` and `TARGET_HOST=all` both skip it. Its health gate runs over SSH against `127.0.0.1:7691` because no DNS points at the new IP yet (`prod-our.wslproxy.com` still resolves to lon1) — switch it to `external` after repointing DNS.
+> **Production dual-POP:** Ring Promoter / `deploy-single-environment.yml` with
+> `ENV=prod`, `prod-lon1`, or `prod-pop0` always deploys **lon1 + lon2 (pop0)**
+> in parallel. UI: `https://lon1.pop0.uk` and `https://lon2.pop0.uk`.
 
 ### Steps (conditional per environment)
 
