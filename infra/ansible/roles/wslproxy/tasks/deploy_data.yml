@@ -86,8 +86,13 @@
   # backfill catches the "admin rsync'd server JSONs at 644 before the role
   # was rerun" case; on every subsequent Ansible run it is a no-op because
   # the ! -perm 666 predicate matches nothing.
-  ansible.builtin.command:
-    cmd: find /opt/nginx/data -type f -name '*.json' ! -perm 666 -print -exec chmod 666 {} +
+  # Use shell + || true: GNU find exits non-zero when it cannot traverse a
+  # subdirectory (Permission denied under mixed ownership), which wrongly
+  # fails the whole deploy even after successful chmods.
+  ansible.builtin.shell: |
+    find /opt/nginx/data -type f -name '*.json' ! -perm 666 -print -exec chmod 666 {} + 2>/dev/null || true
+  args:
+    executable: /bin/bash
   register: _acl_normalize
   changed_when: _acl_normalize.stdout != ""
   tags: [servers, code]
