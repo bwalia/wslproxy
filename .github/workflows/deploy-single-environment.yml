@@ -7,12 +7,14 @@ name: Deploy Single Environment
 #   int       -> 192.168.1.193   (Integration)
 #   test      -> 192.168.1.140   (Test)
 #   acc       -> 192.168.1.47    (Acceptance — LAN)
-#   prod      -> lon1.pop0.uk    (Production — live edge; alias of prod-lon1)
-#   prod-lon1 -> lon1.pop0.uk    (Production — "lon1" / lon1.pop0.uk)
-#   prod-pop0 -> 85.190.106.189  (Production — "pop0", new VPS, ssh administrator)
+#   prod | prod-lon1 | prod-pop0
+#             -> BOTH production edges in parallel:
+#                  lon1.pop0.uk (lon1) + 85.190.106.189 / lon2.pop0.uk (pop0)
 # Retired: 18.133.126.242 (pop1) — host gone; ENV=prod must not SSH there.
 #
-# Each ENV maps to exactly ONE host, so rings deploy independently.
+# Non-prod ENVs still map to exactly one host. Production is a dual-POP
+# ring: Ring Promoter "prod" (any of the three ENV aliases) always
+# refreshes lon1 and lon2 together so the edges stay in sync.
 #
 # WHY THIS EXISTS
 #   deploy-wslproxy-delivery-pipeline.yml is a cumulative promotion cascade and
@@ -20,9 +22,9 @@ name: Deploy Single Environment
 #   (github.com/bwalia/ring-promoter) models each ring as an INDEPENDENT
 #   environment: it promotes one ring at a time and, on a failed post-deploy
 #   health check, auto-rolls-back THAT ring only — so it needs to deploy exactly
-#   one environment per dispatch, which is what this workflow provides.
+#   one *ring* per dispatch. For Production the ring is both POPs.
 #
-# NOTE: prod runs with env_name=prod (served by the `prod` self-hosted runner);
+# NOTE: prod runs with env_name=prod (served by the `acc` self-hosted runner);
 # acc runs with env_name=acc on a dedicated LAN host with its own runner. int
 # and test also use env_name matching their runner labels.
 
@@ -31,7 +33,7 @@ on:
     inputs:
       ENV:
         type: choice
-        description: "Which single environment to deploy (no cascade to others)"
+        description: "Which single environment/ring to deploy (prod = lon1+lon2)"
         required: true
         default: "int"
         options:
@@ -66,8 +68,12 @@ on:
           - permissions
 
 # Serialize deploys to the same environment; don't cancel an in-flight deploy.
+# All prod ENV aliases share one group so lon1+lon2 never overlap across runs.
 concurrency:
-  group: deploy-single-${{ inputs.ENV }}
+  group: >-
+    ${{ (inputs.ENV == 'prod' || inputs.ENV == 'prod-lon1' || inputs.ENV == 'prod-pop0')
+        && 'deploy-single-prod'
+        || format('deploy-single-{0}', inputs.ENV) }}
   cancel-in-progress: false
 
 jobs:
@@ -193,37 +199,17 @@ jobs:
       SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
 
   # ──────────────────────────────────────────────────────
-  # Production — live edge lon1 (lon1.pop0.uk, IONOS, ssh root).
-  # ENV=prod and ENV=prod-lon1 are the same host. pop1 (18.133.126.242) retired.
+  # Production ring — ALWAYS both edges when ENV is prod,
+  # prod-lon1, or prod-pop0 (Ring Promoter + manual dispatch):
+  #   • lon1.pop0.uk  (ssh root)
+  #   • 85.190.106.189 / lon2.pop0.uk (ssh administrator)
+  # Jobs run in parallel on the `acc` runner label.
   # ──────────────────────────────────────────────────────
-  prod:
-    if: ${{ inputs.ENV == 'prod' }}
-    uses: ./.github/workflows/deploy-environment.yml
-    with:
-      env_name: prod
-      runner_label: acc
-      env_label: "Production — lon1 (lon1.pop0.uk)"
-      stage_number: "prod"
-      host_ip: "lon1.pop0.uk"
-      ssh_user: root
-      connection_mode: ssh_key
-      secrets_mode: vault_or_sops
-      health_endpoint: "https://lon1.pop0.uk/healthz"
-      health_check_mode: external
-      smoke_domain: "lon1.pop0.uk"
-      docker_prune: true
-      notify_success: true
-      deploy_branch: ${{ inputs.DEPLOY_BRANCH }}
-      deploy_mode: ${{ inputs.DEPLOY_MODE }}
-    secrets:
-      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-      VAULT_ADDR: ${{ secrets.VAULT_ADDR }}
-      VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
-      SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
-
   prod-lon1:
-    if: ${{ inputs.ENV == 'prod-lon1' }}
+    if: >-
+      ${{ inputs.ENV == 'prod'
+          || inputs.ENV == 'prod-lon1'
+          || inputs.ENV == 'prod-pop0' }}
     uses: ./.github/workflows/deploy-environment.yml
     with:
       env_name: prod
@@ -248,29 +234,18 @@ jobs:
       VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
       SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
 
-  # ──────────────────────────────────────────────────────
-  # Production — prod / "pop0" (85.190.106.189, ssh user `administrator`).
-  #
-  # New VPS commissioned 2026-08-28, replacing the retired pop0 host
-  # 187.124.112.155 (that box became a k3s/traefik node). Same prod secrets
-  # (Vault/SOPS) as lon1.
-  #
-  # Scheduled on the mac-studio runner (`acc`) — same rationale as lon1:
-  # it is the runner that holds an SSH key trusted by the prod edges. The old
-  # `prod` runner lived ON the retired pop0 box and no longer exists.
-  #
-  # health_check_mode is `ssh` (not `external`): no DNS points at this VPS yet
-  # (prod-our.wslproxy.com still resolves to lon1), so an external check would
-  # green on the WRONG host. Switch to `external` once DNS is repointed.
-  # ──────────────────────────────────────────────────────
-  prod-pop0:
-    if: ${{ inputs.ENV == 'prod-pop0' }}
+  # pop0 / lon2 — same Vault/SOPS prod secrets as lon1.
+  prod-lon2:
+    if: >-
+      ${{ inputs.ENV == 'prod'
+          || inputs.ENV == 'prod-lon1'
+          || inputs.ENV == 'prod-pop0' }}
     uses: ./.github/workflows/deploy-environment.yml
     with:
       env_name: prod
       runner_label: acc
-      env_label: "Production — pop0 (85.190.106.189)"
-      stage_number: "prod-pop0"
+      env_label: "Production — lon2/pop0 (85.190.106.189 / lon2.pop0.uk)"
+      stage_number: "prod-lon2"
       host_ip: "85.190.106.189"
       ssh_user: administrator
       connection_mode: ssh_key
