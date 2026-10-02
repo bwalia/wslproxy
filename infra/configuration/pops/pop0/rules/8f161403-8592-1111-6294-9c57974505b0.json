@@ -1,0 +1,43 @@
+{
+  "id": "8f161403-8592-1111-6294-9c57974505b0",
+  "match": {
+    "response": {
+      "allow": false,
+      "auto_redirect_https": false,
+      "backends": [
+        {
+          "address": "http://193.237.176.232:8888",
+          "label": "stable, ingress, wslproxy, nodeport, kube-vip",
+          "weight": 100
+        }
+      ],
+      "code": 305,
+      "is_consul": false,
+      "redirect_uri": "http://193.237.176.232:8888",
+      "routing": {
+        "mode": "least_conn"
+      },
+      "strip_path": false
+    },
+    "rules": {
+      "jwt_token_validation": "equals",
+      "path": "/",
+      "path_key": "starts_with"
+    }
+  },
+  "name": "aws-k3s1-ingress-13.42.188.136",
+  "priority": 1,
+  "profile_id": "prod",
+  "rules_tags": {},
+  "servers": [
+    "host:jenkins.fictionally.org",
+    "host:polyglot-benchmarks.fictionally.org",
+    "host:ring-promoter.fictionally.org",
+    "host:shop.fictionally.org",
+    "host:shopping-cart-api.fictionally.org",
+    "host:int-langfuse.jobshout.co.uk",
+    "host:solomon.fictionally.org",
+    "host:abtesting.fictionally.org"
+  ],
+  "version": 1
+}

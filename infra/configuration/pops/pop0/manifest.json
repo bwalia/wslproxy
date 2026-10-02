@@ -1,0 +1,15 @@
+{
+  "content_sha256": "30d472e98b9064d6a0d5102c12c44395f7e29c6db913f195a6dce440c8ec2a00",
+  "env_profile": "prod",
+  "export_id": "887867b5-7220-4608-abb6-0858319702eb",
+  "exported_at": "2026-10-02T06:54:13Z",
+  "pop_id": "pop0",
+  "record_counts": {
+    "rules": 5,
+    "secrets": 0,
+    "servers": 17,
+    "waf_policies": 0,
+    "waf_rules": 0
+  },
+  "source_host": "repo-data"
+}
