@@ -1,0 +1,75 @@
+{
+    "cache_bypass_auth": true,
+    "cache_docker_blobs": false,
+    "cache_docker_blobs_ttl": "2592000",
+    "cache_docker_manifests": false,
+    "cache_docker_manifests_ttl": "3600",
+    "cache_docker_serve_stale": false,
+    "cache_docker_stale_ttl": "31536000",
+    "cache_enabled": false,
+    "cache_ttl": 3600,
+    "cached_mime_types": {},
+    "config": "UTI1T2JHTnVXbXhqYVVJM1EybEJaMGxEUW5OaFdFNHdXbGMwWjA5RVFUZERhVUZuU1VOQ2VscFlTakphV0VwbVltMUdkRnBUUWpOa00yTjFZVzA1YVdNeWFIWmtXRkYxV1RJNWRFOTNiMmRKUTBGbllrYzVhbGxZVW5CaU1qUm5USGsxTTFwWGVITk1WM1IxWWpOa2RVd3lSbXBpVjFWMFdUSm9hR0pIZUd4aWJXUnNUSGxDTjBsSFRuWmlibEpzWW01U1psbHViR1ppU0Zab1dESktjMkl5VG5KSlNITm5XVmhXTUdJeE9YcGpNbmMyV1RKb2FHSkhlR3hpYldSc1dETk9iR051V214amFXZHdTVWd3WjJaUmIyZEpRMEZuWWtjNWFsbFlVbkJpTWpSblRIbENOMGxJU214a1NGWjVZbWxCZWsxRVJXZGhTRkl3WTBoTk5reDVPR3RoUnpsNlpFTlNlVnBZUmpGYVdFNHdXRE5XZVdGVWMyZG1VWEE1UTI1T2JHTnVXbXhqYVVJM1EybEJaMGxEUVdkSlIzaHdZek5TYkdKcFFUUk5SSE5MU1VOQlowbERRV2REYVVGblNVTkJaMGxIZUhCak0xSnNZbWxCTUU1RVRXZGpNMDV6U1Vkb01HUklRWGxQZDI5blNVTkJaMGxEUW5wak1uaG1XVEpXZVdSSGJHMWhWMDVvWkVkV1psbHViR1ppU0Zab1dESktjMkl5VG5KSlNITm5XVmhXTUdJeE9YcGpNbmMyWXpOT2MxZ3lUbXhqYmxKd1dtMXNhbGxZVW14TFEydG5abEZ2WjBsRFFXZEpRMEo2WXpKNFpsa3lWbmxrUjJ4dFlWZE9hR1JIVldkTU1sWXdXWGs1ZW1NeWQzWmpiVlo2WkVocmRGbFlWakJpZVRGNll6SjNkRnB0Um5OaVIwcG9XVEp6ZFZrelNqQlBkMjluU1VOQlowbERRbnBqTW5obVdUSldlV1JIYkcxaFYwNW9aRWRXWm1FeVZqVkpRemxzWkVkTmRtTXpUbk5NTTBwc1l6TlNOVXhYUmpGa1J6aDBZek5PYzB4WFdtaGlSM2hwV1ZkT2NreHRkR3hsVkhOTFNVTkJaMGxEUVdkak0wNXpXRE5PYkdNelRuQmlNalZtWkVkc2RGcFhPVEZrUTBGNFdrUnpTMGxEUVdkSlEwRm5Zek5PYzFnelRteGpNMDV3WWpJMVpsa3lSbXBoUjFWbll6Sm9hR050Vm10UGJFNVVWRVJ2TVUxSE1EZERhVUZuU1VOQlowbElUbnBpUmpsNldsaE9lbUZYT1hWWU0xSndXVEowYkdSSVRXZGlNbHB0VDNkdlowbERRV2RKUTBKNll6SjRabU5JU25aa1J6bHFZako0ZWtsR1VrMVZNMWw0VEdwSloxWkZlRlJrYWtWMVRYcHpTMGxEUVdkSlEwRm5Zek5PYzFneVRuQmpSMmhzWTI1TloxSlZUa1ZUUlZWMFVsVk9SVlV3UlhSUlZWWlVUVlJKTkV4VlpFUlVVekZVVTBWRmVVNVVXVFpTVlU1RlUwVlZkRlZzVGtKTVZVWkdWWHBGZVU5RE1VaFJNREIwVlRCb1FrMXFWVEpQYTFaRVVrVm9Sa3hWVmtSU1JrNUNURlZHUmxWNlNURk9hVEZJVVRBd2RGVXdhRUpOZW1jd1QydFdSRkpGYUVaTVZrcFVVVk14UWxKV1RYbE9WRmwwVWpCT1RreFdUa2xSVkUwMFRrUndSbEV3VWtsU1V6RkdVVEJTVkZGVE1VUlRSVVpFVTBWRmVVMURNVkZVTUhoYVRWUk5kMDVVY0VaUk1GSkpVbE14VTFVd1JYUlJNR2hDVVRCb1FrMXFRWFJWUlRsTlYxUkZlazFFVlRaU1JXaEdURlpLVkZGVE1VSlNWazE0VFdwbmRGSXdUazVNVms1SlVWUkpNVTVxY0VWVFJWVjBWV3hPUWt4VlJrWlZla2t4VG1reFNGRXdNSFJWTUdoQ1RYcG5NRTkzYjJkSlEwRm5TVU5DZW1NeWVHWmpTRXBzV20xV2VWZ3pUbXhqYmxwc1kydzVhbUZZUW05YVdFcDZTVWM1YlZwcWMwdEpRMEZuU1VOQloxbFhVbXRZTW1oc1dWZFNiR05wUWxSa1NFcHdXVE5SZEZaSVNtaGliazUzWWpOS01FeFdUbXhaTTFaNVlWaFNOVWxEU25SWldHZDBXVmRrYkZCVVRYaE9WRTB5VFVSQmQwOTVRbkJpYlU1elpGZFNiRlV6Vm1sU1J6bDBXVmRzZFdONVNXZFpWM2d6V1Zoc2VrOTNiMmRKUTBGblNVTkNlbHBZU2pKYVdFcG1ZbTFHZEZwVFFqTmtNMk4xWVcwNWFXTXlhSFprV0ZGMVdUSTVkRTkzYjJkSlEwRm5TVU5DZVdJeU9UQkpRemt5V1ZoSmRtUXpaRE5NTW1nd1lsZDNOME5wUVdkSlEwRm5TVWRzZFZwSFZqUkpSMngxV2tkV05FeHRhREJpVjNjM1EybEJaMGxEUVdkSlIwWnFXVEpXZW1NeE9YTmlNbU5uWWtjNWJtTjVPWGRpTWxKd1ltMWFka3h1UW5aalJFRjFaRmR6ZFZsWFRtcGFXRTU2VEcxNGRscDZjMHRKUTBGblNVTkJaMXBZU25saU0wcG1Za2M1YmtsSGVIWmFNMDEyWTBjNWEyRlhOVzFpZVRWM1lqTkJkMHh1Vm5KTWJWWjVZMjA1ZVV4dGVIWmFlbk5MU1VOQlowbERRV2REYVVGblNVTkJaMGxIZUhaWk1rWXdZVmM1ZFVsRE9IVmtNbFp6WWtNeGNtSnRPVE5pYVRsb1dUSXhiRXhYVG05WlYzaHpXbGMxYmxwVE9HZGxkMjluU1VOQlowbERRV2RKUTBGbldUSTVkV1JIVm5Wa1JqbHBaVlk1YzJSWFJtWlpiWGgyV1RKeloyVjVRbWhrV0ZKMldETk9lbUpFY0dwaFIwWnpZa2RXZFZveVZtWmpNbFo1WkcxV2VVdERhMmRtVVc5blNVTkJaMGxEUWpsRGFVRm5TVU5CWjBsQmIyZEpRMEZuU1VOQlMwbERRamxEYVVGblEybEJadz09",
+    "config_status": true,
+    "created_at": 1788441691,
+    "custom_block": {},
+    "custom_headers": {},
+    "custom_http_block": {},
+    "custom_location_block": {},
+    "custom_response_headers": {},
+    "dns_record_type": "A",
+    "id": "host:www.jobshout.com",
+    "index": "index.html",
+    "listens": [
+        {
+            "listen": "80"
+        }
+    ],
+    "locations": {},
+    "match_cases": {},
+    "pop_ids": [
+        "pop0"
+    ],
+    "profile_id": "prod",
+    "proxy_pass": "http://localhost",
+    "proxy_timeouts": {
+        "connect_timeout": "",
+        "read_timeout": "",
+        "send_timeout": ""
+    },
+    "rate_limit": {
+        "burst": 50,
+        "requests_per_second": 100
+    },
+    "rate_limit_enabled": false,
+    "root": "/var/www/html",
+    "rules": [
+        "8f161403-8592-1111-6294-9c57974505b0"
+    ],
+    "server_name": "www.jobshout.com",
+    "servers_tags": {},
+    "ssl_auto_renew": true,
+    "ssl_email": "balinder.walia@gmail.com",
+    "ssl_enabled": true,
+    "ssl_force_https": true,
+    "ssl_staging": false,
+    "varnish_config": {
+        "admin_listen_port": "6082",
+        "backend_between_bytes_timeout": 10,
+        "backend_connect_timeout": 5,
+        "backend_first_byte_timeout": 60,
+        "cache_grace": 3600,
+        "cache_keep": 7200,
+        "cache_size": "256m",
+        "cache_ttl_default": 120,
+        "health_check_enabled": false,
+        "health_check_interval": 5,
+        "health_check_timeout": 2,
+        "health_check_url": "/health",
+        "listen_address": "0.0.0.0",
+        "listen_port": "6081"
+    },
+    "varnish_enabled": false,
+    "varnish_snippets": {},
+    "waf_enabled": false
+}
