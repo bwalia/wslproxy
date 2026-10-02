@@ -46,8 +46,10 @@ _os_packages:
     distro_specific:
       Ubuntu:
         - software-properties-common
-        - libpcre3
-        - libpcre3-dev
+        # libpcre3 was dropped in Ubuntu 24.04; libpcre2 is present on
+        # 20.04+ and is what OpenResty links against in current builds.
+        - libpcre2-8-0
+        - libpcre2-dev
         - openjdk-21-jdk
         - netcat-traditional
         # npm from the distro repo installs cleanly on Ubuntu, but on
