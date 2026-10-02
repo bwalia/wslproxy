@@ -1,4 +1,4 @@
-# pop0 — new VPS commissioned 2026-08-28 (replaces retired 187.124.112.155).
+# pop0 (UI: lon2.pop0.uk) — new VPS commissioned 2026-08-28 (replaces retired 187.124.112.155).
 # SSH: administrator@85.190.106.189. env_name stays `prod` in CI/Ansible.
 local_settings_file_path: "/home/bwalia/.secrets/wslproxy/prod/settings.json"
 local_env_file_path: "/home/bwalia/.secrets/wslproxy/prod/.env"
