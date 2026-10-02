@@ -127,13 +127,14 @@ jobs:
           fetch-depth: 1
 
       - name: Verify POP tree + manifest
+        id: manifest
         run: |
           set -euo pipefail
           TREE="infra/configuration/pops/${{ matrix.pop_id }}"
           test -f "${TREE}/manifest.json"
           jq -e --arg p "${{ matrix.pop_id }}" '.pop_id == $p' "${TREE}/manifest.json"
-          echo "export_id=$(jq -r .export_id "${TREE}/manifest.json")" >> "$GITHUB_ENV"
-          echo "content_sha=$(jq -r .content_sha256 "${TREE}/manifest.json")" >> "$GITHUB_ENV"
+          echo "export_id=$(jq -r .export_id "${TREE}/manifest.json")" >> "$GITHUB_OUTPUT"
+          echo "content_sha=$(jq -r .content_sha256 "${TREE}/manifest.json")" >> "$GITHUB_OUTPUT"
           jq . "${TREE}/manifest.json"
 
       - name: Resolve SSH user
@@ -157,6 +158,8 @@ jobs:
       - name: Atomic apply via Ansible
         env:
           ANSIBLE_HOST_KEY_CHECKING: "False"
+          EXPORT_ID: ${{ steps.manifest.outputs.export_id }}
+          CONTENT_SHA: ${{ steps.manifest.outputs.content_sha }}
         run: |
           set -euo pipefail
           POP="${{ matrix.pop_id }}"
