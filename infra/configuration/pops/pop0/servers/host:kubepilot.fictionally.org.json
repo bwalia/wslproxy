@@ -1,0 +1,65 @@
+{
+  "access_log": "logs/access.log",
+  "cache_bypass_auth": false,
+  "cache_enabled": false,
+  "cache_ttl": 3600,
+  "cached_mime_types": {},
+  "config": "CnNlcnZlciB7CiAgICBsaXN0ZW4gODA7CiAgICBzZXJ2ZXJfbmFtZSBrdWJlcGlsb3QuZmljdGlvbmFsbHkub3JnOwogICAgbG9jYXRpb24gLy53ZWxsLWtub3duL2FjbWUtY2hhbGxlbmdlLyB7IGNvbnRlbnRfYnlfbHVhX2Jsb2NrIHsgYXV0b19zc2w6Y2hhbGxlbmdlX3NlcnZlcigpIH0gfQogICAgbG9jYXRpb24gLyB7IHJldHVybiAzMDEgaHR0cHM6Ly8kaG9zdCRyZXF1ZXN0X3VyaTsgfQp9CnNlcnZlciB7CiAgICAgIGxpc3RlbiA4MDsKICAgICAgCiAgICAgIGxpc3RlbiA0NDMgc3NsIGh0dHAyOwogICAgICBzc2xfY2VydGlmaWNhdGVfYnlfbHVhX2Jsb2NrIHsgYXV0b19zc2w6c3NsX2NlcnRpZmljYXRlKCkgfQogICAgICBzc2xfY2VydGlmaWNhdGUgL2V0Yy9zc2wvcmVzdHktYXV0by1zc2wtZmFsbGJhY2suY3J0OwogICAgICBzc2xfY2VydGlmaWNhdGVfa2V5IC9ldGMvc3NsL3Jlc3R5LWF1dG8tc3NsLWZhbGxiYWNrLmtleTsKICAgICAgc3NsX3Nlc3Npb25fdGltZW91dCAxZDsKICAgICAgc3NsX3Nlc3Npb25fY2FjaGUgc2hhcmVkOlNTTDo1MG07CiAgICAgIHNzbF9zZXNzaW9uX3RpY2tldHMgb2ZmOwogICAgICBzc2xfcHJvdG9jb2xzIFRMU3YxLjIgVExTdjEuMzsKICAgICAgc3NsX2NpcGhlcnMgRUNESEUtRUNEU0EtQUVTMTI4LUdDTS1TSEEyNTY6RUNESEUtUlNBLUFFUzEyOC1HQ00tU0hBMjU2OkVDREhFLUVDRFNBLUFFUzI1Ni1HQ00tU0hBMzg0OkVDREhFLVJTQS1BRVMyNTYtR0NNLVNIQTM4NDpFQ0RIRS1FQ0RTQS1DSEFDSEEyMC1QT0xZMTMwNTpFQ0RIRS1SU0EtQ0hBQ0hBMjAtUE9MWTEzMDU6REhFLVJTQS1BRVMxMjgtR0NNLVNIQTI1NjpESEUtUlNBLUFFUzI1Ni1HQ00tU0hBMzg0OwogICAgICBzc2xfcHJlZmVyX3NlcnZlcl9jaXBoZXJzIG9mZjsKICAgICAgYWRkX2hlYWRlciBTdHJpY3QtVHJhbnNwb3J0LVNlY3VyaXR5ICJtYXgtYWdlMzE1MzYwMDA7IGluY2x1ZGVTdWJEb21haW5zIiBhbHdheXM7CiAgICAgIHNlcnZlcl9uYW1lIGt1YmVwaWxvdC5maWN0aW9uYWxseS5vcmc7CiAgICAgIHJvb3QgL3Zhci93d3cvaHRtbDsKICAgICAgaW5kZXggaW5kZXguaHRtbDsKICAgICAgYWNjZXNzX2xvZyBsb2dzL2FjY2Vzcy5sb2c7CiAgICAgIGVycm9yX2xvZyBsb2dzL2Vycm9yLmxvZzsKICAgICAgCiAgICAgIGxvY2F0aW9uIC8ud2VsbC1rbm93bi9hY21lLWNoYWxsZW5nZS8gewogICAgICAgICAgY29udGVudF9ieV9sdWFfYmxvY2sgeyBhdXRvX3NzbDpjaGFsbGVuZ2Vfc2VydmVyKCkgfQogICAgICB9CiAgICAgIAogICAgICAKICB9CiAgCiAg",
+  "config_status": true,
+  "custom_block": {},
+  "custom_headers": {},
+  "custom_http_block": {},
+  "custom_location_block": {},
+  "custom_response_headers": {},
+  "dns_cname_target": "pop0.wslproxy.com",
+  "dns_record_type": "CNAME",
+  "error_log": "logs/error.log",
+  "id": "host:kubepilot.fictionally.org",
+  "index": "index.html",
+  "listens": [
+    {
+      "listen": "80"
+    }
+  ],
+  "locations": {},
+  "match_cases": {},
+  "pop_ids": [
+    "pop0"
+  ],
+  "profile_id": "prod",
+  "rate_limit": {
+    "burst": 50,
+    "requests_per_second": 100
+  },
+  "rate_limit_enabled": false,
+  "root": "/var/www/html",
+  "rules": [
+    "b2a72d60-f27f-5152-3519-f27e44548fd8"
+  ],
+  "server_name": "kubepilot.fictionally.org",
+  "servers_tags": {},
+  "ssl_auto_renew": true,
+  "ssl_email": "balinder.walia@gmail.com",
+  "ssl_enabled": true,
+  "ssl_force_https": true,
+  "ssl_staging": false,
+  "varnish_config": {
+    "admin_listen_port": "6082",
+    "backend_between_bytes_timeout": 10,
+    "backend_connect_timeout": 5,
+    "backend_first_byte_timeout": 60,
+    "cache_grace": 3600,
+    "cache_keep": 7200,
+    "cache_size": "256m",
+    "cache_ttl_default": 120,
+    "health_check_enabled": false,
+    "health_check_interval": 5,
+    "health_check_timeout": 2,
+    "health_check_url": "/health",
+    "listen_address": "0.0.0.0",
+    "listen_port": "6081"
+  },
+  "varnish_enabled": false,
+  "varnish_snippets": {},
+  "waf_enabled": false
+}
