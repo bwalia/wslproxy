@@ -11,6 +11,11 @@ name: Deploy Ring Promoter (wslproxy)
 # Runs when deploy/ring-promoter/** changes on main, so an edit to the
 # wslproxy-k3s1 deploy script (configmap.yaml) ships by itself.
 #
+# Also runs on repository_dispatch `ring-promoter-image`, fired by
+# bwalia/ring-promoter's deploy-k3s1.yml after each successful build, so this
+# instance follows new Ring Promoter releases automatically. The payload's
+# image_tag (sha-xxxxxxx) is the exact image to roll out.
+#
 # One-time, before the first run: scripts/ring-promoter-bootstrap.sh
 # (database, Secret, RP_URL/RP_TOKEN GitHub secrets). CI never creates secrets.
 
@@ -20,6 +25,8 @@ on:
     paths:
       - "deploy/ring-promoter/**"
       - ".github/workflows/deploy-ring-promoter.yml"
+  repository_dispatch:
+    types: [ring-promoter-image]
   workflow_dispatch:
     inputs:
       image_tag:
@@ -73,9 +80,23 @@ jobs:
             || echo "::warning::ring-exec/wslproxy-vault missing — prod seeds will exit with VAULT_ADDR/VAULT_TOKEN missing."
 
       - name: Resolve image tag
+        env:
+          # Through env, never interpolated into the script: a dispatch payload
+          # is caller-controlled input.
+          DISPATCH_TAG: ${{ github.event.client_payload.image_tag }}
+          INPUT_TAG: ${{ inputs.image_tag }}
         run: |
           set -euo pipefail
-          TAG="${{ inputs.image_tag }}"
+          if [ "${GITHUB_EVENT_NAME}" = "repository_dispatch" ]; then
+            TAG="${DISPATCH_TAG}"
+            # Only the immutable tags ring-promoter CI publishes are accepted.
+            if ! [[ "$TAG" =~ ^sha-[0-9a-f]{7}$ ]]; then
+              echo "::error::repository_dispatch image_tag '${TAG}' is not a sha-xxxxxxx tag; refusing to deploy."
+              exit 1
+            fi
+          else
+            TAG="${INPUT_TAG}"
+          fi
           if [ -z "$TAG" ]; then
             # A manifest-only push must not move the image: keep what runs.
             CURRENT=$(kubectl -n "${NAMESPACE}" get deploy ring-promoter \
