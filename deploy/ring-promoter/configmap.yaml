@@ -148,6 +148,11 @@ data:
           timeout: 25m
           retries: 0
           ttl_after_finished: 1h
+        # Test links: the code each ring runs (RP_VERSION is a SHA, short SHA or
+        # tag, and /commit/ resolves all three), plus prod's control plane UI.
+        # int/test/acc have no public host, so they get only the code link.
+        links:
+          - { label: "Code at this version", url: "https://github.com/bwalia/wslproxy/commit/{version}", kind: release }
         rings:
           int:  { target_env: int,  health_url: "http://wslproxy-ingress-int-openresty.wslproxy-int.svc.cluster.local:8080/healthz" }
           test: { target_env: test, health_url: "http://wslproxy-ingress-test-openresty.wslproxy-test.svc.cluster.local:8080/healthz" }
@@ -156,4 +161,4 @@ data:
           # pinned to cloud003 (an edge node) and the CNI overlay from other nodes
           # to the edge nodes does not carry traffic (same reason workstation-opsapi
           # uses public URLs on the workstation instance).
-          prod: { target_env: prod, health_url: "https://cp.pop0.uk/healthz" }
+          prod: { target_env: prod, health_url: "https://cp.pop0.uk/healthz", links: [ { label: "Control plane", url: "https://cp.pop0.uk/" } ] }
