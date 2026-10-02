@@ -50,14 +50,16 @@ _os_packages:
         # 20.04+ and is what OpenResty links against in current builds.
         - libpcre2-8-0
         - libpcre2-dev
-        - openjdk-21-jdk
+        # Prefer default-jdk over openjdk-21-jdk: Ubuntu 26.04's apt solver
+        # failed cascading openjdk-21 when sibling packages conflicted, and
+        # default-jdk tracks the distro's supported JDK (same rationale as
+        # Debian below).
+        - default-jdk
         - netcat-traditional
-        # npm from the distro repo installs cleanly on Ubuntu, but on
-        # Debian 13 (trixie) the packaged npm (9.2.0~ds1-3) is uninstallable
-        # (unmet nodejs dependency chain). Node/npm come from NodeSource
-        # (deploy_nextjs_admin_ui.yml) / nvm (install-build-npm-yarn.sh.j2)
-        # on all distros anyway, so keep the distro npm Ubuntu-only.
-        - npm
+        # Do NOT install distro npm here. On Ubuntu 26.04+ the nodejs package
+        # Conflicts: npm (npm is bundled), so apt fails the whole Ubuntu
+        # package set. Node/npm come from NodeSource
+        # (deploy_nextjs_admin_ui.yml) / nvm (install-build-npm-yarn.sh.j2).
       Debian:
         - python3-apt
         - libpcre2-dev
