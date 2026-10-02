@@ -560,13 +560,9 @@ jobs:
   # `administrator`, commissioned 2026-08-28 to replace the retired
   # 187.124.112.155. (Former Stage 5b was pop1 / 18.133.126.242 — retired.)
   #
-  # DISPATCH-ONLY BY DESIGN: unlike 5a there is no `push` clause and it is
-  # NOT included in TARGET_HOST == 'all'. A brand-new edge with no DNS should
-  # not be dragged into every release; select it explicitly. Promote it to the
-  # push chain (copy 5a's `if:`) once DNS points here and it has run clean.
-  #
-  # health_check_mode is `ssh` because nothing resolves to this IP yet — an
-  # external check on prod-our.wslproxy.com would green on lon1 instead.
+  # Co-deploys with lon1 when TARGET_HOST is lon1.pop0.uk or all (and on
+  # push to main/release). Dashboard UI: https://lon2.pop0.uk
+  # Explicit TARGET_HOST=85.190.106.189 still deploys pop0 alone.
   # ──────────────────────────────────────────────────────
   deploy-prod-pop0:
     # Same upstream gate as the other prod stages — prod is never reached
@@ -574,22 +570,26 @@ jobs:
     needs: [build-validate, deploy-int, test-int, deploy-test]
     if: >
       always() && !failure() && !cancelled() &&
-      github.event_name == 'workflow_dispatch' &&
-      github.event.inputs.TARGET_HOST == '85.190.106.189'
+      ((github.event_name == 'push' && (github.ref == 'refs/heads/release' || github.ref == 'refs/heads/main')) ||
+      (github.event_name == 'workflow_dispatch' &&
+      (github.event.inputs.TARGET_HOST == '85.190.106.189' ||
+       github.event.inputs.TARGET_HOST == 'lon1.pop0.uk' ||
+       github.event.inputs.TARGET_HOST == 'all')))
     uses: ./.github/workflows/deploy-environment.yml
     with:
       env_name: prod
       # mac-studio runner (`acc`) — the old `prod` runner lived ON the retired
       # pop0 box and is gone; `acc` is the runner holding the prod SSH key.
       runner_label: acc
-      env_label: "Prod pop0 (85.190.106.189)"
+      env_label: "Prod pop0 (85.190.106.189 / lon2.pop0.uk)"
       stage_number: "5b"
       host_ip: "85.190.106.189"
       ssh_user: administrator
       connection_mode: ssh_key
       secrets_mode: vault_or_sops
-      health_endpoint: "http://127.0.0.1:7691/healthz"
-      health_check_mode: ssh
+      health_endpoint: "https://lon2.pop0.uk/healthz"
+      health_check_mode: external
+      smoke_domain: "lon2.pop0.uk"
       docker_prune: true
       notify_success: true
       deploy_branch: ${{ github.event.inputs.DEPLOY_BRANCH || github.ref_name }}
