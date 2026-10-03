@@ -17,6 +17,13 @@ services:
         DNS_RESOLVER: 127.0.0.11
     container_name: wslproxy-local
     restart: unless-stopped
+    # nginx listens on unix:/var/run/nginx/nginx.sock. After an unclean stop
+    # (Docker/Colima VM restart, OOM, crash) the socket file stays in the
+    # container's writable layer, every restart then fails with
+    # "bind() ... (98: Address in use)", and the container crash-loops. A tmpfs
+    # gives each start an empty /var/run/nginx.
+    tmpfs:
+      - /var/run/nginx
 
     ports:
       # HTTP proxy (default 80 → 18180 to avoid conflicts)
