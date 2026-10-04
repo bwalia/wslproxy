@@ -23,7 +23,7 @@ export default function GlobalError({
         style={{
           margin: 0,
           fontFamily:
-            "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
+            "Poppins, \"Helvetica Neue\", Arial, sans-serif",
           background: "#0f172a",
           color: "#f1f5f9",
           minHeight: "100vh",

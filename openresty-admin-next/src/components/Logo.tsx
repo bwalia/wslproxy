@@ -96,27 +96,22 @@ const Logo: React.FC<LogoProps> = ({
           opacity="0.7"
         />
       </g>
+      {/* Unbounded (display face, as workstation-website). textLength pins
+          the wordmark to the slot before the ADMIN badge whatever face loads. */}
       <text
         x="48"
         y="28"
-        fontFamily="Fraunces, Georgia, serif"
-        fontSize="20"
-        fontWeight="700"
-        fill={wordmarkColor}
-        letterSpacing="-0.5"
+        style={{ fontFamily: "var(--font-display)" }}
+        fontSize="17"
+        textLength="96"
+        lengthAdjust="spacingAndGlyphs"
       >
-        WSL
-      </text>
-      <text
-        x="92"
-        y="28"
-        fontFamily="Fraunces, Georgia, serif"
-        fontSize="20"
-        fontWeight="500"
-        fill={accentColor}
-        letterSpacing="-0.5"
-      >
-        Proxy
+        <tspan fontWeight="700" fill={wordmarkColor}>
+          WSL
+        </tspan>
+        <tspan fontWeight="500" fill={accentColor}>
+          Proxy
+        </tspan>
       </text>
       <rect
         x="148"
@@ -130,7 +125,7 @@ const Logo: React.FC<LogoProps> = ({
       <text
         x="172"
         y="26"
-        fontFamily="Outfit, system-ui, sans-serif"
+        style={{ fontFamily: "var(--font-sans)" }}
         fontSize="10"
         fontWeight="600"
         fill={accentColor}

@@ -1,25 +1,30 @@
 import type { Metadata, Viewport } from "next";
 import { Suspense } from "react";
-import { Fraunces, JetBrains_Mono, Outfit } from "next/font/google";
+import { JetBrains_Mono, Poppins, Unbounded } from "next/font/google";
 import Providers from "./providers";
 import "./globals.css";
 
-const outfit = Outfit({
+// Same families as workstation-website (src/app/layout.js): Poppins for body
+// and UI, Unbounded for display headings, JetBrains Mono for code and data.
+const poppins = Poppins({
   subsets: ["latin"],
   display: "swap",
-  variable: "--font-outfit",
+  variable: "--font-poppins",
+  weight: ["400", "500", "600", "700"],
 });
 
-const fraunces = Fraunces({
+const unbounded = Unbounded({
   subsets: ["latin"],
   display: "swap",
-  variable: "--font-fraunces",
+  variable: "--font-unbounded",
+  weight: ["500", "600", "700"],
 });
 
 const jetbrains = JetBrains_Mono({
   subsets: ["latin"],
   display: "swap",
   variable: "--font-jetbrains",
+  weight: ["400", "500"],
 });
 
 const siteName = "WSLProxy Admin";
@@ -77,7 +82,7 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${outfit.variable} ${fraunces.variable} ${jetbrains.variable}`}
+      className={`${poppins.variable} ${unbounded.variable} ${jetbrains.variable}`}
     >
       <body className="font-sans">
         {/* Prevent theme FOUC — key must match STORAGE_KEYS.theme */}
