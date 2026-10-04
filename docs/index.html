@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="description" content="WSLProxy — dynamic API gateway and reverse proxy on OpenResty. Live rules, WAF, multi-POP edge, MCP for AI agents, and a CLI for GitOps." />
   <meta name="author" content="Workstation Solutions Limited" />
-  <meta name="theme-color" content="#f4f7fb" media="(prefers-color-scheme: light)" />
-  <meta name="theme-color" content="#070e18" media="(prefers-color-scheme: dark)" />
+  <meta name="theme-color" content="#f7f9fc" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0b1c2c" media="(prefers-color-scheme: dark)" />
   <meta name="color-scheme" content="light dark" />
   <meta property="og:title" content="WSLProxy — Live-config API gateway" />
   <meta property="og:description" content="Route, secure, and observe traffic from JSON and MCP — without reloading nginx for every rule change." />
@@ -17,7 +17,7 @@
   <link rel="icon" href="/images/logo-color.svg" type="image/svg+xml" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Lexend:wght@400;500;600;700&family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Poppins:wght@400;500;600;700&family=Unbounded:wght@500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/css/site.css" />
   <style>
     @keyframes rise-in {
@@ -31,10 +31,10 @@
 
     /* Buttons */
     .btn {
-      font-family: var(--font-display);
+      font-family: var(--font-body);
       display: inline-flex; align-items: center; gap: 8px;
       padding: 12px 20px; border-radius: 10px; border: 1px solid transparent;
-      font-size: 15px; font-weight: 600; cursor: pointer;
+      font-size: 0.95rem; font-weight: 600; cursor: pointer;
       transition: transform 60ms, box-shadow 0.2s, background 0.15s, border-color 0.15s;
     }
     .btn:active { transform: translateY(1px); }
@@ -71,10 +71,9 @@
     }
     .hero::after { width: 26rem; height: 26rem; opacity: 0.22; animation-delay: -2.5s; }
     .eyebrow {
+      font-family: var(--font-mono); font-size: var(--fs-eyebrow); font-weight: 500;
+      letter-spacing: var(--tracking-eyebrow); text-transform: uppercase;
       display: inline-flex; align-items: center; gap: 10px;
-      font-family: var(--font-display);
-      font-size: 14.5px; font-weight: 600;
-      letter-spacing: 0.015em;
       line-height: 1.2;
       color: var(--ink);
       border: 1px solid color-mix(in srgb, var(--signal) 45%, var(--steel-line));
@@ -84,6 +83,9 @@
         inset 0 1px 0 color-mix(in srgb, #fff 8%, transparent),
         0 0 0 1px color-mix(in srgb, var(--signal) 10%, transparent);
     }
+    @media (max-width: 520px) {
+      .eyebrow { letter-spacing: 0.06em; padding: 8px 14px; }
+    }
     .eyebrow .dot {
       width: 8px; height: 8px; border-radius: 50%;
       background: var(--signal);
@@ -92,23 +94,23 @@
     }
     .hero-title {
       font-family: var(--font-display);
-      font-size: clamp(36px, 5.5vw, 60px); font-weight: 700; line-height: 1.04;
-      letter-spacing: -0.03em; color: var(--ink); max-width: 18ch; text-wrap: balance;
+      font-size: var(--fs-display); font-weight: 700; line-height: var(--leading-tight);
+      letter-spacing: -0.02em; color: var(--ink); max-width: 18ch; text-wrap: balance;
       margin: 0 0 20px;
     }
     .hero-title .grad {
       color: var(--signal);
-      background-image: linear-gradient(105deg, #7dd3fc 0%, #60a5fa 48%, #3b82f6 100%);
+      background-image: linear-gradient(105deg, #b5d4f1 0%, #87b7e6 48%, #5493d6 100%);
       -webkit-background-clip: text;
       background-clip: text;
       -webkit-text-fill-color: transparent;
     }
     html:not(.dark) .hero-title .grad {
-      background-image: linear-gradient(105deg, #2f7fc4 0%, #1f5f9e 55%, #174a7c 100%);
+      background-image: linear-gradient(105deg, #3476c2 0%, #255fa8 55%, #1e4c88 100%);
     }
     .hero-sub {
       color: var(--on-steel-muted); max-width: 640px; margin: 0 0 28px;
-      font-size: clamp(17px, 2vw, 19.5px); line-height: 1.55;
+      font-size: var(--fs-lead); line-height: 1.55;
     }
     .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 22px; }
     .hero-meta {
@@ -139,10 +141,10 @@
       margin: 0; padding: 18px 20px 22px; font-family: var(--font-mono);
       font-size: 13.5px; line-height: 1.65; color: var(--term-ink); overflow-x: auto;
     }
-    .c-cmd { color: #7dd3fc; }
-    .c-flag { color: #93c5fd; }
+    .c-cmd { color: #87b7e6; }
+    .c-flag { color: #b5d4f1; }
     .c-str { color: #86efac; }
-    .c-ok { color: #34d399; }
+    .c-ok { color: #3dbaa8; }
     .c-dim { color: #64748b; }
 
     /* Sections */
@@ -159,15 +161,15 @@
     .section-head { max-width: 640px; margin-bottom: 40px; }
     .section-head.center { margin-left: auto; margin-right: auto; text-align: center; }
     .kicker {
-      font-family: var(--font-display); font-size: 13px; font-weight: 600;
-      letter-spacing: 0.04em;
-      text-transform: uppercase; color: var(--signal); margin-bottom: 12px;
+      font-family: var(--font-mono); font-size: var(--fs-eyebrow); font-weight: 500;
+      letter-spacing: var(--tracking-eyebrow); text-transform: uppercase; color: var(--signal); margin-bottom: 12px;
     }
     h2 {
       font-family: var(--font-display); font-weight: 600; letter-spacing: -0.02em;
-      font-size: clamp(26px, 3.4vw, 36px); margin: 0 0 14px; color: var(--ink);
+      font-size: var(--fs-h2); margin: 0 0 14px; color: var(--ink);
+      line-height: var(--leading-snug);
     }
-    .section-sub { margin: 0; color: var(--on-steel-muted); font-size: 16.5px; }
+    .section-sub { margin: 0; color: var(--on-steel-muted); font-size: var(--fs-lead); }
 
     .grid { display: grid; gap: 18px; }
     .grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
@@ -192,7 +194,7 @@
       border: 1px solid color-mix(in srgb, var(--signal) 28%, transparent);
     }
     .card h3 {
-      font-family: var(--font-display); font-size: 17px; font-weight: 600;
+      font-family: var(--font-body); font-size: var(--fs-h3); font-weight: 600;
       margin: 0 0 8px; color: var(--ink);
     }
     .card p { margin: 0; color: var(--on-steel-muted); font-size: 15px; }
@@ -235,12 +237,11 @@
       font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.06em;
     }
     .media-copy .tag {
-      font-family: var(--font-display); font-size: 12px; font-weight: 600;
-      letter-spacing: 0.04em;
-      text-transform: uppercase; color: var(--signal); margin: 0 0 6px;
+      font-family: var(--font-mono); font-size: var(--fs-eyebrow); font-weight: 500;
+      letter-spacing: var(--tracking-eyebrow); text-transform: uppercase; color: var(--signal); margin: 0 0 6px;
     }
     .media-copy h3 {
-      font-family: var(--font-display); font-size: 18px; font-weight: 600;
+      font-family: var(--font-body); font-size: var(--fs-h3); font-weight: 600;
       margin: 0 0 6px; color: var(--ink);
     }
     .media-copy p { margin: 0; color: var(--ink-muted); font-size: 15px; }
@@ -269,7 +270,7 @@
       font-family: var(--font-mono); font-size: 12.5px; color: var(--signal);
       align-self: start; padding-top: 2px;
     }
-    .flow-step strong { display: block; color: var(--ink); margin-bottom: 4px; font-family: var(--font-display); }
+    .flow-step strong { display: block; color: var(--ink); margin-bottom: 4px; font-family: var(--font-body); }
     .flow-step p { margin: 0; color: var(--on-steel-muted); font-size: 15px; }
     @media (max-width: 640px) {
       .flow-step { grid-template-columns: 1fr; }
@@ -293,8 +294,8 @@
           <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
             <defs>
               <linearGradient id="wslproxyLogoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stop-color="var(--signal)" />
-                <stop offset="100%" stop-color="var(--brass-dim)" />
+                <stop offset="0%" stop-color="var(--logo-from)" />
+                <stop offset="100%" stop-color="var(--logo-to)" />
               </linearGradient>
             </defs>
             <path d="M24 4L6 12v12c0 11 8 21 18 24 10-3 18-13 18-24V12L24 4z" fill="url(#wslproxyLogoGrad)" />
