@@ -76,7 +76,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({
           </div>
         )}
         <div className="min-w-0 flex-1">
-          <h1 className="font-display truncate text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-50 sm:text-[1.75rem]">
+          <h1 className="font-display truncate text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-50">
             {title}
           </h1>
           {subtitle && (

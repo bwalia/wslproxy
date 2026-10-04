@@ -124,7 +124,7 @@ export default function PublicLinksPage() {
     <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 sm:py-12">
       {/* Hero */}
       <div className="mb-8">
-        <h1 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-slate-100 sm:text-3xl">
+        <h1 className="font-display text-2xl font-semibold tracking-tight text-slate-900 dark:text-slate-100 sm:text-3xl">
           Available services
         </h1>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
