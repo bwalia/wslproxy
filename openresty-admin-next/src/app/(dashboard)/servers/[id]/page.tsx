@@ -107,6 +107,7 @@ const DEFAULT_FORM: ServerFormState = {
   ssl_auto_renew: true,
   ssl_force_https: true,
   ssl_staging: true,
+  on_demand_ask_url: "",
 
   cache_enabled: false,
   cache_ttl: 3600,
@@ -270,6 +271,8 @@ function hydrateForm(data: ServerType): ServerFormState {
     ssl_auto_renew: data.ssl_auto_renew ?? true,
     ssl_force_https: data.ssl_force_https ?? true,
     ssl_staging: data.ssl_staging ?? true,
+    on_demand_ask_url:
+      ((data as unknown as Record<string, unknown>).on_demand_ask_url as string | undefined) ?? "",
 
     cache_enabled: data.cache_enabled ?? false,
     cache_ttl: data.cache_ttl ?? 3600,
@@ -420,6 +423,7 @@ function buildPayload(form: ServerFormState): Record<string, unknown> {
     ssl_auto_renew: form.ssl_auto_renew,
     ssl_force_https: form.ssl_force_https,
     ssl_staging: form.ssl_staging,
+    on_demand_ask_url: form.on_demand_ask_url,
     cache_enabled: form.cache_enabled,
     cache_ttl: form.cache_ttl,
     cache_bypass_auth: form.cache_bypass_auth,
