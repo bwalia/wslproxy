@@ -99,6 +99,20 @@ local profile = settings.env_profile or "prod"
 -- 3. Load server config
 local server_config, server_err = RuleLoader.load_server(hostname, configPath, profile)
 if not server_config then
+    -- No server of its own: a server with on_demand_ask_url may vouch for it
+    -- (api/on_demand.lua). It is then served with that server's rules, and the
+    -- backend learns the client's host from X-Original-Host.
+    local od_ok, OnDemand = pcall(require, "on_demand")
+    local serve_as = od_ok and OnDemand.lookup(hostname)
+    if serve_as then
+        server_config = RuleLoader.load_server(serve_as, configPath, profile)
+        if server_config then
+            ngx.req.set_header("X-Original-Host", hostname)
+            ngx.ctx.on_demand_for = serve_as
+        end
+    end
+end
+if not server_config then
     serve_error(settings, "no_server")
     return ngx.exit(ngx.OK)
 end
