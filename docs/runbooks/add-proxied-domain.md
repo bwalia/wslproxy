@@ -30,9 +30,34 @@ The stages run in this order:
 
 Use `--steps` to re-run only some of them, e.g. `--steps cp,dns`.
 
+The script doesn't reload OpenResty. Servers and rules are read from disk on
+every request, so a change is live on the next request.
+
+### Backends that need HTTPS or a specific Host
+
+Without a scheme, `--backend` tries http first and then https, and stores the
+one that answers. A self-signed origin certificate is fine. If the app answers
+`421 unknown host`, it only accepts certain Host headers. Pass
+`--upstream-host <host[:port]>`, which is stored as the server's
+`proxy_server_name`.
+
+### Repoint an existing host
+
+```sh
+add_domain.py --host dev.workstation.co.uk --update \
+    --backend https://193.237.176.232:17681 --upstream-host 192.168.1.177:7681
+```
+
+This updates CP first, then lon1, then checks HTTPS and waits for lon2. It
+keeps the rule and server ids, and tags the server with `pop_ids` (lon1, pop0)
+so the CP → git sync includes it. Servers without `pop_ids` are skipped by that
+sync.
+
 After it finishes, dispatch `Sync POP config from CP (Go → data/ → PR)` for
 `lon1`, then for `pop0`. The script prints the commands. Each run opens a PR
-that needs an approving review. Don't bypass branch protection.
+that needs an approving review. Each run shows as failed at its last step,
+"Merge PR into main", because of branch protection. That is expected, and the
+PR is still updated. Don't bypass branch protection.
 
 ## Credentials
 
@@ -54,6 +79,15 @@ No real domain has been added with the script yet. All checks so far were read-o
 - It refuses to overwrite a domain that already exists, such as promptpilot.
 - Re-running it on promptpilot reused lon1's existing rule id, and the HTTPS
   check passed.
+
+## dev.workstation.co.uk (2026-10-10)
+
+The first host repointed with `--update`. It used to go to
+`187.77.179.206:8808` (the decommissioned acc host) and was down. Now it goes to
+`https://193.237.176.232:17681`, forwarded to `https://192.168.1.177:7681`, with
+`proxy_server_name: 192.168.1.177:7681`. Rule `dc1abb51-…` is renamed
+`hh-193-dev-17681`. It returned 200 with a trusted certificate on lon1 and was
+copied to lon2.
 
 ## Fixes for problems hit with promptpilot
 
