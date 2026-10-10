@@ -1,0 +1,29 @@
+{
+    "id": "snazzy-prod-gh-pages",
+    "match": {
+        "response": {
+            "allow": true,
+            "auto_redirect_https": false,
+            "code": 305,
+            "is_consul": false,
+            "redirect_uri": "https://bwalia.github.io/snazzy",
+            "strip_path": false
+        },
+        "rules": {
+            "jwt_token_validation": "equals",
+            "path": "/",
+            "path_key": "starts_with"
+        }
+    },
+    "name": "snazzy-prod-gh-pages",
+    "priority": 1,
+    "profile_id": "prod",
+    "rules_tags": [
+        "snazzy",
+        "prod"
+    ],
+    "servers": [
+        "host:snazzy.pro",
+        "host:www.snazzy.pro"
+    ]
+}

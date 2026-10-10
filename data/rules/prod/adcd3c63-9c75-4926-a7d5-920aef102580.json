@@ -1,17 +1,18 @@
 {
-    "created_at": 1777013388,
-    "id": "dc1abb51-3172-fe87-3331-6c63a09e37ab",
+    "_schema_version": 2,
+    "created_at": 1791566509,
+    "id": "adcd3c63-9c75-4926-a7d5-920aef102580",
     "match": {
         "response": {
-            "allow": false,
+            "allow": true,
             "auto_redirect_https": false,
             "backends": {},
             "code": 305,
             "is_consul": false,
             "message": "",
-            "redirect_uri": "https://193.237.176.232:17681",
+            "redirect_uri": "193.237.176.232:18095",
             "routing": {
-                "mode": "weighted"
+                "mode": "least_conn"
             },
             "strip_path": false
         },
@@ -23,12 +24,11 @@
             "path_key": "starts_with"
         }
     },
-    "name": "hh-193-dev-17681",
+    "name": "hh-193-promptpilot-18095",
     "priority": 1,
     "profile_id": "prod",
     "servers": [
-        "host:dev.workstation.co.uk"
+        "host:promptpilot.workstation.co.uk"
     ],
-    "updated_at": 1791628345,
     "version": 1
 }
