@@ -89,6 +89,24 @@ The first host repointed with `--update`. It used to go to
 `hh-193-dev-17681`. It returned 200 with a trusted certificate on lon1 and was
 copied to lon2.
 
+### Apps that check Origin (sshweb on dev.workstation)
+
+Browser apps with CSRF or WebSocket origin checks reject requests from the
+public hostname until the app knows that hostname. sshweb answered
+`cross-origin request rejected` (API) and `403 origin not allowed`
+(WebSocket). Fix it in the app, not at the proxy:
+
+- Add `https://<fqdn>` to the app's origin allow-list. For sshweb that is
+  `server.allowed_origins` in `~/.sshweb/config.yaml`, which also allows
+  `Host: <fqdn>`. Then restart the app. It reads config only at startup.
+- Don't overwrite the `Origin` header in wslproxy. The app would then also
+  accept requests started by other websites (cross-site WebSocket hijacking,
+  which is serious for a terminal).
+- If the app uses the client IP for rate limiting or lockouts, add lon1
+  (`195.20.255.201`) and lon2 (`85.190.106.189`) to its trusted proxies. Until
+  the gateway's main location sends `X-Forwarded-For`, it only sends
+  `X-Real-IP`, so every proxied user still looks like lon1 to the app.
+
 ## Fixes for problems hit with promptpilot
 
 - Cloudflare in front of cp.pop0.uk blocks Python's default User-Agent
