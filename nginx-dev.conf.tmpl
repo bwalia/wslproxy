@@ -1153,6 +1153,8 @@ server {
           proxy_read_timeout 600s;
 
           proxy_set_header x-route-server $proxy_route_server;
+          proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
           proxy_set_header Host $proxy_host_override;
           proxy_pass $proxy_host_scheme://$upstream_server;
         
@@ -1316,6 +1318,7 @@ server {
           proxy_ssl_verify_depth  2;
           proxy_ssl_session_reuse on;
           proxy_set_header X-Real-IP $remote_addr;
+          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
           proxy_ssl_server_name on;
           # SNI = the same hostname we forward as Host, so host-routed HTTPS
           # origins (Traefik/nginx Ingress) see a matching SNI + Host.
