@@ -1,1 +1,44 @@
-{"servers":["host:diytaxreturn.co.uk","host:tax.diytaxreturn.co.uk","host:api.diytaxreturn.co.uk","host:spectoncr.diytaxreturn.co.uk","host:spectoncr-grafana.diytaxreturn.co.uk","host:grafana.diytaxreturn.co.uk","host:gatus.diytaxreturn.co.uk","host:minio.diytaxreturn.co.uk","host:qa.diytaxreturn.co.uk"],"rules_tags":["diytaxreturn","prod"],"priority":1,"match":{"response":{"strip_path":false,"routing":{"mode":"weighted"},"code":305,"backends":[{"weight":100,"address":"origin-uk-003.pop0.uk:80","label":"cloud003-traefik-edge"}],"redirect_uri":"origin-uk-003.pop0.uk:80"},"rules":{"path_key":"starts_with","path":"\/"}},"id":"diytax-prod-default","profile_id":"prod","name":"diytax-prod-default"}
+{
+    "id": "diytax-prod-default",
+    "match": {
+        "response": {
+            "backends": [
+                {
+                    "address": "origin-uk-003.pop0.uk",
+                    "label": "origin-uk-003-traefik-edge",
+                    "weight": 100
+                }
+            ],
+            "code": 305,
+            "redirect_uri": "origin-uk-003.pop0.uk",
+            "routing": {
+                "mode": "weighted"
+            },
+            "strip_path": false
+        },
+        "rules": {
+            "path": "/",
+            "path_key": "starts_with"
+        }
+    },
+    "name": "diytax-prod-default",
+    "priority": 1,
+    "profile_id": "prod",
+    "rules_tags": [
+        "diytaxreturn",
+        "prod"
+    ],
+    "servers": [
+        "host:diytaxreturn.co.uk",
+        "host:tax.diytaxreturn.co.uk",
+        "host:api.diytaxreturn.co.uk",
+        "host:spectoncr.diytaxreturn.co.uk",
+        "host:spectoncr-grafana.diytaxreturn.co.uk",
+        "host:grafana.diytaxreturn.co.uk",
+        "host:gatus.diytaxreturn.co.uk",
+        "host:minio.diytaxreturn.co.uk",
+        "host:qa.diytaxreturn.co.uk",
+        "host:qa-agent.diytaxreturn.co.uk",
+        "host:qa-agent-api.diytaxreturn.co.uk"
+    ]
+}
