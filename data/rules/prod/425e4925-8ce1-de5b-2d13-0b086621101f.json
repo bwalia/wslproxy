@@ -32,6 +32,11 @@
         "vault"
     ],
     "servers": [
+        "host:acc-nebulacr-grafana.diytaxreturn.co.uk",
+        "host:acc-nebulacr-mirror.diytaxreturn.co.uk",
+        "host:acc-spectoncr-metrics.diytaxreturn.co.uk",
+        "host:acc-spectoncr-mirror.diytaxreturn.co.uk",
+        "host:acc-vault.diytaxreturn.co.uk",
         "host:acc.sysops247.com",
         "host:argocd.diytaxreturn.co.uk",
         "host:dev-nexus.diytaxreturn.co.uk",
@@ -45,6 +50,7 @@
         "host:int-s3.diytaxreturn.co.uk",
         "host:int.sysops247.com",
         "host:javafka.diytaxreturn.co.uk",
+        "host:longhorn.diytaxreturn.co.uk",
         "host:rp.workstation.co.uk",
         "host:sentinel.diytaxreturn.co.uk",
         "host:spectoncr-grafana.diytaxreturn.co.uk",
@@ -52,7 +58,7 @@
         "host:test-s3-cli.diytaxreturn.co.uk",
         "host:test-s3.diytaxreturn.co.uk",
         "host:test.sysops247.com",
-        "host:acc-spectoncr-grafana.diytaxreturn.co.uk"
+        "host:vault.diytaxreturn.co.uk"
     ],
     "version": 1
 }
