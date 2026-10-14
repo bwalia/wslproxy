@@ -1,0 +1,32 @@
+{
+    "access_log": "logs/qa-agent-api.diytaxreturn.co.uk.access.log",
+    "config": "c2VydmVyIHsKICAgICAgbGlzdGVuIDgwOwogICAgICBzZXJ2ZXJfbmFtZSBxYS1hZ2VudC1hcGkuZGl5dGF4cmV0dXJuLmNvLnVrOwogICAgICByb290IC92YXIvd3d3L2h0bWw7CiAgICAgIGluZGV4IGluZGV4Lmh0bWw7CiAgICAgIGFjY2Vzc19sb2cgbG9ncy9xYS1hZ2VudC1hcGkuZGl5dGF4cmV0dXJuLmNvLnVrLmFjY2Vzcy5sb2c7CiAgICAgIGVycm9yX2xvZyBsb2dzL3FhLWFnZW50LWFwaS5kaXl0YXhyZXR1cm4uY28udWsuZXJyb3IubG9nOwogfQo=",
+    "config_status": true,
+    "custom_headers": {},
+    "dns_cname_target": "lon1.pop0.uk",
+    "dns_record_type": "CNAME",
+    "error_log": "logs/qa-agent-api.diytaxreturn.co.uk.error.log",
+    "id": "host:qa-agent-api.diytaxreturn.co.uk",
+    "index": "index.html",
+    "listens": [
+        {
+            "listen": "80"
+        }
+    ],
+    "match_cases": {},
+    "pop_ids": [
+        "lon1",
+        "pop0"
+    ],
+    "profile_id": "prod",
+    "proxy_pass": "http://localhost",
+    "proxy_server_name": "qa-agent-api.diytaxreturn.co.uk",
+    "root": "/var/www/html",
+    "rules": "diytax-prod-default",
+    "server_name": "qa-agent-api.diytaxreturn.co.uk",
+    "ssl_auto_renew": true,
+    "ssl_email": "admin@diytaxreturn.co.uk",
+    "ssl_enabled": true,
+    "ssl_force_https": true,
+    "ssl_staging": false
+}
