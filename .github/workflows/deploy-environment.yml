@@ -169,7 +169,9 @@ jobs:
     # override via `runner_label` when the box with the right SSH keys
     # / network reach doesn't match the env — see input docs.
     runs-on: [self-hosted, "${{ inputs.runner_label != '' && inputs.runner_label || inputs.env_name }}"]
-    timeout-minutes: 30
+    # A `full` deploy is ~20 min of real work (cdn-dependencies alone may
+    # take up to its 15-min async limit), so 30 left almost no headroom.
+    timeout-minutes: 45
 
     steps:
       # Self-hosted runners reuse their workspace between jobs. A prior
@@ -250,32 +252,28 @@ jobs:
             exit 1
           fi
 
-      # ── Build Next.js dashboard (standalone mode) ──
-      - name: Setup Node.js (npm cache)
+      # ── Prepare Next.js dashboard build (standalone mode) ──
+      # No `cache: npm` and no actions/cache for .next: every runner is
+      # self-hosted, so ~/.npm already persists on disk, and the GitHub
+      # cache had grown to ~2 GB — restoring it at ~3 MB/s on the int
+      # runner took 10m40s and pushed a `full` deploy past the 30-min
+      # job timeout (run 38813186611). Ansible wipes .next before its
+      # build anyway, so a restored .next was never used.
+      - name: Setup Node.js
         if: contains(inputs.deploy_mode, 'dashboard') || inputs.deploy_mode == 'full'
         uses: actions/setup-node@v5
         with:
           node-version: "20"
-          cache: npm
-          cache-dependency-path: openresty-admin-next/package-lock.json
 
-      - name: Cache Next.js build output
-        if: contains(inputs.deploy_mode, 'dashboard') || inputs.deploy_mode == 'full'
-        uses: actions/cache@v4
-        with:
-          path: |
-            openresty-admin-next/.next/cache
-            openresty-admin-next/.next/standalone
-            openresty-admin-next/.next/static
-          key: nextjs-${{ runner.os }}-${{ hashFiles('openresty-admin-next/package-lock.json') }}-${{ hashFiles('openresty-admin-next/src/**', 'openresty-admin-next/app/**', 'openresty-admin-next/next.config.*') }}
-          restore-keys: |
-            nextjs-${{ runner.os }}-${{ hashFiles('openresty-admin-next/package-lock.json') }}-
-            nextjs-${{ runner.os }}-
-
-      - name: Build Next.js admin dashboard
+      # Writes .env.production and exports WSLPROXY_VERSION. The build
+      # itself is done once, by Ansible (deploy_nextjs_admin_ui.yml
+      # "Wipe previous Next.js build output" + "Build Next.js dashboard
+      # locally"), which deletes .next first — building here too only
+      # added ~2 min per deploy.
+      - name: Prepare Next.js build env (version + .env.production)
         if: contains(inputs.deploy_mode, 'dashboard') || inputs.deploy_mode == 'full'
         run: |
-          echo "Building Next.js admin dashboard (standalone)..."
+          echo "Preparing Next.js build env..."
 
           # Prefer setup-node's node; fall back to nvm/system if setup-node skipped
           # or PATH was overridden on the self-hosted runner.
@@ -365,19 +363,7 @@ jobs:
           echo "Generated .env.production:"
           cat .env.production
 
-          npm ci
-          npm run build
-          echo "Next.js standalone build complete — .next/standalone ready"
-          # Next.js 15+ may place server.js at different paths
-          if [ -f .next/standalone/server.js ]; then
-            echo "Found server.js at .next/standalone/server.js"
-          elif [ -f .next/standalone/.next/server.js ]; then
-            echo "Found server.js at .next/standalone/.next/server.js"
-          else
-            echo "Standalone build output:"
-            find .next/standalone -name "server.js" -type f 2>/dev/null || true
-            ls -la .next/standalone/ || true
-          fi
+          echo "Next.js build runs in the Ansible playbook step."
 
       # ── Secrets: resolve vault_or_sops fallback ───────────────────────
       # For every mode except `vault_or_sops`, this step is a passthrough:
