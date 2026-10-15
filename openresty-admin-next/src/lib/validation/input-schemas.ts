@@ -191,6 +191,15 @@ export const serverInputSchema = z
       .min(1, "At least one listen directive is required"),
     ssl_enabled: z.boolean(),
     ssl_email: z.string().trim(),
+    on_demand_ask_url: z
+      .string()
+      .trim()
+      .default("")
+      // Only validated when set — empty means "no on-demand hosts".
+      .refine(
+        (v) => v.length === 0 || /^https?:\/\/[\w.-]+\S*$/.test(v),
+        "Must be an http:// or https:// address",
+      ),
     rate_limit_enabled: z.boolean(),
     rate_limit: z.object({
       requests_per_second: z.coerce.number(),

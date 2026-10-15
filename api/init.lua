@@ -279,11 +279,11 @@ local function ip_addr_get_type(ip)
   return R.STRING
 end
 
--- Configure auto_ssl to check if domain has SSL enabled
--- IMPORTANT: This callback runs in ssl_certificate_by_lua context
--- where many APIs (io.open, os.getenv, ngx.var) are NOT available
+-- Is SSL enabled for this domain's own server?
+-- IMPORTANT: This runs in ssl_certificate_by_lua context (see allow_domain
+-- below) where many APIs (io.open, os.getenv, ngx.var) are NOT available
 -- Only Redis (cosockets) and shared dictionaries work here
-auto_ssl:set("allow_domain", function(domain)
+local function allow_configured_domain(domain)
   -- Cannot issue TLS cert for an IP address
   local ip_type = ip_addr_get_type(domain)
   if ip_type == 1 or ip_type == 2 then -- IPV4 or IPV6
@@ -364,6 +364,16 @@ auto_ssl:set("allow_domain", function(domain)
     -- Disk storage mode - rely on shared dict cache
     return shd and shd:get(domain) == true
   end
+end
+
+-- A certificate for a domain whose server has SSL on, or for a host that a
+-- server's on_demand_ask_url vouches for (api/on_demand.lua).
+auto_ssl:set("allow_domain", function(domain)
+  if allow_configured_domain(domain) then
+    return true
+  end
+  local ok, OnDemand = pcall(require, "on_demand")
+  return (ok and OnDemand.lookup(domain) ~= nil) or false
 end)
 
 -- Set DNS resolver FIRST - needed for all ACME operations

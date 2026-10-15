@@ -103,6 +103,10 @@ http {
     # SSL domains cache - shared across all workers for allow_domain callback
     lua_shared_dict ssl_domains 1m;
 
+    # On-demand hosts (api/on_demand.lua): the servers that take them, and the
+    # cached yes/no per host. Without it the feature is off.
+    lua_shared_dict wsl_on_demand 2m;
+
     # VPN session identity cache (address → user + groups).
     # Entry TTL is the revocation lag, so keep it short — see docs/VPN_ACCESS.md.
     lua_shared_dict vpn_identity 10m;
@@ -167,6 +171,13 @@ http {
         end
 
         -- Initialize SSL domains cache from Redis (cosockets work in init_worker context)
+        local on_demand_ok, on_demand = pcall(require, "on_demand")
+        if on_demand_ok then
+            on_demand.init_worker()
+        else
+            ngx.log(ngx.WARN, "on_demand module not available: ", tostring(on_demand))
+        end
+
         local ssl_init_ok, ssl_init = pcall(require, "ssl_init")
         if ssl_init_ok then
             ssl_init.init()

@@ -76,6 +76,8 @@ export interface ServerFormState {
   ssl_auto_renew: boolean;
   ssl_force_https: boolean;
   ssl_staging: boolean;
+  /** Also serve (and certify) hosts this URL vouches for — api/on_demand.lua. */
+  on_demand_ask_url: string;
 
   /* Cache */
   cache_enabled: boolean;

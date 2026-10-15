@@ -223,6 +223,17 @@ local function validateServerPayload(payloads)
         end
     end
 
+    -- On-demand hosts (api/on_demand.lua): the URL that vouches for them
+    local ask_url = payloads.on_demand_ask_url
+    if ask_url ~= nil and ask_url ~= "" and ask_url ~= ngx.null then
+        if type(ask_url) ~= "string" or not ask_url:match("^https?://[%w%.%-]+") or ask_url:find("%s") then
+            table.insert(errors, {
+                field = "on_demand_ask_url",
+                message = "On-demand ask URL must be an http:// or https:// address"
+            })
+        end
+    end
+
     -- Validate Varnish config fields
     if payloads.varnish_config and type(payloads.varnish_config) == "table" then
         local vc = payloads.varnish_config

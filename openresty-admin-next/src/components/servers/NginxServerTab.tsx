@@ -559,6 +559,16 @@ const NginxServerTab: React.FC<NginxServerTabProps> = ({
                 </div>
               </div>
             )}
+
+            <Input
+              label="On-demand hosts: ask URL"
+              type="url"
+              placeholder="https://api.example.com/api/v2/public/form-domains/check"
+              value={form.on_demand_ask_url}
+              onChange={(e) => handleChange("on_demand_ask_url", e.target.value)}
+              error={fieldErrors?.on_demand_ask_url}
+              hint="Optional. Hosts with no server of their own are served as this server, with a certificate, when GET <url>?domain=<host> answers 200 (e.g. opsapi custom form domains). Leave empty for none."
+            />
           </div>
         </Card.Body>
       </Card>
