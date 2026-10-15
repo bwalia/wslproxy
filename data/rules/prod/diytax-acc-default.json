@@ -1,1 +1,45 @@
-{"servers":["host:acc.diytaxreturn.co.uk"],"id":"diytax-acc-default","priority":1,"match":{"response":{"strip_path":false,"routing":{"mode":"weighted"},"code":305,"backends":[{"weight":100,"address":"origin-uk-002.pop0.uk:80","label":"cloud002-traefik-edge"}],"redirect_uri":"origin-uk-002.pop0.uk:80"},"rules":{"path_key":"starts_with","path":"\/"}},"rules_tags":["diytaxreturn","acc","cloud002"],"profile_id":"prod","name":"diytax-acc-default"}
+{
+    "id": "diytax-acc-default",
+    "match": {
+        "response": {
+            "backends": [
+                {
+                    "address": "origin-uk-001.pop0.uk",
+                    "label": "origin-uk-001-traefik-edge",
+                    "weight": 100
+                }
+            ],
+            "code": 305,
+            "redirect_uri": "origin-uk-001.pop0.uk",
+            "routing": {
+                "mode": "weighted"
+            },
+            "strip_path": false
+        },
+        "rules": {
+            "path": "/",
+            "path_key": "starts_with"
+        }
+    },
+    "name": "diytax-acc-default",
+    "priority": 1,
+    "profile_id": "prod",
+    "rules_tags": [
+        "diytaxreturn",
+        "acc",
+        "origin-uk-002"
+    ],
+    "servers": [
+        "host:acc.diytaxreturn.co.uk",
+        "host:acc-api.diytaxreturn.co.uk",
+        "host:acc-nebulacr.diytaxreturn.co.uk",
+        "host:acc-gatus.diytaxreturn.co.uk",
+        "host:acc-grafana.diytaxreturn.co.uk",
+        "host:acc-minio.diytaxreturn.co.uk",
+        "host:acc-langfuse.diytaxreturn.co.uk",
+        "host:acc-adminer.diytaxreturn.co.uk",
+        "host:qa-acc.diytaxreturn.co.uk",
+        "host:acc-qa.diytaxreturn.co.uk",
+        "host:acc-qa-api.diytaxreturn.co.uk"
+    ]
+}
