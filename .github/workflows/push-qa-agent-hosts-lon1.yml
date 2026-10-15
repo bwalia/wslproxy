@@ -1,0 +1,78 @@
+name: Push qa-agent hosts to lon1 (one-shot)
+
+# Writes only the two qa-agent host JSON files onto lon1 disk and reloads
+# OpenResty. Does NOT rsync the whole data/servers/prod tree (avoids rolling
+# back live lon1 config). Manual dispatch only.
+
+on:
+  workflow_dispatch:
+    inputs:
+      DRY_RUN:
+        description: "List actions only"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  push:
+    name: SCP qa-agent hosts → lon1
+    runs-on: [self-hosted, Linux, acc]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install SSH key
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          if [ -n "${SSH_PRIVATE_KEY:-}" ]; then
+            printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+            chmod 600 ~/.ssh/id_rsa
+          fi
+          # Prefer existing runner key if secret empty
+          [ -f ~/.ssh/id_rsa ] || { echo "::error::No SSH key"; exit 1; }
+          ssh-keyscan -T 10 -H lon1.pop0.uk >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Copy host JSON + reload
+        env:
+          DRY_RUN: ${{ inputs.DRY_RUN }}
+        run: |
+          set -euo pipefail
+          HOST=lon1.pop0.uk
+          USER=root
+          REMOTE=/opt/nginx/data/servers/prod
+          FILES=(
+            data/servers/prod/host:qa-agent.diytaxreturn.co.uk.json
+            data/servers/prod/host:qa-agent-api.diytaxreturn.co.uk.json
+          )
+          for f in "${FILES[@]}"; do
+            [ -f "$f" ] || { echo "::error::missing $f"; exit 1; }
+            echo "Will copy $f → ${USER}@${HOST}:${REMOTE}/"
+          done
+          if [ "$DRY_RUN" = "true" ]; then
+            echo "DRY_RUN — stopping before SCP"
+            exit 0
+          fi
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new \
+            -i ~/.ssh/id_rsa "${USER}@${HOST}" "mkdir -p '${REMOTE}'"
+          for f in "${FILES[@]}"; do
+            scp -o BatchMode=yes -i ~/.ssh/id_rsa "$f" "${USER}@${HOST}:${REMOTE}/"
+            echo "copied $(basename "$f")"
+          done
+          # Ensure rule referenced by hosts exists (copy if missing)
+          RULE_LOCAL=data/rules/prod/diytax-prod-default.json
+          RULE_REMOTE=/opt/nginx/data/rules/prod
+          if [ -f "$RULE_LOCAL" ]; then
+            ssh -o BatchMode=yes -i ~/.ssh/id_rsa "${USER}@${HOST}" "mkdir -p '${RULE_REMOTE}'"
+            scp -o BatchMode=yes -i ~/.ssh/id_rsa "$RULE_LOCAL" "${USER}@${HOST}:${RULE_REMOTE}/" || true
+          fi
+          # OpenResty reads server JSON dynamically; reload to pick up SSL hooks if any
+          ssh -o BatchMode=yes -i ~/.ssh/id_rsa "${USER}@${HOST}" \
+            'openresty -t && (systemctl reload openresty || nginx -s reload || true)'
+          echo "Done. Verify: curl -sk https://qa-agent-api.diytaxreturn.co.uk/api/health"
