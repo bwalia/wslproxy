@@ -1,0 +1,48 @@
+{
+    "id": "wsw-k3s1-s3-failover",
+    "match": {
+        "response": {
+            "backends": [
+                {
+                    "address": "193.237.176.232:8888",
+                    "label": "k3s1",
+                    "weight": 100
+                },
+                {
+                    "address": "127.0.0.1:80",
+                    "host_header": "s3-origin.workstation.co.uk",
+                    "label": "canary",
+                    "weight": 1
+                }
+            ],
+            "code": 305,
+            "redirect_uri": "193.237.176.232:8888",
+            "routing": {
+                "header_name": "x-wsl-failover",
+                "header_value": "s3",
+                "mode": "header"
+            },
+            "strip_path": false
+        },
+        "rules": {
+            "path": "/",
+            "path_key": "starts_with"
+        }
+    },
+    "name": "wsw-k3s1-s3-failover",
+    "priority": 1,
+    "profile_id": "prod",
+    "rules_tags": [
+        "workstation-website",
+        "k3s1",
+        "s3-failover"
+    ],
+    "servers": [
+        "host:acc-www.workstation.co.uk",
+        "host:acc.workstation.co.uk",
+        "host:test-www.workstation.co.uk",
+        "host:test.workstation.co.uk",
+        "host:workstation.co.uk",
+        "host:www.workstation.co.uk"
+    ]
+}
