@@ -22,7 +22,9 @@
     "proxy_pass": "http://localhost",
     "proxy_server_name": "qa-agent-api.diytaxreturn.co.uk",
     "root": "/var/www/html",
-    "rules": "diytax-prod-default",
+    "rules": [
+        "diytax-acc-default"
+    ],
     "server_name": "qa-agent-api.diytaxreturn.co.uk",
     "ssl_auto_renew": true,
     "ssl_email": "admin@diytaxreturn.co.uk",
