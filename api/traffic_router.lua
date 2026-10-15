@@ -165,6 +165,116 @@ local function cookie_select(backends, routing, request_ctx)
     return selected, false
 end
 
+-- Failover (active/standby) selection: always the highest-weight backend that is
+-- still available (first wins a tie). Lower-weight backends take traffic only
+-- when everything above them is excluded (balancer retry) or marked unhealthy.
+-- @param backends table: array of backends (already filtered for health/exclude)
+-- @return backend table or nil
+local function failover_select(backends)
+    local best, best_i, best_w = nil, nil, nil
+    for i, b in ipairs(backends) do
+        local w = tonumber(b.weight) or 1
+        if best_w == nil or w > best_w then
+            best, best_i, best_w = b, i, w
+        end
+    end
+    if not best then return nil end
+    return { address = best.address, label = best.label or ("backend_" .. best_i), backend_index = best_i, host_header = best.host_header }
+end
+
+-------------------------------------------------------------------------------
+-- Backend addresses: parsing and DNS
+--
+-- balancer_by_lua cannot do DNS (no cosockets), so a retry that lands on a
+-- hostname backend (e.g. an S3 website endpoint) used to fail with 500.
+-- resolve_backends() runs in the access phase and stores every backend's
+-- IP:port in ngx.ctx; peer_for() reads it back in the balancer.
+-------------------------------------------------------------------------------
+
+--- "https://host:8443/x" -> "host", 8443, "https". Port defaults to the scheme's.
+function _M.parse_address(address)
+    if type(address) ~= "string" or address == "" then return nil end
+    local scheme = address:match("^(https?)://") or "http"
+    local rest = address:gsub("^https?://", ""):gsub("/.*$", "")
+    local host, port = rest:match("^(.-):(%d+)$")
+    if not host then
+        host = rest
+        port = (scheme == "https") and 443 or 80
+    end
+    return host, tonumber(port), scheme
+end
+
+local function is_ip(host)
+    return host and host:match("^%d+%.%d+%.%d+%.%d+$") ~= nil
+end
+
+local function nameservers()
+    local ok, Helper = pcall(require, "helpers")
+    local s = ok and Helper.settings and Helper.settings() or nil
+    local ns = s and s.dns_resolver and s.dns_resolver.nameservers or {}
+    local primary = os.getenv("PRIMARY_DNS_RESOLVER")
+    if not primary or primary == "" then primary = ns.primary end
+    if not primary or primary == "" then primary = "1.1.1.1" end
+    local secondary = os.getenv("SECONDARY_DNS_RESOLVER")
+    if not secondary or secondary == "" then secondary = ns.secondary end
+    if not secondary or secondary == "" then secondary = "8.8.8.8" end
+    local port = tonumber(os.getenv("DNS_RESOLVER_PORT") or ns.port or 53) or 53
+    return { { primary, port }, { secondary, port } }
+end
+
+--- Resolve a hostname to an IPv4 address (cached in the shared dict, 5-60 s).
+-- Must run where cosockets are allowed (access phase, timers). Returns nil on failure.
+function _M.resolve_host(host)
+    if not host or host == "" then return nil end
+    if is_ip(host) then return host end
+    local key = "dns:" .. host
+    local cached = router_dict and router_dict:get(key)
+    if cached then return cached end
+
+    local rok, resolver = pcall(require, "resty.dns.resolver")
+    if not rok then return nil end
+    local r = resolver:new { nameservers = nameservers(), retrans = 2, timeout = 1000 }
+    if not r then return nil end
+    local answers, err = r:query(host, { qtype = r.TYPE_A })
+    if not answers or answers.errcode then
+        ngx.log(ngx.WARN, "traffic_router: DNS failed for ", host, ": ", tostring(err or (answers and answers.errstr)))
+        return nil
+    end
+    for _, ans in ipairs(answers) do
+        if ans.type == r.TYPE_A and ans.address then
+            if router_dict then
+                local ttl = math.max(5, math.min(tonumber(ans.ttl) or 60, 60))
+                router_dict:set(key, ans.address, ttl)
+            end
+            return ans.address
+        end
+    end
+    return nil
+end
+
+--- Access phase: resolve every backend of a multi-backend rule so a balancer
+-- retry can reach any of them. Stored as ngx.ctx._router_peers[address] = { ip, port }.
+function _M.resolve_backends(rule_response)
+    local peers = {}
+    for _, b in ipairs((rule_response and rule_response.backends) or {}) do
+        local host, port = _M.parse_address(b.address)
+        local ip = host and _M.resolve_host(host)
+        if ip then peers[b.address] = { ip, port } end
+    end
+    ngx.ctx._router_peers = peers
+    return peers
+end
+
+--- Balancer phase: IP and port for a backend address (nil, nil if unresolved).
+function _M.peer_for(address)
+    local peers = ngx.ctx._router_peers
+    local p = peers and peers[address]
+    if p then return p[1], p[2] end
+    local host, port = _M.parse_address(address)
+    if is_ip(host) then return host, port end
+    return nil, nil
+end
+
 -------------------------------------------------------------------------------
 -- Main entry point
 -------------------------------------------------------------------------------
@@ -172,7 +282,7 @@ end
 --- Select a backend from a rule's response config
 -- @param rule_response table: the match.response from the rule JSON
 -- @param request_ctx table: { remote_addr, headers, cookies }
--- @param opts table: optional { exclude = "host:port" } for retry
+-- @param opts table: optional { exclude = address | { address, ... } } for retry
 -- @return table { address, label, backend_index, host_header? } or nil
 function _M.select_backend(rule_response, request_ctx, opts)
     if not rule_response then return nil end
@@ -183,11 +293,18 @@ function _M.select_backend(rule_response, request_ctx, opts)
     end
 
     -- Filter out excluded backends (for retry support)
+    -- opts.exclude: one address, or a list of addresses already tried
     local available = backends
     if opts and opts.exclude then
+        local excluded = {}
+        if type(opts.exclude) == "table" then
+            for _, a in ipairs(opts.exclude) do excluded[a] = true end
+        else
+            excluded[opts.exclude] = true
+        end
         available = {}
         for _, b in ipairs(backends) do
-            if b.address ~= opts.exclude then
+            if not excluded[b.address] then
                 table.insert(available, b)
             end
         end
@@ -237,6 +354,8 @@ function _M.select_backend(rule_response, request_ctx, opts)
     elseif mode == "least_conn" then
         local rule_id = rule_response.rule_id or "default"
         selected = least_conn_select(rule_id, active_backends)
+    elseif mode == "failover" then
+        selected = failover_select(active_backends)
     else
         -- Default: weighted random
         selected = weighted_select(active_backends)
@@ -417,19 +536,24 @@ function _M.start_health_checks()
                         if health_path then
                             for _, backend in ipairs(response.backends) do
                                 local address = backend.address
-                                if address then
-                                    local host_part = address:match("^(.-):")
-                                    local port_part = address:match(":(%d+)$")
-                                    if host_part and port_part then
-                                        local httpc_ok, httpc_mod = pcall(require, "resty.http")
-                                        if httpc_ok then
-                                            local httpc = httpc_mod.new()
-                                            httpc:set_timeout(3000)
-                                            local url = "http://" .. host_part .. ":" .. port_part .. health_path
-                                            local res, err = httpc:request_uri(url, { method = "GET" })
-                                            local healthy = res and res.status and res.status < 500
-                                            _M.set_backend_health(rule.id or file, address, healthy)
-                                        end
+                                -- Hostname backends (e.g. S3 website endpoints) are
+                                -- resolved here and probed by IP with their own Host.
+                                local host_part, port_part, scheme = _M.parse_address(address)
+                                if host_part and port_part then
+                                    local ip = _M.resolve_host(host_part)
+                                    local httpc_ok, httpc_mod = pcall(require, "resty.http")
+                                    if not ip then
+                                        _M.set_backend_health(rule.id or file, address, false)
+                                    elseif httpc_ok then
+                                        local httpc = httpc_mod.new()
+                                        httpc:set_timeout(3000)
+                                        local url = scheme .. "://" .. ip .. ":" .. port_part .. health_path
+                                        local headers = nil
+                                        local probe_host = backend.host_header or (not is_ip(host_part) and host_part) or nil
+                                        if probe_host then headers = { Host = probe_host } end
+                                        local res, err = httpc:request_uri(url, { method = "GET", headers = headers, ssl_verify = false })
+                                        local healthy = res and res.status and res.status < 500
+                                        _M.set_backend_health(rule.id or file, address, healthy and true or false)
                                     end
                                 end
                             end
