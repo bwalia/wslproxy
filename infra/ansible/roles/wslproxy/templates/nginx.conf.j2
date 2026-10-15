@@ -251,13 +251,26 @@ http {
             local failed_addr = ngx.ctx._balancer_failed_addr
             local response = ngx.ctx._router_response_cache
             local ctx = ngx.ctx._router_ctx_cache or {}
-            local new_backend = TrafficRouter.select_backend(response, ctx, { exclude = failed_addr })
+            -- Exclude every backend already tried (by rule address, not IP:port,
+            -- so hostname backends are excluded too).
+            local tried = ngx.ctx._balancer_tried or {}
+            local new_backend = TrafficRouter.select_backend(response, ctx, { exclude = tried })
             if new_backend then
-                local addr = new_backend.address or ""
-                addr = addr:gsub("^https?://", "")
-                local new_host = addr:match("^(.-):")
-                local new_port = addr:match(":(%d+)$")
+                -- IP:port resolved in the access phase (TrafficRouter.resolve_backends):
+                -- the balancer cannot do DNS, so hostname backends need it.
+                local new_host, new_port
+                if TrafficRouter.peer_for then
+                    new_host, new_port = TrafficRouter.peer_for(new_backend.address)
+                else
+                    local addr = (new_backend.address or ""):gsub("^https?://", "")
+                    new_host, new_port = addr:match("^(.-):"), addr:match(":(%d+)$")
+                end
+                if not new_host then
+                    ngx.log(ngx.ERR, "balancer: no resolved peer for retry backend ", tostring(new_backend.address))
+                end
                 if new_host and new_port then
+                    tried[#tried + 1] = new_backend.address
+                    ngx.ctx._balancer_tried = tried
                     host = new_host
                     port = new_port
                     ngx.ctx.selected_backend_label = new_backend.label
@@ -314,6 +327,9 @@ http {
     end
 
     -- Track retry state
+    if retry_count == 0 and ngx.ctx._selected_backend_address then
+        ngx.ctx._balancer_tried = { ngx.ctx._selected_backend_address }
+    end
     ngx.ctx._balancer_retry_count = retry_count + 1
     ngx.ctx._balancer_failed_addr = host .. ":" .. port
 

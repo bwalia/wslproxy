@@ -121,6 +121,11 @@ elseif selectedRule.statusCode == 305 then
                 -- Cache for potential retry in balancer_by_lua
                 ngx.ctx._router_response_cache = response
                 ngx.ctx._router_ctx_cache = ctx
+                -- The balancer cannot do DNS, so resolve every backend now; a retry
+                -- onto a hostname backend (e.g. an S3 website endpoint) then works.
+                if #response.backends > 1 and TrafficRouter.resolve_backends then
+                    pcall(TrafficRouter.resolve_backends, response)
+                end
             end
             -- Set sticky cookie if traffic router requested it
             if ngx.ctx._traffic_router_set_cookie then
