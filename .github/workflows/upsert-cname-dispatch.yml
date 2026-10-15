@@ -1,0 +1,80 @@
+name: Upsert Cloudflare CNAME
+
+# One-shot helper: create/update a CNAME in Cloudflare for fictionally.org hosts.
+# Uses repo secrets CLOUDFLARE_API_TOKEN (+ optional CLOUDFLARE_ZONE_ID).
+
+on:
+  workflow_dispatch:
+    inputs:
+      NAME:
+        description: "FQDN to create (e.g. apigee-lab.fictionally.org)"
+        required: true
+        type: string
+      CONTENT:
+        description: "CNAME target (e.g. lon1.pop0.uk)"
+        required: true
+        default: "lon1.pop0.uk"
+        type: string
+      ZONE:
+        description: "Zone apex"
+        required: true
+        default: "fictionally.org"
+        type: string
+      PROXIED:
+        description: "Orange-cloud proxy"
+        required: false
+        default: "false"
+        type: choice
+        options: ["false", "true"]
+      DRY_RUN:
+        description: "Preview only"
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  upsert:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Upsert CNAME
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+          NAME: ${{ inputs.NAME }}
+          CONTENT: ${{ inputs.CONTENT }}
+          ZONE: ${{ inputs.ZONE }}
+          PROXIED: ${{ inputs.PROXIED }}
+          DRY_RUN: ${{ inputs.DRY_RUN }}
+        run: |
+          set -euo pipefail
+          command -v jq >/dev/null
+          API=https://api.cloudflare.com/client/v4
+          AUTH=(-H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H "Content-Type: application/json")
+
+          if [[ -z "${CLOUDFLARE_ZONE_ID:-}" ]]; then
+            ZJSON=$(curl -sS "${AUTH[@]}" "$API/zones?name=${ZONE}")
+            echo "$ZJSON" | jq -e '.success == true' >/dev/null
+            CLOUDFLARE_ZONE_ID=$(echo "$ZJSON" | jq -r '.result[0].id')
+            [[ -n "$CLOUDFLARE_ZONE_ID" && "$CLOUDFLARE_ZONE_ID" != null ]]
+            echo "Resolved zone $ZONE -> $CLOUDFLARE_ZONE_ID"
+          fi
+
+          EXISTING=$(curl -sS "${AUTH[@]}" "$API/zones/${CLOUDFLARE_ZONE_ID}/dns_records?type=CNAME&name=${NAME}")
+          RID=$(echo "$EXISTING" | jq -r '.result[0].id // empty')
+          BODY=$(jq -n --arg type CNAME --arg name "$NAME" --arg content "$CONTENT" --argjson proxied "$PROXIED" \
+            '{type:$type,name:$name,content:$content,ttl:1,proxied:$proxied}')
+
+          echo "Payload: $BODY"
+          if [[ "$DRY_RUN" == "true" ]]; then
+            echo "DRY_RUN — would $([[ -n "$RID" ]] && echo update $RID || echo create)"
+            exit 0
+          fi
+
+          if [[ -n "$RID" ]]; then
+            RESP=$(curl -sS -X PUT "${AUTH[@]}" "$API/zones/${CLOUDFLARE_ZONE_ID}/dns_records/${RID}" --data "$BODY")
+          else
+            RESP=$(curl -sS -X POST "${AUTH[@]}" "$API/zones/${CLOUDFLARE_ZONE_ID}/dns_records" --data "$BODY")
+          fi
+          echo "$RESP" | jq .
+          echo "$RESP" | jq -e '.success == true' >/dev/null
+          echo "::notice::DNS ${NAME} -> ${CONTENT} (proxied=${PROXIED})"
