@@ -1,0 +1,34 @@
+{
+    "_schema_version": 2,
+    "created_at": 1792077398,
+    "id": "e71f4ef2-1ba8-47a5-bb9f-832dddcf2ab7",
+    "match": {
+        "response": {
+            "allow": true,
+            "auto_redirect_https": false,
+            "backends": {},
+            "code": 305,
+            "is_consul": false,
+            "message": "",
+            "redirect_uri": "193.237.176.232:18088",
+            "routing": {
+                "mode": "least_conn"
+            },
+            "strip_path": false
+        },
+        "rules": {
+            "client_ip_key": "equals",
+            "country_key": "equals",
+            "jwt_token_validation": "equals",
+            "path": "/",
+            "path_key": "starts_with"
+        }
+    },
+    "name": "hh-193-promptpilot-18088",
+    "priority": 1,
+    "profile_id": "prod",
+    "servers": [
+        "host:apigee-lab.fictionally.org"
+    ],
+    "version": 1
+}
