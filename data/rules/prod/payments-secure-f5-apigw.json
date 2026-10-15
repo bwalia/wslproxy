@@ -1,0 +1,38 @@
+{
+  "id": "payments-secure-f5-apigw",
+  "name": "payments-secure-f5-apigw",
+  "profile_id": "prod",
+  "priority": 1,
+  "rules_tags": [
+    "f5-nginx-waf-demo",
+    "payments-secure"
+  ],
+  "match": {
+    "response": {
+      "strip_path": false,
+      "auto_redirect_https": false,
+      "code": 305,
+      "allow": true,
+      "routing": {
+        "mode": "least_conn"
+      },
+      "is_consul": false,
+      "redirect_uri": "193.237.176.232:18083",
+      "backends": [
+        {
+          "address": "193.237.176.232:18083",
+          "weight": 100,
+          "label": "f5-apigw-hh-18083"
+        }
+      ]
+    },
+    "rules": {
+      "path_key": "starts_with",
+      "path": "/",
+      "jwt_token_validation": "equals"
+    }
+  },
+  "servers": [
+    "host:payments-secure.fictionally.org"
+  ]
+}
