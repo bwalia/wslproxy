@@ -141,6 +141,9 @@ interface RuleForm {
   routing_header_value: string;
   routing_cookie_name: string;
   routing_sticky: boolean;
+  routing_health_check_path: string;
+  // Routing keys this form has no field for, kept so a save never drops them.
+  routing_extra: Record<string, unknown>;
   backends: Backend[];
 }
 
@@ -175,8 +178,39 @@ const DEFAULT_FORM: RuleForm = {
   routing_header_value: "true",
   routing_cookie_name: "canary_session",
   routing_sticky: false,
+  routing_health_check_path: "",
+  routing_extra: {},
   backends: [],
 };
+
+// ── Traffic splitting: routing modes ────────────────────────────────────
+
+const ROUTING_MODES: { value: string; label: string; hint: string }[] = [
+  { value: "weighted", label: "Weighted Random", hint: "Each request picks a backend at random, in proportion to its weight." },
+  { value: "round_robin", label: "Round Robin", hint: "Requests take turns across backends. Weight 0 turns a backend off." },
+  { value: "header", label: "Header Match", hint: "Requests carrying the header below go to the canary backend; all others are split by weight." },
+  { value: "cookie", label: "Cookie / Sticky", hint: "A cookie keeps each visitor on the same backend." },
+  { value: "least_conn", label: "Least Busy", hint: "Each request goes to the backend with the fewest open requests." },
+  { value: "failover", label: "Failover (main + backups)", hint: "All traffic goes to the main backend. Backups are used only when the main one fails." },
+];
+
+const KNOWN_ROUTING_KEYS = ["mode", "header_name", "header_value", "cookie_name", "sticky", "health_check_path", "backends"];
+
+/**
+ * Failover role per backend, matching the router (api/traffic_router.lua
+ * failover_select): highest weight first, list order breaks a tie, weight 0 is off.
+ */
+function failoverRoles(backends: Backend[]): string[] {
+  const order = backends
+    .map((b, i) => ({ i, w: Number(b.weight) || 0 }))
+    .filter((x) => x.w > 0)
+    .sort((a, b) => b.w - a.w || a.i - b.i);
+  const roles = backends.map(() => "Off (weight 0)");
+  order.forEach((x, rank) => {
+    roles[x.i] = rank === 0 ? "Main" : `Backup ${rank}`;
+  });
+  return roles;
+}
 
 // ── Helper: decode base64 safely ────────────────────────────────────────
 
@@ -379,6 +413,10 @@ export default function RuleDetailPage() {
       routing_header_value: rt.header_value ?? "true",
       routing_cookie_name: rt.cookie_name ?? "canary_session",
       routing_sticky: rt.sticky ?? false,
+      routing_health_check_path: rt.health_check_path ?? "",
+      routing_extra: Object.fromEntries(
+        Object.entries(rt).filter(([k]) => !KNOWN_ROUTING_KEYS.includes(k)),
+      ),
       backends: (() => {
         const existing = Array.isArray(r.backends)
           ? r.backends
@@ -563,6 +601,7 @@ export default function RuleDetailPage() {
           ...(form.is_consul && { consul_domain_name: form.consul_domain_name }),
           ...(showTrafficSplit && {
             routing: {
+              ...form.routing_extra,
               mode: form.routing_mode,
               ...(form.routing_mode === "header" && {
                 header_name: form.routing_header_name,
@@ -572,8 +611,14 @@ export default function RuleDetailPage() {
                 cookie_name: form.routing_cookie_name,
                 sticky: form.routing_sticky,
               }),
+              ...(form.routing_health_check_path.trim() && {
+                health_check_path: form.routing_health_check_path.trim(),
+              }),
             },
-            backends: form.backends,
+            // An emptied Host header field is dropped, not saved as "".
+            backends: form.backends.map(({ host_header, ...b }) =>
+              host_header?.trim() ? { ...b, host_header: host_header.trim() } : b,
+            ),
           }),
         },
       },
@@ -666,8 +711,17 @@ export default function RuleDetailPage() {
   // ── Backend array helpers ───────────────────────────────────────────
 
   const addBackend = useCallback(() => {
+    if (form.routing_mode === "failover") {
+      // First row is the main backend; each new row ranks below the last.
+      const lowest = form.backends.reduce((m, b) => Math.min(m, Number(b.weight) || 0), 101);
+      const next = form.backends.length === 0
+        ? { address: "", weight: 100, label: "main" }
+        : { address: "", weight: Math.max(1, Math.min(lowest, 101) - 1), label: "backup" };
+      set("backends", [...form.backends, next]);
+      return;
+    }
     set("backends", [...form.backends, { address: "", weight: 50, label: "stable" }]);
-  }, [form.backends, set]);
+  }, [form.backends, form.routing_mode, set]);
 
   const removeBackend = useCallback(
     (idx: number) => set("backends", form.backends.filter((_, i) => i !== idx)),
@@ -1200,18 +1254,30 @@ export default function RuleDetailPage() {
           <Card.Header>
             <div>
               <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Traffic Splitting</h2>
-              <p className="text-sm text-slate-600 dark:text-slate-300">Configure multi-backend routing for canary releases, A/B testing, or weighted load balancing</p>
+              <p className="text-sm text-slate-600 dark:text-slate-300">Configure multi-backend routing for canary releases, A/B testing, weighted load balancing or failover</p>
             </div>
           </Card.Header>
           <Card.Body>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <Select label="Routing Mode" value={form.routing_mode} onChange={(e) => set("routing_mode", e.target.value)} options={[
-                { value: "weighted", label: "Weighted Random" },
-                { value: "round_robin", label: "Round Robin" },
-                { value: "header", label: "Header Match" },
-                { value: "cookie", label: "Cookie / Sticky" },
-                { value: "least_conn", label: "Least Busy" },
-              ]} />
+              <Select
+                label="Routing Mode"
+                value={form.routing_mode}
+                onChange={(e) => set("routing_mode", e.target.value)}
+                options={ROUTING_MODES.map(({ value, label }) => ({ value, label }))}
+                hint={ROUTING_MODES.find((m) => m.value === form.routing_mode)?.hint}
+              />
+
+              <Input
+                label="Health check path"
+                value={form.routing_health_check_path}
+                placeholder="/health"
+                onChange={(e) => set("routing_health_check_path", e.target.value)}
+                hint={
+                  form.routing_mode === "failover" && !form.routing_health_check_path.trim()
+                    ? "Recommended for failover. Without it, a down main backend is only skipped after each request to it has failed (slow for visitors)."
+                    : "Optional. Every 10 s each backend is asked for this path; no answer or a 5xx marks it down until it recovers. Leave empty to turn checks off."
+                }
+              />
 
               {form.routing_mode === "header" && (
                 <>
@@ -1227,6 +1293,32 @@ export default function RuleDetailPage() {
                 </>
               )}
             </div>
+
+            {form.routing_mode === "failover" && (
+              <div className="mt-4 rounded-lg border border-sky-200 bg-sky-50 p-4 text-sm text-sky-900 dark:border-sky-900 dark:bg-sky-950/40 dark:text-sky-100">
+                <p className="font-semibold">How failover works</p>
+                <ol className="mt-2 list-decimal space-y-1 pl-5">
+                  <li>
+                    Every request goes to the <strong>Main</strong> backend: the one with the
+                    highest weight (the first in the list wins a tie).
+                  </li>
+                  <li>
+                    If Main can&apos;t be reached, times out, or replies 502, 503, 504 or 404,
+                    the same request is sent to <strong>Backup 1</strong>, then <strong>Backup 2</strong>.
+                    At most 3 backends are tried per request.
+                  </li>
+                  <li>
+                    With a health check path set, a backend that is down is skipped straight
+                    away until it answers again, so visitors don&apos;t wait for it to time out.
+                  </li>
+                  <li>If every backend is down, all of them are tried anyway.</li>
+                </ol>
+                <p className="mt-2 text-sky-800 dark:text-sky-200">
+                  How long to wait for a backend before giving up is the domain&apos;s proxy connect
+                  timeout (Servers page). Set a weight of 0 to switch a backend off.
+                </p>
+              </div>
+            )}
 
             {/* Backends */}
             <div className="mt-6">
@@ -1263,12 +1355,20 @@ export default function RuleDetailPage() {
               )}
 
               <div className="space-y-3">
-                {form.backends.map((backend, idx) => (
+                {form.backends.map((backend, idx) => {
+                  const role = form.routing_mode === "failover" ? failoverRoles(form.backends)[idx] : null;
+                  return (
                   <div
                     key={idx}
                     className="flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50/50 p-3 dark:border-slate-700 dark:bg-slate-800/50"
                   >
-                    <div className="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-3">
+                    <div className="flex-1 space-y-3">
+                    {role && (
+                      <Badge variant={role === "Main" ? "success" : role.startsWith("Backup") ? "info" : "default"} size="sm">
+                        {role}
+                      </Badge>
+                    )}
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                       <Input
                         label="Address (host:port)"
                         value={backend.address}
@@ -1276,7 +1376,7 @@ export default function RuleDetailPage() {
                         onChange={(e) => updateBackend(idx, "address", e.target.value)}
                       />
                       <Input
-                        label="Weight (0-100)"
+                        label={form.routing_mode === "failover" ? "Priority (higher = used first)" : "Weight (0-100)"}
                         type="number"
                         value={String(backend.weight)}
                         onChange={(e) => updateBackend(idx, "weight", Number(e.target.value))}
@@ -1284,9 +1384,16 @@ export default function RuleDetailPage() {
                       <Input
                         label="Label"
                         value={backend.label}
-                        placeholder="stable / canary"
+                        placeholder={form.routing_mode === "failover" ? "main / backup" : "stable / canary"}
                         onChange={(e) => updateBackend(idx, "label", e.target.value)}
                       />
+                      <Input
+                        label="Host header (optional)"
+                        value={backend.host_header ?? ""}
+                        placeholder="bucket.s3-website…"
+                        onChange={(e) => updateBackend(idx, "host_header", e.target.value)}
+                      />
+                    </div>
                     </div>
                     <button
                       onClick={() => removeBackend(idx)}
@@ -1296,7 +1403,8 @@ export default function RuleDetailPage() {
                       <X className="h-4 w-4" />
                     </button>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </Card.Body>

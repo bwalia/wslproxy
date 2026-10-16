@@ -145,6 +145,8 @@ export interface Rule {
         header_value?: string;
         cookie_name?: string;
         sticky?: boolean;
+        /** Path probed on every backend every 10 s; 5xx / no answer = unhealthy. */
+        health_check_path?: string;
         backends?: Backend[];
       };
     };
@@ -158,6 +160,8 @@ export interface Backend {
   address: string;
   weight: number;
   label: string;
+  /** Optional Host header sent to this backend (e.g. an S3 website bucket host). */
+  host_header?: string;
 }
 
 export interface Upstream {
