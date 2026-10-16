@@ -1,1 +1,37 @@
-{"match":{"rules":{"path_key":"starts_with","path":"\/"},"response":{"strip_path":false,"redirect_uri":"193.237.176.232:8888","code":305,"routing":{"mode":"least_conn"},"backends":[{"label":"k3s ingress entry for *.workstation.co.uk (same backend as the working opsapi\/beacon hosts); routes by Host header to the per-env wsw-frontend","weight":100,"address":"193.237.176.232:8888"}]}},"rules_tags":["workstation-website","prod"],"profile_id":"prod","priority":1,"servers":["host:int.workstation.co.uk","host:int-www.workstation.co.uk","host:test.workstation.co.uk","host:test-www.workstation.co.uk","host:acc.workstation.co.uk","host:acc-www.workstation.co.uk"],"name":"wsw-prod-default","id":"wsw-prod-default"}
+{
+    "id": "wsw-prod-default",
+    "match": {
+        "response": {
+            "backends": [
+                {
+                    "address": "193.237.176.232:8888",
+                    "label": "k3s ingress entry for *.workstation.co.uk (same backend as the working opsapi/beacon hosts); routes by Host header to the per-env wsw-frontend",
+                    "weight": 100
+                }
+            ],
+            "code": 305,
+            "redirect_uri": "193.237.176.232:8888",
+            "routing": {
+                "mode": "least_conn"
+            },
+            "strip_path": false
+        },
+        "rules": {
+            "path": "/",
+            "path_key": "starts_with"
+        }
+    },
+    "name": "wsw-prod-default",
+    "priority": 1,
+    "profile_id": "prod",
+    "rules_tags": [
+        "workstation-website",
+        "prod"
+    ],
+    "servers": [
+        "host:int.workstation.co.uk",
+        "host:int-www.workstation.co.uk",
+        "host:test-shop.workstation.co.uk",
+        "host:acc-shop.workstation.co.uk"
+    ]
+}
