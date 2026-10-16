@@ -1,0 +1,29 @@
+{
+    "access_log": "logs/acc-shop.workstation.co.uk.access.log",
+    "cache_enabled": false,
+    "config_status": true,
+    "custom_headers": {},
+    "error_log": "logs/acc-shop.workstation.co.uk.error.log",
+    "id": "host:acc-shop.workstation.co.uk",
+    "index": "index.html",
+    "listens": [
+        {
+            "listen": "80"
+        }
+    ],
+    "match_cases": {},
+    "pop_ids": [
+        "lon1",
+        "pop0"
+    ],
+    "profile_id": "prod",
+    "proxy_server_name": "acc-shop.workstation.co.uk",
+    "root": "/var/www/html",
+    "rules": "wsw-prod-default",
+    "server_name": "acc-shop.workstation.co.uk",
+    "ssl_auto_renew": true,
+    "ssl_email": "admin@workstation.co.uk",
+    "ssl_enabled": true,
+    "ssl_force_https": true,
+    "ssl_staging": false
+}

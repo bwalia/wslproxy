@@ -9,18 +9,17 @@
                     "weight": 100
                 },
                 {
-                    "address": "127.0.0.1:80",
-                    "host_header": "s3-origin.workstation.co.uk",
-                    "label": "canary",
+                    "address": "http://workstation-website.s3-website.eu-west-2.amazonaws.com:80",
+                    "host_header": "workstation-website.s3-website.eu-west-2.amazonaws.com",
+                    "label": "s3",
                     "weight": 1
                 }
             ],
             "code": 305,
             "redirect_uri": "193.237.176.232:8888",
             "routing": {
-                "header_name": "x-wsl-failover",
-                "header_value": "s3",
-                "mode": "header"
+                "health_check_path": "/",
+                "mode": "failover"
             },
             "strip_path": false
         },
