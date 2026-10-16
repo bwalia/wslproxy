@@ -139,6 +139,7 @@ if winner then
     local selectedRule = {
         statusCode = winner.status_code,
         redirectUri = winner.redirect_uri,
+        redirectPreserveUri = winner.rule_response and winner.rule_response.redirect_preserve_uri,
         message = winner.message,
         priority = winner.priority,
         name = winner.rule_name,

@@ -1,0 +1,31 @@
+{
+  "id": "vault-workstation-browser-to-vault-ui",
+  "name": "vault-workstation-browser-to-vault-ui",
+  "profile_id": "prod",
+  "priority": 1,
+  "version": 1,
+  "created_at": 1792191198,
+  "updated_at": 1792191198,
+  "rules_tags": [
+    "wslvault",
+    "vault-ui-redirect"
+  ],
+  "match": {
+    "rules": {
+      "path": "/",
+      "path_key": "starts_with",
+      "jwt_token_validation": "equals"
+    },
+    "response": {
+      "code": 301,
+      "allow": true,
+      "redirect_uri": "https://vault-ui.workstation.co.uk",
+      "redirect_preserve_uri": true,
+      "auto_redirect_https": false,
+      "strip_path": false
+    }
+  },
+  "servers": [
+    "host:vault.workstation.co.uk"
+  ]
+}

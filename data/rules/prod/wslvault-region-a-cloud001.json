@@ -32,7 +32,6 @@
     "rules_tags": {},
     "servers": [
         "host:vault-a.workstation.co.uk",
-        "host:vault.workstation.co.uk",
         "host:vault-ui.workstation.co.uk"
     ],
     "version": 1
