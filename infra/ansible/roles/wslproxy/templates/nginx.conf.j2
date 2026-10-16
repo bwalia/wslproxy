@@ -32,6 +32,7 @@ env AWS_SECRET_ACCESS_KEY;
 env AWS_REGION;
 env SSL_STAGING;
 env MCP_ENABLED;
+env WSLPROXY_ACME_PEERS;
 env MCP_MODE;
 env MCP_API_KEY;
 env MCP_TOOLS_ENABLED;
@@ -924,10 +925,11 @@ server {
             return "-"
           }
 
-          # ACME Challenge for Let's Encrypt (lua-resty-auto-ssl)
+          # ACME Challenge for Let's Encrypt (lua-resty-auto-ssl). A miss is asked
+          # of the peer edges (settings.json acme_peers) so round-robin DNS works.
           location /.well-known/acme-challenge/ {
             content_by_lua_block {
-              auto_ssl:challenge_server()
+              require("acme_peer").serve(auto_ssl)
             }
           }
 
@@ -1211,9 +1213,9 @@ server {
           # Endpoint used for performing domain verification with Lets Encrypt.
           location /.well-known/acme-challenge/ {
             content_by_lua_block {
-              auto_ssl:challenge_server()
+              require("acme_peer").serve(auto_ssl)
             }
-          }   
+          }
 
               # Redirect all other traffic to HTTPS
           # location / {
