@@ -1,0 +1,42 @@
+{
+  "created_at": 1792225248,
+  "id": "vault-workstation-dashboard",
+  "match": {
+    "response": {
+      "allow": false,
+      "auto_redirect_https": false,
+      "backends": [
+        {
+          "address": "http://72.62.211.28",
+          "weight": 100,
+          "label": "wslvault region-a vault-ui (via traefik-edge :80)",
+          "host_header": "vault-ui.workstation.co.uk"
+        }
+      ],
+      "code": 305,
+      "is_consul": false,
+      "redirect_uri": "http://72.62.211.28",
+      "routing": {
+        "mode": "least_conn"
+      },
+      "strip_path": false
+    },
+    "rules": {
+      "jwt_token_validation": "equals",
+      "path": "/",
+      "path_key": "starts_with"
+    }
+  },
+  "name": "vault-workstation-dashboard",
+  "priority": 1,
+  "profile_id": "prod",
+  "rules_tags": [
+    "wslvault",
+    "vault-dashboard"
+  ],
+  "servers": [
+    "host:vault.workstation.co.uk"
+  ],
+  "version": 1,
+  "updated_at": 1792225248
+}

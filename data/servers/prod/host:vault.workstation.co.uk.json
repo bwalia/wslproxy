@@ -4,7 +4,8 @@
   "vault-workstation-api-v1",
   "vault-workstation-api-health",
   "vault-workstation-api-readyz",
-  "vault-workstation-browser-to-vault-ui"
+  "vault-workstation-api-scim",
+  "vault-workstation-dashboard"
  ],
  "cache_ttl": 3600,
  "index": "index.html",
