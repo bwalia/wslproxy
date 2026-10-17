@@ -1,7 +1,7 @@
 {
  "ssl_enabled": true,
  "rules": [
-  "wslvault-region-a-cloud001"
+  "vault-ui-to-vault-workstation"
  ],
  "index": "index.html",
  "config_status": false,

@@ -1,7 +1,11 @@
 {
  "ssl_enabled": true,
  "rules": [
-  "wslvault-region-a-cloud001"
+  "vault-workstation-api-v1",
+  "vault-workstation-api-health",
+  "vault-workstation-api-readyz",
+  "vault-workstation-api-scim",
+  "vault-workstation-dashboard"
  ],
  "cache_ttl": 3600,
  "index": "index.html",

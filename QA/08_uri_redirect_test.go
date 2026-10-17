@@ -123,3 +123,59 @@ func TestRedirectURI(t *testing.T) {
 		})
 	}
 }
+
+// redirect_preserve_uri: true appends the request's path + query to
+// redirect_uri, so a 301 keeps deep links (vault → vault-ui).
+func TestRedirectPreserveURI(t *testing.T) {
+	TestAuthLoginAndFetchToken(t)
+	TestCreateServer(t)
+
+	payload := strings.NewReader(fmt.Sprintf(`{"version":1,"priority":1,"match":{"rules":{"path_key":"starts_with","path":"/","country_key":"equals","client_ip_key":"equals","jwt_token_validation":"equals"},"response":{"allow":true,"code":301,"redirect_uri":"https://httpbin.org","redirect_preserve_uri":true,"message":"undefined"}},"name":"Test Rule-301-preserve-gotest","profile_id":"%s"}`, profile))
+	req, err := http.NewRequest("POST", targetHost+"/api/rules", payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Add("Authorization", "Bearer "+tokenValue)
+	req.Header.Set("Content-Type", "application/json")
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var created struct {
+		Data struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+	err = json.NewDecoder(res.Body).Decode(&created)
+	res.Body.Close()
+	if err != nil {
+		t.Fatal("failed to decode json", err)
+	}
+
+	ruleId = created.Data.ID
+	TestUpdateRuleWithServer(t)
+	TestHandleProfileAPI(t)
+	if serverName != "localhost" {
+		TestDataSync(t)
+	}
+
+	if !syncSuccessful && serverName != "localhost" {
+		t.Log("Skipping frontend verification - sync was not successful")
+	} else {
+		noFollow := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error {
+			return http.ErrUseLastResponse
+		}}
+		resp, err := noFollow.Get(strings.TrimRight(frontUrl, "/") + "/preserve/me?x=1")
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp.Body.Close()
+		want := "https://httpbin.org/preserve/me?x=1"
+		if resp.StatusCode != http.StatusMovedPermanently || resp.Header.Get("Location") != want {
+			t.Errorf("expected 301 to %s, got %d to %q", want, resp.StatusCode, resp.Header.Get("Location"))
+		}
+	}
+
+	ruleId = created.Data.ID
+	TestDeleteRule(t)
+}

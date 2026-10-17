@@ -62,14 +62,16 @@ elseif selectedRule.statusCode == 301 then
         ngx.say("Redirect url not found: ")
         ngx.exit(ngx.HTTP_INTERNAL_SERVER_ERROR)
     end
-    ngx.redirect(selectedRule.redirectUri, ngx.HTTP_MOVED_PERMANENTLY)
+    ngx.redirect(require("redirect_target").build(selectedRule.redirectUri,
+        selectedRule.redirectPreserveUri, ngx.var.request_uri), ngx.HTTP_MOVED_PERMANENTLY)
     ngx.exit(ngx.HTTP_MOVED_PERMANENTLY)
 elseif selectedRule.statusCode == 302 then
     if selectedRule.redirectUri == nil then
         ngx.say("Redirect url not found: ")
         ngx.exit(ngx.HTTP_INTERNAL_SERVER_ERROR)
     end
-    ngx.redirect(selectedRule.redirectUri, ngx.HTTP_MOVED_TEMPORARILY)
+    ngx.redirect(require("redirect_target").build(selectedRule.redirectUri,
+        selectedRule.redirectPreserveUri, ngx.var.request_uri), ngx.HTTP_MOVED_TEMPORARILY)
     ngx.exit(ngx.HTTP_MOVED_TEMPORARILY)
 elseif selectedRule.statusCode == 305 then
     -- Rule-level auto redirect HTTP to HTTPS (only if server has SSL enabled)

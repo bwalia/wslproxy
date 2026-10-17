@@ -20,7 +20,8 @@
 # Requires:
 #   KUBECONFIG (or in-cluster SA) with rights from deploy/ring-promoter/k3s1-rbac.yaml
 #   VAULT_ADDR + VAULT_TOKEN  preferred; if Vault miss/unavailable, SOPS_AGE_KEY
-#   Note: vault-ui.workstation.co.uk is the SPA only; /v1/* is on vault.workstation.co.uk.
+#   Note: vault.workstation.co.uk serves both: /v1/*, /scim/v2, /health*, /readyz go to the API,
+#   everything else to the vault-ui SPA. vault-ui.workstation.co.uk 301s to it (being retired).
 #
 # Vault paths (WSLVault stores JSON as a base64 string in `data`):
 #   secret/data/wslproxy/<env>/settings.json

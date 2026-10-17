@@ -31,9 +31,7 @@
     "profile_id": "prod",
     "rules_tags": {},
     "servers": [
-        "host:vault-a.workstation.co.uk",
-        "host:vault.workstation.co.uk",
-        "host:vault-ui.workstation.co.uk"
+        "host:vault-a.workstation.co.uk"
     ],
     "version": 1
 }
