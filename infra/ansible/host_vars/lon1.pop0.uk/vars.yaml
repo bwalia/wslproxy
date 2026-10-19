@@ -28,3 +28,5 @@ nginx_default_server_backend_nextjs: "lon1.pop0.uk"
 nginx_default_server_backend_port: 7691
 letsencrypt_email: "balinder.walia@gmail.com"
 openresty_admin_secondary_color: "#D91656"
+# Sent as the X-WSL-POP response header (nginx.conf.j2). Matches data/pops/.
+wslproxy_pop_id: "lon1"

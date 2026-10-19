@@ -166,11 +166,11 @@ jobs:
   # ──────────────────────────────────────────────────────
   smoke-test-int:
     name: "Nightly 3/5: Smoke Test Int"
-    # Any Linux self-hosted runner.  This job used to curl 127.0.0.1:8099
-    # regardless of which runner picked it up — a coin toss the moment
-    # a Linux self-hosted runner other than int existed.  Now it detects
-    # co-location and tunnels via SSH otherwise.
-    runs-on: [self-hosted, Linux]
+    # Pinned to the int runner.  On any other Linux runner (debian001) the
+    # SSH tunnel fallback below is rejected by bwalia@192.168.1.193
+    # (publickey), which failed the 2026-10-16 nightly.  The co-location
+    # check stays as a guard if the label ever moves.
+    runs-on: [self-hosted, Linux, int]
     needs: [deploy-int]
     timeout-minutes: 15
     env:
