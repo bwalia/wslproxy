@@ -991,6 +991,13 @@ server {
             if ngx.ctx.selected_backend_label then
               ngx.header["X-WSL-Backend"] = ngx.ctx.selected_backend_label
             end
+{% if wslproxy_pop_id | default('') %}
+
+            -- Which edge answered.  lon1 and pop0 sit behind round-robin
+            -- DNS for the same hostnames, so this is the only way to tell
+            -- them apart from the client side.  Set per host in host_vars.
+            ngx.header["X-WSL-POP"] = "{{ wslproxy_pop_id }}"
+{% endif %}
 
             -- LLM protocol translation: normalise response headers
             local ok_llm, Llm = pcall(require, "llm_translator")
@@ -1279,6 +1286,13 @@ server {
             if ngx.ctx.selected_backend_label then
               ngx.header["X-WSL-Backend"] = ngx.ctx.selected_backend_label
             end
+{% if wslproxy_pop_id | default('') %}
+
+            -- Which edge answered.  lon1 and pop0 sit behind round-robin
+            -- DNS for the same hostnames, so this is the only way to tell
+            -- them apart from the client side.  Set per host in host_vars.
+            ngx.header["X-WSL-POP"] = "{{ wslproxy_pop_id }}"
+{% endif %}
 
             -- LLM protocol translation: normalise response headers
             local ok_llm, Llm = pcall(require, "llm_translator")
