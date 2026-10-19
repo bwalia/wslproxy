@@ -71,7 +71,7 @@ http {
     error_log /usr/local/openresty/nginx/logs/error.log notice;
 
     server_tokens off;
-    more_set_headers 'Server: wslproxy/1.0.1';
+    more_set_headers 'Server: wslproxy/{{ wslproxy_version | regex_replace("^v", "") }}';
 
     sendfile        on;
     #tcp_nopush     on;

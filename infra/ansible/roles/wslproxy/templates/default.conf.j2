@@ -14,7 +14,7 @@
     # HTTP (port 80) — serves landing page + ACME challenge
     server {
         listen       {{ _listen80 }};
-        server_name  {{ nginx_default_server_frontend }} {{ host_lan_ip | default('') }};
+        server_name  {{ nginx_default_server_frontend }}{% if host_lan_ip | default('') and host_lan_ip != nginx_default_server_backend_nextjs | default('') %} {{ host_lan_ip }}{% endif %};
 
         location /.well-known/acme-challenge/ {
             content_by_lua_block {
