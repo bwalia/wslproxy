@@ -157,6 +157,11 @@
     rsync_opts:
       - "--exclude=node_modules/.cache"
   register: sync_nextjs_standalone
+  # rsync opens its own SSH connection (no ControlMaster), so one dropped
+  # connect fails the deploy. Retrying is safe: rsync is idempotent.
+  until: sync_nextjs_standalone is succeeded
+  retries: 3
+  delay: 10
   notify: restart nextjs dashboard
   tags: [dashboard-next]
 
@@ -165,6 +170,9 @@
     src: "{{ playbook_dir }}/../../openresty-admin-next/.next/static/"
     dest: /usr/local/openresty/nginx/html/openresty-admin-next/.next/static
   register: sync_nextjs_static
+  until: sync_nextjs_static is succeeded
+  retries: 3
+  delay: 10
   tags: [dashboard-next]
 
 - name: Sync Next.js public assets
@@ -172,6 +180,9 @@
     src: "{{ playbook_dir }}/../../openresty-admin-next/public/"
     dest: /usr/local/openresty/nginx/html/openresty-admin-next/public
   register: sync_nextjs_public
+  until: sync_nextjs_public is succeeded
+  retries: 3
+  delay: 10
   ignore_errors: true
   tags: [dashboard-next]
 

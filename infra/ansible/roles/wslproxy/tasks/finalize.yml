@@ -28,6 +28,11 @@
     dest: /opt/nginx/conf.d/
   notify: Restart openresty
   register: sync_tenants
+  # rsync opens its own SSH connection (no ControlMaster), so one dropped
+  # connect fails the deploy. Retrying is safe: rsync is idempotent.
+  until: sync_tenants is succeeded
+  retries: 3
+  delay: 10
   tags: [nginx, servers]
 
 - name: Deploy default.conf when a frontend, backend or dashboard domain is configured

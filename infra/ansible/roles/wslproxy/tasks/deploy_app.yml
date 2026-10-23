@@ -6,6 +6,11 @@
     src: ../../html/
     dest: /usr/local/openresty/nginx/html
   register: sync_html
+  # rsync opens its own SSH connection (no ControlMaster), so one dropped
+  # connect fails the deploy. Retrying is safe: rsync is idempotent.
+  until: sync_html is succeeded
+  retries: 3
+  delay: 10
   tags: [code, dashboard]
 
 - debug:
@@ -18,6 +23,9 @@
     dest: /usr/local/openresty/nginx/html/api
   notify: Restart openresty
   register: sync_api
+  until: sync_api is succeeded
+  retries: 3
+  delay: 10
   tags: [code, dashboard]
 
 - debug:
