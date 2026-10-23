@@ -271,6 +271,25 @@ curl -sI https://internal.example.com/admin | grep -i x-origin-ip
 Check both. An allow rule that works while the deny rule is misconfigured looks
 identical to a working setup from the VPN side.
 
+### Debug headers
+
+Any request decided by an access profile carries its verdict:
+
+| Header | Values |
+|--------|--------|
+| `X-WSL-VPN` | `allowed` or `blocked` |
+| `X-WSL-VPN-Profile` | the profile name, e.g. `jobshout-preprod` |
+| `X-WSL-VPN-Reason` | only when blocked: `client-ip-not-allowed`, `vpn-<reason>` (identity check failed, e.g. `vpn-group-not-held`), `profile-load-failed`, or `unknown` |
+| `X-Origin-IP` | the address the CIDR was checked against |
+
+```bash
+curl -sI https://int.jobshout.com/ | grep -iE '^x-(wsl-vpn|origin-ip)'
+```
+
+`client-ip-not-allowed` with an `X-Origin-IP` you don't expect usually means
+the device is off the VPN, or the VPN exits somewhere outside `allow_cidrs`.
+Domains without an access profile send none of the `X-WSL-VPN` headers.
+
 ## Per-user access: identity
 
 Everything above answers *"did this arrive over the VPN"*. That is a network

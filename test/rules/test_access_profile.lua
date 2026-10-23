@@ -288,6 +288,47 @@ assert_true(shape_err:find("invalid profile"), "shape failure explains why")
 
 assert_nil(AP.load_and_expand(nil, "/opt/nginx/", "prod", SERVER, deps), "nil name fails")
 
+-- ─── decision: X-WSL-VPN debug headers ──────────────────────────────────────
+
+local function result(id, ip_pass, vpn_pass, vpn_reason)
+    return {
+        rule_id = id,
+        conditions = {
+            path = { pass = true },
+            ip = { pass = ip_pass },
+            vpn = { pass = vpn_pass, reason = vpn_reason },
+        },
+    }
+end
+
+local allow_win = result("ap:staff-internal:1:allow", true, true)
+local d = AP.decision(allow_win, { allow_win })
+assert_eq(d.verdict, "allowed", "allow winner → allowed")
+assert_eq(d.profile, "staff-internal", "profile name from rule id")
+assert_nil(d.reason, "allowed has no reason")
+
+local deny_win = result("ap:staff-internal:1:deny", true, true)
+d = AP.decision(deny_win, { deny_win, result("ap:staff-internal:1:allow", false, true) })
+assert_eq(d.verdict, "blocked", "deny winner → blocked")
+assert_eq(d.reason, "client-ip-not-allowed", "failed CIDR explains the block")
+
+d = AP.decision(deny_win, { deny_win, result("ap:staff-internal:1:allow", true, false, "group not held") })
+assert_eq(d.reason, "vpn-group-not-held", "failed identity check explains the block")
+
+d = AP.decision(deny_win, { deny_win, result("ap:staff-internal:1:allow", false, false, "no session") })
+assert_eq(d.reason, "client-ip-not-allowed", "CIDR failure is reported before identity")
+
+d = AP.decision(deny_win, { deny_win, result("ap:staff-internal:2:allow", false, true) })
+assert_eq(d.reason, "unknown", "allow rule of another endpoint is not the sibling")
+
+d = AP.decision({ rule_id = "ap:jobshout-preprod:failed" }, {})
+assert_eq(d.verdict, "blocked", "profile load failure → blocked")
+assert_eq(d.reason, "profile-load-failed", "profile load failure is named")
+
+assert_nil(AP.decision({ rule_id = "8f161403-8592-1111-6294-9c57974505b0" }, {}),
+    "hand-written rule → no headers")
+assert_nil(AP.decision(nil, {}), "no winner → no headers")
+
 if failures > 0 then
     io.stderr:write(failures .. " failure(s)\n")
     os.exit(1)

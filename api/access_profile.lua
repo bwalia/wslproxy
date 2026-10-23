@@ -276,6 +276,79 @@ function M.load_and_expand(name, config_path, env, server_config, deps)
     return M.expand(profile, server_config)
 end
 
+-- ─── Debug headers ──────────────────────────────────────────────────────────
+
+--- Header-safe token: "group not held" → "group-not-held".
+local function slug(s)
+    s = tostring(s or ""):lower():gsub("[^%w]+", "-"):gsub("^%-+", ""):gsub("%-+$", "")
+    if s == "" then
+        return "denied"
+    end
+    return s:sub(1, 64)
+end
+
+--- What an access profile decided for this request, for the X-WSL-VPN headers.
+---
+--- Generated rule ids are "ap:<profile>:<rank>:allow|deny" (or
+--- "ap:<profile>:failed" from rule_loader.deny_all_rule). When the deny rule
+--- won, its allow sibling is in `evaluated` with per-condition results, which
+--- says why access was refused.
+---
+--- @param winner    table|nil  the RuleSelector winner (a rule_matcher result)
+--- @param evaluated table|nil  every rule_matcher result for this request
+--- @return table|nil {verdict="allowed"|"blocked", profile=string, reason=string|nil}
+---                   nil when the winner is not an access-profile rule
+function M.decision(winner, evaluated)
+    local id = winner and winner.rule_id
+    if type(id) ~= "string" then
+        return nil
+    end
+    local name, kind = id:match("^ap:(.+):%d+:(%a+)$")
+    if not name then
+        name = id:match("^ap:(.+):failed$")
+        if name then
+            return { verdict = "blocked", profile = name, reason = "profile-load-failed" }
+        end
+        return nil
+    end
+    if kind == "allow" then
+        return { verdict = "allowed", profile = name }
+    end
+    if kind ~= "deny" then
+        return nil
+    end
+
+    local reason = "unknown"
+    local allow_id = id:gsub(":deny$", ":allow")
+    for _, result in ipairs(evaluated or {}) do
+        if result.rule_id == allow_id then
+            local c = result.conditions or {}
+            if c.ip and not c.ip.pass then
+                reason = "client-ip-not-allowed"
+            elseif c.vpn and not c.vpn.pass then
+                reason = "vpn-" .. slug(c.vpn.reason)
+            end
+            break
+        end
+    end
+    return { verdict = "blocked", profile = name, reason = reason }
+end
+
+--- Set X-WSL-VPN (allowed|blocked), X-WSL-VPN-Profile and, when blocked,
+--- X-WSL-VPN-Reason. The address the CIDR was checked against is already in
+--- X-Origin-IP (rule_matcher). Set in the rewrite phase, so they survive both
+--- the 403 page and a proxied response.
+function M.set_debug_headers(decision)
+    if not decision then
+        return
+    end
+    ngx.header["X-WSL-VPN"] = decision.verdict
+    ngx.header["X-WSL-VPN-Profile"] = decision.profile
+    if decision.reason then
+        ngx.header["X-WSL-VPN-Reason"] = decision.reason
+    end
+end
+
 M.DEFAULT_PRIORITY_BASE = DEFAULT_PRIORITY_BASE
 M.DEFAULT_DENY_MESSAGE = DEFAULT_DENY_MESSAGE
 

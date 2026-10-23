@@ -146,6 +146,14 @@ if winner then
         rule_data = winner.rule_match,
     }
 
+    -- Access-profile (wslvpn) verdict as X-WSL-VPN* headers. Before the
+    -- pipeline, so they are on the response even when WAF or rate limiting
+    -- answers instead.
+    local ap_ok, AccessProfile = pcall(require, "access_profile")
+    if ap_ok then
+        AccessProfile.set_debug_headers(AccessProfile.decision(winner, evaluated))
+    end
+
     -- 7. Run pipeline (rate limiting → WAF → transforms)
     local pipeline_ok, GatewayPipeline = pcall(require, "gateway_pipeline")
     if pipeline_ok and GatewayPipeline then
