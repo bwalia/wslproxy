@@ -1,0 +1,38 @@
+{
+    "id": "tm-vault10x-pages",
+    "match": {
+        "response": {
+            "allow": true,
+            "auto_redirect_https": false,
+            "backends": {},
+            "code": 305,
+            "is_consul": false,
+            "message": "",
+            "redirect_uri": "https://bwalia.github.io/tenthmatrix/vault10x",
+            "routing": {
+                "mode": "weighted"
+            },
+            "strip_path": false
+        },
+        "rules": {
+            "client_ip_key": "equals",
+            "country_key": "equals",
+            "jwt_token_validation": "equals",
+            "path": "/",
+            "path_key": "starts_with"
+        }
+    },
+    "name": "tm-vault10x-pages",
+    "priority": 1,
+    "profile_id": "prod",
+    "rules_tags": [
+        "tenthmatrix",
+        "prod",
+        "pages",
+        "vault10x"
+    ],
+    "servers": [
+        "host:vault10x.com",
+        "host:www.vault10x.com"
+    ]
+}

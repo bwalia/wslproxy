@@ -36,9 +36,10 @@
         "host:shop.fictionally.org",
         "host:shopping-cart-api.fictionally.org",
         "host:int-langfuse.jobshout.co.uk",
-        "host:solomon.fictionally.org",
         "host:abtesting.fictionally.org",
-        "host:test.jobshout.co.uk"
+        "host:test.jobshout.co.uk",
+        "host:int.jobshout.com",
+        "host:int.closeknitty.com"
     ],
     "version": 1
 }
