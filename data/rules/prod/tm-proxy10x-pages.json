@@ -1,0 +1,38 @@
+{
+    "id": "tm-proxy10x-pages",
+    "match": {
+        "response": {
+            "allow": true,
+            "auto_redirect_https": false,
+            "backends": {},
+            "code": 305,
+            "is_consul": false,
+            "message": "",
+            "redirect_uri": "https://bwalia.github.io/tenthmatrix/proxy10x",
+            "routing": {
+                "mode": "weighted"
+            },
+            "strip_path": false
+        },
+        "rules": {
+            "client_ip_key": "equals",
+            "country_key": "equals",
+            "jwt_token_validation": "equals",
+            "path": "/",
+            "path_key": "starts_with"
+        }
+    },
+    "name": "tm-proxy10x-pages",
+    "priority": 1,
+    "profile_id": "prod",
+    "rules_tags": [
+        "tenthmatrix",
+        "prod",
+        "pages",
+        "proxy10x"
+    ],
+    "servers": [
+        "host:proxy10x.com",
+        "host:www.proxy10x.com"
+    ]
+}
