@@ -1,0 +1,25 @@
+{
+    "access_profile": "jobshout-preprod",
+    "config": "WXpKV2VXUnRWbmxKU0hOTFNVTkJaMGxEUVdkaVIyeDZaRWRXZFVsRVozZFBlVUZuU1hsQ1RXRllUakJhVnpSbllqSTBaMk5IT1hsa1EwRnZVMFpTVlZWRGEwdEpRMEZuU1VOQloyTXlWbmxrYlZaNVdESTFhR0pYVldkaFZ6VXdURzFPYzJJelRteGhNalZ3WkVoU05VeHRUblppVkhOblNVTk5aMWRYT1RGamFVSnJZakl4YUdGWE5HZGliVVowV2xGdlowbERRV2RKUTBKNVlqSTVNRWxET1RKWldFbDJaRE5rTTB3eWFEQmlWM2MzU1VOQmFrbEZVblpaTTFaMFdsYzFNRWxJU25aaU0xRm5Xa2RzZVZwWFRqQmlNMG8xUTJsQlowbERRV2RKUjJ4MVdrZFdORWxIYkhWYVIxWTBURzFvTUdKWGR6ZEpRMEZxU1VWU2JGcHRSakZpU0ZGbllWYzFhMXBZWjJkYWJXeHpXbGhOUzBsRFFXZEpRMEZuV1ZkT2FscFlUbnBZTW5oMldubENjMkl5WkhwTU1rWnFXVEpXZW1ONU5YTmlNbU0zU1VOQmFrbEZSbXBaTWxaNlkzbENjMkl5WTJkYWJXeHpXbE5DYzJJeVRtaGtSMngyWW1kdlowbERRV2RKUTBKc1kyNUtkbU5zT1hOaU1tTm5Za2M1Ym1ONU9XeGpia3AyWTJrMWMySXlZemRKUTBGcVNVVldlV050T1hsSlIzaDJXbmxDYldGWGVHeEpSM2gyV1RKR01HRlhPWFZEWjI5TFEybEJaMlpSYjB0SlEwRTk=",
+    "created_at": 1792867969,
+    "id": "host:int.closeknitty.com",
+    "listens": [
+        {
+            "listen": "80"
+        }
+    ],
+    "match_cases": {},
+    "pop_ids": [
+        "lon1",
+        "pop0"
+    ],
+    "profile_id": "prod",
+    "proxy_pass": "http://localhost",
+    "rules": "8f161403-8592-1111-6294-9c57974505b0",
+    "server_name": "int.closeknitty.com",
+    "ssl_auto_renew": true,
+    "ssl_email": "balinder.walia@gmail.com",
+    "ssl_enabled": true,
+    "ssl_force_https": true,
+    "ssl_staging": false
+}
