@@ -1,0 +1,37 @@
+{
+    "access_log": "logs/www.vault10x.com.access.log",
+    "cache_bypass_auth": false,
+    "cache_enabled": true,
+    "cache_ttl": "3600",
+    "config_status": true,
+    "custom_headers": {},
+    "dns_cname_target": "lon1.pop0.uk",
+    "dns_record_type": "CNAME",
+    "error_log": "logs/www.vault10x.com.error.log",
+    "id": "host:www.vault10x.com",
+    "index": "index.html",
+    "listens": [
+        {
+            "listen": "80"
+        }
+    ],
+    "match_cases": {},
+    "pop_ids": [
+        "lon1",
+        "pop0"
+    ],
+    "profile_id": "prod",
+    "proxy_pass": "http://localhost",
+    "proxy_server_name": "bwalia.github.io",
+    "rate_limit_enabled": false,
+    "root": "/var/www/html",
+    "rules": "tm-vault10x-pages",
+    "server_name": "www.vault10x.com",
+    "ssl_auto_renew": true,
+    "ssl_email": "admin@tenthmatrix.com",
+    "ssl_enabled": true,
+    "ssl_force_https": false,
+    "ssl_staging": false,
+    "varnish_enabled": false,
+    "waf_enabled": false
+}
