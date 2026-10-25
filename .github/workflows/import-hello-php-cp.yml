@@ -1,0 +1,40 @@
+name: Import hello-php to CP
+
+# One-shot: POST host + shared k3s1 rule to cp.pop0.uk via /api/projects/import.
+on:
+  workflow_dispatch:
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Login + import
+        env:
+          CP_API_USER: ${{ secrets.CP_API_USER }}
+          CP_API_PASSWD: ${{ secrets.CP_API_PASSWD }}
+        run: |
+          set -euo pipefail
+          UA='Mozilla/5.0 (compatible; wslproxy-import/1.0)'
+          TOKEN=$(curl -sS -X POST https://cp.pop0.uk/api/user/login \
+            -H "Content-Type: application/json" -H "User-Agent: $UA" \
+            -H "x-platform: openresty-admin-next" \
+            -d "{\"email\":\"${CP_API_USER}\",\"password\":\"${CP_API_PASSWD}\"}" \
+            | jq -r '.data.accessToken // .accessToken // empty')
+          [[ -n "$TOKEN" && "$TOKEN" != null ]]
+          for pair in \
+            "server:data/servers/prod/host:hello-php.fictionally.org.json" \
+            "rules:data/rules/prod/8f161403-8592-1111-6294-9c57974505b0.json"
+          do
+            dtype="${pair%%:*}"
+            path="${pair#*:}"
+            body=$(jq -c --arg dt "$dtype" '{data: ., dataType: $dt}' "$path")
+            echo "Importing $dtype from $path"
+            curl -sS -X POST "https://cp.pop0.uk/api/projects/import?_format=json" \
+              -H "Content-Type: application/json" \
+              -H "Authorization: Bearer ${TOKEN}" \
+              -H "User-Agent: $UA" \
+              -H "x-platform: openresty-admin-next" \
+              -d "$body" | jq -c '{success:.success,message:.message,status:.status}' || true
+          done
+          echo "::notice::hello-php imported to cp.pop0.uk"
