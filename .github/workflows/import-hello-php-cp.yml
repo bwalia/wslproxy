@@ -13,6 +13,7 @@ jobs:
         env:
           CP_API_USER: ${{ secrets.CP_API_USER }}
           CP_API_PASSWD: ${{ secrets.CP_API_PASSWD }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
           set -euo pipefail
           UA='Mozilla/5.0 (compatible; wslproxy-import/1.0)'
@@ -20,26 +21,55 @@ jobs:
             -H "Content-Type: application/json" -H "User-Agent: $UA" \
             -H "x-platform: openresty-admin-next" \
             -d "{\"email\":\"${CP_API_USER}\",\"password\":\"${CP_API_PASSWD}\"}")
-          echo "login keys: $(echo "$LOGIN" | jq -r 'keys|tostring' 2>/dev/null || echo "$LOGIN" | head -c 200)"
-          TOKEN=$(echo "$LOGIN" | jq -r '.data.accessToken // .accessToken // .token // empty')
+          TOKEN=$(echo "$LOGIN" | jq -r '.data.accessToken // empty')
           [[ -n "$TOKEN" && "$TOKEN" != null ]]
-          for pair in \
-            "server:data/servers/prod/host:hello-php.fictionally.org.json" \
-            "rules:data/rules/prod/8f161403-8592-1111-6294-9c57974505b0.json"
-          do
-            dtype="${pair%%:*}"
-            path="${pair#*:}"
-            body=$(jq -c --arg dt "$dtype" '{data: ., dataType: $dt}' "$path")
-            echo "Importing $dtype from $path ($(wc -c < "$path") bytes)"
-            RESP=$(curl -sS -w "\nHTTP:%{http_code}" -X POST "https://cp.pop0.uk/api/projects/import?_format=json" \
-              -H "Content-Type: application/json" \
-              -H "Authorization: Bearer ${TOKEN}" \
-              -H "User-Agent: $UA" \
-              -H "x-platform: openresty-admin-next" \
-              -d "$body")
-            CODE=$(echo "$RESP" | sed -n 's/^HTTP://p')
-            BODY=$(echo "$RESP" | sed '/^HTTP:/d')
-            echo "http=$CODE body=$(echo "$BODY" | head -c 400)"
-            [[ "$CODE" =~ ^2 ]]
-          done
+          HDR=(-H "Content-Type: application/json" -H "Authorization: Bearer ${TOKEN}" \
+               -H "User-Agent: $UA" -H "x-platform: openresty-admin-next")
+
+          import_one() {
+            local dtype="$1" path="$2"
+            local rec body resp code
+            rec=$(jq -c . "$path")
+            body=$(jq -nc --arg dt "$dtype" --argjson rec "$rec" \
+              '{dataType:$dt, envProfile:"prod", data:[$rec]}')
+            echo "Importing $dtype from $path"
+            resp=$(curl -sS -w "\nHTTP:%{http_code}" -X POST \
+              "https://cp.pop0.uk/api/projects/import?_format=json" \
+              "${HDR[@]}" -d "$body")
+            code=$(echo "$resp" | sed -n 's/^HTTP://p')
+            echo "http=$code body=$(echo "$resp" | sed '/^HTTP:/d' | head -c 500)"
+            [[ "$code" =~ ^2 ]]
+          }
+
+          import_one rules data/rules/prod/8f161403-8592-1111-6294-9c57974505b0.json
+          import_one servers data/servers/prod/host:hello-php.fictionally.org.json
+
+          READBACK=$(curl -sS "https://cp.pop0.uk/api/servers/host:hello-php.fictionally.org?envprofile=prod" \
+            "${HDR[@]}")
+          echo "readback=$(echo "$READBACK" | jq -c '{rules:.data.rules,pop_ids:.data.pop_ids,server_name:.data.server_name}' 2>/dev/null || echo "$READBACK" | head -c 300)"
           echo "::notice::hello-php imported to cp.pop0.uk"
+
+          # DNS (optional — secret may be empty)
+          if [[ -z "${CLOUDFLARE_API_TOKEN:-}" ]]; then
+            echo "::warning::CLOUDFLARE_API_TOKEN empty — create CNAME hello-php.fictionally.org -> pop0.wslproxy.com (grey cloud) manually"
+            exit 0
+          fi
+          API=https://api.cloudflare.com/client/v4
+          AUTH=(-H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H "Content-Type: application/json")
+          ZJSON=$(curl -sS "${AUTH[@]}" "$API/zones?name=fictionally.org")
+          ZONE=$(echo "$ZJSON" | jq -r '.result[0].id // empty')
+          [[ -n "$ZONE" ]]
+          NAME=hello-php.fictionally.org
+          CONTENT=pop0.wslproxy.com
+          EXISTING=$(curl -sS "${AUTH[@]}" "$API/zones/${ZONE}/dns_records?type=CNAME&name=${NAME}")
+          RID=$(echo "$EXISTING" | jq -r '.result[0].id // empty')
+          BODY=$(jq -n --arg name "$NAME" --arg content "$CONTENT" \
+            '{type:"CNAME",name:$name,content:$content,ttl:1,proxied:false}')
+          if [[ -n "$RID" ]]; then
+            RESP=$(curl -sS -X PUT "${AUTH[@]}" "$API/zones/${ZONE}/dns_records/${RID}" --data "$BODY")
+          else
+            RESP=$(curl -sS -X POST "${AUTH[@]}" "$API/zones/${ZONE}/dns_records" --data "$BODY")
+          fi
+          echo "$RESP" | jq .
+          echo "$RESP" | jq -e '.success == true' >/dev/null
+          echo "::notice::DNS ${NAME} -> ${CONTENT}"
