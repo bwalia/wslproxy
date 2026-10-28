@@ -1,0 +1,38 @@
+{
+  "id": "opsapi-org-default",
+  "name": "opsapi-org-default",
+  "servers": [
+    "host:opsapi.org",
+    "host:sso.opsapi.org"
+  ],
+  "profile_id": "prod",
+  "priority": 1,
+  "rules_tags": [
+    "opsapi",
+    "opsapi.org",
+    "sso",
+    "prod"
+  ],
+  "match": {
+    "rules": {
+      "path_key": "starts_with",
+      "path": "/"
+    },
+    "response": {
+      "code": 305,
+      "redirect_uri": "origin-uk-003.pop0.uk",
+      "backends": [
+        {
+          "address": "origin-uk-003.pop0.uk",
+          "weight": 100,
+          "label": "cloud003 traefik-edge :80, prod OpsAPI (same backend as opsapi-prod-cloud003); Host rewritten to opsapi.workstation.co.uk by the server's proxy_server_name"
+        }
+      ],
+      "routing": {
+        "mode": "least_conn"
+      },
+      "strip_path": false
+    }
+  },
+  "_schema_version": 2
+}

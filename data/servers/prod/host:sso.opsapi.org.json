@@ -1,0 +1,203 @@
+{
+  "id": "host:sso.opsapi.org",
+  "server_name": "sso.opsapi.org",
+  "profile_id": "prod",
+  "config_status": false,
+  "listens": [
+    {
+      "listen": "80"
+    }
+  ],
+  "rules": "opsapi-org-default",
+  "match_cases": [],
+  "custom_headers": {},
+  "ssl_enabled": true,
+  "ssl_auto_renew": true,
+  "ssl_force_https": true,
+  "ssl_staging": false,
+  "ssl_email": "admin@workstation.co.uk",
+  "cache_enabled": false,
+  "proxy_timeouts": {
+    "connect_timeout": "5",
+    "send_timeout": "60",
+    "read_timeout": "60"
+  },
+  "access_log": "logs/sso.opsapi.org.access.log",
+  "error_log": "logs/sso.opsapi.org.error.log",
+  "proxy_server_name": "opsapi.workstation.co.uk",
+  "api_gw": {
+    "enabled": true,
+    "modules": [
+      "request_security",
+      "hooks",
+      "cors",
+      "ivt",
+      "rate_limit",
+      "audit"
+    ],
+    "request_security": {
+      "correlation": {
+        "enabled": true,
+        "header": "X-Correlation-ID"
+      },
+      "max_body_bytes": 1048576
+    },
+    "hooks": {
+      "enabled": true,
+      "response_headers": [
+        {
+          "op": "set",
+          "name": "Strict-Transport-Security",
+          "value": "max-age=31536000; includeSubDomains"
+        }
+      ],
+      "lua": [
+        {
+          "name": "pkce_guard",
+          "phase": "access_before",
+          "source": "return function(cfg, ctx, policy)\n    if ctx.uri ~= \"/oauth/authorize\" then return nil end\n    local a = ctx.args or {}\n    local function one(v) if type(v) == \"table\" then return v[1] end return v end\n    local challenge = one(a.code_challenge)\n    local method = one(a.code_challenge_method)\n    local ok = type(challenge) == \"string\"\n        and #challenge >= 43 and #challenge <= 128\n        and not challenge:find(\"[^%w%-%._~]\")\n        and method == \"S256\"\n    if ok then return nil end\n    local Response = require(\"api_gw.response\")\n    return Response.deny(400, \"invalid_request\",\n        \"PKCE required: code_challenge (43-128 chars) with code_challenge_method=S256\",\n        { module = \"hooks\" })\nend\n"
+        }
+      ]
+    },
+    "cors": {
+      "origins": [
+        "https://opsapi.org",
+        "https://sso.opsapi.org",
+        "https://hello-java.fictionally.org",
+        "https://hello-php.fictionally.org"
+      ],
+      "methods": [
+        "GET",
+        "POST",
+        "PUT",
+        "PATCH",
+        "DELETE",
+        "OPTIONS"
+      ],
+      "headers": [
+        "Authorization",
+        "Content-Type",
+        "X-Correlation-ID",
+        "X-Namespace-Id",
+        "X-Namespace-Slug"
+      ],
+      "expose_headers": [
+        "X-Correlation-ID",
+        "RateLimit-Remaining"
+      ],
+      "credentials": true,
+      "max_age": 3600
+    },
+    "ivt": {
+      "mode": "audit",
+      "methods": {
+        "deny": [
+          "TRACE",
+          "TRACK",
+          "CONNECT"
+        ]
+      },
+      "path_denylist": [
+        "/wp-admin",
+        "/wp-login",
+        "\\.php$",
+        "/\\.env$",
+        "/\\.git/"
+      ],
+      "strip_header_prefixes": [
+        "X-Internal-"
+      ],
+      "burst": {
+        "window_seconds": 10,
+        "max_requests": 200,
+        "key": "ip"
+      }
+    },
+    "rate_limit": {
+      "enabled": true,
+      "default_profile": "standard",
+      "profiles": {
+        "health": {
+          "limit": 0
+        },
+        "auth": {
+          "limit": 20,
+          "window_seconds": 60,
+          "key": "ip"
+        },
+        "public": {
+          "limit": 300,
+          "window_seconds": 60,
+          "key": "ip"
+        },
+        "standard": {
+          "limit": 600,
+          "window_seconds": 60,
+          "key": "ip"
+        }
+      }
+    },
+    "audit": {
+      "enabled": true,
+      "include_query": false
+    },
+    "routes": [
+      {
+        "name": "health",
+        "path": "/health",
+        "path_key": "equals",
+        "rate_profile": "health"
+      },
+      {
+        "name": "login",
+        "path": "/auth/",
+        "path_key": "starts_with",
+        "rate_profile": "auth",
+        "max_body_bytes": 16384
+      },
+      {
+        "name": "oidc-authorize",
+        "path": "/oauth/authorize",
+        "path_key": "equals",
+        "methods": [
+          "GET"
+        ],
+        "rate_profile": "auth"
+      },
+      {
+        "name": "oidc-token",
+        "path": "/oauth/token",
+        "path_key": "equals",
+        "methods": [
+          "POST",
+          "OPTIONS"
+        ],
+        "rate_profile": "auth",
+        "max_body_bytes": 16384
+      },
+      {
+        "name": "oidc-discovery",
+        "path": "/.well-known/",
+        "path_key": "starts_with",
+        "methods": [
+          "GET",
+          "HEAD",
+          "OPTIONS"
+        ],
+        "rate_profile": "public",
+        "cors": {
+          "origins": [
+            "*"
+          ],
+          "credentials": false
+        }
+      },
+      {
+        "name": "api",
+        "path": "/",
+        "path_key": "starts_with",
+        "rate_profile": "standard"
+      }
+    ]
+  }
+}
