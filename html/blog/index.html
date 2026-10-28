@@ -60,6 +60,17 @@
     <div class="wrap wrap--read">
       <h1>Blog</h1>
       <p class="blog-lede">Product deep dives and edge ops notes from the WSLProxy control plane.</p>
+      <a class="post-card" href="/blog/vpn-only-hosts.html">
+        <div class="meta">How-to · Zero Trust edge</div>
+        <h2>Lock pre-prod hosts to your VPN with one field</h2>
+        <p>Access profiles turn one <code>access_profile</code> field into generated allow/deny rules: CIDR matching, a branded 403 "VPN required" page, and fail-closed behaviour with no nginx reload.</p>
+        <img class="thumb" src="/images/vpn-access-flow.svg" alt="VPN-gated access flow through the WSLProxy edge" width="1240" height="1010" loading="lazy" />
+      </a>
+      <a class="post-card" href="/blog/publishing-on-wslproxy-org.html">
+        <div class="meta">Tech note · Site ops</div>
+        <h2>How to set up and publish a post on wslproxy.org</h2>
+        <p>Where the static site lives, how to add and preview a post, and how <code>deploy-pages.yml</code> ships it to GitHub Pages and the edge landing vhosts.</p>
+      </a>
       <a class="post-card" href="/blog/geographic-traffic-distribution.html">
         <div class="meta">Feature · 2-min video</div>
         <h2>Geographic Traffic Distribution by country</h2>
