@@ -1,3 +1,11 @@
+> [!WARNING]
+> **This repository is no longer maintained.** WSL Proxy has been rebranded as **Proxy10x** and is now developed in the TenthMatrix monorepo: [`bwalia/tenthmatrix/products/proxy10x`](https://github.com/bwalia/tenthmatrix/tree/main/products/proxy10x).
+>
+> Website: [proxy10x.com](https://proxy10x.com) · TenthMatrix: [www.tenthmatrix.com/en/proxy10x/](https://www.tenthmatrix.com/en/proxy10x/)
+> Please open new issues and pull requests in the monorepo.
+>
+> The live edge fleet configuration under `data/` is still synced through this repository until the fleet moves; code and docs changes belong in the monorepo.
+
 # WSLProxy
 
 **Dynamic API gateway & reverse proxy** on OpenResty — route, secure, and observe traffic from JSON/MCP configs that take effect **without reloading nginx** for rules.
