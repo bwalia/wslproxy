@@ -11,10 +11,13 @@
     # FRONTEND — Public landing page
     # ──────────────────────────────────────────────────────
 
-    # HTTP (port 80) — serves landing page + ACME challenge
+    # HTTP (port 80) — serves landing page + ACME challenge.
+    # host_public_ip lets http://<edge-ip>/ show the landing page on edges whose
+    # host_lan_ip is a hostname (lon1); otherwise the bare IP falls through to
+    # the gateway's "Host not configured" page.
     server {
         listen       {{ _listen80 }};
-        server_name  {{ nginx_default_server_frontend }}{% if host_lan_ip | default('') and host_lan_ip != nginx_default_server_backend_nextjs | default('') %} {{ host_lan_ip }}{% endif %};
+        server_name  {{ nginx_default_server_frontend }}{% if host_lan_ip | default('') and host_lan_ip != nginx_default_server_backend_nextjs | default('') %} {{ host_lan_ip }}{% endif %}{% if host_public_ip | default('') and host_public_ip != host_lan_ip | default('') %} {{ host_public_ip }}{% endif %};
 
         location /.well-known/acme-challenge/ {
             content_by_lua_block {

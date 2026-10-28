@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Make int/test hostnames VPN-only with a WSLProxy access profile: one field on the host, generated allow/deny rules, fail-closed, no nginx reload." />
+  <meta property="og:title" content="Lock pre-prod hosts to your VPN with one field — WSLProxy" />
+  <meta property="og:image" content="https://wslproxy.org/images/vpn-access-flow.svg" />
+  <title>Lock pre-prod hosts to your VPN with one field — WSLProxy</title>
+  <meta name="theme-color" content="#f7f9fc" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0c1421" media="(prefers-color-scheme: dark)" />
+  <meta name="color-scheme" content="light dark" />
+  <script src="/js/theme.js"></script>
+  <link rel="icon" href="/images/logo-color.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Poppins:wght@400;500;600;700&family=Unbounded:wght@500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/site.css" />
+</head>
+<body>
+  <header class="nav">
+    <div class="wrap nav-inner">
+      <a class="brand" href="/">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="wslproxyLogoGradVpn" x1="6" y1="4" x2="42" y2="44" gradientUnits="userSpaceOnUse">
+                <stop stop-color="var(--signal)"/>
+                <stop offset="1" stop-color="var(--brass-dim)"/>
+              </linearGradient>
+            </defs>
+            <path d="M24 4L6 12v12c0 11 8 21 18 24 10-3 18-13 18-24V12L24 4z" fill="url(#wslproxyLogoGradVpn)" />
+            <circle cx="24" cy="18" r="3" fill="white" />
+            <circle cx="16" cy="28" r="2.5" fill="white" opacity="0.9" />
+            <circle cx="32" cy="28" r="2.5" fill="white" opacity="0.9" />
+            <circle cx="24" cy="36" r="2" fill="white" opacity="0.8" />
+            <path d="M24 21v5M18 27l4-4M30 27l-4-4M24 33v-3" stroke="white" stroke-width="1.5" stroke-linecap="round" opacity="0.7" />
+          </svg>
+        </span>
+        <span>WSL<span class="brand-accent">Proxy</span></span>
+      </a>
+      <button class="nav-toggle" type="button" id="nav-toggle" aria-expanded="false" aria-controls="nav-menu">Menu</button>
+      <nav class="nav-links" id="nav-menu">
+        <a href="/">Home</a>
+        <a href="/blog/">Blog</a>
+        <a href="/swagger/">API</a>
+        <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode" title="Toggle theme">
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M21 14.5A8.5 8.5 0 0 1 9.5 3 7 7 0 1 0 21 14.5z" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" stroke-linecap="round"/>
+          </svg>
+        </button>
+        <a class="nav-cta" href="https://github.com/bwalia/wslproxy">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <article class="blog-article">
+    <div class="wrap wrap--read">
+      <p class="kicker">How-to · Zero Trust edge</p>
+      <h1>Lock pre-prod hosts to your VPN with one field</h1>
+      <p class="lede">
+        Keep <code>int.</code> and <code>test.</code> hostnames on public DNS, but answer only to clients that come in through your VPN or office network. Everyone else gets a branded 403 "VPN required" page. You don't need to reload nginx or set up private DNS.
+      </p>
+      <p class="meta">Access profiles · <code>cidr</code> matching · fail-closed by design</p>
+
+      <figure class="hero-shot">
+        <img
+          src="/images/vpn-access-flow.svg"
+          alt="Request flow from a VPN client through DNS and the WSLProxy edge, showing the per-request access-profile check"
+          width="1240"
+          height="1010"
+          loading="lazy"
+        />
+        <figcaption>Where the access-profile check sits in the WSLProxy request path.</figcaption>
+      </figure>
+
+      <h2>Why not just allow/deny in nginx?</h2>
+      <p>
+        Static <code>allow</code>/<code>deny</code> blocks need a reload for every change, and they live outside the control plane that already routes the host.
+        Hand-written WSLProxy rules can do it, but a VPN rule only works in a pair. The selector drops any rule whose IP check fails, so a lone "allow from VPN" rule
+        lets off-VPN traffic fall through to the catch-all, and that traffic gets proxied anyway. One forgotten deny rule leaves a hole that nobody notices.
+      </p>
+      <p>
+        An <strong>access profile</strong> is a named bundle of protected endpoints. Each endpoint expands into the correct allow/deny pair when the config loads, so the pairing is never left to memory.
+      </p>
+
+      <h2>1. Get the real client IP right first</h2>
+      <p>
+        <code>cidr</code> matching checks <code>remote_addr</code>. If Cloudflare or another proxy sits in front, configure <code>data/real_ip/</code> before anything else. Then check:
+      </p>
+      <pre><code>curl -sI https://int.example.com/ | grep -i x-origin-ip</code></pre>
+      <p>It must show <em>your</em> public or VPN exit address, not the front proxy's.</p>
+
+      <h2>2. Define the profile</h2>
+      <p>Create <code>data/access_profiles/prod/example-preprod.json</code> on every edge that serves the host:</p>
+      <pre><code>{
+  "name": "example-preprod",
+  "allow_cidrs": "203.0.113.10/32, 10.8.1.0/24",
+  "origin": "http://10.0.0.20:8080",
+  "endpoints": [
+    { "path": "/", "path_key": "starts_with" }
+  ]
+}</code></pre>
+      <ul>
+        <li><code>name</code> must match the filename.</li>
+        <li><code>allow_cidrs</code> takes a comma-separated list of IPv4 ranges. A bare address counts as <code>/32</code>.</li>
+        <li><code>origin</code> is where allowed traffic is proxied. Set it explicitly. Without it, traffic falls back to the server's <code>proxy_pass</code>.</li>
+        <li>Optional: per-endpoint <code>allow_cidrs</code>, wslvpn <code>groups</code>, <code>deny_code</code>, and a custom base64 <code>deny_message</code>.</li>
+      </ul>
+
+      <h2>3. Attach it to the host</h2>
+      <p>Add one field to <code>data/servers/prod/host:int.example.com.json</code>:</p>
+      <pre><code>"access_profile": "example-preprod"</code></pre>
+      <p>
+        The rules take effect on the next request, without a reload. Generated rules start at priority 1000, so they outrank the host's own catch-all. Within a profile, a narrower path outranks a broader one, so you can protect <code>/admin/billing</code> more tightly than <code>/admin</code>.
+      </p>
+
+      <div class="callout">
+        <strong>Install order matters.</strong> Put the profile file on every edge <em>before</em> any host references it.
+        If a profile is missing or invalid, the host <strong>fails closed</strong>: every request gets the 403 page, and the error log says
+        <code>access_profile failed, denying all requests for &lt;host&gt;</code>.
+      </div>
+
+      <h2>4. Verify from both sides</h2>
+      <pre><code># Off the VPN — expect 403 and the "VPN required" page
+curl -so /dev/null -w '%{http_code}\n' https://int.example.com/
+
+# Either side — see the verdict
+curl -sI https://int.example.com/ | grep -iE '^x-(wsl-vpn|origin-ip)'
+# X-WSL-VPN: blocked
+# X-WSL-VPN-Profile: example-preprod
+# X-WSL-VPN-Reason: client-ip-not-allowed</code></pre>
+      <p>
+        Check both sides. If the allow rule works but the deny rule is broken, it looks exactly like a working setup from inside the VPN.
+        ACME challenges stay reachable without the VPN, because <code>/.well-known/acme-challenge/</code> has its own nginx location that never runs the rule gateway. Certificates keep renewing.
+      </p>
+
+      <h2>The "VPN required" page</h2>
+      <p>
+        Denied visitors see a self-contained page with light and dark styling, a reload button, and a link back to <a href="https://wslproxy.org/">wslproxy.org</a>, so anyone who lands on it can see what is protecting the host.
+        Set <code>deny_message</code> on a profile to replace it with your own HTML.
+      </p>
+
+      <h2>Going further: per-user access</h2>
+      <p>
+        A CIDR check answers <em>"did this request come in over the VPN?"</em>. To answer <em>"who sent it?"</em>, set <code>WSL_CONTROL_URL</code>, then add <code>groups</code> to a profile or endpoint.
+        WSLProxy resolves the client address against the <a href="https://github.com/bwalia/wslvpn">wslvpn</a> control plane and matches group membership. That is the Zero Trust step up from a network allow-list.
+      </p>
+
+      <h2>Read more</h2>
+      <ul>
+        <li><a href="https://github.com/bwalia/wslproxy/blob/main/docs/VPN_ACCESS.md">docs/VPN_ACCESS.md</a>: full field reference, generated priorities, identity setup</li>
+        <li><a href="https://github.com/bwalia/wslproxy">github.com/bwalia/wslproxy</a>: source, Docker quick start, Ansible POP deploys</li>
+      </ul>
+    </div>
+  </article>
+
+  <footer class="site-footer">
+    <div class="wrap footer-inner">
+      <div>© Workstation Solutions Limited</div>
+      <div class="footer-links">
+        <a href="/blog/">Blog</a>
+        <a href="/">Home</a>
+        <a href="https://github.com/bwalia/wslproxy">GitHub</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    if (window.WSLProxyTheme) {
+      WSLProxyTheme.bindNav();
+      WSLProxyTheme.bind();
+    }
+  </script>
+</body>
+</html>
