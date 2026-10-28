@@ -55,7 +55,18 @@ local function build_json()
                 if ch == '"' then pos = pos + 1; break end
                 if ch == "\\" then
                     pos = pos + 1
-                    out[#out + 1] = s:sub(pos, pos)
+                    local esc = s:sub(pos, pos)
+                    local ESCAPES = { n = "\n", t = "\t", r = "\r", b = "\b", f = "\f" }
+                    if ESCAPES[esc] then
+                        out[#out + 1] = ESCAPES[esc]
+                    elseif esc == "u" then
+                        -- ASCII only; enough for configs, which are what this stub decodes.
+                        local code = tonumber(s:sub(pos + 1, pos + 4), 16) or 63
+                        out[#out + 1] = code < 128 and string.char(code) or "?"
+                        pos = pos + 4
+                    else
+                        out[#out + 1] = esc
+                    end
                 else
                     out[#out + 1] = ch
                 end

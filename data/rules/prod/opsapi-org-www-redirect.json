@@ -1,0 +1,27 @@
+{
+  "id": "opsapi-org-www-redirect",
+  "name": "opsapi-org-www-redirect",
+  "servers": [
+    "host:www.opsapi.org"
+  ],
+  "profile_id": "prod",
+  "priority": 1,
+  "rules_tags": [
+    "opsapi",
+    "opsapi.org",
+    "redirect",
+    "prod"
+  ],
+  "match": {
+    "rules": {
+      "path_key": "starts_with",
+      "path": "/"
+    },
+    "response": {
+      "code": 301,
+      "redirect_uri": "https://opsapi.org",
+      "redirect_preserve_uri": true
+    }
+  },
+  "_schema_version": 2
+}

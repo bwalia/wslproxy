@@ -1,0 +1,27 @@
+{
+  "id": "host:www.opsapi.org",
+  "server_name": "www.opsapi.org",
+  "profile_id": "prod",
+  "config_status": false,
+  "listens": [
+    {
+      "listen": "80"
+    }
+  ],
+  "rules": "opsapi-org-www-redirect",
+  "match_cases": [],
+  "custom_headers": {},
+  "ssl_enabled": true,
+  "ssl_auto_renew": true,
+  "ssl_force_https": true,
+  "ssl_staging": false,
+  "ssl_email": "admin@workstation.co.uk",
+  "cache_enabled": false,
+  "proxy_timeouts": {
+    "connect_timeout": "5",
+    "send_timeout": "60",
+    "read_timeout": "60"
+  },
+  "access_log": "logs/www.opsapi.org.access.log",
+  "error_log": "logs/www.opsapi.org.error.log"
+}
