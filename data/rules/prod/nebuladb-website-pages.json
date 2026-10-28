@@ -1,0 +1,39 @@
+{
+  "id": "nebuladb-website-pages",
+  "name": "nebuladb-website-pages",
+  "profile_id": "prod",
+  "priority": 1,
+  "rules_tags": [
+    "nebuladb",
+    "prod",
+    "pages",
+    "website"
+  ],
+  "servers": [
+    "host:nebuladb.net",
+    "host:www.nebuladb.net"
+  ],
+  "match": {
+    "rules": {
+      "path": "/",
+      "path_key": "starts_with",
+      "jwt_token_validation": "equals",
+      "country_key": "equals",
+      "client_ip_key": "equals"
+    },
+    "response": {
+      "redirect_uri": "https://bwalia.github.io/nebuladb",
+      "message": "",
+      "is_consul": false,
+      "code": 305,
+      "routing": {
+        "mode": "weighted"
+      },
+      "strip_path": false,
+      "auto_redirect_https": false,
+      "allow": true,
+      "backends": {}
+    }
+  },
+  "created_at": 1792971973
+}
