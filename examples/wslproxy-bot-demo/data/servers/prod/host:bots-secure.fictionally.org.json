@@ -42,5 +42,9 @@
   "allow_verified_bots": true,
   "forward_headers": true,
   "response_headers": true
- }
+ },
+ "pop_ids": [
+  "lon1",
+  "pop0"
+ ]
 }

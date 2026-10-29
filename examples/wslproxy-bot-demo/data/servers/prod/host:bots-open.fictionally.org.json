@@ -22,5 +22,9 @@
  "cache_enabled": false,
  "match_cases": {},
  "custom_headers": [],
- "waf_enabled": false
+ "waf_enabled": false,
+ "pop_ids": [
+  "lon1",
+  "pop0"
+ ]
 }

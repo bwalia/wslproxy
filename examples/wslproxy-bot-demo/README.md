@@ -107,6 +107,25 @@ production keep that off: verdicts go to the origin only.
 
 ## How to deploy (needs approval — touches lon1, k3s1 and DNS)
 
+`deploy.py` runs the steps below, using the same mechanics as
+`.claude/skills/wslproxy-add-domain`. Every stage is idempotent.
+
+```bash
+python3 deploy.py --dry-run                         # see exactly what it will do
+python3 deploy.py                                   # origin, edge, vhosts, cp, dns, verify
+python3 deploy.py --steps vhosts,cp,dns,verify      # just some stages
+```
+
+It needs:
+
+- `KUBECONFIG` for k3s1
+- `gh`
+- ssh to `root@195.20.255.201`
+- `~/.config/wslproxy/cp.env`
+- `~/.config/cloudflare/token` (Zone:Read, DNS:Edit)
+
+The same steps, by hand:
+
 1. **Edge code.** Deploy wslproxy to lon1 (and pop0) in `nginx` mode, then
    `code` mode. Bot Defense needs the `wsl_bot_defense` shared dict and the
    init/log hooks.
