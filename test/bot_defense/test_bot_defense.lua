@@ -336,6 +336,18 @@ do
         { { { address = "2001:4860:4801:10:0:0:0:1" } } })
     A.eq(Crawlers.verify(google, "2001:4860:4801:10::1", d, {}), "verified", "IPv6 compared parsed")
     Crawlers.new_resolver = real
+
+    -- resty.dns.resolver:new() rewrites its nameserver list in place; the
+    -- engine's own list (shown in the admin, reused per request) must survive.
+    local saved = package.loaded["resty.dns.resolver"]
+    package.loaded["resty.dns.resolver"] = { new = function(_, opts)
+        for i, s in ipairs(opts.nameservers) do opts.nameservers[i] = { s, 53 } end
+        return {}
+    end }
+    local cfg = { dns_nameservers = { "1.1.1.1" }, dns_timeout_ms = 500 }
+    Crawlers.new_resolver(cfg)
+    A.eq(cfg.dns_nameservers[1], "1.1.1.1", "resolver cannot rewrite the configured nameservers")
+    package.loaded["resty.dns.resolver"] = saved
 end
 
 -- ─── request path (stubbed OpenResty) ──────────────────────────────────────

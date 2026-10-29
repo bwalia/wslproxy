@@ -116,9 +116,14 @@ export default function HourlyChart({ rows }: { rows: BotStatsRow[] }) {
                     })}
                   </div>
                   {hover === i && (
+                    // Beside the bar, towards the middle, from the top of the
+                    // plot: the edge bars (this hour is the last one) never
+                    // push it out of the card.
                     <div
                       role="tooltip"
-                      className="absolute bottom-full left-1/2 z-10 mb-2 w-44 -translate-x-1/2 rounded-lg border border-slate-200 bg-white p-2 text-xs shadow-lg dark:border-slate-700 dark:bg-slate-900"
+                      className={`absolute top-0 z-10 w-44 rounded-lg border border-slate-200 bg-white p-2 text-xs shadow-lg dark:border-slate-700 dark:bg-slate-900 ${
+                        i >= rows.length / 2 ? "right-full mr-2" : "left-full ml-2"
+                      }`}
                     >
                       <div className="mb-1 font-medium text-slate-900 dark:text-slate-100">{hourLabel(r.hour)}</div>
                       {SERIES.map((s) => (

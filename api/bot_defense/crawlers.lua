@@ -41,8 +41,12 @@ end
 --- Overridable for tests: returns an object with reverse_query/query.
 function M.new_resolver(cfg)
     local Resolver = require("resty.dns.resolver")
+    -- A copy: resolver:new() rewrites its list in place ("1.1.1.1" becomes
+    -- {"1.1.1.1", 53}), which would corrupt the config and the cached list.
+    local nameservers = {}
+    for i, ns in ipairs(M.nameservers(cfg)) do nameservers[i] = ns end
     return Resolver:new({
-        nameservers = M.nameservers(cfg),
+        nameservers = nameservers,
         retrans = 1,
         timeout = cfg and cfg.dns_timeout_ms or 500,
     })

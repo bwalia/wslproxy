@@ -166,7 +166,9 @@ cookies or forge headers), so the runner does it and reports what came back. Fli
   $("runall").onclick = function () {
     var b = this;
     b.disabled = true;
-    scenarios.reduce(function (p, sc) { return p.then(function () { return run(sc); }); }, Promise.resolve())
+    // The runner takes one scenario per host per second (app.py run_scenario).
+    var pause = function () { return new Promise(function (r) { setTimeout(r, 1100); }); };
+    scenarios.reduce(function (p, sc) { return p.then(function () { return run(sc); }).then(pause); }, Promise.resolve())
       .then(function () { b.disabled = false; });
   };
 
