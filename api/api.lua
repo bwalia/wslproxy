@@ -168,6 +168,16 @@ local function validateServerPayload(payloads)
         end
     end
 
+    -- Validate Bot Defense (api/bot_defense/). The gateway treats an invalid
+    -- policy as "off", so reject it here rather than let a typo silently
+    -- switch protection off. Same rules as the Bot Management API.
+    local bd_ok, BotDefenseConfig = pcall(require, "bot_defense.config")
+    if bd_ok then
+        for _, e in ipairs(BotDefenseConfig.validate_server(payloads.bot_defense)) do
+            table.insert(errors, e)
+        end
+    end
+
     -- Validate rate limit fields
     if payloads.rate_limit_enabled == true then
         if payloads.rate_limit and type(payloads.rate_limit) == "table" then
@@ -5188,6 +5198,10 @@ local function handle_get_request(args, path)
     if path == "waf/test/targets" then
         waf_test_json(200, { targets = waf_test_target_list() })
     end
+    -- Bot Management (api/bot_defense/admin.lua): overview, events, settings.
+    if path:match("^bot_defense/") then
+        require("bot_defense.admin").handle_get(path, args)
+    end
 
     -- Topology graph endpoint (nodes + edges for canvas visualization)
     if path == "topology/graph" then
@@ -5436,6 +5450,11 @@ local function handle_post_request(args, path)
     -- it sits outside the mutation gate and works from any admin UI/platform).
     if path == "waf/test" then
         handle_waf_test()
+    end
+    -- Bot Management simulator: scores a described request, sends nothing,
+    -- changes nothing — so, like the WAF test relay, outside the gate.
+    if path == "bot_defense/evaluate" then
+        require("bot_defense.admin").handle_post(path, args)
     end
     if isMutationAllowed() then
         if path == "servers" then
@@ -5947,6 +5966,13 @@ end
 -- Function to handle PUT requests
 local function handle_put_request(args, path)
     -- handle PUT request logic
+    -- Bot Management writes first: "bot_defense/servers/<id>" must not reach
+    -- the generic string.find(path, "servers") branch below, which would
+    -- treat it as a full server save.
+    if path:match("^bot_defense/") then
+        require("bot_defense.admin").handle_put(path, args, isMutationAllowed())
+        return
+    end
     path = ngx.unescape_uri(path)
     local pattern = ".*/(.*)"
     local uuid = string.match(path, pattern)

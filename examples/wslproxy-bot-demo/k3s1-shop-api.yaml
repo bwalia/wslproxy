@@ -1,0 +1,73 @@
+---
+# Acme Shop — origin for the wslproxy Bot Defense & IVT demo.
+# Same shape as the WAF demo (examples/wslproxy-waf-demo/k3s1-payments-api.yaml):
+# pinned to cloud001 (the k3s worker, 72.62.211.28) so the lon1 wslproxy edge
+# reaches it on origin-uk-001.pop0.uk:30088 (the edge<->LAN pod overlay is not
+# routable from the edge nodes). App source and the lab page come from the
+# shop-api-src ConfigMap on a stock python image — no image build:
+#   kubectl -n wslproxy-bot-demo create configmap shop-api-src \
+#     --from-file=app.py=app/app.py --from-file=lab.html=lab.html \
+#     -o yaml --dry-run=client | kubectl apply -f -
+# One replica: the shop's impact counters (/stats) live in memory.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: wslproxy-bot-demo
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shop-api
+  namespace: wslproxy-bot-demo
+  labels: {app: shop-api}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: shop-api}
+  template:
+    metadata:
+      labels: {app: shop-api}
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: cloud001
+      tolerations:
+        - key: node-role.kubernetes.io/edge
+          operator: Equal
+          value: "true"
+          effect: NoSchedule
+      containers:
+        - name: app
+          image: python:3.12-alpine
+          command: ["python3", "/app/app.py"]
+          env:
+            - {name: PORT, value: "8080"}
+            # The only hosts the lab's runner will fire at (it always targets
+            # the host it was called on).
+            - {name: BOT_DEMO_TARGETS, value: "bots-open.fictionally.org,bots-secure.fictionally.org"}
+            - {name: BOT_DEMO_SCHEME, value: "https"}
+          ports: [{containerPort: 8080}]
+          volumeMounts:
+            - {name: app, mountPath: /app}
+          readinessProbe:
+            httpGet: {path: /health, port: 8080}
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          resources:
+            requests: {cpu: 25m, memory: 32Mi}
+            limits: {memory: 128Mi}
+      volumes:
+        - name: app
+          configMap: {name: shop-api-src}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: shop-api
+  namespace: wslproxy-bot-demo
+spec:
+  type: NodePort
+  selector: {app: shop-api}
+  ports:
+    - port: 80
+      targetPort: 8080
+      nodePort: 30088

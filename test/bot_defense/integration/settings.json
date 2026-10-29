@@ -1,0 +1,8 @@
+{
+  "env_profile": "prod",
+  "bot_defense": {
+    "secret": "integration-test-secret",
+    "pow_difficulty": 14,
+    "reload_interval_s": 5
+  }
+}

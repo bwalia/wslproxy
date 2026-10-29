@@ -4,6 +4,7 @@
 
 import type { LocationEntry } from "./sections/LocationBlockEditor";
 import type { ApiGwConfig } from "./apiGwTypes";
+import type { BotDefenseConfig } from "./botDefenseTypes";
 
 /** Upstream (nginx `proxy_pass`) timeouts.  Each value is a number in
  *  seconds; an empty string means "use the nginx default (60s)" so
@@ -106,6 +107,10 @@ export interface ServerFormState {
   waf_enabled: boolean;
   waf_policy_id: string;
   waf_mode_override: string;
+
+  /* Bot Defense — api/bot_defense/.  Kept whole and sent back whole: a
+   * server save replaces the record, so a dropped key is deleted on disk. */
+  bot_defense: BotDefenseConfig;
 
   /* Rate limiting */
   rate_limit_enabled: boolean;

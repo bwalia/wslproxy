@@ -408,9 +408,11 @@ function _M.handle_verify(settings)
         secure_flag = "; Secure"
     end
 
-    ngx.header["Set-Cookie"] = COOKIE_NAME .. "=" .. cookie_value
+    -- Appended, not assigned: Bot Defense may already have set its session
+    -- cookie on this response (helpers.lua appendSetCookie).
+    require("helpers").appendSetCookie(COOKIE_NAME .. "=" .. cookie_value
         .. "; Path=/; HttpOnly; SameSite=Lax; Max-Age=" .. ttl
-        .. secure_flag
+        .. secure_flag)
 
     ngx.status = 200
     ngx.header["Content-Type"] = "application/json"

@@ -34,6 +34,10 @@ import {
   Info,
   Share2,
   Globe2,
+  Bot,
+  Radar,
+  SlidersHorizontal,
+  FlaskRound,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -124,6 +128,17 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
         ],
       },
       {
+        // Native bot defense + IVT (api/bot_defense/). Casts: typedRoutes
+        // picks the new routes up on the next build.
+        title: "Bot Management",
+        items: [
+          { label: "Overview", href: "/bot-management" as Route, icon: Bot },
+          { label: "Bot Events", href: "/bot-management/events" as Route, icon: Radar },
+          { label: "Bot Settings", href: "/bot-management/settings" as Route, icon: SlidersHorizontal },
+          { label: "Bot Simulator", href: "/bot-management/simulator" as Route, icon: FlaskRound },
+        ],
+      },
+      {
         title: "Reference",
         items: [
           // Cast: typedRoutes generates the Route union from existing
@@ -139,7 +154,9 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
 
   const isActive = (href: Route) => {
     const hrefStr = href as string;
-    if (hrefStr === "/") return pathname === "/";
+    // Section roots whose sub-pages have their own entries: exact match only,
+    // or "Overview" would stay highlighted on every Bot Management page.
+    if (hrefStr === "/" || hrefStr === "/bot-management") return pathname === hrefStr;
     return pathname.startsWith(hrefStr);
   };
 

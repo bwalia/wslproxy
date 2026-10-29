@@ -1,0 +1,30 @@
+{
+ "id": "host:bots-open.fictionally.org",
+ "server_name": "bots-open.fictionally.org",
+ "proxy_server_name": "bots-open.fictionally.org",
+ "root": "/var/www/html",
+ "index": "index.html",
+ "access_log": "logs/bots-open.access.log",
+ "error_log": "logs/bots-open.error.log",
+ "config_status": false,
+ "profile_id": "prod",
+ "rules": "bot-demo-default",
+ "listens": [
+  {
+   "listen": "80"
+  }
+ ],
+ "ssl_enabled": true,
+ "ssl_force_https": true,
+ "ssl_staging": false,
+ "ssl_auto_renew": true,
+ "ssl_email": "balinder.walia@gmail.com",
+ "cache_enabled": false,
+ "match_cases": {},
+ "custom_headers": [],
+ "waf_enabled": false,
+ "pop_ids": [
+  "lon1",
+  "pop0"
+ ]
+}

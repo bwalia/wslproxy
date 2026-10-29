@@ -118,6 +118,7 @@ const FIELD_LABELS: Record<string, string> = {
   waf_enabled: "WAF",
   waf_policy_id: "WAF policy",
   waf_mode_override: "WAF mode",
+  bot_defense: "Bot Defense",
   rate_limit_enabled: "Rate limiting",
   "rate_limit.requests_per_second": "Rate limit — req/sec",
   "rate_limit.burst": "Rate limit — burst",

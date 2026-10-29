@@ -132,6 +132,12 @@ http {
     # counters compete with the content cache for eviction — keep it declared.
     lua_shared_dict wsl_api_gw 20m;
 
+    # Bot Defense (api/bot_defense/): per-IP / per-visitor behaviour counters,
+    # crawler-verification cache, challenge replay guard. Shared by every
+    # worker. Without it Bot Defense still scores requests, but behaviour
+    # signals and crawler verification are off.
+    lua_shared_dict wsl_bot_defense 20m;
+
     init_by_lua_file /usr/local/openresty/nginx/html/api/init.lua;
 
     init_worker_by_lua_block {
@@ -184,12 +190,27 @@ http {
         else
             ngx.log(ngx.WARN, "ssl_init module not available: ", tostring(ssl_init))
         end
+
+        -- Bot Defense (api/bot_defense/): metrics + settings.bot_defense,
+        -- re-read on a timer. After prometheus. Servers opt in individually.
+        local bd_ok, bot_defense = pcall(require, "bot_defense")
+        if bd_ok then
+            bot_defense.init()
+        else
+            ngx.log(ngx.WARN, "bot_defense module not available: ", tostring(bot_defense))
+        end
     }
 
     log_by_lua_block {
         local ok, log_handler = pcall(require, "log_handler")
         if ok and log_handler then
             log_handler.log_request()
+        end
+
+        -- Bot Defense: response accounting (4xx per IP), metrics, decision log.
+        local bd_ok, bot_defense = pcall(require, "bot_defense")
+        if bd_ok then
+            bot_defense.log()
         end
     }
 

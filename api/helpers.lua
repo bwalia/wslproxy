@@ -131,6 +131,32 @@ function Helper.settings()
     return settings
 end
 
+--- Add a Set-Cookie response header without dropping cookies set earlier in
+--- the same request. Assigning ngx.header["Set-Cookie"] replaces them all, so
+--- the sticky-router cookie, the captcha cookie and the Bot Defense session
+--- cookie would overwrite each other.
+--- @param value string|table one cookie or a list of cookies
+function Helper.appendSetCookie(value)
+    if value == nil or value == "" then return end
+    local existing = ngx.header["Set-Cookie"]
+    if existing == nil or existing == "" then
+        ngx.header["Set-Cookie"] = value
+        return
+    end
+    local cookies = {}
+    if type(existing) == "table" then
+        for _, c in ipairs(existing) do cookies[#cookies + 1] = c end
+    else
+        cookies[1] = existing
+    end
+    if type(value) == "table" then
+        for _, c in ipairs(value) do cookies[#cookies + 1] = c end
+    else
+        cookies[#cookies + 1] = value
+    end
+    ngx.header["Set-Cookie"] = cookies
+end
+
 -- Asc Table
 function Helper.sortAsc(field)
     return function(a, b)

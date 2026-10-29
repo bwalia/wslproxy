@@ -72,9 +72,53 @@ local function check_and_serve_from_cache()
     return false
 end
 
+-- ─── Server lookup ──────────────────────────────────────────────────────────
+-- Shared by the Bot Defense pre-check and step 3, so the server file (and the
+-- on_demand lookup) is read once per request whichever runs first.
+
+local server_config, server_lookup_done
+
+local function lookup_server(profile)
+    if server_lookup_done then return server_config end
+    server_lookup_done = true
+    server_config = RuleLoader.load_server(hostname, configPath, profile)
+    if not server_config then
+        -- No server of its own: a server with on_demand_ask_url may vouch for it
+        -- (api/on_demand.lua). It is then served with that server's rules, and the
+        -- backend learns the client's host from X-Original-Host.
+        local od_ok, OnDemand = pcall(require, "on_demand")
+        local serve_as = od_ok and OnDemand.lookup(hostname)
+        if serve_as then
+            server_config = RuleLoader.load_server(serve_as, configPath, profile)
+            if server_config then
+                ngx.req.set_header("X-Original-Host", hostname)
+                ngx.ctx.on_demand_for = serve_as
+            end
+        end
+    end
+    return server_config
+end
+
 -- ═══════════════════════════════════════════════════════════════════════════
 -- MAIN REQUEST PROCESSING
 -- ═══════════════════════════════════════════════════════════════════════════
+
+local settings = Helper.settings()
+
+-- 0. Bot Defense (api/bot_defense/). Before the cache, so bots scraping cached
+--    pages are checked too. Opt-in per server ("bot_defense" in the server
+--    JSON); for every other server this only moves the server lookup ahead of
+--    the cache check. May end the request (block, challenge); fails open.
+local bd_ok, BotDefense = pcall(require, "bot_defense")
+if bd_ok then
+    local lookup_ok, early_server = pcall(lookup_server, settings.env_profile or "prod")
+    if not lookup_ok then
+        -- Let step 3 try again and report the failure the way it always has.
+        server_lookup_done, server_config = false, nil
+    elseif early_server then
+        BotDefense.access(early_server)
+    end
+end
 
 -- 1. Try cache first (GET/HEAD only)
 if ngx.req.get_method() == "GET" or ngx.req.get_method() == "HEAD" then
@@ -82,8 +126,6 @@ if ngx.req.get_method() == "GET" or ngx.req.get_method() == "HEAD" then
         return
     end
 end
-
-local settings = Helper.settings()
 
 -- 2. Handle CAPTCHA verification POST (before rule matching)
 if ngx.var.uri == "/__captcha/verify" and ngx.req.get_method() == "POST" then
@@ -96,22 +138,8 @@ end
 
 local profile = settings.env_profile or "prod"
 
--- 3. Load server config
-local server_config, server_err = RuleLoader.load_server(hostname, configPath, profile)
-if not server_config then
-    -- No server of its own: a server with on_demand_ask_url may vouch for it
-    -- (api/on_demand.lua). It is then served with that server's rules, and the
-    -- backend learns the client's host from X-Original-Host.
-    local od_ok, OnDemand = pcall(require, "on_demand")
-    local serve_as = od_ok and OnDemand.lookup(hostname)
-    if serve_as then
-        server_config = RuleLoader.load_server(serve_as, configPath, profile)
-        if server_config then
-            ngx.req.set_header("X-Original-Host", hostname)
-            ngx.ctx.on_demand_for = serve_as
-        end
-    end
-end
+-- 3. Load server config (step 0 usually has already)
+lookup_server(profile)
 if not server_config then
     serve_error(settings, "no_server")
     return ngx.exit(ngx.OK)

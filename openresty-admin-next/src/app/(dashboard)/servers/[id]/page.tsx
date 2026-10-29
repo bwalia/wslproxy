@@ -73,6 +73,10 @@ import {
   hydrateApiGw,
   serializeApiGw,
 } from "@/components/servers/apiGwTypes";
+import {
+  DEFAULT_BOT_DEFENSE,
+  normalizeBotDefense,
+} from "@/components/servers/botDefenseTypes";
 import { generateNginxServerConfig } from "@/components/servers/lib/generateNginxConfig";
 import type { LocationEntry } from "@/components/servers/sections/LocationBlockEditor";
 import {
@@ -139,6 +143,8 @@ const DEFAULT_FORM: ServerFormState = {
   waf_policy_id: "",
   waf_mode_override: "",
 
+  bot_defense: structuredClone(DEFAULT_BOT_DEFENSE),
+
   rate_limit_enabled: false,
   rate_limit: { requests_per_second: 100, burst: 50 },
 
@@ -194,6 +200,14 @@ type TabKey =
   | "topology"
   | "configuration";
 
+const TAB_KEYS: readonly TabKey[] = [
+  "nginx", "varnish", "rules", "api_gw", "waf", "history", "topology", "configuration",
+];
+
+/** `?tab=waf` deep-links to a tab (the Bot Management overview uses it). */
+const tabFromParam = (v: string | null | undefined): TabKey =>
+  TAB_KEYS.includes(v as TabKey) ? (v as TabKey) : "nginx";
+
 /**
  * Which tab owns each top-level field — used to auto-jump to the tab
  * containing a validation error.  Order matters: the first matching
@@ -207,6 +221,7 @@ const FIELD_TO_TAB: Array<{ prefix: string; tab: TabKey }> = [
   { prefix: "waf_enabled", tab: "waf" },
   { prefix: "waf_policy_id", tab: "waf" },
   { prefix: "waf_mode_override", tab: "waf" },
+  { prefix: "bot_defense", tab: "waf" },
   { prefix: "rules", tab: "rules" },
   { prefix: "mirror_host_header", tab: "rules" },
   { prefix: "match_cases", tab: "rules" },
@@ -328,6 +343,8 @@ function hydrateForm(data: ServerType): ServerFormState {
     waf_policy_id: data.waf_policy_id ?? "",
     waf_mode_override: data.waf_mode_override ?? "",
 
+    bot_defense: normalizeBotDefense(data.bot_defense),
+
     rate_limit_enabled: data.rate_limit_enabled ?? false,
     rate_limit: {
       requests_per_second: data.rate_limit_requests ?? 100,
@@ -443,6 +460,7 @@ function buildPayload(form: ServerFormState): Record<string, unknown> {
     waf_enabled: form.waf_enabled,
     waf_policy_id: form.waf_policy_id,
     waf_mode_override: form.waf_mode_override,
+    bot_defense: form.bot_defense,
     rate_limit_enabled: form.rate_limit_enabled,
     rate_limit: form.rate_limit,
     custom_headers: form.custom_headers,
@@ -551,7 +569,8 @@ export default function ServerDetailPage() {
   /* ── Form state ──────────────────────────────────────────────────── */
 
   const [form, setForm] = useState<ServerFormState>(DEFAULT_FORM);
-  const [activeTab, setActiveTab] = useState<TabKey>("nginx");
+  const tabParam = searchParams?.get("tab");
+  const [activeTab, setActiveTab] = useState<TabKey>(tabFromParam(tabParam));
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
@@ -585,9 +604,9 @@ export default function ServerDetailPage() {
   // bottom Save bar (line ~654) would stay hidden on the next one and
   // the page would appear to have no save button.
   useEffect(() => {
-    setActiveTab("nginx");
+    setActiveTab(tabFromParam(tabParam));
     setFieldErrors({});
-  }, [fetchKey, isCreate]);
+  }, [fetchKey, isCreate, tabParam]);
 
   /* ── Handlers ────────────────────────────────────────────────────── */
 
