@@ -6,7 +6,7 @@ Reference: `docs/bot-defense.md`. Code: `api/bot_defense/`.
 
 | Scope | How | Takes effect |
 |---|---|---|
-| One server | Admin UI → server → WAF tab → Bot Defense → **off**, or set `"bot_defense": {"mode": "off"}` | Next request |
+| One server | Admin UI → **Bot Management** → Overview → the server's mode → **off** (or its WAF tab), or set `"bot_defense": {"mode": "off"}` | Next request |
 | One server, stop acting | Mode **monitor** (scores and forwards, never blocks) | Next request |
 | One path | Add it to `skip_paths` | Next request |
 
@@ -33,11 +33,16 @@ repo's server JSON (CLAUDE.md gotcha 16), or the next import drops it.
       `settings.bot_defense`.
    3. It is picked up within 30 seconds. Refresh it monthly.
 
+Settings changed in **Bot Management → Settings & signals** are written to
+`data/bot_defense/settings.json` on that edge only. Make the same change on
+lon1 and pop0.
+
 ## Turning it on for a host
 
-1. **`monitor` for a few days.** Watch
+1. **`monitor` for a few days.** Watch **Bot Management → Events**,
    `wslproxy_bot_requests_total{class="suspect"|"bot"}` and the `botdef`
    lines. Every decision is visible; nothing is acted on.
+   **Simulator** answers "would this client be blocked?" before you switch.
 2. **Review false positives:**
 
    ```sh
@@ -76,7 +81,8 @@ curl -s http://127.0.0.1:8099/metrics | grep wslproxy_bot_
 ## A user says they are blocked
 
 1. Ask for the **Support ID** on the block or challenge page.
-2. Find its decision line:
+2. Find its decision: **Bot Management → Events**, filtered by host (last 500
+   on that edge), or the log line:
 
    ```sh
    grep '<support id>' /var/log/nginx/error.log

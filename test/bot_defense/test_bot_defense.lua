@@ -434,6 +434,131 @@ do
     A.ok(ok, "log without ctx is a no-op")
 end
 
+-- ─── admin: validation ─────────────────────────────────────────────────────
+
+do
+    A.eq(#Config.validate_server(nil), 0, "absent policy is valid")
+    A.eq(#Config.validate_server({ mode = "challenge", thresholds = { challenge = 40, block = 80 },
+        skip_paths = { "/webhooks/" }, limits = { burst_per_10s = 50 }, response_headers = false }), 0, "valid policy")
+    local e = Config.validate_server({ mode = "nuke" })
+    A.eq(e[1] and e[1].field, "bot_defense.mode", "bad mode rejected")
+    e = Config.validate_server({ thresholds = { challenge = 90, block = 50 } })
+    A.contains(e[1] and e[1].message or "", "block threshold", "block below challenge rejected")
+    e = Config.validate_server({ limits = { burst_per_10s = 0, nope = 5 } })
+    A.eq(#e, 2, "bad and unknown limits rejected")
+    e = Config.validate_server({ skip_paths = { "relative", "/ok/" } })
+    A.eq(e[1] and e[1].field, "bot_defense.skip_paths[1]", "bad path pinpointed")
+    e = Config.validate_server({ forward_headers = "yes" })
+    A.eq(e[1] and e[1].field, "bot_defense.forward_headers", "non-boolean flag rejected")
+    A.eq(Config.validate_server("x")[1].field, "bot_defense", "non-object rejected")
+
+    local clean, errs = Config.validate_overlay({ pow_difficulty = 18, ip_binding = "exact",
+        weights = { BD_DATACENTER = 10 }, datacenter_cidrs = { "203.0.113.0/24" }, dns_nameservers = { "1.1.1.1" },
+        datacenter_file = "data/bot_defense/datacenter.cidr" })
+    A.ok(clean and #errs == 0, "valid overlay accepted")
+    A.eq(clean and clean.weights.BD_DATACENTER, 10, "weights kept")
+    clean, errs = Config.validate_overlay({ secret = "x", cookie_name = "y" })
+    A.is_nil(clean, "operational keys refused")
+    A.eq(#errs, 2, "both refused")
+    clean, errs = Config.validate_overlay({ pow_difficulty = 30, weights = { BD_NOPE = 1, BD_BURST = 200 } })
+    A.is_nil(clean, "out-of-range values refused")
+    A.eq(#errs, 3, "difficulty, unknown signal, weight range")
+    _, errs = Config.validate_overlay({ datacenter_file = "/etc/shadow" })
+    A.eq(errs[1] and errs[1].field, "datacenter_file", "absolute file refused")
+    _, errs = Config.validate_overlay({ datacenter_file = "data/../../etc/shadow" })
+    A.eq(errs[1] and errs[1].field, "datacenter_file", "traversal refused")
+    _, errs = Config.validate_overlay({ datacenter_cidrs = { "10.0.0.0/8; rm -rf" } })
+    A.eq(errs[1] and errs[1].field, "datacenter_cidrs[1]", "garbage CIDR refused")
+end
+
+-- ─── admin: overlay, feed, stats, simulator ────────────────────────────────
+
+do
+    local overlay_file = os.tmpname()
+    Bot.overlay_file = overlay_file
+    local f = assert(io.open(settings_file, "wb"))
+    f:write('{"bot_defense":{"secret":"unit-secret","pow_difficulty":16}}')
+    f:close()
+    f = assert(io.open(overlay_file, "wb"))
+    f:write('{"pow_difficulty":20,"secret":"from-ui","weights":{"BD_UA_AUTOMATION":50}}')
+    f:close()
+    Bot._reset()
+    H.reset()
+    Bot.reload()
+    local st = Bot._state()
+    A.eq(st.cfg.pow_difficulty, 20, "overlay wins over settings")
+    A.eq(st.secret, "unit-secret", "overlay can never set the secret")
+    A.eq(st.cfg.weights.BD_UA_AUTOMATION, 50, "overlay weights applied")
+    A.ok(st.overlay_active, "overlay reported")
+    A.eq(Bot.status().secret_source, "settings", "status reports the key source, not the key")
+    A.falsy(Cjson.encode(Bot.status()):find("unit-secret", 1, true), "status never carries the secret")
+
+    -- Feed: decisions for suspicious visitors, bounded and newest first.
+    -- request() resets the stub (and so the dict); these need it kept.
+    local d = H.dicts.wsl_bot_defense
+    d:flush_all()
+    local fresh = request
+    local function request(over)
+        local flush = d.flush_all
+        d.flush_all = function() end
+        fresh(over)
+        d.flush_all = flush
+    end
+    for i = 1, 3 do
+        request({ http_user_agent = "sqlmap/1.7", remote_addr = "198.51.100." .. i, uri = "/p" .. i, request_uri = "/p" .. i })
+        Bot.access({ server_name = "shop.example", bot_defense = { mode = "monitor" } })
+        Bot.log()
+    end
+    request()
+    Bot.access({ server_name = "shop.example", bot_defense = { mode = "monitor" } })
+    Bot.log()
+    local ev = Bot.events({})
+    A.eq(#ev, 3, "three suspicious decisions in the feed, the human not")
+    A.eq(ev[1].uri, "/p3", "newest first")
+    A.eq(ev[1].class, "bot", "class recorded")
+    A.eq(#Bot.events({ host = "other.example" }), 0, "host filter")
+    A.eq(#Bot.events({ class = "bot", limit = 2 }), 2, "limit")
+
+    local stats = Bot.stats(24, { "shop.example" })
+    A.eq(#stats.hourly, 24, "24 hourly rows")
+    A.eq(stats.totals.class.bot, 3, "bots counted")
+    A.eq(stats.totals.class.human, 1, "humans counted")
+    A.eq(stats.totals.ivt.givt, 3, "IVT counted")
+    A.eq(stats.hosts["shop.example"].bot, 3, "per-host breakdown")
+
+    -- Ring: never more than its slots.
+    for i = 1, 520 do
+        request({ http_user_agent = "sqlmap/1.7", remote_addr = "203.0.113." .. (i % 250), uri = "/r" .. i, request_uri = "/r" .. i })
+        H.ngx.var.http_accept = "*/*"
+        Bot.access({ server_name = "shop.example", bot_defense = { mode = "monitor" } })
+        Bot.log()
+        H.advance(61) -- next minute, so each visitor is logged again
+    end
+    ev = Bot.events({ limit = 1000 })
+    A.ok(#ev <= 500, "feed bounded at 500 (" .. #ev .. ")")
+    A.eq(ev[1].uri, "/r520", "ring keeps the newest")
+
+    -- Simulator: same scoring as live traffic, no side effects.
+    local keys_before = #d:get_keys(0)
+    local sim = Bot.simulate({ ua = "python-requests/2.31", accept = "*/*", path = "/", ip = "198.51.100.9" })
+    A.eq(sim.score, 50, "score uses the overlay weight")
+    A.eq(sim.class, "suspect", "overlay weight lifts a tool over the challenge threshold")
+    A.eq(sim.ivt, "givt", "IVT tier")
+    A.eq(#d:get_keys(0), keys_before, "simulator writes no behaviour state")
+    sim = Bot.simulate({ ua = "sqlmap/1.7", path = "/", ip = "198.51.100.9", accept = "text/html" }, { mode = "challenge" })
+    A.eq(sim.action, "block", "scanner blocked under challenge policy")
+    A.contains(sim.response, "block page", "navigation gets the block page")
+    sim = Bot.simulate({ ua = "sqlmap/1.7", path = "/webhooks/x", ip = "198.51.100.9" }, { mode = "block", skip_paths = { "/webhooks/" } })
+    A.eq(sim.action, "skip", "skip path reported")
+
+    -- A corrupt overlay is ignored, not fatal.
+    f = assert(io.open(overlay_file, "wb"))
+    f:write("{ not json")
+    f:close()
+    A.is_nil(Bot.read_overlay(), "corrupt overlay ignored")
+    os.remove(overlay_file)
+end
+
 -- ─── demo drift guard ──────────────────────────────────────────────────────
 -- The demo's /features page lists every signal; it must match the engine.
 

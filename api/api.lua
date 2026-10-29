@@ -170,67 +170,11 @@ local function validateServerPayload(payloads)
 
     -- Validate Bot Defense (api/bot_defense/). The gateway treats an invalid
     -- policy as "off", so reject it here rather than let a typo silently
-    -- switch protection off.
-    local bd = payloads.bot_defense
-    if bd ~= nil and bd ~= ngx.null then
-        if type(bd) ~= "table" then
-            table.insert(errors, { field = "bot_defense", message = "Bot Defense must be an object" })
-        else
-            local valid_modes = { off = true, monitor = true, challenge = true, block = true }
-            if bd.mode ~= nil and (type(bd.mode) ~= "string" or not valid_modes[bd.mode]) then
-                table.insert(errors, { field = "bot_defense.mode",
-                    message = "Bot Defense mode must be 'off', 'monitor', 'challenge' or 'block'" })
-            end
-            if bd.thresholds ~= nil and bd.thresholds ~= ngx.null then
-                local t = bd.thresholds
-                local ch, bl = type(t) == "table" and tonumber(t.challenge), type(t) == "table" and tonumber(t.block)
-                if type(t) ~= "table" or (t.challenge ~= nil and not (ch and ch >= 1 and ch <= 100))
-                    or (t.block ~= nil and not (bl and bl >= 1 and bl <= 100)) then
-                    table.insert(errors, { field = "bot_defense.thresholds",
-                        message = "Bot Defense thresholds must be numbers from 1 to 100" })
-                elseif ch and bl and bl < ch then
-                    table.insert(errors, { field = "bot_defense.thresholds",
-                        message = "The block threshold must not be below the challenge threshold" })
-                end
-            end
-            if bd.limits ~= nil and bd.limits ~= ngx.null then
-                if type(bd.limits) ~= "table" then
-                    table.insert(errors, { field = "bot_defense.limits", message = "Bot Defense limits must be an object" })
-                else
-                    for k, v in pairs(bd.limits) do
-                        local n = tonumber(v)
-                        if not n or n < 1 or n > 100000 or n % 1 ~= 0 then
-                            table.insert(errors, { field = "bot_defense.limits." .. tostring(k),
-                                message = "Each Bot Defense limit must be a whole number from 1 to 100000" })
-                        end
-                    end
-                end
-            end
-            for _, field in ipairs({ "skip_paths", "login_paths", "challenge_paths", "monitor_paths" }) do
-                local list = bd[field]
-                if list ~= nil and list ~= ngx.null then
-                    if type(list) ~= "table" then
-                        table.insert(errors, { field = "bot_defense." .. field, message = "Must be a list of paths" })
-                    else
-                        local count = 0
-                        for i, p in ipairs(list) do
-                            count = count + 1
-                            if type(p) ~= "string" or p:sub(1, 1) ~= "/" or #p > 512 or p:find("[%s%c]") then
-                                table.insert(errors, { field = "bot_defense." .. field .. "[" .. i .. "]",
-                                    message = "Each path must start with '/' and contain no spaces (end with '/' or '*' for a prefix)" })
-                            end
-                        end
-                        if count > 200 then
-                            table.insert(errors, { field = "bot_defense." .. field, message = "At most 200 paths" })
-                        end
-                    end
-                end
-            end
-            for _, field in ipairs({ "allow_verified_bots", "forward_headers", "response_headers" }) do
-                if bd[field] ~= nil and bd[field] ~= ngx.null and type(bd[field]) ~= "boolean" then
-                    table.insert(errors, { field = "bot_defense." .. field, message = "Must be true or false" })
-                end
-            end
+    -- switch protection off. Same rules as the Bot Management API.
+    local bd_ok, BotDefenseConfig = pcall(require, "bot_defense.config")
+    if bd_ok then
+        for _, e in ipairs(BotDefenseConfig.validate_server(payloads.bot_defense)) do
+            table.insert(errors, e)
         end
     end
 
@@ -5254,6 +5198,10 @@ local function handle_get_request(args, path)
     if path == "waf/test/targets" then
         waf_test_json(200, { targets = waf_test_target_list() })
     end
+    -- Bot Management (api/bot_defense/admin.lua): overview, events, settings.
+    if path:match("^bot_defense/") then
+        require("bot_defense.admin").handle_get(path, args)
+    end
 
     -- Topology graph endpoint (nodes + edges for canvas visualization)
     if path == "topology/graph" then
@@ -5502,6 +5450,11 @@ local function handle_post_request(args, path)
     -- it sits outside the mutation gate and works from any admin UI/platform).
     if path == "waf/test" then
         handle_waf_test()
+    end
+    -- Bot Management simulator: scores a described request, sends nothing,
+    -- changes nothing — so, like the WAF test relay, outside the gate.
+    if path == "bot_defense/evaluate" then
+        require("bot_defense.admin").handle_post(path, args)
     end
     if isMutationAllowed() then
         if path == "servers" then
@@ -6013,6 +5966,13 @@ end
 -- Function to handle PUT requests
 local function handle_put_request(args, path)
     -- handle PUT request logic
+    -- Bot Management writes first: "bot_defense/servers/<id>" must not reach
+    -- the generic string.find(path, "servers") branch below, which would
+    -- treat it as a full server save.
+    if path:match("^bot_defense/") then
+        require("bot_defense.admin").handle_put(path, args, isMutationAllowed())
+        return
+    end
     path = ngx.unescape_uri(path)
     local pattern = ".*/(.*)"
     local uuid = string.match(path, pattern)

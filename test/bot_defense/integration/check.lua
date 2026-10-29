@@ -268,6 +268,102 @@ ngx.sleep(6.5)
 r = new_client(BROWSER).req({ mode = "monitor" })
 check(not (hdr(r, "X-WSL-Bot-Signals") or ""):find("BD_DATACENTER", 1, true), "removed again")
 
+-- ── admin API (Bot Management pages) ────────────────────────────────────
+section("admin API")
+local ADMIN = "http://127.0.0.1:9105/api/bot_defense/"
+local function api(method, path, body, headers)
+    local hc = http.new()
+    hc:set_timeout(5000)
+    local res = hc:request_uri(ADMIN .. path, {
+        method = method, body = body and (type(body) == "string" and body or cjson.encode(body)),
+        headers = merge({ ["Content-Type"] = "application/json" }, headers),
+    })
+    if not res then return 0, {} end
+    return res.status, cjson.decode(res.body or "") or {}, res.body
+end
+
+-- A stored server exactly as the admin API writes them: encoded `config`,
+-- an empty list that must stay a list.
+os.execute("mkdir -p /tmp/it/data/servers/prod")
+local SERVER_FILE = "/tmp/it/data/servers/prod/host:admin.example.json"
+local CONFIG_B64 = ngx.encode_base64("server { listen 80; }")
+write(SERVER_FILE, '{"id":"host:admin.example","server_name":"admin.example","config":"' .. CONFIG_B64
+    .. '","listens":[{"listen":"80"}],"match_cases":[]}')
+-- Workers run as nobody; production's data/ is 0777 (install -m 0777) too.
+os.execute("chmod -R 0777 /tmp/it/data")
+
+local st, b = api("GET", "overview?envprofile=prod")
+check(st == 200 and b.data and b.data.engine.loaded, "overview: engine loaded")
+check(b.data and b.data.engine.secret_source == "settings" and not (cjson.encode(b) or ""):find("integration-test-secret", 1, true),
+    "overview: key source shown, key never")
+local found
+for _, s in ipairs(b.data and b.data.servers or {}) do if s.id == "host:admin.example" then found = s end end
+check(found and found.mode == "off", "overview: stored server listed as off")
+
+st, b = api("PUT", "servers/host%3Aadmin.example?envprofile=prod",
+    { bot_defense = { mode = "challenge", skip_paths = { "/webhooks/" } } }, { ["X-User"] = "it" })
+check(st == 200 and b.data and b.data.mode == "challenge", "save policy: 200 (" .. tostring(st) .. " " .. tostring(b.error) .. ")")
+local raw = read(SERVER_FILE)
+local rec = cjson.decode(raw) or {}
+check(rec.bot_defense and rec.bot_defense.mode == "challenge", "save policy: written to the server record")
+check(rec.config == CONFIG_B64, "save policy: encoded config untouched")
+check(raw:find('"match_cases":[]', 1, true) ~= nil, "save policy: empty list stays a list")
+local audit = io.popen("grep -rl bot_management /tmp/it/data/audit 2>/dev/null"):read("*a")
+check(audit ~= "", "save policy: audited")
+
+st = api("PUT", "servers/host%3Aadmin.example?envprofile=prod", { bot_defense = { mode = "nuke" } })
+check(st == 422 and read(SERVER_FILE) == raw, "invalid policy: 422, record untouched")
+st = api("PUT", "servers/host%3Aadmin.example?envprofile=..%2Fetc", { bot_defense = { mode = "monitor" } })
+check(st == 400, "malformed env refused, never defaulted to prod")
+st = api("PUT", "servers/host%3Amissing.example?envprofile=prod", { bot_defense = { mode = "monitor" } })
+check(st == 404, "unknown server: 404")
+st = api("PUT", "servers/host%3Aadmin.example?envprofile=prod", { bot_defense = { mode = "off" } }, { ["X-Test-Deny"] = "1" })
+check(st == 403 and read(SERVER_FILE) == raw, "mutation gate closed: 403, record untouched")
+st = api("PUT", "servers/host%3Aadmin.example?envprofile=prod", "{ not json")
+check(st == 400, "bad JSON: 400")
+
+local OVERLAY = "/tmp/it/data/bot_defense/settings.json"
+st, b = api("PUT", "settings", { pow_difficulty = 15, weights = { BD_DATACENTER = 30 } })
+check(st == 200 and b.data and b.data.effective.pow_difficulty == 15, "settings: saved and applied (" .. tostring(st) .. " " .. tostring(b.error) .. ")")
+local ov = cjson.decode(read(OVERLAY)) or {}
+check(ov.pow_difficulty == 15 and ov.weights and ov.weights.BD_DATACENTER == 30, "settings: overlay file written")
+st = api("PUT", "settings", { secret = "steal-me" })
+check(st == 422 and not read(OVERLAY):find("steal-me", 1, true), "settings: secret refused")
+st = api("PUT", "settings", { datacenter_cidrs = { "300.1.1.1/8" } })
+check(st == 422, "settings: bad CIDR refused")
+ngx.sleep(6.5) -- the other worker picks the overlay up on its next reload
+local both = true
+for _ = 1, 6 do
+    local _, g = api("GET", "settings")
+    both = both and g.data and g.data.effective.pow_difficulty == 15
+end
+check(both, "settings: every worker applies the overlay")
+st = api("PUT", "settings", {})
+check(st == 200, "settings: cleared")
+
+flush()
+local bot = new_client({ ["User-Agent"] = "sqlmap/1.7", ["Accept"] = "*/*" })
+bot.req({ mode = "monitor", path = "/feed-test" })
+ngx.sleep(0.3)
+st, b = api("GET", "events?host=shop.example.com&limit=5")
+local ev = b.data and b.data[1]
+check(st == 200 and ev and ev.class == "bot" and ev.uri == "/feed-test", "events: decision in the feed")
+st, b, raw = api("GET", "events?host=nobody.example")
+check(st == 200 and b.data and #b.data == 0, "events: host filter")
+check(raw and raw:find('"data":[]', 1, true) ~= nil, "events: empty feed is a JSON list")
+st, b = api("GET", "overview")
+check(b.data and b.data.stats.totals.class.bot >= 1, "overview: hourly stats count the bot")
+
+st, b = api("POST", "evaluate", { ip = "203.0.113.9", path = "/", headers = { ["User-Agent"] = "sqlmap/1.7", Accept = "text/html" } })
+check(st == 200 and b.data and b.data.action == "block" and b.data.tool == "sqlmap", "simulator: scanner blocked")
+st, b = api("POST", "evaluate", { ip = "203.0.113.9", path = "/", host = "admin.example",
+    headers = { ["User-Agent"] = "sqlmap/1.7", Accept = "text/html" } })
+check(st == 200 and b.data and b.data.mode == "challenge", "simulator: uses the stored server policy")
+st = api("POST", "evaluate", { ip = "nope" })
+check(st == 422, "simulator: bad IP refused")
+st = api("GET", "nope")
+check(st == 404, "unknown endpoint: 404")
+
 -- ── metrics ─────────────────────────────────────────────────────────────
 section("metrics")
 ngx.sleep(2)

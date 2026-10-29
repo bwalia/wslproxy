@@ -157,6 +157,43 @@ declare it. Without it, fingerprint scoring still runs, but behaviour
 signals, crawler verification and replay protection are off, and a warning is
 logged.
 
+### Admin UI — the Bot Management section
+
+The sidebar's **Bot Management** section has four pages, backed by
+`api/bot_defense/admin.lua` behind the usual admin JWT:
+
+| Page | What it does | Endpoint |
+|---|---|---|
+| Overview | Engine status (key source, never the key), last-24 h totals, requests per hour by class, every server with an inline mode switch | `GET /api/bot_defense/overview?envprofile=` |
+| Events | Live decision feed with filters; find a user's Support ID here | `GET /api/bot_defense/events?host=&class=&action=&type=&limit=` |
+| Settings & signals | The editable edge-wide keys above, and every signal's weight | `GET` / `PUT /api/bot_defense/settings` |
+| Simulator | Scores a described request with the live fingerprint and identity code. Nothing is sent to the site and no counters move | `POST /api/bot_defense/evaluate` |
+
+A server's full policy (paths, thresholds, limits) stays on its WAF tab. The
+overview links there (`/servers/<id>?tab=waf`).
+
+- **Saving a server's mode** (`PUT /api/bot_defense/servers/<id>?envprofile=`):
+  - The record is written exactly as stored. Only `bot_defense` changes.
+  - A version snapshot and an audit entry are made, as for any server save.
+  - It is refused when the admin instance does not allow mutations (403),
+    when the policy is invalid (422), or when `envprofile` is malformed (400).
+    A malformed env is never treated as prod.
+- **Settings saved here** go to `data/bot_defense/settings.json` and override
+  `settings.bot_defense` for these keys only: `pow_difficulty`,
+  `challenge_ttl_s`, `passed_ttl_s`, `session_ttl_s`, `ip_binding`,
+  `weights`, `datacenter_cidrs`, `datacenter_file`, `dns_nameservers` and
+  `dns_timeout_ms`.
+  - The key, the cookie name and the dict name are refused. They stay in SOPS.
+  - The file is applied by every worker within `reload_interval_s`.
+  - **It is per edge.** Deploys do not touch it, and edge-sync does not copy
+    it. Set it on lon1 and pop0 alike, or put shared values in SOPS.
+- **Events and hourly counters** live in the edge's shared dict:
+  - the last 500 events, kept for 24 h
+  - the counters, kept for 26 h
+
+  Each edge shows its own, and a restart clears them. Prometheus is the
+  durable record.
+
 ## Signals
 
 | Signal | Kind | IVT | Weight |
@@ -225,7 +262,7 @@ force-HTTPS redirect, the no-server page and the captcha POST.
 
 There is also one `botdef {...}` JSON log line per suspicious visitor per
 minute, carrying host, IP, URI, User-Agent, class, IVT, score, action,
-signals, status and support id.
+signals, status and support id. The same entry goes to the Bot Events feed.
 
 ## Honest scope
 

@@ -200,6 +200,14 @@ type TabKey =
   | "topology"
   | "configuration";
 
+const TAB_KEYS: readonly TabKey[] = [
+  "nginx", "varnish", "rules", "api_gw", "waf", "history", "topology", "configuration",
+];
+
+/** `?tab=waf` deep-links to a tab (the Bot Management overview uses it). */
+const tabFromParam = (v: string | null | undefined): TabKey =>
+  TAB_KEYS.includes(v as TabKey) ? (v as TabKey) : "nginx";
+
 /**
  * Which tab owns each top-level field — used to auto-jump to the tab
  * containing a validation error.  Order matters: the first matching
@@ -561,7 +569,8 @@ export default function ServerDetailPage() {
   /* ── Form state ──────────────────────────────────────────────────── */
 
   const [form, setForm] = useState<ServerFormState>(DEFAULT_FORM);
-  const [activeTab, setActiveTab] = useState<TabKey>("nginx");
+  const tabParam = searchParams?.get("tab");
+  const [activeTab, setActiveTab] = useState<TabKey>(tabFromParam(tabParam));
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
@@ -595,9 +604,9 @@ export default function ServerDetailPage() {
   // bottom Save bar (line ~654) would stay hidden on the next one and
   // the page would appear to have no save button.
   useEffect(() => {
-    setActiveTab("nginx");
+    setActiveTab(tabFromParam(tabParam));
     setFieldErrors({});
-  }, [fetchKey, isCreate]);
+  }, [fetchKey, isCreate, tabParam]);
 
   /* ── Handlers ────────────────────────────────────────────────────── */
 

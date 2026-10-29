@@ -15,25 +15,25 @@ M.MODES = { off = true, monitor = true, challenge = true, block = true }
 --   sivt  sophisticated IVT — needs analysis: spoofed browsers, headless
 --         automation, impersonated crawlers, abnormal behaviour
 M.SIGNALS = {
-    BD_UA_MISSING           = { weight = 40, ivt = "givt", what = "No User-Agent header" },
-    BD_UA_AUTOMATION        = { weight = 35, ivt = "givt", what = "HTTP library or CLI tool User-Agent (curl, python-requests, Go, Java ...)" },
-    BD_UA_SCANNER           = { weight = 90, ivt = "givt", what = "Vulnerability scanner User-Agent (sqlmap, nikto, nuclei ...)" },
-    BD_UA_DECLARED_BOT      = { weight = 30, ivt = "givt", what = "Self-declared bot, crawler or spider that is not a verified search engine" },
-    BD_UA_HEADLESS          = { weight = 70, ivt = "sivt", what = "Headless or automated browser (HeadlessChrome, PhantomJS, Selenium ...)" },
-    BD_FAKE_CRAWLER         = { weight = 90, ivt = "sivt", what = "Claims to be a search-engine crawler but its IP does not belong to that engine (reverse + forward DNS)" },
-    BD_BROWSER_NO_ACCEPT    = { weight = 15, ivt = "sivt", what = "Claims to be a browser but sends no Accept header" },
-    BD_BROWSER_NO_LANGUAGE  = { weight = 20, ivt = "sivt", what = "Claims to be a browser but sends no Accept-Language header" },
-    BD_BROWSER_NO_ENCODING  = { weight = 15, ivt = "sivt", what = "Claims to be a browser but sends no Accept-Encoding header" },
-    BD_BROWSER_NO_HINTS     = { weight = 15, ivt = "sivt", what = "Claims to be Chromium but sends no Sec-CH-UA client hints over HTTPS" },
-    BD_BROWSER_NO_FETCH_META = { weight = 15, ivt = "sivt", what = "Claims to be a modern browser but sends no Sec-Fetch-* metadata over HTTPS" },
-    BD_OLD_PROTOCOL         = { weight = 15, ivt = "sivt", what = "Claims to be a browser but speaks HTTP/1.0" },
-    BD_DATACENTER           = { weight = 25, ivt = "givt", what = "Client IP is in a hosting / cloud provider range" },
-    BD_BURST                = { weight = 30, ivt = "sivt", what = "Request burst from one IP above the per-10s limit" },
-    BD_SCRAPING             = { weight = 35, ivt = "sivt", what = "Too many distinct pages per minute for one visitor" },
-    BD_ERROR_STORM          = { weight = 30, ivt = "sivt", what = "Many 401/403/404/405 responses for one IP — scanning, enumeration or carding" },
-    BD_LOGIN_VELOCITY       = { weight = 50, ivt = "sivt", what = "Too many login attempts from one IP — credential stuffing" },
-    BD_NO_COOKIE            = { weight = 25, ivt = "sivt", what = "Never returns the session cookie it is given — a script, not a browser" },
-    BD_NO_ASSETS            = { weight = 20, ivt = "sivt", what = "Loads many pages but never the CSS/JS/images a browser fetches" },
+    BD_UA_MISSING           = { weight = 40, ivt = "givt", kind = "fingerprint", what = "No User-Agent header" },
+    BD_UA_AUTOMATION        = { weight = 35, ivt = "givt", kind = "fingerprint", what = "HTTP library or CLI tool User-Agent (curl, python-requests, Go, Java ...)" },
+    BD_UA_SCANNER           = { weight = 90, ivt = "givt", kind = "fingerprint", what = "Vulnerability scanner User-Agent (sqlmap, nikto, nuclei ...)" },
+    BD_UA_DECLARED_BOT      = { weight = 30, ivt = "givt", kind = "fingerprint", what = "Self-declared bot, crawler or spider that is not a verified search engine" },
+    BD_UA_HEADLESS          = { weight = 70, ivt = "sivt", kind = "fingerprint", what = "Headless or automated browser (HeadlessChrome, PhantomJS, Selenium ...)" },
+    BD_FAKE_CRAWLER         = { weight = 90, ivt = "sivt", kind = "identity", what = "Claims to be a search-engine crawler but its IP does not belong to that engine (reverse + forward DNS)" },
+    BD_BROWSER_NO_ACCEPT    = { weight = 15, ivt = "sivt", kind = "fingerprint", what = "Claims to be a browser but sends no Accept header" },
+    BD_BROWSER_NO_LANGUAGE  = { weight = 20, ivt = "sivt", kind = "fingerprint", what = "Claims to be a browser but sends no Accept-Language header" },
+    BD_BROWSER_NO_ENCODING  = { weight = 15, ivt = "sivt", kind = "fingerprint", what = "Claims to be a browser but sends no Accept-Encoding header" },
+    BD_BROWSER_NO_HINTS     = { weight = 15, ivt = "sivt", kind = "fingerprint", what = "Claims to be Chromium but sends no Sec-CH-UA client hints over HTTPS" },
+    BD_BROWSER_NO_FETCH_META = { weight = 15, ivt = "sivt", kind = "fingerprint", what = "Claims to be a modern browser but sends no Sec-Fetch-* metadata over HTTPS" },
+    BD_OLD_PROTOCOL         = { weight = 15, ivt = "sivt", kind = "fingerprint", what = "Claims to be a browser but speaks HTTP/1.0" },
+    BD_DATACENTER           = { weight = 25, ivt = "givt", kind = "identity", what = "Client IP is in a hosting / cloud provider range" },
+    BD_BURST                = { weight = 30, ivt = "sivt", kind = "behaviour", what = "Request burst from one IP above the per-10s limit" },
+    BD_SCRAPING             = { weight = 35, ivt = "sivt", kind = "behaviour", what = "Too many distinct pages per minute for one visitor" },
+    BD_ERROR_STORM          = { weight = 30, ivt = "sivt", kind = "behaviour", what = "Many 401/403/404/405 responses for one IP — scanning, enumeration or carding" },
+    BD_LOGIN_VELOCITY       = { weight = 50, ivt = "sivt", kind = "behaviour", what = "Too many login attempts from one IP — credential stuffing" },
+    BD_NO_COOKIE            = { weight = 25, ivt = "sivt", kind = "behaviour", what = "Never returns the session cookie it is given — a script, not a browser" },
+    BD_NO_ASSETS            = { weight = 20, ivt = "sivt", kind = "behaviour", what = "Loads many pages but never the CSS/JS/images a browser fetches" },
 }
 
 M.DEFAULT_THRESHOLDS = { challenge = 40, block = 80 }
@@ -174,6 +174,173 @@ function M.normalize_global(raw)
         cfg.weights[code] = w and number(w, 0, 100, spec.weight) or spec.weight
     end
     return cfg, warns
+end
+
+-- ─── admin-side validation ──────────────────────────────────────────────────
+-- Shared by the server editor (api.lua validateServerPayload) and the Bot
+-- Management API (bot_defense/admin.lua), so both refuse the same input.
+
+--- Validate a server's "bot_defense" object. Unlike normalize_server, which
+--- quietly falls back to defaults at request time, this rejects bad input.
+--- @return table list of { field, message } (empty when valid)
+function M.validate_server(bd)
+    local errors = {}
+    local function err(field, message) errors[#errors + 1] = { field = field, message = message } end
+    if is_null(bd) then return errors end
+    if type(bd) ~= "table" then
+        err("bot_defense", "Bot Defense must be an object")
+        return errors
+    end
+    if bd.mode ~= nil and (type(bd.mode) ~= "string" or not M.MODES[bd.mode]) then
+        err("bot_defense.mode", "Bot Defense mode must be 'off', 'monitor', 'challenge' or 'block'")
+    end
+    if not is_null(bd.thresholds) then
+        local t = bd.thresholds
+        local ch = type(t) == "table" and tonumber(t.challenge)
+        local bl = type(t) == "table" and tonumber(t.block)
+        if type(t) ~= "table" or (t.challenge ~= nil and not (ch and ch >= 1 and ch <= 100))
+            or (t.block ~= nil and not (bl and bl >= 1 and bl <= 100)) then
+            err("bot_defense.thresholds", "Bot Defense thresholds must be numbers from 1 to 100")
+        elseif ch and bl and bl < ch then
+            err("bot_defense.thresholds", "The block threshold must not be below the challenge threshold")
+        end
+    end
+    if not is_null(bd.limits) then
+        if type(bd.limits) ~= "table" then
+            err("bot_defense.limits", "Bot Defense limits must be an object")
+        else
+            for k, v in pairs(bd.limits) do
+                local n = tonumber(v)
+                if M.DEFAULT_LIMITS[k] == nil then
+                    err("bot_defense.limits." .. tostring(k), "Unknown Bot Defense limit")
+                elseif not n or n < 1 or n > 100000 or n % 1 ~= 0 then
+                    err("bot_defense.limits." .. tostring(k), "Each Bot Defense limit must be a whole number from 1 to 100000")
+                end
+            end
+        end
+    end
+    for _, field in ipairs({ "skip_paths", "login_paths", "challenge_paths", "monitor_paths" }) do
+        local list = bd[field]
+        if not is_null(list) then
+            if type(list) ~= "table" then
+                err("bot_defense." .. field, "Must be a list of paths")
+            else
+                local count = 0
+                for i, p in ipairs(list) do
+                    count = count + 1
+                    if not valid_path(p) then
+                        err("bot_defense." .. field .. "[" .. i .. "]",
+                            "Each path must start with '/' and contain no spaces (end with '/' or '*' for a prefix)")
+                    end
+                end
+                if count > 200 then err("bot_defense." .. field, "At most 200 paths") end
+            end
+        end
+    end
+    for _, field in ipairs({ "allow_verified_bots", "forward_headers", "response_headers" }) do
+        if not is_null(bd[field]) and type(bd[field]) ~= "boolean" then
+            err("bot_defense." .. field, "Must be true or false")
+        end
+    end
+    return errors
+end
+
+-- Edge-wide tuning the admin UI may change. Stored in
+-- data/bot_defense/settings.json, laid over settings.json "bot_defense" (which
+-- the deploy rewrites from SOPS). Operational keys — the HMAC secret, the
+-- cookie name, the shared dict, the reload interval — stay out of reach.
+M.OVERLAY_KEYS = {
+    pow_difficulty = true, challenge_ttl_s = true, passed_ttl_s = true, session_ttl_s = true,
+    ip_binding = true, weights = true, datacenter_cidrs = true, datacenter_file = true,
+    dns_nameservers = true, dns_timeout_ms = true,
+}
+
+--- Validate an edge-settings overlay.
+--- @return table|nil clean overlay, table list of { field, message }
+function M.validate_overlay(raw)
+    local errors = {}
+    local function err(field, message) errors[#errors + 1] = { field = field, message = message } end
+    if type(raw) ~= "table" then
+        err("settings", "Bot Defense settings must be an object")
+        return nil, errors
+    end
+    local clean = {}
+    local function int(key, lo, hi)
+        local v = raw[key]
+        if is_null(v) then return end
+        local n = tonumber(v)
+        if not n or n % 1 ~= 0 or n < lo or n > hi then
+            err(key, ("Must be a whole number from %d to %d"):format(lo, hi))
+        else
+            clean[key] = n
+        end
+    end
+    for key in pairs(raw) do
+        if not M.OVERLAY_KEYS[key] then err(key, "Not an editable Bot Defense setting") end
+    end
+    int("pow_difficulty", 8, 24)
+    int("challenge_ttl_s", 30, 3600)
+    int("passed_ttl_s", 60, 604800)
+    int("session_ttl_s", 60, 604800)
+    int("dns_timeout_ms", 50, 5000)
+    if not is_null(raw.ip_binding) then
+        if raw.ip_binding == "prefix" or raw.ip_binding == "exact" or raw.ip_binding == "none" then
+            clean.ip_binding = raw.ip_binding
+        else
+            err("ip_binding", "Must be prefix, exact or none")
+        end
+    end
+    if not is_null(raw.weights) then
+        if type(raw.weights) ~= "table" then
+            err("weights", "Must be an object of signal → weight")
+        else
+            clean.weights = {}
+            for code, w in pairs(raw.weights) do
+                local n = tonumber(w)
+                if not M.SIGNALS[code] then
+                    err("weights." .. tostring(code), "Unknown signal")
+                elseif not n or n < 0 or n > 100 then
+                    err("weights." .. code, "Weight must be from 0 to 100")
+                else
+                    clean.weights[code] = n
+                end
+            end
+        end
+    end
+    local function string_list(key, max, check, message)
+        local v = raw[key]
+        if is_null(v) then return end
+        if type(v) ~= "table" then
+            err(key, "Must be a list")
+            return
+        end
+        local out = {}
+        for i, s in ipairs(v) do
+            if type(s) ~= "string" or not check(s) then
+                err(key .. "[" .. i .. "]", message)
+            else
+                out[#out + 1] = s
+            end
+        end
+        if #out > max then err(key, ("At most %d entries; use datacenter_file for long lists"):format(max)) end
+        clean[key] = out
+    end
+    string_list("datacenter_cidrs", 5000, function(s) return s:match("^[%x%.:/]+$") ~= nil end,
+        "Must be an IPv4 or IPv6 CIDR")
+    string_list("dns_nameservers", 4, function(s) return s:match("^[%x%.:]+$") ~= nil end,
+        "Must be an IP address")
+    if not is_null(raw.datacenter_file) then
+        local f = raw.datacenter_file
+        -- Only a file under data/: this setting must not become a way to read
+        -- arbitrary files through the gateway.
+        if type(f) ~= "string" or (f ~= "" and (not f:match("^data/[%w_%-%./]+$") or f:find("..", 1, true))) then
+            err("datacenter_file", "Must be a path under data/, e.g. data/bot_defense/datacenter.cidr")
+        else
+            clean.datacenter_file = f
+        end
+    end
+    if #errors > 0 then return nil, errors end
+    return clean, errors
 end
 
 --- Per-server policy from the server JSON "bot_defense" object.
