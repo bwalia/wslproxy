@@ -94,6 +94,7 @@ Admin plane is a separate server block (port 8069 prod / 8080 dev / 8099 next.js
 | `helpers.lua` | `settings()`, `GetPayloads()`, `setDataToFile()`, `getDataFromFile()`, `testNginxConfig()` (runs `sudo openresty -t`), `isIpAddress()`, `hashPassword()` |
 | `errors.lua` | Standardized error responses |
 | `captcha.lua` | Turnstile/reCAPTCHA challenge (status code 306) + HMAC-signed cookie |
+| `bot_defense/` | **Native bot management + IVT** (no external service). Per-server opt-in (`bot_defense` object). Fingerprint (`signals`), identity (`crawlers` reverse+forward DNS, `datacenter` CIDR binary search), behaviour (`behaviour`, shared dict `wsl_bot_defense`) → score → class (human/suspect/bot/verified_bot) + IVT tier (none/givt/sivt) → monitor/challenge/block. Self-hosted proof-of-work browser check (`challenge`, `session`: HMAC cookies bound to IP prefix + UA, single-use tokens). `access()` from `gateway_ack.lua` before the cache, `log()` from the http `log_by_lua_block`, `init()` from `init_worker`. Verdict to origin as `X-WSL-Bot-*`. Fails open. See `docs/bot-defense.md`, demo `examples/wslproxy-bot-demo/` |
 | `traffic_router.lua` start_health_checks() | Only runs on worker 0 |
 | `mcp/` | MCP server exposing resources (servers, rules, policies, metrics) and optional write-tools (bind_waf_policy, reload_config, update_traffic_split) |
 
@@ -142,6 +143,7 @@ Key fields (not exhaustive):
 - **Proxy timeouts:** `proxy_timeouts: {connect_timeout, send_timeout, read_timeout}` — in seconds, applied by balancer
 - **Rate limiting:** `rate_limit_enabled`, `rate_limit: {requests_per_second, burst}`
 - **WAF:** `waf_enabled`, `waf_policy_id`, `waf_mode_override` ("block"|"monitor")
+- **Bot Defense:** `bot_defense` — `{mode: off|monitor|challenge|block, thresholds, limits, skip_paths, login_paths, challenge_paths, monitor_paths, allow_verified_bots, forward_headers, response_headers}`. Read per request, no reload. Absent/`off` = request path identical to before.
 - **API gateway:** `api_gw` — nested policy object (`enabled`, `modules`, `real_ip`, `request_security`, `cors`, `ivt`, `auth`, `rate_limit`, `audit`, `routes`). Opt-in; absent = previous behaviour. Schema: `docs/api-gw.schema.json`, guide: `docs/api-gateway.md`.
 
 ### Rule JSON / YAML (`data/rules/{env}/{uuid}.{json,yaml,yml}`)
@@ -428,6 +430,10 @@ Local URLs:
 24. **Bulk DELETE takes a body, and ids/env reach file paths.** `DELETE /api/<servers|rules|waf_rules|waf_policies|secrets|instances>` with `{ids: {ids: [...], envProfile}}` (or a path id) runs through `runDelete` in `api.lua`, which answers `{data: {deleted, failed:[{id, error}]}}` (207 when some failed, 400 for no ids or >500) and writes one audit entry. `storage/driver.lua` `valid_id`/`valid_env` reject `/`, `\`, NUL and non-`[%w_-]` envs: before them, `{"ids":["../../settings"]}` deleted `data/settings.json`.
 
 25. **Rule secrets go through `secret://`, never inline** (2026-09-27). The ollama JWT key sat base64-encoded in `data/rules/prod/16ff5129-….json` in this **public** repo from 2026-08-27, and in diy-tax-return-uk since July. Base64 is not encryption. It was rotated. Rules now carry `jwt_token_validation_key: "secret://<id>#jwt_key"`; `secret_resolver.lua` resolves it per request from `data/secrets/<env>/<id>.json` (AES-256-GCM, created via `POST /api/secrets`), decrypted with `env_vars.SECRETS_ENCRYPTION_KEY`. The encrypted blob is safe to commit. The key must be in `infra/secrets/<env>/settings.sops.json`, because `code`/`servers` deploys rewrite `settings.json` from SOPS. An edge whose `api/` predates `secret_resolver.lua`, or which lacks the key, refuses every request to that rule (403).
+
+26. **Assigning `ngx.header["Set-Cookie"]` deletes every cookie set earlier in the request.** The sticky-router cookie (`gateway_resp.lua`), the captcha cookie (`captcha.lua`) and the Bot Defense session cookie would overwrite each other. Use `Helper.appendSetCookie(value)`. Related, for Bot Defense: every edge serving the same hosts (lon1, pop0) must derive the same HMAC key — by default from `env_vars.JWT_SECURITY_PASSPHRASE`, or an explicit `settings.bot_defense.secret` set identically in each edge's SOPS — or a visitor moving between edges is challenged again. Tests: `lua test/bot_defense/test_bot_defense.lua` and `test/bot_defense/integration/run.sh` (real OpenResty, 2 workers).
+
+27. **`nginx-dev.conf.tmpl` lacks `lua_shared_dict router_state`** (prod's `nginx.conf.j2` has it), so in the Docker dev stack any rule with a `backends` list crashes `traffic_router.lua:114` (`router_dict` nil) → 500. Single-`redirect_uri` rules work. The gateway also resolves backend hostnames through `settings.dns_resolver` nameservers, which cannot see Docker container names — use container IPs in local rules.
 
 ### Conventions
 

@@ -168,6 +168,72 @@ local function validateServerPayload(payloads)
         end
     end
 
+    -- Validate Bot Defense (api/bot_defense/). The gateway treats an invalid
+    -- policy as "off", so reject it here rather than let a typo silently
+    -- switch protection off.
+    local bd = payloads.bot_defense
+    if bd ~= nil and bd ~= ngx.null then
+        if type(bd) ~= "table" then
+            table.insert(errors, { field = "bot_defense", message = "Bot Defense must be an object" })
+        else
+            local valid_modes = { off = true, monitor = true, challenge = true, block = true }
+            if bd.mode ~= nil and (type(bd.mode) ~= "string" or not valid_modes[bd.mode]) then
+                table.insert(errors, { field = "bot_defense.mode",
+                    message = "Bot Defense mode must be 'off', 'monitor', 'challenge' or 'block'" })
+            end
+            if bd.thresholds ~= nil and bd.thresholds ~= ngx.null then
+                local t = bd.thresholds
+                local ch, bl = type(t) == "table" and tonumber(t.challenge), type(t) == "table" and tonumber(t.block)
+                if type(t) ~= "table" or (t.challenge ~= nil and not (ch and ch >= 1 and ch <= 100))
+                    or (t.block ~= nil and not (bl and bl >= 1 and bl <= 100)) then
+                    table.insert(errors, { field = "bot_defense.thresholds",
+                        message = "Bot Defense thresholds must be numbers from 1 to 100" })
+                elseif ch and bl and bl < ch then
+                    table.insert(errors, { field = "bot_defense.thresholds",
+                        message = "The block threshold must not be below the challenge threshold" })
+                end
+            end
+            if bd.limits ~= nil and bd.limits ~= ngx.null then
+                if type(bd.limits) ~= "table" then
+                    table.insert(errors, { field = "bot_defense.limits", message = "Bot Defense limits must be an object" })
+                else
+                    for k, v in pairs(bd.limits) do
+                        local n = tonumber(v)
+                        if not n or n < 1 or n > 100000 or n % 1 ~= 0 then
+                            table.insert(errors, { field = "bot_defense.limits." .. tostring(k),
+                                message = "Each Bot Defense limit must be a whole number from 1 to 100000" })
+                        end
+                    end
+                end
+            end
+            for _, field in ipairs({ "skip_paths", "login_paths", "challenge_paths", "monitor_paths" }) do
+                local list = bd[field]
+                if list ~= nil and list ~= ngx.null then
+                    if type(list) ~= "table" then
+                        table.insert(errors, { field = "bot_defense." .. field, message = "Must be a list of paths" })
+                    else
+                        local count = 0
+                        for i, p in ipairs(list) do
+                            count = count + 1
+                            if type(p) ~= "string" or p:sub(1, 1) ~= "/" or #p > 512 or p:find("[%s%c]") then
+                                table.insert(errors, { field = "bot_defense." .. field .. "[" .. i .. "]",
+                                    message = "Each path must start with '/' and contain no spaces (end with '/' or '*' for a prefix)" })
+                            end
+                        end
+                        if count > 200 then
+                            table.insert(errors, { field = "bot_defense." .. field, message = "At most 200 paths" })
+                        end
+                    end
+                end
+            end
+            for _, field in ipairs({ "allow_verified_bots", "forward_headers", "response_headers" }) do
+                if bd[field] ~= nil and bd[field] ~= ngx.null and type(bd[field]) ~= "boolean" then
+                    table.insert(errors, { field = "bot_defense." .. field, message = "Must be true or false" })
+                end
+            end
+        end
+    end
+
     -- Validate rate limit fields
     if payloads.rate_limit_enabled == true then
         if payloads.rate_limit and type(payloads.rate_limit) == "table" then

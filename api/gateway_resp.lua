@@ -131,7 +131,7 @@ elseif selectedRule.statusCode == 305 then
             end
             -- Set sticky cookie if traffic router requested it
             if ngx.ctx._traffic_router_set_cookie then
-                ngx.header["Set-Cookie"] = ngx.ctx._traffic_router_set_cookie
+                Helper.appendSetCookie(ngx.ctx._traffic_router_set_cookie)
             end
         end
     end

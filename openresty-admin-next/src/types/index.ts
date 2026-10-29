@@ -57,6 +57,7 @@ export interface Server {
   waf_enabled?: boolean;
   waf_policy_id?: string;
   waf_mode_override?: string;
+  bot_defense?: Record<string, unknown>;
   rate_limit_enabled?: boolean;
   rate_limit_requests?: number;
   rate_limit_window?: number;

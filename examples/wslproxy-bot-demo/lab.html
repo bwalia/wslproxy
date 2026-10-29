@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>wslproxy Bot Defense &amp; IVT Lab</title>
+<style>
+:root{--ok:#047857;--bad:#b91c1c;--warn:#b45309;--muted:#6b7280;--line:#e5e7eb}
+*{box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;max-width:1180px;margin:1.5em auto;padding:0 1em;color:#111827}
+h1{margin:.2em 0}.kicker{color:var(--muted);font-size:.9em;letter-spacing:.04em;text-transform:uppercase}
+.banner{padding:.8em 1em;border-radius:8px;margin:1em 0;font-weight:600}
+.banner.secure{background:#ecfdf5;color:var(--ok)}.banner.open{background:#fef2f2;color:var(--bad)}
+.bar{display:flex;gap:.6em;align-items:center;flex-wrap:wrap;margin:1em 0}
+button,.btn{font:inherit;padding:.45em .9em;border-radius:6px;border:1px solid #c7d2fe;background:#eef2ff;color:#3730a3;cursor:pointer;text-decoration:none}
+button.primary{background:#4f46e5;color:#fff;border-color:#4f46e5}button:disabled{opacity:.5;cursor:wait}
+table{width:100%;border-collapse:collapse;font-size:.92em}th,td{border-bottom:1px solid var(--line);padding:.55em .5em;text-align:left;vertical-align:top}
+th{font-size:.8em;text-transform:uppercase;color:var(--muted)}
+.name{font-weight:600}.cat{color:var(--muted);font-size:.85em}.how{color:#374151;font-size:.88em;max-width:330px}
+.tag{display:inline-block;font-size:.75em;padding:.1em .45em;border-radius:4px;background:#f3f4f6;color:#374151;margin-right:.3em}
+.tag.sivt{background:#fef3c7;color:#92400e}.tag.givt{background:#e0e7ff;color:#3730a3}
+.counts span{display:inline-block;min-width:4.5em}.allowed{color:var(--bad)}.stopped{color:var(--ok)}
+.verdict{font-weight:700}.verdict.pass{color:var(--ok)}.verdict.fail{color:var(--bad)}.verdict.info{color:var(--warn)}
+.impact{font-size:.85em}.impact div{white-space:nowrap}
+details{font-size:.82em;margin-top:.3em}details table{font-size:.95em}details td{padding:.2em .4em;font-family:ui-monospace,Menlo,monospace}
+.stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:.6em;margin:1em 0}
+.stat{border:1px solid var(--line);border-radius:8px;padding:.6em .8em}.stat b{display:block;font-size:1.4em}
+.stat small{color:var(--muted)}.foot{color:var(--muted);font-size:.85em;margin:2em 0}
+code{background:#f3f4f6;padding:1px 5px;border-radius:3px}
+</style>
+</head>
+<body>
+<div class="kicker">wslproxy · Bot Defense &amp; invalid-traffic lab</div>
+<h1>Bot &amp; IVT Lab — <span id="host"></span></h1>
+<div id="banner" class="banner"></div>
+<p>Each scenario is a real scripted attack, fired from the lab's server-side runner at <b>this host</b>, through
+the wslproxy edge, at the same shop origin. A browser cannot pose as a bot (it may not set the User-Agent, drop
+cookies or forge headers), so the runner does it and reports what came back. Flip to the other host to compare.</p>
+<div class="bar">
+  <button class="primary" id="runall">▶ Run all</button>
+  <button id="me">Test me (real browser)</button>
+  <a class="btn" id="checkout" href="/checkout" target="_blank" rel="noopener">Open checkout ↗</a>
+  <button id="reset">Reset shop</button>
+  <a class="btn" id="switch" href="#">↹ switch host</a>
+  <a class="btn" href="/features">How it decides</a>
+</div>
+
+<h3>Shop impact on this host</h3>
+<div id="stats" class="stats"></div>
+
+<table>
+  <thead><tr><th style="width:24%">Attack</th><th>How it is caught</th><th style="width:15%">Requests</th><th style="width:17%">Impact</th><th style="width:11%">Verdict</th><th></th></tr></thead>
+  <tbody id="rows"></tbody>
+</table>
+
+<div class="foot">
+  Verdict headers (<code>X-WSL-Bot-Class</code>, <code>-Score</code>, <code>-IVT</code>, <code>-Signals</code>,
+  <code>-Action</code>) are exposed on the protected host for this demo; in production they go to the origin only.
+  The challenge is self-hosted (proof of work + automation check) — no third-party script, no external service.
+</div>
+
+<script>
+(function () {
+  var host = location.hostname;
+  var secure = host.indexOf("secure") !== -1;
+  var other = secure ? host.replace("secure", "open") : host.replace("open", "secure");
+  var $ = function (id) { return document.getElementById(id); };
+  $("host").textContent = host;
+  $("banner").className = "banner " + (secure ? "secure" : "open");
+  $("banner").textContent = secure
+    ? "Bot Defense active — protected (challenge mode). Attacks should be stopped; real people should not notice."
+    : "No bot protection — the origin is fully exposed. Every attack should succeed.";
+  $("switch").href = location.protocol + "//" + other + "/lab";
+  $("switch").textContent = "↹ test " + other;
+
+  var LABELS = {
+    catalogue_pages_served: "catalogue pages served", prices_exposed: "prices harvested",
+    login_attempts: "login attempts", accounts_taken_over: "accounts taken over",
+    stock_remaining: "PS6 stock left", stock_held_by_one_client: "consoles hoarded",
+    impressions_billable: "impressions billed", impressions_invalid: "impressions filtered as IVT",
+    giftcard_guesses: "gift-card guesses", giftcards_cracked: "gift cards cracked", checkouts: "checkouts"
+  };
+  var BAD = { accounts_taken_over: 1, stock_held_by_one_client: 1, impressions_billable: 1, giftcards_cracked: 1, prices_exposed: 1 };
+
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  function getJSON(url, opts) {
+    return fetch(url, Object.assign({ credentials: "same-origin", cache: "no-store" }, opts || {}))
+      .then(function (r) { return r.json().then(function (j) { j._status = r.status; return j; }); });
+  }
+
+  function renderStats() {
+    getJSON("/stats").then(function (j) {
+      var s = j.stats || {}, html = "";
+      Object.keys(LABELS).forEach(function (k) {
+        html += '<div class="stat"><b' + (BAD[k] && s[k] > 0 ? ' class="allowed"' : "") + ">" + esc(s[k]) +
+          "</b><small>" + esc(LABELS[k]) + "</small></div>";
+      });
+      $("stats").innerHTML = html;
+    });
+  }
+
+  function verdictFor(sc, res) {
+    var c = res.summary, im = res.impact || {};
+    if (c.errors === c.sent) return ["info", "unreachable"];
+    if (sc.id === "ad-fraud") {
+      // IVT is not blocked here — it is labelled, and not billed.
+      if (secure) return (im.impressions_billable || 0) === 0 ? ["pass", "IVT filtered"] : ["fail", "billed"];
+      return ["info", "all billed"];
+    }
+    var stopped = c.challenged + c.blocked;
+    if (secure) return stopped * 2 >= c.sent ? ["pass", "stopped"] : ["fail", "got through"];
+    return stopped === 0 ? ["info", "succeeded"] : ["info", "partly stopped"];
+  }
+
+  function renderResult(sc, res) {
+    var row = $("r-" + sc.id);
+    if (!row) return;
+    if (res._status !== 200) {
+      row.querySelector(".res").innerHTML = '<span class="allowed">' + esc(res.error || "error") + "</span>";
+      return;
+    }
+    var c = res.summary, v = verdictFor(sc, res);
+    row.querySelector(".res").innerHTML =
+      '<div class="counts"><span class="allowed">' + c.allowed + " allowed</span><br><span class=\"stopped\">" +
+      c.challenged + " challenged</span><br><span class=\"stopped\">" + c.blocked + " blocked</span>" +
+      (c.errors ? "<br><span>" + c.errors + " errors</span>" : "") + "</div>";
+    var im = "";
+    Object.keys(res.impact || {}).forEach(function (k) {
+      var d = res.impact[k];
+      im += "<div>" + (d > 0 ? "+" : "") + esc(d) + " " + esc(LABELS[k] || k) + "</div>";
+    });
+    row.querySelector(".imp").innerHTML = im;
+    row.querySelector(".ver").innerHTML = '<span class="verdict ' + v[0] + '">' + esc(v[1]) + "</span><br><small>" + res.ms + " ms</small>";
+    var t = "<details><summary>" + c.sent + " requests</summary><table><tr><th>#</th><th>status</th><th>class</th><th>score</th><th>ivt</th><th>action</th><th>signals</th></tr>";
+    res.requests.forEach(function (r, i) {
+      t += "<tr><td>" + (i + 1) + "</td><td>" + esc(r.status) + "</td><td>" + esc(r["class"] || "—") + "</td><td>" + esc(r.score || "—") +
+        "</td><td>" + esc(r.ivt || "—") + "</td><td>" + esc(r.action || "—") + "</td><td>" + esc(r.signals || r.error || "") + "</td></tr>";
+    });
+    row.querySelector(".det").innerHTML = t + "</table></details>";
+  }
+
+  function run(sc) {
+    var btn = $("b-" + sc.id);
+    btn.disabled = true;
+    return getJSON("/lab/run", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scenario: sc.id }) })
+      .then(function (res) { renderResult(sc, res); renderStats(); })
+      .catch(function (e) { $("r-" + sc.id).querySelector(".res").textContent = String(e); })
+      .then(function () { btn.disabled = false; });
+  }
+
+  var scenarios = [];
+  getJSON("/lab/scenarios").then(function (j) {
+    scenarios = j.scenarios || [];
+    var html = "";
+    scenarios.forEach(function (sc) {
+      html += '<tr id="r-' + sc.id + '"><td><div class="name">' + esc(sc.name) + '</div><div class="cat">' + esc(sc.category) +
+        ' <span class="tag ' + sc.ivt + '">' + sc.ivt.toUpperCase() + "</span></div><div class=\"how\">" + esc(sc.what) + "</div></td>" +
+        '<td class="how">' + esc(sc.how) + '<div class="det"></div></td><td class="res">—</td><td class="imp impact"></td><td class="ver"></td>' +
+        '<td><button id="b-' + sc.id + '">fire</button></td></tr>';
+    });
+    $("rows").innerHTML = html;
+    scenarios.forEach(function (sc) { $("b-" + sc.id).onclick = function () { run(sc); }; });
+  });
+
+  $("runall").onclick = function () {
+    var b = this;
+    b.disabled = true;
+    scenarios.reduce(function (p, sc) { return p.then(function () { return run(sc); }); }, Promise.resolve())
+      .then(function () { b.disabled = false; });
+  };
+
+  // You, in a real browser: same-origin page + asset loads keep the session
+  // cookie and send every header a browser sends. Never blocked.
+  $("me").onclick = function () {
+    var b = this, paths = ["/", "/products?page=1", "/static/app.css", "/product/3", "/static/app.js", "/products?page=2"];
+    b.disabled = true;
+    var verdicts = [];
+    paths.reduce(function (p, path) {
+      return p.then(function () {
+        return fetch(path, { credentials: "same-origin", cache: "no-store" }).then(function (r) {
+          verdicts.push(r.status + (r.headers.get("X-WSL-Bot-Class") ? " " + r.headers.get("X-WSL-Bot-Class") : ""));
+        });
+      });
+    }, Promise.resolve()).then(function () {
+      b.disabled = false;
+      var ok = verdicts.every(function (v) { return v.indexOf("200") === 0; });
+      b.textContent = (ok ? "✓ you: " : "✗ you: ") + verdicts.join(", ");
+    });
+  };
+
+  $("reset").onclick = function () {
+    fetch("/lab/reset", { method: "POST", credentials: "same-origin" }).then(renderStats);
+  };
+
+  renderStats();
+})();
+</script>
+</body>
+</html>
