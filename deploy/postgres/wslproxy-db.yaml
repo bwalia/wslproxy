@@ -41,14 +41,22 @@ spec:
       operator: Exists
       effect: NoSchedule
   # Spilo defaults require TLS; OpenResty pgmoon connects without SSL.
-  # Edge note: postgres-operator on LAN cannot reach cloud003, so after
-  # apply also PATCH Patroni :8008/config with the same pg_hba (pod IP).
+  #
+  # Remote logins use `md5` only, never a `scram-sha-256` line. The `md5`
+  # method still runs SCRAM when the stored hash is SCRAM, so it accepts
+  # whichever hash the role has. A `scram-sha-256` line ahead of it rejects an
+  # md5 hash outright, and the operator re-stores the wslproxy password as md5
+  # when it re-syncs users (password_encryption is md5). That took cp.pop0.uk
+  # down for ~40h on 2026-10-27: pgmoon "authentication exchange unsuccessful".
+  #
+  # This list reaches Postgres through the pod's SPILO_CONFIGURATION, which
+  # wins over Patroni's dynamic config, so PATCHing :8008/config does NOT
+  # change pg_hba. Re-apply this CR (operator rolls the pod) to change it.
   patroni:
     pg_hba:
       - local all all trust
       - host all all 127.0.0.1/32 trust
       - host all all ::1/128 trust
-      - host all all 0.0.0.0/0 scram-sha-256
       - host all all 0.0.0.0/0 md5
   volume:
     size: 5Gi
