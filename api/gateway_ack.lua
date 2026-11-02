@@ -10,6 +10,7 @@ local Helper = require("helpers")
 local RuleLoader = require("rule_loader")
 local RuleMatcher = require("rule_matcher")
 local RuleSelector = require("rule_selector")
+local BasicAuth = require("rule_basic_auth")
 
 local configPath = os.getenv("NGINX_CONFIG_DIR") or "/opt/nginx/"
 local hostname = ngx.var.host
@@ -173,6 +174,13 @@ if winner then
         name = winner.rule_name,
         rule_data = winner.rule_match,
     }
+
+    -- HTTP Basic auth gate on the winning rule (match.rules.basic_auth).
+    -- Before the pipeline so an unauthenticated request never reaches rate
+    -- limiting, WAF or the origin. No-op when the rule has no basic_auth.
+    if not BasicAuth.enforce(winner.rule_match) then
+        return
+    end
 
     -- Access-profile (wslvpn) verdict as X-WSL-VPN* headers. Before the
     -- pipeline, so they are on the response even when WAF or rate limiting

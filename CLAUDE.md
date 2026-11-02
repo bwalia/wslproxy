@@ -78,6 +78,7 @@ Admin plane is a separate server block (port 8069 prod / 8080 dev / 8099 next.js
 | `rule_loader.lua` | Load server JSON (`host:{hostname}.json`), parse rules list + match_cases, decode schema v1/v2 S3 keys |
 | `rule_matcher.lua` | Evaluate a rule: path match (with specificity score), IP match, country match (IP2Location), JWT/S3/cookie auth |
 | `rule_selector.lua` | Deterministic tie-breaking: priority > path_specificity > condition_count > rule_id |
+| `rule_basic_auth.lua` | HTTP Basic auth **gate on the winning rule** (`match.rules.basic_auth`), enforced in `gateway_ack.lua` after `RuleSelector.select` and before the pipeline. Missing/bad credentials -> `401` + `WWW-Authenticate` (browser prompt). Users stored as `password_sha256` (hex), `exempt_paths` for health checks, fails closed with no valid users, strips `Authorization` before proxying. Not a matcher condition on purpose: a failed condition only yields the no-rule 403 |
 | `rule_auth.lua` | JWT validation, S3 signing, cookie key-value checks. Arms `ngx.ctx.s3_signed` so the response filter knows it signed |
 | `s3_error_filter.lua` | `header_filter`/`body_filter`. Replaces an S3-signed 4xx/5xx body before it reaches the client — S3 quotes the access key id inside its error XML. Wired into all four gateway blocks across both nginx templates |
 | `gateway_pipeline.lua` | Orchestrates api_gw → legacy rate limiting (shared dict `wsl_cache`) → WAF delegation → transforms |
@@ -157,7 +158,12 @@ Key fields (not exhaustive):
       "country": "US,UK", "country_key": "equals|not_equals",
       "client_ip": "1.2.3.0/24", "client_ip_key": "equals|not_equals",
       "jwt_token_validation_value": "...", "jwt_token_validation_key": "BASE64",
-      "amazon_s3_access_key": "AKIA...", "amazon_s3_secret_key": "..."
+      "amazon_s3_access_key": "AKIA...", "amazon_s3_secret_key": "...",
+      "basic_auth": {
+        "enabled": true, "realm": "Staging",
+        "users": [{"username": "tester", "password_sha256": "<hex sha256 of password>"}],
+        "exempt_paths": ["/healthz"]
+      }
     },
     "response": {
       "code": 305,
