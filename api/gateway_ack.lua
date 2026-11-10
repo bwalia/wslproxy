@@ -27,7 +27,7 @@ local DEFAULT_ERROR_PAGES = {
     -- Same Access denied page — falls through here when a server's
     -- config exists but no rule's match.rules clause accepted the request.
     conf_mismatch = "PCFET0NUWVBFIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KPG1ldGEgbmFtZT0idmlld3BvcnQiIGNvbnRlbnQ9IndpZHRoPWRldmljZS13aWR0aCxpbml0aWFsLXNjYWxlPTEiPgo8dGl0bGU+QWNjZXNzIGRlbmllZDwvdGl0bGU+CjxzdHlsZT4KYm9keSB7IGZvbnQtZmFtaWx5OiAtYXBwbGUtc3lzdGVtLCBCbGlua01hY1N5c3RlbUZvbnQsICJTZWdvZSBVSSIsIFJvYm90bywgc2Fucy1zZXJpZjsgbWF4LXdpZHRoOiA2MDBweDsgbWFyZ2luOiA0ZW0gYXV0bzsgcGFkZGluZzogMmVtOyBjb2xvcjogIzFmMjkzNzsgbGluZS1oZWlnaHQ6IDEuNTsgfQpoMSB7IGZvbnQtc2l6ZTogMS43NWVtOyBjb2xvcjogI2I5MWMxYzsgbWFyZ2luOiAwIDAgMC41ZW07IH0KcCB7IG1hcmdpbjogMC43NWVtIDA7IH0KY29kZSB7IGJhY2tncm91bmQ6ICNmM2Y0ZjY7IHBhZGRpbmc6IDJweCA2cHg7IGJvcmRlci1yYWRpdXM6IDNweDsgZm9udC1zaXplOiAwLjllbTsgfQpzbWFsbCB7IGNvbG9yOiAjNmI3MjgwOyB9CnNtYWxsIGEgeyBjb2xvcjogIzYzNjZmMTsgdGV4dC1kZWNvcmF0aW9uOiBub25lOyB9CnNtYWxsIGE6aG92ZXIgeyB0ZXh0LWRlY29yYXRpb246IHVuZGVybGluZTsgfQo8L3N0eWxlPgo8L2hlYWQ+Cjxib2R5Pgo8aDE+NDAzIC0gQWNjZXNzIGRlbmllZDwvaDE+CjxwPlRoaXMgZW5kcG9pbnQgcmVxdWlyZXMgYXV0aGVudGljYXRpb24uIFBsZWFzZSBwcm92aWRlIGEgdmFsaWQgQVBJIGtleSBpbiB0aGUgcmVxdWVzdC48L3A+CjxwPklmIHlvdSBhcmUgYSBkZXZlbG9wZXIgaW50ZWdyYXRpbmcgd2l0aCB0aGlzIEFQSSwgY2hlY2sgdGhlIGRvY3VtZW50YXRpb24gZm9yIHRoZSByZXF1aXJlZCA8Y29kZT54LWFwaS1rZXk8L2NvZGU+IGhlYWRlciBvciBhdXRoIGNvb2tpZS4gSWYgeW91IGJlbGlldmUgdGhpcyBpcyBhbiBlcnJvciwgY29udGFjdCB0aGUgc2VydmljZSBhZG1pbmlzdHJhdG9yLjwvcD4KPHA+PHNtYWxsPlBvd2VyZWQgYnkgPGEgaHJlZj0iaHR0cHM6Ly93c2xwcm94eS5jb20vIiB0YXJnZXQ9Il9ibGFuayIgcmVsPSJub29wZW5lciI+d3NscHJveHk8L2E+Ljwvc21hbGw+PC9wPgo8L2JvZHk+CjwvaHRtbD4=",
-    -- Host not configured page (HTTP 200, hostname has no tenant server)
+    -- Host not configured page (HTTP 503, no-store; hostname has no tenant server)
     no_server = "PCFET0NUWVBFIGh0bWw+CjxodG1sIGxhbmc9ImVuIj4KPGhlYWQ+CjxtZXRhIGNoYXJzZXQ9InV0Zi04Ij4KPG1ldGEgbmFtZT0idmlld3BvcnQiIGNvbnRlbnQ9IndpZHRoPWRldmljZS13aWR0aCxpbml0aWFsLXNjYWxlPTEiPgo8dGl0bGU+SG9zdCBub3QgY29uZmlndXJlZDwvdGl0bGU+CjxzdHlsZT4KYm9keSB7IGZvbnQtZmFtaWx5OiAtYXBwbGUtc3lzdGVtLCBCbGlua01hY1N5c3RlbUZvbnQsICJTZWdvZSBVSSIsIFJvYm90bywgc2Fucy1zZXJpZjsgbWF4LXdpZHRoOiA2MDBweDsgbWFyZ2luOiA0ZW0gYXV0bzsgcGFkZGluZzogMmVtOyBjb2xvcjogIzFmMjkzNzsgbGluZS1oZWlnaHQ6IDEuNTsgfQpoMSB7IGZvbnQtc2l6ZTogMS43NWVtOyBjb2xvcjogI2Q5NzcwNjsgbWFyZ2luOiAwIDAgMC41ZW07IH0KcCB7IG1hcmdpbjogMC43NWVtIDA7IH0Kc21hbGwgeyBjb2xvcjogIzZiNzI4MDsgfQpzbWFsbCBhIHsgY29sb3I6ICM2MzY2ZjE7IHRleHQtZGVjb3JhdGlvbjogbm9uZTsgfQpzbWFsbCBhOmhvdmVyIHsgdGV4dC1kZWNvcmF0aW9uOiB1bmRlcmxpbmU7IH0KPC9zdHlsZT4KPC9oZWFkPgo8Ym9keT4KPGgxPkhvc3Qgbm90IGNvbmZpZ3VyZWQ8L2gxPgo8cD5UaGlzIGhvc3RuYW1lIGlzIG5vdCByZWdpc3RlcmVkIGFzIGEgdGVuYW50IG9uIHRoaXMgcHJveHkuPC9wPgo8cD5JZiB5b3UgYXJlIHRoZSBvcGVyYXRvciwgY29uZmlndXJlIGEgc2VydmVyIGluIHRoZSBhZG1pbiBkYXNoYm9hcmQuIElmIHlvdSBhcmUgYW4gZW5kLXVzZXIsIHBsZWFzZSBkb3VibGUtY2hlY2sgdGhlIFVSTC48L3A+CjxwPjxzbWFsbD5Qb3dlcmVkIGJ5IDxhIGhyZWY9Imh0dHBzOi8vd3NscHJveHkuY29tLyIgdGFyZ2V0PSJfYmxhbmsiIHJlbD0ibm9vcGVuZXIiPndzbHByb3h5PC9hPi48L3NtYWxsPjwvcD4KPC9ib2R5Pgo8L2h0bWw+",
 }
 
@@ -38,12 +38,26 @@ local function get_error_page(settings_obj, page_type)
     return DEFAULT_ERROR_PAGES[page_type]
 end
 
+-- Status per error page. Never 200: an error page served as 200 is cached by
+-- this edge (cache_handler stores 200s) and by any proxy in front of it, and a
+-- failover rule chaining through another vhost on this edge takes it for a
+-- healthy origin. no_server is 503 so that a host missing from this edge (for
+-- example while its config is being synced) is retried, not remembered.
+local ERROR_STATUS = {
+    no_server = ngx.HTTP_SERVICE_UNAVAILABLE,
+    no_rule = ngx.HTTP_FORBIDDEN,
+    conf_mismatch = ngx.HTTP_FORBIDDEN,
+}
+
 local function serve_error(settings_obj, page_type)
     local html = get_error_page(settings_obj, page_type)
     ngx.header["Content-Type"] = (settings_obj and settings_obj.nginx and settings_obj.nginx.content_type) or "text/html"
-    if page_type == "conf_mismatch" then
-        ngx.status = ngx.HTTP_FORBIDDEN
-    end
+    ngx.status = ERROR_STATUS[page_type] or ngx.HTTP_SERVICE_UNAVAILABLE
+    ngx.header["Cache-Control"] = "no-store"
+    ngx.header["X-WSL-Error"] = page_type
+    ngx.ctx.should_cache = false
+    ngx.ctx.cache_bypass = true
+    ngx.ctx.cache_bypass_reason = "error page: " .. page_type
     ngx.say(Base64DecodeSafe(html) or "Service unavailable")
 end
 
