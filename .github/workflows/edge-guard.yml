@@ -1,0 +1,145 @@
+name: Edge guard (prod hosts + CP drift)
+
+# Catches the 10 Nov 2026 outage class before users do:
+#   1. probe — every prod host the control plane (cp.pop0.uk) tags for a POP is
+#      requested on BOTH edges (lon1, pop0/lon2) by IP. It fails if an edge
+#      answers "Host not configured" (no_server) for a host CP says it serves,
+#      and if www/apex workstation.co.uk is not a 200 with the real page.
+#   2. drift — the routing of every CP rule and server (match, routing,
+#      priority, server rules/match_cases) is compared with the live JSON on
+#      each edge. It fails when an edge routes differently from CP, e.g. a repo
+#      workflow writing a stale rule straight to an edge.
+# A failed run is the alert (GitHub mails the repo owner). It reports only;
+# applying CP to the edges stays a reviewed step (Deploy POP config).
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: edge-guard
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  CP_URL: https://cp.pop0.uk
+  # cp.pop0.uk sits behind Cloudflare, which blocks default client UAs.
+  UA: wslproxy-edge-guard/1.0
+  EDGES: "lon1=195.20.255.201 pop0=85.190.106.189"
+
+jobs:
+  guard:
+    name: Probe edges + compare with CP
+    runs-on: [self-hosted, prod, macOS]
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          sparse-checkout: scripts/edge-guard
+
+      - name: Fetch CP exports
+        env:
+          CP_API_USER: ${{ secrets.CP_API_USER }}
+          CP_API_PASSWD: ${{ secrets.CP_API_PASSWD }}
+        run: |
+          set -euo pipefail
+          mkdir -p guard && cd guard
+          TOKEN="$(jq -n --arg e "$CP_API_USER" --arg p "$CP_API_PASSWD" '{email:$e,password:$p}' \
+            | curl -fsS -A "$UA" -X POST "$CP_URL/api/user/login" -H 'Content-Type: application/json' -d @- \
+            | jq -r '.data.accessToken // .accessToken // empty')"
+          [ -n "$TOKEN" ] || { echo "::error::CP login failed"; exit 1; }
+          echo "::add-mask::$TOKEN"
+          for kv in $EDGES; do
+            pop="${kv%%=*}"
+            curl -fsS -A "$UA" -H "Authorization: Bearer $TOKEN" \
+              "$CP_URL/api/configuration/export?pop_id=$pop&env=prod" -o "export-$pop.json"
+            jq -e '(.data // .) | .servers | length > 0' "export-$pop.json" >/dev/null \
+              || { echo "::error::CP export for $pop has no servers"; exit 1; }
+          done
+
+      - name: Pull live edge config
+        run: |
+          set -euo pipefail
+          cd guard
+          for kv in $EDGES; do
+            pop="${kv%%=*}"; ip="${kv#*=}"
+            case "$pop" in lon1) user=root ;; *) user=administrator ;; esac
+            mkdir -p "live-$pop"
+            ssh -o BatchMode=yes -o ConnectTimeout=15 -o StrictHostKeyChecking=accept-new "$user@$ip" \
+              'cd /opt/nginx/data && tar czf - servers/prod rules/prod' | tar xzf - -C "live-$pop"
+          done
+
+      - name: Compare routing with CP
+        run: |
+          set -euo pipefail
+          cd guard
+          python3 - <<'EOF'
+          import json, os, sys
+          bad = []
+          for kv in os.environ["EDGES"].split():
+              pop = kv.split("=")[0]
+              d = json.load(open(f"export-{pop}.json")); d = d.get("data", d)
+              for r in d["rules"]:
+                  f = f"live-{pop}/rules/prod/{r['id']}.json"
+                  if not os.path.exists(f):
+                      bad.append(f"{pop}: rule {r['id']} ({r.get('name')}) missing on edge"); continue
+                  e = json.load(open(f))
+                  for k in ("match", "routing", "priority"):
+                      if r.get(k) != e.get(k):
+                          bad.append(f"{pop}: rule {r['id']} ({r.get('name')}) {k} differs from CP")
+              for s in d["servers"]:
+                  sid = s.get("id") or "host:" + s["server_name"]
+                  f = f"live-{pop}/servers/prod/{sid}.json"
+                  if not os.path.exists(f):
+                      bad.append(f"{pop}: server {sid} missing on edge"); continue
+                  e = json.load(open(f))
+                  for k in ("rules", "match_cases"):
+                      if s.get(k) != e.get(k):
+                          bad.append(f"{pop}: server {sid} {k} differs from CP")
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as out:
+              out.write("## CP → edge routing drift\n\n")
+              out.write("\n".join(f"- {b}" for b in bad) or "None.")
+              out.write("\n")
+          for b in bad:
+              print(f"::error::{b}")
+          sys.exit(1 if bad else 0)
+          EOF
+
+      - name: Probe every CP host on every edge
+        if: always()
+        run: |
+          set -uo pipefail
+          for kv in $EDGES; do
+            pop="${kv%%=*}"; ip="${kv#*=}"
+            jq -r '(.data // .) | .servers[] | .server_name // empty' "guard/export-$pop.json" \
+              | sort -u | grep -v '[*]' | sed "s/^/$pop $ip /"
+          done | xargs -P 16 -n 3 scripts/edge-guard/probe-host.sh | sort > guard/probe.txt
+          {
+            echo "## Edge probes ($(wc -l < guard/probe.txt | tr -d ' ') host checks)"
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
+          if grep -v ' ok$' guard/probe.txt > guard/bad.txt; then
+            { echo "| Edge | Host | Status | Verdict |"; echo "|---|---|---|---|"
+              awk '{print "| "$1" | "$2" | "$3" | "$4" |"}' guard/bad.txt; } >> "$GITHUB_STEP_SUMMARY"
+            while read -r pop host code verdict; do
+              echo "::error::$pop: $host -> $code $verdict"
+            done < guard/bad.txt
+            exit 1
+          fi
+          echo "Every CP host is configured on every edge; www and apex serve the site." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: S3 failover origin reachable
+        if: always()
+        run: |
+          set -euo pipefail
+          code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 \
+            http://workstation-website.s3-website.eu-west-2.amazonaws.com/)"
+          echo "S3 failover origin: $code" >> "$GITHUB_STEP_SUMMARY"
+          [ "$code" = 200 ] || { echo "::error::S3 failover origin returned $code"; exit 1; }
+
+      - name: Clean up
+        if: always()
+        run: rm -rf guard

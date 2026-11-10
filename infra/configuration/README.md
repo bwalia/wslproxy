@@ -135,3 +135,26 @@ in git is now `data/` via `cmd/cp-sync-pop`.
 
 - CP export API + Go sync + PR workflow: **in place**
 - Portal “Publish” button can dispatch `cp-sync-pop-to-git.yml` via GitHub API
+
+---
+
+## Edge guard (drift + "Host not configured" alarm)
+
+[`edge-guard.yml`](../../.github/workflows/edge-guard.yml) runs every 15 minutes
+on the prod self-hosted runner. It reports only; it never writes to an edge.
+
+- **Probe:** every server CP exports for `lon1` and `pop0` is requested on both
+  edges by IP ([`scripts/edge-guard/probe-host.sh`](../../scripts/edge-guard/probe-host.sh)).
+  It fails if an edge answers "Host not configured" for a host CP says it
+  serves, or if `www`/apex `workstation.co.uk` is not a 200 with the real page.
+- **Drift:** the routing of each CP rule (`match`, `routing`, `priority`) and
+  server (`rules`, `match_cases`) must equal the live JSON on each edge. A
+  workflow that writes a stale rule straight to an edge (10 Nov 2026: the
+  website repo's register job re-applied an old `wsw-k3s1-s3-failover`) fails
+  here within 15 minutes.
+- **S3 failover origin** must answer 200.
+
+The "Host not configured" page (`no_server`) is a **503 with
+`Cache-Control: no-store`**, never a 200, so neither the edge cache nor a
+failover rule chaining through another vhost can mistake it for a healthy
+origin.
