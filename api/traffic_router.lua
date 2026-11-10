@@ -394,21 +394,11 @@ function _M.record_backend_stat(rule_id, backend_label, latency, status, bytes_s
 
     if status and status >= 500 then
         router_dict:incr(err_key, 1, 0)
-
-        -- Passive health marking: track consecutive 5xx errors per backend
-        local consec_key = "consec5xx:" .. rule_id .. ":" .. backend_label
-        local consec = router_dict:incr(consec_key, 1, 0)
-        if consec and consec >= 3 then
-            -- 3 consecutive 5xx → mark backend unhealthy for 30s
-            _M.set_backend_health(rule_id, backend_label, false)
-            ngx.log(ngx.WARN, "traffic_router: passive health check marked ", backend_label,
-                " unhealthy for rule ", rule_id, " after ", consec, " consecutive 5xx errors")
-        end
-    else
-        -- Reset consecutive 5xx counter on any non-5xx response
-        local consec_key = "consec5xx:" .. rule_id .. ":" .. backend_label
-        router_dict:set(consec_key, 0, 120)
     end
+    -- Passive health is recorded per upstream attempt (record_upstream_attempts),
+    -- keyed by backend address. Doing it here, by label and on the final status
+    -- only, never took effect: is_backend_healthy() looks backends up by address,
+    -- and when a retry rescued the request the failed attempt was never seen.
 
     if latency then
         router_dict:incr(ms_key, math.floor(latency * 1000), 0)
@@ -493,12 +483,67 @@ function _M.set_backend_health(rule_id, address, healthy)
     end
 end
 
+-- Passive health: CONSEC_5XX_LIMIT failed attempts in a row on a backend mark
+-- it down for PASSIVE_DOWN_TTL seconds. Kept apart from the active check's key
+-- so the next probe (which may pass when real traffic fails, e.g. a probe that
+-- Traefik answers 404 while the site's pods are down) cannot clear it early.
+local CONSEC_5XX_LIMIT = 3
+local PASSIVE_DOWN_TTL = 30
+
+local function passive_key(rule_id, address)
+    return "passive_down:" .. rule_id .. ":" .. address
+end
+
+--- Record one upstream attempt's outcome for passive health.
+-- @param rule_id string
+-- @param address string: the rule's backend address (backends[].address)
+-- @param status number|nil: upstream status; nil = no response (connect error/timeout)
+function _M.record_passive_health(rule_id, address, status)
+    if not router_dict or not rule_id or not address then return end
+    local consec_key = "consec5xx:" .. rule_id .. ":" .. address
+    if status == nil or status >= 500 then
+        local consec = router_dict:incr(consec_key, 1, 0, 120)
+        if consec and consec >= CONSEC_5XX_LIMIT then
+            router_dict:set(passive_key(rule_id, address), true, PASSIVE_DOWN_TTL)
+            router_dict:set(consec_key, 0, 120)
+            ngx.log(ngx.WARN, "traffic_router: passive health check marked ", address,
+                " unhealthy for rule ", rule_id, " for ", PASSIVE_DOWN_TTL, "s after ",
+                consec, " consecutive failed attempts")
+        end
+    else
+        router_dict:set(consec_key, 0, 120)
+    end
+end
+
+--- Feed every upstream attempt of a request to passive health.
+-- $upstream_status lists one status per attempt ("503, 200"; "502" or "504"
+-- for a connect error or timeout; " : " separates internal redirects), and the
+-- balancer records the rule address of each attempt, in order, in
+-- ngx.ctx._balancer_tried.
+-- @param rule_id string
+-- @param tried table: array of backend addresses, in attempt order
+-- @param upstream_status string|nil: ngx.var.upstream_status
+function _M.record_upstream_attempts(rule_id, tried, upstream_status)
+    if not rule_id or type(tried) ~= "table" or #tried == 0 or not upstream_status then return end
+    local i = 0
+    for code in upstream_status:gsub(" : ", ", "):gmatch("[^,%s]+") do
+        i = i + 1
+        local address = tried[i]
+        if not address then break end
+        -- Connect errors and timeouts appear as 502/504; "-" means no status
+        -- was recorded for that attempt, so it is neither a pass nor a fail.
+        local n = tonumber(code)
+        if n then _M.record_passive_health(rule_id, address, n) end
+    end
+end
+
 --- Check if a backend is healthy
 -- @param rule_id string
 -- @param address string
 -- @return boolean (defaults to true if no health data)
 function _M.is_backend_healthy(rule_id, address)
     if not router_dict then return true end
+    if router_dict:get(passive_key(rule_id, address)) then return false end
     local key = "health:" .. rule_id .. ":" .. address
     local val = router_dict:get(key)
     if val == nil then return true end  -- No health data = assume healthy

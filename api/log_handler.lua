@@ -245,6 +245,12 @@ function _M.log_request()
                 status,
                 bytes_sent
             )
+            -- Passive health: every attempt, including ones a retry rescued.
+            pcall(TrafficRouter.record_upstream_attempts,
+                ngx.ctx.selected_backend_rule_id,
+                ngx.ctx._balancer_tried,
+                ngx.var.upstream_status
+            )
         end
     end
 
