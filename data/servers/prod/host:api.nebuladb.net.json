@@ -1,0 +1,38 @@
+{
+    "access_log": "logs/api.nebuladb.net.access.log",
+    "cache_bypass_auth": false,
+    "cache_docker_blobs": false,
+    "cache_enabled": false,
+    "config_status": true,
+    "created_at": 1793059200,
+    "custom_headers": {},
+    "dns_cname_target": "lon1.pop0.uk",
+    "dns_record_type": "CNAME",
+    "error_log": "logs/api.nebuladb.net.error.log",
+    "id": "host:api.nebuladb.net",
+    "index": "index.html",
+    "listens": [
+        {
+            "listen": "80"
+        }
+    ],
+    "match_cases": {},
+    "pop_ids": [
+        "lon1",
+        "pop0"
+    ],
+    "profile_id": "prod",
+    "proxy_pass": null,
+    "proxy_server_name": null,
+    "rate_limit_enabled": false,
+    "root": "/var/www/html",
+    "rules": "nebuladb-api-prod",
+    "server_name": "api.nebuladb.net",
+    "ssl_auto_renew": true,
+    "ssl_email": "balinder.walia@gmail.com",
+    "ssl_enabled": true,
+    "ssl_force_https": true,
+    "ssl_staging": false,
+    "varnish_enabled": false,
+    "waf_enabled": false
+}
