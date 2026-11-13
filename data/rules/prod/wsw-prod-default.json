@@ -31,7 +31,13 @@
     "servers": [
         "host:int.workstation.co.uk",
         "host:int-www.workstation.co.uk",
+        "host:int-shop.workstation.co.uk",
         "host:test-shop.workstation.co.uk",
-        "host:acc-shop.workstation.co.uk"
+        "host:acc-shop.workstation.co.uk",
+        "host:int.geforcertx.io",
+        "host:test.geforcertx.io",
+        "host:acc.geforcertx.io",
+        "host:www.geforcertx.io",
+        "host:geforcertx.io"
     ]
 }

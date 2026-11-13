@@ -1,0 +1,39 @@
+{
+    "id": "bot-demo-default",
+    "match": {
+        "response": {
+            "allow": true,
+            "auto_redirect_https": false,
+            "backends": [
+                {
+                    "address": "origin-uk-001.pop0.uk:30088",
+                    "label": "shop-api-k3s1-nodeport",
+                    "weight": 100
+                }
+            ],
+            "code": 305,
+            "is_consul": false,
+            "redirect_uri": "origin-uk-001.pop0.uk:30088",
+            "routing": {
+                "mode": "least_conn"
+            },
+            "strip_path": false
+        },
+        "rules": {
+            "jwt_token_validation": "equals",
+            "path": "/",
+            "path_key": "starts_with"
+        }
+    },
+    "name": "bot-demo-default",
+    "priority": 1,
+    "profile_id": "prod",
+    "rules_tags": [
+        "wslproxy-bot-demo",
+        "shop"
+    ],
+    "servers": [
+        "host:bots-open.fictionally.org",
+        "host:bots-secure.fictionally.org"
+    ]
+}

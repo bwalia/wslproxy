@@ -1,0 +1,50 @@
+{
+    "access_log": "logs/bots-secure.access.log",
+    "bot_defense": {
+        "allow_verified_bots": true,
+        "challenge_paths": [
+            "/checkout"
+        ],
+        "forward_headers": true,
+        "login_paths": [
+            "/api/login"
+        ],
+        "mode": "challenge",
+        "monitor_paths": [
+            "/ad/"
+        ],
+        "response_headers": true,
+        "skip_paths": [
+            "/lab*",
+            "/stats",
+            "/health"
+        ]
+    },
+    "cache_enabled": false,
+    "config_status": false,
+    "custom_headers": {},
+    "error_log": "logs/bots-secure.error.log",
+    "id": "host:bots-secure.fictionally.org",
+    "index": "index.html",
+    "listens": [
+        {
+            "listen": "80"
+        }
+    ],
+    "match_cases": {},
+    "pop_ids": [
+        "lon1",
+        "pop0"
+    ],
+    "profile_id": "prod",
+    "proxy_server_name": "bots-secure.fictionally.org",
+    "root": "/var/www/html",
+    "rules": "bot-demo-default",
+    "server_name": "bots-secure.fictionally.org",
+    "ssl_auto_renew": true,
+    "ssl_email": "balinder.walia@gmail.com",
+    "ssl_enabled": true,
+    "ssl_force_https": true,
+    "ssl_staging": false,
+    "waf_enabled": false
+}

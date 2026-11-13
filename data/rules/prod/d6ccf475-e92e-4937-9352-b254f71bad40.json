@@ -1,0 +1,37 @@
+{
+    "_schema_version": 2,
+    "created_at": 1794107532,
+    "id": "d6ccf475-e92e-4937-9352-b254f71bad40",
+    "match": {
+        "response": {
+            "allow": true,
+            "auto_redirect_https": false,
+            "backends": {},
+            "code": 305,
+            "is_consul": false,
+            "message": "",
+            "redirect_uri": "85.190.106.88:80",
+            "routing": {
+                "mode": "least_conn"
+            },
+            "strip_path": false
+        },
+        "rules": {
+            "client_ip_key": "equals",
+            "country_key": "equals",
+            "jwt_token_validation": "equals",
+            "path": "/",
+            "path_key": "starts_with"
+        }
+    },
+    "name": "vyltzero-vps002-traefik-edge",
+    "priority": 1,
+    "profile_id": "prod",
+    "servers": [
+        "host:int.vyltzero.com",
+        "host:test.vyltzero.com",
+        "host:acc.vyltzero.com",
+        "host:app.vyltzero.com"
+    ],
+    "version": 1
+}
