@@ -38,6 +38,11 @@
         "host:test.geforcertx.io",
         "host:acc.geforcertx.io",
         "host:www.geforcertx.io",
-        "host:geforcertx.io"
+        "host:geforcertx.io",
+        "host:int.gpuleasing.co.uk",
+        "host:test.gpuleasing.co.uk",
+        "host:acc.gpuleasing.co.uk",
+        "host:www.gpuleasing.co.uk",
+        "host:gpuleasing.co.uk"
     ]
 }
