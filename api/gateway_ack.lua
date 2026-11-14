@@ -135,8 +135,21 @@ if bd_ok then
     end
 end
 
--- 1. Try cache first (GET/HEAD only)
-if ngx.req.get_method() == "GET" or ngx.req.get_method() == "HEAD" then
+-- 1. Try cache first (GET/HEAD only). Not for plain HTTP to a server with Force
+--    HTTPS: gateway_resp.lua answers that with a 301, and the cache (keyed
+--    without the scheme) would otherwise serve the cached page over http.
+local function force_https_redirect_due()
+    if ngx.var.server_port ~= "80" then return false end
+    local ok, s = pcall(lookup_server, settings.env_profile or "prod")
+    if not ok then
+        server_lookup_done, server_config = false, nil
+        return false
+    end
+    return s ~= nil and s.ssl_enabled and s.ssl_force_https and true or false
+end
+
+if (ngx.req.get_method() == "GET" or ngx.req.get_method() == "HEAD")
+    and not force_https_redirect_due() then
     if check_and_serve_from_cache() then
         return
     end

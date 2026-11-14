@@ -135,9 +135,15 @@ end
 local function generate_cache_key(server_name)
     local uri = ngx.var.uri or ""
     local args = ngx.var.args or ""
-    
+
+    -- Keyed by the request's own host, not server_name (which has www. stripped,
+    -- so example.com and www.example.com share one cache config). With a shared
+    -- key, a page cached for www was served on the bare host too, so a rule on
+    -- the bare host (e.g. a 301 to www) never ran for any cached path.
+    local host = (ngx.var.host or server_name):lower()
+
     -- Include query string in cache key for more accurate caching
-    local key = server_name .. ":" .. uri
+    local key = host .. ":" .. uri
     if args and args ~= "" then
         key = key .. "?" .. args
     end
