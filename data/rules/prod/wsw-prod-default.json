@@ -43,6 +43,11 @@
         "host:test.gpuleasing.co.uk",
         "host:acc.gpuleasing.co.uk",
         "host:www.gpuleasing.co.uk",
-        "host:gpuleasing.co.uk"
+        "host:gpuleasing.co.uk",
+        "host:workstation.tw",
+        "host:www.workstation.tw",
+        "host:int.workstation.tw",
+        "host:test.workstation.tw",
+        "host:acc.workstation.tw"
     ]
 }
