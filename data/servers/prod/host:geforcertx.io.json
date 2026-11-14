@@ -31,14 +31,14 @@
     },
     "rate_limit_enabled": false,
     "root": "/var/www/html",
-    "rules": "wsw-prod-default",
+    "rules": "geforcertx-bare-to-www",
     "server_name": "geforcertx.io",
     "ssl_auto_renew": true,
     "ssl_email": "balinder.walia@gmail.com",
     "ssl_enabled": true,
     "ssl_force_https": true,
     "ssl_staging": false,
-    "updated_at": 1794536938,
+    "updated_at": 1794644752,
     "varnish_enabled": false,
     "waf_enabled": false
 }
