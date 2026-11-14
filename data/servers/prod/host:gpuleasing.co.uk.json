@@ -31,14 +31,14 @@
     },
     "rate_limit_enabled": false,
     "root": "/var/www/html",
-    "rules": "wsw-prod-default",
+    "rules": "gpuleasing-bare-to-www",
     "server_name": "gpuleasing.co.uk",
     "ssl_auto_renew": true,
     "ssl_email": "balinder.walia@gmail.com",
     "ssl_enabled": true,
     "ssl_force_https": true,
     "ssl_staging": false,
-    "updated_at": 1794592576,
+    "updated_at": 1794641910,
     "varnish_enabled": false,
     "waf_enabled": false
 }
