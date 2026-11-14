@@ -192,7 +192,11 @@ end
 
 -- Get file extension from URI
 local function get_extension(uri)
-    local ext = uri:match("%.([^%.?]+)%??")
+    -- The extension is what follows the LAST dot of the LAST path segment:
+    -- Next.js fonts are /_next/static/media/<hash>-s.p.woff2, and taking the
+    -- first dot read them as ".p", so they were never cached.
+    local last = (uri or ""):gsub("%?.*$", ""):match("[^/]*$") or ""
+    local ext = last:match("%.([^%.]+)$")
     if ext then
         return ext:lower()
     end
