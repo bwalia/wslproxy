@@ -2,7 +2,7 @@
 
 pop0 (85.190.106.189) is the failover edge for lon1 (lon1.pop0.uk,
 195.20.255.201). Every 5 minutes it pulls lon1's
-`servers/`, `rules/`, `waf_policies/` and `secrets/` JSON and mirrors them into
+`servers/`, `rules/`, `waf_policies/`, `secrets/` and `cache/` JSON and mirrors them into
 its own `/opt/nginx/data`. `settings.json` is **not** synced, because pop0 has
 its own `instance_id` (`wslproxy-prod-pop0`).
 
@@ -26,6 +26,10 @@ A run applies **nothing** if any of these is true:
 - any file fails to parse as JSON, or has an unexpected path
 - any directory's file count drops below `EDGE_SYNC_MIN_PERCENT` (80) of what pop0 has now
 - the servers export is empty
+
+`cache/` holds the per-host static content cache configs (`cache/<host>.json`,
+keyed by host without `www.`). Without it pop0 cached nothing, whatever the
+servers said. Like rules, cache configs are read per request and need no reload.
 
 Only `*.json` is copied or deleted; other files and directories on pop0 are
 kept. OpenResty is reloaded (after `openresty -t`) only when servers or WAF

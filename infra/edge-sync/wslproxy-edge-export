@@ -3,6 +3,8 @@
 # in /root/.ssh/authorized_keys. Whatever the client asks for, this is all
 # it gets: a tar.gz on stdout of the top-level *.json in
 #   servers/<env>/  rules/<env>/  waf_policies/<env>/  secrets/<env>/
+# plus the flat cache/*.json (per-host static content cache configs, keyed by
+# host without www.; cache_manager.lua reads them per request).
 # secrets/ holds only AES-256-GCM blobs (secrets_crypto.lua); rules point at
 # them with secret://<id>#<key>. Each edge decrypts with its own
 # SECRETS_ENCRYPTION_KEY from settings.json, which is never synced.
@@ -15,5 +17,7 @@ for d in servers rules waf_policies secrets; do
   [ -d "$d" ] && dirs="$dirs $d"
 done
 # shellcheck disable=SC2086
-find $dirs -mindepth 2 -maxdepth 2 -type f -name '*.json' -print0 \
-  | tar --null -T - -czf -
+{
+  find $dirs -mindepth 2 -maxdepth 2 -type f -name '*.json' -print0
+  [ -d cache ] && find cache -mindepth 1 -maxdepth 1 -type f -name '*.json' -print0
+} | tar --null -T - -czf -
