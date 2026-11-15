@@ -1,0 +1,35 @@
+{
+    "_schema_version": 2,
+    "created_at": 1794741822,
+    "id": "62ef1ed3-de75-47aa-96bf-556b3665f28b",
+    "match": {
+        "response": {
+            "allow": true,
+            "auto_redirect_https": false,
+            "backends": {},
+            "code": 305,
+            "is_consul": false,
+            "message": "",
+            "redirect_uri": "185.199.108.153",
+            "routing": {
+                "mode": "least_conn"
+            },
+            "strip_path": false
+        },
+        "rules": {
+            "client_ip_key": "equals",
+            "country_key": "equals",
+            "jwt_token_validation": "equals",
+            "path": "/",
+            "path_key": "starts_with"
+        }
+    },
+    "name": "fixloop-run-github-pages",
+    "priority": 1,
+    "profile_id": "prod",
+    "servers": [
+        "host:fixloop.run",
+        "host:www.fixloop.run"
+    ],
+    "version": 1
+}
