@@ -1,0 +1,75 @@
+{
+    "access_log": "logs/access.log",
+    "cache_bypass_auth": true,
+    "cache_docker_blobs": false,
+    "cache_docker_blobs_ttl": "2592000",
+    "cache_docker_manifests": false,
+    "cache_docker_manifests_ttl": "3600",
+    "cache_docker_serve_stale": false,
+    "cache_docker_stale_ttl": "31536000",
+    "cache_enabled": false,
+    "cache_ttl": 3600,
+    "cached_mime_types": {},
+    "config": "Q25ObGNuWmxjaUI3Q2lBZ0lDQnNhWE4wWlc0Z09EQTdDaUFnSUNCelpYSjJaWEpmYm1GdFpTQm9aV3hzYnkxcVlYWmhMV0Z5WjI5alpDNW1hV04wYVc5dVlXeHNlUzV2Y21jN0NpQWdJQ0JzYjJOaGRHbHZiaUF2TG5kbGJHd3RhMjV2ZDI0dllXTnRaUzFqYUdGc2JHVnVaMlV2SUhzZ1kyOXVkR1Z1ZEY5aWVWOXNkV0ZmWW14dlkyc2dleUJoZFhSdlgzTnpiRHBqYUdGc2JHVnVaMlZmYzJWeWRtVnlLQ2tnZlNCOUNpQWdJQ0JzYjJOaGRHbHZiaUF2SUhzZ2NtVjBkWEp1SURNd01TQm9kSFJ3Y3pvdkx5Um9iM04wSkhKbGNYVmxjM1JmZFhKcE95QjlDbjBLYzJWeWRtVnlJSHNLSUNBZ0lDQWdiR2x6ZEdWdUlEZ3dPd29nSUNBZ0lDQUtJQ0FnSUNBZ2JHbHpkR1Z1SURRME15QnpjMndnYUhSMGNESTdDaUFnSUNBZ0lITnpiRjlqWlhKMGFXWnBZMkYwWlY5aWVWOXNkV0ZmWW14dlkyc2dleUJoZFhSdlgzTnpiRHB6YzJ4ZlkyVnlkR2xtYVdOaGRHVW9LU0I5Q2lBZ0lDQWdJSE56YkY5alpYSjBhV1pwWTJGMFpTQXZaWFJqTDNOemJDOXlaWE4wZVMxaGRYUnZMWE56YkMxbVlXeHNZbUZqYXk1amNuUTdDaUFnSUNBZ0lITnpiRjlqWlhKMGFXWnBZMkYwWlY5clpYa2dMMlYwWXk5emMyd3ZjbVZ6ZEhrdFlYVjBieTF6YzJ3dFptRnNiR0poWTJzdWEyVjVPd29nSUNBZ0lDQnpjMnhmYzJWemMybHZibDkwYVcxbGIzVjBJREZrT3dvZ0lDQWdJQ0J6YzJ4ZmMyVnpjMmx2Ymw5allXTm9aU0J6YUdGeVpXUTZVMU5NT2pVd2JUc0tJQ0FnSUNBZ2MzTnNYM05sYzNOcGIyNWZkR2xqYTJWMGN5QnZabVk3Q2lBZ0lDQWdJSE56YkY5d2NtOTBiMk52YkhNZ1ZFeFRkakV1TWlCVVRGTjJNUzR6T3dvZ0lDQWdJQ0J6YzJ4ZlkybHdhR1Z5Y3lCRlEwUklSUzFGUTBSVFFTMUJSVk14TWpndFIwTk5MVk5JUVRJMU5qcEZRMFJJUlMxU1UwRXRRVVZUTVRJNExVZERUUzFUU0VFeU5UWTZSVU5FU0VVdFJVTkVVMEV0UVVWVE1qVTJMVWREVFMxVFNFRXpPRFE2UlVORVNFVXRVbE5CTFVGRlV6STFOaTFIUTAwdFUwaEJNemcwT2tWRFJFaEZMVVZEUkZOQkxVTklRVU5JUVRJd0xWQlBURmt4TXpBMU9rVkRSRWhGTFZKVFFTMURTRUZEU0VFeU1DMVFUMHhaTVRNd05UcEVTRVV0VWxOQkxVRkZVekV5T0MxSFEwMHRVMGhCTWpVMk9rUklSUzFTVTBFdFFVVlRNalUyTFVkRFRTMVRTRUV6T0RRN0NpQWdJQ0FnSUhOemJGOXdjbVZtWlhKZmMyVnlkbVZ5WDJOcGNHaGxjbk1nYjJabU93b2dJQ0FnSUNCaFpHUmZhR1ZoWkdWeUlGTjBjbWxqZEMxVWNtRnVjM0J2Y25RdFUyVmpkWEpwZEhrZ0ltMWhlQzFoWjJVOU16RTFNell3TURBN0lHbHVZMngxWkdWVGRXSkViMjFoYVc1eklpQmhiSGRoZVhNN0NpQWdJQ0FnSUhObGNuWmxjbDl1WVcxbElHaGxiR3h2TFdwaGRtRXRZWEpuYjJOa0xtWnBZM1JwYjI1aGJHeDVMbTl5WnpzS0lDQWdJQ0FnY205dmRDQXZkbUZ5TDNkM2R5OW9kRzFzT3dvZ0lDQWdJQ0JwYm1SbGVDQnBibVJsZUM1b2RHMXNPd29nSUNBZ0lDQmhZMk5sYzNOZmJHOW5JR3h2WjNNdllXTmpaWE56TG14dlp6c0tJQ0FnSUNBZ1pYSnliM0pmYkc5bklHeHZaM012WlhKeWIzSXViRzluT3dvZ0lDQWdJQ0FLSUNBZ0lDQWdiRzlqWVhScGIyNGdMeTUzWld4c0xXdHViM2R1TDJGamJXVXRZMmhoYkd4bGJtZGxMeUI3Q2lBZ0lDQWdJQ0FnSUNCamIyNTBaVzUwWDJKNVgyeDFZVjlpYkc5amF5QjdJR0YxZEc5ZmMzTnNPbU5vWVd4c1pXNW5aVjl6WlhKMlpYSW9LU0I5Q2lBZ0lDQWdJSDBLSUNBZ0lDQWdDaUFnSUNBZ0lBb2dJSDBLSUNBS0lDQT0=",
+    "config_status": false,
+    "created_at": 1794772551,
+    "custom_block": {},
+    "custom_headers": {},
+    "custom_http_block": {},
+    "custom_location_block": {},
+    "custom_response_headers": {},
+    "error_log": "logs/error.log",
+    "id": "host:hello-java-argocd.fictionally.org",
+    "index": "index.html",
+    "listens": [
+        {
+            "listen": "80"
+        }
+    ],
+    "locations": {},
+    "match_cases": {},
+    "pop_ids": [
+        "lon1",
+        "pop0"
+    ],
+    "profile_id": "prod",
+    "proxy_pass": "http://localhost",
+    "proxy_timeouts": {
+        "connect_timeout": "",
+        "read_timeout": "",
+        "send_timeout": ""
+    },
+    "rate_limit": {
+        "burst": 50,
+        "requests_per_second": 100
+    },
+    "rate_limit_enabled": false,
+    "root": "/var/www/html",
+    "rules": "8f161403-8592-1111-6294-9c57974505b0",
+    "server_name": "hello-java-argocd.fictionally.org",
+    "servers_tags": {},
+    "ssl_auto_renew": true,
+    "ssl_email": "balinder.walia@gmail.com",
+    "ssl_enabled": true,
+    "ssl_force_https": true,
+    "ssl_staging": false,
+    "varnish_config": {
+        "admin_listen_port": "6082",
+        "backend_between_bytes_timeout": 10,
+        "backend_connect_timeout": 5,
+        "backend_first_byte_timeout": 60,
+        "cache_grace": 3600,
+        "cache_keep": 7200,
+        "cache_size": "256m",
+        "cache_ttl_default": 120,
+        "health_check_enabled": false,
+        "health_check_interval": 5,
+        "health_check_timeout": 2,
+        "health_check_url": "/health",
+        "listen_address": "0.0.0.0",
+        "listen_port": "6081"
+    },
+    "varnish_enabled": false,
+    "varnish_snippets": {},
+    "waf_enabled": false
+}
