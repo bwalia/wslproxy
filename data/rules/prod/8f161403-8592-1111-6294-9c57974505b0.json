@@ -36,12 +36,20 @@
         "host:shop.fictionally.org",
         "host:shopping-cart-api.fictionally.org",
         "host:int-langfuse.jobshout.co.uk",
-        "host:solomon.fictionally.org",
         "host:abtesting.fictionally.org",
         "host:test.jobshout.co.uk",
+        "host:int.jobshout.com",
+        "host:int.closeknitty.com",
+        "host:test.closeknitty.com",
+        "host:acc.closeknitty.com",
         "host:hello-java.fictionally.org",
         "host:hello-php.fictionally.org",
-        "host:closeknitty.com"
+        "host:int.workerra.uk",
+        "host:int.pintopets.app",
+        "host:nebulacb.fictionally.org",
+        "host:closeknitty.com",
+        "host:hello-java-argocd.fictionally.org",
+        "host:argocd.fictionally.org"
     ],
     "version": 1
 }
