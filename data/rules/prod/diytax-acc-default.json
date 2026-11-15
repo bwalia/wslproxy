@@ -31,15 +31,9 @@
     ],
     "servers": [
         "host:acc.diytaxreturn.co.uk",
-        "host:acc-api.diytaxreturn.co.uk",
-        "host:acc-nebulacr.diytaxreturn.co.uk",
-        "host:acc-gatus.diytaxreturn.co.uk",
-        "host:acc-grafana.diytaxreturn.co.uk",
-        "host:acc-minio.diytaxreturn.co.uk",
-        "host:acc-langfuse.diytaxreturn.co.uk",
-        "host:acc-adminer.diytaxreturn.co.uk",
-        "host:qa-acc.diytaxreturn.co.uk",
-        "host:acc-qa.diytaxreturn.co.uk",
-        "host:acc-qa-api.diytaxreturn.co.uk"
+        "host:qa-agent-api.diytaxreturn.co.uk",
+        "host:qa-agent.diytaxreturn.co.uk",
+        "host:fixloop.diytaxreturn.co.uk",
+        "host:app.fixloop.run"
     ]
 }

@@ -1,8 +1,6 @@
 {
     "access_log": "logs/www.snazzy.pro.access.log",
-    "cache_bypass_auth": false,
-    "cache_enabled": true,
-    "cache_ttl": "3600",
+    "cache_enabled": false,
     "config_status": true,
     "custom_headers": {},
     "error_log": "logs/www.snazzy.pro.error.log",
