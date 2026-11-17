@@ -220,6 +220,8 @@ html.dark .theme-toggle .icon-moon { display: none; }
   justify-content: space-between; align-items: center;
 }
 .site-footer .footer-links { display: flex; flex-wrap: wrap; gap: 16px; }
+.site-footer .footer-sponsor { color: var(--on-steel-faint); }
+.site-footer .footer-sponsor a { color: var(--on-steel-muted); text-decoration: underline; text-underline-offset: 2px; }
 
 /* Blog index */
 .blog-main { padding: 48px 0 64px; }
