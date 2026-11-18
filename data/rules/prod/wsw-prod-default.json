@@ -48,6 +48,11 @@
         "host:www.workstation.tw",
         "host:int.workstation.tw",
         "host:test.workstation.tw",
-        "host:acc.workstation.tw"
+        "host:acc.workstation.tw",
+        "host:www.workstationrentals.com",
+        "host:workstationrentals.com",
+        "host:int.workstationrentals.com",
+        "host:test.workstationrentals.com",
+        "host:acc.workstationrentals.com"
     ]
 }
