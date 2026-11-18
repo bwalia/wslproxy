@@ -1,0 +1,29 @@
+{
+    "_schema_version": 2,
+    "created_at": 1795024840,
+    "id": "workstationrentals-bare-to-www",
+    "match": {
+        "response": {
+            "code": 301,
+            "redirect_preserve_uri": true,
+            "redirect_uri": "https://www.workstationrentals.com"
+        },
+        "rules": {
+            "path": "/",
+            "path_key": "starts_with"
+        }
+    },
+    "name": "workstationrentals-bare-to-www",
+    "priority": 1,
+    "profile_id": "prod",
+    "rules_tags": [
+        "workstationrentals",
+        "workstationrentals.com",
+        "redirect",
+        "prod"
+    ],
+    "servers": [
+        "host:workstationrentals.com"
+    ],
+    "updated_at": 1795024840
+}
