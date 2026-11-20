@@ -33,3 +33,13 @@ Source POP/
 Target POP/
 Migration-to-copy/
 bin/
+
+# Never commit private keys (even vault-encrypted)
+id_rsa
+id_rsa.*
+!id_rsa.pub
+id_ed25519
+id_ecdsa
+*.pem
+*.key
+*.p8
