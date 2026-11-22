@@ -2,7 +2,8 @@
 # deploy-pop-config.yml — apply infra/configuration/pops/<pop>/ to a bare-metal edge
 #
 # Atomic: rsync into data/.incoming-<export_id>/, validate, then swap into
-# live servers|rules|waf_*|secrets/<env>/. Refuses if live file count would
+# live servers|rules|waf_*|secrets/<env>/, plus access_profiles/<env>/ and the
+# flat cache/ (add/update only). Refuses if live file count would
 # drop below min_percent of current.
 #
 # Usage:
@@ -159,6 +160,20 @@
             fi
           fi
         done
+        # access_profiles/<env>/ and the flat cache/ are add/update only: cache/
+        # is shared across envs, and deleting a profile a non-exported server
+        # still names would lock that server out ("VPN required").
+        if [ -d "$INC/access_profiles" ]; then
+          mkdir -p "{{ remote_data_dir }}/access_profiles/{{ target_env }}"
+          rsync -a --include='*.json' --exclude='*' "$INC/access_profiles/" "{{ remote_data_dir }}/access_profiles/{{ target_env }}/"
+          chown -R www-data:root "{{ remote_data_dir }}/access_profiles/{{ target_env }}" || true
+        fi
+        if [ -d "$INC/cache" ]; then
+          mkdir -p "{{ remote_data_dir }}/cache"
+          rsync -a --include='*.json' --exclude='*' "$INC/cache/" "{{ remote_data_dir }}/cache/"
+          chown www-data:root "{{ remote_data_dir }}"/cache/*.json 2>/dev/null || true
+          chmod 666 "{{ remote_data_dir }}"/cache/*.json 2>/dev/null || true
+        fi
         rm -rf "$INC"
       args:
         executable: /bin/bash

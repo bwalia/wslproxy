@@ -22,7 +22,7 @@ edge failover mirror [`../edge-sync/README.md`](../edge-sync/README.md).
 |------|--------|
 | Desired config (SoT) | Customer portal on `cp.pop0.uk` |
 | POP tag | Server `pop_ids` (e.g. `["lon1"]`) |
-| Git mirror of SoT | `data/servers\|rules\|waf_*\|secrets/<env>/` on `main` |
+| Git mirror of SoT | `data/servers\|rules\|waf_*\|secrets\|access_profiles/<env>/` + `data/cache/` on `main` |
 | Live POP | `/opt/nginx/data/…` on bare metal (deployed separately) |
 
 ### Sync flow (Go + PR)
@@ -81,6 +81,14 @@ flowchart LR
 ```
 
 ---
+
+## Cache configs and access profiles (2026-11-22)
+
+The export also carries `access_profiles` (named by exported servers) and
+`cache` (per-host static cache configs, `cache/<host-without-www>.json`). Edges
+used to derive cache configs only from admin-API saves made **on that edge**, so
+a server delivered from CP never cached. `deploy-pop-config.yml` applies both
+add/update only.
 
 ## Tooling
 

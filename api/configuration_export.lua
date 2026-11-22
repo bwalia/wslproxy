@@ -2,7 +2,8 @@
 -- Build a POP-filtered configuration bundle for CP → git → edge publish.
 --
 -- GET /api/configuration/export?pop_id=lon1&env=prod
--- Returns JSON: { data = { manifest, servers, rules, waf_policies, waf_rules, secrets } }
+-- Returns JSON: { data = { manifest, servers, rules, waf_policies, waf_rules, secrets,
+--                          access_profiles, cache } }
 --
 -- Closure: servers tagged with pop_id → referenced rules / waf_policies /
 -- waf_rules / secret:// blobs. api_gw rides on the server JSON (no separate tree).
@@ -129,6 +130,58 @@ local function as_json_array(t)
 end
 
 --- Build export bundle. Returns data table or nil, err_string.
+--- Cache config key for a server: cache_manager/gateway use the host without "www.".
+local function cache_key(server_name)
+    if type(server_name) ~= "string" or server_name == "" then return nil end
+    return (server_name:gsub("^www%.", ""))
+end
+
+--- Static-cache configs for the exported servers (data/cache/<key>.json on an
+--- edge). Edges derive them only from admin-API saves, so without exporting
+--- them a CP-delivered server never caches. Each entry carries server_name = key.
+local function collect_cache_configs(servers)
+    local ok_cm, CacheManager = pcall(require, "cache_manager")
+    local out, seen = json_array(), {}
+    if not ok_cm then return out end
+    for _, srv in ipairs(servers) do
+        local key = cache_key(srv.server_name)
+        if key and not seen[key] then
+            seen[key] = true
+            local cfg = CacheManager.get_cache_config(key)
+            if type(cfg) == "table" then
+                cfg.server_name = key
+                out[#out + 1] = cfg
+            end
+        end
+    end
+    table.sort(out, function(a, b) return a.server_name < b.server_name end)
+    return out
+end
+
+--- Access profiles (data/access_profiles/<env>/<name>.json) named by exported
+--- servers. An edge missing one answers "VPN required" to everyone.
+local function collect_access_profiles(servers, env)
+    local base = (os.getenv("NGINX_CONFIG_DIR") or "/opt/nginx/") .. "data/access_profiles/" .. env .. "/"
+    local out, seen = json_array(), {}
+    for _, srv in ipairs(servers) do
+        local name = srv.access_profile
+        if type(name) == "string" and name:match("^[%w_.-]+$") and not seen[name] then
+            seen[name] = true
+            local f = io.open(base .. name .. ".json", "rb")
+            if f then
+                local rec = cjson.decode(f:read("*a") or "")
+                f:close()
+                if type(rec) == "table" then
+                    rec.name = rec.name or name
+                    out[#out + 1] = rec
+                end
+            end
+        end
+    end
+    table.sort(out, function(a, b) return tostring(a.name) < tostring(b.name) end)
+    return out
+end
+
 function _M.build(pop_id, env)
     if type(pop_id) ~= "string" or pop_id:match("^%s*$") then
         return nil, "pop_id is required"
@@ -226,6 +279,9 @@ function _M.build(pop_id, env)
         return tostring(a.id or "") < tostring(b.id or "")
     end)
 
+    local cache = as_json_array(collect_cache_configs(servers))
+    local access_profiles = as_json_array(collect_access_profiles(servers, env))
+
     servers = as_json_array(servers)
     rules = as_json_array(rules)
     waf_policies = as_json_array(waf_policies)
@@ -238,6 +294,8 @@ function _M.build(pop_id, env)
         waf_policies = waf_policies,
         waf_rules = waf_rules,
         secrets = secrets,
+        access_profiles = access_profiles,
+        cache = cache,
     }
     -- Deterministic hash of the payload (excluding manifest).
     local encoded = cjson.encode(body) or ""
@@ -255,6 +313,8 @@ function _M.build(pop_id, env)
             waf_policies = #waf_policies,
             waf_rules = #waf_rules,
             secrets = #secrets,
+            access_profiles = #access_profiles,
+            cache = #cache,
         },
         pop = {
             id = pop.id,
@@ -271,6 +331,8 @@ function _M.build(pop_id, env)
         waf_policies = waf_policies,
         waf_rules = waf_rules,
         secrets = secrets,
+        access_profiles = access_profiles,
+        cache = cache,
     }
 end
 
