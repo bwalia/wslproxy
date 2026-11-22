@@ -2,7 +2,7 @@
 
 pop0 (85.190.106.189) is the failover edge for lon1 (lon1.pop0.uk,
 195.20.255.201). Every 5 minutes it pulls lon1's
-`servers/`, `rules/`, `waf_policies/`, `secrets/` and `cache/` JSON and mirrors them into
+`servers/`, `rules/`, `waf_policies/`, `waf_rules/`, `secrets/`, `access_profiles/` and `cache/` JSON and mirrors them into
 its own `/opt/nginx/data`. `settings.json` is **not** synced, because pop0 has
 its own `instance_id` (`wslproxy-prod-pop0`).
 
@@ -10,6 +10,15 @@ its own `instance_id` (`wslproxy-prod-pop0`).
 `secret://<id>#<key>`. Each edge decrypts with the `SECRETS_ENCRYPTION_KEY` in
 its own `settings.json` (from `infra/secrets/prod/settings.sops.json`), so pop0
 needs the same key as lon1. Synced secrets are written `0660`, not `0666`.
+
+`waf_rules/` and `access_profiles/` were added on 2026-11-22. Before that, lon2
+had the `payments-secure.fictionally.org` WAF policy but none of its 37 rules
+(its WAF inspected nothing), and it lacked the `jobshout-preprod` access profile,
+so six jobshout pre-prod hosts answered "VPN required" to everyone on lon2.
+
+**Upgrade order:** install the new `wslproxy-edge-sync` on pop0 *before* the
+new `wslproxy-edge-export` on lon1. The old sync refuses any export containing
+a directory it doesn't know, and would stop syncing altogether.
 
 ## How it works
 
