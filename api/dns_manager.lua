@@ -70,6 +70,9 @@ local DEFAULT_TTL = 300            -- 5 min, dashboard-changeable per request
 local DEFAULT_PROXIED = false      -- wslproxy terminates SSL; CF orange-cloud
                                     -- would conflict by default
 local MARKER = "wslproxy-managed"
+-- Comment marker of the lon1<->lon2 failover writer (nebula-dns-failover).
+-- Records carrying it are never provisioned by this module.
+local FAILOVER_MARKER = "nebula-dns-failover"
 local MAX_RETRIES_ON_429 = 3       -- Cloudflare rate-limit retries
 local RETRY_BASE_DELAY_MS = 250    -- exponential backoff base
 
@@ -815,6 +818,18 @@ end
 ---   actions = [ {action, content, pop_id, record_type, record_id?, error?}, ... ],
 ---   skipped = [ {pop_id, record_type, reason}, ... ],
 --- }
+--- First record whose comment carries the nebula-dns-failover marker, else nil.
+--- Pure (takes Cloudflare record tables) so it can be unit-tested.
+function _M.failover_owned_record(records)
+    for _, r in ipairs(records or {}) do
+        if type(r) == "table" and type(r.comment) == "string" and
+            r.comment:find(FAILOVER_MARKER, 1, true) then
+            return r
+        end
+    end
+    return nil
+end
+
 function _M.provision_for_server(opts)
     opts = opts or {}
     local user = opts.user or "system"
@@ -870,6 +885,26 @@ function _M.provision_for_server(opts)
     -- that runs BEFORE any record-shape decision).
     local zone, zerr = _M.find_zone(domain)
     if not zone then return nil, zerr end
+
+    -- 3b. Names on lon1<->lon2 DNS failover belong to nebula-dns-failover
+    -- (diy-tax-return-infra ansible/files/nebuladns/). If we converged them
+    -- too, a provision click during a failover would point the name back at
+    -- the dead edge, or add A records beside the writer's CNAME. Refuse,
+    -- dry runs included, before any plan is built.
+    local all_recs, lerr = list_records_for_name(zone.provider, zone.zone_id, domain, nil)
+    if not all_recs then
+        return nil, lerr or {code = "io_error", message = "Cloudflare call returned nil"}
+    end
+    local owner = _M.failover_owned_record(all_recs)
+    if owner then
+        return nil, {
+            code = "failover_managed",
+            message = "'" .. domain .. "' is managed by nebula-dns-failover (" ..
+                tostring(owner.type) .. " -> " .. tostring(owner.content) ..
+                "). Change it in the failover writer config, not here.",
+            details = {zone = zone.zone_name, record_id = owner.id},
+        }
+    end
 
     -- 4. Dispatch on record_type.  CNAME is a fundamentally different
     -- shape (one record, no POP fan-out) so it has its own planner.
