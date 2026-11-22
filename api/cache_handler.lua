@@ -405,6 +405,29 @@ function _M.check_cache(server_name, config)
 end
 
 -- Store response in cache (header_filter phase)
+--- Reason string when an origin response must not enter the shared cache, else nil.
+-- A response that sets a cookie is per-visitor: caching it would hand one
+-- visitor's session to the next. `private` / `no-store` / `no-cache` are the
+-- origin saying the same thing explicitly. Pure, so it is unit-testable.
+function _M.response_forbids_caching(set_cookie, cache_control)
+    if set_cookie ~= nil and set_cookie ~= "" and
+        not (type(set_cookie) == "table" and #set_cookie == 0) then
+        return "response sets a cookie"
+    end
+    if type(cache_control) == "table" then
+        cache_control = table.concat(cache_control, ", ")
+    end
+    if type(cache_control) == "string" then
+        local cc = cache_control:lower()
+        for _, directive in ipairs({ "no-store", "private", "no-cache" }) do
+            if cc:find(directive, 1, true) then
+                return "origin Cache-Control: " .. directive
+            end
+        end
+    end
+    return nil
+end
+
 function _M.process_response_headers()
     -- Skip if this was already a cache HIT (headers already set in check_cache)
     if ngx.ctx.cache_hit then
@@ -466,7 +489,16 @@ function _M.process_response_headers()
         ngx.ctx.cache_bypass_reason = "status code: " .. status
         return
     end
-    
+
+    -- Never store a response the origin marked per-user or uncacheable.
+    local forbid = _M.response_forbids_caching(ngx.header["Set-Cookie"], ngx.header["Cache-Control"])
+    if forbid then
+        ngx.ctx.should_cache = false
+        ngx.ctx.cache_bypass = true
+        ngx.ctx.cache_bypass_reason = forbid
+        return
+    end
+
     -- Check Content-Type
     local content_type = ngx.header["Content-Type"]
     if content_type then
