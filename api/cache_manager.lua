@@ -300,11 +300,12 @@ function _M.save_cache_config(server_name, config)
 
     if is_pgsql_storage() then
         local Repo = shared_repo()
-        local ok, err = false, "repo unavailable"
+        local ok, res, err = false, nil, "repo unavailable"
         if Repo then
-            ok, err = pcall(Repo.save, "cache_configs", SHARED_ENV, server_name, full_config)
+            ok, res, err = pcall(Repo.save, "cache_configs", SHARED_ENV, server_name, full_config)
+            if not ok then err = res end
         end
-        if not ok then
+        if not ok or res == nil then
             ngx.log(ngx.ERR, "Cache Manager: shared store write failed for ", server_name, ": ", tostring(err))
         end
     end

@@ -29,6 +29,12 @@ _M.RESOURCES = {
     bookmarks    = { redis = "bookmarks",      disk = "bookmarks",    scoped = false, redis_scoped = false, array_file = true },
     profiles     = { redis = "profiles",       disk = "profiles",     scoped = false, redis_scoped = false },
     company_logo = { redis = "company_logo",   disk = "company_logo", scoped = false, redis_scoped = false },
+    -- Same disk paths the request path already reads: data/cache/<host>.json
+    -- (cache_manager) and data/access_profiles/<env>/<name>.json (access_profile).
+    -- Without an entry here the dual writer's disk write fails and it rolls the
+    -- pgsql row back, so nothing is stored and no error surfaces (2026-11-22).
+    cache_configs   = { redis = "cache_configs",   disk = "cache",           scoped = false, redis_scoped = false },
+    access_profiles = { redis = "access_profiles", disk = "access_profiles", scoped = true,  redis_scoped = true },
 }
 
 function _M.meta(resource)
