@@ -2,7 +2,8 @@
 # Runs on the SOURCE edge (lon1) as the forced command of the edge-sync key
 # in /root/.ssh/authorized_keys. Whatever the client asks for, this is all
 # it gets: a tar.gz on stdout of the top-level *.json in
-#   servers/<env>/  rules/<env>/  waf_policies/<env>/  secrets/<env>/
+#   servers/<env>/  rules/<env>/  waf_policies/<env>/  waf_rules/<env>/
+#   secrets/<env>/  access_profiles/<env>/
 # plus the flat cache/*.json (per-host static content cache configs, keyed by
 # host without www.; cache_manager.lua reads them per request).
 # secrets/ holds only AES-256-GCM blobs (secrets_crypto.lua); rules point at
@@ -13,7 +14,7 @@
 set -eu
 cd /opt/nginx/data
 dirs=""
-for d in servers rules waf_policies secrets; do
+for d in servers rules waf_policies waf_rules secrets access_profiles; do
   [ -d "$d" ] && dirs="$dirs $d"
 done
 # shellcheck disable=SC2086

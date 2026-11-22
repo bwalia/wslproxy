@@ -20,7 +20,10 @@ KNOWN_HOSTS="${EDGE_SYNC_KNOWN_HOSTS:-/root/.ssh/known_hosts_edge-sync}"
 DATA="${EDGE_SYNC_DATA:-/opt/nginx/data}"
 MIN_PERCENT="${EDGE_SYNC_MIN_PERCENT:-80}"
 STATE_DIR=/var/lib/wslproxy-edge-sync
-DIRS=(servers rules waf_policies secrets cache)
+DIRS=(servers rules waf_policies waf_rules secrets access_profiles cache)
+# waf_rules: a policy only lists rule ids; without the rule files the WAF on
+# this edge inspects nothing. access_profiles: a server naming a profile this
+# edge lacks answers "VPN required" to everyone (both found on 2026-11-22).
 # cache/ is flat (cache/<host>.json); the others are <dir>/<env>/<file>.json.
 
 exec 9>/run/wslproxy-edge-sync.lock
@@ -87,9 +90,10 @@ for d in "${DIRS[@]}"; do
     total=$((total + n))
     echo "$d: $n change(s)"
     printf '%s\n' "$out" | head -20
-    # Rules and secrets are read per request. Servers (SSL domain list is
-    # built at worker start) and WAF policies need a reload.
-    case "$d" in rules|secrets|cache) ;; *) reload=1 ;; esac
+    # Rules, secrets, WAF rules, access profiles and cache configs are read
+    # per request. Servers (SSL domain list is built at worker start) and WAF
+    # policies need a reload.
+    case "$d" in rules|secrets|waf_rules|access_profiles|cache) ;; *) reload=1 ;; esac
   fi
 done
 
