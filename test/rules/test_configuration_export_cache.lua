@@ -27,14 +27,21 @@ package.preload["repo"] = function()
                 { id = "host:api.site.org", server_name = "api.site.org", pop_ids = { "lon1" } },
                 { id = "host:other.org", server_name = "other.org", pop_ids = { "lon2" }, access_profile = "vpn-only" },
                 { id = "host:bad.org", server_name = "bad.org", pop_ids = { "lon1" }, access_profile = "../../settings" },
+                { id = "host:vpn.site.org", server_name = "vpn.site.org", pop_ids = { "lon1" }, access_profile = "shared-only" },
             }
         end,
-        get = function() return nil end,
+        get = function(kind, env, id)
+            if kind == "access_profiles" and env == "prod" and id == "shared-only" then
+                return { allow_cidrs = { "192.168.0.0/16" } }
+            end
+            return nil
+        end,
     }
 end
 local cache_cfgs = { ["site.org"] = { cache_enabled = true, cache_ttl = 86400 } }
 package.preload["cache_manager"] = function()
-    return { get_cache_config = function(k) return cache_cfgs[k] end }
+    return { get_cache_config = function() return nil end,
+             get_cache_config_shared = function(k) return cache_cfgs[k] end }
 end
 rawset(_G, "ngx", { var = { host = "cp" } })
 local real_getenv = os.getenv
@@ -48,8 +55,12 @@ local function check(c, m) if not c then failures = failures + 1; io.stderr:writ
 check(b ~= nil, "build returned " .. tostring(err))
 check(#b.cache == 1, "one cache config (www.site.org and site.org share key site.org; api has none), got " .. #b.cache)
 check(b.cache[1] and b.cache[1].server_name == "site.org" and b.cache[1].cache_ttl == 86400, "cache entry keyed by host without www.")
-check(#b.access_profiles == 1 and b.access_profiles[1].name == "vpn-only", "access profile of an exported server is included")
-check(b.manifest.record_counts.cache == 1 and b.manifest.record_counts.access_profiles == 1, "manifest counts")
+check(#b.access_profiles == 2, "disk profile + shared-store profile, got " .. #b.access_profiles)
+local names = {}
+for _, p in ipairs(b.access_profiles) do names[p.name] = p end
+check(names["vpn-only"] ~= nil, "disk access profile included")
+check(names["shared-only"] and names["shared-only"].allow_cidrs[1] == "192.168.0.0/16", "shared-store access profile included with name")
+check(b.manifest.record_counts.cache == 1 and b.manifest.record_counts.access_profiles == 2, "manifest counts")
 -- other.org (lon2) is not exported; bad.org's traversal name is ignored, not read.
 
 os.execute("rm -rf " .. tmp)
