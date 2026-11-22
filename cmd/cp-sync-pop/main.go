@@ -130,26 +130,31 @@ type bundle struct {
 	WafPolicies recordList `json:"waf_policies"`
 	WafRules    recordList `json:"waf_rules"`
 	Secrets     recordList `json:"secrets"`
+	// AccessProfiles: data/access_profiles/<env>/<name>.json, keyed by "name".
+	AccessProfiles recordList `json:"access_profiles"`
+	// Cache: flat data/cache/<server_name>.json (host without "www."), keyed
+	// by "server_name". Edges otherwise only derive these from admin-API saves.
+	Cache recordList `json:"cache"`
 }
 
 type manifest struct {
-	PopID          string         `json:"pop_id"`
-	EnvProfile     string         `json:"env_profile"`
-	ExportID       string         `json:"export_id"`
-	ContentSHA256  string         `json:"content_sha256"`
-	SourceHost     string         `json:"source_host"`
-	ExportedAt     string         `json:"exported_at"`
-	RecordCounts   map[string]int `json:"record_counts"`
+	PopID         string         `json:"pop_id"`
+	EnvProfile    string         `json:"env_profile"`
+	ExportID      string         `json:"export_id"`
+	ContentSHA256 string         `json:"content_sha256"`
+	SourceHost    string         `json:"source_host"`
+	ExportedAt    string         `json:"exported_at"`
+	RecordCounts  map[string]int `json:"record_counts"`
 }
 
 type applySummary struct {
-	PopID      string         `json:"pop_id"`
-	Env        string         `json:"env"`
-	ExportID   string         `json:"export_id"`
-	DryRun     bool           `json:"dry_run"`
-	Written    map[string]int `json:"written"`
-	Removed    map[string]int `json:"removed"`
-	Skipped    map[string]int `json:"skipped_unchanged"`
+	PopID    string         `json:"pop_id"`
+	Env      string         `json:"env"`
+	ExportID string         `json:"export_id"`
+	DryRun   bool           `json:"dry_run"`
+	Written  map[string]int `json:"written"`
+	Removed  map[string]int `json:"removed"`
+	Skipped  map[string]int `json:"skipped_unchanged"`
 }
 
 func fetchExport(cpURL, token, popID, env string, timeout time.Duration) (*bundle, error) {
@@ -209,21 +214,24 @@ func applyBundle(dataDir, env, popID string, b *bundle, dryRun bool) (*applySumm
 	}
 
 	kinds := []struct {
-		name string
-		recs []map[string]any
+		name  string
+		recs  []map[string]any
+		idKey string
 	}{
-		{"servers", b.Servers},
-		{"rules", b.Rules},
-		{"waf_policies", b.WafPolicies},
-		{"waf_rules", b.WafRules},
-		{"secrets", b.Secrets},
+		{"servers", b.Servers, "id"},
+		{"rules", b.Rules, "id"},
+		{"waf_policies", b.WafPolicies, "id"},
+		{"waf_rules", b.WafRules, "id"},
+		{"secrets", b.Secrets, "id"},
+		{"access_profiles", b.AccessProfiles, "name"},
+		{"cache", b.Cache, "server_name"},
 	}
 
 	keepIDs := map[string]map[string]struct{}{}
 	for _, k := range kinds {
 		keepIDs[k.name] = map[string]struct{}{}
 		for _, rec := range k.recs {
-			id, _ := rec["id"].(string)
+			id, _ := rec[k.idKey].(string)
 			if id == "" {
 				continue
 			}
@@ -255,6 +263,10 @@ func applyBundle(dataDir, env, popID string, b *bundle, dryRun bool) (*applySumm
 
 func recordPath(dataDir, kind, env, id string) string {
 	safe := sanitizeID(id)
+	if kind == "cache" {
+		// cache/ is flat (not per env), as on the edges.
+		return filepath.Join(dataDir, kind, safe+".json")
+	}
 	return filepath.Join(dataDir, kind, env, safe+".json")
 }
 

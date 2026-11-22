@@ -3,7 +3,7 @@ name: Sync POP config from CP (Go → data/ → PR)
 # Customer portal on cp.pop0.uk is the source of truth. This workflow:
 #   1. Checks out latest main
 #   2. Runs cmd/cp-sync-pop (Go) to GET /api/configuration/export?pop_id=
-#   3. Writes/updates data/servers|rules|waf_*|secrets/<env>/
+#   3. Writes/updates data/servers|rules|waf_*|secrets|access_profiles/<env>/ + data/cache/
 #   4. Opens a PR and merges it into main
 #
 # Does NOT pull from lon1 or S3 into CP. See infra/configuration/README.md.
@@ -208,7 +208,7 @@ jobs:
             | Export ID | `${{ steps.sync.outputs.export_id }}` |
             | Tool | `cmd/cp-sync-pop` |
 
-            Trees updated under `data/{servers,rules,waf_policies,waf_rules,secrets}/${{ inputs.env_profile }}/`.
+            Trees updated under `data/{servers,rules,waf_policies,waf_rules,secrets,access_profiles}/${{ inputs.env_profile }}/` and `data/cache/`.
             Servers no longer tagged `${{ inputs.pop_id }}` on CP (or removed) are deleted from `data/servers/`.
           labels: |
             cp-sync

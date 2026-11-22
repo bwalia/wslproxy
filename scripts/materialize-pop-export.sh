@@ -24,11 +24,14 @@ fi
 command -v jq >/dev/null || { echo "jq required" >&2; exit 1; }
 
 rm -rf "${OUT}"
-mkdir -p "${OUT}"/{servers,rules,waf_policies,waf_rules,secrets}
+mkdir -p "${OUT}"/{servers,rules,waf_policies,waf_rules,secrets,access_profiles,cache}
 
 write_array_to_dir() {
   local kind="$1"
   local json_array="$2"
+  # Record key: id for most kinds; access_profiles use name, cache server_name.
+  local key="id"
+  case "$kind" in access_profiles) key="name" ;; cache) key="server_name" ;; esac
   local dir="${OUT}/${kind}"
   mkdir -p "$dir"
   local n
@@ -37,7 +40,7 @@ write_array_to_dir() {
   while [[ "$i" -lt "$n" ]]; do
     local rec id safe
     rec="$(jq -c --argjson i "$i" '.[$i]' <<<"$json_array")"
-    id="$(jq -r '.id // empty' <<<"$rec")"
+    id="$(jq -r --arg k "$key" '.[$k] // empty' <<<"$rec")"
     if [[ -z "$id" ]]; then
       i=$((i + 1))
       continue
@@ -65,7 +68,7 @@ if [[ "$MODE" == "api" ]]; then
   fi
   jq -e --arg p "$POP_ID" '.data.manifest.pop_id == $p' /tmp/pop-export.json >/dev/null
   jq -S '.data.manifest' /tmp/pop-export.json >"${OUT}/manifest.json"
-  for kind in servers rules waf_policies waf_rules secrets; do
+  for kind in servers rules waf_policies waf_rules secrets access_profiles cache; do
     write_array_to_dir "$kind" "$(jq -c --arg k "$kind" '.data[$k] // []' /tmp/pop-export.json)"
   done
 
@@ -153,11 +156,22 @@ for sid in sorted(secret_ids):
     if sp.is_file():
         secrets.append(load_json(sp))
 
+access_profiles, cache = [], []
+for name in sorted({s.get("access_profile") for s in servers if isinstance(s.get("access_profile"), str)}):
+    ap = root / "data" / "access_profiles" / env / f"{name}.json"
+    if "/" not in name and ap.is_file():
+        rec = load_json(ap); rec.setdefault("name", name); access_profiles.append(rec)
+for key in sorted({s["server_name"][4:] if s.get("server_name", "").startswith("www.") else s.get("server_name") for s in servers if s.get("server_name")}):
+    cp = root / "data" / "cache" / f"{key}.json"
+    if cp.is_file():
+        rec = load_json(cp); rec["server_name"] = key; cache.append(rec)
+
 def write_kind(kind, records):
     d = out / kind
     d.mkdir(parents=True, exist_ok=True)
+    key = {"access_profiles": "name", "cache": "server_name"}.get(kind, "id")
     for rec in records:
-        rid = rec.get("id")
+        rid = rec.get(key)
         if not rid:
             continue
         safe = "".join(c if c.isalnum() or c in "._:@-" else "_" for c in str(rid))
@@ -171,6 +185,8 @@ for kind, recs in (
     ("waf_policies", waf_policies),
     ("waf_rules", waf_rules),
     ("secrets", secrets),
+    ("access_profiles", access_profiles),
+    ("cache", cache),
 ):
     write_kind(kind, recs)
 
@@ -194,6 +210,8 @@ manifest = {
         "waf_policies": len(waf_policies),
         "waf_rules": len(waf_rules),
         "secrets": len(secrets),
+        "access_profiles": len(access_profiles),
+        "cache": len(cache),
     },
 }
 with open(out / "manifest.json", "w") as f:
