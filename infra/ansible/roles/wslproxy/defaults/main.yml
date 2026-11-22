@@ -1,4 +1,6 @@
 nginx_port: 80
+# nginx worker_processes: one per core. Edges (lon1, lon2/pop0) are 4 vCPU.
+nginx_worker_processes: 4
 
 # ── OpenResty install mode ─────────────────────────────────────────────────
 # prebuilt (default): pull bwalia/wslproxy-openresty from Docker Hub and
