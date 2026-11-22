@@ -147,7 +147,8 @@ local function collect_cache_configs(servers)
         local key = cache_key(srv.server_name)
         if key and not seen[key] then
             seen[key] = true
-            local cfg = CacheManager.get_cache_config(key)
+            local get = CacheManager.get_cache_config_shared or CacheManager.get_cache_config
+            local cfg = get(key)
             if type(cfg) == "table" then
                 cfg.server_name = key
                 out[#out + 1] = cfg
@@ -167,7 +168,14 @@ local function collect_access_profiles(servers, env)
         local name = srv.access_profile
         if type(name) == "string" and name:match("^[%w_.-]+$") and not seen[name] then
             seen[name] = true
-            local f = io.open(base .. name .. ".json", "rb")
+            -- Shared store first (pgsql control plane: table access_profiles);
+            -- the pod disk is per-replica there.
+            local shared = Repo.get("access_profiles", env, name)
+            if type(shared) == "table" then
+                shared.name = shared.name or name
+                out[#out + 1] = shared
+            end
+            local f = (type(shared) ~= "table") and io.open(base .. name .. ".json", "rb") or nil
             if f then
                 local rec = cjson.decode(f:read("*a") or "")
                 f:close()

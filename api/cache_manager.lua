@@ -124,6 +124,21 @@ local function is_redis_storage()
     return settings and settings.storage_type == "redis"
 end
 
+-- pgsql storage (the k3s control plane): configs also go to the shared store,
+-- table cache_configs (infra/pgsql/migrations/0002). The pod disk alone is
+-- per-replica and lost on restart. The request path keeps reading local disk;
+-- only the configuration export reads the shared copy (get_cache_config_shared).
+local SHARED_ENV = "global"
+local function is_pgsql_storage()
+    local settings = get_settings()
+    return settings and settings.storage_type == "pgsql"
+end
+
+local function shared_repo()
+    local ok, Repo = pcall(require, "repo")
+    return ok and Repo or nil
+end
+
 -- Helper function to check if directory exists
 local function is_directory_exists(path)
     local ok, attr = pcall(function()
@@ -243,6 +258,21 @@ function _M.get_cache_config(server_name)
     return config, nil
 end
 
+--- Cache config from the shared store (pgsql control plane), else the local
+--- one. For the configuration export: never call this per request.
+function _M.get_cache_config_shared(server_name)
+    if is_pgsql_storage() and server_name and server_name ~= "" then
+        local Repo = shared_repo()
+        if Repo then
+            local ok, rec = pcall(Repo.get, "cache_configs", SHARED_ENV, server_name)
+            if ok and type(rec) == "table" then
+                return rec, nil
+            end
+        end
+    end
+    return _M.get_cache_config(server_name)
+end
+
 -- Save cache configuration for a server
 function _M.save_cache_config(server_name, config)
     if not server_name or server_name == "" then
@@ -267,6 +297,17 @@ function _M.save_cache_config(server_name, config)
     full_config.updated_at = os.time()
 
     local json_config = cjson.encode(full_config)
+
+    if is_pgsql_storage() then
+        local Repo = shared_repo()
+        local ok, err = false, "repo unavailable"
+        if Repo then
+            ok, err = pcall(Repo.save, "cache_configs", SHARED_ENV, server_name, full_config)
+        end
+        if not ok then
+            ngx.log(ngx.ERR, "Cache Manager: shared store write failed for ", server_name, ": ", tostring(err))
+        end
+    end
 
     if is_redis_storage() then
         -- Redis storage
@@ -401,6 +442,11 @@ function _M.delete_cache_config(server_name)
             release_redis(red)
             ngx.log(ngx.INFO, "Cache Manager: Deleted cache config for ", server_name, " from Redis")
         end
+    end
+
+    if is_pgsql_storage() then
+        local Repo = shared_repo()
+        if Repo then pcall(Repo.delete, "cache_configs", SHARED_ENV, server_name) end
     end
 
     -- Also delete from disk

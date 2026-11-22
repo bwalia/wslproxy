@@ -23,11 +23,15 @@ local TABLE_MAP = {
     bookmarks    = "bookmarks",
     profiles     = "profiles",
     company_logo = "company_logo",
+    -- 0002 migration: shared copies of what used to live only on pod disk.
+    cache_configs   = "cache_configs",
+    access_profiles = "access_profiles",
 }
 
 local SCOPED = {
     servers = true, rules = true, secrets = true, instances = true,
     upstreams = true, waf_rules = true, waf_policies = true, waf_events = true,
+    access_profiles = true,
 }
 
 local function esc(s)
@@ -276,9 +280,17 @@ local function typed_columns(resource, env, id, rec)
             created_at = rec.created_at or now,
             updated_at = rec.updated_at or now,
         }
-    elseif resource == "company_logo" then
+    elseif resource == "company_logo" or resource == "cache_configs" then
         return {
             id = id,
+            created_at = rec.created_at or now,
+            updated_at = rec.updated_at or now,
+        }
+    elseif resource == "access_profiles" then
+        return {
+            id = id,
+            env_profile = env,
+            name = rec.name or id,
             created_at = rec.created_at or now,
             updated_at = rec.updated_at or now,
         }
@@ -321,8 +333,10 @@ local function col_sql(resource, cols)
         order = { "id", "created_at", "updated_at", "raw_json" }
     elseif resource == "profiles" then
         order = { "id", "name", "created_at", "updated_at", "raw_json" }
-    elseif resource == "company_logo" then
+    elseif resource == "company_logo" or resource == "cache_configs" then
         order = { "id", "created_at", "updated_at", "raw_json" }
+    elseif resource == "access_profiles" then
+        order = { "id", "env_profile", "name", "created_at", "updated_at", "raw_json" }
     else
         order = { "id", "raw_json" }
     end
