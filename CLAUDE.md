@@ -383,7 +383,7 @@ Local URLs:
 
 1. **`client_body_buffer_size 0`** on admin server block silently truncates large request bodies to ~90 bytes → worker enters CPU-bound infinite loop on malformed JSON parse. Admin API blocks now use `10m` in both templates, so records up to 10 MB (server records with large nginx configs) stay in memory. Larger bodies spool to a temp file; `api.lua`'s dispatcher skips `get_post_args()` for those (it refuses spooled bodies with `request body in temp file not supported`) and `Helper.GetPayloads` reads the file. The dashboard proxy allows 16mb (`proxyClientMaxBodySize` in `next.config.ts`).
 
-2. **Only 1 `worker_processes`** in production means any stuck worker = full outage. Consider increasing.
+2. **Only 1 `worker_processes`** in production meant any stuck worker = full outage. On 2026-11-22 lon2 timed out ~150 TLS handshakes under 24 parallel clients with one worker. The prod template now uses `nginx_worker_processes` (default 4, one per vCPU). Worker-0-only timers (`traffic_router`, `on_demand`) and shared dicts already handle multiple workers. The Docker dev template stays at 1.
 
 3. **`io.popen("sudo openresty -t")`** in `helpers.lua:testNginxConfig` blocks the entire worker. Only runs when `config_status: true`, but still a foot-gun.
 
@@ -497,7 +497,6 @@ cat /opt/nginx/data/servers/prod/host:{hostname}.json | python3 -m json.tool
 
 ## 17. Where Things Are Likely To Break
 
-- **`worker_processes 1`** in production — single worker is an SPoF
 - **Blocking `io.popen` in helpers.lua** — called on every `config_status: true` save
 - **`ngx.req.get_post_args()` path** for JSON — fragile when bodies are large + buffered
 - **k3s ingress nginx.conf** is maintained manually and drifts from `files/nginx.conf`

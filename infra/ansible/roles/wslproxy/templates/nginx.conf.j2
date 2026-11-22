@@ -1,6 +1,9 @@
 # source: infra/ansible/roles/luarocks/templates/nginx.conf.j2
 user  www-data;
-worker_processes  1;
+# One worker per core (edges are 4 vCPU). With 1 worker a single slow TLS
+# handshake or Lua call stalled every request (CLAUDE.md gotcha 2; lon2 timed
+# out ~150 handshakes under 24 parallel clients on 2026-11-22).
+worker_processes  {{ nginx_worker_processes | default(4) }};
 
 error_log  logs/error.log;
 #error_log  logs/error.log  notice;
