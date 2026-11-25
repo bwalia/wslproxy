@@ -101,6 +101,18 @@ function _M.init()
     package.loaded._metric_waf_errors = prometheus:counter("nginx_waf_errors_total", "WAF engine errors (fail-open events)", {"host", "error_type"})
     package.loaded._metric_waf_latency = prometheus:histogram("nginx_waf_inspection_duration_seconds", "WAF inspection duration", {"host"}, {0.0001, 0.0005, 0.001, 0.005, 0.01, 0.05, 0.1})
 
+    -- Per-worker Lua heap / RSS, shared-dict free space, draining workers,
+    -- swap (api/memory_metrics.lua, docs/runbooks/edge-memory.md).
+    local mm_ok, memory_metrics = pcall(require, "memory_metrics")
+    if mm_ok then
+        local ok_init, err_init = pcall(memory_metrics.init, prometheus)
+        if not ok_init then
+            ngx.log(ngx.WARN, "memory_metrics init failed: ", tostring(err_init))
+        end
+    else
+        ngx.log(ngx.WARN, "memory_metrics module not available: ", tostring(memory_metrics))
+    end
+
     ngx.log(ngx.NOTICE, "WSL Proxy Prometheus metrics initialized successfully")
     return true
 end
