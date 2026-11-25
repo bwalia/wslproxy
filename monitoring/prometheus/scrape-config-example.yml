@@ -22,6 +22,20 @@ scrape_configs:
   #   static_configs:
   #     - targets: ["85.190.106.189:9100", "lon1.pop0.uk:9100"]
 
+  # Edge /healthz probes: drive WSLProxyEdgeHealthzFailing
+  # (docs/runbooks/edge-memory.md). One target per edge.
+  # - job_name: blackbox-healthz
+  #   metrics_path: /probe
+  #   params: { module: [http_2xx] }
+  #   static_configs:
+  #     - targets:
+  #         - https://lon1.pop0.uk/healthz
+  #         - https://lon2.pop0.uk/healthz
+  #   relabel_configs:
+  #     - { source_labels: [__address__], target_label: __param_target }
+  #     - { source_labels: [__param_target], target_label: instance }
+  #     - { target_label: __address__, replacement: "blackbox-exporter:9115" }
+
   # Optional but recommended — drives SSL cert-expiry panels + alerts.
   # - job_name: blackbox-ssl
   #   metrics_path: /probe

@@ -222,9 +222,9 @@ groups:
         annotations:
           summary: "WSLProxy is serving zero traffic"
           description: >
-            Either the proxy is down, the scrape is broken, or a stuck worker
-            (production runs worker_processes=1 — a single stuck worker is a
-            full outage). Check: curl -sf http://127.0.0.1:8099/health and
+            Either the proxy is down, the scrape is broken, or every worker is
+            stuck (the edges run 4 workers, nginx_worker_processes). Check:
+            curl -sf http://127.0.0.1:8099/health and
             ps aux | grep 'nginx: worker'.
 
       - alert: WSLProxyScrapeDown
@@ -251,3 +251,118 @@ groups:
             The exporter's shared dict is erroring (usually full). Metrics on
             this dashboard may be incomplete — increase the
             lua_shared_dict prometheus_metrics size.
+
+  # ---------------------------------------------------------- EDGE MEMORY
+  # lon1 was OOM-killed on 2026-11-25: Lua heap growth per worker, 3 worker
+  # generations alive after 3 reloads, no swap. Metrics come from
+  # api/memory_metrics.lua; thresholds and what to do are in
+  # docs/runbooks/edge-memory.md (memory budget section).
+  - name: wslproxy-edge-memory
+    interval: 1m
+    rules:
+      - alert: WSLProxyOpenRestyNotActive
+        # Needs node_exporter with --collector.systemd on the edge. Without it
+        # WSLProxyScrapeDown / WSLProxyEdgeHealthzFailing still fire.
+        expr: node_systemd_unit_state{name="openresty.service",state="active"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          team: sre
+          service: wslproxy
+        annotations:
+          summary: "OpenResty is not active on {{ $labels.instance }}"
+          description: >
+            systemd reports openresty.service inactive. Restart=on-failure
+            should bring it back within 5 s; if it does not, check
+            journalctl -u openresty and dmesg for an OOM kill.
+            Runbook: docs/runbooks/edge-memory.md.
+
+      - alert: WSLProxyEdgeHealthzFailing
+        # Blackbox http_2xx probes of https://lon1.pop0.uk/healthz and
+        # https://lon2.pop0.uk/healthz (see monitoring/prometheus/scrape-config-example.yml).
+        expr: probe_success{job=~"blackbox-healthz.*"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          team: sre
+          service: wslproxy
+        annotations:
+          summary: "/healthz failing on {{ $labels.instance }}"
+          description: >
+            The edge's health endpoint has not returned 2xx for 2 minutes.
+            Check the OTHER edge's /healthz before touching this one.
+
+      - alert: WSLProxyWorkerLuaHeapHigh
+        expr: max by (instance, worker) (wslproxy_worker_lua_heap_bytes) > 150 * 1024 * 1024
+        for: 15m
+        labels:
+          severity: warning
+          team: sre
+          service: wslproxy
+        annotations:
+          summary: "Lua heap of worker {{ $labels.worker }} on {{ $labels.instance }} above 150 MiB"
+          description: >
+            Fresh workers start at ~20 MiB. Sustained growth means a module-level
+            cache or a high-cardinality metric is growing; see the heap graph and
+            docs/runbooks/edge-memory.md before reloading.
+
+      - alert: WSLProxyWorkerRssHigh
+        expr: max by (instance, worker) (wslproxy_worker_rss_anon_bytes) > 250 * 1024 * 1024
+        for: 10m
+        labels:
+          severity: critical
+          team: sre
+          service: wslproxy
+        annotations:
+          summary: "Worker {{ $labels.worker }} on {{ $labels.instance }} private RSS above 250 MiB"
+          description: >
+            Above the per-worker budget (200 MiB) in docs/runbooks/edge-memory.md.
+            Four workers at this size plus one draining generation during a
+            reload do not fit in lon1's 4 GB. Plan a single, checked reload (wslproxy-reload --force) on this
+            edge only after the other edge's /healthz returns 200.
+
+      - alert: WSLProxySwapInUse
+        expr: wslproxy_host_swap_used_bytes > 200 * 1024 * 1024
+        for: 10m
+        labels:
+          severity: warning
+          team: sre
+          service: wslproxy
+        annotations:
+          summary: "{{ $labels.instance }} is using more than 200 MiB of swap"
+          description: >
+            The 2 GB swapfile is a safety net, not capacity. The edge is over
+            its memory budget; find which workers grew (wslproxy_worker_rss_anon_bytes).
+
+      - alert: WSLProxyWorkerGenerationsStuck
+        # worker_shutdown_timeout is 60s; draining workers older than that + 1m
+        # mean the timeout is not applied or a worker is wedged.
+        expr: max by (instance) (wslproxy_nginx_workers_shutting_down) > 0
+        for: 2m
+        labels:
+          severity: warning
+          team: sre
+          service: wslproxy
+        annotations:
+          summary: "Old nginx workers still draining on {{ $labels.instance }}"
+          description: >
+            More than one worker generation has been alive for over 2 minutes.
+            Check: ps -o pid,etimes,rss,cmd -C nginx. Is worker_shutdown_timeout
+            in the live nginx.conf? Were several reloads issued (journalctl -u openresty)?
+
+      - alert: WSLProxySharedDictNearlyFull
+        expr: >
+          (wslproxy_shdict_free_bytes / wslproxy_shdict_capacity_bytes) < 0.05
+          and wslproxy_shdict_capacity_bytes > 1024 * 1024
+        for: 30m
+        labels:
+          severity: info
+          team: sre
+          service: wslproxy
+        annotations:
+          summary: "lua_shared_dict {{ $labels.dict }} on {{ $labels.instance }} has <5% free pages"
+          description: >
+            Free pages only; a full dict evicts LRU entries rather than failing.
+            For prometheus_metrics a full dict drops metrics
+            (nginx_metric_errors_total). Size it per edge with the
+            nginx_shm_* vars, not by editing nginx.conf.
