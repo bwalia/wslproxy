@@ -1,0 +1,27 @@
+{
+    "access_profile": "source-ai-preprod",
+    "config": "WXpKV2VXUnRWbmxKU0hOTFNVTkJaMGxEUVdkaVIyeDZaRWRXZFVsRVozZFBlVUZuU1hsQ1RXRllUakJhVnpSbllqSTBaMk5IT1hsa1EwRnZVMFpTVlZWRGEwdEpRMEZuU1VOQloyTXlWbmxrYlZaNVdESTFhR0pYVldkak1qa3hZMjFPYkV4WFJuQk1iVnB3V1ROU2NHSXlOV2hpUjNnMVRHMDVlVnA2YzJkSlEwMW5WMWM1TVdOcFFtdGlNakZvWVZjMFoySnRSblJhVVc5blNVTkJaMGxEUW5saU1qa3dTVU01TWxsWVNYWmtNMlF6VERKb01HSlhkemRKUTBGcVNVVlNkbGt6Vm5SYVZ6VXdTVWhLZG1JelVXZGFSMng1V2xkT01HSXpTalZEYVVGblNVTkJaMGxIYkhWYVIxWTBTVWRzZFZwSFZqUk1iV2d3WWxkM04wbERRV3BKUlZKc1dtMUdNV0pJVVdkaFZ6VnJXbGhuWjFwdGJITmFXRTFMU1VOQlowbERRV2RaVjA1cVdsaE9lbGd5ZUhaYWVVSnpZakprZWt3eVJtcFpNbFo2WTNrMWMySXlZemRKUTBGcVNVVkdhbGt5Vm5wamVVSnpZakpqWjFwdGJITmFVMEp6WWpKT2FHUkhiSFppWjI5blNVTkJaMGxEUW14amJrcDJZMnc1YzJJeVkyZGlSemx1WTNrNWJHTnVTblpqYVRWellqSmpOMGxEUVdwSlJWWjVZMjA1ZVVsSGVIWmFlVUp0WVZkNGJFbEhlSFpaTWtZd1lWYzVkVU5uYjB0RGFVRm5abEZ2UzBsRFFUMD0=",
+    "created_at": 1795601667,
+    "id": "host:source-ai.fictionally.org",
+    "listens": [
+        {
+            "listen": "80"
+        }
+    ],
+    "match_cases": {},
+    "pop_ids": [
+        "pop0",
+        "lon1"
+    ],
+    "profile_id": "prod",
+    "proxy_pass": "http://localhost",
+    "rules": [
+        "source-ai-vps005"
+    ],
+    "server_name": "source-ai.fictionally.org",
+    "ssl_auto_renew": true,
+    "ssl_email": "balinder.walia@gmail.com",
+    "ssl_enabled": true,
+    "ssl_force_https": true,
+    "ssl_staging": false
+}

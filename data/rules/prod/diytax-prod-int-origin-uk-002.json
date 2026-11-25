@@ -1,0 +1,38 @@
+{
+    "id": "diytax-prod-int-origin-uk-002",
+    "match": {
+        "response": {
+            "backends": [
+                {
+                    "address": "origin-uk-001.pop0.uk",
+                    "label": "origin-uk-001-traefik-edge",
+                    "weight": 100
+                }
+            ],
+            "code": 305,
+            "redirect_uri": "origin-uk-001.pop0.uk",
+            "routing": {
+                "mode": "weighted"
+            },
+            "strip_path": false
+        },
+        "rules": {
+            "path": "/",
+            "path_key": "starts_with"
+        }
+    },
+    "name": "diytax-prod-int-origin-uk-002",
+    "priority": 1,
+    "profile_id": "prod",
+    "rules_tags": [
+        "diytaxreturn",
+        "int",
+        "origin-uk-002",
+        "api-gw",
+        "wslproxy"
+    ],
+    "servers": [
+        "host:int-qa-api.diytaxreturn.co.uk",
+        "host:int-qa.diytaxreturn.co.uk"
+    ]
+}

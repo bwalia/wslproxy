@@ -1,1 +1,33 @@
-{"listens":[{"listen":"80"}],"rules":"kubepilot-org-rule","access_log":"logs\/access.log","config":"c2VydmVyIHsKICAgICAgbGlzdGVuIDgwOyAgIyBMaXN0ZW4gb24gcG9ydCAoSFRUUCkKICAgICAgc2VydmVyX25hbWUga3ViZXBpbG90Lm9yZzsgICMgWW91ciBkb21haW4gbmFtZQogICAgICByb290IC92YXIvd3d3L2h0bWw7ICAjIERvY3VtZW50IHJvb3QgZGlyZWN0b3J5CiAgICAgIGluZGV4IGluZGV4Lmh0bWw7ICAjIERlZmF1bHQgaW5kZXggZmlsZXMKICAgICAgYWNjZXNzX2xvZyBsb2dzL2FjY2Vzcy5sb2c7ICAjIEFjY2VzcyBsb2cgZmlsZSBsb2NhdGlvbgogICAgICBlcnJvcl9sb2cgbG9ncy9lcnJvci5sb2c7ICAjIEVycm9yIGxvZyBmaWxlIGxvY2F0aW9uCgoKCiAgfQoKICA=","root":"\/var\/www\/html","index":"index.html","config_status":false,"error_log":"logs\/error.log","custom_headers":{},"proxy_pass":"http:\/\/kubepilot-docs.s3-website.eu-west-2.amazonaws.com","cache_bypass_auth":true,"server_name":"kubepilot.org","ssl_enabled":true,"id":"host:kubepilot.org","proxy_server_name":"kubepilot-docs.s3-website.eu-west-2.amazonaws.com","created_at":1710374400,"profile_id":"prod","cache_enabled":true,"match_cases":{},"ssl_email":"balinder.walia@gmail.com","ssl_auto_renew":true,"ssl_force_https":true,"ssl_staging":false}
+{
+    "access_log": "logs/access.log",
+    "cache_bypass_auth": true,
+    "cache_enabled": true,
+    "config": "YzJWeWRtVnlJSHNLSUNBZ0lDQWdiR2x6ZEdWdUlEZ3dPeUFnSXlCTWFYTjBaVzRnYjI0Z2NHOXlkQ0FvU0ZSVVVDa0tJQ0FnSUNBZ2MyVnlkbVZ5WDI1aGJXVWdhM1ZpWlhCcGJHOTBMbTl5WnpzZ0lDTWdXVzkxY2lCa2IyMWhhVzRnYm1GdFpRb2dJQ0FnSUNCeWIyOTBJQzkyWVhJdmQzZDNMMmgwYld3N0lDQWpJRVJ2WTNWdFpXNTBJSEp2YjNRZ1pHbHlaV04wYjNKNUNpQWdJQ0FnSUdsdVpHVjRJR2x1WkdWNExtaDBiV3c3SUNBaklFUmxabUYxYkhRZ2FXNWtaWGdnWm1sc1pYTUtJQ0FnSUNBZ1lXTmpaWE56WDJ4dlp5QnNiMmR6TDJGalkyVnpjeTVzYjJjN0lDQWpJRUZqWTJWemN5QnNiMmNnWm1sc1pTQnNiMk5oZEdsdmJnb2dJQ0FnSUNCbGNuSnZjbDlzYjJjZ2JHOW5jeTlsY25KdmNpNXNiMmM3SUNBaklFVnljbTl5SUd4dlp5Qm1hV3hsSUd4dlkyRjBhVzl1Q2dvS0NpQWdmUW9LSUNBPQ==",
+    "config_status": false,
+    "created_at": 1710374400,
+    "custom_headers": {},
+    "error_log": "logs/error.log",
+    "id": "host:kubepilot.org",
+    "index": "index.html",
+    "listens": [
+        {
+            "listen": "80"
+        }
+    ],
+    "match_cases": {},
+    "pop_ids": [
+        "lon1",
+        "pop0"
+    ],
+    "profile_id": "prod",
+    "proxy_pass": "http://kubepilot-docs.s3-website.eu-west-2.amazonaws.com",
+    "proxy_server_name": "kubepilot-docs.s3-website.eu-west-2.amazonaws.com",
+    "root": "/var/www/html",
+    "rules": "kubepilot-org-rule",
+    "server_name": "kubepilot.org",
+    "ssl_auto_renew": true,
+    "ssl_email": "balinder.walia@gmail.com",
+    "ssl_enabled": true,
+    "ssl_force_https": true,
+    "ssl_staging": false
+}

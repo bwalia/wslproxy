@@ -1,5 +1,6 @@
 {
-    "config": "c2VydmVyIHsKICAgICAgbGlzdGVuIDgwOyAgIyBMaXN0ZW4gb24gcG9ydCAoSFRUUCkKICAgICAgc2VydmVyX25hbWUgaW50LmpvYnNob3V0LmNvbTsgICMgWW91ciBkb21haW4gbmFtZQogICAgICByb290IC92YXIvd3d3L2h0bWw7ICAjIERvY3VtZW50IHJvb3QgZGlyZWN0b3J5CiAgICAgIGluZGV4IGluZGV4Lmh0bWw7ICAjIERlZmF1bHQgaW5kZXggZmlsZXMKICAgICAgYWNjZXNzX2xvZyBsb2dzL2FjY2Vzcy5sb2c7ICAjIEFjY2VzcyBsb2cgZmlsZSBsb2NhdGlvbgogICAgICBlcnJvcl9sb2cgbG9ncy9lcnJvci5sb2c7ICAjIEVycm9yIGxvZyBmaWxlIGxvY2F0aW9uCgoKCiAgfQoKICA=",
+    "access_profile": "jobshout-preprod",
+    "config": "WXpKV2VXUnRWbmxKU0hOTFNVTkJaMGxEUVdkaVIyeDZaRWRXZFVsRVozZFBlVUZuU1hsQ1RXRllUakJhVnpSbllqSTBaMk5IT1hsa1EwRnZVMFpTVlZWRGEwdEpRMEZuU1VOQloyTXlWbmxrYlZaNVdESTFhR0pYVldkaFZ6VXdURzF3ZGxsdVRtOWlNMVl3VEcxT2RtSlVjMmRKUTAxblYxYzVNV05wUW10aU1qRm9ZVmMwWjJKdFJuUmFVVzluU1VOQlowbERRbmxpTWprd1NVTTVNbGxZU1haa00yUXpUREpvTUdKWGR6ZEpRMEZxU1VWU2Rsa3pWblJhVnpVd1NVaEtkbUl6VVdkYVIyeDVXbGRPTUdJelNqVkRhVUZuU1VOQlowbEhiSFZhUjFZMFNVZHNkVnBIVmpSTWJXZ3dZbGQzTjBsRFFXcEpSVkpzV20xR01XSklVV2RoVnpWcldsaG5aMXB0YkhOYVdFMUxTVU5CWjBsRFFXZFpWMDVxV2xoT2VsZ3llSFphZVVKellqSmtla3d5Um1wWk1sWjZZM2sxYzJJeVl6ZEpRMEZxU1VWR2Fsa3lWbnBqZVVKellqSmpaMXB0YkhOYVUwSnpZakpPYUdSSGJIWmlaMjluU1VOQlowbERRbXhqYmtwMlkydzVjMkl5WTJkaVJ6bHVZM2s1YkdOdVNuWmphVFZ6WWpKak4wbERRV3BKUlZaNVkyMDVlVWxIZUhaYWVVSnRZVmQ0YkVsSGVIWlpNa1l3WVZjNWRVTm5iMHREYVVGblpsRnZTMGxEUVQwPQ==",
     "created_at": 1788593484,
     "id": "host:int.jobshout.com",
     "listens": [
@@ -9,7 +10,8 @@
     ],
     "match_cases": {},
     "pop_ids": [
-        "pop0"
+        "pop0",
+        "lon1"
     ],
     "profile_id": "prod",
     "proxy_pass": "http://localhost",

@@ -1,1 +1,43 @@
-{"version":1,"name":"diytax-prod-cloud003-fastapi","priority":1,"id":"9e6caceb-c963-a51a-ad4a-36005b13f665","created_at":1785590175,"match":{"rules":{"path":"\/fastapi","jwt_token_validation":"equals","path_key":"starts_with"},"response":{"routing":{"mode":"weighted"},"strip_path":false,"auto_redirect_https":false,"backends":[{"weight":100,"address":"origin-uk-003.pop0.uk:80","label":"cloud003-traefik-edge"}],"code":305,"allow":false,"is_consul":false,"redirect_uri":"origin-uk-003.pop0.uk:80"}},"servers":["host:api.diytaxreturn.co.uk","host:opsapi.diytaxreturn.co.uk"],"profile_id":"prod","rules_tags":["diytaxreturn","prod","cloud003"]}
+{
+    "created_at": 1785590175,
+    "id": "9e6caceb-c963-a51a-ad4a-36005b13f665",
+    "match": {
+        "response": {
+            "allow": false,
+            "auto_redirect_https": false,
+            "backends": [
+                {
+                    "address": "origin-uk-003.pop0.uk",
+                    "label": "origin-uk-003-traefik-edge",
+                    "weight": 100
+                }
+            ],
+            "code": 305,
+            "is_consul": false,
+            "redirect_uri": "origin-uk-003.pop0.uk",
+            "routing": {
+                "mode": "weighted"
+            },
+            "strip_path": false
+        },
+        "rules": {
+            "jwt_token_validation": "equals",
+            "path": "/fastapi",
+            "path_key": "starts_with"
+        }
+    },
+    "name": "diytax-prod-origin-uk-003-fastapi",
+    "priority": 100,
+    "profile_id": "prod",
+    "rules_tags": [
+        "diytaxreturn",
+        "prod",
+        "origin-uk-003",
+        "fastapi"
+    ],
+    "servers": [
+        "host:api.diytaxreturn.co.uk",
+        "host:opsapi.diytaxreturn.co.uk"
+    ],
+    "version": 1
+}

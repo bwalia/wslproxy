@@ -1,1 +1,326 @@
-{"proxy_server_name":"int-api.diytaxreturn.co.uk","proxy_pass":"http:\/\/localhost","match_cases":[{"statement":"c2421472-d599-4496-a0f1-6dfc1c729bc7","condition":"and"}],"server_name":"int-api.diytaxreturn.co.uk","index":"index.html","ssl_enabled":true,"proxy_timeouts":{"connect_timeout":"30","send_timeout":"300","read_timeout":"300"},"error_log":"logs\/int-api.diytaxreturn.co.uk.error.log","config":"c2VydmVyIHsKICAgICAgbGlzdGVuIDgwOyAgIyBMaXN0ZW4gb24gcG9ydCAoSFRUUCkKICAgICAgc2VydmVyX25hbWUgaW50LWFwaS5kaXl0YXhyZXR1cm4uY28udWs7ICAjIFlvdXIgZG9tYWluIG5hbWUKICAgICAgcm9vdCAvdmFyL3d3dy9odG1sOyAgIyBEb2N1bWVudCByb290IGRpcmVjdG9yeQogICAgICBpbmRleCBpbmRleC5odG1sOyAgIyBEZWZhdWx0IGluZGV4IGZpbGVzCiAgICAgIGFjY2Vzc19sb2cgbG9ncy9pbnQtYXBpLmRpeXRheHJldHVybi5jby51ay5hY2Nlc3MubG9nOyAgIyBBY2Nlc3MgbG9nIGZpbGUgbG9jYXRpb24KICAgICAgZXJyb3JfbG9nIGxvZ3MvaW50LWFwaS5kaXl0YXhyZXR1cm4uY28udWsuZXJyb3IubG9nOyAgIyBFcnJvciBsb2cgZmlsZSBsb2NhdGlvbgoKCgogIH0KCiAg","access_log":"logs\/int-api.diytaxreturn.co.uk.access.log","config_status":true,"rules":["diytax-prod-int-cloud001"],"ssl_force_https":true,"custom_headers":{},"listens":[{"listen":"80"}],"root":"\/var\/www\/html","id":"host:int-api.diytaxreturn.co.uk","created_at":1781702792,"ssl_email":"admin@diytaxreturn.co.uk","ssl_auto_renew":true,"profile_id":"prod","ssl_staging":false}
+{
+    "access_log": "logs/int-api.diytaxreturn.co.uk.access.log",
+    "api_gw": {
+        "audit": {
+            "enabled": true,
+            "include_headers": [
+                "user-agent",
+                "referer"
+            ],
+            "level": "info",
+            "sample_rate": 1
+        },
+        "cors": {
+            "credentials": true,
+            "expose_headers": [
+                "X-Correlation-ID",
+                "RateLimit-Remaining",
+                "RateLimit-Limit",
+                "X-Request-Id"
+            ],
+            "headers": [
+                "Authorization",
+                "Content-Type",
+                "Accept",
+                "Origin",
+                "X-Requested-With",
+                "X-Correlation-ID",
+                "X-Request-Id",
+                "X-User-Email",
+                "X-Public-Browse",
+                "X-User-Id",
+                "X-Business-Id",
+                "X-Namespace-Id",
+                "X-Namespace-Slug",
+                "X-Project-Code",
+                "X-Vault-Key",
+                "X-Gov-Client-Device-ID",
+                "X-Gov-Client-Browser-JS-User-Agent",
+                "X-Gov-Client-Screens",
+                "X-Gov-Client-Window-Size",
+                "X-Gov-Client-Timezone",
+                "X-Gov-Client-User-IDs",
+                "Accept-Language"
+            ],
+            "max_age": 86400,
+            "methods": [
+                "GET",
+                "POST",
+                "PUT",
+                "PATCH",
+                "DELETE",
+                "OPTIONS",
+                "HEAD"
+            ],
+            "origins": [
+                "https://int.diytaxreturn.co.uk",
+                "https://www.diytaxreturn.co.uk",
+                "https://diytaxreturn.co.uk",
+                "http://localhost:3000",
+                "http://localhost:3001"
+            ]
+        },
+        "enabled": true,
+        "ivt": {
+            "block_threshold": 5,
+            "burst": {
+                "key": "ip",
+                "max_requests": 200,
+                "window_seconds": 10
+            },
+            "methods": {
+                "deny": [
+                    "TRACE",
+                    "TRACK",
+                    "CONNECT"
+                ]
+            },
+            "mode": "audit",
+            "path_denylist": [
+                "/wp-admin",
+                "/wp-login",
+                "\\.php$",
+                "/\\.env$",
+                "/\\.git/"
+            ],
+            "require_auth_shape": true,
+            "strip_header_prefixes": [
+                "X-Internal-",
+                "X-DiyTax-Internal-",
+                "X-Consumer-",
+                "X-Authenticated-"
+            ]
+        },
+        "modules": [
+            "real_ip",
+            "request_security",
+            "ivt",
+            "rate_limit",
+            "audit"
+        ],
+        "rate_limit": {
+            "algorithm": "sliding",
+            "default_profile": "standard",
+            "enabled": true,
+            "profiles": {
+                "auth": {
+                    "key": "ip",
+                    "limit": 60,
+                    "window_seconds": 60
+                },
+                "expensive": {
+                    "key": "ip",
+                    "limit": 30,
+                    "window_seconds": 60
+                },
+                "health": {
+                    "limit": 0
+                },
+                "public": {
+                    "key": "ip",
+                    "limit": 120,
+                    "window_seconds": 60
+                },
+                "standard": {
+                    "key": "ip",
+                    "limit": 600,
+                    "window_seconds": 60
+                },
+                "upload": {
+                    "key": "ip",
+                    "limit": 60,
+                    "window_seconds": 60
+                }
+            }
+        },
+        "real_ip": {
+            "recursive": true,
+            "trusted_cidrs": [
+                "10.0.0.0/8",
+                "172.16.0.0/12",
+                "192.168.0.0/16",
+                "173.245.48.0/20",
+                "103.21.244.0/22",
+                "103.22.200.0/22",
+                "103.31.4.0/22",
+                "141.101.64.0/18",
+                "108.162.192.0/18",
+                "190.93.240.0/20",
+                "188.114.96.0/20",
+                "197.234.240.0/22",
+                "198.41.128.0/17",
+                "162.158.0.0/15",
+                "104.16.0.0/13",
+                "104.24.0.0/14",
+                "172.64.0.0/13",
+                "131.0.72.0/22"
+            ]
+        },
+        "request_security": {
+            "content_type": {
+                "allow": [
+                    "application/json",
+                    "multipart/form-data",
+                    "application/x-www-form-urlencoded"
+                ],
+                "enforce": true,
+                "exempt_paths": [
+                    "/health",
+                    "/ready",
+                    "/opsapi/health",
+                    "/fastapi/health"
+                ],
+                "methods": [
+                    "POST",
+                    "PUT",
+                    "PATCH"
+                ]
+            },
+            "correlation": {
+                "enabled": true,
+                "header": "X-Correlation-ID"
+            },
+            "max_body_bytes": 10485760
+        },
+        "routes": [
+            {
+                "auth": "none",
+                "ivt_mode": "disabled",
+                "name": "health",
+                "path": "/health",
+                "path_key": "equals",
+                "rate_profile": "health"
+            },
+            {
+                "auth": "none",
+                "ivt_mode": "disabled",
+                "name": "ready",
+                "path": "/ready",
+                "path_key": "equals",
+                "rate_profile": "health"
+            },
+            {
+                "auth": "none",
+                "ivt_mode": "disabled",
+                "name": "opsapi-health",
+                "path": "/opsapi/health",
+                "path_key": "starts_with",
+                "rate_profile": "health"
+            },
+            {
+                "auth": "none",
+                "ivt_mode": "disabled",
+                "name": "fastapi-health",
+                "path": "/fastapi/health",
+                "path_key": "starts_with",
+                "rate_profile": "health"
+            },
+            {
+                "auth": "none",
+                "ivt_mode": "disabled",
+                "name": "google-oauth",
+                "path": "/opsapi/auth/google",
+                "path_key": "starts_with",
+                "rate_profile": "auth"
+            },
+            {
+                "auth": "none",
+                "ivt_mode": "disabled",
+                "name": "google-oauth-root",
+                "path": "/auth/google",
+                "path_key": "starts_with",
+                "rate_profile": "auth"
+            },
+            {
+                "auth": "none",
+                "ivt_mode": "disabled",
+                "max_body_bytes": 65536,
+                "name": "opsapi-auth",
+                "path": "/opsapi/auth",
+                "path_key": "starts_with",
+                "rate_profile": "auth"
+            },
+            {
+                "auth": "none",
+                "ivt_mode": "disabled",
+                "max_body_bytes": 65536,
+                "name": "auth",
+                "path": "/auth",
+                "path_key": "starts_with",
+                "rate_profile": "auth"
+            },
+            {
+                "auth": "passthrough",
+                "max_body_bytes": 10485760,
+                "name": "uploads",
+                "path": "/fastapi/api/v1/statements",
+                "path_key": "starts_with",
+                "rate_profile": "upload"
+            },
+            {
+                "auth": "passthrough",
+                "name": "fastapi",
+                "path": "/fastapi",
+                "path_key": "starts_with",
+                "rate_profile": "standard"
+            },
+            {
+                "auth": "passthrough",
+                "name": "opsapi",
+                "path": "/opsapi",
+                "path_key": "starts_with",
+                "rate_profile": "standard"
+            },
+            {
+                "auth": "passthrough",
+                "name": "catchall",
+                "path": "/",
+                "path_key": "starts_with",
+                "rate_profile": "public"
+            }
+        ],
+        "tenant_id": "diytax-int-api"
+    },
+    "config": "YzJWeWRtVnlJSHNLSUNBZ0lDQWdiR2x6ZEdWdUlEZ3dPeUFnSXlCTWFYTjBaVzRnYjI0Z2NHOXlkQ0FvU0ZSVVVDa0tJQ0FnSUNBZ2MyVnlkbVZ5WDI1aGJXVWdhVzUwTFdGd2FTNWthWGwwWVhoeVpYUjFjbTR1WTI4dWRXczdJQ0FqSUZsdmRYSWdaRzl0WVdsdUlHNWhiV1VLSUNBZ0lDQWdjbTl2ZENBdmRtRnlMM2QzZHk5b2RHMXNPeUFnSXlCRWIyTjFiV1Z1ZENCeWIyOTBJR1JwY21WamRHOXllUW9nSUNBZ0lDQnBibVJsZUNCcGJtUmxlQzVvZEcxc095QWdJeUJFWldaaGRXeDBJR2x1WkdWNElHWnBiR1Z6Q2lBZ0lDQWdJR0ZqWTJWemMxOXNiMmNnYkc5bmN5OXBiblF0WVhCcExtUnBlWFJoZUhKbGRIVnliaTVqYnk1MWF5NWhZMk5sYzNNdWJHOW5PeUFnSXlCQlkyTmxjM01nYkc5bklHWnBiR1VnYkc5allYUnBiMjRLSUNBZ0lDQWdaWEp5YjNKZmJHOW5JR3h2WjNNdmFXNTBMV0Z3YVM1a2FYbDBZWGh5WlhSMWNtNHVZMjh1ZFdzdVpYSnliM0l1Ykc5bk95QWdJeUJGY25KdmNpQnNiMmNnWm1sc1pTQnNiMk5oZEdsdmJnb0tDZ29nSUgwS0NpQWc=",
+    "config_status": true,
+    "created_at": 1781702792,
+    "custom_headers": {
+        "X-DiyTax-Api-Gateway": "wslproxy"
+    },
+    "error_log": "logs/int-api.diytaxreturn.co.uk.error.log",
+    "id": "host:int-api.diytaxreturn.co.uk",
+    "index": "index.html",
+    "listens": [
+        {
+            "listen": "80"
+        }
+    ],
+    "match_cases": [
+        {
+            "condition": "and",
+            "statement": "c2421472-d599-4496-a0f1-6dfc1c729bc7"
+        }
+    ],
+    "pop_ids": [
+        "lon1",
+        "pop0"
+    ],
+    "profile_id": "prod",
+    "proxy_pass": "http://localhost",
+    "proxy_server_name": "int-api.diytaxreturn.co.uk",
+    "proxy_timeouts": {
+        "connect_timeout": "30",
+        "read_timeout": "300",
+        "send_timeout": "300"
+    },
+    "root": "/var/www/html",
+    "rules": [
+        "diytax-prod-int-origin-uk-002"
+    ],
+    "server_name": "int-api.diytaxreturn.co.uk",
+    "ssl_auto_renew": true,
+    "ssl_email": "admin@diytaxreturn.co.uk",
+    "ssl_enabled": true,
+    "ssl_force_https": true,
+    "ssl_staging": false
+}

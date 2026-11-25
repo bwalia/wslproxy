@@ -1,1 +1,30 @@
-{"server_name":"whoami.pop0.uk","custom_headers":{},"ssl_email":"balinder.walia@gmail.com","ssl_auto_renew":true,"ssl_force_https":true,"ssl_staging":false,"cache_enabled":false,"rules":"whoami-demo-default","id":"host:whoami.pop0.uk","proxy_server_name":"whoami.pop0.uk","index":"index.html","config_status":true,"ssl_enabled":true,"profile_id":"prod","listens":[{"listen":"80"}],"root":"\/var\/www\/html","match_cases":{},"error_log":"logs\/whoami.pop0.uk.error.log","access_log":"logs\/whoami.pop0.uk.access.log"}
+{
+    "access_log": "logs/whoami.pop0.uk.access.log",
+    "cache_enabled": false,
+    "config": "c2VydmVyIHsKICAgICAgbGlzdGVuIDgwOyAgIyBMaXN0ZW4gb24gcG9ydCAoSFRUUCkKICAgICAgc2VydmVyX25hbWUgd2hvYW1pLnBvcDAudWs7ICAjIFlvdXIgZG9tYWluIG5hbWUKICAgICAgcm9vdCAvdmFyL3d3dy9odG1sOyAgIyBEb2N1bWVudCByb290IGRpcmVjdG9yeQogICAgICBpbmRleCBpbmRleC5odG1sOyAgIyBEZWZhdWx0IGluZGV4IGZpbGVzCiAgICAgIGFjY2Vzc19sb2cgbG9ncy93aG9hbWkucG9wMC51ay5hY2Nlc3MubG9nOyAgIyBBY2Nlc3MgbG9nIGZpbGUgbG9jYXRpb24KICAgICAgZXJyb3JfbG9nIGxvZ3Mvd2hvYW1pLnBvcDAudWsuZXJyb3IubG9nOyAgIyBFcnJvciBsb2cgZmlsZSBsb2NhdGlvbgoKCgogIH0KCiAg",
+    "config_status": true,
+    "custom_headers": {},
+    "error_log": "logs/whoami.pop0.uk.error.log",
+    "id": "host:whoami.pop0.uk",
+    "index": "index.html",
+    "listens": [
+        {
+            "listen": "80"
+        }
+    ],
+    "match_cases": {},
+    "pop_ids": [
+        "lon1",
+        "pop0"
+    ],
+    "profile_id": "prod",
+    "proxy_server_name": "whoami.pop0.uk",
+    "root": "/var/www/html",
+    "rules": "whoami-demo-default",
+    "server_name": "whoami.pop0.uk",
+    "ssl_auto_renew": true,
+    "ssl_email": "balinder.walia@gmail.com",
+    "ssl_enabled": true,
+    "ssl_force_https": true,
+    "ssl_staging": false
+}

@@ -1,1 +1,51 @@
-{"cache_bypass_auth":false,"cache_docker_blobs":false,"cache_docker_blobs_ttl":"2592000","cache_docker_manifests":false,"cache_docker_manifests_ttl":"3600","config":"CnNlcnZlciB7CiAgICAgIGxpc3RlbiA4MDsKICAgICAgc2VydmVyX25hbWUgc3BlY3RvbmNyLW1pcnJvci5kaXl0YXhyZXR1cm4uY28udWs7CiAgICAgIHJvb3QgL3Zhci93d3cvaHRtbDsKICAgICAgaW5kZXggaW5kZXguaHRtbDsKICAgICAgYWNjZXNzX2xvZyBsb2dzL3NwZWN0b25jci1taXJyb3IuZGl5dGF4cmV0dXJuLmNvLnVrLmFjY2Vzcy5sb2c7CiAgICAgIGVycm9yX2xvZyBsb2dzL3NwZWN0b25jci1taXJyb3IuZGl5dGF4cmV0dXJuLmNvLnVrLmVycm9yLmxvZzsKfQo=","cache_docker_stale_ttl":"31536000","created_at":1787576123,"config_status":true,"listens":[{"listen":"80"}],"cache_enabled":false,"custom_headers":{},"dns_record_type":"CNAME","access_log":"logs/access.log","profile_id":"prod","root":"/var/www/html","error_log":"logs/error.log","index":"index.html","rate_limit_enabled":false,"rules":["425e4925-8ce1-de5b-2d13-0b086621101f"],"varnish_enabled":false,"server_name":"spectoncr-mirror.diytaxreturn.co.uk","proxy_timeouts":{"read_timeout":"600","connect_timeout":"600","send_timeout":"600"},"waf_enabled":false,"proxy_pass":"http://localhost","nginx_status":"","match_cases":{},"ssl_email":"balinder.walia@gmail.com","nginx_status_check":"","ssl_force_https":true,"ssl_staging":false,"ssl_enabled":true,"id":"host:spectoncr-mirror.diytaxreturn.co.uk","cache_docker_serve_stale":false,"proxy_server_name":null,"dns_cname_target":"pop1.diytaxreturn.co.uk","ssl_auto_renew":true}
+{
+    "access_log": "logs/access.log",
+    "cache_bypass_auth": false,
+    "cache_docker_blobs": false,
+    "cache_docker_blobs_ttl": "2592000",
+    "cache_docker_manifests": false,
+    "cache_docker_manifests_ttl": "3600",
+    "cache_docker_serve_stale": false,
+    "cache_docker_stale_ttl": "31536000",
+    "cache_enabled": false,
+    "config": "Q25ObGNuWmxjaUI3Q2lBZ0lDQWdJR3hwYzNSbGJpQTRNRHNLSUNBZ0lDQWdjMlZ5ZG1WeVgyNWhiV1VnYzNCbFkzUnZibU55TFcxcGNuSnZjaTVrYVhsMFlYaHlaWFIxY200dVkyOHVkV3M3Q2lBZ0lDQWdJSEp2YjNRZ0wzWmhjaTkzZDNjdmFIUnRiRHNLSUNBZ0lDQWdhVzVrWlhnZ2FXNWtaWGd1YUhSdGJEc0tJQ0FnSUNBZ1lXTmpaWE56WDJ4dlp5QnNiMmR6TDNOd1pXTjBiMjVqY2kxdGFYSnliM0l1WkdsNWRHRjRjbVYwZFhKdUxtTnZMblZyTG1GalkyVnpjeTVzYjJjN0NpQWdJQ0FnSUdWeWNtOXlYMnh2WnlCc2IyZHpMM053WldOMGIyNWpjaTF0YVhKeWIzSXVaR2w1ZEdGNGNtVjBkWEp1TG1OdkxuVnJMbVZ5Y205eUxteHZaenNLZlFvPQ==",
+    "config_status": true,
+    "created_at": 1787576123,
+    "custom_headers": {},
+    "dns_cname_target": "pop1.diytaxreturn.co.uk",
+    "dns_record_type": "CNAME",
+    "error_log": "logs/error.log",
+    "id": "host:spectoncr-mirror.diytaxreturn.co.uk",
+    "index": "index.html",
+    "listens": [
+        {
+            "listen": "80"
+        }
+    ],
+    "match_cases": {},
+    "pop_ids": [
+        "lon1",
+        "pop0"
+    ],
+    "profile_id": "prod",
+    "proxy_pass": "http://localhost",
+    "proxy_server_name": null,
+    "proxy_timeouts": {
+        "connect_timeout": "600",
+        "read_timeout": "600",
+        "send_timeout": "600"
+    },
+    "rate_limit_enabled": false,
+    "root": "/var/www/html",
+    "rules": [
+        "425e4925-8ce1-de5b-2d13-0b086621101f"
+    ],
+    "server_name": "spectoncr-mirror.diytaxreturn.co.uk",
+    "ssl_auto_renew": true,
+    "ssl_email": "balinder.walia@gmail.com",
+    "ssl_enabled": true,
+    "ssl_force_https": true,
+    "ssl_staging": false,
+    "varnish_enabled": false,
+    "waf_enabled": false
+}

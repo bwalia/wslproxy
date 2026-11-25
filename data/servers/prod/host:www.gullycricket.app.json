@@ -1,8 +1,5 @@
 {
     "access_log": "logs/www.gullycricket.app.access.log",
-    "cache_bypass_auth": false,
-    "cache_enabled": true,
-    "cache_ttl": "3600",
     "config_status": true,
     "error_log": "logs/www.gullycricket.app.error.log",
     "id": "host:www.gullycricket.app",
@@ -24,6 +21,5 @@
     "ssl_email": "admin@gullycricket.app",
     "ssl_enabled": true,
     "ssl_force_https": true,
-    "ssl_staging": false,
-    "updated_at": 1794669383
+    "ssl_staging": false
 }

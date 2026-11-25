@@ -1,1 +1,42 @@
-{"cache_enabled":false,"config":"c2VydmVyIHsKICAgICAgbGlzdGVuIDgwOyAgIyBMaXN0ZW4gb24gcG9ydCAoSFRUUCkKICAgICAgc2VydmVyX25hbWUgYWRtaW5lci5kaXl0YXhyZXR1cm4uY28udWs7ICAjIFlvdXIgZG9tYWluIG5hbWUKICAgICAgcm9vdCAvdmFyL3d3dy9odG1sOyAgIyBEb2N1bWVudCByb290IGRpcmVjdG9yeQogICAgICBpbmRleCBpbmRleC5odG1sOyAgIyBEZWZhdWx0IGluZGV4IGZpbGVzCiAgICAgIGFjY2Vzc19sb2cgbG9ncy9hY2Nlc3MubG9nOyAgIyBBY2Nlc3MgbG9nIGZpbGUgbG9jYXRpb24KICAgICAgZXJyb3JfbG9nIGxvZ3MvZXJyb3IubG9nOyAgIyBFcnJvciBsb2cgZmlsZSBsb2NhdGlvbgoKCgogIH0KCiAg","proxy_pass":"http:\/\/localhost","match_cases":{},"rate_limit_enabled":false,"cache_bypass_auth":false,"created_at":1776502977,"profile_id":"prod","server_name":"adminer.diytaxreturn.co.uk","index":"index.html","root":"\/var\/www\/html","waf_enabled":false,"cache_docker_blobs":false,"error_log":"logs\/error.log","varnish_enabled":false,"proxy_timeouts":{"connect_timeout":"300","send_timeout":"300","read_timeout":"300"},"config_status":true,"rules":"diytax-prod-cloud003","ssl_enabled":true,"custom_headers":{},"listens":[{"listen":"80"}],"proxy_server_name":null,"id":"host:adminer.diytaxreturn.co.uk","access_log":"logs\/access.log","ssl_email":"balinder.walia@gmail.com","ssl_auto_renew":true,"ssl_force_https":true,"ssl_staging":false}
+{
+    "access_log": "logs/access.log",
+    "cache_bypass_auth": false,
+    "cache_docker_blobs": false,
+    "cache_enabled": false,
+    "config": "YzJWeWRtVnlJSHNLSUNBZ0lDQWdiR2x6ZEdWdUlEZ3dPeUFnSXlCTWFYTjBaVzRnYjI0Z2NHOXlkQ0FvU0ZSVVVDa0tJQ0FnSUNBZ2MyVnlkbVZ5WDI1aGJXVWdZV1J0YVc1bGNpNWthWGwwWVhoeVpYUjFjbTR1WTI4dWRXczdJQ0FqSUZsdmRYSWdaRzl0WVdsdUlHNWhiV1VLSUNBZ0lDQWdjbTl2ZENBdmRtRnlMM2QzZHk5b2RHMXNPeUFnSXlCRWIyTjFiV1Z1ZENCeWIyOTBJR1JwY21WamRHOXllUW9nSUNBZ0lDQnBibVJsZUNCcGJtUmxlQzVvZEcxc095QWdJeUJFWldaaGRXeDBJR2x1WkdWNElHWnBiR1Z6Q2lBZ0lDQWdJR0ZqWTJWemMxOXNiMmNnYkc5bmN5OWhZMk5sYzNNdWJHOW5PeUFnSXlCQlkyTmxjM01nYkc5bklHWnBiR1VnYkc5allYUnBiMjRLSUNBZ0lDQWdaWEp5YjNKZmJHOW5JR3h2WjNNdlpYSnliM0l1Ykc5bk95QWdJeUJGY25KdmNpQnNiMmNnWm1sc1pTQnNiMk5oZEdsdmJnb0tDZ29nSUgwS0NpQWc=",
+    "config_status": true,
+    "created_at": 1776502977,
+    "custom_headers": {},
+    "error_log": "logs/error.log",
+    "id": "host:adminer.diytaxreturn.co.uk",
+    "index": "index.html",
+    "listens": [
+        {
+            "listen": "80"
+        }
+    ],
+    "match_cases": {},
+    "pop_ids": [
+        "lon1",
+        "pop0"
+    ],
+    "profile_id": "prod",
+    "proxy_pass": "http://localhost",
+    "proxy_server_name": null,
+    "proxy_timeouts": {
+        "connect_timeout": "300",
+        "read_timeout": "300",
+        "send_timeout": "300"
+    },
+    "rate_limit_enabled": false,
+    "root": "/var/www/html",
+    "rules": "diytax-prod-origin-uk-003",
+    "server_name": "adminer.diytaxreturn.co.uk",
+    "ssl_auto_renew": true,
+    "ssl_email": "balinder.walia@gmail.com",
+    "ssl_enabled": true,
+    "ssl_force_https": true,
+    "ssl_staging": false,
+    "varnish_enabled": false,
+    "waf_enabled": false
+}

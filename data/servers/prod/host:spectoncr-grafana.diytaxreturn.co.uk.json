@@ -1,1 +1,32 @@
-{"cache_enabled":false,"proxy_server_name":"spectoncr-grafana.diytaxreturn.co.uk","nginx_status":"nginx: [warn] the \"user\" directive makes sense only if the master process runs with super-user privileges, ignored in \/usr\/local\/openresty\/nginx\/conf\/nginx.conf:2\nnginx: [emerg] unexpected end of file, expecting \";\" or \"}\" in \/opt\/nginx\/conf.d\/spectoncr-grafana.diytaxreturn.co.uk.conf:1\nnginx: configuration file \/usr\/local\/openresty\/nginx\/conf\/nginx.conf test failed\n","match_cases":{},"nginx_status_check":"error","server_name":"spectoncr-grafana.diytaxreturn.co.uk","index":"index.html","ssl_enabled":true,"error_log":"logs\/spectoncr-grafana.diytaxreturn.co.uk.error.log","profile_id":"prod","config_status":true,"rules":"425e4925-8ce1-de5b-2d13-0b086621101f","config":"c2VydmVyIHsKICAgICAgbGlzdGVuIDgwOyAgIyBMaXN0ZW4gb24gcG9ydCAoSFRUUCkKICAgICAgc2VydmVyX25hbWUgc3BlY3RvbmNyLWdyYWZhbmEuZGl5dGF4cmV0dXJuLmNvLnVrOyAgIyBZb3VyIGRvbWFpbiBuYW1lCiAgICAgIHJvb3QgL3Zhci93d3cvaHRtbDsgICMgRG9jdW1lbnQgcm9vdCBkaXJlY3RvcnkKICAgICAgaW5kZXggaW5kZXguaHRtbDsgICMgRGVmYXVsdCBpbmRleCBmaWxlcwogICAgICBhY2Nlc3NfbG9nIGxvZ3Mvc3BlY3RvbmNyLWdyYWZhbmEuZGl5dGF4cmV0dXJuLmNvLnVrLmFjY2Vzcy5sb2c7ICAjIEFjY2VzcyBsb2cgZmlsZSBsb2NhdGlvbgogICAgICBlcnJvcl9sb2cgbG9ncy9zcGVjdG9uY3ItZ3JhZmFuYS5kaXl0YXhyZXR1cm4uY28udWsuZXJyb3IubG9nOyAgIyBFcnJvciBsb2cgZmlsZSBsb2NhdGlvbgoKCgogIH0KCiAg","custom_headers":{},"listens":[{"listen":"80"}],"root":"\/var\/www\/html","id":"host:spectoncr-grafana.diytaxreturn.co.uk","ssl_email":"admin@diytaxreturn.co.uk","access_log":"logs\/spectoncr-grafana.diytaxreturn.co.uk.access.log","ssl_auto_renew":true,"ssl_force_https":true,"ssl_staging":false}
+{
+    "access_log": "logs/spectoncr-grafana.diytaxreturn.co.uk.access.log",
+    "cache_enabled": false,
+    "config": "YzJWeWRtVnlJSHNLSUNBZ0lDQWdiR2x6ZEdWdUlEZ3dPeUFnSXlCTWFYTjBaVzRnYjI0Z2NHOXlkQ0FvU0ZSVVVDa0tJQ0FnSUNBZ2MyVnlkbVZ5WDI1aGJXVWdjM0JsWTNSdmJtTnlMV2R5WVdaaGJtRXVaR2w1ZEdGNGNtVjBkWEp1TG1OdkxuVnJPeUFnSXlCWmIzVnlJR1J2YldGcGJpQnVZVzFsQ2lBZ0lDQWdJSEp2YjNRZ0wzWmhjaTkzZDNjdmFIUnRiRHNnSUNNZ1JHOWpkVzFsYm5RZ2NtOXZkQ0JrYVhKbFkzUnZjbmtLSUNBZ0lDQWdhVzVrWlhnZ2FXNWtaWGd1YUhSdGJEc2dJQ01nUkdWbVlYVnNkQ0JwYm1SbGVDQm1hV3hsY3dvZ0lDQWdJQ0JoWTJObGMzTmZiRzluSUd4dlozTXZjM0JsWTNSdmJtTnlMV2R5WVdaaGJtRXVaR2w1ZEdGNGNtVjBkWEp1TG1OdkxuVnJMbUZqWTJWemN5NXNiMmM3SUNBaklFRmpZMlZ6Y3lCc2IyY2dabWxzWlNCc2IyTmhkR2x2YmdvZ0lDQWdJQ0JsY25KdmNsOXNiMmNnYkc5bmN5OXpjR1ZqZEc5dVkzSXRaM0poWm1GdVlTNWthWGwwWVhoeVpYUjFjbTR1WTI4dWRXc3VaWEp5YjNJdWJHOW5PeUFnSXlCRmNuSnZjaUJzYjJjZ1ptbHNaU0JzYjJOaGRHbHZiZ29LQ2dvZ0lIMEtDaUFn",
+    "config_status": true,
+    "custom_headers": {},
+    "error_log": "logs/spectoncr-grafana.diytaxreturn.co.uk.error.log",
+    "id": "host:spectoncr-grafana.diytaxreturn.co.uk",
+    "index": "index.html",
+    "listens": [
+        {
+            "listen": "80"
+        }
+    ],
+    "match_cases": {},
+    "nginx_status": "nginx: [warn] the \"user\" directive makes sense only if the master process runs with super-user privileges, ignored in /usr/local/openresty/nginx/conf/nginx.conf:2\nnginx: [emerg] unexpected end of file, expecting \";\" or \"}\" in /opt/nginx/conf.d/spectoncr-grafana.diytaxreturn.co.uk.conf:1\nnginx: configuration file /usr/local/openresty/nginx/conf/nginx.conf test failed\n",
+    "nginx_status_check": "error",
+    "pop_ids": [
+        "lon1",
+        "pop0"
+    ],
+    "profile_id": "prod",
+    "proxy_server_name": "spectoncr-grafana.diytaxreturn.co.uk",
+    "root": "/var/www/html",
+    "rules": "425e4925-8ce1-de5b-2d13-0b086621101f",
+    "server_name": "spectoncr-grafana.diytaxreturn.co.uk",
+    "ssl_auto_renew": true,
+    "ssl_email": "admin@diytaxreturn.co.uk",
+    "ssl_enabled": true,
+    "ssl_force_https": true,
+    "ssl_staging": false
+}

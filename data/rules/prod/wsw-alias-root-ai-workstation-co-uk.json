@@ -1,0 +1,30 @@
+{
+    "_schema_version": 2,
+    "created_at": 1795599219,
+    "id": "wsw-alias-root-ai-workstation-co-uk",
+    "match": {
+        "response": {
+            "code": 301,
+            "redirect_uri": "https://www.workstation.co.uk/en"
+        },
+        "rules": {
+            "path": "/",
+            "path_key": "equals"
+        }
+    },
+    "name": "wsw-alias-root-ai-workstation-co-uk",
+    "priority": 2,
+    "profile_id": "prod",
+    "rules_tags": [
+        "workstation-website",
+        "alias",
+        "redirect",
+        "seo",
+        "prod",
+        "ai.workstation.co.uk"
+    ],
+    "servers": [
+        "host:ai.workstation.co.uk"
+    ],
+    "updated_at": 1795599219
+}

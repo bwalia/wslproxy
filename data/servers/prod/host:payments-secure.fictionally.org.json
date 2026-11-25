@@ -1,28 +1,34 @@
 {
-  "server_name": "payments-secure.fictionally.org",
-  "custom_headers": {},
-  "ssl_email": "balinder.walia@gmail.com",
-  "ssl_auto_renew": true,
-  "ssl_force_https": true,
-  "ssl_staging": false,
-  "cache_enabled": false,
-  "rules": "payments-secure-f5-apigw",
-  "id": "host:payments-secure.fictionally.org",
-  "proxy_server_name": "payments-secure.fictionally.org",
-  "index": "index.html",
-  "waf_mode_override": "off",
-  "match_cases": {},
-  "ssl_enabled": true,
-  "waf_enabled": false,
-  "profile_id": "prod",
-  "waf_policy_id": "waf-policy-payments-hard",
-  "listens": [
-    {
-      "listen": "80"
-    }
-  ],
-  "root": "/var/www/html",
-  "config_status": true,
-  "error_log": "logs/payments-secure.error.log",
-  "access_log": "logs/payments-secure.access.log"
+    "access_log": "logs/payments-secure.access.log",
+    "cache_enabled": false,
+    "config": "c2VydmVyIHsKICAgICAgbGlzdGVuIDgwOyAgIyBMaXN0ZW4gb24gcG9ydCAoSFRUUCkKICAgICAgc2VydmVyX25hbWUgcGF5bWVudHMtc2VjdXJlLmZpY3Rpb25hbGx5Lm9yZzsgICMgWW91ciBkb21haW4gbmFtZQogICAgICByb290IC92YXIvd3d3L2h0bWw7ICAjIERvY3VtZW50IHJvb3QgZGlyZWN0b3J5CiAgICAgIGluZGV4IGluZGV4Lmh0bWw7ICAjIERlZmF1bHQgaW5kZXggZmlsZXMKICAgICAgYWNjZXNzX2xvZyBsb2dzL3BheW1lbnRzLXNlY3VyZS5hY2Nlc3MubG9nOyAgIyBBY2Nlc3MgbG9nIGZpbGUgbG9jYXRpb24KICAgICAgZXJyb3JfbG9nIGxvZ3MvcGF5bWVudHMtc2VjdXJlLmVycm9yLmxvZzsgICMgRXJyb3IgbG9nIGZpbGUgbG9jYXRpb24KCgoKICB9CgogIA==",
+    "config_status": true,
+    "custom_headers": {},
+    "error_log": "logs/payments-secure.error.log",
+    "id": "host:payments-secure.fictionally.org",
+    "index": "index.html",
+    "listens": [
+        {
+            "listen": "80"
+        }
+    ],
+    "match_cases": {},
+    "pop_ids": [
+        "lon1",
+        "pop0"
+    ],
+    "profile_id": "prod",
+    "proxy_server_name": "payments-secure.fictionally.org",
+    "root": "/var/www/html",
+    "rules": "payments-secure-f5-apigw",
+    "server_name": "payments-secure.fictionally.org",
+    "ssl_auto_renew": true,
+    "ssl_email": "balinder.walia@gmail.com",
+    "ssl_enabled": true,
+    "ssl_force_https": true,
+    "ssl_staging": false,
+    "updated_at": "2026-10-15T16:10:52Z",
+    "waf_enabled": false,
+    "waf_mode_override": "off",
+    "waf_policy_id": "waf-policy-payments-hard"
 }

@@ -1,0 +1,13 @@
+{
+    "allow_cidrs": "193.237.176.232/32",
+    "endpoints": [
+        {
+            "path": "/",
+            "path_key": "starts_with"
+        }
+    ],
+    "id": "tenthmatrix-preprod",
+    "name": "tenthmatrix-preprod",
+    "origin": "http://193.237.176.232:8888",
+    "profile_id": "prod"
+}

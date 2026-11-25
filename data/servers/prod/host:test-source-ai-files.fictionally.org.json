@@ -1,0 +1,27 @@
+{
+    "access_profile": "jobshout-preprod",
+    "config": "YzJWeWRtVnlJSHNLSUNBZ0lDQWdiR2x6ZEdWdUlEZ3dPeUFnSXlCTWFYTjBaVzRnYjI0Z2NHOXlkQ0FvU0ZSVVVDa0tJQ0FnSUNBZ2MyVnlkbVZ5WDI1aGJXVWdkR1Z6ZEMxemIzVnlZMlV0WVdrdFptbHNaWE11Wm1samRHbHZibUZzYkhrdWIzSm5PeUFnSXlCWmIzVnlJR1J2YldGcGJpQnVZVzFsQ2lBZ0lDQWdJSEp2YjNRZ0wzWmhjaTkzZDNjdmFIUnRiRHNnSUNNZ1JHOWpkVzFsYm5RZ2NtOXZkQ0JrYVhKbFkzUnZjbmtLSUNBZ0lDQWdhVzVrWlhnZ2FXNWtaWGd1YUhSdGJEc2dJQ01nUkdWbVlYVnNkQ0JwYm1SbGVDQm1hV3hsY3dvZ0lDQWdJQ0JoWTJObGMzTmZiRzluSUd4dlozTXZZV05qWlhOekxteHZaenNnSUNNZ1FXTmpaWE56SUd4dlp5Qm1hV3hsSUd4dlkyRjBhVzl1Q2lBZ0lDQWdJR1Z5Y205eVgyeHZaeUJzYjJkekwyVnljbTl5TG14dlp6c2dJQ01nUlhKeWIzSWdiRzluSUdacGJHVWdiRzlqWVhScGIyNEtDZ29LSUNCOUNnb2dJQT09",
+    "created_at": 1795600517,
+    "id": "host:test-source-ai-files.fictionally.org",
+    "listens": [
+        {
+            "listen": "80"
+        }
+    ],
+    "match_cases": {},
+    "pop_ids": [
+        "lon1",
+        "pop0"
+    ],
+    "profile_id": "prod",
+    "proxy_pass": "http://localhost",
+    "rules": [
+        "8f161403-8592-1111-6294-9c57974505b0"
+    ],
+    "server_name": "test-source-ai-files.fictionally.org",
+    "ssl_auto_renew": true,
+    "ssl_email": "balinder.walia@gmail.com",
+    "ssl_enabled": true,
+    "ssl_force_https": true,
+    "ssl_staging": false
+}

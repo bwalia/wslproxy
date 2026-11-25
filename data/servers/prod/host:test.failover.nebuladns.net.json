@@ -1,0 +1,30 @@
+{
+    "access_log": "logs/test.failover.nebuladns.net.access.log",
+    "cache_enabled": false,
+    "config": "c2VydmVyIHsKICAgICAgbGlzdGVuIDgwOwogICAgICBzZXJ2ZXJfbmFtZSB0ZXN0LmZhaWxvdmVyLm5lYnVsYWRucy5uZXQ7CiAgICAgIHJvb3QgL3Zhci93d3cvaHRtbC9kbnMtZmFpbG92ZXItZGVtbzsKICAgICAgaW5kZXggaW5kZXguaHRtbDsKICAgICAgYWNjZXNzX2xvZyBsb2dzL3Rlc3QuZmFpbG92ZXIubmVidWxhZG5zLm5ldC5hY2Nlc3MubG9nOwogICAgICBlcnJvcl9sb2cgbG9ncy90ZXN0LmZhaWxvdmVyLm5lYnVsYWRucy5uZXQuZXJyb3IubG9nOwogIH0K",
+    "config_status": true,
+    "custom_headers": {},
+    "error_log": "logs/test.failover.nebuladns.net.error.log",
+    "id": "host:test.failover.nebuladns.net",
+    "index": "index.html",
+    "listens": [
+        {
+            "listen": "80"
+        }
+    ],
+    "match_cases": {},
+    "pop_ids": [
+        "lon1",
+        "pop0"
+    ],
+    "profile_id": "prod",
+    "proxy_server_name": "test.failover.nebuladns.net",
+    "root": "/var/www/html/dns-failover-demo",
+    "rules": "dns-failover-demo-default",
+    "server_name": "test.failover.nebuladns.net",
+    "ssl_auto_renew": true,
+    "ssl_email": "balinder.walia@gmail.com",
+    "ssl_enabled": true,
+    "ssl_force_https": true,
+    "ssl_staging": false
+}

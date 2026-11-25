@@ -1,0 +1,41 @@
+{
+    "created_at": 1795076997,
+    "id": "nebuladb-showcase-sites",
+    "match": {
+        "response": {
+            "backends": [
+                {
+                    "address": "193.237.176.232:8888",
+                    "label": "k3s1 ingress entry (Host-header routed); replaces retired AWS ELB 13.42.188.136",
+                    "weight": 100
+                }
+            ],
+            "code": 305,
+            "redirect_uri": "193.237.176.232:8888",
+            "routing": {
+                "mode": "least_conn"
+            },
+            "strip_path": false
+        },
+        "rules": {
+            "basic_auth": {
+                "enabled": false
+            },
+            "path": "/",
+            "path_key": "starts_with"
+        }
+    },
+    "name": "nebuladb-showcase-sites",
+    "priority": 1,
+    "profile_id": "prod",
+    "rules_tags": [
+        "nebuladb",
+        "prod",
+        "showcase"
+    ],
+    "servers": [
+        "host:showcase.nebuladb.net",
+        "host:sourcesupplies.nebuladb.net",
+        "host:px.nebuladb.net"
+    ]
+}

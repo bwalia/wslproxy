@@ -1,0 +1,34 @@
+{
+    "id": "diytax-prod-test-origin-uk-001-opsapi",
+    "match": {
+        "response": {
+            "backends": [
+                {
+                    "address": "vpnhh.workstation.co.uk:8888",
+                    "label": "pop1-lan-k3s-ingress",
+                    "weight": 100
+                }
+            ],
+            "code": 305,
+            "redirect_uri": "vpnhh.workstation.co.uk:8888",
+            "routing": {
+                "mode": "weighted"
+            },
+            "strip_path": true
+        },
+        "rules": {
+            "path": "/opsapi",
+            "path_key": "starts_with"
+        }
+    },
+    "name": "diytax-prod-test-lan-opsapi",
+    "priority": 100,
+    "profile_id": "prod",
+    "rules_tags": [
+        "diytaxreturn",
+        "test",
+        "lan",
+        "opsapi"
+    ],
+    "servers": {}
+}

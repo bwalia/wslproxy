@@ -1,0 +1,37 @@
+{
+    "id": "source-ai-vps005",
+    "match": {
+        "response": {
+            "backends": [
+                {
+                    "address": "77.68.21.34:80",
+                    "label": "vps005's traefik-edge (hostNetwork, :80). Source AI runs wholly on that node (deploy/helm/source-ai/values.yaml placement), as Gully Cricket prod.",
+                    "weight": 100
+                }
+            ],
+            "code": 305,
+            "redirect_uri": "77.68.21.34:80",
+            "routing": {
+                "mode": "least_conn"
+            },
+            "strip_path": false
+        },
+        "rules": {
+            "path": "/",
+            "path_key": "starts_with"
+        }
+    },
+    "name": "source-ai-vps005",
+    "priority": 1,
+    "profile_id": "prod",
+    "rules_tags": [
+        "source-ai",
+        "int",
+        "test",
+        "acc",
+        "prod"
+    ],
+    "servers": [
+        "host:restocked.fictionally.org"
+    ]
+}

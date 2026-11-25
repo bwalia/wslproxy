@@ -1,1 +1,30 @@
-{"ssl_enabled":true,"rules":"academy-prod-default","access_log":"logs\/acc-dashboard.workstation.academy.access.log","config":"c2VydmVyIHsKICAgICAgbGlzdGVuIDgwOyAgIyBMaXN0ZW4gb24gcG9ydCAoSFRUUCkKICAgICAgc2VydmVyX25hbWUgYWNjLWRhc2hib2FyZC53b3Jrc3RhdGlvbi5hY2FkZW15OyAgIyBZb3VyIGRvbWFpbiBuYW1lCiAgICAgIHJvb3QgL3Zhci93d3cvaHRtbDsgICMgRG9jdW1lbnQgcm9vdCBkaXJlY3RvcnkKICAgICAgaW5kZXggaW5kZXguaHRtbDsgICMgRGVmYXVsdCBpbmRleCBmaWxlcwogICAgICBhY2Nlc3NfbG9nIGxvZ3MvYWNjLWRhc2hib2FyZC53b3Jrc3RhdGlvbi5hY2FkZW15LmFjY2Vzcy5sb2c7ICAjIEFjY2VzcyBsb2cgZmlsZSBsb2NhdGlvbgogICAgICBlcnJvcl9sb2cgbG9ncy9hY2MtZGFzaGJvYXJkLndvcmtzdGF0aW9uLmFjYWRlbXkuZXJyb3IubG9nOyAgIyBFcnJvciBsb2cgZmlsZSBsb2NhdGlvbgoKCgogIH0KCiAg","root":"\/var\/www\/html","index":"index.html","config_status":false,"error_log":"logs\/acc-dashboard.workstation.academy.error.log","custom_headers":{},"server_name":"acc-dashboard.workstation.academy","id":"host:acc-dashboard.workstation.academy","listens":[{"listen":"80"}],"ssl_staging":false,"match_cases":{},"proxy_server_name":"acc-dashboard.workstation.academy","cache_enabled":false,"ssl_email":"admin@workstation.academy","ssl_auto_renew":true,"ssl_force_https":true,"profile_id":"prod"}
+{
+    "access_log": "logs/acc-dashboard.workstation.academy.access.log",
+    "cache_enabled": false,
+    "config": "YzJWeWRtVnlJSHNLSUNBZ0lDQWdiR2x6ZEdWdUlEZ3dPeUFnSXlCTWFYTjBaVzRnYjI0Z2NHOXlkQ0FvU0ZSVVVDa0tJQ0FnSUNBZ2MyVnlkbVZ5WDI1aGJXVWdZV05qTFdSaGMyaGliMkZ5WkM1M2IzSnJjM1JoZEdsdmJpNWhZMkZrWlcxNU95QWdJeUJaYjNWeUlHUnZiV0ZwYmlCdVlXMWxDaUFnSUNBZ0lISnZiM1FnTDNaaGNpOTNkM2N2YUhSdGJEc2dJQ01nUkc5amRXMWxiblFnY205dmRDQmthWEpsWTNSdmNua0tJQ0FnSUNBZ2FXNWtaWGdnYVc1a1pYZ3VhSFJ0YkRzZ0lDTWdSR1ZtWVhWc2RDQnBibVJsZUNCbWFXeGxjd29nSUNBZ0lDQmhZMk5sYzNOZmJHOW5JR3h2WjNNdllXTmpMV1JoYzJoaWIyRnlaQzUzYjNKcmMzUmhkR2x2Ymk1aFkyRmtaVzE1TG1GalkyVnpjeTVzYjJjN0lDQWpJRUZqWTJWemN5QnNiMmNnWm1sc1pTQnNiMk5oZEdsdmJnb2dJQ0FnSUNCbGNuSnZjbDlzYjJjZ2JHOW5jeTloWTJNdFpHRnphR0p2WVhKa0xuZHZjbXR6ZEdGMGFXOXVMbUZqWVdSbGJYa3VaWEp5YjNJdWJHOW5PeUFnSXlCRmNuSnZjaUJzYjJjZ1ptbHNaU0JzYjJOaGRHbHZiZ29LQ2dvZ0lIMEtDaUFn",
+    "config_status": false,
+    "custom_headers": {},
+    "error_log": "logs/acc-dashboard.workstation.academy.error.log",
+    "id": "host:acc-dashboard.workstation.academy",
+    "index": "index.html",
+    "listens": [
+        {
+            "listen": "80"
+        }
+    ],
+    "match_cases": {},
+    "pop_ids": [
+        "lon1",
+        "pop0"
+    ],
+    "profile_id": "prod",
+    "proxy_server_name": "acc-dashboard.workstation.academy",
+    "root": "/var/www/html",
+    "rules": "academy-prod-default",
+    "server_name": "acc-dashboard.workstation.academy",
+    "ssl_auto_renew": true,
+    "ssl_email": "admin@workstation.academy",
+    "ssl_enabled": true,
+    "ssl_force_https": true,
+    "ssl_staging": false
+}

@@ -1,0 +1,35 @@
+{
+    "id": "portfoliolab-web-k3s1",
+    "match": {
+        "response": {
+            "backends": [
+                {
+                    "address": "193.237.176.232:8888",
+                    "label": "k3s1 Traefik (traefik-edge); routes by Host header to the portfoliolab-web Ingress",
+                    "weight": 100
+                }
+            ],
+            "code": 305,
+            "redirect_uri": "193.237.176.232:8888",
+            "routing": {
+                "mode": "least_conn"
+            },
+            "strip_path": false
+        },
+        "rules": {
+            "path": "/",
+            "path_key": "starts_with"
+        }
+    },
+    "name": "portfoliolab-web-k3s1",
+    "priority": 1,
+    "profile_id": "prod",
+    "rules_tags": [
+        "portfoliolab-web",
+        "nextjs",
+        "int"
+    ],
+    "servers": [
+        "host:next.ukbuytolet.com"
+    ]
+}

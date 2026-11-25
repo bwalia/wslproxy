@@ -1,0 +1,31 @@
+{
+    "access_log": "logs/api.tenthmatrix.com.access.log",
+    "cache_enabled": false,
+    "config_status": true,
+    "custom_headers": {},
+    "dns_cname_target": "lon1.pop0.uk",
+    "dns_record_type": "CNAME",
+    "error_log": "logs/api.tenthmatrix.com.error.log",
+    "id": "host:api.tenthmatrix.com",
+    "index": "index.html",
+    "listens": [
+        {
+            "listen": "80"
+        }
+    ],
+    "match_cases": {},
+    "pop_ids": [
+        "lon1",
+        "pop0"
+    ],
+    "profile_id": "prod",
+    "proxy_server_name": "opsapi.workstation.co.uk",
+    "root": "/var/www/html",
+    "rules": "opsapi-prod-cloud003",
+    "server_name": "api.tenthmatrix.com",
+    "ssl_auto_renew": true,
+    "ssl_email": "admin@tenthmatrix.com",
+    "ssl_enabled": true,
+    "ssl_force_https": true,
+    "ssl_staging": false
+}

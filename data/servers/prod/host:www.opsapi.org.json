@@ -1,27 +1,34 @@
 {
-  "id": "host:www.opsapi.org",
-  "server_name": "www.opsapi.org",
-  "profile_id": "prod",
-  "config_status": false,
-  "listens": [
-    {
-      "listen": "80"
-    }
-  ],
-  "rules": "opsapi-org-www-redirect",
-  "match_cases": [],
-  "custom_headers": {},
-  "ssl_enabled": true,
-  "ssl_auto_renew": true,
-  "ssl_force_https": true,
-  "ssl_staging": false,
-  "ssl_email": "admin@workstation.co.uk",
-  "cache_enabled": false,
-  "proxy_timeouts": {
-    "connect_timeout": "5",
-    "send_timeout": "60",
-    "read_timeout": "60"
-  },
-  "access_log": "logs/www.opsapi.org.access.log",
-  "error_log": "logs/www.opsapi.org.error.log"
+    "access_log": "logs/www.opsapi.org.access.log",
+    "cache_bypass_auth": false,
+    "cache_enabled": true,
+    "cache_ttl": "3600",
+    "config_status": false,
+    "custom_headers": {},
+    "error_log": "logs/www.opsapi.org.error.log",
+    "id": "host:www.opsapi.org",
+    "listens": [
+        {
+            "listen": "80"
+        }
+    ],
+    "match_cases": {},
+    "pop_ids": [
+        "lon1",
+        "pop0"
+    ],
+    "profile_id": "prod",
+    "proxy_timeouts": {
+        "connect_timeout": "5",
+        "read_timeout": "60",
+        "send_timeout": "60"
+    },
+    "rules": "opsapi-org-www-redirect",
+    "server_name": "www.opsapi.org",
+    "ssl_auto_renew": true,
+    "ssl_email": "admin@workstation.co.uk",
+    "ssl_enabled": true,
+    "ssl_force_https": true,
+    "ssl_staging": false,
+    "updated_at": 1794669383
 }

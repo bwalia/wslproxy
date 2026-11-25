@@ -1,0 +1,27 @@
+{
+    "access_profile": "source-ai-preprod",
+    "config": "YzJWeWRtVnlJSHNLSUNBZ0lDQWdiR2x6ZEdWdUlEZ3dPeUFnSXlCTWFYTjBaVzRnYjI0Z2NHOXlkQ0FvU0ZSVVVDa0tJQ0FnSUNBZ2MyVnlkbVZ5WDI1aGJXVWdhVzUwTFhKbGMzUnZZMnRsWkM1bWFXTjBhVzl1WVd4c2VTNXZjbWM3SUNBaklGbHZkWElnWkc5dFlXbHVJRzVoYldVS0lDQWdJQ0FnY205dmRDQXZkbUZ5TDNkM2R5OW9kRzFzT3lBZ0l5QkViMk4xYldWdWRDQnliMjkwSUdScGNtVmpkRzl5ZVFvZ0lDQWdJQ0JwYm1SbGVDQnBibVJsZUM1b2RHMXNPeUFnSXlCRVpXWmhkV3gwSUdsdVpHVjRJR1pwYkdWekNpQWdJQ0FnSUdGalkyVnpjMTlzYjJjZ2JHOW5jeTloWTJObGMzTXViRzluT3lBZ0l5QkJZMk5sYzNNZ2JHOW5JR1pwYkdVZ2JHOWpZWFJwYjI0S0lDQWdJQ0FnWlhKeWIzSmZiRzluSUd4dlozTXZaWEp5YjNJdWJHOW5PeUFnSXlCRmNuSnZjaUJzYjJjZ1ptbHNaU0JzYjJOaGRHbHZiZ29LQ2dvZ0lIMEtDaUFn",
+    "created_at": 1795620838,
+    "id": "host:int-restocked.fictionally.org",
+    "listens": [
+        {
+            "listen": "80"
+        }
+    ],
+    "match_cases": {},
+    "pop_ids": [
+        "pop0",
+        "lon1"
+    ],
+    "profile_id": "prod",
+    "proxy_pass": "http://localhost",
+    "rules": [
+        "source-ai-vps005"
+    ],
+    "server_name": "int-restocked.fictionally.org",
+    "ssl_auto_renew": true,
+    "ssl_email": "balinder.walia@gmail.com",
+    "ssl_enabled": true,
+    "ssl_force_https": true,
+    "ssl_staging": false
+}

@@ -1,0 +1,47 @@
+{
+    "access_log": "logs/access.log",
+    "api_gw": {
+        "enabled": true,
+        "hooks": {
+            "enabled": true,
+            "lua": [
+                {
+                    "name": "wsl_client_headers",
+                    "phase": "access_before",
+                    "source": "-- Stamp the visitor's address and country for the origin. Always overwritten,\n-- so a client can't supply its own values through the edge.\nreturn function(cfg, ctx, policy)\n    ngx.req.set_header(\"X-WSL-Client-IP\", tostring(ctx.client_ip or ngx.var.remote_addr or \"\"))\n    local cc = ngx.var.geo_country\n    cc = type(cc) == \"string\" and cc:upper():gsub(\"%s+\", \"\") or \"\"\n    if cc == \"UK\" then cc = \"GB\" end\n    ngx.req.set_header(\"X-WSL-Geo-Country\", cc:match(\"^%u%u$\") and cc or nil)\n    return nil\nend\n"
+                }
+            ]
+        },
+        "modules": [
+            "hooks"
+        ]
+    },
+    "cache_enabled": false,
+    "config": "c2VydmVyIHsKICAgICAgbGlzdGVuIDgwOyAgIyBMaXN0ZW4gb24gcG9ydCAoSFRUUCkKICAgICAgc2VydmVyX25hbWUgcHgubmVidWxhZGIubmV0OyAgIyBZb3VyIGRvbWFpbiBuYW1lCiAgICAgIHJvb3QgL3Zhci93d3cvaHRtbDsgICMgRG9jdW1lbnQgcm9vdCBkaXJlY3RvcnkKICAgICAgaW5kZXggaW5kZXguaHRtbDsgICMgRGVmYXVsdCBpbmRleCBmaWxlcwogICAgICBhY2Nlc3NfbG9nIGxvZ3MvYWNjZXNzLmxvZzsgICMgQWNjZXNzIGxvZyBmaWxlIGxvY2F0aW9uCiAgICAgIGVycm9yX2xvZyBsb2dzL2Vycm9yLmxvZzsgICMgRXJyb3IgbG9nIGZpbGUgbG9jYXRpb24KCgoKICB9CgogIA==",
+    "config_status": true,
+    "dns_cname_target": "lon1.pop0.uk",
+    "dns_record_type": "CNAME",
+    "error_log": "logs/error.log",
+    "id": "host:px.nebuladb.net",
+    "index": "index.html",
+    "listens": [
+        {
+            "listen": "80"
+        }
+    ],
+    "match_cases": {},
+    "pop_ids": [
+        "pop0"
+    ],
+    "profile_id": "prod",
+    "proxy_pass": null,
+    "proxy_server_name": null,
+    "root": "/var/www/html",
+    "rules": "nebuladb-showcase-sites",
+    "server_name": "px.nebuladb.net",
+    "ssl_auto_renew": true,
+    "ssl_email": "balinder.walia@gmail.com",
+    "ssl_enabled": true,
+    "ssl_force_https": true,
+    "ssl_staging": false
+}
