@@ -82,6 +82,52 @@ local function get_country_code(ip_address)
     return ""
 end
 
+-- ─── Bounded metric labels ──────────────────────────────────────────────────
+-- Every distinct label set is a series the Prometheus library keeps in each
+-- worker's Lua heap for the life of the worker (and in the shared dict until
+-- the master restarts). Labels must therefore come from configuration, never
+-- straight from the request (lon1 OOM, 2026-11-25: docs/runbooks/edge-memory.md).
+
+local KNOWN_METHODS = {
+    GET = true, HEAD = true, POST = true, PUT = true, PATCH = true,
+    DELETE = true, OPTIONS = true,
+}
+
+--- Request method, or "OTHER" for anything outside the usual set (the method
+--- token is client-controlled).
+function _M.metric_method(method)
+    if KNOWN_METHODS[method] then
+        return method
+    end
+    return "OTHER"
+end
+
+--- Host label: the configured server that handled the request
+--- (gateway_ack.lua sets ngx.ctx.metric_host), else the nginx server block's
+--- own server_name (admin / dashboard blocks), else "_unmatched". Never the
+--- raw Host header: the catch-all server blocks accept any value, and
+--- scanners send random ones.
+function _M.metric_host(ctx_host, block_server_name)
+    local h = ctx_host
+    if type(h) ~= "string" or h == "" then
+        h = block_server_name
+        if type(h) ~= "string" or h == "" or h == "_" then
+            return "_unmatched"
+        end
+    end
+    return (h:lower():gsub("^www%.", ""))
+end
+
+--- Upstream label: the configured backend (rule backend label / redirect
+--- URI, set by gateway_resp.lua), not $upstream_addr, whose resolved IPs and
+--- retry lists are unbounded.
+function _M.metric_upstream(backend_label)
+    if type(backend_label) == "string" and backend_label ~= "" then
+        return backend_label
+    end
+    return "_other"
+end
+
 function _M.log_request()
     -- Get request variables - with nil safety checks
     local host = ngx.var.host
@@ -98,8 +144,12 @@ function _M.log_request()
         return
     end
 
-    -- Sanitize host (remove www prefix)
-    host = host:gsub("^www.", "")
+    -- Sanitize host (remove www prefix). Used for traffic_stats only.
+    host = host:gsub("^www%.", "")
+
+    -- Prometheus labels (bounded, see metric_host / metric_method above).
+    local mhost = _M.metric_host(ngx.ctx.metric_host, ngx.var.server_name)
+    local mmethod = _M.metric_method(method)
 
     -- Get country code from IP address for geographic tracking
     local country_code = get_country_code(remote_addr or "")
@@ -145,43 +195,39 @@ function _M.log_request()
         local metric_requests = metrics.get_metric_requests()
         local metric_latency = metrics.get_metric_latency()
         if metric_requests and metric_latency then
-            metric_requests:inc(1, { host, tostring(status), method, endpoint })
-            metric_latency:observe(request_time, { host, method, endpoint })
+            metric_requests:inc(1, { mhost, tostring(status), mmethod, endpoint })
+            metric_latency:observe(request_time, { mhost, mmethod, endpoint })
         end
 
         -- Request/Response size metrics
         local metric_request_size = metrics.get_metric_request_size()
         local metric_response_size = metrics.get_metric_response_size()
         if metric_request_size and metric_response_size then
-            metric_request_size:observe(request_length, { host, method })
-            metric_response_size:observe(bytes_sent, { host, method, tostring(status) })
+            metric_request_size:observe(request_length, { mhost, mmethod })
+            metric_response_size:observe(bytes_sent, { mhost, mmethod, tostring(status) })
         end
 
         -- Error tracking
         if status >= 400 then
             local metric_errors = metrics.get_metric_errors()
             if metric_errors then
-                metric_errors:inc(1, { host, tostring(status), endpoint })
+                metric_errors:inc(1, { mhost, tostring(status), endpoint })
             end
 
             if status >= 400 and status < 500 then
                 local metric_4xx = metrics.get_metric_4xx_errors()
                 if metric_4xx then
-                    metric_4xx:inc(1, { host, tostring(status), endpoint })
+                    metric_4xx:inc(1, { mhost, tostring(status), endpoint })
                 end
             elseif status >= 500 then
                 local metric_5xx = metrics.get_metric_5xx_errors()
                 if metric_5xx then
-                    metric_5xx:inc(1, { host, tostring(status), endpoint })
+                    metric_5xx:inc(1, { mhost, tostring(status), endpoint })
                 end
             end
         end
 
-        -- DDoS / Security: Track requests per IP
-        local metric_requests_per_ip = metrics.get_metric_requests_per_ip()
-        if metric_requests_per_ip then
-            metric_requests_per_ip:inc(1, { remote_addr, host })
-        end
+        -- (No per-IP series: see prometheus_metrics.lua, "No per-IP metrics".)
 
         -- Detect suspicious patterns
         local metric_suspicious = metrics.get_metric_suspicious_requests()
@@ -190,29 +236,29 @@ function _M.log_request()
 
             -- Suspicious patterns
             if user_agent == "" or user_agent == "-" then
-                metric_suspicious:inc(1, { host, "no_user_agent" })
+                metric_suspicious:inc(1, { mhost, "no_user_agent" })
             end
 
             -- Safe pattern matching with nil checks
             if uri:find("%.%.") or uri:find("//") then
-                metric_suspicious:inc(1, { host, "path_traversal_attempt" })
+                metric_suspicious:inc(1, { mhost, "path_traversal_attempt" })
             end
 
             local uri_lower = uri:lower()
             if uri_lower:find("script") or uri_lower:find("exec") or uri_lower:find("union") then
-                metric_suspicious:inc(1, { host, "injection_attempt" })
+                metric_suspicious:inc(1, { mhost, "injection_attempt" })
             end
 
             -- Rapid sequential errors from same IP
             if status == 404 or status == 403 then
-                metric_suspicious:inc(1, { host, "error_" .. tostring(status) })
+                metric_suspicious:inc(1, { mhost, "error_" .. tostring(status) })
             end
         end
 
         -- API metrics: Track API calls
         local metric_api_calls = metrics.get_metric_api_calls()
         if metric_api_calls and uri and uri:match("^/api/") then
-            metric_api_calls:inc(1, { endpoint, method, tostring(status) })
+            metric_api_calls:inc(1, { endpoint, mmethod, tostring(status) })
         end
 
         -- Track authentication attempts
@@ -258,13 +304,14 @@ function _M.log_request()
     if metrics_ok and metrics then
         local upstream_addr = ngx.var.upstream_addr
         if upstream_addr and upstream_addr ~= "" then
+            local upstream = _M.metric_upstream(ngx.ctx.selected_backend_label)
             local metric_proxy_req = metrics.get_metric_proxy_requests()
             if metric_proxy_req then
-                metric_proxy_req:inc(1, { upstream_addr, tostring(status) })
+                metric_proxy_req:inc(1, { upstream, tostring(status) })
             end
             local metric_proxy_lat = metrics.get_metric_proxy_latency()
             if metric_proxy_lat then
-                metric_proxy_lat:observe(request_time, { upstream_addr })
+                metric_proxy_lat:observe(request_time, { upstream })
             end
         end
     end

@@ -111,6 +111,13 @@ local function lookup_server(profile)
             end
         end
     end
+    -- Prometheus host label (log_handler.lua): the configured server, which is
+    -- bounded, rather than the client's Host header, which is not.
+    if server_config then
+        local sn = server_config.server_name
+        ngx.ctx.metric_host = (type(sn) == "string" and sn ~= "") and sn
+            or ngx.ctx.on_demand_for or hostname
+    end
     return server_config
 end
 
