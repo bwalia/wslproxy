@@ -72,7 +72,8 @@ jobs:
             ssh -o BatchMode=yes -i ~/.ssh/id_rsa "${USER}@${HOST}" "mkdir -p '${RULE_REMOTE}'"
             scp -o BatchMode=yes -i ~/.ssh/id_rsa "$RULE_LOCAL" "${USER}@${HOST}:${RULE_REMOTE}/" || true
           fi
-          # OpenResty reads server JSON dynamically; reload to pick up SSL hooks if any
+          # OpenResty reads server JSON dynamically; reload to pick up SSL hooks if any.
+          # Debounced via wslproxy-reload (docs/runbooks/edge-memory.md).
           ssh -o BatchMode=yes -i ~/.ssh/id_rsa "${USER}@${HOST}" \
-            'openresty -t && (systemctl reload openresty || nginx -s reload || true)'
+            'if [ -x /usr/local/sbin/wslproxy-reload ]; then /usr/local/sbin/wslproxy-reload --reason push-qa-agent-hosts || true; else openresty -t && (systemctl reload openresty || nginx -s reload || true); fi'
           echo "Done. Verify: curl -sk https://qa-agent-api.diytaxreturn.co.uk/api/health"

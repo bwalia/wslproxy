@@ -1,0 +1,95 @@
+#!/usr/bin/env bash
+# wslproxy-reload: the one way to reload OpenResty on an edge.
+#
+#   wslproxy-reload [--reason TEXT]           reload now, or defer (debounced)
+#   wslproxy-reload --force [--reason TEXT]   reload now (operator override)
+#   wslproxy-reload --pending                 run a deferred reload if one is due
+#                                             (wslproxy-reload-pending.timer)
+#
+# Why: every reload starts a new generation of workers while the old one
+# drains. On 2026-11-25 lon1 took three reloads in 20 min, three generations
+# (11 workers, ~300 MB Lua heap each) were alive at once and the box was
+# OOM-killed. This script allows at most one reload per
+# WSLPROXY_RELOAD_MIN_INTERVAL seconds (default 180). A reload asked for
+# sooner is recorded as pending and applied by the timer as soon as the
+# interval has passed, so no change is lost, only delayed.
+#
+# Every reload, forced or not, runs `openresty -t` first and is refused if
+# the config does not parse (the pending flag is kept so it is retried).
+#
+# Install: roles/wslproxy/tasks/reload_guard.yml (script, service, timer).
+# Runbook: docs/runbooks/edge-memory.md.
+set -euo pipefail
+
+# /etc/default/wslproxy-reload (Ansible: wslproxy_reload_min_interval) sets
+# the interval; an explicit environment variable wins.
+if [ -z "${WSLPROXY_RELOAD_MIN_INTERVAL:-}" ] && [ -r "${WSLPROXY_RELOAD_DEFAULTS:-/etc/default/wslproxy-reload}" ]; then
+  # shellcheck disable=SC1090
+  . "${WSLPROXY_RELOAD_DEFAULTS:-/etc/default/wslproxy-reload}"
+fi
+MIN_INTERVAL="${WSLPROXY_RELOAD_MIN_INTERVAL:-180}"
+STATE_DIR="${WSLPROXY_RELOAD_STATE_DIR:-/var/lib/wslproxy-reload}"
+LOCK="${WSLPROXY_RELOAD_LOCK:-/run/wslproxy-reload.lock}"
+TEST_CMD="${WSLPROXY_OPENRESTY_TEST_CMD:-/usr/local/openresty/bin/openresty -t -q}"
+RELOAD_CMD="${WSLPROXY_RELOAD_CMD:-systemctl reload openresty}"
+
+mode=normal
+reason="manual"
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --force) mode=force ;;
+    --pending) mode=pending ;;
+    --reason) shift; reason="${1:-manual}" ;;
+    --reason=*) reason="${1#--reason=}" ;;
+    -h|--help) sed -n '2,8p' "$0"; exit 0 ;;
+    *) echo "wslproxy-reload: unknown argument: $1" >&2; exit 2 ;;
+  esac
+  shift
+done
+
+case "$MIN_INTERVAL" in
+  ''|*[!0-9]*) echo "wslproxy-reload: WSLPROXY_RELOAD_MIN_INTERVAL must be a number of seconds" >&2; exit 2 ;;
+esac
+
+log() {
+  echo "wslproxy-reload: $*"
+  [ "${WSLPROXY_RELOAD_SYSLOG:-1}" = 1 ] && { logger -t wslproxy-reload -- "$*" 2>/dev/null || true; }
+  return 0
+}
+
+mkdir -p "$STATE_DIR"
+exec 9>"$LOCK"
+flock 9
+
+now="${WSLPROXY_RELOAD_NOW:-$(date +%s)}"
+last=0
+[ -f "$STATE_DIR/last" ] && last="$(cat "$STATE_DIR/last" 2>/dev/null || echo 0)"
+case "$last" in ''|*[!0-9]*) last=0 ;; esac
+since=$((now - last))
+
+if [ "$mode" = pending ]; then
+  [ -f "$STATE_DIR/pending" ] || exit 0
+  if [ "$since" -lt "$MIN_INTERVAL" ]; then
+    exit 0
+  fi
+  reason="pending: $(head -c 200 "$STATE_DIR/pending" 2>/dev/null || true)"
+elif [ "$mode" = normal ] && [ "$since" -lt "$MIN_INTERVAL" ]; then
+  printf '%s %s\n' "$now" "$reason" >> "$STATE_DIR/pending"
+  log "deferred ($reason): last reload ${since}s ago, min interval ${MIN_INTERVAL}s; applies in $((MIN_INTERVAL - since))s"
+  exit 0
+fi
+
+# shellcheck disable=SC2086 # the commands are intentionally word-split
+if ! $TEST_CMD; then
+  log "REFUSED ($reason): openresty -t failed; nothing reloaded"
+  # A debounced request stays pending, so the timer retries once it is fixed.
+  # (--pending keeps the existing flag; --force is the operator's to retry.)
+  if [ "$mode" = normal ]; then printf '%s %s\n' "$now" "$reason" >> "$STATE_DIR/pending"; fi
+  exit 1
+fi
+
+# shellcheck disable=SC2086
+$RELOAD_CMD
+echo "$now" > "$STATE_DIR/last"
+rm -f "$STATE_DIR/pending"
+log "reloaded ($mode, $reason)"

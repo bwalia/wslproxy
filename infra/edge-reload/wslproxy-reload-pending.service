@@ -1,0 +1,9 @@
+[Unit]
+Description=Apply a debounced OpenResty reload (wslproxy-reload --pending)
+Documentation=file:///usr/local/share/doc/wslproxy/edge-memory.md
+After=openresty.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/wslproxy-reload --pending
+TimeoutStartSec=120

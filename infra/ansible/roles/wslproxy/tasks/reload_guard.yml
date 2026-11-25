@@ -1,0 +1,49 @@
+---
+# Debounced OpenResty reloads: /usr/local/sbin/wslproxy-reload plus a
+# 1-minute timer that applies a deferred reload. Every reload path on the edge
+# (edge-sync, IP2Location refresh, the repo workflows that ssh in) goes
+# through it, so reloads are at most one per wslproxy_reload_min_interval
+# seconds unless an operator passes --force. Background: the 2026-11-25 lon1
+# OOM (docs/runbooks/edge-memory.md).
+#
+# Installing it changes nothing on its own: no reload, no restart.
+- name: Install wslproxy-reload
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../edge-reload/wslproxy-reload"
+    dest: /usr/local/sbin/wslproxy-reload
+    owner: root
+    group: root
+    mode: "0755"
+  tags: [nginx]
+
+- name: Set the reload debounce interval
+  ansible.builtin.copy:
+    dest: /etc/default/wslproxy-reload
+    content: |
+      # Ansible managed (roles/wslproxy/tasks/reload_guard.yml)
+      WSLPROXY_RELOAD_MIN_INTERVAL={{ wslproxy_reload_min_interval }}
+    owner: root
+    group: root
+    mode: "0644"
+  tags: [nginx]
+
+- name: Install wslproxy-reload-pending service and timer
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../edge-reload/{{ item }}"
+    dest: "/etc/systemd/system/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - wslproxy-reload-pending.service
+    - wslproxy-reload-pending.timer
+  register: reload_guard_units
+  tags: [nginx]
+
+- name: Enable wslproxy-reload-pending.timer
+  ansible.builtin.systemd:
+    name: wslproxy-reload-pending.timer
+    enabled: true
+    state: started
+    daemon_reload: "{{ reload_guard_units is changed }}"
+  tags: [nginx]
