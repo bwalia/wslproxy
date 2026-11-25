@@ -1,1 +1,29 @@
-{"cache_enabled":false,"proxy_server_name":"int.beaconpulse.net","match_cases":{},"server_name":"int.beaconpulse.net","index":"index.html","ssl_enabled":true,"error_log":"logs\/int.beaconpulse.net.error.log","config_status":true,"rules":"beaconpulse-prod-default","root":"\/var\/www\/html","custom_headers":{},"listens":[{"listen":"80"}],"profile_id":"prod","id":"host:int.beaconpulse.net","access_log":"logs\/int.beaconpulse.net.access.log","ssl_email":"admin@beaconpulse.net","ssl_auto_renew":true,"ssl_force_https":true,"ssl_staging":false}
+{
+    "access_log": "logs/int.beaconpulse.net.access.log",
+    "cache_enabled": false,
+    "config_status": true,
+    "custom_headers": {},
+    "error_log": "logs/int.beaconpulse.net.error.log",
+    "id": "host:int.beaconpulse.net",
+    "index": "index.html",
+    "listens": [
+        {
+            "listen": "80"
+        }
+    ],
+    "match_cases": {},
+    "pop_ids": [
+        "lon1",
+        "pop0"
+    ],
+    "profile_id": "prod",
+    "proxy_server_name": "int.beaconpulse.net",
+    "root": "/var/www/html",
+    "rules": "beaconpulse-prod-default",
+    "server_name": "int.beaconpulse.net",
+    "ssl_auto_renew": true,
+    "ssl_email": "admin@beaconpulse.net",
+    "ssl_enabled": true,
+    "ssl_force_https": true,
+    "ssl_staging": false
+}

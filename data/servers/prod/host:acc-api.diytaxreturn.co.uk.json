@@ -1,1 +1,87 @@
-{"proxy_server_name":"acc-api.diytaxreturn.co.uk","cache_docker_blobs_ttl":"2592000","cache_docker_manifests_ttl":"3600","cache_docker_serve_stale":false,"cache_docker_stale_ttl":"31536000","cache_docker_blobs":false,"locations":{},"custom_block":{},"custom_response_headers":{},"custom_http_block":{},"rate_limit":{"requests_per_second":100,"burst":50},"servers_tags":{},"custom_location_block":{},"cache_docker_manifests":false,"cache_enabled":false,"config":"CnNlcnZlciB7CiAgICBsaXN0ZW4gODA7CiAgICBzZXJ2ZXJfbmFtZSBhY2MtYXBpLmRpeXRheHJldHVybi5jby51azsKICAgIGxvY2F0aW9uIC8ud2VsbC1rbm93bi9hY21lLWNoYWxsZW5nZS8geyBjb250ZW50X2J5X2x1YV9ibG9jayB7IGF1dG9fc3NsOmNoYWxsZW5nZV9zZXJ2ZXIoKSB9IH0KICAgIGxvY2F0aW9uIC8geyByZXR1cm4gMzAxIGh0dHBzOi8vJGhvc3QkcmVxdWVzdF91cmk7IH0KfQpzZXJ2ZXIgewogICAgICBsaXN0ZW4gODA7CiAgICAgIAogICAgICBsaXN0ZW4gNDQzIHNzbCBodHRwMjsKICAgICAgc3NsX2NlcnRpZmljYXRlX2J5X2x1YV9ibG9jayB7IGF1dG9fc3NsOnNzbF9jZXJ0aWZpY2F0ZSgpIH0KICAgICAgc3NsX2NlcnRpZmljYXRlIC9ldGMvc3NsL3Jlc3R5LWF1dG8tc3NsLWZhbGxiYWNrLmNydDsKICAgICAgc3NsX2NlcnRpZmljYXRlX2tleSAvZXRjL3NzbC9yZXN0eS1hdXRvLXNzbC1mYWxsYmFjay5rZXk7CiAgICAgIHNzbF9zZXNzaW9uX3RpbWVvdXQgMWQ7CiAgICAgIHNzbF9zZXNzaW9uX2NhY2hlIHNoYXJlZDpTU0w6NTBtOwogICAgICBzc2xfc2Vzc2lvbl90aWNrZXRzIG9mZjsKICAgICAgc3NsX3Byb3RvY29scyBUTFN2MS4yIFRMU3YxLjM7CiAgICAgIHNzbF9jaXBoZXJzIEVDREhFLUVDRFNBLUFFUzEyOC1HQ00tU0hBMjU2OkVDREhFLVJTQS1BRVMxMjgtR0NNLVNIQTI1NjpFQ0RIRS1FQ0RTQS1BRVMyNTYtR0NNLVNIQTM4NDpFQ0RIRS1SU0EtQUVTMjU2LUdDTS1TSEEzODQ6RUNESEUtRUNEU0EtQ0hBQ0hBMjAtUE9MWTEzMDU6RUNESEUtUlNBLUNIQUNIQTIwLVBPTFkxMzA1OkRIRS1SU0EtQUVTMTI4LUdDTS1TSEEyNTY6REhFLVJTQS1BRVMyNTYtR0NNLVNIQTM4NDsKICAgICAgc3NsX3ByZWZlcl9zZXJ2ZXJfY2lwaGVycyBvZmY7CiAgICAgIGFkZF9oZWFkZXIgU3RyaWN0LVRyYW5zcG9ydC1TZWN1cml0eSAibWF4LWFnZT0zMTUzNjAwMDsgaW5jbHVkZVN1YkRvbWFpbnMiIGFsd2F5czsKICAgICAgc2VydmVyX25hbWUgYWNjLWFwaS5kaXl0YXhyZXR1cm4uY28udWs7CiAgICAgIHJvb3QgL3Zhci93d3cvaHRtbDsKICAgICAgaW5kZXggaW5kZXguaHRtbDsKICAgICAgYWNjZXNzX2xvZyBsb2dzL2FjYy1hcGkuZGl5dGF4cmV0dXJuLmNvLnVrLmFjY2Vzcy5sb2c7CiAgICAgIGVycm9yX2xvZyBsb2dzL2FjYy1hcGkuZGl5dGF4cmV0dXJuLmNvLnVrLmVycm9yLmxvZzsKICAgICAgCiAgICAgIGxvY2F0aW9uIC8ud2VsbC1rbm93bi9hY21lLWNoYWxsZW5nZS8gewogICAgICAgICAgY29udGVudF9ieV9sdWFfYmxvY2sgeyBhdXRvX3NzbDpjaGFsbGVuZ2Vfc2VydmVyKCkgfQogICAgICB9CiAgICAgIAogICAgICAKICB9CiAgCiAg","ssl_staging":false,"proxy_timeouts":{"connect_timeout":"30","send_timeout":"300","read_timeout":"300"},"match_cases":[{"statement":"83d39ccc-c8ad-426c-95d3-419d11bae7e1","condition":"and"},{"statement":"7366a794-5fc2-4f62-91df-4f92b82fe5ee","condition":"and"}],"ssl_force_https":true,"server_name":"acc-api.diytaxreturn.co.uk","cache_bypass_auth":true,"index":"index.html","ssl_enabled":true,"dns_cname_target":"pop1.diytaxreturn.co.uk","access_log":"logs\/acc-api.diytaxreturn.co.uk.access.log","cached_mime_types":{},"rate_limit_enabled":false,"cache_ttl":3600,"dns_record_type":"CNAME","error_log":"logs\/acc-api.diytaxreturn.co.uk.error.log","varnish_enabled":false,"waf_enabled":false,"config_status":true,"varnish_snippets":{},"rules":["diytax-acc-default"],"custom_headers":{},"listens":[{"listen":"80"}],"varnish_config":{"admin_listen_port":"6082","listen_port":"6081","health_check_enabled":false,"health_check_url":"\/health","cache_grace":3600,"backend_first_byte_timeout":60,"health_check_timeout":2,"backend_between_bytes_timeout":10,"cache_ttl_default":120,"listen_address":"0.0.0.0","cache_keep":7200,"cache_size":"256m","health_check_interval":5,"backend_connect_timeout":5},"id":"host:acc-api.diytaxreturn.co.uk","pop_ids":{},"ssl_email":"admin@diytaxreturn.co.uk","ssl_auto_renew":true,"profile_id":"prod","root":"\/var\/www\/html"}
+{
+    "access_log": "logs/acc-api.diytaxreturn.co.uk.access.log",
+    "cache_bypass_auth": true,
+    "cache_docker_blobs": false,
+    "cache_docker_blobs_ttl": "2592000",
+    "cache_docker_manifests": false,
+    "cache_docker_manifests_ttl": "3600",
+    "cache_docker_serve_stale": false,
+    "cache_docker_stale_ttl": "31536000",
+    "cache_enabled": false,
+    "cache_ttl": 3600,
+    "cached_mime_types": {},
+    "config": "Q25ObGNuWmxjaUI3Q2lBZ0lDQnNhWE4wWlc0Z09EQTdDaUFnSUNCelpYSjJaWEpmYm1GdFpTQmhZMk10WVhCcExtUnBlWFJoZUhKbGRIVnliaTVqYnk1MWF6c0tJQ0FnSUd4dlkyRjBhVzl1SUM4dWQyVnNiQzFyYm05M2JpOWhZMjFsTFdOb1lXeHNaVzVuWlM4Z2V5QmpiMjUwWlc1MFgySjVYMngxWVY5aWJHOWpheUI3SUdGMWRHOWZjM05zT21Ob1lXeHNaVzVuWlY5elpYSjJaWElvS1NCOUlIMEtJQ0FnSUd4dlkyRjBhVzl1SUM4Z2V5QnlaWFIxY200Z016QXhJR2gwZEhCek9pOHZKR2h2YzNRa2NtVnhkV1Z6ZEY5MWNtazdJSDBLZlFwelpYSjJaWElnZXdvZ0lDQWdJQ0JzYVhOMFpXNGdPREE3Q2lBZ0lDQWdJQW9nSUNBZ0lDQnNhWE4wWlc0Z05EUXpJSE56YkNCb2RIUndNanNLSUNBZ0lDQWdjM05zWDJObGNuUnBabWxqWVhSbFgySjVYMngxWVY5aWJHOWpheUI3SUdGMWRHOWZjM05zT25OemJGOWpaWEowYVdacFkyRjBaU2dwSUgwS0lDQWdJQ0FnYzNOc1gyTmxjblJwWm1sallYUmxJQzlsZEdNdmMzTnNMM0psYzNSNUxXRjFkRzh0YzNOc0xXWmhiR3hpWVdOckxtTnlkRHNLSUNBZ0lDQWdjM05zWDJObGNuUnBabWxqWVhSbFgydGxlU0F2WlhSakwzTnpiQzl5WlhOMGVTMWhkWFJ2TFhOemJDMW1ZV3hzWW1GamF5NXJaWGs3Q2lBZ0lDQWdJSE56YkY5elpYTnphVzl1WDNScGJXVnZkWFFnTVdRN0NpQWdJQ0FnSUhOemJGOXpaWE56YVc5dVgyTmhZMmhsSUhOb1lYSmxaRHBUVTB3Nk5UQnRPd29nSUNBZ0lDQnpjMnhmYzJWemMybHZibDkwYVdOclpYUnpJRzltWmpzS0lDQWdJQ0FnYzNOc1gzQnliM1J2WTI5c2N5QlVURk4yTVM0eUlGUk1VM1l4TGpNN0NpQWdJQ0FnSUhOemJGOWphWEJvWlhKeklFVkRSRWhGTFVWRFJGTkJMVUZGVXpFeU9DMUhRMDB0VTBoQk1qVTJPa1ZEUkVoRkxWSlRRUzFCUlZNeE1qZ3RSME5OTFZOSVFUSTFOanBGUTBSSVJTMUZRMFJUUVMxQlJWTXlOVFl0UjBOTkxWTklRVE00TkRwRlEwUklSUzFTVTBFdFFVVlRNalUyTFVkRFRTMVRTRUV6T0RRNlJVTkVTRVV0UlVORVUwRXRRMGhCUTBoQk1qQXRVRTlNV1RFek1EVTZSVU5FU0VVdFVsTkJMVU5JUVVOSVFUSXdMVkJQVEZreE16QTFPa1JJUlMxU1UwRXRRVVZUTVRJNExVZERUUzFUU0VFeU5UWTZSRWhGTFZKVFFTMUJSVk15TlRZdFIwTk5MVk5JUVRNNE5Ec0tJQ0FnSUNBZ2MzTnNYM0J5WldabGNsOXpaWEoyWlhKZlkybHdhR1Z5Y3lCdlptWTdDaUFnSUNBZ0lHRmtaRjlvWldGa1pYSWdVM1J5YVdOMExWUnlZVzV6Y0c5eWRDMVRaV04xY21sMGVTQWliV0Y0TFdGblpUMHpNVFV6TmpBd01Ec2dhVzVqYkhWa1pWTjFZa1J2YldGcGJuTWlJR0ZzZDJGNWN6c0tJQ0FnSUNBZ2MyVnlkbVZ5WDI1aGJXVWdZV05qTFdGd2FTNWthWGwwWVhoeVpYUjFjbTR1WTI4dWRXczdDaUFnSUNBZ0lISnZiM1FnTDNaaGNpOTNkM2N2YUhSdGJEc0tJQ0FnSUNBZ2FXNWtaWGdnYVc1a1pYZ3VhSFJ0YkRzS0lDQWdJQ0FnWVdOalpYTnpYMnh2WnlCc2IyZHpMMkZqWXkxaGNHa3VaR2w1ZEdGNGNtVjBkWEp1TG1OdkxuVnJMbUZqWTJWemN5NXNiMmM3Q2lBZ0lDQWdJR1Z5Y205eVgyeHZaeUJzYjJkekwyRmpZeTFoY0drdVpHbDVkR0Y0Y21WMGRYSnVMbU52TG5WckxtVnljbTl5TG14dlp6c0tJQ0FnSUNBZ0NpQWdJQ0FnSUd4dlkyRjBhVzl1SUM4dWQyVnNiQzFyYm05M2JpOWhZMjFsTFdOb1lXeHNaVzVuWlM4Z2V3b2dJQ0FnSUNBZ0lDQWdZMjl1ZEdWdWRGOWllVjlzZFdGZllteHZZMnNnZXlCaGRYUnZYM056YkRwamFHRnNiR1Z1WjJWZmMyVnlkbVZ5S0NrZ2ZRb2dJQ0FnSUNCOUNpQWdJQ0FnSUFvZ0lDQWdJQ0FLSUNCOUNpQWdDaUFn",
+    "config_status": true,
+    "custom_block": {},
+    "custom_headers": {},
+    "custom_http_block": {},
+    "custom_location_block": {},
+    "custom_response_headers": {},
+    "dns_cname_target": "pop1.diytaxreturn.co.uk",
+    "dns_record_type": "CNAME",
+    "error_log": "logs/acc-api.diytaxreturn.co.uk.error.log",
+    "id": "host:acc-api.diytaxreturn.co.uk",
+    "index": "index.html",
+    "listens": [
+        {
+            "listen": "80"
+        }
+    ],
+    "locations": {},
+    "match_cases": [
+        {
+            "condition": "and",
+            "statement": "83d39ccc-c8ad-426c-95d3-419d11bae7e1"
+        },
+        {
+            "condition": "and",
+            "statement": "7366a794-5fc2-4f62-91df-4f92b82fe5ee"
+        }
+    ],
+    "pop_ids": [
+        "lon1",
+        "pop0"
+    ],
+    "profile_id": "prod",
+    "proxy_server_name": "acc-api.diytaxreturn.co.uk",
+    "proxy_timeouts": {
+        "connect_timeout": "30",
+        "read_timeout": "300",
+        "send_timeout": "300"
+    },
+    "rate_limit": {
+        "burst": 50,
+        "requests_per_second": 100
+    },
+    "rate_limit_enabled": false,
+    "root": "/var/www/html",
+    "rules": [
+        "diytax-acc-default"
+    ],
+    "server_name": "acc-api.diytaxreturn.co.uk",
+    "servers_tags": {},
+    "ssl_auto_renew": true,
+    "ssl_email": "admin@diytaxreturn.co.uk",
+    "ssl_enabled": true,
+    "ssl_force_https": true,
+    "ssl_staging": false,
+    "varnish_config": {
+        "admin_listen_port": "6082",
+        "backend_between_bytes_timeout": 10,
+        "backend_connect_timeout": 5,
+        "backend_first_byte_timeout": 60,
+        "cache_grace": 3600,
+        "cache_keep": 7200,
+        "cache_size": "256m",
+        "cache_ttl_default": 120,
+        "health_check_enabled": false,
+        "health_check_interval": 5,
+        "health_check_timeout": 2,
+        "health_check_url": "/health",
+        "listen_address": "0.0.0.0",
+        "listen_port": "6081"
+    },
+    "varnish_enabled": false,
+    "varnish_snippets": {},
+    "waf_enabled": false
+}

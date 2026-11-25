@@ -1,1 +1,29 @@
-{"profile_id":"prod","ssl_email":"admin@workstation.academy","ssl_auto_renew":true,"config_status":true,"ssl_staging":false,"id":"host:test-teach.workstation.academy","listens":[{"listen":"80"}],"rules":"academy-prod-default","ssl_enabled":true,"cache_enabled":false,"proxy_server_name":"test-teach.workstation.academy","access_log":"logs\/test-teach.workstation.academy.access.log","error_log":"logs\/test-teach.workstation.academy.error.log","custom_headers":{},"match_cases":{},"root":"\/var\/www\/html","index":"index.html","ssl_force_https":true,"server_name":"test-teach.workstation.academy"}
+{
+    "access_log": "logs/test-teach.workstation.academy.access.log",
+    "cache_enabled": false,
+    "config_status": true,
+    "custom_headers": {},
+    "error_log": "logs/test-teach.workstation.academy.error.log",
+    "id": "host:test-teach.workstation.academy",
+    "index": "index.html",
+    "listens": [
+        {
+            "listen": "80"
+        }
+    ],
+    "match_cases": {},
+    "pop_ids": [
+        "lon1",
+        "pop0"
+    ],
+    "profile_id": "prod",
+    "proxy_server_name": "test-teach.workstation.academy",
+    "root": "/var/www/html",
+    "rules": "academy-prod-default",
+    "server_name": "test-teach.workstation.academy",
+    "ssl_auto_renew": true,
+    "ssl_email": "admin@workstation.academy",
+    "ssl_enabled": true,
+    "ssl_force_https": true,
+    "ssl_staging": false
+}

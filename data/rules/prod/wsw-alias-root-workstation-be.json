@@ -1,0 +1,31 @@
+{
+    "_schema_version": 2,
+    "created_at": 1795599219,
+    "id": "wsw-alias-root-workstation-be",
+    "match": {
+        "response": {
+            "code": 301,
+            "redirect_uri": "https://www.workstation.co.uk/fr"
+        },
+        "rules": {
+            "path": "/",
+            "path_key": "equals"
+        }
+    },
+    "name": "wsw-alias-root-workstation-be",
+    "priority": 2,
+    "profile_id": "prod",
+    "rules_tags": [
+        "workstation-website",
+        "alias",
+        "redirect",
+        "seo",
+        "prod",
+        "workstation.be"
+    ],
+    "servers": [
+        "host:workstation.be",
+        "host:www.workstation.be"
+    ],
+    "updated_at": 1795599219
+}

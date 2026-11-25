@@ -1,1 +1,30 @@
-{"ssl_enabled":true,"rules":"academy-prod-default","access_log":"logs\/test-dashboard.workstation.academy.access.log","config":"c2VydmVyIHsKICAgICAgbGlzdGVuIDgwOyAgIyBMaXN0ZW4gb24gcG9ydCAoSFRUUCkKICAgICAgc2VydmVyX25hbWUgdGVzdC1kYXNoYm9hcmQud29ya3N0YXRpb24uYWNhZGVteTsgICMgWW91ciBkb21haW4gbmFtZQogICAgICByb290IC92YXIvd3d3L2h0bWw7ICAjIERvY3VtZW50IHJvb3QgZGlyZWN0b3J5CiAgICAgIGluZGV4IGluZGV4Lmh0bWw7ICAjIERlZmF1bHQgaW5kZXggZmlsZXMKICAgICAgYWNjZXNzX2xvZyBsb2dzL3Rlc3QtZGFzaGJvYXJkLndvcmtzdGF0aW9uLmFjYWRlbXkuYWNjZXNzLmxvZzsgICMgQWNjZXNzIGxvZyBmaWxlIGxvY2F0aW9uCiAgICAgIGVycm9yX2xvZyBsb2dzL3Rlc3QtZGFzaGJvYXJkLndvcmtzdGF0aW9uLmFjYWRlbXkuZXJyb3IubG9nOyAgIyBFcnJvciBsb2cgZmlsZSBsb2NhdGlvbgoKCgogIH0KCiAg","root":"\/var\/www\/html","index":"index.html","config_status":false,"error_log":"logs\/test-dashboard.workstation.academy.error.log","custom_headers":{},"server_name":"test-dashboard.workstation.academy","id":"host:test-dashboard.workstation.academy","listens":[{"listen":"80"}],"ssl_staging":false,"match_cases":{},"proxy_server_name":"test-dashboard.workstation.academy","cache_enabled":false,"ssl_email":"admin@workstation.academy","ssl_auto_renew":true,"ssl_force_https":true,"profile_id":"prod"}
+{
+    "access_log": "logs/test-dashboard.workstation.academy.access.log",
+    "cache_enabled": false,
+    "config": "YzJWeWRtVnlJSHNLSUNBZ0lDQWdiR2x6ZEdWdUlEZ3dPeUFnSXlCTWFYTjBaVzRnYjI0Z2NHOXlkQ0FvU0ZSVVVDa0tJQ0FnSUNBZ2MyVnlkbVZ5WDI1aGJXVWdkR1Z6ZEMxa1lYTm9ZbTloY21RdWQyOXlhM04wWVhScGIyNHVZV05oWkdWdGVUc2dJQ01nV1c5MWNpQmtiMjFoYVc0Z2JtRnRaUW9nSUNBZ0lDQnliMjkwSUM5MllYSXZkM2QzTDJoMGJXdzdJQ0FqSUVSdlkzVnRaVzUwSUhKdmIzUWdaR2x5WldOMGIzSjVDaUFnSUNBZ0lHbHVaR1Y0SUdsdVpHVjRMbWgwYld3N0lDQWpJRVJsWm1GMWJIUWdhVzVrWlhnZ1ptbHNaWE1LSUNBZ0lDQWdZV05qWlhOelgyeHZaeUJzYjJkekwzUmxjM1F0WkdGemFHSnZZWEprTG5kdmNtdHpkR0YwYVc5dUxtRmpZV1JsYlhrdVlXTmpaWE56TG14dlp6c2dJQ01nUVdOalpYTnpJR3h2WnlCbWFXeGxJR3h2WTJGMGFXOXVDaUFnSUNBZ0lHVnljbTl5WDJ4dlp5QnNiMmR6TDNSbGMzUXRaR0Z6YUdKdllYSmtMbmR2Y210emRHRjBhVzl1TG1GallXUmxiWGt1WlhKeWIzSXViRzluT3lBZ0l5QkZjbkp2Y2lCc2IyY2dabWxzWlNCc2IyTmhkR2x2YmdvS0Nnb2dJSDBLQ2lBZw==",
+    "config_status": false,
+    "custom_headers": {},
+    "error_log": "logs/test-dashboard.workstation.academy.error.log",
+    "id": "host:test-dashboard.workstation.academy",
+    "index": "index.html",
+    "listens": [
+        {
+            "listen": "80"
+        }
+    ],
+    "match_cases": {},
+    "pop_ids": [
+        "lon1",
+        "pop0"
+    ],
+    "profile_id": "prod",
+    "proxy_server_name": "test-dashboard.workstation.academy",
+    "root": "/var/www/html",
+    "rules": "academy-prod-default",
+    "server_name": "test-dashboard.workstation.academy",
+    "ssl_auto_renew": true,
+    "ssl_email": "admin@workstation.academy",
+    "ssl_enabled": true,
+    "ssl_force_https": true,
+    "ssl_staging": false
+}

@@ -1,1 +1,34 @@
-{"servers":{},"rules_tags":["diytaxreturn","acc","spectoncr","lan"],"priority":1,"match":{"response":{"strip_path":false,"routing":{"mode":"weighted"},"code":305,"backends":[{"weight":100,"address":"193.237.176.232:8888","label":"pop1-lan-k3s-ingress"}],"redirect_uri":"193.237.176.232:8888"},"rules":{"path_key":"starts_with","path":"\/"}},"id":"diytax-acc-spectoncr-lan","profile_id":"prod","name":"diytax-acc-spectoncr-lan"}
+{
+    "id": "diytax-acc-spectoncr-lan",
+    "match": {
+        "response": {
+            "backends": [
+                {
+                    "address": "vpnhh.workstation.co.uk:8888",
+                    "label": "pop1-lan-k3s-ingress",
+                    "weight": 100
+                }
+            ],
+            "code": 305,
+            "redirect_uri": "vpnhh.workstation.co.uk:8888",
+            "routing": {
+                "mode": "weighted"
+            },
+            "strip_path": false
+        },
+        "rules": {
+            "path": "/",
+            "path_key": "starts_with"
+        }
+    },
+    "name": "diytax-acc-spectoncr-lan",
+    "priority": 1,
+    "profile_id": "prod",
+    "rules_tags": [
+        "diytaxreturn",
+        "acc",
+        "spectoncr",
+        "lan"
+    ],
+    "servers": {}
+}

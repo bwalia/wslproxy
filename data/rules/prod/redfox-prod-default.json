@@ -1,0 +1,39 @@
+{
+    "id": "redfox-prod-default",
+    "match": {
+        "response": {
+            "allow": true,
+            "auto_redirect_https": false,
+            "backends": [
+                {
+                    "address": "vpnhh.workstation.co.uk:8888",
+                    "label": "k3s1 traefik ingress entry (klipper) — routes by Host to beacon-nginx in the redfox-prod namespace. Same target beaconpulse-prod-default uses.",
+                    "weight": 100
+                }
+            ],
+            "code": 305,
+            "is_consul": false,
+            "redirect_uri": "vpnhh.workstation.co.uk:8888",
+            "routing": {
+                "mode": "least_conn"
+            },
+            "strip_path": false
+        },
+        "rules": {
+            "jwt_token_validation": "equals",
+            "path": "/",
+            "path_key": "starts_with"
+        }
+    },
+    "name": "redfox-prod-default",
+    "priority": 1,
+    "profile_id": "prod",
+    "rules_tags": [
+        "redfox",
+        "prod"
+    ],
+    "servers": [
+        "host:redfoxsignals.com",
+        "host:www.redfoxsignals.com"
+    ]
+}

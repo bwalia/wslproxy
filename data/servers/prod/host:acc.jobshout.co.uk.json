@@ -1,5 +1,5 @@
 {
-    "config": "c2VydmVyIHsKICAgICAgbGlzdGVuIDgwOyAgIyBMaXN0ZW4gb24gcG9ydCAoSFRUUCkKICAgICAgc2VydmVyX25hbWUgYWNjLmpvYnNob3V0LmNvLnVrOyAgIyBZb3VyIGRvbWFpbiBuYW1lCiAgICAgIHJvb3QgL3Zhci93d3cvaHRtbDsgICMgRG9jdW1lbnQgcm9vdCBkaXJlY3RvcnkKICAgICAgaW5kZXggaW5kZXguaHRtbDsgICMgRGVmYXVsdCBpbmRleCBmaWxlcwogICAgICBhY2Nlc3NfbG9nIGxvZ3MvYWNjZXNzLmxvZzsgICMgQWNjZXNzIGxvZyBmaWxlIGxvY2F0aW9uCiAgICAgIGVycm9yX2xvZyBsb2dzL2Vycm9yLmxvZzsgICMgRXJyb3IgbG9nIGZpbGUgbG9jYXRpb24KCgoKICB9CgogIA==",
+    "config": "YzJWeWRtVnlJSHNLSUNBZ0lDQWdiR2x6ZEdWdUlEZ3dPeUFnSXlCTWFYTjBaVzRnYjI0Z2NHOXlkQ0FvU0ZSVVVDa0tJQ0FnSUNBZ2MyVnlkbVZ5WDI1aGJXVWdZV05qTG1wdlluTm9iM1YwTG1OdkxuVnJPeUFnSXlCWmIzVnlJR1J2YldGcGJpQnVZVzFsQ2lBZ0lDQWdJSEp2YjNRZ0wzWmhjaTkzZDNjdmFIUnRiRHNnSUNNZ1JHOWpkVzFsYm5RZ2NtOXZkQ0JrYVhKbFkzUnZjbmtLSUNBZ0lDQWdhVzVrWlhnZ2FXNWtaWGd1YUhSdGJEc2dJQ01nUkdWbVlYVnNkQ0JwYm1SbGVDQm1hV3hsY3dvZ0lDQWdJQ0JoWTJObGMzTmZiRzluSUd4dlozTXZZV05qWlhOekxteHZaenNnSUNNZ1FXTmpaWE56SUd4dlp5Qm1hV3hsSUd4dlkyRjBhVzl1Q2lBZ0lDQWdJR1Z5Y205eVgyeHZaeUJzYjJkekwyVnljbTl5TG14dlp6c2dJQ01nUlhKeWIzSWdiRzluSUdacGJHVWdiRzlqWVhScGIyNEtDZ29LSUNCOUNnb2dJQT09",
     "created_at": 1789859197,
     "id": "host:acc.jobshout.co.uk",
     "listens": [
@@ -9,7 +9,8 @@
     ],
     "match_cases": {},
     "pop_ids": [
-        "pop0"
+        "pop0",
+        "lon1"
     ],
     "profile_id": "prod",
     "proxy_pass": "http://localhost",

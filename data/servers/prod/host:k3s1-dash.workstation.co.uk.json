@@ -1,0 +1,51 @@
+{
+    "access_log": "logs/access.log",
+    "cache_bypass_auth": false,
+    "cache_docker_blobs": false,
+    "cache_docker_blobs_ttl": "2592000",
+    "cache_docker_manifests": false,
+    "cache_docker_manifests_ttl": "3600",
+    "cache_docker_serve_stale": false,
+    "cache_docker_stale_ttl": "31536000",
+    "cache_enabled": false,
+    "config": "Q25ObGNuWmxjaUI3Q2lBZ0lDQWdJR3hwYzNSbGJpQTRNRHNLSUNBZ0lDQWdjMlZ5ZG1WeVgyNWhiV1VnYXpOek1TMWtZWE5vTG5kdmNtdHpkR0YwYVc5dUxtTnZMblZyT3dvZ0lDQWdJQ0J5YjI5MElDOTJZWEl2ZDNkM0wyaDBiV3c3Q2lBZ0lDQWdJR2x1WkdWNElHbHVaR1Y0TG1oMGJXdzdDaUFnSUNBZ0lHRmpZMlZ6YzE5c2IyY2diRzluY3k5ck0zTXhMV1JoYzJndWQyOXlhM04wWVhScGIyNHVZMjh1ZFdzdVlXTmpaWE56TG14dlp6c0tJQ0FnSUNBZ1pYSnliM0pmYkc5bklHeHZaM012YXpOek1TMWtZWE5vTG5kdmNtdHpkR0YwYVc5dUxtTnZMblZyTG1WeWNtOXlMbXh2WnpzS2ZRbz0=",
+    "config_status": true,
+    "created_at": 1790166910,
+    "custom_headers": {},
+    "dns_cname_target": "lon1.pop0.uk",
+    "dns_record_type": "CNAME",
+    "error_log": "logs/error.log",
+    "id": "host:k3s1-dash.workstation.co.uk",
+    "index": "index.html",
+    "listens": [
+        {
+            "listen": "80"
+        }
+    ],
+    "match_cases": {},
+    "pop_ids": [
+        "lon1",
+        "pop0"
+    ],
+    "profile_id": "prod",
+    "proxy_pass": "http://localhost",
+    "proxy_server_name": null,
+    "proxy_timeouts": {
+        "connect_timeout": "600",
+        "read_timeout": "600",
+        "send_timeout": "600"
+    },
+    "rate_limit_enabled": false,
+    "root": "/var/www/html",
+    "rules": [
+        "425e4925-8ce1-de5b-2d13-0b086621101f"
+    ],
+    "server_name": "k3s1-dash.workstation.co.uk",
+    "ssl_auto_renew": true,
+    "ssl_email": "balinder.walia@gmail.com",
+    "ssl_enabled": true,
+    "ssl_force_https": true,
+    "ssl_staging": false,
+    "varnish_enabled": false,
+    "waf_enabled": false
+}

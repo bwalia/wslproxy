@@ -1,0 +1,42 @@
+{
+    "id": "daybook-demo-default",
+    "match": {
+        "response": {
+            "backends": [
+                {
+                    "address": "193.237.176.232:8888",
+                    "label": "193.237.176.232:8888 k3s1 traefik-edge entry; routes demo(-api).daybook.co.uk by Host header",
+                    "weight": 100
+                }
+            ],
+            "code": 305,
+            "redirect_uri": "193.237.176.232:8888",
+            "routing": {
+                "mode": "least_conn"
+            },
+            "strip_path": false
+        },
+        "rules": {
+            "path": "/",
+            "path_key": "starts_with"
+        }
+    },
+    "name": "daybook-demo-default",
+    "priority": 1,
+    "profile_id": "prod",
+    "rules_tags": [
+        "daybook",
+        "demo",
+        "prod"
+    ],
+    "servers": [
+        "host:demo.daybook.co.uk",
+        "host:demo-api.daybook.co.uk",
+        "host:int-demo.daybook.co.uk",
+        "host:int-demo-api.daybook.co.uk",
+        "host:test-demo.daybook.co.uk",
+        "host:test-demo-api.daybook.co.uk",
+        "host:acc-demo.daybook.co.uk",
+        "host:acc-demo-api.daybook.co.uk"
+    ]
+}

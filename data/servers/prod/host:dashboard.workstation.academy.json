@@ -1,1 +1,30 @@
-{"ssl_enabled":true,"rules":"academy-prod-default","access_log":"logs\/dashboard.workstation.academy.access.log","config":"c2VydmVyIHsKICAgICAgbGlzdGVuIDgwOyAgIyBMaXN0ZW4gb24gcG9ydCAoSFRUUCkKICAgICAgc2VydmVyX25hbWUgZGFzaGJvYXJkLndvcmtzdGF0aW9uLmFjYWRlbXk7ICAjIFlvdXIgZG9tYWluIG5hbWUKICAgICAgcm9vdCAvdmFyL3d3dy9odG1sOyAgIyBEb2N1bWVudCByb290IGRpcmVjdG9yeQogICAgICBpbmRleCBpbmRleC5odG1sOyAgIyBEZWZhdWx0IGluZGV4IGZpbGVzCiAgICAgIGFjY2Vzc19sb2cgbG9ncy9kYXNoYm9hcmQud29ya3N0YXRpb24uYWNhZGVteS5hY2Nlc3MubG9nOyAgIyBBY2Nlc3MgbG9nIGZpbGUgbG9jYXRpb24KICAgICAgZXJyb3JfbG9nIGxvZ3MvZGFzaGJvYXJkLndvcmtzdGF0aW9uLmFjYWRlbXkuZXJyb3IubG9nOyAgIyBFcnJvciBsb2cgZmlsZSBsb2NhdGlvbgoKCgogIH0KCiAg","root":"\/var\/www\/html","index":"index.html","config_status":false,"error_log":"logs\/dashboard.workstation.academy.error.log","custom_headers":{},"server_name":"dashboard.workstation.academy","id":"host:dashboard.workstation.academy","listens":[{"listen":"80"}],"ssl_staging":false,"match_cases":{},"proxy_server_name":"dashboard.workstation.academy","cache_enabled":false,"ssl_email":"admin@workstation.academy","ssl_auto_renew":true,"ssl_force_https":true,"profile_id":"prod"}
+{
+    "access_log": "logs/dashboard.workstation.academy.access.log",
+    "cache_enabled": false,
+    "config": "YzJWeWRtVnlJSHNLSUNBZ0lDQWdiR2x6ZEdWdUlEZ3dPeUFnSXlCTWFYTjBaVzRnYjI0Z2NHOXlkQ0FvU0ZSVVVDa0tJQ0FnSUNBZ2MyVnlkbVZ5WDI1aGJXVWdaR0Z6YUdKdllYSmtMbmR2Y210emRHRjBhVzl1TG1GallXUmxiWGs3SUNBaklGbHZkWElnWkc5dFlXbHVJRzVoYldVS0lDQWdJQ0FnY205dmRDQXZkbUZ5TDNkM2R5OW9kRzFzT3lBZ0l5QkViMk4xYldWdWRDQnliMjkwSUdScGNtVmpkRzl5ZVFvZ0lDQWdJQ0JwYm1SbGVDQnBibVJsZUM1b2RHMXNPeUFnSXlCRVpXWmhkV3gwSUdsdVpHVjRJR1pwYkdWekNpQWdJQ0FnSUdGalkyVnpjMTlzYjJjZ2JHOW5jeTlrWVhOb1ltOWhjbVF1ZDI5eWEzTjBZWFJwYjI0dVlXTmhaR1Z0ZVM1aFkyTmxjM011Ykc5bk95QWdJeUJCWTJObGMzTWdiRzluSUdacGJHVWdiRzlqWVhScGIyNEtJQ0FnSUNBZ1pYSnliM0pmYkc5bklHeHZaM012WkdGemFHSnZZWEprTG5kdmNtdHpkR0YwYVc5dUxtRmpZV1JsYlhrdVpYSnliM0l1Ykc5bk95QWdJeUJGY25KdmNpQnNiMmNnWm1sc1pTQnNiMk5oZEdsdmJnb0tDZ29nSUgwS0NpQWc=",
+    "config_status": false,
+    "custom_headers": {},
+    "error_log": "logs/dashboard.workstation.academy.error.log",
+    "id": "host:dashboard.workstation.academy",
+    "index": "index.html",
+    "listens": [
+        {
+            "listen": "80"
+        }
+    ],
+    "match_cases": {},
+    "pop_ids": [
+        "lon1",
+        "pop0"
+    ],
+    "profile_id": "prod",
+    "proxy_server_name": "dashboard.workstation.academy",
+    "root": "/var/www/html",
+    "rules": "academy-prod-default",
+    "server_name": "dashboard.workstation.academy",
+    "ssl_auto_renew": true,
+    "ssl_email": "admin@workstation.academy",
+    "ssl_enabled": true,
+    "ssl_force_https": true,
+    "ssl_staging": false
+}

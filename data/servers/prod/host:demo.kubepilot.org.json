@@ -1,27 +1,31 @@
 {
-  "id": "host:demo.kubepilot.org",
-  "server_name": "demo.kubepilot.org",
-  "proxy_server_name": "demo.kubepilot.org",
-  "rules": "kubepilot-demo-default",
-  "profile_id": "prod",
-  "ssl_enabled": true,
-  "ssl_force_https": true,
-  "ssl_auto_renew": true,
-  "ssl_staging": false,
-  "ssl_email": "support@kubepilot.org",
-  "dns_cname_target": "lon1.pop0.uk",
-  "dns_record_type": "CNAME",
-  "listens": [
-    {
-      "listen": "80"
-    }
-  ],
-  "match_cases": {},
-  "config_status": true,
-  "cache_enabled": false,
-  "root": "/var/www/html",
-  "index": "index.html",
-  "custom_headers": {},
-  "access_log": "logs/demo.kubepilot.org.access.log",
-  "error_log": "logs/demo.kubepilot.org.error.log"
+    "access_log": "logs/demo.kubepilot.org.access.log",
+    "cache_enabled": false,
+    "config_status": true,
+    "custom_headers": {},
+    "dns_cname_target": "lon1.pop0.uk",
+    "dns_record_type": "CNAME",
+    "error_log": "logs/demo.kubepilot.org.error.log",
+    "id": "host:demo.kubepilot.org",
+    "index": "index.html",
+    "listens": [
+        {
+            "listen": "80"
+        }
+    ],
+    "match_cases": {},
+    "pop_ids": [
+        "lon1",
+        "pop0"
+    ],
+    "profile_id": "prod",
+    "proxy_server_name": "demo.kubepilot.org",
+    "root": "/var/www/html",
+    "rules": "kubepilot-demo-default",
+    "server_name": "demo.kubepilot.org",
+    "ssl_auto_renew": true,
+    "ssl_email": "support@kubepilot.org",
+    "ssl_enabled": true,
+    "ssl_force_https": true,
+    "ssl_staging": false
 }

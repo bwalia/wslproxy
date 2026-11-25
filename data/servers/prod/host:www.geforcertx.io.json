@@ -38,7 +38,7 @@
     "ssl_enabled": true,
     "ssl_force_https": true,
     "ssl_staging": false,
-    "updated_at": 1794536938,
+    "updated_at": 1794536947,
     "varnish_enabled": false,
     "waf_enabled": false
 }

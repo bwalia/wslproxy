@@ -1,0 +1,47 @@
+{
+    "id": "portfoliolab-k3s1",
+    "match": {
+        "response": {
+            "backends": [
+                {
+                    "address": "193.237.176.232:8888",
+                    "label": "k3s1 Traefik (traefik-edge); routes by Host header to the portfoliolab-\u003cenv\u003e Ingress",
+                    "weight": 100
+                }
+            ],
+            "code": 305,
+            "redirect_uri": "193.237.176.232:8888",
+            "routing": {
+                "mode": "least_conn"
+            },
+            "strip_path": false
+        },
+        "rules": {
+            "basic_auth": {
+                "enabled": true,
+                "exempt_paths": [
+                    "/healthz"
+                ],
+                "realm": "Portfolio Lab (test)",
+                "users": [
+                    {
+                        "password_sha256": "96970a0ab5a756f3733bf3c5b11ece63e340b8e93d50c9f04bacc24ec6154eb8",
+                        "username": "portfoliolab"
+                    }
+                ]
+            },
+            "path": "/",
+            "path_key": "starts_with"
+        }
+    },
+    "name": "portfoliolab-k3s1",
+    "priority": 1,
+    "profile_id": "prod",
+    "rules_tags": [
+        "portfoliolab",
+        "test"
+    ],
+    "servers": [
+        "host:testportfoliolab.fictionally.org"
+    ]
+}

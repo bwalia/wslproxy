@@ -1,0 +1,38 @@
+{
+    "access_log": "logs/int-qa-api.diytaxreturn.co.uk.access.log",
+    "config": "YzJWeWRtVnlJSHNLSUNBZ0lDQWdiR2x6ZEdWdUlEZ3dPd29nSUNBZ0lDQnpaWEoyWlhKZmJtRnRaU0JwYm5RdGNXRXRZWEJwTG1ScGVYUmhlSEpsZEhWeWJpNWpieTUxYXpzS0lDQWdJQ0FnY205dmRDQXZkbUZ5TDNkM2R5OW9kRzFzT3dvZ0lDQWdJQ0JwYm1SbGVDQnBibVJsZUM1b2RHMXNPd29nSUNBZ0lDQmhZMk5sYzNOZmJHOW5JR3h2WjNNdmFXNTBMWEZoTFdGd2FTNWthWGwwWVhoeVpYUjFjbTR1WTI4dWRXc3VZV05qWlhOekxteHZaenNLSUNBZ0lDQWdaWEp5YjNKZmJHOW5JR3h2WjNNdmFXNTBMWEZoTFdGd2FTNWthWGwwWVhoeVpYUjFjbTR1WTI4dWRXc3VaWEp5YjNJdWJHOW5Pd29nSUgwS0lDQT0=",
+    "config_status": true,
+    "created_at": 1790174639,
+    "custom_headers": {},
+    "error_log": "logs/int-qa-api.diytaxreturn.co.uk.error.log",
+    "id": "host:int-qa-api.diytaxreturn.co.uk",
+    "index": "index.html",
+    "listens": [
+        {
+            "listen": "80"
+        }
+    ],
+    "match_cases": {},
+    "pop_ids": [
+        "lon1",
+        "pop0"
+    ],
+    "profile_id": "prod",
+    "proxy_pass": "http://localhost",
+    "proxy_server_name": "int-qa-api.diytaxreturn.co.uk",
+    "proxy_timeouts": {
+        "connect_timeout": "30",
+        "read_timeout": "600",
+        "send_timeout": "300"
+    },
+    "root": "/var/www/html",
+    "rules": [
+        "diytax-prod-int-origin-uk-002"
+    ],
+    "server_name": "int-qa-api.diytaxreturn.co.uk",
+    "ssl_auto_renew": true,
+    "ssl_email": "admin@diytaxreturn.co.uk",
+    "ssl_enabled": true,
+    "ssl_force_https": true,
+    "ssl_staging": false
+}

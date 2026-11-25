@@ -1,0 +1,39 @@
+{
+    "created_at": 1793211864,
+    "id": "opsapi-website-pages",
+    "match": {
+        "response": {
+            "allow": true,
+            "auto_redirect_https": false,
+            "backends": {},
+            "code": 305,
+            "is_consul": false,
+            "message": "",
+            "redirect_uri": "https://bwalia.github.io/opsapi-website",
+            "routing": {
+                "mode": "weighted"
+            },
+            "strip_path": false
+        },
+        "rules": {
+            "client_ip_key": "equals",
+            "country_key": "equals",
+            "jwt_token_validation": "equals",
+            "path": "/",
+            "path_key": "starts_with"
+        }
+    },
+    "name": "opsapi-website-pages",
+    "priority": 1,
+    "profile_id": "prod",
+    "rules_tags": [
+        "opsapi",
+        "prod",
+        "pages",
+        "website"
+    ],
+    "servers": [
+        "host:opsapi.org"
+    ],
+    "updated_at": 1793211864
+}

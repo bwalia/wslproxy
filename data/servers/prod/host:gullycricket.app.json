@@ -1,0 +1,25 @@
+{
+    "access_log": "logs/gullycricket.app.access.log",
+    "config_status": true,
+    "error_log": "logs/gullycricket.app.error.log",
+    "id": "host:gullycricket.app",
+    "listens": [
+        {
+            "listen": "80"
+        }
+    ],
+    "match_cases": {},
+    "pop_ids": [
+        "lon1",
+        "pop0"
+    ],
+    "profile_id": "prod",
+    "proxy_server_name": "gullycricket.app",
+    "rules": "fishers-prod-default",
+    "server_name": "gullycricket.app",
+    "ssl_auto_renew": true,
+    "ssl_email": "admin@gullycricket.app",
+    "ssl_enabled": true,
+    "ssl_force_https": true,
+    "ssl_staging": false
+}
