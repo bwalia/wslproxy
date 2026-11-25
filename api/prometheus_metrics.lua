@@ -53,12 +53,18 @@ function _M.init()
     package.loaded._metric_log_notices = prometheus:counter("nginx_log_notices_total", "Count of NOTICE level log messages", {"component"})
 
     -- DDoS / Security metrics
-    package.loaded._metric_requests_per_ip = prometheus:counter("nginx_http_requests_by_ip_total", "Requests per IP address", {"ip", "host"})
+    -- No per-IP metrics: nginx_http_requests_by_ip_total{ip,host} and
+    -- nginx_http_rate_limited_total{host,ip} made one series per client IP x
+    -- host. The library keeps every series in a per-worker table that is never
+    -- pruned, which is how lon1's workers grew to ~300 MB and the edge was
+    -- OOM-killed (2026-11-25, docs/runbooks/edge-memory.md). Per-IP data
+    -- belongs in a shared dict with a TTL (bot_defense, traffic_stats).
     package.loaded._metric_suspicious_requests = prometheus:counter("nginx_http_suspicious_requests_total", "Suspicious request patterns", {"host", "reason"})
     package.loaded._metric_blocked_requests = prometheus:counter("nginx_http_blocked_requests_total", "Blocked requests", {"host", "reason"})
-    package.loaded._metric_rate_limited = prometheus:counter("nginx_http_rate_limited_total", "Rate limited requests", {"host", "ip"})
 
-    -- Gateway / Proxy metrics
+    -- Gateway / Proxy metrics. `upstream` is the configured backend (rule
+    -- backend label or redirect URI), not $upstream_addr: resolved IPs of
+    -- S3 / CDN backends and retry lists ("a:p, b:p") are unbounded.
     package.loaded._metric_proxy_requests = prometheus:counter("nginx_proxy_requests_total", "Proxy requests", {"upstream", "status"})
     package.loaded._metric_proxy_latency = prometheus:histogram("nginx_proxy_response_time_seconds", "Proxy response time", {"upstream"})
     package.loaded._metric_ssl_handshakes = prometheus:counter("nginx_ssl_handshakes_total", "SSL handshake count", {"protocol", "cipher"})
@@ -101,8 +107,69 @@ function _M.init()
     package.loaded._metric_waf_errors = prometheus:counter("nginx_waf_errors_total", "WAF engine errors (fail-open events)", {"host", "error_type"})
     package.loaded._metric_waf_latency = prometheus:histogram("nginx_waf_inspection_duration_seconds", "WAF inspection duration", {"host"}, {0.0001, 0.0005, 0.001, 0.005, 0.01, 0.05, 0.1})
 
+    -- Drop series left in the shared dict by the old label scheme (the dict
+    -- survives reloads, and every worker indexes every key in it).
+    if ngx.worker.id() == 0 then
+        ngx.timer.at(5, _M.purge_legacy_series)
+    end
+
+    -- Per-worker Lua heap / RSS, shared-dict free space, draining workers,
+    -- swap (api/memory_metrics.lua, docs/runbooks/edge-memory.md).
+    local mm_ok, memory_metrics = pcall(require, "memory_metrics")
+    if mm_ok then
+        local ok_init, err_init = pcall(memory_metrics.init, prometheus)
+        if not ok_init then
+            ngx.log(ngx.WARN, "memory_metrics init failed: ", tostring(err_init))
+        end
+    else
+        ngx.log(ngx.WARN, "memory_metrics module not available: ", tostring(memory_metrics))
+    end
+
     ngx.log(ngx.NOTICE, "WSL Proxy Prometheus metrics initialized successfully")
     return true
+end
+
+-- Series of metrics that were removed or whose labels changed meaning. Their
+-- keys stay in lua_shared_dict prometheus_metrics until the master restarts,
+-- and each new worker loads all of them into its key index.
+local LEGACY = {
+    { kind = "counter", name = "nginx_http_requests_by_ip_total", labels = { "ip", "host" } },
+    { kind = "counter", name = "nginx_http_rate_limited_total", labels = { "host", "ip" } },
+}
+local LABEL_SCHEMA_KEY = "__wslproxy_metric_label_schema_v2"
+
+--- Delete the series of removed metrics and the proxy metrics labelled with
+--- the old upstream IP. Runs once per shared dict lifetime (the marker key
+--- survives reloads), from a timer on worker 0, because reset() sleeps for
+--- one counter sync interval. Returns how many metrics were reset.
+function _M.purge_legacy_series(premature)
+    if premature then
+        return 0
+    end
+    local prometheus = package.loaded._prometheus_instance
+    local dict = ngx.shared[DICT_NAME]
+    if not prometheus or not dict then
+        return 0
+    end
+    local added = dict:add(LABEL_SCHEMA_KEY, 1)
+    if not added then
+        return 0 -- already done for this dict
+    end
+    local n = 0
+    for _, m in ipairs(LEGACY) do
+        local metric = prometheus[m.kind](prometheus, m.name, "removed; see docs/runbooks/edge-memory.md", m.labels)
+        if metric and pcall(metric.reset, metric) then
+            n = n + 1
+        end
+    end
+    for _, key in ipairs({ "_metric_proxy_requests", "_metric_proxy_latency" }) do
+        local metric = package.loaded[key]
+        if metric and pcall(metric.reset, metric) then
+            n = n + 1
+        end
+    end
+    ngx.log(ngx.NOTICE, "prometheus_metrics: purged legacy series of ", n, " metric(s)")
+    return n
 end
 
 function _M.get_prometheus()

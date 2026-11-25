@@ -383,7 +383,7 @@ Local URLs:
 
 1. **`client_body_buffer_size 0`** on admin server block silently truncates large request bodies to ~90 bytes → worker enters CPU-bound infinite loop on malformed JSON parse. Admin API blocks now use `10m` in both templates, so records up to 10 MB (server records with large nginx configs) stay in memory. Larger bodies spool to a temp file; `api.lua`'s dispatcher skips `get_post_args()` for those (it refuses spooled bodies with `request body in temp file not supported`) and `Helper.GetPayloads` reads the file. The dashboard proxy allows 16mb (`proxyClientMaxBodySize` in `next.config.ts`).
 
-2. **Only 1 `worker_processes`** in production meant any stuck worker = full outage. On 2026-11-22 lon2 timed out ~150 TLS handshakes under 24 parallel clients with one worker. The prod template now uses `nginx_worker_processes` (default 4, one per vCPU). Worker-0-only timers (`traffic_router`, `on_demand`) and shared dicts already handle multiple workers. The Docker dev template stays at 1.
+2. **Only 1 `worker_processes`** in production meant any stuck worker = full outage. On 2026-11-22 lon2 timed out ~150 TLS handshakes under 24 parallel clients with one worker. The prod template now uses `nginx_worker_processes` (default 4, one per vCPU). More workers multiply per-worker Lua memory: see gotcha 29. Worker-0-only timers (`traffic_router`, `on_demand`) and shared dicts already handle multiple workers. The Docker dev template stays at 1.
 
 3. **`io.popen("sudo openresty -t")`** in `helpers.lua:testNginxConfig` blocks the entire worker. Only runs when `config_status: true`, but still a foot-gun.
 
@@ -443,6 +443,8 @@ Local URLs:
 
 28. **PUT/POST handlers in `api.lua` get the body as `args`, not the query string.** `handle_put_request(read_request_args(), path)`. A handler that reads `args.envprofile` never sees the UI's `?envprofile=int`, so it falls back to prod and writes to prod. Read query parameters with `ngx.req.get_uri_args()`, as `bot_defense/admin.lua`'s `env_of()` does. It also refuses a malformed env (400) rather than defaulting it.
 
+29. **Never hand-edit `nginx.conf` on an edge; worker count and dict sizes are per-edge vars** (lon1 OOM, 2026-11-25). lon1 was OOM-killed (4 GB, no swap then, `Restart=no`, ~10 min down): three reloads in 20 min with no `worker_shutdown_timeout` left three worker generations (11 workers) alive, each with ~300-360 MB of Lua heap. The heap growth was Prometheus labels from the request: `nginx_http_requests_by_ip_total{ip,host}`, the raw `Host` header, client methods and `$upstream_addr`. nginx-lua-prometheus keeps every series ever seen in each worker and never prunes, and the `prometheus_metrics` dict survives reloads. Fixed: per-IP metric removed, labels come from config (`log_handler.metric_host/method/upstream`), `worker_shutdown_timeout 60s`, reloads go through `wslproxy-reload` (debounced, `openresty -t` first, `--force` to override), per-worker heap/RSS metrics (`api/memory_metrics.lua`) and alerts. Sizing (`nginx_worker_processes`, `nginx_worker_connections`, `nginx_worker_shutdown_timeout`, `nginx_shm_*`) is in `roles/wslproxy/defaults/main.yml` / `host_vars`; `scripts/check-edge-nginx-render.sh` (CI) compares the template with `infra/ansible/rendered/<pop>.nginx.conf`. **Never add a Prometheus label taken from the request** (IP, Host, path, UA, method). Budget, metrics, rollout: `docs/runbooks/edge-memory.md`.
+
 ### Conventions
 
 - **Lua modules** return a table `_M`. Public functions on `_M`; file-scoped locals outside.
@@ -483,8 +485,9 @@ tail -50 /usr/local/openresty/nginx/logs/error.log | grep -v 'ocsp stapling'
 # Test config without reloading
 /usr/local/openresty/bin/openresty -t
 
-# Graceful reload (HUP to master)
-systemctl reload openresty
+# Graceful reload: debounced, runs openresty -t first (gotcha 29).
+# --force skips the debounce. Plain `systemctl reload openresty` bypasses both.
+wslproxy-reload --reason "what changed"
 
 # Hard restart
 systemctl restart openresty

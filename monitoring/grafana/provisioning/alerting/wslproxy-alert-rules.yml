@@ -227,3 +227,196 @@ groups:
                   operator: { type: and }
                   query: { params: [A] }
                   reducer: { type: last, params: [] }
+
+  # Edge memory (lon1 OOM 2026-11-25). Mirrors the wslproxy-edge-memory
+  # group in ../../alerts/prometheus-rules.yml.
+  - orgId: 1
+    name: wslproxy-edge-memory
+    folder: WSLProxy Monitoring
+    interval: 1m
+    rules:
+      - uid: wslproxy-openresty-inactive
+        title: WSLProxy OpenResty not active on an edge
+        condition: C
+        for: 1m
+        noDataState: OK
+        execErrState: Error
+        labels: { severity: critical, team: sre, service: wslproxy }
+        annotations:
+          summary: openresty.service inactive (needs node_exporter systemd collector). Restart=on-failure should recover in 5s; check dmesg for an OOM kill.
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: PROMETHEUS_UID
+            model:
+              refId: A
+              instant: true
+              expr: >-
+                max by (instance) (node_systemd_unit_state{name="openresty.service",state="active"} == bool 0)
+          - refId: C
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [0] }
+                  operator: { type: and }
+                  query: { params: [A] }
+                  reducer: { type: last, params: [] }
+
+      - uid: wslproxy-edge-healthz
+        title: WSLProxy edge /healthz failing
+        condition: C
+        for: 2m
+        noDataState: OK
+        execErrState: Error
+        labels: { severity: critical, team: sre, service: wslproxy }
+        annotations:
+          summary: An edge's /healthz is not 2xx. Check the other edge before touching this one.
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: PROMETHEUS_UID
+            model:
+              refId: A
+              instant: true
+              expr: >-
+                max by (instance) (probe_success{job=~"blackbox-healthz.*"} == bool 0)
+          - refId: C
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [0] }
+                  operator: { type: and }
+                  query: { params: [A] }
+                  reducer: { type: last, params: [] }
+
+      - uid: wslproxy-lua-heap-high
+        title: WSLProxy worker Lua heap above 150 MiB
+        condition: C
+        for: 15m
+        noDataState: OK
+        execErrState: Error
+        labels: { severity: warning, team: sre, service: wslproxy }
+        annotations:
+          summary: Per-worker Lua heap growing; see docs/runbooks/edge-memory.md.
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: PROMETHEUS_UID
+            model:
+              refId: A
+              instant: true
+              expr: >-
+                max by (instance, worker) (wslproxy_worker_lua_heap_bytes) / 1048576
+          - refId: C
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [150] }
+                  operator: { type: and }
+                  query: { params: [A] }
+                  reducer: { type: last, params: [] }
+
+      - uid: wslproxy-worker-rss-high
+        title: WSLProxy worker private RSS above 250 MiB
+        condition: C
+        for: 10m
+        noDataState: OK
+        execErrState: Error
+        labels: { severity: critical, team: sre, service: wslproxy }
+        annotations:
+          summary: Worker above the per-worker memory budget (docs/runbooks/edge-memory.md).
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: PROMETHEUS_UID
+            model:
+              refId: A
+              instant: true
+              expr: >-
+                max by (instance, worker) (wslproxy_worker_rss_anon_bytes) / 1048576
+          - refId: C
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [250] }
+                  operator: { type: and }
+                  query: { params: [A] }
+                  reducer: { type: last, params: [] }
+
+      - uid: wslproxy-swap-in-use
+        title: WSLProxy edge using more than 200 MiB swap
+        condition: C
+        for: 10m
+        noDataState: OK
+        execErrState: Error
+        labels: { severity: warning, team: sre, service: wslproxy }
+        annotations:
+          summary: Edge is over its memory budget; swap is only a safety net.
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: PROMETHEUS_UID
+            model:
+              refId: A
+              instant: true
+              expr: >-
+                max by (instance) (wslproxy_host_swap_used_bytes) / 1048576
+          - refId: C
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [200] }
+                  operator: { type: and }
+                  query: { params: [A] }
+                  reducer: { type: last, params: [] }
+
+      - uid: wslproxy-generations-stuck
+        title: WSLProxy old worker generation still draining
+        condition: C
+        for: 2m
+        noDataState: OK
+        execErrState: Error
+        labels: { severity: warning, team: sre, service: wslproxy }
+        annotations:
+          summary: Draining workers alive longer than worker_shutdown_timeout (60s) + 1m. ps -o pid,etimes,rss,cmd -C nginx.
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: PROMETHEUS_UID
+            model:
+              refId: A
+              instant: true
+              expr: >-
+                max by (instance) (wslproxy_nginx_workers_shutting_down)
+          - refId: C
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [0] }
+                  operator: { type: and }
+                  query: { params: [A] }
+                  reducer: { type: last, params: [] }

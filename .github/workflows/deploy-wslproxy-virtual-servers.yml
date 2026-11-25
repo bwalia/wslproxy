@@ -421,8 +421,13 @@ jobs:
             # Run fix-permissions if available
             [ -x /usr/sbin/fix-permissions.sh ] && /usr/sbin/fix-permissions.sh || true
             # Reload nginx to pick up any new configs
-            /usr/local/openresty/bin/openresty -t && systemctl reload openresty
-            echo "✅ Permissions fixed and OpenResty reloaded"
+            # Debounced reload (docs/runbooks/edge-memory.md); it runs openresty -t.
+            if [ -x /usr/local/sbin/wslproxy-reload ]; then
+              /usr/local/sbin/wslproxy-reload --reason "deploy-wslproxy-virtual-servers"
+            else
+              /usr/local/openresty/bin/openresty -t && systemctl reload openresty
+            fi
+            echo "✅ Permissions fixed and OpenResty reload requested"
           REMOTE
 
   # ──────────────────────────────────────────────────────

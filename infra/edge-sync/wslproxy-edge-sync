@@ -98,9 +98,16 @@ for d in "${DIRS[@]}"; do
 done
 
 if [ "$reload" = 1 ]; then
-  /usr/local/openresty/bin/openresty -t -q
-  systemctl reload openresty
-  echo "openresty reloaded"
+  # Debounced (at most one reload per wslproxy_reload_min_interval; a sooner
+  # one is applied by wslproxy-reload-pending.timer). It runs openresty -t.
+  # Fallback for an edge that does not have it yet.
+  if [ -x /usr/local/sbin/wslproxy-reload ]; then
+    /usr/local/sbin/wslproxy-reload --reason "edge-sync: ${total} change(s)"
+  else
+    /usr/local/openresty/bin/openresty -t -q
+    systemctl reload openresty
+    echo "openresty reloaded"
+  fi
 fi
 
 mkdir -p "$STATE_DIR"

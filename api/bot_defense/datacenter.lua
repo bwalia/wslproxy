@@ -85,7 +85,7 @@ function M.build(specs)
                     rejected = rejected + 1
                 end
             else
-                local c = Cidr.parse_cidr(spec)
+                local c = Cidr.parse_cidr(spec, true) -- bulk list: keep it out of the cache
                 if c then
                     v4[#v4 + 1] = { c.network, c.network + c.size - 1 }
                 else

@@ -17,21 +17,27 @@
 | `wslproxy_backend_requests_total` | counter | `rule_id`, `backend_label`, `status` | Requests routed to each backend, per HTTP status. |
 | `wslproxy_backend_response_seconds` | histogram | `rule_id`, `backend_label`, `le` | Backend latency. Buckets: `.005 .01 .025 .05 .1 .25 .5 1 2.5 +Inf`. |
 
+Memory gauges (`api/memory_metrics.lua`): `wslproxy_worker_lua_heap_bytes{worker}`,
+`wslproxy_worker_rss_bytes{worker}`, `wslproxy_worker_rss_anon_bytes{worker}`,
+`wslproxy_shdict_capacity_bytes{dict}`, `wslproxy_shdict_free_bytes{dict}`,
+`wslproxy_nginx_workers_shutting_down`, `wslproxy_host_swap_used_bytes`,
+`wslproxy_host_mem_available_bytes`.
+
 ### Proxy (upstream layer)
 | Metric | Type | Labels |
 |---|---|---|
-| `nginx_proxy_requests_total` | counter | `upstream`, `status` |
+| `nginx_proxy_requests_total` | counter | `upstream` (configured backend label / redirect URI, not the resolved ip:port, since 2026-11-25), `status` |
 | `nginx_proxy_response_time_seconds` | histogram | `upstream`, `le` (buckets `.005 … 10 +Inf`) |
 
 ### Requests / HTTP
 | Metric | Type | Labels |
 |---|---|---|
-| `nginx_http_requests_total` | counter | `host`, `status`, `method`, `endpoint` |
+| `nginx_http_requests_total` | counter | `host` (configured server name, else `_unmatched`), `status`, `method` (7 verbs, else `OTHER`), `endpoint` |
 | `nginx_http_request_duration_seconds` | histogram | `host`, `method`, `endpoint`, `le` (buckets `.005 … 10 +Inf`) |
 | `nginx_http_request_size_bytes` | histogram | `host`, `method`, `le` |
 | `nginx_http_response_size_bytes` | histogram | `host`, `method`, `status`, `le` |
 | `nginx_http_connections` | gauge | `state` (`reading`/`writing`/`waiting`/`active`) |
-| `nginx_http_requests_by_ip_total` | counter | `ip`, `host` |
+| ~~`nginx_http_requests_by_ip_total`~~ | removed 2026-11-25 | one series per client IP made every worker's heap grow without bound (lon1 OOM, `docs/runbooks/edge-memory.md`). Panels using it show no data. |
 
 ### Errors
 | Metric | Type | Labels |

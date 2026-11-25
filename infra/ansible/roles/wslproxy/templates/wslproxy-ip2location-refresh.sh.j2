@@ -61,5 +61,10 @@ log "Installed new DB (${SIZE} bytes) at $TARGET"
 # (no broken lookups, just stale-by-up-to-a-month answers from the
 # in-flight workers).
 if systemctl is-active --quiet openresty; then
-    systemctl reload openresty || log "WARN: reload openresty failed; new DB still installed"
+    if [ -x /usr/local/sbin/wslproxy-reload ]; then
+        /usr/local/sbin/wslproxy-reload --reason ip2location-refresh \
+            || log "WARN: reload openresty failed; new DB still installed"
+    else
+        systemctl reload openresty || log "WARN: reload openresty failed; new DB still installed"
+    fi
 fi

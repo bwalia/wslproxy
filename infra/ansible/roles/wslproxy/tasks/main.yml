@@ -175,6 +175,11 @@
   include_tasks: systemd_limits.yml
   tags: [nginx]
 
+# Step 8.5: Debounced reloads (wslproxy-reload + pending timer)
+- name: Install the reload guard
+  include_tasks: reload_guard.yml
+  tags: [nginx]
+
 # Step 9: PAM configuration (OS-specific paths)
 - name: Configure PAM
   include_tasks: pam_config.yml
