@@ -1,0 +1,75 @@
+name: Edge config check (nginx render, reload guard, memory)
+
+# Offline only: nothing here connects to an edge or deploys anything.
+#   1. The prod nginx.conf template, rendered for lon1 and pop0 with their
+#      host_vars, must equal infra/ansible/rendered/<pop>.nginx.conf. A
+#      template or sizing change therefore shows in the PR as the exact diff
+#      the edge will run (docs/runbooks/edge-memory.md).
+#   2. Unit tests for wslproxy-reload (debounce), the memory metrics and the
+#      bounded Prometheus labels, plus shellcheck on the scripts.
+
+on:
+  pull_request:
+    paths:
+      - "infra/ansible/roles/wslproxy/templates/nginx.conf.j2"
+      - "infra/ansible/roles/wslproxy/defaults/main.yml"
+      - "infra/ansible/group_vars/**"
+      - "infra/ansible/host_vars/lon1.pop0.uk/**"
+      - "infra/ansible/host_vars/85.190.106.189/**"
+      - "infra/ansible/render-nginx-conf.yml"
+      - "infra/ansible/rendered/**"
+      - "infra/edge-reload/**"
+      - "infra/edge-sync/**"
+      - "scripts/check-edge-nginx-render.sh"
+      - "api/memory_metrics.lua"
+      - "api/prometheus_metrics.lua"
+      - "api/log_handler.lua"
+      - "api/ip_cidr.lua"
+      - "api/rule_matcher.lua"
+      - "test/edge_reload/**"
+      - "test/memory/**"
+      - "test/rules/test_ip_cidr.lua"
+      - ".github/workflows/edge-config-check.yml"
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: edge-config-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends luajit shellcheck >/dev/null
+          python3 -m pip install --quiet ansible-core
+
+      - name: Rendered nginx.conf matches infra/ansible/rendered/
+        run: scripts/check-edge-nginx-render.sh
+
+      - name: shellcheck
+        run: |
+          shellcheck scripts/check-edge-nginx-render.sh infra/edge-reload/wslproxy-reload \
+            infra/edge-sync/wslproxy-edge-sync test/edge_reload/test_wslproxy_reload.sh \
+            test/memory/heap/run.sh
+
+      - name: wslproxy-reload debounce tests
+        run: bash test/edge_reload/test_wslproxy_reload.sh
+
+      - name: Lua unit tests (memory metrics, metric labels, ip_cidr)
+        run: |
+          set -e
+          for t in test/memory/test_*.lua test/rules/test_ip_cidr.lua \
+                   test/rules/test_rule_matcher_cidr.lua; do
+            echo "== $t"; luajit "$t"
+          done

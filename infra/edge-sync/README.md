@@ -42,7 +42,12 @@ servers said. Like rules, cache configs are read per request and need no reload.
 
 Only `*.json` is copied or deleted; other files and directories on pop0 are
 kept. OpenResty is reloaded (after `openresty -t`) only when servers or WAF
-policies changed. Rules are read per request and need no reload.
+policies changed. Rules are read per request and need no reload. The reload
+goes through `/usr/local/sbin/wslproxy-reload` when it is installed
+(`infra/edge-reload/`, role task `reload_guard.yml`): at most one reload per
+180 s, a sooner one applied by `wslproxy-reload-pending.timer`. This script is
+installed by hand (see above), so copy the new version to pop0 when it changes.
+See `docs/runbooks/edge-memory.md`.
 
 ## Operating it
 
