@@ -1,0 +1,38 @@
+{
+    "id": "daybook-website-pod",
+    "match": {
+        "response": {
+            "backends": [
+                {
+                    "address": "193.237.176.232:8888",
+                    "label": "193.237.176.232:8888 k3s1 traefik-edge entry; routes daybook.co.uk and int./test./acc.daybook.co.uk by Host to the daybook-website ring pods (namespaces daybook-website, daybook-website-\u003cring\u003e)",
+                    "weight": 100
+                }
+            ],
+            "code": 305,
+            "redirect_uri": "193.237.176.232:8888",
+            "routing": {
+                "mode": "least_conn"
+            },
+            "strip_path": false
+        },
+        "rules": {
+            "path": "/",
+            "path_key": "starts_with"
+        }
+    },
+    "name": "daybook-website-pod",
+    "priority": 1,
+    "profile_id": "prod",
+    "rules_tags": [
+        "daybook",
+        "website",
+        "prod"
+    ],
+    "servers": [
+        "host:daybook.co.uk",
+        "host:int.daybook.co.uk",
+        "host:test.daybook.co.uk",
+        "host:acc.daybook.co.uk"
+    ]
+}

@@ -1,0 +1,53 @@
+{
+    "_schema_version": 2,
+    "created_at": 1794587450,
+    "id": "bd8b4e91-7135-4791-a161-428df68be69f",
+    "match": {
+        "response": {
+            "allow": true,
+            "auto_redirect_https": false,
+            "backends": [
+                {
+                    "address": "http://193.237.176.232:31439",
+                    "label": "opsapi-a-11439",
+                    "weight": 100
+                },
+                {
+                    "address": "http://193.237.176.232:31440",
+                    "label": "opsapi-b-11440",
+                    "weight": 100
+                },
+                {
+                    "address": "http://193.237.176.232:31434",
+                    "label": "shared-11434",
+                    "weight": 1
+                }
+            ],
+            "code": 305,
+            "is_consul": false,
+            "redirect_uri": "http://193.237.176.232:31439",
+            "routing": {
+                "mode": "weighted"
+            },
+            "strip_path": true
+        },
+        "rules": {
+            "jwt_token_validation": "header_jwt_token_validation",
+            "jwt_token_validation_key": "bTdROXZYMnBMOHpSNG5UNmNIMWFLNXNXMGRGM3VKOUI",
+            "jwt_token_validation_value": "x-api-key",
+            "path": "/opsapi",
+            "path_key": "starts_with"
+        }
+    },
+    "name": "hh-193-ollama-opsapi-failover",
+    "priority": 10,
+    "profile_id": "prod",
+    "rules_tags": {
+        "auth": "inline-jwt-hmac"
+    },
+    "servers": [
+        "host:ollama.workstation.co.uk"
+    ],
+    "updated_at": 1794806804,
+    "version": 2
+}

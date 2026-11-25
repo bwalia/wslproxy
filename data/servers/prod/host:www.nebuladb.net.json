@@ -1,38 +1,39 @@
 {
-  "id": "host:www.nebuladb.net",
-  "server_name": "www.nebuladb.net",
-  "profile_id": "prod",
-  "rules": "nebuladb-website-pages",
-  "pop_ids": [
-    "lon1",
-    "pop0"
-  ],
-  "dns_record_type": "CNAME",
-  "dns_cname_target": "lon1.pop0.uk",
-  "proxy_pass": "http://localhost",
-  "proxy_server_name": "bwalia.github.io",
-  "listens": [
-    {
-      "listen": "80"
-    }
-  ],
-  "match_cases": {},
-  "root": "/var/www/html",
-  "index": "index.html",
-  "access_log": "logs/www.nebuladb.net.access.log",
-  "error_log": "logs/www.nebuladb.net.error.log",
-  "cache_enabled": true,
-  "cache_ttl": "3600",
-  "cache_bypass_auth": false,
-  "custom_headers": {},
-  "rate_limit_enabled": false,
-  "varnish_enabled": false,
-  "waf_enabled": false,
-  "config_status": true,
-  "ssl_enabled": true,
-  "ssl_force_https": false,
-  "ssl_auto_renew": true,
-  "ssl_staging": false,
-  "ssl_email": "balinder.walia@gmail.com",
-  "created_at": 1792971973
+    "access_log": "logs/www.nebuladb.net.access.log",
+    "cache_bypass_auth": false,
+    "cache_enabled": true,
+    "cache_ttl": "3600",
+    "config": "c2VydmVyIHsKICAgICAgbGlzdGVuIDgwOyAgIyBMaXN0ZW4gb24gcG9ydCAoSFRUUCkKICAgICAgc2VydmVyX25hbWUgd3d3Lm5lYnVsYWRiLm5ldDsgICMgWW91ciBkb21haW4gbmFtZQogICAgICByb290IC92YXIvd3d3L2h0bWw7ICAjIERvY3VtZW50IHJvb3QgZGlyZWN0b3J5CiAgICAgIGluZGV4IGluZGV4Lmh0bWw7ICAjIERlZmF1bHQgaW5kZXggZmlsZXMKICAgICAgYWNjZXNzX2xvZyBsb2dzL3d3dy5uZWJ1bGFkYi5uZXQuYWNjZXNzLmxvZzsgICMgQWNjZXNzIGxvZyBmaWxlIGxvY2F0aW9uCiAgICAgIGVycm9yX2xvZyBsb2dzL3d3dy5uZWJ1bGFkYi5uZXQuZXJyb3IubG9nOyAgIyBFcnJvciBsb2cgZmlsZSBsb2NhdGlvbgoKCgogIH0KCiAg",
+    "config_status": true,
+    "created_at": 1792971973,
+    "custom_headers": {},
+    "dns_cname_target": "lon1.pop0.uk",
+    "dns_record_type": "CNAME",
+    "error_log": "logs/www.nebuladb.net.error.log",
+    "id": "host:www.nebuladb.net",
+    "index": "index.html",
+    "listens": [
+        {
+            "listen": "80"
+        }
+    ],
+    "match_cases": {},
+    "pop_ids": [
+        "lon1",
+        "pop0"
+    ],
+    "profile_id": "prod",
+    "proxy_pass": "http://localhost",
+    "proxy_server_name": "bwalia.github.io",
+    "rate_limit_enabled": false,
+    "root": "/var/www/html",
+    "rules": "nebuladb-website-pages",
+    "server_name": "www.nebuladb.net",
+    "ssl_auto_renew": true,
+    "ssl_email": "balinder.walia@gmail.com",
+    "ssl_enabled": true,
+    "ssl_force_https": false,
+    "ssl_staging": false,
+    "varnish_enabled": false,
+    "waf_enabled": false
 }

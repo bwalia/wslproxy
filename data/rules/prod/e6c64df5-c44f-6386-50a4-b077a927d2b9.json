@@ -24,8 +24,6 @@
     "priority": 1,
     "profile_id": "prod",
     "rules_tags": {},
-    "servers": [
-        "host:k3s1.diytaxreturn.co.uk"
-    ],
+    "servers": {},
     "version": 1
 }

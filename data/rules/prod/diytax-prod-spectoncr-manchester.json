@@ -1,1 +1,36 @@
-{"servers":["host:spectoncr.diytaxreturn.co.uk"],"rules_tags":["diytaxreturn","prod","spectoncr","manchester-edge"],"priority":1,"match":{"response":{"strip_path":false,"routing":{"mode":"weighted"},"code":305,"backends":[{"weight":50,"address":"lon1.pop0.uk:80","label":"cloud001-traefik-edge"},{"weight":50,"address":"origin-uk-002.pop0.uk:80","label":"cloud002-traefik-edge"}],"redirect_uri":"lon1.pop0.uk:80"},"rules":{"path_key":"starts_with","path":"\/"}},"id":"diytax-prod-spectoncr-manchester","profile_id":"prod","name":"diytax-prod-spectoncr-manchester"}
+{
+    "id": "diytax-prod-spectoncr-manchester",
+    "match": {
+        "response": {
+            "backends": [
+                {
+                    "address": "origin-uk-003.pop0.uk",
+                    "label": "origin-uk-003-traefik-edge",
+                    "weight": 100
+                }
+            ],
+            "code": 305,
+            "redirect_uri": "origin-uk-003.pop0.uk",
+            "routing": {
+                "mode": "weighted"
+            },
+            "strip_path": false
+        },
+        "rules": {
+            "path": "/",
+            "path_key": "starts_with"
+        }
+    },
+    "name": "diytax-prod-spectoncr-manchester",
+    "priority": 1,
+    "profile_id": "prod",
+    "rules_tags": [
+        "diytaxreturn",
+        "prod",
+        "spectoncr",
+        "manchester-edge"
+    ],
+    "servers": [
+        "host:spectoncr.diytaxreturn.co.uk"
+    ]
+}

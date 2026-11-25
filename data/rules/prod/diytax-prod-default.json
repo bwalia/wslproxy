@@ -37,8 +37,6 @@
         "host:grafana.diytaxreturn.co.uk",
         "host:gatus.diytaxreturn.co.uk",
         "host:minio.diytaxreturn.co.uk",
-        "host:qa.diytaxreturn.co.uk",
-        "host:qa-agent.diytaxreturn.co.uk",
-        "host:qa-agent-api.diytaxreturn.co.uk"
+        "host:qa.diytaxreturn.co.uk"
     ]
 }

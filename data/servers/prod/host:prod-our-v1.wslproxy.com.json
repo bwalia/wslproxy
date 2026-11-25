@@ -1,28 +1,33 @@
 {
-  "id": "host:prod-our-v1.wslproxy.com",
-  "server_name": "prod-our-v1.wslproxy.com",
-  "proxy_server_name": "prod-our-v1.wslproxy.com",
-  "root": "/var/www/html",
-  "index": "index.html",
-  "access_log": "logs/access.log",
-  "error_log": "logs/error.log",
-  "config_status": false,
-  "profile_id": "prod",
-  "proxy_pass": "http://localhost:7691",
-  "rules": "prod-our-v1-wslproxy-rule",
-  "created_at": 1769388403,
-  "listens": [
-    {
-      "listen": "80"
-    }
-  ],
-  "ssl_enabled": true,
-  "ssl_force_https": true,
-  "ssl_staging": false,
-  "ssl_auto_renew": true,
-  "ssl_email": "balinder.walia@gmail.com",
-  "cache_enabled": false,
-  "cache_bypass_auth": false,
-  "match_cases": {},
-  "custom_headers": []
+    "access_log": "logs/access.log",
+    "cache_bypass_auth": false,
+    "cache_enabled": false,
+    "config": "c2VydmVyIHsKICAgICAgbGlzdGVuIDgwOyAgIyBMaXN0ZW4gb24gcG9ydCAoSFRUUCkKICAgICAgc2VydmVyX25hbWUgcHJvZC1vdXItdjEud3NscHJveHkuY29tOyAgIyBZb3VyIGRvbWFpbiBuYW1lCiAgICAgIHJvb3QgL3Zhci93d3cvaHRtbDsgICMgRG9jdW1lbnQgcm9vdCBkaXJlY3RvcnkKICAgICAgaW5kZXggaW5kZXguaHRtbDsgICMgRGVmYXVsdCBpbmRleCBmaWxlcwogICAgICBhY2Nlc3NfbG9nIGxvZ3MvYWNjZXNzLmxvZzsgICMgQWNjZXNzIGxvZyBmaWxlIGxvY2F0aW9uCiAgICAgIGVycm9yX2xvZyBsb2dzL2Vycm9yLmxvZzsgICMgRXJyb3IgbG9nIGZpbGUgbG9jYXRpb24KCgoKICB9CgogIA==",
+    "config_status": false,
+    "created_at": 1769388403,
+    "custom_headers": {},
+    "error_log": "logs/error.log",
+    "id": "host:prod-our-v1.wslproxy.com",
+    "index": "index.html",
+    "listens": [
+        {
+            "listen": "80"
+        }
+    ],
+    "match_cases": {},
+    "pop_ids": [
+        "lon1",
+        "pop0"
+    ],
+    "profile_id": "prod",
+    "proxy_pass": "http://localhost:7691",
+    "proxy_server_name": "prod-our-v1.wslproxy.com",
+    "root": "/var/www/html",
+    "rules": "prod-our-v1-wslproxy-rule",
+    "server_name": "prod-our-v1.wslproxy.com",
+    "ssl_auto_renew": true,
+    "ssl_email": "balinder.walia@gmail.com",
+    "ssl_enabled": true,
+    "ssl_force_https": true,
+    "ssl_staging": false
 }

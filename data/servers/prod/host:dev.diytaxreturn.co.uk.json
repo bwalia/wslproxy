@@ -1,0 +1,30 @@
+{
+    "access_log": "logs/dev.diytaxreturn.co.uk.access.log",
+    "cache_enabled": false,
+    "config": "YzJWeWRtVnlJSHNLSUNBZ0lDQWdiR2x6ZEdWdUlEZ3dPeUFnSXlCTWFYTjBaVzRnYjI0Z2NHOXlkQ0FvU0ZSVVVDa0tJQ0FnSUNBZ2MyVnlkbVZ5WDI1aGJXVWdaR1YyTG1ScGVYUmhlSEpsZEhWeWJpNWpieTUxYXpzZ0lDTWdXVzkxY2lCa2IyMWhhVzRnYm1GdFpRb2dJQ0FnSUNCeWIyOTBJQzkyWVhJdmQzZDNMMmgwYld3N0lDQWpJRVJ2WTNWdFpXNTBJSEp2YjNRZ1pHbHlaV04wYjNKNUNpQWdJQ0FnSUdsdVpHVjRJR2x1WkdWNExtaDBiV3c3SUNBaklFUmxabUYxYkhRZ2FXNWtaWGdnWm1sc1pYTUtJQ0FnSUNBZ1lXTmpaWE56WDJ4dlp5QnNiMmR6TDJSbGRpNWthWGwwWVhoeVpYUjFjbTR1WTI4dWRXc3VZV05qWlhOekxteHZaenNnSUNNZ1FXTmpaWE56SUd4dlp5Qm1hV3hsSUd4dlkyRjBhVzl1Q2lBZ0lDQWdJR1Z5Y205eVgyeHZaeUJzYjJkekwyUmxkaTVrYVhsMFlYaHlaWFIxY200dVkyOHVkV3N1WlhKeWIzSXViRzluT3lBZ0l5QkZjbkp2Y2lCc2IyY2dabWxzWlNCc2IyTmhkR2x2YmdvS0Nnb2dJSDBLQ2lBZw==",
+    "config_status": true,
+    "custom_headers": {},
+    "error_log": "logs/dev.diytaxreturn.co.uk.error.log",
+    "id": "host:dev.diytaxreturn.co.uk",
+    "index": "index.html",
+    "listens": [
+        {
+            "listen": "80"
+        }
+    ],
+    "match_cases": {},
+    "pop_ids": [
+        "lon1",
+        "pop0"
+    ],
+    "profile_id": "prod",
+    "proxy_server_name": "dev.diytaxreturn.co.uk",
+    "root": "/var/www/html",
+    "rules": "af5ce85b-c4f4-41ed-bf1f-5a223bdd7b85",
+    "server_name": "dev.diytaxreturn.co.uk",
+    "ssl_auto_renew": true,
+    "ssl_email": "admin@diytaxreturn.co.uk",
+    "ssl_enabled": true,
+    "ssl_force_https": true,
+    "ssl_staging": false
+}

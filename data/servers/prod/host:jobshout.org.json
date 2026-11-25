@@ -1,0 +1,78 @@
+{
+    "access_log": "logs/podinfo.pop0.uk.access.log",
+    "cache_bypass_auth": true,
+    "cache_docker_blobs": false,
+    "cache_docker_blobs_ttl": "2592000",
+    "cache_docker_manifests": false,
+    "cache_docker_manifests_ttl": "3600",
+    "cache_docker_serve_stale": false,
+    "cache_docker_stale_ttl": "31536000",
+    "cache_enabled": false,
+    "cache_ttl": 3600,
+    "cached_mime_types": {},
+    "config": "Q25ObGNuWmxjaUI3Q2lBZ0lDQnNhWE4wWlc0Z09EQTdDaUFnSUNCelpYSjJaWEpmYm1GdFpTQnFiMkp6YUc5MWRDNXZjbWM3Q2lBZ0lDQnNiMk5oZEdsdmJpQXZMbmRsYkd3dGEyNXZkMjR2WVdOdFpTMWphR0ZzYkdWdVoyVXZJSHNnWTI5dWRHVnVkRjlpZVY5c2RXRmZZbXh2WTJzZ2V5QmhkWFJ2WDNOemJEcGphR0ZzYkdWdVoyVmZjMlZ5ZG1WeUtDa2dmU0I5Q2lBZ0lDQnNiMk5oZEdsdmJpQXZJSHNnY21WMGRYSnVJRE13TVNCb2RIUndjem92THlSb2IzTjBKSEpsY1hWbGMzUmZkWEpwT3lCOUNuMEtjMlZ5ZG1WeUlIc0tJQ0FnSUNBZ2JHbHpkR1Z1SURnd093b2dJQ0FnSUNBS0lDQWdJQ0FnYkdsemRHVnVJRFEwTXlCemMyd2dhSFIwY0RJN0NpQWdJQ0FnSUhOemJGOWpaWEowYVdacFkyRjBaVjlpZVY5c2RXRmZZbXh2WTJzZ2V5QmhkWFJ2WDNOemJEcHpjMnhmWTJWeWRHbG1hV05oZEdVb0tTQjlDaUFnSUNBZ0lITnpiRjlqWlhKMGFXWnBZMkYwWlNBdlpYUmpMM056YkM5eVpYTjBlUzFoZFhSdkxYTnpiQzFtWVd4c1ltRmpheTVqY25RN0NpQWdJQ0FnSUhOemJGOWpaWEowYVdacFkyRjBaVjlyWlhrZ0wyVjBZeTl6YzJ3dmNtVnpkSGt0WVhWMGJ5MXpjMnd0Wm1Gc2JHSmhZMnN1YTJWNU93b2dJQ0FnSUNCemMyeGZjMlZ6YzJsdmJsOTBhVzFsYjNWMElERmtPd29nSUNBZ0lDQnpjMnhmYzJWemMybHZibDlqWVdOb1pTQnphR0Z5WldRNlUxTk1PalV3YlRzS0lDQWdJQ0FnYzNOc1gzTmxjM05wYjI1ZmRHbGphMlYwY3lCdlptWTdDaUFnSUNBZ0lITnpiRjl3Y205MGIyTnZiSE1nVkV4VGRqRXVNaUJVVEZOMk1TNHpPd29nSUNBZ0lDQnpjMnhmWTJsd2FHVnljeUJGUTBSSVJTMUZRMFJUUVMxQlJWTXhNamd0UjBOTkxWTklRVEkxTmpwRlEwUklSUzFTVTBFdFFVVlRNVEk0TFVkRFRTMVRTRUV5TlRZNlJVTkVTRVV0UlVORVUwRXRRVVZUTWpVMkxVZERUUzFUU0VFek9EUTZSVU5FU0VVdFVsTkJMVUZGVXpJMU5pMUhRMDB0VTBoQk16ZzBPa1ZEUkVoRkxVVkRSRk5CTFVOSVFVTklRVEl3TFZCUFRGa3hNekExT2tWRFJFaEZMVkpUUVMxRFNFRkRTRUV5TUMxUVQweFpNVE13TlRwRVNFVXRVbE5CTFVGRlV6RXlPQzFIUTAwdFUwaEJNalUyT2tSSVJTMVNVMEV0UVVWVE1qVTJMVWREVFMxVFNFRXpPRFE3Q2lBZ0lDQWdJSE56YkY5d2NtVm1aWEpmYzJWeWRtVnlYMk5wY0dobGNuTWdiMlptT3dvZ0lDQWdJQ0JoWkdSZmFHVmhaR1Z5SUZOMGNtbGpkQzFVY21GdWMzQnZjblF0VTJWamRYSnBkSGtnSW0xaGVDMWhaMlU5TXpFMU16WXdNREE3SUdsdVkyeDFaR1ZUZFdKRWIyMWhhVzV6SWlCaGJIZGhlWE03Q2lBZ0lDQWdJSE5sY25abGNsOXVZVzFsSUdwdlluTm9iM1YwTG05eVp6c0tJQ0FnSUNBZ2NtOXZkQ0F2ZG1GeUwzZDNkeTlvZEcxc093b2dJQ0FnSUNCcGJtUmxlQ0JwYm1SbGVDNW9kRzFzT3dvZ0lDQWdJQ0JoWTJObGMzTmZiRzluSUd4dlozTXZjRzlrYVc1bWJ5NXdiM0F3TG5WckxtRmpZMlZ6Y3k1c2IyYzdDaUFnSUNBZ0lHVnljbTl5WDJ4dlp5QnNiMmR6TDNCdlpHbHVabTh1Y0c5d01DNTFheTVsY25KdmNpNXNiMmM3Q2lBZ0lDQWdJQW9nSUNBZ0lDQnNiMk5oZEdsdmJpQXZMbmRsYkd3dGEyNXZkMjR2WVdOdFpTMWphR0ZzYkdWdVoyVXZJSHNLSUNBZ0lDQWdJQ0FnSUdOdmJuUmxiblJmWW5sZmJIVmhYMkpzYjJOcklIc2dZWFYwYjE5emMydzZZMmhoYkd4bGJtZGxYM05sY25abGNpZ3BJSDBLSUNBZ0lDQWdmUW9nSUNBZ0lDQUtJQ0FnSUNBZ0NpQWdmUW9nSUFvZ0lBPT0=",
+    "config_status": true,
+    "created_at": 1793138699,
+    "custom_block": {},
+    "custom_headers": {},
+    "custom_http_block": {},
+    "custom_location_block": {},
+    "custom_response_headers": {},
+    "error_log": "logs/podinfo.pop0.uk.error.log",
+    "id": "host:jobshout.org",
+    "index": "index.html",
+    "listens": [
+        {
+            "listen": "80"
+        }
+    ],
+    "locations": {},
+    "match_cases": {},
+    "pop_ids": [
+        "lon1",
+        "pop0"
+    ],
+    "profile_id": "prod",
+    "proxy_pass": "http://localhost",
+    "proxy_server_name": "podinfo.pop0.uk",
+    "proxy_timeouts": {
+        "connect_timeout": "",
+        "read_timeout": "",
+        "send_timeout": ""
+    },
+    "rate_limit": {
+        "burst": 50,
+        "requests_per_second": 100
+    },
+    "rate_limit_enabled": false,
+    "root": "/var/www/html",
+    "rules": [
+        "podinfo-demo-default"
+    ],
+    "server_name": "jobshout.org",
+    "servers_tags": {},
+    "ssl_auto_renew": true,
+    "ssl_email": "balinder.walia@gmail.com",
+    "ssl_enabled": true,
+    "ssl_force_https": true,
+    "ssl_staging": false,
+    "varnish_config": {
+        "admin_listen_port": "6082",
+        "backend_between_bytes_timeout": 10,
+        "backend_connect_timeout": 5,
+        "backend_first_byte_timeout": 60,
+        "cache_grace": 3600,
+        "cache_keep": 7200,
+        "cache_size": "256m",
+        "cache_ttl_default": 120,
+        "health_check_enabled": false,
+        "health_check_interval": 5,
+        "health_check_timeout": 2,
+        "health_check_url": "/health",
+        "listen_address": "0.0.0.0",
+        "listen_port": "6081"
+    },
+    "varnish_enabled": false,
+    "varnish_snippets": {},
+    "waf_enabled": false
+}

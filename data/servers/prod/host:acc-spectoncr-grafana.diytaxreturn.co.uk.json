@@ -1,1 +1,34 @@
-{"root":"\/var\/www\/html","error_log":"logs\/acc-spectoncr-grafana.diytaxreturn.co.uk.error.log","custom_headers":{},"id":"host:acc-spectoncr-grafana.diytaxreturn.co.uk","index":"index.html","server_name":"acc-spectoncr-grafana.diytaxreturn.co.uk","config":"c2VydmVyIHsKICAgICAgbGlzdGVuIDgwOyAgIyBMaXN0ZW4gb24gcG9ydCAoSFRUUCkKICAgICAgc2VydmVyX25hbWUgYWNjLXNwZWN0b25jci1ncmFmYW5hLmRpeXRheHJldHVybi5jby51azsgICMgWW91ciBkb21haW4gbmFtZQogICAgICByb290IC92YXIvd3d3L2h0bWw7ICAjIERvY3VtZW50IHJvb3QgZGlyZWN0b3J5CiAgICAgIGluZGV4IGluZGV4Lmh0bWw7ICAjIERlZmF1bHQgaW5kZXggZmlsZXMKICAgICAgYWNjZXNzX2xvZyBsb2dzL2FjYy1zcGVjdG9uY3ItZ3JhZmFuYS5kaXl0YXhyZXR1cm4uY28udWsuYWNjZXNzLmxvZzsgICMgQWNjZXNzIGxvZyBmaWxlIGxvY2F0aW9uCiAgICAgIGVycm9yX2xvZyBsb2dzL2FjYy1zcGVjdG9uY3ItZ3JhZmFuYS5kaXl0YXhyZXR1cm4uY28udWsuZXJyb3IubG9nOyAgIyBFcnJvciBsb2cgZmlsZSBsb2NhdGlvbgoKCgogIH0KCiAg","dns_cname_target":"lon1.pop0.uk","dns_record_type":"CNAME","match_cases":{},"rules":["425e4925-8ce1-de5b-2d13-0b086621101f"],"cache_enabled":false,"ssl_enabled":true,"access_log":"logs\/acc-spectoncr-grafana.diytaxreturn.co.uk.access.log","ssl_email":"admin@diytaxreturn.co.uk","ssl_auto_renew":true,"ssl_force_https":true,"ssl_staging":false,"proxy_server_name":"acc-spectoncr-grafana.diytaxreturn.co.uk","listens":[{"listen":"80"}],"config_status":true,"profile_id":"prod"}
+{
+    "access_log": "logs/acc-spectoncr-grafana.diytaxreturn.co.uk.access.log",
+    "cache_enabled": false,
+    "config": "YzJWeWRtVnlJSHNLSUNBZ0lDQWdiR2x6ZEdWdUlEZ3dPeUFnSXlCTWFYTjBaVzRnYjI0Z2NHOXlkQ0FvU0ZSVVVDa0tJQ0FnSUNBZ2MyVnlkbVZ5WDI1aGJXVWdZV05qTFhOd1pXTjBiMjVqY2kxbmNtRm1ZVzVoTG1ScGVYUmhlSEpsZEhWeWJpNWpieTUxYXpzZ0lDTWdXVzkxY2lCa2IyMWhhVzRnYm1GdFpRb2dJQ0FnSUNCeWIyOTBJQzkyWVhJdmQzZDNMMmgwYld3N0lDQWpJRVJ2WTNWdFpXNTBJSEp2YjNRZ1pHbHlaV04wYjNKNUNpQWdJQ0FnSUdsdVpHVjRJR2x1WkdWNExtaDBiV3c3SUNBaklFUmxabUYxYkhRZ2FXNWtaWGdnWm1sc1pYTUtJQ0FnSUNBZ1lXTmpaWE56WDJ4dlp5QnNiMmR6TDJGall5MXpjR1ZqZEc5dVkzSXRaM0poWm1GdVlTNWthWGwwWVhoeVpYUjFjbTR1WTI4dWRXc3VZV05qWlhOekxteHZaenNnSUNNZ1FXTmpaWE56SUd4dlp5Qm1hV3hsSUd4dlkyRjBhVzl1Q2lBZ0lDQWdJR1Z5Y205eVgyeHZaeUJzYjJkekwyRmpZeTF6Y0dWamRHOXVZM0l0WjNKaFptRnVZUzVrYVhsMFlYaHlaWFIxY200dVkyOHVkV3N1WlhKeWIzSXViRzluT3lBZ0l5QkZjbkp2Y2lCc2IyY2dabWxzWlNCc2IyTmhkR2x2YmdvS0Nnb2dJSDBLQ2lBZw==",
+    "config_status": true,
+    "custom_headers": {},
+    "dns_cname_target": "lon1.pop0.uk",
+    "dns_record_type": "CNAME",
+    "error_log": "logs/acc-spectoncr-grafana.diytaxreturn.co.uk.error.log",
+    "id": "host:acc-spectoncr-grafana.diytaxreturn.co.uk",
+    "index": "index.html",
+    "listens": [
+        {
+            "listen": "80"
+        }
+    ],
+    "match_cases": {},
+    "pop_ids": [
+        "lon1",
+        "pop0"
+    ],
+    "profile_id": "prod",
+    "proxy_server_name": "acc-spectoncr-grafana.diytaxreturn.co.uk",
+    "root": "/var/www/html",
+    "rules": [
+        "425e4925-8ce1-de5b-2d13-0b086621101f"
+    ],
+    "server_name": "acc-spectoncr-grafana.diytaxreturn.co.uk",
+    "ssl_auto_renew": true,
+    "ssl_email": "admin@diytaxreturn.co.uk",
+    "ssl_enabled": true,
+    "ssl_force_https": true,
+    "ssl_staging": false
+}

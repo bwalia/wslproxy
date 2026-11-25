@@ -1,1 +1,78 @@
-{"ssl_enabled":true,"rules":["425e4925-8ce1-de5b-2d13-0b086621101f"],"cache_ttl":3600,"index":"index.html","servers_tags":{},"custom_block":{},"locations":{},"rate_limit":{"requests_per_second":100,"burst":50},"cache_bypass_auth":true,"match_cases":{},"cache_docker_blobs_ttl":"2592000","cache_docker_manifests":false,"cache_docker_manifests_ttl":"3600","cache_docker_serve_stale":false,"cache_docker_stale_ttl":"31536000","rate_limit_enabled":false,"dns_record_type":"A","ssl_email":"balinder.walia@gmail.com","ssl_auto_renew":true,"ssl_force_https":true,"ssl_staging":false,"listens":[{"listen":"80"}],"access_log":"logs\/access.log","config":"CnNlcnZlciB7CiAgICBsaXN0ZW4gODA7CiAgICBzZXJ2ZXJfbmFtZSBpbnQtc3BlY3RvbmNyLmRpeXRheHJldHVybi5jby51azsKICAgIGxvY2F0aW9uIC8ud2VsbC1rbm93bi9hY21lLWNoYWxsZW5nZS8geyBjb250ZW50X2J5X2x1YV9ibG9jayB7IGF1dG9fc3NsOmNoYWxsZW5nZV9zZXJ2ZXIoKSB9IH0KICAgIGxvY2F0aW9uIC8geyByZXR1cm4gMzAxIGh0dHBzOi8vJGhvc3QkcmVxdWVzdF91cmk7IH0KfQpzZXJ2ZXIgewogICAgICBsaXN0ZW4gODA7CiAgICAgIAogICAgICBsaXN0ZW4gNDQzIHNzbCBodHRwMjsKICAgICAgc3NsX2NlcnRpZmljYXRlX2J5X2x1YV9ibG9jayB7IGF1dG9fc3NsOnNzbF9jZXJ0aWZpY2F0ZSgpIH0KICAgICAgc3NsX2NlcnRpZmljYXRlIC9ldGMvc3NsL3Jlc3R5LWF1dG8tc3NsLWZhbGxiYWNrLmNydDsKICAgICAgc3NsX2NlcnRpZmljYXRlX2tleSAvZXRjL3NzbC9yZXN0eS1hdXRvLXNzbC1mYWxsYmFjay5rZXk7CiAgICAgIHNzbF9zZXNzaW9uX3RpbWVvdXQgMWQ7CiAgICAgIHNzbF9zZXNzaW9uX2NhY2hlIHNoYXJlZDpTU0w6NTBtOwogICAgICBzc2xfc2Vzc2lvbl90aWNrZXRzIG9mZjsKICAgICAgc3NsX3Byb3RvY29scyBUTFN2MS4yIFRMU3YxLjM7CiAgICAgIHNzbF9jaXBoZXJzIEVDREhFLUVDRFNBLUFFUzEyOC1HQ00tU0hBMjU2OkVDREhFLVJTQS1BRVMxMjgtR0NNLVNIQTI1NjpFQ0RIRS1FQ0RTQS1BRVMyNTYtR0NNLVNIQTM4NDpFQ0RIRS1SU0EtQUVTMjU2LUdDTS1TSEEzODQ6RUNESEUtRUNEU0EtQ0hBQ0hBMjAtUE9MWTEzMDU6RUNESEUtUlNBLUNIQUNIQTIwLVBPTFkxMzA1OkRIRS1SU0EtQUVTMTI4LUdDTS1TSEEyNTY6REhFLVJTQS1BRVMyNTYtR0NNLVNIQTM4NDsKICAgICAgc3NsX3ByZWZlcl9zZXJ2ZXJfY2lwaGVycyBvZmY7CiAgICAgIGFkZF9oZWFkZXIgU3RyaWN0LVRyYW5zcG9ydC1TZWN1cml0eSAibWF4LWFnZTMxNTM2MDAwOyBpbmNsdWRlU3ViRG9tYWlucyIgYWx3YXlzOwogICAgICBzZXJ2ZXJfbmFtZSBpbnQtc3BlY3RvbmNyLmRpeXRheHJldHVybi5jby51azsKICAgICAgcm9vdCAvdmFyL3d3dy9odG1sOwogICAgICBpbmRleCBpbmRleC5odG1sOwogICAgICBhY2Nlc3NfbG9nIGxvZ3MvYWNjZXNzLmxvZzsKICAgICAgZXJyb3JfbG9nIGxvZ3MvZXJyb3IubG9nOwogICAgICAKICAgICAgbG9jYXRpb24gLy53ZWxsLWtub3duL2FjbWUtY2hhbGxlbmdlLyB7CiAgICAgICAgICBjb250ZW50X2J5X2x1YV9ibG9jayB7IGF1dG9fc3NsOmNoYWxsZW5nZV9zZXJ2ZXIoKSB9CiAgICAgIH0KICAgICAgCiAgICAgIAogIH0KICAKICA=","proxy_timeouts":{"read_timeout":"600","connect_timeout":"600","send_timeout":"600"},"waf_enabled":false,"root":"\/var\/www\/html","cache_enabled":false,"server_name":"int-spectoncr.diytaxreturn.co.uk","error_log":"logs\/error.log","custom_headers":{},"custom_response_headers":{},"varnish_enabled":false,"profile_id":"prod","config_status":true,"id":"host:int-spectoncr.diytaxreturn.co.uk","varnish_config":{"admin_listen_port":"6082","health_check_url":"\/health","listen_address":"0.0.0.0","health_check_enabled":false,"listen_port":"6081","health_check_interval":5,"health_check_timeout":2,"backend_connect_timeout":5,"backend_between_bytes_timeout":10,"cache_ttl_default":120,"cache_grace":3600,"cache_keep":7200,"cache_size":"256m","backend_first_byte_timeout":60},"custom_http_block":{},"custom_location_block":{},"varnish_snippets":{},"pop_ids":{},"nginx_status":"nginx: [warn] the \"user\" directive makes sense only if the master process runs with super-user privileges, ignored in \/usr\/local\/openresty\/nginx\/conf\/nginx.conf:2\nnginx: [warn] the \"listen ... http2\" directive is deprecated, use the \"http2\" directive instead in \/opt\/nginx\/conf.d\/int-spectoncr.diytaxreturn.co.uk.conf:11\nnginx: [emerg] unknown directive \"includeSubDomains\" in \/opt\/nginx\/conf.d\/int-spectoncr.diytaxreturn.co.uk.conf:21\nnginx: configuration file \/usr\/local\/openresty\/nginx\/conf\/nginx.conf test failed\n","nginx_status_check":"error","cache_docker_blobs":false,"cached_mime_types":{}}
+{
+    "access_log": "logs/access.log",
+    "cache_bypass_auth": true,
+    "cache_docker_blobs": false,
+    "cache_docker_blobs_ttl": "2592000",
+    "cache_docker_manifests": false,
+    "cache_docker_manifests_ttl": "3600",
+    "cache_docker_serve_stale": false,
+    "cache_docker_stale_ttl": "31536000",
+    "cache_enabled": false,
+    "cache_ttl": 3600,
+    "cached_mime_types": {},
+    "config": "Q25ObGNuWmxjaUI3Q2lBZ0lDQnNhWE4wWlc0Z09EQTdDaUFnSUNCelpYSjJaWEpmYm1GdFpTQnBiblF0YzNCbFkzUnZibU55TG1ScGVYUmhlSEpsZEhWeWJpNWpieTUxYXpzS0lDQWdJR3h2WTJGMGFXOXVJQzh1ZDJWc2JDMXJibTkzYmk5aFkyMWxMV05vWVd4c1pXNW5aUzhnZXlCamIyNTBaVzUwWDJKNVgyeDFZVjlpYkc5amF5QjdJR0YxZEc5ZmMzTnNPbU5vWVd4c1pXNW5aVjl6WlhKMlpYSW9LU0I5SUgwS0lDQWdJR3h2WTJGMGFXOXVJQzhnZXlCeVpYUjFjbTRnTXpBeElHaDBkSEJ6T2k4dkpHaHZjM1FrY21WeGRXVnpkRjkxY21rN0lIMEtmUXB6WlhKMlpYSWdld29nSUNBZ0lDQnNhWE4wWlc0Z09EQTdDaUFnSUNBZ0lBb2dJQ0FnSUNCc2FYTjBaVzRnTkRReklITnpiQ0JvZEhSd01qc0tJQ0FnSUNBZ2MzTnNYMk5sY25ScFptbGpZWFJsWDJKNVgyeDFZVjlpYkc5amF5QjdJR0YxZEc5ZmMzTnNPbk56YkY5alpYSjBhV1pwWTJGMFpTZ3BJSDBLSUNBZ0lDQWdjM05zWDJObGNuUnBabWxqWVhSbElDOWxkR012YzNOc0wzSmxjM1I1TFdGMWRHOHRjM05zTFdaaGJHeGlZV05yTG1OeWREc0tJQ0FnSUNBZ2MzTnNYMk5sY25ScFptbGpZWFJsWDJ0bGVTQXZaWFJqTDNOemJDOXlaWE4wZVMxaGRYUnZMWE56YkMxbVlXeHNZbUZqYXk1clpYazdDaUFnSUNBZ0lITnpiRjl6WlhOemFXOXVYM1JwYldWdmRYUWdNV1E3Q2lBZ0lDQWdJSE56YkY5elpYTnphVzl1WDJOaFkyaGxJSE5vWVhKbFpEcFRVMHc2TlRCdE93b2dJQ0FnSUNCemMyeGZjMlZ6YzJsdmJsOTBhV05yWlhSeklHOW1aanNLSUNBZ0lDQWdjM05zWDNCeWIzUnZZMjlzY3lCVVRGTjJNUzR5SUZSTVUzWXhMak03Q2lBZ0lDQWdJSE56YkY5amFYQm9aWEp6SUVWRFJFaEZMVVZEUkZOQkxVRkZVekV5T0MxSFEwMHRVMGhCTWpVMk9rVkRSRWhGTFZKVFFTMUJSVk14TWpndFIwTk5MVk5JUVRJMU5qcEZRMFJJUlMxRlEwUlRRUzFCUlZNeU5UWXRSME5OTFZOSVFUTTRORHBGUTBSSVJTMVNVMEV0UVVWVE1qVTJMVWREVFMxVFNFRXpPRFE2UlVORVNFVXRSVU5FVTBFdFEwaEJRMGhCTWpBdFVFOU1XVEV6TURVNlJVTkVTRVV0VWxOQkxVTklRVU5JUVRJd0xWQlBURmt4TXpBMU9rUklSUzFTVTBFdFFVVlRNVEk0TFVkRFRTMVRTRUV5TlRZNlJFaEZMVkpUUVMxQlJWTXlOVFl0UjBOTkxWTklRVE00TkRzS0lDQWdJQ0FnYzNOc1gzQnlaV1psY2w5elpYSjJaWEpmWTJsd2FHVnljeUJ2Wm1ZN0NpQWdJQ0FnSUdGa1pGOW9aV0ZrWlhJZ1UzUnlhV04wTFZSeVlXNXpjRzl5ZEMxVFpXTjFjbWwwZVNBaWJXRjRMV0ZuWlRNeE5UTTJNREF3T3lCcGJtTnNkV1JsVTNWaVJHOXRZV2x1Y3lJZ1lXeDNZWGx6T3dvZ0lDQWdJQ0J6WlhKMlpYSmZibUZ0WlNCcGJuUXRjM0JsWTNSdmJtTnlMbVJwZVhSaGVISmxkSFZ5Ymk1amJ5NTFhenNLSUNBZ0lDQWdjbTl2ZENBdmRtRnlMM2QzZHk5b2RHMXNPd29nSUNBZ0lDQnBibVJsZUNCcGJtUmxlQzVvZEcxc093b2dJQ0FnSUNCaFkyTmxjM05mYkc5bklHeHZaM012WVdOalpYTnpMbXh2WnpzS0lDQWdJQ0FnWlhKeWIzSmZiRzluSUd4dlozTXZaWEp5YjNJdWJHOW5Pd29nSUNBZ0lDQUtJQ0FnSUNBZ2JHOWpZWFJwYjI0Z0x5NTNaV3hzTFd0dWIzZHVMMkZqYldVdFkyaGhiR3hsYm1kbEx5QjdDaUFnSUNBZ0lDQWdJQ0JqYjI1MFpXNTBYMko1WDJ4MVlWOWliRzlqYXlCN0lHRjFkRzlmYzNOc09tTm9ZV3hzWlc1blpWOXpaWEoyWlhJb0tTQjlDaUFnSUNBZ0lIMEtJQ0FnSUNBZ0NpQWdJQ0FnSUFvZ0lIMEtJQ0FLSUNBPQ==",
+    "config_status": true,
+    "custom_block": {},
+    "custom_headers": {},
+    "custom_http_block": {},
+    "custom_location_block": {},
+    "custom_response_headers": {},
+    "dns_record_type": "A",
+    "error_log": "logs/error.log",
+    "id": "host:int-spectoncr.diytaxreturn.co.uk",
+    "index": "index.html",
+    "listens": [
+        {
+            "listen": "80"
+        }
+    ],
+    "locations": {},
+    "match_cases": {},
+    "nginx_status": "nginx: [warn] the \"user\" directive makes sense only if the master process runs with super-user privileges, ignored in /usr/local/openresty/nginx/conf/nginx.conf:2\nnginx: [warn] the \"listen ... http2\" directive is deprecated, use the \"http2\" directive instead in /opt/nginx/conf.d/int-spectoncr.diytaxreturn.co.uk.conf:11\nnginx: [emerg] unknown directive \"includeSubDomains\" in /opt/nginx/conf.d/int-spectoncr.diytaxreturn.co.uk.conf:21\nnginx: configuration file /usr/local/openresty/nginx/conf/nginx.conf test failed\n",
+    "nginx_status_check": "error",
+    "pop_ids": [
+        "lon1",
+        "pop0"
+    ],
+    "profile_id": "prod",
+    "proxy_timeouts": {
+        "connect_timeout": "600",
+        "read_timeout": "600",
+        "send_timeout": "600"
+    },
+    "rate_limit": {
+        "burst": 50,
+        "requests_per_second": 100
+    },
+    "rate_limit_enabled": false,
+    "root": "/var/www/html",
+    "rules": [
+        "425e4925-8ce1-de5b-2d13-0b086621101f"
+    ],
+    "server_name": "int-spectoncr.diytaxreturn.co.uk",
+    "servers_tags": {},
+    "ssl_auto_renew": true,
+    "ssl_email": "balinder.walia@gmail.com",
+    "ssl_enabled": true,
+    "ssl_force_https": true,
+    "ssl_staging": false,
+    "varnish_config": {
+        "admin_listen_port": "6082",
+        "backend_between_bytes_timeout": 10,
+        "backend_connect_timeout": 5,
+        "backend_first_byte_timeout": 60,
+        "cache_grace": 3600,
+        "cache_keep": 7200,
+        "cache_size": "256m",
+        "cache_ttl_default": 120,
+        "health_check_enabled": false,
+        "health_check_interval": 5,
+        "health_check_timeout": 2,
+        "health_check_url": "/health",
+        "listen_address": "0.0.0.0",
+        "listen_port": "6081"
+    },
+    "varnish_enabled": false,
+    "varnish_snippets": {},
+    "waf_enabled": false
+}

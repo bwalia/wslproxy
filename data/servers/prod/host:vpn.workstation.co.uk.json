@@ -1,0 +1,36 @@
+{
+    "access_log": "logs/vpn.workstation.co.uk.access.log",
+    "cache_enabled": false,
+    "config": "Q25ObGNuWmxjaUI3Q2lBZ0lDQWdJR3hwYzNSbGJpQTRNRHNLSUNBZ0lDQWdjMlZ5ZG1WeVgyNWhiV1VnZG5CdUxuZHZjbXR6ZEdGMGFXOXVMbU52TG5Wck93b2dJQ0FnSUNCeWIyOTBJQzkyWVhJdmQzZDNMMmgwYld3N0NpQWdJQ0FnSUdsdVpHVjRJR2x1WkdWNExtaDBiV3c3Q2lBZ0lDQWdJR0ZqWTJWemMxOXNiMmNnYkc5bmN5OTJjRzR1ZDI5eWEzTjBZWFJwYjI0dVkyOHVkV3N1WVdOalpYTnpMbXh2WnpzS0lDQWdJQ0FnWlhKeWIzSmZiRzluSUd4dlozTXZkbkJ1TG5kdmNtdHpkR0YwYVc5dUxtTnZMblZyTG1WeWNtOXlMbXh2WnpzS2ZRbz0=",
+    "config_status": true,
+    "created_at": 1790795042,
+    "custom_headers": {},
+    "dns_cname_target": "lon1.pop0.uk",
+    "dns_record_type": "CNAME",
+    "error_log": "logs/vpn.workstation.co.uk.error.log",
+    "id": "host:vpn.workstation.co.uk",
+    "index": "index.html",
+    "listens": [
+        {
+            "listen": "80"
+        }
+    ],
+    "match_cases": {},
+    "pop_ids": [
+        "lon1",
+        "pop0"
+    ],
+    "profile_id": "prod",
+    "proxy_pass": "http://localhost",
+    "proxy_server_name": "vpn.workstation.co.uk",
+    "root": "/var/www/html",
+    "rules": [
+        "425e4925-8ce1-de5b-2d13-0b086621101f"
+    ],
+    "server_name": "vpn.workstation.co.uk",
+    "ssl_auto_renew": true,
+    "ssl_email": "balinder.walia@gmail.com",
+    "ssl_enabled": true,
+    "ssl_force_https": true,
+    "ssl_staging": false
+}

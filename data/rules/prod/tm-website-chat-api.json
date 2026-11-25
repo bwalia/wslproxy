@@ -1,0 +1,46 @@
+{
+    "id": "tm-website-chat-api",
+    "match": {
+        "response": {
+            "allow": true,
+            "auto_redirect_https": false,
+            "backends": [
+                {
+                    "address": "193.237.176.232:8888",
+                    "host_header": "www.tenthmatrix.com",
+                    "label": "k3s1 Traefik → tm-prod (prod namespace): /api/chat only; pages stay on S3",
+                    "weight": 100
+                }
+            ],
+            "code": 305,
+            "is_consul": false,
+            "message": "",
+            "redirect_uri": "193.237.176.232:8888",
+            "routing": {
+                "mode": "weighted"
+            },
+            "strip_path": false
+        },
+        "rules": {
+            "client_ip_key": "equals",
+            "country_key": "equals",
+            "jwt_token_validation": "equals",
+            "path": "/api/chat",
+            "path_key": "starts_with"
+        }
+    },
+    "name": "tm-website-chat-api",
+    "priority": 1,
+    "profile_id": "prod",
+    "rules_tags": [
+        "tenthmatrix",
+        "prod",
+        "chat"
+    ],
+    "servers": [
+        "host:tenthmatrix.com",
+        "host:www.tenthmatrix.com",
+        "host:tenthmatrix.co.uk",
+        "host:www.tenthmatrix.co.uk"
+    ]
+}

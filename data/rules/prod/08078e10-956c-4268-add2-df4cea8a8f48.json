@@ -1,0 +1,40 @@
+{
+    "_schema_version": 2,
+    "created_at": 1794782372,
+    "id": "08078e10-956c-4268-add2-df4cea8a8f48",
+    "match": {
+        "response": {
+            "allow": true,
+            "auto_redirect_https": false,
+            "backends": {},
+            "code": 305,
+            "is_consul": false,
+            "message": "",
+            "redirect_uri": "193.237.176.232:8888",
+            "routing": {
+                "mode": "least_conn"
+            },
+            "strip_path": false
+        },
+        "rules": {
+            "client_ip_key": "equals",
+            "country_key": "equals",
+            "jwt_token_validation": "equals",
+            "path": "/",
+            "path_key": "starts_with"
+        }
+    },
+    "name": "cloudtyke-k3s1",
+    "priority": 1,
+    "profile_id": "prod",
+    "servers": [
+        "host:management.cloudtyke.dev",
+        "host:login.cloudtyke.dev",
+        "host:graph.cloudtyke.dev",
+        "host:oidc.cloudtyke.dev",
+        "host:portal.cloudtyke.dev",
+        "host:data.cloudtyke.dev",
+        "host:hello.cloudtyke.dev"
+    ],
+    "version": 1
+}

@@ -1,0 +1,35 @@
+{
+    "_schema_version": 2,
+    "created_at": 1779222180,
+    "id": "af5ce85b-c4f4-41ed-bf1f-5a223bdd7b85",
+    "match": {
+        "response": {
+            "allow": true,
+            "auto_redirect_https": false,
+            "backends": {},
+            "code": 305,
+            "is_consul": false,
+            "message": "",
+            "redirect_uri": "vpnhh.workstation.co.uk:19080",
+            "routing": {
+                "mode": "least_conn"
+            },
+            "strip_path": false
+        },
+        "rules": {
+            "client_ip_key": "equals",
+            "country_key": "equals",
+            "jwt_token_validation": "equals",
+            "path": "/",
+            "path_key": "starts_with"
+        }
+    },
+    "name": "hh-wslproxy-dev-19080-9080",
+    "priority": 1,
+    "profile_id": "prod",
+    "servers": [
+        "host:dev.diytaxreturn.co.uk",
+        "host:dev-api.diytaxreturn.co.uk"
+    ],
+    "version": 1
+}

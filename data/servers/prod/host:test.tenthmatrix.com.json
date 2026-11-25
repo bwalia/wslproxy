@@ -1,0 +1,32 @@
+{
+    "access_log": "logs/test.tenthmatrix.com.access.log",
+    "access_profile": "tenthmatrix-preprod",
+    "cache_enabled": false,
+    "config_status": true,
+    "custom_headers": {},
+    "dns_cname_target": "lon1.pop0.uk",
+    "dns_record_type": "CNAME",
+    "error_log": "logs/test.tenthmatrix.com.error.log",
+    "id": "host:test.tenthmatrix.com",
+    "index": "index.html",
+    "listens": [
+        {
+            "listen": "80"
+        }
+    ],
+    "match_cases": {},
+    "pop_ids": [
+        "lon1",
+        "pop0"
+    ],
+    "profile_id": "prod",
+    "proxy_server_name": "test.tenthmatrix.com",
+    "root": "/var/www/html",
+    "rules": "tm-prod-default",
+    "server_name": "test.tenthmatrix.com",
+    "ssl_auto_renew": true,
+    "ssl_email": "admin@tenthmatrix.com",
+    "ssl_enabled": true,
+    "ssl_force_https": true,
+    "ssl_staging": false
+}

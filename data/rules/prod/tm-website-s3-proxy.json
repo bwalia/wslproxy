@@ -1,0 +1,39 @@
+{
+    "id": "tm-website-s3-proxy",
+    "match": {
+        "response": {
+            "allow": true,
+            "auto_redirect_https": false,
+            "backends": {},
+            "code": 305,
+            "is_consul": false,
+            "message": "",
+            "redirect_uri": "http://tenthmatrix-website.s3-website.eu-west-2.amazonaws.com",
+            "routing": {
+                "mode": "weighted"
+            },
+            "strip_path": false
+        },
+        "rules": {
+            "client_ip_key": "equals",
+            "country_key": "equals",
+            "jwt_token_validation": "equals",
+            "path": "/",
+            "path_key": "starts_with"
+        }
+    },
+    "name": "tm-website-s3-proxy",
+    "priority": 1,
+    "profile_id": "prod",
+    "rules_tags": [
+        "tenthmatrix",
+        "prod",
+        "s3"
+    ],
+    "servers": [
+        "host:tenthmatrix.co.uk",
+        "host:tenthmatrix.com",
+        "host:www.tenthmatrix.co.uk",
+        "host:www.tenthmatrix.com"
+    ]
+}

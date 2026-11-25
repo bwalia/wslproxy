@@ -1,1 +1,35 @@
-{"cache_enabled":false,"proxy_server_name":"acc-grafana.diytaxreturn.co.uk","proxy_pass":"http:\/\/localhost","match_cases":{},"server_name":"acc-grafana.diytaxreturn.co.uk","index":"index.html","ssl_enabled":true,"dns_cname_target":"pop1.diytaxreturn.co.uk","dns_record_type":"CNAME","error_log":"logs\/acc-grafana.diytaxreturn.co.uk.error.log","config":"CnNlcnZlciB7CiAgICAgIGxpc3RlbiA4MDsKICAgICAgc2VydmVyX25hbWUgYWNjLWdyYWZhbmEuZGl5dGF4cmV0dXJuLmNvLnVrOwogICAgICByb290IC92YXIvd3d3L2h0bWw7CiAgICAgIGluZGV4IGluZGV4Lmh0bWw7CiAgICAgIGFjY2Vzc19sb2cgbG9ncy9hY2MtZ3JhZmFuYS5kaXl0YXhyZXR1cm4uY28udWsuYWNjZXNzLmxvZzsKICAgICAgZXJyb3JfbG9nIGxvZ3MvYWNjLWdyYWZhbmEuZGl5dGF4cmV0dXJuLmNvLnVrLmVycm9yLmxvZzsKfQo=","config_status":true,"rules":["425e4925-8ce1-de5b-2d13-0b086621101f"],"root":"\/var\/www\/html","custom_headers":{},"listens":[{"listen":"80"}],"profile_id":"prod","id":"host:acc-grafana.diytaxreturn.co.uk","access_log":"logs\/acc-grafana.diytaxreturn.co.uk.access.log","ssl_email":"admin@diytaxreturn.co.uk","ssl_auto_renew":true,"ssl_force_https":true,"ssl_staging":false}
+{
+    "access_log": "logs/acc-grafana.diytaxreturn.co.uk.access.log",
+    "cache_enabled": false,
+    "config": "Q25ObGNuWmxjaUI3Q2lBZ0lDQWdJR3hwYzNSbGJpQTRNRHNLSUNBZ0lDQWdjMlZ5ZG1WeVgyNWhiV1VnWVdOakxXZHlZV1poYm1FdVpHbDVkR0Y0Y21WMGRYSnVMbU52TG5Wck93b2dJQ0FnSUNCeWIyOTBJQzkyWVhJdmQzZDNMMmgwYld3N0NpQWdJQ0FnSUdsdVpHVjRJR2x1WkdWNExtaDBiV3c3Q2lBZ0lDQWdJR0ZqWTJWemMxOXNiMmNnYkc5bmN5OWhZMk10WjNKaFptRnVZUzVrYVhsMFlYaHlaWFIxY200dVkyOHVkV3N1WVdOalpYTnpMbXh2WnpzS0lDQWdJQ0FnWlhKeWIzSmZiRzluSUd4dlozTXZZV05qTFdkeVlXWmhibUV1WkdsNWRHRjRjbVYwZFhKdUxtTnZMblZyTG1WeWNtOXlMbXh2WnpzS2ZRbz0=",
+    "config_status": true,
+    "custom_headers": {},
+    "dns_cname_target": "pop1.diytaxreturn.co.uk",
+    "dns_record_type": "CNAME",
+    "error_log": "logs/acc-grafana.diytaxreturn.co.uk.error.log",
+    "id": "host:acc-grafana.diytaxreturn.co.uk",
+    "index": "index.html",
+    "listens": [
+        {
+            "listen": "80"
+        }
+    ],
+    "match_cases": {},
+    "pop_ids": [
+        "lon1",
+        "pop0"
+    ],
+    "profile_id": "prod",
+    "proxy_pass": "http://localhost",
+    "proxy_server_name": "acc-grafana.diytaxreturn.co.uk",
+    "root": "/var/www/html",
+    "rules": [
+        "diytax-acc-default"
+    ],
+    "server_name": "acc-grafana.diytaxreturn.co.uk",
+    "ssl_auto_renew": true,
+    "ssl_email": "admin@diytaxreturn.co.uk",
+    "ssl_enabled": true,
+    "ssl_force_https": true,
+    "ssl_staging": false
+}

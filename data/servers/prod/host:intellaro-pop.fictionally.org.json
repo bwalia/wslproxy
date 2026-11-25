@@ -1,1 +1,78 @@
-{"ssl_enabled":true,"rules":["53acb4f9-abb8-15ce-f080-6b9d234d01cc"],"index":"index.html","config_status":false,"proxy_pass":"http:\/\/localhost","cache_bypass_auth":false,"cache_docker_blobs":false,"cache_docker_blobs_ttl":"2592000","cache_docker_manifests":false,"cache_docker_manifests_ttl":"3600","cache_docker_serve_stale":false,"cache_docker_stale_ttl":"31536000","rate_limit_enabled":false,"dns_record_type":"A","ssl_email":"balinder.walia@gmail.com","ssl_auto_renew":true,"servers_tags":{},"profile_id":"prod","custom_location_block":{},"listens":[{"listen":"80"}],"locations":{},"access_log":"logs\/access.log","config":"CnNlcnZlciB7CiAgICBsaXN0ZW4gODA7CiAgICBzZXJ2ZXJfbmFtZSBpbnRlbGxhcm8tcG9wLmZpY3Rpb25hbGx5Lm9yZzsKICAgIGxvY2F0aW9uIC8ud2VsbC1rbm93bi9hY21lLWNoYWxsZW5nZS8geyBjb250ZW50X2J5X2x1YV9ibG9jayB7IGF1dG9fc3NsOmNoYWxsZW5nZV9zZXJ2ZXIoKSB9IH0KICAgIGxvY2F0aW9uIC8geyByZXR1cm4gMzAxIGh0dHBzOi8vJGhvc3QkcmVxdWVzdF91cmk7IH0KfQpzZXJ2ZXIgewogICAgICBsaXN0ZW4gODA7CiAgICAgIAogICAgICBsaXN0ZW4gNDQzIHNzbCBodHRwMjsKICAgICAgc3NsX2NlcnRpZmljYXRlX2J5X2x1YV9ibG9jayB7IGF1dG9fc3NsOnNzbF9jZXJ0aWZpY2F0ZSgpIH0KICAgICAgc3NsX2NlcnRpZmljYXRlIC9ldGMvc3NsL3Jlc3R5LWF1dG8tc3NsLWZhbGxiYWNrLmNydDsKICAgICAgc3NsX2NlcnRpZmljYXRlX2tleSAvZXRjL3NzbC9yZXN0eS1hdXRvLXNzbC1mYWxsYmFjay5rZXk7CiAgICAgIHNzbF9zZXNzaW9uX3RpbWVvdXQgMWQ7CiAgICAgIHNzbF9zZXNzaW9uX2NhY2hlIHNoYXJlZDpTU0w6NTBtOwogICAgICBzc2xfc2Vzc2lvbl90aWNrZXRzIG9mZjsKICAgICAgc3NsX3Byb3RvY29scyBUTFN2MS4yIFRMU3YxLjM7CiAgICAgIHNzbF9jaXBoZXJzIEVDREhFLUVDRFNBLUFFUzEyOC1HQ00tU0hBMjU2OkVDREhFLVJTQS1BRVMxMjgtR0NNLVNIQTI1NjpFQ0RIRS1FQ0RTQS1BRVMyNTYtR0NNLVNIQTM4NDpFQ0RIRS1SU0EtQUVTMjU2LUdDTS1TSEEzODQ6RUNESEUtRUNEU0EtQ0hBQ0hBMjAtUE9MWTEzMDU6RUNESEUtUlNBLUNIQUNIQTIwLVBPTFkxMzA1OkRIRS1SU0EtQUVTMTI4LUdDTS1TSEEyNTY6REhFLVJTQS1BRVMyNTYtR0NNLVNIQTM4NDsKICAgICAgc3NsX3ByZWZlcl9zZXJ2ZXJfY2lwaGVycyBvZmY7CiAgICAgIGFkZF9oZWFkZXIgU3RyaWN0LVRyYW5zcG9ydC1TZWN1cml0eSAibWF4LWFnZT0zMTUzNjAwMDsgaW5jbHVkZVN1YkRvbWFpbnMiIGFsd2F5czsKICAgICAgc2VydmVyX25hbWUgaW50ZWxsYXJvLXBvcC5maWN0aW9uYWxseS5vcmc7CiAgICAgIHJvb3QgL3Zhci93d3cvaHRtbDsKICAgICAgaW5kZXggaW5kZXguaHRtbDsKICAgICAgYWNjZXNzX2xvZyBsb2dzL2FjY2Vzcy5sb2c7CiAgICAgIGVycm9yX2xvZyBsb2dzL2Vycm9yLmxvZzsKICAgICAgCiAgICAgIGxvY2F0aW9uIC8ud2VsbC1rbm93bi9hY21lLWNoYWxsZW5nZS8gewogICAgICAgICAgY29udGVudF9ieV9sdWFfYmxvY2sgeyBhdXRvX3NzbDpjaGFsbGVuZ2Vfc2VydmVyKCkgfQogICAgICB9CiAgICAgIAogICAgICAKICB9CiAgCiAg","proxy_timeouts":{"read_timeout":"","connect_timeout":"","send_timeout":""},"waf_enabled":false,"root":"\/var\/www\/html","cache_enabled":false,"id":"host:intellaro-pop.fictionally.org","created_at":1786177034,"error_log":"logs\/error.log","custom_headers":{},"pop_ids":{},"varnish_enabled":false,"match_cases":{},"custom_response_headers":{},"varnish_config":{"admin_listen_port":"6082","health_check_timeout":2,"health_check_url":"\/health","listen_address":"0.0.0.0","backend_connect_timeout":5,"health_check_interval":5,"backend_first_byte_timeout":60,"health_check_enabled":false,"backend_between_bytes_timeout":10,"cache_ttl_default":120,"cache_grace":3600,"cache_keep":7200,"cache_size":"256m","listen_port":"6081"},"cached_mime_types":{},"custom_http_block":{},"custom_block":{},"varnish_snippets":{},"rate_limit":{"requests_per_second":100,"burst":50},"ssl_staging":false,"ssl_force_https":true,"server_name":"intellaro-pop.fictionally.org","cache_ttl":3600}
+{
+    "access_log": "logs/access.log",
+    "cache_bypass_auth": false,
+    "cache_docker_blobs": false,
+    "cache_docker_blobs_ttl": "2592000",
+    "cache_docker_manifests": false,
+    "cache_docker_manifests_ttl": "3600",
+    "cache_docker_serve_stale": false,
+    "cache_docker_stale_ttl": "31536000",
+    "cache_enabled": false,
+    "cache_ttl": 3600,
+    "cached_mime_types": {},
+    "config": "Q25ObGNuWmxjaUI3Q2lBZ0lDQnNhWE4wWlc0Z09EQTdDaUFnSUNCelpYSjJaWEpmYm1GdFpTQnBiblJsYkd4aGNtOHRjRzl3TG1acFkzUnBiMjVoYkd4NUxtOXlaenNLSUNBZ0lHeHZZMkYwYVc5dUlDOHVkMlZzYkMxcmJtOTNiaTloWTIxbExXTm9ZV3hzWlc1blpTOGdleUJqYjI1MFpXNTBYMko1WDJ4MVlWOWliRzlqYXlCN0lHRjFkRzlmYzNOc09tTm9ZV3hzWlc1blpWOXpaWEoyWlhJb0tTQjlJSDBLSUNBZ0lHeHZZMkYwYVc5dUlDOGdleUJ5WlhSMWNtNGdNekF4SUdoMGRIQnpPaTh2SkdodmMzUWtjbVZ4ZFdWemRGOTFjbWs3SUgwS2ZRcHpaWEoyWlhJZ2V3b2dJQ0FnSUNCc2FYTjBaVzRnT0RBN0NpQWdJQ0FnSUFvZ0lDQWdJQ0JzYVhOMFpXNGdORFF6SUhOemJDQm9kSFJ3TWpzS0lDQWdJQ0FnYzNOc1gyTmxjblJwWm1sallYUmxYMko1WDJ4MVlWOWliRzlqYXlCN0lHRjFkRzlmYzNOc09uTnpiRjlqWlhKMGFXWnBZMkYwWlNncElIMEtJQ0FnSUNBZ2MzTnNYMk5sY25ScFptbGpZWFJsSUM5bGRHTXZjM05zTDNKbGMzUjVMV0YxZEc4dGMzTnNMV1poYkd4aVlXTnJMbU55ZERzS0lDQWdJQ0FnYzNOc1gyTmxjblJwWm1sallYUmxYMnRsZVNBdlpYUmpMM056YkM5eVpYTjBlUzFoZFhSdkxYTnpiQzFtWVd4c1ltRmpheTVyWlhrN0NpQWdJQ0FnSUhOemJGOXpaWE56YVc5dVgzUnBiV1Z2ZFhRZ01XUTdDaUFnSUNBZ0lITnpiRjl6WlhOemFXOXVYMk5oWTJobElITm9ZWEpsWkRwVFUwdzZOVEJ0T3dvZ0lDQWdJQ0J6YzJ4ZmMyVnpjMmx2Ymw5MGFXTnJaWFJ6SUc5bVpqc0tJQ0FnSUNBZ2MzTnNYM0J5YjNSdlkyOXNjeUJVVEZOMk1TNHlJRlJNVTNZeExqTTdDaUFnSUNBZ0lITnpiRjlqYVhCb1pYSnpJRVZEUkVoRkxVVkRSRk5CTFVGRlV6RXlPQzFIUTAwdFUwaEJNalUyT2tWRFJFaEZMVkpUUVMxQlJWTXhNamd0UjBOTkxWTklRVEkxTmpwRlEwUklSUzFGUTBSVFFTMUJSVk15TlRZdFIwTk5MVk5JUVRNNE5EcEZRMFJJUlMxU1UwRXRRVVZUTWpVMkxVZERUUzFUU0VFek9EUTZSVU5FU0VVdFJVTkVVMEV0UTBoQlEwaEJNakF0VUU5TVdURXpNRFU2UlVORVNFVXRVbE5CTFVOSVFVTklRVEl3TFZCUFRGa3hNekExT2tSSVJTMVNVMEV0UVVWVE1USTRMVWREVFMxVFNFRXlOVFk2UkVoRkxWSlRRUzFCUlZNeU5UWXRSME5OTFZOSVFUTTRORHNLSUNBZ0lDQWdjM05zWDNCeVpXWmxjbDl6WlhKMlpYSmZZMmx3YUdWeWN5QnZabVk3Q2lBZ0lDQWdJR0ZrWkY5b1pXRmtaWElnVTNSeWFXTjBMVlJ5WVc1emNHOXlkQzFUWldOMWNtbDBlU0FpYldGNExXRm5aVDB6TVRVek5qQXdNRHNnYVc1amJIVmtaVk4xWWtSdmJXRnBibk1pSUdGc2QyRjVjenNLSUNBZ0lDQWdjMlZ5ZG1WeVgyNWhiV1VnYVc1MFpXeHNZWEp2TFhCdmNDNW1hV04wYVc5dVlXeHNlUzV2Y21jN0NpQWdJQ0FnSUhKdmIzUWdMM1poY2k5M2QzY3ZhSFJ0YkRzS0lDQWdJQ0FnYVc1a1pYZ2dhVzVrWlhndWFIUnRiRHNLSUNBZ0lDQWdZV05qWlhOelgyeHZaeUJzYjJkekwyRmpZMlZ6Y3k1c2IyYzdDaUFnSUNBZ0lHVnljbTl5WDJ4dlp5QnNiMmR6TDJWeWNtOXlMbXh2WnpzS0lDQWdJQ0FnQ2lBZ0lDQWdJR3h2WTJGMGFXOXVJQzh1ZDJWc2JDMXJibTkzYmk5aFkyMWxMV05vWVd4c1pXNW5aUzhnZXdvZ0lDQWdJQ0FnSUNBZ1kyOXVkR1Z1ZEY5aWVWOXNkV0ZmWW14dlkyc2dleUJoZFhSdlgzTnpiRHBqYUdGc2JHVnVaMlZmYzJWeWRtVnlLQ2tnZlFvZ0lDQWdJQ0I5Q2lBZ0lDQWdJQW9nSUNBZ0lDQUtJQ0I5Q2lBZ0NpQWc=",
+    "config_status": false,
+    "created_at": 1786177034,
+    "custom_block": {},
+    "custom_headers": {},
+    "custom_http_block": {},
+    "custom_location_block": {},
+    "custom_response_headers": {},
+    "dns_record_type": "A",
+    "error_log": "logs/error.log",
+    "id": "host:intellaro-pop.fictionally.org",
+    "index": "index.html",
+    "listens": [
+        {
+            "listen": "80"
+        }
+    ],
+    "locations": {},
+    "match_cases": {},
+    "pop_ids": [
+        "lon1",
+        "pop0"
+    ],
+    "profile_id": "prod",
+    "proxy_pass": "http://localhost",
+    "proxy_timeouts": {
+        "connect_timeout": "",
+        "read_timeout": "",
+        "send_timeout": ""
+    },
+    "rate_limit": {
+        "burst": 50,
+        "requests_per_second": 100
+    },
+    "rate_limit_enabled": false,
+    "root": "/var/www/html",
+    "rules": [
+        "53acb4f9-abb8-15ce-f080-6b9d234d01cc"
+    ],
+    "server_name": "intellaro-pop.fictionally.org",
+    "servers_tags": {},
+    "ssl_auto_renew": true,
+    "ssl_email": "balinder.walia@gmail.com",
+    "ssl_enabled": true,
+    "ssl_force_https": true,
+    "ssl_staging": false,
+    "varnish_config": {
+        "admin_listen_port": "6082",
+        "backend_between_bytes_timeout": 10,
+        "backend_connect_timeout": 5,
+        "backend_first_byte_timeout": 60,
+        "cache_grace": 3600,
+        "cache_keep": 7200,
+        "cache_size": "256m",
+        "cache_ttl_default": 120,
+        "health_check_enabled": false,
+        "health_check_interval": 5,
+        "health_check_timeout": 2,
+        "health_check_url": "/health",
+        "listen_address": "0.0.0.0",
+        "listen_port": "6081"
+    },
+    "varnish_enabled": false,
+    "varnish_snippets": {},
+    "waf_enabled": false
+}

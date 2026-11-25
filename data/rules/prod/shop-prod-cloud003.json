@@ -1,0 +1,42 @@
+{
+    "id": "shop-prod-cloud003",
+    "match": {
+        "response": {
+            "backends": [
+                {
+                    "address": "origin-uk-003.pop0.uk",
+                    "label": "origin-uk-003.pop0.uk (port 80) = traefik-edge on cloud003 (hostNetwork DaemonSet), prod shop replica 1. The main k3s1 Traefik (193.237.176.232:8888) cannot reach edge-node pods.",
+                    "weight": 100
+                }
+            ],
+            "code": 305,
+            "redirect_uri": "origin-uk-003.pop0.uk",
+            "routing": {
+                "mode": "least_conn"
+            },
+            "strip_path": false
+        },
+        "rules": {
+            "path": "/",
+            "path_key": "starts_with"
+        }
+    },
+    "name": "shop-prod-cloud003",
+    "priority": 1,
+    "profile_id": "prod",
+    "rules_tags": [
+        "opsapi",
+        "workstation",
+        "prod",
+        "cloud003"
+    ],
+    "servers": [
+        "host:shop.workstation.co.uk",
+        "host:shop.workstation.be",
+        "host:shop.workstationai.us",
+        "host:shop.workstation.lu",
+        "host:shop.workstationai.de",
+        "host:shop.workstationai.nl",
+        "host:shop.workstationai.ee"
+    ]
+}
