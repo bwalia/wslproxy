@@ -1,6 +1,43 @@
 nginx_port: 80
-# nginx worker_processes: one per core. Edges (lon1, lon2/pop0) are 4 vCPU.
+# ── nginx / OpenResty sizing (per edge) ───────────────────────────────────
+# Every value here renders into nginx.conf.j2. Override per edge in
+# host_vars/<edge>/vars.yaml, never by editing nginx.conf on the box (lon1 was
+# hand-edited on 2026-11-22 and OOM-killed on 2026-11-25). The memory budget
+# these must fit in is in docs/runbooks/edge-memory.md. After changing one,
+# run scripts/check-edge-nginx-render.sh --update and commit the renders.
+#
+# worker_processes: one per core. Edges (lon1, lon2/pop0) are 4 vCPU. Each
+# worker has its own Lua heap, so this multiplies per-worker Lua memory.
 nginx_worker_processes: 4
+# Was 1024 (nginx default). 4096 x 4 workers = 16k concurrent connections.
+nginx_worker_connections: 4096
+# fds per worker: >= 2 x worker_connections (client + upstream socket).
+# systemd's LimitNOFILE (1048576) caps it from above.
+nginx_worker_rlimit_nofile: 65535
+# How long old workers may keep serving after a reload. "" leaves it unset
+# (nginx waits for every connection to close, which is how 3 generations of
+# workers piled up before the lon1 OOM). Connections still open when it
+# expires are closed: WebSocket sessions and long docker registry pushes /
+# pulls that straddle a reload are cut after this long and must reconnect.
+nginx_worker_shutdown_timeout: 60s
+
+# lua_shared_dict sizes. Shared by all workers, allocated once per master (they
+# survive reloads). Defaults are the sizes live on lon1 and lon2 on
+# 2026-11-25. Read wslproxy_shdict_{capacity,free}_bytes before shrinking one.
+nginx_shm_prometheus_metrics: 150M
+nginx_shm_auto_ssl: 100m
+nginx_shm_wsl_cache: 100m
+nginx_shm_wsl_cache_keys: 10m
+nginx_shm_wsl_api_gw: 20m
+nginx_shm_wsl_bot_defense: 20m
+nginx_shm_waf_events: 10m
+nginx_ssl_session_cache_size: 50m
+
+# At most one OpenResty reload per this many seconds (infra/edge-reload/
+# wslproxy-reload). Sooner requests are deferred, not dropped, and applied by
+# wslproxy-reload-pending.timer. Keep it above nginx_worker_shutdown_timeout so
+# no more than two worker generations are ever alive. `--force` bypasses it.
+wslproxy_reload_min_interval: 180
 
 # ── OpenResty install mode ─────────────────────────────────────────────────
 # prebuilt (default): pull bwalia/wslproxy-openresty from Docker Hub and

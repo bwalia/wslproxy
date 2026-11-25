@@ -1,0 +1,27 @@
+---
+# Render roles/wslproxy/templates/nginx.conf.j2 for ONE edge, on this machine.
+# Never connects to the edge: hosts is localhost with a local connection.
+#
+#   ansible-playbook infra/ansible/render-nginx-conf.yml \
+#     -e edge=lon1.pop0.uk -e out=/tmp/lon1.nginx.conf
+#
+# Used by scripts/check-edge-nginx-render.sh (CI) and by the runbook
+# (docs/runbooks/edge-memory.md) to diff a render against the live file.
+# Variables come from the same places the real deploy reads them:
+# role defaults < group_vars/all.yml < host_vars/<edge>/vars.yaml < -e.
+# Pass -e wslproxy_version=... to pin the Server header (the default runs
+# `git describe`, which differs per checkout).
+- name: Render the prod nginx.conf for one edge (local only)
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - roles/wslproxy/defaults/main.yml
+    - group_vars/all.yml
+    - "host_vars/{{ edge }}/vars.yaml"
+  tasks:
+    - name: Render nginx.conf.j2
+      ansible.builtin.template:
+        src: roles/wslproxy/templates/nginx.conf.j2
+        dest: "{{ out }}"
+        mode: "0644"

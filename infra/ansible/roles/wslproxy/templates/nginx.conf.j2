@@ -1,9 +1,25 @@
-# source: infra/ansible/roles/luarocks/templates/nginx.conf.j2
+# source: infra/ansible/roles/wslproxy/templates/nginx.conf.j2
+# (rendered by roles/wslproxy/tasks/finalize.yml). Do NOT hand-edit this file
+# on an edge: sizing is per-edge vars (role defaults / host_vars), and CI
+# checks infra/ansible/rendered/ against this template. See
+# docs/runbooks/edge-memory.md.
 user  www-data;
 # One worker per core (edges are 4 vCPU). With 1 worker a single slow TLS
 # handshake or Lua call stalled every request (CLAUDE.md gotcha 2; lon2 timed
 # out ~150 handshakes under 24 parallel clients on 2026-11-22).
 worker_processes  {{ nginx_worker_processes | default(4) }};
+{% if nginx_worker_rlimit_nofile | default('') %}
+# Per-worker fd limit. Each proxied connection uses 2 fds (client + upstream),
+# so it must be at least 2 x worker_connections.
+worker_rlimit_nofile {{ nginx_worker_rlimit_nofile }};
+{% endif %}
+{% if nginx_worker_shutdown_timeout | default('') %}
+# After a reload, old workers close their connections and exit within this
+# time instead of waiting for every keepalive / WebSocket / registry stream to
+# end. Without it three reloads in 20 min kept three worker generations alive
+# and lon1 was OOM-killed (2026-11-25). Long-lived streams are cut after it.
+worker_shutdown_timeout {{ nginx_worker_shutdown_timeout }};
+{% endif %}
 
 error_log  logs/error.log;
 #error_log  logs/error.log  notice;
@@ -12,7 +28,7 @@ error_log  logs/error.log;
 pid        logs/nginx.pid;
 
 events {
-    worker_connections  1024;
+    worker_connections  {{ nginx_worker_connections | default(1024) }};
 }
 
 env DNS_RESOLVER;
@@ -102,7 +118,7 @@ http {
 
    # Storage for challenge token and cert cache
 
-    lua_shared_dict auto_ssl 100m;
+    lua_shared_dict auto_ssl {{ nginx_shm_auto_ssl | default('100m') }};
     lua_shared_dict auto_ssl_settings 64k;
 
     # SSL domains cache - shared across all workers for allow_domain callback
@@ -113,8 +129,8 @@ http {
     lua_shared_dict wsl_on_demand 2m;
 
     # Static content cache (WSL Proxy caching system)
-    lua_shared_dict wsl_cache 100m;
-    lua_shared_dict wsl_cache_keys 10m;
+    lua_shared_dict wsl_cache {{ nginx_shm_wsl_cache | default('100m') }};
+    lua_shared_dict wsl_cache_keys {{ nginx_shm_wsl_cache_keys | default('10m') }};
 
     # Docker blob disk cache (content-addressable, immutable layers)
     proxy_cache_path /var/cache/nginx/docker_blobs levels=1:2
@@ -123,7 +139,7 @@ http {
                      use_temp_path=off;
 
     # Prometheus metrics storage (increased from 50M to handle high-cardinality metrics)
-    lua_shared_dict prometheus_metrics 150M;
+    lua_shared_dict prometheus_metrics {{ nginx_shm_prometheus_metrics | default('150M') }};
     lua_shared_dict healthcheck 1m;
 
     # Traffic stats for dashboard (stores hourly request/response counts)
@@ -134,16 +150,16 @@ http {
     # and every environment profile gets its own counters out of one zone.
     # api_gw falls back to wsl_cache if this is missing, but then gateway
     # counters compete with the content cache for eviction — keep it declared.
-    lua_shared_dict wsl_api_gw 20m;
+    lua_shared_dict wsl_api_gw {{ nginx_shm_wsl_api_gw | default('20m') }};
 
     # Bot Defense (api/bot_defense/): per-IP / per-visitor behaviour counters,
     # crawler-verification cache, challenge replay guard. Shared by every
     # worker. Without it Bot Defense still scores requests, but behaviour
     # signals and crawler verification are off.
-    lua_shared_dict wsl_bot_defense 20m;
+    lua_shared_dict wsl_bot_defense {{ nginx_shm_wsl_bot_defense | default('20m') }};
 
     # WAF event log storage (stores recent WAF events for dashboard and API)
-    lua_shared_dict waf_events 10m;
+    lua_shared_dict waf_events {{ nginx_shm_waf_events | default('10m') }};
 
     # Traffic router state (backend health, round-robin counters, sticky sessions, per-backend stats)
     lua_shared_dict router_state 5m;
@@ -898,7 +914,7 @@ server {
     server_tokens off;
     http2 on;
         ssl_session_timeout  5m;
-        ssl_session_cache shared:SSL:50m;
+        ssl_session_cache shared:SSL:{{ nginx_ssl_session_cache_size | default('50m') }};
         ssl_session_tickets off;
 
         # Modern SSL configuration
