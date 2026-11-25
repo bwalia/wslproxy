@@ -1,0 +1,33 @@
+{
+    "access_log": "logs/test-minio.diytaxreturn.co.uk.access.log",
+    "config": "YzJWeWRtVnlJSHNLSUNBZ0lDQWdiR2x6ZEdWdUlEZ3dPeUFnSXlCTWFYTjBaVzRnYjI0Z2NHOXlkQ0FvU0ZSVVVDa0tJQ0FnSUNBZ2MyVnlkbVZ5WDI1aGJXVWdkR1Z6ZEMxdGFXNXBieTVrYVhsMFlYaHlaWFIxY200dVkyOHVkV3M3SUNBaklGbHZkWElnWkc5dFlXbHVJRzVoYldVS0lDQWdJQ0FnY205dmRDQXZkbUZ5TDNkM2R5OW9kRzFzT3lBZ0l5QkViMk4xYldWdWRDQnliMjkwSUdScGNtVmpkRzl5ZVFvZ0lDQWdJQ0JwYm1SbGVDQnBibVJsZUM1b2RHMXNPeUFnSXlCRVpXWmhkV3gwSUdsdVpHVjRJR1pwYkdWekNpQWdJQ0FnSUdGalkyVnpjMTlzYjJjZ2JHOW5jeTkwWlhOMExXMXBibWx2TG1ScGVYUmhlSEpsZEhWeWJpNWpieTUxYXk1aFkyTmxjM011Ykc5bk95QWdJeUJCWTJObGMzTWdiRzluSUdacGJHVWdiRzlqWVhScGIyNEtJQ0FnSUNBZ1pYSnliM0pmYkc5bklHeHZaM012ZEdWemRDMXRhVzVwYnk1a2FYbDBZWGh5WlhSMWNtNHVZMjh1ZFdzdVpYSnliM0l1Ykc5bk95QWdJeUJGY25KdmNpQnNiMmNnWm1sc1pTQnNiMk5oZEdsdmJnb0tDaUFnZlFvS0lDQT0=",
+    "config_status": true,
+    "created_at": 1789970000,
+    "custom_headers": {},
+    "error_log": "logs/test-minio.diytaxreturn.co.uk.error.log",
+    "id": "host:test-minio.diytaxreturn.co.uk",
+    "index": "index.html",
+    "listens": [
+        {
+            "listen": "80"
+        }
+    ],
+    "match_cases": {},
+    "pop_ids": [
+        "lon1",
+        "pop0"
+    ],
+    "profile_id": "prod",
+    "proxy_pass": "http://localhost",
+    "proxy_server_name": "test-minio.diytaxreturn.co.uk",
+    "root": "/var/www/html",
+    "rules": [
+        "diytax-prod-test-origin-uk-001"
+    ],
+    "server_name": "test-minio.diytaxreturn.co.uk",
+    "ssl_auto_renew": true,
+    "ssl_email": "admin@diytaxreturn.co.uk",
+    "ssl_enabled": true,
+    "ssl_force_https": true,
+    "ssl_staging": false
+}

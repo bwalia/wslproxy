@@ -1,0 +1,37 @@
+{
+    "id": "ukbuytolet-k3s1",
+    "match": {
+        "response": {
+            "backends": [
+                {
+                    "address": "193.237.176.232:8888",
+                    "label": "k3s1 Traefik (traefik-edge); routes by Host header to the btl-journey Ingress",
+                    "weight": 100
+                }
+            ],
+            "code": 305,
+            "redirect_uri": "193.237.176.232:8888",
+            "routing": {
+                "mode": "least_conn"
+            },
+            "strip_path": false
+        },
+        "rules": {
+            "path": "/",
+            "path_key": "starts_with"
+        }
+    },
+    "name": "ukbuytolet-k3s1",
+    "priority": 1,
+    "profile_id": "prod",
+    "rules_tags": [
+        "ukbuytolet",
+        "btl-journey",
+        "int"
+    ],
+    "servers": [
+        "host:int.ukbuytolet.com",
+        "host:int.ukbuytoletmortgage.com",
+        "host:int.uk-property-letting.com"
+    ]
+}

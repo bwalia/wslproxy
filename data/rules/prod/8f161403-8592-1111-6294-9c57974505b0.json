@@ -49,7 +49,8 @@
         "host:nebulacb.fictionally.org",
         "host:closeknitty.com",
         "host:hello-java-argocd.fictionally.org",
-        "host:argocd.fictionally.org"
+        "host:argocd.fictionally.org",
+        "host:pintopets.app"
     ],
     "version": 1
 }

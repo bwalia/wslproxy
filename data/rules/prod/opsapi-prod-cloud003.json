@@ -1,0 +1,38 @@
+{
+    "id": "opsapi-prod-cloud003",
+    "match": {
+        "response": {
+            "backends": [
+                {
+                    "address": "origin-uk-003.pop0.uk",
+                    "label": "origin-uk-003.pop0.uk (port 80) = traefik-edge on cloud003 (hostNetwork DaemonSet; nothing listens on :8888 there) — same backend the working diytaxreturn prod rules use. Ingresses MUST use className traefik-edge, not wslproxy. PROD-ONLY: workstation-opsapi prod runs entirely on cloud003. int/test/acc stay on opsapi-prod-default (193.237.176.232:8888).",
+                    "weight": 100
+                }
+            ],
+            "code": 305,
+            "redirect_uri": "origin-uk-003.pop0.uk",
+            "routing": {
+                "mode": "least_conn"
+            },
+            "strip_path": false
+        },
+        "rules": {
+            "path": "/",
+            "path_key": "starts_with"
+        }
+    },
+    "name": "opsapi-prod-cloud003",
+    "priority": 1,
+    "profile_id": "prod",
+    "rules_tags": [
+        "opsapi",
+        "workstation",
+        "prod",
+        "cloud003"
+    ],
+    "servers": [
+        "host:opsapi.workstation.co.uk",
+        "host:opsapi-ui.workstation.co.uk",
+        "host:api.tenthmatrix.com"
+    ]
+}

@@ -1,0 +1,27 @@
+{
+    "access_profile": "source-ai-preprod",
+    "config": "V1hwS1YyVlhVblJXYm14S1UwaE9URk5WVGtKYU1HeEVVVmRrYVZJeWVEWmFSV1JYWkZWc1JWb3paRkJsVlVadVUxaHNRMVJYUmxsVWFrSmhWbnBTYmxscVNUQmFNazVJVDFoc2ExRXdSblpWTUZwVFZsWldSR0V3ZEVwUk1FWnVVMVZPUWxveVRYbFdibXhyWWxaYU5WZEVTVEZoUjBwWVZsZGthRlo2VlhkVVJtaFBaRzFTV1ZOdGNHRlZla1p2V1ZaTmVHUnRUa2xVV0ZaaFlsZDRjVnBGWkhOa2JVcDBVbTVPYVZOSGRERlphazVMWW1zNU5WRlhaRXBsVlVwaFdXcE9WMlZWYkVoVmJscHBWakJhZDFsdGJFTmtWbXhZVFZkNFJHRlZSbTVUVlU1Q1dqQnNTVk51V21sTk1VWnVWRVJPWVdGSFRuQlBWRTVyVFRKT01sbFZhRk5rUjBwRll6SmtTbEV3TVc1VmEyTTFZVzFTV0UxWGVHbGliRVp1V1RJd05XUnRVa1JSYlhSb1YwVndjMWRVVGxOa2JVNTFZVEIwU2xFd1JtNVRWVTVDV2pKR1dFNVhkR0ZYUjJSdVdWWmpNV0V4Y0ZsYU0xWm9VMFpLTUZsclVucGFNR3hFVkZka1UxSXhXblJYVm1oWFl6SlNSRkZ1UW1saVZrcHpXbFZPUTJKWFJsaGxSM2hxWkRJNWJsTlZUa0phTUd4RVVXMW9XazFyTlhOWmVrNVBXbTFLU0U5WE5VcFNNMmd5VjJwT1RtUnNiRmhVYlhCaFYwVTFObFJITVRSa2JIQTJZekprU2xFd01XNVZWbVJQWVd4d1dWUnVjRXBTTTJneVYyNXNRMkpYUmxobFIzaEtVak5vTWxkVVNrZE5SMFpZVDFoV1JHRlZSbTVUVlU1Q1dqQnNTRlp1YkdwaVZHdzFWMFJLTkdSc2NEVlJiazVwVFcxU05sUkVTbGRsVjA1MFQxaHNUV0pZYURKWGJuQjZXakJzUkZSWFpGTlhSWEExV1dwT1Nsb3lTa2hQVnpWS1VqRndkMWxyWkZaYU1rcElUMWR3V2xkR1NuZFpha2t3VXpCT2JtSXdkRXBSTUVrMVVUSmtkbG93YkVKUVZEQTk=",
+    "created_at": 1795598325,
+    "id": "host:int-source-ai-ops.fictionally.org",
+    "listens": [
+        {
+            "listen": "80"
+        }
+    ],
+    "match_cases": {},
+    "pop_ids": [
+        "pop0",
+        "lon1"
+    ],
+    "profile_id": "prod",
+    "proxy_pass": "http://localhost",
+    "rules": [
+        "source-ai-vps005"
+    ],
+    "server_name": "int-source-ai-ops.fictionally.org",
+    "ssl_auto_renew": true,
+    "ssl_email": "balinder.walia@gmail.com",
+    "ssl_enabled": true,
+    "ssl_force_https": true,
+    "ssl_staging": false
+}

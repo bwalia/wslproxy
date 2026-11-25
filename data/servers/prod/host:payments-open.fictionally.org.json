@@ -1,1 +1,31 @@
-{"server_name":"payments-open.fictionally.org","custom_headers":{},"ssl_email":"balinder.walia@gmail.com","ssl_auto_renew":true,"ssl_force_https":true,"ssl_staging":false,"cache_enabled":false,"rules":"payments-demo-default","id":"host:payments-open.fictionally.org","proxy_server_name":"payments-open.fictionally.org","index":"index.html","ssl_enabled":true,"waf_enabled":false,"profile_id":"prod","match_cases":{},"listens":[{"listen":"80"}],"root":"\/var\/www\/html","config_status":true,"error_log":"logs\/payments-open.error.log","access_log":"logs\/payments-open.access.log"}
+{
+    "access_log": "logs/payments-open.access.log",
+    "cache_enabled": false,
+    "config": "c2VydmVyIHsKICAgICAgbGlzdGVuIDgwOyAgIyBMaXN0ZW4gb24gcG9ydCAoSFRUUCkKICAgICAgc2VydmVyX25hbWUgcGF5bWVudHMtb3Blbi5maWN0aW9uYWxseS5vcmc7ICAjIFlvdXIgZG9tYWluIG5hbWUKICAgICAgcm9vdCAvdmFyL3d3dy9odG1sOyAgIyBEb2N1bWVudCByb290IGRpcmVjdG9yeQogICAgICBpbmRleCBpbmRleC5odG1sOyAgIyBEZWZhdWx0IGluZGV4IGZpbGVzCiAgICAgIGFjY2Vzc19sb2cgbG9ncy9wYXltZW50cy1vcGVuLmFjY2Vzcy5sb2c7ICAjIEFjY2VzcyBsb2cgZmlsZSBsb2NhdGlvbgogICAgICBlcnJvcl9sb2cgbG9ncy9wYXltZW50cy1vcGVuLmVycm9yLmxvZzsgICMgRXJyb3IgbG9nIGZpbGUgbG9jYXRpb24KCgoKICB9CgogIA==",
+    "config_status": true,
+    "custom_headers": {},
+    "error_log": "logs/payments-open.error.log",
+    "id": "host:payments-open.fictionally.org",
+    "index": "index.html",
+    "listens": [
+        {
+            "listen": "80"
+        }
+    ],
+    "match_cases": {},
+    "pop_ids": [
+        "lon1",
+        "pop0"
+    ],
+    "profile_id": "prod",
+    "proxy_server_name": "payments-open.fictionally.org",
+    "root": "/var/www/html",
+    "rules": "payments-demo-default",
+    "server_name": "payments-open.fictionally.org",
+    "ssl_auto_renew": true,
+    "ssl_email": "balinder.walia@gmail.com",
+    "ssl_enabled": true,
+    "ssl_force_https": true,
+    "ssl_staging": false,
+    "waf_enabled": false
+}

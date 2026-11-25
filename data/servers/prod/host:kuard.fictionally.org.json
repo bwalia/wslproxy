@@ -1,1 +1,76 @@
-{"ssl_auto_renew":true,"ssl_force_https":true,"ssl_staging":false,"servers_tags":{},"ssl_enabled":true,"match_cases":{},"cached_mime_types":{},"rate_limit":{"requests_per_second":100,"burst":50},"pop_ids":{},"varnish_config":{"listen_address":"0.0.0.0","listen_port":"6081","health_check_timeout":2,"health_check_url":"\/health","backend_first_byte_timeout":60,"health_check_enabled":false,"backend_connect_timeout":5,"backend_between_bytes_timeout":10,"cache_ttl_default":120,"cache_grace":3600,"cache_keep":7200,"cache_size":"256m","health_check_interval":5,"admin_listen_port":"6082"},"server_name":"kuard.fictionally.org","index":"index.html","cache_ttl":3600,"varnish_snippets":{},"rate_limit_enabled":false,"cache_docker_manifests_ttl":"3600","id":"host:kuard.fictionally.org","custom_block":{},"locations":{},"cache_bypass_auth":false,"cache_docker_blobs":false,"cache_docker_blobs_ttl":"2592000","cache_docker_manifests":false,"listens":[{"listen":"80"}],"cache_docker_serve_stale":false,"cache_docker_stale_ttl":"31536000","root":"\/var\/www\/html","custom_http_block":{},"varnish_enabled":false,"profile_id":"prod","proxy_timeouts":{"send_timeout":"","read_timeout":"","connect_timeout":""},"custom_headers":{},"custom_response_headers":{},"rules":["53acb4f9-abb8-15ce-f080-6b9d234d01cc"],"dns_record_type":"A","custom_location_block":{},"access_log":"logs\/access.log","config":"CnNlcnZlciB7CiAgICBsaXN0ZW4gODA7CiAgICBzZXJ2ZXJfbmFtZSBrdWFyZC5maWN0aW9uYWxseS5vcmc7CiAgICBsb2NhdGlvbiAvLndlbGwta25vd24vYWNtZS1jaGFsbGVuZ2UvIHsgY29udGVudF9ieV9sdWFfYmxvY2sgeyBhdXRvX3NzbDpjaGFsbGVuZ2Vfc2VydmVyKCkgfSB9CiAgICBsb2NhdGlvbiAvIHsgcmV0dXJuIDMwMSBodHRwczovLyRob3N0JHJlcXVlc3RfdXJpOyB9Cn0Kc2VydmVyIHsKICAgICAgbGlzdGVuIDgwOwogICAgICAKICAgICAgbGlzdGVuIDQ0MyBzc2wgaHR0cDI7CiAgICAgIHNzbF9jZXJ0aWZpY2F0ZV9ieV9sdWFfYmxvY2sgeyBhdXRvX3NzbDpzc2xfY2VydGlmaWNhdGUoKSB9CiAgICAgIHNzbF9jZXJ0aWZpY2F0ZSAvZXRjL3NzbC9yZXN0eS1hdXRvLXNzbC1mYWxsYmFjay5jcnQ7CiAgICAgIHNzbF9jZXJ0aWZpY2F0ZV9rZXkgL2V0Yy9zc2wvcmVzdHktYXV0by1zc2wtZmFsbGJhY2sua2V5OwogICAgICBzc2xfc2Vzc2lvbl90aW1lb3V0IDFkOwogICAgICBzc2xfc2Vzc2lvbl9jYWNoZSBzaGFyZWQ6U1NMOjUwbTsKICAgICAgc3NsX3Nlc3Npb25fdGlja2V0cyBvZmY7CiAgICAgIHNzbF9wcm90b2NvbHMgVExTdjEuMiBUTFN2MS4zOwogICAgICBzc2xfY2lwaGVycyBFQ0RIRS1FQ0RTQS1BRVMxMjgtR0NNLVNIQTI1NjpFQ0RIRS1SU0EtQUVTMTI4LUdDTS1TSEEyNTY6RUNESEUtRUNEU0EtQUVTMjU2LUdDTS1TSEEzODQ6RUNESEUtUlNBLUFFUzI1Ni1HQ00tU0hBMzg0OkVDREhFLUVDRFNBLUNIQUNIQTIwLVBPTFkxMzA1OkVDREhFLVJTQS1DSEFDSEEyMC1QT0xZMTMwNTpESEUtUlNBLUFFUzEyOC1HQ00tU0hBMjU2OkRIRS1SU0EtQUVTMjU2LUdDTS1TSEEzODQ7CiAgICAgIHNzbF9wcmVmZXJfc2VydmVyX2NpcGhlcnMgb2ZmOwogICAgICBhZGRfaGVhZGVyIFN0cmljdC1UcmFuc3BvcnQtU2VjdXJpdHkgIm1heC1hZ2UzMTUzNjAwMDsgaW5jbHVkZVN1YkRvbWFpbnMiIGFsd2F5czsKICAgICAgc2VydmVyX25hbWUga3VhcmQuZmljdGlvbmFsbHkub3JnOwogICAgICByb290IC92YXIvd3d3L2h0bWw7CiAgICAgIGluZGV4IGluZGV4Lmh0bWw7CiAgICAgIGFjY2Vzc19sb2cgbG9ncy9hY2Nlc3MubG9nOwogICAgICBlcnJvcl9sb2cgbG9ncy9lcnJvci5sb2c7CiAgICAgIAogICAgICBsb2NhdGlvbiAvLndlbGwta25vd24vYWNtZS1jaGFsbGVuZ2UvIHsKICAgICAgICAgIGNvbnRlbnRfYnlfbHVhX2Jsb2NrIHsgYXV0b19zc2w6Y2hhbGxlbmdlX3NlcnZlcigpIH0KICAgICAgfQogICAgICAKICAgICAgCiAgfQogIAogIA==","waf_enabled":false,"cache_enabled":false,"config_status":true,"error_log":"logs\/error.log","ssl_email":"balinder.walia@gmail.com"}
+{
+    "access_log": "logs/access.log",
+    "cache_bypass_auth": false,
+    "cache_docker_blobs": false,
+    "cache_docker_blobs_ttl": "2592000",
+    "cache_docker_manifests": false,
+    "cache_docker_manifests_ttl": "3600",
+    "cache_docker_serve_stale": false,
+    "cache_docker_stale_ttl": "31536000",
+    "cache_enabled": false,
+    "cache_ttl": 3600,
+    "cached_mime_types": {},
+    "config": "Q25ObGNuWmxjaUI3Q2lBZ0lDQnNhWE4wWlc0Z09EQTdDaUFnSUNCelpYSjJaWEpmYm1GdFpTQnJkV0Z5WkM1bWFXTjBhVzl1WVd4c2VTNXZjbWM3Q2lBZ0lDQnNiMk5oZEdsdmJpQXZMbmRsYkd3dGEyNXZkMjR2WVdOdFpTMWphR0ZzYkdWdVoyVXZJSHNnWTI5dWRHVnVkRjlpZVY5c2RXRmZZbXh2WTJzZ2V5QmhkWFJ2WDNOemJEcGphR0ZzYkdWdVoyVmZjMlZ5ZG1WeUtDa2dmU0I5Q2lBZ0lDQnNiMk5oZEdsdmJpQXZJSHNnY21WMGRYSnVJRE13TVNCb2RIUndjem92THlSb2IzTjBKSEpsY1hWbGMzUmZkWEpwT3lCOUNuMEtjMlZ5ZG1WeUlIc0tJQ0FnSUNBZ2JHbHpkR1Z1SURnd093b2dJQ0FnSUNBS0lDQWdJQ0FnYkdsemRHVnVJRFEwTXlCemMyd2dhSFIwY0RJN0NpQWdJQ0FnSUhOemJGOWpaWEowYVdacFkyRjBaVjlpZVY5c2RXRmZZbXh2WTJzZ2V5QmhkWFJ2WDNOemJEcHpjMnhmWTJWeWRHbG1hV05oZEdVb0tTQjlDaUFnSUNBZ0lITnpiRjlqWlhKMGFXWnBZMkYwWlNBdlpYUmpMM056YkM5eVpYTjBlUzFoZFhSdkxYTnpiQzFtWVd4c1ltRmpheTVqY25RN0NpQWdJQ0FnSUhOemJGOWpaWEowYVdacFkyRjBaVjlyWlhrZ0wyVjBZeTl6YzJ3dmNtVnpkSGt0WVhWMGJ5MXpjMnd0Wm1Gc2JHSmhZMnN1YTJWNU93b2dJQ0FnSUNCemMyeGZjMlZ6YzJsdmJsOTBhVzFsYjNWMElERmtPd29nSUNBZ0lDQnpjMnhmYzJWemMybHZibDlqWVdOb1pTQnphR0Z5WldRNlUxTk1PalV3YlRzS0lDQWdJQ0FnYzNOc1gzTmxjM05wYjI1ZmRHbGphMlYwY3lCdlptWTdDaUFnSUNBZ0lITnpiRjl3Y205MGIyTnZiSE1nVkV4VGRqRXVNaUJVVEZOMk1TNHpPd29nSUNBZ0lDQnpjMnhmWTJsd2FHVnljeUJGUTBSSVJTMUZRMFJUUVMxQlJWTXhNamd0UjBOTkxWTklRVEkxTmpwRlEwUklSUzFTVTBFdFFVVlRNVEk0TFVkRFRTMVRTRUV5TlRZNlJVTkVTRVV0UlVORVUwRXRRVVZUTWpVMkxVZERUUzFUU0VFek9EUTZSVU5FU0VVdFVsTkJMVUZGVXpJMU5pMUhRMDB0VTBoQk16ZzBPa1ZEUkVoRkxVVkRSRk5CTFVOSVFVTklRVEl3TFZCUFRGa3hNekExT2tWRFJFaEZMVkpUUVMxRFNFRkRTRUV5TUMxUVQweFpNVE13TlRwRVNFVXRVbE5CTFVGRlV6RXlPQzFIUTAwdFUwaEJNalUyT2tSSVJTMVNVMEV0UVVWVE1qVTJMVWREVFMxVFNFRXpPRFE3Q2lBZ0lDQWdJSE56YkY5d2NtVm1aWEpmYzJWeWRtVnlYMk5wY0dobGNuTWdiMlptT3dvZ0lDQWdJQ0JoWkdSZmFHVmhaR1Z5SUZOMGNtbGpkQzFVY21GdWMzQnZjblF0VTJWamRYSnBkSGtnSW0xaGVDMWhaMlV6TVRVek5qQXdNRHNnYVc1amJIVmtaVk4xWWtSdmJXRnBibk1pSUdGc2QyRjVjenNLSUNBZ0lDQWdjMlZ5ZG1WeVgyNWhiV1VnYTNWaGNtUXVabWxqZEdsdmJtRnNiSGt1YjNKbk93b2dJQ0FnSUNCeWIyOTBJQzkyWVhJdmQzZDNMMmgwYld3N0NpQWdJQ0FnSUdsdVpHVjRJR2x1WkdWNExtaDBiV3c3Q2lBZ0lDQWdJR0ZqWTJWemMxOXNiMmNnYkc5bmN5OWhZMk5sYzNNdWJHOW5Pd29nSUNBZ0lDQmxjbkp2Y2w5c2IyY2diRzluY3k5bGNuSnZjaTVzYjJjN0NpQWdJQ0FnSUFvZ0lDQWdJQ0JzYjJOaGRHbHZiaUF2TG5kbGJHd3RhMjV2ZDI0dllXTnRaUzFqYUdGc2JHVnVaMlV2SUhzS0lDQWdJQ0FnSUNBZ0lHTnZiblJsYm5SZllubGZiSFZoWDJKc2IyTnJJSHNnWVhWMGIxOXpjMnc2WTJoaGJHeGxibWRsWDNObGNuWmxjaWdwSUgwS0lDQWdJQ0FnZlFvZ0lDQWdJQ0FLSUNBZ0lDQWdDaUFnZlFvZ0lBb2dJQT09",
+    "config_status": true,
+    "custom_block": {},
+    "custom_headers": {},
+    "custom_http_block": {},
+    "custom_location_block": {},
+    "custom_response_headers": {},
+    "dns_record_type": "A",
+    "error_log": "logs/error.log",
+    "id": "host:kuard.fictionally.org",
+    "index": "index.html",
+    "listens": [
+        {
+            "listen": "80"
+        }
+    ],
+    "locations": {},
+    "match_cases": {},
+    "pop_ids": [
+        "lon1",
+        "pop0"
+    ],
+    "profile_id": "prod",
+    "proxy_timeouts": {
+        "connect_timeout": "",
+        "read_timeout": "",
+        "send_timeout": ""
+    },
+    "rate_limit": {
+        "burst": 50,
+        "requests_per_second": 100
+    },
+    "rate_limit_enabled": false,
+    "root": "/var/www/html",
+    "rules": [
+        "53acb4f9-abb8-15ce-f080-6b9d234d01cc"
+    ],
+    "server_name": "kuard.fictionally.org",
+    "servers_tags": {},
+    "ssl_auto_renew": true,
+    "ssl_email": "balinder.walia@gmail.com",
+    "ssl_enabled": true,
+    "ssl_force_https": true,
+    "ssl_staging": false,
+    "varnish_config": {
+        "admin_listen_port": "6082",
+        "backend_between_bytes_timeout": 10,
+        "backend_connect_timeout": 5,
+        "backend_first_byte_timeout": 60,
+        "cache_grace": 3600,
+        "cache_keep": 7200,
+        "cache_size": "256m",
+        "cache_ttl_default": 120,
+        "health_check_enabled": false,
+        "health_check_interval": 5,
+        "health_check_timeout": 2,
+        "health_check_url": "/health",
+        "listen_address": "0.0.0.0",
+        "listen_port": "6081"
+    },
+    "varnish_enabled": false,
+    "varnish_snippets": {},
+    "waf_enabled": false
+}

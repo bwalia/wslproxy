@@ -1,0 +1,32 @@
+{
+    "access_log": "logs/acc-joyai.workstation.co.uk.access.log",
+    "cache_enabled": false,
+    "config": "c2VydmVyIHsKICAgICAgbGlzdGVuIDgwOyAgIyBMaXN0ZW4gb24gcG9ydCAoSFRUUCkKICAgICAgc2VydmVyX25hbWUgYWNjLWpveWFpLndvcmtzdGF0aW9uLmNvLnVrOyAgIyBZb3VyIGRvbWFpbiBuYW1lCiAgICAgIHJvb3QgL3Zhci93d3cvaHRtbDsgICMgRG9jdW1lbnQgcm9vdCBkaXJlY3RvcnkKICAgICAgaW5kZXggaW5kZXguaHRtbDsgICMgRGVmYXVsdCBpbmRleCBmaWxlcwogICAgICBhY2Nlc3NfbG9nIGxvZ3MvYWNjLWpveWFpLndvcmtzdGF0aW9uLmNvLnVrLmFjY2Vzcy5sb2c7ICAjIEFjY2VzcyBsb2cgZmlsZSBsb2NhdGlvbgogICAgICBlcnJvcl9sb2cgbG9ncy9hY2Mtam95YWkud29ya3N0YXRpb24uY28udWsuZXJyb3IubG9nOyAgIyBFcnJvciBsb2cgZmlsZSBsb2NhdGlvbgoKCgogIH0KCiAg",
+    "config_status": true,
+    "created_at": 1793453847,
+    "custom_headers": {},
+    "error_log": "logs/acc-joyai.workstation.co.uk.error.log",
+    "id": "host:acc-joyai.workstation.co.uk",
+    "index": "index.html",
+    "listens": [
+        {
+            "listen": "80"
+        }
+    ],
+    "match_cases": {},
+    "pop_ids": [
+        "lon1",
+        "pop0"
+    ],
+    "profile_id": "prod",
+    "proxy_pass": "http://localhost",
+    "proxy_server_name": "acc-joyai.workstation.co.uk",
+    "root": "/var/www/html",
+    "rules": "opsapi-prod-default",
+    "server_name": "acc-joyai.workstation.co.uk",
+    "ssl_auto_renew": true,
+    "ssl_email": "admin@workstation.co.uk",
+    "ssl_enabled": true,
+    "ssl_force_https": true,
+    "ssl_staging": false
+}

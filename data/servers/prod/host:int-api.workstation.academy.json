@@ -1,1 +1,86 @@
-{"cache_bypass_auth":true,"cache_docker_blobs":false,"cache_docker_blobs_ttl":"2592000","cache_docker_manifests":false,"cache_docker_manifests_ttl":"3600","cache_docker_serve_stale":false,"rate_limit":{"burst":50,"requests_per_second":100},"proxy_server_name":"int-api.workstation.academy","ssl_email":"admin@workstation.academy","ssl_auto_renew":true,"ssl_force_https":true,"ssl_staging":false,"dns_record_type":"A","custom_headers":{},"cached_mime_types":{},"root":"\/var\/www\/html","waf_enabled":false,"proxy_timeouts":{"connect_timeout":"","send_timeout":"","read_timeout":""},"server_name":"int-api.workstation.academy","cache_ttl":3600,"rules":["academy-prod-default"],"id":"host:int-api.workstation.academy","match_cases":{},"index":"index.html","rate_limit_enabled":false,"varnish_enabled":false,"config_status":true,"cache_enabled":false,"varnish_config":{"health_check_interval":5,"health_check_timeout":2,"listen_port":"6081","cache_ttl_default":120,"cache_grace":3600,"cache_keep":7200,"cache_size":"256m","backend_between_bytes_timeout":10,"backend_connect_timeout":5,"admin_listen_port":"6082","backend_first_byte_timeout":60,"listen_address":"0.0.0.0","health_check_enabled":false,"health_check_url":"\/health"},"profile_id":"prod","access_log":"logs\/int-api.workstation.academy.access.log","varnish_snippets":{},"error_log":"logs\/int-api.workstation.academy.error.log","custom_block":{},"custom_location_block":{},"servers_tags":{},"cache_docker_stale_ttl":"31536000","custom_response_headers":[{"header_value":"https:\/\/int-teach.workstation.academy","header_key":"access-control-allow-origin"},{"header_value":"true","header_key":"access-control-allow-credentials"}],"custom_http_block":{},"config":"CnNlcnZlciB7CiAgICBsaXN0ZW4gODA7CiAgICBzZXJ2ZXJfbmFtZSBpbnQtYXBpLndvcmtzdGF0aW9uLmFjYWRlbXk7CiAgICBsb2NhdGlvbiAvLndlbGwta25vd24vYWNtZS1jaGFsbGVuZ2UvIHsgY29udGVudF9ieV9sdWFfYmxvY2sgeyBhdXRvX3NzbDpjaGFsbGVuZ2Vfc2VydmVyKCkgfSB9CiAgICBsb2NhdGlvbiAvIHsgcmV0dXJuIDMwMSBodHRwczovLyRob3N0JHJlcXVlc3RfdXJpOyB9Cn0Kc2VydmVyIHsKICAgICAgbGlzdGVuIDgwOwogICAgICAKICAgICAgbGlzdGVuIDQ0MyBzc2wgaHR0cDI7CiAgICAgIHNzbF9jZXJ0aWZpY2F0ZV9ieV9sdWFfYmxvY2sgeyBhdXRvX3NzbDpzc2xfY2VydGlmaWNhdGUoKSB9CiAgICAgIHNzbF9jZXJ0aWZpY2F0ZSAvZXRjL3NzbC9yZXN0eS1hdXRvLXNzbC1mYWxsYmFjay5jcnQ7CiAgICAgIHNzbF9jZXJ0aWZpY2F0ZV9rZXkgL2V0Yy9zc2wvcmVzdHktYXV0by1zc2wtZmFsbGJhY2sua2V5OwogICAgICBzc2xfc2Vzc2lvbl90aW1lb3V0IDFkOwogICAgICBzc2xfc2Vzc2lvbl9jYWNoZSBzaGFyZWQ6U1NMOjUwbTsKICAgICAgc3NsX3Nlc3Npb25fdGlja2V0cyBvZmY7CiAgICAgIHNzbF9wcm90b2NvbHMgVExTdjEuMiBUTFN2MS4zOwogICAgICBzc2xfY2lwaGVycyBFQ0RIRS1FQ0RTQS1BRVMxMjgtR0NNLVNIQTI1NjpFQ0RIRS1SU0EtQUVTMTI4LUdDTS1TSEEyNTY6RUNESEUtRUNEU0EtQUVTMjU2LUdDTS1TSEEzODQ6RUNESEUtUlNBLUFFUzI1Ni1HQ00tU0hBMzg0OkVDREhFLUVDRFNBLUNIQUNIQTIwLVBPTFkxMzA1OkVDREhFLVJTQS1DSEFDSEEyMC1QT0xZMTMwNTpESEUtUlNBLUFFUzEyOC1HQ00tU0hBMjU2OkRIRS1SU0EtQUVTMjU2LUdDTS1TSEEzODQ7CiAgICAgIHNzbF9wcmVmZXJfc2VydmVyX2NpcGhlcnMgb2ZmOwogICAgICBhZGRfaGVhZGVyIFN0cmljdC1UcmFuc3BvcnQtU2VjdXJpdHkgIm1heC1hZ2U9MzE1MzYwMDA7IGluY2x1ZGVTdWJEb21haW5zIiBhbHdheXM7CiAgICAgIHNlcnZlcl9uYW1lIGludC1hcGkud29ya3N0YXRpb24uYWNhZGVteTsKICAgICAgcm9vdCAvdmFyL3d3dy9odG1sOwogICAgICBpbmRleCBpbmRleC5odG1sOwogICAgICBhY2Nlc3NfbG9nIGxvZ3MvaW50LWFwaS53b3Jrc3RhdGlvbi5hY2FkZW15LmFjY2Vzcy5sb2c7CiAgICAgIGVycm9yX2xvZyBsb2dzL2ludC1hcGkud29ya3N0YXRpb24uYWNhZGVteS5lcnJvci5sb2c7CiAgICAgIAogICAgICBsb2NhdGlvbiAvLndlbGwta25vd24vYWNtZS1jaGFsbGVuZ2UvIHsKICAgICAgICAgIGNvbnRlbnRfYnlfbHVhX2Jsb2NrIHsgYXV0b19zc2w6Y2hhbGxlbmdlX3NlcnZlcigpIH0KICAgICAgfQogICAgICAKICAgICAgCiAgfQogIAogIA==","pop_ids":{},"locations":{},"listens":[{"listen":"80"}],"ssl_enabled":true}
+{
+    "access_log": "logs/int-api.workstation.academy.access.log",
+    "cache_bypass_auth": true,
+    "cache_docker_blobs": false,
+    "cache_docker_blobs_ttl": "2592000",
+    "cache_docker_manifests": false,
+    "cache_docker_manifests_ttl": "3600",
+    "cache_docker_serve_stale": false,
+    "cache_docker_stale_ttl": "31536000",
+    "cache_enabled": false,
+    "cache_ttl": 3600,
+    "cached_mime_types": {},
+    "config": "Q25ObGNuWmxjaUI3Q2lBZ0lDQnNhWE4wWlc0Z09EQTdDaUFnSUNCelpYSjJaWEpmYm1GdFpTQnBiblF0WVhCcExuZHZjbXR6ZEdGMGFXOXVMbUZqWVdSbGJYazdDaUFnSUNCc2IyTmhkR2x2YmlBdkxuZGxiR3d0YTI1dmQyNHZZV050WlMxamFHRnNiR1Z1WjJVdklIc2dZMjl1ZEdWdWRGOWllVjlzZFdGZllteHZZMnNnZXlCaGRYUnZYM056YkRwamFHRnNiR1Z1WjJWZmMyVnlkbVZ5S0NrZ2ZTQjlDaUFnSUNCc2IyTmhkR2x2YmlBdklIc2djbVYwZFhKdUlETXdNU0JvZEhSd2N6b3ZMeVJvYjNOMEpISmxjWFZsYzNSZmRYSnBPeUI5Q24wS2MyVnlkbVZ5SUhzS0lDQWdJQ0FnYkdsemRHVnVJRGd3T3dvZ0lDQWdJQ0FLSUNBZ0lDQWdiR2x6ZEdWdUlEUTBNeUJ6YzJ3Z2FIUjBjREk3Q2lBZ0lDQWdJSE56YkY5alpYSjBhV1pwWTJGMFpWOWllVjlzZFdGZllteHZZMnNnZXlCaGRYUnZYM056YkRwemMyeGZZMlZ5ZEdsbWFXTmhkR1VvS1NCOUNpQWdJQ0FnSUhOemJGOWpaWEowYVdacFkyRjBaU0F2WlhSakwzTnpiQzl5WlhOMGVTMWhkWFJ2TFhOemJDMW1ZV3hzWW1GamF5NWpjblE3Q2lBZ0lDQWdJSE56YkY5alpYSjBhV1pwWTJGMFpWOXJaWGtnTDJWMFl5OXpjMnd2Y21WemRIa3RZWFYwYnkxemMyd3RabUZzYkdKaFkyc3VhMlY1T3dvZ0lDQWdJQ0J6YzJ4ZmMyVnpjMmx2Ymw5MGFXMWxiM1YwSURGa093b2dJQ0FnSUNCemMyeGZjMlZ6YzJsdmJsOWpZV05vWlNCemFHRnlaV1E2VTFOTU9qVXdiVHNLSUNBZ0lDQWdjM05zWDNObGMzTnBiMjVmZEdsamEyVjBjeUJ2Wm1ZN0NpQWdJQ0FnSUhOemJGOXdjbTkwYjJOdmJITWdWRXhUZGpFdU1pQlVURk4yTVM0ek93b2dJQ0FnSUNCemMyeGZZMmx3YUdWeWN5QkZRMFJJUlMxRlEwUlRRUzFCUlZNeE1qZ3RSME5OTFZOSVFUSTFOanBGUTBSSVJTMVNVMEV0UVVWVE1USTRMVWREVFMxVFNFRXlOVFk2UlVORVNFVXRSVU5FVTBFdFFVVlRNalUyTFVkRFRTMVRTRUV6T0RRNlJVTkVTRVV0VWxOQkxVRkZVekkxTmkxSFEwMHRVMGhCTXpnME9rVkRSRWhGTFVWRFJGTkJMVU5JUVVOSVFUSXdMVkJQVEZreE16QTFPa1ZEUkVoRkxWSlRRUzFEU0VGRFNFRXlNQzFRVDB4Wk1UTXdOVHBFU0VVdFVsTkJMVUZGVXpFeU9DMUhRMDB0VTBoQk1qVTJPa1JJUlMxU1UwRXRRVVZUTWpVMkxVZERUUzFUU0VFek9EUTdDaUFnSUNBZ0lITnpiRjl3Y21WbVpYSmZjMlZ5ZG1WeVgyTnBjR2hsY25NZ2IyWm1Pd29nSUNBZ0lDQmhaR1JmYUdWaFpHVnlJRk4wY21samRDMVVjbUZ1YzNCdmNuUXRVMlZqZFhKcGRIa2dJbTFoZUMxaFoyVTlNekUxTXpZd01EQTdJR2x1WTJ4MVpHVlRkV0pFYjIxaGFXNXpJaUJoYkhkaGVYTTdDaUFnSUNBZ0lITmxjblpsY2w5dVlXMWxJR2x1ZEMxaGNHa3VkMjl5YTNOMFlYUnBiMjR1WVdOaFpHVnRlVHNLSUNBZ0lDQWdjbTl2ZENBdmRtRnlMM2QzZHk5b2RHMXNPd29nSUNBZ0lDQnBibVJsZUNCcGJtUmxlQzVvZEcxc093b2dJQ0FnSUNCaFkyTmxjM05mYkc5bklHeHZaM012YVc1MExXRndhUzUzYjNKcmMzUmhkR2x2Ymk1aFkyRmtaVzE1TG1GalkyVnpjeTVzYjJjN0NpQWdJQ0FnSUdWeWNtOXlYMnh2WnlCc2IyZHpMMmx1ZEMxaGNHa3VkMjl5YTNOMFlYUnBiMjR1WVdOaFpHVnRlUzVsY25KdmNpNXNiMmM3Q2lBZ0lDQWdJQW9nSUNBZ0lDQnNiMk5oZEdsdmJpQXZMbmRsYkd3dGEyNXZkMjR2WVdOdFpTMWphR0ZzYkdWdVoyVXZJSHNLSUNBZ0lDQWdJQ0FnSUdOdmJuUmxiblJmWW5sZmJIVmhYMkpzYjJOcklIc2dZWFYwYjE5emMydzZZMmhoYkd4bGJtZGxYM05sY25abGNpZ3BJSDBLSUNBZ0lDQWdmUW9nSUNBZ0lDQUtJQ0FnSUNBZ0NpQWdmUW9nSUFvZ0lBPT0=",
+    "config_status": true,
+    "custom_block": {},
+    "custom_headers": {},
+    "custom_http_block": {},
+    "custom_location_block": {},
+    "custom_response_headers": [
+        {
+            "header_key": "access-control-allow-origin",
+            "header_value": "https://int-teach.workstation.academy"
+        },
+        {
+            "header_key": "access-control-allow-credentials",
+            "header_value": "true"
+        }
+    ],
+    "dns_record_type": "A",
+    "error_log": "logs/int-api.workstation.academy.error.log",
+    "id": "host:int-api.workstation.academy",
+    "index": "index.html",
+    "listens": [
+        {
+            "listen": "80"
+        }
+    ],
+    "locations": {},
+    "match_cases": {},
+    "pop_ids": [
+        "lon1",
+        "pop0"
+    ],
+    "profile_id": "prod",
+    "proxy_server_name": "int-api.workstation.academy",
+    "proxy_timeouts": {
+        "connect_timeout": "",
+        "read_timeout": "",
+        "send_timeout": ""
+    },
+    "rate_limit": {
+        "burst": 50,
+        "requests_per_second": 100
+    },
+    "rate_limit_enabled": false,
+    "root": "/var/www/html",
+    "rules": [
+        "academy-prod-default"
+    ],
+    "server_name": "int-api.workstation.academy",
+    "servers_tags": {},
+    "ssl_auto_renew": true,
+    "ssl_email": "admin@workstation.academy",
+    "ssl_enabled": true,
+    "ssl_force_https": true,
+    "ssl_staging": false,
+    "varnish_config": {
+        "admin_listen_port": "6082",
+        "backend_between_bytes_timeout": 10,
+        "backend_connect_timeout": 5,
+        "backend_first_byte_timeout": 60,
+        "cache_grace": 3600,
+        "cache_keep": 7200,
+        "cache_size": "256m",
+        "cache_ttl_default": 120,
+        "health_check_enabled": false,
+        "health_check_interval": 5,
+        "health_check_timeout": 2,
+        "health_check_url": "/health",
+        "listen_address": "0.0.0.0",
+        "listen_port": "6081"
+    },
+    "varnish_enabled": false,
+    "varnish_snippets": {},
+    "waf_enabled": false
+}

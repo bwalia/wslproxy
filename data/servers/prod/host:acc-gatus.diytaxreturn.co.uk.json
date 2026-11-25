@@ -1,1 +1,35 @@
-{"cache_enabled":false,"proxy_server_name":"acc-gatus.diytaxreturn.co.uk","proxy_pass":"http:\/\/localhost","match_cases":{},"server_name":"acc-gatus.diytaxreturn.co.uk","index":"index.html","ssl_enabled":true,"dns_cname_target":"pop1.diytaxreturn.co.uk","dns_record_type":"CNAME","error_log":"logs\/acc-gatus.diytaxreturn.co.uk.error.log","config":"CnNlcnZlciB7CiAgICAgIGxpc3RlbiA4MDsKICAgICAgc2VydmVyX25hbWUgYWNjLWdhdHVzLmRpeXRheHJldHVybi5jby51azsKICAgICAgcm9vdCAvdmFyL3d3dy9odG1sOwogICAgICBpbmRleCBpbmRleC5odG1sOwogICAgICBhY2Nlc3NfbG9nIGxvZ3MvYWNjLWdhdHVzLmRpeXRheHJldHVybi5jby51ay5hY2Nlc3MubG9nOwogICAgICBlcnJvcl9sb2cgbG9ncy9hY2MtZ2F0dXMuZGl5dGF4cmV0dXJuLmNvLnVrLmVycm9yLmxvZzsKfQo=","config_status":true,"rules":["diytax-acc-default"],"root":"\/var\/www\/html","custom_headers":{},"listens":[{"listen":"80"}],"profile_id":"prod","id":"host:acc-gatus.diytaxreturn.co.uk","access_log":"logs\/acc-gatus.diytaxreturn.co.uk.access.log","ssl_email":"admin@diytaxreturn.co.uk","ssl_auto_renew":true,"ssl_force_https":true,"ssl_staging":false}
+{
+    "access_log": "logs/acc-gatus.diytaxreturn.co.uk.access.log",
+    "cache_enabled": false,
+    "config": "Q25ObGNuWmxjaUI3Q2lBZ0lDQWdJR3hwYzNSbGJpQTRNRHNLSUNBZ0lDQWdjMlZ5ZG1WeVgyNWhiV1VnWVdOakxXZGhkSFZ6TG1ScGVYUmhlSEpsZEhWeWJpNWpieTUxYXpzS0lDQWdJQ0FnY205dmRDQXZkbUZ5TDNkM2R5OW9kRzFzT3dvZ0lDQWdJQ0JwYm1SbGVDQnBibVJsZUM1b2RHMXNPd29nSUNBZ0lDQmhZMk5sYzNOZmJHOW5JR3h2WjNNdllXTmpMV2RoZEhWekxtUnBlWFJoZUhKbGRIVnliaTVqYnk1MWF5NWhZMk5sYzNNdWJHOW5Pd29nSUNBZ0lDQmxjbkp2Y2w5c2IyY2diRzluY3k5aFkyTXRaMkYwZFhNdVpHbDVkR0Y0Y21WMGRYSnVMbU52TG5WckxtVnljbTl5TG14dlp6c0tmUW89",
+    "config_status": true,
+    "custom_headers": {},
+    "dns_cname_target": "pop1.diytaxreturn.co.uk",
+    "dns_record_type": "CNAME",
+    "error_log": "logs/acc-gatus.diytaxreturn.co.uk.error.log",
+    "id": "host:acc-gatus.diytaxreturn.co.uk",
+    "index": "index.html",
+    "listens": [
+        {
+            "listen": "80"
+        }
+    ],
+    "match_cases": {},
+    "pop_ids": [
+        "lon1",
+        "pop0"
+    ],
+    "profile_id": "prod",
+    "proxy_pass": "http://localhost",
+    "proxy_server_name": "acc-gatus.diytaxreturn.co.uk",
+    "root": "/var/www/html",
+    "rules": [
+        "diytax-acc-default"
+    ],
+    "server_name": "acc-gatus.diytaxreturn.co.uk",
+    "ssl_auto_renew": true,
+    "ssl_email": "admin@diytaxreturn.co.uk",
+    "ssl_enabled": true,
+    "ssl_force_https": true,
+    "ssl_staging": false
+}

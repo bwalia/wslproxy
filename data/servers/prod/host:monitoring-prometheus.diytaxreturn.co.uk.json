@@ -1,1 +1,34 @@
-{"ssl_auto_renew":true,"ssl_force_https":true,"ssl_staging":false,"dns_cname_target":"pop1.diytaxreturn.co.uk","ssl_enabled":true,"match_cases":{},"config_status":true,"id":"host:monitoring-prometheus.diytaxreturn.co.uk","listens":[{"listen":"80"}],"config":"c2VydmVyIHsKICAgICAgbGlzdGVuIDgwOyAgIyBMaXN0ZW4gb24gcG9ydCAoSFRUUCkKICAgICAgc2VydmVyX25hbWUgbW9uaXRvcmluZy1wcm9tZXRoZXVzLmRpeXRheHJldHVybi5jby51azsgICMgWW91ciBkb21haW4gbmFtZQogICAgICByb290IC92YXIvd3d3L2h0bWw7ICAjIERvY3VtZW50IHJvb3QgZGlyZWN0b3J5CiAgICAgIGluZGV4IGluZGV4Lmh0bWw7ICAjIERlZmF1bHQgaW5kZXggZmlsZXMKICAgICAgYWNjZXNzX2xvZyBsb2dzL21vbml0b3JpbmctcHJvbWV0aGV1cy5kaXl0YXhyZXR1cm4uY28udWsuYWNjZXNzLmxvZzsgICMgQWNjZXNzIGxvZyBmaWxlIGxvY2F0aW9uCiAgICAgIGVycm9yX2xvZyBsb2dzL21vbml0b3JpbmctcHJvbWV0aGV1cy5kaXl0YXhyZXR1cm4uY28udWsuZXJyb3IubG9nOyAgIyBFcnJvciBsb2cgZmlsZSBsb2NhdGlvbgoKCgogIH0KCiAg","custom_headers":{},"dns_record_type":"CNAME","server_name":"monitoring-prometheus.diytaxreturn.co.uk","index":"index.html","rules":["diytax-monitoring-prometheus-lan"],"access_log":"logs\/monitoring-prometheus.diytaxreturn.co.uk.access.log","profile_id":"prod","root":"\/var\/www\/html","cache_enabled":false,"proxy_server_name":"monitoring-prometheus.diytaxreturn.co.uk","error_log":"logs\/monitoring-prometheus.diytaxreturn.co.uk.error.log","ssl_email":"admin@diytaxreturn.co.uk"}
+{
+    "access_log": "logs/monitoring-prometheus.diytaxreturn.co.uk.access.log",
+    "cache_enabled": false,
+    "config": "YzJWeWRtVnlJSHNLSUNBZ0lDQWdiR2x6ZEdWdUlEZ3dPeUFnSXlCTWFYTjBaVzRnYjI0Z2NHOXlkQ0FvU0ZSVVVDa0tJQ0FnSUNBZ2MyVnlkbVZ5WDI1aGJXVWdiVzl1YVhSdmNtbHVaeTF3Y205dFpYUm9aWFZ6TG1ScGVYUmhlSEpsZEhWeWJpNWpieTUxYXpzZ0lDTWdXVzkxY2lCa2IyMWhhVzRnYm1GdFpRb2dJQ0FnSUNCeWIyOTBJQzkyWVhJdmQzZDNMMmgwYld3N0lDQWpJRVJ2WTNWdFpXNTBJSEp2YjNRZ1pHbHlaV04wYjNKNUNpQWdJQ0FnSUdsdVpHVjRJR2x1WkdWNExtaDBiV3c3SUNBaklFUmxabUYxYkhRZ2FXNWtaWGdnWm1sc1pYTUtJQ0FnSUNBZ1lXTmpaWE56WDJ4dlp5QnNiMmR6TDIxdmJtbDBiM0pwYm1jdGNISnZiV1YwYUdWMWN5NWthWGwwWVhoeVpYUjFjbTR1WTI4dWRXc3VZV05qWlhOekxteHZaenNnSUNNZ1FXTmpaWE56SUd4dlp5Qm1hV3hsSUd4dlkyRjBhVzl1Q2lBZ0lDQWdJR1Z5Y205eVgyeHZaeUJzYjJkekwyMXZibWwwYjNKcGJtY3RjSEp2YldWMGFHVjFjeTVrYVhsMFlYaHlaWFIxY200dVkyOHVkV3N1WlhKeWIzSXViRzluT3lBZ0l5QkZjbkp2Y2lCc2IyY2dabWxzWlNCc2IyTmhkR2x2YmdvS0Nnb2dJSDBLQ2lBZw==",
+    "config_status": true,
+    "custom_headers": {},
+    "dns_cname_target": "pop1.diytaxreturn.co.uk",
+    "dns_record_type": "CNAME",
+    "error_log": "logs/monitoring-prometheus.diytaxreturn.co.uk.error.log",
+    "id": "host:monitoring-prometheus.diytaxreturn.co.uk",
+    "index": "index.html",
+    "listens": [
+        {
+            "listen": "80"
+        }
+    ],
+    "match_cases": {},
+    "pop_ids": [
+        "lon1",
+        "pop0"
+    ],
+    "profile_id": "prod",
+    "proxy_server_name": "monitoring-prometheus.diytaxreturn.co.uk",
+    "root": "/var/www/html",
+    "rules": [
+        "diytax-monitoring-prometheus-lan"
+    ],
+    "server_name": "monitoring-prometheus.diytaxreturn.co.uk",
+    "ssl_auto_renew": true,
+    "ssl_email": "admin@diytaxreturn.co.uk",
+    "ssl_enabled": true,
+    "ssl_force_https": true,
+    "ssl_staging": false
+}

@@ -1,8 +1,13 @@
 {
-  "name": "workstation-preprod",
-  "allow_cidrs": "193.237.176.232/32",
-  "origin": "http://193.237.176.232:8888",
-  "endpoints": [
-    { "path": "/", "path_key": "starts_with" }
-  ]
+    "allow_cidrs": "193.237.176.232/32",
+    "endpoints": [
+        {
+            "path": "/",
+            "path_key": "starts_with"
+        }
+    ],
+    "id": "workstation-preprod",
+    "name": "workstation-preprod",
+    "origin": "http://193.237.176.232:8888",
+    "profile_id": "prod"
 }

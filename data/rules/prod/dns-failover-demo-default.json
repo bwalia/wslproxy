@@ -1,0 +1,38 @@
+{
+    "id": "dns-failover-demo-default",
+    "match": {
+        "response": {
+            "allow": true,
+            "auto_redirect_https": false,
+            "backends": [
+                {
+                    "address": "127.0.0.1:18099",
+                    "label": "dns-failover-demo-local",
+                    "weight": 100
+                }
+            ],
+            "code": 305,
+            "is_consul": false,
+            "redirect_uri": "127.0.0.1:18099",
+            "routing": {
+                "mode": "least_conn"
+            },
+            "strip_path": false
+        },
+        "rules": {
+            "jwt_token_validation": "equals",
+            "path": "/",
+            "path_key": "starts_with"
+        }
+    },
+    "name": "dns-failover-demo-default",
+    "priority": 1,
+    "profile_id": "prod",
+    "rules_tags": [
+        "nebuladns",
+        "dns-failover-demo"
+    ],
+    "servers": [
+        "host:test.failover.nebuladns.net"
+    ]
+}

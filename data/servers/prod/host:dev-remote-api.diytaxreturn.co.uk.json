@@ -1,1 +1,61 @@
-{"cache_enabled":false,"proxy_server_name":null,"proxy_timeouts":{"connect_timeout":"600","send_timeout":"600","read_timeout":"600"},"match_cases":[{"statement":"ff3582a3-f336-d4ee-fc91-a3157e756620","condition":"and"},{"statement":"d18b5d64-340a-c277-124d-8c2b2a7b10a2","condition":"and"}],"rate_limit_enabled":false,"index":"index.html","cache_bypass_auth":false,"ssl_enabled":true,"created_at":1778154655,"profile_id":"prod","ssl_email":"balinder.walia@gmail.com","root":"\/var\/www\/html","waf_enabled":false,"cache_docker_blobs":false,"error_log":"logs\/error.log","varnish_enabled":false,"proxy_pass":"http:\/\/localhost","config_status":true,"rules":"425e4925-8ce1-de5b-2d13-0b086621101f","custom_response_headers":[{"header_key":"access-control-allow-origin","header_value":"https:\/\/dev-remote.diytaxreturn.co.uk"},{"header_key":"access-control-allow-credentials","header_value":"true"}],"custom_headers":{},"listens":[{"listen":"80"}],"server_name":"dev-remote-api.diytaxreturn.co.uk","id":"host:dev-remote-api.diytaxreturn.co.uk","config":"CiMgSFRUUCB0byBIVFRQUyByZWRpcmVjdApzZXJ2ZXIgewogICAgbGlzdGVuIDgwOwogICAgc2VydmVyX25hbWUgZGV2LXJlbW90ZS1hcGkuZGl5dGF4cmV0dXJuLmNvLnVrOwoKICAgICMgQUNNRSBDaGFsbGVuZ2UgZm9yIExldCdzIEVuY3J5cHQgKGx1YS1yZXN0eS1hdXRvLXNzbCkKICAgIGxvY2F0aW9uIC8ud2VsbC1rbm93bi9hY21lLWNoYWxsZW5nZS8gewogICAgICAgIGNvbnRlbnRfYnlfbHVhX2Jsb2NrIHsKICAgICAgICAgICAgYXV0b19zc2w6Y2hhbGxlbmdlX3NlcnZlcigpCiAgICAgICAgfQogICAgfQoKICAgICMgUmVkaXJlY3QgYWxsIG90aGVyIHRyYWZmaWMgdG8gSFRUUFMKICAgIGxvY2F0aW9uIC8gewogICAgICAgIHJldHVybiAzMDEgaHR0cHM6Ly8kaG9zdCRyZXF1ZXN0X3VyaTsKICAgIH0KfQpzZXJ2ZXIgewogICAgICBsaXN0ZW4gODA7ICAjIExpc3RlbiBvbiBwb3J0IChIVFRQKQogICAgICAKICAgICAgIyBTU0wgQ29uZmlndXJhdGlvbiAobWFuYWdlZCBieSBhdXRvX3NzbCAvIExldCdzIEVuY3J5cHQpCiAgICAgIGxpc3RlbiA0NDMgc3NsIGh0dHAyOwoKICAgICAgIyBEeW5hbWljIFNTTCBjZXJ0aWZpY2F0ZSB2aWEgYXV0b19zc2wKICAgICAgc3NsX2NlcnRpZmljYXRlX2J5X2x1YV9ibG9jayB7CiAgICAgICAgICBhdXRvX3NzbDpzc2xfY2VydGlmaWNhdGUoKQogICAgICB9CgogICAgICAjIEZhbGxiYWNrIGNlcnRpZmljYXRlIChyZXF1aXJlZCBmb3IgbmdpbnggdmFsaWRhdGlvbikKICAgICAgc3NsX2NlcnRpZmljYXRlIC9ldGMvc3NsL3Jlc3R5LWF1dG8tc3NsLWZhbGxiYWNrLmNydDsKICAgICAgc3NsX2NlcnRpZmljYXRlX2tleSAvZXRjL3NzbC9yZXN0eS1hdXRvLXNzbC1mYWxsYmFjay5rZXk7CgogICAgICBzc2xfc2Vzc2lvbl90aW1lb3V0IDFkOwogICAgICBzc2xfc2Vzc2lvbl9jYWNoZSBzaGFyZWQ6U1NMOjUwbTsKICAgICAgc3NsX3Nlc3Npb25fdGlja2V0cyBvZmY7CgogICAgICAjIE1vZGVybiBTU0wgY29uZmlndXJhdGlvbgogICAgICBzc2xfcHJvdG9jb2xzIFRMU3YxLjIgVExTdjEuMzsKICAgICAgc3NsX2NpcGhlcnMgRUNESEUtRUNEU0EtQUVTMTI4LUdDTS1TSEEyNTY6RUNESEUtUlNBLUFFUzEyOC1HQ00tU0hBMjU2OkVDREhFLUVDRFNBLUFFUzI1Ni1HQ00tU0hBMzg0OkVDREhFLVJTQS1BRVMyNTYtR0NNLVNIQTM4NDpFQ0RIRS1FQ0RTQS1DSEFDSEEyMC1QT0xZMTMwNTpFQ0RIRS1SU0EtQ0hBQ0hBMjAtUE9MWTEzMDU6REhFLVJTQS1BRVMxMjgtR0NNLVNIQTI1NjpESEUtUlNBLUFFUzI1Ni1HQ00tU0hBMzg0OwogICAgICBzc2xfcHJlZmVyX3NlcnZlcl9jaXBoZXJzIG9mZjsKCiAgICAgICMgSFNUUyAtIEZvcmNlIEhUVFBTCiAgICAgIGFkZF9oZWFkZXIgU3RyaWN0LVRyYW5zcG9ydC1TZWN1cml0eSAibWF4LWFnZTMxNTM2MDAwOyBpbmNsdWRlU3ViRG9tYWlucyIgYWx3YXlzOwogICAgICBzZXJ2ZXJfbmFtZSBkZXYtcmVtb3RlLWFwaS5kaXl0YXhyZXR1cm4uY28udWs7ICAjIFlvdXIgZG9tYWluIG5hbWUKICAgICAgcm9vdCAvdmFyL3d3dy9odG1sOyAgIyBEb2N1bWVudCByb290IGRpcmVjdG9yeQogICAgICBpbmRleCBpbmRleC5odG1sOyAgIyBEZWZhdWx0IGluZGV4IGZpbGVzCiAgICAgIGFjY2Vzc19sb2cgbG9ncy9hY2Nlc3MubG9nOyAgIyBBY2Nlc3MgbG9nIGZpbGUgbG9jYXRpb24KICAgICAgZXJyb3JfbG9nIGxvZ3MvZXJyb3IubG9nOyAgIyBFcnJvciBsb2cgZmlsZSBsb2NhdGlvbgogICAgICAKICAgICAgIyBBQ01FIENoYWxsZW5nZSBmb3IgTGV0J3MgRW5jcnlwdCAobHVhLXJlc3R5LWF1dG8tc3NsKQogICAgICBsb2NhdGlvbiAvLndlbGwta25vd24vYWNtZS1jaGFsbGVuZ2UvIHsKICAgICAgICAgIGNvbnRlbnRfYnlfbHVhX2Jsb2NrIHsKICAgICAgICAgICAgICBhdXRvX3NzbDpjaGFsbGVuZ2Vfc2VydmVyKCkKICAgICAgICAgIH0KICAgICAgfQogICAgICAKICAgICAgCiAgfQogIAogIA==","access_log":"logs\/access.log","ssl_auto_renew":true,"ssl_force_https":true,"ssl_staging":false}
+{
+    "access_log": "logs/access.log",
+    "cache_bypass_auth": false,
+    "cache_docker_blobs": false,
+    "cache_enabled": false,
+    "config": "Q2lNZ1NGUlVVQ0IwYnlCSVZGUlFVeUJ5WldScGNtVmpkQXB6WlhKMlpYSWdld29nSUNBZ2JHbHpkR1Z1SURnd093b2dJQ0FnYzJWeWRtVnlYMjVoYldVZ1pHVjJMWEpsYlc5MFpTMWhjR2t1WkdsNWRHRjRjbVYwZFhKdUxtTnZMblZyT3dvS0lDQWdJQ01nUVVOTlJTQkRhR0ZzYkdWdVoyVWdabTl5SUV4bGRDZHpJRVZ1WTNKNWNIUWdLR3gxWVMxeVpYTjBlUzFoZFhSdkxYTnpiQ2tLSUNBZ0lHeHZZMkYwYVc5dUlDOHVkMlZzYkMxcmJtOTNiaTloWTIxbExXTm9ZV3hzWlc1blpTOGdld29nSUNBZ0lDQWdJR052Ym5SbGJuUmZZbmxmYkhWaFgySnNiMk5ySUhzS0lDQWdJQ0FnSUNBZ0lDQWdZWFYwYjE5emMydzZZMmhoYkd4bGJtZGxYM05sY25abGNpZ3BDaUFnSUNBZ0lDQWdmUW9nSUNBZ2ZRb0tJQ0FnSUNNZ1VtVmthWEpsWTNRZ1lXeHNJRzkwYUdWeUlIUnlZV1ptYVdNZ2RHOGdTRlJVVUZNS0lDQWdJR3h2WTJGMGFXOXVJQzhnZXdvZ0lDQWdJQ0FnSUhKbGRIVnliaUF6TURFZ2FIUjBjSE02THk4a2FHOXpkQ1J5WlhGMVpYTjBYM1Z5YVRzS0lDQWdJSDBLZlFwelpYSjJaWElnZXdvZ0lDQWdJQ0JzYVhOMFpXNGdPREE3SUNBaklFeHBjM1JsYmlCdmJpQndiM0owSUNoSVZGUlFLUW9nSUNBZ0lDQUtJQ0FnSUNBZ0l5QlRVMHdnUTI5dVptbG5kWEpoZEdsdmJpQW9iV0Z1WVdkbFpDQmllU0JoZFhSdlgzTnpiQ0F2SUV4bGRDZHpJRVZ1WTNKNWNIUXBDaUFnSUNBZ0lHeHBjM1JsYmlBME5ETWdjM05zSUdoMGRIQXlPd29LSUNBZ0lDQWdJeUJFZVc1aGJXbGpJRk5UVENCalpYSjBhV1pwWTJGMFpTQjJhV0VnWVhWMGIxOXpjMndLSUNBZ0lDQWdjM05zWDJObGNuUnBabWxqWVhSbFgySjVYMngxWVY5aWJHOWpheUI3Q2lBZ0lDQWdJQ0FnSUNCaGRYUnZYM056YkRwemMyeGZZMlZ5ZEdsbWFXTmhkR1VvS1FvZ0lDQWdJQ0I5Q2dvZ0lDQWdJQ0FqSUVaaGJHeGlZV05ySUdObGNuUnBabWxqWVhSbElDaHlaWEYxYVhKbFpDQm1iM0lnYm1kcGJuZ2dkbUZzYVdSaGRHbHZiaWtLSUNBZ0lDQWdjM05zWDJObGNuUnBabWxqWVhSbElDOWxkR012YzNOc0wzSmxjM1I1TFdGMWRHOHRjM05zTFdaaGJHeGlZV05yTG1OeWREc0tJQ0FnSUNBZ2MzTnNYMk5sY25ScFptbGpZWFJsWDJ0bGVTQXZaWFJqTDNOemJDOXlaWE4wZVMxaGRYUnZMWE56YkMxbVlXeHNZbUZqYXk1clpYazdDZ29nSUNBZ0lDQnpjMnhmYzJWemMybHZibDkwYVcxbGIzVjBJREZrT3dvZ0lDQWdJQ0J6YzJ4ZmMyVnpjMmx2Ymw5allXTm9aU0J6YUdGeVpXUTZVMU5NT2pVd2JUc0tJQ0FnSUNBZ2MzTnNYM05sYzNOcGIyNWZkR2xqYTJWMGN5QnZabVk3Q2dvZ0lDQWdJQ0FqSUUxdlpHVnliaUJUVTB3Z1kyOXVabWxuZFhKaGRHbHZiZ29nSUNBZ0lDQnpjMnhmY0hKdmRHOWpiMnh6SUZSTVUzWXhMaklnVkV4VGRqRXVNenNLSUNBZ0lDQWdjM05zWDJOcGNHaGxjbk1nUlVORVNFVXRSVU5FVTBFdFFVVlRNVEk0TFVkRFRTMVRTRUV5TlRZNlJVTkVTRVV0VWxOQkxVRkZVekV5T0MxSFEwMHRVMGhCTWpVMk9rVkRSRWhGTFVWRFJGTkJMVUZGVXpJMU5pMUhRMDB0VTBoQk16ZzBPa1ZEUkVoRkxWSlRRUzFCUlZNeU5UWXRSME5OTFZOSVFUTTRORHBGUTBSSVJTMUZRMFJUUVMxRFNFRkRTRUV5TUMxUVQweFpNVE13TlRwRlEwUklSUzFTVTBFdFEwaEJRMGhCTWpBdFVFOU1XVEV6TURVNlJFaEZMVkpUUVMxQlJWTXhNamd0UjBOTkxWTklRVEkxTmpwRVNFVXRVbE5CTFVGRlV6STFOaTFIUTAwdFUwaEJNemcwT3dvZ0lDQWdJQ0J6YzJ4ZmNISmxabVZ5WDNObGNuWmxjbDlqYVhCb1pYSnpJRzltWmpzS0NpQWdJQ0FnSUNNZ1NGTlVVeUF0SUVadmNtTmxJRWhVVkZCVENpQWdJQ0FnSUdGa1pGOW9aV0ZrWlhJZ1UzUnlhV04wTFZSeVlXNXpjRzl5ZEMxVFpXTjFjbWwwZVNBaWJXRjRMV0ZuWlRNeE5UTTJNREF3T3lCcGJtTnNkV1JsVTNWaVJHOXRZV2x1Y3lJZ1lXeDNZWGx6T3dvZ0lDQWdJQ0J6WlhKMlpYSmZibUZ0WlNCa1pYWXRjbVZ0YjNSbExXRndhUzVrYVhsMFlYaHlaWFIxY200dVkyOHVkV3M3SUNBaklGbHZkWElnWkc5dFlXbHVJRzVoYldVS0lDQWdJQ0FnY205dmRDQXZkbUZ5TDNkM2R5OW9kRzFzT3lBZ0l5QkViMk4xYldWdWRDQnliMjkwSUdScGNtVmpkRzl5ZVFvZ0lDQWdJQ0JwYm1SbGVDQnBibVJsZUM1b2RHMXNPeUFnSXlCRVpXWmhkV3gwSUdsdVpHVjRJR1pwYkdWekNpQWdJQ0FnSUdGalkyVnpjMTlzYjJjZ2JHOW5jeTloWTJObGMzTXViRzluT3lBZ0l5QkJZMk5sYzNNZ2JHOW5JR1pwYkdVZ2JHOWpZWFJwYjI0S0lDQWdJQ0FnWlhKeWIzSmZiRzluSUd4dlozTXZaWEp5YjNJdWJHOW5PeUFnSXlCRmNuSnZjaUJzYjJjZ1ptbHNaU0JzYjJOaGRHbHZiZ29nSUNBZ0lDQUtJQ0FnSUNBZ0l5QkJRMDFGSUVOb1lXeHNaVzVuWlNCbWIzSWdUR1YwSjNNZ1JXNWpjbmx3ZENBb2JIVmhMWEpsYzNSNUxXRjFkRzh0YzNOc0tRb2dJQ0FnSUNCc2IyTmhkR2x2YmlBdkxuZGxiR3d0YTI1dmQyNHZZV050WlMxamFHRnNiR1Z1WjJVdklIc0tJQ0FnSUNBZ0lDQWdJR052Ym5SbGJuUmZZbmxmYkhWaFgySnNiMk5ySUhzS0lDQWdJQ0FnSUNBZ0lDQWdJQ0JoZFhSdlgzTnpiRHBqYUdGc2JHVnVaMlZmYzJWeWRtVnlLQ2tLSUNBZ0lDQWdJQ0FnSUgwS0lDQWdJQ0FnZlFvZ0lDQWdJQ0FLSUNBZ0lDQWdDaUFnZlFvZ0lBb2dJQT09",
+    "config_status": true,
+    "created_at": 1778154655,
+    "custom_headers": {},
+    "custom_response_headers": [
+        {
+            "header_key": "access-control-allow-origin",
+            "header_value": "https://dev-remote.diytaxreturn.co.uk"
+        },
+        {
+            "header_key": "access-control-allow-credentials",
+            "header_value": "true"
+        }
+    ],
+    "error_log": "logs/error.log",
+    "id": "host:dev-remote-api.diytaxreturn.co.uk",
+    "index": "index.html",
+    "listens": [
+        {
+            "listen": "80"
+        }
+    ],
+    "match_cases": [
+        {
+            "condition": "and",
+            "statement": "ff3582a3-f336-d4ee-fc91-a3157e756620"
+        },
+        {
+            "condition": "and",
+            "statement": "d18b5d64-340a-c277-124d-8c2b2a7b10a2"
+        }
+    ],
+    "pop_ids": [
+        "lon1",
+        "pop0"
+    ],
+    "profile_id": "prod",
+    "proxy_pass": "http://localhost",
+    "proxy_server_name": null,
+    "proxy_timeouts": {
+        "connect_timeout": "600",
+        "read_timeout": "600",
+        "send_timeout": "600"
+    },
+    "rate_limit_enabled": false,
+    "root": "/var/www/html",
+    "rules": "425e4925-8ce1-de5b-2d13-0b086621101f",
+    "server_name": "dev-remote-api.diytaxreturn.co.uk",
+    "ssl_auto_renew": true,
+    "ssl_email": "balinder.walia@gmail.com",
+    "ssl_enabled": true,
+    "ssl_force_https": true,
+    "ssl_staging": false,
+    "varnish_enabled": false,
+    "waf_enabled": false
+}

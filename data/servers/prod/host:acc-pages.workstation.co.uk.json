@@ -1,1 +1,32 @@
-{"listens":[{"listen":"80"}],"proxy_server_name":"acc-pages.workstation.co.uk","access_log":"logs\/access.log","config":"c2VydmVyIHsKICAgICAgbGlzdGVuIDgwOyAgIyBMaXN0ZW4gb24gcG9ydCAoSFRUUCkKICAgICAgc2VydmVyX25hbWUgYWNjLXBhZ2VzLndvcmtzdGF0aW9uLmNvLnVrOyAgIyBZb3VyIGRvbWFpbiBuYW1lCiAgICAgIHJvb3QgL3Zhci93d3cvaHRtbDsgICMgRG9jdW1lbnQgcm9vdCBkaXJlY3RvcnkKICAgICAgaW5kZXggaW5kZXguaHRtbDsgICMgRGVmYXVsdCBpbmRleCBmaWxlcwogICAgICBhY2Nlc3NfbG9nIGxvZ3MvYWNjZXNzLmxvZzsgICMgQWNjZXNzIGxvZyBmaWxlIGxvY2F0aW9uCiAgICAgIGVycm9yX2xvZyBsb2dzL2Vycm9yLmxvZzsgICMgRXJyb3IgbG9nIGZpbGUgbG9jYXRpb24KCgoKICB9CgogIA==","root":"\/var\/www\/html","index":"index.html","config_status":false,"error_log":"logs\/error.log","custom_headers":{},"proxy_pass":"http:\/\/127.0.0.1:32158","cache_bypass_auth":false,"server_name":"acc-pages.workstation.co.uk","id":"host:acc-pages.workstation.co.uk","ssl_enabled":true,"created_at":1710374400,"ssl_staging":false,"cache_enabled":false,"match_cases":{},"ssl_email":"balinder.walia@gmail.com","ssl_auto_renew":true,"ssl_force_https":true,"profile_id":"prod"}
+{
+    "access_log": "logs/access.log",
+    "cache_bypass_auth": false,
+    "cache_enabled": false,
+    "config": "YzJWeWRtVnlJSHNLSUNBZ0lDQWdiR2x6ZEdWdUlEZ3dPeUFnSXlCTWFYTjBaVzRnYjI0Z2NHOXlkQ0FvU0ZSVVVDa0tJQ0FnSUNBZ2MyVnlkbVZ5WDI1aGJXVWdZV05qTFhCaFoyVnpMbmR2Y210emRHRjBhVzl1TG1OdkxuVnJPeUFnSXlCWmIzVnlJR1J2YldGcGJpQnVZVzFsQ2lBZ0lDQWdJSEp2YjNRZ0wzWmhjaTkzZDNjdmFIUnRiRHNnSUNNZ1JHOWpkVzFsYm5RZ2NtOXZkQ0JrYVhKbFkzUnZjbmtLSUNBZ0lDQWdhVzVrWlhnZ2FXNWtaWGd1YUhSdGJEc2dJQ01nUkdWbVlYVnNkQ0JwYm1SbGVDQm1hV3hsY3dvZ0lDQWdJQ0JoWTJObGMzTmZiRzluSUd4dlozTXZZV05qWlhOekxteHZaenNnSUNNZ1FXTmpaWE56SUd4dlp5Qm1hV3hsSUd4dlkyRjBhVzl1Q2lBZ0lDQWdJR1Z5Y205eVgyeHZaeUJzYjJkekwyVnljbTl5TG14dlp6c2dJQ01nUlhKeWIzSWdiRzluSUdacGJHVWdiRzlqWVhScGIyNEtDZ29LSUNCOUNnb2dJQT09",
+    "config_status": false,
+    "created_at": 1710374400,
+    "custom_headers": {},
+    "error_log": "logs/error.log",
+    "id": "host:acc-pages.workstation.co.uk",
+    "index": "index.html",
+    "listens": [
+        {
+            "listen": "80"
+        }
+    ],
+    "match_cases": {},
+    "pop_ids": [
+        "lon1",
+        "pop0"
+    ],
+    "profile_id": "prod",
+    "proxy_pass": "http://127.0.0.1:32158",
+    "proxy_server_name": "acc-pages.workstation.co.uk",
+    "root": "/var/www/html",
+    "server_name": "acc-pages.workstation.co.uk",
+    "ssl_auto_renew": true,
+    "ssl_email": "balinder.walia@gmail.com",
+    "ssl_enabled": true,
+    "ssl_force_https": true,
+    "ssl_staging": false
+}
