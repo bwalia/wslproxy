@@ -129,6 +129,17 @@ assert_false(Cidr.contains("bad/spec", "10.8.1.7"), "cached negative is stable")
 Cidr.reset_cache()
 assert_true(Cidr.contains("10.8.1.0/24", "10.8.1.7"), "correct after cache reset")
 
+-- nocache (bulk loaders such as the bot defense datacenter list) parses the
+-- same way but leaves the per-worker cache alone.
+Cidr.reset_cache()
+local nc = Cidr.parse_cidr("192.0.2.0/24", true)
+assert_true(nc and nc.network == Cidr.parse_ipv4("192.0.2.0") and nc.size == 256, "nocache parses")
+assert_true(Cidr.parse_cidr("not-a-cidr", true) == nil, "nocache rejects bad spec")
+assert_eq(Cidr.cache_size(), 0, "nocache leaves the cache empty")
+Cidr.parse_cidr("192.0.2.0/24")
+Cidr.parse_cidr("bad/spec")
+assert_eq(Cidr.cache_size(), 2, "default path caches positives and negatives")
+
 if failures > 0 then
     io.stderr:write(failures .. " failure(s)\n")
     os.exit(1)

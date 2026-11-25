@@ -11,7 +11,9 @@
 local M = {}
 
 -- Parsed CIDRs, keyed by spec string. Bounded by the number of distinct CIDRs
--- in the rule set, so it cannot grow with traffic.
+-- in the rule set, so it cannot grow with traffic. Bulk loaders (the bot
+-- defense datacenter list, up to 500k lines, re-read when it changes) pass
+-- nocache, or every list version would stay in each worker's heap.
 local cache = {}
 
 --- Parse a dotted-quad into a 32-bit integer.
@@ -47,14 +49,18 @@ end
 --- Parse "10.8.1.0/24", or a bare address treated as /32.
 ---
 --- @param spec string
+--- @param nocache boolean|nil  do not read or fill the per-worker cache
 --- @return table|nil  { network = number, size = number }
-function M.parse_cidr(spec)
+function M.parse_cidr(spec, nocache)
     if type(spec) ~= "string" then
         return nil
     end
     spec = spec:gsub("^%s*(.-)%s*$", "%1")
 
-    local cached = cache[spec]
+    local cached = nil
+    if not nocache then
+        cached = cache[spec]
+    end
     if cached ~= nil then
         -- `false` marks a spec already known to be unparseable.
         if cached == false then
@@ -71,7 +77,7 @@ function M.parse_cidr(spec)
     local prefix = tonumber(bits)
     local network = M.parse_ipv4(addr)
     if not network or not prefix or prefix < 0 or prefix > 32 or bits:match("^0%d") then
-        cache[spec] = false
+        if not nocache then cache[spec] = false end
         return nil
     end
 
@@ -79,7 +85,7 @@ function M.parse_cidr(spec)
     -- double, so the modulo below is exact across the whole IPv4 space.
     local size = 2 ^ (32 - prefix)
     local parsed = { network = network - (network % size), size = size }
-    cache[spec] = parsed
+    if not nocache then cache[spec] = parsed end
     return parsed
 end
 
@@ -125,6 +131,15 @@ function M.contains_any(specs, ip)
 end
 
 --- Drop cached parses. Used by tests; also safe to call after a config reload.
+--- Number of cached specs (tests).
+function M.cache_size()
+    local n = 0
+    for _ in pairs(cache) do
+        n = n + 1
+    end
+    return n
+end
+
 function M.reset_cache()
     cache = {}
 end

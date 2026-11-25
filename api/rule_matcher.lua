@@ -128,6 +128,27 @@ end
 
 -- ─── Country matching ───────────────────────────────────────────────────────
 
+
+-- One IP2Location reader per worker and DB path. It was built per request
+-- (IP2location:new opens the 167 MB BIN and allocates a ~60-field table and
+-- a stdio buffer, and nothing closed it), so every country rule left an open
+-- file handle for the GC to find. Lookups seek + read; nothing is cached in
+-- the heap, so one shared reader is enough.
+local ip2loc_readers = {}
+
+local function get_ip2location(path)
+    local r = ip2loc_readers[path]
+    if r == nil then
+        local ok, obj = pcall(IP2location.new, IP2location, path)
+        r = ok and obj or false
+        if not r then
+            ngx.log(ngx.WARN, "rule_matcher: cannot open IP2Location DB ", path, ": ", tostring(obj))
+        end
+        ip2loc_readers[path] = r
+    end
+    return r or nil
+end
+
 --- Evaluate country condition.
 --- Returns {pass=bool}
 local function match_country(rules, settings)
@@ -144,8 +165,8 @@ local function match_country(rules, settings)
     local ip2loc_path = (IP2LocationPath and IP2LocationPath ~= "" and IP2LocationPath)
         or settings.ip2location_path
         or "/usr/local/openresty/nginx/IP2LOCATION-LITE-DB11.IPV6.BIN"
-    local ip2loc = IP2location:new(ip2loc_path)
-    local result = ip2loc:get_all(req_addr)
+    local ip2loc = get_ip2location(ip2loc_path)
+    local result = ip2loc and ip2loc:get_all(req_addr) or {}
     local country = result.country_short or ""
 
     if country_key == "not_equals" then
