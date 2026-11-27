@@ -4043,6 +4043,9 @@ end
 -- Empty/missing ai_endpoint falls back to the Mac Studio NodePort used by
 -- ollama.workstation.co.uk (not localhost — Ansible edges do not run Ollama).
 local DEFAULT_OLLAMA_ENDPOINT = "http://193.237.176.232:31434"
+-- Must be a tag that exists on that server: a bare "llama3.2" resolves to
+-- llama3.2:latest, which is not pulled there, so Ollama answers 404.
+local DEFAULT_OLLAMA_MODEL = "qwen3:4b-instruct-2507-q4_K_M"
 
 local function resolve_ollama_host(cfg)
     local host = cfg and cfg.ai_endpoint
@@ -4083,7 +4086,7 @@ local function handle_ai_analyze()
         '{"analysis": "...", "root_causes": ["..."], "recommendations": ["..."], "severity": "low|medium|high|critical", "related_patterns": ["..."]}'
 
     local ollama_host = resolve_ollama_host(settings)
-    local ollama_model = (settings and settings.ai_model) or "llama3.2"
+    local ollama_model = (settings and settings.ai_model) or DEFAULT_OLLAMA_MODEL
     local http = require("resty.http")
     local httpc = http.new()
     httpc:set_timeout(60000)
@@ -4123,6 +4126,32 @@ local function handle_ai_analyze()
                 }
             }))
         end
+    elseif res then
+        -- Ollama answered, but with an error (e.g. 404 model not found). Say
+        -- so instead of claiming the service is unreachable.
+        local ollama_err = res.body
+        local okb, eb = pcall(cjson.decode, res.body or "")
+        if okb and type(eb) == "table" and eb.error then ollama_err = eb.error end
+        ollama_err = tostring(ollama_err or ""):sub(1, 300)
+        local not_found = res.status == 404
+        ngx.status = 502
+        ngx.say(cjson.encode({
+            data = {
+                analysis = "AI service at " .. ollama_host .. " returned HTTP " .. res.status
+                    .. " for model '" .. ollama_model .. "': " .. ollama_err,
+                root_causes = {
+                    not_found and ("Model '" .. ollama_model .. "' is not installed on " .. ollama_host)
+                        or ("Ollama returned an error (HTTP " .. res.status .. ")"),
+                },
+                recommendations = not_found and {
+                    "Set settings.ai_model to an installed model (GET /api/ai/models lists them)",
+                    "Or pull it on the Ollama host: ollama pull " .. ollama_model,
+                } or {
+                    "Check the Ollama server logs on " .. ollama_host,
+                },
+                severity = "medium",
+            }
+        }))
     else
         ngx.status = 503
         ngx.say(cjson.encode({
@@ -4517,7 +4546,7 @@ local function handle_get_request(args, path)
 
     if path == "ai/models" then
         local ollama_host = resolve_ollama_host(settings)
-        local default_model = (settings and settings.ai_model) or "llama3.2"
+        local default_model = (settings and settings.ai_model) or DEFAULT_OLLAMA_MODEL
         local http = require("resty.http")
         local httpc = http.new()
         httpc:set_timeout(5000)
