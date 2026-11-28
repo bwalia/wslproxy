@@ -146,6 +146,38 @@ in git is now `data/` via `cmd/cp-sync-pop`.
 
 ---
 
+## CP → edge GitOps (lon1, mirrored to lon2) — 2026-11-28
+
+Nothing pushed CP to the POPs: `cp-sync-pop-to-git.yml` stops at its PR (main needs an approving review, which
+the workflow's token can't give), and `deploy-pop-config.yml` swaps whole trees with `rsync --delete`. A plan on
+2026-11-28 showed that swap would have deleted 8 live vhosts and 34 rules lon1 has but CP doesn't, and changed
+headers or routing on 92 vhosts.
+
+[`cp-edge-gitops.yml`](../../.github/workflows/cp-edge-gitops.yml) runs
+[`scripts/cp-edge-sync/cp_edge_sync.py`](../../scripts/cp-edge-sync/cp_edge_sync.py) on the in-cluster `k3s-linux`
+runners, record by record:
+
+| Trigger | Does |
+|---|---|
+| every 10 min, `repository_dispatch: cp-changed` | plan; **apply new vhosts and rules only**; wait until lon2 serves them |
+| dispatch `level=changes` (environment `edge-prod`, reviewer required) | also make edited vhosts/rules match CP (rule membership is merged, never replaced) |
+| dispatch `allow_delete` (environment `edge-prod`) | also delete what lon1 has and CP doesn't |
+
+- **lon2** is not written: pop0 mirrors lon1 every 5 minutes (`../edge-sync/README.md`); the job HTTP-probes pop0
+  until each new host is served there.
+- **Safety:** snapshot of lon1 `servers/` + `rules/` before every apply (`/opt/nginx/data/.backups/cp-edge-sync-<ts>.tgz`,
+  last 40 kept); atomic writes (owner 33); `openresty -t`; reload only when a vhost is new (auto-ssl learns
+  hostnames at worker start); unattended applies refuse more than 40 additions.
+- **Access:** secret `EDGE_SYNC_SSH_KEY`, on lon1 as
+  `from="193.237.176.232",restrict ssh-ed25519 … cp-edge-sync@wslproxy-ci` (office / k3s1 egress only);
+  `EDGE_SYNC_KNOWN_HOSTS` pins lon1's host key. Revoke by deleting that line from `/root/.ssh/authorized_keys`.
+- **Drift:** each run's summary lists what waits for a person. Fix it on CP (it is the source of truth), or accept
+  CP's version with `level=changes`.
+
+Local plan (read-only): `CP_API_USER=… CP_API_PASSWD=… python3 scripts/cp-edge-sync/cp_edge_sync.py plan`.
+
+---
+
 ## Edge guard (drift + "Host not configured" alarm)
 
 [`edge-guard.yml`](../../.github/workflows/edge-guard.yml) runs every 15 minutes
