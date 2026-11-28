@@ -1,0 +1,150 @@
+name: CP → edge (lon1, mirrored to lon2)
+
+# GitOps for the POPs: cp.pop0.uk is the source of truth; this puts it on lon1, and lon2 (pop0) mirrors lon1
+# every 5 minutes (wslproxy-edge-sync, infra/edge-sync/README.md). Record by record, never a tree swap:
+# scripts/cp-edge-sync/cp_edge_sync.py.
+#
+#   every 10 min / repository_dispatch cp-changed  → plan, then apply NEW vhosts and rules only
+#                                                    (a host added on CP is live within ~10 min, cert included)
+#   dispatch level=changes (environment edge-prod) → also make edited vhosts/rules match CP
+#   dispatch allow_delete  (environment edge-prod) → also remove what is on lon1 but not on CP
+#
+# Behaviour changes and deletes wait for a person: on 2026-11-28 lon1 and CP differed in 92 vhosts
+# (headers, routing) and lon1 had 8 vhosts + 34 rules CP doesn't know. Each run's summary lists them;
+# reconcile on CP (or accept CP's version with level=changes).
+#
+# Every apply snapshots lon1's servers/ and rules/ first (/opt/nginx/data/.backups/cp-edge-sync-<ts>.tgz,
+# last 40 kept). Edge guard (edge-guard.yml) keeps reporting drift independently.
+#
+# Other repos trigger it right after registering a vhost on CP:
+#   gh api repos/bwalia/wslproxy/dispatches -f event_type=cp-changed
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  repository_dispatch:
+    types: [cp-changed]
+  workflow_dispatch:
+    inputs:
+      level:
+        description: "adds = new vhosts/rules only; changes = also make edited records match CP"
+        type: choice
+        options: [adds, changes]
+        default: adds
+      allow_delete:
+        description: "Also delete vhosts/rules that are on lon1 but not on CP (backed up first)"
+        type: boolean
+        default: false
+      dry_run:
+        description: "Plan only"
+        type: boolean
+        default: false
+
+concurrency:
+  group: cp-edge-sync-lon1
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  CP_URL: https://cp.pop0.uk
+  EDGE: root@lon1.pop0.uk
+  MIRROR_IP: 85.190.106.189
+
+jobs:
+  # Unattended: plan, and apply additions only.
+  adds:
+    name: Plan + apply new records
+    if: github.event_name != 'workflow_dispatch' || (inputs.level == 'adds' && !inputs.allow_delete)
+    runs-on: k3s-linux   # in-cluster ARC set; egress 193.237.176.232
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          sparse-checkout: scripts/cp-edge-sync
+      # Dedicated key (secret EDGE_SYNC_SSH_KEY). On lon1 it is
+      #   from="193.237.176.232",restrict ssh-ed25519 … cp-edge-sync@wslproxy-ci
+      # i.e. only from the office / k3s1 egress address. lon1's host key is pinned (EDGE_SYNC_KNOWN_HOSTS).
+      - name: SSH key for lon1
+        env:
+          KEY: ${{ secrets.EDGE_SYNC_SSH_KEY }}
+          KNOWN: ${{ secrets.EDGE_SYNC_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          [ -n "${KEY:-}" ] && [ -n "${KNOWN:-}" ] || { echo "::error::EDGE_SYNC_SSH_KEY / EDGE_SYNC_KNOWN_HOSTS are not set"; exit 1; }
+          command -v ssh >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq openssh-client >/dev/null; }
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/id_ed25519 && chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$KNOWN" > ~/.ssh/known_hosts && chmod 644 ~/.ssh/known_hosts
+          printf 'Host lon1.pop0.uk\n  IdentityFile ~/.ssh/id_ed25519\n  StrictHostKeyChecking yes\n' > ~/.ssh/config
+      - name: Plan and apply additions
+        env:
+          CP_API_USER: ${{ secrets.CP_API_USER }}
+          CP_API_PASSWD: ${{ secrets.CP_API_PASSWD }}
+          DRY: ${{ inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          MODE=apply; [ "${DRY:-false}" = true ] && MODE=plan
+          rc=0
+          python3 -I scripts/cp-edge-sync/cp_edge_sync.py "$MODE" --level adds --wait-mirror 480 > plan.json || rc=$?
+          # 3 = plan has changes that wait for a person (already in the summary); not a failure.
+          [ "$rc" = 0 ] || [ "$rc" = 3 ] || exit "$rc"
+      - if: always()
+        run: rm -f ~/.ssh/id_ed25519
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cp-edge-plan-${{ github.run_id }}
+          path: plan.json
+          retention-days: 14
+
+  # Attended: behaviour changes and/or deletes, behind the edge-prod environment's reviewers.
+  changes:
+    name: Apply changes${{ inputs.allow_delete && ' + deletes' || '' }} (approved)
+    if: github.event_name == 'workflow_dispatch' && (inputs.level == 'changes' || inputs.allow_delete)
+    environment: edge-prod
+    runs-on: k3s-linux
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          sparse-checkout: scripts/cp-edge-sync
+      # Dedicated key (secret EDGE_SYNC_SSH_KEY). On lon1 it is
+      #   from="193.237.176.232",restrict ssh-ed25519 … cp-edge-sync@wslproxy-ci
+      # i.e. only from the office / k3s1 egress address. lon1's host key is pinned (EDGE_SYNC_KNOWN_HOSTS).
+      - name: SSH key for lon1
+        env:
+          KEY: ${{ secrets.EDGE_SYNC_SSH_KEY }}
+          KNOWN: ${{ secrets.EDGE_SYNC_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          [ -n "${KEY:-}" ] && [ -n "${KNOWN:-}" ] || { echo "::error::EDGE_SYNC_SSH_KEY / EDGE_SYNC_KNOWN_HOSTS are not set"; exit 1; }
+          command -v ssh >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq openssh-client >/dev/null; }
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/id_ed25519 && chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$KNOWN" > ~/.ssh/known_hosts && chmod 644 ~/.ssh/known_hosts
+          printf 'Host lon1.pop0.uk\n  IdentityFile ~/.ssh/id_ed25519\n  StrictHostKeyChecking yes\n' > ~/.ssh/config
+      - name: Apply
+        env:
+          CP_API_USER: ${{ secrets.CP_API_USER }}
+          CP_API_PASSWD: ${{ secrets.CP_API_PASSWD }}
+          LEVEL: ${{ inputs.level }}
+          DEL: ${{ inputs.allow_delete }}
+          DRY: ${{ inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          MODE=apply; [ "${DRY:-false}" = true ] && MODE=plan
+          ARGS=(--level "$LEVEL" --wait-mirror 480 --max-adds 500)
+          [ "$DEL" = true ] && ARGS+=(--allow-delete)
+          rc=0
+          python3 -I scripts/cp-edge-sync/cp_edge_sync.py "$MODE" "${ARGS[@]}" > plan.json || rc=$?
+          [ "$rc" = 0 ] || [ "$rc" = 3 ] || exit "$rc"
+      - if: always()
+        run: rm -f ~/.ssh/id_ed25519
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cp-edge-apply-${{ github.run_id }}
+          path: plan.json
+          retention-days: 30
